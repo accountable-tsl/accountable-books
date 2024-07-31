@@ -4,5 +4,7 @@
     "target": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true
-  }
+  },
+  "include": ["**/*.ts", "knexfile.js", "seeds/01_roles.js", "seeds/02_users.js"],
+  "exclude": ["node_modules"]
 }
