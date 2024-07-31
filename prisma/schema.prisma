@@ -18,7 +18,7 @@ model Role {
   id Int @id @default(autoincrement())
   name String @unique
   description String?
-  users User[] @relation("UserRole")
+  users User[] @relation(name: "UserRole")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -32,14 +32,14 @@ model User {
   email String @unique
   password String
   phoneNumber String?
-  status String
-  role Role @relation("UserRole", fields: [roleId], references: [id])
+  status String @default("active")
+  role Role @relation(name:"UserRole", fields: [roleId], references: [id])
   roleId Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
   profileImage String?
-  companies UserCompany[] @relation("UserCompanies")
+  companies UserCompany[] @relation(name: "UserCompanies")
 
   @@index([email, status])
 }
@@ -69,7 +69,7 @@ model UserCompany {
   role String
   joinedAt DateTime  @default(now())
   user User @relation("UserCompanies", fields: [userId], references: [id])
-  company Company @relation("CompanyUsers", fields: [companyId], references: [id])
+  company Company @relation(name: "CompanyUsers", fields: [companyId], references: [id])
   @@id([userId, companyId])
 }
 
