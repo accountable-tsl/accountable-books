@@ -6,7 +6,7 @@
 
 ## Technology Stack
 
-- **Backend**: Node.js/Express (with TypeScript), PostgreSQL
+- **Backend**: Node.js, Express, TypeScript, Prisma, PostgreSQL
 
 ## Getting Started
 
@@ -34,4 +34,36 @@ cd accountable-api
 
 ```
 npm install
+```
+
+4. **Set up the environment variables**
+
+- Copy the `.env.sample` file to `.env` and fill in the required settings.
+
+5. **Database Configuration**
+
+- Create your PostgreSQL database
+
+- Generate prisma client
+
+```
+npx prisma generate
+```
+
+- Run Database Migrations
+
+```
+npx prisma migrate dev --name init
+```
+
+- Seed the database
+
+```
+npm run seed
+```
+
+6. **Start the server**
+
+```
+tsx index.ts
 ```
