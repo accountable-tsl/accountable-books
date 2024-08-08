@@ -1,12 +1,17 @@
 @use "./partials/colors" as *;
 @use "./partials/mixins" as *;
-@use "./partials/resets" as *;
 @use "./partials/variables" as *;
 @use "./partials/typography" as *;
 
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 body {
   font-family: "IBMPlexSans", sans-serif;
