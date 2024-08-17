@@ -6,34 +6,50 @@
   justify-content: center;
   padding: 0.5rem 1rem;
   border: none;
+  border-radius: 0.5rem;
   cursor: pointer;
   transition: background-color 0.3s ease, color 0.3s ease,
     border-color 0.3s ease;
+  gap: 0.5rem;
 
-  &__icon-left {
-    margin-right: 8px;
+  // /* Icon positions */
+  // &__icon-left {
+  //   margin-right: 0.5rem;
+  // }
+
+  // &__icon-right {
+  //   margin-left: 0.5rem;
+  // }
+
+  /* Icon-only buttons (circular buttons) */
+  &--icon-only {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  &__icon-right {
-    margin-left: 8px;
-  }
-
+  /* Disabled button */
   &__disabled {
     cursor: not-allowed;
     opacity: 0.6;
     pointer-events: none;
   }
 
+  /* Solid variant styles */
   &__solid {
     &--primary {
       background-color: $button-primary;
       color: $soft-white;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         background-color: darken($button-primary, 10%);
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         background-color: lighten($button-primary, 10%);
       }
     }
@@ -42,11 +58,11 @@
       background-color: $button-secondary;
       color: $soft-white;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         background-color: darken($button-secondary, 10%);
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         background-color: lighten($button-secondary, 10%);
       }
     }
@@ -55,11 +71,11 @@
       background-color: $button-success;
       color: $soft-white;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         background-color: darken($button-success, 10%);
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         background-color: lighten($button-success, 10%);
       }
     }
@@ -68,16 +84,17 @@
       background-color: $button-danger;
       color: $soft-white;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         background-color: darken($button-danger, 10%);
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         background-color: lighten($button-danger, 10%);
       }
     }
   }
 
+  /* Outlined variant styles */
   &__outlined {
     background-color: transparent;
     border: 2px solid;
@@ -86,12 +103,12 @@
       border-color: $button-primary;
       color: $button-primary;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         background-color: $button-primary;
         color: $soft-white;
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         background-color: lighten($button-primary, 10%);
         color: $soft-white;
       }
@@ -101,12 +118,12 @@
       border-color: $button-secondary;
       color: $button-secondary;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         background-color: $button-secondary;
         color: $soft-white;
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         background-color: lighten($button-secondary, 10%);
         color: $soft-white;
       }
@@ -116,12 +133,12 @@
       border-color: $button-success;
       color: $button-success;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         background-color: $button-success;
         color: $soft-white;
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         background-color: lighten($button-success, 10%);
         color: $soft-white;
       }
@@ -131,32 +148,33 @@
       border-color: $button-danger;
       color: $button-danger;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         background-color: $button-danger;
         color: $soft-white;
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         background-color: lighten($button-danger, 10%);
         color: $soft-white;
       }
     }
   }
 
+  /* Text variant styles */
   &__text {
     background-color: transparent;
     border: none;
-    padding: 0;
     color: inherit;
 
     &--primary {
       color: $button-primary;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         color: darken($button-primary, 10%);
+        text-decoration: underline;
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         color: lighten($button-primary, 10%);
       }
     }
@@ -164,11 +182,12 @@
     &--secondary {
       color: $button-secondary;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         color: darken($button-secondary, 10%);
+        text-decoration: underline;
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         color: lighten($button-secondary, 10%);
       }
     }
@@ -176,11 +195,12 @@
     &--success {
       color: $button-success;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         color: darken($button-success, 10%);
+        text-decoration: underline;
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         color: lighten($button-success, 10%);
       }
     }
@@ -188,61 +208,13 @@
     &--danger {
       color: $button-danger;
 
-      &:hover:not(.button__disabled) {
+      &:hover {
         color: darken($button-danger, 10%);
+        text-decoration: underline;
       }
 
-      &:active:not(.button__disabled) {
+      &:active {
         color: lighten($button-danger, 10%);
-      }
-    }
-  }
-
-  &--icon {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-
-    &--primary {
-      color: $button-primary;
-
-      &:hover:not(.button__disabled) {
-        background-color: $button-primary;
-        color: $soft-white;
-        border-radius: 50%;
-      }
-    }
-
-    &--secondary {
-      color: $button-secondary;
-
-      &:hover:not(.button__disabled) {
-        background-color: $button-secondary;
-        color: $soft-white;
-        border-radius: 50%;
-      }
-    }
-
-    &--success {
-      color: $button-success;
-
-      &:hover:not(.button__disabled) {
-        background-color: $button-success;
-        color: $soft-white;
-        border-radius: 50%;
-      }
-    }
-
-    &--danger {
-      color: $button-danger;
-
-      &:hover:not(.button__disabled) {
-        background-color: $button-danger;
-        color: $soft-white;
-        border-radius: 50%;
       }
     }
   }
