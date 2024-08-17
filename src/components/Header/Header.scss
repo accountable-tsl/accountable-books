@@ -1,7 +1,14 @@
 .header {
   @apply flex justify-between gap-10 lg:gap-20;
 
-  &__left {
-    @apply gap-4 items-center flex-shrink-0;
+  &-left {
+    @apply flex gap-4 items-center flex-shrink-0;
+
+    &__icon {
+    }
+
+    &__logo {
+      @apply h-6;
+    }
   }
 }
