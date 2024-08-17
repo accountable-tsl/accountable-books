@@ -1,8 +1,9 @@
 import "./Button.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import { ComponentProps } from "react";
 
-interface ButtonProps {
+interface ButtonProps extends ComponentProps<"button"> {
   variant?: "solid" | "outlined" | "text";
   color?: "primary" | "secondary" | "success" | "danger";
   icon?: IconDefinition | string | JSX.Element; // Supports FontAwesome or JSX elements
@@ -22,6 +23,7 @@ const Button: React.FC<ButtonProps> = ({
   onClick = () => {},
   customClass = "",
   text = "Submit",
+  ...props
 }) => {
   const className = `button button__${variant} button__${variant}--${color} ${
     icon && !text ? "button--icon-only" : ""
@@ -38,6 +40,7 @@ const Button: React.FC<ButtonProps> = ({
       onClick={onClick}
       disabled={disabled}
       type="button"
+      {...props}
     >
       {icon && iconPosition === "left" && (
         <span className="button__icon-left">
