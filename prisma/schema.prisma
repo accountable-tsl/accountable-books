@@ -58,6 +58,7 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users UserCompany[] @relation("CompanyUsers")
+  coa COA[]
 
   @@index([name])
   @@index([country])
@@ -87,4 +88,26 @@ model CountryCode {
   id Int @id @default(autoincrement())
   code String @unique
   country String
+}
+
+model COA {
+  id                 Int       @id @default(autoincrement())
+  code               String
+  accountName        String
+  accountClass       String
+  element            String
+  financialStatement String
+  debitOrCredit      String
+  sign               String
+  description        String
+  companyId          Int       @relation(fields: [companyId], references: [id])
+  company            Company   @relation(fields: [companyId], references: [id])
+  templateId         Int?      @relation(fields: [templateId], references: [id])
+  template           COATemplate? @relation(fields: [templateId], references: [id])
+}
+
+model COATemplate {
+  id             Int       @id @default(autoincrement())
+  templateName   String
+  coa            COA[]     // Predefined COA entries for the template
 }
