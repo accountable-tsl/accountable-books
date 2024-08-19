@@ -71,6 +71,7 @@
 
     &__active {
       background-color: rgba($color: $primary, $alpha: 0.05);
+      font-weight: 500;
     }
 
     &:hover {

@@ -18,6 +18,7 @@ import {
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import { useSideBarContext } from "../../contexts/SideBarContext";
+import { Link } from "react-router-dom";
 
 export default function SideBar() {
   const { sideBarType } = useSideBarContext();
@@ -34,19 +35,27 @@ export default function SideBar() {
       >
         <div className="sidebar-top">
           <SmallSideBarItem isActive Icon={House} title="Home" url="/" />
-          <SmallSideBarItem Icon={Calculator} title="Accounting" url="/" />
+          <SmallSideBarItem
+            Icon={Calculator}
+            title="Accounting"
+            url="/accounting"
+          />
           {isAdmin && (
-            <SmallSideBarItem Icon={Briefcase} title="Workspace
-            " url="/" />
+            <SmallSideBarItem
+              Icon={Briefcase}
+              title="Workspace
+            "
+              url="/accounting/workspace"
+            />
           )}
-          <SmallSideBarItem Icon={Scale} title="Tax" url="/" />
-          <SmallSideBarItem Icon={ChartPie} title="Reports" url="/" />
-          <SmallSideBarItem icon={faComment} title="Messages" url="/" />
+          <SmallSideBarItem Icon={Scale} title="Tax" url="/tax" />
+          <SmallSideBarItem Icon={ChartPie} title="Reports" url="/reports" />
+          <SmallSideBarItem icon={faComment} title="Messages" url="/messages" />
         </div>
         <div className="sidebar-bottom">
-          <SmallSideBarItem Icon={LogOut} title="Log out" url="/" />
+          <SmallSideBarItem Icon={LogOut} title="Log out" url="/logout" />
           <hr />
-          <SmallSideBarItem icon={faUser} title="FirstName" url="/" />
+          <SmallSideBarItem icon={faUser} title="FirstName" url="/profile" />
         </div>
       </aside>
       <aside
@@ -59,20 +68,32 @@ export default function SideBar() {
         <div className="sidebar-top">
           <LargeSideBarSection>
             <LargeSideBarItem isActive Icon={House} title="Home" url="/" />
-            <LargeSideBarItem Icon={Calculator} title="Accounting" url="/" />
+            <LargeSideBarItem
+              Icon={Calculator}
+              title="Accounting"
+              url="/accounting"
+            />
             {isAdmin && (
-              <LargeSideBarItem Icon={Briefcase} title="Workspace" url="/" />
+              <LargeSideBarItem
+                Icon={Briefcase}
+                title="Workspace"
+                url="/accounting/workspace"
+              />
             )}
-            <LargeSideBarItem Icon={Scale} title="Tax" url="/" />
-            <LargeSideBarItem Icon={ChartPie} title="Reports" url="/" />
-            <LargeSideBarItem icon={faComment} title="Messages" url="/" />
+            <LargeSideBarItem Icon={Scale} title="Tax" url="/tax" />
+            <LargeSideBarItem Icon={ChartPie} title="Reports" url="/reports" />
+            <LargeSideBarItem
+              icon={faComment}
+              title="Messages"
+              url="/messages"
+            />
           </LargeSideBarSection>
         </div>
         <div className="sidebar-bottom">
           <LargeSideBarSection>
-            <LargeSideBarItem Icon={LogOut} title="Log out" url="/" />
+            <LargeSideBarItem Icon={LogOut} title="Log out" url="/logout" />
             <hr />
-            <LargeSideBarItem icon={faUser} title="FirstName" url="/" />
+            <LargeSideBarItem icon={faUser} title="FirstName" url="/profile" />
           </LargeSideBarSection>
         </div>
       </aside>
@@ -96,8 +117,8 @@ function SmallSideBarItem({
   isActive = false,
 }: SmallSideBarItemProps) {
   return (
-    <a
-      href={url}
+    <Link
+      to={url}
       className={`sidebar-item sidebar-item__sm ${
         isActive ? "sidebar-item__active" : undefined
       }`}
@@ -113,7 +134,7 @@ function SmallSideBarItem({
           />
         ))}
       <div className="sidebar-text">{title}</div>
-    </a>
+    </Link>
   );
 }
 
@@ -166,8 +187,8 @@ function LargeSideBarItem({
   isActive = false,
 }: LargeSideBarItemProps) {
   return (
-    <a
-      href={url}
+    <Link
+      to={url}
       className={`sidebar-item sidebar-item__lg ${
         isActive ? "sidebar-item__active" : undefined
       }`}
@@ -183,6 +204,6 @@ function LargeSideBarItem({
           />
         ))}
       <div className="sidebar-text">{title}</div>
-    </a>
+    </Link>
   );
 }

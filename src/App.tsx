@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Header from "./components/Header/Header";
 import SideBar from "./components/SideBar/SideBar";
 import SideBarProvider from "./contexts/SideBarContext";
+import Home from "./pages-users/Home/Home";
 
 function App() {
   return (
@@ -12,7 +13,9 @@ function App() {
           <main className="main">
             <SideBar />
             <section className="body">
-              <Routes></Routes>
+              <Routes>
+                <Route path="/" element={<Home />} />
+              </Routes>
             </section>
           </main>
         </div>
