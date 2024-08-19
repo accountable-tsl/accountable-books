@@ -28,3 +28,7 @@ body {
 .main {
   @apply grid grid-cols-[auto,1fr] overflow-hidden grow;
 }
+
+.body {
+  border-left: 1px solid rgba($neutral-gray, 0.1);
+}

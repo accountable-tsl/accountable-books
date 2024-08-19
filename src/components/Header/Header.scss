@@ -2,7 +2,7 @@
 @use "../../styles/partials/mixins" as *;
 
 .header {
-  @apply flex justify-between gap-10 lg:gap-20 items-center px-4 py-2 md:pr-10;
+  @apply flex justify-between gap-10 lg:gap-20 items-center px-4 py-2 md:pr-10 shadow-sm;
   border-left: 2px solid $muted-orange;
 
   &-left {

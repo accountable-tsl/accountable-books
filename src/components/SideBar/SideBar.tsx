@@ -18,51 +18,51 @@ export default function SideBar() {
   return (
     <div className="sidebar">
       {/* {sideBarType === "small" ? ( */}
-        <aside
-          className={`sidebar-container ${
-            sideBarType === "small"
-              ? "sidebar-container__sm sidebar-container__sm-open"
-              : "sidebar-container__sm sidebar-container__sm-close"
-          }`}
-        >
-          <div className="sidebar-top">
-            <SmallSideBarItem isActive Icon={House} title="Home" url="/" />
-            <SmallSideBarItem Icon={Calculator} title="Accounting" url="/" />
-            <SmallSideBarItem Icon={Scale} title="Tax" url="/" />
-            <SmallSideBarItem Icon={ChartPie} title="Reports" url="/" />
-            <SmallSideBarItem icon={faComment} title="Messages" url="/" />
-          </div>
-          <div className="sidebar-bottom">
-            <SmallSideBarItem Icon={LogOut} title="Log out" url="/" />
-            <hr />
-            <SmallSideBarItem icon={faUser} title="FirstName" url="/" />
-          </div>
-        </aside>
+      <aside
+        className={`sidebar-container ${
+          sideBarType === "small"
+            ? "sidebar-container__sm sidebar-container__sm-open"
+            : "sidebar-container__sm sidebar-container__sm-close"
+        }`}
+      >
+        <div className="sidebar-top">
+          <SmallSideBarItem isActive Icon={House} title="Home" url="/" />
+          <SmallSideBarItem Icon={Calculator} title="Accounting" url="/" />
+          <SmallSideBarItem Icon={Scale} title="Tax" url="/" />
+          <SmallSideBarItem Icon={ChartPie} title="Reports" url="/" />
+          <SmallSideBarItem icon={faComment} title="Messages" url="/" />
+        </div>
+        <div className="sidebar-bottom">
+          <SmallSideBarItem Icon={LogOut} title="Log out" url="/" />
+          <hr />
+          <SmallSideBarItem icon={faUser} title="FirstName" url="/" />
+        </div>
+      </aside>
       {/* ) : ( */}
-        <aside
-          className={`sidebar-container ${
-            sideBarType === "large"
-              ? "sidebar-container__lg sidebar-container__lg-open"
-              : "sidebar-container__lg sidebar-container__lg-close"
-          }`}
-        >
-          <div className="sidebar-top">
-            <LargeSideBarSection>
-              <LargeSideBarItem isActive Icon={House} title="Home" url="/" />
-              <LargeSideBarItem Icon={Calculator} title="Accounting" url="/" />
-              <LargeSideBarItem Icon={Scale} title="Tax" url="/" />
-              <LargeSideBarItem Icon={ChartPie} title="Reports" url="/" />
-              <LargeSideBarItem icon={faComment} title="Messages" url="/" />
-            </LargeSideBarSection>
-          </div>
-          <div className="sidebar-bottom">
-            <LargeSideBarSection>
-              <LargeSideBarItem Icon={LogOut} title="Log out" url="/" />
-              <hr />
-              <LargeSideBarItem icon={faUser} title="FirstName" url="/" />
-            </LargeSideBarSection>
-          </div>
-        </aside>
+      <aside
+        className={`sidebar-container ${
+          sideBarType === "large"
+            ? "sidebar-container__lg sidebar-container__lg-open"
+            : "sidebar-container__lg sidebar-container__lg-close"
+        }`}
+      >
+        <div className="sidebar-top">
+          <LargeSideBarSection>
+            <LargeSideBarItem isActive Icon={House} title="Home" url="/" />
+            <LargeSideBarItem Icon={Calculator} title="Accounting" url="/" />
+            <LargeSideBarItem Icon={Scale} title="Tax" url="/" />
+            <LargeSideBarItem Icon={ChartPie} title="Reports" url="/" />
+            <LargeSideBarItem icon={faComment} title="Messages" url="/" />
+          </LargeSideBarSection>
+        </div>
+        <div className="sidebar-bottom">
+          <LargeSideBarSection>
+            <LargeSideBarItem Icon={LogOut} title="Log out" url="/" />
+            <hr />
+            <LargeSideBarItem icon={faUser} title="FirstName" url="/" />
+          </LargeSideBarSection>
+        </div>
+      </aside>
       {/* )} */}
     </div>
   );
