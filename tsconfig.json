@@ -3,8 +3,16 @@
     "module": "ESNext",
     "target": "ESNext",
     "moduleResolution": "Bundler",
-    "strict": true
+    "strict": true,
+    "paths": {
+      "@prisma/client": ["./prisma/client"]
+    }
   },
-  "include": ["**/*.ts", "knexfile.js", "seeds/01_roles.js", "seeds/02_users.js"],
+  "include": [
+    "**/*.ts",
+    "knexfile.js",
+    "seeds/01_roles.js",
+    "seeds/02_users.js"
+  ],
   "exclude": ["node_modules"]
 }

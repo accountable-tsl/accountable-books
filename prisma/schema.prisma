@@ -58,7 +58,7 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users UserCompany[] @relation("CompanyUsers")
-  coa COA[]
+  coa COA[] @relation("CompanyCOA")
 
   @@index([name])
   @@index([country])
@@ -90,24 +90,73 @@ model CountryCode {
   country String
 }
 
+enum AccountElement {
+  asset
+  liabilities
+  equity
+  revenue
+  expense
+}
+
+enum AccountType {
+  current_assets
+  noncurrent_assets
+  fixed_assets
+  bank
+  current_liabilities
+  noncurrent_liabilities
+  revenue
+  income
+  other_income
+  finance_income
+  cost_of_sales
+  operating_expenses
+  noncash_charges
+  depreciation
+  amortisation
+  finance_costs
+  tax_expense
+  equity
+}
+
+enum FinancialStatement {
+  balance_sheet
+  income_statement
+}
+
+enum DebitCredit {
+  debit
+  credit
+}
+
 model COA {
-  id                 Int       @id @default(autoincrement())
-  code               String
-  accountName        String
-  accountClass       String
-  element            String
-  financialStatement String
-  debitOrCredit      String
-  sign               String
-  description        String
-  companyId          Int       @relation(fields: [companyId], references: [id])
-  company            Company   @relation(fields: [companyId], references: [id])
-  templateId         Int?      @relation(fields: [templateId], references: [id])
-  template           COATemplate? @relation(fields: [templateId], references: [id])
+  id Int @id @default(autoincrement())
+  accountCode String?
+  accountName String
+  accountType AccountType
+  element AccountElement
+  financialStatement FinancialStatement
+  debitOrCredit DebitCredit?
+  sign String?
+  description String?
+  isActive Boolean @default(true)
+  balance Decimal @default(0)
+  companyId  Int
+  company Company @relation(name: "CompanyCOA", fields: [companyId], references: [id])
+  templateId Int?
+  template COATemplate? @relation(name: "TemplateCOA", fields: [templateId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountName, companyId])
+  @@unique([accountCode, companyId])
+  @@index([companyId])
 }
 
 model COATemplate {
-  id             Int       @id @default(autoincrement())
-  templateName   String
-  coa            COA[]     // Predefined COA entries for the template
+  id Int @id @default(autoincrement())
+  templateName String
+  coa COA[] @relation("TemplateCOA")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
