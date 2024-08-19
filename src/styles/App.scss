@@ -1,0 +1,34 @@
+@use "./partials/colors" as *;
+@use "./partials/mixins" as *;
+@use "./partials/variables" as *;
+@use "./partials/typography" as *;
+
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "IBMPlexSans", sans-serif;
+  color: $text;
+  background-color: $background-primary;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main {
+  @apply grid grid-cols-[auto,1fr] overflow-hidden grow;
+}
+
+.body {
+  border-left: 1px solid rgba($neutral-gray, 0.1);
+}

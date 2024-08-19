@@ -1,0 +1,46 @@
+// Core Colors
+$deep-navy: #001f3f; // Primary color for branding, headers, buttons
+$sky-blue: #0074d9; // Secondary brand color for highlights, hover effects
+$slate-gray: #333333; // Text, icons, neutral UI elements
+
+// Accent Colors
+$bright-mint: #2ecc71; // Success indicators, secondary buttons, positive outcomes
+$sunset-orange: #ff851b; // Attention-grabbing areas like CTA buttons or highlights
+
+// Error, Warning, Informational Colors
+$error-red: #ff4136; // Error states, critical alerts
+$warning-yellow: #ffdc00; // Warning messages, caution
+$info-blue: #39cccc; // Informational messages, neutral alerts
+
+// Secondary Colors
+$soft-white: #f4f4f4; // Backgrounds, input fields, neutral areas
+$silver-gray: #dddddd; // Background dividers, lines, muted text
+
+// Tertiary Colors
+$soft-sky: #b3e5fc; // Secondary icons, background areas, subtle elements
+$pale-mint: #a3e4d7; // Charts, notifications, light background usage
+$muted-orange: #ffcc99; // Charts, background areas with warmth
+
+// Backgrounds
+$background-primary: $soft-white;
+$background-secondary: $silver-gray;
+$background-tertiary: $soft-sky;
+$background-mint: $pale-mint;
+$background-warm: $muted-orange;
+
+$primary: $deep-navy;
+$secondary: $sky-blue;
+$success: $bright-mint;
+$warning: $warning-yellow;
+$danger: $error-red;
+$error: $error-red;
+$link: $sky-blue;
+$info: $info-blue;
+$neutral-white: $soft-white;
+$neutral-gray: $silver-gray;
+$stroke: $silver-gray;
+$border: $silver-gray;
+
+$text: $slate-gray;
+$white: #fdfdff;
+$black: #0a0a0a;

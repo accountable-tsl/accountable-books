@@ -1,0 +1,227 @@
+@use "../../styles/partials/colors" as *;
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease;
+  gap: 0.5rem;
+
+  /* Disabled button */
+  &__disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* Solid variant styles */
+  &__solid {
+    &--primary {
+      background-color: $primary;
+      color: $soft-white;
+
+      &:hover {
+        background-color: darken($primary, 10%);
+      }
+
+      &:active {
+        background-color: lighten($primary, 10%);
+      }
+    }
+
+    &--secondary {
+      background-color: $secondary;
+      color: $soft-white;
+
+      &:hover {
+        background-color: darken($secondary, 10%);
+      }
+
+      &:active {
+        background-color: lighten($secondary, 10%);
+      }
+    }
+
+    &--success {
+      background-color: $success;
+      color: $soft-white;
+
+      &:hover {
+        background-color: darken($success, 10%);
+      }
+
+      &:active {
+        background-color: lighten($success, 10%);
+      }
+    }
+
+    &--danger {
+      background-color: $danger;
+      color: $soft-white;
+
+      &:hover {
+        background-color: darken($danger, 10%);
+      }
+
+      &:active {
+        background-color: lighten($danger, 10%);
+      }
+    }
+  }
+
+  /* Outlined variant styles */
+  &__outlined {
+    background-color: transparent;
+    border: 1px solid;
+
+    &--primary {
+      border-color: $primary;
+      color: $primary;
+
+      &:hover {
+        background-color: $primary;
+        color: $soft-white;
+      }
+
+      &:active {
+        background-color: lighten($primary, 10%);
+        color: $soft-white;
+      }
+    }
+
+    &--secondary {
+      border-color: $secondary;
+      color: $secondary;
+
+      &:hover {
+        background-color: $secondary;
+        color: $soft-white;
+      }
+
+      &:active {
+        background-color: lighten($secondary, 10%);
+        color: $soft-white;
+      }
+    }
+
+    &--success {
+      border-color: $success;
+      color: $success;
+
+      &:hover {
+        background-color: $success;
+        color: $soft-white;
+      }
+
+      &:active {
+        background-color: lighten($success, 10%);
+        color: $soft-white;
+      }
+    }
+
+    &--danger {
+      border-color: $danger;
+      color: $danger;
+
+      &:hover {
+        background-color: $danger;
+        color: $soft-white;
+      }
+
+      &:active {
+        background-color: lighten($danger, 10%);
+        color: $soft-white;
+      }
+    }
+  }
+
+  /* Text variant styles */
+  &__text {
+    background-color: transparent;
+    border: none;
+    color: inherit;
+
+    &--primary {
+      color: $primary;
+
+      &:hover {
+        color: darken($primary, 10%);
+        text-decoration: underline;
+      }
+
+      &:active {
+        color: lighten($primary, 10%);
+      }
+    }
+
+    &--secondary {
+      color: $secondary;
+
+      &:hover {
+        color: darken($secondary, 10%);
+        text-decoration: underline;
+      }
+
+      &:active {
+        color: lighten($secondary, 10%);
+      }
+    }
+
+    &--success {
+      color: $success;
+
+      &:hover {
+        color: darken($success, 10%);
+        text-decoration: underline;
+      }
+
+      &:active {
+        color: lighten($success, 10%);
+      }
+    }
+
+    &--danger {
+      color: $danger;
+
+      &:hover {
+        color: darken($danger, 10%);
+        text-decoration: underline;
+      }
+
+      &:active {
+        color: lighten($danger, 10%);
+      }
+    }
+  }
+
+  /* Icon-only buttons (circular buttons) */
+  &__icon {
+    &-only {
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: transparent;
+
+      &:hover {
+        background-color: lighten($primary, 75%);
+      }
+    }
+
+    &-left {
+      background-color: transparent;
+    }
+
+    &-right {
+      background-color: transparent;
+    }
+  }
+}
