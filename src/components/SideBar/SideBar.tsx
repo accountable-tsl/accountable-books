@@ -1,6 +1,13 @@
 import { Children, ElementType, ReactNode, useState } from "react";
 import "./SideBar.scss";
-import { Calculator, ChartPie, House, LogOut, Scale } from "lucide-react";
+import {
+  Briefcase,
+  Calculator,
+  ChartPie,
+  House,
+  LogOut,
+  Scale,
+} from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { faComment } from "@fortawesome/free-regular-svg-icons";
@@ -14,10 +21,10 @@ import { useSideBarContext } from "../../contexts/SideBarContext";
 
 export default function SideBar() {
   const { sideBarType } = useSideBarContext();
+  const [isAdmin, setIsAdmin] = useState(true);
 
   return (
     <div className="sidebar">
-      {/* {sideBarType === "small" ? ( */}
       <aside
         className={`sidebar-container ${
           sideBarType === "small"
@@ -28,6 +35,10 @@ export default function SideBar() {
         <div className="sidebar-top">
           <SmallSideBarItem isActive Icon={House} title="Home" url="/" />
           <SmallSideBarItem Icon={Calculator} title="Accounting" url="/" />
+          {isAdmin && (
+            <SmallSideBarItem Icon={Briefcase} title="Workspace
+            " url="/" />
+          )}
           <SmallSideBarItem Icon={Scale} title="Tax" url="/" />
           <SmallSideBarItem Icon={ChartPie} title="Reports" url="/" />
           <SmallSideBarItem icon={faComment} title="Messages" url="/" />
@@ -38,7 +49,6 @@ export default function SideBar() {
           <SmallSideBarItem icon={faUser} title="FirstName" url="/" />
         </div>
       </aside>
-      {/* ) : ( */}
       <aside
         className={`sidebar-container ${
           sideBarType === "large"
@@ -50,6 +60,9 @@ export default function SideBar() {
           <LargeSideBarSection>
             <LargeSideBarItem isActive Icon={House} title="Home" url="/" />
             <LargeSideBarItem Icon={Calculator} title="Accounting" url="/" />
+            {isAdmin && (
+              <LargeSideBarItem Icon={Briefcase} title="Workspace" url="/" />
+            )}
             <LargeSideBarItem Icon={Scale} title="Tax" url="/" />
             <LargeSideBarItem Icon={ChartPie} title="Reports" url="/" />
             <LargeSideBarItem icon={faComment} title="Messages" url="/" />
@@ -63,7 +76,6 @@ export default function SideBar() {
           </LargeSideBarSection>
         </div>
       </aside>
-      {/* )} */}
     </div>
   );
 }
