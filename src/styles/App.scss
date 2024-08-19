@@ -15,5 +15,16 @@
 
 body {
   font-family: "IBMPlexSans", sans-serif;
-  color: $text-primary;
+  color: $text;
+  background-color: $background-primary;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main {
+  @apply grid grid-cols-[auto,1fr] overflow-hidden grow;
 }

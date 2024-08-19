@@ -6,6 +6,7 @@ import { ComponentProps } from "react";
 interface ButtonProps extends ComponentProps<"button"> {
   variant?: "solid" | "outlined" | "text";
   color?: "primary" | "secondary" | "success" | "danger";
+  size?: number;
   icon?: IconDefinition | string | JSX.Element; // Supports FontAwesome or JSX elements
   iconPosition?: "left" | "right";
   disabled?: boolean;
@@ -15,18 +16,19 @@ interface ButtonProps extends ComponentProps<"button"> {
 }
 
 const Button: React.FC<ButtonProps> = ({
-  variant = "solid",
-  color = "primary",
   icon,
+  variant = icon ? "text" : "solid",
+  color = "primary",
+  size = 1,
   iconPosition = "left",
   disabled = false,
   onClick = () => {},
   customClass = "",
-  text = "Submit",
+  text = icon ? "" : "Submit",
   ...props
 }) => {
   const className = `button button__${variant} button__${variant}--${color} ${
-    icon && !text ? "button--icon-only" : ""
+    icon && !text ? "button__icon-only" : ""
   } ${customClass}`;
 
   const isImageIcon = (icon: string) => {
@@ -40,6 +42,7 @@ const Button: React.FC<ButtonProps> = ({
       onClick={onClick}
       disabled={disabled}
       type="button"
+      style={{ fontSize: `${size}rem` }}
       {...props}
     >
       {icon && iconPosition === "left" && (

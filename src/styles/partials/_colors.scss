@@ -1,7 +1,7 @@
 // Core Colors
 $deep-navy: #001f3f; // Primary color for branding, headers, buttons
 $sky-blue: #0074d9; // Secondary brand color for highlights, hover effects
-$slate-gray: #3d3d3d; // Text, icons, neutral UI elements
+$slate-gray: #333333; // Text, icons, neutral UI elements
 
 // Accent Colors
 $bright-mint: #2ecc71; // Success indicators, secondary buttons, positive outcomes
@@ -24,22 +24,23 @@ $muted-orange: #ffcc99; // Charts, background areas with warmth
 // Backgrounds
 $background-primary: $soft-white;
 $background-secondary: $silver-gray;
+$background-tertiary: $soft-sky;
+$background-mint: $pale-mint;
+$background-warm: $muted-orange;
 
-// Buttons
-$button-primary: $deep-navy;
-$button-secondary: $sky-blue;
-$button-success: $bright-mint;
-$button-warning: $warning-yellow;
-$button-danger: $error-red;
+$primary: $deep-navy;
+$secondary: $sky-blue;
+$success: $bright-mint;
+$warning: $warning-yellow;
+$danger: $error-red;
+$error: $error-red;
+$link: $sky-blue;
+$info: $info-blue;
+$neutral-white: $soft-white;
+$neutral-gray: $silver-gray;
+$stroke: $silver-gray;
+$border: $silver-gray;
 
-// Text
-$text-primary: $slate-gray;
-$text-link: $sky-blue;
-$text-error: $error-red;
-$text-info: $info-blue;
-
-// Alerts
-$alert-success: $bright-mint;
-$alert-warning: $warning-yellow;
-$alert-danger: $error-red;
-$alert-info: $info-blue;
+$text: $slate-gray;
+$white: #fdfdff;
+$black: #0a0a0a;

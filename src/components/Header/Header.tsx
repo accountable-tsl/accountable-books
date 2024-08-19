@@ -1,16 +1,24 @@
 import "./Header.scss";
 import { Link } from "react-router-dom";
 import logo from "../../assets/images/mainlogo.png";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBars,
+  faBell,
+  faCalendar,
+  faGear,
+  faMagnifyingGlass,
+  faSun,
+} from "@fortawesome/free-solid-svg-icons";
+import Button from "../Button/Button";
+import { useSideBarContext } from "../../contexts/SideBarContext";
 
 export default function Header() {
+  const { toggle } = useSideBarContext();
+
   return (
-    <div className="header">
+    <header className="header">
       <div className="header-left">
-        <button className="header-left__icon">
-          <FontAwesomeIcon icon={faBars} />
-        </button>
+        <Button icon={faBars} text="" variant="text" onClick={toggle} />
         <Link to="/">
           <img
             src={logo}
@@ -19,8 +27,54 @@ export default function Header() {
           />
         </Link>
       </div>
-      <div className="header-middle">B</div>
-      <div className="header-right">C</div>
-    </div>
+      <div className="header-middle">
+        <form className="header-middle__form">
+          <div className="header-middle__form-search">
+            <input
+              type="search"
+              placeholder="Search"
+              className="header-middle__form-input"
+            />
+            <Button
+              icon={faMagnifyingGlass}
+              customClass="header-middle__form-submit"
+            />
+          </div>
+          {/* <Button icon={faMicrophone} type="button" /> */}
+        </form>
+      </div>
+      <div className="header-right">
+        <Button
+          icon={faCalendar}
+          text="Meetings"
+          variant="outlined"
+          size={0.75}
+          customClass="header-right__meeting"
+        />
+        {/* <Button icon={faMagnifyingGlass} customClass="header-right__search" /> */}
+        <div className="header-right__line"></div>
+        <Button
+          icon={faSun}
+          text=""
+          variant="text"
+          customClass="header-right__icon"
+        />
+        <Button
+          icon={faGear}
+          text=""
+          variant="text"
+          customClass="header-right__icon"
+        />
+        <div className="header-right__notifications">
+          <Button
+            icon={faBell}
+            text=""
+            variant="text"
+            customClass="header-right__icon"
+          />
+          <div className="header-right__notifications--count">8</div>
+        </div>
+      </div>
+    </header>
   );
 }

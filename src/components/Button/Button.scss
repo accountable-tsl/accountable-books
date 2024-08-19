@@ -5,23 +5,12 @@
   align-items: center;
   justify-content: center;
   padding: 0.5rem 1rem;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 0.5rem;
   cursor: pointer;
   transition: background-color 0.3s ease, color 0.3s ease,
     border-color 0.3s ease;
   gap: 0.5rem;
-
-  /* Icon-only buttons (circular buttons) */
-  &--icon-only {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
 
   /* Disabled button */
   &__disabled {
@@ -33,54 +22,54 @@
   /* Solid variant styles */
   &__solid {
     &--primary {
-      background-color: $button-primary;
+      background-color: $primary;
       color: $soft-white;
 
       &:hover {
-        background-color: darken($button-primary, 10%);
+        background-color: darken($primary, 10%);
       }
 
       &:active {
-        background-color: lighten($button-primary, 10%);
+        background-color: lighten($primary, 10%);
       }
     }
 
     &--secondary {
-      background-color: $button-secondary;
+      background-color: $secondary;
       color: $soft-white;
 
       &:hover {
-        background-color: darken($button-secondary, 10%);
+        background-color: darken($secondary, 10%);
       }
 
       &:active {
-        background-color: lighten($button-secondary, 10%);
+        background-color: lighten($secondary, 10%);
       }
     }
 
     &--success {
-      background-color: $button-success;
+      background-color: $success;
       color: $soft-white;
 
       &:hover {
-        background-color: darken($button-success, 10%);
+        background-color: darken($success, 10%);
       }
 
       &:active {
-        background-color: lighten($button-success, 10%);
+        background-color: lighten($success, 10%);
       }
     }
 
     &--danger {
-      background-color: $button-danger;
+      background-color: $danger;
       color: $soft-white;
 
       &:hover {
-        background-color: darken($button-danger, 10%);
+        background-color: darken($danger, 10%);
       }
 
       &:active {
-        background-color: lighten($button-danger, 10%);
+        background-color: lighten($danger, 10%);
       }
     }
   }
@@ -88,64 +77,64 @@
   /* Outlined variant styles */
   &__outlined {
     background-color: transparent;
-    border: 2px solid;
+    border: 1px solid;
 
     &--primary {
-      border-color: $button-primary;
-      color: $button-primary;
+      border-color: $primary;
+      color: $primary;
 
       &:hover {
-        background-color: $button-primary;
+        background-color: $primary;
         color: $soft-white;
       }
 
       &:active {
-        background-color: lighten($button-primary, 10%);
+        background-color: lighten($primary, 10%);
         color: $soft-white;
       }
     }
 
     &--secondary {
-      border-color: $button-secondary;
-      color: $button-secondary;
+      border-color: $secondary;
+      color: $secondary;
 
       &:hover {
-        background-color: $button-secondary;
+        background-color: $secondary;
         color: $soft-white;
       }
 
       &:active {
-        background-color: lighten($button-secondary, 10%);
+        background-color: lighten($secondary, 10%);
         color: $soft-white;
       }
     }
 
     &--success {
-      border-color: $button-success;
-      color: $button-success;
+      border-color: $success;
+      color: $success;
 
       &:hover {
-        background-color: $button-success;
+        background-color: $success;
         color: $soft-white;
       }
 
       &:active {
-        background-color: lighten($button-success, 10%);
+        background-color: lighten($success, 10%);
         color: $soft-white;
       }
     }
 
     &--danger {
-      border-color: $button-danger;
-      color: $button-danger;
+      border-color: $danger;
+      color: $danger;
 
       &:hover {
-        background-color: $button-danger;
+        background-color: $danger;
         color: $soft-white;
       }
 
       &:active {
-        background-color: lighten($button-danger, 10%);
+        background-color: lighten($danger, 10%);
         color: $soft-white;
       }
     }
@@ -158,55 +147,81 @@
     color: inherit;
 
     &--primary {
-      color: $button-primary;
+      color: $primary;
 
       &:hover {
-        color: darken($button-primary, 10%);
+        color: darken($primary, 10%);
         text-decoration: underline;
       }
 
       &:active {
-        color: lighten($button-primary, 10%);
+        color: lighten($primary, 10%);
       }
     }
 
     &--secondary {
-      color: $button-secondary;
+      color: $secondary;
 
       &:hover {
-        color: darken($button-secondary, 10%);
+        color: darken($secondary, 10%);
         text-decoration: underline;
       }
 
       &:active {
-        color: lighten($button-secondary, 10%);
+        color: lighten($secondary, 10%);
       }
     }
 
     &--success {
-      color: $button-success;
+      color: $success;
 
       &:hover {
-        color: darken($button-success, 10%);
+        color: darken($success, 10%);
         text-decoration: underline;
       }
 
       &:active {
-        color: lighten($button-success, 10%);
+        color: lighten($success, 10%);
       }
     }
 
     &--danger {
-      color: $button-danger;
+      color: $danger;
 
       &:hover {
-        color: darken($button-danger, 10%);
+        color: darken($danger, 10%);
         text-decoration: underline;
       }
 
       &:active {
-        color: lighten($button-danger, 10%);
+        color: lighten($danger, 10%);
       }
+    }
+  }
+
+  /* Icon-only buttons (circular buttons) */
+  &__icon {
+    &-only {
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: transparent;
+
+      &:hover {
+        background-color: lighten($primary, 75%);
+      }
+    }
+
+    &-left {
+      background-color: transparent;
+    }
+
+    &-right {
+      background-color: transparent;
     }
   }
 }
