@@ -1,0 +1,230 @@
+[
+ {
+   "Account": "Land",
+   "accountTypeName": "Property Plant Equipment",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Building",
+   "accountTypeName": "Property Plant Equipment",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Plant and Machinery",
+   "accountTypeName": "Property Plant Equipment",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Motor Vehicles",
+   "accountTypeName": "Property Plant Equipment",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Fixtures, Furniture, and Fittings",
+   "accountTypeName": "Property Plant Equipment",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Office Equipment",
+   "accountTypeName": "Property Plant Equipment",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Computer Equipment",
+   "accountTypeName": "Property Plant Equipment",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Accumulated Depreciation",
+   "accountTypeName": "Accumulated Depreciation and Amortisation",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Accumulated Amortisation",
+   "accountTypeName": "Accumulated Depreciation and Amortisation",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Deferred Tax Asset",
+   "accountTypeName": "Other Noncurrent Assets",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Investment Property",
+   "accountTypeName": "Other Noncurrent Assets",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Cash and Cash Equivalents",
+   "accountTypeName": "Bank",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Trade Receivable",
+   "accountTypeName": "Accounts Receivables",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Cash Equivalents",
+   "accountTypeName": "Investments and Cash Equivalents",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Inventory",
+   "accountTypeName": "Inventory",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Prepaid Expenses",
+   "accountTypeName": "Prepayments",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Deferred Tax Liabilities",
+   "accountTypeName": "Other Current Assets",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Long-term Loans",
+   "accountTypeName": "Long Term Loans",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Deferred Tax Liabilities",
+   "accountTypeName": "Other Long-Term Liabilities",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Trade Payable",
+   "accountTypeName": "Account Payables",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Short-term Loans",
+   "accountTypeName": "Short Term Loans",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Employee Benefits Payable",
+   "accountTypeName": "Accruals and Other Payables",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Contract Liabilities",
+   "accountTypeName": "Other Current Liabilities",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Share Capital",
+   "accountTypeName": "Share Capital",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Retained Earnings",
+   "accountTypeName": "Retained Earnings",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Accumulated Other Comprehensive Income",
+   "accountTypeName": "Other Components of Equity",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Revenue",
+   "accountTypeName": "Revenue",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Discounts Allowed",
+   "accountTypeName": "Discount Allowed",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Finance Income",
+   "accountTypeName": "Other Income",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Cost of Sales",
+   "accountTypeName": "Cost of Sales",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Salaries and Wages",
+   "accountTypeName": "Payroll Expenses",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Marketing Expenses",
+   "accountTypeName": "Selling General and Administrative Expenses",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Depreciation",
+   "accountTypeName": "Depreciation and Amortisation Expense",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Other Operating Expenses",
+   "accountTypeName": "Other Expenses",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Finance Costs",
+   "accountTypeName": "Non-Operating Expenses",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Impairment",
+   "accountTypeName": "Non-Operating Expenses",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Exchange Gain/Loss",
+   "accountTypeName": "Non-Operating Expenses",
+   "currencyId": 1,
+   "companyId": 1
+ },
+ {
+   "Account": "Income Tax Expense",
+   "accountTypeName": "Non-Operating Expenses",
+   "currencyId": 1,
+   "companyId": 1
+ }
+]

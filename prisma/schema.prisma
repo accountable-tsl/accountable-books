@@ -53,12 +53,13 @@ model Company {
   teamSize String?
   revenue String?
   country String
-  reportingCurrency Currency @relation(fields: [reportingCurrencyId], references: [id])
+  reportingCurrency Currency @relation(name:"CompanyCurrency", fields: [reportingCurrencyId], references: [id])
   reportingCurrencyId Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
   users UserCompany[] @relation("CompanyUsers")
-  coa COA[] @relation("CompanyCOA")
+  coa Coa[] @relation("CompanyCOA")
 
   @@index([name])
   @@index([country])
@@ -72,14 +73,16 @@ model UserCompany {
   user User @relation("UserCompanies", fields: [userId], references: [id])
   company Company @relation(name: "CompanyUsers", fields: [companyId], references: [id])
   @@id([userId, companyId])
+  @@index([userId, companyId])
 }
 
 model Currency {
   id Int @id @default(autoincrement())
-  code String
-  name String
+  code String @unique
+  name String @unique
   symbol String
-  companies Company[]
+  companies Company[] @relation("CompanyCurrency")
+  coa Coa[] @relation("COACurrency")
 
   @@index([code])
 }
@@ -90,61 +93,60 @@ model CountryCode {
   country String
 }
 
-enum AccountElement {
-  asset
-  liabilities
-  equity
-  revenue
-  expense
+model FinancialStatement {
+  id Int @id @default(autoincrement())
+  statementKey String @unique
+  usGaapLabel String
+  ifrsLabel String
+  defaultLabel String
+  accountElement AccountElement[] @relation("FsElement")
 }
 
-enum AccountType {
-  current_assets
-  noncurrent_assets
-  fixed_assets
-  bank
-  current_liabilities
-  noncurrent_liabilities
-  revenue
-  income
-  other_income
-  finance_income
-  cost_of_sales
-  operating_expenses
-  noncash_charges
-  depreciation
-  amortisation
-  finance_costs
-  tax_expense
-  equity
+enum DefaultSide {
+  Debit
+  Credit
 }
 
-enum FinancialStatement {
-  balance_sheet
-  income_statement
+model AccountElement {
+  id Int @id @default(autoincrement())
+  elementName String
+  defaultSide DefaultSide
+  parentId Int?
+  parent AccountElement? @relation("ParentChildRelation", fields: [parentId], references: [id]) // Self-relation
+  children AccountElement[] @relation("ParentChildRelation") // To define the reverse relation
+  financialStatementId Int
+  financialStatement FinancialStatement @relation(name: "FsElement", fields: [financialStatementId], references: [id])
+  description String?
+  accountType AccountType[] @relation("TypeElement")
 }
 
-enum DebitCredit {
-  debit
-  credit
+model AccountType {
+  id Int @id @default(autoincrement())
+  typeName String @db.VarChar(255)
+  accountElementId Int
+  accountElement AccountElement? @relation(name: "TypeElement", fields: [accountElementId], references: [id])
+  description String? @db.VarChar(255)
+  coa Coa[] @relation("COAAccountType")
 }
 
-model COA {
+
+
+model Coa {
   id Int @id @default(autoincrement())
   accountCode String?
   accountName String
-  accountType AccountType
-  element AccountElement
-  financialStatement FinancialStatement
-  debitOrCredit DebitCredit?
-  sign String?
   description String?
-  isActive Boolean @default(true)
-  balance Decimal @default(0)
+  accountTypeId Int
+  accountType AccountType @relation( name: "COAAccountType", fields: [accountTypeId], references: [id])
+  defaultSide DefaultSide?
+  currencyId Int
+  currency Currency @relation(name: "COACurrency", fields: [currencyId], references: [id])
   companyId  Int
   company Company @relation(name: "CompanyCOA", fields: [companyId], references: [id])
   templateId Int?
-  template COATemplate? @relation(name: "TemplateCOA", fields: [templateId], references: [id])
+  template CoaTemplate? @relation(name: "TemplateCOA", fields: [templateId], references: [id])
+  isActive Boolean @default(true)
+  balance Decimal @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -153,10 +155,10 @@ model COA {
   @@index([companyId])
 }
 
-model COATemplate {
+model CoaTemplate {
   id Int @id @default(autoincrement())
   templateName String
-  coa COA[] @relation("TemplateCOA")
+  coa Coa[] @relation("TemplateCOA")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

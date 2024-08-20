@@ -1,0 +1,485 @@
+[
+  {
+    "accountCode": 20100,
+    "accountName": "Land",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 20101,
+    "accountName": "Buildings",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 20102,
+    "accountName": "Machinery",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 20103,
+    "accountName": "Vehicles",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 20104,
+    "accountName": "Furniture and Fixtures",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 20105,
+    "accountName": "Office Equipment",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 20106,
+    "accountName": "Computers and IT Equipment",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 21107,
+    "accountName": "Accumulated Depreciation - Buildings",
+    "accountType": "Accumulated Depreciation and Amortisation",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 21108,
+    "accountName": "Accumulated Depreciation - Machinery",
+    "accountType": "Accumulated Depreciation and Amortisation",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 21109,
+    "accountName": "Accumulated Depreciation - Vehicles",
+    "accountType": "Accumulated Depreciation and Amortisation",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 21110,
+    "accountName": "Accumulated Depreciation - Furniture",
+    "accountType": "Accumulated Depreciation and Amortisation",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 22111,
+    "accountName": "Investment Property",
+    "accountType": "Other Noncurrent Assets",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 22112,
+    "accountName": "Deferred Tax Asset",
+    "accountType": "Other Noncurrent Assets",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 23113,
+    "accountName": "Bank Accounts",
+    "accountType": "Bank",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 24114,
+    "accountName": "Trade Receivables",
+    "accountType": "Accounts Receivables",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 25115,
+    "accountName": "Short-term Investments",
+    "accountType": "Investments and Cash Equivalents",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 26116,
+    "accountName": "Inventory",
+    "accountType": "Inventory",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 27117,
+    "accountName": "Prepaid Expenses",
+    "accountType": "Prepayments",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 28118,
+    "accountName": "Other Current Assets",
+    "accountType": "Other Current Assets",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 29119,
+    "accountName": "Long-term Loans",
+    "accountType": "Long Term Loans",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 30120,
+    "accountName": "Deferred Tax Liabilities",
+    "accountType": "Other Long-Term Liabilities",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 31121,
+    "accountName": "Trade Payables",
+    "accountType": "Account Payables",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 32122,
+    "accountName": "Short-term Loans",
+    "accountType": "Short Term Loans",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 33123,
+    "accountName": "Accrued Expenses",
+    "accountType": "Accruals and Other Payables",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 34124,
+    "accountName": "Employee Payables",
+    "accountType": "Other Current Liabilities",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 34125,
+    "accountName": "Contract Liabilities",
+    "accountType": "Other Current Liabilities",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 40126,
+    "accountName": "Share Capital",
+    "accountType": "Share Capital",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 41127,
+    "accountName": "Retained Earnings",
+    "accountType": "Retained Earnings",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 42128,
+    "accountName": "Other Comprehensive Income (OCI)",
+    "accountType": "Other Components of Equity",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 50129,
+    "accountName": "Sales Revenue",
+    "accountType": "Revenue",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 51130,
+    "accountName": "Sales Discounts",
+    "accountType": "Discount Allowed",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 52131,
+    "accountName": "Other Income (Interest, Dividends, etc.)",
+    "accountType": "Other Income",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 60132,
+    "accountName": "Cost of Goods Sold (COGS)",
+    "accountType": "Cost of Sales",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 61133,
+    "accountName": "Salaries and Wages",
+    "accountType": "Payroll Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 61134,
+    "accountName": "Employee Benefits",
+    "accountType": "Payroll Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 62135,
+    "accountName": "Rent",
+    "accountType": "Selling General and Administrative Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 62136,
+    "accountName": "Utilities",
+    "accountType": "Selling General and Administrative Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 62137,
+    "accountName": "Office Supplies",
+    "accountType": "Selling General and Administrative Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 62138,
+    "accountName": "IT and Software Expenses",
+    "accountType": "Selling General and Administrative Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 63139,
+    "accountName": "Depreciation Expense",
+    "accountType": "Depreciation and Amortisation Expense",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 63140,
+    "accountName": "Amortisation Expense",
+    "accountType": "Depreciation and Amortisation Expense",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 64141,
+    "accountName": "Miscellaneous Expenses",
+    "accountType": "Other Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 70142,
+    "accountName": "Interest Expense",
+    "accountType": "Non-Operating Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 70143,
+    "accountName": "Exchange Losses",
+    "accountType": "Non-Operating Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 70144,
+    "accountName": "Impairment Loss",
+    "accountType": "Non-Operating Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 70145,
+    "accountName": "Income Tax Expense",
+    "accountType": "Non-Operating Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 20146,
+    "accountName": "Software and Licenses",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 20147,
+    "accountName": "Cloud Infrastructure",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 20148,
+    "accountName": "Office Leasehold Improvements",
+    "accountType": "Property Plant Equipment",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 25149,
+    "accountName": "Crypto Assets",
+    "accountType": "Investments and Cash Equivalents",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 28150,
+    "accountName": "Subscription Prepayments",
+    "accountType": "Other Current Assets",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 28151,
+    "accountName": "Software Development Costs (Capitalized)",
+    "accountType": "Other Current Assets",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 33152,
+    "accountName": "Accrued Software Licensing Fees",
+    "accountType": "Accruals and Other Payables",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 34153,
+    "accountName": "Deferred Revenue (Subscription Services)",
+    "accountType": "Other Current Liabilities",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 42154,
+    "accountName": "Stock Options (Employee Equity Plans)",
+    "accountType": "Other Components of Equity",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 50155,
+    "accountName": "Subscription Revenue",
+    "accountType": "Revenue",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 50156,
+    "accountName": "Service Fees (Consulting or SaaS)",
+    "accountType": "Revenue",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 50157,
+    "accountName": "Commission Income",
+    "accountType": "Revenue",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 60158,
+    "accountName": "Hosting and Server Costs",
+    "accountType": "Cost of Sales",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 61159,
+    "accountName": "Contractor Payments",
+    "accountType": "Payroll Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 61160,
+    "accountName": "Stock-Based Compensation",
+    "accountType": "Payroll Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 62161,
+    "accountName": "SaaS Subscriptions",
+    "accountType": "Selling General and Administrative Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 62162,
+    "accountName": "Cloud Hosting Services",
+    "accountType": "Selling General and Administrative Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 62163,
+    "accountName": "Data and Security Services",
+    "accountType": "Selling General and Administrative Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 62164,
+    "accountName": "Customer Support Costs",
+    "accountType": "Selling General and Administrative Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 62165,
+    "accountName": "Marketing Automation Expenses",
+    "accountType": "Selling General and Administrative Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 64166,
+    "accountName": "Legal and Compliance Costs",
+    "accountType": "Other Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 64167,
+    "accountName": "Intellectual Property Protection Costs",
+    "accountType": "Other Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  },
+  {
+    "accountCode": 70168,
+    "accountName": "Startup Financing Costs",
+    "accountType": "Non-Operating Expenses",
+    "currencyId": 1,
+    "companyId": 1
+  }
+]
