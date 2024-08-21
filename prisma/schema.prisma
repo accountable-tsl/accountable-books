@@ -129,8 +129,6 @@ model AccountType {
   coa Coa[] @relation("COAAccountType")
 }
 
-
-
 model Coa {
   id Int @id @default(autoincrement())
   accountCode String?

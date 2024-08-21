@@ -1,27 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import { connect } from "http2";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 
 const prisma = new PrismaClient();
-
-interface CoaData {
-  Account: string;
-  accountTypeName: string;
-  currencyId: number;
-  companyId: number;
-}
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const coa1Path = path.join(__dirname, "./data/coa-1.json");
-const coa1 = JSON.parse(fs.readFileSync(coa1Path, "utf-8"));
-
-const coa2Path = path.join(__dirname, "./data/coa-2.json");
-const coa2 = JSON.parse(fs.readFileSync(coa2Path, "utf-8"));
-
-console.log(coa1, coa2);
 
 async function main() {
   //Roles
@@ -592,37 +571,6 @@ async function main() {
     ],
   });
 
-  for (const item of coa1) {
-    try {
-      await prisma.coa.create({
-        data: {
-          accountName: item.Account,
-          accountType: item.accountTypeName,
-          currencyId: item.currencyId,
-          companyId: item.companyId,
-        },
-      });
-    } catch (error) {
-      console.error("Error seeding COA:", error);
-    }
-  }
-
-  for (const item of coa2) {
-    try {
-      await prisma.coa.create({
-        data: {
-          accountCode: item.accountCode,
-          accountName: item.Account,
-          accountType: item.accountTypeName,
-          currencyId: item.currencyId,
-          companyId: item.companyId,
-        },
-      });
-    } catch (error) {
-      console.error("Error seeding COA:", error);
-    }
-  }
-
   console.log(
     adminRole,
     accountantRole,
@@ -630,26 +578,6 @@ async function main() {
     nairaCurrency,
     testCompany,
     adminUser,
-    asset,
-    liabilities,
-    equity,
-    income,
-    expenses,
-    currentAsset,
-    fixedAsset,
-    nonCurrentAsset,
-    currentLiab,
-    nonCurrentLiab,
-    costOfSales,
-    opex,
-    nonOpex,
-    nonCurrentAssets,
-    currentAssets,
-    nonCurrentLiabilities,
-    currentLiabilities,
-    equityTypes,
-    incomeTypes,
-    expenseTypes
   );
 }
 

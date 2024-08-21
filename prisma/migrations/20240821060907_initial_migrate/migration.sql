@@ -116,10 +116,9 @@ CREATE TABLE "Coa" (
     "accountName" TEXT NOT NULL,
     "description" TEXT,
     "accountTypeId" INTEGER NOT NULL,
-    "defaultSide" "DefaultSide",
+    "defaultSide" "DefaultSide" NOT NULL,
     "currencyId" INTEGER NOT NULL,
     "companyId" INTEGER NOT NULL,
-    "templateId" INTEGER,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "balance" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -132,6 +131,11 @@ CREATE TABLE "Coa" (
 CREATE TABLE "CoaTemplate" (
     "id" SERIAL NOT NULL,
     "templateName" TEXT NOT NULL,
+    "accountCode" TEXT NOT NULL,
+    "accountName" TEXT NOT NULL,
+    "description" TEXT,
+    "accountTypeId" INTEGER NOT NULL,
+    "defaultSide" "DefaultSide" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -212,6 +216,3 @@ ALTER TABLE "Coa" ADD CONSTRAINT "Coa_currencyId_fkey" FOREIGN KEY ("currencyId"
 
 -- AddForeignKey
 ALTER TABLE "Coa" ADD CONSTRAINT "Coa_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Coa" ADD CONSTRAINT "Coa_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "CoaTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
