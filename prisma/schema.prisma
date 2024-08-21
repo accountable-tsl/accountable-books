@@ -138,13 +138,11 @@ model Coa {
   description String?
   accountTypeId Int
   accountType AccountType @relation( name: "COAAccountType", fields: [accountTypeId], references: [id])
-  defaultSide DefaultSide?
+  defaultSide DefaultSide
   currencyId Int
   currency Currency @relation(name: "COACurrency", fields: [currencyId], references: [id])
   companyId  Int
   company Company @relation(name: "CompanyCOA", fields: [companyId], references: [id])
-  templateId Int?
-  template CoaTemplate? @relation(name: "TemplateCOA", fields: [templateId], references: [id])
   isActive Boolean @default(true)
   balance Decimal @default(0)
   createdAt DateTime @default(now())
@@ -158,7 +156,11 @@ model Coa {
 model CoaTemplate {
   id Int @id @default(autoincrement())
   templateName String
-  coa Coa[] @relation("TemplateCOA")
+  accountCode String
+  accountName String
+  description String?
+  accountTypeId Int
+  defaultSide DefaultSide
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

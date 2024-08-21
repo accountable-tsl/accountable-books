@@ -1,0 +1,150 @@
+templateName,accountCode,accountName,accountTypeId,currencyId,defaultSide,Description
+Default COA Template,21001,Land,1,1,Debit,Land owned by the company for business operations or investment purposes.
+Default COA Template,21002,Building,1,1,Debit,"Buildings owned by the company, including offices, factories, or any other structures."
+Default COA Template,21003,Building and Leasehold Improvements,1,1,Debit,"Improvements made to buildings or leased properties, increasing their value or extending their useful life."
+Default COA Template,21004,Plant and Machinery,1,1,Debit,Machinery and equipment used in the production of goods or services.
+Default COA Template,21005,Vehicles,1,1,Debit,"Company-owned vehicles used for business operations, including delivery trucks, cars, etc."
+Default COA Template,21006,"Furniture, Fixtures and Fittings",1,1,Debit,"Furniture and other fixtures used in office spaces, production facilities, or warehouses."
+Default COA Template,21007,Office Equipment,1,1,Debit,"Equipment used in office operations, such as printers, copiers, phones, and similar devices."
+Default COA Template,21008,Computers and IT Equipment,1,1,Debit,"Computers, servers, and other IT hardware used by the company for business operations."
+Default COA Template,21102,Accumulated Depreciation - Building,2,1,Credit,"The cumulative depreciation charged against buildings over time, reducing their book value."
+Default COA Template,21103,Accumulated Depreciation - Building and Leasehold Improvements,2,1,Credit,The cumulative depreciation charged against building and leasehold improvements.
+Default COA Template,21104,Accumulated Depreciation - Plant and Machinery,2,1,Credit,The cumulative depreciation of machinery and plant equipment over their useful life.
+Default COA Template,21105,Accumulated Depreciation - Vehicles,2,1,Credit,The cumulative depreciation of company-owned vehicles.
+Default COA Template,21106,"Accumulated Depreciation - Furniture, Fixtures and Fittings",2,1,Credit,The cumulative depreciation of furniture and fixtures.
+Default COA Template,21107,Accumulated Depreciation - Office Equipment,2,1,Credit,The cumulative depreciation of office equipment like printers and phones.
+Default COA Template,21108,Accumulated Depreciation - Computers and IT Equipment,2,1,Credit,The cumulative depreciation of computer and IT hardware.
+Default COA Template,22002,Right-of-use Assets,3,1,Debit,"Leased assets recognized as part of right-of-use agreements, such as office space or equipment under IFRS 16 or ASC 842."
+Default COA Template,22102,Accumulated Depreciation - Right-of-use Assets,4,1,Credit,The cumulative depreciation of leased assets over their lease term.
+Default COA Template,23001,Software and Licenses,5,1,Debit,Non-physical assets like software and licenses that the company uses over a long-term period.
+Default COA Template,23002,Software Development Costs (Capitalized),9,1,Debit,Costs for internally developed software that have been capitalized.
+Default COA Template,23003,Cloud Infrastructure,5,1,Debit,Long-term cloud service infrastructure costs capitalized by the company.
+Default COA Template,23004,"Copyrights, Patents, and Trademarks",5,1,Debit,"Intellectual property, such as copyrights, patents, and trademarks, owned by the company."
+Default COA Template,23101,Accumulated Amortisation - Software and Licenses,6,1,Credit,The cumulative amortization of software and licenses over their useful life.
+Default COA Template,23102,Accumulated Amortisation - Software Development Costs (Capitalized),6,1,Credit,The cumulative amortization of software and licenses over their useful life.
+Default COA Template,23103,Accumulated Amortisation - Cloud Infrastructure,6,1,Credit,The cumulative amortization of cloud infrastructure costs.
+Default COA Template,23104,"Accumulated Amortisation - Copyrights, Patents, and Trademarks",6,1,Credit,The cumulative amortization of intellectual property over their useful life.
+Default COA Template,24001,Investment Property,7,1,Debit,Real estate held by the company for earning rental income or for capital appreciation
+Default COA Template,24010,Long-term Financial Assets,7,1,Debit,Financial investments that the company intends to hold for more than one year
+Default COA Template,24050,Deferred Tax Assets,7,1,Debit,"Future tax benefits resulting from temporary differences or unused tax losses and credits, expected to reduce taxable income in future periods"
+Default COA Template,41001,Petty Cash,10,1,Debit,"Money kept in a business to meet small, everyday expenses"
+Default COA Template,41010,Short-term Investments,10,1,Debit,Short-term financial investments intended to be liquidated within a year.
+Default COA Template,41020,Crypto Assets,10,1,Debit,Cryptocurrency assets held by the company.
+Default COA Template,42001,Raw Materials Inventory,11,1,Debit,Goods and materials used in production that are not yet completed
+Default COA Template,42010,Work-in-Progress Inventory,11,1,Debit,Inventory that is partially completed but not yet ready for sale
+Default COA Template,42020,Finished Goods Inventory,11,1,Debit,Completed goods that are ready for sale but have not yet been sold to customers
+Default COA Template,42030,In-Transit Inventory,11,1,Debit,Inventory that has been shipped by the seller but has not yet reached the buyer's destination
+Default COA Template,42040,MRO Inventory,11,1,Debit,"Supplies, spare parts and other materials needed for routine maintenance, repair and operations"
+Default COA Template,42050,Project Materials Inventory,11,1,Debit,"Materials purchased and held for customer projects, expected to be used in the near term for ongoing or future contracts"
+Default COA Template,43000,Trade Receivables,12,1,Debit,Amounts owed by customers for goods or services sold.
+Default COA Template,43100,Allowance for Doubtful Accounts,8,1,Debit,A contra-asset account that reduces the accounts receivable balance for estimated uncollectible debts
+Default COA Template,44001,Contract Assets,13,1,Debit,Revenue recognised for goods or services delivered but not yet invoiced or billed to the customer
+Default COA Template,45001,Interest Receivable,14,1,Debit,"Amounts owed to the company as interest from investments, loans, or deposits"
+Default COA Template,45010,Tax Receivable,14,1,Debit,Amounts owed to the company by tax authorities for overpayment or tax refunds
+Default COA Template,45020,Notes Receivable,14,1,Debit,A written promise by a third party to pay the company a certain sum of money at a future date
+Default COA Template,45030,Staff Loans and Advances,14,1,Debit," Loans and advances provided to employees, typically expected to be repaid through salary deductions or over a specific period"
+Default COA Template,46010,Prepaid Insurance,15,1,Debit,Insurance expenses paid in advance for future coverage periods
+Default COA Template,46020,Prepaid Rent,15,1,Debit,Rent expenses paid in advance for future use of a property or space
+Default COA Template,46030,Subscription Prepayments,15,1,Debit,Payments made for subscriptions to be received in the future.
+Default COA Template,47010,Short-term Loans,16,1,Credit,Loans made to customers or employees that are expected to be repaid within one year
+Default COA Template,47020,Advances to Suppliers,16,1,Credit,Amounts paid in advance to suppliers for goods or services that are yet to be received
+Default COA Template,52010,Deferred Tax Liabilities - Noncurrent,18,1,Credit,Taxes owed in the future due to temporary differences between tax and accounting rules
+Default COA Template,52020,Environmental Remediation Costs,18,1,Credit,Costs associated with cleaning up or remediating environmental issues or pollution caused by the company's operations.
+Default COA Template,52030,Other Long Term Liabilities,18,1,Credit,"Long-term obligations that a company owes, not categorised anywhere else"
+Default COA Template,61000,Trade Payables,19,1,Credit,"Amounts owed to suppliers for purchases of goods or services, typically payable within one year"
+Default COA Template,62010,Net Salaries Payable,20,1,Credit,Salaries and wages earned by employees but not yet paid by the company
+Default COA Template,62011,Employee Tax (PAYE) Payable,20,1,Credit,Income tax deducted from employees' salaries (PAYE) that is owed to the tax authorities
+Default COA Template,62012,Employee Pension Payable,20,1,Credit,Contributions owed to employee pension schemes but not yet remitted
+Default COA Template,62013,Other Employee Benefits Payable,20,1,Credit,"Benefits such as healthcare, bonuses, or other employee-related obligations owed but not yet paid"
+Default COA Template,62020,Accrued Audit Fees,20,1,Credit,Fees owed to external auditors for services rendered but not yet paid
+Default COA Template,62021,Accrued Accounting Fees,20,1,Credit,Fees owed to accounting service providers for services rendered but not yet paid
+Default COA Template,62022,Accrued Legal Fees,20,1,Credit,Legal fees incurred but not yet paid for legal services provided
+Default COA Template,62029,Other Professional Fees Payable,20,1,Credit,Fees owed to other professionals or consultants
+Default COA Template,62030,Accrued Software Licensing Fees,20,1,Credit,Fees owed for software licenses that have been incurred but not yet paid
+Default COA Template,62040,Rent Payable,20,1,Credit,Rent expenses incurred for the use of premises but not yet paid to landlords
+Default COA Template,62045,Interest Payable,20,1,Credit,Interest charges incurred on loans or other debts but not yet paid
+Default COA Template,62050,Accrued Utilities,20,1,Credit,"Utility expenses (electricity, water, gas, etc.) incurred but not yet paid"
+Default COA Template,62059,Other Accrued Expenses,20,1,Credit,"Any other expenses incurred by the business but not yet paid, including miscellaneous operational costs"
+Default COA Template,63010,Deferred Revenue - SaaS Subscriptions,21,1,Credit,Payments received in advance for subscription services that will be delivered over a future period
+Default COA Template,63011,Deferred Revenue - Project Payments,21,1,Credit,"Payments received in advance for project work, recognized as revenue when milestones are completed"
+Default COA Template,63012,Deferred Revenue - Consulting Services,21,1,Credit,Prepaid amounts for consulting services to be rendered in the future
+Default COA Template,63030,Customer Deposits,21,1,Credit,Deposits received from customers for services or projects to be completed
+Default COA Template,64010,Bank Overdraft,22,1,Credit,Loans that must be repaid within the next year.
+Default COA Template,65030,Directors' Current Account,23,1,Credit,Amounts owed to or by directors in relation to their personal transactions with the company
+Default COA Template,65060,SAFE Liability,23,1,Credit,"Represents funds received from investors under SAFE agreements, to be converted into equity at a future event"
+Default COA Template,65069,Other Convertible Instruments,23,1,Credit,Other convertible instruments
+Default COA Template,65070,Dividends Payable,23,1,Credit,Dividends declared by the company but not yet paid to shareholders
+Default COA Template,65080,Sales Tax/VAT Payable,23,1,Credit,Sales Tax or Value Added Tax (VAT) collected from customers but not yet remitted
+Default COA Template,65081,Income Tax Payable,23,1,Credit,Income taxes owed by the company but not yet paid
+Default COA Template,71001,Ordinary Share Capital,24,1,Credit,The value of shares issued to shareholders with no special privileges
+Default COA Template,71010,Preference Share Capital,24,1,Credit,"The value of shares issued with preferential rights, such as fixed dividends or priority in liquidation"
+Default COA Template,71020,Share Premium,24,1,Credit,The excess value received over the par value of the shares issued during conversion
+Default COA Template,71030,Additional Paid-in Capital,24,1,Credit,Paid in capital injected into the business over and above the authorised ordinary share capital
+Default COA Template,72001,Retained Earnings,25,1,Credit,Cumulative earnings retained in the company after dividends.
+Default COA Template,73001,Revaluation Surplus,26,1,Credit,Revaluation gains
+Default COA Template,73002,Unrealized Gains/Losses on Investments,26,1,Credit,Gains or losses not included in net income but recognized in equity.
+Default COA Template,74001,Stock Options (Employee Equity Plans),27,1,Credit,Stock options granted to employees as part of equity compensation plans.
+Default COA Template,81100,Product Sales,28,1,Credit,Revenue from the sale of goods
+Default COA Template,81200,Service Revenue,28,1,Credit,Revenue from the sale of services
+Default COA Template,81300,Recurring Revenue,28,1,Credit,"Revenue generated from licenses, subscription and memberships."
+Default COA Template,81400,Donations & Grant Income,28,1,Credit,Income from grants and/or donations. Typically for nonprofits
+Default COA Template,82010,Discounts Allowed,29,1,Credit,Reductions in income due to discounts given to customers or clients
+Default COA Template,82020,Sales Returns and Allowances,29,1,Credit,Revenue reductions due to returns of goods sold or allowances for defective goods or services
+Default COA Template,83101,Interest income,30,1,Credit,"Finance Income: Revenue earned from interest on bank deposits, loans to others, or investments in interest-bearing securities"
+Default COA Template,83102,Dividend Income,30,1,Credit,Finance Income: Revenue earned from dividends paid by shares or equity investments in other companies
+Default COA Template,83103,Foreign Exchange Gains (Realised),30,1,Credit,Finance Income: Gains from currency exchange rate movements
+Default COA Template,83301,Rental Income,31,1,Credit,Non-operating Income: Revenue from renting out property or equipment
+Default COA Template,83302,Gains on Asset Disposals,31,1,Credit,Non-operating Income: Profit from selling company assets
+Default COA Template,83309,Other Miscellaneous Income,31,1,Credit,"Non-operating Income: Income from non-core, irregular, or one-off activities"
+Default COA Template,91100,Cost of Goods Sold (COGS),32,1,Debit,Direct costs related to providing services
+Default COA Template,91200,Cost of Services,32,1,Debit,Cost of producing or purchasing the goods sold
+Default COA Template,91300,Other Cost of Sales,32,1,Debit,Costs related to hosting and maintaining servers.
+Default COA Template,92101,Salaries and Wages,33,1,Debit,"Compensation paid to employees for their work, including base pay and overtime"
+Default COA Template,92102,Employer Pension Contributions,33,1,Debit,Employer contributions to employee pension or retirement plans
+Default COA Template,92103,Employee Health Maintenance Costs,33,1,Debit,Expenses for employee health insurance and wellness programs
+Default COA Template,92104,Employee Training and Development Expenses,33,1,Debit,Costs for employee training programs and professional development
+Default COA Template,92105,Bonus and Allowances,33,1,Debit,Payments for performance bonuses and additional allowances
+Default COA Template,92106,Stock-Based Compensation,33,1,Debit,Expenses for stock options and equity awards provided to employees
+Default COA Template,92109,Other Employee Benefits,33,1,Debit,Miscellaneous employee benefits not covered by other accounts
+Default COA Template,92201,Marketing and Advertising Expenses,34,1,Debit,"Costs for promoting products or services, including ads, digital marketing, and campaigns"
+Default COA Template,92301,Rent,35,1,Debit,Expenses for leasing office space or other properties used by the company
+Default COA Template,92321,Insurance,35,1,Debit,Premiums paid for business insurance coverage
+Default COA Template,92341,"Light, Power and Electricity Expenses",35,1,Debit,Costs for electricity and lighting used in business operations
+Default COA Template,92342,Motor Vehicle Fuel Expenses,35,1,Debit,Fuel costs for company-owned vehicles used for business activities
+Default COA Template,92343,Diesel and Fuel Expenses,35,1,Debit,Costs for diesel and other fuels used in generators or machinery (operations)
+Default COA Template,92401,Repairs and Maintenance - PPE,36,1,Debit,"Expenses for maintaining and repairing property, plant, and equipment"
+Default COA Template,92402,Repairs and Maintenance - Motor Vehicles,36,1,Debit,Costs for maintaining and repairing company-owned vehicles
+Default COA Template,92403,Repairs and Maintenance - Others,36,1,Debit,Maintenance costs for other assets not classified as PPE or vehicles
+Default COA Template,92501,Audit Fees,37,1,Debit,Fees paid to auditors for financial audit services
+Default COA Template,92502,Accounting Fees,37,1,Debit,Payments to accountants for bookkeeping and financial reporting services
+Default COA Template,92503,Legal Fees,37,1,Debit,"Costs for legal services, including contracts, disputes, and consultations"
+Default COA Template,92509,Other Consulting Fees,37,1,Debit,Fees paid to external consultants for professional advice and services
+Default COA Template,92601,Telephone and Internet Expenses,38,1,Debit,Costs for telephone services and internet connectivity used by the business
+Default COA Template,92602,IT and Software Expenses,38,1,Debit,Expenses related to IT infrastructure and software.
+Default COA Template,92603,SaaS Subscriptions,38,1,Debit,Costs related to software as a service (SaaS) subscriptions.
+Default COA Template,92604,Cloud Hosting Services,38,1,Debit,Expenses incurred for cloud hosting services.
+Default COA Template,92605,Data and Security Services,38,1,Debit,Costs related to data protection and security services.
+Default COA Template,92606,Customer Support Costs,38,1,Debit,Expenses incurred for providing customer support.
+Default COA Template,92607,Marketing Automation Expenses,38,1,Debit,Costs for marketing automation tools and services.
+Default COA Template,92701,Local Transport Expenses,39,1,Debit,"Costs for local transportation such as taxis, public transport, or company vehicles for business purposes"
+Default COA Template,92702,International Travel Expenses,39,1,Debit,"Expenses for international business travel, including flights and related travel costs"
+Default COA Template,92703,Hotel and Accommodation Expenses,39,1,Debit,Costs for lodging and accommodation during business trips
+Default COA Template,92801,Depreciation Expense,40,1,Debit,Allocation of the cost of tangible assets over their useful life
+Default COA Template,92802,Amortisation Expense,40,1,Debit,Allocation of the cost of intangible assets over their useful life
+Default COA Template,92901,Bank Charges,41,1,Debit,"Fees charged by banks for account maintenance, transfers, and other financial services"
+Default COA Template,92902,Directors' Fees and Allowances,41,1,Debit,Compensation and allowances paid to company directors for their services
+Default COA Template,92903,Office Supplies,41,1,Debit,"Costs for materials used in the office, such as paper, pens, and other stationery"
+Default COA Template,92904,Welfare and Entertainment Expenses,41,1,Debit,"Costs for employee welfare activities and entertainment, including staff events and celebrations"
+Default COA Template,92905,Corporate Giftings,41,1,Debit,"Expenses for merch, gifts given to clients, partners, or employees for corporate purposes"
+Default COA Template,92906,Printing and Stationery,41,1,Debit,Costs for printing documents and purchasing stationery items for the office
+Default COA Template,92907,Office Supplies,41,1,Debit,Contributions made by the company to charitable organisations or causes
+Default COA Template,92908,Charitable Donations,41,1,Debit,Contributions made by the company to charitable organisations or causes
+Default COA Template,92909,Research and Development Costs,41,1,Debit,Expenses incurred in the research and development of new products or services
+Default COA Template,92910,General Provisions,41,1,Debit,General provisions for anticipated liabilities or losses not yet realised
+Default COA Template,92911,Specific Provisions,41,1,Debit,"Provisions made for known liabilities or losses, such as legal disputes or warranties"
+Default COA Template,92912,Miscellaneous Expenses,41,1,Debit,Miscellaneous expenses not categorized elsewhere.
+Default COA Template,94101,Interest Expense,42,1,Debit,"Costs incurred from borrowing funds, including loan interest and credit facility fees"
+Default COA Template,94102,Foreign Exchange Losses (Realised),42,1,Debit,Losses from currency exchange rate fluctuations realized during transactions
+Default COA Template,95101,Impairment Loss,43,1,Debit,Losses recognized when the value of an asset falls below its carrying amount
+Default COA Template,95102,Loss on Asset Disposals,43,1,Debit,Losses incurred when selling or disposing of assets at a price lower than their book value
+Default COA Template,96101,Income Tax Expense,44,1,Debit,Taxes payable by the company on its taxable income for the period

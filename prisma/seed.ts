@@ -219,7 +219,7 @@ async function main() {
 
   const capital = await prisma.accountElement.create({
     data: {
-      elementName: "Capital",
+      elementName: "Share Capital",
       parentId: equity.id,
       financialStatementId: balanceSheet.id,
       description: "Paid-in capital",
@@ -250,7 +250,7 @@ async function main() {
 
   const revenue = await prisma.accountElement.create({
     data: {
-      elementName: "Revenue",
+      elementName: "Income",
       parentId: income.id,
       financialStatementId: incomeStatement.id,
       description:
@@ -318,10 +318,33 @@ async function main() {
           "Tangible long-term assets used in business operations, including buildings, machinery, and vehicles",
       },
       {
-        typeName: "Accumulated Depreciation and Amortisation",
+        typeName: "Accumulated Depreciation - PPE",
         accountElementId: contraAsset.id,
         description:
-          "Cumulative decrease in value of tangible and intangible assets over their useful life",
+          "Cumulative depreciation of Property, Plant, and Equipment over their useful life",
+      },
+      {
+        typeName: "Leased Assets",
+        accountElementId: fixedAsset.id,
+        description:
+          "Right-of-use assets from long-term lease agreements under IFRS 16 or ASC 842",
+      },
+      {
+        typeName: "Accumulated Depreciation and Amortisation - Leased Assets",
+        accountElementId: contraAsset.id,
+        description: "Cumulative depreciation or amortization of leased assets",
+      },
+      {
+        typeName: "Intangible Assets",
+        accountElementId: fixedAsset.id,
+        description:
+          "Non-physical long-term assets such as patents, trademarks, and goodwill",
+      },
+      {
+        typeName: "Accumulated Amortisation - Intangible Assets",
+        accountElementId: contraAsset.id,
+        description:
+          "Cumulative amortization of intangible assets over their useful life",
       },
       {
         typeName: "Other Noncurrent Assets",
@@ -341,12 +364,6 @@ async function main() {
           "Cash held in company bank accounts, including checking and savings accounts",
       },
       {
-        typeName: "Accounts Receivables",
-        accountElementId: currentAsset.id,
-        description:
-          "Amounts owed to the company by customers for goods or services provided on credit",
-      },
-      {
         typeName: "Investments and Cash Equivalents",
         accountElementId: currentAsset.id,
         description:
@@ -357,6 +374,29 @@ async function main() {
         accountElementId: currentAsset.id,
         description:
           "Goods held for sale, raw materials, and work-in-progress items",
+      },
+      {
+        typeName: "Accounts Receivables",
+        accountElementId: currentAsset.id,
+        description:
+          "Amounts owed to the company by customers for goods or services provided on credit",
+      },
+      {
+        typeName: "Other Contra Assets",
+        accountElementId: contraAsset.id,
+        description: "Contra Assets",
+      },
+      {
+        typeName: "Contract Assets",
+        accountElementId: currentAsset.id,
+        description:
+          "Rights to payment for goods or services that have been delivered but not yet invoiced or billed to the customer",
+      },
+      {
+        typeName: "Other Receivables",
+        accountElementId: currentAsset.id,
+        description:
+          "Any other amounts owed to the company outside of trade receivables, such as tax refunds, interest receivables, or employee advances",
       },
       {
         typeName: "Prepayments",
@@ -399,16 +439,22 @@ async function main() {
           "Amounts owed by the company to suppliers for goods or services purchased on credit",
       },
       {
-        typeName: "Short Term Loans",
-        accountElementId: currentLiab.id,
-        description:
-          "Borrowed funds due for repayment within one year, including bank overdrafts and short-term credit lines",
-      },
-      {
         typeName: "Accruals and Other Payables",
         accountElementId: currentLiab.id,
         description:
           "Expenses incurred but not yet paid, and other short-term obligations such as wages payable or taxes due",
+      },
+      {
+        typeName: "Deferred Revenue (Contract Liabilities)",
+        accountElementId: currentLiab.id,
+        description:
+          "Payments or Deposits received in advance for goods, services or projects that have not yet been delivered. Represents obligations to provide products or services in the future",
+      },
+      {
+        typeName: "Short Term Loans",
+        accountElementId: currentLiab.id,
+        description:
+          "Borrowed funds due for repayment within one year, including bank overdrafts and short-term credit lines",
       },
       {
         typeName: "Other Current Liabilities",
@@ -423,19 +469,19 @@ async function main() {
     data: [
       {
         typeName: "Share Capital",
-        accountElementId: equity.id,
+        accountElementId: capital.id,
         description:
           "Value of issued shares representing ownership in the company",
       },
       {
         typeName: "Retained Earnings",
-        accountElementId: equity.id,
+        accountElementId: reserves.id,
         description:
           "Cumulative profits or losses not distributed to shareholders",
       },
       {
         typeName: "Other Components of Equity",
-        accountElementId: equity.id,
+        accountElementId: otherEquity.id,
         description: "All other components of equity including OCI",
       },
     ],
@@ -444,18 +490,23 @@ async function main() {
   const incomeTypes = await prisma.accountType.createMany({
     data: [
       {
-        typeName: "Revenue",
+        typeName: "Income",
         accountElementId: revenue.id,
         description:
           "Income from primary business activities, including sales and services",
       },
       {
-        typeName: "Discount Allowed",
+        typeName: "Contra-Revenue",
         accountElementId: contraRevenue.id,
         description: "Reductions in price offered to customers on sales",
       },
       {
-        typeName: "Other Income",
+        typeName: "Finance Income",
+        accountElementId: otherIncome.id,
+        description: "Income from sources outside primary business activities",
+      },
+      {
+        typeName: "Non-operating Income",
         accountElementId: otherIncome.id,
         description: "Income from sources outside primary business activities",
       },
@@ -471,30 +522,72 @@ async function main() {
           "Direct costs incurred in the production or acquisition of goods sold",
       },
       {
-        typeName: "Payroll Expenses",
+        typeName: "Employee Benefits",
         accountElementId: opex.id,
         description: "Wages, salaries, and benefits paid to employees",
       },
       {
-        typeName: "Selling, General and Administrative Expenses",
-        accountElementId: opex.id,
-        description: "Expenses related to general business operations",
-      },
-      {
-        typeName: "Depreciation and Amortisation Expense",
+        typeName: "Marketing and Advertising",
         accountElementId: opex.id,
         description:
-          "Expense related to the allocation of the cost of tangible and intangible assets over their useful life",
+          "Costs associated with promoting the company's products or services",
       },
       {
-        typeName: "Other Expenses",
+        typeName: "Rent, Insurance and Utilities",
         accountElementId: opex.id,
-        description: "Expenses related to general business operations",
+        description:
+          "Expenses for rent, insurance, and utilities used for business operations",
+      },
+      {
+        typeName: "Repairs and Maintenance",
+        accountElementId: opex.id,
+        description: "Costs for maintaining and repairing company-owned assets",
+      },
+      {
+        typeName: "Professional Fees",
+        accountElementId: opex.id,
+        description:
+          "Fees paid to external professionals, such as lawyers and consultants",
+      },
+      {
+        typeName: "Telephone, Internet and Software",
+        accountElementId: opex.id,
+        description:
+          "Costs for telecommunications, internet services, and software used in business operations",
+      },
+      {
+        typeName: "Transport and Travel",
+        accountElementId: opex.id,
+        description:
+          "Expenses related to employee transportation and business travel",
+      },
+      {
+        typeName: "Depreciation and Amortisation",
+        accountElementId: opex.id,
+        description:
+          "The allocation of the cost of tangible and intangible assets over their useful life",
+      },
+      {
+        typeName: "Other General and Administrative Expenses",
+        accountElementId: opex.id,
+        description:
+          "Miscellaneous expenses related to the general running of the business",
+      },
+      {
+        typeName: "Finance Costs",
+        accountElementId: nonOpex.id,
+        description:
+          "Costs incurred from borrowing funds, including interest and other charges",
       },
       {
         typeName: "Non-Operating Expenses",
         accountElementId: nonOpex.id,
         description: "Expenses not related to core business operations",
+      },
+      {
+        typeName: "Tax Expense",
+        accountElementId: nonOpex.id,
+        description: "Income taxes payable by the company on its earnings",
       },
     ],
   });
