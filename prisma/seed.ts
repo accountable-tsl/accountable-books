@@ -436,6 +436,12 @@ async function main() {
           "Borrowed funds due for repayment within one year, including bank overdrafts and short-term credit lines",
       },
       {
+        typeName: "Tax Payable",
+        accountElementId: currentLiab.id,
+        description:
+          "Short-term tax obligations, typically due within one year",
+      },
+      {
         typeName: "Other Current Liabilities",
         accountElementId: currentLiab.id,
         description:
@@ -457,6 +463,11 @@ async function main() {
         accountElementId: reserves.id,
         description:
           "Cumulative profits or losses not distributed to shareholders",
+      },
+      {
+        typeName: "Other Comprehensive Income (OCI)",
+        accountElementId: otherEquity.id,
+        description: "Accumulated Other Comprehensive Income",
       },
       {
         typeName: "Other Components of Equity",
@@ -529,7 +540,7 @@ async function main() {
           "Fees paid to external professionals, such as lawyers and consultants",
       },
       {
-        typeName: "Telephone, Internet and Software",
+        typeName: "Telephone, Internet and Software Expenses",
         accountElementId: opex.id,
         description:
           "Costs for telecommunications, internet services, and software used in business operations",
@@ -577,7 +588,7 @@ async function main() {
     clientRole,
     nairaCurrency,
     testCompany,
-    adminUser,
+    adminUser
   );
 }
 
