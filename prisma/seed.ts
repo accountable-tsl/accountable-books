@@ -1,6 +1,15 @@
 import { PrismaClient } from "@prisma/client";
+import fs from "fs";
+import csv from "csv-parser";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import path from "path";
+import { normalizeData } from "../utils/utils";
 
 const prisma = new PrismaClient();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 async function main() {
   //Roles
@@ -26,12 +35,29 @@ async function main() {
   });
 
   //Currencies
-  const nairaCurrency = await prisma.currency.create({
-    data: {
-      name: "Naira",
-      code: "NGN",
-      symbol: "₦",
-    },
+  const currencies = await prisma.currency.createMany({
+    data: [
+      {
+        name: "Naira",
+        code: "NGN",
+        symbol: "₦",
+      },
+      {
+        name: "US Dollar",
+        code: "USD",
+        symbol: "$",
+      },
+      {
+        name: "British Pounds",
+        code: "GBP",
+        symbol: "£",
+      },
+      {
+        name: "Euro",
+        code: "EUR",
+        symbol: "€",
+      },
+    ],
   });
 
   //Companies
@@ -39,7 +65,7 @@ async function main() {
     data: {
       name: "Test Company 1",
       country: "Nigeria",
-      reportingCurrencyId: nairaCurrency.id,
+      reportingCurrencyId: 1,
     },
   });
 
@@ -586,10 +612,52 @@ async function main() {
     adminRole,
     accountantRole,
     clientRole,
-    nairaCurrency,
+    currencies,
     testCompany,
     adminUser
   );
+
+  // 2. CSV-based seed data
+  const defaultCOAFilePath = path.join(
+    __dirname,
+    "data",
+    "DefaultCOATemplate.csv"
+  );
+  const defaultCOAData: any[] = [];
+
+  fs.createReadStream(defaultCOAFilePath)
+    .pipe(csv())
+    .on("data", (data: { [key: string]: string }) => {
+      const normalizedData = normalizeData(data);
+      if (normalizedData.accountname && normalizedData.accounttypeid) {
+        defaultCOAData.push(normalizedData);
+      }
+    })
+    .on("error", (error) => {
+      console.error("Error reading CSV file:", error);
+    })
+    .on("end", async () => {
+      console.log("CSV file successfully processed");
+      try {
+        for (let data of defaultCOAData) {
+          await prisma.CoaTemplate.create({
+            data: {
+              templateName: "Default Template",
+              accountCode: data.accountcode,
+              accountName: data.accountname,
+              accountTypeId: parseInt(data.accounttypeid),
+              defaultSide: data.defaultside as "Debit" | "Credit",
+              description: data.description,
+            },
+          });
+        }
+        console.log("CSV data seeded successfully");
+      } catch (error) {
+        console.error("Error seeding data:", error);
+      } finally {
+        await prisma.$disconnect();
+      }
+    });
 }
 
 main()

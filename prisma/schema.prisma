@@ -156,9 +156,9 @@ model CoaTemplate {
   templateName String
   accountCode String
   accountName String
-  description String?
   accountTypeId Int
   defaultSide DefaultSide
+  description String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

@@ -133,9 +133,9 @@ CREATE TABLE "CoaTemplate" (
     "templateName" TEXT NOT NULL,
     "accountCode" TEXT NOT NULL,
     "accountName" TEXT NOT NULL,
-    "description" TEXT,
     "accountTypeId" INTEGER NOT NULL,
     "defaultSide" "DefaultSide" NOT NULL,
+    "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
