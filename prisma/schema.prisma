@@ -130,7 +130,7 @@ model AccountElement {
 
 model AccountType {
   id Int @id @default(autoincrement())
-  typeName String @db.VarChar(255)
+  typeName String @db.VarChar(255) @unique
   accountElementId Int
   accountElement AccountElement? @relation(name: "TypeElement", fields: [accountElementId], references: [id])
   description String? @db.VarChar(255)

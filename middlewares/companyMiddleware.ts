@@ -15,7 +15,7 @@ export const checkCompanyId = async (
     companyId = parseInt(req.query.companyId as string, 10);
   }
   if (!companyId || companyId < 0 || isNaN(companyId)) {
-    return res.status(400).json({ message: "Valid Company ID is required" });
+    return res.status(400).json({ message: "Access Denied" });
   }
 
   try {
@@ -24,7 +24,7 @@ export const checkCompanyId = async (
     });
 
     if (!company) {
-      return res.status(404).json({ message: "Company not found" });
+      return res.status(404).json({ message: "Access Denied" });
     }
 
     req.company = company;

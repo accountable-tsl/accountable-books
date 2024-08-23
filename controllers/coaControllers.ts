@@ -4,7 +4,7 @@ import { checkAccCode, checkAccName, createCOAModel } from "../models/coaModel";
 
 const checkAccountCode = async (req: Request, res: Response) => {
   const accountCode = req.body.accountCode || (req.query.accountCode as string);
-  const companyId = req.company?.id;
+  const companyId = req.company!.id;
 
   if (!companyId || typeof accountCode !== "string") {
     return res.status(400).json({ message: "Bad Request" });
@@ -31,7 +31,7 @@ const checkAccountCode = async (req: Request, res: Response) => {
 
 const checkAccountName = async (req: Request, res: Response) => {
   const accountName = req.body.accountName || (req.query.accountName as string);
-  const companyId = req.company?.id;
+  const companyId = req.company!.id;
 
   if (!companyId || typeof accountName !== "string") {
     return res.status(400).json({ message: "Bad Request" });
@@ -57,10 +57,34 @@ const checkAccountName = async (req: Request, res: Response) => {
 };
 
 const createCOA = async (req: Request, res: Response) => {
+  const data = req.body;
+  const companyId = req.company!.id;
+
+  if (!companyId || !data) {
+    return res.status(400).json({ message: "Bad Request" });
+  }
+
+  if (!data.accountName) {
+    return res
+      .status(400)
+      .json({ message: "Missing required fields - Account Name" });
+  }
+
+  if (!data.accountTypeId) {
+    return res
+      .status(400)
+      .json({ message: "Missing required fields - Account Type" });
+  }
+
   try {
-    const result = createCOAModel(coaData);
-  } catch (error) {}
-  return;
+    const result = await createCOAModel(Number(companyId), data);
+    res.status(200).json(result);
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ message: "An unexpected error occurred" });
+  }
 };
 
-export { checkAccountCode, checkAccountName, createCOA };
+const createManyCOA = async (req: Request, res: Response) => {};
+
+export { checkAccountCode, checkAccountName, createCOA, createManyCOA };
