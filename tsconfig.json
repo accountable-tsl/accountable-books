@@ -8,11 +8,6 @@
       "@prisma/client": ["./prisma/client"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "knexfile.js",
-    "seeds/01_roles.js",
-    "seeds/02_users.js"
-  ],
+  "include": ["**/*.ts", "custom.d.ts"],
   "exclude": ["node_modules"]
 }

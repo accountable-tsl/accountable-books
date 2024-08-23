@@ -7,12 +7,18 @@ export const checkCompanyId = async (
   res: Response,
   next: NextFunction
 ) => {
-  try {
-    const companyId = parseInt(req.body.companyId, 10);
-    if (!companyId || companyId < 0 || isNaN(companyId)) {
-      return res.status(400).json({ message: "Valid Company ID is required" });
-    }
+  let companyId = req.body.companyId || req.query.companyId;
 
+  if (req.body.companyId) {
+    companyId = parseInt(req.body.companyId, 10);
+  } else if ((req.query.companyId, 10)) {
+    companyId = parseInt(req.query.companyId as string, 10);
+  }
+  if (!companyId || companyId < 0 || isNaN(companyId)) {
+    return res.status(400).json({ message: "Valid Company ID is required" });
+  }
+
+  try {
     const company = await prisma.company.findUnique({
       where: { id: companyId },
     });
@@ -21,7 +27,7 @@ export const checkCompanyId = async (
       return res.status(404).json({ message: "Company not found" });
     }
 
-    (req as any).company = company;
+    req.company = company;
 
     next();
   } catch (error: any) {
