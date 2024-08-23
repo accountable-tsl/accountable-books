@@ -1,6 +1,25 @@
 import express from "express";
 import { Request, Response } from "express";
-import { checkAccCode, checkAccName, createCOAModel } from "../models/coaModel";
+import {
+  checkAccCode,
+  checkAccName,
+  createCOAModel,
+  getAllAccountTypes,
+} from "../models/coaModel";
+
+const getAccountTypes = async (req: Request, res: Response) => {
+  try {
+    const result = await getAllAccountTypes();
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error: any) {
+    console.error("Unexpected error in getAccountTypes:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
 
 const checkAccountCode = async (req: Request, res: Response) => {
   const accountCode = req.body.accountCode || (req.query.accountCode as string);
@@ -90,4 +109,10 @@ const createCOA = async (req: Request, res: Response) => {
 
 const createManyCOA = async (req: Request, res: Response) => {};
 
-export { checkAccountCode, checkAccountName, createCOA, createManyCOA };
+export {
+  checkAccountCode,
+  checkAccountName,
+  createCOA,
+  createManyCOA,
+  getAccountTypes,
+};

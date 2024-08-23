@@ -183,6 +183,9 @@ CREATE UNIQUE INDEX "Country_code_key" ON "Country"("code");
 CREATE UNIQUE INDEX "FinancialStatement_statementKey_key" ON "FinancialStatement"("statementKey");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "AccountType_typeName_key" ON "AccountType"("typeName");
+
+-- CreateIndex
 CREATE INDEX "Coa_companyId_idx" ON "Coa"("companyId");
 
 -- CreateIndex

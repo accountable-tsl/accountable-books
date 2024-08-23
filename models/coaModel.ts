@@ -3,6 +3,42 @@ import { Interface } from "readline";
 import { toTitleCase, truncateText } from "../utils/utils";
 const prisma = new PrismaClient();
 
+//Get all account types
+export async function getAllAccountTypes() {
+  try {
+    const allAccountTypes = await prisma.accountType.findMany({
+      select: {
+        id: true,
+        typeName: true,
+        accountElement: {
+          select: {
+            elementName: true,
+            parent: { select: { elementName: true } },
+          },
+        },
+        description: true,
+      },
+    });
+
+    const formattedAccountTypes = allAccountTypes.map((type) => ({
+      id: type.id,
+      typeName: type.typeName,
+      accountElementChild: type.accountElement?.elementName,
+      accountElementParent: type.accountElement?.parent?.elementName,
+      description: type.description,
+    }));
+
+    return {
+      success: true,
+      message: "Successfully retrieved all account types",
+      data: formattedAccountTypes,
+    };
+  } catch (error: any) {
+    console.error("Error getting account types", error);
+    return { success: false, message: "Error getting account codes" };
+  }
+}
+
 //Check Account Code
 export async function checkAccCode(companyId: number, accountCode: string) {
   try {
@@ -206,12 +242,12 @@ export async function createCOAModel(companyId: number, data: COAInput) {
     (!acctName || acctName.success === false)
   ) {
     const [defaultside, reportingCurrency] = await Promise.all([
-      prisma.accountType.findUnique({
+      prisma.accountType.findFirst({
         where: { id: data.accountTypeId },
         select: { accountElement: { select: { defaultSide: true } } },
       }),
 
-      prisma.company.findUnique({
+      prisma.company.findFirst({
         where: { id: companyId },
         select: { reportingCurrencyId: true },
       }),
@@ -233,10 +269,28 @@ export async function createCOAModel(companyId: number, data: COAInput) {
         },
       });
 
+      const accTypeId = createdAccount.accountTypeId
+        ? (
+            await checkAccountTypeDetails({
+              accountTypeId: createdAccount.accountTypeId,
+            })
+          ).data?.typeName // You need to await the Promise and then access `data`
+        : "";
+
+      const result = {
+        accountCode: createdAccount.accountCode,
+        accountName: createdAccount.accountName,
+        accountType: accTypeId,
+        ...(createdAccount.description && {
+          description: truncateText(createdAccount.description, 40),
+        }),
+        balance: createdAccount.balance,
+      };
+
       return {
         success: true,
         message: "Account successfully created",
-        data: createdAccount,
+        data: result,
       };
     } catch (error: any) {
       console.error(error);
