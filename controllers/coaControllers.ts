@@ -65,12 +65,10 @@ const createCOA = async (req: Request, res: Response) => {
   }
 
   if (!data.accountName) {
-    return res
-      .status(400)
-      .json({ message: "Missing required fields - Account Name" });
+    return res.status(400).json({ message: "Account Name Required" });
   }
 
-  if (!data.accountTypeId) {
+  if (!data.accountTypeId && !data.accountTypeName) {
     return res
       .status(400)
       .json({ message: "Missing required fields - Account Type" });
@@ -78,7 +76,12 @@ const createCOA = async (req: Request, res: Response) => {
 
   try {
     const result = await createCOAModel(Number(companyId), data);
-    res.status(200).json(result);
+
+    if (!result || result.success === false) {
+      res.status(400).json(result);
+    } else {
+      res.status(200).json(result);
+    }
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ message: "An unexpected error occurred" });

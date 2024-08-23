@@ -1,6 +1,6 @@
 import { DefaultSide, PrismaClient } from "@prisma/client";
 import { Interface } from "readline";
-import { toTitleCase } from "../utils/utils";
+import { toTitleCase, truncateText } from "../utils/utils";
 const prisma = new PrismaClient();
 
 //Check Account Code
@@ -14,19 +14,42 @@ export async function checkAccCode(companyId: number, accountCode: string) {
           mode: "insensitive",
         },
       },
+      select: {
+        accountCode: true,
+        accountName: true,
+        accountType: {
+          select: { typeName: true },
+        },
+        description: true,
+        balance: true,
+      },
     });
 
     if (existingAccCode) {
-      return { accountCodeExists: true, message: "" };
+      const result = {
+        accountCode: existingAccCode.accountCode,
+        accountName: existingAccCode.accountName,
+        accountType: existingAccCode.accountType?.typeName,
+        ...(existingAccCode.description && {
+          description: truncateText(existingAccCode.description, 40),
+        }),
+        balance: existingAccCode.balance,
+      };
+
+      return {
+        success: true,
+        message: "Account code already exists",
+        data: result,
+      };
     } else {
       return {
-        accountCodeExists: false,
+        success: false,
         message: "Account code does not exist",
       };
     }
   } catch (error: any) {
     console.error("Error checking account code:", error);
-    return { accountCodeExists: false, message: "Error checking account code" };
+    return { success: false, message: "Error checking account code" };
   }
 }
 
@@ -44,22 +67,38 @@ export async function checkAccName(companyId: number, accountName: string) {
       select: {
         accountCode: true,
         accountName: true,
+        accountType: {
+          select: { typeName: true },
+        },
         description: true,
         balance: true,
       },
     });
 
     if (existingAccName) {
-      return { accountNameExists: true, message: existingAccName };
+      const result = {
+        accountCode: existingAccName.accountCode,
+        accountName: existingAccName.accountName,
+        accountType: existingAccName.accountType?.typeName,
+        ...(existingAccName.description && {
+          description: truncateText(existingAccName.description, 40),
+        }),
+        balance: existingAccName.balance,
+      };
+      return {
+        success: true,
+        message: "Found Account Name",
+        data: result,
+      };
     } else {
       return {
-        accountNameExists: false,
+        success: false,
         message: "Account name does not exist",
       };
     }
   } catch (error: any) {
     console.error("Error checking account name:", error);
-    return { accountNameExists: false, message: "Error checking account name" };
+    return { success: false, message: "Error checking account name" };
   }
 }
 
@@ -85,7 +124,7 @@ export async function checkAccountTypeDetails(accountType: checkAccountType) {
           },
         };
 
-    const accountTypeDetails = await prisma.accountType.findUnique({
+    const accountTypeDetails = await prisma.accountType.findFirst({
       where: whereClause,
       select: { id: true, typeName: true, description: true },
     });
@@ -94,7 +133,11 @@ export async function checkAccountTypeDetails(accountType: checkAccountType) {
       return { success: false, message: "Account Type not found" };
     }
 
-    return { success: true, message: accountTypeDetails };
+    return {
+      success: true,
+      message: "Found Account Type",
+      data: accountTypeDetails,
+    };
   } catch (error: any) {
     console.error("Error fetching account type:", error);
     return {
@@ -124,36 +167,43 @@ interface CoaItems {
 }
 
 export async function createCOAModel(companyId: number, data: COAInput) {
-  if (!data.accountName || !data.accountTypeId) {
-    return { success: false, message: "Missing required fields" };
-  }
+  const stdAccountName = toTitleCase(data.accountName);
 
-  let verifyAccType;
-
-  if (data.accountTypeId) {
-    const verifyAccType = await checkAccountTypeDetails({
-      accountTypeId: data.accountTypeId,
-    });
-  } else if (data.accountTypeName) {
-    const verifyAccType = await checkAccountTypeDetails({
-      accountTypeName: data.accountTypeName,
-    });
-  } else {
-    return { success: false, message: "Account type information is missing" };
-  }
+  const verifyAccType = data.accountTypeId
+    ? await checkAccountTypeDetails({ accountTypeId: data.accountTypeId })
+    : await checkAccountTypeDetails({
+        accountTypeName: data.accountTypeName,
+      });
 
   if (!verifyAccType.success) {
     return verifyAccType;
   }
 
-  const acctCode =
-    data.accountCode && (await checkAccCode(companyId, data.accountCode));
-  const acctName =
-    data.accountName && (await checkAccName(companyId, data.accountName));
+  const acctCode = data.accountCode
+    ? await checkAccCode(companyId, data.accountCode)
+    : {
+        success: false,
+        message: `Account code ${data.accountCode} already exists`,
+      };
+
+  const acctName = stdAccountName
+    ? await checkAccName(companyId, stdAccountName)
+    : {
+        success: false,
+        message: `Account name ${stdAccountName} already exists`,
+      };
+
+  if (acctCode.success === true) {
+    return acctCode;
+  }
+
+  if (acctName.success === true) {
+    return acctName;
+  }
 
   if (
-    (!acctCode || acctCode.accountCodeExists === false) &&
-    (!acctName || acctName.accountNameExists === false)
+    (!acctCode || acctCode.success === false) &&
+    (!acctName || acctName.success === false)
   ) {
     const [defaultside, reportingCurrency] = await Promise.all([
       prisma.accountType.findUnique({
@@ -169,7 +219,6 @@ export async function createCOAModel(companyId: number, data: COAInput) {
 
     const defaultSideValue = defaultside?.accountElement?.defaultSide;
     const currency = reportingCurrency?.reportingCurrencyId;
-    const stdAccountName = toTitleCase(data.accountName);
 
     try {
       const createdAccount = await prisma.coa.create({
@@ -177,7 +226,7 @@ export async function createCOAModel(companyId: number, data: COAInput) {
           accountCode: data.accountCode,
           accountName: stdAccountName,
           description: data.description,
-          accountTypeId: verifyAccType.message.id,
+          accountTypeId: verifyAccType.data && verifyAccType.data.id,
           defaultSide: defaultSideValue as DefaultSide,
           currencyId: currency,
           companyId: companyId,
@@ -193,6 +242,8 @@ export async function createCOAModel(companyId: number, data: COAInput) {
       console.error(error);
       return { success: false, message: error.message };
     }
+  } else {
+    return { success: false, message: "Account already exists" };
   }
 }
 
