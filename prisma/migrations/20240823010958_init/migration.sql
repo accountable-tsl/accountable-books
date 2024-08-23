@@ -38,8 +38,9 @@ CREATE TABLE "Company" (
     "industry" TEXT,
     "teamSize" TEXT,
     "revenue" TEXT,
-    "country" TEXT NOT NULL,
+    "countryId" INTEGER NOT NULL,
     "reportingCurrencyId" INTEGER NOT NULL,
+    "createdById" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
@@ -68,12 +69,15 @@ CREATE TABLE "Currency" (
 );
 
 -- CreateTable
-CREATE TABLE "CountryCode" (
+CREATE TABLE "Country" (
     "id" SERIAL NOT NULL,
     "code" TEXT NOT NULL,
     "country" TEXT NOT NULL,
+    "phoneCode" TEXT NOT NULL,
+    "flag" TEXT,
+    "continent" TEXT,
 
-    CONSTRAINT "CountryCode_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Country_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -158,7 +162,7 @@ CREATE INDEX "User_email_status_idx" ON "User"("email", "status");
 CREATE INDEX "Company_name_idx" ON "Company"("name");
 
 -- CreateIndex
-CREATE INDEX "Company_country_idx" ON "Company"("country");
+CREATE INDEX "Company_countryId_idx" ON "Company"("countryId");
 
 -- CreateIndex
 CREATE INDEX "UserCompany_userId_companyId_idx" ON "UserCompany"("userId", "companyId");
@@ -173,7 +177,7 @@ CREATE UNIQUE INDEX "Currency_name_key" ON "Currency"("name");
 CREATE INDEX "Currency_code_idx" ON "Currency"("code");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CountryCode_code_key" ON "CountryCode"("code");
+CREATE UNIQUE INDEX "Country_code_key" ON "Country"("code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "FinancialStatement_statementKey_key" ON "FinancialStatement"("statementKey");
@@ -191,7 +195,13 @@ CREATE UNIQUE INDEX "Coa_accountCode_companyId_key" ON "Coa"("accountCode", "com
 ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Company" ADD CONSTRAINT "Company_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "Country"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Company" ADD CONSTRAINT "Company_reportingCurrencyId_fkey" FOREIGN KEY ("reportingCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Company" ADD CONSTRAINT "Company_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UserCompany" ADD CONSTRAINT "UserCompany_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

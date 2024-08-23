@@ -137,7 +137,6 @@ accountCode,accountName,accountTypeId,defaultSide,Description
 92904,Welfare and Entertainment Expenses,42,Debit,"Costs for employee welfare activities and entertainment, including staff events and celebrations"
 92905,Corporate Giftings,42,Debit,"Expenses for merch, gifts given to clients, partners, or employees for corporate purposes"
 92906,Printing and Stationery,42,Debit,Costs for printing documents and purchasing stationery items for the office
-92907,Office Supplies,42,Debit,Contributions made by the company to charitable organisations or causes
 92908,Charitable Donations,42,Debit,Contributions made by the company to charitable organisations or causes
 92909,Research and Development Costs,42,Debit,Expenses incurred in the research and development of new products or services
 92910,General Provisions,42,Debit,General provisions for anticipated liabilities or losses not yet realised

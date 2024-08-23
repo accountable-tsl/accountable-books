@@ -1,5 +1,5 @@
 import { Company, PrismaClient } from "@prisma/client";
-import { Express, Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 const prisma = new PrismaClient();
 
 export const checkCompanyId = async (

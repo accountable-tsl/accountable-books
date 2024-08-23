@@ -1,16 +1,22 @@
 import express from "express";
-import "dotenv/config.js";
+import "dotenv/config";
 import cors from "cors";
 import usersRoute from "./controllers/usersController";
-import companiesRoute from "./controllers/companiesController";
+import companiesRoutes from "./routes/companiesRoutes";
 
 const PORT = process.env.PORT;
 const BACKEND_URL = process.env.BACKEND_URL;
 const FRONTEND_URL = process.env.FRONTEND_URL;
 
 const app = express();
+
 app.use(express.json());
-app.use(cors());
+
+app.use(express.static("./public"));
+
+app.use(cors({ origin: FRONTEND_URL }));
+
+app.use("/company", companiesRoutes);
 
 // app.use("api/users", userRoutes);
 

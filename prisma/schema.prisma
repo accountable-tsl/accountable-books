@@ -40,6 +40,7 @@ model User {
   deletedAt DateTime?
   profileImage String?
   companies UserCompany[] @relation(name: "UserCompanies")
+  createdCompanies Company[] @relation("CompanyCreator")
 
   @@index([email, status])
 }
@@ -52,9 +53,12 @@ model Company {
   industry String?
   teamSize String?
   revenue String?
-  country String
-  reportingCurrency Currency @relation(name:"CompanyCurrency", fields: [reportingCurrencyId], references: [id])
+  countryId Int
+  country Country @relation(name:"CompanyCountry", fields: [countryId], references: [id])
   reportingCurrencyId Int
+  reportingCurrency Currency @relation(name:"CompanyCurrency", fields: [reportingCurrencyId], references: [id])
+  createdById Int
+  createdBy User @relation(name: "CompanyCreator", fields: [createdById], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
@@ -62,7 +66,7 @@ model Company {
   coa Coa[] @relation("CompanyCOA")
 
   @@index([name])
-  @@index([country])
+  @@index([countryId])
 }
 
 model UserCompany {
@@ -87,10 +91,14 @@ model Currency {
   @@index([code])
 }
 
-model CountryCode {
+model Country {
   id Int @id @default(autoincrement())
   code String @unique
   country String
+  phoneCode String
+  flag String?
+  continent String?
+  company Company[] @relation("CompanyCountry")
 }
 
 model FinancialStatement {

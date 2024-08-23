@@ -60,13 +60,37 @@ async function main() {
     ],
   });
 
-  //Companies
-  const testCompany = await prisma.company.create({
-    data: {
-      name: "Test Company 1",
-      country: "Nigeria",
-      reportingCurrencyId: 1,
-    },
+  const countries = await prisma.country.createMany({
+    data: [
+      {
+        code: "NG",
+        country: "Nigeria",
+        phoneCode: "+234",
+        flag: "🇳🇬",
+        continent: "Africa",
+      },
+      {
+        code: "GH",
+        country: "Ghana",
+        phoneCode: "+233",
+        flag: "🇬🇭",
+        continent: "Africa",
+      },
+      {
+        code: "US",
+        country: "United States",
+        phoneCode: "+1",
+        flag: "🇺🇸",
+        continent: "North America",
+      },
+      {
+        code: "UK",
+        country: "United Kingdom",
+        phoneCode: "+44",
+        flag: "🇬🇧",
+        continent: "Europe",
+      },
+    ],
   });
 
   //Users
@@ -81,12 +105,25 @@ async function main() {
       role: {
         connect: { id: adminRole.id },
       },
-      companies: {
-        create: {
-          companyId: testCompany.id,
-          role: "admin",
-        },
-      },
+    },
+  });
+
+  //Companies
+  const testCompany = await prisma.company.create({
+    data: {
+      name: "Test Company 1",
+      countryId: 1,
+      reportingCurrencyId: 1,
+      createdById: adminUser.id,
+    },
+  });
+
+  // Associate the admin user with the company through UserCompany
+  await prisma.userCompany.create({
+    data: {
+      userId: adminUser.id,
+      companyId: testCompany.id,
+      role: "admin",
     },
   });
 
@@ -608,14 +645,7 @@ async function main() {
     ],
   });
 
-  console.log(
-    adminRole,
-    accountantRole,
-    clientRole,
-    currencies,
-    testCompany,
-    adminUser
-  );
+  console.log();
 
   // 2. CSV-based seed data
   const defaultCOAFilePath = path.join(
