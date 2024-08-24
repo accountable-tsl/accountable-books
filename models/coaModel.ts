@@ -105,7 +105,7 @@ export async function getAllCOA(
 
     const formattedCoa = coaPerCompany.map((coa) => ({
       id: coa.id,
-      "account Code": coa.accountCode,
+      accountCode: coa.accountCode,
       accountTypeName: coa.accountType.typeName,
       accountElement: coa.accountType.accountElement?.elementName,
       parentElement: coa.accountType.accountElement?.parent?.elementName,
@@ -138,6 +138,82 @@ export async function getAllCOA(
       success: false,
       message: "Error getting chart of accounts",
       error: error.message,
+    };
+  }
+}
+
+//Get all COA
+export async function getACOA(companyId: number, id: number) {
+  try {
+    const singleCOA = await prisma.coa.findFirst({
+      where: { companyId, id },
+      select: {
+        id: true,
+        accountCode: true,
+        accountName: true,
+        accountType: {
+          select: {
+            typeName: true,
+            accountElement: {
+              select: {
+                elementName: true,
+                parent: { select: { elementName: true } },
+                financialStatement: {
+                  select: {
+                    statementKey: true,
+                    usGaapLabel: true,
+                    ifrsLabel: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        currency: { select: { code: true, name: true, symbol: true } },
+        defaultSide: true,
+        isActive: true,
+        balance: true,
+      },
+    });
+
+    if (singleCOA) {
+      const formattedCoa = {
+        id: singleCOA.id,
+        accountCode: singleCOA.accountCode,
+        accountTypeName: singleCOA.accountType.typeName,
+        accountElement: singleCOA.accountType.accountElement?.elementName,
+        parentElement:
+          singleCOA.accountType.accountElement?.parent?.elementName,
+        fsKey:
+          singleCOA.accountType.accountElement?.financialStatement.statementKey,
+        ifrsLabel:
+          singleCOA.accountType.accountElement?.financialStatement.ifrsLabel,
+        usGaapLabel:
+          singleCOA.accountType.accountElement?.financialStatement.usGaapLabel,
+        currencyCode: singleCOA.currency.code,
+        currencyName: singleCOA.currency.name,
+        currencySymbol: singleCOA.currency.symbol,
+        defaultSide: singleCOA.defaultSide,
+        isActive: singleCOA.isActive,
+        balance: singleCOA.balance,
+      };
+
+      return {
+        success: true,
+        message: "Successfully retrieved account",
+        data: formattedCoa,
+      };
+    } else {
+      return {
+        success: false,
+        message: "Account not found",
+      };
+    }
+  } catch (error: any) {
+    console.error("Error getting account", error);
+    return {
+      success: false,
+      message: "Error getting account",
     };
   }
 }
@@ -406,7 +482,6 @@ export async function createCOAModel(companyId: number, data: COAInput) {
 }
 
 // CREATE BULK COA
-
 export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
   const results = await Promise.all(
     data.map(async (item) => {
@@ -498,3 +573,154 @@ export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
     };
   }
 }
+
+//Update COA
+interface UpdateCOAInput {
+  id: number;
+  accountCode?: string;
+  accountName: string;
+  description?: string;
+  accountTypeId?: number;
+  accountTypeName?: string;
+}
+
+export async function updateCOAModel(
+  companyId: number,
+  id: number,
+  data: UpdateCOAInput
+) {
+  try {
+    const coaId = id || data.id;
+
+    const oldAccount = await prisma.coa.findFirst({
+      where: { companyId, id },
+      select: {
+        id: true,
+        accountCode: true,
+        accountName: true,
+        description: true,
+        accountType: { select: { typeName: true } },
+      },
+    });
+
+    if (!oldAccount) {
+      return {
+        success: false,
+        message: "Account not found",
+      };
+    }
+
+    let accountTypeId;
+
+    const accountTypeData = data.accountTypeId || data.accountTypeName;
+
+    if (accountTypeData) {
+      const accountType =
+        typeof accountTypeData === "string"
+          ? await checkAccountTypeDetails({
+              accountTypeName: data.accountTypeName,
+            })
+          : await checkAccountTypeDetails({
+              accountTypeId: data.accountTypeId,
+            });
+
+      accountTypeId = accountType?.data?.id;
+
+      if (!accountTypeId) {
+        return {
+          success: false,
+          message: "Invalid account type provided",
+        };
+      }
+    }
+
+    // Prepare update data conditionally
+    const updateData: Partial<{
+      accountCode: string;
+      accountName: string;
+      description: string;
+      accountTypeId: number;
+    }> = {
+      ...(data.accountCode && { accountCode: data.accountCode }),
+      ...(data.accountName && { accountName: data.accountName }),
+      ...(data.description && { description: data.description }),
+      ...(accountTypeId !== undefined && { accountTypeId }),
+    };
+
+    // Check if there's anything to update
+    if (Object.keys(updateData).length === 0) {
+      return {
+        success: false,
+        message: "No fields provided for update",
+      };
+    }
+
+    const updatedAccount = await prisma.coa.update({
+      where: { companyId, id: coaId },
+      data: updateData,
+      select: {
+        id: true,
+        accountCode: true,
+        accountName: true,
+        description: true,
+        accountType: { select: { typeName: true } },
+      },
+    });
+
+    const updatedAccountData = await prisma.coa.update({
+      where: { companyId, id: coaId },
+      data: updateData,
+      select: {
+        id: true,
+        accountCode: !!data.accountCode,
+        accountName: !!data.accountName,
+        description: !!data.description,
+        accountType: accountTypeId ? { select: { typeName: true } } : false,
+      },
+    });
+
+    const changes: any = {
+      ...(oldAccount.accountName !== updatedAccount.accountName && {
+        oldAccountName: oldAccount.accountName,
+      }),
+      ...(oldAccount.accountCode !== updatedAccount.accountCode && {
+        oldAccountCode: oldAccount.accountCode,
+      }),
+      ...(oldAccount.description !== updatedAccount.description && {
+        oldDescription: oldAccount.description,
+      }),
+      ...(oldAccount.accountType?.typeName !==
+        updatedAccount.accountType.typeName && {
+        oldAccountTypeName: oldAccount.accountType?.typeName,
+      }),
+    };
+
+    const { accountType, ...rest } = updatedAccountData;
+
+    const dataToDisplay = {
+      ...rest,
+      ...(accountType && {
+        accountTypeName: updatedAccount.accountType.typeName,
+      }),
+      ...changes,
+    };
+
+    return {
+      success: true,
+      message: "Account successfully updated",
+      data: dataToDisplay,
+    };
+  } catch (error: any) {
+    console.error(error);
+    return {
+      success: false,
+      message: "An unexpected error occurred",
+    };
+  }
+}
+
+export async function archiveCOAModel(companyId: number, id: number[]) {
+    
+}
+
+export async function archiveSingleCOAModel(companyId: number, id: number) {}

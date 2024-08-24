@@ -5,8 +5,10 @@ import {
   checkAccName,
   createBulkCOAModel,
   createCOAModel,
+  getACOA,
   getAllAccountTypes,
   getAllCOA,
+  updateCOAModel,
 } from "../models/coaModel";
 
 const getAccountTypes = async (req: Request, res: Response) => {
@@ -26,7 +28,7 @@ const getAccountTypes = async (req: Request, res: Response) => {
 const getCOA = async (req: Request, res: Response) => {
   const companyId = req.company!.id;
 
-  if (!req.company || !req.company.id) {
+  if (!companyId) {
     return res.status(400).json({ message: "Bad Request" });
   }
 
@@ -43,6 +45,32 @@ const getCOA = async (req: Request, res: Response) => {
       res.status(204).json(result);
     } else {
       res.status(404).json(result);
+    }
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ message: "An unexpected error occurred" });
+  }
+};
+
+const getSingleCOA = async (req: Request, res: Response) => {
+  const companyId = req.company!.id;
+
+  if (!companyId) {
+    return res.status(400).json({ message: "Bad Request" });
+  }
+
+  const coaId = Number(req.params.id);
+
+  if (!coaId || isNaN(coaId)) {
+    return res.status(400).json({ message: "Bad Request: Invalid COA ID" });
+  }
+
+  try {
+    const result = await getACOA(companyId, coaId);
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(204).json(result);
     }
   } catch (error: any) {
     console.error(error);
@@ -158,11 +186,44 @@ const createBulkCOA = async (req: Request, res: Response) => {
   }
 };
 
+const updateCOA = async (req: Request, res: Response) => {
+  const data = req.body;
+  const coaId = Number(req.params.id) || Number(req.body.id);
+  const companyId = req.company!.id;
+
+  if (!companyId || !coaId || isNaN(coaId)) {
+    return res
+      .status(400)
+      .json({ message: "Bad Request: Missing or invalid parameters" });
+  }
+
+  try {
+    const result = await updateCOAModel(companyId, coaId, data);
+
+    if (!result.success) {
+      res.status(400).json(result);
+    } else {
+      res.status(200).json(result);
+    }
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ message: "An unexpected error occurred" });
+  }
+};
+
+const archiveCOA = async (req: Request, res: Response) => {};
+
+const archiveSingleCOA = async (req: Request, res: Response) => {};
+
 export {
   getAccountTypes,
   getCOA,
+  getSingleCOA,
   checkAccountCode,
   checkAccountName,
   createCOA,
   createBulkCOA,
+  updateCOA,
+  archiveCOA,
+  archiveSingleCOA,
 };
