@@ -3,8 +3,10 @@ import { Request, Response } from "express";
 import {
   checkAccCode,
   checkAccName,
+  createBulkCOAModel,
   createCOAModel,
   getAllAccountTypes,
+  getAllCOA,
 } from "../models/coaModel";
 
 const getAccountTypes = async (req: Request, res: Response) => {
@@ -13,11 +15,38 @@ const getAccountTypes = async (req: Request, res: Response) => {
     if (result.success) {
       res.status(200).json(result);
     } else {
-      res.status(500).json(result);
+      res.status(400).json(result);
     }
   } catch (error: any) {
     console.error("Unexpected error in getAccountTypes:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const getCOA = async (req: Request, res: Response) => {
+  const companyId = req.company!.id;
+
+  if (!req.company || !req.company.id) {
+    return res.status(400).json({ message: "Bad Request" });
+  }
+
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 50;
+  const sortBy = (req.query.sortBy as string) || "accountCode";
+  const sortOrder = (req.query.sortOrder as "asc" | "desc") || "asc";
+
+  try {
+    const result = await getAllCOA(companyId, page, limit, sortBy, sortOrder);
+    if (result.success) {
+      res.status(200).json(result);
+    } else if (result.message === "No accounts found") {
+      res.status(204).json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ message: "An unexpected error occurred" });
   }
 };
 
@@ -37,7 +66,7 @@ const checkAccountCode = async (req: Request, res: Response) => {
 
   try {
     const result = await checkAccCode(companyId, accountCode);
-    if (result.accountCodeExists) {
+    if (result.success) {
       res.status(200).json(result);
     } else {
       res.status(404).json(result);
@@ -107,12 +136,33 @@ const createCOA = async (req: Request, res: Response) => {
   }
 };
 
-const createManyCOA = async (req: Request, res: Response) => {};
+const createBulkCOA = async (req: Request, res: Response) => {
+  const data = req.body;
+  const companyId = req.company!.id;
+
+  if (!companyId || !data) {
+    return res.status(400).json({ success: false, message: "Bad Request" });
+  }
+
+  try {
+    const result = await createBulkCOAModel(Number(companyId), data);
+
+    if (!result || result.success === false) {
+      res.status(400).json(result);
+    } else {
+      res.status(200).json(result);
+    }
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ message: "An unexpected error occurred" });
+  }
+};
 
 export {
+  getAccountTypes,
+  getCOA,
   checkAccountCode,
   checkAccountName,
   createCOA,
-  createManyCOA,
-  getAccountTypes,
+  createBulkCOA,
 };

@@ -1,6 +1,7 @@
 import { DefaultSide, PrismaClient } from "@prisma/client";
 import { Interface } from "readline";
 import { toTitleCase, truncateText } from "../utils/utils";
+import { parseCSVFile, validateCSVRow } from "../utils/csvUtils";
 const prisma = new PrismaClient();
 
 //Get all account types
@@ -35,7 +36,109 @@ export async function getAllAccountTypes() {
     };
   } catch (error: any) {
     console.error("Error getting account types", error);
-    return { success: false, message: "Error getting account codes" };
+    return { success: false, message: "Error getting account types" };
+  }
+}
+
+//Get all COA
+export async function getAllCOA(
+  companyId: number,
+  page: number = 1,
+  limit: number = 50, // default page size
+  sortBy: string = "accountCode", // default sort
+  sortOrder: "asc" | "desc" = "asc"
+) {
+  try {
+    const offset = (page - 1) * limit;
+
+    const coaPerCompany = await prisma.coa.findMany({
+      where: { companyId },
+      skip: offset,
+      take: limit,
+      orderBy: { [sortBy]: sortOrder },
+      select: {
+        id: true,
+        accountCode: true,
+        accountName: true,
+        accountType: {
+          select: {
+            typeName: true,
+            accountElement: {
+              select: {
+                elementName: true,
+                parent: { select: { elementName: true } },
+                financialStatement: {
+                  select: {
+                    statementKey: true,
+                    usGaapLabel: true,
+                    ifrsLabel: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        currency: { select: { code: true, name: true, symbol: true } },
+        defaultSide: true,
+        isActive: true,
+        balance: true,
+      },
+    });
+
+    // Fetch the total count for pagination metadata
+    const totalItems = await prisma.coa.count({ where: { companyId } });
+    const totalPages = Math.ceil(totalItems / limit);
+
+    if (coaPerCompany.length === 0) {
+      return {
+        success: true,
+        message: "Empty chart of accounts",
+        data: [],
+        pagination: {
+          totalItems,
+          totalPages,
+          currentPage: page,
+          limit,
+        },
+      };
+    }
+
+    const formattedCoa = coaPerCompany.map((coa) => ({
+      id: coa.id,
+      "account Code": coa.accountCode,
+      accountTypeName: coa.accountType.typeName,
+      accountElement: coa.accountType.accountElement?.elementName,
+      parentElement: coa.accountType.accountElement?.parent?.elementName,
+      fsKey: coa.accountType.accountElement?.financialStatement.statementKey,
+      ifrsLabel: coa.accountType.accountElement?.financialStatement.ifrsLabel,
+      usGaapLabel:
+        coa.accountType.accountElement?.financialStatement.usGaapLabel,
+      currencyCode: coa.currency.code,
+      currencyName: coa.currency.name,
+      currencySymbol: coa.currency.symbol,
+      defaultSide: coa.defaultSide,
+      isActive: coa.isActive,
+      balance: coa.balance,
+    }));
+
+    return {
+      success: true,
+      message: "Successfully retrieved chart of accounts",
+      pagination: {
+        totalItems,
+        totalPages,
+        currentPage: page,
+        limit,
+      },
+      data: formattedCoa,
+    };
+  } catch (error: any) {
+    console.error("Error getting chart of accounts", error);
+    return {
+      success: false,
+      message: "Error getting chart of accounts",
+      error: error.message,
+    };
   }
 }
 
@@ -66,7 +169,7 @@ export async function checkAccCode(companyId: number, accountCode: string) {
         accountCode: existingAccCode.accountCode,
         accountName: existingAccCode.accountName,
         accountType: existingAccCode.accountType?.typeName,
-        ...(existingAccCode.description && {
+        ...(existingAccCode.description?.trim() && {
           description: truncateText(existingAccCode.description, 40),
         }),
         balance: existingAccCode.balance,
@@ -217,24 +320,18 @@ export async function createCOAModel(companyId: number, data: COAInput) {
 
   const acctCode = data.accountCode
     ? await checkAccCode(companyId, data.accountCode)
-    : {
-        success: false,
-        message: `Account code ${data.accountCode} already exists`,
-      };
+    : { success: false };
 
   const acctName = stdAccountName
     ? await checkAccName(companyId, stdAccountName)
-    : {
-        success: false,
-        message: `Account name ${stdAccountName} already exists`,
-      };
+    : { success: false };
 
   if (acctCode.success === true) {
-    return acctCode;
+    return { success: false, message: "Account code already exists" };
   }
 
   if (acctName.success === true) {
-    return acctName;
+    return { success: false, message: "Account name already exists" };
   }
 
   if (
@@ -256,6 +353,13 @@ export async function createCOAModel(companyId: number, data: COAInput) {
     const defaultSideValue = defaultside?.accountElement?.defaultSide;
     const currency = reportingCurrency?.reportingCurrencyId;
 
+    if (!defaultSideValue) {
+      return {
+        success: false,
+        message: "Default side not found for account type",
+      };
+    }
+
     try {
       const createdAccount = await prisma.coa.create({
         data: {
@@ -274,7 +378,7 @@ export async function createCOAModel(companyId: number, data: COAInput) {
             await checkAccountTypeDetails({
               accountTypeId: createdAccount.accountTypeId,
             })
-          ).data?.typeName // You need to await the Promise and then access `data`
+          ).data?.typeName
         : "";
 
       const result = {
@@ -301,5 +405,96 @@ export async function createCOAModel(companyId: number, data: COAInput) {
   }
 }
 
-// CREATE MULTIPLE COA
-export async function createManyCOAModel(params: type) {}
+// CREATE BULK COA
+
+export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
+  const results = await Promise.all(
+    data.map(async (item) => {
+      try {
+        const stdAccountName = toTitleCase(item.accountName);
+
+        const verifyAccType = item.accountTypeId
+          ? await checkAccountTypeDetails({ accountTypeId: item.accountTypeId })
+          : await checkAccountTypeDetails({
+              accountTypeName: item.accountTypeName,
+            });
+
+        if (!verifyAccType.success) {
+          return { success: false, message: verifyAccType.message, item };
+        }
+
+        const acctCodeExists = await checkAccCode(companyId, item.accountCode!);
+        const acctNameExists = await checkAccName(companyId, stdAccountName);
+
+        if (!acctCodeExists.success || !acctNameExists.success) {
+          throw new Error(
+            `Account with code ${item.accountCode} or name ${stdAccountName} already exists`
+          );
+        }
+
+        const [defaultside, reportingCurrency] = await Promise.all([
+          prisma.accountType.findFirst({
+            where: { id: item.accountTypeId },
+            select: { accountElement: { select: { defaultSide: true } } },
+          }),
+
+          prisma.company.findFirst({
+            where: { id: companyId },
+            select: { reportingCurrencyId: true },
+          }),
+        ]);
+
+        const defaultSideValue = defaultside?.accountElement?.defaultSide;
+        const currency = reportingCurrency?.reportingCurrencyId;
+
+        if (!defaultSideValue) {
+          return {
+            success: false,
+            message: "Default side not found for account type",
+            item,
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            accountCode: item.accountCode,
+            accountName: stdAccountName,
+            description: item.description,
+            accountTypeId: verifyAccType.data?.id,
+            defaultSide: defaultSideValue as DefaultSide,
+            currencyId: currency,
+            companyId: companyId,
+          },
+        };
+      } catch (error: any) {
+        return { success: false, message: error.message, item };
+      }
+    })
+  );
+
+  const validRecords = results
+    .filter((singleResult) => singleResult.success)
+    .map((singleResult) => singleResult.data);
+  const failedRecords = results.filter((singleResult) => !singleResult.success);
+
+  try {
+    const createdAccounts = await prisma.coa.createMany({
+      data: validRecords,
+      skipDuplicates: true,
+    });
+
+    return {
+      success: true,
+      message: `${createdAccounts.count} accounts created successfully. Failed records shown below`,
+      data: failedRecords,
+    };
+  } catch (error: any) {
+    console.error(error);
+    return {
+      success: false,
+      message: error.message,
+      data: [...failedRecords, ...validRecords],
+    };
+  }
+}

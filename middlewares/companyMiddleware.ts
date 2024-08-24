@@ -7,15 +7,13 @@ export const checkCompanyId = async (
   res: Response,
   next: NextFunction
 ) => {
-  let companyId = req.body.companyId || req.query.companyId;
+  const companyIdStr =
+    req.params.companyId || req.body.companyId || req.query.companyId;
 
-  if (req.body.companyId) {
-    companyId = parseInt(req.body.companyId, 10);
-  } else if ((req.query.companyId, 10)) {
-    companyId = parseInt(req.query.companyId as string, 10);
-  }
+  const companyId = Number(companyIdStr);
+
   if (!companyId || companyId < 0 || isNaN(companyId)) {
-    return res.status(400).json({ message: "Access Denied" });
+    return res.status(400).json({ message: "Invalid Company ID" });
   }
 
   try {
@@ -24,7 +22,7 @@ export const checkCompanyId = async (
     });
 
     if (!company) {
-      return res.status(404).json({ message: "Access Denied" });
+      return res.status(404).json({ message: "Company not found" });
     }
 
     req.company = company;

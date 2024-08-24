@@ -13,14 +13,13 @@ const app = express();
 
 app.use(express.json());
 
-app.use(express.static("./public"));
-
 app.use(cors({ origin: FRONTEND_URL }));
 
-app.use("/api/company", companiesRoutes);
-app.use("/api/coa", coaRoutes);
-
+app.use("/api/:companyId/coa", coaRoutes);
+app.use("/api/:companyId/company", companiesRoutes);
 // app.use("api/users", userRoutes);
+
+app.use(express.static("./public"));
 
 app.listen(PORT, () => {
   console.log(`Server is running on ${BACKEND_URL}:${PORT}`);
