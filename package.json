@@ -8,7 +8,8 @@
     "start": "tsx index.ts",
     "dev": "tsx --watch index.ts",
     "seed": "tsx prisma/seed.ts",
-    "resetdb": "npx prisma generate && npx prisma migrate reset --force && rm -rf prisma/migrations && npx prisma format && npx prisma migrate dev --name init && npm run seed"
+    "resetdb": "npx prisma generate && npx prisma migrate reset --force && rm -rf prisma/migrations && npx prisma format && npx prisma migrate dev --name init && npm run seed",
+    "hardresetdb": "rm -rf node_modules && npm install && npx prisma generate"
   },
   "author": "",
   "license": "ISC",

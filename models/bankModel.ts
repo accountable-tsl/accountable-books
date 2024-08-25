@@ -1,15 +1,170 @@
 import { PrismaClient } from "@prisma/client";
+import { createCOAModel } from "./coaModel";
+import { BankAccountType } from "@prisma/client/wasm";
 
 const prisma = new PrismaClient();
 
-export async function getAllBanks(companyId: number) {
+export async function getAllBanks() {
   try {
-    const allBankAccounts = {};
-  } catch (error: any) {}
+    const allBanks = await prisma.bank.findMany({
+      select: {
+        id: true,
+        name: true,
+        bankLogo: true,
+        country: { select: { id: true, code: true, name: true } },
+      },
+    });
+
+    const result = allBanks.map((bank: any) => ({
+      bankName: bank.name,
+      bankLogo: bank.bankLogo,
+      countryId: bank.country?.id,
+      countryCode: bank.country?.code,
+      countryName: bank.country?.name,
+    }));
+
+    return {
+      success: true,
+      message: "Successfully retrieved all banks",
+      data: result,
+    };
+  } catch (error: any) {
+    console.error(error);
+    return {
+      success: false,
+      message: "An unexpected error occured",
+    };
+  }
 }
 
-export async function getSingleBank(params: type) {}
+export async function getSingleBank(id: number) {
+  try {
+    const singleBank = await prisma.bank.findFirst({ where: { id } });
+    if (singleBank) {
+      return {
+        success: true,
+        message: "Successfully retrieved bank",
+        data: singleBank,
+      };
+    } else {
+      return { success: false, message: "Bank not found" };
+    }
+  } catch (error: any) {
+    console.error("Error getting bank", error);
+    return { success: false, message: "Internal server error" };
+  }
+}
 
-export async function createNewBank(params: type) {}
+export async function createNewBank() {}
 
-//For bank transaction uploads, remember to check that the transaction did not exist before allowing new upload
+export async function getAllBankAccounts(companyId: number) {
+  try {
+    const allBankAccounts = await prisma.bankAccount.findMany({
+      where: { companyId },
+    });
+
+    const noOfAccounts = allBankAccounts.length;
+
+    if (noOfAccounts === 0) {
+      return {
+        success: false,
+        message: "No bank accounts found",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Successfully retrieved all bank accounts",
+      data: { bankAccounts: allBankAccounts, noOfAccounts },
+    };
+  } catch (error: any) {
+    console.error(error);
+    return {
+      success: false,
+      message: "An unexpected error occured",
+    };
+  }
+}
+
+export async function getSingleBankAccount(companyId: number, id: string) {
+  try {
+    const bankAccount = await prisma.bankAccount.findFirst({
+      where: { companyId, id },
+    });
+
+    if (!bankAccount) {
+      return {
+        success: false,
+        message: "Bank account not found",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Successfully retrieved the bank account",
+      data: { bankAccount },
+    };
+  } catch (error: any) {
+    console.error(error.message || error);
+    return {
+      success: false,
+      message: "An unexpected error occurred",
+    };
+  }
+}
+
+interface CreateBankData {
+  bankId: number;
+  displayName: string;
+  bankAccountType: BankAccountType;
+  bankAccountNo: string;
+  currencyId: number;
+}
+
+export async function createNewBankAccount(
+  companyId: number,
+  data: CreateBankData
+) {
+  try {
+    let coaId;
+
+    const coaInput = {
+      accountName: data.displayName,
+      accountTypeName: "Bank",
+    };
+
+    const coa = await createCOAModel(companyId, coaInput);
+    if (coa.success && "data" in coa && coa.data?.id) {
+      coaId = coa.data.id;
+    } else {
+      return coa;
+    }
+
+    const newBankAccount = await prisma.bankAccount.create({
+      data: {
+        companyId,
+        bankId: data.bankId,
+        displayName: data.displayName,
+        bankAccountType: data.bankAccountType,
+        bankAccountNo: data.bankAccountNo,
+        currencyId: data.currencyId,
+        coaId: coaId,
+        updatedAt: new Date(),
+      },
+    });
+
+    return {
+      success: true,
+      message: "Bank account created successfully",
+      data: newBankAccount,
+    };
+  } catch (error: any) {
+    console.error("Error creating bank account:", error);
+    return {
+      success: false,
+      message: "Failed to create bank account",
+    };
+  }
+}
+
+// For bank transaction uploads, remember to check that the transaction did not exist before allowing new upload

@@ -1,4 +1,5 @@
-import { PrismaClient, Company } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import { Company } from "@prisma/client/wasm";
 
 const prisma = new PrismaClient();
 
@@ -80,7 +81,7 @@ export async function createACompany(
   }
 
   try {
-    const result = await prisma.$transaction(async (prisma) => {
+    const result = await prisma.$transaction(async (prisma:any) => {
       // Create the company
       const newCompany = await prisma.company.create({
         data: {
@@ -113,7 +114,7 @@ export async function createACompany(
 
       //Create COA entries for the new company
       await prisma.coa.createMany({
-        data: defaultCOA.map((account) => ({
+        data: defaultCOA.map((account:any) => ({
           ...account,
           companyId: newCompany.id,
           currencyId: newCompany.reportingCurrencyId,

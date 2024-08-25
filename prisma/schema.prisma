@@ -96,7 +96,7 @@ model Currency {
 model Country {
   id        Int       @id @default(autoincrement())
   code      String    @unique
-  country   String
+  name      String
   phoneCode String
   flag      String?
   continent String?
@@ -202,8 +202,8 @@ model Bank {
   id           Int           @id @default(autoincrement())
   name         String
   bankLogo     String?
-  countryId    Int?
-  country      Country?      @relation(name: "BankCountry", fields: [countryId], references: [id])
+  countryId    Int
+  country      Country       @relation(name: "BankCountry", fields: [countryId], references: [id])
   bankAccounts BankAccount[] @relation("BankStatements")
 }
 
@@ -216,7 +216,7 @@ model BankAccount {
   bankAccountNo      String
   bankBalance        Decimal                @default(0)
   lastReconciled     DateTime?
-  currencyId         Int                    @unique
+  currencyId         Int
   currency           Currency               @relation(name: "BankAccountCurrency", fields: [currencyId], references: [id])
   companyId          Int
   company            Company                @relation(name: "CompanyBankAccounts", fields: [companyId], references: [id])
@@ -239,10 +239,11 @@ model BankTransactionBatch {
   balanceBefore    Decimal
   balanceAfter     Decimal
   source           BankTransactionSource
-  status           BankTransactionStatus
   bankAccountId    String
   bankAccount      BankAccount           @relation(name: "Transaction Batches", fields: [bankAccountId], references: [id])
   bankTransactions BankTransaction[]     @relation("BatchTransactions")
+  createdBy        Int?
+  updatedBy        Int?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
 
@@ -258,10 +259,12 @@ model BankTransaction {
   description            String?
   additionalComments     String?
   source                 BankTransactionSource
-  status                 BankTransactionStatus
   type                   DefaultSide
   amount                 Decimal
   balance                Decimal
+  isReconciled           Boolean               @default(false)
+  reconciledAt           DateTime?
+  reconciledBy           Int?
   isDeleted              Boolean               @default(false)
   bankTransactionBatchId String
   bankTransactionBatch   BankTransactionBatch  @relation(name: "BatchTransactions", fields: [bankTransactionBatchId], references: [id])
@@ -298,6 +301,8 @@ model AccountTransaction {
   bankTransactionId String?                  @unique
   bankTransaction   BankTransaction?         @relation(name: "MatchedTransaction", fields: [bankTransactionId], references: [id])
   isDeleted         Boolean                  @default(false)
+  createdBy         Int?
+  updatedBy         Int?
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 }
@@ -320,6 +325,8 @@ model JournalBatch {
   userId              Int
   user                User                 @relation(fields: [userId], references: [id])
   journalTransactions JournalTransaction[] @relation("JournalTransactions")
+  postedAt            DateTime?
+  postedBy            Int?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 }

@@ -1,5 +1,6 @@
-import { DefaultSide, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { toTitleCase, truncateText } from "../utils/utils";
+import { DefaultSide, Prisma } from "@prisma/client/wasm";
 const prisma = new PrismaClient();
 
 //Get all account types
@@ -19,7 +20,7 @@ export async function getAllAccountTypes() {
       },
     });
 
-    const formattedAccountTypes = allAccountTypes.map((type) => ({
+    const formattedAccountTypes = allAccountTypes.map((type: any) => ({
       id: type.id,
       typeName: type.typeName,
       accountElementChild: type.accountElement?.elementName,
@@ -101,7 +102,7 @@ export async function getAllCOA(
       };
     }
 
-    const formattedCoa = coaPerCompany.map((coa) => ({
+    const formattedCoa = coaPerCompany.map((coa: any) => ({
       id: coa.id,
       accountCode: coa.accountCode,
       accountTypeName: coa.accountType.typeName,
@@ -140,7 +141,7 @@ export async function getAllCOA(
   }
 }
 
-//Get all COA
+//Get Single COA
 export async function getACOA(companyId: number, id: number) {
   try {
     const singleCOA = await prisma.coa.findFirst({
@@ -333,7 +334,7 @@ export async function checkAccountTypeDetails(accountType: checkAccountType) {
       : {
           typeName: {
             equals: accountType.accountTypeName,
-            mode: "insensitive",
+            mode: Prisma.QueryMode.insensitive,
           },
         };
 
@@ -456,6 +457,7 @@ export async function createCOAModel(companyId: number, data: COAInput) {
         : "";
 
       const result = {
+        id: createdAccount.id,
         accountCode: createdAccount.accountCode,
         accountName: createdAccount.accountName,
         accountType: accTypeId,
@@ -549,6 +551,7 @@ export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
   const validRecords = results
     .filter((singleResult) => singleResult.success)
     .map((singleResult) => singleResult.data);
+
   const failedRecords = results.filter((singleResult) => !singleResult.success);
 
   try {

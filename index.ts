@@ -4,6 +4,7 @@ import cors from "cors";
 import usersRoute from "./controllers/usersController";
 import companiesRoutes from "./routes/companiesRoutes";
 import coaRoutes from "./routes/coaRoutes";
+import bankRoutes from "./routes/bankRoutes";
 
 const PORT = process.env.PORT;
 const BACKEND_URL = process.env.BACKEND_URL;
@@ -17,6 +18,7 @@ app.use(cors({ origin: FRONTEND_URL }));
 
 app.use("/api/:companyId/coa", coaRoutes);
 app.use("/api/:companyId/company", companiesRoutes);
+app.use("/api/:companyId/banks", bankRoutes);
 // app.use("api/users", userRoutes);
 
 app.use(express.static("./public"));

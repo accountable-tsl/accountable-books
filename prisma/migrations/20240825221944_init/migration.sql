@@ -90,7 +90,7 @@ CREATE TABLE "Currency" (
 CREATE TABLE "Country" (
     "id" SERIAL NOT NULL,
     "code" TEXT NOT NULL,
-    "country" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
     "phoneCode" TEXT NOT NULL,
     "flag" TEXT,
     "continent" TEXT,
@@ -169,7 +169,7 @@ CREATE TABLE "Bank" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "bankLogo" TEXT,
-    "countryId" INTEGER,
+    "countryId" INTEGER NOT NULL,
 
     CONSTRAINT "Bank_pkey" PRIMARY KEY ("id")
 );
@@ -201,8 +201,9 @@ CREATE TABLE "BankTransactionBatch" (
     "balanceBefore" DECIMAL(65,30) NOT NULL,
     "balanceAfter" DECIMAL(65,30) NOT NULL,
     "source" "BankTransactionSource" NOT NULL,
-    "status" "BankTransactionStatus" NOT NULL,
     "bankAccountId" TEXT NOT NULL,
+    "createdBy" INTEGER,
+    "updatedBy" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -218,10 +219,12 @@ CREATE TABLE "BankTransaction" (
     "description" TEXT,
     "additionalComments" TEXT,
     "source" "BankTransactionSource" NOT NULL,
-    "status" "BankTransactionStatus" NOT NULL,
     "type" "DefaultSide" NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
     "balance" DECIMAL(65,30) NOT NULL,
+    "isReconciled" BOOLEAN NOT NULL DEFAULT false,
+    "reconciledAt" TIMESTAMP(3),
+    "reconciledBy" INTEGER,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "bankTransactionBatchId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -247,6 +250,8 @@ CREATE TABLE "AccountTransaction" (
     "coaAccountId" INTEGER NOT NULL,
     "bankTransactionId" TEXT,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "createdBy" INTEGER,
+    "updatedBy" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -262,6 +267,8 @@ CREATE TABLE "JournalBatch" (
     "status" "JournalStatus" NOT NULL,
     "isRecurring" BOOLEAN NOT NULL DEFAULT false,
     "userId" INTEGER NOT NULL,
+    "postedAt" TIMESTAMP(3),
+    "postedBy" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -343,9 +350,6 @@ CREATE UNIQUE INDEX "Coa_accountName_companyId_key" ON "Coa"("accountName", "com
 CREATE UNIQUE INDEX "Coa_accountCode_companyId_key" ON "Coa"("accountCode", "companyId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "BankAccount_currencyId_key" ON "BankAccount"("currencyId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "BankAccount_coaId_key" ON "BankAccount"("coaId");
 
 -- CreateIndex
@@ -418,7 +422,7 @@ ALTER TABLE "Coa" ADD CONSTRAINT "Coa_currencyId_fkey" FOREIGN KEY ("currencyId"
 ALTER TABLE "Coa" ADD CONSTRAINT "Coa_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Bank" ADD CONSTRAINT "Bank_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "Country"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Bank" ADD CONSTRAINT "Bank_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "Country"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_bankId_fkey" FOREIGN KEY ("bankId") REFERENCES "Bank"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

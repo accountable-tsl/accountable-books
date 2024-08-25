@@ -5,11 +5,64 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import path from "path";
 import { normalizeData } from "../utils/utils";
+import bankData from "./data/banks.json";
+import countriesData from "./data/countries.json";
+import currenciesData from "./data/currencies.json";
+import { createCompanyWithCOA } from "../utils/createCompanyWithCOA";
 
 const prisma = new PrismaClient();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const PORT = process.env.PORT;
+const BACKEND_URL = process.env.BACKEND_URL;
+const baseUrl = `${BACKEND_URL}:${PORT}`;
+
+async function seedDefaultCOAFromCSV(): Promise<void> {
+  const defaultCOAFilePath = path.join(
+    __dirname,
+    "data",
+    "DefaultCOATemplate.csv"
+  );
+  const defaultCOAData: any[] = [];
+
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(defaultCOAFilePath)
+      .pipe(csv())
+      .on("data", (data: { [key: string]: string }) => {
+        const normalizedData = normalizeData(data);
+        if (normalizedData.accountname && normalizedData.accounttypeid) {
+          defaultCOAData.push(normalizedData);
+        }
+      })
+      .on("error", (error) => {
+        console.error("Error reading CSV file:", error);
+      })
+      .on("end", async () => {
+        console.log("CSV file successfully processed");
+        try {
+          for (let data of defaultCOAData) {
+            await prisma.coaTemplate.create({
+              data: {
+                templateName: "Default Template",
+                accountCode: data.accountcode,
+                accountName: data.accountname,
+                accountTypeId: parseInt(data.accounttypeid),
+                defaultSide: data.defaultside as "Debit" | "Credit",
+                description: data.description,
+              },
+            });
+          }
+          console.log("CSV data seeded successfully");
+          resolve();
+        } catch (error) {
+          console.error("Error seeding data:", error);
+          reject(error);
+        }
+      });
+  });
+}
 
 async function main() {
   //Roles
@@ -36,61 +89,12 @@ async function main() {
 
   //Currencies
   const currencies = await prisma.currency.createMany({
-    data: [
-      {
-        name: "Naira",
-        code: "NGN",
-        symbol: "₦",
-      },
-      {
-        name: "US Dollar",
-        code: "USD",
-        symbol: "$",
-      },
-      {
-        name: "British Pounds",
-        code: "GBP",
-        symbol: "£",
-      },
-      {
-        name: "Euro",
-        code: "EUR",
-        symbol: "€",
-      },
-    ],
+    data: currenciesData,
   });
 
   const countries = await prisma.country.createMany({
-    data: [
-      {
-        code: "NG",
-        country: "Nigeria",
-        phoneCode: "+234",
-        flag: "🇳🇬",
-        continent: "Africa",
-      },
-      {
-        code: "GH",
-        country: "Ghana",
-        phoneCode: "+233",
-        flag: "🇬🇭",
-        continent: "Africa",
-      },
-      {
-        code: "US",
-        country: "United States",
-        phoneCode: "+1",
-        flag: "🇺🇸",
-        continent: "North America",
-      },
-      {
-        code: "UK",
-        country: "United Kingdom",
-        phoneCode: "+44",
-        flag: "🇬🇧",
-        continent: "Europe",
-      },
-    ],
+    data: countriesData,
+    skipDuplicates: true,
   });
 
   //Users
@@ -109,25 +113,26 @@ async function main() {
   });
 
   //Companies
-  const testCompany = await prisma.company.create({
-    data: {
-      name: "Test Company 1",
-      countryId: 1,
-      reportingCurrencyId: 1,
-      createdById: adminUser.id,
-    },
-  });
+  // const testCompany = await prisma.company.create({
+  //   data: {
+  //     name: "Test Company 1",
+  //     countryId: 1,
+  //     reportingCurrencyId: 1,
+  //     createdById: adminUser.id,
+  //   },
+  // });
 
   // Associate the admin user with the company through UserCompany
-  await prisma.userCompany.create({
-    data: {
-      userId: adminUser.id,
-      companyId: testCompany.id,
-      role: "admin",
-    },
-  });
+  // await prisma.userCompany.create({
+  //   data: {
+  //     userId: adminUser.id,
+  //     companyId: testCompany.id,
+  //     role: "admin",
+  //   },
+  // });
 
   //COA
+
   const balanceSheet = await prisma.financialStatement.create({
     data: {
       statementKey: "balance_sheet",
@@ -645,49 +650,48 @@ async function main() {
     ],
   });
 
-  console.log();
+  await seedDefaultCOAFromCSV();
 
-  // 2. CSV-based seed data
-  const defaultCOAFilePath = path.join(
-    __dirname,
-    "data",
-    "DefaultCOATemplate.csv"
-  );
-  const defaultCOAData: any[] = [];
-
-  fs.createReadStream(defaultCOAFilePath)
-    .pipe(csv())
-    .on("data", (data: { [key: string]: string }) => {
-      const normalizedData = normalizeData(data);
-      if (normalizedData.accountname && normalizedData.accounttypeid) {
-        defaultCOAData.push(normalizedData);
-      }
-    })
-    .on("error", (error) => {
-      console.error("Error reading CSV file:", error);
-    })
-    .on("end", async () => {
-      console.log("CSV file successfully processed");
-      try {
-        for (let data of defaultCOAData) {
-          await prisma.CoaTemplate.create({
-            data: {
-              templateName: "Default Template",
-              accountCode: data.accountcode,
-              accountName: data.accountname,
-              accountTypeId: parseInt(data.accounttypeid),
-              defaultSide: data.defaultside as "Debit" | "Credit",
-              description: data.description,
-            },
-          });
-        }
-        console.log("CSV data seeded successfully");
-      } catch (error) {
-        console.error("Error seeding data:", error);
-      } finally {
-        await prisma.$disconnect();
-      }
+  for (const bank of bankData) {
+    await prisma.bank.create({
+      data: {
+        name: bank.name,
+        bankLogo: `${baseUrl}${bank.bankLogo}`,
+        countryId: 1,
+      },
     });
+  }
+
+  const testCompany = await createCompanyWithCOA(
+    {
+      name: "Demo Company",
+      countryId: 1,
+      reportingCurrencyId: 1,
+    },
+    adminUser.id
+  );
+
+  if (testCompany.success && testCompany.company) {
+    await prisma.userCompany.create({
+      data: {
+        user: { connect: { id: adminUser.id } },
+        company: { connect: { id: testCompany.company.id } },
+        role: "admin",
+      },
+    });
+
+    await prisma.company.update({
+      where: {
+        id: testCompany.company.id,
+      },
+      data: {
+        website: "https://www.democompany.com",
+        industry: "Technology",
+        teamSize: "50-100",
+        revenue: "1M-5M USD",
+      },
+    });
+  }
 }
 
 main()
