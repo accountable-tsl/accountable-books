@@ -1,4 +1,3 @@
-import express from "express";
 import { Request, Response } from "express";
 import {
   checkAccCode,
@@ -121,7 +120,7 @@ const checkAccountName = async (req: Request, res: Response) => {
 
   try {
     const result = await checkAccName(companyId, accountName);
-    if (result.accountNameExists) {
+    if (result.success) {
       res.status(200).json(result);
     } else {
       res.status(404).json(result);

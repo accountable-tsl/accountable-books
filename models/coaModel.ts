@@ -1,7 +1,5 @@
 import { DefaultSide, PrismaClient } from "@prisma/client";
-import { Interface } from "readline";
 import { toTitleCase, truncateText } from "../utils/utils";
-import { parseCSVFile, validateCSVRow } from "../utils/csvUtils";
 const prisma = new PrismaClient();
 
 //Get all account types
@@ -719,8 +717,6 @@ export async function updateCOAModel(
   }
 }
 
-export async function archiveCOAModel(companyId: number, id: number[]) {
-    
-}
+export async function archiveCOAModel(companyId: number, id: number[]) {}
 
 export async function archiveSingleCOAModel(companyId: number, id: number) {}

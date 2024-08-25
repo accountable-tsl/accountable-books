@@ -4,14 +4,12 @@ import {
   archiveSingleCOA,
   checkAccountCode,
   checkAccountName,
-  createBulk,
   createBulkCOA,
   createCOA,
   getAccountTypes,
   getCOA,
   getSingleCOA,
   updateCOA,
-  uploadCOA,
 } from "../controllers/coaControllers";
 import { checkCompanyId } from "../middlewares/companyMiddleware";
 import { uploadCSV } from "../middlewares/uploadMiddleware";
