@@ -1,15 +1,16 @@
 import express from "express";
-import { checkCompanyId } from "../middlewares/companyMiddleware";
 import {
   allBanks,
   createBank,
   singleBank,
+  updateBank,
 } from "../controllers/bankControllers";
 
 const router = express.Router({ mergeParams: true });
 
 router.get("/", allBanks);
-router.get("/:id", checkCompanyId, singleBank);
-router.post("/", checkCompanyId, createBank);
+router.get("/:id", singleBank);
+router.post("/", createBank);
+router.put("/:id", updateBank);
 
 export default router;

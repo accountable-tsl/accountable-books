@@ -51,7 +51,7 @@ export async function singleBankAccount(req: Request, res: Response) {
       res.status(400).json(result);
     }
   } catch (error: any) {
-    console.error("Unexpected error in allBanks:", error);
+    console.error("Unexpected error in singleBankAccount:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 }
