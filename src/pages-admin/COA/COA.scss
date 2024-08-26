@@ -1,1 +1,47 @@
 @use "../../styles/partials/colors" as *;
+
+.coa {
+  padding: 0 1rem;
+
+  &-container {
+    @apply py-4;
+  }
+
+  &-tab {
+    @apply flex;
+
+    &__item {
+      @apply px-3 py-2;
+      border: 1px solid $border;
+      border-right: 0;
+      background-color: $background-primary;
+      transition: all 0.5s ease;
+      transition: 200ms linear 50ms;
+      color: rgba($color: $text, $alpha: 0.6);
+      font-size: 0.86rem;
+
+      &:hover {
+        background-color: rgba($color: $neutral-gray, $alpha: 0.5);
+        color: rgba($color: $text, $alpha: 0.8);
+      }
+    }
+
+    &__first {
+      border-top-left-radius: 0.5rem;
+    }
+
+    &__last {
+      border-right: 1px solid $border;
+      border-top-right-radius: 0.5rem;
+    }
+
+    &__active {
+      background-color: $white;
+      color: rgba($color: $text, $alpha: 1);
+
+      &:hover {
+        background-color: $neutral-white;
+      }
+    }
+  }
+}

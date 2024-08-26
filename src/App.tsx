@@ -18,7 +18,7 @@ function App() {
               <CurrentCompany />
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/" element={<COA />} />
+                <Route path="/accounting/coa" element={<COA />} />
               </Routes>
             </section>
           </main>

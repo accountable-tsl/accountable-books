@@ -3,7 +3,7 @@ import "./CurrentCompany.scss";
 import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
 
 type CurrentCompanyProps = {
-  currentCompany: string;
+  currentCompany?: string;
 };
 
 export default function CurrentCompany({
