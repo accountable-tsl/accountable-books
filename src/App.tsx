@@ -3,6 +3,8 @@ import Header from "./components/Header/Header";
 import SideBar from "./components/SideBar/SideBar";
 import SideBarProvider from "./contexts/SideBarContext";
 import Home from "./pages-users/Home/Home";
+import COA from "./pages-admin/COA/COA";
+import CurrentCompany from "./components/CurrentCompany/CurrentCompany";
 
 function App() {
   return (
@@ -13,8 +15,10 @@ function App() {
           <main className="main">
             <SideBar />
             <section className="body">
+              <CurrentCompany />
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/" element={<COA />} />
               </Routes>
             </section>
           </main>
