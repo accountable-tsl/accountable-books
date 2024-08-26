@@ -10,104 +10,355 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
-
 model Role {
-  id Int @id @default(autoincrement())
-  name String @unique
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
   description String?
-  users User[] @relation(name: "UserRole")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  users       User[]   @relation(name: "UserRole")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([name])
 }
 
 model User {
-  id Int @id @default(autoincrement())
-  firstname String
-  lastname String?
-  email String @unique
-  password String
-  phoneNumber String?
-  status String @default("active")
-  role Role @relation(name:"UserRole", fields: [roleId], references: [id])
-  roleId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  profileImage String?
-  companies UserCompany[] @relation(name: "UserCompanies")
+  id               Int            @id @default(autoincrement())
+  firstname        String
+  lastname         String?
+  email            String         @unique
+  password         String
+  phoneNumber      String?
+  status           String         @default("active")
+  role             Role           @relation(name: "UserRole", fields: [roleId], references: [id])
+  roleId           Int
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  deletedAt        DateTime?
+  profileImage     String?
+  companies        UserCompany[]  @relation(name: "UserCompanies")
+  createdCompanies Company[]      @relation("CompanyCreator")
+  JournalBatch     JournalBatch[]
 
   @@index([email, status])
 }
 
-
 model Company {
-  id Int @id @default(autoincrement())
-  name String
-  website String?
-  industry String?
-  teamSize String?
-  revenue String?
-  country String
-  reportingCurrency Currency @relation(fields: [reportingCurrencyId], references: [id])
+  id                  Int           @id @default(autoincrement())
+  name                String
+  website             String?
+  industry            String?
+  teamSize            String?
+  revenue             String?
+  countryId           Int
+  country             Country       @relation(name: "CompanyCountry", fields: [countryId], references: [id])
   reportingCurrencyId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users UserCompany[] @relation("CompanyUsers")
-  coa COA[]
+  reportingCurrency   Currency      @relation(name: "CompanyCurrency", fields: [reportingCurrencyId], references: [id])
+  createdById         Int
+  createdBy           User          @relation(name: "CompanyCreator", fields: [createdById], references: [id])
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  deletedAt           DateTime?
+  users               UserCompany[] @relation("CompanyUsers")
+  coa                 Coa[]         @relation("CompanyCOA")
+  bankAccounts        BankAccount[] @relation("CompanyBankAccounts")
 
   @@index([name])
-  @@index([country])
+  @@index([countryId])
 }
 
 model UserCompany {
-  userId Int
+  userId    Int
   companyId Int
-  role String
-  joinedAt DateTime  @default(now())
-  user User @relation("UserCompanies", fields: [userId], references: [id])
-  company Company @relation(name: "CompanyUsers", fields: [companyId], references: [id])
+  role      String
+  joinedAt  DateTime @default(now())
+  user      User     @relation("UserCompanies", fields: [userId], references: [id])
+  company   Company  @relation(name: "CompanyUsers", fields: [companyId], references: [id])
+
   @@id([userId, companyId])
+  @@index([userId, companyId])
 }
 
 model Currency {
-  id Int @id @default(autoincrement())
-  code String
-  name String
-  symbol String
-  companies Company[]
+  id           Int           @id @default(autoincrement())
+  code         String        @unique
+  name         String        @unique
+  symbol       String
+  companies    Company[]     @relation("CompanyCurrency")
+  coa          Coa[]         @relation("COACurrency")
+  bankAccounts BankAccount[] @relation("BankAccountCurrency")
 
   @@index([code])
 }
 
-model CountryCode {
-  id Int @id @default(autoincrement())
-  code String @unique
-  country String
+model Country {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique
+  name      String
+  phoneCode String
+  flag      String?
+  continent String?
+  company   Company[] @relation("CompanyCountry")
+  banks     Bank[]    @relation("BankCountry")
 }
 
-model COA {
-  id                 Int       @id @default(autoincrement())
-  code               String
-  accountName        String
-  accountClass       String
-  element            String
-  financialStatement String
-  debitOrCredit      String
-  sign               String
-  description        String
-  companyId          Int       @relation(fields: [companyId], references: [id])
-  company            Company   @relation(fields: [companyId], references: [id])
-  templateId         Int?      @relation(fields: [templateId], references: [id])
-  template           COATemplate? @relation(fields: [templateId], references: [id])
+model FinancialStatement {
+  id             Int              @id @default(autoincrement())
+  statementKey   String           @unique
+  usGaapLabel    String
+  ifrsLabel      String
+  defaultLabel   String
+  accountElement AccountElement[] @relation("FsElement")
 }
 
-model COATemplate {
-  id             Int       @id @default(autoincrement())
-  templateName   String
-  coa            COA[]     // Predefined COA entries for the template
+enum DefaultSide {
+  Debit
+  Credit
+}
+
+model AccountElement {
+  id                   Int                @id @default(autoincrement())
+  elementName          String
+  defaultSide          DefaultSide
+  parentId             Int?
+  parent               AccountElement?    @relation("ParentChildRelation", fields: [parentId], references: [id]) // Self-relation
+  children             AccountElement[]   @relation("ParentChildRelation") // To define the reverse relation
+  financialStatementId Int
+  financialStatement   FinancialStatement @relation(name: "FsElement", fields: [financialStatementId], references: [id])
+  description          String?
+  accountType          AccountType[]      @relation("TypeElement")
+}
+
+model AccountType {
+  id               Int             @id @default(autoincrement())
+  typeName         String          @unique @db.VarChar(255)
+  accountElementId Int
+  accountElement   AccountElement? @relation(name: "TypeElement", fields: [accountElementId], references: [id])
+  description      String?         @db.VarChar(255)
+  coa              Coa[]           @relation("COAAccountType")
+}
+
+model Coa {
+  id                  Int                  @id @default(autoincrement())
+  accountCode         String?
+  accountName         String
+  description         String?
+  accountTypeId       Int
+  accountType         AccountType          @relation(name: "COAAccountType", fields: [accountTypeId], references: [id])
+  defaultSide         DefaultSide
+  currencyId          Int
+  currency            Currency             @relation(name: "COACurrency", fields: [currencyId], references: [id])
+  companyId           Int
+  company             Company              @relation(name: "CompanyCOA", fields: [companyId], references: [id])
+  isActive            Boolean              @default(true)
+  balance             Decimal              @default(0)
+  //bankAccountId String? @unique
+  bankAccount         BankAccount?         @relation(name: "BankCoaAccount")
+  transactions        AccountTransaction[] @relation("CoaTransaction")
+  journalTransactions JournalTransaction[] @relation("JournalCOA")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@unique([accountName, companyId])
+  @@unique([accountCode, companyId])
+  @@index([companyId])
+}
+
+model CoaTemplate {
+  id            Int         @id @default(autoincrement())
+  templateName  String
+  accountCode   String
+  accountName   String
+  accountTypeId Int
+  defaultSide   DefaultSide
+  description   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+enum BankTransactionStatus {
+  RECONCILED
+  UNRECONCILED
+}
+
+enum BankTransactionSource {
+  IMPORTED
+  CONNECTED
+  MANUAL
+}
+
+enum BankAccountType {
+  OTHER
+  CREDIT_CARD
+  DEBIT_CARD
+  SAVINGS
+  CHECKINGS_CURRENT
+  UTILITY
+}
+
+model Bank {
+  id           Int           @id @default(autoincrement())
+  name         String
+  bankLogo     String?
+  countryId    Int
+  country      Country       @relation(name: "BankCountry", fields: [countryId], references: [id])
+  bankAccounts BankAccount[] @relation("BankStatements")
+}
+
+model BankAccount {
+  id                 String                 @id @default(uuid())
+  bankId             Int
+  bank               Bank                   @relation(name: "BankStatements", fields: [bankId], references: [id])
+  displayName        String
+  bankAccountType    BankAccountType
+  bankAccountNo      String
+  bankBalance        Decimal                @default(0)
+  lastReconciled     DateTime?
+  currencyId         Int
+  currency           Currency               @relation(name: "BankAccountCurrency", fields: [currencyId], references: [id])
+  companyId          Int
+  company            Company                @relation(name: "CompanyBankAccounts", fields: [companyId], references: [id])
+  coaId              Int?                   @unique
+  accountInCOA       Coa?                   @relation("BankCoaAccount", fields: [coaId], references: [id])
+  transactionBatches BankTransactionBatch[] @relation("Transaction Batches")
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@unique([companyId, bankAccountNo, bankId])
+  @@index([companyId])
+  @@index([currencyId])
+}
+
+model BankTransactionBatch {
+  id               String                @id @default(uuid())
+  importedDate     DateTime              @default(now())
+  startDate        DateTime
+  endDate          DateTime
+  balanceBefore    Decimal
+  balanceAfter     Decimal
+  source           BankTransactionSource
+  bankAccountId    String
+  bankAccount      BankAccount           @relation(name: "Transaction Batches", fields: [bankAccountId], references: [id])
+  bankTransactions BankTransaction[]     @relation("BatchTransactions")
+  createdBy        Int?
+  updatedBy        Int?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([bankAccountId])
+  @@index([startDate, endDate])
+}
+
+model BankTransaction {
+  id                     String                @id @default(uuid())
+  date                   DateTime
+  payee                  String?
+  reference              String?
+  description            String?
+  additionalComments     String?
+  source                 BankTransactionSource
+  type                   DefaultSide
+  amount                 Decimal
+  balance                Decimal
+  isReconciled           Boolean               @default(false)
+  reconciledAt           DateTime?
+  reconciledBy           Int?
+  isDeleted              Boolean               @default(false)
+  bankTransactionBatchId String
+  bankTransactionBatch   BankTransactionBatch  @relation(name: "BatchTransactions", fields: [bankTransactionBatchId], references: [id])
+  //accountTransactionId   String
+  accountTransaction     AccountTransaction?   @relation(name: "MatchedTransaction")
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  @@index([bankTransactionBatchId])
+  @@index([date])
+  @@index([payee])
+}
+
+enum AccountTransactionSource {
+  BANK
+  JOURNAL
+}
+
+model AccountTransaction {
+  id                String                   @id @default(uuid())
+  date              DateTime
+  contact           String?
+  description       String?
+  source            AccountTransactionSource
+  type              String?
+  reference         String?
+  sourceDebit       Decimal
+  sourceCredit      Decimal
+  exchangeRate      Decimal
+  amount            Decimal
+  project           String?
+  coaAccountId      Int
+  coaAccount        Coa                      @relation(name: "CoaTransaction", fields: [coaAccountId], references: [id])
+  bankTransactionId String?                  @unique
+  bankTransaction   BankTransaction?         @relation(name: "MatchedTransaction", fields: [bankTransactionId], references: [id])
+  isDeleted         Boolean                  @default(false)
+  createdBy         Int?
+  updatedBy         Int?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+}
+
+//Journals
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+}
+
+model JournalBatch {
+  id                  String               @id @default(uuid())
+  date                DateTime
+  description         String
+  note                String
+  status              JournalStatus
+  isRecurring         Boolean              @default(false)
+  recurrenceDetails   RecurrenceDetails?
+  userId              Int
+  user                User                 @relation(fields: [userId], references: [id])
+  journalTransactions JournalTransaction[] @relation("JournalTransactions")
+  postedAt            DateTime?
+  postedBy            Int?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model JournalTransaction {
+  id             String       @id @default(uuid())
+  description    String
+  side           DefaultSide
+  amount         Decimal
+  journalBatchId String
+  journalBatch   JournalBatch @relation(name: "JournalTransactions", fields: [journalBatchId], references: [id])
+  coaAccountId   Int
+  coaAccount     Coa          @relation(name: "JournalCOA", fields: [coaAccountId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([journalBatchId])
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+model RecurrenceDetails {
+  id             String              @id @default(uuid())
+  journalBatchId String              @unique
+  journalBatch   JournalBatch        @relation(fields: [journalBatchId], references: [id])
+  frequency      RecurrenceFrequency
+  startDate      DateTime
+  endDate        DateTime?
+  nextRun        DateTime?
 }
