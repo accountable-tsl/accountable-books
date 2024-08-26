@@ -1,18 +1,20 @@
 @use "../../styles/partials/colors" as *;
 
 .cc {
-  @apply flex w-full justify-center p-1;
+  @apply flex w-full justify-center;
 
   &-container {
-    @apply flex gap-2;
+    @apply flex gap-2 rounded-md;
+    padding: 0.15rem 0.75rem;
     font-size: 0.65rem;
+    background-color: rgba($color: $muted-orange, $alpha: 0.5);
   }
 
   &-switch {
     color: $link;
 
-    &__icon{
-        font-size: 0.5rem;
+    &__icon {
+      font-size: 0.5rem;
     }
   }
 }
