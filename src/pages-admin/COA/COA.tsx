@@ -3,6 +3,10 @@ import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./COA.scss";
 import { FolderCog, TableProperties } from "lucide-react";
 import { useState } from "react";
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-quartz.css";
+import routes from "../../utils/routes";
 
 export default function COA() {
   const coaPageBreadcrumbs = [
@@ -25,13 +29,23 @@ export default function COA() {
     setActiveTab(tab);
   };
 
+  const [coaData, setCoaData] = useState([]);
+
+  const [coaColDefs, setCoaColDefs] = useState([
+    { field: "Account Code" },
+    { field: "Account Name" },
+    { field: "Account Type" },
+    { field: "Element" },
+    { field: "Balance" },
+  ]);
+
   return (
     <div className="coa">
       <Breadcrumb items={coaPageBreadcrumbs} />
-      <div className="coa-body">
+      <div className="coa-container">
         <div className="coa-tab">
           <Link
-            to="/accounting/coa"
+            to={routes.accounting.setup.coa}
             className={`coa-tab__item coa-tab__first ${
               activeTab === "coa" ? "coa-tab__active" : ""
             }`}
@@ -40,7 +54,7 @@ export default function COA() {
             Chart of Accounts
           </Link>
           <Link
-            to="/accounting/contacts"
+            to={routes.accounting.setup.contacts}
             className={`coa-tab__item ${
               activeTab === "contacts" ? "coa-tab__active" : ""
             }`}
@@ -49,7 +63,7 @@ export default function COA() {
             Contacts
           </Link>
           <Link
-            to="/accounting/projects"
+            to={routes.accounting.setup.projects}
             className={`coa-tab__item ${
               activeTab === "projects" ? "coa-tab__active" : ""
             }`}
@@ -58,7 +72,7 @@ export default function COA() {
             Projects
           </Link>
           <Link
-            to="/accounting/settings"
+            to={routes.accounting.setup.finSettings}
             className={`coa-tab__item coa-tab__last ${
               activeTab === "settings" ? "coa-tab__active" : ""
             }`}
@@ -67,6 +81,8 @@ export default function COA() {
             Financial Settings
           </Link>
         </div>
+
+        <div className="coa-body"></div>
       </div>
     </div>
   );

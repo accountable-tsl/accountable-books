@@ -25,8 +25,13 @@
       @apply h-4 w-4;
     }
 
+    &__text {
+      font-weight: 600;
+    }
+
     &__dropdown {
       @apply absolute top-6 -left-1 text-sm z-50;
+      background-color: $neutral-white;
 
       &-content {
         @apply flex flex-col text-sm w-max rounded-md;
