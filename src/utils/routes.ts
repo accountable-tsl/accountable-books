@@ -1,4 +1,42 @@
-const routes = {
+type companyId = companyId | null;
+
+export const routes = {
+  home: "/",
+  companies: { root: "/companies" },
+
+  accounting: {
+    root: (id: companyId) => `/companies/${id}/accounting`,
+    workpapers: {
+      root: (id: companyId) => `/companies/${id}/acc/workpapers`,
+      uploadBank: (id: companyId) =>
+        `/companies/${id}/acc/workpapers/upload-bank`,
+      catEngine: (id: companyId) =>
+        `/companies/${id}/acc/workpapers/cat-engine`,
+      trialBalance: (id: companyId) =>
+        `/companies/${id}/acc/workpapers/trial-balance`,
+    },
+
+    setup: {
+      root: (id: companyId) => `/companies/${id}/acc/setup`,
+      coa: (id: companyId) => `/companies/${id}/acc/setup/coa`,
+      contacts: (id: companyId) => `/companies/${id}/acc/setup/contacts`,
+      projects: (id: companyId) => `/companies/${id}/acc/setup/projects`,
+      finSettings: (id: companyId) => `/companies/${id}/acc/setup/fin-settings`,
+    },
+  },
+
+  tax: {
+    root: (id: companyId) => `/companies/${id}/tax`,
+    workpapers: {
+      root: (id: companyId) => `/companies/${id}/tax/workpapers`,
+      filings: (id: companyId) => `/companies/${id}/tax/workpapers/`,
+    },
+  },
+
+  reports: (id: companyId) => `/companies/${id}/reports`,
+};
+
+export const staticRoutes = {
   home: "/",
   companies: { root: "/companies" },
 
@@ -30,5 +68,3 @@ const routes = {
 
   reports: "/companies/:id/reports",
 };
-
-export default routes;

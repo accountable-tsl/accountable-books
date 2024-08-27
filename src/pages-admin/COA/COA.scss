@@ -4,7 +4,7 @@
   padding: 0 1rem;
 
   &-container {
-    padding-top: 0.5rem
+    padding-top: 0.5rem;
   }
 
   &-tab {
@@ -37,11 +37,15 @@
 
     &__active {
       background-color: $white;
-      color: rgba($color: $text, $alpha: 1);
+      color: $primary;
 
       &:hover {
         background-color: $neutral-white;
       }
     }
+  }
+
+  &-table {
+    height: 1000px;
   }
 }
