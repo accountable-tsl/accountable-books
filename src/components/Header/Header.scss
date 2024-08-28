@@ -1,9 +1,16 @@
 @use "../../styles/partials/colors" as *;
 @use "../../styles/partials/mixins" as *;
+@use "../../styles/partials/variables" as *;
 
 .header {
   @apply flex justify-between gap-10 lg:gap-20 items-center px-4 py-2 md:pr-10 shadow-sm;
   border-left: 2px solid $muted-orange;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: $header-height;
+  z-index: 10;
 
   &-left {
     @apply flex gap-4 items-center flex-shrink-0;

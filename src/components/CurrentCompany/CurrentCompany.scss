@@ -1,7 +1,10 @@
 @use "../../styles/partials/colors" as *;
+@use "../../styles/partials/variables" as *;
 
 .cc {
-  @apply flex w-full justify-center;
+  @apply flex w-full justify-center fixed;
+  z-index: 10000;
+  top: $header-height;
 
   &-container {
     @apply flex gap-2 rounded-md;

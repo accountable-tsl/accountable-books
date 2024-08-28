@@ -1,8 +1,14 @@
 @use "../../styles/partials/colors" as *;
+@use "../../styles/partials/variables" as *;
 
 .sidebar {
-  @apply text-xs h-[calc(100vh-48px)] p-1 py-2 shadow-sm;
+  @apply text-xs p-1 py-2 shadow-sm overflow-y-auto;
+  @apply h-[calc(100vh-48px)];
   border-left: 2px solid $muted-orange;
+  position: fixed;
+  // width: $sidebar-width-small;
+  transition: width 0.75s ease-in-out, height 0.75s ease-in-out;
+  top: $header-height;
 
   &-container {
     @apply sticky top-0 overflow-y-auto flex flex-col justify-between h-full;
@@ -13,6 +19,7 @@
       visibility: hidden;
       transition: opacity 0.75s ease-in-out, transform 0.75s ease-in-out,
         width 0.75s ease-in-out, height 0.75s ease-in-out;
+      width: $sidebar-width-large;
 
       &-open {
         @apply hidden w-40 lg:flex lg:sticky absolute gap-4;
@@ -38,6 +45,7 @@
       transform: scale(1);
       transition: opacity 0.75s ease-in-out, transform 0.75s ease-in-out,
         width 0.75s ease-in-out, height 0.75s ease-in-out;
+      width: $sidebar-width-small;
 
       &-open {
         opacity: 1;

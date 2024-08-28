@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./COA.scss";
-import { FolderCog, TableProperties } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Archive, FolderCog, TableProperties, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
@@ -10,6 +10,9 @@ import { routes } from "../../utils/routes";
 import { fetchCoa } from "../../services/CoaServices";
 import { useCompany } from "../../utils/company";
 import { BeatLoader } from "react-spinners";
+import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import Button from "../../components/Button/Button";
+import AccountingSetup from "../../components/AccountingSetup/AccountingSetup";
 
 export default function COA() {
   const { companyId } = useCompany();
@@ -21,21 +24,39 @@ export default function COA() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [coaFilter, setCoaFilter] = useState("all");
 
   const [activeTab, setActiveTab] = useState("coa");
 
   const [coaColDefs, setCoaColDefs] = useState([
     {
       field: "accountCode",
-      headerName: "Account Code",
+      headerName: "Code",
       flex: 0.5,
       floatingFilter: false,
       checkboxSelection: true,
+      headerCheckboxSelection: true,
+      headerCheckboxSelectionFilteredOnly: true,
+      // pinned: "left",
+      cellClass: "coa-table__link",
     },
-    { field: "accountName", headerName: "Account Name", flex: 1.5 },
+    {
+      field: "accountName",
+      headerName: "Account Name",
+      flex: 1.5,
+      cellClass: "coa-table__link",
+    },
     { field: "accountTypeName", headerName: "Account Type" },
     { field: "accountElement", headerName: "Element" },
-    { field: "balance", headerName: "Balance", flex: 0.75 },
+    {
+      field: "balance",
+      headerName: "Balance",
+      flex: 0.75,
+      cellClass: "coa-table__balance",
+      valueFormatter: (params: any) => {
+        return parseFloat(params.value).toFixed(2);
+      },
+    },
   ]);
   const [rowData, setRowData] = useState([]);
   const defaultColDef = useMemo(() => {
@@ -43,9 +64,24 @@ export default function COA() {
       flex: 1,
       filter: true,
       sortable: true,
-      floatingFilter: true,
     };
   }, []);
+
+  const [selectedRowsCount, setSelectedRowsCount] = useState(0);
+  const [selectedRowsData, setSelectedRowsData] = useState([]);
+
+  const [comingSoon, setComingSoon] = useState(false);
+
+  const coaTableRef = useRef<AgGridReact>(null);
+
+  const onSelectionChanged = () => {
+    if (coaTableRef.current) {
+      const selectedRows = coaTableRef.current.api.getSelectedRows();
+      setSelectedRowsCount(selectedRows.length);
+    }
+  };
+
+  console.log(selectedRowsCount);
 
   const coaPageBreadcrumbs = [
     { text: "Accounting", icon: TableProperties, link: "/" },
@@ -57,7 +93,10 @@ export default function COA() {
         { text: "Chart of accounts", link: "/accounting/coa" },
         { text: "Contacts", link: "/accounting/contacts" },
         { text: "Projects", link: "/accounting/projects" },
-        { text: "Financial Settings", link: "/accounting/settings" },
+        {
+          text: "Financial Settings",
+          link: routes.accounting.setup.finSettings(companyId),
+        },
       ],
     },
   ];
@@ -80,10 +119,8 @@ export default function COA() {
           setCurrentPage(coa.pagination.currentPage);
           setTotalPages(coa.pagination.totalPages);
           setTotalItems(coa.pagination.totalItems);
+          setLimit(coa.pagination.totalItems);
         }
-
-        console.log(coa);
-        console.log(coa.data);
 
         if (!coa.success) {
           console.error("Failed to fetch COA:", coa);
@@ -106,14 +143,25 @@ export default function COA() {
     setActiveTab(tab);
   };
 
-  console.log(coaData);
+  const handleCOAFilter = (filter: string) => {
+    setCoaFilter(filter);
+
+    if (!filter || filter.toLowerCase() === "all") {
+      setRowData(coaData);
+    } else {
+      const newCoaData = coaData.filter(
+        (item: any) => item.parentElement.toLowerCase() === filter.toLowerCase()
+      );
+      setRowData(newCoaData);
+    }
+  };
 
   return (
     <div className="coa">
-      <Breadcrumb items={coaPageBreadcrumbs} />
-      <div className="coa-container">
+      <div className="coa-top">
+        <Breadcrumb items={coaPageBreadcrumbs} />
 
-        <div className="coa-tab">
+        {/* <div className="coa-tab">
           <Link
             to={routes.accounting.setup.coa(companyId)}
             className={`coa-tab__item coa-tab__first ${
@@ -124,20 +172,20 @@ export default function COA() {
             Chart of Accounts
           </Link>
           <Link
-            to={routes.accounting.setup.contacts(companyId)}
+            // to={routes.accounting.setup.contacts(companyId)}
             className={`coa-tab__item ${
               activeTab === "contacts" ? "coa-tab__active" : ""
             }`}
-            onClick={() => handleTabChange("contacts")}
+            // onClick={() => handleTabChange("contacts")}
           >
             Contacts
           </Link>
           <Link
-            to={routes.accounting.setup.projects(companyId)}
+            // to={routes.accounting.setup.projects(companyId)}
             className={`coa-tab__item ${
               activeTab === "projects" ? "coa-tab__active" : ""
             }`}
-            onClick={() => handleTabChange("projects")}
+            // onClick={() => handleTabChange("projects")}
           >
             Projects
           </Link>
@@ -150,20 +198,130 @@ export default function COA() {
           >
             Financial Settings
           </Link>
+        </div> */}
+        <AccountingSetup activeTab="coa" onTabChange={handleTabChange} />
+      </div>
+      <div className="coa-bottom">
+        <div className="coa-bottom__header">
+          <div className="coa-filter">
+            <hr className="coa-filter__line" />
+            <div className="coa-filterbox">
+              <button
+                className={`coa-filterbox__button ${
+                  coaFilter === "all" ? "coa-filterbox__button--active" : ""
+                }`}
+                onClick={() => handleCOAFilter("all")}
+              >
+                All
+              </button>
+              <button
+                className={`coa-filterbox__button ${
+                  coaFilter === "assets" ? "coa-filterbox__button--active" : ""
+                }`}
+                onClick={() => handleCOAFilter("assets")}
+              >
+                Assets
+              </button>
+              <button
+                className={`coa-filterbox__button ${
+                  coaFilter === "liabilities"
+                    ? "coa-filterbox__button--active"
+                    : ""
+                }`}
+                onClick={() => handleCOAFilter("liabilities")}
+              >
+                Liabilities
+              </button>
+              <button
+                className={`coa-filterbox__button ${
+                  coaFilter === "income" ? "coa-filterbox__button--active" : ""
+                }`}
+                onClick={() => handleCOAFilter("income")}
+              >
+                Income
+              </button>
+              <button
+                className={`coa-filterbox__button ${
+                  coaFilter === "expenses"
+                    ? "coa-filterbox__button--active"
+                    : ""
+                }`}
+                onClick={() => handleCOAFilter("expenses")}
+              >
+                Expenses
+              </button>
+              <button
+                className={`coa-filterbox__button ${
+                  coaFilter === "equity" ? "coa-filterbox__button--active" : ""
+                }`}
+                onClick={() => handleCOAFilter("equity")}
+              >
+                Equity
+              </button>
+            </div>
+            <hr className="coa-filter__line" />
+          </div>
+          <div className="coa-actions">
+            <div className="coa-actions__left">
+              <button
+                className="coa-actions__left-button coa-actions__left-delete coa-actions__left-disabled"
+                onClick={() => setComingSoon(!comingSoon)}
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+              <button
+                className="coa-actions__left-button coa-actions__left-archive coa-actions__left-delete coa-actions__left-disabled"
+                onClick={() => setComingSoon(!comingSoon)}
+              >
+                <Archive size={14} /> Archive
+              </button>
+              <div className="coa-actions__left-line"></div>
+              <button className="coa-actions__left-count">
+                {selectedRowsCount} selected
+              </button>
+              {comingSoon && (
+                <div className="coa-actions__left-comingsoon">
+                  Coming Soon...
+                </div>
+              )}
+            </div>
+            <div className="coa-actions__spacer"></div>
+            <div className="coa-actions__right">
+              <Button
+                text="Add account"
+                icon={faPlus}
+                variant="outlined"
+                customClass="coa-actions__right-button"
+              />
+              <Button
+                text="Add bank account"
+                icon={faPlus}
+                variant="outlined"
+                customClass="coa-actions__right-button"
+              />
+              {/* <div className="coa-actions__right-button">
+                <FontAwesomeIcon icon={faPlus} /> <span> Add account</span>
+              </div>
+              <div className="coa-actions__right-button">
+                <FontAwesomeIcon icon={faPlus} /> <span> Add bank account</span>
+              </div> */}
+            </div>
+          </div>
         </div>
 
-        <div className="coa-body">
-          <div className="coa-header">
-            
-          </div>
-          <div className="ag-theme-quartz coa-table">
-            <AgGridReact
-              rowData={rowData}
-              columnDefs={coaColDefs}
-              defaultColDef={defaultColDef}
-              rowSelection="multiple"
-            />
-          </div>
+        <div className="ag-theme-quartz coa-table">
+          <AgGridReact
+            rowData={rowData}
+            columnDefs={coaColDefs}
+            defaultColDef={defaultColDef}
+            rowSelection="multiple"
+            domLayout="autoHeight"
+            pagination={true}
+            headerHeight={40}
+            animateRows={true}
+            ref={coaTableRef}
+            onSelectionChanged={onSelectionChanged}
+          />
         </div>
       </div>
     </div>
