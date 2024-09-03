@@ -10,6 +10,7 @@ import { routes, staticRoutes } from "./utils/routes";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import { useCompany } from "./utils/company";
 import FinancialSettings from "./pages-admin/FinancialSettings/FinancialSettings";
+import UploadBS from "./pages-admin/UploadBS/UploadBS";
 
 function App() {
   return (
@@ -32,7 +33,11 @@ function MainContent() {
       <Header />
       <main className="main">
         <SideBar />
-        <section className={`body ${sideBarType === "large" ? "body-sidebar__lg" : ""} ${sideBarType === "small" ? "body-sidebar__sm" : ""}`}>
+        <section
+          className={`body ${
+            sideBarType === "large" ? "body-sidebar__lg" : ""
+          } ${sideBarType === "small" ? "body-sidebar__sm" : ""}`}
+        >
           {/* <Route path="/login" component={<Login />} />
     <Route path="/register" component={<Register />} /> */}
           <CurrentCompany />
@@ -41,32 +46,14 @@ function MainContent() {
 
             {/* Accountant-specific routes */}
             <Route path={staticRoutes.companies.root} element={<Home />} />
-            <>
-              {/* <Route
-        path="/companies/:id/accounting"
-        element={<Accounting />}
-      />
-      <Route path="/companies/:id/tax" element={<Tax />} />
-      <Route path="/companies/:id/reports" element={<Reports />} /> */}
 
-              {/* Workpapers for Accounting */}
-              {/* <Route
-        path="/companies/:id/workpapers"
-        element={<Workpapers />}
-      />
-      <Route
-        path="/companies/:id/workpapers/bank-statements"
-        element={<BankStatements />}
-      />
-      <Route
-        path="/companies/:id/workpapers/categorisation-engine"
-        element={<CategorisationEngine />}
-      />
-      <Route
-        path="/companies/:id/workpapers/trial-balance"
-        element={<TrialBalance />}
-      /> */}
-            </>
+            {/* workspace for Accounting */}
+
+            <Route
+              path={staticRoutes.accounting.workspace.uploadBank}
+              element={<UploadBS />}
+            />
+
             {/* Accounting Setup Pages */}
             <Route
               path={staticRoutes.accounting.setup.root}
@@ -79,30 +66,30 @@ function MainContent() {
             />
             <>
               {/* <Route
-        path="/companies/:id/workpapers/setup/contacts"
+        path="/companies/:id/workspace/setup/contacts"
         element={<Contacts />}
       />
       <Route
-        path="/companies/:id/workpapers/setup/projects"
+        path="/companies/:id/workspace/setup/projects"
         element={<Projects />}
       />
  */}
 
-              {/* Workpapers for Tax */}
+              {/* workspace for Tax */}
               {/* <Route
-        path="/companies/:id/tax-workpapers"
-        element={<TaxWorkpapers />}
+        path="/companies/:id/tax-workspace"
+        element={<Taxworkspace />}
       />
       <Route
-        path="/companies/:id/tax-workpapers/filing"
+        path="/companies/:id/tax-workspace/filing"
         element={<Filing />}
       />
       <Route
-        path="/companies/:id/tax-workpapers/compliance"
+        path="/companies/:id/tax-workspace/compliance"
         element={<Compliance />}
       />
       <Route
-        path="/companies/:id/tax-workpapers/reconciliations"
+        path="/companies/:id/tax-workspace/reconciliations"
         element={<Reconciliations />}
       /> */}
             </>

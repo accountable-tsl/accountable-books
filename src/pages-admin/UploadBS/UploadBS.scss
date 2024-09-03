@@ -1,1 +1,223 @@
 @use "../../styles/partials/colors" as *;
+@use "../../styles/partials/mixins" as *;
+
+.uploadbs {
+  padding: 0 1rem;
+  height: -webkit-fill-available;
+  @apply flex flex-col;
+
+  &-body {
+    background-color: $white;
+    border-radius: 0.5rem;
+    @apply h-full flex justify-center grow items-start;
+    box-shadow: rgba(0, 0, 0, 0.05) 0px 0px 0px 1px;
+  }
+
+  &-cancel {
+    color: $error;
+    @apply self-end;
+  }
+
+  &-container {
+    @apply flex flex-col gap-12 mt-12 p-8 pb-16;
+    width: 50%;
+    border: 1px solid rgba($color: $neutral-gray, $alpha: 0.2);
+    border-radius: 0.5rem;
+    height: 100%;
+
+    @include desktop {
+      width: 45%;
+    }
+
+    &__2 {
+      @apply gap-8;
+    }
+  }
+
+  &-header {
+    @apply flex flex-col gap-8;
+  }
+
+  &-progress {
+    color: $deep-navy;
+    @apply flex justify-between items-center gap-2 w-7/12 self-center;
+    font-size: 0.85rem;
+    font-weight: 500;
+
+    &__upload {
+      &-done {
+        color: lighten($color: $text, $amount: 50%);
+      }
+    }
+
+    &__review {
+    }
+
+    &__icon {
+      padding-right: 0.25rem;
+
+      &-done {
+        color: $success;
+      }
+    }
+  }
+
+  &-line {
+    flex-grow: 1;
+  }
+
+  &-descr {
+    @apply text-center text-sm flex flex-col gap-1;
+
+    &__title {
+      @apply font-semibold;
+    }
+
+    &__link {
+      color: $error;
+      font-size: 0.75rem;
+
+      & > span {
+        @apply underline pr-1;
+      }
+    }
+
+    &__note {
+      color: lighten($color: $text, $amount: 30%);
+      font-size: 0.7rem;
+      margin-top: -0.6rem;
+    }
+  }
+
+  &-input {
+    @apply w-full;
+
+    &__header {
+      color: lighten($color: $text, $amount: 30%);
+      font-size: 0.75rem;
+    }
+
+    &__grid {
+      @apply grid w-full;
+      grid-template-columns: 1fr 2fr 0.4fr;
+      gap: 0.5rem;
+      align-items: center;
+
+      &--item {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        padding: 0 0.5rem 0;
+
+        &:not(:last-child) {
+          border-right: 1px solid $border;
+        }
+      }
+    }
+
+    &__body {
+      border: 1px solid $border;
+      border-radius: 0.25rem;
+    }
+
+    &__select,
+    &__upload,
+    &__currency {
+      @apply w-full max-w-full py-1;
+      font-size: 0.85rem;
+    }
+  }
+
+  &-form {
+    display: contents;
+  }
+
+  &-rvw {
+    &__valid {
+      color: $success;
+    }
+
+    &__invalid {
+      color: $error;
+    }
+
+    &__header {
+      font-weight: 500;
+      font-size: 0.85rem;
+    }
+
+    &__summary {
+      @apply flex justify-between;
+      padding: 1rem 0;
+    }
+
+    &__item {
+      @apply flex flex-col gap-1 text-center;
+      font-size: 0.85rem;
+    }
+
+    &__table {
+      @apply w-full overflow-y-auto rounded-lg shadow-sm;
+      height: 9.375rem;
+      font-size: 0.75rem;
+    }
+
+    &__cell {
+      color: $text;
+      &--sn {
+        text-align: center;
+      }
+
+      &-header {
+        &--right {
+          text-align: right;
+          justify-content: center;
+        }
+      }
+    }
+
+    &__money {
+      &-out {
+        color: $error;
+        text-align: right;
+      }
+
+      &-in {
+        color: $success;
+        text-align: right;
+      }
+    }
+  }
+
+  &-button {
+    @apply flex gap-3 justify-end;
+
+    &__continue {
+      padding: 0.35rem 1rem;
+      font-size: 0.85rem !important;
+
+      &--disabled {
+        @apply pointer-events-none opacity-50;
+      }
+    }
+  }
+}
+
+.uploadbs-rvw > .ag-theme-quartz {
+  --ag-cell-horizontal-padding: 0;
+}
+
+.uploadbs-rvw .ag-header-row {
+  background-color: rgba($color: $neutral-gray, $alpha: 0.5);
+  font-weight: 500;
+}
+
+.uploadbs-rvw .ag-cell,
+.uploadbs-rvw .ag-header-cell {
+  padding: 0 0.5rem;
+  justify-content: center;
+}
+
+.ag-header-cell-label .uploadbs-rvw__header--right {
+  justify-content: flex-end !important;
+}

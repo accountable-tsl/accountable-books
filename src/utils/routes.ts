@@ -5,31 +5,28 @@ export const routes = {
   companies: { root: "/companies" },
 
   accounting: {
-    root: (id: companyId) => `/companies/${id}/accounting`,
-    workpapers: {
-      root: (id: companyId) => `/companies/${id}/acc/workpapers`,
-      uploadBank: (id: companyId) =>
-        `/companies/${id}/acc/workpapers/upload-bank`,
-      catEngine: (id: companyId) =>
-        `/companies/${id}/acc/workpapers/cat-engine`,
-      trialBalance: (id: companyId) =>
-        `/companies/${id}/acc/workpapers/trial-balance`,
+    root: (id: companyId) => `/${id}/accounting`,
+    workspace: {
+      root: (id: companyId) => `/${id}/workspace`,
+      uploadBank: (id: companyId) => `/${id}/workspace/upload-bank`,
+      catEngine: (id: companyId) => `/${id}/workspace/cat-engine`,
+      trialBalance: (id: companyId) => `/${id}/workspace/trial-balance`,
     },
 
     setup: {
-      root: (id: companyId) => `/companies/${id}/acc/setup`,
-      coa: (id: companyId) => `/companies/${id}/acc/setup/coa`,
-      contacts: (id: companyId) => `/companies/${id}/acc/setup/contacts`,
-      projects: (id: companyId) => `/companies/${id}/acc/setup/projects`,
-      finSettings: (id: companyId) => `/companies/${id}/acc/setup/fin-settings`,
+      root: (id: companyId) => `/${id}/workspace/setup`,
+      coa: (id: companyId) => `/${id}/workspace/setup/coa`,
+      contacts: (id: companyId) => `/${id}/workspace/setup/contacts`,
+      projects: (id: companyId) => `/${id}/workspace/setup/projects`,
+      finSettings: (id: companyId) => `/${id}/workspace/setup/fin-settings`,
     },
   },
 
   tax: {
     root: (id: companyId) => `/companies/${id}/tax`,
-    workpapers: {
-      root: (id: companyId) => `/companies/${id}/tax/workpapers`,
-      filings: (id: companyId) => `/companies/${id}/tax/workpapers/`,
+    workspace: {
+      root: (id: companyId) => `/companies/${id}/tax/workspace`,
+      filings: (id: companyId) => `/companies/${id}/tax/workspace/`,
     },
   },
 
@@ -41,28 +38,28 @@ export const staticRoutes = {
   companies: { root: "/companies" },
 
   accounting: {
-    root: "/companies/:id/accounting",
-    workpapers: {
-      root: "/companies/:id/acc/workpapers",
-      uploadBank: "/companies/:id/acc/workpapers/upload-bank",
-      catEngine: "/companies/:id/acc/workpapers/cat-engine",
-      trialBalance: "/companies/:id/acc/workpapers/trial-balance",
+    root: "/:id/accounting",
+    workspace: {
+      root: "/:id/workspace",
+      uploadBank: "/:id/workspace/upload-bank",
+      catEngine: "/:id/workspace/cat-engine",
+      trialBalance: "/:id/workspace/trial-balance",
     },
 
     setup: {
-      root: "/companies/:id/acc/setup",
-      coa: "/companies/:id/acc/setup/coa",
-      contacts: "/companies/:id/acc/setup/contacts",
-      projects: "/companies/:id/acc/setup/projects",
-      finSettings: "/companies/:id/acc/setup/fin-settings",
+      root: "/:id/workspace/setup",
+      coa: "/:id/workspace/setup/coa",
+      contacts: "/:id/workspace/setup/contacts",
+      projects: "/:id/workspace/setup/projects",
+      finSettings: "/:id/workspace/setup/fin-settings",
     },
   },
 
   tax: {
     root: "/companies/:id/tax",
-    workpapers: {
-      root: "/companies/:id/tax/workpapers",
-      filings: "/companies/:id/tax/workpapers/",
+    workspace: {
+      root: "/companies/:id/tax/workspace",
+      filings: "/companies/:id/tax/workspace/",
     },
   },
 
