@@ -11,15 +11,20 @@ import { CompanyProvider } from "./contexts/CompanyContext";
 import { useCompany } from "./utils/company";
 import FinancialSettings from "./pages-admin/FinancialSettings/FinancialSettings";
 import UploadBS from "./pages-admin/UploadBS/UploadBS";
+import { PopupProvider } from "./contexts/PopupContext";
+import Popup from "./components/Popup/Popup";
+import AddBankAccount from "./components/AddBankAccount/AddBankAccount";
 
 function App() {
   return (
     <CompanyProvider>
-      <SideBarProvider>
-        <BrowserRouter>
-          <MainContent />
-        </BrowserRouter>
-      </SideBarProvider>
+      <PopupProvider>
+        <SideBarProvider>
+          <BrowserRouter>
+            <MainContent />
+          </BrowserRouter>
+        </SideBarProvider>
+      </PopupProvider>
     </CompanyProvider>
   );
 }
@@ -96,6 +101,10 @@ function MainContent() {
           </Routes>
         </section>
       </main>
+
+      <Popup popupId="addBankAccount">
+        <AddBankAccount />
+      </Popup>
     </div>
   );
 }

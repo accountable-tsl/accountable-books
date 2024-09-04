@@ -16,7 +16,6 @@ import { BeatLoader } from "react-spinners";
 import { AgGridReact } from "ag-grid-react";
 import numeral from "numeral";
 import { parseDate } from "../../utils/utils";
-import { au } from "vitest/dist/chunks/reporters.C_zwCd4j.js";
 
 export default function UploadBS() {
   const { companyId } = useCompany();

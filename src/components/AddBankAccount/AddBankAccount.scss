@@ -1,0 +1,46 @@
+@use "../../styles/partials/colors" as *;
+
+.addbankaccount {
+  @apply flex flex-col p-4 overflow-hidden;
+  min-width: 27.5rem;
+  max-width: 30rem;
+  min-height: 30rem;
+
+  &-header {
+    padding: 1rem 0;
+    font-weight: 500;
+  }
+
+  &-label {
+    // @apply font-semibold;
+    font-size: 0.85rem;
+    color: rgba($color: $text, $alpha: 0.75);
+  }
+
+  &-input {
+    @apply rounded p-1;
+    font-size: 0.85rem;
+    outline: 1px solid $neutral-gray;
+  }
+
+  &-form {
+    &__item {
+      @apply flex flex-col flex-grow;
+      padding-bottom: 0.85rem;
+    }
+
+    &__error {
+      font-size: 0.75rem;
+      color: transparent;
+
+      &--visible {
+        font-size: 0.75rem;
+        color: $error;
+      }
+    }
+
+    &__segment {
+      @apply flex gap-4 justify-between;
+    }
+  }
+}

@@ -146,7 +146,7 @@
     }
 
     &__right {
-      @apply flex gap-3 items-center opacity-50;
+      @apply flex gap-3 items-center;
 
       &-button {
         font-size: 0.85rem !important;

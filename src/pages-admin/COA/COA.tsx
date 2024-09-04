@@ -13,9 +13,11 @@ import { BeatLoader } from "react-spinners";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import Button from "../../components/Button/Button";
 import AccountingSetup from "../../components/AccountingSetup/AccountingSetup";
+import { usePopup } from "../../contexts/PopupContext";
 
 export default function COA() {
   const { companyId } = useCompany();
+  const { openPopup } = usePopup();
 
   const [coaData, setCoaData] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -25,9 +27,7 @@ export default function COA() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [coaFilter, setCoaFilter] = useState("all");
-
   const [activeTab, setActiveTab] = useState("coa");
-
   const [coaColDefs, setCoaColDefs] = useState([
     {
       field: "accountCode",
@@ -71,6 +71,7 @@ export default function COA() {
   const [selectedRowsData, setSelectedRowsData] = useState([]);
 
   const [comingSoon, setComingSoon] = useState(false);
+
 
   const coaTableRef = useRef<AgGridReact>(null);
 
@@ -292,12 +293,14 @@ export default function COA() {
                 icon={faPlus}
                 variant="outlined"
                 customClass="coa-actions__right-button"
+                onClick={() => openPopup("")}
               />
               <Button
                 text="Add bank account"
                 icon={faPlus}
                 variant="outlined"
                 customClass="coa-actions__right-button"
+                onClick={() => openPopup("addBankAccount")}
               />
               {/* <div className="coa-actions__right-button">
                 <FontAwesomeIcon icon={faPlus} /> <span> Add account</span>
