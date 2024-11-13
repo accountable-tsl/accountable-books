@@ -1,0 +1,23 @@
+@use "../../styles/partials/colors" as *;
+@use "../../styles/partials/variables" as *;
+
+.cc {
+  @apply flex w-full justify-center fixed;
+  z-index: 10000;
+  top: $header-height;
+
+  &-container {
+    @apply flex gap-2 rounded-md;
+    padding: 0.15rem 0.75rem;
+    font-size: 0.65rem;
+    background-color: rgba($color: $muted-orange, $alpha: 0.5);
+  }
+
+  &-switch {
+    color: $link;
+
+    &__icon {
+      font-size: 0.5rem;
+    }
+  }
+}

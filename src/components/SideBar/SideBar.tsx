@@ -22,7 +22,7 @@ import { Link } from "react-router-dom";
 
 export default function SideBar() {
   const { sideBarType } = useSideBarContext();
-  const [isAdmin, setIsAdmin] = useState(true);
+  const [isAdmin] = useState(true);
 
   return (
     <div className="sidebar">
