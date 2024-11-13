@@ -56,3 +56,15 @@ body {
     }
   }
 }
+
+@keyframes slide-down {
+  0%,
+  30% {
+    margin-top: -8px;
+    opacity: 0;
+  }
+  100% {
+    margin-top: 0;
+    opacity: 1;
+  }
+}

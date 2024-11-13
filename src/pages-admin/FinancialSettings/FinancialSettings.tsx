@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FolderCog, TableProperties } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faQuestionCircle } from "@fortawesome/free-regular-svg-icons";
@@ -15,6 +15,7 @@ import "./FinancialSettings.scss";
 
 export default function FinancialSettings() {
   const { companyId } = useCompany();
+
   const [selectedMonth, setSelectedMonth] = useState<string>("December");
   const [selectedDay, setSelectedDay] = useState<string>("31");
   const [lockDate, setLockDate] = useState<string>("");
