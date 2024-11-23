@@ -20,7 +20,7 @@ const AccountingSetup = ({ activeTab, onTabChange }) => {
       </Link>
       <Link
         to={routes.accounting.setup.contacts(companyId)}
-        className={`coa-tab__item ${
+        className={`coa-tab__item  coa-tab__item--contacts${
           activeTab === "contacts" ? "coa-tab__active" : ""
         }`}
         onClick={() => onTabChange("contacts")}
@@ -29,7 +29,7 @@ const AccountingSetup = ({ activeTab, onTabChange }) => {
       </Link>
       <Link
         to={routes.accounting.setup.projects(companyId)}
-        className={`coa-tab__item ${
+        className={`coa-tab__item coa-tab__item--projects ${
           activeTab === "projects" ? "coa-tab__active" : ""
         }`}
         onClick={() => onTabChange("projects")}

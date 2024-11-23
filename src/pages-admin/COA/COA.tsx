@@ -82,8 +82,6 @@ export default function COA() {
     }
   };
 
-  console.log(selectedRowsCount);
-
   const coaPageBreadcrumbs = [
     { text: "Accounting", icon: TableProperties, link: "/" },
     {
@@ -92,8 +90,8 @@ export default function COA() {
       hasDropdown: true,
       dropdownItems: [
         { text: "Chart of accounts", link: "/accounting/coa" },
-        { text: "Contacts", link: "/accounting/contacts" },
-        { text: "Projects", link: "/accounting/projects" },
+        { text: "Contacts", },
+        { text: "Projects", },
         {
           text: "Financial Settings",
           link: routes.accounting.setup.finSettings(companyId),

@@ -23,6 +23,14 @@
         background-color: rgba($color: $neutral-gray, $alpha: 0.5);
         color: rgba($color: $text, $alpha: 0.8);
       }
+
+      &--projects{
+        pointer-events: none;
+      }
+
+      &--contacts{
+        pointer-events: none;
+      }
     }
 
     &__first {
