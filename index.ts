@@ -19,7 +19,7 @@ app.use(express.json());
 app.use(cors({ origin: FRONTEND_URL }));
 
 app.use("/api/:companyId/coa", coaRoutes);
-app.use("/api/:companyId/company", companiesRoutes);
+app.use("/api/companies/", companiesRoutes);
 app.use("/api/banks", bankRoutes);
 app.use("/api/:companyId/banks/accounts", bankAccountRoutes);
 // app.use("api/users", userRoutes);
