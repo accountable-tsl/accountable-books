@@ -1,0 +1,22 @@
+import axios from "axios";
+
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+type newBankAccountParams = {
+  bankId: string | number;
+  displayName: string;
+  bankAccountType: string;
+  bankAccountNo: string;
+  currencyId: string | number;
+};
+
+export const createBankAccount = async (
+  companyId: any,
+  data: newBankAccountParams
+) => {
+  const response = await axios.post(
+    `${backendUrl}/api/${companyId}/banks/accounts`,
+    data
+  );
+  return response.data;
+};
