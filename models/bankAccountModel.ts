@@ -73,6 +73,38 @@ export async function createNewBankAccount(
   data: CreateBankData
 ) {
   try {
+    const bank = await prisma.bank.findFirst({ where: { id: data.bankId } });
+    if (!bank) {
+      return {
+        success: false,
+        message: "BankId incorrect",
+      };
+    }
+
+    const currency = await prisma.currency.findFirst({
+      where: { id: data.currencyId },
+    });
+    if (!currency) {
+      return {
+        success: false,
+        message: "Currency not found",
+      };
+    }
+
+    const bankAccount = await prisma.bankAccount.findFirst({
+      where: {
+        bankId: data.bankId,
+        bankAccountNo: data.bankAccountNo,
+        companyId: companyId,
+      },
+    });
+    if (bankAccount) {
+      return {
+        success: false,
+        message: "Bank account number already exists",
+      };
+    }
+
     let coaId;
 
     const coaInput = {

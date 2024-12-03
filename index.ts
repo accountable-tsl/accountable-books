@@ -6,6 +6,7 @@ import companiesRoutes from "./routes/companiesRoutes";
 import coaRoutes from "./routes/coaRoutes";
 import bankRoutes from "./routes/bankRoutes";
 import bankAccountRoutes from "./routes/bankAccountRoutes";
+import currenciesRoutes from "./routes/currenciesRoutes";
 import { swaggerUi, specs } from "./swagger";
 
 const PORT = process.env.PORT;
@@ -22,6 +23,7 @@ app.use("/api/:companyId/coa", coaRoutes);
 app.use("/api/companies/", companiesRoutes);
 app.use("/api/banks", bankRoutes);
 app.use("/api/:companyId/banks/accounts", bankAccountRoutes);
+app.use("/api/currencies", currenciesRoutes);
 // app.use("api/users", userRoutes);
 
 app.use(express.static("./public"));
