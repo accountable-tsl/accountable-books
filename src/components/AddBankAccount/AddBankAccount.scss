@@ -56,6 +56,10 @@
       font-size: 0.75rem;
       color: $error;
       @apply px-3;
+
+      &--2 {
+        color: $success;
+      }
     }
 
     &__submit {

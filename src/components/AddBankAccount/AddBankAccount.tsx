@@ -29,7 +29,11 @@ export default function AddBankAccount() {
     currencyId: "",
   });
   const [errors, setErrors] = useState<Errors>({});
-  const [onSubmitError, setOnSubmitError] = useState({});
+  const [onSubmitMessage, setOnSubmitMessage] = useState<{
+    data?: {};
+    message?: string;
+    success?: boolean;
+  }>({});
 
   const handleFetchBank = async () => {
     const banks = await fetchBank();
@@ -83,11 +87,18 @@ export default function AddBankAccount() {
     if (Object.keys(errors).length === 0) {
       try {
         const response = await createBankAccount(companyId, formData);
-        console.log(response);
+        setOnSubmitMessage(response.result);
+        setFormData({
+          bankId: "",
+          displayName: "",
+          bankAccountType: "CHECKINGS_CURRENT",
+          bankAccountNo: "",
+          currencyId: "",
+        });
         response.success && closePopup();
       } catch (error: any) {
         console.error("Error creating bank account", error);
-        setOnSubmitError(error.response.data);
+        setOnSubmitMessage(error.response.data);
       }
     }
   };
@@ -223,7 +234,13 @@ export default function AddBankAccount() {
         </div>
       </form>
       <div className="addbankaccount-button">
-        <div className="addbankaccount-button__stat">{onSubmitError?.message}</div>
+        <div
+          className={`addbankaccount-button__stat ${
+            onSubmitMessage.success ? "addbankaccount-button__stat--2" : ""
+          }`}
+        >
+          {onSubmitMessage.message}
+        </div>
         <button
           className={`addbankaccount-button__submit ${
             Object.keys(errors).length === 0
