@@ -72,7 +72,6 @@ export default function COA() {
 
   const [comingSoon, setComingSoon] = useState(false);
 
-
   const coaTableRef = useRef<AgGridReact>(null);
 
   const onSelectionChanged = () => {
@@ -83,15 +82,22 @@ export default function COA() {
   };
 
   const coaPageBreadcrumbs = [
-    { text: "Accounting", icon: TableProperties, link: "/" },
+    {
+      text: "Workspace",
+      icon: TableProperties,
+      link: routes.accounting.workspace.root(companyId),
+    },
     {
       text: "Setup",
       icon: FolderCog,
       hasDropdown: true,
       dropdownItems: [
-        { text: "Chart of accounts", link: "/accounting/coa" },
-        { text: "Contacts", },
-        { text: "Projects", },
+        {
+          text: "Chart of accounts",
+          link: routes.accounting.setup.coa(companyId),
+        },
+        { text: "Contacts" },
+        { text: "Projects" },
         {
           text: "Financial Settings",
           link: routes.accounting.setup.finSettings(companyId),
