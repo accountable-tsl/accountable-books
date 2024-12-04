@@ -31,6 +31,8 @@ interface BankAccount {
   coaId?: string | number;
   createdAt?: string;
   updatedAt?: string;
+  currency?: {};
+  bank?: {};
 }
 
 type BankAccounts = BankAccount[];
@@ -39,6 +41,8 @@ export default function UploadBS() {
   const { companyId } = useCompany();
 
   const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
+  const [selectedBankAccount, setSelectedBankAccount] =
+    useState<BankAccount | null>(null);
   const [bankData, setBankData] = useState<any>([]);
   const [columnArray, setColumnArray] = useState<any>([]);
   const [values, setValues] = useState<any>([]);
@@ -199,6 +203,16 @@ export default function UploadBS() {
     companyId && fetchBankAccounts(companyId);
   }, []);
 
+  const handleBankAccountChange = (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const selectedId = event.target.value;
+    const selectedAccount = bankAccounts.find(
+      (account) => account.id === selectedId
+    );
+    setSelectedBankAccount(selectedAccount || null);
+  };
+
   console.log(bankAccounts);
   console.log(bankData);
   console.log(columnArray);
@@ -279,8 +293,8 @@ export default function UploadBS() {
                   <div className="uploadbs-input__grid uploadbs-input__body">
                     <div className="uploadbs-input__grid--item">
                       <select
-                        name="selectbank"
-                        id="selectbank"
+                        name="selectBankAccount"
+                        id="selectBankAccount"
                         className="uploadbs-input__select"
                       >
                         <option value="">--Select Bank--</option>
@@ -302,7 +316,9 @@ export default function UploadBS() {
                       />
                     </div>
                     <div className="uploadbs-input__grid--item">
-                      <span className="uploadbs-input__currency">NGN</span>
+                      <span className="uploadbs-input__currency">
+                        {selectedBankAccount?.currency?.code}
+                      </span>
                     </div>
                   </div>
                   {isLoading && <BeatLoader color="#ffcc99" />}
