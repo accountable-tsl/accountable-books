@@ -37,7 +37,7 @@
 
 .finsettings {
   &-ye {
-    @apply flex gap-4 justify-between relative opacity-50;
+    @apply flex gap-4 justify-between relative;
 
     &__container {
       @apply flex justify-between relative inline-block text-left;
@@ -48,7 +48,7 @@
     }
 
     &button {
-      @apply inline-flex w-full justify-between gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50;
+      @apply inline-flex w-full justify-between gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 opacity-50;
     }
 
     &month {

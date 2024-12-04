@@ -72,7 +72,6 @@ export default function COA() {
 
   const [comingSoon, setComingSoon] = useState(false);
 
-
   const coaTableRef = useRef<AgGridReact>(null);
 
   const onSelectionChanged = () => {
@@ -82,18 +81,23 @@ export default function COA() {
     }
   };
 
-  console.log(selectedRowsCount);
-
   const coaPageBreadcrumbs = [
-    { text: "Accounting", icon: TableProperties, link: "/" },
+    {
+      text: "Workspace",
+      icon: TableProperties,
+      link: routes.accounting.workspace.root(companyId),
+    },
     {
       text: "Setup",
       icon: FolderCog,
       hasDropdown: true,
       dropdownItems: [
-        { text: "Chart of accounts", link: "/accounting/coa" },
-        { text: "Contacts", link: "/accounting/contacts" },
-        { text: "Projects", link: "/accounting/projects" },
+        {
+          text: "Chart of accounts",
+          link: routes.accounting.setup.coa(companyId),
+        },
+        { text: "Contacts" },
+        { text: "Projects" },
         {
           text: "Financial Settings",
           link: routes.accounting.setup.finSettings(companyId),
@@ -292,7 +296,7 @@ export default function COA() {
                 text="Add account"
                 icon={faPlus}
                 variant="outlined"
-                customClass="coa-actions__right-button"
+                customClass="coa-actions__right-button coa-actions__right-button2"
                 onClick={() => openPopup("")}
               />
               <Button

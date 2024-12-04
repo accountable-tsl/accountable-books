@@ -23,6 +23,7 @@ export default function FinancialSettings() {
   const [companyData, setCompanyData] = useState<any>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("settings");
 
   const months = [
     "January",
@@ -45,6 +46,7 @@ export default function FinancialSettings() {
       try {
         if (companyId) {
           const company = await fetchCompany(companyId);
+          console.log(company);
           if (company.success) {
             setCompanyData(company.data);
           } else {
@@ -90,16 +92,45 @@ export default function FinancialSettings() {
     reportingCurrencySymbol,
   } = companyData || {};
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+  };
+
+  // const coaPageBreadcrumbs = [
+  //   { text: "Accounting", icon: TableProperties, link: "/" },
+  //   {
+  //     text: "Setup",
+  //     icon: FolderCog,
+  //     hasDropdown: true,
+  //     dropdownItems: [
+  //       { text: "Chart of accounts", link: "/accounting/coa" },
+  //       { text: "Contacts"},
+  //       { text: "Projects" },
+  //       {
+  //         text: "Financial Settings",
+  //         link: routes.accounting.setup.finSettings(companyId),
+  //       },
+  //     ],
+  //   },
+  // ];
+
   const coaPageBreadcrumbs = [
-    { text: "Accounting", icon: TableProperties, link: "/" },
+    {
+      text: "Workspace",
+      icon: TableProperties,
+      link: routes.accounting.workspace.root(companyId),
+    },
     {
       text: "Setup",
       icon: FolderCog,
       hasDropdown: true,
       dropdownItems: [
-        { text: "Chart of accounts", link: "/accounting/coa" },
-        { text: "Contacts", link: "/accounting/contacts" },
-        { text: "Projects", link: "/accounting/projects" },
+        {
+          text: "Chart of accounts",
+          link: routes.accounting.setup.coa(companyId),
+        },
+        { text: "Contacts" },
+        { text: "Projects" },
         {
           text: "Financial Settings",
           link: routes.accounting.setup.finSettings(companyId),
@@ -112,7 +143,7 @@ export default function FinancialSettings() {
     <div className="finsettings">
       <div className="finsettings-top">
         <Breadcrumb items={coaPageBreadcrumbs} />
-        <AccountingSetup activeTab="settings" />
+        <AccountingSetup activeTab="settings" onTabChange={handleTabChange} />
       </div>
 
       <div className="finsettings-bottom">

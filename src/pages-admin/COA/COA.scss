@@ -23,6 +23,14 @@
         background-color: rgba($color: $neutral-gray, $alpha: 0.5);
         color: rgba($color: $text, $alpha: 0.8);
       }
+
+      &--projects {
+        pointer-events: none;
+      }
+
+      &--contacts {
+        pointer-events: none;
+      }
     }
 
     &__first {
@@ -152,6 +160,10 @@
         font-size: 0.85rem !important;
         padding: 0.25rem 0.5rem;
         border: 0.5px solid $text;
+
+        &2 {
+          @apply opacity-50 pointer-events-none;
+        }
       }
     }
   }
