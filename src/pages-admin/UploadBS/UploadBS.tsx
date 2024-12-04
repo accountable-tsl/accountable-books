@@ -412,8 +412,7 @@ export default function UploadBS() {
                       text="Back"
                       variant="outlined"
                       customClass="uploadbs-button__continue"
-                      onClick={(e) => {
-                        e.preventDefault();
+                      onClick={() => {
                         setCurrPage(1);
                         setBankData([]);
                       }}
@@ -425,8 +424,7 @@ export default function UploadBS() {
                           ? "uploadbs-button__continue--disabled"
                           : ""
                       }`}
-                      onClick={(e) => {
-                        e.preventDefault();
+                      onClick={() => {
                         setCurrPage(2);
                       }}
                     />
