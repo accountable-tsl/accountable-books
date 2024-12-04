@@ -20,6 +20,7 @@ import { parseDate } from "../../utils/utils";
 export default function UploadBS() {
   const { companyId } = useCompany();
 
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [bankData, setBankData] = useState<any>([]);
   const [columnArray, setColumnArray] = useState<any>([]);
   const [values, setValues] = useState<any>([]);
@@ -168,6 +169,8 @@ export default function UploadBS() {
       totalMoneyOut += Math.abs(amount);
     }
   }
+
+  
 
   console.log(bankData);
   console.log(columnArray);
@@ -328,6 +331,7 @@ export default function UploadBS() {
                   </div>
                 </div>
               )}
+
               <div className="uploadbs-button">
                 {currPage === 1 && (
                   <Button
