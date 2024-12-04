@@ -154,7 +154,7 @@ model Coa {
   company             Company              @relation(name: "CompanyCOA", fields: [companyId], references: [id])
   isActive            Boolean              @default(true)
   balance             Decimal              @default(0)
-  //bankAccountId String? @unique
+  bankAccountId       String?              @unique
   bankAccount         BankAccount?         @relation(name: "BankCoaAccount")
   transactions        AccountTransaction[] @relation("CoaTransaction")
   journalTransactions JournalTransaction[] @relation("JournalCOA")

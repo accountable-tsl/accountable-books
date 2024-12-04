@@ -143,6 +143,7 @@ CREATE TABLE "Coa" (
     "companyId" INTEGER NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "balance" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "bankAccountId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -339,6 +340,9 @@ CREATE UNIQUE INDEX "FinancialStatement_statementKey_key" ON "FinancialStatement
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AccountType_typeName_key" ON "AccountType"("typeName");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Coa_bankAccountId_key" ON "Coa"("bankAccountId");
 
 -- CreateIndex
 CREATE INDEX "Coa_companyId_idx" ON "Coa"("companyId");
