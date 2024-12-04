@@ -49,16 +49,23 @@ export default function UploadBS() {
   const [previewColDefs, setPreviewColDefs] = useState<any>([
     {
       headerName: "SN",
-      width: 40,
+      width: 45,
       valueGetter: (params: any) => params.node.rowIndex + 1,
       cellClass: "uploadbs-rvw__cell--sn text-center",
       headerClass: "header-center",
     },
     {
       headerName: "Date",
-      field: "*Date",
       flex: 1,
-      valueFormatter: (params: any) => parseDate(params.value),
+      valueGetter: (params: any) => {
+        const possibleFields = ["*Date", "Date", "Date*"];
+        for (const field of possibleFields) {
+          if (params.data && field in params.data) {
+            return parseDate(params.data[field]);
+          }
+        }
+        return null;
+      },
       cellClass: "uploadbs-rvw__cell",
     },
     {
@@ -69,25 +76,35 @@ export default function UploadBS() {
     },
     {
       headerName: "Money In",
-      field: "*Amount",
-      flex: 1,
-      valueFormatter: (params: any) => {
-        const amount = numeral(params.value).value();
-        return amount !== null && amount > 0
-          ? numeral(amount).format("0,0.00")
-          : "";
+      valueGetter: (params: any) => {
+        const possibleFields = ["*Amount", "Amount", "Amount*"];
+        for (const field of possibleFields) {
+          if (params.data && field in params.data) {
+            const amount = numeral(params.data[field]).value();
+            return amount !== null && amount > 0
+              ? numeral(amount).format("0,0.00")
+              : "";
+          }
+        }
+        return "";
       },
+      flex: 1,
       cellClass: "uploadbs-rvw__money-in",
     },
     {
       headerName: "Money Out",
-      field: "*Amount",
       flex: 1,
-      valueFormatter: (params: any) => {
-        const amount = numeral(params.value).value();
-        return amount !== null && amount < 0
-          ? numeral(Math.abs(amount)).format("0,0.00")
-          : "";
+      valueGetter: (params: any) => {
+        const possibleFields = ["*Amount", "Amount", "Amount*"];
+        for (const field of possibleFields) {
+          if (params.data && field in params.data) {
+            const amount = numeral(params.data[field]).value();
+            return amount !== null && amount < 0
+              ? numeral(Math.abs(amount)).format("0,0.00")
+              : "";
+          }
+        }
+        return "";
       },
       cellClass: "uploadbs-rvw__money-out",
       headerClass: "uploadbs-rvw__header--right",
@@ -107,10 +124,10 @@ export default function UploadBS() {
     companyId && fetchBankAccounts(companyId);
   }, [companyId]);
 
-  const handleFile = (event: any) => {
+  const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     event.preventDefault();
 
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     setError(null);
 
     if (!file) {
@@ -124,13 +141,14 @@ export default function UploadBS() {
     }
 
     if (file.size > 5 * 1024 * 1024) {
+      // 5MB
       setError("File size exceeds 5MB limit.");
       return;
     }
 
     setIsLoading(true);
 
-    Papa.parse(event.target.files[0], {
+    Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: function (results) {
@@ -143,8 +161,12 @@ export default function UploadBS() {
             return;
           }
 
-          const columnArray = results.data.map((item) => Object.keys(item));
-          const valuesArray = results.data.map((item) => Object.values(item));
+          // const columnArray = results.data.map((item) => Object.keys(item));
+          const columnArray = results.meta.fields || [];
+          const valuesArray = results.data.map((item) =>
+            Object.values(item as { [key: string]: any })
+          );
+
           setBankData(results.data);
           setColumnArray(columnArray);
           setValues(valuesArray);
@@ -161,12 +183,23 @@ export default function UploadBS() {
     });
   };
 
+  const possibleAmountFields = ["*Amount", "Amount", "Amount*"];
+
   let totalMoneyIn = 0;
   let totalMoneyOut = 0;
 
   for (const item of bankData) {
-    const amount = numeral(item["*Amount"]).value();
+    let amount = null;
 
+    // Find the first matching field name
+    for (const field of possibleAmountFields) {
+      if (field in item) {
+        amount = numeral(item[field]).value();
+        break;
+      }
+    }
+
+    // Skip if amount is undefined or null
     if (amount === undefined || amount === null) {
       continue;
     }
