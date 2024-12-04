@@ -17,25 +17,7 @@ import { AgGridReact } from "ag-grid-react";
 import numeral from "numeral";
 import { parseDate } from "../../utils/utils";
 import { getBankAccounts } from "../../services/BankAccountServices";
-
-interface BankAccount {
-  id?: string | number;
-  bankId?: string | number;
-  displayName?: string;
-  bankAccountType?: string;
-  bankAccountNo?: string | number;
-  bankBalance?: string | number;
-  lastReconciled?: string | number;
-  currencyId?: string | number;
-  companyId?: string | number;
-  coaId?: string | number;
-  createdAt?: string;
-  updatedAt?: string;
-  currency?: {};
-  bank?: {};
-}
-
-type BankAccounts = BankAccount[];
+import { BankAccount, BankAccounts } from "../../types/types";
 
 export default function UploadBS() {
   const { companyId } = useCompany();
@@ -121,6 +103,10 @@ export default function UploadBS() {
     };
   }, []);
 
+  useEffect(() => {
+    companyId && fetchBankAccounts(companyId);
+  }, [companyId]);
+
   const handleFile = (event: any) => {
     event.preventDefault();
 
@@ -194,14 +180,9 @@ export default function UploadBS() {
 
   const fetchBankAccounts = async (companyId: string | number) => {
     const response = await getBankAccounts(companyId);
-    console.log(response.data);
     response.success && setBankAccounts(response.data.bankAccounts);
-    !response.success && console.log(response);
+    !response.success && console.error(response);
   };
-
-  useEffect(() => {
-    companyId && fetchBankAccounts(companyId);
-  }, []);
 
   const handleBankAccountChange = (
     event: React.ChangeEvent<HTMLSelectElement>
@@ -212,11 +193,6 @@ export default function UploadBS() {
     );
     setSelectedBankAccount(selectedAccount || null);
   };
-
-  console.log(bankAccounts);
-  console.log(bankData);
-  console.log(columnArray);
-  console.log(values);
 
   return (
     <>
@@ -296,6 +272,8 @@ export default function UploadBS() {
                         name="selectBankAccount"
                         id="selectBankAccount"
                         className="uploadbs-input__select"
+                        onChange={handleBankAccountChange}
+                        value={selectedBankAccount?.id}
                       >
                         <option value="">--Select Bank--</option>
                         {bankAccounts.map((bankAccount) => (

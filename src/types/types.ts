@@ -139,3 +139,5 @@ export interface Coa {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export type BankAccounts = BankAccount[];
