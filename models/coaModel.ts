@@ -105,6 +105,7 @@ export async function getAllCOA(
     const formattedCoa = coaPerCompany.map((coa: any) => ({
       id: coa.id,
       accountCode: coa.accountCode,
+      accountName: coa.accountName,
       accountTypeName: coa.accountType.typeName,
       accountElement: coa.accountType.accountElement?.elementName,
       parentElement: coa.accountType.accountElement?.parent?.elementName,
@@ -142,7 +143,7 @@ export async function getAllCOA(
 }
 
 //Get Single COA
-export async function getACOA(companyId: number, id: number) {
+export async function getACOA(companyId: any, id: number) {
   try {
     const singleCOA = await prisma.coa.findFirst({
       where: { companyId, id },

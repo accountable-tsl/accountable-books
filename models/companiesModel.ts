@@ -142,3 +142,171 @@ export async function createACompany(
     return response;
   }
 }
+
+export async function getCompanies() {
+  try {
+    const companies = await prisma.company.findMany({      
+      select: {
+      id: true,
+      name: true,
+      website: true,
+      industry: true,
+      teamSize: true,
+      revenue: true,
+      country: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          phoneCode: true,
+          flag: true,
+          continent: true,
+        },
+      },
+      reportingCurrency: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          symbol: true,
+        },
+      },
+      createdBy: {
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+        },
+      },
+      createdAt: true,
+      updatedAt: true,
+    }});
+
+    const formattedCompanies = companies.map((company:any) => ({
+      id: company.id,
+      name: company.name,
+      website: company.website,
+      industry: company.industry,
+      teamSize: company.teamSize,
+      revenue: company.revenue,
+      countryId: company.country?.id || null,
+      countryCode: company.country?.code || null,
+      countryName: company.country?.name || null,
+      countryPhoneCode: company.country?.phoneCode || null,
+      countryFlag: company.country?.flag || null,
+      countryContinent: company.country?.continent || null,
+      reportingCurrencyId: company.reportingCurrency?.id || null,
+      reportingCurrencyCode: company.reportingCurrency?.code || null,
+      reportingCurrencyName: company.reportingCurrency?.name || null,
+      reportingCurrencySymbol: company.reportingCurrency?.symbol || null,
+      createdById: company.createdBy?.id || null,
+      createdByFirstname: company.createdBy?.firstname || null,
+      createdByLastname: company.createdBy?.lastname || null,
+      createdAt: company.createdAt,
+      updatedAt: company.updatedAt,
+    }));
+
+    return {
+      success: true,
+      message: "Successfully retrieved all companies",
+      data: formattedCompanies
+    }
+  } catch (error: any) {
+    console.error("Error retrieving companies", error);
+    return {
+      success: false,
+      message: "Error retrieving companies",
+      error: error.message,
+    };
+  }
+}
+
+export async function getCompany(id: any) {
+  try {
+    const company: any = await prisma.company.findFirst({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        website: true,
+        industry: true,
+        teamSize: true,
+        revenue: true,
+        country: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            phoneCode: true,
+            flag: true,
+            continent: true,
+          },
+        },
+        reportingCurrency: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            symbol: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+          },
+        },
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!company) {
+      return {
+        success: false,
+        message: `Company with ID ${id} not found`,
+        data: null,
+      };
+    }
+
+    const formattedCompany = {
+      id: company.id,
+      name: company.name,
+      website: company.website,
+      industry: company.industry,
+      teamSize: company.teamSize,
+      revenue: company.revenue,
+      countryId: company.country?.id || null,
+      countryCode: company.country?.code || null,
+      countryName: company.country?.name || null,
+      countryPhoneCode: company.country?.phoneCode || null,
+      countryFlag: company.country?.flag || null,
+      countryContinent: company.country?.continent || null,
+      reportingCurrencyId: company.reportingCurrency?.id || null,
+      reportingCurrencyCode: company.reportingCurrency?.code || null,
+      reportingCurrencyName: company.reportingCurrency?.name || null,
+      reportingCurrencySymbol: company.reportingCurrency?.symbol || null,
+      createdById: company.createdBy?.id || null,
+      createdByFirstname: company.createdBy?.firstname || null,
+      createdByLastname: company.createdBy?.lastname || null,
+      createdAt: company.createdAt,
+      updatedAt: company.updatedAt,
+    };
+
+    return {
+      success: true,
+      message: `Successfully retrieved details for company ${company.name}`,
+      data: formattedCompany,
+    };
+  } catch (error: unknown) {
+    console.error("Error retrieving company:", error);
+
+    return {
+      success: false,
+      message: "Error retrieving company details",
+      data: null,
+      error: (error as Error).message,
+    };
+  }
+}

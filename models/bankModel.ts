@@ -14,6 +14,7 @@ export async function getAllBanks() {
     });
 
     const result = allBanks.map((bank: any) => ({
+      bankId: bank.id,
       bankName: bank.name,
       bankLogo: bank.bankLogo,
       countryId: bank.country?.id,
