@@ -296,7 +296,7 @@ export default function COA() {
                 text="Add account"
                 icon={faPlus}
                 variant="outlined"
-                customClass="coa-actions__right-button"
+                customClass="coa-actions__right-button coa-actions__right-button2"
                 onClick={() => openPopup("")}
               />
               <Button

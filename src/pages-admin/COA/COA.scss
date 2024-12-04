@@ -24,11 +24,11 @@
         color: rgba($color: $text, $alpha: 0.8);
       }
 
-      &--projects{
+      &--projects {
         pointer-events: none;
       }
 
-      &--contacts{
+      &--contacts {
         pointer-events: none;
       }
     }
@@ -160,6 +160,10 @@
         font-size: 0.85rem !important;
         padding: 0.25rem 0.5rem;
         border: 0.5px solid $text;
+
+        &2 {
+          @apply opacity-50 pointer-events-none;
+        }
       }
     }
   }
