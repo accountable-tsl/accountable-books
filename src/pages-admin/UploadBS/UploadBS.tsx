@@ -11,16 +11,34 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import Button from "../../components/Button/Button";
 import Papa from "papaparse";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BeatLoader } from "react-spinners";
 import { AgGridReact } from "ag-grid-react";
 import numeral from "numeral";
 import { parseDate } from "../../utils/utils";
+import { getBankAccounts } from "../../services/BankAccountServices";
+
+interface BankAccount {
+  id?: string | number;
+  bankId?: string | number;
+  displayName?: string;
+  bankAccountType?: string;
+  bankAccountNo?: string | number;
+  bankBalance?: string | number;
+  lastReconciled?: string | number;
+  currencyId?: string | number;
+  companyId?: string | number;
+  coaId?: string | number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+type BankAccounts = BankAccount[];
 
 export default function UploadBS() {
   const { companyId } = useCompany();
 
-  const [bankAccounts, setBankAccounts] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
   const [bankData, setBankData] = useState<any>([]);
   const [columnArray, setColumnArray] = useState<any>([]);
   const [values, setValues] = useState<any>([]);
@@ -170,8 +188,18 @@ export default function UploadBS() {
     }
   }
 
-  
+  const fetchBankAccounts = async (companyId: string | number) => {
+    const response = await getBankAccounts(companyId);
+    console.log(response.data);
+    response.success && setBankAccounts(response.data.bankAccounts);
+    !response.success && console.log(response);
+  };
 
+  useEffect(() => {
+    companyId && fetchBankAccounts(companyId);
+  }, []);
+
+  console.log(bankAccounts);
   console.log(bankData);
   console.log(columnArray);
   console.log(values);
@@ -256,6 +284,12 @@ export default function UploadBS() {
                         className="uploadbs-input__select"
                       >
                         <option value="">--Select Bank--</option>
+                        {bankAccounts.map((bankAccount) => (
+                          <option key={bankAccount.id} value={bankAccount.id}>
+                            {bankAccount.displayName} (
+                            {bankAccount.bankAccountNo})
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div className="uploadbs-input__grid--item">

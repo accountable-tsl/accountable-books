@@ -25,4 +25,5 @@ export const getBankAccounts = async (companyId: string | number) => {
   const response = await axios.get(
     `${backendUrl}/api/${companyId}/banks/accounts`
   );
+  return response.data;
 };
