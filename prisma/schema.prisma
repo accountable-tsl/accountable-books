@@ -184,9 +184,9 @@ enum BankTransactionStatus {
 }
 
 enum BankTransactionSource {
-  IMPORTED
-  CONNECTED
-  MANUAL
+  FILE_IMPORT
+  BANK_FEED
+  MANUAL_ENTRY
 }
 
 enum BankAccountType {
@@ -246,6 +246,7 @@ model BankTransactionBatch {
   updatedBy        Int?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
+  isDeleted        Boolean               @default(false)
 
   @@index([bankAccountId])
   @@index([startDate, endDate])
@@ -258,7 +259,7 @@ model BankTransaction {
   reference              String?
   description            String?
   additionalComments     String?
-  source                 BankTransactionSource
+  //source                 BankTransactionSource
   type                   DefaultSide
   amount                 Decimal
   balance                Decimal
@@ -276,6 +277,8 @@ model BankTransaction {
   @@index([bankTransactionBatchId])
   @@index([date])
   @@index([payee])
+  @@index([amount])
+  @@index([description])
 }
 
 enum AccountTransactionSource {
