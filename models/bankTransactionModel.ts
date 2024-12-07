@@ -1,15 +1,106 @@
-import { PrismaClient } from "@prisma/client";
+import { BankTransactionSource, PrismaClient } from "@prisma/client";
+import { BankTransaction } from "../controllers/bankTransactionControllers";
 
+const prisma = new PrismaClient();
 
-const prisma = new PrismaClient()
+interface BankTransactionBatchData {
+  startDate: Date;
+  endDate: Date;
+  source: BankTransactionSource;
+  bankAccountId: string;
+  bankTransactions: BankTransaction[];
+  createdById: string;
+}
 
-export async function postBankTransactions () {
-    //Convert string dates to actual dates
-    //Determine latest and earliest dates
-    //Add current bank balance to transaction batch table
-    //Calculate bank balance after import
-    //Run a prisma $transaction that does the following:
-    //Add new line based on the information to BankTransactionBatch Table
-    //Get required data from the BankTransactionBatch and add all the transactions to the BankTransactions Table
-    //If successful, send success message and summary to front end, otherwise send error message
+export async function postBankTransactions(
+  companyId: string | number,
+  data: BankTransactionBatchData
+) {
+  const {
+    startDate,
+    endDate,
+    source,
+    bankAccountId,
+    bankTransactions,
+    createdById,
+  } = data;
+
+  try {
+    const result = prisma.$transaction(async (prisma) => {
+      //Fetch currenct account state and lock
+      const bankAccount = await prisma.bankAccount.findUnique({
+        where: { id: bankAccountId },
+        include: { transactionBatches: true },
+      });
+
+      if (!bankAccount)
+        return { success: false, message: "Bank Account not found" };
+
+      const balanceBefore = bankAccount.bankBalance.toNumber();
+
+      let currentRunningBalance = balanceBefore;
+      let batchTotal = 0;
+
+      const preparedTransactions = bankTransactions.map((transaction) => {
+        batchTotal += transaction.amount;
+        currentRunningBalance += transaction.amount;
+
+        return {
+          ...transaction,
+          balance: currentRunningBalance,
+        };
+      });
+
+      const balanceAfter = balanceBefore + batchTotal;
+
+      if (balanceAfter !== currentRunningBalance) {
+        return {
+          success: false,
+          message: "Arithmetic error occured. Inaccurate balance",
+        };
+      }
+
+      const bankTransactionBatch = await prisma.bankTransactionBatch.create({
+        data: {
+          startDate,
+          endDate,
+          balanceBefore,
+          balanceAfter,
+          source,
+          bankAccountId: String(bankAccountId),
+          createdById: String(createdById),
+          updatedById: String(createdById),
+          bankTransactions: {
+            create: preparedTransactions.map((transaction) => ({
+              date: transaction.date,
+              description: transaction.description,
+              amount: transaction.amount,
+              payee: transaction.payee,
+              reference: transaction.reference,
+              type: transaction.type,
+              balance: transaction.balance,
+            })),
+          },
+        },
+      });
+
+      await prisma.bankAccount.update({
+        where: { id: String(bankAccountId) },
+        data: {
+          bankBalance: balanceAfter,
+        },
+      });
+
+      return {
+        success: true,
+        message: "Transactions posted successfully",
+        data: { bankTransactionBatch },
+      };
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Error posting bank transactions:", error);
+    return { success: false, message: "Failed to post transactions", error };
+  }
 }

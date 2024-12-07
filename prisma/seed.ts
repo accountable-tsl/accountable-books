@@ -102,6 +102,7 @@ async function main() {
     where: { email: "a.adenuga@accountable.global" },
     update: {},
     create: {
+      id: "testId",
       firstname: "Temi",
       lastname: "Adenuga",
       email: "a.adenuga@accountable.global",

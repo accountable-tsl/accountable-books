@@ -1,38 +1,76 @@
 import { Request, Response } from "express";
 import { postBankTransactions } from "../models/bankTransactionModel";
 
-export async function handleTransactionImport(req: Request, res: Response) {
-  //Validate Company ID or return
-  //Validate BankID or Return
-  //Check that a valid "source" is included in the data sent
-  //Check that there are transactions in the data sent from frontend
-  //Run postBankTransaction function from bankTrasactionModel.ts
+export interface BankTransaction {
+  date: Date | string;
+  description?: string;
+  amount: number;
+  payee?: string;
+  reference?: string;
+  type?: string;
+}
 
+function validateBankTransactions(transactions: any[]): string[] {
+  const errors: string[] = [];
+  transactions.forEach((tx: any, index: number) => {
+    if (!tx.date || !tx.amount) {
+      errors.push(
+        `bankTransactions[${index}] is missing ${
+          !tx.date && !tx.amount
+            ? "date and amount"
+            : !tx.date
+              ? "date"
+              : "amount"
+        }`
+      );
+    }
+  });
+  return errors;
+}
+
+function validateRequestBody(req: Request): string[] {
+  const missingFields: string[] = [];
+  const bankAccountId = req.body.bankAccountId || req.params.bankAccountId;
+
+  if (!bankAccountId) missingFields.push("bankAccountId");
+  if (!req.body.startDate) missingFields.push("startDate");
+  if (!req.body.endDate) missingFields.push("endDate");
+  if (!req.body.bankTransactions) {
+    missingFields.push("bankTransactions");
+  } else if (!Array.isArray(req.body.bankTransactions)) {
+    missingFields.push("bankTransactions must be an array");
+  } else {
+    const transactionErrors = validateBankTransactions(
+      req.body.bankTransactions
+    );
+    missingFields.push(...transactionErrors);
+  }
+  if (!req.body.createdById) missingFields.push("createdBy");
+
+  return missingFields;
+}
+
+function mapTransactions(transactions: any[]): BankTransaction[] {
+  return transactions.map((transaction: any) => ({
+    date: new Date(transaction.date),
+    description: transaction.description || "",
+    amount: parseFloat(transaction.amount),
+    payee: transaction.payee,
+    reference: transaction.reference,
+    type:
+      transaction.type ||
+      (parseFloat(transaction.amount) < 0 ? "Debit" : "Credit"),
+  }));
+}
+
+export async function handleTransactionImport(req: Request, res: Response) {
   try {
     const companyId = req.company!.id || req.params.companyId;
     if (!companyId) {
       return res.status(400).json({ success: false, message: "Bad Request" });
     }
 
-    const bankAccountId = req.params.bankAccountId || req.body.bankAccountId;
-
-    const missingFields: string[] = [];
-
-    if (!bankAccountId) missingFields.push("bankAccountId");
-    if (!req.body.startDate) missingFields.push("startDate");
-    if (!req.body.endDate) missingFields.push("endDate");
-    if (!req.body.bankTransactions) {
-      missingFields.push("bankTransactions");
-    } else if (!Array.isArray(req.body.bankTransactions)) {
-      missingFields.push("bankTransactions must be an array");
-    } else if (
-      !req.body.bankTransactions.every(
-        (tx: unknown) => typeof tx === "object" && tx !== null
-      )
-    ) {
-      missingFields.push("bankTransactions must be an array of objects");
-    }
-    if (!req.body.createdBy) missingFields.push("createdBy");
+    const missingFields = validateRequestBody(req.body);
 
     if (missingFields.length > 0) {
       return res.status(400).json({
@@ -43,12 +81,14 @@ export async function handleTransactionImport(req: Request, res: Response) {
       });
     }
 
+    const transactions = mapTransactions(req.body.bankTransactions);
+
     const data = {
       startDate: new Date(req.body.startDate),
       endDate: new Date(req.body.endDate),
       source: req.body.source || "FILE_IMPORT",
-      bankAccountId: bankAccountId,
-      bankTransactions: req.body.bankTransactions,
+      bankAccountId: req.body.bankAccountId,
+      bankTransactions: transactions.sort(),
       createdBy: req.body.createdBy,
     };
 

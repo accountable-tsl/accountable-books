@@ -5,7 +5,7 @@ CREATE TYPE "DefaultSide" AS ENUM ('Debit', 'Credit');
 CREATE TYPE "BankTransactionStatus" AS ENUM ('RECONCILED', 'UNRECONCILED');
 
 -- CreateEnum
-CREATE TYPE "BankTransactionSource" AS ENUM ('IMPORTED', 'CONNECTED', 'MANUAL');
+CREATE TYPE "BankTransactionSource" AS ENUM ('FILE_IMPORT', 'BANK_FEED', 'MANUAL_ENTRY');
 
 -- CreateEnum
 CREATE TYPE "BankAccountType" AS ENUM ('OTHER', 'CREDIT_CARD', 'DEBIT_CARD', 'SAVINGS', 'CHECKINGS_CURRENT', 'UTILITY');
@@ -32,7 +32,7 @@ CREATE TABLE "Role" (
 
 -- CreateTable
 CREATE TABLE "User" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "firstname" TEXT NOT NULL,
     "lastname" TEXT,
     "email" TEXT NOT NULL,
@@ -40,10 +40,10 @@ CREATE TABLE "User" (
     "phoneNumber" TEXT,
     "status" TEXT NOT NULL DEFAULT 'active',
     "roleId" INTEGER NOT NULL,
+    "profileImage" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
-    "profileImage" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -58,7 +58,7 @@ CREATE TABLE "Company" (
     "revenue" TEXT,
     "countryId" INTEGER NOT NULL,
     "reportingCurrencyId" INTEGER NOT NULL,
-    "createdById" INTEGER NOT NULL,
+    "createdById" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
@@ -68,7 +68,7 @@ CREATE TABLE "Company" (
 
 -- CreateTable
 CREATE TABLE "UserCompany" (
-    "userId" INTEGER NOT NULL,
+    "userId" TEXT NOT NULL,
     "companyId" INTEGER NOT NULL,
     "role" TEXT NOT NULL,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -203,10 +203,11 @@ CREATE TABLE "BankTransactionBatch" (
     "balanceAfter" DECIMAL(65,30) NOT NULL,
     "source" "BankTransactionSource" NOT NULL,
     "bankAccountId" TEXT NOT NULL,
-    "createdBy" INTEGER,
-    "updatedBy" INTEGER,
+    "createdById" TEXT NOT NULL,
+    "updatedById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "BankTransactionBatch_pkey" PRIMARY KEY ("id")
 );
@@ -219,15 +220,15 @@ CREATE TABLE "BankTransaction" (
     "reference" TEXT,
     "description" TEXT,
     "additionalComments" TEXT,
-    "source" "BankTransactionSource" NOT NULL,
     "type" "DefaultSide" NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
     "balance" DECIMAL(65,30) NOT NULL,
     "isReconciled" BOOLEAN NOT NULL DEFAULT false,
     "reconciledAt" TIMESTAMP(3),
-    "reconciledBy" INTEGER,
+    "reconciledById" TEXT,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "bankTransactionBatchId" TEXT NOT NULL,
+    "accountTransactionId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -251,8 +252,8 @@ CREATE TABLE "AccountTransaction" (
     "coaAccountId" INTEGER NOT NULL,
     "bankTransactionId" TEXT,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
-    "createdBy" INTEGER,
-    "updatedBy" INTEGER,
+    "createdBy" TEXT,
+    "updatedBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -267,9 +268,9 @@ CREATE TABLE "JournalBatch" (
     "note" TEXT NOT NULL,
     "status" "JournalStatus" NOT NULL,
     "isRecurring" BOOLEAN NOT NULL DEFAULT false,
-    "userId" INTEGER NOT NULL,
+    "userId" TEXT NOT NULL,
     "postedAt" TIMESTAMP(3),
-    "postedBy" INTEGER,
+    "postedBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -381,6 +382,12 @@ CREATE INDEX "BankTransaction_date_idx" ON "BankTransaction"("date");
 CREATE INDEX "BankTransaction_payee_idx" ON "BankTransaction"("payee");
 
 -- CreateIndex
+CREATE INDEX "BankTransaction_amount_idx" ON "BankTransaction"("amount");
+
+-- CreateIndex
+CREATE INDEX "BankTransaction_description_idx" ON "BankTransaction"("description");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "AccountTransaction_bankTransactionId_key" ON "AccountTransaction"("bankTransactionId");
 
 -- CreateIndex
@@ -442,6 +449,15 @@ ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_coaId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_bankAccountId_fkey" FOREIGN KEY ("bankAccountId") REFERENCES "BankAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_reconciledById_fkey" FOREIGN KEY ("reconciledById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankTransactionBatchId_fkey" FOREIGN KEY ("bankTransactionBatchId") REFERENCES "BankTransactionBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
