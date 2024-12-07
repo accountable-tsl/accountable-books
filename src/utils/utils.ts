@@ -1,24 +1,5 @@
 import { format, parse, isValid } from "date-fns";
 
-type DateFormats = "dd-MMM-yyyy" | "dd MMM yyyy" | "dd/MM/yyyy";
-
-export const parseDate = (
-  dateString: string,
-  returnFormat: string = "dd MMM yyyy"
-) => {
-  if (!dateString) {
-    return null;
-  }
-
-  const date = new Date(dateString);
-
-  if (isNaN(date.getTime())) {
-    return null;
-  }
-
-  return format(date, returnFormat);
-};
-
 const possibleDateFormats: string[] = [
   "dd-MMM-yyyy",
   "dd MMM yyyy",
@@ -72,3 +53,40 @@ export function getValue(item: any, possibleKeys: string[]): any {
   }
   return null;
 }
+
+/**
+ * Finds the earliest and latest dates in an array of objects based on a specific date key
+ * @param data Array of objects containing date strings.
+ * @param dateKey The key in each object that holds the date string.
+ * @returns An object containing the earliest and latest Date objects, or nulls if no valid dates are found.
+ */
+export const findDateRange = <D>(
+  data: D[],
+  dateKey: keyof D
+): { earliestDate: Date | null; latestDate: Date | null } => {
+  const parsedDates: Date[] = data
+    .map((item) => {
+      const dateValue = item[dateKey];
+
+      if (dateValue instanceof Date) {
+        return dateValue;
+      }
+
+      if (typeof dateValue === "string") {
+        return parseDateString(dateValue);
+      }
+      return null;
+    })
+    .filter((date): date is Date => date !== null);
+
+  if (parsedDates.length === 0) {
+    return { earliestDate: null, latestDate: null };
+  }
+
+  const earliestDate = new Date(
+    Math.min(...parsedDates.map((d) => d.getTime()))
+  );
+  const latestDate = new Date(Math.max(...parsedDates.map((d) => d.getTime())));
+
+  return { earliestDate, latestDate };
+};

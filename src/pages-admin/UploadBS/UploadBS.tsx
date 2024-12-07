@@ -15,9 +15,15 @@ import { useEffect, useMemo, useState } from "react";
 import { BeatLoader } from "react-spinners";
 import { AgGridReact } from "ag-grid-react";
 import numeral from "numeral";
-import { getValue, parseDate } from "../../utils/utils";
+import {
+  findDateRange,
+  formatDate,
+  getValue,
+  parseDateString,
+} from "../../utils/utils";
 import { getBankAccounts } from "../../services/BankAccountServices";
 import { BankAccount, BankAccounts, BankTransaction } from "../../types/types";
+import { userId } from "../../utils/user";
 
 export default function UploadBS() {
   const { companyId } = useCompany();
@@ -60,8 +66,9 @@ export default function UploadBS() {
       valueGetter: (params: any) => {
         const possibleFields = ["*Date", "Date", "Date*", "date"];
         for (const field of possibleFields) {
-          if (params.data && field in params.data) {
-            return parseDate(params.data[field]);
+          if (params.data && field in params.data && params.data[field]) {
+            const parsedDate = parseDateString(params.data[field]);
+            return parsedDate && formatDate(parsedDate);
           }
         }
         return null;
@@ -265,12 +272,19 @@ export default function UploadBS() {
 
   console.log(bankData);
 
+  const dateRange = findDateRange(bankData, "date");
+
   const bankTransactionData = {
+    startDate: dateRange && dateRange.earliestDate,
+    endDate: dateRange && dateRange.latestDate,
+    bankAccountId: selectedBankAccount?.id,
     source: "FILE_IMPORT",
-    transactions: bankData,
+    createdBy: userId,
+    bankTransactions: bankData,
   };
 
   console.log(bankTransactionData);
+  console.log(selectedBankAccount);
 
   const handleUpload = () => {};
 
@@ -346,7 +360,13 @@ export default function UploadBS() {
                     <div className="uploadbs-input__item">Upload CSV</div>
                     <div className="uploadbs-input__item">Currency</div>
                   </div>
-                  <div className="uploadbs-input__grid uploadbs-input__body">
+                  <div
+                    className={`uploadbs-input__grid uploadbs-input__body ${
+                      selectedBankAccount?.id && bankData.length !== 0
+                        ? "uploadbs-input__body--2"
+                        : ""
+                    }`}
+                  >
                     <div className="uploadbs-input__grid--item">
                       <select
                         name="selectBankAccount"
@@ -445,7 +465,11 @@ export default function UploadBS() {
                   <Button
                     text="Continue"
                     variant="outlined"
-                    customClass="uploadbs-button__continue"
+                    customClass={
+                      !selectedBankAccount?.id || bankData.length === 0
+                        ? "uploadbs-button__disabled"
+                        : "uploadbs-button__continue"
+                    }
                     onClick={(e) => {
                       e.preventDefault();
                       setCurrPage(2);
@@ -467,9 +491,7 @@ export default function UploadBS() {
                     <Button
                       text="Complete Import"
                       customClass={`uploadbs-button__continue ${
-                        bankData.length === 0
-                          ? "uploadbs-button__continue--disabled"
-                          : ""
+                        bankData.length === 0 ? "uploadbs-button__disabled" : ""
                       }`}
                       onClick={() => {
                         setCurrPage(2);

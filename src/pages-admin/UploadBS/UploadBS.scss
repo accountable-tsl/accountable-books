@@ -118,6 +118,10 @@
     &__body {
       border: 1px solid $border;
       border-radius: 0.25rem;
+
+      &--2 {
+        border: 1px solid $success;
+      }
     }
 
     &__select,
@@ -195,10 +199,12 @@
     &__continue {
       padding: 0.35rem 1rem;
       font-size: 0.85rem !important;
+    }
 
-      &--disabled {
-        @apply pointer-events-none opacity-50;
-      }
+    &__disabled {
+      @apply pointer-events-none opacity-50;
+      padding: 0.35rem 1rem;
+      font-size: 0.85rem !important;
     }
   }
 }
