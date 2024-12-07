@@ -269,7 +269,7 @@ model BankTransaction {
   isDeleted              Boolean               @default(false)
   bankTransactionBatchId String
   bankTransactionBatch   BankTransactionBatch  @relation(name: "BatchTransactions", fields: [bankTransactionBatchId], references: [id])
-  //accountTransactionId   String
+  accountTransactionId   String
   accountTransaction     AccountTransaction?   @relation(name: "MatchedTransaction")
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
