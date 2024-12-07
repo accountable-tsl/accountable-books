@@ -4,10 +4,6 @@ import { handleTransactionImport } from "../controllers/bankTransactionControlle
 
 const router = express.Router({ mergeParams: true });
 
-router.post(
-  "/bank-accounts/:bankAccountId/transactions/import",
-  checkCompanyId,
-  handleTransactionImport
-);
+router.post("/import", checkCompanyId, handleTransactionImport);
 
 export default router;

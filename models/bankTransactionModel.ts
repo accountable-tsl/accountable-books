@@ -1,7 +1,16 @@
 import { PrismaClient } from "@prisma/client";
-import { BankTransaction } from "../controllers/bankTransactionControllers";
-
+import { Decimal } from "@prisma/client/runtime/library";
 const prisma = new PrismaClient();
+
+export interface BankTransaction {
+  date: Date | string;
+  description?: string;
+  amount: Decimal;
+  payee?: string;
+  reference?: string;
+  type?: string;
+  bankAccountId?: string;
+}
 
 interface BankTransactionBatchData {
   startDate: Date;
@@ -35,27 +44,49 @@ export async function postBankTransactions(
       if (!bankAccount)
         return { success: false, message: "Bank Account not found" };
 
-      const balanceBefore = bankAccount.bankBalance.toNumber();
+      const existingTransactions = await prisma.bankTransaction.findMany({
+        where: { bankAccountId },
+        orderBy: { date: "asc" },
+      });
+
+      const balanceBefore = existingTransactions.reduce(
+        (total: Decimal, transaction: { amount: Decimal }) =>
+          total.plus(transaction.amount),
+        new Decimal(0)
+      );
+
+      console.log(balanceBefore);
+
+      // const balanceBefore = bankAccount.bankBalance.toNumber();
+
+      bankTransactions.sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
 
       let currentRunningBalance = balanceBefore;
-      let batchTotal = 0;
+      let batchTotal = new Decimal(0);
 
       const preparedTransactions = bankTransactions.map((transaction) => {
-        batchTotal += transaction.amount;
-        currentRunningBalance += transaction.amount;
+        batchTotal = batchTotal.plus(transaction.amount);
+        currentRunningBalance = currentRunningBalance.plus(transaction.amount);
 
         return {
           ...transaction,
           balance: currentRunningBalance,
+          bankAccountId: bankAccountId,
         };
       });
 
-      const balanceAfter = balanceBefore + batchTotal;
+      const balanceAfter = balanceBefore.plus(batchTotal);
+
+      console.log({ balanceAfter: balanceAfter, batchTotal: batchTotal });
 
       if (balanceAfter !== currentRunningBalance) {
+        console.log(preparedTransactions);
         return {
           success: false,
           message: "Arithmetic error occured. Inaccurate balance",
+          data: preparedTransactions,
         };
       }
 
@@ -66,9 +97,9 @@ export async function postBankTransactions(
           balanceBefore,
           balanceAfter,
           source,
-          bankAccountId: String(bankAccountId),
-          createdById: String(createdById),
-          updatedById: String(createdById),
+          bankAccount: { connect: { id: String(bankAccountId) } },
+          createdBy: { connect: { id: String(createdById) } },
+          updatedBy: { connect: { id: String(createdById) } },
           bankTransactions: {
             create: preparedTransactions.map((transaction) => ({
               date: transaction.date,
@@ -78,6 +109,7 @@ export async function postBankTransactions(
               reference: transaction.reference || null,
               type: transaction.type,
               balance: transaction.balance,
+              bankAccount: { connect: { id: String(bankAccountId) } },
             })),
           },
         },

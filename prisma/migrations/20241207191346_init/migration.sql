@@ -227,8 +227,9 @@ CREATE TABLE "BankTransaction" (
     "reconciledAt" TIMESTAMP(3),
     "reconciledById" TEXT,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
-    "bankTransactionBatchId" TEXT NOT NULL,
-    "accountTransactionId" TEXT NOT NULL,
+    "bankAccountId" TEXT NOT NULL,
+    "bankTransactionBatchId" TEXT,
+    "accountTransactionId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -460,7 +461,10 @@ ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_updatedB
 ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_reconciledById_fkey" FOREIGN KEY ("reconciledById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankTransactionBatchId_fkey" FOREIGN KEY ("bankTransactionBatchId") REFERENCES "BankTransactionBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankAccountId_fkey" FOREIGN KEY ("bankAccountId") REFERENCES "BankAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankTransactionBatchId_fkey" FOREIGN KEY ("bankTransactionBatchId") REFERENCES "BankTransactionBatch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AccountTransaction" ADD CONSTRAINT "AccountTransaction_coaAccountId_fkey" FOREIGN KEY ("coaAccountId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -226,6 +226,7 @@ model BankAccount {
   coaId              Int?                   @unique
   accountInCOA       Coa?                   @relation("BankCoaAccount", fields: [coaId], references: [id])
   transactionBatches BankTransactionBatch[] @relation("Transaction Batches")
+  transactions       BankTransaction[]      @relation("Transaction Bank Account")
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
 
@@ -258,7 +259,7 @@ model BankTransactionBatch {
 }
 
 model BankTransaction {
-  id                     String               @id @default(uuid())
+  id                     String                @id @default(uuid())
   date                   DateTime
   payee                  String?
   reference              String?
@@ -267,17 +268,19 @@ model BankTransaction {
   type                   DefaultSide
   amount                 Decimal
   balance                Decimal
-  isReconciled           Boolean              @default(false)
+  isReconciled           Boolean               @default(false)
   reconciledAt           DateTime?
   reconciledById         String?
-  reconciledBy           User?                @relation("ReconciledByUser", fields: [reconciledById], references: [id])
-  isDeleted              Boolean              @default(false)
-  bankTransactionBatchId String
-  bankTransactionBatch   BankTransactionBatch @relation(name: "BatchTransactions", fields: [bankTransactionBatchId], references: [id])
-  accountTransactionId   String
-  accountTransaction     AccountTransaction?  @relation(name: "MatchedTransaction")
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
+  reconciledBy           User?                 @relation("ReconciledByUser", fields: [reconciledById], references: [id])
+  isDeleted              Boolean               @default(false)
+  bankAccountId          String
+  bankAccount            BankAccount           @relation(name: "Transaction Bank Account", fields: [bankAccountId], references: [id])
+  bankTransactionBatchId String?
+  bankTransactionBatch   BankTransactionBatch? @relation(name: "BatchTransactions", fields: [bankTransactionBatchId], references: [id])
+  accountTransactionId   String?
+  accountTransaction     AccountTransaction?   @relation(name: "MatchedTransaction")
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
 
   @@index([bankTransactionBatchId])
   @@index([date])
