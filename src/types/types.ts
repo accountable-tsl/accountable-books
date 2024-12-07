@@ -110,6 +110,15 @@ export interface BankTransaction {
   accountTransactionId?: string | number;
 }
 
+export interface BankTransactionBatch {
+  startDate: Date;
+  endDate: Date;
+  source: "FILE_IMPORT" | "BANK_FEED" | "MANUAL_ENTRY";
+  bankAccountId: string;
+  bankTransactions: BankTransaction[];
+  createdById: string;
+}
+
 export interface AccountType {
   id?: number;
   typeName?: string;

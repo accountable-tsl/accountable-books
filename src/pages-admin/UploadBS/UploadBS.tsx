@@ -24,6 +24,7 @@ import {
 import { getBankAccounts } from "../../services/BankAccountServices";
 import { BankAccount, BankAccounts, BankTransaction } from "../../types/types";
 import { userId } from "../../utils/user";
+import { ValueGetterParams } from "ag-grid-community";
 
 export default function UploadBS() {
   const { companyId } = useCompany();
@@ -56,19 +57,22 @@ export default function UploadBS() {
     {
       headerName: "SN",
       width: 45,
-      valueGetter: (params: any) => params.node.rowIndex + 1,
+      valueGetter: (params: any) =>
+        params.node ? params.node.rowIndex + 1 : null,
       cellClass: "uploadbs-rvw__cell--sn text-center",
       headerClass: "header-center",
     },
     {
       headerName: "Date",
       flex: 1,
-      valueGetter: (params: any) => {
+      valueGetter: (params: ValueGetterParams) => {
+        if (!params.data) return null;
+
         const possibleFields = ["*Date", "Date", "Date*", "date"];
         for (const field of possibleFields) {
-          if (params.data && field in params.data && params.data[field]) {
-            const parsedDate = parseDateString(params.data[field]);
-            return parsedDate && formatDate(parsedDate);
+          if (field in params.data) {
+            const parsedDate = parseDateString(String(params.data[field]));
+            if (parsedDate) return formatDate(parsedDate);
           }
         }
         return null;
@@ -84,13 +88,14 @@ export default function UploadBS() {
     {
       headerName: "Money In",
       valueGetter: (params: any) => {
+        if (!params.data) return "";
+
         const possibleFields = ["*Amount", "Amount", "Amount*", "amount"];
         for (const field of possibleFields) {
-          if (params.data && field in params.data) {
+          if (field in params.data) {
             const amount = numeral(params.data[field]).value();
-            return amount !== null && amount > 0
-              ? numeral(amount).format("0,0.00")
-              : "";
+            if (amount !== null && amount > 0)
+              return numeral(amount).format("0,0.00");
           }
         }
         return "";
@@ -102,13 +107,15 @@ export default function UploadBS() {
       headerName: "Money Out",
       flex: 1,
       valueGetter: (params: any) => {
+        if (!params.data) return "";
+
         const possibleFields = ["*Amount", "Amount", "Amount*", "amount"];
         for (const field of possibleFields) {
-          if (params.data && field in params.data) {
+          if (field in params.data) {
             const amount = numeral(params.data[field]).value();
-            return amount !== null && amount < 0
-              ? numeral(Math.abs(amount)).format("0,0.00")
-              : "";
+            if (amount !== null && amount < 0) {
+              return numeral(Math.abs(amount)).format("0,0.00");
+            }
           }
         }
         return "";
@@ -199,7 +206,7 @@ export default function UploadBS() {
               const referenceValue = getValue(item, possibleReferenceFields);
 
               return {
-                date: dateValue,
+                date: parseDateString(dateValue),
                 payee: payeeValue,
                 reference: referenceValue,
                 description: descriptionValue,
@@ -270,8 +277,6 @@ export default function UploadBS() {
     setSelectedBankAccount(selectedAccount || null);
   };
 
-  console.log(bankData);
-
   const dateRange = findDateRange(bankData, "date");
 
   const bankTransactionData = {
@@ -279,12 +284,11 @@ export default function UploadBS() {
     endDate: dateRange && dateRange.latestDate,
     bankAccountId: selectedBankAccount?.id,
     source: "FILE_IMPORT",
-    createdBy: userId,
+    createdById: userId,
     bankTransactions: bankData,
   };
 
   console.log(bankTransactionData);
-  console.log(selectedBankAccount);
 
   const handleUpload = () => {};
 

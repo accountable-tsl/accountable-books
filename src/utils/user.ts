@@ -1,5 +1,5 @@
-export let userId: string | number = 1;
+export let userId: string = "testId";
 
-export const setUserId = (newUserId: string | number) => {
+export const setUserId = (newUserId: string) => {
   userId = newUserId;
 };

@@ -14,9 +14,9 @@ const possibleDateFormats: string[] = [
  * @param dateString The date string to parse.
  * @returns A Date object if parsing is successful; otherwise, null.
  */
-export const parseDateString = (dateString: string): Date | null => {
+export const parseDateString = (dateString: string | Date): Date | null => {
   for (const formatString of possibleDateFormats) {
-    const parsedDate = parse(dateString, formatString, new Date());
+    const parsedDate = parse(String(dateString), formatString, new Date());
     if (isValid(parsedDate)) {
       return parsedDate;
     }
