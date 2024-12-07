@@ -693,6 +693,18 @@ async function main() {
       },
     });
   }
+
+  const testBankAccount = await prisma.bankAccount.create({
+    data: {
+      id: "a4fe60b3-1d59-42ce-8081-3e5545579b9c",
+      bank: { connect: { id: 2 } },
+      displayName: "Test Access Salary Acc *0011",
+      bankAccountType: "CHECKINGS_CURRENT",
+      bankAccountNo: "0123456789",
+      currency: { connect: { id: 1 } },
+      company: { connect: { id: 1 } },
+    },
+  });
 }
 
 main()

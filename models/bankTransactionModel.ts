@@ -3,6 +3,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 const prisma = new PrismaClient();
 
 export interface BankTransaction {
+  id?: string;
   date: Date | string;
   description?: string;
   amount: Decimal;
@@ -35,7 +36,8 @@ export async function postBankTransactions(
   } = data;
 
   try {
-    const result = prisma.$transaction(async (prisma: any) => {
+    const result = prisma.$transaction(async (prisma) => {
+      //1. Fetch the relevant bank account
       const bankAccount = await prisma.bankAccount.findUnique({
         where: { id: bankAccountId },
         include: { transactionBatches: true },
@@ -44,6 +46,7 @@ export async function postBankTransactions(
       if (!bankAccount)
         return { success: false, message: "Bank Account not found" };
 
+      //2. Calculate Balance on account before new transactions
       const existingTransactions = await prisma.bankTransaction.findMany({
         where: { bankAccountId },
         orderBy: { date: "asc" },
@@ -55,10 +58,7 @@ export async function postBankTransactions(
         new Decimal(0)
       );
 
-      console.log(balanceBefore);
-
-      // const balanceBefore = bankAccount.bankBalance.toNumber();
-
+      //3. Calculate batchTotal and include balance and bankAccountId on each transaction
       bankTransactions.sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
@@ -72,16 +72,15 @@ export async function postBankTransactions(
 
         return {
           ...transaction,
-          balance: currentRunningBalance,
+          balance: new Decimal(currentRunningBalance),
           bankAccountId: bankAccountId,
         };
       });
 
+      //4. Confirm that balanceAfter is same as currentRunningBalance
       const balanceAfter = balanceBefore.plus(batchTotal);
 
-      console.log({ balanceAfter: balanceAfter, batchTotal: batchTotal });
-
-      if (balanceAfter !== currentRunningBalance) {
+      if (!balanceAfter.equals(currentRunningBalance)) {
         console.log(preparedTransactions);
         return {
           success: false,
@@ -90,6 +89,7 @@ export async function postBankTransactions(
         };
       }
 
+      //5. Write batch and transactions to database
       const bankTransactionBatch = await prisma.bankTransactionBatch.create({
         data: {
           startDate,
@@ -115,12 +115,50 @@ export async function postBankTransactions(
         },
       });
 
+      //6. Recalculate running balance and update each transaction
+      let runningBalance = new Decimal(0);
+
+      const allTransactions: BankTransaction[] =
+        await prisma.bankTransaction.findMany({
+          where: { bankAccountId },
+          orderBy: { date: "asc" },
+        });
+
+      allTransactions.sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+
+      for (const transaction of allTransactions) {
+        runningBalance = runningBalance.plus(transaction.amount);
+
+        await prisma.bankTransaction.update({
+          where: { id: transaction.id },
+          data: { balance: runningBalance },
+        });
+      }
+
+      console.log({
+        balanceBefore: balanceBefore,
+        batchTotal: batchTotal,
+        balanceAfter: balanceAfter,
+        currentRunningBalance: currentRunningBalance,
+        runningBalance: runningBalance,
+      });
+
+      //7. Update bankAccount balance and balanceAfter
       await prisma.bankAccount.update({
         where: { id: String(bankAccountId) },
         data: {
-          bankBalance: balanceAfter,
+          bankBalance: runningBalance,
         },
       });
+
+      // await prisma.bankTransactionBatch.update({
+      //   where: { id: String(bankTransactionBatch.id) },
+      //   data: {
+      //     balanceAfter: runningBalance,
+      //   },
+      // });
 
       return {
         success: true,
