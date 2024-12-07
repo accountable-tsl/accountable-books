@@ -9,9 +9,9 @@ export enum BankTransactionStatus {
 }
 
 export enum BankTransactionSource {
-  IMPORTED = "IMPORTED",
-  CONNECTED = "CONNECTED",
-  MANUAL = "MANUAL",
+  IMPORTED = "FILE_IMPORT",
+  CONNECTED = "BANK_FEED",
+  MANUAL = "MANUAL_ENTRY",
 }
 
 export enum BankAccountType {
@@ -94,6 +94,20 @@ export interface BankAccount {
   transactionBatches?: BankTransactionBatch[];
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface BankTransaction {
+  id?: string | number;
+  date: string;
+  payee?: string;
+  reference?: string;
+  description?: string;
+  amount: string | number;
+  type?: DefaultSide;
+  source?: BankTransactionSource;
+  isReconciled?: boolean;
+  bankTransactionBatchId?: string | number;
+  accountTransactionId?: string | number;
 }
 
 export interface AccountType {

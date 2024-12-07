@@ -15,9 +15,9 @@ import { useEffect, useMemo, useState } from "react";
 import { BeatLoader } from "react-spinners";
 import { AgGridReact } from "ag-grid-react";
 import numeral from "numeral";
-import { parseDate } from "../../utils/utils";
+import { getValue, parseDate } from "../../utils/utils";
 import { getBankAccounts } from "../../services/BankAccountServices";
-import { BankAccount, BankAccounts } from "../../types/types";
+import { BankAccount, BankAccounts, BankTransaction } from "../../types/types";
 
 export default function UploadBS() {
   const { companyId } = useCompany();
@@ -25,7 +25,7 @@ export default function UploadBS() {
   const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
   const [selectedBankAccount, setSelectedBankAccount] =
     useState<BankAccount | null>(null);
-  const [bankData, setBankData] = useState<any>([]);
+  const [bankData, setBankData] = useState<BankTransaction[]>([]);
   const [columnArray, setColumnArray] = useState<any>([]);
   const [values, setValues] = useState<any>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +58,7 @@ export default function UploadBS() {
       headerName: "Date",
       flex: 1,
       valueGetter: (params: any) => {
-        const possibleFields = ["*Date", "Date", "Date*"];
+        const possibleFields = ["*Date", "Date", "Date*", "date"];
         for (const field of possibleFields) {
           if (params.data && field in params.data) {
             return parseDate(params.data[field]);
@@ -70,14 +70,14 @@ export default function UploadBS() {
     },
     {
       headerName: "Description",
-      field: "Description",
+      field: "description",
       flex: 1.5,
       cellClass: "uploadbs-rvw__cell",
     },
     {
       headerName: "Money In",
       valueGetter: (params: any) => {
-        const possibleFields = ["*Amount", "Amount", "Amount*"];
+        const possibleFields = ["*Amount", "Amount", "Amount*", "amount"];
         for (const field of possibleFields) {
           if (params.data && field in params.data) {
             const amount = numeral(params.data[field]).value();
@@ -95,7 +95,7 @@ export default function UploadBS() {
       headerName: "Money Out",
       flex: 1,
       valueGetter: (params: any) => {
-        const possibleFields = ["*Amount", "Amount", "Amount*"];
+        const possibleFields = ["*Amount", "Amount", "Amount*", "amount"];
         for (const field of possibleFields) {
           if (params.data && field in params.data) {
             const amount = numeral(params.data[field]).value();
@@ -123,6 +123,19 @@ export default function UploadBS() {
   useEffect(() => {
     companyId && fetchBankAccounts(companyId);
   }, [companyId]);
+
+  const possibleAmountFields = ["*Amount", "Amount", "Amount*", "amount"];
+  const possibleDateFields = ["*Date", "Date", "Date*", "date"];
+  const possiblePayeeFields = [
+    "Contact / Payee",
+    "Payee",
+    "payee",
+    "contact",
+    "Contact/Payee",
+    "contact / payee",
+  ];
+  const possibleDescriptionFields = ["Description", "description"];
+  const possibleReferenceFields = ["Reference", "reference"];
 
   const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     event.preventDefault();
@@ -167,7 +180,32 @@ export default function UploadBS() {
             Object.values(item as { [key: string]: any })
           );
 
-          setBankData(results.data);
+          const transformedData: BankTransaction[] = results.data.map(
+            (item: any) => {
+              const amountValue = getValue(item, possibleAmountFields);
+              const dateValue = getValue(item, possibleDateFields);
+              const payeeValue = getValue(item, possiblePayeeFields);
+              const descriptionValue = getValue(
+                item,
+                possibleDescriptionFields
+              );
+              const referenceValue = getValue(item, possibleReferenceFields);
+
+              return {
+                date: dateValue,
+                payee: payeeValue,
+                reference: referenceValue,
+                description: descriptionValue,
+                isReconciled: false,
+                amount: amountValue,
+                type:
+                  amountValue &&
+                  (parseFloat(amountValue) < 0 ? "Debit" : "Credit"),
+              };
+            }
+          );
+
+          setBankData(transformedData as BankTransaction[]);
           setColumnArray(columnArray);
           setValues(valuesArray);
         } catch (error) {
@@ -182,8 +220,6 @@ export default function UploadBS() {
       },
     });
   };
-
-  const possibleAmountFields = ["*Amount", "Amount", "Amount*"];
 
   let totalMoneyIn = 0;
   let totalMoneyOut = 0;
@@ -226,6 +262,17 @@ export default function UploadBS() {
     );
     setSelectedBankAccount(selectedAccount || null);
   };
+
+  console.log(bankData);
+
+  const bankTransactionData = {
+    source: "FILE_IMPORT",
+    transactions: bankData,
+  };
+
+  console.log(bankTransactionData);
+
+  const handleUpload = () => {};
 
   return (
     <>
