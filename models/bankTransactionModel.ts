@@ -1,4 +1,4 @@
-import { BankTransactionSource, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { BankTransaction } from "../controllers/bankTransactionControllers";
 
 const prisma = new PrismaClient();
@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 interface BankTransactionBatchData {
   startDate: Date;
   endDate: Date;
-  source: BankTransactionSource;
+  source: "FILE_IMPORT" | "BANK_FEED" | "MANUAL_ENTRY";
   bankAccountId: string;
   bankTransactions: BankTransaction[];
   createdById: string;
@@ -26,8 +26,7 @@ export async function postBankTransactions(
   } = data;
 
   try {
-    const result = prisma.$transaction(async (prisma) => {
-      //Fetch currenct account state and lock
+    const result = prisma.$transaction(async (prisma: any) => {
       const bankAccount = await prisma.bankAccount.findUnique({
         where: { id: bankAccountId },
         include: { transactionBatches: true },
@@ -73,10 +72,10 @@ export async function postBankTransactions(
           bankTransactions: {
             create: preparedTransactions.map((transaction) => ({
               date: transaction.date,
-              description: transaction.description,
+              description: transaction.description || null,
               amount: transaction.amount,
-              payee: transaction.payee,
-              reference: transaction.reference,
+              payee: transaction.payee || null,
+              reference: transaction.reference || null,
               type: transaction.type,
               balance: transaction.balance,
             })),
