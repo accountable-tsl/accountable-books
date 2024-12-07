@@ -28,7 +28,7 @@ router.post("/create-bulk", checkCompanyId, createBulkCOA);
 
 router.patch("/:id", checkCompanyId, updateCOA);
 
-router.delete(":/id", checkCompanyId, archiveCOA);
+router.delete("/:id", checkCompanyId, archiveCOA);
 router.delete("/", checkCompanyId, archiveSingleCOA);
 
 export default router;

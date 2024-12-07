@@ -45,7 +45,7 @@ function validateRequestBody(req: Request): string[] {
     );
     missingFields.push(...transactionErrors);
   }
-  if (!req.body.createdById) missingFields.push("createdBy");
+  if (!req.body.createdById) missingFields.push("createdById");
 
   return missingFields;
 }
@@ -81,15 +81,17 @@ export async function handleTransactionImport(req: Request, res: Response) {
       });
     }
 
-    const transactions = mapTransactions(req.body.bankTransactions);
+    const transactions = mapTransactions(req.body.bankTransactions).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
     const data = {
       startDate: new Date(req.body.startDate),
       endDate: new Date(req.body.endDate),
       source: req.body.source || "FILE_IMPORT",
       bankAccountId: req.body.bankAccountId,
-      bankTransactions: transactions.sort(),
-      createdBy: req.body.createdBy,
+      bankTransactions: transactions,
+      createdById: req.body.createdById,
     };
 
     const result = await postBankTransactions(companyId, data);
