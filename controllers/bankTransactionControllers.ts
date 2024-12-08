@@ -59,14 +59,13 @@ export async function handleTransactionImport(req: Request, res: Response) {
       createdById: req.body.createdById,
     };
 
-    const result = await postBankTransactions(companyId, data);
-
-    if (result.success) {
-      return res.status(201).json({ result });
+    const response = await postBankTransactions(companyId, data);
+    if (response.success) {
+      return res.status(201).json({ response });
     } else {
       return res.status(400).json({
         success: false,
-        message: result.message || "Failed to post bank transactions",
+        message: response.message || "Failed to post bank transactions",
       });
     }
   } catch (error) {
