@@ -15,8 +15,15 @@ export const createBankAccount = async (
   data: newBankAccountParams
 ) => {
   const response = await axios.post(
-    `${backendUrl}/api/${companyId}/banks/accounts`,
+    `${backendUrl}/api/${companyId}/bank-accounts`,
     data
+  );
+  return response.data;
+};
+
+export const getBankAccounts = async (companyId: string | number) => {
+  const response = await axios.get(
+    `${backendUrl}/api/${companyId}/bank-accounts`
   );
   return response.data;
 };
