@@ -1,4 +1,4 @@
-import { CloudUpload, FileX, TableProperties } from "lucide-react";
+import { CloudUpload, TableProperties } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { routes } from "../../utils/routes";
 import "./UploadBS.scss";
@@ -11,7 +11,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import Button from "../../components/Button/Button";
 import Papa from "papaparse";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BeatLoader, MoonLoader } from "react-spinners";
 import { AgGridReact } from "ag-grid-react";
 import numeral from "numeral";

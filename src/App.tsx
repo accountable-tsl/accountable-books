@@ -14,6 +14,7 @@ import UploadBS from "./pages-admin/UploadBS/UploadBS";
 import { PopupProvider } from "./contexts/PopupContext";
 import Popup from "./components/Popup/Popup";
 import AddBankAccount from "./components/AddBankAccount/AddBankAccount";
+import CategorisationEngine from "./pages-admin/CategorisationEngine/CategorisationEngine";
 
 function App() {
   return (
@@ -48,17 +49,20 @@ function MainContent() {
           <CurrentCompany />
           <Routes>
             <Route path="/" element={<Home />} />
-            {/* Accountant-specific routes */}
             <Route path={staticRoutes.companies.root} element={<Home />} />
-            {/* workspace for Accounting */}
+
             <Route
               path={staticRoutes.accounting.workspace.uploadBank}
               element={<UploadBS />}
             />
+            <Route
+              path={staticRoutes.accounting.workspace.catEngine}
+              element={<CategorisationEngine />}
+            />
+
             {/* Accounting Setup Pages */}
             <Route
               path={staticRoutes.accounting.setup.root}
-              // element={<Navigate to={routes.accounting.setup.coa(companyId)} />}
               element={<COA />}
             />
             <Route path={staticRoutes.accounting.setup.coa} element={<COA />} />

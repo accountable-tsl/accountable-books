@@ -119,10 +119,12 @@ export default function Breadcrumb({ items }: BreadcrumbProps) {
                   <span className="breadcrumb-item__text">
                     {item.text || "Unnamed"}
                   </span>
-                  <FontAwesomeIcon
-                    icon={faChevronDown}
-                    className="breadcrumb-item__dropdown-icon"
-                  />
+                  {item.hasDropdown && (
+                    <FontAwesomeIcon
+                      icon={faChevronDown}
+                      className="breadcrumb-item__dropdown-icon"
+                    />
+                  )}
                 </div>
               )}
 
