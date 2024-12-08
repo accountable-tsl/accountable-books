@@ -1,15 +1,15 @@
-import { PrismaClient } from "@prisma/client";
+import { DefaultSide, PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 const prisma = new PrismaClient();
 
 export interface BankTransaction {
   id?: string;
   date: Date | string;
-  description?: string;
+  description?: string | null;
   amount: Decimal;
-  payee?: string;
-  reference?: string;
-  type?: string;
+  payee?: string | null;
+  reference?: string | null;
+  type?: DefaultSide | null;
   bankAccountId?: string;
 }
 
@@ -107,9 +107,9 @@ export async function postBankTransactions(
               amount: transaction.amount,
               payee: transaction.payee || null,
               reference: transaction.reference || null,
-              type: transaction.type,
               balance: transaction.balance,
               bankAccount: { connect: { id: String(bankAccountId) } },
+              ...(transaction.type && { type: transaction.type }),
             })),
           },
         },
@@ -121,7 +121,7 @@ export async function postBankTransactions(
       const allTransactions: BankTransaction[] =
         await prisma.bankTransaction.findMany({
           where: { bankAccountId },
-          orderBy: { date: "asc" },
+          orderBy: [{ date: "asc" }, { createdAt: "asc" }],
         });
 
       allTransactions.sort(

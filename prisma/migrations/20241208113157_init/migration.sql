@@ -220,7 +220,7 @@ CREATE TABLE "BankTransaction" (
     "reference" TEXT,
     "description" TEXT,
     "additionalComments" TEXT,
-    "type" "DefaultSide" NOT NULL,
+    "type" "DefaultSide",
     "amount" DECIMAL(65,30) NOT NULL,
     "balance" DECIMAL(65,30) NOT NULL,
     "isReconciled" BOOLEAN NOT NULL DEFAULT false,

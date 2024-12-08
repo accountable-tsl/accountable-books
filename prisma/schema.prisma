@@ -265,7 +265,7 @@ model BankTransaction {
   reference              String?
   description            String?
   additionalComments     String?
-  type                   DefaultSide
+  type                   DefaultSide?
   amount                 Decimal
   balance                Decimal
   isReconciled           Boolean               @default(false)
