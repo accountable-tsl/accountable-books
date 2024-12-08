@@ -299,11 +299,9 @@ export default function UploadBS() {
 
     try {
       const result = await postBankTransactions(companyId, bankTransactionData);
-      console.log("API Response:", result);
 
       if (result?.success === true) {
-        console.log("Transaction upload succeeded:", result);
-        setTimeout(() => setUploadSuccessful(true));
+        setTimeout(() => setUploadSuccessful(true), 500);
         setTimeout(() => {
           setCurrStep(1);
           setBankData([]);
