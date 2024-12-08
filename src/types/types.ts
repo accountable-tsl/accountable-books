@@ -23,6 +23,12 @@ export enum BankAccountType {
   UTILITY = "UTILITY",
 }
 
+export interface ServerResponseFormat {
+  success: boolean;
+  message: string;
+  data?: unknown;
+}
+
 export interface Company {
   id?: number;
   name?: string;
