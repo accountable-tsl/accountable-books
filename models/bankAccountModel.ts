@@ -8,6 +8,7 @@ export async function getAllBankAccounts(companyId: number) {
   try {
     const allBankAccounts = await prisma.bankAccount.findMany({
       where: { companyId },
+      include: { bank: true, currency: true },
     });
 
     const noOfAccounts = allBankAccounts.length;
@@ -73,7 +74,11 @@ export async function createNewBankAccount(
   data: CreateBankData
 ) {
   try {
-    const bank = await prisma.bank.findFirst({ where: { id: data.bankId } });
+    const [bank, currency] = await Promise.all([
+      prisma.bank.findUnique({ where: { id: data.bankId } }),
+      prisma.currency.findUnique({ where: { id: data.currencyId } }),
+    ]);
+
     if (!bank) {
       return {
         success: false,
@@ -81,9 +86,6 @@ export async function createNewBankAccount(
       };
     }
 
-    const currency = await prisma.currency.findFirst({
-      where: { id: data.currencyId },
-    });
     if (!currency) {
       return {
         success: false,
@@ -91,14 +93,15 @@ export async function createNewBankAccount(
       };
     }
 
-    const bankAccount = await prisma.bankAccount.findFirst({
+    const existingBankAccount = await prisma.bankAccount.findFirst({
       where: {
         bankId: data.bankId,
         bankAccountNo: data.bankAccountNo,
         companyId: companyId,
       },
     });
-    if (bankAccount) {
+
+    if (existingBankAccount) {
       return {
         success: false,
         message: "Bank account number already exists",
@@ -112,32 +115,45 @@ export async function createNewBankAccount(
       accountTypeName: "Bank",
     };
 
-    const coa = await createCOAModel(companyId, coaInput);
-    if (coa.success && "data" in coa && coa.data?.id) {
-      coaId = coa.data.id;
-    } else {
-      return coa;
-    }
+    const result = await prisma.$transaction(async (prisma) => {
+      //Create COA entry
+      const coa = await createCOAModel(companyId, coaInput);
 
-    const newBankAccount = await prisma.bankAccount.create({
-      data: {
-        companyId,
-        bankId: data.bankId,
-        displayName: data.displayName,
-        bankAccountType: data.bankAccountType,
-        bankAccountNo: data.bankAccountNo,
-        currencyId: data.currencyId,
-        coaId: coaId,
-        updatedAt: new Date(),
-      },
+      if (coa.success && "data" in coa && coa.data?.id) {
+        coaId = coa.data.id;
+      } else {
+        return coa;
+      }
+
+      //Create new bank account
+      const newBankAccount = await prisma.bankAccount.create({
+        data: {
+          companyId,
+          bankId: data.bankId,
+          displayName: data.displayName,
+          bankAccountType: data.bankAccountType,
+          bankAccountNo: data.bankAccountNo,
+          currencyId: data.currencyId,
+          coaId: coaId,
+          updatedAt: new Date(),
+        },
+      });
+
+      //Update COA with Bank Account ID
+      await prisma.coa.update({
+        where: { id: coaId },
+        data: { bankAccountId: newBankAccount.id },
+      });
+
+      return {
+        success: true,
+        message: "Bank account created successfully",
+        data: newBankAccount,
+      };
     });
 
-    return {
-      success: true,
-      message: "Bank account created successfully",
-      data: newBankAccount,
-    };
-  } catch (error: any) {
+    return result;
+  } catch (error: unknown) {
     console.error("Error creating bank account:", error);
     return {
       success: false,

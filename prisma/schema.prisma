@@ -25,22 +25,25 @@ model Role {
 }
 
 model User {
-  id               Int            @id @default(autoincrement())
-  firstname        String
-  lastname         String?
-  email            String         @unique
-  password         String
-  phoneNumber      String?
-  status           String         @default("active")
-  role             Role           @relation(name: "UserRole", fields: [roleId], references: [id])
-  roleId           Int
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  deletedAt        DateTime?
-  profileImage     String?
-  companies        UserCompany[]  @relation(name: "UserCompanies")
-  createdCompanies Company[]      @relation("CompanyCreator")
-  JournalBatch     JournalBatch[]
+  id                            String                 @id @default(uuid())
+  firstname                     String
+  lastname                      String?
+  email                         String                 @unique
+  password                      String
+  phoneNumber                   String?
+  status                        String                 @default("active")
+  role                          Role                   @relation(name: "UserRole", fields: [roleId], references: [id])
+  roleId                        Int
+  profileImage                  String?
+  companies                     UserCompany[]          @relation(name: "UserCompanies")
+  createdCompanies              Company[]              @relation("CompanyCreator")
+  JournalBatch                  JournalBatch[]
+  bankTransactionBatchesCreated BankTransactionBatch[] @relation("CreatedByUser")
+  bankTransactionBatchesUpdated BankTransactionBatch[] @relation("UpdatedByUser")
+  bankTransactionsReconciled    BankTransaction[]      @relation("ReconciledByUser") // New relation
+  createdAt                     DateTime               @default(now())
+  updatedAt                     DateTime               @updatedAt
+  deletedAt                     DateTime?
 
   @@index([email, status])
 }
@@ -56,7 +59,7 @@ model Company {
   country             Country       @relation(name: "CompanyCountry", fields: [countryId], references: [id])
   reportingCurrencyId Int
   reportingCurrency   Currency      @relation(name: "CompanyCurrency", fields: [reportingCurrencyId], references: [id])
-  createdById         Int
+  createdById         String
   createdBy           User          @relation(name: "CompanyCreator", fields: [createdById], references: [id])
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
@@ -70,7 +73,7 @@ model Company {
 }
 
 model UserCompany {
-  userId    Int
+  userId    String
   companyId Int
   role      String
   joinedAt  DateTime @default(now())
@@ -154,7 +157,7 @@ model Coa {
   company             Company              @relation(name: "CompanyCOA", fields: [companyId], references: [id])
   isActive            Boolean              @default(true)
   balance             Decimal              @default(0)
-  //bankAccountId String? @unique
+  bankAccountId       String?              @unique
   bankAccount         BankAccount?         @relation(name: "BankCoaAccount")
   transactions        AccountTransaction[] @relation("CoaTransaction")
   journalTransactions JournalTransaction[] @relation("JournalCOA")
@@ -184,9 +187,9 @@ enum BankTransactionStatus {
 }
 
 enum BankTransactionSource {
-  IMPORTED
-  CONNECTED
-  MANUAL
+  FILE_IMPORT
+  BANK_FEED
+  MANUAL_ENTRY
 }
 
 enum BankAccountType {
@@ -223,6 +226,7 @@ model BankAccount {
   coaId              Int?                   @unique
   accountInCOA       Coa?                   @relation("BankCoaAccount", fields: [coaId], references: [id])
   transactionBatches BankTransactionBatch[] @relation("Transaction Batches")
+  transactions       BankTransaction[]      @relation("Transaction Bank Account")
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
 
@@ -242,10 +246,13 @@ model BankTransactionBatch {
   bankAccountId    String
   bankAccount      BankAccount           @relation(name: "Transaction Batches", fields: [bankAccountId], references: [id])
   bankTransactions BankTransaction[]     @relation("BatchTransactions")
-  createdBy        Int?
-  updatedBy        Int?
+  createdById      String
+  updatedById      String?
+  createdBy        User?                 @relation("CreatedByUser", fields: [createdById], references: [id])
+  updatedBy        User?                 @relation("UpdatedByUser", fields: [updatedById], references: [id])
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
+  isDeleted        Boolean               @default(false)
 
   @@index([bankAccountId])
   @@index([startDate, endDate])
@@ -258,17 +265,19 @@ model BankTransaction {
   reference              String?
   description            String?
   additionalComments     String?
-  source                 BankTransactionSource
-  type                   DefaultSide
+  type                   DefaultSide?
   amount                 Decimal
   balance                Decimal
   isReconciled           Boolean               @default(false)
   reconciledAt           DateTime?
-  reconciledBy           Int?
+  reconciledById         String?
+  reconciledBy           User?                 @relation("ReconciledByUser", fields: [reconciledById], references: [id])
   isDeleted              Boolean               @default(false)
-  bankTransactionBatchId String
-  bankTransactionBatch   BankTransactionBatch  @relation(name: "BatchTransactions", fields: [bankTransactionBatchId], references: [id])
-  //accountTransactionId   String
+  bankAccountId          String
+  bankAccount            BankAccount           @relation(name: "Transaction Bank Account", fields: [bankAccountId], references: [id])
+  bankTransactionBatchId String?
+  bankTransactionBatch   BankTransactionBatch? @relation(name: "BatchTransactions", fields: [bankTransactionBatchId], references: [id])
+  accountTransactionId   String?
   accountTransaction     AccountTransaction?   @relation(name: "MatchedTransaction")
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
@@ -276,6 +285,8 @@ model BankTransaction {
   @@index([bankTransactionBatchId])
   @@index([date])
   @@index([payee])
+  @@index([amount])
+  @@index([description])
 }
 
 enum AccountTransactionSource {
@@ -301,8 +312,8 @@ model AccountTransaction {
   bankTransactionId String?                  @unique
   bankTransaction   BankTransaction?         @relation(name: "MatchedTransaction", fields: [bankTransactionId], references: [id])
   isDeleted         Boolean                  @default(false)
-  createdBy         Int?
-  updatedBy         Int?
+  createdBy         String?
+  updatedBy         String?
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 }
@@ -322,11 +333,11 @@ model JournalBatch {
   status              JournalStatus
   isRecurring         Boolean              @default(false)
   recurrenceDetails   RecurrenceDetails?
-  userId              Int
+  userId              String
   user                User                 @relation(fields: [userId], references: [id])
   journalTransactions JournalTransaction[] @relation("JournalTransactions")
   postedAt            DateTime?
-  postedBy            Int?
+  postedBy            String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 }
