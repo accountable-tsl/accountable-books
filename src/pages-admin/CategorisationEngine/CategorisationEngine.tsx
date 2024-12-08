@@ -103,9 +103,14 @@ export default function CategorisationEngine() {
             <div className="catengine-body__top-left">
               <div className="catengine-body__top-filter">
                 <div className="catengine-body__top-filter--item">
-                  <ListFilter size={18} /> <span>Filter</span>
+                  <ListFilter size={18} />{" "}
+                  <span className="catengine-body__top-filter--text">
+                    {" "}
+                    Filters:
+                  </span>
+                  <RangePicker onChange={handleFilterDates} />
                 </div>
-                <RangePicker onChange={handleFilterDates} />
+                <div className="catengine-body__top-vr--1"></div>
                 <div className="catengine-body__top-filter--item">
                   <span>Showing</span>
                   <select
@@ -120,15 +125,21 @@ export default function CategorisationEngine() {
               <div className="catengine-body__top-count">200 of 1767</div>
             </div>
             <div className="catengine-body__top-right">
-              <div className="catengine-body__top-search">
+              {/* <div className="catengine-body__top-search">
                 <input type="search" name="" id="" />
-              </div>
+              </div> */}
 
               <div className="catengine-body__top-view">
                 <div className="catengine-body__top-rowheight">
-                  <Menu strokeWidth={1} />
-                  <Menu strokeWidth={2.5} />
-                  <Menu strokeWidth={4} />
+                  <div className="catengine-body__top-rowheight--item">
+                    <Menu strokeWidth={1} />
+                  </div>
+                  <div className="catengine-body__top-rowheight--item">
+                    <Menu strokeWidth={2.5} />
+                  </div>
+                  <div className="catengine-body__top-rowheight--item">
+                    <Menu strokeWidth={4} />
+                  </div>
                 </div>
                 <div className="catengine-body__top-vr"></div>
                 <div className="catengine-body__top-fullscreen">

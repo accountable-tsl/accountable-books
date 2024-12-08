@@ -67,8 +67,9 @@
       }
 
       &-filter {
-        @apply flex items-center rounded px-2 py-1 gap-4;
+        @apply flex items-center rounded gap-4;
         background-color: $neutral-gray;
+        padding: 0.15rem 0.5rem;
 
         &--item {
           @apply flex items-center;
@@ -79,8 +80,14 @@
         }
 
         &--select {
-          @apply rounded;
-          height: 1.5rem;
+          @apply rounded pl-2 pr-4;
+          height: 1.4rem;
+          border-radius: 10rem;
+          min-width: 1rem;
+        }
+
+        &--text {
+          padding-left: 0.25rem;
         }
       }
 
@@ -95,11 +102,25 @@
 
       &-rowheight {
         @apply flex;
+        transition: all 0.3s ease;
+
+        &--item {
+          transition: all 0.3s ease;
+
+          &:hover {
+            color: rgba($color: $primary, $alpha: 0.5);
+          }
+        }
       }
 
       &-fullscreen {
         &--icon {
           @apply h-5 w-5;
+          transition: all 0.3s ease;
+
+          &:hover {
+            color: rgba($color: $primary, $alpha: 0.5);
+          }
         }
       }
 
@@ -108,11 +129,24 @@
         display: inline-block;
         height: 1rem;
         width: 1px;
+
+        &--1 {
+          background-color: $white;
+          display: inline-block;
+          height: 1rem;
+          width: 1.5px;
+        }
       }
     }
   }
 }
 
 .ant-picker.ant-picker-range.ant-picker-outlined.css-dev-only-do-not-override-1wwf28x {
-  height: 1.6rem;
+  height: 1.5rem;
+  border-radius: 10rem;
+}
+
+.ant-picker-input > input {
+  font-size: 0.75rem !important;
+  line-height: inherit !important;
 }
