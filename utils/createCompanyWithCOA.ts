@@ -62,7 +62,7 @@ export async function createCompanyWithCOA(
           accountCode: account.accountCode,
           accountName: account.accountName,
           accountTypeId: account.accountTypeId,
-          defaultSide: account.defaultSide as "Debit" | "Credit",
+          defaultSide: account.defaultSide as "debit" | "credit",
           description: account.description,
           companyId: newCompany.id, // Associate COA with the newly created company
           currencyId: newCompany.reportingCurrencyId, // Use the company's reporting currency

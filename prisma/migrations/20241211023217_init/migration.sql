@@ -1,8 +1,8 @@
 -- CreateEnum
-CREATE TYPE "DefaultSide" AS ENUM ('Debit', 'Credit');
+CREATE TYPE "DebitCredit" AS ENUM ('debit', 'credit');
 
 -- CreateEnum
-CREATE TYPE "BankTransactionStatus" AS ENUM ('RECONCILED', 'UNRECONCILED');
+CREATE TYPE "BankTransactionStatus" AS ENUM ('CATEGORISED', 'UNCATEGORISED');
 
 -- CreateEnum
 CREATE TYPE "BankTransactionSource" AS ENUM ('FILE_IMPORT', 'BANK_FEED', 'MANUAL_ENTRY');
@@ -113,7 +113,7 @@ CREATE TABLE "FinancialStatement" (
 CREATE TABLE "AccountElement" (
     "id" SERIAL NOT NULL,
     "elementName" TEXT NOT NULL,
-    "defaultSide" "DefaultSide" NOT NULL,
+    "defaultSide" "DebitCredit" NOT NULL,
     "parentId" INTEGER,
     "financialStatementId" INTEGER NOT NULL,
     "description" TEXT,
@@ -138,7 +138,7 @@ CREATE TABLE "Coa" (
     "accountName" TEXT NOT NULL,
     "description" TEXT,
     "accountTypeId" INTEGER NOT NULL,
-    "defaultSide" "DefaultSide" NOT NULL,
+    "defaultSide" "DebitCredit" NOT NULL,
     "currencyId" INTEGER NOT NULL,
     "companyId" INTEGER NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -157,7 +157,7 @@ CREATE TABLE "CoaTemplate" (
     "accountCode" TEXT NOT NULL,
     "accountName" TEXT NOT NULL,
     "accountTypeId" INTEGER NOT NULL,
-    "defaultSide" "DefaultSide" NOT NULL,
+    "defaultSide" "DebitCredit" NOT NULL,
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -220,12 +220,13 @@ CREATE TABLE "BankTransaction" (
     "reference" TEXT,
     "description" TEXT,
     "additionalComments" TEXT,
-    "type" "DefaultSide",
+    "transactionSide" "DebitCredit",
     "amount" DECIMAL(65,30) NOT NULL,
     "balance" DECIMAL(65,30) NOT NULL,
-    "isReconciled" BOOLEAN NOT NULL DEFAULT false,
-    "reconciledAt" TIMESTAMP(3),
-    "reconciledById" TEXT,
+    "absoluteAmount" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "isCategorised" BOOLEAN NOT NULL DEFAULT false,
+    "categorisedAt" TIMESTAMP(3),
+    "categorisedById" TEXT,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "bankAccountId" TEXT NOT NULL,
     "bankTransactionBatchId" TEXT,
@@ -282,7 +283,7 @@ CREATE TABLE "JournalBatch" (
 CREATE TABLE "JournalTransaction" (
     "id" TEXT NOT NULL,
     "description" TEXT NOT NULL,
-    "side" "DefaultSide" NOT NULL,
+    "side" "DebitCredit" NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
     "journalBatchId" TEXT NOT NULL,
     "coaAccountId" INTEGER NOT NULL,
@@ -458,7 +459,7 @@ ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_createdB
 ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_reconciledById_fkey" FOREIGN KEY ("reconciledById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_categorisedById_fkey" FOREIGN KEY ("categorisedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankAccountId_fkey" FOREIGN KEY ("bankAccountId") REFERENCES "BankAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

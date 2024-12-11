@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { postBankTransactions } from "../models/bankTransactionModel";
+import {
+  getBankTransactions,
+  postBankTransactions,
+} from "../models/bankTransactionModel";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export async function handleTransactionImport(req: Request, res: Response) {
   try {
@@ -66,6 +70,50 @@ export async function handleTransactionImport(req: Request, res: Response) {
       return res.status(400).json({
         success: false,
         message: response.message || "Failed to post bank transactions",
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+}
+
+export async function retrieveBankTransactions(req: Request, res: Response) {
+  try {
+    const companyId = req.company!.id || req.params.companyId;
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Bad Request" });
+    }
+
+    const filters = req.body?.filters ?? req.body?.filter ?? {};
+
+    const startDate = filters.startDate ? new Date(filters.startDate) : null;
+    const endDate = filters.endDate ? new Date(filters.endDate) : null;
+    const minAmount = filters.minAmount ? new Decimal(filters.minAmount) : null;
+    const maxAmount = filters.maxAmount ? new Decimal(filters.maxAmount) : null;
+
+    const errors = [];
+    if (filters.startDate && !startDate) errors.push("startDate: Check format");
+    if (filters.endDate && !endDate) errors.push("endDate: Check format");
+    if (filters.minAmount && !minAmount) errors.push("minAmount: Check format");
+    if (filters.maxAmount && !maxAmount) errors.push("maxAmount: Check format");
+
+    const filter = {
+      ...filters,
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate }),
+      ...(minAmount && { minAmount }),
+      ...(maxAmount && { maxAmount }),
+    };
+
+    const response = await getBankTransactions(companyId, filter);
+
+    if (response.success) {
+      return res.status(201).json({ response });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: response.message || "Failed to retrieve bank transactions",
       });
     }
   } catch (error) {

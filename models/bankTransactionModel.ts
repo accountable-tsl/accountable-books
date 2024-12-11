@@ -1,4 +1,4 @@
-import { DefaultSide, PrismaClient } from "@prisma/client";
+import { DebitCredit, Prisma, PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 const prisma = new PrismaClient();
 
@@ -9,7 +9,7 @@ export interface BankTransaction {
   amount: Decimal;
   payee?: string | null;
   reference?: string | null;
-  type?: DefaultSide | null;
+  transactionSide?: DebitCredit | null;
   bankAccountId?: string;
 }
 
@@ -20,6 +20,20 @@ interface BankTransactionBatchData {
   bankAccountId: string;
   bankTransactions: BankTransaction[];
   createdById: string;
+}
+
+export interface BankTransactionFilters {
+  startDate?: Date;
+  endDate?: Date;
+  bankAccountId?: string;
+  minAmount?: Decimal;
+  maxAmount?: Decimal;
+  isCategorised?: boolean;
+  isDeleted?: boolean;
+  searchQuery?: string;
+  transactionSide?: DebitCredit;
+  page?: number;
+  pageSize?: number;
 }
 
 export async function postBankTransactions(
@@ -72,6 +86,8 @@ export async function postBankTransactions(
 
         return {
           ...transaction,
+          amount: new Decimal(transaction.amount),
+          absoluteAmount: new Decimal(transaction.amount).abs(),
           balance: new Decimal(currentRunningBalance),
           bankAccountId: bankAccountId,
         };
@@ -105,11 +121,14 @@ export async function postBankTransactions(
               date: transaction.date,
               description: transaction.description || null,
               amount: transaction.amount,
+              absoluteAmount: transaction.absoluteAmount,
               payee: transaction.payee || null,
               reference: transaction.reference || null,
               balance: transaction.balance,
               bankAccount: { connect: { id: String(bankAccountId) } },
-              ...(transaction.type && { type: transaction.type }),
+              ...(transaction.transactionSide && {
+                transactionSide: transaction.transactionSide,
+              }),
             })),
           },
         },
@@ -171,5 +190,75 @@ export async function postBankTransactions(
   } catch (error) {
     console.error("Error posting bank transactions:", error);
     return { success: false, message: "Failed to post transactions", error };
+  }
+}
+
+export async function getBankTransactions(
+  companyId: string | number,
+  filters: BankTransactionFilters
+): Promise<{
+  success: boolean;
+  message: string;
+  data?: unknown;
+  error?: unknown;
+}> {
+  try {
+    //Define a base "where" object
+    const where: any = {
+      bankAccount: {
+        companyId: companyId,
+      },
+      isCategorised: filters.isCategorised ?? false,
+      isDeleted: filters.isDeleted ?? false,
+    };
+
+    //Dynamically add other filters
+    if (filters.bankAccountId) where.bankAccountId = filters.bankAccountId;
+
+    if (filters.startDate || filters.endDate) {
+      where.date = {};
+      if (filters.startDate) where.date.gte = filters.startDate;
+      if (filters.endDate) where.date.lte = filters.endDate;
+    }
+    //gte means "greater than or equal to"
+    //lte means "less than or equal to"
+
+    if (filters.minAmount || filters.maxAmount) {
+      where.absoluteAmount = {};
+      if (filters.minAmount) where.absoluteAmount.gte = filters.minAmount;
+      if (filters.maxAmount) where.absoluteAmount.lte = filters.maxAmount;
+    }
+
+    if (filters.searchQuery) {
+      where.body = { search: filters.searchQuery };
+    }
+
+    if (filters.transactionSide)
+      where.transactionSide = filters.transactionSide;
+
+    const page = filters.page || 1;
+    const pageSize = filters.pageSize || 100;
+
+    const transactions = await prisma.bankTransaction.findMany({
+      where,
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+
+    const total = await prisma.bankTransaction.count({ where }); //Total no of transactions matching filter
+
+    return {
+      success: true,
+      message: "Bank transactions retrieved successfully",
+      data: { transactions, total, page, pageSize },
+    };
+  } catch (error) {
+    console.error("Error retrieving bank transactions:", filters, error);
+    return {
+      success: false,
+      message: "Failed to retrieve transactions",
+      error,
+    };
   }
 }

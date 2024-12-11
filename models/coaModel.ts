@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { toTitleCase, truncateText } from "../utils/utils";
-import { DefaultSide, Prisma } from "@prisma/client/wasm";
+import { DebitCredit, Prisma } from "@prisma/client/wasm";
 const prisma = new PrismaClient();
 
 //Get all account types
@@ -376,7 +376,7 @@ interface CoaItems {
   accountName: string;
   description?: string;
   accountTypeId: number;
-  defaultSide: DefaultSide;
+  defaultSide: DebitCredit;
   currencyId: number;
   companyId: number;
 }
@@ -443,7 +443,7 @@ export async function createCOAModel(companyId: number, data: COAInput) {
           accountName: stdAccountName,
           description: data.description,
           accountTypeId: verifyAccType.data && verifyAccType.data.id,
-          defaultSide: defaultSideValue as DefaultSide,
+          defaultSide: defaultSideValue as DebitCredit,
           currencyId: currency,
           companyId: companyId,
         },
@@ -538,7 +538,7 @@ export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
             accountName: stdAccountName,
             description: item.description,
             accountTypeId: verifyAccType.data?.id,
-            defaultSide: defaultSideValue as DefaultSide,
+            defaultSide: defaultSideValue as DebitCredit,
             currencyId: currency,
             companyId: companyId,
           },

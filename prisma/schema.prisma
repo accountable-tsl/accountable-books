@@ -5,7 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
 datasource db {
@@ -40,7 +41,7 @@ model User {
   JournalBatch                  JournalBatch[]
   bankTransactionBatchesCreated BankTransactionBatch[] @relation("CreatedByUser")
   bankTransactionBatchesUpdated BankTransactionBatch[] @relation("UpdatedByUser")
-  bankTransactionsReconciled    BankTransaction[]      @relation("ReconciledByUser") // New relation
+  bankTransactionsCategorised   BankTransaction[]      @relation("CategorisedByUser") // New relation
   createdAt                     DateTime               @default(now())
   updatedAt                     DateTime               @updatedAt
   deletedAt                     DateTime?
@@ -116,15 +117,15 @@ model FinancialStatement {
   accountElement AccountElement[] @relation("FsElement")
 }
 
-enum DefaultSide {
-  Debit
-  Credit
+enum DebitCredit {
+  debit
+  credit
 }
 
 model AccountElement {
   id                   Int                @id @default(autoincrement())
   elementName          String
-  defaultSide          DefaultSide
+  defaultSide          DebitCredit
   parentId             Int?
   parent               AccountElement?    @relation("ParentChildRelation", fields: [parentId], references: [id]) // Self-relation
   children             AccountElement[]   @relation("ParentChildRelation") // To define the reverse relation
@@ -150,7 +151,7 @@ model Coa {
   description         String?
   accountTypeId       Int
   accountType         AccountType          @relation(name: "COAAccountType", fields: [accountTypeId], references: [id])
-  defaultSide         DefaultSide
+  defaultSide         DebitCredit
   currencyId          Int
   currency            Currency             @relation(name: "COACurrency", fields: [currencyId], references: [id])
   companyId           Int
@@ -175,15 +176,15 @@ model CoaTemplate {
   accountCode   String
   accountName   String
   accountTypeId Int
-  defaultSide   DefaultSide
+  defaultSide   DebitCredit
   description   String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
 
 enum BankTransactionStatus {
-  RECONCILED
-  UNRECONCILED
+  CATEGORISED
+  UNCATEGORISED
 }
 
 enum BankTransactionSource {
@@ -265,13 +266,14 @@ model BankTransaction {
   reference              String?
   description            String?
   additionalComments     String?
-  type                   DefaultSide?
+  transactionSide        DebitCredit?
   amount                 Decimal
   balance                Decimal
-  isReconciled           Boolean               @default(false)
-  reconciledAt           DateTime?
-  reconciledById         String?
-  reconciledBy           User?                 @relation("ReconciledByUser", fields: [reconciledById], references: [id])
+  absoluteAmount         Decimal               @default(0)
+  isCategorised          Boolean               @default(false)
+  categorisedAt          DateTime?
+  categorisedById        String?
+  categorisedBy          User?                 @relation("CategorisedByUser", fields: [categorisedById], references: [id])
   isDeleted              Boolean               @default(false)
   bankAccountId          String
   bankAccount            BankAccount           @relation(name: "Transaction Bank Account", fields: [bankAccountId], references: [id])
@@ -345,7 +347,7 @@ model JournalBatch {
 model JournalTransaction {
   id             String       @id @default(uuid())
   description    String
-  side           DefaultSide
+  side           DebitCredit
   amount         Decimal
   journalBatchId String
   journalBatch   JournalBatch @relation(name: "JournalTransactions", fields: [journalBatchId], references: [id])

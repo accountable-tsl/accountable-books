@@ -24,8 +24,8 @@ app.use("/api/:companyId/coa", coaRoutes);
 app.use("/api/companies/", companiesRoutes);
 app.use("/api/currencies", currenciesRoutes);
 app.use("/api/banks", bankRoutes);
-app.use("/api/:companyId/bank-accounts", bankAccountRoutes);
 app.use("/api/:companyId/bank-accounts/transactions", bankTransactionRoutes);
+app.use("/api/:companyId/bank-accounts", bankAccountRoutes);
 // app.use("api/users", userRoutes);
 
 app.use(express.static("./public"));
