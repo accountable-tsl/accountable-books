@@ -5,8 +5,27 @@ import { routes } from "../../utils/routes";
 import { DatePicker } from "antd";
 
 import "./CategorisationEngine.scss";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RangePickerProps } from "antd/es/date-picker";
+import { AgGridReact } from "ag-grid-react";
+
+const catEngineColumns = [
+  "Bank",
+  "Date",
+  "FS Date",
+  "Contact",
+  "Reference",
+  "Description",
+  "Projects",
+  "Account",
+  "Curr",
+  "Bank Amount",
+  "Ex. Rate",
+  "Amount",
+  "",
+];
+
+const columnDefinitions = catEngineColumns.map((item) => ({ field: item }));
 
 export default function CategorisationEngine() {
   const { companyId } = useCompany();
@@ -15,6 +34,9 @@ export default function CategorisationEngine() {
     startDate?: Date | string;
     endDate?: Date | string;
   }>({});
+
+  // Column Definitions: Defines the columns to be displayed.
+  const [colDefs, setColDefs] = useState(columnDefinitions);
 
   const catEngineBreadcrumbs = [
     {
@@ -44,6 +66,9 @@ export default function CategorisationEngine() {
       setFilterDates({});
     }
   };
+
+  const getBankTransactions = [];
+  useEffect(() => {}, [companyId]); //bankAccountId,
 
   return (
     <div className="catengine">
@@ -122,7 +147,7 @@ export default function CategorisationEngine() {
                   </select>
                 </div>
               </div>
-              <div className="catengine-body__top-count">200 of 1767</div>
+              {/* <div className="catengine-body__top-count">200 of 1767</div> */}
             </div>
             <div className="catengine-body__top-right">
               {/* <div className="catengine-body__top-search">
@@ -149,7 +174,9 @@ export default function CategorisationEngine() {
             </div>
           </div>
           <div className="catengine-body__bottom">
-            <div className="catengine-table"></div>
+            <div className="catengine-table">
+              {/* <AgGridReact rowData={rowData} columnDefs={colDefs} /> */}
+            </div>
           </div>
         </div>
       </div>

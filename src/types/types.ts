@@ -109,7 +109,7 @@ export interface BankTransaction {
   reference?: string;
   description?: string;
   amount: string | number;
-  type?: DefaultSide;
+  transactionSide?: DefaultSide;
   source?: BankTransactionSource;
   isReconciled?: boolean;
   bankTransactionBatchId?: string | number;

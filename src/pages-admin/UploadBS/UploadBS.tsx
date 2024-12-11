@@ -142,9 +142,7 @@ export default function UploadBS() {
 
   //UI and Status States
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadSuccessful, setUploadSuccessful] = useState<boolean | null>(
-    null
-  );
+  const [uploadSuccessful, setUploadSuccessful] = useState<boolean | null>();
   const [error, setError] = useState<string | null>(null);
 
   // const [columnArray, setColumnArray] = useState<any>([]);
@@ -280,7 +278,7 @@ export default function UploadBS() {
   const handleUpload = async () => {
     if (!companyId || !selectedBankAccount) return;
 
-    setUploadSuccessful(false);
+    setUploadSuccessful(null);
 
     const dateRange = findDateRange(bankData, "date");
     if (!dateRange?.earliestDate || !dateRange?.latestDate) {
@@ -381,19 +379,19 @@ export default function UploadBS() {
           </div>
           <div
             className={`uploadbs-wrap1 ${
-              currStep === 2 && uploadSuccessful === false
+              currStep === 2 && uploadSuccessful === null
                 ? "uploadbs-wrap2"
                 : ""
             }`}
           >
             <div
               className={`uploadbs-wrap1 ${
-                currStep === 2 && uploadSuccessful === false
+                currStep === 2 && uploadSuccessful === null
                   ? "uploadbs-wrap__loader"
                   : ""
               }`}
             >
-              {currStep === 2 && uploadSuccessful === false && <MoonLoader />}
+              {currStep === 2 && uploadSuccessful === null && <MoonLoader />}
             </div>
             <div className="uploadbs-descr">
               <div className="uploadbs-descr__title">
@@ -549,11 +547,9 @@ export default function UploadBS() {
                         uploadSuccessful ? "uploadbs-status__success" : ""
                       }`}
                     >
-                      {uploadSuccessful === null
-                        ? ""
-                        : uploadSuccessful
-                        ? "Import Successful"
-                        : "Import Error"}
+                      {uploadSuccessful === null && ""}
+                      {uploadSuccessful === false && "Import Error"}
+                      {uploadSuccessful === true && "Import Successful"}
                     </div>
                     <Button
                       text="Back"
