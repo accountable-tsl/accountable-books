@@ -36,10 +36,20 @@
       &-label {
         background-color: $white;
         @apply px-1 rounded;
+        transition: all 0.5s ease;
+
+        &--disabled {
+          opacity: 0.5;
+        }
       }
 
       &-select {
         @apply flex-grow rounded;
+        transition: all 0.5s ease;
+
+        &--disabled {
+          opacity: 0.5;
+        }
       }
     }
 

@@ -16,9 +16,14 @@ import { useEffect, useState } from "react";
 import { RangePickerProps } from "antd/es/date-picker";
 import { AgGridReact } from "ag-grid-react";
 import { retrieveBankTransactions } from "../../services/BankTransactionServices";
-import { BankTransactionFilters } from "../../types/types";
+import {
+  BankAccount,
+  BankAccounts,
+  BankTransactionFilters,
+} from "../../types/types";
 import { formatNumericValue } from "../../utils/utils";
 import Decimal from "decimal.js";
+import { getBankAccounts } from "../../services/BankAccountServices";
 
 const catEngineColumns = [
   "Bank",
@@ -42,8 +47,12 @@ export default function CategorisationEngine() {
   const { companyId } = useCompany();
 
   const [colDefs, setColDefs] = useState(columnDefinitions);
+  const [error, setError] = useState<string | null>(null);
   const [fetchedBankTransactions, setFetchedBankTransactions] = useState([]);
-  const [bankAccountId, setBankAccountId] = useState<string>("");
+  const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
+  const [selectedBankAccount, setSelectedBankAccount] =
+    useState<BankAccount | null>(null);
+  const [isCategorised, setIsCategorised] = useState();
   const [filterAmounts, setFilterAmounts] = useState({
     minAmount: "",
     maxAmount: "",
@@ -86,7 +95,7 @@ export default function CategorisationEngine() {
   let filters: BankTransactionFilters = {};
   if (filterDates.startDate) filters.startDate = filterDates.startDate;
   if (filterDates.endDate) filters.endDate = filterDates.endDate;
-  if (bankAccountId) filters.bankAccountId = bankAccountId;
+  if (selectedBankAccount) filters.bankAccountId = selectedBankAccount.id;
   if (filterAmounts.minAmount)
     filters.minAmount = new Decimal(filterAmounts.minAmount);
   if (filterAmounts.maxAmount)
@@ -103,11 +112,25 @@ export default function CategorisationEngine() {
     }
   };
 
+  const fetchBankAccounts = async (companyId: string | number) => {
+    const response = await getBankAccounts(companyId);
+    if (response.success) {
+      setBankAccounts(response.data.bankAccounts);
+    } else {
+      console.error("Failed to fetch bank accounts:", response);
+      setError("Failed to fetch bank accounts. Please try again later.");
+    }
+  };
+
   useEffect(() => {
     try {
       // getBankTransactions();
     } catch (error) {}
   }, [companyId, filterDates]); //bankAccountId,
+
+  useEffect(() => {
+    companyId && fetchBankAccounts(companyId);
+  }, [companyId]);
 
   const handleAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -121,7 +144,19 @@ export default function CategorisationEngine() {
     }));
   };
 
-  console.log(filterDates, filterAmounts.minAmount, filterAmounts.maxAmount);
+  const handleBankAccountChange = (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const selectedId = event.target.value;
+    const account = bankAccounts.find((acc) => acc.id === selectedId) || null;
+    setSelectedBankAccount(account);
+  };
+
+  const handleAllBanks = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setSelectedBankAccount(null);
+  };
+
+  console.log(selectedBankAccount);
 
   return (
     <div className="catengine">
@@ -144,17 +179,33 @@ export default function CategorisationEngine() {
           </div>
           <hr className="catengine-hr" />
           <div className="catengine-summary__item catengine-summary__bank">
-            <div className="catengine-summary__bank-label">
-              All Bank Accounts
-            </div>
-            <select
-              name="selectBankAccounts"
-              id=""
-              className="catengine-summary__bank-select"
+            <button
+              className={`catengine-summary__bank-label ${
+                selectedBankAccount
+                  ? "catengine-summary__bank-label--disabled"
+                  : ""
+              }`}
+              onClick={handleAllBanks}
             >
-              <option value="">Select Bank(s)</option>
-              <option value="">Bank 1</option>
-              <option value="">Bank 2</option>
+              All Bank Accounts
+            </button>
+            <select
+              name="selectBankAccount"
+              id="selectBankAccount"
+              className={`catengine-summary__bank-select ${
+                selectedBankAccount
+                  ? ""
+                  : "catengine-summary__bank-select--disabled"
+              }`}
+              onChange={handleBankAccountChange}
+              value={selectedBankAccount?.id || ""}
+            >
+              <option value="">Filter by Bank</option>
+              {bankAccounts.map((bankAccount) => (
+                <option key={bankAccount.id} value={bankAccount.id}>
+                  {bankAccount.displayName} ({bankAccount.bankAccountNo})
+                </option>
+              ))}
             </select>
           </div>
           <hr className="catengine-hr" />
@@ -192,11 +243,13 @@ export default function CategorisationEngine() {
                 <div className="catengine-body__top-filter--item">
                   <span>Showing</span>
                   <select
-                    name=""
-                    id=""
+                    name="isCategorised"
+                    id="isCategorised"
                     className="catengine-body__top-filter--select"
                   >
                     <option value="">Unclassified Lines</option>
+                    <option value="">Classified Lines</option>
+                    <option value="">All Transactions</option>
                   </select>
                 </div>
               </div>
