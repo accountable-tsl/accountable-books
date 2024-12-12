@@ -56,10 +56,11 @@
 
     &__top {
       display: none;
+      transition: all 0.3s ease;
 
       @include desktop {
         font-size: 0.85rem;
-        @apply flex items-center justify-between p-4;
+        @apply flex items-end justify-between p-4;
       }
 
       &-left {
@@ -92,7 +93,7 @@
       }
 
       &-right {
-        @apply flex items-center;
+        @apply flex items-end;
       }
 
       &-view {
@@ -135,6 +136,46 @@
           display: inline-block;
           height: 1rem;
           width: 1.5px;
+        }
+      }
+
+      &-amount {
+        @apply pr-4 opacity-50 flex items-end gap-1;
+        transition: all 0.5s ease;
+
+        &:hover,
+        &:active &:focus {
+          opacity: 1;
+        }
+
+        & > span {
+          align-self: end;
+        }
+
+        &--label1 {
+          font-size: 0.5rem;
+          display: block;
+          transition: opacity 0.5s ease;
+        }
+
+        &--label2 {
+          font-size: 0.5rem;
+          display: block;
+          opacity: 0;
+          transition: opacity 0.5s ease;
+        }
+
+        &--min {
+          border: 1px solid $neutral-gray;
+          @apply rounded pl-2;
+
+          &::placeholder {
+            @apply pl-1;
+          }
+        }
+
+        &--max {
+          border: 1px solid red;
         }
       }
     }

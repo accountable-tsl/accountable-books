@@ -1,3 +1,5 @@
+import Decimal from "decimal.js";
+
 export enum DebitCredit {
   Debit = "Debit",
   Credit = "Credit",
@@ -129,8 +131,8 @@ export interface BankTransactionFilters {
   startDate?: Date;
   endDate?: Date;
   bankAccountId?: string;
-  minAmount?: number;
-  maxAmount?: number;
+  minAmount?: Decimal;
+  maxAmount?: Decimal;
   isCategorised?: boolean;
   isDeleted?: boolean;
   searchQuery?: string;

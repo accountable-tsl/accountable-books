@@ -1,4 +1,11 @@
-import { Brain, Expand, ListFilter, Menu, TableProperties } from "lucide-react";
+import {
+  Brain,
+  CirclePlay,
+  Expand,
+  ListFilter,
+  Menu,
+  TableProperties,
+} from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { useCompany } from "../../utils/company";
 import { routes } from "../../utils/routes";
@@ -8,6 +15,10 @@ import "./CategorisationEngine.scss";
 import { useEffect, useState } from "react";
 import { RangePickerProps } from "antd/es/date-picker";
 import { AgGridReact } from "ag-grid-react";
+import { retrieveBankTransactions } from "../../services/BankTransactionServices";
+import { BankTransactionFilters } from "../../types/types";
+import { formatNumericValue } from "../../utils/utils";
+import Decimal from "decimal.js";
 
 const catEngineColumns = [
   "Bank",
@@ -31,10 +42,16 @@ export default function CategorisationEngine() {
   const { companyId } = useCompany();
 
   const [colDefs, setColDefs] = useState(columnDefinitions);
+  const [fetchedBankTransactions, setFetchedBankTransactions] = useState([]);
+  const [bankAccountId, setBankAccountId] = useState<string>("");
+  const [filterAmounts, setFilterAmounts] = useState({
+    minAmount: "",
+    maxAmount: "",
+  });
 
   const [filterDates, setFilterDates] = useState<{
-    startDate?: Date | string;
-    endDate?: Date | string;
+    startDate?: Date;
+    endDate?: Date;
   }>({});
 
   const catEngineBreadcrumbs = [
@@ -66,10 +83,45 @@ export default function CategorisationEngine() {
     }
   };
 
-  const getBankTransactions = [];
-  useEffect(() => {}, [companyId, filterDates]); //bankAccountId,
+  let filters: BankTransactionFilters = {};
+  if (filterDates.startDate) filters.startDate = filterDates.startDate;
+  if (filterDates.endDate) filters.endDate = filterDates.endDate;
+  if (bankAccountId) filters.bankAccountId = bankAccountId;
+  if (filterAmounts.minAmount)
+    filters.minAmount = new Decimal(filterAmounts.minAmount);
+  if (filterAmounts.maxAmount)
+    filters.maxAmount = new Decimal(filterAmounts.maxAmount);
 
-  console.log(filterDates);
+  const getBankTransactions = async (
+    companyId: string | number,
+    filters: BankTransactionFilters
+  ) => {
+    const response = await retrieveBankTransactions(companyId, filters);
+    if (response.success) {
+      console.log(response);
+      setFetchedBankTransactions(response.data?.transactions);
+    }
+  };
+
+  useEffect(() => {
+    try {
+      // getBankTransactions();
+    } catch (error) {}
+  }, [companyId, filterDates]); //bankAccountId,
+
+  const handleAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    const numericValue = value
+      .replace(/[^0-9.]/g, "") // Remove non-numeric and non-period characters
+      .replace(/(\..*?)\..*/g, "$1"); // Ensure only one period
+
+    setFilterAmounts((prevAmounts) => ({
+      ...prevAmounts,
+      [name]: numericValue,
+    }));
+  };
+
+  console.log(filterDates, filterAmounts.minAmount, filterAmounts.maxAmount);
 
   return (
     <div className="catengine">
@@ -151,9 +203,57 @@ export default function CategorisationEngine() {
               {/* <div className="catengine-body__top-count">200 of 1767</div> */}
             </div>
             <div className="catengine-body__top-right">
-              {/* <div className="catengine-body__top-search">
-                <input type="search" name="" id="" />
-              </div> */}
+              <div className="catengine-body__top-amount">
+                <span>Filter by Amount: </span>
+                <div>
+                  <label
+                    htmlFor="maxAmount"
+                    className={
+                      filterAmounts.minAmount
+                        ? "catengine-body__top-amount--label1"
+                        : "catengine-body__top-amount--label2"
+                    }
+                  >
+                    min amount
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    name="minAmount"
+                    id="minAmount"
+                    placeholder="Min Amount"
+                    className="catengine-body__top-amount--min"
+                    onChange={handleAmountChange}
+                    value={formatNumericValue(filterAmounts.minAmount)}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="maxAmount"
+                    className={
+                      filterAmounts.maxAmount
+                        ? "catengine-body__top-amount--label1"
+                        : "catengine-body__top-amount--label2"
+                    }
+                  >
+                    max amount
+                  </label>
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    name="maxAmount"
+                    id="maxAmount"
+                    placeholder="Max Amount"
+                    className="catengine-body__top-amount--min"
+                    onChange={handleAmountChange}
+                    value={formatNumericValue(filterAmounts.maxAmount)}
+                  />
+                </div>
+                <div>
+                  <CirclePlay />
+                </div>
+              </div>
 
               <div className="catengine-body__top-view">
                 <div className="catengine-body__top-rowheight">

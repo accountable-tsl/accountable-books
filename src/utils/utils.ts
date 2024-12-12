@@ -90,3 +90,26 @@ export const findDateRange = <D>(
 
   return { earliestDate, latestDate };
 };
+
+/**
+ * Formats a numeric value with commas as thousands separators.
+ * @param value The input value to format. Can be a number, string, or other types.
+ * @returns A string with the numeric value formatted with commas, or an empty string if the input is invalid.
+ */
+export function formatNumericValue(value: any): string {
+  if (value === null || value === undefined) return "";
+
+  const strValue =
+    typeof value === "object" && value.toString
+      ? value.toString()
+      : String(value);
+
+  if (!/^[-+]?\d*\.?\d*$/.test(strValue)) return value;
+
+  const [integerPart, decimalPart] = strValue.split(".");
+
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return decimalPart !== undefined
+    ? `${formattedInteger}.${decimalPart}`
+    : formattedInteger;
+}
