@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import {
+  BankTransactionFilters,
   getBankTransactions,
   postBankTransactions,
 } from "../models/bankTransactionModel";
@@ -85,12 +86,20 @@ export async function retrieveBankTransactions(req: Request, res: Response) {
       return res.status(400).json({ success: false, message: "Bad Request" });
     }
 
-    const filters = req.body?.filters ?? req.body?.filter ?? {};
+    const filters = req.query;
 
-    const startDate = filters.startDate ? new Date(filters.startDate) : null;
-    const endDate = filters.endDate ? new Date(filters.endDate) : null;
-    const minAmount = filters.minAmount ? new Decimal(filters.minAmount) : null;
-    const maxAmount = filters.maxAmount ? new Decimal(filters.maxAmount) : null;
+    const startDate = filters.startDate
+      ? new Date(filters.startDate as string)
+      : null;
+    const endDate = filters.endDate
+      ? new Date(filters.endDate as string)
+      : null;
+    const minAmount = filters.minAmount
+      ? new Decimal(filters.minAmount as string)
+      : null;
+    const maxAmount = filters.maxAmount
+      ? new Decimal(filters.maxAmount as string)
+      : null;
 
     const errors = [];
     if (filters.startDate && !startDate) errors.push("startDate: Check format");
@@ -106,10 +115,13 @@ export async function retrieveBankTransactions(req: Request, res: Response) {
       ...(maxAmount && { maxAmount }),
     };
 
-    const response = await getBankTransactions(companyId, filter);
+    const response = await getBankTransactions(
+      companyId,
+      filter as BankTransactionFilters
+    );
 
     if (response.success) {
-      return res.status(201).json({ response });
+      return res.status(200).json({ response });
     } else {
       return res.status(400).json({
         success: false,
