@@ -30,13 +30,12 @@ const columnDefinitions = catEngineColumns.map((item) => ({ field: item }));
 export default function CategorisationEngine() {
   const { companyId } = useCompany();
 
+  const [colDefs, setColDefs] = useState(columnDefinitions);
+
   const [filterDates, setFilterDates] = useState<{
     startDate?: Date | string;
     endDate?: Date | string;
   }>({});
-
-  // Column Definitions: Defines the columns to be displayed.
-  const [colDefs, setColDefs] = useState(columnDefinitions);
 
   const catEngineBreadcrumbs = [
     {
@@ -68,7 +67,9 @@ export default function CategorisationEngine() {
   };
 
   const getBankTransactions = [];
-  useEffect(() => {}, [companyId]); //bankAccountId,
+  useEffect(() => {}, [companyId, filterDates]); //bankAccountId,
+
+  console.log(filterDates);
 
   return (
     <div className="catengine">

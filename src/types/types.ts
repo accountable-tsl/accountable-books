@@ -1,4 +1,4 @@
-export enum DefaultSide {
+export enum DebitCredit {
   Debit = "Debit",
   Credit = "Credit",
 }
@@ -109,7 +109,7 @@ export interface BankTransaction {
   reference?: string;
   description?: string;
   amount: string | number;
-  transactionSide?: DefaultSide;
+  transactionSide?: DebitCredit;
   source?: BankTransactionSource;
   isReconciled?: boolean;
   bankTransactionBatchId?: string | number;
@@ -125,6 +125,20 @@ export interface BankTransactionBatch {
   createdById: string;
 }
 
+export interface BankTransactionFilters {
+  startDate?: Date;
+  endDate?: Date;
+  bankAccountId?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  isCategorised?: boolean;
+  isDeleted?: boolean;
+  searchQuery?: string;
+  transactionSide?: DebitCredit;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface AccountType {
   id?: number;
   typeName?: string;
@@ -137,7 +151,7 @@ export interface AccountType {
 export interface AccountElement {
   id?: number;
   elementName?: string;
-  defaultSide?: DefaultSide;
+  defaultSide?: DebitCredit;
   parentId?: number;
   parent?: AccountElement;
   children?: AccountElement[];
@@ -154,7 +168,7 @@ export interface Coa {
   description?: string;
   accountTypeId?: number;
   accountType?: AccountType;
-  defaultSide?: DefaultSide;
+  defaultSide?: DebitCredit;
   currencyId?: number;
   currency?: Currency;
   companyId?: number;

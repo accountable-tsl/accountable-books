@@ -1,5 +1,9 @@
 import axios from "axios";
-import { BankTransactionBatch, ServerResponseFormat } from "../types/types";
+import {
+  BankTransactionBatch,
+  BankTransactionFilters,
+  ServerResponseFormat,
+} from "../types/types";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -12,4 +16,16 @@ export const postBankTransactions = async (
     data
   );
   return response.data.response;
+};
+
+export const retrieveBankTransactions = async (
+  companyId: string | number,
+  filters: BankTransactionFilters
+): Promise<ServerResponseFormat> => {
+  const response = await axios.get(
+    `${backendUrl}/api/${companyId}/bank-accounts/transactions/all`,
+    { params: filters }
+  );
+
+  return response.data;
 };
