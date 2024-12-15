@@ -121,7 +121,7 @@ export async function retrieveBankTransactions(req: Request, res: Response) {
     );
 
     if (response.success) {
-      return res.status(200).json({ response });
+      return res.status(200).json({ success: response.success, message: response.message, data: response.data });
     } else {
       return res.status(400).json({
         success: false,

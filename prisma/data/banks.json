@@ -1,57 +1,60 @@
 [
   {
+    "id": "1c620e90-e2bb-44fb-8d2a-d58751a0b966",
     "name": "GTBank",
     "bankLogo": "/ng-gtb.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
+    "id": "499dda6d-865c-4be7-a3a3-c486ad3868e9",
     "name": "Access Bank",
     "bankLogo": "/ng-accessbank.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
+    "id": "c9f7994e-79c3-4456-96ba-5afecc22177c",
     "name": "Alat by Wema",
     "bankLogo": "/ng-alat.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
     "name": "FCMB",
     "bankLogo": "/ng-fcmb.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
     "name": "First Bank",
     "bankLogo": "/ng-firstbank.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
     "name": "Providus Bank",
     "bankLogo": "/ng-providus.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
     "name": "Sterling",
     "bankLogo": "/ng-sterling.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
     "name": "Wema",
     "bankLogo": "/ng-wema.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
     "name": "Union Bank",
     "bankLogo": "/ng-union.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
     "name": "UBA",
     "bankLogo": "/ng-uba.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   },
   {
     "name": "Zenith",
     "bankLogo": "/ng-zenith.svg",
-    "countryId": 1
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
   }
 ]

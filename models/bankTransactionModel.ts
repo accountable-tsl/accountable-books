@@ -241,6 +241,7 @@ export async function getBankTransactions(
 
     const transactions = await prisma.bankTransaction.findMany({
       where,
+      include: { bankAccount: { include: { bank: true, currency: true } } },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,

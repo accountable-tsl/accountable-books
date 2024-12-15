@@ -1,149 +1,149 @@
 accountCode,accountName,accountTypeId,defaultSide,Description
-21001,Land,1,debit,Land owned by the company for business operations or investment purposes.
-21002,Building,1,debit,"Buildings owned by the company, including offices, factories, or any other structures."
-21003,Building and Leasehold Improvements,1,debit,"Improvements made to buildings or leased properties, increasing their value or extending their useful life."
-21004,Plant and Machinery,1,debit,Machinery and equipment used in the production of goods or services.
-21005,Vehicles,1,debit,"Company-owned vehicles used for business operations, including delivery trucks, cars, etc."
-21006,"Furniture, Fixtures and Fittings",1,debit,"Furniture and other fixtures used in office spaces, production facilities, or warehouses."
-21007,Office Equipment,1,debit,"Equipment used in office operations, such as printers, copiers, phones, and similar devices."
-21008,Computers and IT Equipment,1,debit,"Computers, servers, and other IT hardware used by the company for business operations."
-21102,Accumulated Depreciation - Building,2,credit,"The cumulative depreciation charged against buildings over time, reducing their book value."
-21103,Accumulated Depreciation - Building and Leasehold Improvements,2,credit,The cumulative depreciation charged against building and leasehold improvements.
-21104,Accumulated Depreciation - Plant and Machinery,2,credit,The cumulative depreciation of machinery and plant equipment over their useful life.
-21105,Accumulated Depreciation - Vehicles,2,credit,The cumulative depreciation of company-owned vehicles.
-21106,"Accumulated Depreciation - Furniture, Fixtures and Fittings",2,credit,The cumulative depreciation of furniture and fixtures.
-21107,Accumulated Depreciation - Office Equipment,2,credit,The cumulative depreciation of office equipment like printers and phones.
-21108,Accumulated Depreciation - Computers and IT Equipment,2,credit,The cumulative depreciation of computer and IT hardware.
-22002,Right-of-use Assets,3,debit,"Leased assets recognized as part of right-of-use agreements, such as office space or equipment under IFRS 16 or ASC 842."
-22102,Accumulated Depreciation - Right-of-use Assets,4,credit,The cumulative depreciation of leased assets over their lease term.
-23001,Software and Licenses,5,debit,Non-physical assets like software and licenses that the company uses over a long-term period.
-23002,Software Development Costs (Capitalized),5,debit,Costs for internally developed software that have been capitalized.
-23003,Cloud Infrastructure,5,debit,Long-term cloud service infrastructure costs capitalized by the company.
-23004,"Copyrights, Patents, and Trademarks",5,debit,"Intellectual property, such as copyrights, patents, and trademarks, owned by the company."
-23101,Accumulated Amortisation - Software and Licenses,6,credit,The cumulative amortization of software and licenses over their useful life.
-23102,Accumulated Amortisation - Software Development Costs (Capitalized),6,credit,The cumulative amortization of software and licenses over their useful life.
-23103,Accumulated Amortisation - Cloud Infrastructure,6,credit,The cumulative amortization of cloud infrastructure costs.
-23104,"Accumulated Amortisation - Copyrights, Patents, and Trademarks",6,credit,The cumulative amortization of intellectual property over their useful life.
-24001,Investment Property,7,debit,Real estate held by the company for earning rental income or for capital appreciation
-24010,Long-term Financial Assets,7,debit,Financial investments that the company intends to hold for more than one year
-24050,Deferred Tax Assets,7,debit,"Future tax benefits resulting from temporary differences or unused tax losses and credits, expected to reduce taxable income in future periods"
-41001,Petty Cash,9,debit,"Money kept in a business to meet small, everyday expenses"
-41010,Short-term Investments,9,debit,Short-term financial investments intended to be liquidated within a year.
-41020,Crypto Assets,9,debit,Cryptocurrency assets held by the company.
-42001,Raw Materials Inventory,10,debit,Goods and materials used in production that are not yet completed
-42010,Work-in-Progress Inventory,10,debit,Inventory that is partially completed but not yet ready for sale
-42020,Finished Goods Inventory,10,debit,Completed goods that are ready for sale but have not yet been sold to customers
-42030,In-Transit Inventory,10,debit,Inventory that has been shipped by the seller but has not yet reached the buyer's destination
-42040,MRO Inventory,10,debit,"Supplies, spare parts and other materials needed for routine maintenance, repair and operations"
-42050,Project Materials Inventory,10,debit,"Materials purchased and held for customer projects, expected to be used in the near term for ongoing or future contracts"
-43000,Trade Receivables,11,debit,Amounts owed by customers for goods or services sold.
-43100,Allowance for Doubtful Accounts,12,debit,A contra-asset account that reduces the accounts receivable balance for estimated uncollectible debts
-44001,Contract Assets,13,debit,Revenue recognised for goods or services delivered but not yet invoiced or billed to the customer
-45001,Interest Receivable,14,debit,"Amounts owed to the company as interest from investments, loans, or deposits"
-45010,Tax Receivable,14,debit,Amounts owed to the company by tax authorities for overpayment or tax refunds
-45020,Notes Receivable,14,debit,A written promise by a third party to pay the company a certain sum of money at a future date
-45030,Staff Loans and Advances,14,debit," Loans and advances provided to employees, typically expected to be repaid through salary deductions or over a specific period"
-46010,Prepaid Insurance,15,debit,Insurance expenses paid in advance for future coverage periods
-46020,Prepaid Rent,15,debit,Rent expenses paid in advance for future use of a property or space
-46030,Subscription Prepayments,15,debit,Payments made for subscriptions to be received in the future.
-47010,Short-term Loans,16,credit,Loans made to customers or employees that are expected to be repaid within one year
-47020,Advances to Suppliers,16,credit,Amounts paid in advance to suppliers for goods or services that are yet to be received
-52010,Deferred Tax Liabilities - Noncurrent,18,credit,Taxes owed in the future due to temporary differences between tax and accounting rules
-52020,Environmental Remediation Costs,18,credit,Costs associated with cleaning up or remediating environmental issues or pollution caused by the company's operations.
-52030,Other Long Term Liabilities,18,credit,"Long-term obligations that a company owes, not categorised anywhere else"
-61000,Trade Payables,19,credit,"Amounts owed to suppliers for purchases of goods or services, typically payable within one year"
-62010,Net Salaries Payable,20,credit,Salaries and wages earned by employees but not yet paid by the company
-62011,Employee Tax (PAYE) Payable,20,credit,Income tax deducted from employees' salaries (PAYE) that is owed to the tax authorities
-62012,Employee Pension Payable,20,credit,Contributions owed to employee pension schemes but not yet remitted
-62013,Other Employee Benefits Payable,20,credit,"Benefits such as healthcare, bonuses, or other employee-related obligations owed but not yet paid"
-62020,Accrued Audit Fees,20,credit,Fees owed to external auditors for services rendered but not yet paid
-62021,Accrued Accounting Fees,20,credit,Fees owed to accounting service providers for services rendered but not yet paid
-62022,Accrued Legal Fees,20,credit,Legal fees incurred but not yet paid for legal services provided
-62029,Other Professional Fees Payable,20,credit,Fees owed to other professionals or consultants
-62030,Accrued Software Licensing Fees,20,credit,Fees owed for software licenses that have been incurred but not yet paid
-62040,Rent Payable,20,credit,Rent expenses incurred for the use of premises but not yet paid to landlords
-62045,Interest Payable,20,credit,Interest charges incurred on loans or other debts but not yet paid
-62050,Accrued Utilities,20,credit,"Utility expenses (electricity, water, gas, etc.) incurred but not yet paid"
-62059,Other Accrued Expenses,20,credit,"Any other expenses incurred by the business but not yet paid, including miscellaneous operational costs"
-63010,Deferred Revenue - SaaS Subscriptions,21,credit,Payments received in advance for subscription services that will be delivered over a future period
-63011,Deferred Revenue - Project Payments,21,credit,"Payments received in advance for project work, recognized as revenue when milestones are completed"
-63012,Deferred Revenue - Consulting Services,21,credit,Prepaid amounts for consulting services to be rendered in the future
-63030,Customer Deposits,21,credit,Deposits received from customers for services or projects to be completed
-64010,Bank Overdraft,22,credit,Loans that must be repaid within the next year.
-65030,Directors' Current Account,24,credit,Amounts owed to or by directors in relation to their personal transactions with the company
-65060,SAFE Liability,24,credit,"Represents funds received from investors under SAFE agreements, to be converted into equity at a future event"
-65069,Other Convertible Instruments,24,credit,Other convertible instruments
-65070,Dividends Payable,24,credit,Dividends declared by the company but not yet paid to shareholders
-65080,Sales Tax/VAT Payable,23,credit,Sales Tax or Value Added Tax (VAT) collected from customers but not yet remitted
-65081,Income Tax Payable,23,credit,Income taxes owed by the company but not yet paid
-71001,Ordinary Share Capital,25,credit,The value of shares issued to shareholders with no special privileges
-71010,Preference Share Capital,25,credit,"The value of shares issued with preferential rights, such as fixed dividends or priority in liquidation"
-71020,Share Premium,25,credit,The excess value received over the par value of the shares issued during conversion
-71030,Additional Paid-in Capital,25,credit,Paid in capital injected into the business over and above the authorised ordinary share capital
-72001,Retained Earnings,26,credit,Cumulative earnings retained in the company after dividends.
-73001,Revaluation Surplus,27,credit,Revaluation gains
-73002,Unrealized Gains/Losses on Investments,27,credit,Gains or losses not included in net income but recognized in equity.
-74001,Stock Options (Employee Equity Plans),28,credit,Stock options granted to employees as part of equity compensation plans.
-81100,Product Sales,29,credit,Revenue from the sale of goods
-81200,Service Revenue,29,credit,Revenue from the sale of services
-81300,Recurring Revenue,29,credit,"Revenue generated from licenses, subscription and memberships."
-81400,Donations & Grant Income,29,credit,Income from grants and/or donations. Typically for nonprofits
-82010,Discounts Allowed,30,credit,Reductions in income due to discounts given to customers or clients
-82020,Sales Returns and Allowances,30,credit,Revenue reductions due to returns of goods sold or allowances for defective goods or services
-83101,Interest income,31,credit,"Finance Income: Revenue earned from interest on bank deposits, loans to others, or investments in interest-bearing securities"
-83102,Dividend Income,31,credit,Finance Income: Revenue earned from dividends paid by shares or equity investments in other companies
-83103,Foreign Exchange Gains (Realised),31,credit,Finance Income: Gains from currency exchange rate movements
-83301,Rental Income,32,credit,Non-operating Income: Revenue from renting out property or equipment
-83302,Gains on Asset Disposals,32,credit,Non-operating Income: Profit from selling company assets
-83309,Other Miscellaneous Income,32,credit,"Non-operating Income: Income from non-core, irregular, or one-off activities"
-91100,Cost of Goods Sold (COGS),34,debit,Direct costs related to providing services
-91200,Cost of Services,33,debit,Cost of producing or purchasing the goods sold
-91300,Other Cost of Sales,33,debit,Costs related to hosting and maintaining servers.
-92101,Salaries and Wages,34,debit,"Compensation paid to employees for their work, including base pay and overtime"
-92102,Employer Pension Contributions,34,debit,Employer contributions to employee pension or retirement plans
-92103,Employee Health Maintenance Costs,34,debit,Expenses for employee health insurance and wellness programs
-92104,Employee Training and Development Expenses,34,debit,Costs for employee training programs and professional development
-92105,Bonus and Allowances,34,debit,Payments for performance bonuses and additional allowances
-92106,Stock-Based Compensation,34,debit,Expenses for stock options and equity awards provided to employees
-92109,Other Employee Benefits,34,debit,Miscellaneous employee benefits not covered by other accounts
-92201,Marketing and Advertising Expenses,35,debit,"Costs for promoting products or services, including ads, digital marketing, and campaigns"
-92301,Rent,36,debit,Expenses for leasing office space or other properties used by the company
-92321,Insurance,36,debit,Premiums paid for business insurance coverage
-92341,"Light, Power and Electricity Expenses",36,debit,Costs for electricity and lighting used in business operations
-92342,Motor Vehicle Fuel Expenses,36,debit,Fuel costs for company-owned vehicles used for business activities
-92343,Diesel and Fuel Expenses,36,debit,Costs for diesel and other fuels used in generators or machinery (operations)
-92401,Repairs and Maintenance - PPE,37,debit,"Expenses for maintaining and repairing property, plant, and equipment"
-92402,Repairs and Maintenance - Motor Vehicles,37,debit,Costs for maintaining and repairing company-owned vehicles
-92403,Repairs and Maintenance - Others,37,debit,Maintenance costs for other assets not classified as PPE or vehicles
-92501,Audit Fees,38,debit,Fees paid to auditors for financial audit services
-92502,Accounting Fees,38,debit,Payments to accountants for bookkeeping and financial reporting services
-92503,Legal Fees,38,debit,"Costs for legal services, including contracts, disputes, and consultations"
-92509,Other Consulting Fees,38,debit,Fees paid to external consultants for professional advice and services
-92601,Telephone and Internet Expenses,39,debit,Costs for telephone services and internet connectivity used by the business
-92602,IT and Software Expenses,39,debit,Expenses related to IT infrastructure and software.
-92603,SaaS Subscriptions,39,debit,Costs related to software as a service (SaaS) subscriptions.
-92604,Cloud Hosting Services,39,debit,Expenses incurred for cloud hosting services.
-92605,Data and Security Services,39,debit,Costs related to data protection and security services.
-92606,Customer Support Costs,39,debit,Expenses incurred for providing customer support.
-92607,Marketing Automation Expenses,39,debit,Costs for marketing automation tools and services.
-92701,Local Transport Expenses,40,debit,"Costs for local transportation such as taxis, public transport, or company vehicles for business purposes"
-92702,International Travel Expenses,40,debit,"Expenses for international business travel, including flights and related travel costs"
-92703,Hotel and Accommodation Expenses,40,debit,Costs for lodging and accommodation during business trips
-92801,Depreciation Expense,41,debit,Allocation of the cost of tangible assets over their useful life
-92802,Amortisation Expense,41,debit,Allocation of the cost of intangible assets over their useful life
-92901,Bank Charges,42,debit,"Fees charged by banks for account maintenance, transfers, and other financial services"
-92902,Directors' Fees and Allowances,42,debit,Compensation and allowances paid to company directors for their services
-92903,Office Supplies,42,debit,"Costs for materials used in the office, such as paper, pens, and other stationery"
-92904,Welfare and Entertainment Expenses,42,debit,"Costs for employee welfare activities and entertainment, including staff events and celebrations"
-92905,Corporate Giftings,42,debit,"Expenses for merch, gifts given to clients, partners, or employees for corporate purposes"
-92906,Printing and Stationery,42,debit,Costs for printing documents and purchasing stationery items for the office
-92908,Charitable Donations,42,debit,Contributions made by the company to charitable organisations or causes
-92909,Research and Development Costs,42,debit,Expenses incurred in the research and development of new products or services
-92910,General Provisions,42,debit,General provisions for anticipated liabilities or losses not yet realised
-92911,Specific Provisions,42,debit,"Provisions made for known liabilities or losses, such as legal disputes or warranties"
-92912,Miscellaneous Expenses,42,debit,Miscellaneous expenses not categorized elsewhere.
-94101,Interest Expense,43,debit,"Costs incurred from borrowing funds, including loan interest and credit facility fees"
-94102,Foreign Exchange Losses (Realised),43,debit,Losses from currency exchange rate fluctuations realized during transactions
-95101,Impairment Loss,44,debit,Losses recognized when the value of an asset falls below its carrying amount
-95102,Loss on Asset Disposals,44,debit,Losses incurred when selling or disposing of assets at a price lower than their book value
-96101,Income Tax Expense,45,debit,Taxes payable by the company on its taxable income for the period
+21001,Land,9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e,debit,Land owned by the company for business operations or investment purposes.
+21002,Building,9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e,debit,"Buildings owned by the company, including offices, factories, or any other structures."
+21003,Building and Leasehold Improvements,9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e,debit,"Improvements made to buildings or leased properties, increasing their value or extending their useful life."
+21004,Plant and Machinery,9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e,debit,Machinery and equipment used in the production of goods or services.
+21005,Vehicles,9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e,debit,"Company-owned vehicles used for business operations, including delivery trucks, cars, etc."
+21006,"Furniture, Fixtures and Fittings",9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e,debit,"Furniture and other fixtures used in office spaces, production facilities, or warehouses."
+21007,Office Equipment,9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e,debit,"Equipment used in office operations, such as printers, copiers, phones, and similar devices."
+21008,Computers and IT Equipment,9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e,debit,"Computers, servers, and other IT hardware used by the company for business operations."
+21102,Accumulated Depreciation - Building,276ef71c-10b1-44d2-a6ce-23752b047949,credit,"The cumulative depreciation charged against buildings over time, reducing their book value."
+21103,Accumulated Depreciation - Building and Leasehold Improvements,276ef71c-10b1-44d2-a6ce-23752b047949,credit,The cumulative depreciation charged against building and leasehold improvements.
+21104,Accumulated Depreciation - Plant and Machinery,276ef71c-10b1-44d2-a6ce-23752b047949,credit,The cumulative depreciation of machinery and plant equipment over their useful life.
+21105,Accumulated Depreciation - Vehicles,276ef71c-10b1-44d2-a6ce-23752b047949,credit,The cumulative depreciation of company-owned vehicles.
+21106,"Accumulated Depreciation - Furniture, Fixtures and Fittings",276ef71c-10b1-44d2-a6ce-23752b047949,credit,The cumulative depreciation of furniture and fixtures.
+21107,Accumulated Depreciation - Office Equipment,276ef71c-10b1-44d2-a6ce-23752b047949,credit,The cumulative depreciation of office equipment like printers and phones.
+21108,Accumulated Depreciation - Computers and IT Equipment,276ef71c-10b1-44d2-a6ce-23752b047949,credit,The cumulative depreciation of computer and IT hardware.
+22002,Right-of-use Assets,620cb7cb-6283-48d7-840b-81f4b23419f4,debit,"Leased assets recognized as part of right-of-use agreements, such as office space or equipment under IFRS 16 or ASC 842."
+22102,Accumulated Depreciation - Right-of-use Assets,4d6d0cb4-66de-4285-9eb4-eec81de03cfc,credit,The cumulative depreciation of leased assets over their lease term.
+23001,Software and Licenses,50a5d1ca-5219-4d43-903e-8d926067a0f1,debit,Non-physical assets like software and licenses that the company uses over a long-term period.
+23002,Software Development Costs (Capitalized),50a5d1ca-5219-4d43-903e-8d926067a0f1,debit,Costs for internally developed software that have been capitalized.
+23003,Cloud Infrastructure,50a5d1ca-5219-4d43-903e-8d926067a0f1,debit,Long-term cloud service infrastructure costs capitalized by the company.
+23004,"Copyrights, Patents, and Trademarks",50a5d1ca-5219-4d43-903e-8d926067a0f1,debit,"Intellectual property, such as copyrights, patents, and trademarks, owned by the company."
+23101,Accumulated Amortisation - Software and Licenses,7aac324c-1205-477e-a084-112de81c4152,credit,The cumulative amortization of software and licenses over their useful life.
+23102,Accumulated Amortisation - Software Development Costs (Capitalized),7aac324c-1205-477e-a084-112de81c4152,credit,The cumulative amortization of software and licenses over their useful life.
+23103,Accumulated Amortisation - Cloud Infrastructure,7aac324c-1205-477e-a084-112de81c4152,credit,The cumulative amortization of cloud infrastructure costs.
+23104,"Accumulated Amortisation - Copyrights, Patents, and Trademarks",7aac324c-1205-477e-a084-112de81c4152,credit,The cumulative amortization of intellectual property over their useful life.
+24001,Investment Property,0bbb12c0-ebe3-4ad6-879f-c277ed862ad2,debit,Real estate held by the company for earning rental income or for capital appreciation
+24010,Long-term Financial Assets,0bbb12c0-ebe3-4ad6-879f-c277ed862ad2,debit,Financial investments that the company intends to hold for more than one year
+24050,Deferred Tax Assets,0bbb12c0-ebe3-4ad6-879f-c277ed862ad2,debit,"Future tax benefits resulting from temporary differences or unused tax losses and credits, expected to reduce taxable income in future periods"
+41001,Petty Cash,4a5d0024-6234-4982-809c-f16e3be7f379,debit,"Money kept in a business to meet small, everyday expenses"
+41010,Short-term Investments,4a5d0024-6234-4982-809c-f16e3be7f379,debit,Short-term financial investments intended to be liquidated within a year.
+41020,Crypto Assets,4a5d0024-6234-4982-809c-f16e3be7f379,debit,Cryptocurrency assets held by the company.
+42001,Raw Materials Inventory,10149b24-6827-475d-a657-77497c0856a0,debit,Goods and materials used in production that are not yet completed
+42010,Work-in-Progress Inventory,10149b24-6827-475d-a657-77497c0856a0,debit,Inventory that is partially completed but not yet ready for sale
+42020,Finished Goods Inventory,10149b24-6827-475d-a657-77497c0856a0,debit,Completed goods that are ready for sale but have not yet been sold to customers
+42030,In-Transit Inventory,10149b24-6827-475d-a657-77497c0856a0,debit,Inventory that has been shipped by the seller but has not yet reached the buyer's destination
+42040,MRO Inventory,10149b24-6827-475d-a657-77497c0856a0,debit,"Supplies, spare parts and other materials needed for routine maintenance, repair and operations"
+42050,Project Materials Inventory,10149b24-6827-475d-a657-77497c0856a0,debit,"Materials purchased and held for customer projects, expected to be used in the near term for ongoing or future contracts"
+43000,Trade Receivables,d764021a-0847-4be8-a687-9c8195b47f6d,debit,Amounts owed by customers for goods or services sold.
+43100,Allowance for Doubtful Accounts,083d362e-2715-4556-922a-c86a6966bb98,debit,A contra-asset account that reduces the accounts receivable balance for estimated uncollectible debts
+44001,Contract Assets,6c1d4db4-2f10-4c82-9ffa-a4a18e80a3ef,debit,Revenue recognised for goods or services delivered but not yet invoiced or billed to the customer
+45001,Interest Receivable,176abf7d-d7d2-46fe-8981-5f3e1ddcf880,debit,"Amounts owed to the company as interest from investments, loans, or deposits"
+45010,Tax Receivable,176abf7d-d7d2-46fe-8981-5f3e1ddcf880,debit,Amounts owed to the company by tax authorities for overpayment or tax refunds
+45020,Notes Receivable,176abf7d-d7d2-46fe-8981-5f3e1ddcf880,debit,A written promise by a third party to pay the company a certain sum of money at a future date
+45030,Staff Loans and Advances,176abf7d-d7d2-46fe-8981-5f3e1ddcf880,debit," Loans and advances provided to employees, typically expected to be repaid through salary deductions or over a specific period"
+46010,Prepaid Insurance,a0328b6e-4257-435f-9533-53ed9ccc2bf2,debit,Insurance expenses paid in advance for future coverage periods
+46020,Prepaid Rent,a0328b6e-4257-435f-9533-53ed9ccc2bf2,debit,Rent expenses paid in advance for future use of a property or space
+46030,Subscription Prepayments,a0328b6e-4257-435f-9533-53ed9ccc2bf2,debit,Payments made for subscriptions to be received in the future.
+47010,Short-term Loans,140e3f60-337b-4bf2-b42d-3c7f37dea88f,credit,Loans made to customers or employees that are expected to be repaid within one year
+47020,Advances to Suppliers,140e3f60-337b-4bf2-b42d-3c7f37dea88f,credit,Amounts paid in advance to suppliers for goods or services that are yet to be received
+52010,Deferred Tax Liabilities - Noncurrent,d01e3dfc-553b-4846-bd44-1078f94c43ee,credit,Taxes owed in the future due to temporary differences between tax and accounting rules
+52020,Environmental Remediation Costs,d01e3dfc-553b-4846-bd44-1078f94c43ee,credit,Costs associated with cleaning up or remediating environmental issues or pollution caused by the company's operations.
+52030,Other Long Term Liabilities,d01e3dfc-553b-4846-bd44-1078f94c43ee,credit,"Long-term obligations that a company owes, not categorised anywhere else"
+61000,Trade Payables,7def2082-8695-4d32-a385-2827e46747db,credit,"Amounts owed to suppliers for purchases of goods or services, typically payable within one year"
+62010,Net Salaries Payable,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Salaries and wages earned by employees but not yet paid by the company
+62011,Employee Tax (PAYE) Payable,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Income tax deducted from employees' salaries (PAYE) that is owed to the tax authorities
+62012,Employee Pension Payable,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Contributions owed to employee pension schemes but not yet remitted
+62013,Other Employee Benefits Payable,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,"Benefits such as healthcare, bonuses, or other employee-related obligations owed but not yet paid"
+62020,Accrued Audit Fees,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Fees owed to external auditors for services rendered but not yet paid
+62021,Accrued Accounting Fees,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Fees owed to accounting service providers for services rendered but not yet paid
+62022,Accrued Legal Fees,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Legal fees incurred but not yet paid for legal services provided
+62029,Other Professional Fees Payable,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Fees owed to other professionals or consultants
+62030,Accrued Software Licensing Fees,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Fees owed for software licenses that have been incurred but not yet paid
+62040,Rent Payable,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Rent expenses incurred for the use of premises but not yet paid to landlords
+62045,Interest Payable,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,Interest charges incurred on loans or other debts but not yet paid
+62050,Accrued Utilities,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,"Utility expenses (electricity, water, gas, etc.) incurred but not yet paid"
+62059,Other Accrued Expenses,0db706af-b567-4ce2-b299-ac44c05eb60f,credit,"Any other expenses incurred by the business but not yet paid, including miscellaneous operational costs"
+63010,Deferred Revenue - SaaS Subscriptions,f7e721d0-9912-402e-8746-7e9ef55f6cde,credit,Payments received in advance for subscription services that will be delivered over a future period
+63011,Deferred Revenue - Project Payments,f7e721d0-9912-402e-8746-7e9ef55f6cde,credit,"Payments received in advance for project work, recognized as revenue when milestones are completed"
+63012,Deferred Revenue - Consulting Services,f7e721d0-9912-402e-8746-7e9ef55f6cde,credit,Prepaid amounts for consulting services to be rendered in the future
+63030,Customer Deposits,f7e721d0-9912-402e-8746-7e9ef55f6cde,credit,Deposits received from customers for services or projects to be completed
+64010,Bank Overdraft,7780f7f0-ad31-44b7-acd1-d39a0a6c01a1,credit,Loans that must be repaid within the next year.
+65030,Directors' Current Account,7a9cea0c-223f-4854-8344-1ceee1436ed3,credit,Amounts owed to or by directors in relation to their personal transactions with the company
+65060,SAFE Liability,7a9cea0c-223f-4854-8344-1ceee1436ed3,credit,"Represents funds received from investors under SAFE agreements, to be converted into equity at a future event"
+65069,Other Convertible Instruments,7a9cea0c-223f-4854-8344-1ceee1436ed3,credit,Other convertible instruments
+65070,Dividends Payable,7a9cea0c-223f-4854-8344-1ceee1436ed3,credit,Dividends declared by the company but not yet paid to shareholders
+65080,Sales Tax/VAT Payable,54506f3f-d065-4068-9b1c-ea81d231543f,credit,Sales Tax or Value Added Tax (VAT) collected from customers but not yet remitted
+65081,Income Tax Payable,54506f3f-d065-4068-9b1c-ea81d231543f,credit,Income taxes owed by the company but not yet paid
+71001,Ordinary Share Capital,39a0bb4a-fae3-4eab-bdac-fcf2794476a5,credit,The value of shares issued to shareholders with no special privileges
+71010,Preference Share Capital,39a0bb4a-fae3-4eab-bdac-fcf2794476a5,credit,"The value of shares issued with preferential rights, such as fixed dividends or priority in liquidation"
+71020,Share Premium,39a0bb4a-fae3-4eab-bdac-fcf2794476a5,credit,The excess value received over the par value of the shares issued during conversion
+71030,Additional Paid-in Capital,39a0bb4a-fae3-4eab-bdac-fcf2794476a5,credit,Paid in capital injected into the business over and above the authorised ordinary share capital
+72001,Retained Earnings,8f84a613-1b9b-412b-a29e-168e542b7467,credit,Cumulative earnings retained in the company after dividends.
+73001,Revaluation Surplus,f1ee9996-005d-4b7d-804d-9c61437f9f82,credit,Revaluation gains
+73002,Unrealized Gains/Losses on Investments,f1ee9996-005d-4b7d-804d-9c61437f9f82,credit,Gains or losses not included in net income but recognized in equity.
+74001,Stock Options (Employee Equity Plans),230cef7a-ed92-4eef-b76b-2b7cbfa43d6c,credit,Stock options granted to employees as part of equity compensation plans.
+81100,Product Sales,16527f50-d94a-4fb5-bdfb-86ad51ebaa7e,credit,Revenue from the sale of goods
+81200,Service Revenue,16527f50-d94a-4fb5-bdfb-86ad51ebaa7e,credit,Revenue from the sale of services
+81300,Recurring Revenue,16527f50-d94a-4fb5-bdfb-86ad51ebaa7e,credit,"Revenue generated from licenses, subscription and memberships."
+81400,Donations & Grant Income,16527f50-d94a-4fb5-bdfb-86ad51ebaa7e,credit,Income from grants and/or donations. Typically for nonprofits
+82010,Discounts Allowed,89028f2e-2935-4d6f-add6-bed5354d2f50,credit,Reductions in income due to discounts given to customers or clients
+82020,Sales Returns and Allowances,89028f2e-2935-4d6f-add6-bed5354d2f50,credit,Revenue reductions due to returns of goods sold or allowances for defective goods or services
+83101,Interest income,3901ec6d-91b5-449b-8805-e71526dd8450,credit,"Finance Income: Revenue earned from interest on bank deposits, loans to others, or investments in interest-bearing securities"
+83102,Dividend Income,3901ec6d-91b5-449b-8805-e71526dd8450,credit,Finance Income: Revenue earned from dividends paid by shares or equity investments in other companies
+83103,Foreign Exchange Gains (Realised),3901ec6d-91b5-449b-8805-e71526dd8450,credit,Finance Income: Gains from currency exchange rate movements
+83301,Rental Income,6760059c-be41-4d66-bb1d-d1cb5994588b,credit,Non-operating Income: Revenue from renting out property or equipment
+83302,Gains on Asset Disposals,6760059c-be41-4d66-bb1d-d1cb5994588b,credit,Non-operating Income: Profit from selling company assets
+83309,Other Miscellaneous Income,6760059c-be41-4d66-bb1d-d1cb5994588b,credit,"Non-operating Income: Income from non-core, irregular, or one-off activities"
+91100,Cost of Goods Sold (COGS),605362fc-58e5-436d-805e-008d6313f4bb,debit,Direct costs related to providing services
+91200,Cost of Services,605362fc-58e5-436d-805e-008d6313f4bb,debit,Cost of producing or purchasing the goods sold
+91300,Other Cost of Sales,605362fc-58e5-436d-805e-008d6313f4bb,debit,Costs related to hosting and maintaining servers.
+92101,Salaries and Wages,a1a658a0-7b31-4f2b-b5d0-978da055763c,debit,"Compensation paid to employees for their work, including base pay and overtime"
+92102,Employer Pension Contributions,a1a658a0-7b31-4f2b-b5d0-978da055763c,debit,Employer contributions to employee pension or retirement plans
+92103,Employee Health Maintenance Costs,a1a658a0-7b31-4f2b-b5d0-978da055763c,debit,Expenses for employee health insurance and wellness programs
+92104,Employee Training and Development Expenses,a1a658a0-7b31-4f2b-b5d0-978da055763c,debit,Costs for employee training programs and professional development
+92105,Bonus and Allowances,a1a658a0-7b31-4f2b-b5d0-978da055763c,debit,Payments for performance bonuses and additional allowances
+92106,Stock-Based Compensation,a1a658a0-7b31-4f2b-b5d0-978da055763c,debit,Expenses for stock options and equity awards provided to employees
+92109,Other Employee Benefits,a1a658a0-7b31-4f2b-b5d0-978da055763c,debit,Miscellaneous employee benefits not covered by other accounts
+92201,Marketing and Advertising Expenses,23b862cb-00cd-463b-8efb-b1e68ee3c3fa,debit,"Costs for promoting products or services, including ads, digital marketing, and campaigns"
+92301,Rent,9458fa43-3c15-4e63-918d-8c54ad1b3fcd,debit,Expenses for leasing office space or other properties used by the company
+92321,Insurance,9458fa43-3c15-4e63-918d-8c54ad1b3fcd,debit,Premiums paid for business insurance coverage
+92341,"Light, Power and Electricity Expenses",9458fa43-3c15-4e63-918d-8c54ad1b3fcd,debit,Costs for electricity and lighting used in business operations
+92342,Motor Vehicle Fuel Expenses,9458fa43-3c15-4e63-918d-8c54ad1b3fcd,debit,Fuel costs for company-owned vehicles used for business activities
+92343,Diesel and Fuel Expenses,9458fa43-3c15-4e63-918d-8c54ad1b3fcd,debit,Costs for diesel and other fuels used in generators or machinery (operations)
+92401,Repairs and Maintenance - PPE,7b683e39-579b-475f-bed6-0313735b8082,debit,"Expenses for maintaining and repairing property, plant, and equipment"
+92402,Repairs and Maintenance - Motor Vehicles,7b683e39-579b-475f-bed6-0313735b8082,debit,Costs for maintaining and repairing company-owned vehicles
+92403,Repairs and Maintenance - Others,7b683e39-579b-475f-bed6-0313735b8082,debit,Maintenance costs for other assets not classified as PPE or vehicles
+92501,Audit Fees,27d0095c-b6d9-436e-889e-28a336a60227,debit,Fees paid to auditors for financial audit services
+92502,Accounting Fees,27d0095c-b6d9-436e-889e-28a336a60227,debit,Payments to accountants for bookkeeping and financial reporting services
+92503,Legal Fees,27d0095c-b6d9-436e-889e-28a336a60227,debit,"Costs for legal services, including contracts, disputes, and consultations"
+92509,Other Consulting Fees,27d0095c-b6d9-436e-889e-28a336a60227,debit,Fees paid to external consultants for professional advice and services
+92601,Telephone and Internet Expenses,9a03e2e3-9b78-4cc7-ba42-54125ea61d3b,debit,Costs for telephone services and internet connectivity used by the business
+92602,IT and Software Expenses,9a03e2e3-9b78-4cc7-ba42-54125ea61d3b,debit,Expenses related to IT infrastructure and software.
+92603,SaaS Subscriptions,9a03e2e3-9b78-4cc7-ba42-54125ea61d3b,debit,Costs related to software as a service (SaaS) subscriptions.
+92604,Cloud Hosting Services,9a03e2e3-9b78-4cc7-ba42-54125ea61d3b,debit,Expenses incurred for cloud hosting services.
+92605,Data and Security Services,9a03e2e3-9b78-4cc7-ba42-54125ea61d3b,debit,Costs related to data protection and security services.
+92606,Customer Support Costs,9a03e2e3-9b78-4cc7-ba42-54125ea61d3b,debit,Expenses incurred for providing customer support.
+92607,Marketing Automation Expenses,9a03e2e3-9b78-4cc7-ba42-54125ea61d3b,debit,Costs for marketing automation tools and services.
+92701,Local Transport Expenses,9261acd9-ab25-4804-bc89-7581223b1fb8,debit,"Costs for local transportation such as taxis, public transport, or company vehicles for business purposes"
+92702,International Travel Expenses,9261acd9-ab25-4804-bc89-7581223b1fb8,debit,"Expenses for international business travel, including flights and related travel costs"
+92703,Hotel and Accommodation Expenses,9261acd9-ab25-4804-bc89-7581223b1fb8,debit,Costs for lodging and accommodation during business trips
+92801,Depreciation Expense,79170de2-df5f-4ef3-ab13-9260e0d5fe0d,debit,Allocation of the cost of tangible assets over their useful life
+92802,Amortisation Expense,79170de2-df5f-4ef3-ab13-9260e0d5fe0d,debit,Allocation of the cost of intangible assets over their useful life
+92901,Bank Charges,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,"Fees charged by banks for account maintenance, transfers, and other financial services"
+92902,Directors' Fees and Allowances,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,Compensation and allowances paid to company directors for their services
+92903,Office Supplies,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,"Costs for materials used in the office, such as paper, pens, and other stationery"
+92904,Welfare and Entertainment Expenses,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,"Costs for employee welfare activities and entertainment, including staff events and celebrations"
+92905,Corporate Giftings,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,"Expenses for merch, gifts given to clients, partners, or employees for corporate purposes"
+92906,Printing and Stationery,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,Costs for printing documents and purchasing stationery items for the office
+92908,Charitable Donations,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,Contributions made by the company to charitable organisations or causes
+92909,Research and Development Costs,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,Expenses incurred in the research and development of new products or services
+92910,General Provisions,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,General provisions for anticipated liabilities or losses not yet realised
+92911,Specific Provisions,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,"Provisions made for known liabilities or losses, such as legal disputes or warranties"
+92912,Miscellaneous Expenses,dfd8c5bb-3b03-4466-88c7-c4075c419d86,debit,Miscellaneous expenses not categorized elsewhere.
+94101,Interest Expense,3a2a0a25-cd2c-4b9b-baf2-b3a46d78c2be,debit,"Costs incurred from borrowing funds, including loan interest and credit facility fees"
+94102,Foreign Exchange Losses (Realised),3a2a0a25-cd2c-4b9b-baf2-b3a46d78c2be,debit,Losses from currency exchange rate fluctuations realized during transactions
+95101,Impairment Loss,cfcd5b51-348b-4b92-8045-dc6485bca69e,debit,Losses recognized when the value of an asset falls below its carrying amount
+95102,Loss on Asset Disposals,cfcd5b51-348b-4b92-8045-dc6485bca69e,debit,Losses incurred when selling or disposing of assets at a price lower than their book value
+96101,Income Tax Expense,26d7dc5c-e1f7-4159-8786-dac74a0f20d1,debit,Taxes payable by the company on its taxable income for the period

@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 interface CompanyData {
+  id?: string;
   name: string;
   countryId: number;
   reportingCurrencyId: number;
@@ -20,13 +21,14 @@ export async function createCompanyWithCOA(
   createdById: number
 ): Promise<CreateCompanyWithCOAResponse> {
   try {
-    const { name, countryId, reportingCurrencyId } = companyData;
+    const { id, name, countryId, reportingCurrencyId } = companyData;
 
     // Start a Prisma transaction to ensure atomicity
     const company = await prisma.$transaction(async (prisma: any) => {
       // 1. Create the company
       const newCompany = await prisma.company.create({
         data: {
+          id,
           name,
           countryId,
           reportingCurrencyId,

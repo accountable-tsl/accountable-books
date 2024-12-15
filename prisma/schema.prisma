@@ -15,7 +15,7 @@ datasource db {
 }
 
 model Role {
-  id          Int      @id @default(autoincrement())
+  id          String   @id @default(uuid())
   name        String   @unique
   description String?
   users       User[]   @relation(name: "UserRole")
@@ -34,7 +34,7 @@ model User {
   phoneNumber                   String?
   status                        String                 @default("active")
   role                          Role                   @relation(name: "UserRole", fields: [roleId], references: [id])
-  roleId                        Int
+  roleId                        String
   profileImage                  String?
   companies                     UserCompany[]          @relation(name: "UserCompanies")
   createdCompanies              Company[]              @relation("CompanyCreator")
@@ -50,15 +50,15 @@ model User {
 }
 
 model Company {
-  id                  Int           @id @default(autoincrement())
+  id                  String        @id @default(uuid())
   name                String
   website             String?
   industry            String?
   teamSize            String?
   revenue             String?
-  countryId           Int
+  countryId           String
   country             Country       @relation(name: "CompanyCountry", fields: [countryId], references: [id])
-  reportingCurrencyId Int
+  reportingCurrencyId String
   reportingCurrency   Currency      @relation(name: "CompanyCurrency", fields: [reportingCurrencyId], references: [id])
   createdById         String
   createdBy           User          @relation(name: "CompanyCreator", fields: [createdById], references: [id])
@@ -75,7 +75,7 @@ model Company {
 
 model UserCompany {
   userId    String
-  companyId Int
+  companyId String
   role      String
   joinedAt  DateTime @default(now())
   user      User     @relation("UserCompanies", fields: [userId], references: [id])
@@ -86,19 +86,21 @@ model UserCompany {
 }
 
 model Currency {
-  id           Int           @id @default(autoincrement())
-  code         String        @unique
-  name         String        @unique
-  symbol       String
-  companies    Company[]     @relation("CompanyCurrency")
-  coa          Coa[]         @relation("COACurrency")
-  bankAccounts BankAccount[] @relation("BankAccountCurrency")
+  id                  String          @id @default(uuid())
+  code                String          @unique
+  name                String          @unique
+  symbol              String
+  companies           Company[]       @relation("CompanyCurrency")
+  coa                 Coa[]           @relation("COACurrency")
+  bankAccounts        BankAccount[]   @relation("BankAccountCurrency")
+  exchangeRatesBase   ExchangeRates[] @relation("BaseCurrency")
+  exchangeRatesTarget ExchangeRates[] @relation("TargetCurrency")
 
   @@index([code])
 }
 
 model Country {
-  id        Int       @id @default(autoincrement())
+  id        String    @id @default(uuid())
   code      String    @unique
   name      String
   phoneCode String
@@ -109,7 +111,7 @@ model Country {
 }
 
 model FinancialStatement {
-  id             Int              @id @default(autoincrement())
+  id             String           @id @default(uuid())
   statementKey   String           @unique
   usGaapLabel    String
   ifrsLabel      String
@@ -123,38 +125,38 @@ enum DebitCredit {
 }
 
 model AccountElement {
-  id                   Int                @id @default(autoincrement())
+  id                   String             @id @default(uuid())
   elementName          String
   defaultSide          DebitCredit
-  parentId             Int?
+  parentId             String?
   parent               AccountElement?    @relation("ParentChildRelation", fields: [parentId], references: [id]) // Self-relation
   children             AccountElement[]   @relation("ParentChildRelation") // To define the reverse relation
-  financialStatementId Int
+  financialStatementId String
   financialStatement   FinancialStatement @relation(name: "FsElement", fields: [financialStatementId], references: [id])
   description          String?
   accountType          AccountType[]      @relation("TypeElement")
 }
 
 model AccountType {
-  id               Int             @id @default(autoincrement())
+  id               String          @id @default(uuid())
   typeName         String          @unique @db.VarChar(255)
-  accountElementId Int
+  accountElementId String
   accountElement   AccountElement? @relation(name: "TypeElement", fields: [accountElementId], references: [id])
   description      String?         @db.VarChar(255)
   coa              Coa[]           @relation("COAAccountType")
 }
 
 model Coa {
-  id                  Int                  @id @default(autoincrement())
+  id                  String               @id @default(uuid())
   accountCode         String?
   accountName         String
   description         String?
-  accountTypeId       Int
+  accountTypeId       String
   accountType         AccountType          @relation(name: "COAAccountType", fields: [accountTypeId], references: [id])
   defaultSide         DebitCredit
-  currencyId          Int
+  currencyId          String
   currency            Currency             @relation(name: "COACurrency", fields: [currencyId], references: [id])
-  companyId           Int
+  companyId           String
   company             Company              @relation(name: "CompanyCOA", fields: [companyId], references: [id])
   isActive            Boolean              @default(true)
   balance             Decimal              @default(0)
@@ -171,11 +173,11 @@ model Coa {
 }
 
 model CoaTemplate {
-  id            Int         @id @default(autoincrement())
+  id            String      @id @default(uuid())
   templateName  String
   accountCode   String
   accountName   String
-  accountTypeId Int
+  accountTypeId String
   defaultSide   DebitCredit
   description   String?
   createdAt     DateTime    @default(now())
@@ -203,28 +205,28 @@ enum BankAccountType {
 }
 
 model Bank {
-  id           Int           @id @default(autoincrement())
+  id           String        @id @default(uuid())
   name         String
   bankLogo     String?
-  countryId    Int
+  countryId    String
   country      Country       @relation(name: "BankCountry", fields: [countryId], references: [id])
   bankAccounts BankAccount[] @relation("BankStatements")
 }
 
 model BankAccount {
   id                 String                 @id @default(uuid())
-  bankId             Int
+  bankId             String
   bank               Bank                   @relation(name: "BankStatements", fields: [bankId], references: [id])
   displayName        String
   bankAccountType    BankAccountType
   bankAccountNo      String
   bankBalance        Decimal                @default(0)
   lastReconciled     DateTime?
-  currencyId         Int
+  currencyId         String
   currency           Currency               @relation(name: "BankAccountCurrency", fields: [currencyId], references: [id])
-  companyId          Int
+  companyId          String
   company            Company                @relation(name: "CompanyBankAccounts", fields: [companyId], references: [id])
-  coaId              Int?                   @unique
+  coaId              String?                @unique
   accountInCOA       Coa?                   @relation("BankCoaAccount", fields: [coaId], references: [id])
   transactionBatches BankTransactionBatch[] @relation("Transaction Batches")
   transactions       BankTransaction[]      @relation("Transaction Bank Account")
@@ -309,7 +311,7 @@ model AccountTransaction {
   exchangeRate      Decimal
   amount            Decimal
   project           String?
-  coaAccountId      Int
+  coaAccountId      String
   coaAccount        Coa                      @relation(name: "CoaTransaction", fields: [coaAccountId], references: [id])
   bankTransactionId String?                  @unique
   bankTransaction   BankTransaction?         @relation(name: "MatchedTransaction", fields: [bankTransactionId], references: [id])
@@ -351,7 +353,7 @@ model JournalTransaction {
   amount         Decimal
   journalBatchId String
   journalBatch   JournalBatch @relation(name: "JournalTransactions", fields: [journalBatchId], references: [id])
-  coaAccountId   Int
+  coaAccountId   String
   coaAccount     Coa          @relation(name: "JournalCOA", fields: [coaAccountId], references: [id])
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -374,4 +376,18 @@ model RecurrenceDetails {
   startDate      DateTime
   endDate        DateTime?
   nextRun        DateTime?
+}
+
+model ExchangeRates {
+  id               String   @id @default(uuid())
+  date             DateTime
+  baseCurrencyId   String
+  baseCurrency     Currency @relation("BaseCurrency", fields: [baseCurrencyId], references: [id])
+  targetCurrencyId String
+  targetCurrency   Currency @relation("TargetCurrency", fields: [targetCurrencyId], references: [id])
+  rate             Decimal
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([baseCurrencyId, targetCurrencyId, date])
 }

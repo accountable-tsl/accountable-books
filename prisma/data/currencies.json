@@ -1,24 +1,24 @@
 [
   {
-    "id": 1,
+    "id": "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
     "name": "Naira",
     "code": "NGN",
     "symbol": "₦"
   },
   {
-    "id": 2,
+    "id": "f3a1b0b1-c658-4af8-b5d0-b93467829a4d",
     "name": "US Dollar",
     "code": "USD",
     "symbol": "$"
   },
   {
-    "id": 3,
+    "id": "1b18aa40-0e93-466a-a8c1-5d9fdd4e0810",
     "name": "British Pounds",
     "code": "GBP",
     "symbol": "£"
   },
   {
-    "id": 4,
+    "id": "0213b00e-900c-4a08-856b-a03b63092dda",
     "name": "Euro",
     "code": "EUR",
     "symbol": "€"

@@ -38,6 +38,7 @@ export async function getSingleBankAccount(companyId: number, id: string) {
   try {
     const bankAccount = await prisma.bankAccount.findFirst({
       where: { companyId, id },
+      include: { bank: true, currency: true },
     });
 
     if (!bankAccount) {

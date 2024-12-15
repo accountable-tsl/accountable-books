@@ -21,7 +21,7 @@ CREATE TYPE "RecurrenceFrequency" AS ENUM ('DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY
 
 -- CreateTable
 CREATE TABLE "Role" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -39,7 +39,7 @@ CREATE TABLE "User" (
     "password" TEXT NOT NULL,
     "phoneNumber" TEXT,
     "status" TEXT NOT NULL DEFAULT 'active',
-    "roleId" INTEGER NOT NULL,
+    "roleId" TEXT NOT NULL,
     "profileImage" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -50,14 +50,14 @@ CREATE TABLE "User" (
 
 -- CreateTable
 CREATE TABLE "Company" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "website" TEXT,
     "industry" TEXT,
     "teamSize" TEXT,
     "revenue" TEXT,
-    "countryId" INTEGER NOT NULL,
-    "reportingCurrencyId" INTEGER NOT NULL,
+    "countryId" TEXT NOT NULL,
+    "reportingCurrencyId" TEXT NOT NULL,
     "createdById" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -69,7 +69,7 @@ CREATE TABLE "Company" (
 -- CreateTable
 CREATE TABLE "UserCompany" (
     "userId" TEXT NOT NULL,
-    "companyId" INTEGER NOT NULL,
+    "companyId" TEXT NOT NULL,
     "role" TEXT NOT NULL,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -78,7 +78,7 @@ CREATE TABLE "UserCompany" (
 
 -- CreateTable
 CREATE TABLE "Currency" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "symbol" TEXT NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE "Currency" (
 
 -- CreateTable
 CREATE TABLE "Country" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "phoneCode" TEXT NOT NULL,
@@ -100,7 +100,7 @@ CREATE TABLE "Country" (
 
 -- CreateTable
 CREATE TABLE "FinancialStatement" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "statementKey" TEXT NOT NULL,
     "usGaapLabel" TEXT NOT NULL,
     "ifrsLabel" TEXT NOT NULL,
@@ -111,11 +111,11 @@ CREATE TABLE "FinancialStatement" (
 
 -- CreateTable
 CREATE TABLE "AccountElement" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "elementName" TEXT NOT NULL,
     "defaultSide" "DebitCredit" NOT NULL,
-    "parentId" INTEGER,
-    "financialStatementId" INTEGER NOT NULL,
+    "parentId" TEXT,
+    "financialStatementId" TEXT NOT NULL,
     "description" TEXT,
 
     CONSTRAINT "AccountElement_pkey" PRIMARY KEY ("id")
@@ -123,9 +123,9 @@ CREATE TABLE "AccountElement" (
 
 -- CreateTable
 CREATE TABLE "AccountType" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "typeName" VARCHAR(255) NOT NULL,
-    "accountElementId" INTEGER NOT NULL,
+    "accountElementId" TEXT NOT NULL,
     "description" VARCHAR(255),
 
     CONSTRAINT "AccountType_pkey" PRIMARY KEY ("id")
@@ -133,14 +133,14 @@ CREATE TABLE "AccountType" (
 
 -- CreateTable
 CREATE TABLE "Coa" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "accountCode" TEXT,
     "accountName" TEXT NOT NULL,
     "description" TEXT,
-    "accountTypeId" INTEGER NOT NULL,
+    "accountTypeId" TEXT NOT NULL,
     "defaultSide" "DebitCredit" NOT NULL,
-    "currencyId" INTEGER NOT NULL,
-    "companyId" INTEGER NOT NULL,
+    "currencyId" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "balance" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "bankAccountId" TEXT,
@@ -152,11 +152,11 @@ CREATE TABLE "Coa" (
 
 -- CreateTable
 CREATE TABLE "CoaTemplate" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "templateName" TEXT NOT NULL,
     "accountCode" TEXT NOT NULL,
     "accountName" TEXT NOT NULL,
-    "accountTypeId" INTEGER NOT NULL,
+    "accountTypeId" TEXT NOT NULL,
     "defaultSide" "DebitCredit" NOT NULL,
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -167,10 +167,10 @@ CREATE TABLE "CoaTemplate" (
 
 -- CreateTable
 CREATE TABLE "Bank" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "bankLogo" TEXT,
-    "countryId" INTEGER NOT NULL,
+    "countryId" TEXT NOT NULL,
 
     CONSTRAINT "Bank_pkey" PRIMARY KEY ("id")
 );
@@ -178,15 +178,15 @@ CREATE TABLE "Bank" (
 -- CreateTable
 CREATE TABLE "BankAccount" (
     "id" TEXT NOT NULL,
-    "bankId" INTEGER NOT NULL,
+    "bankId" TEXT NOT NULL,
     "displayName" TEXT NOT NULL,
     "bankAccountType" "BankAccountType" NOT NULL,
     "bankAccountNo" TEXT NOT NULL,
     "bankBalance" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "lastReconciled" TIMESTAMP(3),
-    "currencyId" INTEGER NOT NULL,
-    "companyId" INTEGER NOT NULL,
-    "coaId" INTEGER,
+    "currencyId" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "coaId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -251,7 +251,7 @@ CREATE TABLE "AccountTransaction" (
     "exchangeRate" DECIMAL(65,30) NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
     "project" TEXT,
-    "coaAccountId" INTEGER NOT NULL,
+    "coaAccountId" TEXT NOT NULL,
     "bankTransactionId" TEXT,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "createdBy" TEXT,
@@ -286,7 +286,7 @@ CREATE TABLE "JournalTransaction" (
     "side" "DebitCredit" NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
     "journalBatchId" TEXT NOT NULL,
-    "coaAccountId" INTEGER NOT NULL,
+    "coaAccountId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -303,6 +303,19 @@ CREATE TABLE "RecurrenceDetails" (
     "nextRun" TIMESTAMP(3),
 
     CONSTRAINT "RecurrenceDetails_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ExchangeRates" (
+    "id" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "baseCurrencyId" TEXT NOT NULL,
+    "targetCurrencyId" TEXT NOT NULL,
+    "rate" DECIMAL(65,30) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ExchangeRates_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -398,6 +411,9 @@ CREATE INDEX "JournalTransaction_journalBatchId_idx" ON "JournalTransaction"("jo
 -- CreateIndex
 CREATE UNIQUE INDEX "RecurrenceDetails_journalBatchId_key" ON "RecurrenceDetails"("journalBatchId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "ExchangeRates_baseCurrencyId_targetCurrencyId_date_key" ON "ExchangeRates"("baseCurrencyId", "targetCurrencyId", "date");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -484,3 +500,9 @@ ALTER TABLE "JournalTransaction" ADD CONSTRAINT "JournalTransaction_coaAccountId
 
 -- AddForeignKey
 ALTER TABLE "RecurrenceDetails" ADD CONSTRAINT "RecurrenceDetails_journalBatchId_fkey" FOREIGN KEY ("journalBatchId") REFERENCES "JournalBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExchangeRates" ADD CONSTRAINT "ExchangeRates_baseCurrencyId_fkey" FOREIGN KEY ("baseCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExchangeRates" ADD CONSTRAINT "ExchangeRates_targetCurrencyId_fkey" FOREIGN KEY ("targetCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
