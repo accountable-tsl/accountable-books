@@ -14,10 +14,14 @@
   }
 
   &-summary {
-    @apply flex justify-between items-center p-4 rounded-md;
-    font-size: 0.85rem;
-    background-color: $white;
-    box-shadow: rgba(0, 0, 0, 0.05) 0px 0px 0px 1px;
+    display: none;
+
+    @include desktop {
+      @apply flex justify-between items-center p-4 rounded-md;
+      font-size: 0.85rem;
+      background-color: $white;
+      box-shadow: rgba(0, 0, 0, 0.05) 0px 0px 0px 1px;
+    }
 
     &__item {
       @apply flex gap-4;
@@ -38,6 +42,10 @@
         @apply px-1 rounded;
         transition: all 0.5s ease;
 
+        &:hover {
+          opacity: 0.8;
+        }
+
         &--disabled {
           opacity: 0.5;
         }
@@ -46,6 +54,11 @@
       &-select {
         @apply flex-grow rounded;
         transition: all 0.5s ease;
+        max-width: 15rem;
+
+        &:hover {
+          opacity: 0.8;
+        }
 
         &--disabled {
           opacity: 0.5;
@@ -160,6 +173,7 @@
 
         & > span {
           align-self: end;
+          flex-shrink: 0;
         }
 
         &--label1 {
@@ -178,15 +192,48 @@
         &--min {
           border: 1px solid $neutral-gray;
           @apply rounded pl-2;
+          max-width: 8rem;
 
           &::placeholder {
             @apply pl-1;
           }
         }
+      }
+    }
 
-        &--max {
-          border: 1px solid red;
-        }
+    &__bottom {
+      flex-grow: 1;
+    }
+  }
+
+  &-table {
+    height: 50%;
+    width: 100%;
+
+    &__bank {
+      @apply flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap;
+
+      &--img {
+        height: 1.5rem;
+        width: 1.5rem;
+        border-radius: 100%;
+        box-shadow: rgba(0, 0, 0, 0.02) 0px 0px 0px 1px;
+      }
+
+      &--name {
+        @apply overflow-hidden text-ellipsis whitespace-nowrap;
+      }
+    }
+
+    &__amount {
+      @apply text-right;
+
+      &--plus {
+        color: $success;
+      }
+
+      &--minus {
+        color: $error;
       }
     }
   }

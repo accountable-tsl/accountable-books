@@ -27,3 +27,13 @@ export const getBankAccounts = async (companyId: string | number) => {
   );
   return response.data;
 };
+
+export const getBankAccountById = async (
+  companyId: any,
+  bankAccountId: string
+) => {
+  const response = await axios.get(
+    `${backendUrl}/api/${companyId}/bank-accounts/${bankAccountId}`
+  );
+  return response.data;
+};

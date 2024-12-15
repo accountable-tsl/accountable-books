@@ -21,7 +21,7 @@ export const postBankTransactions = async (
 export const retrieveBankTransactions = async (
   companyId: string | number,
   filters: BankTransactionFilters
-): Promise<ServerResponseFormat> => {
+) => {
   const response = await axios.get(
     `${backendUrl}/api/${companyId}/bank-accounts/transactions/all`,
     { params: filters }

@@ -12,18 +12,28 @@ import { routes } from "../../utils/routes";
 import { DatePicker } from "antd";
 
 import "./CategorisationEngine.scss";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RangePickerProps } from "antd/es/date-picker";
 import { AgGridReact } from "ag-grid-react";
 import { retrieveBankTransactions } from "../../services/BankTransactionServices";
 import {
   BankAccount,
   BankAccounts,
+  BankTransaction,
   BankTransactionFilters,
 } from "../../types/types";
-import { formatNumericValue } from "../../utils/utils";
+import { formatDate, formatNumericValue } from "../../utils/utils";
 import Decimal from "decimal.js";
-import { getBankAccounts } from "../../services/BankAccountServices";
+import {
+  getBankAccountById,
+  getBankAccounts,
+} from "../../services/BankAccountServices";
+import {
+  ColDef,
+  ICellRendererParams,
+  ValueGetterParams,
+} from "ag-grid-community";
+import numeral from "numeral";
 
 const catEngineColumns = [
   "Bank",
@@ -46,7 +56,89 @@ const columnDefinitions = catEngineColumns.map((item) => ({ field: item }));
 export default function CategorisationEngine() {
   const { companyId } = useCompany();
 
-  const [colDefs, setColDefs] = useState(columnDefinitions);
+  const [columnDefs, setColumnDefs] = useState([
+    {
+      headerName: "Bank",
+      cellClass: "catengine-table__bank",
+      cellRenderer: (params: ICellRendererParams) => {
+        const bankAccount = params.data?.bankAccount;
+        const bank = params.data?.bankAccount?.bank;
+
+        if (!bank) {
+          return "";
+        }
+
+        return (
+          <div className="catengine-table__bank">
+            <img
+              className="catengine-table__bank--img"
+              src={bank.bankLogo}
+              alt={`${bank.name} logo`}
+            />
+            <span className="catengine-table__bank--name">
+              {bankAccount.displayName}
+            </span>
+          </div>
+        );
+      },
+      pinned: "left",
+      width: 150,
+    },
+    {
+      headerName: "Date",
+      valueGetter: (p: ValueGetterParams) => {
+        if (!p.data || !p.data["date"]) return "";
+        const dateValue = new Date(p.data["date"]);
+        if (isNaN(dateValue.getTime())) return "Invalid Date";
+        return formatDate(dateValue, "dd MMM yyyy");
+      },
+      width: 120,
+      pinned: "left",
+    },
+    { headerName: "FS Date", width: 120 },
+    { headerName: "Contact", field: "payee", flex: 1, minWidth: 120 },
+    { headerName: "Reference", field: "reference", flex: 1, minWidth: 120 },
+    { headerName: "Project", field: "project", flex: 1, minWidth: 120 },
+    {
+      headerName: "Description",
+      field: "description",
+      flex: 3,
+      minWidth: 200,
+      pinned: "left",
+    },
+    {
+      headerName: "Curr",
+      valueGetter: (p: ValueGetterParams) =>
+        `${p.data?.bankAccount?.currency?.code} (${p.data?.bankAccount?.currency?.symbol})`,
+      width: 90,
+    },
+    {
+      headerName: "Bank Amount",
+      width: 150,
+      cellRenderer: (params: ICellRendererParams) => {
+        if (!params.data.amount) return "";
+        const amount = new Decimal(params.data?.amount);
+        const amount2 = numeral(params.data?.amount).format("0,0.00");
+        return (
+          <div
+            className={`catengine-table__amount ${
+              amount.greaterThan(0)
+                ? "catengine-table__amount--plus"
+                : "catengine-table__amount--minus"
+            }`}
+          >
+            {amount2}
+          </div>
+        );
+      },
+      cellClass: "catengine-table__amount",
+      sortable: true,
+    },
+    { headerName: "Exr", width: 80 },
+    { headerName: "Amount", pinned: "right", width: 150 },
+    { headerName: "Account", pinned: "right", flex: 4, minWidth: 200 },
+  ]);
+
   const [error, setError] = useState<string | null>(null);
   const [fetchedBankTransactions, setFetchedBankTransactions] = useState([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
@@ -62,6 +154,8 @@ export default function CategorisationEngine() {
     startDate?: Date;
     endDate?: Date;
   }>({});
+
+  const [rowHeight, setRowHeight] = useState(37.5);
 
   const catEngineBreadcrumbs = [
     {
@@ -84,53 +178,10 @@ export default function CategorisationEngine() {
         startDate: value[0]?.toDate(),
         endDate: value[1]?.toDate(),
       });
-
-      console.log("Start Date:", value[0]?.format("YYYY-MM-DD"));
-      console.log("End Date:", value[1]?.format("YYYY-MM-DD"));
     } else {
       setFilterDates({});
     }
   };
-
-  let filters: BankTransactionFilters = {};
-  if (filterDates.startDate) filters.startDate = filterDates.startDate;
-  if (filterDates.endDate) filters.endDate = filterDates.endDate;
-  if (selectedBankAccount) filters.bankAccountId = selectedBankAccount.id;
-  if (filterAmounts.minAmount)
-    filters.minAmount = new Decimal(filterAmounts.minAmount);
-  if (filterAmounts.maxAmount)
-    filters.maxAmount = new Decimal(filterAmounts.maxAmount);
-
-  const getBankTransactions = async (
-    companyId: string | number,
-    filters: BankTransactionFilters
-  ) => {
-    const response = await retrieveBankTransactions(companyId, filters);
-    if (response.success) {
-      console.log(response);
-      setFetchedBankTransactions(response.data?.transactions);
-    }
-  };
-
-  const fetchBankAccounts = async (companyId: string | number) => {
-    const response = await getBankAccounts(companyId);
-    if (response.success) {
-      setBankAccounts(response.data.bankAccounts);
-    } else {
-      console.error("Failed to fetch bank accounts:", response);
-      setError("Failed to fetch bank accounts. Please try again later.");
-    }
-  };
-
-  useEffect(() => {
-    try {
-      // getBankTransactions();
-    } catch (error) {}
-  }, [companyId, filterDates]); //bankAccountId,
-
-  useEffect(() => {
-    companyId && fetchBankAccounts(companyId);
-  }, [companyId]);
 
   const handleAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -156,7 +207,86 @@ export default function CategorisationEngine() {
     setSelectedBankAccount(null);
   };
 
-  console.log(selectedBankAccount);
+  // Memoized filters to prevent unnecessary re-renders
+  const filters = useMemo(() => {
+    const newFilters: BankTransactionFilters = {};
+    if (filterDates.startDate) newFilters.startDate = filterDates.startDate;
+    if (filterDates.endDate) newFilters.endDate = filterDates.endDate;
+    if (selectedBankAccount) newFilters.bankAccountId = selectedBankAccount.id;
+    if (filterAmounts.minAmount)
+      newFilters.minAmount = new Decimal(filterAmounts.minAmount);
+    if (filterAmounts.maxAmount)
+      newFilters.maxAmount = new Decimal(filterAmounts.maxAmount);
+    return newFilters;
+  }, [filterDates, selectedBankAccount, filterAmounts]);
+
+  const getBankTransactions = useCallback(
+    async (filters: BankTransactionFilters) => {
+      try {
+        const response = await retrieveBankTransactions(companyId, filters);
+        if (response.success) {
+          if (response.data.transactions.length === 0) {
+            setError("No transactions matching filter conditions found");
+          } else {
+            setFetchedBankTransactions(response.data.transactions);
+          }
+        } else {
+          setError("Failed to fetch transactions");
+        }
+      } catch (error) {
+        console.error("Error fetching bank transactions:", error);
+        setError("An error occurred while fetching bank transactions.");
+      }
+    },
+    [companyId]
+  );
+
+  const fetchBankAccounts = useCallback(async () => {
+    try {
+      const response = await getBankAccounts(companyId);
+      if (response.success) {
+        setBankAccounts(response.data.bankAccounts);
+      } else {
+        setError("Failed to fetch bank accounts. Please try again later.");
+      }
+    } catch (error) {
+      console.error("Error fetching bank accounts:", error);
+      setError("An error occurred while fetching bank accounts.");
+    }
+  }, [companyId]);
+
+  const uniqueBankAccountIds = useMemo(() => {
+    return Array.from(
+      new Set(
+        fetchedBankTransactions.map((tx: BankTransaction) => tx.bankAccountId)
+      )
+    ).filter((id) => id);
+  }, [fetchedBankTransactions]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    const controller = new AbortController();
+    const fetchTransactions = async () => {
+      await getBankTransactions(filters);
+    };
+    fetchTransactions();
+
+    return () => controller.abort();
+  }, [companyId, filters, getBankTransactions]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    fetchBankAccounts();
+  }, [companyId, fetchBankAccounts]);
+
+  const returnBankDetails = async (bankAccountId: string) => {
+    const result = await getBankAccountById(companyId, bankAccountId);
+    if (result.success) {
+      return result;
+    } else {
+      return {};
+    }
+  };
 
   return (
     <div className="catengine">
@@ -311,13 +441,16 @@ export default function CategorisationEngine() {
               <div className="catengine-body__top-view">
                 <div className="catengine-body__top-rowheight">
                   <div className="catengine-body__top-rowheight--item">
-                    <Menu strokeWidth={1} />
+                    <Menu strokeWidth={1} onClick={() => setRowHeight(30)} />
                   </div>
-                  <div className="catengine-body__top-rowheight--item">
+                  <div
+                    className="catengine-body__top-rowheight--item"
+                    onClick={() => setRowHeight(37.5)}
+                  >
                     <Menu strokeWidth={2.5} />
                   </div>
                   <div className="catengine-body__top-rowheight--item">
-                    <Menu strokeWidth={4} />
+                    <Menu strokeWidth={4} onClick={() => setRowHeight(45)} />
                   </div>
                 </div>
                 <div className="catengine-body__top-vr"></div>
@@ -328,8 +461,14 @@ export default function CategorisationEngine() {
             </div>
           </div>
           <div className="catengine-body__bottom">
-            <div className="catengine-table">
-              {/* <AgGridReact rowData={rowData} columnDefs={colDefs} /> */}
+            <div className="catengine-table ag-theme-quartz">
+              <AgGridReact
+                rowData={fetchedBankTransactions}
+                columnDefs={columnDefs}
+                // headerHeight={30}
+                animateRows={true}
+                rowHeight={rowHeight}
+              />
             </div>
           </div>
         </div>

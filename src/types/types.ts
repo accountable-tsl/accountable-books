@@ -116,6 +116,7 @@ export interface BankTransaction {
   isReconciled?: boolean;
   bankTransactionBatchId?: string | number;
   accountTransactionId?: string | number;
+  bankAccountId: string;
 }
 
 export interface BankTransactionBatch {
