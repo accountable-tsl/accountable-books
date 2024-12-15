@@ -7,12 +7,10 @@ export const checkCompanyId = async (
   res: Response,
   next: NextFunction
 ) => {
-  const companyIdStr =
+  const companyId =
     req.params.companyId || req.body.companyId || req.query.companyId;
 
-  const companyId = Number(companyIdStr);
-
-  if (!companyId || companyId < 0 || isNaN(companyId)) {
+  if (!companyId || companyId.length > 40) {
     return res.status(400).json({ message: "Invalid Company ID" });
   }
 

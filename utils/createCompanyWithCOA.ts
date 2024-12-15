@@ -5,8 +5,8 @@ const prisma = new PrismaClient();
 interface CompanyData {
   id?: string;
   name: string;
-  countryId: number;
-  reportingCurrencyId: number;
+  countryId: string;
+  reportingCurrencyId: string;
 }
 
 interface CreateCompanyWithCOAResponse {
@@ -18,7 +18,7 @@ interface CreateCompanyWithCOAResponse {
 
 export async function createCompanyWithCOA(
   companyData: CompanyData,
-  createdById: number
+  createdById: string
 ): Promise<CreateCompanyWithCOAResponse> {
   try {
     const { id, name, countryId, reportingCurrencyId } = companyData;
