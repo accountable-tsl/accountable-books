@@ -100,6 +100,8 @@ export async function retrieveBankTransactions(req: Request, res: Response) {
     const maxAmount = filters.maxAmount
       ? new Decimal(filters.maxAmount as string)
       : null;
+    const page = filters.page ? parseInt(filters.page as string) : null;
+    const pageSize = filters.page ? parseInt(filters.pageSize as string) : null;
 
     const errors = [];
     if (filters.startDate && !startDate) errors.push("startDate: Check format");
@@ -113,6 +115,8 @@ export async function retrieveBankTransactions(req: Request, res: Response) {
       ...(endDate && { endDate }),
       ...(minAmount && { minAmount }),
       ...(maxAmount && { maxAmount }),
+      ...(page && { page }),
+      ...(pageSize && { pageSize }),
     };
 
     const response = await getBankTransactions(
@@ -121,7 +125,13 @@ export async function retrieveBankTransactions(req: Request, res: Response) {
     );
 
     if (response.success) {
-      return res.status(200).json({ success: response.success, message: response.message, data: response.data });
+      return res
+        .status(200)
+        .json({
+          success: response.success,
+          message: response.message,
+          data: response.data,
+        });
     } else {
       return res.status(400).json({
         success: false,

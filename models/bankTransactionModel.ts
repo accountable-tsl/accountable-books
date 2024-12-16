@@ -242,8 +242,8 @@ export async function getBankTransactions(
       where,
       include: { bankAccount: { include: { bank: true, currency: true } } },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      // skip: (page - 1) * pageSize,
+      // take: pageSize,
     });
 
     const total = await prisma.bankTransaction.count({ where }); //Total no of transactions matching filter

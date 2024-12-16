@@ -11,6 +11,7 @@ import currenciesData from "./data/currencies.json";
 import { createCompanyWithCOA } from "../utils/createCompanyWithCOA";
 import { createNewExRates } from "../models/exRateModel";
 import { Decimal } from "@prisma/client/runtime/library";
+import { createNewBankAccount } from "../models/bankAccountModel";
 
 const prisma = new PrismaClient();
 
@@ -777,37 +778,49 @@ async function main() {
     });
   }
 
-  const testBankAccount = await prisma.bankAccount.createMany({
-    data: [
-      {
-        id: "a4fe60b3-1d59-42ce-8081-3e5545579b9c",
-        bankId: "499dda6d-865c-4be7-a3a3-c486ad3868e9",
-        displayName: "Demo Salary Acc *6789",
-        bankAccountType: "CHECKINGS_CURRENT",
-        bankAccountNo: "0123456789",
-        currencyId: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
-        companyId: "b5012c0b-bfca-4cec-8fca-c56369d1ccb4",
-      },
-      {
-        id: "81d56dde-3903-4b83-b492-08ae922c2d58",
-        bankId: "1c620e90-e2bb-44fb-8d2a-d58751a0b966",
-        displayName: "Demo Ops Acc *0011",
-        bankAccountType: "CHECKINGS_CURRENT",
-        bankAccountNo: "0123450011",
-        currencyId: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
-        companyId: "b5012c0b-bfca-4cec-8fca-c56369d1ccb4",
-      },
-      {
-        id: "9ce95e76-4b8c-474a-9ee0-df2581a7ac2c",
-        bankId: "499dda6d-865c-4be7-a3a3-c486ad3868e9",
-        displayName: "Demo USD Acc *0000",
-        bankAccountType: "CHECKINGS_CURRENT",
-        bankAccountNo: "1123450000",
-        currencyId: "f3a1b0b1-c658-4af8-b5d0-b93467829a4d",
-        companyId: "b5012c0b-bfca-4cec-8fca-c56369d1ccb4",
-      },
-    ],
-  });
+  const bankAccountData = [
+    {
+      id: "a4fe60b3-1d59-42ce-8081-3e5545579b9c",
+      bankId: "499dda6d-865c-4be7-a3a3-c486ad3868e9",
+      displayName: "Demo Salary Acc *6789",
+      bankAccountType: "CHECKINGS_CURRENT",
+      bankAccountNo: "0123456789",
+      currencyId: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
+      companyId: "b5012c0b-bfca-4cec-8fca-c56369d1ccb4",
+    },
+    {
+      id: "81d56dde-3903-4b83-b492-08ae922c2d58",
+      bankId: "1c620e90-e2bb-44fb-8d2a-d58751a0b966",
+      displayName: "Demo Ops Acc *0011",
+      bankAccountType: "CHECKINGS_CURRENT",
+      bankAccountNo: "0123450011",
+      currencyId: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
+      companyId: "b5012c0b-bfca-4cec-8fca-c56369d1ccb4",
+    },
+    {
+      id: "9ce95e76-4b8c-474a-9ee0-df2581a7ac2c",
+      bankId: "499dda6d-865c-4be7-a3a3-c486ad3868e9",
+      displayName: "Demo USD Acc *0000",
+      bankAccountType: "CHECKINGS_CURRENT",
+      bankAccountNo: "1123450000",
+      currencyId: "f3a1b0b1-c658-4af8-b5d0-b93467829a4d",
+      companyId: "b5012c0b-bfca-4cec-8fca-c56369d1ccb4",
+    },
+  ];
+
+  const newBankAccounts = async () => {
+    try {
+      const accounts = await Promise.all(
+        bankAccountData.map((tx) => createNewBankAccount(tx.companyId, tx))
+      );
+      return accounts;
+    } catch (error) {
+      console.error("Error creating bank accounts:", error);
+      throw error;
+    }
+  };
+
+  await newBankAccounts();
 }
 
 main()

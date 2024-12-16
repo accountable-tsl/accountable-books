@@ -81,7 +81,7 @@ export async function createACompany(
   }
 
   try {
-    const result = await prisma.$transaction(async (prisma:any) => {
+    const result = await prisma.$transaction(async (prisma: any) => {
       // Create the company
       const newCompany = await prisma.company.create({
         data: {
@@ -114,7 +114,7 @@ export async function createACompany(
 
       //Create COA entries for the new company
       await prisma.coa.createMany({
-        data: defaultCOA.map((account:any) => ({
+        data: defaultCOA.map((account: any) => ({
           ...account,
           companyId: newCompany.id,
           currencyId: newCompany.reportingCurrencyId,
@@ -145,44 +145,45 @@ export async function createACompany(
 
 export async function getCompanies() {
   try {
-    const companies = await prisma.company.findMany({      
+    const companies = await prisma.company.findMany({
       select: {
-      id: true,
-      name: true,
-      website: true,
-      industry: true,
-      teamSize: true,
-      revenue: true,
-      country: {
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          phoneCode: true,
-          flag: true,
-          continent: true,
+        id: true,
+        name: true,
+        website: true,
+        industry: true,
+        teamSize: true,
+        revenue: true,
+        country: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            phoneCode: true,
+            flag: true,
+            continent: true,
+          },
         },
-      },
-      reportingCurrency: {
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          symbol: true,
+        reportingCurrency: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            symbol: true,
+          },
         },
-      },
-      createdBy: {
-        select: {
-          id: true,
-          firstname: true,
-          lastname: true,
+        createdBy: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+          },
         },
+        createdAt: true,
+        updatedAt: true,
       },
-      createdAt: true,
-      updatedAt: true,
-    }});
+    });
 
-    const formattedCompanies = companies.map((company:any) => ({
+    const formattedCompanies = companies.map((company: any) => ({
       id: company.id,
       name: company.name,
       website: company.website,
@@ -209,8 +210,8 @@ export async function getCompanies() {
     return {
       success: true,
       message: "Successfully retrieved all companies",
-      data: formattedCompanies
-    }
+      data: formattedCompanies,
+    };
   } catch (error: any) {
     console.error("Error retrieving companies", error);
     return {

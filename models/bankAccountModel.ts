@@ -4,7 +4,7 @@ import { BankAccountType } from "@prisma/client/wasm";
 
 const prisma = new PrismaClient();
 
-export async function getAllBankAccounts(companyId: number) {
+export async function getAllBankAccounts(companyId: string) {
   try {
     const allBankAccounts = await prisma.bankAccount.findMany({
       where: { companyId },
@@ -34,7 +34,7 @@ export async function getAllBankAccounts(companyId: number) {
   }
 }
 
-export async function getSingleBankAccount(companyId: number, id: string) {
+export async function getSingleBankAccount(companyId: string, id: string) {
   try {
     const bankAccount = await prisma.bankAccount.findFirst({
       where: { companyId, id },
@@ -63,15 +63,15 @@ export async function getSingleBankAccount(companyId: number, id: string) {
 }
 
 interface CreateBankData {
-  bankId: number;
+  bankId: string;
   displayName: string;
   bankAccountType: BankAccountType;
   bankAccountNo: string;
-  currencyId: number;
+  currencyId: string;
 }
 
 export async function createNewBankAccount(
-  companyId: number,
+  companyId: string,
   data: CreateBankData
 ) {
   try {
