@@ -9,6 +9,8 @@ import bankData from "./data/banks.json";
 import countriesData from "./data/countries.json";
 import currenciesData from "./data/currencies.json";
 import { createCompanyWithCOA } from "../utils/createCompanyWithCOA";
+import { createNewExRates } from "../models/exRateModel";
+import { Decimal } from "@prisma/client/runtime/library";
 
 const prisma = new PrismaClient();
 
@@ -31,16 +33,15 @@ async function seedDefaultCOAFromCSV(): Promise<void> {
     fs.createReadStream(defaultCOAFilePath)
       .pipe(csv())
       .on("data", (data: { [key: string]: string }) => {
-        const normalizedData = normalizeData(data);
-        if (normalizedData.accountname && normalizedData.accounttypeid) {
-          defaultCOAData.push(normalizedData);
+        const normalisedData = normalizeData(data);
+        if (normalisedData.accountname && normalisedData.accounttypeid) {
+          defaultCOAData.push(normalisedData);
         }
       })
       .on("error", (error) => {
         console.error("Error reading CSV file:", error);
       })
       .on("end", async () => {
-        console.log("CSV file successfully processed");
         try {
           for (let data of defaultCOAData) {
             await prisma.coaTemplate.create({
@@ -54,7 +55,44 @@ async function seedDefaultCOAFromCSV(): Promise<void> {
               },
             });
           }
-          console.log("CSV data seeded successfully");
+          resolve();
+        } catch (error) {
+          console.error("Error seeding data:", error);
+          reject(error);
+        }
+      });
+  });
+}
+
+async function seedExchangeRates(): Promise<void> {
+  const exRateFilePath = path.join(__dirname, "data", "ng_exrates.csv");
+  const exchangeRateData: any[] = [];
+
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(exRateFilePath)
+      .pipe(csv())
+      .on("data", (data: { [key: string]: string }) => {
+        if (
+          data.date &&
+          data.baseCurrencyId &&
+          data.targetCurrencyId &&
+          data.rate
+        ) {
+          exchangeRateData.push({
+            date: new Date(data.date),
+            baseCurrencyId: data.baseCurrencyId,
+            targetCurrencyId: data.targetCurrencyId,
+            rate: new Decimal(data.rate),
+          });
+        }
+      })
+      .on("error", (error) => {
+        console.error("Error reading CSV file:", error);
+        reject(error);
+      })
+      .on("end", async () => {
+        try {
+          const result = await createNewExRates(exchangeRateData);
           resolve();
         } catch (error) {
           console.error("Error seeding data:", error);
@@ -700,6 +738,12 @@ async function main() {
   };
 
   await seedBanks();
+
+  try {
+    await seedExchangeRates();
+  } catch (error) {
+    console.error("Failed to seed exchange rates:", error);
+  }
 
   const testCompany = await createCompanyWithCOA(
     {

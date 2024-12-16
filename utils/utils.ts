@@ -23,8 +23,8 @@ export function simpleInputFormatDetect(input: any): string {
     input instanceof File
       ? "file"
       : typeof input === "string"
-      ? "string"
-      : "unknown";
+        ? "string"
+        : "unknown";
 
   if (
     inputType === "file" &&
@@ -61,4 +61,28 @@ export function toTitleCase(text: string) {
  */
 export function truncateText(input: string, maxLength: number) {
   return input.length > maxLength ? input.slice(0, maxLength) + "..." : input;
+}
+
+/**
+ * Identifies objects in an array that are missing specific required keys.
+ * @param {Object[]} array - The array of objects to validate.
+ * @param {string[]} requiredKeys - The list of keys that each object must have.
+ * @returns {Object[]} An array of objects containing the index of invalid objects and the missing keys.
+
+ */
+export function findInvalidObjects(array: any[], requiredKeys: string[]) {
+  const invalidObjects: any[] = [];
+
+  array.forEach((item, index) => {
+    const missingKeys = requiredKeys.filter((key) => !(key in item));
+
+    if (missingKeys.length > 0) {
+      invalidObjects.push({
+        index,
+        missingKeys,
+      });
+    }
+  });
+
+  return invalidObjects;
 }

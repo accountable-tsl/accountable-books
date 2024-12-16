@@ -8,6 +8,7 @@ import bankRoutes from "./routes/bankRoutes";
 import bankAccountRoutes from "./routes/bankAccountRoutes";
 import currenciesRoutes from "./routes/currenciesRoutes";
 import bankTransactionRoutes from "./routes/bankTransactionRoutes";
+import exRateRoutes from "./routes/exRateRoutes";
 import { swaggerUi, specs } from "./swagger";
 
 const PORT = process.env.PORT;
@@ -23,6 +24,7 @@ app.use(cors({ origin: FRONTEND_URL }));
 app.use("/api/:companyId/coa", coaRoutes);
 app.use("/api/companies/", companiesRoutes);
 app.use("/api/currencies", currenciesRoutes);
+app.use("/api", exRateRoutes);
 app.use("/api/banks", bankRoutes);
 app.use("/api/:companyId/bank-accounts/transactions", bankTransactionRoutes);
 app.use("/api/:companyId/bank-accounts", bankAccountRoutes);

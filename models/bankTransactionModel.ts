@@ -97,7 +97,6 @@ export async function postBankTransactions(
       const balanceAfter = balanceBefore.plus(batchTotal);
 
       if (!balanceAfter.equals(currentRunningBalance)) {
-        console.log(preparedTransactions);
         return {
           success: false,
           message: "Arithmetic error occured. Inaccurate balance",
@@ -156,13 +155,13 @@ export async function postBankTransactions(
         });
       }
 
-      console.log({
-        balanceBefore: balanceBefore,
-        batchTotal: batchTotal,
-        balanceAfter: balanceAfter,
-        currentRunningBalance: currentRunningBalance,
-        runningBalance: runningBalance,
-      });
+      // console.log({
+      //   balanceBefore: balanceBefore,
+      //   batchTotal: batchTotal,
+      //   balanceAfter: balanceAfter,
+      //   currentRunningBalance: currentRunningBalance,
+      //   runningBalance: runningBalance,
+      // });
 
       //7. Update bankAccount balance and balanceAfter
       await prisma.bankAccount.update({

@@ -36,9 +36,6 @@ export async function createCompanyWithCOA(
         },
       });
 
-      // Log after company creation to confirm it was created
-      console.log("Company created:", newCompany);
-
       // 2. Fetch the default COA template
       const defaultCOA = await prisma.coaTemplate.findMany({
         where: { templateName: "Default Template" },
@@ -56,8 +53,6 @@ export async function createCompanyWithCOA(
         throw new Error("Default COA template not found");
       }
 
-      console.log(defaultCOA.length);
-
       // 3. Create COA entries for the new company
       const insertedCOAs = await prisma.coa.createMany({
         data: defaultCOA.map((account: any) => ({
@@ -71,8 +66,6 @@ export async function createCompanyWithCOA(
         })),
       });
 
-      console.log(`Inserted ${insertedCOAs.count} COAs`);
-      console.log("Default COA created for company:", newCompany.id);
       return newCompany;
     });
 
