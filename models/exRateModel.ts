@@ -31,9 +31,27 @@ export async function getExchangeRate(
   targetCurrencyId: string
 ) {
   try {
+    const normalizedDate = new Date(date);
+    normalizedDate.setUTCHours(0, 0, 0, 0);
+
     const result = await prisma.exchangeRates.findFirst({
       where: { date, baseCurrencyId, targetCurrencyId },
     });
+
+    if (!result) {
+      const closestRate = await prisma.exchangeRates.findFirst({
+        where: {
+          date: { lte: normalizedDate },
+          baseCurrencyId,
+          targetCurrencyId,
+        },
+        orderBy: { date: "desc" },
+      });
+
+      return closestRate
+        ? { success: true, data: closestRate }
+        : { success: false, message: "No exchange rate found" };
+    }
 
     return {
       success: true,
