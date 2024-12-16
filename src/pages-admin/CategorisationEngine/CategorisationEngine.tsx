@@ -223,15 +223,17 @@ export default function CategorisationEngine() {
   const getBankTransactions = useCallback(
     async (filters: BankTransactionFilters) => {
       try {
-        const response = await retrieveBankTransactions(companyId, filters);
-        if (response.success) {
-          if (response.data.transactions.length === 0) {
-            setError("No transactions matching filter conditions found");
+        if (companyId) {
+          const response = await retrieveBankTransactions(companyId, filters);
+          if (response.success) {
+            if (response.data.transactions.length === 0) {
+              setError("No transactions matching filter conditions found");
+            } else {
+              setFetchedBankTransactions(response.data.transactions);
+            }
           } else {
-            setFetchedBankTransactions(response.data.transactions);
+            setError("Failed to fetch transactions");
           }
-        } else {
-          setError("Failed to fetch transactions");
         }
       } catch (error) {
         console.error("Error fetching bank transactions:", error);
@@ -243,11 +245,13 @@ export default function CategorisationEngine() {
 
   const fetchBankAccounts = useCallback(async () => {
     try {
-      const response = await getBankAccounts(companyId);
-      if (response.success) {
-        setBankAccounts(response.data.bankAccounts);
-      } else {
-        setError("Failed to fetch bank accounts. Please try again later.");
+      if (companyId) {
+        const response = await getBankAccounts(companyId);
+        if (response.success) {
+          setBankAccounts(response.data.bankAccounts);
+        } else {
+          setError("Failed to fetch bank accounts. Please try again later.");
+        }
       }
     } catch (error) {
       console.error("Error fetching bank accounts:", error);
@@ -465,9 +469,10 @@ export default function CategorisationEngine() {
               <AgGridReact
                 rowData={fetchedBankTransactions}
                 columnDefs={columnDefs}
-                // headerHeight={30}
+                headerHeight={30}
                 animateRows={true}
                 rowHeight={rowHeight}
+                pagination={true}
               />
             </div>
           </div>

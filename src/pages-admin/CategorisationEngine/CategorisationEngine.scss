@@ -2,7 +2,7 @@
 @use "../../styles/partials/mixins" as *;
 
 .catengine {
-  height: -webkit-fill-available;
+  height: calc(100vh - 70px);
   @apply flex flex-col px-4;
 
   &-hr {
@@ -10,7 +10,7 @@
   }
 
   &-container {
-    @apply h-full;
+    height: 90%;
   }
 
   &-summary {
@@ -28,12 +28,10 @@
     }
 
     &__lines {
-      flex-grow: 0.5;
       justify-content: space-between;
     }
 
     &__bank {
-      flex-grow: 1.25;
       background-color: rgba($color: $tertiary, $alpha: 0.1);
       @apply px-2 py-1 rounded gap-6;
 
@@ -52,7 +50,7 @@
       }
 
       &-select {
-        @apply flex-grow rounded;
+        @apply flex-grow rounded text-ellipsis whitespace-nowrap;
         transition: all 0.5s ease;
         max-width: 15rem;
 
@@ -67,7 +65,6 @@
     }
 
     &__amount {
-      flex-grow: 0.5;
       justify-content: space-between;
     }
   }
@@ -207,15 +204,15 @@
   }
 
   &-table {
-    height: 50%;
+    height: 90%;
     width: 100%;
 
     &__bank {
       @apply flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap;
 
       &--img {
-        height: 1.5rem;
-        width: 1.5rem;
+        height: 1.25rem;
+        width: 1.25rem;
         border-radius: 100%;
         box-shadow: rgba(0, 0, 0, 0.02) 0px 0px 0px 1px;
       }

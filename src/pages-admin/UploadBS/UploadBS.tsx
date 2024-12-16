@@ -301,10 +301,10 @@ export default function UploadBS() {
       if (result?.success === true) {
         setTimeout(() => setUploadSuccessful(true), 500);
         setTimeout(() => {
-          setCurrStep(1);
           setBankData([]);
           setSelectedBankAccount(null);
-          setUploadSuccessful(null);
+          setUploadSuccessful("Unknown");
+          setCurrStep(1);
         }, 1000);
       } else {
         console.error("Transaction upload failed:", result);
