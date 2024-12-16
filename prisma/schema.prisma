@@ -226,8 +226,8 @@ model BankAccount {
   currency           Currency               @relation(name: "BankAccountCurrency", fields: [currencyId], references: [id])
   companyId          String
   company            Company                @relation(name: "CompanyBankAccounts", fields: [companyId], references: [id])
-  coaId              String?                @unique
-  accountInCOA       Coa?                   @relation("BankCoaAccount", fields: [coaId], references: [id])
+  coaId              String                 @unique
+  accountInCOA       Coa                    @relation("BankCoaAccount", fields: [coaId], references: [id])
   transactionBatches BankTransactionBatch[] @relation("Transaction Batches")
   transactions       BankTransaction[]      @relation("Transaction Bank Account")
   createdAt          DateTime               @default(now())
@@ -270,6 +270,7 @@ model BankTransaction {
   additionalComments     String?
   transactionSide        DebitCredit?
   amount                 Decimal
+  defaultExchangeRate    Decimal
   balance                Decimal
   absoluteAmount         Decimal               @default(0)
   isCategorised          Boolean               @default(false)

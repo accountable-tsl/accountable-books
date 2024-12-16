@@ -24,3 +24,28 @@ export async function createNewExRates(data: ExRateItem[]) {
     return { success: false, message: "Failed to create exchange rates" };
   }
 }
+
+export async function getExchangeRate(
+  date: Date,
+  baseCurrencyId: string,
+  targetCurrencyId: string
+) {
+  try {
+    const result = await prisma.exchangeRates.findFirst({
+      where: { date, baseCurrencyId, targetCurrencyId },
+    });
+
+    return {
+      success: true,
+      message: "Rate retrieved successfully",
+      data: result,
+    };
+  } catch (error) {
+    console.error("Error getting exchange rate:", error);
+    return {
+      success: false,
+      message: "Failed to create exchange rates",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}

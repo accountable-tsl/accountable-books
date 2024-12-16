@@ -1,5 +1,8 @@
 import { DebitCredit, Prisma, PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
+import { getSingleExchangeRate } from "../controllers/exRateController";
+import { getExchangeRate } from "./exRateModel";
+import { determineExchangeRate } from "../utils/utils";
 const prisma = new PrismaClient();
 
 export interface BankTransaction {
@@ -54,7 +57,7 @@ export async function postBankTransactions(
       //1. Fetch the relevant bank account
       const bankAccount = await prisma.bankAccount.findUnique({
         where: { id: bankAccountId },
-        include: { transactionBatches: true },
+        include: { transactionBatches: true, company: true },
       });
 
       if (!bankAccount)
@@ -80,18 +83,34 @@ export async function postBankTransactions(
       let currentRunningBalance = balanceBefore;
       let batchTotal = new Decimal(0);
 
-      const preparedTransactions = bankTransactions.map((transaction) => {
-        batchTotal = batchTotal.plus(transaction.amount);
-        currentRunningBalance = currentRunningBalance.plus(transaction.amount);
+      const preparedTransactions = await Promise.all(
+        bankTransactions.map(async (transaction) => {
+          batchTotal = batchTotal.plus(transaction.amount);
+          currentRunningBalance = currentRunningBalance.plus(
+            transaction.amount
+          );
+          const exr = await determineExchangeRate(
+            transaction.date,
+            bankAccount.company.reportingCurrencyId,
+            bankAccount.currencyId
+          );
 
-        return {
-          ...transaction,
-          amount: new Decimal(transaction.amount),
-          absoluteAmount: new Decimal(transaction.amount).abs(),
-          balance: new Decimal(currentRunningBalance),
-          bankAccountId: bankAccountId,
-        };
-      });
+          if (exr === null) {
+            throw new Error(
+              `Exchange rate not available for ${transaction.date}: ${bankAccount.company.reportingCurrencyId} to ${bankAccount.currencyId}`
+            );
+          }
+
+          return {
+            ...transaction,
+            amount: new Decimal(transaction.amount),
+            absoluteAmount: new Decimal(transaction.amount).abs(),
+            balance: new Decimal(currentRunningBalance),
+            bankAccountId: bankAccountId,
+            defaultExchangeRate: exr,
+          };
+        })
+      );
 
       //4. Confirm that balanceAfter is same as currentRunningBalance
       const balanceAfter = balanceBefore.plus(batchTotal);
@@ -120,6 +139,7 @@ export async function postBankTransactions(
               date: transaction.date,
               description: transaction.description || null,
               amount: transaction.amount,
+              defaultExchangeRate: transaction.defaultExchangeRate,
               absoluteAmount: transaction.absoluteAmount,
               payee: transaction.payee || null,
               reference: transaction.reference || null,

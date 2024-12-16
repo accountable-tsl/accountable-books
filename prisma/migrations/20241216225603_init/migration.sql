@@ -186,7 +186,7 @@ CREATE TABLE "BankAccount" (
     "lastReconciled" TIMESTAMP(3),
     "currencyId" TEXT NOT NULL,
     "companyId" TEXT NOT NULL,
-    "coaId" TEXT,
+    "coaId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -222,6 +222,7 @@ CREATE TABLE "BankTransaction" (
     "additionalComments" TEXT,
     "transactionSide" "DebitCredit",
     "amount" DECIMAL(65,30) NOT NULL,
+    "defaultExchangeRate" DECIMAL(65,30) NOT NULL,
     "balance" DECIMAL(65,30) NOT NULL,
     "absoluteAmount" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "isCategorised" BOOLEAN NOT NULL DEFAULT false,
@@ -463,7 +464,7 @@ ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_currencyId_fkey" FOREIGN K
 ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_coaId_fkey" FOREIGN KEY ("coaId") REFERENCES "Coa"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_coaId_fkey" FOREIGN KEY ("coaId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_bankAccountId_fkey" FOREIGN KEY ("bankAccountId") REFERENCES "BankAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
