@@ -314,7 +314,13 @@ export default function UploadBS() {
     } catch (error) {
       console.error("An unexpected error occurred during upload:", error);
       setError("An unexpected error occurred. Please try again.");
-      setTimeout(() => setUploadSuccessful(null), 500);
+      setTimeout(() => setUploadSuccessful(false), 500);
+      setTimeout(() => {
+        setBankData([]);
+        setSelectedBankAccount(null);
+        setUploadSuccessful("Unknown");
+        setCurrStep(1);
+      }, 2000);
     }
   };
 

@@ -117,6 +117,7 @@ export interface BankTransaction {
   bankTransactionBatchId?: string | number;
   accountTransactionId?: string | number;
   bankAccountId: string;
+  bankAccount?: BankAccount;
 }
 
 export interface BankTransactionBatch {
@@ -185,5 +186,28 @@ export interface Coa {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export interface Transaction {
+  id?: string | number;
+  date: string;
+  payee?: string;
+  contact?: string;
+  reference?: string;
+  description?: string;
+  amount: string | number;
+  transactionSide?: DebitCredit;
+  source?: BankTransactionSource;
+  isReconciled?: boolean;
+  bankTransactionBatchId?: string | number;
+  accountTransactionId?: string | number;
+  bankAccountId: string;
+  bankAccount?: BankAccount;
+  fsDate?: string | Date;
+  project?: any;
+  defaultExchangeRate?: any;
+  account: Coa;
+}
+
+export type TransactionKey = keyof Transaction;
 
 export type BankAccounts = BankAccount[];

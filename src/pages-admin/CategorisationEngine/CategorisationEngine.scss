@@ -200,12 +200,66 @@
 
     &__bottom {
       flex-grow: 1;
+      height: calc(90% - 155px);
     }
   }
 
   &-table {
     height: 90%;
-    width: 100%;
+    @apply border-collapse flex flex-col w-full text-sm;
+
+    &__header {
+      @apply sticky top-0 z-10 bg-white rounded-t-md flex flex-nowrap justify-between items-center px-4 py-1.5 pl-1.5 border-b border-gray-200 h-10;
+
+      &:hover {
+        background-color: transparent !important;
+      }
+    }
+
+    &__row {
+      @apply flex flex-nowrap justify-between items-center px-4 py-1.5 pl-1.5 border-b border-gray-200 h-10;
+      animation: row-fade-in 0.3s ease-in-out;
+
+      &:hover {
+        background-color: rgba($color: $highlight, $alpha: 0.1);
+      }
+
+      &--selected {
+        background-color: rgba($color: $highlight, $alpha: 0.08);
+      }
+    }
+
+    &__cell {
+      @apply block overflow-hidden text-ellipsis whitespace-nowrap relative;
+      width: calc(100% / 12);
+
+      &--pinned {
+        &-left {
+          @apply sticky left-0 z-10;
+        }
+
+        &-right {
+          @apply sticky right-0 z-10;
+        }
+      }
+
+      &--checkbox {
+        @apply w-8 text-center sticky left-0 z-10;
+      }
+    }
+
+    &__resize {
+      @apply cursor-col-resize absolute right-0 top-0 h-full w-1.5;
+      background-color: red;
+    }
+
+    &__body {
+      @apply block overflow-y-auto overflow-x-hidden;
+    }
+
+    &__account {
+      height: 100%;
+    }
 
     &__bank {
       @apply flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap;
@@ -244,4 +298,15 @@
 .ant-picker-input > input {
   font-size: 0.75rem !important;
   line-height: inherit !important;
+}
+
+@keyframes row-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -14,13 +14,14 @@ import { DatePicker } from "antd";
 import "./CategorisationEngine.scss";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RangePickerProps } from "antd/es/date-picker";
-import { AgGridReact } from "ag-grid-react";
-import { retrieveBankTransactions } from "../../services/BankTransactionServices";
+import { retrieveTransactions } from "../../services/BankTransactionServices";
 import {
   BankAccount,
   BankAccounts,
-  BankTransaction,
   BankTransactionFilters,
+  Coa,
+  Transaction,
+  TransactionKey,
 } from "../../types/types";
 import { formatDate, formatNumericValue } from "../../utils/utils";
 import Decimal from "decimal.js";
@@ -28,134 +29,51 @@ import {
   getBankAccountById,
   getBankAccounts,
 } from "../../services/BankAccountServices";
-import {
-  ColDef,
-  ICellRendererParams,
-  ValueGetterParams,
-} from "ag-grid-community";
+
 import numeral from "numeral";
+import { fetchCompany } from "../../services/CompanyServices";
+import { fetchCoa } from "../../services/CoaServices";
 
-const catEngineColumns = [
-  "Bank",
-  "Date",
-  "FS Date",
-  "Contact",
-  "Reference",
-  "Description",
-  "Projects",
-  "Account",
-  "Curr",
-  "Bank Amount",
-  "Ex. Rate",
-  "Amount",
-  "",
+const catengineHeaders = [
+  { label: "Bank", key: "bankAccount" },
+  { label: "Date", key: "date" },
+  { label: "FS Date", key: "fsDate" },
+  { label: "Contact", key: "contact" },
+  { label: "Reference", key: "reference" },
+  { label: "Project", key: "project" },
+  { label: "Description", key: "description" },
+  { label: "Curr", key: "currency" },
+  { label: "Bank Amount", key: "bankAmount" },
+  { label: "Exr", key: "exchangeRate" },
+  { label: "Amount", key: "amount" },
+  { label: "Account", key: "account" },
 ];
-
-const columnDefinitions = catEngineColumns.map((item) => ({ field: item }));
-
 export default function CategorisationEngine() {
   const { companyId } = useCompany();
-
-  const [columnDefs, setColumnDefs] = useState([
-    {
-      headerName: "Bank",
-      cellClass: "catengine-table__bank",
-      cellRenderer: (params: ICellRendererParams) => {
-        const bankAccount = params.data?.bankAccount;
-        const bank = params.data?.bankAccount?.bank;
-
-        if (!bank) {
-          return "";
-        }
-
-        return (
-          <div className="catengine-table__bank">
-            <img
-              className="catengine-table__bank--img"
-              src={bank.bankLogo}
-              alt={`${bank.name} logo`}
-            />
-            <span className="catengine-table__bank--name">
-              {bankAccount.displayName}
-            </span>
-          </div>
-        );
-      },
-      pinned: "left",
-      width: 150,
-    },
-    {
-      headerName: "Date",
-      valueGetter: (p: ValueGetterParams) => {
-        if (!p.data || !p.data["date"]) return "";
-        const dateValue = new Date(p.data["date"]);
-        if (isNaN(dateValue.getTime())) return "Invalid Date";
-        return formatDate(dateValue, "dd MMM yyyy");
-      },
-      width: 120,
-      pinned: "left",
-    },
-    { headerName: "FS Date", width: 120 },
-    { headerName: "Contact", field: "payee", flex: 1, minWidth: 120 },
-    { headerName: "Reference", field: "reference", flex: 1, minWidth: 120 },
-    { headerName: "Project", field: "project", flex: 1, minWidth: 120 },
-    {
-      headerName: "Description",
-      field: "description",
-      flex: 3,
-      minWidth: 200,
-      pinned: "left",
-    },
-    {
-      headerName: "Curr",
-      valueGetter: (p: ValueGetterParams) =>
-        `${p.data?.bankAccount?.currency?.code} (${p.data?.bankAccount?.currency?.symbol})`,
-      width: 90,
-    },
-    {
-      headerName: "Bank Amount",
-      width: 150,
-      cellRenderer: (params: ICellRendererParams) => {
-        if (!params.data.amount) return "";
-        const amount = new Decimal(params.data?.amount);
-        const amount2 = numeral(params.data?.amount).format("0,0.00");
-        return (
-          <div
-            className={`catengine-table__amount ${
-              amount.greaterThan(0)
-                ? "catengine-table__amount--plus"
-                : "catengine-table__amount--minus"
-            }`}
-          >
-            {amount2}
-          </div>
-        );
-      },
-      cellClass: "catengine-table__amount",
-      sortable: true,
-    },
-    { headerName: "Exr", width: 80 },
-    { headerName: "Amount", pinned: "right", width: 150 },
-    { headerName: "Account", pinned: "right", flex: 4, minWidth: 200 },
-  ]);
 
   const [error, setError] = useState<string | null>(null);
   const [fetchedBankTransactions, setFetchedBankTransactions] = useState([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
   const [selectedBankAccount, setSelectedBankAccount] =
     useState<BankAccount | null>(null);
+  const [coa, setCoa] = useState([]);
+  const [coaLimit, setCoaLimit] = useState(500);
   const [isCategorised, setIsCategorised] = useState();
   const [filterAmounts, setFilterAmounts] = useState({
     minAmount: "",
     maxAmount: "",
   });
-
   const [filterDates, setFilterDates] = useState<{
     startDate?: Date;
     endDate?: Date;
   }>({});
-
-  const [rowHeight, setRowHeight] = useState(37.5);
+  const [companyInfo, setCompanyInfo] = useState(null);
+  const [selectedRows, setSelectedRows] = useState<Transaction[]>([]);
+  const [columnWidths, setColumnWidths] = useState<number[]>(
+    Array(catengineHeaders.length).fill(100)
+  );
+  const [pinnedLeft, setPinnedLeft] = useState<string[]>(["bankAccount"]);
+  const [pinnedRight, setPinnedRight] = useState<string[]>(["amount"]);
 
   const catEngineBreadcrumbs = [
     {
@@ -224,13 +142,9 @@ export default function CategorisationEngine() {
     async (filters: BankTransactionFilters) => {
       try {
         if (companyId) {
-          const response = await retrieveBankTransactions(companyId, filters);
+          const response = await retrieveTransactions(companyId, filters);
           if (response.success) {
-            if (response.data.transactions.length === 0) {
-              setError("No transactions matching filter conditions found");
-            } else {
-              setFetchedBankTransactions(response.data.transactions);
-            }
+            setFetchedBankTransactions(response.data.allTransactions);
           } else {
             setError("Failed to fetch transactions");
           }
@@ -240,7 +154,7 @@ export default function CategorisationEngine() {
         setError("An error occurred while fetching bank transactions.");
       }
     },
-    [companyId]
+    [companyId, filters]
   );
 
   const fetchBankAccounts = useCallback(async () => {
@@ -259,13 +173,71 @@ export default function CategorisationEngine() {
     }
   }, [companyId]);
 
-  const uniqueBankAccountIds = useMemo(() => {
-    return Array.from(
-      new Set(
-        fetchedBankTransactions.map((tx: BankTransaction) => tx.bankAccountId)
-      )
-    ).filter((id) => id);
-  }, [fetchedBankTransactions]);
+  const getCOA = useCallback(async () => {
+    try {
+      if (companyId) {
+        const params = {
+          companyId,
+          limit: coaLimit,
+        };
+        const coa = await fetchCoa(params);
+        if (coa.success && coa.pagination.totalItems > coaLimit) {
+          setCoaLimit(coa.pagination.totalItems);
+        }
+        if (coa.success) {
+          setCoa(coa.data);
+        } else {
+          setError("Failed to fetch COA. Please try again later.");
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching COA:", error);
+      setError("An error occurred while fetching COA.");
+    }
+  }, [companyId]);
+
+  const handleRowClick = (tx: Transaction) => {
+    setSelectedRows((prev) =>
+      prev.some((row) => row.id === tx.id)
+        ? prev.filter((row) => row.id !== tx.id)
+        : [...prev, tx]
+    );
+  };
+
+  const handleResize = (event: React.MouseEvent, colIndex: number) => {
+    const startX = event.clientX;
+    const startWidth = columnWidths[colIndex];
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const newWidth = Math.max(startWidth + deltaX, 50);
+      setColumnWidths((prev) =>
+        prev.map((width, index) => (index === colIndex ? newWidth : width))
+      );
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  useEffect(() => {
+    if (!companyId) return;
+
+    const controller = new AbortController();
+    const getCompanyDetails = async () => {
+      const result = await fetchCompany(companyId);
+      if (result.success) {
+        setCompanyInfo(result.data);
+      }
+    };
+    getCompanyDetails();
+    return () => controller.abort();
+  }, [companyId]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -283,15 +255,22 @@ export default function CategorisationEngine() {
     fetchBankAccounts();
   }, [companyId, fetchBankAccounts]);
 
-  const returnBankDetails = async (bankAccountId: string) => {
-    const result = await getBankAccountById(companyId, bankAccountId);
-    if (result.success) {
-      return result;
-    } else {
-      return {};
-    }
-  };
+  useEffect(() => {
+    if (!companyId) return;
+    getCOA();
+  }, [companyId, coaLimit, getCOA]);
 
+  // useEffect(() => {
+  //   setColumnDefs((prevColumnDefs) =>
+  //     prevColumnDefs.map((col) =>
+  //       col.headerName === "Account"
+  //         ? { ...col, cellEditorParams: { options: coa } }
+  //         : col
+  //     )
+  //   );
+  // }, [coa]);
+
+  console.log(filters);
   return (
     <div className="catengine">
       <Breadcrumb items={catEngineBreadcrumbs} />
@@ -465,15 +444,84 @@ export default function CategorisationEngine() {
             </div>
           </div>
           <div className="catengine-body__bottom">
-            <div className="catengine-table ag-theme-quartz">
-              <AgGridReact
-                rowData={fetchedBankTransactions}
-                columnDefs={columnDefs}
-                headerHeight={30}
-                animateRows={true}
-                rowHeight={rowHeight}
-                pagination={true}
-              />
+            <div className="catengine-table" role="table">
+              <div className="catengine-table__header" role="row">
+                <div className=" catengine-table__cell catengine-table__cell--checkbox">
+                  <input type="checkbox" />
+                </div>
+                {catengineHeaders.map((header, index) => (
+                  <div
+                    key={header.key}
+                    className={`catengine-table__cell catengine-table__cell--${header.key}`}
+                    role="columnheader"
+                    style={{ width: columnWidths[index] }}
+                  >
+                    {header.label}
+                    <span
+                      className="catengine-table__resize"
+                      onMouseDown={(e) => handleResize(e, index)}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="catengine-table__body" role="rowgroup">
+                {fetchedBankTransactions.length === 0 ? (
+                  <div className="catengine-table__no-data">
+                    No Transactions Found
+                  </div>
+                ) : (
+                  fetchedBankTransactions.map((tx: Transaction) => (
+                    <div
+                      key={tx.id}
+                      className={`catengine-table__row ${
+                        selectedRows.some((row) => row.id === tx.id)
+                          ? "catengine-table__row--selected"
+                          : ""
+                      }`}
+                      onClick={() => handleRowClick(tx)}
+                      role="row"
+                    >
+                      <div className=" catengine-table__cell catengine-table__cell--checkbox">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.includes(tx)}
+                        />
+                      </div>
+                      {catengineHeaders.map((header, index) => (
+                        <div
+                          key={`${tx.id}-${header.key}`}
+                          className={`catengine-table__cell catengine-table__cell--${
+                            header.key
+                          } ${
+                            pinnedLeft.includes(header.key)
+                              ? "catengine-table__cell--pinned-left"
+                              : ""
+                          } ${
+                            pinnedRight.includes(header.key)
+                              ? "catengine-table__cell--pinned-right"
+                              : ""
+                          }`}
+                          role="cell"
+                          {...(typeof renderCellContent(header.key, tx, coa) ===
+                            "string" ||
+                          typeof renderCellContent(header.key, tx, coa) ===
+                            "number"
+                            ? {
+                                title: renderCellContent(header.key, tx, coa),
+                              }
+                            : {})}
+                        >
+                          {renderCellContent(header.key, tx, coa)}
+                          <span
+                            className="catengine-table__resize"
+                            onMouseDown={(e) => handleResize(e, index)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -481,3 +529,81 @@ export default function CategorisationEngine() {
     </div>
   );
 }
+export const renderCellContent = (
+  key: TransactionKey | string,
+  tx: Transaction,
+  coa: Coa[]
+) => {
+  switch (key) {
+    case "bankAccount":
+      return (
+        <div className="catengine-table__bank">
+          <img
+            src={tx.bankAccount?.bank?.bankLogo || ""}
+            alt={`${tx.bankAccount?.bank?.name} logo`}
+            className="catengine-table__bank--img"
+          />
+          <span className="catengine-table__bank--name">
+            {tx.bankAccount?.displayName}
+          </span>
+        </div>
+      );
+
+    case "date":
+      return formatDate(new Date(tx.date), "dd MMM yyyy");
+
+    case "fsDate":
+      const fsDate = tx.fsDate ?? tx.date;
+      return fsDate ? formatDate(new Date(fsDate), "dd MMM yyyy") : "N/A";
+
+    case "contact":
+      return tx.payee || tx.contact || "";
+
+    case "reference":
+      return tx.reference || "";
+
+    case "project":
+      return tx.project?.name || "";
+
+    case "description":
+      return tx.description || "";
+
+    case "currency":
+      return `${tx.bankAccount?.currency?.code} (${tx.bankAccount?.currency?.symbol})`;
+
+    case "bankAmount":
+      return numeral(tx.amount).format("0,0.00");
+
+    case "exchangeRate":
+      return numeral(tx.defaultExchangeRate).format("0,0.0000");
+
+    case "amount":
+      const amount = new Decimal(tx.amount).dividedBy(
+        new Decimal(tx.defaultExchangeRate)
+      );
+      return (
+        <div
+          className={`catengine-table__amount ${
+            amount.greaterThan(0)
+              ? "catengine-table__amount--plus"
+              : "catengine-table__amount--minus"
+          }`}
+        >
+          {numeral(amount).format("0,0.00")}
+        </div>
+      );
+
+    case "account":
+      return (
+        <select value={tx.account?.id} className="catengine-table__account">
+          <option value=""></option>
+          {coa.map((account) => (
+            <option key={account.id}>{account.accountName}</option>
+          ))}
+        </select>
+      );
+
+    default:
+      return key in tx ? tx[key] || "N/A" : "N/A";
+  }
+};
