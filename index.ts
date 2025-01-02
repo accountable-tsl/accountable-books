@@ -9,6 +9,8 @@ import bankAccountRoutes from "./routes/bankAccountRoutes";
 import currenciesRoutes from "./routes/currenciesRoutes";
 import bankTransactionRoutes from "./routes/bankTransactionRoutes";
 import exRateRoutes from "./routes/exRateRoutes";
+import transactionRoutes from "./routes/transactionRoutes";
+import accountTransactionRoutes from "./routes/accountTransactionRoutes";
 import { swaggerUi, specs } from "./swagger";
 
 const PORT = process.env.PORT;
@@ -28,6 +30,8 @@ app.use("/api", exRateRoutes);
 app.use("/api/banks", bankRoutes);
 app.use("/api/:companyId/bank-accounts/transactions", bankTransactionRoutes);
 app.use("/api/:companyId/bank-accounts", bankAccountRoutes);
+app.use("/api/:companyId/transactions", transactionRoutes);
+app.use("/api/:companyId/account-transactions", accountTransactionRoutes);
 // app.use("api/users", userRoutes);
 
 app.use(express.static("./public"));

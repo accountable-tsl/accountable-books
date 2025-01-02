@@ -25,13 +25,13 @@ interface BankTransactionBatchData {
   createdById: string;
 }
 
-export interface BankTransactionFilters {
+export interface TransactionFilters {
   startDate?: Date;
   endDate?: Date;
   bankAccountId?: string;
   minAmount?: Decimal;
   maxAmount?: Decimal;
-  isCategorised?: boolean;
+  categorisationStatus?: string;
   isDeleted?: boolean;
   searchQuery?: string;
   transactionSide?: DebitCredit;
@@ -108,6 +108,7 @@ export async function postBankTransactions(
             balance: new Decimal(currentRunningBalance),
             bankAccountId: bankAccountId,
             defaultExchangeRate: exr,
+            createdById,
           };
         })
       );
@@ -137,14 +138,16 @@ export async function postBankTransactions(
           bankTransactions: {
             create: preparedTransactions.map((transaction) => ({
               date: transaction.date,
+              payee: transaction.payee || null,
+              reference: transaction.reference || null,
               description: transaction.description || null,
               amount: transaction.amount,
               defaultExchangeRate: transaction.defaultExchangeRate,
               absoluteAmount: transaction.absoluteAmount,
-              payee: transaction.payee || null,
-              reference: transaction.reference || null,
               balance: transaction.balance,
               bankAccount: { connect: { id: String(bankAccountId) } },
+              createdBy: { connect: { id: String(createdById) } },
+              updatedBy: { connect: { id: String(createdById) } },
               ...(transaction.transactionSide && {
                 transactionSide: transaction.transactionSide,
               }),
@@ -214,7 +217,7 @@ export async function postBankTransactions(
 
 export async function getBankTransactions(
   companyId: string | number,
-  filters: BankTransactionFilters
+  filters: TransactionFilters
 ): Promise<{
   success: boolean;
   message: string;

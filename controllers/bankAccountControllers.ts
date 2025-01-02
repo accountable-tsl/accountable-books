@@ -83,13 +83,11 @@ export async function createBankAccount(req: Request, res: Response) {
     }
 
     const result = await createNewBankAccount(companyId, {
-      bankId: isNaN(parseInt(bankId)) ? bankId : parseInt(bankId),
+      bankId,
       displayName,
       bankAccountType,
       bankAccountNo,
-      currencyId: isNaN(parseInt(currencyId))
-        ? currencyId
-        : parseInt(currencyId),
+      currencyId,
     });
 
     if (result.success) {

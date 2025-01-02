@@ -1,8 +1,11 @@
 -- CreateEnum
-CREATE TYPE "DebitCredit" AS ENUM ('debit', 'credit');
+CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
 
 -- CreateEnum
-CREATE TYPE "BankTransactionStatus" AS ENUM ('CATEGORISED', 'UNCATEGORISED');
+CREATE TYPE "UserCompanyRole" AS ENUM ('ADMIN', 'BOOKKEEPER', 'VIEWER');
+
+-- CreateEnum
+CREATE TYPE "DebitCredit" AS ENUM ('DEBIT', 'CREDIT');
 
 -- CreateEnum
 CREATE TYPE "BankTransactionSource" AS ENUM ('FILE_IMPORT', 'BANK_FEED', 'MANUAL_ENTRY');
@@ -11,13 +14,22 @@ CREATE TYPE "BankTransactionSource" AS ENUM ('FILE_IMPORT', 'BANK_FEED', 'MANUAL
 CREATE TYPE "BankAccountType" AS ENUM ('OTHER', 'CREDIT_CARD', 'DEBIT_CARD', 'SAVINGS', 'CHECKINGS_CURRENT', 'UTILITY');
 
 -- CreateEnum
-CREATE TYPE "AccountTransactionSource" AS ENUM ('BANK', 'JOURNAL');
+CREATE TYPE "CategorisationStatus" AS ENUM ('UNCATEGORISED', 'AUTO_CATEGORISED', 'CATEGORISED');
+
+-- CreateEnum
+CREATE TYPE "TransactionSource" AS ENUM ('BANK', 'MANUAL_JOURNAL', 'SYSTEM');
 
 -- CreateEnum
 CREATE TYPE "JournalStatus" AS ENUM ('DRAFT', 'POSTED');
 
 -- CreateEnum
 CREATE TYPE "RecurrenceFrequency" AS ENUM ('DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY');
+
+-- CreateEnum
+CREATE TYPE "ContactType" AS ENUM ('SUPPLIER', 'CUSTOMER', 'EMPLOYEE');
+
+-- CreateEnum
+CREATE TYPE "ProjectStatus" AS ENUM ('IN_DRAFT', 'ACTIVE', 'ON_HOLD', 'COMPLETED');
 
 -- CreateTable
 CREATE TABLE "Role" (
@@ -26,6 +38,8 @@ CREATE TABLE "Role" (
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Role_pkey" PRIMARY KEY ("id")
 );
@@ -38,12 +52,13 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "phoneNumber" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'active',
+    "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
     "roleId" TEXT NOT NULL,
     "profileImage" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -62,6 +77,7 @@ CREATE TABLE "Company" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "Company_pkey" PRIMARY KEY ("id")
 );
@@ -70,7 +86,7 @@ CREATE TABLE "Company" (
 CREATE TABLE "UserCompany" (
     "userId" TEXT NOT NULL,
     "companyId" TEXT NOT NULL,
-    "role" TEXT NOT NULL,
+    "role" "UserCompanyRole" NOT NULL,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "UserCompany_pkey" PRIMARY KEY ("userId","companyId")
@@ -82,6 +98,10 @@ CREATE TABLE "Currency" (
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "symbol" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Currency_pkey" PRIMARY KEY ("id")
 );
@@ -94,6 +114,10 @@ CREATE TABLE "Country" (
     "phoneCode" TEXT NOT NULL,
     "flag" TEXT,
     "continent" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Country_pkey" PRIMARY KEY ("id")
 );
@@ -105,6 +129,10 @@ CREATE TABLE "FinancialStatement" (
     "usGaapLabel" TEXT NOT NULL,
     "ifrsLabel" TEXT NOT NULL,
     "defaultLabel" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "FinancialStatement_pkey" PRIMARY KEY ("id")
 );
@@ -117,6 +145,10 @@ CREATE TABLE "AccountElement" (
     "parentId" TEXT,
     "financialStatementId" TEXT NOT NULL,
     "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "AccountElement_pkey" PRIMARY KEY ("id")
 );
@@ -127,6 +159,10 @@ CREATE TABLE "AccountType" (
     "typeName" VARCHAR(255) NOT NULL,
     "accountElementId" TEXT NOT NULL,
     "description" VARCHAR(255),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "AccountType_pkey" PRIMARY KEY ("id")
 );
@@ -146,6 +182,8 @@ CREATE TABLE "Coa" (
     "bankAccountId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Coa_pkey" PRIMARY KEY ("id")
 );
@@ -161,6 +199,8 @@ CREATE TABLE "CoaTemplate" (
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "CoaTemplate_pkey" PRIMARY KEY ("id")
 );
@@ -171,6 +211,10 @@ CREATE TABLE "Bank" (
     "name" TEXT NOT NULL,
     "bankLogo" TEXT,
     "countryId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "Bank_pkey" PRIMARY KEY ("id")
 );
@@ -189,6 +233,8 @@ CREATE TABLE "BankAccount" (
     "coaId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "BankAccount_pkey" PRIMARY KEY ("id")
 );
@@ -208,6 +254,7 @@ CREATE TABLE "BankTransactionBatch" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "BankTransactionBatch_pkey" PRIMARY KEY ("id")
 );
@@ -222,45 +269,73 @@ CREATE TABLE "BankTransaction" (
     "additionalComments" TEXT,
     "transactionSide" "DebitCredit",
     "amount" DECIMAL(65,30) NOT NULL,
-    "defaultExchangeRate" DECIMAL(65,30) NOT NULL,
     "balance" DECIMAL(65,30) NOT NULL,
     "absoluteAmount" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "defaultExchangeRate" DECIMAL(65,30) NOT NULL,
     "isCategorised" BOOLEAN NOT NULL DEFAULT false,
+    "categorisationStatus" "CategorisationStatus" NOT NULL DEFAULT 'UNCATEGORISED',
     "categorisedAt" TIMESTAMP(3),
     "categorisedById" TEXT,
-    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "bankAccountId" TEXT NOT NULL,
     "bankTransactionBatchId" TEXT,
     "accountTransactionId" TEXT,
+    "createdById" TEXT NOT NULL,
+    "updatedById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "BankTransaction_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "AccountTransaction" (
+CREATE TABLE "LedgerTransaction" (
     "id" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
-    "contact" TEXT,
+    "contactId" TEXT,
     "description" TEXT,
-    "source" "AccountTransactionSource" NOT NULL,
-    "type" TEXT,
+    "categorisationStatus" "CategorisationStatus" NOT NULL DEFAULT 'AUTO_CATEGORISED',
+    "source" "TransactionSource" NOT NULL,
     "reference" TEXT,
-    "sourceDebit" DECIMAL(65,30) NOT NULL,
-    "sourceCredit" DECIMAL(65,30) NOT NULL,
-    "exchangeRate" DECIMAL(65,30) NOT NULL,
-    "amount" DECIMAL(65,30) NOT NULL,
-    "project" TEXT,
-    "coaAccountId" TEXT NOT NULL,
     "bankTransactionId" TEXT,
-    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
-    "createdBy" TEXT,
-    "updatedBy" TEXT,
+    "companyId" TEXT NOT NULL,
+    "notes" TEXT,
+    "categorisedAt" TIMESTAMP(3) NOT NULL,
+    "categorisedById" TEXT NOT NULL,
+    "createdById" TEXT NOT NULL,
+    "updatedById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
-    CONSTRAINT "AccountTransaction_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "LedgerTransaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LedgerEntry" (
+    "id" TEXT NOT NULL,
+    "ledgerTransactionId" TEXT NOT NULL,
+    "fsDate" TIMESTAMP(3) NOT NULL,
+    "coaAccountId" TEXT NOT NULL,
+    "transactionSide" "DebitCredit" NOT NULL,
+    "sourceCurrencyId" TEXT NOT NULL,
+    "sourceAmount" DECIMAL(65,30) NOT NULL,
+    "absoluteSourceAmount" DECIMAL(65,30) NOT NULL,
+    "systemExchangeRate" DECIMAL(65,30) NOT NULL,
+    "customExchangeRate" DECIMAL(65,30) NOT NULL,
+    "amount" DECIMAL(65,30) NOT NULL,
+    "absoluteAmount" DECIMAL(65,30) NOT NULL,
+    "description" TEXT,
+    "projectId" TEXT,
+    "updatedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "LedgerEntry_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -268,46 +343,58 @@ CREATE TABLE "JournalBatch" (
     "id" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
     "description" TEXT NOT NULL,
-    "note" TEXT NOT NULL,
+    "note" TEXT,
     "status" "JournalStatus" NOT NULL,
     "isRecurring" BOOLEAN NOT NULL DEFAULT false,
-    "userId" TEXT NOT NULL,
+    "recurrenceDetailId" TEXT,
+    "ledgerTransactionId" TEXT,
     "postedAt" TIMESTAMP(3),
-    "postedBy" TEXT,
+    "postedById" TEXT NOT NULL,
+    "updatedById" TEXT,
+    "companyId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "JournalBatch_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "JournalTransaction" (
+CREATE TABLE "JournalEntry" (
     "id" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "side" "DebitCredit" NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
     "journalBatchId" TEXT NOT NULL,
     "coaAccountId" TEXT NOT NULL,
+    "ledgerEntryId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
 
-    CONSTRAINT "JournalTransaction_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "JournalEntry_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "RecurrenceDetails" (
+CREATE TABLE "RecurrenceDetail" (
     "id" TEXT NOT NULL,
-    "journalBatchId" TEXT NOT NULL,
     "frequency" "RecurrenceFrequency" NOT NULL,
     "startDate" TIMESTAMP(3) NOT NULL,
     "endDate" TIMESTAMP(3),
     "nextRun" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "journalBatchId" TEXT NOT NULL,
 
-    CONSTRAINT "RecurrenceDetails_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "RecurrenceDetail_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "ExchangeRates" (
+CREATE TABLE "ExchangeRate" (
     "id" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
     "baseCurrencyId" TEXT NOT NULL,
@@ -315,12 +402,55 @@ CREATE TABLE "ExchangeRates" (
     "rate" DECIMAL(65,30) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
 
-    CONSTRAINT "ExchangeRates_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ExchangeRate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Contact" (
+    "id" TEXT NOT NULL,
+    "contactCode" TEXT,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "primaryEmail" TEXT,
+    "secondaryEmail" TEXT,
+    "address" TEXT,
+    "website" TEXT,
+    "businessRegNo" TEXT,
+    "contactType" "ContactType" NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "Contact_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Project" (
+    "id" TEXT NOT NULL,
+    "code" TEXT,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "status" "ProjectStatus" DEFAULT 'IN_DRAFT',
+    "contactId" TEXT NOT NULL,
+    "companyId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "Project_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
+
+-- CreateIndex
+CREATE INDEX "Role_id_idx" ON "Role"("id");
 
 -- CreateIndex
 CREATE INDEX "Role_name_idx" ON "Role"("name");
@@ -404,16 +534,55 @@ CREATE INDEX "BankTransaction_amount_idx" ON "BankTransaction"("amount");
 CREATE INDEX "BankTransaction_description_idx" ON "BankTransaction"("description");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AccountTransaction_bankTransactionId_key" ON "AccountTransaction"("bankTransactionId");
+CREATE INDEX "BankTransaction_accountTransactionId_idx" ON "BankTransaction"("accountTransactionId");
 
 -- CreateIndex
-CREATE INDEX "JournalTransaction_journalBatchId_idx" ON "JournalTransaction"("journalBatchId");
+CREATE UNIQUE INDEX "LedgerTransaction_bankTransactionId_key" ON "LedgerTransaction"("bankTransactionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "RecurrenceDetails_journalBatchId_key" ON "RecurrenceDetails"("journalBatchId");
+CREATE INDEX "LedgerTransaction_date_idx" ON "LedgerTransaction"("date");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ExchangeRates_baseCurrencyId_targetCurrencyId_date_key" ON "ExchangeRates"("baseCurrencyId", "targetCurrencyId", "date");
+CREATE INDEX "LedgerTransaction_source_idx" ON "LedgerTransaction"("source");
+
+-- CreateIndex
+CREATE INDEX "LedgerTransaction_categorisationStatus_idx" ON "LedgerTransaction"("categorisationStatus");
+
+-- CreateIndex
+CREATE INDEX "LedgerTransaction_contactId_idx" ON "LedgerTransaction"("contactId");
+
+-- CreateIndex
+CREATE INDEX "LedgerTransaction_companyId_idx" ON "LedgerTransaction"("companyId");
+
+-- CreateIndex
+CREATE INDEX "LedgerTransaction_bankTransactionId_idx" ON "LedgerTransaction"("bankTransactionId");
+
+-- CreateIndex
+CREATE INDEX "LedgerEntry_ledgerTransactionId_idx" ON "LedgerEntry"("ledgerTransactionId");
+
+-- CreateIndex
+CREATE INDEX "LedgerEntry_amount_idx" ON "LedgerEntry"("amount");
+
+-- CreateIndex
+CREATE INDEX "LedgerEntry_absoluteAmount_idx" ON "LedgerEntry"("absoluteAmount");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "JournalBatch_recurrenceDetailId_key" ON "JournalBatch"("recurrenceDetailId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "JournalBatch_ledgerTransactionId_key" ON "JournalBatch"("ledgerTransactionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "JournalEntry_ledgerEntryId_key" ON "JournalEntry"("ledgerEntryId");
+
+-- CreateIndex
+CREATE INDEX "JournalEntry_journalBatchId_idx" ON "JournalEntry"("journalBatchId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ExchangeRate_baseCurrencyId_targetCurrencyId_date_key" ON "ExchangeRate"("baseCurrencyId", "targetCurrencyId", "date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Project_code_companyId_key" ON "Project"("code", "companyId");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -485,25 +654,79 @@ ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankAccountId_fkey
 ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankTransactionBatchId_fkey" FOREIGN KEY ("bankTransactionBatchId") REFERENCES "BankTransactionBatch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AccountTransaction" ADD CONSTRAINT "AccountTransaction_coaAccountId_fkey" FOREIGN KEY ("coaAccountId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AccountTransaction" ADD CONSTRAINT "AccountTransaction_bankTransactionId_fkey" FOREIGN KEY ("bankTransactionId") REFERENCES "BankTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "JournalTransaction" ADD CONSTRAINT "JournalTransaction_journalBatchId_fkey" FOREIGN KEY ("journalBatchId") REFERENCES "JournalBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_bankTransactionId_fkey" FOREIGN KEY ("bankTransactionId") REFERENCES "BankTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "JournalTransaction" ADD CONSTRAINT "JournalTransaction_coaAccountId_fkey" FOREIGN KEY ("coaAccountId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RecurrenceDetails" ADD CONSTRAINT "RecurrenceDetails_journalBatchId_fkey" FOREIGN KEY ("journalBatchId") REFERENCES "JournalBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_categorisedById_fkey" FOREIGN KEY ("categorisedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ExchangeRates" ADD CONSTRAINT "ExchangeRates_baseCurrencyId_fkey" FOREIGN KEY ("baseCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ExchangeRates" ADD CONSTRAINT "ExchangeRates_targetCurrencyId_fkey" FOREIGN KEY ("targetCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_ledgerTransactionId_fkey" FOREIGN KEY ("ledgerTransactionId") REFERENCES "LedgerTransaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_coaAccountId_fkey" FOREIGN KEY ("coaAccountId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_sourceCurrencyId_fkey" FOREIGN KEY ("sourceCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_recurrenceDetailId_fkey" FOREIGN KEY ("recurrenceDetailId") REFERENCES "RecurrenceDetail"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_ledgerTransactionId_fkey" FOREIGN KEY ("ledgerTransactionId") REFERENCES "LedgerTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_postedById_fkey" FOREIGN KEY ("postedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_journalBatchId_fkey" FOREIGN KEY ("journalBatchId") REFERENCES "JournalBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_coaAccountId_fkey" FOREIGN KEY ("coaAccountId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_ledgerEntryId_fkey" FOREIGN KEY ("ledgerEntryId") REFERENCES "LedgerEntry"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExchangeRate" ADD CONSTRAINT "ExchangeRate_baseCurrencyId_fkey" FOREIGN KEY ("baseCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExchangeRate" ADD CONSTRAINT "ExchangeRate_targetCurrencyId_fkey" FOREIGN KEY ("targetCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Contact" ADD CONSTRAINT "Contact_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Project" ADD CONSTRAINT "Project_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Project" ADD CONSTRAINT "Project_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

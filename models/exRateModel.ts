@@ -10,7 +10,7 @@ export interface ExRateItem {
 }
 export async function createNewExRates(data: ExRateItem[]) {
   try {
-    const result = await prisma.exchangeRates.createMany({
+    const result = await prisma.exchangeRate.createMany({
       data: data,
       skipDuplicates: true,
     });
@@ -34,12 +34,12 @@ export async function getExchangeRate(
     const normalizedDate = new Date(date);
     normalizedDate.setUTCHours(0, 0, 0, 0);
 
-    const result = await prisma.exchangeRates.findFirst({
+    const result = await prisma.exchangeRate.findFirst({
       where: { date, baseCurrencyId, targetCurrencyId },
     });
 
     if (!result) {
-      const closestRate = await prisma.exchangeRates.findFirst({
+      const closestRate = await prisma.exchangeRate.findFirst({
         where: {
           date: { lte: normalizedDate },
           baseCurrencyId,

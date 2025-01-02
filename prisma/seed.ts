@@ -177,7 +177,7 @@ async function main() {
         parentId: null,
         financialStatementId: balanceSheet.id,
         description: "All asset accounts",
-        defaultSide: "debit",
+        defaultSide: "DEBIT",
       },
     });
 
@@ -187,7 +187,7 @@ async function main() {
         parentId: null,
         financialStatementId: balanceSheet.id,
         description: "All liability accounts",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -197,7 +197,7 @@ async function main() {
         parentId: null,
         financialStatementId: balanceSheet.id,
         description: "Ownership interest",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -207,7 +207,7 @@ async function main() {
         parentId: null,
         financialStatementId: incomeStatement.id,
         description: "All income and revenue accounts",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -217,7 +217,7 @@ async function main() {
         parentId: null,
         financialStatementId: incomeStatement.id,
         description: "All expenses, cost of sales, etc",
-        defaultSide: "debit",
+        defaultSide: "DEBIT",
       },
     });
 
@@ -228,7 +228,7 @@ async function main() {
         financialStatementId: balanceSheet.id,
         description:
           "Short-term, liquid assets like cash, receivables, inventory",
-        defaultSide: "debit",
+        defaultSide: "DEBIT",
       },
     });
 
@@ -238,7 +238,7 @@ async function main() {
         parentId: asset.id, // Child of Asset
         financialStatementId: balanceSheet.id,
         description: "Long-term physical assets like property and equipment",
-        defaultSide: "debit",
+        defaultSide: "DEBIT",
       },
     });
 
@@ -249,7 +249,7 @@ async function main() {
         financialStatementId: balanceSheet.id,
         description:
           "Accounts that offset asset balances, such as accumulated depreciation",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -259,7 +259,7 @@ async function main() {
         parentId: asset.id, // Child of Asset
         financialStatementId: balanceSheet.id,
         description: "Long-term investments, intangibles",
-        defaultSide: "debit",
+        defaultSide: "DEBIT",
       },
     });
 
@@ -270,7 +270,7 @@ async function main() {
         financialStatementId: balanceSheet.id,
         description:
           "Short-term liabilities like accounts payable, short-term debt",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -281,7 +281,7 @@ async function main() {
         financialStatementId: balanceSheet.id,
         description:
           "Long-term liabilities like long-term debt, deferred taxes",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -291,7 +291,7 @@ async function main() {
         parentId: equity.id,
         financialStatementId: balanceSheet.id,
         description: "Paid-in capital",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -301,7 +301,7 @@ async function main() {
         parentId: equity.id,
         financialStatementId: balanceSheet.id,
         description: "Retained Earnings and Other Reserves",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -312,7 +312,7 @@ async function main() {
         financialStatementId: balanceSheet.id,
         description:
           "Accumulated Other Comprehensive Income and other components of equity",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -323,7 +323,7 @@ async function main() {
         financialStatementId: incomeStatement.id,
         description:
           "Income from primary business activities, including sales and services",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -333,7 +333,7 @@ async function main() {
         parentId: income.id,
         financialStatementId: incomeStatement.id,
         description: "Income from sources outside primary business activities",
-        defaultSide: "credit",
+        defaultSide: "CREDIT",
       },
     });
 
@@ -343,7 +343,7 @@ async function main() {
         parentId: income.id,
         financialStatementId: incomeStatement.id,
         description: "Contra Revenue",
-        defaultSide: "debit",
+        defaultSide: "DEBIT",
       },
     });
 
@@ -353,7 +353,7 @@ async function main() {
         parentId: expenses.id, // Child of Expenses
         financialStatementId: incomeStatement.id,
         description: "Direct costs tied to production or services",
-        defaultSide: "debit",
+        defaultSide: "DEBIT",
       },
     });
 
@@ -363,7 +363,7 @@ async function main() {
         parentId: expenses.id, // Child of Expenses
         financialStatementId: incomeStatement.id,
         description: "Ongoing expenses like payroll, rent, utilities",
-        defaultSide: "debit",
+        defaultSide: "DEBIT",
       },
     });
 
@@ -373,7 +373,7 @@ async function main() {
         parentId: expenses.id, // Child of Expenses
         financialStatementId: incomeStatement.id,
         description: "Non-recurring or unusual expenses",
-        defaultSide: "debit",
+        defaultSide: "DEBIT",
       },
     });
 
@@ -761,7 +761,7 @@ async function main() {
       data: {
         user: { connect: { id: adminUser.id } },
         company: { connect: { id: testCompany.company.id } },
-        role: "admin",
+        role: "ADMIN",
       },
     });
 

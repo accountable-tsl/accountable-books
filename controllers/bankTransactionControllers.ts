@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import {
-  BankTransactionFilters,
+  TransactionFilters,
   getBankTransactions,
   postBankTransactions,
 } from "../models/bankTransactionModel";
@@ -121,17 +121,15 @@ export async function retrieveBankTransactions(req: Request, res: Response) {
 
     const response = await getBankTransactions(
       companyId,
-      filter as BankTransactionFilters
+      filter as TransactionFilters
     );
 
     if (response.success) {
-      return res
-        .status(200)
-        .json({
-          success: response.success,
-          message: response.message,
-          data: response.data,
-        });
+      return res.status(200).json({
+        success: response.success,
+        message: response.message,
+        data: response.data,
+      });
     } else {
       return res.status(400).json({
         success: false,

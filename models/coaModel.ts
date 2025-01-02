@@ -41,7 +41,7 @@ export async function getAllAccountTypes() {
 
 //Get all COA
 export async function getAllCOA(
-  companyId: number,
+  companyId: string,
   page: number = 1,
   limit: number = 50, // default page size
   sortBy: string = "accountCode", // default sort
@@ -143,7 +143,7 @@ export async function getAllCOA(
 }
 
 //Get Single COA
-export async function getACOA(companyId: any, id: number) {
+export async function getACOA(companyId: any, id: string) {
   try {
     const singleCOA = await prisma.coa.findFirst({
       where: { companyId, id },
@@ -219,7 +219,7 @@ export async function getACOA(companyId: any, id: number) {
 }
 
 //Check Account Code
-export async function checkAccCode(companyId: number, accountCode: string) {
+export async function checkAccCode(companyId: string, accountCode: string) {
   try {
     const existingAccCode = await prisma.coa.findFirst({
       where: {
@@ -269,7 +269,7 @@ export async function checkAccCode(companyId: number, accountCode: string) {
 }
 
 //Check Account Name
-export async function checkAccName(companyId: number, accountName: string) {
+export async function checkAccName(companyId: string, accountName: string) {
   try {
     const existingAccName = await prisma.coa.findFirst({
       where: {
@@ -319,11 +319,11 @@ export async function checkAccName(companyId: number, accountName: string) {
 
 //Check AccountType based on Account Type ID or Account Type Name
 interface checkAccountType {
-  accountTypeId?: number;
+  accountTypeId?: string;
   accountTypeName?: string;
 }
 export async function checkAccountTypeDetails(accountType: checkAccountType) {
-  const accountTypeId = Number(accountType.accountTypeId);
+  const accountTypeId = accountType.accountTypeId;
   const accountTypeName = accountType.accountTypeName;
 
   if (!accountType.accountTypeId && !accountType.accountTypeName) {
@@ -367,7 +367,7 @@ interface COAInput {
   accountCode?: string;
   accountName: string;
   description?: string;
-  accountTypeId?: number;
+  accountTypeId?: string;
   accountTypeName?: string;
 }
 
@@ -375,13 +375,13 @@ interface CoaItems {
   accountCode?: string;
   accountName: string;
   description?: string;
-  accountTypeId: number;
+  accountTypeId: string;
   defaultSide: DebitCredit;
-  currencyId: number;
-  companyId: number;
+  currencyId: string;
+  companyId: string;
 }
 
-export async function createCOAModel(companyId: number, data: COAInput) {
+export async function createCOAModel(companyId: string, data: COAInput) {
   const stdAccountName = toTitleCase(data.accountName);
 
   const verifyAccType = data.accountTypeId
@@ -483,7 +483,7 @@ export async function createCOAModel(companyId: number, data: COAInput) {
 }
 
 // CREATE BULK COA
-export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
+export async function createBulkCOAModel(companyId: string, data: COAInput[]) {
   const results = await Promise.all(
     data.map(async (item) => {
       try {
@@ -578,17 +578,17 @@ export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
 
 //Update COA
 interface UpdateCOAInput {
-  id: number;
+  id: string;
   accountCode?: string;
   accountName: string;
   description?: string;
-  accountTypeId?: number;
+  accountTypeId?: string;
   accountTypeName?: string;
 }
 
 export async function updateCOAModel(
-  companyId: number,
-  id: number,
+  companyId: string,
+  id: string,
   data: UpdateCOAInput
 ) {
   try {
@@ -641,7 +641,7 @@ export async function updateCOAModel(
       accountCode: string;
       accountName: string;
       description: string;
-      accountTypeId: number;
+      accountTypeId: string;
     }> = {
       ...(data.accountCode && { accountCode: data.accountCode }),
       ...(data.accountName && { accountName: data.accountName }),
@@ -721,6 +721,6 @@ export async function updateCOAModel(
   }
 }
 
-export async function archiveCOAModel(companyId: number, id: number[]) {}
+export async function archiveCOAModel(companyId: string, id: string[]) {}
 
-export async function archiveSingleCOAModel(companyId: number, id: number) {}
+export async function archiveSingleCOAModel(companyId: string, id: string) {}
