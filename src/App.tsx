@@ -15,6 +15,8 @@ import { PopupProvider } from "./contexts/PopupContext";
 import Popup from "./components/Popup/Popup";
 import AddBankAccount from "./components/AddBankAccount/AddBankAccount";
 import CategorisationEngine from "./pages-admin/CategorisationEngine/CategorisationEngine";
+import CoaSelectCellEditor from "./components/CoaSelectCellEditor/CoaSelectCellEditor";
+import CustomSelect from "./components/CoaSelectCellEditor/CoaSelectCellEditor";
 
 function App() {
   return (
