@@ -1,4 +1,4 @@
-import { DebitCredit, Prisma, PrismaClient } from "@prisma/client";
+import { CategorisationStatus, DebitCredit, Prisma, PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { getSingleExchangeRate } from "../controllers/exRateController";
 import { getExchangeRate } from "./exRateModel";
@@ -31,7 +31,7 @@ export interface TransactionFilters {
   bankAccountId?: string;
   minAmount?: Decimal;
   maxAmount?: Decimal;
-  categorisationStatus?: string;
+  categorisationStatus?: CategorisationStatus[];
   isDeleted?: boolean;
   searchQuery?: string;
   transactionSide?: DebitCredit;
@@ -230,7 +230,6 @@ export async function getBankTransactions(
       bankAccount: {
         companyId: companyId,
       },
-      isCategorised: filters.isCategorised ?? false,
       isDeleted: filters.isDeleted ?? false,
     };
 

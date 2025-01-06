@@ -51,7 +51,7 @@ async function seedDefaultCOAFromCSV(): Promise<void> {
                 accountCode: data.accountcode,
                 accountName: data.accountname,
                 accountTypeId: data.accounttypeid,
-                defaultSide: data.defaultside as "debit" | "credit",
+                defaultSide: data.defaultside as "DEBIT" | "CREDIT",
                 description: data.description,
               },
             });

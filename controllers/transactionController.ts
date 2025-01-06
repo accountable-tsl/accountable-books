@@ -45,11 +45,7 @@ export async function fetchTransactions(req: Request, res: Response) {
     const response = await getMergedTransactions(companyId, filter);
 
     if (response.success) {
-      return res.status(200).json({
-        success: response.success,
-        message: response.message,
-        data: response.data,
-      });
+      return res.status(200).json(response);
     } else {
       return res.status(400).json({
         success: false,

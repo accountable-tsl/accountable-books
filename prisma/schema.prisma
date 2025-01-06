@@ -279,7 +279,7 @@ model BankAccount {
   companyId          String
   company            Company                @relation(name: "companyBankAccounts", fields: [companyId], references: [id])
   coaId              String                 @unique
-  accountInCOA       Coa                    @relation("bankCoaAccount", fields: [coaId], references: [id])
+  accountInCoa       Coa                    @relation("bankCoaAccount", fields: [coaId], references: [id])
   transactionBatches BankTransactionBatch[] @relation("transactionBatches")
   transactions       BankTransaction[]      @relation("transactionBankAccount")
   createdAt          DateTime               @default(now())
@@ -343,8 +343,8 @@ model BankTransaction {
   bankAccount            BankAccount           @relation(name: "transactionBankAccount", fields: [bankAccountId], references: [id])
   bankTransactionBatchId String?
   bankTransactionBatch   BankTransactionBatch? @relation(name: "batchTransactions", fields: [bankTransactionBatchId], references: [id])
-  accountTransactionId   String?
-  accountTransaction     LedgerTransaction?    @relation(name: "ledgerBankTransactionMatch")
+  ledgerTransactionId    String?
+  ledgerTransaction      LedgerTransaction?    @relation(name: "ledgerBankTransactionMatch")
   createdById            String
   createdBy              User                  @relation(name: "bankTransactionCreatedBy", fields: [createdById], references: [id])
   updatedById            String?
@@ -359,7 +359,7 @@ model BankTransaction {
   @@index([payee])
   @@index([amount])
   @@index([description])
-  @@index([accountTransactionId])
+  @@index([ledgerTransactionId])
 }
 
 // model AccountTransaction {
@@ -456,8 +456,8 @@ model LedgerEntry {
   ledgerTransactionId  String
   ledgerTransaction    LedgerTransaction @relation(name: "ledgerEntries", fields: [ledgerTransactionId], references: [id])
   fsDate               DateTime //Financial Statement Date
-  coaAccountId         String
-  coaAccount           Coa               @relation(name: "coaLedgerEntries", fields: [coaAccountId], references: [id])
+  coaId                String
+  coa                  Coa               @relation(name: "coaLedgerEntries", fields: [coaId], references: [id])
   transactionSide      DebitCredit
   sourceCurrencyId     String
   sourceCurrency       Currency          @relation(name: "ledgerTransactionCurrency", fields: [sourceCurrencyId], references: [id])

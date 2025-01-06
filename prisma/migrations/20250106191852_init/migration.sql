@@ -278,7 +278,7 @@ CREATE TABLE "BankTransaction" (
     "categorisedById" TEXT,
     "bankAccountId" TEXT NOT NULL,
     "bankTransactionBatchId" TEXT,
-    "accountTransactionId" TEXT,
+    "ledgerTransactionId" TEXT,
     "createdById" TEXT NOT NULL,
     "updatedById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -318,7 +318,7 @@ CREATE TABLE "LedgerEntry" (
     "id" TEXT NOT NULL,
     "ledgerTransactionId" TEXT NOT NULL,
     "fsDate" TIMESTAMP(3) NOT NULL,
-    "coaAccountId" TEXT NOT NULL,
+    "coaId" TEXT NOT NULL,
     "transactionSide" "DebitCredit" NOT NULL,
     "sourceCurrencyId" TEXT NOT NULL,
     "sourceAmount" DECIMAL(65,30) NOT NULL,
@@ -534,7 +534,7 @@ CREATE INDEX "BankTransaction_amount_idx" ON "BankTransaction"("amount");
 CREATE INDEX "BankTransaction_description_idx" ON "BankTransaction"("description");
 
 -- CreateIndex
-CREATE INDEX "BankTransaction_accountTransactionId_idx" ON "BankTransaction"("accountTransactionId");
+CREATE INDEX "BankTransaction_ledgerTransactionId_idx" ON "BankTransaction"("ledgerTransactionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "LedgerTransaction_bankTransactionId_key" ON "LedgerTransaction"("bankTransactionId");
@@ -681,7 +681,7 @@ ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_updatedById_fk
 ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_ledgerTransactionId_fkey" FOREIGN KEY ("ledgerTransactionId") REFERENCES "LedgerTransaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_coaAccountId_fkey" FOREIGN KEY ("coaAccountId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_coaId_fkey" FOREIGN KEY ("coaId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_sourceCurrencyId_fkey" FOREIGN KEY ("sourceCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

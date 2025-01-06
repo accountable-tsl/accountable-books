@@ -122,3 +122,16 @@ export async function determineExchangeRate(
     return null;
   }
 }
+
+/**
+ * Removes undefined or null properties from an object.
+ * @param {Object} obj - The object to filter.
+ * @returns {Object} A new object containing only properties with defined (non-undefined and non-null) values.
+ */
+export function filterUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(
+      ([_, value]) => value !== undefined && value !== null
+    )
+  ) as Partial<T>;
+}
