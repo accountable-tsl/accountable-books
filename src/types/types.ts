@@ -1,8 +1,8 @@
 import Decimal from "decimal.js";
 
 export enum DebitCredit {
-  Debit = "Debit",
-  Credit = "Credit",
+  Debit = "DEBIT",
+  Credit = "CREDIT",
 }
 
 export enum BankTransactionStatus {
@@ -14,6 +14,12 @@ export enum BankTransactionSource {
   IMPORTED = "FILE_IMPORT",
   CONNECTED = "BANK_FEED",
   MANUAL = "MANUAL_ENTRY",
+}
+
+export enum CategorisationStatus {
+  CATEGORISED = "CATEGORISED",
+  UNCATEGORISED = "UNCATEGORISED",
+  AUTOCATEGORISED = "AUTO_CATEGORISED",
 }
 
 export enum BankAccountType {
@@ -187,27 +193,95 @@ export interface Coa {
   updatedAt?: Date;
 }
 
-export interface Transaction {
-  id?: string | number;
-  date: string;
-  payee?: string;
-  contact?: string;
-  reference?: string;
+export type Transaction = {
+  transactionSource: "bankTransaction" | "ledgerTransaction";
+  categorisationStatus: CategorisationStatus;
+  id: string;
+  date: Date | string;
+  ledgerTransactionId?: string;
+  fsDate: string | Date;
+  coaId: string;
+  transactionSide: DebitCredit;
+  sourceCurrencyId: string;
+  sourceAmount: Decimal | string;
+  absoluteSourceAmount: Decimal | string;
+  systemExchangeRate: Decimal | string;
+  customExchangeRate: Decimal | string;
+  amount: Decimal | string;
+  absoluteAmount: Decimal | string;
   description?: string;
-  amount: string | number;
-  transactionSide?: DebitCredit;
-  source?: BankTransactionSource;
-  isReconciled?: boolean;
-  bankTransactionBatchId?: string | number;
-  accountTransactionId?: string | number;
-  bankAccountId: string;
-  bankAccount?: BankAccount;
-  fsDate?: string | Date;
-  project?: any;
-  defaultExchangeRate?: any;
-  account: Coa;
-}
+  reference?: string;
+  projectId: string;
+  updatedById: string;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
+  deletedAt?: Date | string;
+  isDeleted: boolean;
+  coa: Coa;
+  bankAccount?: {
+    id: string;
+    displayName: string;
+    bankAccountNo: string;
+    coaId: string;
+    currencyId: string;
+    bankId: string;
+    bankName: string;
+    bankLogo: string;
+    bankBalance: string | Decimal;
+  };
+  bankTransaction?: {
+    id: string;
+    date: Date;
+    contact: string;
+    description: string;
+    reference: string;
+    amount: Decimal | string;
+    defaultExchangeRate: Decimal | string;
+    bankTransactionBatchId: string;
+    ledgerTransactionId: string;
+  };
+  ledgerTransaction: {
+    id: string;
+    date: Date;
+    description?: string;
+    reference?: string;
+    notes?: string;
+  };
+  contact?: Contact;
+  journalBatch?: JournalBatch;
+  company?: Company;
+  project?: Project;
+};
 
-export type TransactionKey = keyof Transaction;
+export type CatEngineTransaction = {
+  id: string;
+  transactionSource: string;
+  categorisationStatus: CategorisationStatus;
+  bankLogo: string | null;
+  bankName: string | null;
+  date: Date;
+  fsDate: Date;
+  contactName: string;
+  reference: string;
+  description: string;
+  bankCurrencyCode: string;
+  bankCurrencyId: string;
+  bankCurrencySymbol?: string;
+  transactionSide: DebitCredit | null;
+  bankAmount: Decimal;
+  exchangeRate: Decimal;
+  amount: Decimal;
+  bankAccountId: string | null;
+  bankTransactionBatchId?: string | null;
+  ledgerTransactionId?: string | null;
+  contactId?: string | null;
+  projectId?: string | null;
+  projectName?: string | null;
+  coaId?: string;
+  coaAccountName?: string | null;
+  coaAccountCode?: string | null;
+};
+
+export type TransactionKey = keyof CatEngineTransaction;
 
 export type BankAccounts = BankAccount[];

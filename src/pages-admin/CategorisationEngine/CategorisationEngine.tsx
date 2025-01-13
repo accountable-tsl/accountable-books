@@ -2,6 +2,7 @@ import {
   Brain,
   CirclePlay,
   Expand,
+  Landmark,
   ListFilter,
   Menu,
   TableProperties,
@@ -19,6 +20,7 @@ import {
   BankAccount,
   BankAccounts,
   BankTransactionFilters,
+  CatEngineTransaction,
   Coa,
   Transaction,
   TransactionKey,
@@ -33,6 +35,7 @@ import {
 import numeral from "numeral";
 import { fetchCompany } from "../../services/CompanyServices";
 import { fetchCoa } from "../../services/CoaServices";
+import CustomSelect from "../../components/CoaSelectCellEditor/CoaSelectCellEditor";
 
 const catengineHeaders = [
   { label: "Bank", key: "bankAccount" },
@@ -68,7 +71,7 @@ export default function CategorisationEngine() {
     endDate?: Date;
   }>({});
   const [companyInfo, setCompanyInfo] = useState(null);
-  const [selectedRows, setSelectedRows] = useState<Transaction[]>([]);
+  const [selectedRows, setSelectedRows] = useState<CatEngineTransaction[]>([]);
   const [columnWidths, setColumnWidths] = useState<number[]>(
     Array(catengineHeaders.length).fill(100)
   );
@@ -143,10 +146,12 @@ export default function CategorisationEngine() {
       try {
         if (companyId) {
           const response = await retrieveTransactions(companyId, filters);
-          if (response.success) {
-            setFetchedBankTransactions(response.data.allTransactions);
+          if (response.success && response.data?.transactions) {
+            setFetchedBankTransactions(response.data.transactions);
           } else {
             setError("Failed to fetch transactions");
+            console.error("Failed to fetch transactions:", response);
+            setFetchedBankTransactions([]);
           }
         }
       } catch (error) {
@@ -196,7 +201,7 @@ export default function CategorisationEngine() {
     }
   }, [companyId]);
 
-  const handleRowClick = (tx: Transaction) => {
+  const handleRowClick = (tx: CatEngineTransaction) => {
     setSelectedRows((prev) =>
       prev.some((row) => row.id === tx.id)
         ? prev.filter((row) => row.id !== tx.id)
@@ -270,7 +275,6 @@ export default function CategorisationEngine() {
   //   );
   // }, [coa]);
 
-  console.log(filters);
   return (
     <div className="catengine">
       <Breadcrumb items={catEngineBreadcrumbs} />
@@ -470,7 +474,7 @@ export default function CategorisationEngine() {
                     No Transactions Found
                   </div>
                 ) : (
-                  fetchedBankTransactions.map((tx: Transaction) => (
+                  fetchedBankTransactions.map((tx: CatEngineTransaction) => (
                     <div
                       key={tx.id}
                       className={`catengine-table__row ${
@@ -484,7 +488,8 @@ export default function CategorisationEngine() {
                       <div className=" catengine-table__cell catengine-table__cell--checkbox">
                         <input
                           type="checkbox"
-                          checked={selectedRows.includes(tx)}
+                          checked={selectedRows.some((row) => row.id === tx.id)}
+                          readOnly
                         />
                       </div>
                       {catengineHeaders.map((header, index) => (
@@ -502,14 +507,6 @@ export default function CategorisationEngine() {
                               : ""
                           }`}
                           role="cell"
-                          {...(typeof renderCellContent(header.key, tx, coa) ===
-                            "string" ||
-                          typeof renderCellContent(header.key, tx, coa) ===
-                            "number"
-                            ? {
-                                title: renderCellContent(header.key, tx, coa),
-                              }
-                            : {})}
                         >
                           {renderCellContent(header.key, tx, coa)}
                           <span
@@ -531,21 +528,25 @@ export default function CategorisationEngine() {
 }
 export const renderCellContent = (
   key: TransactionKey | string,
-  tx: Transaction,
+  tx: CatEngineTransaction,
   coa: Coa[]
 ) => {
   switch (key) {
     case "bankAccount":
       return (
         <div className="catengine-table__bank">
-          <img
-            src={tx.bankAccount?.bank?.bankLogo || ""}
-            alt={`${tx.bankAccount?.bank?.name} logo`}
-            className="catengine-table__bank--img"
-          />
-          <span className="catengine-table__bank--name">
-            {tx.bankAccount?.displayName}
-          </span>
+          {tx.bankLogo ? (
+            <>
+              <img
+                src={tx.bankLogo}
+                alt={`${tx.bankName} logo`}
+                className="catengine-table__bank--img"
+              />
+              <span className="catengine-table__bank--name">{tx.bankName}</span>
+            </>
+          ) : (
+            <Landmark />
+          )}
         </div>
       );
 
@@ -557,29 +558,29 @@ export const renderCellContent = (
       return fsDate ? formatDate(new Date(fsDate), "dd MMM yyyy") : "N/A";
 
     case "contact":
-      return tx.payee || tx.contact || "";
+      return tx.contactName || "";
 
     case "reference":
       return tx.reference || "";
 
     case "project":
-      return tx.project?.name || "";
+      return tx.projectName || "";
 
     case "description":
       return tx.description || "";
 
     case "currency":
-      return `${tx.bankAccount?.currency?.code} (${tx.bankAccount?.currency?.symbol})`;
+      return `${tx.bankCurrencyCode} (${tx.bankCurrencySymbol})`;
 
     case "bankAmount":
       return numeral(tx.amount).format("0,0.00");
 
     case "exchangeRate":
-      return numeral(tx.defaultExchangeRate).format("0,0.0000");
+      return numeral(tx.exchangeRate).format("0,0.0000");
 
     case "amount":
-      const amount = new Decimal(tx.amount).dividedBy(
-        new Decimal(tx.defaultExchangeRate)
+      const amount = new Decimal(tx.bankAmount).dividedBy(
+        new Decimal(tx.exchangeRate)
       );
       return (
         <div
@@ -595,15 +596,16 @@ export const renderCellContent = (
 
     case "account":
       return (
-        <select value={tx.account?.id} className="catengine-table__account">
-          <option value=""></option>
-          {coa.map((account) => (
-            <option key={account.id}>{account.accountName}</option>
-          ))}
-        </select>
+        // <select value={tx.coaId} className="catengine-table__account">
+        //   <option value=""></option>
+        //   {coa.map((account) => (
+        //     <option key={account.id}>{account.accountName}</option>
+        //   ))}
+        // </select>
+        <CustomSelect options={coa} className="catengine-table__account" />
       );
 
     default:
-      return key in tx ? tx[key] || "N/A" : "N/A";
+      return "N/A";
   }
 };

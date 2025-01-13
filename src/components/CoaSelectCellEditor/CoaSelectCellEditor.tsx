@@ -163,64 +163,62 @@ export default function CustomSelect({
   }, [typedText]);
 
   return (
-    <div className="toremove">
-      <div
-        className={`selectcoa ${className}`}
-        ref={selectRef}
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
-      >
-        <div className="selectcoa__select" onClick={toggleDropdown}>
-          <input
-            type="text"
-            className="selectcoa__input"
-            placeholder={placeholder}
-            onChange={handleInputChange}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div className="selectcoa__icon">
-            {isOpen ? <ChevronUp /> : <ChevronDown />}
-          </div>
+    <div
+      className={`selectcoa ${className}`}
+      ref={selectRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
+      <div className="selectcoa__select" onClick={toggleDropdown}>
+        <input
+          type="text"
+          className="selectcoa__input"
+          placeholder={placeholder}
+          onChange={handleInputChange}
+          onClick={(e) => e.stopPropagation()}
+        />
+        <div className="selectcoa__icon">
+          {isOpen ? <ChevronUp /> : <ChevronDown />}
         </div>
-
-        {isOpen && (
-          <div
-            className={`selectcoa__dropdown ${
-              isOpen ? "selectcoa__dropdown--open" : ""
-            }`}
-            ref={dropdownRef}
-            role="button"
-            aria-haspopup="listbox"
-            aria-expanded={isOpen}
-          >
-            {filteredOptions.length === 0 ? (
-              <div className="selectcoa__no-results">No matching results</div>
-            ) : (
-              filteredOptions.map((option: any, index: number) => {
-                const selectedOption = value?.id === option.id;
-                const isHighlighted = highlightedIndex === index;
-                return (
-                  <div
-                    key={option.id}
-                    role="option"
-                    aria-selected={highlightedIndex === index}
-                    className={`selectcoa__option ${
-                      selectedOption ? "selectcoa__option--selected" : ""
-                    } ${isHighlighted ? "selectcoa__option--highlighted" : ""}`}
-                    onClick={() => handleSelect(option)}
-                    onMouseEnter={() => handleMouseEnter(index)}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    {option.accountCode
-                      ? `${option.accountCode} - ${option.accountName}`
-                      : option.accountName}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
       </div>
+
+      {isOpen && (
+        <div
+          className={`selectcoa__dropdown ${
+            isOpen ? "selectcoa__dropdown--open" : ""
+          }`}
+          ref={dropdownRef}
+          role="button"
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+        >
+          {filteredOptions.length === 0 ? (
+            <div className="selectcoa__no-results">No matching results</div>
+          ) : (
+            filteredOptions.map((option: any, index: number) => {
+              const selectedOption = value?.id === option.id;
+              const isHighlighted = highlightedIndex === index;
+              return (
+                <div
+                  key={option.id}
+                  role="option"
+                  aria-selected={highlightedIndex === index}
+                  className={`selectcoa__option ${
+                    selectedOption ? "selectcoa__option--selected" : ""
+                  } ${isHighlighted ? "selectcoa__option--highlighted" : ""}`}
+                  onClick={() => handleSelect(option)}
+                  onMouseEnter={() => handleMouseEnter(index)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {option.accountCode
+                    ? `${option.accountCode} - ${option.accountName}`
+                    : option.accountName}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }
