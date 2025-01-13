@@ -362,53 +362,6 @@ model BankTransaction {
   @@index([ledgerTransactionId])
 }
 
-// model AccountTransaction {
-// id                   String               @id @default(uuid())
-// date                 DateTime
-// fsDate               DateTime
-// contactId            String?
-// contact              Contact?             @relation(name: "ContactTransactions", fields: [contactId], references: [id])
-// description          String?
-// source               String?
-// reference            String?
-// transactionSide      DebitCredit
-// sourceCurrencyId     String
-// sourceCurrency       Currency             @relation(name: "AccountTransactionCurrency", fields: [sourceCurrencyId], references: [id])
-// sourceAmount         Decimal
-// absoluteSourceAmount Decimal
-// systemExchangeRate   Decimal
-// customExchangeRate   Decimal
-// amount               Decimal
-// absoluteAmount       Decimal
-// projectId            String?
-// project              Project?             @relation(name: "ProjectTransactions", fields: [projectId], references: [id])
-// debitAccountId       String
-// debitAccount         Coa                  @relation(name: "TransactionDebitAccount", fields: [debitAccountId], references: [id])
-// creditAccountId      String
-// creditAccount        Coa                  @relation(name: "TransactionCreditAccount", fields: [creditAccountId], references: [id])
-// bankTransactionId    String?              @unique
-// bankTransaction      BankTransaction?     @relation(name: "AccountBankTransactionMatch", fields: [bankTransactionId], references: [id])
-// categorisationStatus CategorisationStatus @default("AUTO_CATEGORISED")
-// notes                String?
-// categorisedAt        DateTime
-// categorisedById      String
-// categorisedBy        User                 @relation(name: "AccountTransactionCategorised", fields: [categorisedById], references: [id])
-// companyId            String
-// company              Company              @relation(name:"CompanyAccountTransactions", fields: [companyId], references:[id])
-// isDeleted            Boolean              @default(false)
-// createdById          String
-// createdBy            User                 @relation(name: "AccountTransactionCreated", fields: [createdById], references: [id])
-// updatedById          String?
-// updatedBy            User?                @relation(name: "AccountTransactionUpdated", fields: [updatedById], references: [id])
-// createdAt            DateTime             @default(now())
-// updatedAt            DateTime             @updatedAt
-
-//  @@index([date])
-//  @@index([amount])
-//  @@index([categorisationStatus])
-//  @@index([contactId])
-// }
-
 enum TransactionSource {
   BANK
   MANUAL_JOURNAL

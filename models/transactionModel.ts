@@ -1,83 +1,64 @@
 import {
-  Bank,
-  BankAccount,
-  BankTransaction,
   CategorisationStatus,
-  Coa,
-  Company,
-  Contact,
-  Currency,
-  JournalBatch,
-  LedgerEntry,
-  LedgerTransaction,
+  DebitCredit,
   Prisma,
   PrismaClient,
-  User,
 } from "@prisma/client";
 import { TransactionFilters } from "./bankTransactionModel";
 import { Decimal } from "@prisma/client/runtime/library";
 
 const prisma = new PrismaClient();
 
+type LedgerEntriesWithRelations = Prisma.LedgerEntryGetPayload<{
+  include: { coa: true; sourceCurrency: true; project: true };
+}>;
 type ExtendedLedgerTransaction = Prisma.LedgerTransactionGetPayload<{
   include: {
-    contact: true;
-    company: true;
+    contact: { select: { name: true } };
     bankTransaction: {
       include: {
         bankAccount: {
-          include: { bank: true };
+          include: { bank: { select: { name: true; bankLogo: true } } };
         };
       };
     };
-    journalBatch: true;
     ledgerEntries: {
       include: {
-        coa: true;
-        sourceCurrency: true;
+        coa?: { select: { accountCode: true; accountName: true } };
+        sourceCurrency?: { select: { code: true } };
+        project?: { select: { name: true } };
       };
     };
-    createdBy: true;
-    updatedBy: true;
   };
 }>;
 
-type TransformedLedgerEntry = {
-  source: string;
-  date: Date | null;
-  categorisationStatus?: CategorisationStatus | null;
-  bankAccount: {
-    id?: string | null;
-    displayName?: string | null;
-    bankAccountNo?: string | null;
-    coaId?: string | null;
-    currencyId?: string | null;
-    bankId?: string | null;
-    bankName?: string | null;
-    bankLogo?: string | null | undefined;
-    bankBalance?: Decimal;
-  };
-  bankTransaction?: {
-    id?: string | null;
-    date?: Date;
-    contact?: string | null;
-    description?: string | null;
-    reference?: string | null;
-    amount?: Decimal;
-    defaultExchangeRate?: Decimal;
-    bankTransactionBatchId?: string | null;
-    ledgerTransactionId?: string | null;
-  };
-  ledgerTransaction: {
-    id: string;
-    date: Date | null;
-    description?: string | null;
-    reference?: string | null;
-    notes?: string | null;
-  };
-  contact?: Contact | null;
-  journalBatch?: JournalBatch | null;
-  company?: Company | null;
+type CatEngineTransaction = {
+  id: string;
+  transactionSource: string;
+  categorisationStatus: CategorisationStatus;
+  bankLogo: string | null;
+  bankName: string | null;
+  date: Date;
+  fsDate: Date;
+  contactName: string;
+  reference: string;
+  description: string;
+  bankCurrencyCode: string;
+  bankCurrencyId: string;
+  bankCurrencySymbol?: string;
+  transactionSide: DebitCredit | null;
+  bankAmount: Decimal;
+  exchangeRate: Decimal;
+  amount: Decimal;
+  bankAccountId: string | null;
+  bankTransactionBatchId?: string | null;
+  ledgerTransactionId?: string | null;
+  contactId?: string | null;
+  projectId?: string | null;
+  projectName?: string | null;
+  coaId?: string;
+  coaAccountName?: string | null;
+  coaAccountCode?: string | null;
 };
 
 const buildBankTransactionFilters = (
@@ -129,12 +110,13 @@ const buildLedgerTransactionFilters = (
 ) => {
   const where: Prisma.LedgerTransactionWhereInput = {
     bankTransactionId: { not: null },
+    isDeleted: filters.isDeleted ?? false,
     ledgerEntries: {
       some: {
+        isDeleted: filters.isDeleted ?? false,
         coa: {
           companyId: companyId,
         },
-        isDeleted: filters.isDeleted ?? false,
       },
     },
   };
@@ -182,60 +164,43 @@ const buildLedgerTransactionFilters = (
 
 const transformLedgerTransaction = (
   tx: ExtendedLedgerTransaction
-): TransformedLedgerEntry[] => {
+): CatEngineTransaction[] => {
   const bankCoaId = tx.bankTransaction?.bankAccount?.coaId;
 
   return Array.isArray(tx.ledgerEntries)
     ? tx.ledgerEntries
-        .filter((entry) => entry.coaId !== bankCoaId)
-        .map(
-          ({
-            sourceCurrency,
-            bankTransaction,
-            ...rest
-          }: LedgerEntry & {
-            sourceCurrency?: Currency;
-            bankTransaction?: BankTransaction;
-          }) => ({
-            source: "ledgerTransaction",
-            date: tx.date,
-            categorisationStatus: tx.categorisationStatus,
-            ...rest,
-            bankAccount: {
-              id: tx.bankTransaction?.bankAccount?.id,
-              displayName: tx.bankTransaction?.bankAccount?.displayName,
-              bankAccountNo: tx.bankTransaction?.bankAccount?.bankAccountNo,
-              coaId: tx.bankTransaction?.bankAccount?.coaId,
-              currencyId: tx.bankTransaction?.bankAccount?.currencyId,
-              bankId: tx.bankTransaction?.bankAccount?.bankId,
-              bankName: tx.bankTransaction?.bankAccount?.bank?.name,
-              bankLogo: tx.bankTransaction?.bankAccount?.bank?.bankLogo,
-              bankBalance: tx.bankTransaction?.bankAccount?.bankBalance,
-            },
-            bankTransaction: {
-              id: tx.bankTransaction?.id,
-              date: tx.bankTransaction?.date,
-              contact: tx.bankTransaction?.payee,
-              description: tx.bankTransaction?.description,
-              reference: tx.bankTransaction?.reference,
-              amount: tx.bankTransaction?.amount,
-              defaultExchangeRate: tx.bankTransaction?.defaultExchangeRate,
-              bankTransactionBatchId:
-                tx.bankTransaction?.bankTransactionBatchId,
-              ledgerTransactionId: tx.bankTransaction?.ledgerTransactionId,
-            },
-            ledgerTransaction: {
-              id: tx.id,
-              date: tx.date,
-              description: tx.description,
-              reference: tx.reference,
-              notes: tx.notes,
-            },
-            contact: tx.contact,
-            journalBatch: tx.journalBatch,
-            company: tx.company,
-          })
+        .filter(
+          (entry: LedgerEntriesWithRelations) => entry.coaId !== bankCoaId
         )
+        .map(({ ...ledger }: LedgerEntriesWithRelations) => ({
+          id: ledger.id,
+          transactionSource: "ledger",
+          categorisationStatus: tx.categorisationStatus,
+          bankLogo: tx.bankTransaction?.bankAccount?.bank?.bankLogo || null,
+          bankName: tx.bankTransaction?.bankAccount?.bank?.name || null,
+          date: tx.date,
+          fsDate: ledger.fsDate,
+          contactName: tx.contact?.name || "",
+          projectName: ledger.project?.name || null,
+          reference: tx.reference || "",
+          description: ledger.description || "",
+          bankCurrencyCode: ledger.sourceCurrency.code,
+          bankCurrencySymbol: ledger.sourceCurrency.symbol,
+          transactionSide: ledger.transactionSide,
+          bankAmount: ledger.sourceAmount,
+          exchangeRate: ledger.customExchangeRate,
+          amount: ledger.amount,
+          bankCurrencyId: ledger.sourceCurrencyId,
+          bankAccountId: tx.bankTransaction?.bankAccountId || null,
+          bankTransactionBatchId:
+            tx.bankTransaction?.bankTransactionBatchId || null,
+          ledgerTransactionId: tx.id,
+          contactId: tx.contactId || null,
+          projectId: ledger.projectId || null,
+          coaId: ledger.coaId,
+          coaAccountName: ledger.coa?.accountName || null,
+          coaAccountCode: ledger.coa?.accountCode || null,
+        }))
     : [];
 };
 
@@ -262,19 +227,13 @@ export async function getMergedTransactions(
     const bankTransactions = await prisma.bankTransaction.findMany({
       where: bankTransactionFilters,
       include: {
-        categorisedBy: true,
+        // categorisedBy: true,
         bankAccount: {
           include: {
-            bank: true,
-            currency: true,
-            company: true,
-            accountInCoa: true,
+            bank: { select: { bankLogo: true } },
+            currency: { select: { id: true, code: true, symbol: true } },
           },
         },
-        bankTransactionBatch: true,
-        ledgerTransaction: true,
-        createdBy: true,
-        updatedBy: true,
       },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
       // skip: (page - 1) * pageSize,
@@ -284,35 +243,57 @@ export async function getMergedTransactions(
     const accountTransactions = await prisma.ledgerTransaction.findMany({
       where: ledgerTransactionFilters,
       include: {
-        contact: true,
-        company: true,
+        contact: { select: { name: true } },
         bankTransaction: {
-          include: { bankAccount: { include: { bank: true } } },
+          include: {
+            bankAccount: {
+              include: { bank: { select: { name: true, bankLogo: true } } },
+            },
+          },
         },
-        journalBatch: true,
-        ledgerEntries: { include: { coa: true, sourceCurrency: true } },
-        createdBy: true,
-        updatedBy: true,
+        ledgerEntries: {
+          include: {
+            coa: { select: { accountCode: true, accountName: true } },
+            sourceCurrency: { select: { code: true, symbol: true } },
+            project: { select: { name: true } },
+          },
+        },
       },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
       // skip: (page - 1) * pageSize,
       // take: pageSize,
     });
 
-    console.log(accountTransactions);
-
-    const flattenedAccountTransactions: TransformedLedgerEntry[] =
+    const flattenedAccountTransactions: CatEngineTransaction[] =
       accountTransactions.flatMap(transformLedgerTransaction);
-
-    console.log(flattenedAccountTransactions);
 
     // Filter out ledger entries where coaId matches the bank account's coaId
     // This ensures we only get contra entries, not the bank account entries
 
-    const transactions = [
+    const transactions: CatEngineTransaction[] = [
       ...bankTransactions.map((bankTx) => ({
-        ...bankTx,
-        source: "bankTransaction",
+        id: bankTx.id,
+        transactionSource: "bank",
+        categorisationStatus: bankTx.categorisationStatus,
+        bankLogo: bankTx.bankAccount?.bank?.bankLogo || null,
+        bankName: bankTx.bankAccount?.displayName || null,
+        date: bankTx.date,
+        fsDate: bankTx.date,
+        contactName: bankTx.payee || "",
+        reference: bankTx.reference || "",
+        description: bankTx.description || "",
+        bankCurrencyCode: bankTx.bankAccount?.currency?.code,
+        bankCurrencySymbol: bankTx.bankAccount?.currency?.symbol,
+        transactionSide: bankTx.transactionSide,
+        bankAmount: bankTx.amount,
+        exchangeRate: bankTx.defaultExchangeRate,
+        amount: new Decimal(bankTx.amount).dividedBy(
+          new Decimal(bankTx.defaultExchangeRate)
+        ),
+        bankCurrencyId: bankTx.bankAccount.currencyId,
+        bankAccountId: bankTx.bankAccountId,
+        bankTransactionBatchId: bankTx.bankTransactionBatchId,
+        ledgerTransactionId: bankTx.ledgerTransactionId || null,
       })),
       ...flattenedAccountTransactions,
     ];
