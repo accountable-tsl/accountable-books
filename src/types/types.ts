@@ -277,7 +277,7 @@ export type CatEngineTransaction = {
   contactId?: string | null;
   projectId?: string | null;
   projectName?: string | null;
-  coaId?: string;
+  coaId?: string | null;
   coaAccountName?: string | null;
   coaAccountCode?: string | null;
 };

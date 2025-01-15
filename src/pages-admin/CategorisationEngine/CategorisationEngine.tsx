@@ -38,18 +38,18 @@ import { fetchCoa } from "../../services/CoaServices";
 import CustomSelect from "../../components/CoaSelectCellEditor/CoaSelectCellEditor";
 
 const catengineHeaders = [
-  { label: "Bank", key: "bankAccount" },
-  { label: "Date", key: "date" },
-  { label: "FS Date", key: "fsDate" },
-  { label: "Contact", key: "contact" },
-  { label: "Reference", key: "reference" },
-  { label: "Project", key: "project" },
-  { label: "Description", key: "description" },
-  { label: "Curr", key: "currency" },
-  { label: "Bank Amount", key: "bankAmount" },
-  { label: "Exr", key: "exchangeRate" },
-  { label: "Amount", key: "amount" },
-  { label: "Account", key: "account" },
+  { label: "Bank", key: "bankAccount", pinned: "left" },
+  { label: "Date", key: "date", pinned: "left" },
+  { label: "FS Date", key: "fsDate", pinned: null },
+  { label: "Contact", key: "contact", pinned: null },
+  { label: "Reference", key: "reference", pinned: null },
+  { label: "Project", key: "project", pinned: null },
+  { label: "Description", key: "description", pinned: "left" },
+  { label: "Curr", key: "currency", pinned: null },
+  { label: "Bank Amount", key: "bankAmount", pinned: null },
+  { label: "Exr", key: "exchangeRate", pinned: null },
+  { label: "Amount", key: "amount", pinned: "right" },
+  { label: "Account", key: "account", pinned: "right" },
 ];
 export default function CategorisationEngine() {
   const { companyId } = useCompany();
@@ -75,8 +75,8 @@ export default function CategorisationEngine() {
   const [columnWidths, setColumnWidths] = useState<number[]>(
     Array(catengineHeaders.length).fill(100)
   );
-  const [pinnedLeft, setPinnedLeft] = useState<string[]>(["bankAccount"]);
-  const [pinnedRight, setPinnedRight] = useState<string[]>(["amount"]);
+  // const [pinnedLeft, setPinnedLeft] = useState<string[]>(["bankAccount"]);
+  // const [pinnedRight, setPinnedRight] = useState<string[]>(["amount"]);
 
   const catEngineBreadcrumbs = [
     {
@@ -447,26 +447,66 @@ export default function CategorisationEngine() {
               </div>
             </div>
           </div>
-          <div className="catengine-body__bottom">
-            <div className="catengine-table" role="table">
+          <div className="catengine-table">
+            <div className="catengine-table__container" role="table">
               <div className="catengine-table__header" role="row">
-                <div className=" catengine-table__cell catengine-table__cell--checkbox">
-                  <input type="checkbox" />
-                </div>
-                {catengineHeaders.map((header, index) => (
-                  <div
-                    key={header.key}
-                    className={`catengine-table__cell catengine-table__cell--${header.key}`}
-                    role="columnheader"
-                    style={{ width: columnWidths[index] }}
-                  >
-                    {header.label}
-                    <span
-                      className="catengine-table__resize"
-                      onMouseDown={(e) => handleResize(e, index)}
-                    />
+                <div className="catengine-table__pinned catengine-table__pinned-header catengine-table__pinned-left">
+                  <div className=" catengine-table__cell catengine-table__cell--checkbox">
+                    <input type="checkbox" />
                   </div>
-                ))}
+                  {catengineHeaders
+                    .filter((i) => i.pinned === "left")
+                    .map((header, index) => (
+                      <div
+                        key={header.key}
+                        className={`catengine-table__cell catengine-table__cell--${header.key}`}
+                        role="columnheader"
+                        style={{ width: columnWidths[index] }}
+                      >
+                        {header.label}
+                        <span
+                          className="catengine-table__resize"
+                          onMouseDown={(e) => handleResize(e, index)}
+                        />
+                      </div>
+                    ))}
+                </div>
+                <div className="catengine-table__pinned catengine-table__pinned-header catengine-table__pinned-not">
+                  {catengineHeaders
+                    .filter((i) => !i.pinned)
+                    .map((header, index) => (
+                      <div
+                        key={header.key}
+                        className={`catengine-table__cell catengine-table__cell--${header.key}`}
+                        role="columnheader"
+                        style={{ width: columnWidths[index] }}
+                      >
+                        {header.label}
+                        <span
+                          className="catengine-table__resize"
+                          onMouseDown={(e) => handleResize(e, index)}
+                        />
+                      </div>
+                    ))}
+                </div>
+                <div className="catengine-table__pinned catengine-table__pinned-header catengine-table__pinned-right">
+                  {catengineHeaders
+                    .filter((i) => i.pinned === "right")
+                    .map((header, index) => (
+                      <div
+                        key={header.key}
+                        className={`catengine-table__cell catengine-table__cell--${header.key}`}
+                        role="columnheader"
+                        style={{ width: columnWidths[index] }}
+                      >
+                        {header.label}
+                        <span
+                          className="catengine-table__resize"
+                          onMouseDown={(e) => handleResize(e, index)}
+                        />
+                      </div>
+                    ))}
+                </div>
               </div>
               <div className="catengine-table__body" role="rowgroup">
                 {fetchedBankTransactions.length === 0 ? (
@@ -474,49 +514,137 @@ export default function CategorisationEngine() {
                     No Transactions Found
                   </div>
                 ) : (
-                  fetchedBankTransactions.map((tx: CatEngineTransaction) => (
-                    <div
-                      key={tx.id}
-                      className={`catengine-table__row ${
-                        selectedRows.some((row) => row.id === tx.id)
-                          ? "catengine-table__row--selected"
-                          : ""
-                      }`}
-                      onClick={() => handleRowClick(tx)}
-                      role="row"
-                    >
-                      <div className=" catengine-table__cell catengine-table__cell--checkbox">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.some((row) => row.id === tx.id)}
-                          readOnly
-                        />
-                      </div>
-                      {catengineHeaders.map((header, index) => (
-                        <div
-                          key={`${tx.id}-${header.key}`}
-                          className={`catengine-table__cell catengine-table__cell--${
-                            header.key
-                          } ${
-                            pinnedLeft.includes(header.key)
-                              ? "catengine-table__cell--pinned-left"
-                              : ""
-                          } ${
-                            pinnedRight.includes(header.key)
-                              ? "catengine-table__cell--pinned-right"
-                              : ""
-                          }`}
-                          role="cell"
-                        >
-                          {renderCellContent(header.key, tx, coa)}
-                          <span
-                            className="catengine-table__resize"
-                            onMouseDown={(e) => handleResize(e, index)}
-                          />
-                        </div>
-                      ))}
+                  <>
+                    <div className="catengine-table__pinned catengine-table__pinned-body catengine-table__pinned-left">
+                      {fetchedBankTransactions.map(
+                        (tx: CatEngineTransaction) => (
+                          <div
+                            key={tx.id}
+                            className={`catengine-table__row catengine-table__row--right ${
+                              selectedRows.some((row) => row.id === tx.id)
+                                ? "catengine-table__row--selected"
+                                : ""
+                            }`}
+                            onClick={() => handleRowClick(tx)}
+                            role="row"
+                          >
+                            <div className=" catengine-table__cell catengine-table__cell--checkbox">
+                              <input
+                                type="checkbox"
+                                checked={selectedRows.some(
+                                  (row) => row.id === tx.id
+                                )}
+                                readOnly
+                              />
+                            </div>
+                            {catengineHeaders
+                              .filter((i) => i.pinned === "left")
+                              .map((header, index) => (
+                                <div
+                                  key={`${tx.id}-${header.key}`}
+                                  className={`catengine-table__cell catengine-table__cell--${header.key} `}
+                                  role="cell"
+                                >
+                                  {renderCellContent(header.key, tx, coa)}
+                                  <span
+                                    className="catengine-table__resize"
+                                    onMouseDown={(e) => handleResize(e, index)}
+                                  />
+                                </div>
+                              ))}
+                          </div>
+                        )
+                      )}
                     </div>
-                  ))
+
+                    <div className="catengine-table__pinned catengine-table__pinned-body catengine-table__pinned-not">
+                      {fetchedBankTransactions.map(
+                        (tx: CatEngineTransaction) => (
+                          <div
+                            key={tx.id}
+                            className={`catengine-table__row ${
+                              selectedRows.some((row) => row.id === tx.id)
+                                ? "catengine-table__row--selected"
+                                : ""
+                            }`}
+                            onClick={() => handleRowClick(tx)}
+                            role="row"
+                          >
+                            {catengineHeaders
+                              .filter((i) => !i.pinned)
+                              .map((header, index) => (
+                                <div
+                                  key={`${tx.id}-${header.key}`}
+                                  className={`catengine-table__cell catengine-table__cell--${header.key}`}
+                                  role="cell"
+                                >
+                                  {renderCellContent(header.key, tx, coa)}
+                                  <span
+                                    className="catengine-table__resize"
+                                    onMouseDown={(e) => handleResize(e, index)}
+                                  />
+                                </div>
+                              ))}
+                          </div>
+                        )
+                      )}
+                    </div>
+
+                    <div className="catengine-table__pinned catengine-table__pinned-body catengine-table__pinned-right">
+                      {fetchedBankTransactions.map(
+                        (tx: CatEngineTransaction) => (
+                          <div
+                            key={tx.id}
+                            className={`catengine-table__row catengine-table__row--right ${
+                              selectedRows.some((row) => row.id === tx.id)
+                                ? "catengine-table__row--selected"
+                                : ""
+                            }`}
+                            onClick={() => handleRowClick(tx)}
+                            role="row"
+                          >
+                            {catengineHeaders
+                              .filter(
+                                (i) =>
+                                  i.pinned === "right" && i.key !== "account"
+                              )
+                              .map((header, index) => (
+                                <div
+                                  key={`${tx.id}-${header.key}`}
+                                  className={`catengine-table__cell catengine-table__cell--${header.key} `}
+                                  role="cell"
+                                >
+                                  {renderCellContent(header.key, tx, coa)}
+                                  <span
+                                    className="catengine-table__resize"
+                                    onMouseDown={(e) => handleResize(e, index)}
+                                  />
+                                </div>
+                              ))}
+
+                            {catengineHeaders
+                              .filter(
+                                (i) =>
+                                  i.pinned === "right" && i.key === "account"
+                              )
+                              .map((header, index) => (
+                                // <div
+                                //   key={`${tx.id}-${header.key}`}
+                                //   className={`catengine-table__cell catengine-table__cell--${header.key} `}
+                                //   role="cell"
+                                // >
+                                <>{renderCellContent(header.key, tx, coa)}</>
+                                /* <span
+                                    className="catengine-table__resize"
+                                    onMouseDown={(e) => handleResize(e, index)}
+                                  />
+                                </div> */
+                              ))}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -602,7 +730,7 @@ export const renderCellContent = (
         //     <option key={account.id}>{account.accountName}</option>
         //   ))}
         // </select>
-        <CustomSelect options={coa} className="catengine-table__account" />
+        <CustomSelect options={coa} className="catengine-table__cell--coa" />
       );
 
     default:
