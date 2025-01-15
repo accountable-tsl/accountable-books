@@ -36,6 +36,7 @@ import numeral from "numeral";
 import { fetchCompany } from "../../services/CompanyServices";
 import { fetchCoa } from "../../services/CoaServices";
 import CustomSelect from "../../components/CoaSelectCellEditor/CoaSelectCellEditor";
+import Dropdown from "../../components/Dropdown/Dropdown";
 
 const catengineHeaders = [
   { label: "Bank", key: "bankAccount", pinned: "left" },
@@ -656,7 +657,62 @@ export default function CategorisationEngine() {
                   </>
                 )}
               </div>
-              <div className="catengine-table__bottom"></div>
+            </div>
+            <div className="catengine-table__pagination">
+              <div className="catengine-table__pagination-left">
+                <span>Page</span>
+                <select>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+
+                <span>of 1 (20 total items)</span>
+              </div>
+
+              <div className="catengine-table__pagination-middle">
+                <span>Showing</span>
+                <select>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+                <span>items per page</span>
+              </div>
+
+              <div className="catengine-table__pagination-right">
+                <button
+                  className="catengine-table__nav-button"
+                  // onClick={() => handlePageChange("start")}
+                  // disabled={isFirstPage}
+                >
+                  {"<<"} Start
+                </button>
+                <button
+                  className="catengine-table__nav-button"
+                  // onClick={() => handlePageChange("previous")}
+                  // disabled={isFirstPage}
+                >
+                  Previous
+                </button>
+                <div className="catengine-table__current-page">
+                  {/* <span>{currentPage}</span> */}
+                </div>
+                <button
+                  className="catengine-table__nav-button"
+                  // onClick={() => handlePageChange("next")}
+                  // disabled={isLastPage}
+                >
+                  Next {">"}
+                </button>
+                <button
+                  className="catengine-table__nav-button"
+                  // onClick={() => handlePageChange("end")}
+                  // disabled={isLastPage}
+                >
+                  End {">>"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
