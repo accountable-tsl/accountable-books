@@ -229,6 +229,9 @@
       justify-content: space-between;
       align-items: center;
       height: 2rem;
+      position: sticky;
+      z-index: 50;
+      top: 0;
 
       // @apply sticky top-0 z-10 bg-white rounded-t-md flex flex-nowrap justify-between items-center px-4 py-1.5 pl-1.5 border-b border-gray-200 h-10;
 
@@ -247,7 +250,6 @@
       width: 100%;
       border-collapse: collapse;
       overflow-x: auto;
-      overflow-y: scroll;
 
       &::-webkit-scrollbar {
         height: 2px;
@@ -256,6 +258,7 @@
 
       &::-webkit-scrollbar:horizontal {
         height: 2px;
+        max-width: 5px;
       }
 
       &::-webkit-scrollbar-thumb:horizontal {
@@ -291,15 +294,13 @@
         flex: 1;
         overflow-x: auto;
         min-width: 45rem;
-        // position: relative;
+        overflow-anchor: auto;
       }
 
       &-right {
         position: sticky;
         right: 0;
         min-width: 25rem;
-        // width: 25rem;
-        // max-width: 25rem;
         z-index: 2;
         border-left: 1px solid rgba($neutral-gray, 0.5);
       }
@@ -365,11 +366,19 @@
 
       &--bankAmount {
         min-width: 8rem;
+        text-align: right;
+      }
+
+      &--exchangeRate {
+        text-align: right;
       }
 
       &--amount {
         min-width: 8.5rem;
+        width: 8.5rem;
+        max-width: 8.5rem;
         padding: 0;
+        text-align: right;
 
         // position: sticky;
         // right: 15rem;
@@ -429,7 +438,6 @@
       display: block;
       overflow: hidden;
       text-overflow: ellipsis;
-      text-align: right;
 
       &--plus {
         color: $success;

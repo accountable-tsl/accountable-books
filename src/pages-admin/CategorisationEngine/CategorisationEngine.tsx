@@ -505,7 +505,7 @@ export default function CategorisationEngine() {
                           key={header.key}
                           className={`catengine-table__cell catengine-table__cell--${header.key}`}
                           role="columnheader"
-                          style={{ width: columnWidths[index] }}
+                          // style={{ width: columnWidths[index] }}
                         >
                           {header.label}
                           <span
@@ -656,6 +656,7 @@ export default function CategorisationEngine() {
                   </>
                 )}
               </div>
+              <div className="catengine-table__bottom"></div>
             </div>
           </div>
         </div>
