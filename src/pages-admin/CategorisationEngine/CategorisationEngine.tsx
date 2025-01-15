@@ -61,7 +61,6 @@ export default function CategorisationEngine() {
     useState<BankAccount | null>(null);
   const [coa, setCoa] = useState([]);
   const [coaLimit, setCoaLimit] = useState(500);
-  const [isCategorised, setIsCategorised] = useState();
   const [filterAmounts, setFilterAmounts] = useState({
     minAmount: "",
     maxAmount: "",
@@ -344,6 +343,10 @@ export default function CategorisationEngine() {
           </div>
         </div>
 
+        <div className="catengine-smallbody">
+          Please view this page on a larger screen.
+        </div>
+
         <div className="catengine-body">
           <div className="catengine-body__top">
             <div className="catengine-body__top-left">
@@ -451,61 +454,67 @@ export default function CategorisationEngine() {
             <div className="catengine-table__container" role="table">
               <div className="catengine-table__header" role="row">
                 <div className="catengine-table__pinned catengine-table__pinned-header catengine-table__pinned-left">
-                  <div className=" catengine-table__cell catengine-table__cell--checkbox">
-                    <input type="checkbox" />
+                  <div className="catengine-table__row catengine-table__row--left catengine-table__row--header">
+                    <div className=" catengine-table__cell catengine-table__cell--checkbox">
+                      <input type="checkbox" />
+                    </div>
+                    {catengineHeaders
+                      .filter((i) => i.pinned === "left")
+                      .map((header, index) => (
+                        <div
+                          key={header.key}
+                          className={`catengine-table__cell catengine-table__cell--${header.key}`}
+                          role="columnheader"
+                          style={{ width: columnWidths[index] }}
+                        >
+                          {header.label}
+                          <span
+                            className="catengine-table__resize"
+                            onMouseDown={(e) => handleResize(e, index)}
+                          />
+                        </div>
+                      ))}
                   </div>
-                  {catengineHeaders
-                    .filter((i) => i.pinned === "left")
-                    .map((header, index) => (
-                      <div
-                        key={header.key}
-                        className={`catengine-table__cell catengine-table__cell--${header.key}`}
-                        role="columnheader"
-                        style={{ width: columnWidths[index] }}
-                      >
-                        {header.label}
-                        <span
-                          className="catengine-table__resize"
-                          onMouseDown={(e) => handleResize(e, index)}
-                        />
-                      </div>
-                    ))}
                 </div>
                 <div className="catengine-table__pinned catengine-table__pinned-header catengine-table__pinned-not">
-                  {catengineHeaders
-                    .filter((i) => !i.pinned)
-                    .map((header, index) => (
-                      <div
-                        key={header.key}
-                        className={`catengine-table__cell catengine-table__cell--${header.key}`}
-                        role="columnheader"
-                        style={{ width: columnWidths[index] }}
-                      >
-                        {header.label}
-                        <span
-                          className="catengine-table__resize"
-                          onMouseDown={(e) => handleResize(e, index)}
-                        />
-                      </div>
-                    ))}
+                  <div className="catengine-table__row catengine-table__row--not catengine-table__row--header">
+                    {catengineHeaders
+                      .filter((i) => !i.pinned)
+                      .map((header, index) => (
+                        <div
+                          key={header.key}
+                          className={`catengine-table__cell catengine-table__cell--${header.key}`}
+                          role="columnheader"
+                          style={{ width: columnWidths[index] }}
+                        >
+                          {header.label}
+                          <span
+                            className="catengine-table__resize"
+                            onMouseDown={(e) => handleResize(e, index)}
+                          />
+                        </div>
+                      ))}
+                  </div>
                 </div>
                 <div className="catengine-table__pinned catengine-table__pinned-header catengine-table__pinned-right">
-                  {catengineHeaders
-                    .filter((i) => i.pinned === "right")
-                    .map((header, index) => (
-                      <div
-                        key={header.key}
-                        className={`catengine-table__cell catengine-table__cell--${header.key}`}
-                        role="columnheader"
-                        style={{ width: columnWidths[index] }}
-                      >
-                        {header.label}
-                        <span
-                          className="catengine-table__resize"
-                          onMouseDown={(e) => handleResize(e, index)}
-                        />
-                      </div>
-                    ))}
+                  <div className="catengine-table__row catengine-table__row--right catengine-table__row--header">
+                    {catengineHeaders
+                      .filter((i) => i.pinned === "right")
+                      .map((header, index) => (
+                        <div
+                          key={header.key}
+                          className={`catengine-table__cell catengine-table__cell--${header.key}`}
+                          role="columnheader"
+                          style={{ width: columnWidths[index] }}
+                        >
+                          {header.label}
+                          <span
+                            className="catengine-table__resize"
+                            onMouseDown={(e) => handleResize(e, index)}
+                          />
+                        </div>
+                      ))}
+                  </div>
                 </div>
               </div>
               <div className="catengine-table__body" role="rowgroup">
@@ -520,7 +529,7 @@ export default function CategorisationEngine() {
                         (tx: CatEngineTransaction) => (
                           <div
                             key={tx.id}
-                            className={`catengine-table__row catengine-table__row--right ${
+                            className={`catengine-table__row catengine-table__row--left ${
                               selectedRows.some((row) => row.id === tx.id)
                                 ? "catengine-table__row--selected"
                                 : ""
@@ -600,7 +609,7 @@ export default function CategorisationEngine() {
                                 ? "catengine-table__row--selected"
                                 : ""
                             }`}
-                            onClick={() => handleRowClick(tx)}
+                            // onClick={() => handleRowClick(tx)}
                             role="row"
                           >
                             {catengineHeaders
@@ -704,7 +713,7 @@ export const renderCellContent = (
       return numeral(tx.amount).format("0,0.00");
 
     case "exchangeRate":
-      return numeral(tx.exchangeRate).format("0,0.0000");
+      return numeral(tx.exchangeRate).format("0,0.000000");
 
     case "amount":
       const amount = new Decimal(tx.bankAmount).dividedBy(

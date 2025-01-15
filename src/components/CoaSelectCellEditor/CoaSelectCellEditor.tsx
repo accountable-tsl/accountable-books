@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./CoaSelectCellEditor.scss";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 interface SelectProps {
   options: any[];
@@ -178,7 +179,11 @@ export default function CustomSelect({
           onClick={(e) => e.stopPropagation()}
         />
         <div className="selectcoa__icon">
-          {isOpen ? <ChevronUp /> : <ChevronDown />}
+          {isOpen ? (
+            <FontAwesomeIcon icon={faChevronUp} />
+          ) : (
+            <FontAwesomeIcon icon={faChevronDown} />
+          )}
         </div>
       </div>
 
