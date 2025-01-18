@@ -104,15 +104,18 @@ export async function categoriseBankTransaction(req: Request, res: Response) {
       { bankTx: [], ledgerTx: [] }
     );
 
-    // const [newLedgerEntries, updatedLedgerEntries] = await Promise.all([
-    //   createLedgerEntries(bankTx),
-    //   updateLedgerEntries(ledgerTx),
-    // ]);
-
     const newLedgerEntries = await createLedgerEntries(bankTx);
     const updatedLedgerEntries = await updateLedgerEntries(ledgerTx);
 
-    const hasSuccess = newLedgerEntries.success || updatedLedgerEntries.success;
+    const createdCount =
+      newLedgerEntries.data?.ledgerSuccessfullyPosted?.length || 0;
+    const updatedCount =
+      updatedLedgerEntries.data?.updatedLedgerTransactions?.length || 0;
+    const failedCount =
+      (newLedgerEntries.data?.ledgerPostingFailed?.length || 0) +
+      (updatedLedgerEntries.data?.failedUpdates?.length || 0);
+
+    const hasSuccess = createdCount > 0 || updatedCount > 0;
 
     // Combine results
     const response = {
@@ -121,18 +124,17 @@ export async function categoriseBankTransaction(req: Request, res: Response) {
         ? "Some or all ledger entries processed successfully."
         : "Failed to process ledger entries.",
       data: {
-        created: newLedgerEntries.data.ledgerSuccessfullyPosted || [],
+        count: `created: ${createdCount}, updated: ${updatedCount}, failed: ${failedCount}`,
+        created: newLedgerEntries.data?.ledgerSuccessfullyPosted || [],
         updated: updatedLedgerEntries.data?.updatedLedgerTransactions || [],
         failed: [
-          ...(newLedgerEntries.data.ledgerPostingFailed || []),
+          ...(newLedgerEntries.data?.ledgerPostingFailed || []),
           ...(updatedLedgerEntries.data?.failedUpdates || []),
         ],
       },
     };
 
-    return response.success
-      ? res.status(200).json(response)
-      : res.status(400).json(response);
+    return res.status(hasSuccess ? 200 : 400).json(response);
   } catch (error) {
     console.error("Error categorising bank transaction:", error);
     return res.status(500).json({

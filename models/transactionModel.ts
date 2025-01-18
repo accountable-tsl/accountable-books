@@ -375,7 +375,7 @@ type TransactionLedgerDetails = {
  * (they're mirrored in absolute terms).
  */
 export async function createLedgerEntries(tx: CatEngineTransaction[]) {
-  const ledgerPostingFailed: CatEngineTransaction[] = [];
+  const ledgerPostingFailed: any[] = [];
   const ledgerSuccessfullyPosted: any[] = [];
 
   if (!tx || tx.length === 0) {
@@ -399,13 +399,31 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           t.transactionSource !== "bank"
         ) {
           ledgerPostingFailed.push(t);
-          continue; //Skip to next transaction
+          continue;
+        }
+
+        const existingLedgerTx = await prisma.ledgerTransaction.findUnique({
+          where: { bankTransactionId: t.id },
+        });
+
+        if (existingLedgerTx) {
+          ledgerPostingFailed.push({
+            id: t.id,
+            source: t.transactionSource,
+            error:
+              "Ledger transaction already exists for this bank transaction.",
+          });
+          continue;
         }
 
         // Retrieve the bank transaction from DB
         const bankTx = await getBankTransactionById(t.companyId, t.id);
         if (!bankTx.success || !bankTx.data) {
-          ledgerPostingFailed.push(t);
+          ledgerPostingFailed.push({
+            id: t.id,
+            source: t.transactionSource,
+            error: "Bank transaction not found",
+          });
           continue;
         }
 
@@ -416,24 +434,38 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
 
         // Create contact if `contactName` is provided and `contactId` is missing
         if (t.contactName && !t.contactId) {
-          const contact = await prisma.contact.create({
-            data: { name: t.contactName, companyId: t.companyId },
+          const contact = await prisma.contact.upsert({
+            where: {
+              name_companyId: { name: t.contactName, companyId: t.companyId },
+            },
+            create: { name: t.contactName, companyId: t.companyId },
+            update: {},
           });
           contactId = contact.id;
         }
 
-        // Handle "No Contact" if neither `contactName` nor `contactId` is provided
-        const noContact = await prisma.contact.upsert({
-          where: {
-            name_companyId: { name: "No Contact", companyId: t.companyId },
-          },
-          create: {
-            name: "No Contact",
-            companyId: t.companyId,
-          },
-          update: {}, // No updates needed; just use the existing entry
-        });
-        contactId = noContact.id;
+        if (!t.contactName && !t.contactId && (t.projectId || t.projectName)) {
+          // Handle "No Contact" if neither `contactName` nor `contactId` is provided
+          const noContact = await prisma.contact.upsert({
+            where: {
+              name_companyId: { name: "No Contact", companyId: t.companyId },
+            },
+            create: {
+              name: "No Contact",
+              companyId: t.companyId,
+            },
+            update: {},
+          });
+          contactId = noContact.id;
+        }
+
+        if ((t.contactName || t.contactId) && !contactId) {
+          ledgerPostingFailed.push({
+            id: t.id,
+            source: t.transactionSource,
+            error: "Error creating contact",
+          });
+        }
 
         //Create project if needed
         if (!t.projectId && t.projectName) {
@@ -445,6 +477,15 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
             },
             include: { contact: true },
           });
+
+          if (!project) {
+            ledgerPostingFailed.push({
+              id: t.id,
+              source: t.transactionSource,
+              error: "Error creating project",
+            });
+            continue;
+          }
 
           t.projectId = project.id;
         }
@@ -521,23 +562,45 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           data: ledgerTxData,
         });
 
+        if (!createdLedgerTx) {
+          ledgerPostingFailed.push({
+            id: t.id,
+            source: t.transactionSource,
+            error: "Could not create ledger transaction",
+          });
+        }
+
         // 2) Create the DEBIT & CREDIT LedgerEntries
-        await prisma.ledgerEntry.createMany({
+        const entries = await prisma.ledgerEntry.createMany({
           data: [
             { ...debitEntry, ledgerTransactionId: createdLedgerTx.id },
             { ...creditEntry, ledgerTransactionId: createdLedgerTx.id },
           ],
         });
 
+        if (!entries) {
+          ledgerPostingFailed.push({
+            id: t.id,
+            source: t.transactionSource,
+            error: "Could not create ledger entry(ies)",
+          });
+        }
+
         // 3) Update the bankTransaction to reflect new categorisation
-        await prisma.bankTransaction.update({
+        const bankTxUpdate = await prisma.bankTransaction.update({
           where: { id: bTx.id },
           data: {
             categorisationStatus,
-            // categorisedAt: new Date(),
-            // ...(t.userId && { firstCategorisedById: t.userId }),
           },
         });
+
+        if (!bankTxUpdate) {
+          ledgerPostingFailed.push({
+            id: t.id,
+            source: t.transactionSource,
+            error: "Unable to update bank transaction",
+          });
+        }
 
         ledgerSuccessfullyPosted.push(createdLedgerTx);
       }
@@ -577,7 +640,11 @@ export async function updateLedgerEntries(tx: CatEngineTransaction[]) {
 
     await prisma.$transaction(async (prisma) => {
       for (const t of tx) {
-        if (t.transactionSource === "bank" || !t.ledgerTransactionId) {
+        if (
+          t.transactionSource === "bank" ||
+          !t.ledgerTransactionId ||
+          !t.coaId
+        ) {
           failedUpdates.push(t);
           continue;
         }
