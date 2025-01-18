@@ -58,9 +58,9 @@ const getSingleCOA = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Bad Request" });
   }
 
-  const coaId = Number(req.params.id);
+  const coaId = req.params.id;
 
-  if (!coaId || isNaN(coaId)) {
+  if (!coaId) {
     return res.status(400).json({ message: "Bad Request: Invalid COA ID" });
   }
 
@@ -150,7 +150,7 @@ const createCOA = async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await createCOAModel(Number(companyId), data);
+    const result = await createCOAModel(companyId, data);
 
     if (!result || result.success === false) {
       res.status(400).json(result);
@@ -172,7 +172,7 @@ const createBulkCOA = async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await createBulkCOAModel(Number(companyId), data);
+    const result = await createBulkCOAModel(companyId, data);
 
     if (!result || result.success === false) {
       res.status(400).json(result);
@@ -187,10 +187,10 @@ const createBulkCOA = async (req: Request, res: Response) => {
 
 const updateCOA = async (req: Request, res: Response) => {
   const data = req.body;
-  const coaId = Number(req.params.id) || Number(req.body.id);
+  const coaId = req.params.id || req.body.id;
   const companyId = req.company!.id;
 
-  if (!companyId || !coaId || isNaN(coaId)) {
+  if (!companyId || !coaId) {
     return res
       .status(400)
       .json({ message: "Bad Request: Missing or invalid parameters" });

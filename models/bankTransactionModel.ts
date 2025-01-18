@@ -1,4 +1,9 @@
-import { CategorisationStatus, DebitCredit, Prisma, PrismaClient } from "@prisma/client";
+import {
+  CategorisationStatus,
+  DebitCredit,
+  Prisma,
+  PrismaClient,
+} from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { getSingleExchangeRate } from "../controllers/exRateController";
 import { getExchangeRate } from "./exRateModel";
@@ -281,6 +286,40 @@ export async function getBankTransactions(
       success: false,
       message: "Failed to retrieve transactions",
       error,
+    };
+  }
+}
+
+export async function getBankTransactionById(
+  companyId: string,
+  bankTransactionId: string
+) {
+  try {
+    const bankTransaction = await prisma.bankTransaction.findFirst({
+      where: { id: bankTransactionId, bankAccount: { companyId } },
+      include: {
+        bankAccount: true,
+      },
+    });
+
+    if (!bankTransaction) {
+      return {
+        success: false,
+        message: `Bank transaction with ID ${bankTransactionId} not found for company ${companyId}`,
+      };
+    }
+
+    return {
+      success: true,
+      message: `Bank transaction with id ${bankTransactionId} retrieved successfully`,
+      data: bankTransaction,
+    };
+  } catch (error: any) {
+    console.error("Error retrieving bank transaction", error);
+    return {
+      success: false,
+      message: "Failed to retrieve transactions",
+      error: error.message,
     };
   }
 }

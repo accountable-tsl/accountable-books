@@ -51,12 +51,12 @@ model User {
   JournalBatchUpdatedBy         JournalBatch[]         @relation("journalUpdatedBy")
   bankTransactionBatchesCreated BankTransactionBatch[] @relation("createdByUser")
   bankTransactionBatchesUpdated BankTransactionBatch[] @relation("updatedByUser")
-  bankTransactionsCategorised   BankTransaction[]      @relation("categorisedByUser")
+  // bankTransactionsCategorised   BankTransaction[]      @relation("firstCategorisedByUser")
   bankTransactionCreated        BankTransaction[]      @relation(name: "bankTransactionCreatedBy")
   bankTransactionUpdated        BankTransaction[]      @relation(name: "bankTransactionUpdatedBy")
   ledgerTransactionCreated      LedgerTransaction[]    @relation(name: "ledgerTransactionCreatedBy")
   ledgerTransactionUpdated      LedgerTransaction[]    @relation(name: "ledgerTransactionUpdatedBy")
-  ledgerTransactionCategorised  LedgerTransaction[]    @relation(name: "ledgerTransactionCategorisedBy")
+  // ledgerTransactionCategorised  LedgerTransaction[]    @relation(name: "ledgerTransactionCategorisedBy")
   LedgerEntry                   LedgerEntry[]          @relation(name: "ledgerEntryUpdatedBy")
   createdAt                     DateTime               @default(now())
   updatedAt                     DateTime               @updatedAt
@@ -334,11 +334,11 @@ model BankTransaction {
   balance                Decimal
   absoluteAmount         Decimal               @default(0)
   defaultExchangeRate    Decimal
-  isCategorised          Boolean               @default(false)
   categorisationStatus   CategorisationStatus  @default(UNCATEGORISED)
-  categorisedAt          DateTime?
-  categorisedById        String?
-  categorisedBy          User?                 @relation("categorisedByUser", fields: [categorisedById], references: [id])
+  // isCategorised          Boolean               @default(false)
+  // categorisedAt          DateTime?
+  // firstCategorisedById   String?
+  // firstcategorisedBy     User?                 @relation("firstCategorisedByUser", fields: [firstCategorisedById], references: [id])
   bankAccountId          String
   bankAccount            BankAccount           @relation(name: "transactionBankAccount", fields: [bankAccountId], references: [id])
   bankTransactionBatchId String?
@@ -382,9 +382,9 @@ model LedgerTransaction {
   companyId            String
   company              Company              @relation(name: "companyLedgerTransactions", fields: [companyId], references: [id])
   notes                String?
-  categorisedAt        DateTime
-  categorisedById      String
-  categorisedBy        User                 @relation(name: "ledgerTransactionCategorisedBy", fields: [categorisedById], references: [id])
+  // categorisedAt        DateTime
+  // categorisedById      String
+  // categorisedBy        User                 @relation(name: "ledgerTransactionCategorisedBy", fields: [categorisedById], references: [id])
   ledgerEntries        LedgerEntry[]        @relation(name: "ledgerEntries")
   journalBatch         JournalBatch?        @relation(name: "journalLedgerTransactions")
   createdById          String
@@ -540,7 +540,7 @@ model Contact {
   address        String?
   website        String?
   businessRegNo  String?
-  contactType    ContactType //Supplier, Customer, Employee
+  contactType    ContactType? //Supplier, Customer, Employee
   companyId      String
   company        Company             @relation(name: "companyContacts", fields: [companyId], references: [id])
   transactions   LedgerTransaction[] @relation(name: "contactLedgerTransactions")
@@ -549,6 +549,8 @@ model Contact {
   updatedAt      DateTime            @updatedAt
   deletedAt      DateTime?
   isDeleted      Boolean             @default(false)
+
+  @@unique([name, companyId])
 }
 
 enum ProjectStatus {

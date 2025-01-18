@@ -3,9 +3,14 @@ import {
   DebitCredit,
   Prisma,
   PrismaClient,
+  TransactionSource,
 } from "@prisma/client";
-import { TransactionFilters } from "./bankTransactionModel";
+import {
+  getBankTransactionById,
+  TransactionFilters,
+} from "./bankTransactionModel";
 import { Decimal } from "@prisma/client/runtime/library";
+import { compareDbAndUserObject } from "../utils/utils";
 
 const prisma = new PrismaClient();
 
@@ -32,7 +37,7 @@ type ExtendedLedgerTransaction = Prisma.LedgerTransactionGetPayload<{
   };
 }>;
 
-type CatEngineTransaction = {
+export type CatEngineTransaction = {
   id: string;
   transactionSource: string;
   categorisationStatus: CategorisationStatus;
@@ -56,9 +61,12 @@ type CatEngineTransaction = {
   contactId?: string | null;
   projectId?: string | null;
   projectName?: string | null;
-  coaId?: string;
+  coaId?: string | null;
   coaAccountName?: string | null;
   coaAccountCode?: string | null;
+  companyId?: string;
+  userId?: string;
+  notes?: string;
 };
 
 const buildBankTransactionFilters = (
@@ -315,7 +323,418 @@ export async function getMergedTransactions(
   }
 }
 
-export async function createAccountTransactionFromBank(
-  bankTransactionId: string,
-  coaId: string
-) {}
+interface LedgerEntryInput {
+  fsDate: Date;
+  ledgerTransactionId?: string;
+  coaId: string;
+  transactionSide: DebitCredit;
+  sourceCurrencyId: string;
+  sourceAmount: Decimal;
+  absoluteSourceAmount: Decimal;
+  systemExchangeRate: Decimal;
+  customExchangeRate: Decimal;
+  amount: Decimal;
+  absoluteAmount: Decimal;
+  description?: string | null;
+  projectId?: string | null;
+  journalEntry?: any;
+  updatedById?: string | null;
+}
+
+type TransactionLedgerDetails = {
+  date: Date;
+  fsDate: Date;
+  contactName?: string;
+  description?: string;
+  userId?: string | null;
+  source: TransactionSource;
+  reference?: string;
+  bankTransactionId: string;
+  companyId: string;
+  notes?: string;
+  createdById?: string;
+  firstCategorisedById: string;
+  updatedById: string;
+  sourceCurrencyId: string;
+
+  debitLedgerEntry: LedgerEntryInput;
+  creditLedgerEntry: LedgerEntryInput;
+};
+
+/**
+ * CREATE new ledger entries for bank transactions.
+ *
+ * 1. Validates necessary fields (coaId, id, companyId, etc.).
+ * 2. Fetches the corresponding bank transaction from the DB.
+ * 3. Optionally creates Contact/Project if provided and not existing.
+ * 4. Creates a new LedgerTransaction record.
+ * 5. Creates two ledger entries (DEBIT and CREDIT) per transaction.
+ * 6. Updates the BankTransaction record’s categorisation status.
+ *
+ * The sum of DEBIT and CREDIT for any single transaction is always 0
+ * (they're mirrored in absolute terms).
+ */
+export async function createLedgerEntries(tx: CatEngineTransaction[]) {
+  const ledgerPostingFailed: CatEngineTransaction[] = [];
+  const ledgerSuccessfullyPosted: any[] = [];
+
+  if (!tx || tx.length === 0) {
+    return {
+      success: false,
+      message: "No valid transactions provided.",
+      data: { ledgerSuccessfullyPosted, ledgerPostingFailed },
+    };
+  }
+
+  try {
+    // We use a single Prisma transaction for all inserts/updates.
+    // If any iteration fails, everything rolls back for data consistency.
+    await prisma.$transaction(async (prisma) => {
+      for (const t of tx) {
+        if (
+          !t.coaId ||
+          !t.id ||
+          !t.companyId ||
+          !t.exchangeRate ||
+          t.transactionSource !== "bank"
+        ) {
+          ledgerPostingFailed.push(t);
+          continue; //Skip to next transaction
+        }
+
+        // Retrieve the bank transaction from DB
+        const bankTx = await getBankTransactionById(t.companyId, t.id);
+        if (!bankTx.success || !bankTx.data) {
+          ledgerPostingFailed.push(t);
+          continue;
+        }
+
+        const bTx = bankTx.data;
+
+        //Create contact if needed
+        let contactId: string = t.contactId as string;
+
+        // Create contact if `contactName` is provided and `contactId` is missing
+        if (t.contactName && !t.contactId) {
+          const contact = await prisma.contact.create({
+            data: { name: t.contactName, companyId: t.companyId },
+          });
+          contactId = contact.id;
+        }
+
+        // Handle "No Contact" if neither `contactName` nor `contactId` is provided
+        const noContact = await prisma.contact.upsert({
+          where: {
+            name_companyId: { name: "No Contact", companyId: t.companyId },
+          },
+          create: {
+            name: "No Contact",
+            companyId: t.companyId,
+          },
+          update: {}, // No updates needed; just use the existing entry
+        });
+        contactId = noContact.id;
+
+        //Create project if needed
+        if (!t.projectId && t.projectName) {
+          const project = await prisma.project.create({
+            data: {
+              name: t.projectName,
+              companyId: t.companyId,
+              contactId,
+            },
+            include: { contact: true },
+          });
+
+          t.projectId = project.id;
+        }
+
+        // Decide categorisation status
+        const categorisationStatus: CategorisationStatus = t.userId
+          ? "CATEGORISED"
+          : "AUTO_CATEGORISED";
+
+        // Build the data needed for LedgerTransaction
+        const ledgerTxData = {
+          date: bTx.date,
+          description: bTx.description || t.description || null,
+          categorisationStatus,
+          source: "BANK" as TransactionSource,
+          reference: bTx.reference || t.reference || null,
+          bankTransactionId: bTx.id,
+          companyId: t.companyId,
+          notes: t.notes,
+          createdById: t.userId as string,
+          updatedById: t.userId as string,
+          ...(contactId && { contactId }),
+        };
+
+        // Decide which side gets the bank account vs. the COA
+        // Bank Account is an asset account, Money in is Debit, Money out is credit
+        // The assumption: If bTx.amount > 0 => DEBIT bank, CREDIT user-specified COA
+        //                 If bTx.amount < 0 => CREDIT bank, DEBIT user-specified COA
+
+        const isAmountPositive = new Decimal(bTx.amount).gt(new Decimal(0));
+
+        // Common fields for both DEBIT & CREDIT
+        // Mirror the absolute amounts to ensure sum = 0
+        const absoluteAmount = Decimal.abs(
+          new Decimal(bTx.amount).div(new Decimal(t.exchangeRate))
+        );
+
+        const debitEntry: LedgerEntryInput = {
+          transactionSide: "DEBIT",
+          coaId: isAmountPositive ? bTx.bankAccount.coaId : t.coaId,
+          sourceAmount: Decimal.abs(bTx.amount), //Raw amount from bank transaction
+          absoluteSourceAmount: Decimal.abs(bTx.amount),
+          sourceCurrencyId: bTx.bankAccount.currencyId,
+          fsDate: t.fsDate ? t.fsDate : (bTx.date as Date),
+          systemExchangeRate: bTx.defaultExchangeRate,
+          customExchangeRate: t.exchangeRate,
+          amount: absoluteAmount,
+          absoluteAmount,
+          description: t.description || bTx.description || null,
+          ...(t.projectId && { projectId: t.projectId }),
+        };
+
+        const creditEntry: LedgerEntryInput = {
+          transactionSide: "CREDIT",
+          coaId: isAmountPositive ? t.coaId : bTx.bankAccount.coaId,
+          sourceAmount: Decimal.abs(bTx.amount).neg(),
+          absoluteSourceAmount: Decimal.abs(bTx.amount),
+          sourceCurrencyId: bTx.bankAccount.currencyId,
+          fsDate: t.fsDate ? t.fsDate : (bTx.date as Date),
+          systemExchangeRate: bTx.defaultExchangeRate,
+          customExchangeRate: t.exchangeRate,
+          amount: absoluteAmount.neg(),
+          absoluteAmount,
+          description: t.description || bTx.description,
+          ...(t.projectId && { projectId: t.projectId }),
+        };
+
+        // Update bankTransaction categorisationStatus and other info,
+        // Maybe remove isCategorised, categorisedById, categorisedAt, totally from BankTransaction schema
+        // If t.contactName, create contact, if t.projectName, create project
+
+        // 1) Create the LedgerTransaction
+        const createdLedgerTx = await prisma.ledgerTransaction.create({
+          data: ledgerTxData,
+        });
+
+        // 2) Create the DEBIT & CREDIT LedgerEntries
+        await prisma.ledgerEntry.createMany({
+          data: [
+            { ...debitEntry, ledgerTransactionId: createdLedgerTx.id },
+            { ...creditEntry, ledgerTransactionId: createdLedgerTx.id },
+          ],
+        });
+
+        // 3) Update the bankTransaction to reflect new categorisation
+        await prisma.bankTransaction.update({
+          where: { id: bTx.id },
+          data: {
+            categorisationStatus,
+            // categorisedAt: new Date(),
+            // ...(t.userId && { firstCategorisedById: t.userId }),
+          },
+        });
+
+        ledgerSuccessfullyPosted.push(createdLedgerTx);
+      }
+    });
+
+    const didAnySucceed = ledgerSuccessfullyPosted.length > 0;
+
+    return {
+      success: didAnySucceed,
+      message: didAnySucceed
+        ? "Ledger entries processed successfully"
+        : "No ledger entries were created",
+      data: { ledgerSuccessfullyPosted, ledgerPostingFailed },
+    };
+  } catch (error: any) {
+    console.error("Error creating ledger entries:", error);
+    return {
+      success: false,
+      message: "Failed to create ledger entries",
+      error: error.message || error,
+      data: { ledgerSuccessfullyPosted, ledgerPostingFailed },
+    };
+  }
+}
+
+export async function updateLedgerEntries(tx: CatEngineTransaction[]) {
+  const updatedLedgerTransactions: any[] = [];
+  const failedUpdates: CatEngineTransaction[] = [];
+
+  try {
+    if (!tx || tx.length === 0) {
+      return {
+        success: true,
+        message: "No ledger transactions to update",
+      };
+    }
+
+    await prisma.$transaction(async (prisma) => {
+      for (const t of tx) {
+        if (t.transactionSource === "bank" || !t.ledgerTransactionId) {
+          failedUpdates.push(t);
+          continue;
+        }
+
+        //Fetch existing ledger transaction
+        const existingLedgerTx = await prisma.ledgerTransaction.findUnique({
+          where: { id: t.ledgerTransactionId },
+          include: { ledgerEntries: true },
+        });
+
+        if (!existingLedgerTx) {
+          failedUpdates.push(t);
+          continue;
+        }
+
+        const categorisationStatus: CategorisationStatus = t.userId
+          ? "CATEGORISED"
+          : "AUTO_CATEGORISED";
+
+        const mappedForLedgerTx = {
+          categorisationStatus,
+          ...(t.reference && { reference: t.reference }),
+          ...(t.contactId && { contactId: t.contactId }),
+          ...(t.contactName && { contactName: t.contactName }),
+          ...(t.notes && { notes: t.notes }),
+          ...(t.userId && { updatedById: t.userId }),
+        };
+
+        const mappedForLedgerEntry = {
+          ...(t.coaId && { coaId: t.coaId }),
+          ...(t.fsDate && { fsDate: t.fsDate }),
+          ...(t.exchangeRate && { customExchangeRate: t.exchangeRate }),
+          ...(t.description && { description: t.description }),
+          ...(t.projectId && { projectId: t.projectId }),
+          ...(t.projectName && { projectName: t.projectName }),
+          ...(t.userId && { updatedById: t.userId }),
+        };
+
+        if (!mappedForLedgerEntry && !mappedForLedgerTx) {
+          failedUpdates.push(t);
+          continue;
+        }
+
+        if (mappedForLedgerTx.contactName && !mappedForLedgerTx.contactId) {
+          const contact = await prisma.contact.create({
+            data: {
+              name: mappedForLedgerTx.contactName,
+              companyId: existingLedgerTx.companyId,
+            },
+          });
+          mappedForLedgerTx.contactId = contact.id;
+        }
+
+        if (
+          !mappedForLedgerEntry.projectId &&
+          mappedForLedgerEntry.projectName &&
+          !mappedForLedgerTx.contactId
+        ) {
+          const noContact = await prisma.contact.upsert({
+            where: {
+              name_companyId: {
+                name: "No Contact",
+                companyId: existingLedgerTx.companyId,
+              },
+            },
+            create: {
+              name: "No Contact",
+              companyId: existingLedgerTx.companyId,
+            },
+            update: {},
+          });
+          mappedForLedgerTx.contactId = noContact.id;
+        }
+
+        if (
+          !mappedForLedgerEntry.projectId &&
+          mappedForLedgerEntry.projectName &&
+          mappedForLedgerTx.contactId
+        ) {
+          const project = await prisma.project.create({
+            data: {
+              name: mappedForLedgerEntry.projectName,
+              companyId: existingLedgerTx.companyId,
+              contactId: mappedForLedgerTx.contactId,
+            },
+            include: { contact: true },
+          });
+
+          mappedForLedgerEntry.projectId = project.id;
+        }
+
+        const ledgerTxUpdates = compareDbAndUserObject(
+          existingLedgerTx,
+          mappedForLedgerTx
+        );
+
+        const hasOnlyStatus =
+          Object.keys(ledgerTxUpdates).length === 1 &&
+          ledgerTxUpdates.hasOwnProperty("categorisationStatus");
+
+        if (hasOnlyStatus) {
+          failedUpdates.push(t);
+          continue;
+        }
+
+        const updatedLedgerTransaction = await prisma.ledgerTransaction.update({
+          where: { id: existingLedgerTx.id },
+          data: ledgerTxUpdates,
+        });
+
+        const { projectName, ...rest } = mappedForLedgerEntry;
+
+        for (const entry of existingLedgerTx.ledgerEntries) {
+          const entryUpdates = {
+            ...rest,
+            ...(rest.customExchangeRate && {
+              amount: new Decimal(entry.sourceAmount).div(
+                new Decimal(rest.customExchangeRate)
+              ),
+              absoluteAmount: Decimal.abs(
+                new Decimal(entry.sourceAmount).div(
+                  new Decimal(rest.customExchangeRate)
+                )
+              ),
+            }),
+          };
+
+          await prisma.ledgerEntry.update({
+            where: { id: entry.id },
+            data: entryUpdates,
+          });
+        }
+
+        if (existingLedgerTx.bankTransactionId)
+          await prisma.bankTransaction.update({
+            where: { id: existingLedgerTx.bankTransactionId },
+            data: {
+              categorisationStatus,
+            },
+          });
+
+        updatedLedgerTransactions.push(updatedLedgerTransaction);
+      }
+    });
+
+    return {
+      success: true,
+      message: "Ledger transactions updated successfully.",
+      data: { updatedLedgerTransactions, failedUpdates },
+    };
+  } catch (error: any) {
+    console.error("Error updating ledger entries:", error);
+    return {
+      success: false,
+      message: "Failed to update ledger entries.",
+      data: { updatedLedgerTransactions, failedUpdates },
+      error: error.message || error,
+    };
+  }
+}

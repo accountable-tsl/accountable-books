@@ -1,6 +1,11 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import { Request, Response } from "express";
-import { getMergedTransactions } from "../models/transactionModel";
+import {
+  CatEngineTransaction,
+  createLedgerEntries,
+  getMergedTransactions,
+  updateLedgerEntries,
+} from "../models/transactionModel";
 
 export async function fetchTransactions(req: Request, res: Response) {
   try {
@@ -58,14 +63,111 @@ export async function fetchTransactions(req: Request, res: Response) {
   }
 }
 
-export async function createAccountTransactionsFromBank(
-  req: Request,
-  res: Response
-) {
+export async function categoriseBankTransaction(req: Request, res: Response) {
   try {
-    const companyId = req.company!.id || req.params.companyId;
+    const companyId = req.company?.id || req.params.companyId;
     if (!companyId) {
-      return res.status(400).json({ success: false, message: "Bad Request" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Bad Request: Missing company ID." });
     }
-  } catch (error) {}
+
+    const transactions: CatEngineTransaction[] = req.body;
+
+    if (!transactions || transactions.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No transaction provided" });
+    }
+
+    const errors = validateTransactions(transactions);
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, errors });
+    }
+
+    const { bankTx, ledgerTx } = transactions.reduce(
+      (
+        acc: {
+          bankTx: CatEngineTransaction[];
+          ledgerTx: CatEngineTransaction[];
+        },
+        tx: CatEngineTransaction
+      ) => {
+        if (tx.transactionSource === "bank") {
+          acc.bankTx.push({ ...tx, companyId });
+        } else {
+          acc.ledgerTx.push({ ...tx, companyId });
+        }
+        return acc;
+      },
+      { bankTx: [], ledgerTx: [] }
+    );
+
+    // const [newLedgerEntries, updatedLedgerEntries] = await Promise.all([
+    //   createLedgerEntries(bankTx),
+    //   updateLedgerEntries(ledgerTx),
+    // ]);
+
+    const newLedgerEntries = await createLedgerEntries(bankTx);
+    const updatedLedgerEntries = await updateLedgerEntries(ledgerTx);
+
+    const hasSuccess = newLedgerEntries.success || updatedLedgerEntries.success;
+
+    // Combine results
+    const response = {
+      success: hasSuccess,
+      message: hasSuccess
+        ? "Some or all ledger entries processed successfully."
+        : "Failed to process ledger entries.",
+      data: {
+        created: newLedgerEntries.data.ledgerSuccessfullyPosted || [],
+        updated: updatedLedgerEntries.data?.updatedLedgerTransactions || [],
+        failed: [
+          ...(newLedgerEntries.data.ledgerPostingFailed || []),
+          ...(updatedLedgerEntries.data?.failedUpdates || []),
+        ],
+      },
+    };
+
+    return response.success
+      ? res.status(200).json(response)
+      : res.status(400).json(response);
+  } catch (error) {
+    console.error("Error categorising bank transaction:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error. Please try again later.",
+    });
+  }
+}
+
+function validateTransactions(transactions: CatEngineTransaction[]): string[] {
+  const errors: string[] = [];
+  transactions.forEach((tx, index) => {
+    const validation = isValidTransaction(tx);
+    if (!validation.valid) {
+      const id = tx.id || `at index ${index}`;
+      const missing = ["id", "coaId", "date", "transactionSource"]
+        .filter((field) => !tx[field as keyof CatEngineTransaction])
+        .join(", ");
+      errors.push(`Transaction ${id} is missing required fields: ${missing}`);
+    }
+  });
+  return errors;
+}
+
+function isValidTransaction(tx: Partial<CatEngineTransaction>): {
+  valid: boolean;
+  missing: string[];
+} {
+  const requiredFields: (keyof CatEngineTransaction)[] = [
+    "id",
+    "coaId",
+    "date",
+    "transactionSource",
+  ];
+  const missing = requiredFields.filter((field) => !tx[field]);
+
+  return { valid: missing.length === 0, missing };
 }

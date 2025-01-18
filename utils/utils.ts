@@ -135,3 +135,21 @@ export function filterUndefined<T extends object>(obj: T): Partial<T> {
     )
   ) as Partial<T>;
 }
+
+export function compareDbAndUserObject<
+  DB extends Record<string, any>,
+  User extends Record<string, any>,
+>(dbObj: DB, userObj: User): Partial<User> {
+  const differences: Partial<User> = {};
+
+  for (const key in userObj) {
+    const dbValue = dbObj[key as keyof DB] as unknown;
+    const userValue = userObj[key as keyof User];
+
+    if (!(key in dbObj) || dbValue !== userValue) {
+      differences[key] = userValue;
+    }
+  }
+
+  return differences;
+}
