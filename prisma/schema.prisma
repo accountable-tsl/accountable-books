@@ -335,10 +335,6 @@ model BankTransaction {
   absoluteAmount         Decimal               @default(0)
   defaultExchangeRate    Decimal
   categorisationStatus   CategorisationStatus  @default(UNCATEGORISED)
-  // isCategorised          Boolean               @default(false)
-  // categorisedAt          DateTime?
-  // firstCategorisedById   String?
-  // firstcategorisedBy     User?                 @relation("firstCategorisedByUser", fields: [firstCategorisedById], references: [id])
   bankAccountId          String
   bankAccount            BankAccount           @relation(name: "transactionBankAccount", fields: [bankAccountId], references: [id])
   bankTransactionBatchId String?
@@ -382,9 +378,6 @@ model LedgerTransaction {
   companyId            String
   company              Company              @relation(name: "companyLedgerTransactions", fields: [companyId], references: [id])
   notes                String?
-  // categorisedAt        DateTime
-  // categorisedById      String
-  // categorisedBy        User                 @relation(name: "ledgerTransactionCategorisedBy", fields: [categorisedById], references: [id])
   ledgerEntries        LedgerEntry[]        @relation(name: "ledgerEntries")
   journalBatch         JournalBatch?        @relation(name: "journalLedgerTransactions")
   createdById          String

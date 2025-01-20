@@ -36,7 +36,7 @@ export interface TransactionFilters {
   bankAccountId?: string;
   minAmount?: Decimal;
   maxAmount?: Decimal;
-  categorisationStatus?: CategorisationStatus[];
+  categorisationStatus: CategorisationStatus[];
   isDeleted?: boolean;
   searchQuery?: string;
   transactionSide?: DebitCredit;

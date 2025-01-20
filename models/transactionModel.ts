@@ -11,6 +11,7 @@ import {
 } from "./bankTransactionModel";
 import { Decimal } from "@prisma/client/runtime/library";
 import { compareDbAndUserObject } from "../utils/utils";
+import { connect } from "http2";
 
 const prisma = new PrismaClient();
 
@@ -40,7 +41,7 @@ type ExtendedLedgerTransaction = Prisma.LedgerTransactionGetPayload<{
 export type CatEngineTransaction = {
   id: string;
   transactionSource: string;
-  categorisationStatus: CategorisationStatus;
+  categorisationStatus: CategorisationStatus[];
   bankLogo: string | null;
   bankName: string | null;
   date: Date;
@@ -81,12 +82,22 @@ const buildBankTransactionFilters = (
     },
   };
 
-  const statuses = filters.categorisationStatus || [
-    "UNCATEGORISED",
-    "AUTO_CATEGORISED",
-  ];
+  // Ensure categorisationStatus is always an array
+  const status: CategorisationStatus[] = Array.isArray(
+    filters.categorisationStatus
+  )
+    ? filters.categorisationStatus
+    : filters.categorisationStatus
+      ? [filters.categorisationStatus]
+      : [
+          CategorisationStatus.UNCATEGORISED,
+          CategorisationStatus.AUTO_CATEGORISED,
+        ];
 
-  where.categorisationStatus = { in: statuses };
+  where.categorisationStatus = {
+    ...{ in: status },
+    ...{ notIn: [CategorisationStatus.CATEGORISED] },
+  };
 
   if (filters.bankAccountId) where.bankAccountId = filters.bankAccountId;
 
@@ -131,11 +142,16 @@ const buildLedgerTransactionFilters = (
 
   const ledgerEntries = where.ledgerEntries?.some;
 
-  const statuses = filters.categorisationStatus || [
-    "AUTO_CATEGORISED",
-    "CATEGORISED",
-  ];
-  where.categorisationStatus = { in: statuses };
+  // Ensure categorisationStatus is always an array
+  const status: CategorisationStatus[] = Array.isArray(
+    filters.categorisationStatus
+  )
+    ? filters.categorisationStatus
+    : filters.categorisationStatus
+      ? [filters.categorisationStatus]
+      : ["UNCATEGORISED", "AUTO_CATEGORISED"];
+
+  where.categorisationStatus = { in: status };
 
   if (filters.bankAccountId) {
     where.bankTransaction = { bankAccount: { id: filters.bankAccountId } };
@@ -185,7 +201,7 @@ const transformLedgerTransaction = (
           transactionSource: "ledger",
           categorisationStatus: tx.categorisationStatus,
           bankLogo: tx.bankTransaction?.bankAccount?.bank?.bankLogo || null,
-          bankName: tx.bankTransaction?.bankAccount?.bank?.name || null,
+          bankName: tx.bankTransaction?.bankAccount?.displayName || null,
           date: tx.date,
           fsDate: ledger.fsDate,
           contactName: tx.contact?.name || "",
@@ -235,7 +251,6 @@ export async function getMergedTransactions(
     const bankTransactions = await prisma.bankTransaction.findMany({
       where: bankTransactionFilters,
       include: {
-        // categorisedBy: true,
         bankAccount: {
           include: {
             bank: { select: { bankLogo: true } },
@@ -502,12 +517,19 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           categorisationStatus,
           source: "BANK" as TransactionSource,
           reference: bTx.reference || t.reference || null,
-          bankTransactionId: bTx.id,
-          companyId: t.companyId,
+          // bankTransactionId: bTx.id,
+          bankTransaction: { connect: { id: bTx.id } },
+          // companyId: t.companyId,
+          company: {
+            connect: { id: t.companyId },
+          },
           notes: t.notes,
-          createdById: t.userId as string,
-          updatedById: t.userId as string,
-          ...(contactId && { contactId }),
+          createdBy: { connect: { id: t.userId as string } },
+          updatedBy: { connect: { id: t.userId as string } },
+          // createdById: t.userId as string,
+          // updatedById: t.userId as string,
+          // ...(contactId && { contactId }),
+          ...(contactId && { contact: { connect: { id: contactId } } }),
         };
 
         // Decide which side gets the bank account vs. the COA
@@ -535,7 +557,8 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           amount: absoluteAmount,
           absoluteAmount,
           description: t.description || bTx.description || null,
-          ...(t.projectId && { projectId: t.projectId }),
+          // ...(t.projectId && { projectId: t.projectId }),
+          ...(t.projectId && { project: { connect: { id: t.projectId } } }),
         };
 
         const creditEntry: LedgerEntryInput = {

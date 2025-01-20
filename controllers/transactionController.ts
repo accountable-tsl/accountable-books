@@ -6,6 +6,7 @@ import {
   getMergedTransactions,
   updateLedgerEntries,
 } from "../models/transactionModel";
+import { CategorisationStatus } from "@prisma/client";
 
 export async function fetchTransactions(req: Request, res: Response) {
   try {
@@ -28,6 +29,9 @@ export async function fetchTransactions(req: Request, res: Response) {
     const maxAmount = filters.maxAmount
       ? new Decimal(filters.maxAmount as string)
       : null;
+    const categorisationStatus = filters.categorisationStatus
+      ? filters.categorisationStatus
+      : null;
     const page = filters.page ? parseInt(filters.page as string) : null;
     const pageSize = filters.page ? parseInt(filters.pageSize as string) : null;
 
@@ -36,6 +40,8 @@ export async function fetchTransactions(req: Request, res: Response) {
     if (filters.endDate && !endDate) errors.push("endDate: Check format");
     if (filters.minAmount && !minAmount) errors.push("minAmount: Check format");
     if (filters.maxAmount && !maxAmount) errors.push("maxAmount: Check format");
+    if (filters.categorisationStatus && !categorisationStatus)
+      errors.push("categorisationStatus: Check format");
 
     const filter = {
       ...filters,
@@ -45,6 +51,10 @@ export async function fetchTransactions(req: Request, res: Response) {
       ...(maxAmount && { maxAmount }),
       ...(page && { page }),
       ...(pageSize && { pageSize }),
+      categorisationStatus: (filters.categorisationStatus || [
+        CategorisationStatus.AUTO_CATEGORISED,
+        CategorisationStatus.UNCATEGORISED,
+      ]) as CategorisationStatus[],
     };
 
     const response = await getMergedTransactions(companyId, filter);
