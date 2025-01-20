@@ -13,6 +13,12 @@
     height: 90%;
   }
 
+  &-breadcrumb {
+    &__fullscreen {
+      display: none;
+    }
+  }
+
   &-summary {
     display: none;
 
@@ -21,6 +27,13 @@
       font-size: 0.85rem;
       background-color: $white;
       box-shadow: rgba(0, 0, 0, 0.05) 0px 0px 0px 1px;
+
+      transition: all 0.3s ease;
+    }
+
+    &__fullscreen {
+      transition: all 0.3s ease;
+      display: none;
     }
 
     &__item {
@@ -29,6 +42,11 @@
 
     &__lines {
       justify-content: space-between;
+      color: rgba($color: $primary, $alpha: 0.5);
+
+      &-value {
+        color: $primary;
+      }
     }
 
     &__bank {
@@ -66,6 +84,11 @@
 
     &__amount {
       justify-content: space-between;
+      color: rgba($color: $primary, $alpha: 0.5);
+
+      &-value {
+        color: $primary;
+      }
     }
   }
 
@@ -118,10 +141,52 @@
         }
 
         &--select {
-          @apply rounded pl-2 pr-4;
-          height: 1.4rem;
-          border-radius: 10rem;
-          min-width: 1rem;
+          // @apply rounded pl-2 pr-4;
+          height: 1.5rem;
+          font-family: "IBMPlexSans";
+          font-size: 0.75rem;
+
+          & .ant-select-multiple {
+            min-width: 5rem;
+            // border-radius: 10rem;
+          }
+
+          & .ant-select-selection-overflow {
+            flex-wrap: nowrap;
+          }
+
+          & .ant-select-selection-item {
+            height: unset;
+            line-height: unset;
+          }
+
+          & .ant-select-selection-wrap {
+            min-width: 4rem;
+            align-self: unset;
+          }
+
+          & .ant-select-selector {
+            border-radius: 10rem;
+          }
+
+          // & .ant-select-arrow > svg,
+          // .ant-select-clear > svg {
+          //   height: 0.25rem;
+          //   width: 0.25rem;
+          // }
+        }
+
+        &--space {
+          & svg {
+            height: 0.5rem;
+            width: 0.5rem;
+          }
+
+          & .ant-select-dropdown {
+            font-family: "IBMPlexSans", sans-serif !important;
+            font-size: 0.85rem !important;
+            font-weight: 400 !important;
+          }
         }
 
         &--text {
@@ -524,4 +589,13 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.ant-select-multiple .ant-select-selection-overflow .ant-select-selection-item {
+  border-radius: 10rem;
+}
+
+.ant-select-dropdown {
+  font-family: "IBMPlexSans";
+  font-size: 0.85rem;
 }

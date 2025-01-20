@@ -10,7 +10,7 @@ import {
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { useCompany } from "../../utils/company";
 import { routes } from "../../utils/routes";
-import { DatePicker } from "antd";
+import { DatePicker, Select, SelectProps, Space } from "antd";
 
 import "./CategorisationEngine.scss";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,8 +23,11 @@ import {
   BankAccount,
   BankAccounts,
   BankTransactionFilters,
+  CategorisationStatus,
   CatEngineTransaction,
   Coa,
+  CompanyData,
+  DebitCredit,
   Transaction,
   TransactionKey,
 } from "../../types/types";
@@ -41,6 +44,7 @@ import { fetchCoa } from "../../services/CoaServices";
 import CustomSelect from "../../components/CoaSelectCellEditor/CoaSelectCellEditor";
 import debounce from "lodash.debounce";
 import { userId } from "../../utils/user";
+import { set } from "lodash";
 
 const catengineHeaders = [
   { label: "Bank", key: "bankAccount", pinned: "left" },
@@ -65,7 +69,10 @@ export default function CategorisationEngine() {
   >([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
   const [selectedBankAccount, setSelectedBankAccount] =
-    useState<BankAccount | null>(null);
+    useState<BankAccount | null>(() => {
+      const savedBankAccount = localStorage.getItem("selectedBankAccount");
+      return savedBankAccount ? JSON.parse(savedBankAccount) : null;
+    });
   const [coa, setCoa] = useState([]);
   const [coaLimit, setCoaLimit] = useState(500);
   const [filterAmounts, setFilterAmounts] = useState({
@@ -76,7 +83,16 @@ export default function CategorisationEngine() {
     startDate?: Date;
     endDate?: Date;
   }>({});
-  const [companyInfo, setCompanyInfo] = useState(null);
+  const [categorisationStatus, setCategorisationStatus] = useState(() => {
+    const savedStatus = localStorage.getItem("categorisationStatus");
+    return savedStatus
+      ? JSON.parse(savedStatus)
+      : [
+          CategorisationStatus.UNCATEGORISED,
+          CategorisationStatus.AUTOCATEGORISED,
+        ];
+  });
+  const [companyInfo, setCompanyInfo] = useState<CompanyData>();
   const [selectedRows, setSelectedRows] = useState<CatEngineTransaction[]>([]);
   const [columnWidths, setColumnWidths] = useState<number[]>(
     Array(catengineHeaders.length).fill(100)
@@ -88,6 +104,7 @@ export default function CategorisationEngine() {
     CatEngineTransaction[]
   >([]);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // const [pinnedLeft, setPinnedLeft] = useState<string[]>(["bankAccount"]);
   // const [pinnedRight, setPinnedRight] = useState<string[]>(["amount"]);
@@ -138,6 +155,12 @@ export default function CategorisationEngine() {
     setSelectedBankAccount(account);
   };
 
+  const handleIsCategorisedChange = (value: CategorisationStatus[]) => {
+    console.log(`I see ${value}`);
+    setCategorisationStatus([]);
+    setCategorisationStatus(value);
+  };
+
   const handleAllBanks = (event: React.MouseEvent<HTMLButtonElement>) => {
     setSelectedBankAccount(null);
   };
@@ -152,8 +175,10 @@ export default function CategorisationEngine() {
       newFilters.minAmount = new Decimal(filterAmounts.minAmount);
     if (filterAmounts.maxAmount)
       newFilters.maxAmount = new Decimal(filterAmounts.maxAmount);
+    if (categorisationStatus.length > 0)
+      newFilters.categorisationStatus = categorisationStatus;
     return newFilters;
-  }, [filterDates, selectedBankAccount, filterAmounts]);
+  }, [filterDates, selectedBankAccount, filterAmounts, categorisationStatus]);
 
   const fetchBankTransactions = useCallback(
     async (filters: BankTransactionFilters) => {
@@ -162,6 +187,7 @@ export default function CategorisationEngine() {
           const response = await retrieveTransactions(companyId, filters);
           if (response.success && response.data?.transactions) {
             setFetchedBankTransactions(response.data.transactions);
+            console.log(response.data);
           } else {
             setError("Failed to fetch transactions");
             console.error("Failed to fetch transactions:", response);
@@ -292,6 +318,20 @@ export default function CategorisationEngine() {
   );
 
   useEffect(() => {
+    localStorage.setItem(
+      "selectedBankAccount",
+      JSON.stringify(selectedBankAccount)
+    );
+  }, [selectedBankAccount]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "categorisationStatus",
+      JSON.stringify(categorisationStatus)
+    );
+  }, [categorisationStatus]);
+
+  useEffect(() => {
     if (!companyId) return;
 
     const controller = new AbortController();
@@ -341,25 +381,36 @@ export default function CategorisationEngine() {
   //     )
   //   );
   // }, [coa]);
-  console.log(fetchedBankTransactions, updatedTransactions, filters);
+  console.log(companyInfo);
 
   return (
     <div className="catengine">
-      <Breadcrumb items={catEngineBreadcrumbs} />
+      <Breadcrumb
+        items={catEngineBreadcrumbs}
+        customClass={isFullScreen ? "catengine-breadcrumb__fullscreen" : ""}
+      />
 
       <div className="catengine-container">
-        <div className="catengine-summary">
+        <div
+          className={`catengine-summary ${
+            isFullScreen ? "catengine-summary__fullscreen" : ""
+          }`}
+        >
           <div className="catengine-summary__item catengine-summary__lines">
             <div className="catengine-summary__lines-wrapper">
               <div className="catengine-summary__lines-label">Total Lines</div>
-              <div className="catengine-summary__lines-value">1767</div>
+              <div className="catengine-summary__lines-value">
+                {fetchedBankTransactions.length}
+              </div>
             </div>
 
             <div className="catengine-summary__lines-wrapper">
               <div className="catengine-summary__lines-label">
                 Left to Reconcile
               </div>
-              <div className="catengine-summary__lines-value">1767</div>
+              <div className="catengine-summary__lines-value">
+                {fetchedBankTransactions.filter((tx) => !tx.coaId).length}
+              </div>
             </div>
           </div>
           <hr className="catengine-hr" />
@@ -398,7 +449,14 @@ export default function CategorisationEngine() {
             <div className="catengine-summary__amount-wrapper">
               <div className="catengine-summary__amount-label">Total Debit</div>
               <div className="catengine-summary__amount-value">
-                NGN 1,000,000,000.00
+                {`${companyInfo?.reportingCurrencyCode || ""} ${numeral(
+                  fetchedBankTransactions
+                    .filter((tx) => tx.transactionSide === DebitCredit.Debit)
+                    .reduce(
+                      (acc, tx) => acc.plus(new Decimal(tx.amount)),
+                      new Decimal(0)
+                    )
+                ).format("0,0.00")}`}
               </div>
             </div>
             <div className="catengine-summary__amount-wrapper">
@@ -406,7 +464,14 @@ export default function CategorisationEngine() {
                 Total Credit
               </div>
               <div className="catengine-summary__amount-value">
-                NGN 1,000,000,000.00
+                {`${companyInfo?.reportingCurrencyCode || ""} ${numeral(
+                  fetchedBankTransactions
+                    .filter((tx) => tx.transactionSide === DebitCredit.Credit)
+                    .reduce(
+                      (acc, tx) => acc.plus(new Decimal(tx.amount).abs()),
+                      new Decimal(0)
+                    )
+                ).format("0,0.00")}`}
               </div>
             </div>
           </div>
@@ -431,15 +496,42 @@ export default function CategorisationEngine() {
                 <div className="catengine-body__top-vr--1"></div>
                 <div className="catengine-body__top-filter--item">
                   <span>Showing</span>
-                  <select
+                  {/* <select
                     name="isCategorised"
                     id="isCategorised"
                     className="catengine-body__top-filter--select"
                   >
                     <option value="">Unclassified Lines</option>
+                    <option value="">Auto-classified Lines</option>
                     <option value="">Classified Lines</option>
                     <option value="">All Transactions</option>
-                  </select>
+                  </select> */}
+                  <Space className="catengine-body__top-filter--space">
+                    <Select
+                      mode="multiple"
+                      defaultValue={categorisationStatus}
+                      options={
+                        [
+                          {
+                            label: "Unclassified",
+                            value: CategorisationStatus.UNCATEGORISED,
+                          },
+                          {
+                            label: "Classified",
+                            value: CategorisationStatus.CATEGORISED,
+                          },
+                          {
+                            label: "Auto-Classified",
+                            value: CategorisationStatus.AUTOCATEGORISED,
+                          },
+                        ] as SelectProps["options"]
+                      }
+                      placeholder="Please select..."
+                      allowClear
+                      onChange={handleIsCategorisedChange}
+                      className="catengine-body__top-filter--select"
+                    ></Select>
+                  </Space>
                 </div>
               </div>
               {/* <div className="catengine-body__top-count">200 of 1767</div> */}
@@ -513,7 +605,10 @@ export default function CategorisationEngine() {
                   </div>
                 </div>
                 <div className="catengine-body__top-vr"></div>
-                <div className="catengine-body__top-fullscreen">
+                <div
+                  className="catengine-body__top-fullscreen"
+                  onClick={() => setIsFullScreen(!isFullScreen)}
+                >
                   <Expand className="catengine-body__top-fullscreen--icon" />
                 </div>
               </div>

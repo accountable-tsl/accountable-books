@@ -1,4 +1,5 @@
 import axios from "axios";
+import qs from "qs";
 import {
   BankTransactionBatch,
   BankTransactionFilters,
@@ -25,7 +26,12 @@ export const retrieveTransactions = async (
 ) => {
   const response = await axios.get(
     `${backendUrl}/api/${companyId}/transactions`,
-    { params: filters }
+    {
+      params: filters,
+      paramsSerializer: (params) => {
+        return qs.stringify(params, { arrayFormat: "repeat" }); // Serialize without `[]`
+      },
+    }
   );
 
   return response.data;

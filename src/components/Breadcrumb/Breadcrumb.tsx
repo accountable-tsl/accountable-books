@@ -34,10 +34,13 @@ type BreadcrumbProps = { items: BreadcrumbItem[] };
 // ];
 // <Breadcrumb items={breadcrumbItems} />;
 
-export default function Breadcrumb({ items }: BreadcrumbProps) {
+export default function Breadcrumb({
+  items,
+  customClass,
+}: BreadcrumbProps & { customClass?: string }) {
   return (
     items && (
-      <div className="breadcrumb">
+      <div className={`breadcrumb ${customClass ? customClass : ""}`}>
         {items.map((item, index) => {
           const [isDropdownOpen, setIsDropdownOpen] = useState(false);
           const dropdownRef = useRef<HTMLDivElement>(null);

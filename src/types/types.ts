@@ -31,10 +31,10 @@ export enum BankAccountType {
   UTILITY = "UTILITY",
 }
 
-export interface ServerResponseFormat {
+export interface ServerResponseFormat<T = unknown> {
   success: boolean;
   message: string;
-  data?: unknown;
+  data?: T;
 }
 
 export interface Company {
@@ -147,6 +147,7 @@ export interface BankTransactionFilters {
   transactionSide?: DebitCredit;
   page?: number;
   pageSize?: number;
+  categorisationStatus?: CategorisationStatus[];
 }
 
 export interface AccountType {
@@ -286,3 +287,27 @@ export type CatEngineTransaction = {
 export type TransactionKey = keyof CatEngineTransaction;
 
 export type BankAccounts = BankAccount[];
+
+export type CompanyData = {
+  id: string;
+  name: string;
+  website: string;
+  industry: string;
+  teamSize: string;
+  revenue: string;
+  countryId: string;
+  countryCode: string;
+  countryName: string;
+  countryPhoneCode: string;
+  countryFlag: string;
+  countryContinent: string;
+  reportingCurrencyId: string;
+  reportingCurrencyCode: string;
+  reportingCurrencyName: string;
+  reportingCurrencySymbol: string;
+  createdById: string;
+  createdByFirstname: string;
+  createdByLastname: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
