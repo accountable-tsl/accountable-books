@@ -44,7 +44,6 @@ import { fetchCoa } from "../../services/CoaServices";
 import CustomSelect from "../../components/CoaSelectCellEditor/CoaSelectCellEditor";
 import debounce from "lodash.debounce";
 import { userId } from "../../utils/user";
-import { set } from "lodash";
 
 const catengineHeaders = [
   { label: "Bank", key: "bankAccount", pinned: "left" },
@@ -64,7 +63,7 @@ export default function CategorisationEngine() {
   const { companyId } = useCompany();
 
   const [error, setError] = useState<string | null>(null);
-  const [fetchedBankTransactions, setFetchedBankTransactions] = useState<
+  const [fetchedTransactions, setFetchedTransactions] = useState<
     CatEngineTransaction[]
   >([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
@@ -186,12 +185,11 @@ export default function CategorisationEngine() {
         if (companyId) {
           const response = await retrieveTransactions(companyId, filters);
           if (response.success && response.data?.transactions) {
-            setFetchedBankTransactions(response.data.transactions);
-            console.log(response.data);
+            setFetchedTransactions(response.data.transactions);
           } else {
             setError("Failed to fetch transactions");
             console.error("Failed to fetch transactions:", response);
-            setFetchedBankTransactions([]);
+            setFetchedTransactions([]);
           }
         }
       } catch (error) {
@@ -274,12 +272,12 @@ export default function CategorisationEngine() {
     transactionId: string,
     updates: Partial<CatEngineTransaction>
   ) => {
-    const oldTx = fetchedBankTransactions.find((tx) => tx.id === transactionId);
+    const oldTx = fetchedTransactions.find((tx) => tx.id === transactionId);
     if (!oldTx) return;
 
     const updatedTx = { ...oldTx, ...updates };
 
-    setFetchedBankTransactions((prev) =>
+    setFetchedTransactions((prev) =>
       prev.map((tx) => (tx.id === transactionId ? { ...tx, ...updates } : tx))
     );
 
@@ -314,7 +312,7 @@ export default function CategorisationEngine() {
         console.error("Error sending updates:", error);
       }
     }, 300),
-    []
+    [filters, fetchBankTransactions]
   );
 
   useEffect(() => {
@@ -381,7 +379,7 @@ export default function CategorisationEngine() {
   //     )
   //   );
   // }, [coa]);
-  console.log(companyInfo);
+  console.log(fetchedTransactions);
 
   return (
     <div className="catengine">
@@ -400,7 +398,7 @@ export default function CategorisationEngine() {
             <div className="catengine-summary__lines-wrapper">
               <div className="catengine-summary__lines-label">Total Lines</div>
               <div className="catengine-summary__lines-value">
-                {fetchedBankTransactions.length}
+                {fetchedTransactions.length}
               </div>
             </div>
 
@@ -409,7 +407,7 @@ export default function CategorisationEngine() {
                 Left to Reconcile
               </div>
               <div className="catengine-summary__lines-value">
-                {fetchedBankTransactions.filter((tx) => !tx.coaId).length}
+                {fetchedTransactions.filter((tx) => !tx.coaId).length}
               </div>
             </div>
           </div>
@@ -450,7 +448,7 @@ export default function CategorisationEngine() {
               <div className="catengine-summary__amount-label">Total Debit</div>
               <div className="catengine-summary__amount-value">
                 {`${companyInfo?.reportingCurrencyCode || ""} ${numeral(
-                  fetchedBankTransactions
+                  fetchedTransactions
                     .filter((tx) => tx.transactionSide === DebitCredit.Debit)
                     .reduce(
                       (acc, tx) => acc.plus(new Decimal(tx.amount)),
@@ -465,7 +463,7 @@ export default function CategorisationEngine() {
               </div>
               <div className="catengine-summary__amount-value">
                 {`${companyInfo?.reportingCurrencyCode || ""} ${numeral(
-                  fetchedBankTransactions
+                  fetchedTransactions
                     .filter((tx) => tx.transactionSide === DebitCredit.Credit)
                     .reduce(
                       (acc, tx) => acc.plus(new Decimal(tx.amount).abs()),
@@ -682,165 +680,162 @@ export default function CategorisationEngine() {
                 </div>
               </div>
               <div className="catengine-table__body" role="rowgroup">
-                {fetchedBankTransactions.length === 0 ? (
+                {fetchedTransactions.length === 0 ? (
                   <div className="catengine-table__no-data">
                     No Transactions Found
                   </div>
                 ) : (
                   <>
                     <div className="catengine-table__pinned catengine-table__pinned-body catengine-table__pinned-left">
-                      {fetchedBankTransactions.map(
-                        (tx: CatEngineTransaction) => (
-                          <div
-                            key={tx.id}
-                            className={`catengine-table__row catengine-table__row--left ${
-                              selectedRows.some((row) => row.id === tx.id)
-                                ? "catengine-table__row--selected"
-                                : ""
-                            } ${
-                              rowHeight === "mid"
-                                ? "catengine-table__row--h-mid"
-                                : rowHeight === "min"
-                                ? "catengine-table__row--h-min"
-                                : "catengine-table__row--h-max"
-                            }`}
-                            onClick={() => handleRowClick(tx)}
-                            role="row"
-                          >
-                            <div className=" catengine-table__cell catengine-table__cell--checkbox">
-                              <input
-                                type="checkbox"
-                                checked={selectedRows.some(
-                                  (row) => row.id === tx.id
-                                )}
-                                readOnly
-                              />
-                            </div>
-                            {catengineHeaders
-                              .filter((i) => i.pinned === "left")
-                              .map((header, index) => (
-                                <div
-                                  key={`${tx.id}-${header.key}`}
-                                  className={`catengine-table__cell catengine-table__cell--${header.key} `}
-                                  role="cell"
-                                >
-                                  {renderCellContent(header.key, tx, coa)}
-                                  <span
-                                    className="catengine-table__resize"
-                                    onMouseDown={(e) => handleResize(e, index)}
-                                  />
-                                </div>
-                              ))}
+                      {fetchedTransactions.map((tx: CatEngineTransaction) => (
+                        <div
+                          key={tx.id}
+                          className={`catengine-table__row catengine-table__row--left ${
+                            selectedRows.some((row) => row.id === tx.id)
+                              ? "catengine-table__row--selected"
+                              : ""
+                          } ${
+                            rowHeight === "mid"
+                              ? "catengine-table__row--h-mid"
+                              : rowHeight === "min"
+                              ? "catengine-table__row--h-min"
+                              : "catengine-table__row--h-max"
+                          }`}
+                          onClick={() => handleRowClick(tx)}
+                          role="row"
+                        >
+                          <div className=" catengine-table__cell catengine-table__cell--checkbox">
+                            <input
+                              type="checkbox"
+                              checked={selectedRows.some(
+                                (row) => row.id === tx.id
+                              )}
+                              readOnly
+                            />
                           </div>
-                        )
-                      )}
+                          {catengineHeaders
+                            .filter((i) => i.pinned === "left")
+                            .map((header, index) => (
+                              <div
+                                key={`${tx.id}-${header.key}`}
+                                className={`catengine-table__cell catengine-table__cell--${header.key} `}
+                                role="cell"
+                              >
+                                {renderCellContent(
+                                  header.key,
+                                  tx,
+                                  coa,
+                                  handleTransactionChange
+                                )}
+                                <span
+                                  className="catengine-table__resize"
+                                  onMouseDown={(e) => handleResize(e, index)}
+                                />
+                              </div>
+                            ))}
+                        </div>
+                      ))}
                     </div>
 
                     <div className="catengine-table__pinned catengine-table__pinned-body catengine-table__pinned-not">
-                      {fetchedBankTransactions.map(
-                        (tx: CatEngineTransaction) => (
-                          <div
-                            key={tx.id}
-                            className={`catengine-table__row ${
-                              selectedRows.some((row) => row.id === tx.id)
-                                ? "catengine-table__row--selected"
-                                : ""
-                            } ${
-                              rowHeight === "mid"
-                                ? "catengine-table__row--h-mid"
-                                : rowHeight === "min"
-                                ? "catengine-table__row--h-min"
-                                : "catengine-table__row--h-max"
-                            }`}
-                            onClick={() => handleRowClick(tx)}
-                            role="row"
-                          >
-                            {catengineHeaders
-                              .filter((i) => !i.pinned)
-                              .map((header, index) => (
-                                <div
-                                  key={`${tx.id}-${header.key}`}
-                                  className={`catengine-table__cell catengine-table__cell--${header.key}`}
-                                  role="cell"
-                                >
-                                  {renderCellContent(
-                                    header.key,
-                                    tx,
-                                    coa,
-                                    handleTransactionChange
-                                  )}
-                                  <span
-                                    className="catengine-table__resize"
-                                    onMouseDown={(e) => handleResize(e, index)}
-                                  />
-                                </div>
-                              ))}
-                          </div>
-                        )
-                      )}
+                      {fetchedTransactions.map((tx: CatEngineTransaction) => (
+                        <div
+                          key={tx.id}
+                          className={`catengine-table__row ${
+                            selectedRows.some((row) => row.id === tx.id)
+                              ? "catengine-table__row--selected"
+                              : ""
+                          } ${
+                            rowHeight === "mid"
+                              ? "catengine-table__row--h-mid"
+                              : rowHeight === "min"
+                              ? "catengine-table__row--h-min"
+                              : "catengine-table__row--h-max"
+                          }`}
+                          onClick={() => handleRowClick(tx)}
+                          role="row"
+                        >
+                          {catengineHeaders
+                            .filter((i) => !i.pinned)
+                            .map((header, index) => (
+                              <div
+                                key={`${tx.id}-${header.key}`}
+                                className={`catengine-table__cell catengine-table__cell--${header.key}`}
+                                role="cell"
+                              >
+                                {renderCellContent(
+                                  header.key,
+                                  tx,
+                                  coa,
+                                  handleTransactionChange
+                                )}
+                                <span
+                                  className="catengine-table__resize"
+                                  onMouseDown={(e) => handleResize(e, index)}
+                                />
+                              </div>
+                            ))}
+                        </div>
+                      ))}
                     </div>
 
                     <div className="catengine-table__pinned catengine-table__pinned-body catengine-table__pinned-right">
-                      {fetchedBankTransactions.map(
-                        (tx: CatEngineTransaction) => (
-                          <div
-                            key={tx.id}
-                            className={`catengine-table__row catengine-table__row--right ${
-                              selectedRows.some((row) => row.id === tx.id)
-                                ? "catengine-table__row--selected"
-                                : ""
-                            } ${
-                              rowHeight === "mid"
-                                ? "catengine-table__row--h-mid"
-                                : rowHeight === "min"
-                                ? "catengine-table__row--h-min"
-                                : "catengine-table__row--h-max"
-                            }`}
-                            // onClick={() => handleRowClick(tx)}
-                            role="row"
-                          >
-                            {catengineHeaders
-                              .filter(
-                                (i) =>
-                                  i.pinned === "right" && i.key !== "account"
-                              )
-                              .map((header, index) => (
-                                <div
-                                  key={`${tx.id}-${header.key}`}
-                                  className={`catengine-table__cell catengine-table__cell--${header.key} `}
-                                  role="cell"
-                                >
-                                  {renderCellContent(
-                                    header.key,
-                                    tx,
-                                    coa,
-                                    handleTransactionChange
-                                  )}
-                                  <span
-                                    className="catengine-table__resize"
-                                    onMouseDown={(e) => handleResize(e, index)}
-                                  />
-                                </div>
-                              ))}
+                      {fetchedTransactions.map((tx: CatEngineTransaction) => (
+                        <div
+                          key={tx.id}
+                          className={`catengine-table__row catengine-table__row--right ${
+                            selectedRows.some((row) => row.id === tx.id)
+                              ? "catengine-table__row--selected"
+                              : ""
+                          } ${
+                            rowHeight === "mid"
+                              ? "catengine-table__row--h-mid"
+                              : rowHeight === "min"
+                              ? "catengine-table__row--h-min"
+                              : "catengine-table__row--h-max"
+                          }`}
+                          // onClick={() => handleRowClick(tx)}
+                          role="row"
+                        >
+                          {catengineHeaders
+                            .filter(
+                              (i) => i.pinned === "right" && i.key !== "account"
+                            )
+                            .map((header, index) => (
+                              <div
+                                key={`${tx.id}-${header.key}`}
+                                className={`catengine-table__cell catengine-table__cell--${header.key} `}
+                                role="cell"
+                              >
+                                {renderCellContent(
+                                  header.key,
+                                  tx,
+                                  coa,
+                                  handleTransactionChange
+                                )}
+                                <span
+                                  className="catengine-table__resize"
+                                  onMouseDown={(e) => handleResize(e, index)}
+                                />
+                              </div>
+                            ))}
 
-                            {catengineHeaders
-                              .filter(
-                                (i) =>
-                                  i.pinned === "right" && i.key === "account"
-                              )
-                              .map((header, index) => (
-                                <React.Fragment key={`${tx.id}-${header.key}`}>
-                                  {renderCellContent(
-                                    header.key,
-                                    tx,
-                                    coa,
-                                    handleTransactionChange
-                                  )}
-                                </React.Fragment>
-                              ))}
-                          </div>
-                        )
-                      )}
+                          {catengineHeaders
+                            .filter(
+                              (i) => i.pinned === "right" && i.key === "account"
+                            )
+                            .map((header, index) => (
+                              <React.Fragment key={`${tx.id}-${header.key}`}>
+                                {renderCellContent(
+                                  header.key,
+                                  tx,
+                                  coa,
+                                  handleTransactionChange
+                                )}
+                              </React.Fragment>
+                            ))}
+                        </div>
+                      ))}
                     </div>
                   </>
                 )}
