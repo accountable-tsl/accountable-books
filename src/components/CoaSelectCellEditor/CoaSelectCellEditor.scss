@@ -77,7 +77,7 @@
     }
 
     &--selected {
-      background-color: $background-mint;
+      background-color: rgba($color: $tertiary, $alpha: 0.2);
     }
 
     &--highlighted {

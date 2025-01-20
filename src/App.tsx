@@ -50,7 +50,18 @@ function MainContent() {
     <Route path="/register" component={<Register />} /> */}
           <CurrentCompany />
           <Routes>
-            <Route path="/" element={<Home />} />
+            {/* <Route path="/" element={<Home />} /> */}
+            <Route
+              path="/"
+              element={
+                <CustomSelect
+                  options={[
+                    { accountName: "Account", accountCode: 1 },
+                    { accountName: "SeeArd", accountCode: 2 },
+                  ]}
+                />
+              }
+            />
             <Route path={staticRoutes.companies.root} element={<Home />} />
 
             <Route

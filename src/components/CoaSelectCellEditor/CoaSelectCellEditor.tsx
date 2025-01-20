@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import "./CoaSelectCellEditor.scss";
 import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { set } from "date-fns";
 
 interface SelectProps {
   options: any[];
+  keysToDisplay?: string[]; //subject to a maximum of 2
   onChange?: (option: any) => void;
   value?: any;
   placeholder?: string;
@@ -13,6 +15,7 @@ interface SelectProps {
 
 export default function CustomSelect({
   options,
+  keysToDisplay = ["accountCode", "accountName"],
   onChange,
   value,
   placeholder = "Select Account",
@@ -21,23 +24,38 @@ export default function CustomSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [typedText, setTypedText] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); //To filter visible options via input box
+  const [typedText, setTypedText] = useState(""); //For quick navigation, allow to jump to matching option based on first few letters.
+  const [inputValue, setInputValue] = useState(value?.accountName || "");
+  const [isTyping, setIsTyping] = useState(false);
 
   const selectRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const filteredOptions = options.filter((option) =>
-    option.accountName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = isTyping
+    ? options.filter((option) => {
+        const lowerSearch = inputValue.toLowerCase();
+        return (
+          (option[keysToDisplay[1]] &&
+            option[keysToDisplay[1]].toLowerCase().includes(lowerSearch)) ||
+          (option[keysToDisplay[0]] &&
+            option[keysToDisplay[0]].toLowerCase().includes(lowerSearch))
+        );
+      })
+    : options;
+
   const handleSelect = (option: any) => {
-    setSearchTerm("");
+    // setSearchTerm("");
+    setIsTyping(false);
+    setInputValue(option[keysToDisplay[1]] ?? option[keysToDisplay[0]]);
     onChange?.(option);
     setIsOpen(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+    // setSearchTerm(e.target.value);
+    setInputValue(e.target.value);
+    setIsTyping(true);
     setIsOpen(true);
   };
 
@@ -52,9 +70,12 @@ export default function CustomSelect({
 
   const navigateOptions = (direction: number) => {
     setHighlightedIndex((prev) => {
-      const startIndex = hoveredIndex ?? prev;
-      const nextIndex = startIndex + direction;
-      const clampedIndex = Math.max(0, Math.min(options.length - 1, nextIndex));
+      // const startIndex = hoveredIndex ?? prev;
+      const nextIndex = prev + direction;
+      const clampedIndex = Math.max(
+        0,
+        Math.min(filteredOptions.length - 1, nextIndex)
+      );
 
       dropdownRef.current
         ?.querySelectorAll(".selectcoa__option")
@@ -62,7 +83,7 @@ export default function CustomSelect({
           block: "nearest",
         });
 
-      setHoveredIndex(null);
+      // setHoveredIndex(null);
 
       return clampedIndex;
     });
@@ -90,8 +111,19 @@ export default function CustomSelect({
 
       case "Enter":
         event.preventDefault();
-        if (isOpen) handleSelect(options[highlightedIndex]);
-        else setIsOpen(true);
+        // if (isOpen) handleSelect(options[highlightedIndex]);
+        // else setIsOpen(true);
+        if (!isOpen) {
+          setIsOpen(true);
+        } else {
+          // Only select if we actually have a highlighted item
+          if (
+            highlightedIndex >= 0 &&
+            highlightedIndex < filteredOptions.length
+          ) {
+            handleSelect(filteredOptions[highlightedIndex]);
+          }
+        }
         break;
 
       case "Escape":
@@ -145,18 +177,29 @@ export default function CustomSelect({
     });
   };
 
+  const handleBlur = () => {
+    if (!filteredOptions.some((opt) => opt.accountName === inputValue)) {
+      setInputValue(value?.accountName || "");
+    }
+    setIsOpen(false);
+    setIsTyping(false);
+    setInputValue(value?.accountName || "");
+  };
+
   useEffect(() => {
-    document.body.addEventListener("click", handleOutsideClick);
+    if (isOpen) {
+      document.body.addEventListener("click", handleOutsideClick);
+    }
     return () => {
       document.body.removeEventListener("click", handleOutsideClick);
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setHoveredIndex(null);
-    }
-  }, [isOpen]);
+  // useEffect(() => {
+  //   if (!isOpen) {
+  //     setHoveredIndex(null);
+  //   }
+  // }, [isOpen]);
 
   useEffect(() => {
     const timeout = setTimeout(() => setTypedText(""), 1000);
@@ -177,6 +220,9 @@ export default function CustomSelect({
           placeholder={placeholder}
           onChange={handleInputChange}
           onClick={(e) => e.stopPropagation()}
+          // value={searchTerm || value?.accountName || ""}
+          value={inputValue}
+          onBlur={handleBlur}
         />
         <div className="selectcoa__icon">
           {isOpen ? (
@@ -215,9 +261,11 @@ export default function CustomSelect({
                   onMouseEnter={() => handleMouseEnter(index)}
                   onMouseLeave={handleMouseLeave}
                 >
-                  {option.accountCode
-                    ? `${option.accountCode} - ${option.accountName}`
-                    : option.accountName}
+                  {option[keysToDisplay[1]]
+                    ? `${option[keysToDisplay[0]]} - ${
+                        option[keysToDisplay[1]]
+                      }`
+                    : option[keysToDisplay[0]]}
                 </div>
               );
             })

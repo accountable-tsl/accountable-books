@@ -9,6 +9,8 @@
   // width: $sidebar-width-small;
   transition: width 0.75s ease-in-out, height 0.75s ease-in-out;
   top: $header-height;
+  background-color: $background-primary;
+  z-index: 9999;
 
   &-container {
     @apply sticky top-0 overflow-y-auto flex flex-col justify-between h-full;

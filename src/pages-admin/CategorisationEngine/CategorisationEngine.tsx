@@ -13,7 +13,7 @@ import { routes } from "../../utils/routes";
 import { DatePicker } from "antd";
 
 import "./CategorisationEngine.scss";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RangePickerProps } from "antd/es/date-picker";
 import { retrieveTransactions } from "../../services/BankTransactionServices";
 import {
@@ -56,7 +56,9 @@ export default function CategorisationEngine() {
   const { companyId } = useCompany();
 
   const [error, setError] = useState<string | null>(null);
-  const [fetchedBankTransactions, setFetchedBankTransactions] = useState([]);
+  const [fetchedBankTransactions, setFetchedBankTransactions] = useState<
+    CatEngineTransaction[]
+  >([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
   const [selectedBankAccount, setSelectedBankAccount] =
     useState<BankAccount | null>(null);
@@ -75,6 +77,14 @@ export default function CategorisationEngine() {
   const [columnWidths, setColumnWidths] = useState<number[]>(
     Array(catengineHeaders.length).fill(100)
   );
+  const [rowHeight, setRowHeight] = useState<string | "min" | "mid" | "max">(
+    "mid"
+  );
+  const [updatedTransactions, setUpdatedTransactions] = useState<
+    CatEngineTransaction[]
+  >([]);
+  const [selectedOption, setSelectedOption] = useState(null);
+
   // const [pinnedLeft, setPinnedLeft] = useState<string[]>(["bankAccount"]);
   // const [pinnedRight, setPinnedRight] = useState<string[]>(["amount"]);
 
@@ -230,6 +240,34 @@ export default function CategorisationEngine() {
     window.addEventListener("mouseup", handleMouseUp);
   };
 
+  const handleTransactionChange = (
+    transactionId: string,
+    updates: Partial<CatEngineTransaction>
+  ) => {
+    const oldTx = fetchedBankTransactions.find((tx) => tx.id === transactionId);
+    if (!oldTx) return;
+
+    const updatedTx = { ...oldTx, ...updates };
+
+    setFetchedBankTransactions((prev) =>
+      prev.map((tx) => (tx.id === transactionId ? { ...tx, ...updates } : tx))
+    );
+
+    // Update or insert into the updatedTransactions array
+    setUpdatedTransactions((prevUpdated) => {
+      const index = prevUpdated.findIndex((tx) => tx.id === transactionId);
+
+      if (index === -1) {
+        // If not in the array, add a new entry
+        return [...prevUpdated, updatedTx];
+      } else {
+        const newUpdatedArray = [...prevUpdated];
+        newUpdatedArray[index] = updatedTx;
+        return newUpdatedArray;
+      }
+    });
+  };
+
   useEffect(() => {
     if (!companyId) return;
 
@@ -274,6 +312,7 @@ export default function CategorisationEngine() {
   //     )
   //   );
   // }, [coa]);
+  console.log(fetchedBankTransactions, updatedTransactions, coa);
 
   return (
     <div className="catengine">
@@ -432,16 +471,16 @@ export default function CategorisationEngine() {
               <div className="catengine-body__top-view">
                 <div className="catengine-body__top-rowheight">
                   <div className="catengine-body__top-rowheight--item">
-                    <Menu strokeWidth={1} onClick={() => setRowHeight(30)} />
+                    <Menu strokeWidth={1} onClick={() => setRowHeight("min")} />
                   </div>
                   <div
                     className="catengine-body__top-rowheight--item"
-                    onClick={() => setRowHeight(37.5)}
+                    onClick={() => setRowHeight("mid")}
                   >
                     <Menu strokeWidth={2.5} />
                   </div>
                   <div className="catengine-body__top-rowheight--item">
-                    <Menu strokeWidth={4} onClick={() => setRowHeight(45)} />
+                    <Menu strokeWidth={4} onClick={() => setRowHeight("max")} />
                   </div>
                 </div>
                 <div className="catengine-body__top-vr"></div>
@@ -534,6 +573,12 @@ export default function CategorisationEngine() {
                               selectedRows.some((row) => row.id === tx.id)
                                 ? "catengine-table__row--selected"
                                 : ""
+                            } ${
+                              rowHeight === "mid"
+                                ? "catengine-table__row--h-mid"
+                                : rowHeight === "min"
+                                ? "catengine-table__row--h-min"
+                                : "catengine-table__row--h-max"
                             }`}
                             onClick={() => handleRowClick(tx)}
                             role="row"
@@ -576,6 +621,12 @@ export default function CategorisationEngine() {
                               selectedRows.some((row) => row.id === tx.id)
                                 ? "catengine-table__row--selected"
                                 : ""
+                            } ${
+                              rowHeight === "mid"
+                                ? "catengine-table__row--h-mid"
+                                : rowHeight === "min"
+                                ? "catengine-table__row--h-min"
+                                : "catengine-table__row--h-max"
                             }`}
                             onClick={() => handleRowClick(tx)}
                             role="row"
@@ -588,7 +639,12 @@ export default function CategorisationEngine() {
                                   className={`catengine-table__cell catengine-table__cell--${header.key}`}
                                   role="cell"
                                 >
-                                  {renderCellContent(header.key, tx, coa)}
+                                  {renderCellContent(
+                                    header.key,
+                                    tx,
+                                    coa,
+                                    handleTransactionChange
+                                  )}
                                   <span
                                     className="catengine-table__resize"
                                     onMouseDown={(e) => handleResize(e, index)}
@@ -609,6 +665,12 @@ export default function CategorisationEngine() {
                               selectedRows.some((row) => row.id === tx.id)
                                 ? "catengine-table__row--selected"
                                 : ""
+                            } ${
+                              rowHeight === "mid"
+                                ? "catengine-table__row--h-mid"
+                                : rowHeight === "min"
+                                ? "catengine-table__row--h-min"
+                                : "catengine-table__row--h-max"
                             }`}
                             // onClick={() => handleRowClick(tx)}
                             role="row"
@@ -624,7 +686,12 @@ export default function CategorisationEngine() {
                                   className={`catengine-table__cell catengine-table__cell--${header.key} `}
                                   role="cell"
                                 >
-                                  {renderCellContent(header.key, tx, coa)}
+                                  {renderCellContent(
+                                    header.key,
+                                    tx,
+                                    coa,
+                                    handleTransactionChange
+                                  )}
                                   <span
                                     className="catengine-table__resize"
                                     onMouseDown={(e) => handleResize(e, index)}
@@ -638,17 +705,14 @@ export default function CategorisationEngine() {
                                   i.pinned === "right" && i.key === "account"
                               )
                               .map((header, index) => (
-                                // <div
-                                //   key={`${tx.id}-${header.key}`}
-                                //   className={`catengine-table__cell catengine-table__cell--${header.key} `}
-                                //   role="cell"
-                                // >
-                                <>{renderCellContent(header.key, tx, coa)}</>
-                                /* <span
-                                    className="catengine-table__resize"
-                                    onMouseDown={(e) => handleResize(e, index)}
-                                  />
-                                </div> */
+                                <React.Fragment key={`${tx.id}-${header.key}`}>
+                                  {renderCellContent(
+                                    header.key,
+                                    tx,
+                                    coa,
+                                    handleTransactionChange
+                                  )}
+                                </React.Fragment>
                               ))}
                           </div>
                         )
@@ -723,7 +787,11 @@ export default function CategorisationEngine() {
 export const renderCellContent = (
   key: TransactionKey | string,
   tx: CatEngineTransaction,
-  coa: Coa[]
+  coa: Coa[],
+  onTransactionChange: (
+    transactionId: string,
+    updates: Partial<CatEngineTransaction>
+  ) => void
 ) => {
   switch (key) {
     case "bankAccount":
@@ -767,7 +835,7 @@ export const renderCellContent = (
       return `${tx.bankCurrencyCode} (${tx.bankCurrencySymbol})`;
 
     case "bankAmount":
-      return numeral(tx.amount).format("0,0.00");
+      return numeral(tx.bankAmount).format("0,0.00");
 
     case "exchangeRate":
       return numeral(tx.exchangeRate).format("0,0.000000");
@@ -789,14 +857,26 @@ export const renderCellContent = (
       );
 
     case "account":
+      const selectedCoaOption = coa.find((c) => c.id === tx.coaId) || null;
+
+      if (!coa || coa.length === 0) {
+        return <div>Loading accounts...</div>;
+      }
+
       return (
-        // <select value={tx.coaId} className="catengine-table__account">
-        //   <option value=""></option>
-        //   {coa.map((account) => (
-        //     <option key={account.id}>{account.accountName}</option>
-        //   ))}
-        // </select>
-        <CustomSelect options={coa} className="catengine-table__cell--coa" />
+        <CustomSelect
+          options={coa}
+          className="catengine-table__cell--coa"
+          onChange={(option) => {
+            onTransactionChange(tx.id, {
+              coaId: option.id,
+              coaAccountName: option.accountName,
+              coaAccountCode: option.accountCode,
+            });
+          }}
+          placeholder="Select Account"
+          value={selectedCoaOption}
+        />
       );
 
     default:

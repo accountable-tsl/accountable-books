@@ -232,10 +232,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      height: 2rem;
+      min-height: 2.25rem;
+      height: auto;
       position: sticky;
       z-index: 50;
       top: 0;
+      font-weight: 500;
 
       // @apply sticky top-0 z-10 bg-white rounded-t-md flex flex-nowrap justify-between items-center px-4 py-1.5 pl-1.5 border-b border-gray-200 h-10;
 
@@ -287,9 +289,9 @@
       &-left {
         position: sticky;
         left: 0;
-        min-width: 30rem;
-        width: 35rem;
-        // max-width: 30rem;
+        min-width: 35rem;
+        width: 40rem;
+        max-width: 40rem;
         z-index: 2;
         border-right: 1px solid rgba($neutral-gray, 0.5);
       }
@@ -297,7 +299,8 @@
       &-not {
         flex: 1;
         overflow-x: auto;
-        min-width: 45rem;
+        min-width: 60rem;
+        max-width: 100rem;
         overflow-anchor: auto;
       }
 
@@ -314,15 +317,28 @@
       display: flex;
       flex-wrap: nowrap;
       align-items: center;
-      height: 2rem;
+      height: 2.25rem;
       border-bottom: 1px solid rgba($neutral-gray, 0.65);
-      animation: row-fade-in 0.3s ease-in-out;
       border-collapse: collapse;
       width: 100%;
+      animation: row-fade-in 0.3s ease;
+      transition: all 0.3s ease;
 
       // &:hover {
       //   background-color: rgba($color: $highlight, $alpha: 0.1);
       // }
+
+      &--h-mid {
+        height: 2.25rem;
+      }
+
+      &--h-min {
+        height: 1.875rem;
+      }
+
+      &--h-max {
+        height: 2.75rem;
+      }
 
       &--header {
         background-color: color-mix(in srgb, $white, $black 2%);
@@ -352,20 +368,36 @@
       &--checkbox {
         min-width: 2rem;
         max-width: 2rem;
-        text-align: center;
+        // text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       &--bankAccount {
         min-width: 6.5rem;
+        max-width: 8.5rem;
       }
 
       &--date,
       &--fsDate {
         min-width: 6.5rem;
+        width: 6.5rem;
+        max-width: 6.5rem;
+      }
+
+      &--contact,
+      &--reference,
+      &--project {
+        min-width: 10rem;
       }
 
       &--description {
         min-width: 15rem;
+      }
+
+      &--currency {
+        max-width: 5rem;
       }
 
       &--bankAmount {
