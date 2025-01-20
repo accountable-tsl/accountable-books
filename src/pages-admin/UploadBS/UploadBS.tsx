@@ -30,7 +30,7 @@ import {
 } from "../../types/types";
 import { userId } from "../../utils/user";
 import { ColDef, ValueGetterParams } from "ag-grid-community";
-import { postBankTransactions } from "../../services/BankTransactionServices";
+import { postBankTransactions } from "../../services/TransactionServices";
 
 /**
  * Configuration & Constants

@@ -280,6 +280,7 @@ export type CatEngineTransaction = {
   coaId?: string | null;
   coaAccountName?: string | null;
   coaAccountCode?: string | null;
+  userId: string;
 };
 
 export type TransactionKey = keyof CatEngineTransaction;

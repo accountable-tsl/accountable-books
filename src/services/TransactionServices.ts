@@ -2,6 +2,7 @@ import axios from "axios";
 import {
   BankTransactionBatch,
   BankTransactionFilters,
+  CatEngineTransaction,
   ServerResponseFormat,
 } from "../types/types";
 
@@ -25,6 +26,18 @@ export const retrieveTransactions = async (
   const response = await axios.get(
     `${backendUrl}/api/${companyId}/transactions`,
     { params: filters }
+  );
+
+  return response.data;
+};
+
+export const categoriseTransactions = async (
+  companyId: string,
+  transactions: CatEngineTransaction[]
+) => {
+  const response = await axios.post(
+    `${backendUrl}/api/${companyId}/transactions/categorise`,
+    transactions
   );
 
   return response.data;

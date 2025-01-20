@@ -15,7 +15,10 @@ import { DatePicker } from "antd";
 import "./CategorisationEngine.scss";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RangePickerProps } from "antd/es/date-picker";
-import { retrieveTransactions } from "../../services/BankTransactionServices";
+import {
+  categoriseTransactions,
+  retrieveTransactions,
+} from "../../services/TransactionServices";
 import {
   BankAccount,
   BankAccounts,
@@ -36,7 +39,8 @@ import numeral from "numeral";
 import { fetchCompany } from "../../services/CompanyServices";
 import { fetchCoa } from "../../services/CoaServices";
 import CustomSelect from "../../components/CoaSelectCellEditor/CoaSelectCellEditor";
-import Dropdown from "../../components/Dropdown/Dropdown";
+import debounce from "lodash.debounce";
+import { userId } from "../../utils/user";
 
 const catengineHeaders = [
   { label: "Bank", key: "bankAccount", pinned: "left" },
@@ -151,7 +155,7 @@ export default function CategorisationEngine() {
     return newFilters;
   }, [filterDates, selectedBankAccount, filterAmounts]);
 
-  const getBankTransactions = useCallback(
+  const fetchBankTransactions = useCallback(
     async (filters: BankTransactionFilters) => {
       try {
         if (companyId) {
@@ -268,6 +272,25 @@ export default function CategorisationEngine() {
     });
   };
 
+  const handleTxCategorisation = useCallback(
+    debounce(async (companyId: string, tx: CatEngineTransaction[]) => {
+      if (!companyId) return;
+      if (!tx) return;
+
+      try {
+        const response = await categoriseTransactions(companyId, tx);
+
+        if (response.success) {
+          setUpdatedTransactions([]);
+          fetchBankTransactions(filters);
+        }
+      } catch (error) {
+        console.error("Error sending updates:", error);
+      }
+    }, 300),
+    []
+  );
+
   useEffect(() => {
     if (!companyId) return;
 
@@ -286,12 +309,12 @@ export default function CategorisationEngine() {
     if (!companyId) return;
     const controller = new AbortController();
     const fetchTransactions = async () => {
-      await getBankTransactions(filters);
+      await fetchBankTransactions(filters);
     };
     fetchTransactions();
 
     return () => controller.abort();
-  }, [companyId, filters, getBankTransactions]);
+  }, [companyId, filters, fetchBankTransactions]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -303,6 +326,12 @@ export default function CategorisationEngine() {
     getCOA();
   }, [companyId, coaLimit, getCOA]);
 
+  useEffect(() => {
+    if (!companyId) return;
+    if (!updatedTransactions || updatedTransactions.length === 0) return;
+    handleTxCategorisation(companyId, updatedTransactions);
+  }, [updatedTransactions, companyId, handleTxCategorisation]);
+
   // useEffect(() => {
   //   setColumnDefs((prevColumnDefs) =>
   //     prevColumnDefs.map((col) =>
@@ -312,7 +341,7 @@ export default function CategorisationEngine() {
   //     )
   //   );
   // }, [coa]);
-  console.log(fetchedBankTransactions, updatedTransactions, coa);
+  console.log(fetchedBankTransactions, updatedTransactions, filters);
 
   return (
     <div className="catengine">
@@ -872,6 +901,7 @@ export const renderCellContent = (
               coaId: option.id,
               coaAccountName: option.accountName,
               coaAccountCode: option.accountCode,
+              userId: userId,
             });
           }}
           placeholder="Select Account"
