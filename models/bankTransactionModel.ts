@@ -40,7 +40,7 @@ export interface TransactionFilters {
   isDeleted?: boolean;
   searchQuery?: string;
   transactionSide?: DebitCredit;
-  page?: number;
+  currentPage?: number;
   pageSize?: number;
 }
 

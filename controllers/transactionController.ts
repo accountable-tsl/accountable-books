@@ -32,8 +32,12 @@ export async function fetchTransactions(req: Request, res: Response) {
     const categorisationStatus = filters.categorisationStatus
       ? filters.categorisationStatus
       : null;
-    const page = filters.page ? parseInt(filters.page as string) : null;
-    const pageSize = filters.page ? parseInt(filters.pageSize as string) : null;
+    const page = filters.currentPage
+      ? parseInt(filters.currentPage as string)
+      : null;
+    const pageSize = filters.pageSize
+      ? parseInt(filters.pageSize as string)
+      : null;
 
     const errors = [];
     if (filters.startDate && !startDate) errors.push("startDate: Check format");
@@ -56,6 +60,7 @@ export async function fetchTransactions(req: Request, res: Response) {
         CategorisationStatus.UNCATEGORISED,
       ]) as CategorisationStatus[],
     };
+
 
     const response = await getMergedTransactions(companyId, filter);
 

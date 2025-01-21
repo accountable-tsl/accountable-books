@@ -211,10 +211,10 @@ const transformLedgerTransaction = (
           bankCurrencyCode: ledger.sourceCurrency.code,
           bankCurrencySymbol: ledger.sourceCurrency.symbol,
           transactionSide: ledger.transactionSide,
-          bankAmount: ledger.sourceAmount,
           exchangeRate: ledger.customExchangeRate,
           amount: ledger.amount,
           bankCurrencyId: ledger.sourceCurrencyId,
+          bankAmount: tx.bankTransaction?.amount,
           bankAccountId: tx.bankTransaction?.bankAccountId || null,
           bankTransactionBatchId:
             tx.bankTransaction?.bankTransactionBatchId || null,
@@ -245,8 +245,8 @@ export async function getMergedTransactions(
 
     //Dynamically add other filters
 
-    const page = filters.page || 1;
-    const pageSize = filters.pageSize || 100;
+    const page = filters.currentPage || 1;
+    const pageSize = filters.pageSize ? filters.pageSize : 100;
 
     const bankTransactions = await prisma.bankTransaction.findMany({
       where: bankTransactionFilters,
@@ -259,8 +259,8 @@ export async function getMergedTransactions(
         },
       },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      // skip: (page - 1) * pageSize,
-      // take: pageSize,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
     const accountTransactions = await prisma.ledgerTransaction.findMany({
@@ -283,8 +283,15 @@ export async function getMergedTransactions(
         },
       },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      // skip: (page - 1) * pageSize,
-      // take: pageSize,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+
+    const bankCount = await prisma.bankTransaction.count({
+      where: bankTransactionFilters,
+    });
+    const ledgerCount = await prisma.ledgerTransaction.count({
+      where: ledgerTransactionFilters,
     });
 
     const flattenedAccountTransactions: CatEngineTransaction[] =
@@ -321,12 +328,13 @@ export async function getMergedTransactions(
       ...flattenedAccountTransactions,
     ];
 
-    const count = transactions.length;
+    // const count = transactions.length;
+    const count = bankCount + ledgerCount;
 
     return {
       success: true,
       message: "Bank transactions retrieved successfully",
-      data: { transactions, count, page, pageSize },
+      data: { transactions, count, currentPage: page, pageSize },
     };
   } catch (error) {
     console.error("Error retrieving bank transactions:", filters, error);

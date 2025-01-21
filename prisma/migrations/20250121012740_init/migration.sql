@@ -272,10 +272,7 @@ CREATE TABLE "BankTransaction" (
     "balance" DECIMAL(65,30) NOT NULL,
     "absoluteAmount" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "defaultExchangeRate" DECIMAL(65,30) NOT NULL,
-    "isCategorised" BOOLEAN NOT NULL DEFAULT false,
     "categorisationStatus" "CategorisationStatus" NOT NULL DEFAULT 'UNCATEGORISED',
-    "categorisedAt" TIMESTAMP(3),
-    "categorisedById" TEXT,
     "bankAccountId" TEXT NOT NULL,
     "bankTransactionBatchId" TEXT,
     "ledgerTransactionId" TEXT,
@@ -301,8 +298,6 @@ CREATE TABLE "LedgerTransaction" (
     "bankTransactionId" TEXT,
     "companyId" TEXT NOT NULL,
     "notes" TEXT,
-    "categorisedAt" TIMESTAMP(3) NOT NULL,
-    "categorisedById" TEXT NOT NULL,
     "createdById" TEXT NOT NULL,
     "updatedById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -419,7 +414,7 @@ CREATE TABLE "Contact" (
     "address" TEXT,
     "website" TEXT,
     "businessRegNo" TEXT,
-    "contactType" "ContactType" NOT NULL,
+    "contactType" "ContactType",
     "companyId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -582,6 +577,9 @@ CREATE INDEX "JournalEntry_journalBatchId_idx" ON "JournalEntry"("journalBatchId
 CREATE UNIQUE INDEX "ExchangeRate_baseCurrencyId_targetCurrencyId_date_key" ON "ExchangeRate"("baseCurrencyId", "targetCurrencyId", "date");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Contact_name_companyId_key" ON "Contact"("name", "companyId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Project_code_companyId_key" ON "Project"("code", "companyId");
 
 -- AddForeignKey
@@ -645,9 +643,6 @@ ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_createdB
 ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_categorisedById_fkey" FOREIGN KEY ("categorisedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankAccountId_fkey" FOREIGN KEY ("bankAccountId") REFERENCES "BankAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -667,9 +662,6 @@ ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_bankTransactio
 
 -- AddForeignKey
 ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_categorisedById_fkey" FOREIGN KEY ("categorisedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
