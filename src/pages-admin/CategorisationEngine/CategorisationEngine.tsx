@@ -938,7 +938,7 @@ export default function CategorisationEngine() {
                 )}
               </div>
             </div>
-            <div className="catengine-table__pagination">
+            {/* <div className="catengine-table__pagination">
               <div className="catengine-table__pagination-left">
                 <span>Page</span>
                 <select value={currentPage} onChange={handlePageChange}>
@@ -1016,7 +1016,7 @@ export default function CategorisationEngine() {
                   </button>
                 )}
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
