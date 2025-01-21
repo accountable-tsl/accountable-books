@@ -42,6 +42,7 @@ export interface TransactionFilters {
   transactionSide?: DebitCredit;
   currentPage?: number;
   pageSize?: number;
+  offset?: number;
 }
 
 export async function postBankTransactions(

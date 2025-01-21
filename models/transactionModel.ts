@@ -259,8 +259,8 @@ export async function getMergedTransactions(
         },
       },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      // skip: (page - 1) * pageSize,
+      // take: pageSize,
     });
 
     const accountTransactions = await prisma.ledgerTransaction.findMany({
@@ -283,8 +283,8 @@ export async function getMergedTransactions(
         },
       },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      // skip: (page - 1) * pageSize,
+      // take: pageSize,
     });
 
     const bankCount = await prisma.bankTransaction.count({

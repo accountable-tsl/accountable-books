@@ -61,7 +61,6 @@ export async function fetchTransactions(req: Request, res: Response) {
       ]) as CategorisationStatus[],
     };
 
-
     const response = await getMergedTransactions(companyId, filter);
 
     if (response.success) {
