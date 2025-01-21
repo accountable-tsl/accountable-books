@@ -177,14 +177,14 @@ export default function CustomSelect({
     });
   };
 
-  const handleBlur = () => {
-    if (!filteredOptions.some((opt) => opt.accountName === inputValue)) {
-      setInputValue(value?.accountName || "");
-    }
-    setIsOpen(false);
-    setIsTyping(false);
-    setInputValue(value?.accountName || "");
-  };
+  // const handleBlur = () => {
+  //   if (!filteredOptions.some((opt) => opt.accountName === inputValue)) {
+  //     setInputValue(value?.accountName || "");
+  //   }
+  //   setIsTyping(false);
+  //   setInputValue(value?.accountName || "");
+  //   setIsOpen(false);
+  // };
 
   useEffect(() => {
     if (isOpen) {
@@ -222,7 +222,7 @@ export default function CustomSelect({
           onClick={(e) => e.stopPropagation()}
           // value={searchTerm || value?.accountName || ""}
           value={inputValue}
-          onBlur={handleBlur}
+          // onBlur={handleBlur}
         />
         <div className="selectcoa__icon">
           {isOpen ? (
@@ -261,11 +261,11 @@ export default function CustomSelect({
                   onMouseEnter={() => handleMouseEnter(index)}
                   onMouseLeave={handleMouseLeave}
                 >
-                  {option[keysToDisplay[1]]
+                  {option[keysToDisplay[0]]
                     ? `${option[keysToDisplay[0]]} - ${
                         option[keysToDisplay[1]]
                       }`
-                    : option[keysToDisplay[0]]}
+                    : option[keysToDisplay[1]]}
                 </div>
               );
             })

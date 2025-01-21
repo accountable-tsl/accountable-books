@@ -139,13 +139,13 @@ export interface BankTransactionFilters {
   startDate?: Date;
   endDate?: Date;
   bankAccountId?: string;
-  minAmount?: Decimal;
-  maxAmount?: Decimal;
+  minAmount?: Decimal | string;
+  maxAmount?: Decimal | string;
   isCategorised?: boolean;
   isDeleted?: boolean;
   searchQuery?: string;
   transactionSide?: DebitCredit;
-  page?: number;
+  currentPage?: number;
   pageSize?: number;
   categorisationStatus?: CategorisationStatus[];
 }

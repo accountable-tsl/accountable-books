@@ -11,7 +11,6 @@ import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { useCompany } from "../../utils/company";
 import { routes } from "../../utils/routes";
 import { DatePicker, Select, SelectProps, Space } from "antd";
-
 import "./CategorisationEngine.scss";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RangePickerProps } from "antd/es/date-picker";
@@ -27,8 +26,6 @@ import {
   CatEngineTransaction,
   Coa,
   CompanyData,
-  DebitCredit,
-  Transaction,
   TransactionKey,
 } from "../../types/types";
 import { formatDate, formatNumericValue } from "../../utils/utils";
@@ -56,7 +53,8 @@ const catengineHeaders = [
   { label: "Curr", key: "currency", pinned: null },
   { label: "Bank Amount", key: "bankAmount", pinned: null },
   { label: "Exr", key: "exchangeRate", pinned: null },
-  { label: "Amount", key: "amount", pinned: "right" },
+  { label: "Spent", key: "spent", pinned: "right" },
+  { label: "Received", key: "received", pinned: "right" },
   { label: "Account", key: "account", pinned: "right" },
 ];
 export default function CategorisationEngine() {
@@ -104,9 +102,9 @@ export default function CategorisationEngine() {
   >([]);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
-
-  // const [pinnedLeft, setPinnedLeft] = useState<string[]>(["bankAccount"]);
-  // const [pinnedRight, setPinnedRight] = useState<string[]>(["amount"]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
 
   const catEngineBreadcrumbs = [
     {
@@ -123,6 +121,13 @@ export default function CategorisationEngine() {
   ];
 
   const { RangePicker } = DatePicker;
+
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const pageOptions = Array.from(
+    { length: totalPages },
+    (_, index) => index + 1
+  );
+
   const handleFilterDates: RangePickerProps["onChange"] = (value) => {
     if (value) {
       setFilterDates({
@@ -137,6 +142,7 @@ export default function CategorisationEngine() {
   const handleAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     const numericValue = value
+      .toString()
       .replace(/[^0-9.]/g, "") // Remove non-numeric and non-period characters
       .replace(/(\..*?)\..*/g, "$1"); // Ensure only one period
 
@@ -155,7 +161,6 @@ export default function CategorisationEngine() {
   };
 
   const handleIsCategorisedChange = (value: CategorisationStatus[]) => {
-    console.log(`I see ${value}`);
     setCategorisationStatus([]);
     setCategorisationStatus(value);
   };
@@ -171,13 +176,24 @@ export default function CategorisationEngine() {
     if (filterDates.endDate) newFilters.endDate = filterDates.endDate;
     if (selectedBankAccount) newFilters.bankAccountId = selectedBankAccount.id;
     if (filterAmounts.minAmount)
-      newFilters.minAmount = new Decimal(filterAmounts.minAmount);
+      newFilters.minAmount = filterAmounts.minAmount;
     if (filterAmounts.maxAmount)
-      newFilters.maxAmount = new Decimal(filterAmounts.maxAmount);
+      newFilters.maxAmount = filterAmounts.maxAmount;
     if (categorisationStatus.length > 0)
       newFilters.categorisationStatus = categorisationStatus;
+    newFilters.currentPage = currentPage;
+    newFilters.pageSize = pageSize;
+
     return newFilters;
-  }, [filterDates, selectedBankAccount, filterAmounts, categorisationStatus]);
+  }, [
+    filterDates,
+    selectedBankAccount,
+    filterAmounts,
+    categorisationStatus,
+    pageSize,
+    currentPage,
+    totalItems,
+  ]);
 
   const fetchBankTransactions = useCallback(
     async (filters: BankTransactionFilters) => {
@@ -185,7 +201,11 @@ export default function CategorisationEngine() {
         if (companyId) {
           const response = await retrieveTransactions(companyId, filters);
           if (response.success && response.data?.transactions) {
+            console.log(response);
             setFetchedTransactions(response.data.transactions);
+            setTotalItems(response.data.count);
+            setCurrentPage(response.data.currentPage);
+            setPageSize(response.data.pageSize);
           } else {
             setError("Failed to fetch transactions");
             console.error("Failed to fetch transactions:", response);
@@ -311,9 +331,62 @@ export default function CategorisationEngine() {
       } catch (error) {
         console.error("Error sending updates:", error);
       }
-    }, 300),
+    }, 5000),
     [filters, fetchBankTransactions]
   );
+
+  const handlePageSizeChange = (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const pageSize = parseInt(event.target.value);
+    console.log("xpage:", pageSize);
+    setPageSize(pageSize);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    let page = parseInt(event.target.value);
+    // if (page < 1) page = 1;
+    // if (page > totalPages) page = totalPages;
+
+    setCurrentPage(page);
+  };
+
+  const handleCurrPageChange = (currPage: number | string) => {
+    let page = parseInt(currPage as string);
+    // if (page < 1) page = 1;
+    // if (page > totalPages) page = totalPages;
+
+    setCurrentPage(page);
+  };
+
+  const getVisiblePages = (currentPage: number, totalPages: number) => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    if (currentPage <= 3) {
+      return [1, 2, 3, 4, 5];
+    }
+
+    if (currentPage >= totalPages - 2) {
+      return [
+        totalPages - 4,
+        totalPages - 3,
+        totalPages - 2,
+        totalPages - 1,
+        totalPages,
+      ];
+    }
+
+    return [
+      currentPage - 2,
+      currentPage - 1,
+      currentPage,
+      currentPage + 1,
+      currentPage + 2,
+    ];
+  };
 
   useEffect(() => {
     localStorage.setItem(
@@ -379,7 +452,7 @@ export default function CategorisationEngine() {
   //     )
   //   );
   // }, [coa]);
-  console.log(fetchedTransactions);
+  console.log(fetchedTransactions, filters);
 
   return (
     <div className="catengine">
@@ -449,9 +522,9 @@ export default function CategorisationEngine() {
               <div className="catengine-summary__amount-value">
                 {`${companyInfo?.reportingCurrencyCode || ""} ${numeral(
                   fetchedTransactions
-                    .filter((tx) => tx.transactionSide === DebitCredit.Debit)
+                    .filter((tx) => new Decimal(tx.amount).gt(0))
                     .reduce(
-                      (acc, tx) => acc.plus(new Decimal(tx.amount)),
+                      (acc, tx) => acc.plus(new Decimal(tx.amount).abs()),
                       new Decimal(0)
                     )
                 ).format("0,0.00")}`}
@@ -464,7 +537,7 @@ export default function CategorisationEngine() {
               <div className="catengine-summary__amount-value">
                 {`${companyInfo?.reportingCurrencyCode || ""} ${numeral(
                   fetchedTransactions
-                    .filter((tx) => tx.transactionSide === DebitCredit.Credit)
+                    .filter((tx) => new Decimal(tx.amount).lt(0))
                     .reduce(
                       (acc, tx) => acc.plus(new Decimal(tx.amount).abs()),
                       new Decimal(0)
@@ -700,6 +773,14 @@ export default function CategorisationEngine() {
                               : rowHeight === "min"
                               ? "catengine-table__row--h-min"
                               : "catengine-table__row--h-max"
+                          } ${
+                            tx.categorisationStatus ===
+                            CategorisationStatus.AUTOCATEGORISED
+                              ? "catengine-table__row--autocategorised"
+                              : tx.categorisationStatus ===
+                                CategorisationStatus.CATEGORISED
+                              ? "catengine-table__row--categorised"
+                              : ""
                           }`}
                           onClick={() => handleRowClick(tx)}
                           role="row"
@@ -751,6 +832,14 @@ export default function CategorisationEngine() {
                               : rowHeight === "min"
                               ? "catengine-table__row--h-min"
                               : "catengine-table__row--h-max"
+                          } ${
+                            tx.categorisationStatus ===
+                            CategorisationStatus.AUTOCATEGORISED
+                              ? "catengine-table__row--autocategorised"
+                              : tx.categorisationStatus ===
+                                CategorisationStatus.CATEGORISED
+                              ? "catengine-table__row--categorised"
+                              : ""
                           }`}
                           onClick={() => handleRowClick(tx)}
                           role="row"
@@ -793,6 +882,14 @@ export default function CategorisationEngine() {
                               : rowHeight === "min"
                               ? "catengine-table__row--h-min"
                               : "catengine-table__row--h-max"
+                          } ${
+                            tx.categorisationStatus ===
+                            CategorisationStatus.AUTOCATEGORISED
+                              ? "catengine-table__row--autocategorised"
+                              : tx.categorisationStatus ===
+                                CategorisationStatus.CATEGORISED
+                              ? "catengine-table__row--categorised"
+                              : ""
                           }`}
                           // onClick={() => handleRowClick(tx)}
                           role="row"
@@ -844,57 +941,80 @@ export default function CategorisationEngine() {
             <div className="catengine-table__pagination">
               <div className="catengine-table__pagination-left">
                 <span>Page</span>
-                <select>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
+                <select value={currentPage} onChange={handlePageChange}>
+                  {pageOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
                 </select>
 
-                <span>of 1 (20 total items)</span>
+                <span>{`of ${totalPages} (${totalItems} total items)`}</span>
               </div>
 
               <div className="catengine-table__pagination-middle">
                 <span>Showing</span>
-                <select>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
+                <select value={pageSize} onChange={handlePageSizeChange}>
                   <option value="100">100</option>
+                  <option value="250">250</option>
+                  <option value="500">500</option>
+                  <option value="1000">1,000</option>
                 </select>
                 <span>items per page</span>
               </div>
 
               <div className="catengine-table__pagination-right">
-                <button
-                  className="catengine-table__nav-button"
-                  // onClick={() => handlePageChange("start")}
-                  // disabled={isFirstPage}
-                >
-                  {"<<"} Start
-                </button>
-                <button
-                  className="catengine-table__nav-button"
-                  // onClick={() => handlePageChange("previous")}
-                  // disabled={isFirstPage}
-                >
-                  Previous
-                </button>
-                <div className="catengine-table__current-page">
-                  {/* <span>{currentPage}</span> */}
+                {currentPage > 1 && (
+                  <button
+                    className="catengine-table__nav-button"
+                    onClick={() => handleCurrPageChange(1)}
+                    // disabled={isFirstPage}
+                  >
+                    {"<<"} Start
+                  </button>
+                )}
+                {currentPage > 1 && (
+                  <button
+                    className="catengine-table__nav-button"
+                    onClick={() => handleCurrPageChange(currentPage - 1)}
+                    // disabled={isFirstPage}
+                  >
+                    Previous
+                  </button>
+                )}
+                <div className="catengine-table__page">
+                  {getVisiblePages(currentPage, totalPages).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => handleCurrPageChange(pageNum)}
+                      className={`catengine-table__page--curr ${
+                        pageNum === currentPage
+                          ? "catengine-table__page--active"
+                          : ""
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
                 </div>
-                <button
-                  className="catengine-table__nav-button"
-                  // onClick={() => handlePageChange("next")}
-                  // disabled={isLastPage}
-                >
-                  Next {">"}
-                </button>
-                <button
-                  className="catengine-table__nav-button"
-                  // onClick={() => handlePageChange("end")}
-                  // disabled={isLastPage}
-                >
-                  End {">>"}
-                </button>
+                {currentPage < totalPages && (
+                  <button
+                    className="catengine-table__nav-button"
+                    onClick={() => handleCurrPageChange(currentPage + 1)}
+                    // disabled={isLastPage}
+                  >
+                    Next {">"}
+                  </button>
+                )}
+                {currentPage < totalPages && (
+                  <button
+                    className="catengine-table__nav-button"
+                    onClick={() => handleCurrPageChange(totalPages)}
+                    // disabled={isLastPage}
+                  >
+                    End {">>"}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -959,19 +1079,35 @@ export const renderCellContent = (
     case "exchangeRate":
       return numeral(tx.exchangeRate).format("0,0.000000");
 
-    case "amount":
-      const amount = new Decimal(tx.bankAmount).dividedBy(
+    case "spent":
+      const spent = new Decimal(tx.bankAmount).dividedBy(
         new Decimal(tx.exchangeRate)
       );
       return (
         <div
           className={`catengine-table__amount ${
-            amount.greaterThan(0)
+            spent.greaterThan(0)
               ? "catengine-table__amount--plus"
               : "catengine-table__amount--minus"
           }`}
         >
-          {numeral(amount).format("0,0.00")}
+          {spent > new Decimal(0) ? "" : numeral(spent.abs()).format("0,0.00")}
+        </div>
+      );
+
+    case "received":
+      const received = new Decimal(tx.bankAmount).dividedBy(
+        new Decimal(tx.exchangeRate)
+      );
+      return (
+        <div
+          className={`catengine-table__amount ${
+            received.greaterThan(0)
+              ? "catengine-table__amount--plus"
+              : "catengine-table__amount--minus"
+          }`}
+        >
+          {received > new Decimal(0) ? numeral(received).format("0,0.00") : ""}
         </div>
       );
 
@@ -985,7 +1121,7 @@ export const renderCellContent = (
       return (
         <CustomSelect
           options={coa}
-          className="catengine-table__cell--coa"
+          className="catengine-table__cell--account"
           onChange={(option) => {
             onTransactionChange(tx.id, {
               coaId: option.id,
