@@ -13,26 +13,10 @@ type BreadcrumbItem = {
   icon?: any;
   link?: string;
   hasDropdown?: boolean;
-  dropdownItems?: { text: string; link: string }[];
+  dropdownItems?: { text: string; link?: string }[];
 };
 
 type BreadcrumbProps = { items: BreadcrumbItem[] };
-
-// Sample Usage
-// const breadcrumbItems = [
-// { text: "Accounting", icon: faHome, link: "/" },
-// {
-//   text: "Calculator",
-//   icon: faCalculator,
-//   link: "/calculator",
-//   hasDropdown: true,
-//   dropdownItems: [
-//     { text: "Option 1", link: "/advanced/option1" },
-//     { text: "Option 2", link: "/advanced/option2" },
-//   ],
-// },
-// ];
-// <Breadcrumb items={breadcrumbItems} />;
 
 export default function Breadcrumb({
   items,

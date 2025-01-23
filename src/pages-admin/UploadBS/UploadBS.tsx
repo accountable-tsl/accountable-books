@@ -142,8 +142,10 @@ export default function UploadBS() {
 
   //UI and Status States
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadSuccessful, setUploadSuccessful] = useState<boolean | null>();
-  const [error, setError] = useState<string | null>(null);
+  const [uploadSuccessful, setUploadSuccessful] = useState<
+    boolean | null | string
+  >();
+  const [_error, setError] = useState<string | null>(null);
 
   // const [columnArray, setColumnArray] = useState<any>([]);
   // const [values, setValues] = useState<any>([]);
@@ -173,7 +175,7 @@ export default function UploadBS() {
    * Fetch & Data Handling Functions
    */
 
-  const fetchBankAccounts = async (companyId: string | number) => {
+  const fetchBankAccounts = async (companyId: string) => {
     const response = await getBankAccounts(companyId);
     if (response.success) {
       setBankAccounts(response.data.bankAccounts);
@@ -540,8 +542,7 @@ export default function UploadBS() {
                         ? "uploadbs-button__disabled"
                         : "uploadbs-button__continue"
                     }
-                    onClick={(e) => {
-                      e.preventDefault();
+                    onClick={() => {
                       setCurrStep(2);
                     }}
                   />

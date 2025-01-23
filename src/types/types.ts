@@ -90,6 +90,11 @@ export interface Bank {
   bankAccounts?: BankAccount[];
 }
 
+export interface AccountingSetupProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+}
+
 export interface BankAccount {
   id?: string;
   bankId?: string | number;
@@ -112,7 +117,7 @@ export interface BankAccount {
 
 export interface BankTransaction {
   id?: string | number;
-  date: string;
+  date: Date | string | null;
   payee?: string;
   reference?: string;
   description?: string;
@@ -122,7 +127,7 @@ export interface BankTransaction {
   isReconciled?: boolean;
   bankTransactionBatchId?: string | number;
   accountTransactionId?: string | number;
-  bankAccountId: string;
+  bankAccountId?: string;
   bankAccount?: BankAccount;
 }
 
@@ -188,8 +193,6 @@ export interface Coa {
   balance?: number;
   bankAccountId?: string;
   bankAccount?: BankAccount;
-  transactions?: AccountTransaction[];
-  journalTransactions?: JournalTransaction[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -248,10 +251,10 @@ export type Transaction = {
     reference?: string;
     notes?: string;
   };
-  contact?: Contact;
-  journalBatch?: JournalBatch;
+  contact?: any; //Contact;
+  journalBatch?: any; //JournalBatch;
   company?: Company;
-  project?: Project;
+  project?: any; // Project;
 };
 
 export type CatEngineTransaction = {

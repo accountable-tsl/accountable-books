@@ -23,7 +23,7 @@ export default function FinancialSettings() {
   const [companyData, setCompanyData] = useState<any>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("settings");
+  const [_activeTab, setActiveTab] = useState("settings");
 
   const months = [
     "January",

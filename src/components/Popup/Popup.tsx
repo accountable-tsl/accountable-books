@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { RefObject, useRef } from "react";
 import ReactDOM from "react-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark } from "@fortawesome/free-solid-svg-icons";
@@ -8,7 +8,7 @@ import "./Popup.scss";
 export default function Popup({ popupId, children }: any) {
   const { popups, closePopup } = usePopup();
 
-  const popupRef = useRef(null);
+  const popupRef: RefObject<HTMLDivElement> = useRef(null);
 
   const handleOutsideClick = (event: any) => {
     if (popupRef.current && !popupRef.current.contains(event.target)) {
@@ -20,6 +20,11 @@ export default function Popup({ popupId, children }: any) {
     return null;
   }
 
+  const portalRoot = document.getElementById("portal-root");
+  if (!portalRoot) {
+    throw new Error("Portal root element not found");
+  }
+
   return ReactDOM.createPortal(
     <div className="popup" onClick={handleOutsideClick}>
       <div className="popup-content" ref={popupRef}>
@@ -29,6 +34,6 @@ export default function Popup({ popupId, children }: any) {
         </button>
       </div>
     </div>,
-    document.getElementById("portal-root")
+    portalRoot
   );
 }

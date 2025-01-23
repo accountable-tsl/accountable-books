@@ -26,11 +26,11 @@
       color: $soft-white;
 
       &:hover {
-        background-color: darken($primary, 10%);
+        background-color: rgba($primary, 0.1);
       }
 
       &:active {
-        background-color: lighten($primary, 10%);
+        background-color: rgba($primary, 0.1);
       }
     }
 
@@ -39,11 +39,11 @@
       color: $soft-white;
 
       &:hover {
-        background-color: darken($secondary, 10%);
+        background-color: rgba($secondary, 0.1);
       }
 
       &:active {
-        background-color: lighten($secondary, 10%);
+        background-color: rgba($secondary, 0.1);
       }
     }
 
@@ -52,11 +52,11 @@
       color: $soft-white;
 
       &:hover {
-        background-color: darken($success, 10%);
+        background-color: rgba($success, 0.1);
       }
 
       &:active {
-        background-color: lighten($success, 10%);
+        background-color: rgba($success, 0.1);
       }
     }
 
@@ -65,11 +65,11 @@
       color: $soft-white;
 
       &:hover {
-        background-color: darken($danger, 10%);
+        background-color: rgba($danger, 0.1);
       }
 
       &:active {
-        background-color: lighten($danger, 10%);
+        background-color: rgba($danger, 0.1);
       }
     }
   }
@@ -89,7 +89,7 @@
       }
 
       &:active {
-        background-color: lighten($primary, 10%);
+        background-color: rgba($primary, 0.1);
         color: $soft-white;
       }
     }
@@ -104,7 +104,7 @@
       }
 
       &:active {
-        background-color: lighten($secondary, 10%);
+        background-color: rgba($secondary, 0.1);
         color: $soft-white;
       }
     }
@@ -119,7 +119,7 @@
       }
 
       &:active {
-        background-color: lighten($success, 10%);
+        background-color: rgba($success, 0.1);
         color: $soft-white;
       }
     }
@@ -134,7 +134,7 @@
       }
 
       &:active {
-        background-color: lighten($danger, 10%);
+        background-color: rgba($danger, 0.1);
         color: $soft-white;
       }
     }
@@ -150,12 +150,12 @@
       color: $primary;
 
       &:hover {
-        color: darken($primary, 10%);
+        color: rgba($primary, 0.1);
         text-decoration: underline;
       }
 
       &:active {
-        color: lighten($primary, 10%);
+        color: rgba($primary, 0.1);
       }
     }
 
@@ -163,12 +163,12 @@
       color: $secondary;
 
       &:hover {
-        color: darken($secondary, 10%);
+        color: rgba($secondary, 0.1);
         text-decoration: underline;
       }
 
       &:active {
-        color: lighten($secondary, 10%);
+        color: rgba($secondary, 0.1);
       }
     }
 
@@ -176,12 +176,12 @@
       color: $success;
 
       &:hover {
-        color: darken($success, 10%);
+        color: rgba($success, 0.1);
         text-decoration: underline;
       }
 
       &:active {
-        color: lighten($success, 10%);
+        color: rgba($success, 0.1);
       }
     }
 
@@ -189,12 +189,12 @@
       color: $danger;
 
       &:hover {
-        color: darken($danger, 10%);
+        color: rgba($danger, 0.1);
         text-decoration: underline;
       }
 
       &:active {
-        color: lighten($danger, 10%);
+        color: rgba($danger, 0.1);
       }
     }
   }
@@ -212,7 +212,7 @@
       background-color: transparent;
 
       &:hover {
-        background-color: lighten($primary, 75%);
+        background-color: rgba($primary, 75%);
       }
     }
 

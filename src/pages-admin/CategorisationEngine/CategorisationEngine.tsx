@@ -30,10 +30,7 @@ import {
 } from "../../types/types";
 import { formatDate, formatNumericValue } from "../../utils/utils";
 import Decimal from "decimal.js";
-import {
-  getBankAccountById,
-  getBankAccounts,
-} from "../../services/BankAccountServices";
+import { getBankAccounts } from "../../services/BankAccountServices";
 
 import numeral from "numeral";
 import { fetchCompany } from "../../services/CompanyServices";
@@ -60,7 +57,7 @@ const catengineHeaders = [
 export default function CategorisationEngine() {
   const { companyId } = useCompany();
 
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   const [fetchedTransactions, setFetchedTransactions] = useState<
     CatEngineTransaction[]
   >([]);
@@ -100,7 +97,6 @@ export default function CategorisationEngine() {
   const [updatedTransactions, setUpdatedTransactions] = useState<
     CatEngineTransaction[]
   >([]);
-  const [selectedOption, setSelectedOption] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -121,12 +117,6 @@ export default function CategorisationEngine() {
   ];
 
   const { RangePicker } = DatePicker;
-
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const pageOptions = Array.from(
-    { length: totalPages },
-    (_, index) => index + 1
-  );
 
   const handleFilterDates: RangePickerProps["onChange"] = (value) => {
     if (value) {
@@ -165,7 +155,7 @@ export default function CategorisationEngine() {
     setCategorisationStatus(value);
   };
 
-  const handleAllBanks = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleAllBanks = () => {
     setSelectedBankAccount(null);
   };
 
@@ -175,10 +165,8 @@ export default function CategorisationEngine() {
     if (filterDates.startDate) newFilters.startDate = filterDates.startDate;
     if (filterDates.endDate) newFilters.endDate = filterDates.endDate;
     if (selectedBankAccount) newFilters.bankAccountId = selectedBankAccount.id;
-    if (filterAmounts.minAmount)
-      newFilters.minAmount = filterAmounts.minAmount;
-    if (filterAmounts.maxAmount)
-      newFilters.maxAmount = filterAmounts.maxAmount;
+    if (filterAmounts.minAmount) newFilters.minAmount = filterAmounts.minAmount;
+    if (filterAmounts.maxAmount) newFilters.maxAmount = filterAmounts.maxAmount;
     if (categorisationStatus.length > 0)
       newFilters.categorisationStatus = categorisationStatus;
     newFilters.currentPage = currentPage;
@@ -335,58 +323,65 @@ export default function CategorisationEngine() {
     [filters, fetchBankTransactions]
   );
 
-  const handlePageSizeChange = (
-    event: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    const pageSize = parseInt(event.target.value);
-    console.log("xpage:", pageSize);
-    setPageSize(pageSize);
-    setCurrentPage(1);
-  };
+  //FOR PAGINATION
+  // const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  // const pageOptions = Array.from(
+  //   { length: totalPages },
+  //   (_, index) => index + 1
+  // );
 
-  const handlePageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    let page = parseInt(event.target.value);
-    // if (page < 1) page = 1;
-    // if (page > totalPages) page = totalPages;
+  // const handlePageSizeChange = (
+  //   event: React.ChangeEvent<HTMLSelectElement>
+  // ) => {
+  //   const pageSize = parseInt(event.target.value);
+  //   console.log("xpage:", pageSize);
+  //   setPageSize(pageSize);
+  //   setCurrentPage(1);
+  // };
 
-    setCurrentPage(page);
-  };
+  // const handlePageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  //   let page = parseInt(event.target.value);
+  //   // if (page < 1) page = 1;
+  //   // if (page > totalPages) page = totalPages;
 
-  const handleCurrPageChange = (currPage: number | string) => {
-    let page = parseInt(currPage as string);
-    // if (page < 1) page = 1;
-    // if (page > totalPages) page = totalPages;
+  //   setCurrentPage(page);
+  // };
 
-    setCurrentPage(page);
-  };
+  // const handleCurrPageChange = (currPage: number | string) => {
+  //   let page = parseInt(currPage as string);
+  //   // if (page < 1) page = 1;
+  //   // if (page > totalPages) page = totalPages;
 
-  const getVisiblePages = (currentPage: number, totalPages: number) => {
-    if (totalPages <= 5) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
+  //   setCurrentPage(page);
+  // };
 
-    if (currentPage <= 3) {
-      return [1, 2, 3, 4, 5];
-    }
+  // const getVisiblePages = (currentPage: number, totalPages: number) => {
+  //   if (totalPages <= 5) {
+  //     return Array.from({ length: totalPages }, (_, i) => i + 1);
+  //   }
 
-    if (currentPage >= totalPages - 2) {
-      return [
-        totalPages - 4,
-        totalPages - 3,
-        totalPages - 2,
-        totalPages - 1,
-        totalPages,
-      ];
-    }
+  //   if (currentPage <= 3) {
+  //     return [1, 2, 3, 4, 5];
+  //   }
 
-    return [
-      currentPage - 2,
-      currentPage - 1,
-      currentPage,
-      currentPage + 1,
-      currentPage + 2,
-    ];
-  };
+  //   if (currentPage >= totalPages - 2) {
+  //     return [
+  //       totalPages - 4,
+  //       totalPages - 3,
+  //       totalPages - 2,
+  //       totalPages - 1,
+  //       totalPages,
+  //     ];
+  //   }
+
+  //   return [
+  //     currentPage - 2,
+  //     currentPage - 1,
+  //     currentPage,
+  //     currentPage + 1,
+  //     currentPage + 2,
+  //   ];
+  // };
 
   useEffect(() => {
     localStorage.setItem(
@@ -921,7 +916,7 @@ export default function CategorisationEngine() {
                             .filter(
                               (i) => i.pinned === "right" && i.key === "account"
                             )
-                            .map((header, index) => (
+                            .map((header) => (
                               <React.Fragment key={`${tx.id}-${header.key}`}>
                                 {renderCellContent(
                                   header.key,

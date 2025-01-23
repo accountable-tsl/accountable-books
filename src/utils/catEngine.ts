@@ -1,5 +1,3 @@
-import { BankTransaction } from "../types/types";
-
 export const detExchangeRate = (
   reportingCurrencyId: string,
   bankAccountCurrencyId: string
@@ -11,5 +9,3 @@ export const detExchangeRate = (
   //If rates for both the above are not found and there is data for that currency pair after the date and the date is a weekend or a holiday, use last business day rate
   //Otherwise reach for the openexchangerates.org API (to be implemented later)
 };
-
-

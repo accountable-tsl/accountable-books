@@ -1,10 +1,10 @@
 import "./AccountingSetup.scss";
-import React from "react";
 import { Link } from "react-router-dom";
 import { routes } from "../../utils/routes";
 import { useCompany } from "../../utils/company";
+import { AccountingSetupProps } from "../../types/types";
 
-const AccountingSetup = ({ activeTab, onTabChange }) => {
+const AccountingSetup = ({ activeTab, onTabChange }: AccountingSetupProps) => {
   const { companyId } = useCompany();
 
   return (

@@ -1,4 +1,4 @@
-type companyId = companyId | null;
+type companyId = string | null;
 
 export const routes = {
   home: "/",

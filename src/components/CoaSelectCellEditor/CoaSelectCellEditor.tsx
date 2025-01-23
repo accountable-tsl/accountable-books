@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import "./CoaSelectCellEditor.scss";
 import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { set } from "date-fns";
 
 interface SelectProps {
   options: any[];
@@ -23,9 +22,8 @@ export default function CustomSelect({
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState(""); //To filter visible options via input box
-  const [typedText, setTypedText] = useState(""); //For quick navigation, allow to jump to matching option based on first few letters.
+  const [_hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [typedText, setTypedText] = useState(""); 
   const [inputValue, setInputValue] = useState(value?.accountName || "");
   const [isTyping, setIsTyping] = useState(false);
 

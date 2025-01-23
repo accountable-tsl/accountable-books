@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./COA.scss";
 import { Archive, FolderCog, TableProperties, Trash2 } from "lucide-react";
@@ -14,21 +13,22 @@ import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import Button from "../../components/Button/Button";
 import AccountingSetup from "../../components/AccountingSetup/AccountingSetup";
 import { usePopup } from "../../contexts/PopupContext";
+import { Coa } from "../../types/types";
 
 export default function COA() {
   const { companyId } = useCompany();
   const { openPopup } = usePopup();
 
-  const [coaData, setCoaData] = useState(null);
+  const [coaData, setCoaData] = useState<Coa[] | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [sortBy, setSortBy] = useState("");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
+  const [sortBy] = useState("");
+  const [sortOrder] = useState<"asc" | "desc">("asc");
+  // const [totalPages, setTotalPages] = useState(1);
+  // const [totalItems, setTotalItems] = useState(0);
   const [coaFilter, setCoaFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("coa");
-  const [coaColDefs, setCoaColDefs] = useState([
+  const [_activeTab, setActiveTab] = useState("coa");
+  const [coaColDefs] = useState([
     {
       field: "accountCode",
       headerName: "Code",
@@ -58,7 +58,7 @@ export default function COA() {
       },
     },
   ]);
-  const [rowData, setRowData] = useState([]);
+  const [rowData, setRowData] = useState<Coa[]>([]);
   const defaultColDef = useMemo(() => {
     return {
       flex: 1,
@@ -68,8 +68,6 @@ export default function COA() {
   }, []);
 
   const [selectedRowsCount, setSelectedRowsCount] = useState(0);
-  const [selectedRowsData, setSelectedRowsData] = useState([]);
-
   const [comingSoon, setComingSoon] = useState(false);
 
   const coaTableRef = useRef<AgGridReact>(null);
@@ -122,8 +120,8 @@ export default function COA() {
           setCoaData(coa.data);
           setRowData(coa.data);
           setCurrentPage(coa.pagination.currentPage);
-          setTotalPages(coa.pagination.totalPages);
-          setTotalItems(coa.pagination.totalItems);
+          // setTotalPages(coa.pagination.totalPages);
+          // setTotalItems(coa.pagination.totalItems);
           setLimit(coa.pagination.totalItems);
         }
 
@@ -154,6 +152,7 @@ export default function COA() {
     if (!filter || filter.toLowerCase() === "all") {
       setRowData(coaData);
     } else {
+      if (coaData === null || coaData === undefined) return;
       const newCoaData = coaData.filter(
         (item: any) => item.parentElement.toLowerCase() === filter.toLowerCase()
       );
@@ -161,49 +160,13 @@ export default function COA() {
     }
   };
 
+  console.log(coaData);
+
   return (
     <div className="coa">
       <div className="coa-top">
         <Breadcrumb items={coaPageBreadcrumbs} />
 
-        {/* <div className="coa-tab">
-          <Link
-            to={routes.accounting.setup.coa(companyId)}
-            className={`coa-tab__item coa-tab__first ${
-              activeTab === "coa" ? "coa-tab__active" : ""
-            }`}
-            onClick={() => handleTabChange("coa")}
-          >
-            Chart of Accounts
-          </Link>
-          <Link
-            // to={routes.accounting.setup.contacts(companyId)}
-            className={`coa-tab__item ${
-              activeTab === "contacts" ? "coa-tab__active" : ""
-            }`}
-            // onClick={() => handleTabChange("contacts")}
-          >
-            Contacts
-          </Link>
-          <Link
-            // to={routes.accounting.setup.projects(companyId)}
-            className={`coa-tab__item ${
-              activeTab === "projects" ? "coa-tab__active" : ""
-            }`}
-            // onClick={() => handleTabChange("projects")}
-          >
-            Projects
-          </Link>
-          <Link
-            to={routes.accounting.setup.finSettings(companyId)}
-            className={`coa-tab__item coa-tab__last ${
-              activeTab === "settings" ? "coa-tab__active" : ""
-            }`}
-            onClick={() => handleTabChange("settings")}
-          >
-            Financial Settings
-          </Link>
-        </div> */}
         <AccountingSetup activeTab="coa" onTabChange={handleTabChange} />
       </div>
       <div className="coa-bottom">

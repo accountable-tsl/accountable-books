@@ -3,9 +3,9 @@
 @use "./partials/variables" as *;
 @use "./partials/typography" as *;
 
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@use "tailwindcss/base";
+@use "tailwindcss/components";
+@use "tailwindcss/utilities";
 
 *,
 *::before,
@@ -26,7 +26,8 @@ body {
 }
 
 .main {
-  @apply flex grow;
+  display: flex;
+  flex-grow: 1;
 }
 
 .body {
