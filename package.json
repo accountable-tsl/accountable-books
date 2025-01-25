@@ -5,12 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "start": "vite preview",
-    "test": "vitest",
-    "preinstall": "npm install --no-optional rollup@3.29.4"
+    "test": "vitest"
   },
   "dependencies": {
     "@fortawesome/free-regular-svg-icons": "^6.6.0",

@@ -36,8 +36,7 @@ body {
   // height: calc(100vh - 48px);
   // max-height: calc(100vh - 48px);
 
-  margin-left: 10px;
-  margin-top: $header;
+  // margin-top: $header;
   height: calc(100vh - #{$header});
   overflow: hidden;
   position: relative;
@@ -46,13 +45,13 @@ body {
   &-sidebar {
     &__lg {
       @include desktop {
-        margin-left: $sidebar-width-large;
+        // margin-left: $sidebar-width-large;
       }
     }
 
     &__sm {
       @include tablet {
-        margin-left: $sidebar-width-small;
+        // margin-left: $sidebar-width-small;
       }
     }
   }
