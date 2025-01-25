@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { toTitleCase, truncateText } from "../utils/utils";
+import { filterUndefined, toTitleCase, truncateText } from "../utils/utils";
 import { DebitCredit, Prisma } from "@prisma/client/wasm";
 const prisma = new PrismaClient();
 
@@ -390,7 +390,7 @@ export async function createCOAModel(companyId: string, data: COAInput) {
         accountTypeName: data.accountTypeName,
       });
 
-  if (!verifyAccType.success) {
+  if (!verifyAccType.success || !verifyAccType.data) {
     return verifyAccType;
   }
 
@@ -436,13 +436,20 @@ export async function createCOAModel(companyId: string, data: COAInput) {
       };
     }
 
+    if (!currency) {
+      return {
+        success: false,
+        message: "Currency error",
+      };
+    }
+
     try {
       const createdAccount = await prisma.coa.create({
         data: {
           accountCode: data.accountCode,
           accountName: stdAccountName,
           description: data.description,
-          accountTypeId: verifyAccType.data && verifyAccType.data.id,
+          accountTypeId: verifyAccType.data.id,
           defaultSide: defaultSideValue as DebitCredit,
           currencyId: currency,
           companyId: companyId,
@@ -531,13 +538,25 @@ export async function createBulkCOAModel(companyId: string, data: COAInput[]) {
           };
         }
 
+        if (!currency) {
+          return {
+            success: false,
+            message: "Currency error",
+            item,
+          };
+        }
+
+        if (!verifyAccType.data || verifyAccType.data.id) {
+          return { success: false, message: "Account type not found", item };
+        }
+
         return {
           success: true,
           data: {
-            accountCode: item.accountCode,
+            ...(item.accountCode && { accountCode: item.accountCode }),
             accountName: stdAccountName,
-            description: item.description,
-            accountTypeId: verifyAccType.data?.id,
+            ...(item.description && { description: item.description }),
+            accountTypeId: verifyAccType.data.id,
             defaultSide: defaultSideValue as DebitCredit,
             currencyId: currency,
             companyId: companyId,
@@ -552,12 +571,13 @@ export async function createBulkCOAModel(companyId: string, data: COAInput[]) {
   const validRecords = results
     .filter((singleResult) => singleResult.success)
     .map((singleResult) => singleResult.data);
+  const newValidRecords = validRecords.filter((record) => record !== undefined);
 
   const failedRecords = results.filter((singleResult) => !singleResult.success);
 
   try {
     const createdAccounts = await prisma.coa.createMany({
-      data: validRecords,
+      data: newValidRecords,
       skipDuplicates: true,
     });
 

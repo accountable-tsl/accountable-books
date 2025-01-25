@@ -13,15 +13,18 @@ import transactionRoutes from "./routes/transactionRoutes";
 import accountTransactionRoutes from "./routes/accountTransactionRoutes";
 import { swaggerUi, specs } from "./swagger";
 
-const PORT = process.env.PORT;
-const BACKEND_URL = process.env.BACKEND_URL;
-const FRONTEND_URL = process.env.FRONTEND_URL;
+const PORT = process.env.PORT || 8080;
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 const app = express();
 
 app.use(express.json());
 
-app.use(cors({ origin: FRONTEND_URL }));
+// app.use(cors({ origin: FRONTEND_URL }));
+app.use(cors({ origin: "*" }));
+
+app.use(express.static("./public"));
 
 app.use("/api/:companyId/coa", coaRoutes);
 app.use("/api/companies/", companiesRoutes);
@@ -34,10 +37,8 @@ app.use("/api/:companyId/transactions", transactionRoutes);
 app.use("/api/:companyId/account-transactions", accountTransactionRoutes);
 // app.use("api/users", userRoutes);
 
-app.use(express.static("./public"));
-
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), "0.0.0.0", () => {
   console.log(`Server is running on ${BACKEND_URL}:${PORT}`);
 });
