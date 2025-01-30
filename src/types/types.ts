@@ -90,9 +90,17 @@ export interface Bank {
   bankAccounts?: BankAccount[];
 }
 
-export interface AccountingSetupProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
+export interface TabConfig<T> {
+  label: string;
+  key: T;
+  link: string;
+  className?: string;
+}
+export interface TabNavigationProps<T> {
+  tabs: TabConfig<T>[];
+  activeTab: T;
+  onTabChange: (tab: T) => void;
+  baseClassName?: string;
 }
 
 export interface BankAccount {

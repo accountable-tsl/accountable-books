@@ -12,6 +12,8 @@ import { fetchCompany } from "../../services/CompanyServices";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 
 import "./FinancialSettings.scss";
+import TabNavigation from "../../components/TabNavigation/TabNavigation";
+import { TabConfig } from "../../types/types";
 
 export default function FinancialSettings() {
   const { companyId } = useCompany();
@@ -46,7 +48,6 @@ export default function FinancialSettings() {
       try {
         if (companyId) {
           const company = await fetchCompany(companyId);
-          console.log(company);
           if (company.success) {
             setCompanyData(company.data);
           } else {
@@ -96,24 +97,6 @@ export default function FinancialSettings() {
     setActiveTab(tab);
   };
 
-  // const coaPageBreadcrumbs = [
-  //   { text: "Accounting", icon: TableProperties, link: "/" },
-  //   {
-  //     text: "Setup",
-  //     icon: FolderCog,
-  //     hasDropdown: true,
-  //     dropdownItems: [
-  //       { text: "Chart of accounts", link: "/accounting/coa" },
-  //       { text: "Contacts"},
-  //       { text: "Projects" },
-  //       {
-  //         text: "Financial Settings",
-  //         link: routes.accounting.setup.finSettings(companyId),
-  //       },
-  //     ],
-  //   },
-  // ];
-
   const coaPageBreadcrumbs = [
     {
       text: "Workspace",
@@ -139,11 +122,42 @@ export default function FinancialSettings() {
     },
   ];
 
+  const accountingSetupTabs: TabConfig[] = [
+    {
+      label: "Chart of Accounts",
+      key: "coa",
+      link: routes.accounting.setup.coa(companyId),
+      className: "coa-tab__first",
+    },
+    {
+      label: "Contacts",
+      key: "contacts",
+      link: routes.accounting.setup.contacts(companyId),
+      className: "coa-tab__item--contacts",
+    },
+    {
+      label: "Projects",
+      key: "projects",
+      link: routes.accounting.setup.projects(companyId),
+      className: "coa-tab__item--projects",
+    },
+    {
+      label: "Financial Settings",
+      key: "settings",
+      link: routes.accounting.setup.finSettings(companyId),
+      className: "coa-tab__item--fin-settings",
+    },
+  ];
+
   return (
     <div className="finsettings">
       <div className="finsettings-top">
         <Breadcrumb items={coaPageBreadcrumbs} />
-        <AccountingSetup activeTab="settings" onTabChange={handleTabChange} />
+        <TabNavigation
+          tabs={accountingSetupTabs}
+          activeTab="settings"
+          onTabChange={handleTabChange}
+        />
       </div>
 
       <div className="finsettings-bottom">

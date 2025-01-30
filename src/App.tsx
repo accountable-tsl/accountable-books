@@ -21,7 +21,9 @@ function App() {
     <CompanyProvider>
       <PopupProvider>
         <SideBarProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
             <MainContent />
           </BrowserRouter>
         </SideBarProvider>
