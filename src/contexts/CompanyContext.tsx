@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { fetchCompany } from "../services/CompanyServices";
+import { CompanyData } from "../types/types";
 
 type CompanyProviderProps = {
   children: ReactNode;
@@ -8,7 +9,7 @@ type CompanyProviderProps = {
 
 type CompanyContextType = {
   companyId: string | null;
-  company: any;
+  company: CompanyData | null;
   setCompanyId: (id: string) => void;
   isLoading: boolean;
   error: string | null;

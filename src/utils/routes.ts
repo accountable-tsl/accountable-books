@@ -25,7 +25,7 @@ export const routes = {
   tax: {
     root: (id: companyId) => `/companies/${id}/tax`,
     workspace: {
-      root: (id: companyId) => `/companies/${id}/tax/workspace`,
+      root: (id: companyId) => `/companies/${id}/workspace/tax`,
       filings: (id: companyId) => `/companies/${id}/tax/workspace/`,
     },
   },
@@ -58,7 +58,7 @@ export const staticRoutes = {
   tax: {
     root: "/companies/:id/tax",
     workspace: {
-      root: "/companies/:id/tax/workspace",
+      root: "/companies/:id/workspace/tax",
       filings: "/companies/:id/tax/workspace/",
     },
   },

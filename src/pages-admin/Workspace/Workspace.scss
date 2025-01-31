@@ -3,6 +3,18 @@
 .workspace {
   padding: 0.75rem 1rem;
 
+  &-headr {
+    display: flex;
+    align-items: center;
+
+    &__coming-soon {
+      background-color: none;
+      font-size: 0.85rem;
+      padding-left: 1rem;
+      color: rgba($color: $black, $alpha: 0.5);
+    }
+  }
+
   &-tab {
     display: flex;
 
@@ -28,16 +40,13 @@
       }
 
       &--tax {
+        // pointer-events: none;
         cursor: not-allowed;
         opacity: 0.5;
       }
     }
 
     &__soon {
-      background-color: none;
-      font-size: 0.85rem;
-      padding-left: 1rem;
-      color: $black;
     }
   }
 }

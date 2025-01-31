@@ -93,7 +93,7 @@ export interface Bank {
 export interface TabConfig<T> {
   label: string;
   key: T;
-  link: string;
+  link?: string;
   className?: string;
 }
 export interface TabNavigationProps<T> {

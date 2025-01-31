@@ -9,15 +9,15 @@ import {
 import { BankAccounts, CompanyData } from "../../types/types";
 import { useCallback, useEffect, useState } from "react";
 import { getBankAccounts } from "../../services/BankAccountServices";
-import { fetchCompany } from "../../services/CompanyServices";
 
 interface AccountingWorkspaceProps {
   companyId: string;
+  company: CompanyData | null;
 }
 export default function AccountingWorkspace({
   companyId,
+  company,
 }: AccountingWorkspaceProps) {
-  const [company, setCompany] = useState<CompanyData>();
   const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,20 +36,6 @@ export default function AccountingWorkspace({
       console.error("Error fetching bank accounts:", error);
       setError("An error occurred while fetching bank accounts.");
     }
-  }, [companyId]);
-
-  useEffect(() => {
-    if (!companyId) return;
-
-    const controller = new AbortController();
-    const getCompanyDetails = async () => {
-      const result = await fetchCompany(companyId);
-      if (result.success) {
-        setCompany(result.data);
-      }
-    };
-    getCompanyDetails();
-    return () => controller.abort();
   }, [companyId]);
 
   useEffect(() => {
@@ -141,7 +127,7 @@ export default function AccountingWorkspace({
                       Bank Balances <span>:</span>
                     </div>
                     <div className="wacc-bank-summary__value wacc-bank-summary__total-balance">
-                      100,000,000.00
+                      {company?.reportingCurrencySymbol || ""} 100,000,000.00
                     </div>
                   </div>
                   <div className="wacc-bank-summary__item">

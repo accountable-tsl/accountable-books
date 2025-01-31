@@ -9,7 +9,7 @@ import TabNavigation from "../../components/TabNavigation/TabNavigation";
 import { TabConfig } from "../../types/types";
 
 export default function Workspace() {
-  const { companyId } = useCompany();
+  const { companyId, company } = useCompany();
   const [activeTab, setActiveTab] = useState<"acc" | "tax">("acc");
   const [showComingSoon, setShowComingSoon] = useState<boolean>(false);
 
@@ -30,7 +30,7 @@ export default function Workspace() {
     {
       key: "tax",
       label: "Tax Workspace",
-      link: routes.accounting.workspace.root(companyId),
+      className: "workspace-tab__item--tax",
     },
   ];
 
@@ -45,14 +45,16 @@ export default function Workspace() {
 
   return (
     <div className="workspace">
+      <Breadcrumb items={workspaceBreadcrumbs} />
       <div className="workspace-headr">
-        <Breadcrumb items={workspaceBreadcrumbs} />
-
         <TabNavigation<"acc" | "tax">
           tabs={tabs}
           activeTab={activeTab}
           onTabChange={handleTabSwitch}
         />
+        {showComingSoon && (
+          <span className="workspace-headr__coming-soon">Coming soon...</span>
+        )}
       </div>
       {/* <div className="workspace-header">
         <div className="workspace-tab">
@@ -79,7 +81,7 @@ export default function Workspace() {
         <hr className="workspace-header__hr" />
       </div> */}
       {activeTab === "acc" && companyId && (
-        <AccountingWorkspace companyId={companyId} />
+        <AccountingWorkspace companyId={companyId} company={company} />
       )}
     </div>
   );
