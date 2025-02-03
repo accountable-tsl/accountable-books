@@ -110,8 +110,8 @@ export interface BankAccount {
   displayName?: string;
   bankAccountType?: BankAccountType;
   bankAccountNo?: string;
-  bankBalance?: string | number;
-  lastReconciled?: Date | null;
+  bankBalance: string | number;
+  lastReconciled?: Date | string | null;
   currencyId?: string | number;
   currency?: Currency;
   companyId?: number;
@@ -119,6 +119,9 @@ export interface BankAccount {
   coaId?: number | null;
   accountInCOA?: Coa | null;
   transactionBatches?: BankTransactionBatch[];
+  autoCategorisedCount?: number | string;
+  uncategorisedCount?: number | string;
+  totalTransactionCount?: number | string;
   createdAt?: Date;
   updatedAt?: Date;
 }

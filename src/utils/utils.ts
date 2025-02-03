@@ -113,3 +113,26 @@ export function formatNumericValue(value: any): string {
     ? `${formattedInteger}.${decimalPart}`
     : formattedInteger;
 }
+
+export function formatAccountText(
+  text: string,
+  maxInitialLength?: number,
+  finalCharsLength?: number
+): string {
+  if (!text) return "";
+  if (
+    (maxInitialLength && text.length <= maxInitialLength) ||
+    text.length <= 10
+  )
+    return text;
+
+  let initialText = text.slice(0, maxInitialLength);
+  let finalChars = text.slice(finalCharsLength ? -finalCharsLength : -4);
+
+  // Ensure no overlap between initialText and finalChars
+  while (initialText.endsWith(finalChars[0])) {
+    initialText = initialText.slice(0, -1);
+  }
+
+  return `${initialText}... *${finalChars}`;
+}

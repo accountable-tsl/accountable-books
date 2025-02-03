@@ -9,6 +9,7 @@
   &-body {
     &__left {
       width: 66%;
+      border-right: 1px solid rgba($neutral-gray, 0.5);
     }
   }
 
@@ -33,15 +34,13 @@
   }
 
   &-qa {
-    // width: 66.6%;
     border-radius: 0.25rem;
-    // margin: 0.5rem 0 0.5rem 0;
-    // background-color: rgba($color: $background-secondary, $alpha: 0.25);
 
     &__header {
       padding: 0.75rem 1rem 0;
-      //   border-bottom: 1px solid rgba($neutral-gray, 0.75);
-      color: rgba($color: $primary, $alpha: 1);
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: rgba($color: $text, $alpha: 0.5);
     }
 
     &__top {
@@ -123,8 +122,103 @@
       }
     }
 
-    &__card {
-      width: 33%;
+    &-card {
+      &__item {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+      }
+
+      &__top {
+        border-bottom: 1px solid rgba($neutral-gray, 0.35);
+        padding: 0.5rem 1rem 0;
+      }
+
+      &__logo {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex: 0 0 auto;
+
+        &--img {
+          width: 2rem;
+          height: 2rem;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+      }
+
+      &__text {
+        border-left: 1px solid rgba($neutral-gray, 0.35);
+        padding-left: 0.25rem;
+        flex: 1 1 auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &__name {
+        display: flex;
+        align-items: center;
+        flex-wrap: nowrap;
+        overflow: hidden;
+
+        &--text {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        &--currency {
+          font-size: 0.6rem;
+          font-weight: 500;
+          text-decoration: underline dotted;
+          color: rgba($color: $text, $alpha: 0.75);
+          padding-left: 0.15rem;
+          flex: 0 0 auto;
+        }
+      }
+
+      &__bank {
+        font-size: 0.75rem;
+        color: rgba($color: $text, $alpha: 0.35);
+      }
+
+      &__mid,
+      &__bottom {
+        padding: 0.5rem 1rem;
+      }
+
+      &__balance,
+      &__status {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+
+        &-amount,
+        &-count {
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        &-label {
+          font-size: 0.75rem;
+          color: rgba($color: $text, $alpha: 0.5);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+
+      &__bottom {
+        padding-top: 0;
+      }
     }
   }
 }
