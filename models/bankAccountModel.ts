@@ -8,7 +8,10 @@ export async function getAllBankAccounts(companyId: string) {
   try {
     const allBankAccounts = await prisma.bankAccount.findMany({
       where: { companyId },
-      include: { bank: true, currency: true },
+      include: {
+        bank: true,
+        currency: true,
+      },
     });
 
     const noOfAccounts = allBankAccounts.length;
@@ -20,10 +23,51 @@ export async function getAllBankAccounts(companyId: string) {
       };
     }
 
+    const bankAccountsWithCounts = await Promise.all(
+      allBankAccounts.map(async (account) => {
+        const [
+          totalTransactionCount,
+          uncategorisedCount,
+          categorisedCount,
+          autoCategorisedCount,
+        ] = await Promise.all([
+          prisma.bankTransaction.count({
+            where: { bankAccountId: account.id },
+          }),
+          prisma.bankTransaction.count({
+            where: {
+              bankAccountId: account.id,
+              categorisationStatus: "UNCATEGORISED",
+            },
+          }),
+          prisma.bankTransaction.count({
+            where: {
+              bankAccountId: account.id,
+              categorisationStatus: "CATEGORISED",
+            },
+          }),
+          prisma.bankTransaction.count({
+            where: {
+              bankAccountId: account.id,
+              categorisationStatus: "AUTO_CATEGORISED",
+            },
+          }),
+        ]);
+
+        return {
+          ...account,
+          totalTransactionCount,
+          uncategorisedCount,
+          categorisedCount,
+          autoCategorisedCount,
+        };
+      })
+    );
+
     return {
       success: true,
       message: "Successfully retrieved all bank accounts",
-      data: { bankAccounts: allBankAccounts, noOfAccounts },
+      data: { bankAccounts: bankAccountsWithCounts, noOfAccounts },
     };
   } catch (error: any) {
     console.error(error);
