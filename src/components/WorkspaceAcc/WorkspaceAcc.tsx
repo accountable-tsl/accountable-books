@@ -11,12 +11,26 @@ import { BankAccounts, CompanyData } from "../../types/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getBankAccounts } from "../../services/BankAccountServices";
 import Decimal from "decimal.js";
-import { formatAccountText, formatNumericValue } from "../../utils/utils";
+import {
+  formatAccountText,
+  formatNumericValue,
+  timeAgo,
+} from "../../utils/utils";
 
 interface AccountingWorkspaceProps {
   companyId: string;
   company: CompanyData | null;
 }
+
+interface GroupedAccounts {
+  [bankId: string]: {
+    bankName: string;
+    bankLogo?: string;
+    accounts: BankAccounts;
+    mostRecentUpdatedAt: Date;
+  };
+}
+
 export default function AccountingWorkspace({
   companyId,
   company,
@@ -64,17 +78,50 @@ export default function AccountingWorkspace({
     return getTopTwoBankAccounts(bankAccounts);
   }, [bankAccounts]);
 
+  const groupedAccounts = bankAccounts.reduce<GroupedAccounts>(
+    (acc, account) => {
+      if (!account.bank?.id || !account.updatedAt) return acc;
+
+      const bankId = account.bank.id;
+      const updatedAt = new Date(account.updatedAt);
+
+      if (!acc[bankId]) {
+        acc[bankId] = {
+          bankName: account.bank.name ?? "",
+          ...(account.bank.bankLogo && { bankLogo: account.bank.bankLogo }),
+          accounts: [],
+          mostRecentUpdatedAt: updatedAt,
+        };
+      } else {
+        acc[bankId].mostRecentUpdatedAt =
+          updatedAt > acc[bankId].mostRecentUpdatedAt
+            ? updatedAt
+            : acc[bankId].mostRecentUpdatedAt;
+      }
+
+      acc[bankId].accounts.push(account);
+      return acc;
+    },
+    {}
+  );
+
   useEffect(() => {
     if (!companyId) return;
     fetchBankAccounts();
   }, [companyId, fetchBankAccounts]);
 
-  console.log("Company:", company, "Bank Accounts:", bankAccounts);
+  console.log(
+    "Company:",
+    company,
+    "Bank Accounts:",
+    bankAccounts,
+    groupedAccounts
+  );
 
   return (
     <div className="wacc">
       <div className="wacc-body">
-        <div className="wacc-body__left">
+        <div className="wacc-body-left">
           <div className="wacc-qa">
             <div className="wacc-qa__header">Quick Actions</div>
             <hr />
@@ -172,111 +219,159 @@ export default function AccountingWorkspace({
                   </div>
                 </div>
               </div>
-              {topTwoBankAccounts.map((bankAccount, index) => (
-                <div key={index} className="wacc-card wacc-bank-card">
-                  <div className="wacc-bank-card__item wacc-bank-card__top">
-                    <div className="wacc-bank-card__logo">
-                      {bankAccount.bank?.bankLogo ? (
-                        <img
-                          src={bankAccount.bank?.bankLogo || ""}
-                          alt="Bank Logo"
-                          className="wacc-bank-card__logo--img"
-                        />
-                      ) : (
-                        <FontAwesomeIcon icon={faBuildingColumns} />
-                      )}
-                    </div>
-                    <div className="wacc-bank-card__text">
-                      <div className="wacc-bank-card__name">
-                        {(() => {
-                          let bankAccountName = "";
+              {!topTwoBankAccounts || topTwoBankAccounts.length === 0 ? (
+                <div className="wacc-card wacc-bank-card">{error}</div>
+              ) : (
+                topTwoBankAccounts.map((bankAccount, index) => (
+                  <div key={index} className="wacc-card wacc-bank-card">
+                    <div className="wacc-bank-card__item wacc-bank-card__top">
+                      <div className="wacc-bank-card__logo">
+                        {bankAccount.bank?.bankLogo ? (
+                          <img
+                            src={bankAccount.bank?.bankLogo || ""}
+                            alt="Bank Logo"
+                            className="wacc-bank-card__logo--img"
+                          />
+                        ) : (
+                          <FontAwesomeIcon icon={faBuildingColumns} />
+                        )}
+                      </div>
+                      <div className="wacc-bank-card__text">
+                        <div className="wacc-bank-card__name">
+                          {(() => {
+                            let bankAccountName = "";
 
-                          if (
-                            bankAccount.displayName &&
-                            bankAccount.bankAccountNo
-                          ) {
-                            bankAccountName = `${bankAccount.displayName} ${bankAccount.bankAccountNo}`;
-                          } else if (bankAccount.displayName) {
-                            bankAccountName = bankAccount.displayName;
-                          } else if (bankAccount.bankAccountNo) {
-                            bankAccountName = bankAccount.bankAccountNo;
-                          } else if (bankAccount.bank?.name) {
-                            bankAccountName = bankAccount.bank.name;
-                          }
+                            if (
+                              bankAccount.displayName &&
+                              bankAccount.bankAccountNo
+                            ) {
+                              bankAccountName = `${bankAccount.displayName} ${bankAccount.bankAccountNo}`;
+                            } else if (bankAccount.displayName) {
+                              bankAccountName = bankAccount.displayName;
+                            } else if (bankAccount.bankAccountNo) {
+                              bankAccountName = bankAccount.bankAccountNo;
+                            } else if (bankAccount.bank?.name) {
+                              bankAccountName = bankAccount.bank.name;
+                            }
 
-                          return bankAccountName ? (
-                            <span className="wacc-bank-card__name--text">
-                              {formatAccountText(bankAccountName, 12)}
+                            return bankAccountName ? (
+                              <span className="wacc-bank-card__name--text">
+                                {formatAccountText(bankAccountName, 12)}
+                              </span>
+                            ) : (
+                              ""
+                            );
+                          })()}
+                          {bankAccount.currency ? (
+                            <span className="wacc-bank-card__name--currency">
+                              {bankAccount.currency?.code}
                             </span>
                           ) : (
                             ""
-                          );
-                        })()}
-                        {bankAccount.currency ? (
-                          <span className="wacc-bank-card__name--currency">
-                            {bankAccount.currency?.code}
+                          )}
+                        </div>
+                        <div className="wacc-bank-card__bank">
+                          <span className="wacc-bank-card__bank-name">
+                            {bankAccount?.bank?.name || "Bank Name"}
+                          </span>{" "}
+                          |{" "}
+                          <span className="wacc-bank-card__account-number">
+                            {bankAccount.bankAccountNo || ""}
                           </span>
-                        ) : (
-                          ""
-                        )}
+                        </div>
                       </div>
-                      <div className="wacc-bank-card__bank">
-                        <span className="wacc-bank-card__bank-name">
-                          {bankAccount?.bank?.name || "Bank Name"}
-                        </span>{" "}
-                        |{" "}
-                        <span className="wacc-bank-card__account-number">
-                          {bankAccount.bankAccountNo || ""}
-                        </span>
+                    </div>
+                    <div className="wacc-bank-card__item wacc-bank-card__mid">
+                      <div className="wacc-bank-card__balance">
+                        <div className="wacc-bank-card__balance-amount">
+                          {bankAccount.currency?.symbol || ""}{" "}
+                          {formatNumericValue(bankAccount.bankBalance)}
+                        </div>
+                        <div className="wacc-bank-card__balance-label">
+                          Statement Balance
+                        </div>
+                      </div>
+                      <div className="wacc-bank-card__balance">
+                        <div className="wacc-bank-card__balance-amount">
+                          {bankAccount.currency?.symbol || ""}{" "}
+                          {formatNumericValue(bankAccount.bankBalance)}
+                        </div>
+                        <div className="wacc-bank-card__balance-label">
+                          Ledger Balance
+                        </div>
+                      </div>
+                    </div>
+                    <div className="wacc-bank-card__item wacc-bank-card__bottom">
+                      <div className="wacc-bank-card__status">
+                        <div className="wacc-bank-card__status-count">
+                          {bankAccount.uncategorisedCount || 0}
+                        </div>
+                        <div className="wacc-bank-card__status-label">
+                          Unreconciled
+                        </div>
+                      </div>
+                      <div className="wacc-bank-card__status">
+                        <div className="wacc-bank-card__status-count">
+                          {bankAccount.autoCategorisedCount || 0}
+                        </div>
+                        <div className="wacc-bank-card__status-label">
+                          Needs Review
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div className="wacc-bank-card__item wacc-bank-card__mid">
-                    <div className="wacc-bank-card__balance">
-                      <div className="wacc-bank-card__balance-amount">
-                        {bankAccount.currency?.symbol || ""}{" "}
-                        {formatNumericValue(bankAccount.bankBalance)}
-                      </div>
-                      <div className="wacc-bank-card__balance-label">
-                        Statement Balance
-                      </div>
-                    </div>
-                    <div className="wacc-bank-card__balance">
-                      <div className="wacc-bank-card__balance-amount">
-                        {bankAccount.currency?.symbol || ""}{" "}
-                        {formatNumericValue(bankAccount.bankBalance)}
-                      </div>
-                      <div className="wacc-bank-card__balance-label">
-                        Ledger Balance
-                      </div>
-                    </div>
-                  </div>
-                  <div className="wacc-bank-card__item wacc-bank-card__bottom">
-                    <div className="wacc-bank-card__status">
-                      <div className="wacc-bank-card__status-count">
-                        {bankAccount.uncategorisedCount || 0}
-                      </div>
-                      <div className="wacc-bank-card__status-label">
-                        Unreconciled
-                      </div>
-                    </div>
-                    <div className="wacc-bank-card__status">
-                      <div className="wacc-bank-card__status-count">
-                        {bankAccount.autoCategorisedCount || 0}
-                      </div>
-                      <div className="wacc-bank-card__status-label">
-                        Needs Review
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
           <div className="wacc-wrapper wacc-quicklinks"></div>
           <div className="wacc-wrapper wacc-nav"></div>
         </div>
-        <div className="wacc-body__right"></div>
+        <div className="wacc-body-right">
+          <div className="wacc-body-right__content">
+            <div className="wacc-body-right__content--header"></div>
+            <div className="wacc-body-right__content--body">
+              {/* {bankAccounts} */}
+              {Object.entries(groupedAccounts).map(
+                ([
+                  bankId,
+                  { bankName, bankLogo, accounts, mostRecentUpdatedAt },
+                ]) => (
+                  <div key={bankId} className="wacc-bankaccount">
+                    <div className="wacc-bankaccount-head">
+                      <div className="wacc-bankaccount-head__logo">
+                        {bankLogo ? (
+                          <img
+                            src={bankLogo}
+                            alt="Bank Logo"
+                            className="wacc-bankaccount-head__logo--img"
+                          />
+                        ) : (
+                          <FontAwesomeIcon icon={faBuildingColumns} />
+                        )}
+                      </div>
+                      <div className="wacc-bankaccount-head__content">
+                        <div className="wacc-bankaccount-head__title">
+                          {bankName}
+                        </div>
+                        <div className="wacc-bankaccount-head__label">
+                          Last updated {timeAgo(mostRecentUpdatedAt)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="wacc-bankaccount-body">
+                      {accounts.map((account) => (
+                        <div key={account.id} className="wacc-bankaccount-item">
+                          {account.displayName}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

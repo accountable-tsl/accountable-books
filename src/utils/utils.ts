@@ -136,3 +136,44 @@ export function formatAccountText(
 
   return `${initialText}... *${finalChars}`;
 }
+
+/**
+ * Converts a date or timestamp into a human-readable relative time string (e.g., "Just now", "3 minutes ago", "1 hour ago").
+ * Uses the Intl.RelativeTimeFormat API for localization.
+ *
+ * @param dateInput - The date or date string to format.
+ * @param locale - (Optional) The locale code (e.g., "en", "fr", "es"). Defaults to "en".
+ * @returns A string representing the time elapsed in a human-readable format.
+ *
+ * @example
+ * timeAgo("2025-02-03T10:30:00Z"); // "2 hours ago"
+ * timeAgo(new Date()); // "Just now"
+ * timeAgo("2025-02-03T10:30:00Z", "fr"); // "il y a 2 heures"
+ */
+export function timeAgo(dateInput: Date | string, locale: string = "en") {
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  const intervals: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] = [
+    { unit: "year", seconds: 31536000 },
+    { unit: "month", seconds: 2592000 },
+    { unit: "week", seconds: 604800 },
+    { unit: "day", seconds: 86400 },
+    { unit: "hour", seconds: 3600 },
+    { unit: "minute", seconds: 60 },
+    { unit: "second", seconds: 1 },
+  ];
+
+  // Use user-defined locale for localization
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+
+  for (const interval of intervals) {
+    const count = Math.floor(diffInSeconds / interval.seconds);
+    if (count >= 1) {
+      return rtf.format(-count, interval.unit);
+    }
+  }
+
+  return rtf.format(0, "second"); // "Just now" in different languages
+}
