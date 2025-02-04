@@ -11,6 +11,14 @@ export async function getAllBankAccounts(companyId: string) {
       include: {
         bank: true,
         currency: true,
+        accountInCoa: {
+          select: {
+            id: true,
+            accountCode: true,
+            balance: true,
+            currency: { select: { code: true, symbol: true } },
+          },
+        },
       },
     });
 
@@ -54,8 +62,23 @@ export async function getAllBankAccounts(companyId: string) {
           }),
         ]);
 
+        // Flatten accountInCoa if it exists
+        const { accountInCoa, ...rest } = account;
+        const coaData = accountInCoa
+          ? {
+              accountInCoa: {
+                id: accountInCoa.id,
+                accountCode: accountInCoa.accountCode,
+                balance: accountInCoa.balance,
+                currencyCode: accountInCoa.currency?.code ?? null,
+                currencySymbol: accountInCoa.currency?.symbol ?? null,
+              },
+            }
+          : {};
+
         return {
-          ...account,
+          ...rest,
+          ...coaData,
           totalTransactionCount,
           uncategorisedCount,
           categorisedCount,
