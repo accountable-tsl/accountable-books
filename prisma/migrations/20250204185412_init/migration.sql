@@ -67,6 +67,7 @@ CREATE TABLE "User" (
 CREATE TABLE "Company" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "shortCode" TEXT NOT NULL,
     "website" TEXT,
     "industry" TEXT,
     "teamSize" TEXT,
@@ -455,6 +456,9 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE INDEX "User_email_status_idx" ON "User"("email", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Company_shortCode_key" ON "Company"("shortCode");
 
 -- CreateIndex
 CREATE INDEX "Company_name_idx" ON "Company"("name");

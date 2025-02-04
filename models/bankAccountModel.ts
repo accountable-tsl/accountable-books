@@ -129,7 +129,7 @@ export async function getSingleBankAccount(companyId: string, id: string) {
   }
 }
 
-interface CreateBankData {
+export interface CreateBankData {
   bankId: string;
   displayName: string;
   bankAccountType: BankAccountType;

@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { createACompany, getCompanies, getCompany } from "../models/companiesModel";
+import {
+  createACompany,
+  getCompanies,
+  getCompany,
+} from "../models/companiesModel";
 
 const createCompany = async (req: Request, res: Response) => {
   try {
@@ -21,7 +25,6 @@ const createCompany = async (req: Request, res: Response) => {
 };
 
 const getAllCompanies = async (req: Request, res: Response) => {
-  
   try {
     const result = await getCompanies();
     if (result.success) {
@@ -35,7 +38,7 @@ const getAllCompanies = async (req: Request, res: Response) => {
     console.error(error);
     res.status(500).json({ message: "An unexpected error occurred" });
   }
-}
+};
 
 const getSingleCompany = async (req: Request, res: Response) => {
   const companyId = req.company!.id;
@@ -43,7 +46,7 @@ const getSingleCompany = async (req: Request, res: Response) => {
   if (!companyId) {
     return res.status(400).json({ message: "Bad Request" });
   }
-  
+
   try {
     const result = await getCompany(companyId);
     if (result.success) {
@@ -57,6 +60,6 @@ const getSingleCompany = async (req: Request, res: Response) => {
     console.error(error);
     res.status(500).json({ message: "An unexpected error occurred" });
   }
-}
+};
 
 export { createCompany, getAllCompanies, getSingleCompany };

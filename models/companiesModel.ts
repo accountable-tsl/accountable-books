@@ -1,17 +1,21 @@
 import { PrismaClient } from "@prisma/client";
 import { Company } from "@prisma/client/wasm";
+import generateSecureShortCode from "../utils/generateShortCode";
+import e from "express";
 
 const prisma = new PrismaClient();
 
 interface CompanyData {
+  id?: string;
+  shortCode?: string;
   name: string;
   website?: string | undefined;
   industry?: string | undefined;
   teamSize?: string | undefined;
   revenue?: string | undefined;
-  countryId: number;
-  reportingCurrencyId: number;
-  createdById: number;
+  countryId: string;
+  reportingCurrencyId: string;
+  createdById: string;
 }
 
 interface CreateCompanyResponse {
@@ -59,18 +63,16 @@ export async function createACompany(
     validationErrors.revenue = "Revenue must be a string";
   }
 
-  if (!countryId || typeof countryId !== "number") {
-    validationErrors.countryId = "Country ID is required and must be a number";
+  if (!countryId || typeof countryId !== "string") {
+    validationErrors.countryId = "Country ID is required";
   }
 
-  if (!reportingCurrencyId || typeof reportingCurrencyId !== "number") {
-    validationErrors.reportingCurrencyId =
-      "Reporting Currency ID is required and must be a number";
+  if (!reportingCurrencyId || typeof reportingCurrencyId !== "string") {
+    validationErrors.reportingCurrencyId = "Reporting Currency ID is required";
   }
 
-  if (!createdById || typeof createdById !== "number") {
-    validationErrors.createdById =
-      "Created By ID is required and must be a number";
+  if (!createdById || typeof createdById !== "string") {
+    validationErrors.createdById = "Created By ID is required";
   }
 
   if (Object.keys(validationErrors).length > 0) {
@@ -82,17 +84,40 @@ export async function createACompany(
 
   try {
     const result = await prisma.$transaction(async (prisma: any) => {
+      //Generate short code
+      let shortCode: string;
+      let exists;
+
+      do {
+        companyData.shortCode && createdById === "testId"
+          ? (shortCode = companyData.shortCode)
+          : (shortCode = generateSecureShortCode());
+        exists = await prisma.company.findUnique({
+          where: { shortCode },
+        });
+      } while (exists);
+
+      if (!shortCode) throw new Error("Short code generation failed");
+
       // Create the company
       const newCompany = await prisma.company.create({
         data: {
-          name,
-          website,
-          industry,
-          teamSize,
-          revenue,
-          countryId,
-          reportingCurrencyId,
-          createdById,
+          ...{
+            name,
+            website,
+            industry,
+            teamSize,
+            revenue,
+            countryId,
+            reportingCurrencyId,
+            createdById,
+            shortCode,
+          },
+          ...(companyData.id && createdById === "testId"
+            ? {
+                id: companyData.id,
+              }
+            : {}),
         },
       });
 
@@ -147,7 +172,7 @@ export async function getCompanies() {
   try {
     const companies = await prisma.company.findMany({
       select: {
-        id: true,
+        shortCode: true,
         name: true,
         website: true,
         industry: true,
@@ -179,12 +204,12 @@ export async function getCompanies() {
           },
         },
         createdAt: true,
-        updatedAt: true,
+        updatedAt: false,
       },
     });
 
     const formattedCompanies = companies.map((company: any) => ({
-      id: company.id,
+      id: company.shortCode,
       name: company.name,
       website: company.website,
       industry: company.industry,
@@ -201,10 +226,9 @@ export async function getCompanies() {
       reportingCurrencyName: company.reportingCurrency?.name || null,
       reportingCurrencySymbol: company.reportingCurrency?.symbol || null,
       createdById: company.createdBy?.id || null,
-      createdByFirstname: company.createdBy?.firstname || null,
-      createdByLastname: company.createdBy?.lastname || null,
+      // createdByFirstname: company.createdBy?.firstname || null,
+      // createdByLastname: company.createdBy?.lastname || null,
       createdAt: company.createdAt,
-      updatedAt: company.updatedAt,
     }));
 
     return {
@@ -222,12 +246,29 @@ export async function getCompanies() {
   }
 }
 
-export async function getCompany(id: any) {
+export async function getCompany(identifier: string) {
   try {
+    if (
+      !identifier ||
+      typeof identifier !== "string" ||
+      identifier.length > 40
+    ) {
+      return {
+        success: false,
+        message: "Invalid company identifier",
+        data: null,
+      };
+    }
+
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        identifier
+      );
+
     const company: any = await prisma.company.findFirst({
-      where: { id },
+      where: isUUID ? { id: identifier } : { shortCode: identifier },
       select: {
-        id: true,
+        shortCode: true,
         name: true,
         website: true,
         industry: true,
@@ -266,13 +307,13 @@ export async function getCompany(id: any) {
     if (!company) {
       return {
         success: false,
-        message: `Company with ID ${id} not found`,
+        message: `Company with ID ${identifier} not found`,
         data: null,
       };
     }
 
     const formattedCompany = {
-      id: company.id,
+      id: identifier,
       name: company.name,
       website: company.website,
       industry: company.industry,
@@ -289,10 +330,10 @@ export async function getCompany(id: any) {
       reportingCurrencyName: company.reportingCurrency?.name || null,
       reportingCurrencySymbol: company.reportingCurrency?.symbol || null,
       createdById: company.createdBy?.id || null,
-      createdByFirstname: company.createdBy?.firstname || null,
-      createdByLastname: company.createdBy?.lastname || null,
+      // createdByFirstname: company.createdBy?.firstname || null,
+      // createdByLastname: company.createdBy?.lastname || null,
       createdAt: company.createdAt,
-      updatedAt: company.updatedAt,
+      // updatedAt: company.updatedAt,
     };
 
     return {

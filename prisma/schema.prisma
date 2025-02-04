@@ -69,6 +69,7 @@ model User {
 model Company {
   id                  String              @id @default(uuid())
   name                String
+  shortCode           String              @unique
   website             String?
   industry            String?
   teamSize            String?
@@ -92,6 +93,7 @@ model Company {
   isDeleted           Boolean             @default(false)
 
   @@index([name])
+  @@index([shortCode])
   @@index([countryId])
 }
 

@@ -8,10 +8,13 @@ import { normalizeData } from "../utils/utils";
 import bankData from "./data/banks.json";
 import countriesData from "./data/countries.json";
 import currenciesData from "./data/currencies.json";
-import { createCompanyWithCOA } from "../utils/createCompanyWithCOA";
 import { createNewExRates } from "../models/exRateModel";
 import { Decimal } from "@prisma/client/runtime/library";
-import { createNewBankAccount } from "../models/bankAccountModel";
+import {
+  CreateBankData,
+  createNewBankAccount,
+} from "../models/bankAccountModel";
+import { createACompany } from "../models/companiesModel";
 
 const prisma = new PrismaClient();
 
@@ -746,15 +749,14 @@ async function main() {
     console.error("Failed to seed exchange rates:", error);
   }
 
-  const testCompany = await createCompanyWithCOA(
-    {
-      id: "b5012c0b-bfca-4cec-8fca-c56369d1ccb4",
-      name: "Demo Company",
-      countryId: "95856306-32e6-4edc-9374-49000b2660bd",
-      reportingCurrencyId: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
-    },
-    adminUser.id
-  );
+  const testCompany = await createACompany({
+    id: "b5012c0b-bfca-4cec-8fca-c56369d1ccb4",
+    name: "Demo Company",
+    shortCode: "XwFbx1hT",
+    countryId: "95856306-32e6-4edc-9374-49000b2660bd",
+    reportingCurrencyId: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
+    createdById: adminUser.id,
+  });
 
   if (testCompany.success && testCompany.company) {
     await prisma.userCompany.create({
@@ -811,7 +813,9 @@ async function main() {
   const newBankAccounts = async () => {
     try {
       const accounts = await Promise.all(
-        bankAccountData.map((tx) => createNewBankAccount(tx.companyId, tx))
+        bankAccountData.map((tx) =>
+          createNewBankAccount(tx.companyId, tx as CreateBankData)
+        )
       );
       return accounts;
     } catch (error) {
