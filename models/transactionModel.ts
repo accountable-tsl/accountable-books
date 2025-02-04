@@ -10,7 +10,7 @@ import {
   TransactionFilters,
 } from "./bankTransactionModel";
 import { Decimal } from "@prisma/client/runtime/library";
-import { compareDbAndUserObject } from "../utils/utils";
+import { compareDbAndUserObject, getIdentifierType } from "../utils/utils";
 import { connect } from "http2";
 
 const prisma = new PrismaClient();
@@ -41,9 +41,9 @@ type ExtendedLedgerTransaction = Prisma.LedgerTransactionGetPayload<{
 export type CatEngineTransaction = {
   id: string;
   transactionSource: string;
-  categorisationStatus: CategorisationStatus[];
-  bankLogo: string | null;
-  bankName: string | null;
+  categorisationStatus: CategorisationStatus[] | CategorisationStatus;
+  bankLogo?: string | null;
+  bankName?: string | null;
   date: Date;
   fsDate: Date;
   contactName: string;
@@ -53,10 +53,10 @@ export type CatEngineTransaction = {
   bankCurrencyId: string;
   bankCurrencySymbol?: string;
   transactionSide: DebitCredit | null;
-  bankAmount: Decimal;
+  bankAmount?: Decimal;
   exchangeRate: Decimal;
   amount: Decimal;
-  bankAccountId: string | null;
+  bankAccountId?: string | null;
   bankTransactionBatchId?: string | null;
   ledgerTransactionId?: string | null;
   contactId?: string | null;
@@ -74,11 +74,14 @@ const buildBankTransactionFilters = (
   companyId: string,
   filters: TransactionFilters
 ) => {
+  const companyIdType = getIdentifierType(companyId);
+
   const where: Prisma.BankTransactionWhereInput = {
     isDeleted: filters.isDeleted ?? false,
     ledgerTransactionId: null,
     bankAccount: {
-      companyId: companyId,
+      companyId: companyIdType === "uuid" ? companyId : undefined,
+      company: companyIdType !== "uuid" ? { shortCode: companyId } : undefined,
     },
   };
 
@@ -127,6 +130,8 @@ const buildLedgerTransactionFilters = (
   companyId: string,
   filters: TransactionFilters
 ) => {
+  const companyIdType = getIdentifierType(companyId);
+
   const where: Prisma.LedgerTransactionWhereInput = {
     bankTransactionId: { not: null },
     isDeleted: filters.isDeleted ?? false,
@@ -134,7 +139,9 @@ const buildLedgerTransactionFilters = (
       some: {
         isDeleted: filters.isDeleted ?? false,
         coa: {
-          companyId: companyId,
+          ...(companyIdType === "uuid"
+            ? { companyId: companyId }
+            : { company: { shortCode: companyId } }),
         },
       },
     },
@@ -191,6 +198,8 @@ const transformLedgerTransaction = (
 ): CatEngineTransaction[] => {
   const bankCoaId = tx.bankTransaction?.bankAccount?.coaId;
 
+  if (!tx.ledgerEntries) return [];
+
   return Array.isArray(tx.ledgerEntries)
     ? tx.ledgerEntries
         .filter(
@@ -200,8 +209,6 @@ const transformLedgerTransaction = (
           id: ledger.id,
           transactionSource: "ledger",
           categorisationStatus: tx.categorisationStatus,
-          bankLogo: tx.bankTransaction?.bankAccount?.bank?.bankLogo || null,
-          bankName: tx.bankTransaction?.bankAccount?.displayName || null,
           date: tx.date,
           fsDate: ledger.fsDate,
           contactName: tx.contact?.name || "",
@@ -214,10 +221,17 @@ const transformLedgerTransaction = (
           exchangeRate: ledger.customExchangeRate,
           amount: ledger.amount,
           bankCurrencyId: ledger.sourceCurrencyId,
-          bankAmount: tx.bankTransaction?.amount,
-          bankAccountId: tx.bankTransaction?.bankAccountId || null,
-          bankTransactionBatchId:
-            tx.bankTransaction?.bankTransactionBatchId || null,
+          ...(tx.bankTransaction
+            ? {
+                bankAmount: tx.bankTransaction.amount,
+                bankAccountId: tx.bankTransaction.bankAccountId,
+                bankTransactionBatchId:
+                  tx.bankTransaction.bankTransactionBatchId,
+                bankLogo:
+                  tx.bankTransaction.bankAccount?.bank?.bankLogo || null,
+                bankName: tx.bankTransaction.bankAccount?.displayName || null,
+              }
+            : {}),
           ledgerTransactionId: tx.id,
           contactId: tx.contactId || null,
           projectId: ledger.projectId || null,
@@ -425,6 +439,24 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           continue;
         }
 
+        const companyIdType = getIdentifierType(t.companyId);
+
+        const companyData = await prisma.company.findUnique({
+          where: {
+            ...(companyIdType === "uuid"
+              ? { id: t.companyId }
+              : { shortCode: t.companyId }),
+          },
+          select: { id: true },
+        });
+
+        if (!companyData) {
+          ledgerPostingFailed.push(t);
+          continue;
+        }
+
+        const companyId = companyData.id;
+
         const existingLedgerTx = await prisma.ledgerTransaction.findUnique({
           where: { bankTransactionId: t.id },
         });
@@ -440,7 +472,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
         }
 
         // Retrieve the bank transaction from DB
-        const bankTx = await getBankTransactionById(t.companyId, t.id);
+        const bankTx = await getBankTransactionById(companyId, t.id);
         if (!bankTx.success || !bankTx.data) {
           ledgerPostingFailed.push({
             id: t.id,
@@ -459,9 +491,9 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
         if (t.contactName && !t.contactId) {
           const contact = await prisma.contact.upsert({
             where: {
-              name_companyId: { name: t.contactName, companyId: t.companyId },
+              name_companyId: { name: t.contactName, companyId },
             },
-            create: { name: t.contactName, companyId: t.companyId },
+            create: { name: t.contactName, companyId: companyId },
             update: {},
           });
           contactId = contact.id;
@@ -471,11 +503,11 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           // Handle "No Contact" if neither `contactName` nor `contactId` is provided
           const noContact = await prisma.contact.upsert({
             where: {
-              name_companyId: { name: "No Contact", companyId: t.companyId },
+              name_companyId: { name: "No Contact", companyId },
             },
             create: {
               name: "No Contact",
-              companyId: t.companyId,
+              companyId,
             },
             update: {},
           });
@@ -495,7 +527,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           const project = await prisma.project.create({
             data: {
               name: t.projectName,
-              companyId: t.companyId,
+              companyId,
               contactId,
             },
             include: { contact: true },
@@ -529,7 +561,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           bankTransaction: { connect: { id: bTx.id } },
           // companyId: t.companyId,
           company: {
-            connect: { id: t.companyId },
+            connect: { id: companyId },
           },
           notes: t.notes,
           createdBy: { connect: { id: t.userId as string } },

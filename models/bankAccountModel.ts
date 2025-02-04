@@ -1,13 +1,19 @@
 import { PrismaClient } from "@prisma/client";
 import { createCOAModel } from "./coaModel";
 import { BankAccountType } from "@prisma/client/wasm";
+import { getIdentifierType } from "../utils/utils";
 
 const prisma = new PrismaClient();
 
 export async function getAllBankAccounts(companyId: string) {
   try {
+    const idType = getIdentifierType(companyId);
+
     const allBankAccounts = await prisma.bankAccount.findMany({
-      where: { companyId },
+      where:
+        idType === "uuid"
+          ? { companyId }
+          : { company: { shortCode: companyId } },
       include: {
         bank: true,
         currency: true,

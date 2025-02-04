@@ -153,3 +153,20 @@ export function compareDbAndUserObject<
 
   return differences;
 }
+
+/**
+ * Determines whether a given company identifier is a UUID or a short code.
+ * @param {string} id - The identifier to check.
+ * @returns {"uuid" | "shortCode"} - Returns "uuid" if it's a valid UUID, otherwise "shortCode".
+ */
+export function getIdentifierType(id: string): "uuid" | "shortCode" {
+  if (!id || typeof id !== "string" || id.length > 40) {
+    throw new Error("Invalid company identifier");
+  }
+
+  // Regex to check if it's a valid UUID (v1, v2, v3, v4, v5)
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+  return isUUID ? "uuid" : "shortCode";
+}

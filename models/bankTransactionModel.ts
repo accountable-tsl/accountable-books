@@ -7,7 +7,7 @@ import {
 import { Decimal } from "@prisma/client/runtime/library";
 import { getSingleExchangeRate } from "../controllers/exRateController";
 import { getExchangeRate } from "./exRateModel";
-import { determineExchangeRate } from "../utils/utils";
+import { determineExchangeRate, getIdentifierType } from "../utils/utils";
 const prisma = new PrismaClient();
 
 export interface BankTransaction {
@@ -263,7 +263,7 @@ export async function getBankTransactions(
     if (filters.transactionSide)
       where.transactionSide = filters.transactionSide;
 
-    const page = filters.page || 1;
+    const page = filters.currentPage || 1;
     const pageSize = filters.pageSize || 100;
 
     const transactions = await prisma.bankTransaction.findMany({
@@ -296,8 +296,17 @@ export async function getBankTransactionById(
   bankTransactionId: string
 ) {
   try {
+    const companyIdType = getIdentifierType(companyId);
+
     const bankTransaction = await prisma.bankTransaction.findFirst({
-      where: { id: bankTransactionId, bankAccount: { companyId } },
+      where: {
+        id: bankTransactionId,
+        bankAccount: {
+          ...(companyIdType === "uuid"
+            ? { companyId: companyId }
+            : { company: { shortCode: companyId } }),
+        },
+      },
       include: {
         bankAccount: true,
       },
