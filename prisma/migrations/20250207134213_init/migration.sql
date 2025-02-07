@@ -284,7 +284,7 @@ CREATE TABLE "BankTransaction" (
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "deletedAt" TIMESTAMP(3),
 
-    CONSTRAINT "BankTransaction_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "BankTransaction_pkey" PRIMARY KEY ("id","date")
 );
 
 -- CreateTable
@@ -297,6 +297,7 @@ CREATE TABLE "LedgerTransaction" (
     "source" "TransactionSource" NOT NULL,
     "reference" TEXT,
     "bankTransactionId" TEXT,
+    "bankTransactionDate" TIMESTAMP(3),
     "companyId" TEXT NOT NULL,
     "notes" TEXT,
     "createdById" TEXT NOT NULL,
@@ -522,25 +523,19 @@ CREATE INDEX "BankTransactionBatch_bankAccountId_idx" ON "BankTransactionBatch"(
 CREATE INDEX "BankTransactionBatch_startDate_endDate_idx" ON "BankTransactionBatch"("startDate", "endDate");
 
 -- CreateIndex
-CREATE INDEX "BankTransaction_bankTransactionBatchId_idx" ON "BankTransaction"("bankTransactionBatchId");
+CREATE INDEX "BankTransaction_id_date_idx" ON "BankTransaction"("id", "date");
 
 -- CreateIndex
 CREATE INDEX "BankTransaction_date_idx" ON "BankTransaction"("date");
 
 -- CreateIndex
-CREATE INDEX "BankTransaction_payee_idx" ON "BankTransaction"("payee");
-
--- CreateIndex
-CREATE INDEX "BankTransaction_amount_idx" ON "BankTransaction"("amount");
-
--- CreateIndex
-CREATE INDEX "BankTransaction_description_idx" ON "BankTransaction"("description");
+CREATE INDEX "BankTransaction_bankTransactionBatchId_idx" ON "BankTransaction"("bankTransactionBatchId");
 
 -- CreateIndex
 CREATE INDEX "BankTransaction_ledgerTransactionId_idx" ON "BankTransaction"("ledgerTransactionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "LedgerTransaction_bankTransactionId_key" ON "LedgerTransaction"("bankTransactionId");
+CREATE UNIQUE INDEX "BankTransaction_id_date_key" ON "BankTransaction"("id", "date");
 
 -- CreateIndex
 CREATE INDEX "LedgerTransaction_date_idx" ON "LedgerTransaction"("date");
@@ -559,6 +554,9 @@ CREATE INDEX "LedgerTransaction_companyId_idx" ON "LedgerTransaction"("companyId
 
 -- CreateIndex
 CREATE INDEX "LedgerTransaction_bankTransactionId_idx" ON "LedgerTransaction"("bankTransactionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LedgerTransaction_bankTransactionId_bankTransactionDate_key" ON "LedgerTransaction"("bankTransactionId", "bankTransactionDate");
 
 -- CreateIndex
 CREATE INDEX "LedgerEntry_ledgerTransactionId_idx" ON "LedgerEntry"("ledgerTransactionId");
@@ -675,7 +673,7 @@ ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_updatedById_fkey" 
 ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_bankTransactionId_fkey" FOREIGN KEY ("bankTransactionId") REFERENCES "BankTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_bankTransactionId_bankTransactionDate_fkey" FOREIGN KEY ("bankTransactionId", "bankTransactionDate") REFERENCES "BankTransaction"("id", "date") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

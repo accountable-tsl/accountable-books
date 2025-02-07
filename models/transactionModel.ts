@@ -30,7 +30,7 @@ type ExtendedLedgerTransaction = Prisma.LedgerTransactionGetPayload<{
     };
     ledgerEntries: {
       include: {
-        coa?: { select: { accountCode: true; accountName: true } };
+        coa?: { select: { id: true; accountCode: true; accountName: true } };
         sourceCurrency?: { select: { code: true } };
         project?: { select: { name: true } };
       };
@@ -340,7 +340,18 @@ export async function getMergedTransactions(
         ledgerTransactionId: bankTx.ledgerTransactionId || null,
       })),
       ...flattenedAccountTransactions,
-    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    ].sort((a, b) => {
+      // First, sort by bankName
+      const bankNameComparison = (a.bankName || "").localeCompare(
+        b.bankName || ""
+      );
+      if (bankNameComparison !== 0) {
+        return bankNameComparison;
+      }
+
+      // If bankNames are the same, sort by date
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
 
     // const count = transactions.length;
     const count = bankCount + ledgerCount;
@@ -458,7 +469,12 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
         const companyId = companyData.id;
 
         const existingLedgerTx = await prisma.ledgerTransaction.findUnique({
-          where: { bankTransactionId: t.id },
+          where: {
+            bankTransactionId_bankTransactionDate: {
+              bankTransactionId: t.id,
+              bankTransactionDate: t.date,
+            },
+          },
         });
 
         if (existingLedgerTx) {
@@ -557,18 +573,15 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           categorisationStatus,
           source: "BANK" as TransactionSource,
           reference: bTx.reference || t.reference || null,
-          // bankTransactionId: bTx.id,
-          bankTransaction: { connect: { id: bTx.id } },
-          // companyId: t.companyId,
+          bankTransaction: {
+            connect: { id_date: { id: bTx.id, date: bTx.date } },
+          },
           company: {
             connect: { id: companyId },
           },
           notes: t.notes,
           createdBy: { connect: { id: t.userId as string } },
           updatedBy: { connect: { id: t.userId as string } },
-          // createdById: t.userId as string,
-          // updatedById: t.userId as string,
-          // ...(contactId && { contactId }),
           ...(contactId && { contact: { connect: { id: contactId } } }),
         };
 
@@ -599,6 +612,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           description: t.description || bTx.description || null,
           // ...(t.projectId && { projectId: t.projectId }),
           ...(t.projectId && { project: { connect: { id: t.projectId } } }),
+          ...(t.userId && { updatedById: t.userId as string }),
         };
 
         const creditEntry: LedgerEntryInput = {
@@ -614,6 +628,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           absoluteAmount,
           description: t.description || bTx.description,
           ...(t.projectId && { projectId: t.projectId }),
+          ...(t.userId && { updatedById: t.userId as string }),
         };
 
         // Update bankTransaction categorisationStatus and other info,
@@ -651,7 +666,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
 
         // 3) Update the bankTransaction to reflect new categorisation
         const bankTxUpdate = await prisma.bankTransaction.update({
-          where: { id: bTx.id },
+          where: { id_date: { id: bTx.id, date: bTx.date } },
           data: {
             categorisationStatus,
           },
@@ -841,9 +856,17 @@ export async function updateLedgerEntries(tx: CatEngineTransaction[]) {
           });
         }
 
-        if (existingLedgerTx.bankTransactionId)
+        if (
+          existingLedgerTx.bankTransactionId &&
+          existingLedgerTx.bankTransactionDate
+        )
           await prisma.bankTransaction.update({
-            where: { id: existingLedgerTx.bankTransactionId },
+            where: {
+              id_date: {
+                id: existingLedgerTx.bankTransactionId,
+                date: existingLedgerTx.bankTransactionDate,
+              },
+            },
             data: {
               categorisationStatus,
             },

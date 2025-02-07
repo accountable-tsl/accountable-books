@@ -210,7 +210,7 @@ model Coa {
   companyId      String
   company        Company        @relation(name: "companyCoa", fields: [companyId], references: [id])
   isActive       Boolean        @default(true)
-  balance        Decimal        @default(0)
+  // balance        Decimal        @default(0)
   bankAccountId  String?        @unique
   bankAccount    BankAccount?   @relation(name: "bankCoaAccount")
   ledgerEntries  LedgerEntry[]  @relation("coaLedgerEntries")
@@ -325,7 +325,7 @@ enum CategorisationStatus {
 }
 
 model BankTransaction {
-  id                     String                @id @default(uuid())
+  id                     String                @default(uuid())
   date                   DateTime
   payee                  String?
   reference              String?
@@ -342,7 +342,7 @@ model BankTransaction {
   bankTransactionBatchId String?
   bankTransactionBatch   BankTransactionBatch? @relation(name: "batchTransactions", fields: [bankTransactionBatchId], references: [id])
   ledgerTransactionId    String?
-  ledgerTransaction      LedgerTransaction?    @relation(name: "ledgerBankTransactionMatch")
+  ledgerTransaction      LedgerTransaction?    @relation(name: "ledgerBankTxMatch")
   createdById            String
   createdBy              User                  @relation(name: "bankTransactionCreatedBy", fields: [createdById], references: [id])
   updatedById            String?
@@ -352,12 +352,13 @@ model BankTransaction {
   isDeleted              Boolean               @default(false)
   deletedAt              DateTime?
 
-  @@index([bankTransactionBatchId])
+  @@id([id, date])
+  @@unique([id, date])
+  @@index([id, date])
   @@index([date])
-  @@index([payee])
-  @@index([amount])
-  @@index([description])
+  @@index([bankTransactionBatchId])
   @@index([ledgerTransactionId])
+  @@map("BankTransaction")
 }
 
 enum TransactionSource {
@@ -375,8 +376,9 @@ model LedgerTransaction {
   categorisationStatus CategorisationStatus @default(AUTO_CATEGORISED)
   source               TransactionSource
   reference            String?
-  bankTransactionId    String?              @unique
-  bankTransaction      BankTransaction?     @relation(name: "ledgerBankTransactionMatch", fields: [bankTransactionId], references: [id])
+  bankTransactionId    String?
+  bankTransactionDate  DateTime?
+  bankTransaction      BankTransaction?     @relation(name: "ledgerBankTxMatch", fields: [bankTransactionId, bankTransactionDate], references: [id, date])
   companyId            String
   company              Company              @relation(name: "companyLedgerTransactions", fields: [companyId], references: [id])
   notes                String?
@@ -391,6 +393,7 @@ model LedgerTransaction {
   isDeleted            Boolean              @default(false)
   deletedAt            DateTime?
 
+  @@unique([bankTransactionId, bankTransactionDate])
   @@index([date])
   @@index([source])
   @@index([categorisationStatus])

@@ -22,7 +22,7 @@ export async function getAllBankAccounts(companyId: string) {
           select: {
             id: true,
             accountCode: true,
-            balance: true,
+            // balance: true,
             currency: { select: { code: true, symbol: true } },
           },
         },
@@ -77,7 +77,7 @@ export async function getAllBankAccounts(companyId: string) {
               accountInCoa: {
                 id: accountInCoa.id,
                 accountCode: accountInCoa.accountCode,
-                balance: accountInCoa.balance,
+                // balance: accountInCoa.balance,
                 currencyCode: accountInCoa.currency?.code ?? null,
                 currencySymbol: accountInCoa.currency?.symbol ?? null,
               },
