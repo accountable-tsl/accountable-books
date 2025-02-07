@@ -5,6 +5,9 @@ CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
 CREATE TYPE "UserCompanyRole" AS ENUM ('ADMIN', 'BOOKKEEPER', 'VIEWER');
 
 -- CreateEnum
+CREATE TYPE "FsKey" AS ENUM ('BALANCE_SHEET', 'INCOME_STATEMENT');
+
+-- CreateEnum
 CREATE TYPE "DebitCredit" AS ENUM ('DEBIT', 'CREDIT');
 
 -- CreateEnum
@@ -126,7 +129,7 @@ CREATE TABLE "Country" (
 -- CreateTable
 CREATE TABLE "FinancialStatement" (
     "id" TEXT NOT NULL,
-    "statementKey" TEXT NOT NULL,
+    "statementKey" "FsKey" NOT NULL,
     "usGaapLabel" TEXT NOT NULL,
     "ifrsLabel" TEXT NOT NULL,
     "defaultLabel" TEXT NOT NULL,
@@ -171,6 +174,7 @@ CREATE TABLE "AccountType" (
 -- CreateTable
 CREATE TABLE "Coa" (
     "id" TEXT NOT NULL,
+    "fsKey" "FsKey" NOT NULL,
     "accountCode" TEXT,
     "accountName" TEXT NOT NULL,
     "description" TEXT,
@@ -179,7 +183,6 @@ CREATE TABLE "Coa" (
     "currencyId" TEXT NOT NULL,
     "companyId" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "balance" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "bankAccountId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -197,6 +200,7 @@ CREATE TABLE "CoaTemplate" (
     "accountName" TEXT NOT NULL,
     "accountTypeId" TEXT NOT NULL,
     "defaultSide" "DebitCredit" NOT NULL,
+    "fsKey" TEXT,
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

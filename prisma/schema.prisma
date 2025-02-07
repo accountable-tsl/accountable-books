@@ -149,9 +149,14 @@ model Country {
   deletedAt DateTime?
 }
 
+enum FsKey {
+  BALANCE_SHEET
+  INCOME_STATEMENT
+}
+
 model FinancialStatement {
   id             String           @id @default(uuid())
-  statementKey   String           @unique
+  statementKey   FsKey            @unique
   usGaapLabel    String
   ifrsLabel      String
   defaultLabel   String
@@ -185,20 +190,21 @@ model AccountElement {
 }
 
 model AccountType {
-  id               String          @id @default(uuid())
-  typeName         String          @unique @db.VarChar(255)
+  id               String         @id @default(uuid())
+  typeName         String         @unique @db.VarChar(255)
   accountElementId String
-  accountElement   AccountElement? @relation(name: "typeElement", fields: [accountElementId], references: [id])
-  description      String?         @db.VarChar(255)
-  coa              Coa[]           @relation("coaAccountType")
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  isDeleted        Boolean         @default(false)
+  accountElement   AccountElement @relation(name: "typeElement", fields: [accountElementId], references: [id])
+  description      String?        @db.VarChar(255)
+  coa              Coa[]          @relation("coaAccountType")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  isDeleted        Boolean        @default(false)
   deletedAt        DateTime?
 }
 
 model Coa {
   id             String         @id @default(uuid())
+  fsKey          FsKey
   accountCode    String?
   accountName    String
   description    String?
@@ -232,6 +238,7 @@ model CoaTemplate {
   accountName   String
   accountTypeId String
   defaultSide   DebitCredit
+  fsKey         String?
   description   String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt

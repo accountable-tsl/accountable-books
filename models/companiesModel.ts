@@ -1,7 +1,8 @@
-import { PrismaClient } from "@prisma/client";
+import { DebitCredit, FsKey, PrismaClient } from "@prisma/client";
 import { Company } from "@prisma/client/wasm";
 import generateSecureShortCode from "../utils/generateShortCode";
 import e from "express";
+import { checkAccountTypeDetails } from "./coaModel";
 
 const prisma = new PrismaClient();
 
@@ -25,6 +26,17 @@ interface CreateCompanyResponse {
   error?: any;
 }
 
+interface DefaultCoa {
+  accountCode?: string;
+  accountName: string;
+  description: string;
+  accountTypeId: string;
+  defaultSide: DebitCredit;
+  currencyId: string;
+  companyId?: string;
+  fsKey?: FsKey;
+}
+
 export async function createACompany(
   companyData: CompanyData
 ): Promise<CreateCompanyResponse> {
@@ -42,24 +54,42 @@ export async function createACompany(
   const validationErrors: Record<string, string> = {};
 
   // Validation
-  if (!name || typeof name !== "string") {
+  if (!name || typeof name !== "string" || name.trim().length === 0) {
     validationErrors.companyName =
-      "Company name is required and must be a string";
+      "Company name is required and must be a non-empty string of appropriate length";
   }
 
-  if (website && typeof website !== "string") {
-    validationErrors.website = "Website must be a string";
+  if (
+    website &&
+    (typeof website !== "string" ||
+      website?.trim().length === 0 ||
+      website.length > 255)
+  ) {
+    validationErrors.website = "Website must be a string of appropriate length";
   }
 
-  if (industry && typeof industry !== "string") {
+  if (
+    industry &&
+    (typeof industry !== "string" || industry.trim().length === 0)
+  ) {
     validationErrors.industry = "Industry must be a string";
   }
 
-  if (teamSize && typeof teamSize !== "string") {
+  if (
+    teamSize &&
+    (typeof teamSize !== "string" ||
+      teamSize.trim().length === 0 ||
+      teamSize.length > 255)
+  ) {
     validationErrors.teamSize = "Team Size must be a string";
   }
 
-  if (revenue && typeof revenue !== "string") {
+  if (
+    revenue &&
+    (typeof revenue !== "string" ||
+      revenue.trim().length === 0 ||
+      revenue.length > 255)
+  ) {
     validationErrors.revenue = "Revenue must be a string";
   }
 
@@ -130,22 +160,61 @@ export async function createACompany(
           accountTypeId: true,
           defaultSide: true,
           description: true,
+          fsKey: true,
         },
       });
 
       if (defaultCOA.length === 0) {
-        throw new Error("Default COA template not found");
+        console.warn("Default COA template not found");
+      } else {
+        const accountsNeedingValidation = defaultCOA.filter(
+          (account: DefaultCoa) =>
+            !account.fsKey || !Object.values(FsKey).includes(account.fsKey)
+        );
+
+        const validatedAccounts = await Promise.all(
+          accountsNeedingValidation.map(async (account: DefaultCoa) => {
+            try {
+              const result = await checkAccountTypeDetails({
+                accountTypeId: account.accountTypeId,
+              });
+              if (result.success && result.data?.fsKey) {
+                return {
+                  ...account,
+                  companyId: newCompany.id,
+                  currencyId: newCompany.reportingCurrencyId,
+                  fsKey: result.data.fsKey,
+                };
+              }
+              return null;
+            } catch (error) {
+              console.error(
+                `Error checking account type for account ${account.accountCode}:`,
+                error
+              );
+              return null;
+            }
+          })
+        );
+        // Combine validated accounts with accounts that already have valid fsKey
+        const allAccounts = [
+          ...defaultCOA.filter(
+            (account: DefaultCoa) =>
+              account.fsKey && Object.values(FsKey).includes(account.fsKey)
+          ),
+          ...validatedAccounts.filter((account) => account !== null),
+        ];
+
+        if (allAccounts.length === 0) {
+          console.warn(
+            "No valid COA accounts found; skipping insertion of default COA."
+          );
+        } else {
+          await prisma.coa.createMany({
+            data: allAccounts,
+          });
+        }
       }
-
-      //Create COA entries for the new company
-      await prisma.coa.createMany({
-        data: defaultCOA.map((account: any) => ({
-          ...account,
-          companyId: newCompany.id,
-          currencyId: newCompany.reportingCurrencyId,
-        })),
-      });
-
       return newCompany;
     });
 
@@ -157,12 +226,15 @@ export async function createACompany(
 
     return response;
   } catch (error: unknown) {
+    console.error("Error creating company:", error);
+
     const response: CreateCompanyResponse = {
       success: false,
-      message: "An error occurred while creating the company",
+      message:
+        error instanceof Error
+          ? `An error occurred while creating the company: ${error.message}`
+          : "An unexpected error occurred while creating the company",
     };
-
-    console.error("Error creating company:", String(error));
 
     return response;
   }

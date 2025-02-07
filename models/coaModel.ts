@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { FsKey, PrismaClient } from "@prisma/client";
 import {
   filterUndefined,
   getIdentifierType,
@@ -89,7 +89,7 @@ export async function getAllCOA(
         currency: { select: { code: true, name: true, symbol: true } },
         defaultSide: true,
         isActive: true,
-        balance: true,
+        // balance: true,
       },
     });
 
@@ -127,7 +127,7 @@ export async function getAllCOA(
       currencySymbol: coa.currency.symbol,
       defaultSide: coa.defaultSide,
       isActive: coa.isActive,
-      balance: coa.balance,
+      // balance: coa.balance,
     }));
 
     return {
@@ -186,7 +186,7 @@ export async function getACOA(companyId: string, id: string) {
         currency: { select: { code: true, name: true, symbol: true } },
         defaultSide: true,
         isActive: true,
-        balance: true,
+        // balance: true,
       },
     });
 
@@ -209,7 +209,7 @@ export async function getACOA(companyId: string, id: string) {
         currencySymbol: singleCOA.currency.symbol,
         defaultSide: singleCOA.defaultSide,
         isActive: singleCOA.isActive,
-        balance: singleCOA.balance,
+        // balance: singleCOA.balance,
       };
 
       return {
@@ -254,7 +254,6 @@ export async function checkAccCode(companyId: string, accountCode: string) {
           select: { typeName: true },
         },
         description: true,
-        balance: true,
       },
     });
 
@@ -266,7 +265,6 @@ export async function checkAccCode(companyId: string, accountCode: string) {
         ...(existingAccCode.description?.trim() && {
           description: truncateText(existingAccCode.description, 40),
         }),
-        balance: existingAccCode.balance,
       };
 
       return {
@@ -308,7 +306,7 @@ export async function checkAccName(companyId: string, accountName: string) {
           select: { typeName: true },
         },
         description: true,
-        balance: true,
+        // balance: true,
       },
     });
 
@@ -320,7 +318,7 @@ export async function checkAccName(companyId: string, accountName: string) {
         ...(existingAccName.description && {
           description: truncateText(existingAccName.description, 40),
         }),
-        balance: existingAccName.balance,
+        // balance: existingAccName.balance,
       };
       return {
         success: true,
@@ -363,17 +361,31 @@ export async function checkAccountTypeDetails(accountType: checkAccountType) {
 
     const accountTypeDetails = await prisma.accountType.findFirst({
       where: whereClause,
-      select: { id: true, typeName: true, description: true },
+      select: {
+        id: true,
+        typeName: true,
+        description: true,
+        accountElement: {
+          select: { financialStatement: { select: { statementKey: true } } },
+        },
+      },
     });
 
     if (!accountTypeDetails) {
       return { success: false, message: "Account Type not found" };
     }
 
+    const flatResult = {
+      id: accountTypeDetails.id,
+      typeName: accountTypeDetails.typeName,
+      description: accountTypeDetails.description,
+      fsKey: accountTypeDetails.accountElement?.financialStatement.statementKey,
+    };
+
     return {
       success: true,
       message: "Found Account Type",
-      data: accountTypeDetails,
+      data: flatResult,
     };
   } catch (error: any) {
     console.error("Error fetching account type:", error);
@@ -388,6 +400,7 @@ export async function checkAccountTypeDetails(accountType: checkAccountType) {
 interface COAInput {
   accountCode?: string;
   accountName: string;
+  fsKey?: FsKey;
   description?: string;
   accountTypeId?: string;
   accountTypeName?: string;
@@ -481,6 +494,7 @@ export async function createCOAModel(companyId: string, data: COAInput) {
           accountName: stdAccountName,
           description: data.description,
           accountTypeId: verifyAccType.data.id,
+          fsKey: verifyAccType.data.fsKey as FsKey,
           defaultSide: defaultSideValue as DebitCredit,
           currencyId: currency,
           companyId: actualCompanyId,
@@ -503,7 +517,8 @@ export async function createCOAModel(companyId: string, data: COAInput) {
         ...(createdAccount.description && {
           description: truncateText(createdAccount.description, 40),
         }),
-        balance: createdAccount.balance,
+        fsKey: verifyAccType.data.fsKey,
+        // balance: createdAccount.balance,
       };
 
       return {
@@ -582,7 +597,11 @@ export async function createBulkCOAModel(companyId: string, data: COAInput[]) {
           };
         }
 
-        if (!verifyAccType.data || verifyAccType.data.id) {
+        if (
+          !verifyAccType.data ||
+          verifyAccType.data.id ||
+          !verifyAccType.data.fsKey
+        ) {
           return { success: false, message: "Account type not found", item };
         }
 
@@ -596,6 +615,7 @@ export async function createBulkCOAModel(companyId: string, data: COAInput[]) {
             defaultSide: defaultSideValue as DebitCredit,
             currencyId: currency,
             companyId: actualCompanyId,
+            fsKey: verifyAccType.data.fsKey as FsKey,
           },
         };
       } catch (error: any) {

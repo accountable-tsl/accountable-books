@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { FsKey, PrismaClient } from "@prisma/client";
 import fs from "fs";
 import csv from "csv-parser";
 import { fileURLToPath } from "url";
@@ -56,6 +56,7 @@ async function seedDefaultCOAFromCSV(): Promise<void> {
                 accountTypeId: data.accounttypeid,
                 defaultSide: data.defaultside as "DEBIT" | "CREDIT",
                 description: data.description,
+                fsKey: data.fsKey as FsKey,
               },
             });
           }
@@ -158,7 +159,7 @@ async function main() {
   const seedAccountTypes = async () => {
     const balanceSheet = await prisma.financialStatement.create({
       data: {
-        statementKey: "balance_sheet",
+        statementKey: "BALANCE_SHEET",
         usGaapLabel: "Balance Sheet",
         ifrsLabel: "Statement of Financial Position",
         defaultLabel: "Balance Sheet",
@@ -167,7 +168,7 @@ async function main() {
 
     const incomeStatement = await prisma.financialStatement.create({
       data: {
-        statementKey: "income_statement",
+        statementKey: "INCOME_STATEMENT",
         usGaapLabel: "Income Statement",
         ifrsLabel: "Statement of Profit or Loss and Other Comprehensive Income",
         defaultLabel: "Income Statement",
