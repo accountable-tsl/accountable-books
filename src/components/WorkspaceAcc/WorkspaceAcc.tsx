@@ -16,6 +16,7 @@ import {
   formatNumericValue,
   timeAgo,
 } from "../../utils/utils";
+import numeral from "numeral";
 
 interface AccountingWorkspaceProps {
   companyId: string;
@@ -100,6 +101,7 @@ export default function AccountingWorkspace({
       }
 
       acc[bankId].accounts.push(account);
+
       return acc;
     },
     {}
@@ -110,13 +112,7 @@ export default function AccountingWorkspace({
     fetchBankAccounts();
   }, [companyId, fetchBankAccounts]);
 
-  console.log(
-    "Company:",
-    company,
-    "Bank Accounts:",
-    bankAccounts,
-    groupedAccounts
-  );
+  console.log(groupedAccounts);
 
   return (
     <div className="wacc">
@@ -285,7 +281,7 @@ export default function AccountingWorkspace({
                       <div className="wacc-bank-card__balance">
                         <div className="wacc-bank-card__balance-amount">
                           {bankAccount.currency?.symbol || ""}{" "}
-                          {formatNumericValue(bankAccount.bankBalance)}
+                          {numeral(bankAccount.bankBalance).format("0,0.00")}
                         </div>
                         <div className="wacc-bank-card__balance-label">
                           Statement Balance
@@ -294,7 +290,9 @@ export default function AccountingWorkspace({
                       <div className="wacc-bank-card__balance">
                         <div className="wacc-bank-card__balance-amount">
                           {bankAccount.currency?.symbol || ""}{" "}
-                          {formatNumericValue(bankAccount.bankBalance)}
+                          {numeral(
+                            bankAccount.accountInCoa?.balance || 0
+                          ).format("0,0.00")}
                         </div>
                         <div className="wacc-bank-card__balance-label">
                           Ledger Balance
@@ -352,7 +350,8 @@ export default function AccountingWorkspace({
                       </div>
                       <div className="wacc-bankaccount-head__content">
                         <div className="wacc-bankaccount-head__title">
-                          {bankName}
+                          {bankName}{" "}
+                          <span className="wacc-bankaccount-head__count">{`(${accounts.length})`}</span>
                         </div>
                         <div className="wacc-bankaccount-head__label">
                           Last updated {timeAgo(mostRecentUpdatedAt)}
@@ -362,7 +361,33 @@ export default function AccountingWorkspace({
                     <div className="wacc-bankaccount-body">
                       {accounts.map((account) => (
                         <div key={account.id} className="wacc-bankaccount-item">
-                          {account.displayName}
+                          <div className="wacc-bankaccount-item__top">
+                            <div className="wacc-bankaccount-item__name">
+                              {account.displayName}
+                            </div>
+                            <div className="wacc-bankaccount-item__amount">
+                              {account.currency?.symbol || ""}{" "}
+                              {numeral(account.bankBalance).format("0,0.00")}
+                            </div>
+                          </div>
+                          <div className="wacc-bankaccount-item__bottom">
+                            <div className="wacc-bankaccount-item__status">
+                              <span className="wacc-bankaccount-item__status--count">
+                                {account.uncategorisedCount || 0}
+                              </span>
+                              <span className="wacc-bankaccount-item__status--label">
+                                Unreconciled
+                              </span>
+                            </div>
+                            <div className="wacc-bankaccount-item__status">
+                              <span className="wacc-bankaccount-item__status--count">
+                                {account.autoCategorisedCount || 0}
+                              </span>
+                              <span className="wacc-bankaccount-item__status--label">
+                                Needs Review
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>

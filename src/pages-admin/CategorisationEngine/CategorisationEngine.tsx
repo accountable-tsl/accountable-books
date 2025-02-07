@@ -284,6 +284,7 @@ export default function CategorisationEngine() {
     if (!oldTx) return;
 
     const updatedTx = { ...oldTx, ...updates };
+    console.log(updatedTx);
 
     setFetchedTransactions((prev) =>
       prev.map((tx) => (tx.id === transactionId ? { ...tx, ...updates } : tx))
@@ -319,7 +320,7 @@ export default function CategorisationEngine() {
       } catch (error) {
         console.error("Error sending updates:", error);
       }
-    }, 5000),
+    }, 7500),
     [filters, fetchBankTransactions]
   );
 
@@ -562,16 +563,6 @@ export default function CategorisationEngine() {
                 <div className="catengine-body__top-vr--1"></div>
                 <div className="catengine-body__top-filter--item">
                   <span>Showing</span>
-                  {/* <select
-                    name="isCategorised"
-                    id="isCategorised"
-                    className="catengine-body__top-filter--select"
-                  >
-                    <option value="">Unclassified Lines</option>
-                    <option value="">Auto-classified Lines</option>
-                    <option value="">Classified Lines</option>
-                    <option value="">All Transactions</option>
-                  </select> */}
                   <Space className="catengine-body__top-filter--space">
                     <Select
                       mode="multiple"

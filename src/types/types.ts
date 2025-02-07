@@ -117,7 +117,7 @@ export interface BankAccount {
   companyId?: number;
   company?: Company;
   coaId?: number | null;
-  accountInCOA?: Coa | null;
+  accountInCoa?: Coa | null;
   transactionBatches?: BankTransactionBatch[];
   autoCategorisedCount?: number | string;
   uncategorisedCount?: number | string;
