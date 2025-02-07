@@ -331,7 +331,7 @@ CREATE TABLE "LedgerEntry" (
     "deletedAt" TIMESTAMP(3),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
 
-    CONSTRAINT "LedgerEntry_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "LedgerEntry_pkey" PRIMARY KEY ("id","fsDate")
 );
 
 -- CreateTable
@@ -365,6 +365,7 @@ CREATE TABLE "JournalEntry" (
     "journalBatchId" TEXT NOT NULL,
     "coaAccountId" TEXT NOT NULL,
     "ledgerEntryId" TEXT,
+    "ledgerEntryfsDate" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
@@ -462,6 +463,9 @@ CREATE UNIQUE INDEX "Company_shortCode_key" ON "Company"("shortCode");
 
 -- CreateIndex
 CREATE INDEX "Company_name_idx" ON "Company"("name");
+
+-- CreateIndex
+CREATE INDEX "Company_shortCode_idx" ON "Company"("shortCode");
 
 -- CreateIndex
 CREATE INDEX "Company_countryId_idx" ON "Company"("countryId");
@@ -566,16 +570,25 @@ CREATE INDEX "LedgerEntry_amount_idx" ON "LedgerEntry"("amount");
 CREATE INDEX "LedgerEntry_absoluteAmount_idx" ON "LedgerEntry"("absoluteAmount");
 
 -- CreateIndex
+CREATE INDEX "LedgerEntry_fsDate_idx" ON "LedgerEntry"("fsDate");
+
+-- CreateIndex
+CREATE INDEX "LedgerEntry_coaId_fsDate_idx" ON "LedgerEntry"("coaId", "fsDate");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LedgerEntry_id_fsDate_key" ON "LedgerEntry"("id", "fsDate");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "JournalBatch_recurrenceDetailId_key" ON "JournalBatch"("recurrenceDetailId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "JournalBatch_ledgerTransactionId_key" ON "JournalBatch"("ledgerTransactionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "JournalEntry_ledgerEntryId_key" ON "JournalEntry"("ledgerEntryId");
+CREATE INDEX "JournalEntry_journalBatchId_idx" ON "JournalEntry"("journalBatchId");
 
 -- CreateIndex
-CREATE INDEX "JournalEntry_journalBatchId_idx" ON "JournalEntry"("journalBatchId");
+CREATE UNIQUE INDEX "JournalEntry_ledgerEntryId_ledgerEntryfsDate_key" ON "JournalEntry"("ledgerEntryId", "ledgerEntryfsDate");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ExchangeRate_baseCurrencyId_targetCurrencyId_date_key" ON "ExchangeRate"("baseCurrencyId", "targetCurrencyId", "date");
@@ -710,7 +723,7 @@ ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_journalBatchId_fkey" FOR
 ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_coaAccountId_fkey" FOREIGN KEY ("coaAccountId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_ledgerEntryId_fkey" FOREIGN KEY ("ledgerEntryId") REFERENCES "LedgerEntry"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_ledgerEntryId_ledgerEntryfsDate_fkey" FOREIGN KEY ("ledgerEntryId", "ledgerEntryfsDate") REFERENCES "LedgerEntry"("id", "fsDate") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ExchangeRate" ADD CONSTRAINT "ExchangeRate_baseCurrencyId_fkey" FOREIGN KEY ("baseCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

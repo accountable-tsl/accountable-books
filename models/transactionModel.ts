@@ -340,7 +340,7 @@ export async function getMergedTransactions(
         ledgerTransactionId: bankTx.ledgerTransactionId || null,
       })),
       ...flattenedAccountTransactions,
-    ];
+    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // const count = transactions.length;
     const count = bankCount + ledgerCount;
@@ -836,7 +836,7 @@ export async function updateLedgerEntries(tx: CatEngineTransaction[]) {
           };
 
           await prisma.ledgerEntry.update({
-            where: { id: entry.id },
+            where: { id_fsDate: { id: entry.id, fsDate: entry.fsDate } },
             data: entryUpdates,
           });
         }

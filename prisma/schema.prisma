@@ -400,7 +400,7 @@ model LedgerTransaction {
 }
 
 model LedgerEntry {
-  id                   String            @id @default(uuid())
+  id                   String            @default(uuid())
   ledgerTransactionId  String
   ledgerTransaction    LedgerTransaction @relation(name: "ledgerEntries", fields: [ledgerTransactionId], references: [id])
   fsDate               DateTime //Financial Statement Date
@@ -425,10 +425,16 @@ model LedgerEntry {
   updatedAt            DateTime          @updatedAt
   deletedAt            DateTime?
   isDeleted            Boolean           @default(false)
+  // @@map("LedgerEntryParent")
 
+  @@id([id, fsDate])
+  @@unique([id, fsDate])
   @@index([ledgerTransactionId])
   @@index([amount])
   @@index([absoluteAmount])
+  @@index([fsDate])
+  @@index([coaId, fsDate])
+  @@map("LedgerEntry")
 }
 
 //Journals
@@ -464,21 +470,23 @@ model JournalBatch {
 }
 
 model JournalEntry {
-  id             String        @id @default(uuid())
-  description    String
-  side           DebitCredit
-  amount         Decimal
-  journalBatchId String
-  journalBatch   JournalBatch? @relation(name: "journalTransactions", fields: [journalBatchId], references: [id])
-  coaAccountId   String
-  coaAccount     Coa           @relation(name: "journalEntries", fields: [coaAccountId], references: [id])
-  ledgerEntryId  String?       @unique
-  ledgerEntry    LedgerEntry?  @relation(name: "journalLedgerEntries", fields: [ledgerEntryId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  deletedAt      DateTime?
-  isDeleted      Boolean       @default(false)
+  id                String        @id @default(uuid())
+  description       String
+  side              DebitCredit
+  amount            Decimal
+  journalBatchId    String
+  journalBatch      JournalBatch? @relation(name: "journalTransactions", fields: [journalBatchId], references: [id])
+  coaAccountId      String
+  coaAccount        Coa           @relation(name: "journalEntries", fields: [coaAccountId], references: [id])
+  ledgerEntryId     String?
+  ledgerEntryfsDate DateTime?
+  ledgerEntry       LedgerEntry?  @relation(name: "journalLedgerEntries", fields: [ledgerEntryId, ledgerEntryfsDate], references: [id, fsDate])
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+  isDeleted         Boolean       @default(false)
 
+  @@unique([ledgerEntryId, ledgerEntryfsDate])
   @@index([journalBatchId])
 }
 

@@ -8,6 +8,7 @@ const prisma = new PrismaClient();
 export async function getAllBankAccounts(companyId: string) {
   try {
     const idType = getIdentifierType(companyId);
+    const companyIdReceived = companyId;
 
     const allBankAccounts = await prisma.bankAccount.findMany({
       where:
@@ -69,9 +70,10 @@ export async function getAllBankAccounts(companyId: string) {
         ]);
 
         // Flatten accountInCoa if it exists
-        const { accountInCoa, ...rest } = account;
+        const { accountInCoa, companyId, ...rest } = account;
         const coaData = accountInCoa
           ? {
+              companyId: companyIdReceived,
               accountInCoa: {
                 id: accountInCoa.id,
                 accountCode: accountInCoa.accountCode,
