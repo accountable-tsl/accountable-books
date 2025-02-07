@@ -178,10 +178,12 @@ export async function postBankTransactions(
       for (const transaction of allTransactions) {
         runningBalance = runningBalance.plus(transaction.amount);
 
-        await prisma.bankTransaction.update({
-          where: { id: transaction.id },
-          data: { balance: runningBalance },
-        });
+        if (transaction.id && transaction.date) {
+          await prisma.bankTransaction.update({
+            where: { id_date: { id: transaction.id, date: transaction.date } },
+            data: { balance: runningBalance },
+          });
+        }
       }
 
       // console.log({
