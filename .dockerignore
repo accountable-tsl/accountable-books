@@ -12,7 +12,10 @@ build
 
 # Ignore environment variables
 .env
-.env.sample
+.env.docker
+.env.staging
+.env.production
+.env*
 
 # Ignore Git files
 .git
@@ -26,3 +29,4 @@ Thumbs.db
 .vscode
 .idea
 *.swp
+

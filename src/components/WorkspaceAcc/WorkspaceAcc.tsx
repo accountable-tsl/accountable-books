@@ -11,11 +11,7 @@ import { BankAccounts, CompanyData } from "../../types/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getBankAccounts } from "../../services/BankAccountServices";
 import Decimal from "decimal.js";
-import {
-  formatAccountText,
-  formatNumericValue,
-  timeAgo,
-} from "../../utils/utils";
+import { formatAccountText, timeAgo } from "../../utils/utils";
 import numeral from "numeral";
 
 interface AccountingWorkspaceProps {
