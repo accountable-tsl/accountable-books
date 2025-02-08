@@ -12,7 +12,7 @@ build
 
 # Ignore environment variables
 .env
-.env.sample
+.env*
 
 # Ignore Git files
 .git

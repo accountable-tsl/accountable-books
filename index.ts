@@ -13,6 +13,8 @@ import transactionRoutes from "./routes/transactionRoutes";
 import accountTransactionRoutes from "./routes/accountTransactionRoutes";
 import { swaggerUi, specs } from "./swagger";
 
+const NODE_ENV = process.env.NODE_ENV || "development";
+
 const PORT = process.env.PORT || 8080;
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -40,5 +42,5 @@ app.use("/api/:companyId/account-transactions", accountTransactionRoutes);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
 app.listen(Number(PORT), "0.0.0.0", () => {
-  console.log(`Server is running on ${BACKEND_URL}:${PORT}`);
+  console.log(`Server is running in ${NODE_ENV} on ${BACKEND_URL}:${PORT}`);
 });

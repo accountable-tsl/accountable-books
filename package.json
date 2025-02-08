@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsx index.ts",
-    "dev": "tsx --watch index.ts",
     "seed": "tsx prisma/seed.ts",
     "resetdb": "npx prisma generate && npx prisma migrate reset --force && rm -rf prisma/migrations && npx prisma format && npx prisma migrate dev --name init && prisma db execute --file ./prisma/schema.sql && npm run seed",
-    "hardresetdb": "rm -rf node_modules && npm install && npx prisma generate"
+    "hardresetdb": "rm -rf node_modules && npm install && npx prisma generate",
+    "dev": "tsx --watch index.ts",
+    "dev:docker": "tsx --watch index.ts",
+    "build": "tsc",
+    "staging": "NODE_ENV=staging node dist/index.ts",
+    "start": "NODE_ENV=production node dist/index.ts"
   },
   "author": "",
   "license": "ISC",

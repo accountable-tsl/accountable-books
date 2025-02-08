@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
 ALTER TABLE "LedgerEntry" RENAME TO "LedgerEntry_old";
 
 CREATE TABLE "LedgerEntry" (
@@ -114,7 +116,7 @@ CREATE INDEX banktx_date_idx ON "BankTransaction" ("date");
 CREATE INDEX banktx_categorisation_status_idx ON "BankTransaction" ("categorisationStatus");
 CREATE INDEX banktx_batch_id_idx ON "BankTransaction" ("bankTransactionBatchId");
 
-CREATE OR REPLACE FUNCTION create_bank_transaction_partitions()
+CREATE OR REPLACE FUNCTION create_banktx_partitions()
 RETURNS void AS $$
 DECLARE 
     current_year INT := EXTRACT(YEAR FROM NOW() AT TIME ZONE 'UTC');
@@ -180,10 +182,6 @@ DROP TRIGGER IF EXISTS prevent_banktx_delete ON "BankTransaction";
 CREATE TRIGGER prevent_banktx_delete
 BEFORE DELETE ON "BankTransaction"
 FOR EACH ROW EXECUTE PROCEDURE prevent_banktx_modification();
-
-
--- SCHEDULE PARTITION CREATION
-CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 CREATE OR REPLACE FUNCTION schedule_partition_cron() 
 RETURNS void AS $$
