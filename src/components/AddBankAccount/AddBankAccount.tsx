@@ -82,8 +82,6 @@ export default function AddBankAccount() {
       ...prevData,
       [name]: value,
     }));
-
-    validateForm();
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -122,6 +120,10 @@ export default function AddBankAccount() {
       }
     }
   };
+
+  useEffect(() => {
+    validateForm();
+  }, [formData]);
 
   return (
     <div className="addbankaccount">
