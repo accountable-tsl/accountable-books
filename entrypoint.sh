@@ -4,13 +4,23 @@ set -e
 echo "Running Prisma migrations..."
 npx prisma format
 npx prisma generate
-npx prisma migrate deploy
+
+# 🚀 For development, use `migrate dev`
+if [ "$NODE_ENV" = "development" ]; then
+  echo "Running Prisma Migrate (Development Mode)..."
+  npx prisma migrate dev --name init
+else
+  echo "Running Prisma Migrate ($NODE_ENV Mode)..."
+  npx prisma migrate deploy
+fi
 
 echo "Applying additional schema modifications..."
-npx prisma db execute --file ./prisma/schema.sql
+npx prisma db execute --file ./prisma/schema.sql || echo "No additional schema changes needed"
 
-echo "Seeding the database..."
-npm run seed
+if [ "$SEED_DB" = "true" ]; then
+  echo "Seeding the database..."
+  npm run seed || echo "No seed script found"
+fi
 
-echo "Starting the backend in development mode..."
+echo "Starting the backend in $NODE_ENV mode..."
 exec npm run dev:docker

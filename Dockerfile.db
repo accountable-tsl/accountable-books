@@ -1,12 +1,3 @@
-# FROM postgres:17
-
-# RUN apt-get update && apt-get install -y curl
-
-# RUN apt-get -y install postgresql-17-cron
-
-# RUN echo "shared_preload_libraries = 'pg_cron'" >> /docker-entrypoint-initdb.d/pg_cron.conf
-# RUN echo "cron.database_name = '${POSTGRES_DB}'" >> /docker-entrypoint-initdb.d/pg_cron.conf
-
 FROM postgres:17
 
 RUN apt-get update && apt-get install -y curl postgresql-17-cron  # Match package version
