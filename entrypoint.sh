@@ -9,6 +9,7 @@ npx prisma generate
 if [ "$NODE_ENV" = "development" ]; then
   echo "Running Prisma Migrate (Development Mode)..."
   npx prisma migrate dev --name init
+  npx prisma migrate deploy
 else
   echo "Running Prisma Migrate ($NODE_ENV Mode)..."
   npx prisma migrate deploy
@@ -21,6 +22,8 @@ if [ "$SEED_DB" = "true" ]; then
   echo "Seeding the database..."
   npm run seed || echo "No seed script found"
 fi
+
+chown -R appuser:appgroup /app/node_modules
 
 echo "Starting the backend in $NODE_ENV mode..."
 exec npm run dev:docker
