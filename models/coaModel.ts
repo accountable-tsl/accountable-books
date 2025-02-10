@@ -61,8 +61,8 @@ export async function getAllCOA(
         idType === "uuid"
           ? { companyId }
           : { company: { shortCode: companyId } },
-      skip: offset,
-      take: limit,
+      // skip: offset,
+      // take: limit,
       orderBy: { [sortBy]: sortOrder },
       select: {
         id: true,
@@ -94,7 +94,12 @@ export async function getAllCOA(
     });
 
     // Fetch the total count for pagination metadata
-    const totalItems = await prisma.coa.count({ where: { companyId } });
+    const totalItems = await prisma.coa.count({
+      where:
+        idType === "uuid"
+          ? { companyId }
+          : { company: { shortCode: companyId } },
+    });
     const totalPages = Math.ceil(totalItems / limit);
 
     if (coaPerCompany.length === 0) {
@@ -135,9 +140,9 @@ export async function getAllCOA(
       message: "Successfully retrieved chart of accounts",
       pagination: {
         totalItems,
-        totalPages,
+        totalPages: totalItems === formattedCoa.length ? 1 : totalPages,
         currentPage: page,
-        limit,
+        limit: totalItems === formattedCoa.length ? totalItems : limit,
       },
       data: formattedCoa,
     };
@@ -416,7 +421,11 @@ interface CoaItems {
   companyId: string;
 }
 
-export async function createCOAModel(companyId: string, data: COAInput) {
+export async function createCOAModel(
+  tx: any,
+  companyId: string,
+  data: COAInput
+) {
   const stdAccountName = toTitleCase(data.accountName);
   const companyIdType = getIdentifierType(companyId);
 
@@ -451,12 +460,12 @@ export async function createCOAModel(companyId: string, data: COAInput) {
     (!acctName || acctName.success === false)
   ) {
     const [defaultside, companyData] = await Promise.all([
-      prisma.accountType.findFirst({
+      tx.accountType.findFirst({
         where: { id: data.accountTypeId },
         select: { accountElement: { select: { defaultSide: true } } },
       }),
 
-      prisma.company.findFirst({
+      tx.company.findFirst({
         where:
           companyIdType === "uuid"
             ? { id: companyId }
@@ -488,7 +497,7 @@ export async function createCOAModel(companyId: string, data: COAInput) {
     }
 
     try {
-      const createdAccount = await prisma.coa.create({
+      const createdAccount = await tx.coa.create({
         data: {
           accountCode: data.accountCode,
           accountName: stdAccountName,

@@ -150,6 +150,21 @@ export async function createNewBankAccount(
   data: CreateBankData
 ) {
   try {
+    const companyIdType = getIdentifierType(companyId);
+
+    const company = await prisma.company.findFirst({
+      where:
+        companyIdType === "uuid" ? { id: companyId } : { shortCode: companyId },
+      select: { id: true },
+    });
+
+    if (!company) {
+      return {
+        success: false,
+        message: "Unauthorized access",
+      };
+    }
+
     const [bank, currency] = await Promise.all([
       prisma.bank.findUnique({ where: { id: data.bankId } }),
       prisma.currency.findUnique({ where: { id: data.currencyId } }),
@@ -173,7 +188,7 @@ export async function createNewBankAccount(
       where: {
         bankId: data.bankId,
         bankAccountNo: data.bankAccountNo,
-        companyId: companyId,
+        companyId: company.id,
       },
     });
 
@@ -191,9 +206,9 @@ export async function createNewBankAccount(
       accountTypeName: "Bank",
     };
 
-    const result = await prisma.$transaction(async (prisma) => {
+    const result = await prisma.$transaction(async (tx) => {
       //Create COA entry
-      const coa = await createCOAModel(companyId, coaInput);
+      const coa = await createCOAModel(tx, company.id, coaInput);
 
       if (coa.success && "data" in coa && coa.data?.id) {
         coaId = coa.data.id;
@@ -202,9 +217,9 @@ export async function createNewBankAccount(
       }
 
       //Create new bank account
-      const newBankAccount = await prisma.bankAccount.create({
+      const newBankAccount = await tx.bankAccount.create({
         data: {
-          companyId,
+          companyId: company.id,
           bankId: data.bankId,
           displayName: data.displayName,
           bankAccountType: data.bankAccountType,
@@ -216,7 +231,7 @@ export async function createNewBankAccount(
       });
 
       //Update COA with Bank Account ID
-      await prisma.coa.update({
+      await tx.coa.update({
         where: { id: coaId },
         data: { bankAccountId: newBankAccount.id },
       });

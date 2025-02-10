@@ -158,13 +158,13 @@ const buildLedgerTransactionFilters = (
       ? [filters.categorisationStatus]
       : ["UNCATEGORISED", "AUTO_CATEGORISED"];
 
-  where.categorisationStatus = { in: status };
-
   if (filters.bankAccountId) {
     where.bankTransaction = { bankAccount: { id: filters.bankAccountId } };
   }
 
   if (ledgerEntries) {
+    ledgerEntries.categorisationStatus = { in: status };
+
     if (filters.startDate || filters.endDate) {
       ledgerEntries.fsDate = {};
       if (filters.startDate) ledgerEntries.fsDate.gte = filters.startDate;
@@ -208,7 +208,7 @@ const transformLedgerTransaction = (
         .map(({ ...ledger }: LedgerEntriesWithRelations) => ({
           id: ledger.id,
           transactionSource: "ledger",
-          categorisationStatus: tx.categorisationStatus,
+          categorisationStatus: ledger.categorisationStatus,
           date: tx.date,
           fsDate: ledger.fsDate,
           contactName: tx.contact?.name || "",
@@ -330,9 +330,9 @@ export async function getMergedTransactions(
         bankCurrencySymbol: bankTx.bankAccount?.currency?.symbol,
         transactionSide: bankTx.transactionSide,
         bankAmount: bankTx.amount,
-        exchangeRate: bankTx.defaultExchangeRate,
+        exchangeRate: bankTx.systemExchangeRate,
         amount: new Decimal(bankTx.amount).dividedBy(
-          new Decimal(bankTx.defaultExchangeRate)
+          new Decimal(bankTx.systemExchangeRate)
         ),
         bankCurrencyId: bankTx.bankAccount.currencyId,
         bankAccountId: bankTx.bankAccountId,
@@ -605,7 +605,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           absoluteSourceAmount: Decimal.abs(bTx.amount),
           sourceCurrencyId: bTx.bankAccount.currencyId,
           fsDate: t.fsDate ? t.fsDate : (bTx.date as Date),
-          systemExchangeRate: bTx.defaultExchangeRate,
+          systemExchangeRate: bTx.systemExchangeRate,
           customExchangeRate: t.exchangeRate,
           amount: absoluteAmount,
           absoluteAmount,
@@ -622,7 +622,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           absoluteSourceAmount: Decimal.abs(bTx.amount),
           sourceCurrencyId: bTx.bankAccount.currencyId,
           fsDate: t.fsDate ? t.fsDate : (bTx.date as Date),
-          systemExchangeRate: bTx.defaultExchangeRate,
+          systemExchangeRate: bTx.systemExchangeRate,
           customExchangeRate: t.exchangeRate,
           amount: absoluteAmount.neg(),
           absoluteAmount,

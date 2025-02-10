@@ -113,7 +113,7 @@ export async function postBankTransactions(
             absoluteAmount: new Decimal(transaction.amount).abs(),
             balance: new Decimal(currentRunningBalance),
             bankAccountId: bankAccountId,
-            defaultExchangeRate: exr,
+            systemExchangeRate: exr,
             createdById,
           };
         })
@@ -148,22 +148,22 @@ export async function postBankTransactions(
               reference: transaction.reference || null,
               description: transaction.description || null,
               amount: transaction.amount,
-              defaultExchangeRate: transaction.defaultExchangeRate,
+              systemExchangeRate: transaction.systemExchangeRate,
               absoluteAmount: transaction.absoluteAmount,
-              balance: transaction.balance,
               bankAccount: { connect: { id: String(bankAccountId) } },
               createdBy: { connect: { id: String(createdById) } },
               updatedBy: { connect: { id: String(createdById) } },
-              ...(transaction.transactionSide && {
-                transactionSide: transaction.transactionSide,
-              }),
+              transactionSide:
+                transaction.amount < new Decimal(0)
+                  ? DebitCredit.CREDIT
+                  : DebitCredit.DEBIT,
             })),
           },
         },
       });
 
       //6. Recalculate running balance and update each transaction
-      let runningBalance = new Decimal(0);
+      // let runningBalance = new Decimal(0);
 
       const allTransactions: BankTransaction[] =
         await prisma.bankTransaction.findMany({
@@ -175,37 +175,22 @@ export async function postBankTransactions(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
 
-      for (const transaction of allTransactions) {
-        runningBalance = runningBalance.plus(transaction.amount);
+      // for (const transaction of allTransactions) {
+      //   runningBalance = runningBalance.plus(transaction.amount);
 
-        if (transaction.id && transaction.date) {
-          await prisma.bankTransaction.update({
-            where: { id_date: { id: transaction.id, date: transaction.date } },
-            data: { balance: runningBalance },
-          });
-        }
-      }
+      //   if (transaction.id && transaction.date) {
+      //     await prisma.bankTransaction.update({
+      //       where: { id_date: { id: transaction.id, date: transaction.date } },
+      //       data: { balance: runningBalance },
+      //     });
+      //   }
+      // }
 
-      // console.log({
-      //   balanceBefore: balanceBefore,
-      //   batchTotal: batchTotal,
-      //   balanceAfter: balanceAfter,
-      //   currentRunningBalance: currentRunningBalance,
-      //   runningBalance: runningBalance,
-      // });
-
-      //7. Update bankAccount balance and balanceAfter
-      await prisma.bankAccount.update({
-        where: { id: String(bankAccountId) },
-        data: {
-          bankBalance: runningBalance,
-        },
-      });
-
-      // await prisma.bankTransactionBatch.update({
-      //   where: { id: String(bankTransactionBatch.id) },
+      // //7. Update bankAccount balance and balanceAfter
+      // await prisma.bankAccount.update({
+      //   where: { id: String(bankAccountId) },
       //   data: {
-      //     balanceAfter: runningBalance,
+      //     bankBalance: runningBalance,
       //   },
       // });
 
