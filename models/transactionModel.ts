@@ -374,6 +374,7 @@ export async function getMergedTransactions(
 interface LedgerEntryInput {
   fsDate: Date;
   ledgerTransactionId?: string;
+  categorisationStatus: CategorisationStatus;
   coaId: string;
   transactionSide: DebitCredit;
   sourceCurrencyId: string;
@@ -570,7 +571,6 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
         const ledgerTxData = {
           date: bTx.date,
           description: bTx.description || t.description || null,
-          categorisationStatus,
           source: "BANK" as TransactionSource,
           reference: bTx.reference || t.reference || null,
           bankTransaction: {
@@ -601,6 +601,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
         const debitEntry: LedgerEntryInput = {
           transactionSide: "DEBIT",
           coaId: isAmountPositive ? bTx.bankAccount.coaId : t.coaId,
+          categorisationStatus,
           sourceAmount: Decimal.abs(bTx.amount), //Raw amount from bank transaction
           absoluteSourceAmount: Decimal.abs(bTx.amount),
           sourceCurrencyId: bTx.bankAccount.currencyId,
@@ -618,6 +619,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
         const creditEntry: LedgerEntryInput = {
           transactionSide: "CREDIT",
           coaId: isAmountPositive ? t.coaId : bTx.bankAccount.coaId,
+          categorisationStatus,
           sourceAmount: Decimal.abs(bTx.amount).neg(),
           absoluteSourceAmount: Decimal.abs(bTx.amount),
           sourceCurrencyId: bTx.bankAccount.currencyId,

@@ -1,11 +1,8 @@
 import { FsKey, PrismaClient } from "@prisma/client";
-import {
-  filterUndefined,
-  getIdentifierType,
-  toTitleCase,
-  truncateText,
-} from "../utils/utils";
+import { getIdentifierType, toTitleCase, truncateText } from "../utils/utils";
 import { DebitCredit, Prisma } from "@prisma/client/wasm";
+import { coaAccountBalances } from "./balancesModel";
+import { Decimal } from "@prisma/client/runtime/library";
 const prisma = new PrismaClient();
 
 //Get all account types
@@ -93,6 +90,15 @@ export async function getAllCOA(
       },
     });
 
+    // Fetch COA balances
+    let coaBalances: Record<string, Decimal> = {};
+    try {
+      coaBalances = await coaAccountBalances(prisma, companyId);
+    } catch (balanceError) {
+      console.error("Error fetching COA account balances:", balanceError);
+      coaBalances = {};
+    }
+
     // Fetch the total count for pagination metadata
     const totalItems = await prisma.coa.count({
       where:
@@ -132,8 +138,16 @@ export async function getAllCOA(
       currencySymbol: coa.currency.symbol,
       defaultSide: coa.defaultSide,
       isActive: coa.isActive,
-      // balance: coa.balance,
+      balance: coaBalances[coa.id] || new Decimal(0),
     }));
+
+    formattedCoa.sort((a, b) => {
+      if (a.accountTypeName === "Bank" && b.accountTypeName !== "Bank")
+        return -1;
+      if (a.accountTypeName !== "Bank" && b.accountTypeName === "Bank")
+        return 1;
+      return 0;
+    });
 
     return {
       success: true,
