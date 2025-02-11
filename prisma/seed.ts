@@ -79,14 +79,14 @@ async function seedExchangeRates(): Promise<void> {
       .on("data", (data: { [key: string]: string }) => {
         if (
           data.date &&
-          data.baseCurrencyId &&
-          data.targetCurrencyId &&
+          data.fromCurrencyId &&
+          data.toCurrencyId &&
           data.rate
         ) {
           exchangeRateData.push({
             date: new Date(data.date),
-            baseCurrencyId: data.baseCurrencyId,
-            targetCurrencyId: data.targetCurrencyId,
+            fromCurrencyId: data.fromCurrencyId,
+            toCurrencyId: data.toCurrencyId,
             rate: new Decimal(data.rate),
           });
         }

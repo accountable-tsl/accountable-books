@@ -79,6 +79,7 @@ const buildBankTransactionFilters = (
   const where: Prisma.BankTransactionWhereInput = {
     isDeleted: filters.isDeleted ?? false,
     ledgerTransactionId: null,
+    ledgerTransaction: null,
     bankAccount: {
       companyId: companyIdType === "uuid" ? companyId : undefined,
       company: companyIdType !== "uuid" ? { shortCode: companyId } : undefined,
@@ -134,6 +135,7 @@ const buildLedgerTransactionFilters = (
 
   const where: Prisma.LedgerTransactionWhereInput = {
     bankTransactionId: { not: null },
+    bankTransaction: { isNot: null },
     isDeleted: filters.isDeleted ?? false,
     ledgerEntries: {
       some: {
@@ -445,7 +447,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           !t.id ||
           !t.companyId ||
           !t.exchangeRate ||
-          t.transactionSource !== "bank"
+          t.transactionSource.toLocaleLowerCase() !== "bank"
         ) {
           ledgerPostingFailed.push(t);
           continue;
@@ -671,6 +673,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           where: { id_date: { id: bTx.id, date: bTx.date } },
           data: {
             categorisationStatus,
+            ledgerTransactionId: createdLedgerTx.id,
           },
         });
 

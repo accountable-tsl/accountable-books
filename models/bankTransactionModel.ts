@@ -6,7 +6,7 @@ import {
 } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { getSingleExchangeRate } from "../controllers/exRateController";
-import { getExchangeRate } from "./exRateModel";
+import { fetchExchangeRate } from "./exRateModel";
 import { determineExchangeRate, getIdentifierType } from "../utils/utils";
 const prisma = new PrismaClient();
 

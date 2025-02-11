@@ -8,7 +8,6 @@ npx prisma generate
 # 🚀 For development, use `migrate dev`
 if [ "$NODE_ENV" = "development" ]; then
   echo "Running Prisma Migrate (Development Mode)..."
-  npx prisma migrate dev --name init
   npx prisma migrate deploy
 else
   echo "Running Prisma Migrate ($NODE_ENV Mode)..."

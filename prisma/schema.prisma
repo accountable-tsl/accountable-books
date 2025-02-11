@@ -124,8 +124,8 @@ model Currency {
   companies                 Company[]      @relation("companyCurrency")
   coa                       Coa[]          @relation("coaCurrency")
   bankAccounts              BankAccount[]  @relation("bankAccountCurrency")
-  exchangeRateBase          ExchangeRate[] @relation("baseCurrency")
-  exchangeRateTarget        ExchangeRate[] @relation("targetCurrency")
+  exchangeRateBase          ExchangeRate[] @relation("fromCurrency")
+  exchangeRateTarget        ExchangeRate[] @relation("toCurrency")
   LedgerTransactionCurrency LedgerEntry[]  @relation(name: "ledgerTransactionCurrency")
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
@@ -231,6 +231,7 @@ model Coa {
   @@unique([accountName, companyId])
   @@unique([accountCode, companyId])
   @@index([companyId])
+  @@index([companyId, isDeleted])
 }
 
 model CoaTemplate {
@@ -443,6 +444,7 @@ model LedgerEntry {
   @@unique([id, fsDate])
   @@index([fsDate])
   @@index([coaId, fsDate])
+  @@index([coaId, isDeleted])
   @@index([ledgerTransactionId])
   @@index([categorisationStatus])
   @@map("LedgerEntry")
@@ -523,19 +525,19 @@ model RecurrenceDetail {
 }
 
 model ExchangeRate {
-  id               String    @id @default(uuid())
-  date             DateTime
-  baseCurrencyId   String
-  baseCurrency     Currency  @relation("baseCurrency", fields: [baseCurrencyId], references: [id])
-  targetCurrencyId String
-  targetCurrency   Currency  @relation("targetCurrency", fields: [targetCurrencyId], references: [id])
-  rate             Decimal
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  deletedAt        DateTime?
-  isDeleted        Boolean   @default(false)
+  id             String    @id @default(uuid())
+  date           DateTime
+  fromCurrencyId String
+  fromCurrency   Currency  @relation("fromCurrency", fields: [fromCurrencyId], references: [id])
+  toCurrencyId   String
+  toCurrency     Currency  @relation("toCurrency", fields: [toCurrencyId], references: [id])
+  rate           Decimal
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  isDeleted      Boolean   @default(false)
 
-  @@unique([baseCurrencyId, targetCurrencyId, date])
+  @@unique([fromCurrencyId, toCurrencyId, date])
 }
 
 enum ContactType {

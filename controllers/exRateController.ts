@@ -1,12 +1,12 @@
 import { Request, response, Response } from "express";
 import { findInvalidObjects } from "../utils/utils";
-import { createNewExRates, getExchangeRate } from "../models/exRateModel";
+import { createNewExRates, fetchExchangeRate } from "../models/exRateModel";
 import { Decimal } from "@prisma/client/runtime/library";
 
 export async function createExchangeRates(req: Request, res: Response) {
   try {
     const { data } = req.body;
-    const requiredKeys = ["date", "baseCurrencyId", "targetCurrencyId", "rate"];
+    const requiredKeys = ["date", "fromCurrencyId", "toCurrencyId", "rate"];
 
     const invalidObjects = findInvalidObjects(data, requiredKeys);
     if (invalidObjects.length !== 0)
@@ -18,8 +18,8 @@ export async function createExchangeRates(req: Request, res: Response) {
 
     const transformedData = data.map((tx: any) => ({
       date: new Date(tx.date),
-      baseCurrencyId: tx.baseCurrencyId,
-      targetCurrencyId: tx.targetCurrencyId,
+      fromCurrencyId: tx.fromCurrencyId,
+      toCurrencyId: tx.toCurrencyId,
       rate: new Decimal(tx.rate),
     }));
 
@@ -34,25 +34,24 @@ export async function createExchangeRates(req: Request, res: Response) {
 
 export async function getSingleExchangeRate(req: Request, res: Response) {
   try {
-    const { date, baseCurrencyId, targetCurrencyId } = req.query;
+    const { date, fromCurrencyId, toCurrencyId } = req.query;
 
     if (
       !date ||
-      !baseCurrencyId ||
-      (baseCurrencyId as string).length > 40 ||
-      !targetCurrencyId ||
-      (targetCurrencyId as string).length > 40
+      !fromCurrencyId ||
+      (fromCurrencyId as string).length > 40 ||
+      !toCurrencyId ||
+      (toCurrencyId as string).length > 40
     )
       return res.status(400).json({
         success: false,
-        message:
-          "All fields (date, baseCurrencyId, targetCurrencyId) are required",
+        message: "All fields (date, fromCurrencyId, toCurrencyId) are required",
       });
 
-    const result = await getExchangeRate(
+    const result = await fetchExchangeRate(
       new Date(date as string),
-      baseCurrencyId as string,
-      targetCurrencyId as string
+      fromCurrencyId as string,
+      toCurrencyId as string
     );
 
     if (result.success === false) {

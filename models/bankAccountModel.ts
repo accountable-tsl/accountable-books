@@ -1,16 +1,19 @@
-import { PrismaClient } from "@prisma/client";
+import { CategorisationStatus, PrismaClient } from "@prisma/client";
 import { createCOAModel } from "./coaModel";
 import { BankAccountType } from "@prisma/client/wasm";
 import { getIdentifierType } from "../utils/utils";
+import { getBankAccountBalances, getBankLedgerBalances } from "./balancesModel";
+import { Decimal } from "@prisma/client/runtime/library";
 
 const prisma = new PrismaClient();
 
 export async function getAllBankAccounts(companyId: string) {
   try {
+    // Determine company identifier type
     const idType = getIdentifierType(companyId);
     const companyIdReceived = companyId;
 
-    const allBankAccounts = await prisma.bankAccount.findMany({
+    const bankAccounts = await prisma.bankAccount.findMany({
       where:
         idType === "uuid"
           ? { companyId }
@@ -22,83 +25,153 @@ export async function getAllBankAccounts(companyId: string) {
           select: {
             id: true,
             accountCode: true,
-            // balance: true,
             currency: { select: { code: true, symbol: true } },
           },
         },
       },
     });
 
-    const noOfAccounts = allBankAccounts.length;
-
-    if (noOfAccounts === 0) {
+    if (bankAccounts.length === 0) {
       return {
         success: false,
         message: "No bank accounts found",
+        data: {},
       };
     }
 
-    const bankAccountsWithCounts = await Promise.all(
-      allBankAccounts.map(async (account) => {
-        const [
-          totalTransactionCount,
-          uncategorisedCount,
-          categorisedCount,
-          autoCategorisedCount,
-        ] = await Promise.all([
-          prisma.bankTransaction.count({
-            where: { bankAccountId: account.id },
-          }),
-          prisma.bankTransaction.count({
-            where: {
-              bankAccountId: account.id,
-              categorisationStatus: "UNCATEGORISED",
-            },
-          }),
-          prisma.bankTransaction.count({
-            where: {
-              bankAccountId: account.id,
-              categorisationStatus: "CATEGORISED",
-            },
-          }),
-          prisma.bankTransaction.count({
-            where: {
-              bankAccountId: account.id,
-              categorisationStatus: "AUTO_CATEGORISED",
-            },
-          }),
-        ]);
+    // Fetch related financial data in parallel
+    const [bankAccountBalances, bankLedgerBalances] = await Promise.all([
+      getBankAccountBalances(prisma, companyId),
+      getBankLedgerBalances(prisma, companyId),
+    ]);
 
-        // Flatten accountInCoa if it exists
-        const { accountInCoa, companyId, ...rest } = account;
-        const coaData = accountInCoa
-          ? {
-              companyId: companyIdReceived,
-              accountInCoa: {
-                id: accountInCoa.id,
-                accountCode: accountInCoa.accountCode,
-                // balance: accountInCoa.balance,
-                currencyCode: accountInCoa.currency?.code ?? null,
-                currencySymbol: accountInCoa.currency?.symbol ?? null,
-              },
-            }
-          : {};
+    // Get transaction statistics
+    const transactionCounts = await prisma.bankTransaction.groupBy({
+      by: ["bankAccountId", "categorisationStatus"],
+      _count: true,
+      where: { bankAccountId: { in: bankAccounts.map((acc) => acc.id) } },
+    });
 
-        return {
-          ...rest,
-          ...coaData,
-          totalTransactionCount,
-          uncategorisedCount,
-          categorisedCount,
-          autoCategorisedCount,
-        };
-      })
+    // Transaction statistics mapping
+    let totalUncategorisedTransactions = 0;
+    let totalAutoCategorisedTransactions = 0;
+    let totalCategorisedTransactions = 0;
+
+    const bankTransactionStats = transactionCounts.reduce(
+      (stats, row) => {
+        const { bankAccountId, categorisationStatus, _count } = row;
+        if (!stats[bankAccountId]) {
+          stats[bankAccountId] = {
+            total: 0,
+            uncategorised: 0,
+            categorised: 0,
+            autoCategorised: 0,
+          };
+        }
+        stats[bankAccountId].total += _count;
+        if (categorisationStatus === CategorisationStatus.UNCATEGORISED)
+          stats[bankAccountId].uncategorised += _count;
+
+        if (categorisationStatus === CategorisationStatus.CATEGORISED)
+          stats[bankAccountId].categorised += _count;
+
+        if (categorisationStatus === CategorisationStatus.AUTO_CATEGORISED)
+          stats[bankAccountId].autoCategorised += _count;
+
+        return stats;
+      },
+      {} as Record<
+        string,
+        {
+          total: number;
+          uncategorised: number;
+          categorised: number;
+          autoCategorised: number;
+        }
+      >
     );
+
+    // Compute metadata variables
+    let totalBankLedgerReportingBalance = new Decimal(0);
+    let totalBankAccountReportingBalance = new Decimal(0);
+    let bankAccountsWithUncategorisedTransactions = 0;
+    let bankAccountsWithAutoCategorisedTransactions = 0;
+
+    const enrichedBankAccounts = bankAccounts.map((account) => {
+      const coaAccountId = account.accountInCoa?.id;
+      const bankLedgerNativeBalance =
+        bankLedgerBalances[coaAccountId]?.nativeBalance || new Decimal(0);
+      const bankLedgerReportingBalance =
+        bankLedgerBalances[coaAccountId]?.reportingBalance || new Decimal(0);
+
+      const bankAccountNativeBalance =
+        bankAccountBalances[account.id].nativeBalance;
+      const bankAccountReportingBalance =
+        bankAccountBalances[account.id].reportingBalance;
+
+      // Accumulate total balances
+      totalBankLedgerReportingBalance = totalBankLedgerReportingBalance.plus(
+        bankLedgerReportingBalance
+      );
+      totalBankAccountReportingBalance = totalBankAccountReportingBalance.plus(
+        bankAccountReportingBalance
+      );
+
+      if (bankTransactionStats[account.id]?.uncategorised > 0) {
+        bankAccountsWithUncategorisedTransactions++;
+      }
+      if (bankTransactionStats[account.id]?.autoCategorised > 0) {
+        bankAccountsWithAutoCategorisedTransactions++;
+      }
+
+      return {
+        ...account,
+        accountInCoa: account.accountInCoa
+          ? {
+              ...account.accountInCoa,
+              nativeBalance: bankLedgerNativeBalance,
+              reportingBalance: bankLedgerReportingBalance,
+            }
+          : {},
+        bankBalance: bankAccountNativeBalance,
+        ...(bankTransactionStats[account.id]
+          ? {
+              totalTransactionCount:
+                bankTransactionStats[account.id].total || 0,
+              uncategorisedCount:
+                bankTransactionStats[account.id].uncategorised || 0,
+              categorisedCount:
+                bankTransactionStats[account.id].categorised || 0,
+              autoCategorisedCount:
+                bankTransactionStats[account.id].autoCategorised || 0,
+            }
+          : {}),
+      };
+    });
 
     return {
       success: true,
       message: "Successfully retrieved all bank accounts",
-      data: { bankAccounts: bankAccountsWithCounts, noOfAccounts },
+      data: {
+        bankAccounts: enrichedBankAccounts,
+        metadata: {
+          totalBankAccounts: bankAccounts.length,
+
+          totalBankBalance: totalBankAccountReportingBalance,
+          totalLedgerBalance: totalBankLedgerReportingBalance,
+
+          bankAccountsWithUncategorisedTransactions,
+          bankAccountsWithAutoCategorisedTransactions,
+
+          totalUncategorisedTransactions,
+          totalAutoCategorisedTransactions,
+          totalCategorisedTransactions,
+          totalTransactions:
+            totalUncategorisedTransactions +
+            totalAutoCategorisedTransactions +
+            totalCategorisedTransactions,
+        },
+      },
     };
   } catch (error: any) {
     console.error(error);

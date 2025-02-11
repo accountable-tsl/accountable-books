@@ -1,5 +1,5 @@
 import { Decimal } from "@prisma/client/runtime/library";
-import { getExchangeRate } from "../models/exRateModel";
+import { fetchExchangeRate } from "../models/exRateModel";
 
 /**
  * Convert object keys to lowercase.
@@ -92,31 +92,31 @@ export function findInvalidObjects(array: any[], requiredKeys: string[]) {
 
 export async function determineExchangeRate(
   date: Date | string,
-  baseCurrencyId: string,
-  targetCurrencyId: string
+  fromCurrencyId: string,
+  toCurrencyId: string
 ): Promise<Decimal | null> {
   try {
-    if (baseCurrencyId === targetCurrencyId) {
+    if (fromCurrencyId === toCurrencyId) {
       return new Decimal(1);
     }
 
-    const exr = await getExchangeRate(
+    const exr = await fetchExchangeRate(
       new Date(date as string),
-      baseCurrencyId as string,
-      targetCurrencyId as string
+      fromCurrencyId as string,
+      toCurrencyId as string
     );
 
     if (exr.success && exr.data?.rate) {
       return new Decimal(exr.data.rate);
     } else {
       console.error(
-        `Failed to determine exchange rate for ${baseCurrencyId} to ${targetCurrencyId} on ${new Date(date).toLocaleDateString()}`
+        `Failed to determine exchange rate for ${fromCurrencyId} to ${toCurrencyId} on ${new Date(date).toLocaleDateString()}`
       );
       return null;
     }
   } catch (error) {
     console.error(
-      `Error determining exchange rate for ${baseCurrencyId} to ${targetCurrencyId} on ${date}:`,
+      `Error determining exchange rate for ${fromCurrencyId} to ${toCurrencyId} on ${date}:`,
       error
     );
     return null;
