@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBuildingColumns,
   faChevronRight,
+  faCircleChevronRight,
   faLink,
   faUpload,
 } from "@fortawesome/free-solid-svg-icons";
@@ -13,6 +14,8 @@ import { getBankAccounts } from "../../services/BankAccountServices";
 import Decimal from "decimal.js";
 import { formatAccountText, timeAgo } from "../../utils/utils";
 import numeral from "numeral";
+import { Link } from "react-router-dom";
+import { routes } from "../../utils/routes";
 
 interface AccountingWorkspaceProps {
   companyId: string;
@@ -33,6 +36,7 @@ export default function AccountingWorkspace({
   company,
 }: AccountingWorkspaceProps) {
   const [bankAccounts, setBankAccounts] = useState<BankAccounts>([]);
+  const [bankAccountMetadata, setBankAccountMetadata] = useState<any>([]);
   const [error, setError] = useState<string | null>(null);
 
   //Retrieve Bank Accounts
@@ -42,6 +46,7 @@ export default function AccountingWorkspace({
         const response = await getBankAccounts(companyId);
         if (response.success) {
           setBankAccounts(response.data.bankAccounts);
+          setBankAccountMetadata(response.data.metadata);
         } else {
           setError("Failed to fetch bank accounts. Please try again later.");
         }
@@ -108,7 +113,7 @@ export default function AccountingWorkspace({
     fetchBankAccounts();
   }, [companyId, fetchBankAccounts]);
 
-  console.log(groupedAccounts);
+  console.log(bankAccounts, bankAccountMetadata);
 
   return (
     <div className="wacc">
@@ -127,12 +132,15 @@ export default function AccountingWorkspace({
                   </div>
                 </div>
                 <div className="wacc-qa__bottom">
-                  <div className="wacc-qa__item wacc-qa__item--center">
+                  <Link
+                    to={routes.accounting.workspace.uploadBank(companyId)}
+                    className="wacc-qa__item wacc-qa__item--center"
+                  >
                     <div className="wacc-qa__item--label">Upload</div>
                     <div className="wacc-qa__item--icon">
                       <FontAwesomeIcon icon={faUpload} />
                     </div>
-                  </div>
+                  </Link>
                   <div className="wacc-qa__item wacc-qa__item--center wacc-qa__item--border">
                     <div className="wacc-qa__item--label">Connect</div>
                     <div className="wacc-qa__item--icon">
@@ -153,12 +161,15 @@ export default function AccountingWorkspace({
                   </div>
                 </div>
                 <div className="wacc-qa__bottom">
-                  <div className="wacc-qa__item">
+                  <Link
+                    to={routes.accounting.workspace.catEngine(companyId)}
+                    className="wacc-qa__item"
+                  >
                     <div className="wacc-qa__item--text">Visit</div>
                     <div className="wacc-qa__item--icon">
                       <FontAwesomeIcon icon={faChevronRight} />
                     </div>
-                  </div>
+                  </Link>
                 </div>
               </div>
 
@@ -182,7 +193,7 @@ export default function AccountingWorkspace({
             </div>
           </div>
           <div className="wacc-wrapper wacc-bank">
-            <div className="wacc-qa__header">Bank Accounts</div>
+            <div className="wacc-qa__header">Bank Account Insights</div>
             <hr />
             <div className="wacc-grid">
               <div className="wacc-card wacc-bank-summary">
@@ -192,7 +203,21 @@ export default function AccountingWorkspace({
                       Bank Balances <span>:</span>
                     </div>
                     <div className="wacc-bank-summary__value wacc-bank-summary__total-balance">
-                      {company?.reportingCurrencySymbol || ""} 100,000,000.00
+                      {company?.reportingCurrencySymbol || ""}{" "}
+                      {numeral(
+                        bankAccountMetadata?.totalBankBalance || 0
+                      ).format("(0,0.00)")}
+                    </div>
+                  </div>
+                  <div className="wacc-bank-summary__item">
+                    <div className="wacc-bank-summary__label">
+                      Ledger Balances <span>:</span>
+                    </div>
+                    <div className="wacc-bank-summary__value wacc-bank-summary__total-balance">
+                      {company?.reportingCurrencySymbol || ""}{" "}
+                      {numeral(
+                        bankAccountMetadata?.totalLedgerBalance || 0
+                      ).format("(0,0.00)")}
                     </div>
                   </div>
                   <div className="wacc-bank-summary__item">
@@ -200,14 +225,21 @@ export default function AccountingWorkspace({
                       Bank Accounts <span>:</span>
                     </div>
                     <div className="wacc-bank-summary__value wacc-bank-summary__account-count">
-                      11
+                      {bankAccountMetadata.totalBankAccounts || 0}
                     </div>
                   </div>
                   <div className="wacc-bank-summary__item">
                     <div className="wacc-bank-summary__label">
                       Needs Reconciliation <span>:</span>
                     </div>
-                    <div className="wacc-bank-summary__value">3</div>
+                    <div className="wacc-bank-summary__value">
+                      {Math.max(
+                        bankAccountMetadata.bankAccountsWithUncategorisedTransactions ||
+                          0,
+                        bankAccountMetadata.bankAccountsWithAutocategorisedTransactions ||
+                          0
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -287,8 +319,8 @@ export default function AccountingWorkspace({
                         <div className="wacc-bank-card__balance-amount">
                           {bankAccount.currency?.symbol || ""}{" "}
                           {numeral(
-                            bankAccount.accountInCoa?.balance || 0
-                          ).format("0,0.00")}
+                            bankAccount.accountInCoa?.nativeBalance || 0
+                          ).format("(0,0.00)")}
                         </div>
                         <div className="wacc-bank-card__balance-label">
                           Ledger Balance
@@ -318,8 +350,36 @@ export default function AccountingWorkspace({
               )}
             </div>
           </div>
-          <div className="wacc-wrapper wacc-quicklinks"></div>
-          <div className="wacc-wrapper wacc-nav"></div>
+          <div className="wacc-wrapper wacc-nav">
+            <div className="wacc-qa__header">Other Navigation</div>
+            <hr />
+            <div className="wacc-grid">
+              <div className="wacc-card wacc-nav-card">
+                <Link to={"/"} className="wacc-nav-card__content">
+                  Account Transactions
+                  <FontAwesomeIcon icon={faCircleChevronRight} />
+                </Link>
+              </div>
+              <div className="wacc-card wacc-nav-card">
+                <Link
+                  to={routes.accounting.setup.coa(companyId)}
+                  className="wacc-nav-card__content"
+                >
+                  Chart of Accounts
+                  <FontAwesomeIcon icon={faCircleChevronRight} />
+                </Link>
+              </div>
+              <div className="wacc-card wacc-nav-card">
+                <Link
+                  to={routes.accounting.setup.finSettings(companyId)}
+                  className="wacc-nav-card__content"
+                >
+                  Financial Settings
+                  <FontAwesomeIcon icon={faCircleChevronRight} />
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
         <div className="wacc-body-right">
           <div className="wacc-body-right__content">

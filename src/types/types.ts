@@ -206,6 +206,8 @@ export interface Coa {
   bankAccount?: BankAccount;
   createdAt?: Date;
   updatedAt?: Date;
+  reportingBalance?: Decimal;
+  nativeBalance?: Decimal;
 }
 
 export type Transaction = {

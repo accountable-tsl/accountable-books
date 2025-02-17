@@ -14,6 +14,7 @@ import Button from "../../components/Button/Button";
 import { usePopup } from "../../contexts/PopupContext";
 import { Coa, TabConfig } from "../../types/types";
 import TabNavigation from "../../components/TabNavigation/TabNavigation";
+import numeral from "numeral";
 
 export default function COA() {
   const { companyId } = useCompany();
@@ -50,7 +51,7 @@ export default function COA() {
       flex: 0.75,
       cellClass: "coa-table__balance",
       valueFormatter: (params: any) => {
-        return parseFloat(params.value).toFixed(2);
+        return numeral(params.value).format("(0,0.00)");
       },
     },
   ]);
@@ -314,7 +315,7 @@ export default function COA() {
               },
               columnDefs: coaColDefs,
             }}
-            domLayout="autoHeight"
+            // domLayout="autoHeight"
             pagination={true}
             headerHeight={40}
             animateRows={true}
