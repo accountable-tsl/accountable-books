@@ -51,13 +51,12 @@ model User {
   JournalBatchUpdatedBy         JournalBatch[]         @relation("journalUpdatedBy")
   bankTransactionBatchesCreated BankTransactionBatch[] @relation("createdByUser")
   bankTransactionBatchesUpdated BankTransactionBatch[] @relation("updatedByUser")
-  // bankTransactionsCategorised   BankTransaction[]      @relation("firstCategorisedByUser")
   bankTransactionCreated        BankTransaction[]      @relation(name: "bankTransactionCreatedBy")
   bankTransactionUpdated        BankTransaction[]      @relation(name: "bankTransactionUpdatedBy")
   ledgerTransactionCreated      LedgerTransaction[]    @relation(name: "ledgerTransactionCreatedBy")
   ledgerTransactionUpdated      LedgerTransaction[]    @relation(name: "ledgerTransactionUpdatedBy")
-  // ledgerTransactionCategorised  LedgerTransaction[]    @relation(name: "ledgerTransactionCategorisedBy")
   LedgerEntry                   LedgerEntry[]          @relation(name: "ledgerEntryUpdatedBy")
+  journalEntryReversed          JournalBatch[]         @relation(name: "JournalBatchReversedBy")
   createdAt                     DateTime               @default(now())
   updatedAt                     DateTime               @updatedAt
   deletedAt                     DateTime?
@@ -67,31 +66,32 @@ model User {
 }
 
 model Company {
-  id                      String                   @id @default(uuid())
-  name                    String
-  shortCode               String                   @unique
-  website                 String?
-  industry                String?
-  teamSize                String?
-  revenue                 String?
-  countryId               String
-  country                 Country                  @relation(name: "companyCountry", fields: [countryId], references: [id])
-  reportingCurrencyId     String
-  reportingCurrency       Currency                 @relation(name: "companyCurrency", fields: [reportingCurrencyId], references: [id])
-  createdById             String
-  createdBy               User                     @relation(name: "companyCreator", fields: [createdById], references: [id])
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  currentAccountingPeriod CurrentAccountingPeriod? @relation("CompanyCurrentAccountingPeriod")
-  users                   UserCompany[]            @relation("companyUsers")
-  coa                     Coa[]                    @relation("companyCoa")
-  bankAccounts            BankAccount[]            @relation("companyBankAccounts")
-  contacts                Contact[]                @relation(name: "companyContacts")
-  projects                Project[]                @relation(name: "companyProjects")
-  ledgerTransactions      LedgerTransaction[]      @relation(name: "companyLedgerTransactions")
-  journalBatches          JournalBatch[]           @relation(name: "companyJournals")
-  deletedAt               DateTime?
-  isDeleted               Boolean                  @default(false)
+  id                       String                     @id @default(uuid())
+  name                     String
+  shortCode                String                     @unique
+  website                  String?
+  industry                 String?
+  teamSize                 String?
+  revenue                  String?
+  countryId                String
+  country                  Country                    @relation(name: "companyCountry", fields: [countryId], references: [id])
+  reportingCurrencyId      String
+  reportingCurrency        Currency                   @relation(name: "companyCurrency", fields: [reportingCurrencyId], references: [id])
+  createdById              String
+  createdBy                User                       @relation(name: "companyCreator", fields: [createdById], references: [id])
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  currentAccountingPeriod  CurrentAccountingPeriod?   @relation("CompanyCurrentAccountingPeriod")
+  users                    UserCompany[]              @relation("companyUsers")
+  coa                      Coa[]                      @relation("companyCoa")
+  bankAccounts             BankAccount[]              @relation("companyBankAccounts")
+  contacts                 Contact[]                  @relation(name: "companyContacts")
+  projects                 Project[]                  @relation(name: "companyProjects")
+  ledgerTransactions       LedgerTransaction[]        @relation(name: "companyLedgerTransactions")
+  journalBatches           JournalBatch[]             @relation(name: "companyJournals")
+  recurringJournalTemplate RecurringJournalTemplate[] @relation(name: "companyRecurringJournals")
+  deletedAt                DateTime?
+  isDeleted                Boolean                    @default(false)
 
   @@index([name])
   @@index([shortCode])
@@ -218,7 +218,6 @@ model Coa {
   company        Company                @relation(name: "companyCoa", fields: [companyId], references: [id])
   isActive       Boolean                @default(true)
   liveCoaBalance LiveCoaAccountBalance? @relation("LiveCoaAccountBalance")
-  // balance        Decimal        @default(0)
   bankAccountId  String?                @unique
   bankAccount    BankAccount?           @relation(name: "bankCoaAccount")
   ledgerEntries  LedgerEntry[]          @relation("coaLedgerEntries")
@@ -455,36 +454,52 @@ model LedgerEntry {
 enum JournalStatus {
   DRAFT
   POSTED
+  VOIDED
+}
+
+enum JournalReversalReason {
+  AUTO_REVERSAL
+  VOIDED
 }
 
 model JournalBatch {
-  id                  String             @id @default(uuid())
-  date                DateTime
-  description         String
-  note                String?
-  status              JournalStatus
-  isRecurring         Boolean            @default(false)
-  recurrenceDetailId  String?            @unique
-  recurrenceDetail    RecurrenceDetail?  @relation(name: "journalBatchRecurrenceDetails", fields: [recurrenceDetailId], references: [id])
-  journalTransactions JournalEntry[]     @relation("journalTransactions")
-  ledgerTransactionId String?            @unique
-  ledgerTransactions  LedgerTransaction? @relation("journalLedgerTransactions", fields: [ledgerTransactionId], references: [id])
-  postedAt            DateTime?
-  postedById          String
-  postedBy            User               @relation(name: "journalPostedBy", fields: [postedById], references: [id])
-  updatedById         String?
-  updatedBy           User?              @relation(name: "journalUpdatedBy", fields: [updatedById], references: [id])
-  companyId           String
-  company             Company            @relation(name: "companyJournals", fields: [companyId], references: [id])
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  isDeleted           Boolean            @default(false)
-  deletedAt           DateTime?
+  id                      String                    @id @default(uuid())
+  sequenceNumber          Int? //Raw sequence numnber (increment per company when creating journal. KISS)
+  date                    DateTime
+  description             String
+  note                    String?
+  status                  JournalStatus
+  generatedFromTemplateId String?
+  generatedFromTemplate   RecurringJournalTemplate? @relation(name: "GeneratedFromTemplate", fields: [generatedFromTemplateId], references: [id])
+  journalTransactions     JournalEntry[]            @relation("journalTransactions")
+  ledgerTransactionId     String?                   @unique
+  ledgerTransactions      LedgerTransaction?        @relation("journalLedgerTransactions", fields: [ledgerTransactionId], references: [id])
+  postedAt                DateTime?
+  postedById              String
+  postedBy                User                      @relation(name: "journalPostedBy", fields: [postedById], references: [id])
+  updatedById             String?
+  updatedBy               User?                     @relation(name: "journalUpdatedBy", fields: [updatedById], references: [id])
+  companyId               String
+  company                 Company                   @relation(name: "companyJournals", fields: [companyId], references: [id])
+  autoReversalDate        DateTime?
+  reversedJournalId       String?
+  reversedJournal         JournalBatch?             @relation(name: "JournalReversals", fields: [reversedJournalId], references: [id])
+  reversingJournals       JournalBatch[]            @relation("JournalReversals")
+  reversedById            String?
+  reversedBy              User?                     @relation(name: "JournalBatchReversedBy", fields: [reversedById], references: [id])
+  reversedAt              DateTime?
+  reversalReason          JournalReversalReason?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  isDeleted               Boolean                   @default(false)
+  deletedAt               DateTime?
+
+  @@index([status, companyId])
 }
 
 model JournalEntry {
   id                String        @id @default(uuid())
-  description       String
+  description       String?
   side              DebitCredit
   amount            Decimal
   journalBatchId    String
@@ -496,8 +511,6 @@ model JournalEntry {
   ledgerEntry       LedgerEntry?  @relation(name: "journalLedgerEntries", fields: [ledgerEntryId, ledgerEntryfsDate], references: [id, fsDate])
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
-  deletedAt         DateTime?
-  isDeleted         Boolean       @default(false)
 
   @@unique([ledgerEntryId, ledgerEntryfsDate])
   @@index([journalBatchId])
@@ -510,18 +523,44 @@ enum RecurrenceFrequency {
   YEARLY
 }
 
-model RecurrenceDetail {
-  id             String              @id @default(uuid())
-  frequency      RecurrenceFrequency
-  startDate      DateTime
-  endDate        DateTime?
-  nextRun        DateTime?
-  journalBatch   JournalBatch?       @relation(name: "journalBatchRecurrenceDetails")
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  deletedAt      DateTime?
-  isDeleted      Boolean             @default(false)
-  journalBatchId String
+enum RecurringJournalStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+
+model RecurringJournalTemplate {
+  id                      String                          @id @default(uuid())
+  description             String
+  note                    String?
+  status                  RecurringJournalStatus
+  companyId               String
+  company                 Company                         @relation(name: "companyRecurringJournals", fields: [companyId], references: [id])
+  frequency               RecurrenceFrequency
+  startDate               DateTime
+  endDate                 DateTime?
+  nextRunDate             DateTime?
+  placeholderVars         Json?
+  journalEntries          RecurringJournalTemplateEntry[]
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
+  deletedAt               DateTime?
+  isDeleted               Boolean                         @default(false)
+  generatedJournalBatches JournalBatch[]                  @relation("GeneratedFromTemplate")
+
+  @@index([frequency, nextRunDate])
+}
+
+model RecurringJournalTemplateEntry {
+  id                        String                   @id @default(uuid())
+  description               String
+  amount                    Decimal
+  side                      DebitCredit
+  coaAccountId              String
+  placeholderDescriptionVar String?
+  templateId                String
+  template                  RecurringJournalTemplate @relation(fields: [templateId], references: [id])
 }
 
 model ExchangeRate {
@@ -556,7 +595,7 @@ model Contact {
   address        String?
   website        String?
   businessRegNo  String?
-  contactType    ContactType? //Supplier, Customer, Employee
+  contactType    ContactType?
   companyId      String
   company        Company             @relation(name: "companyContacts", fields: [companyId], references: [id])
   transactions   LedgerTransaction[] @relation(name: "contactLedgerTransactions")
