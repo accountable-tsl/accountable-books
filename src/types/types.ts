@@ -31,6 +31,19 @@ export enum BankAccountType {
   UTILITY = "UTILITY",
 }
 
+export enum JournalStatus {
+  DRAFT = "DRAFT",
+  POSTED = "POSTED",
+  VOIDED = "VOIDED",
+}
+
+export enum JournalRecurrenceFrequency {
+  DAILY = "DAILY",
+  WEEKLY = "WEEKLY",
+  MONTHLY = "MONTHLY",
+  YEARLY = "YEARLY",
+}
+
 export interface ServerResponseFormat<T = unknown> {
   success: boolean;
   message: string;
@@ -327,3 +340,4 @@ export type CompanyData = {
   createdAt: Date;
   updatedAt: Date;
 };
+

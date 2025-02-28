@@ -22,126 +22,135 @@ export default function Breadcrumb({
   items,
   customClass,
 }: BreadcrumbProps & { customClass?: string }) {
+  if (!items || items.length === 0) return null;
+
   return (
-    items && (
-      <div className={`breadcrumb ${customClass ? customClass : ""}`}>
-        {items.map((item, index) => {
-          const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-          const dropdownRef = useRef<HTMLDivElement>(null);
+    <div className={`breadcrumb ${customClass || ""}`}>
+      {items.map((item, index) => (
+        <BreadcrumbItemComponent
+          key={index}
+          item={item}
+          isLastItem={index === items.length - 1}
+        />
+      ))}
+    </div>
+  );
+}
 
-          useEffect(() => {
-            function handleClickOutside(event: MouseEvent) {
-              if (
-                dropdownRef.current &&
-                !dropdownRef.current.contains(event.target as Node)
-              ) {
-                setIsDropdownOpen(false);
-              }
-            }
+function BreadcrumbItemComponent({
+  item,
+  isLastItem,
+}: {
+  item: BreadcrumbItem;
+  isLastItem: boolean;
+}) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-            document.addEventListener("mousedown", handleClickOutside);
-            return () => {
-              document.removeEventListener("mousedown", handleClickOutside);
-            };
-          }, []);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    }
 
-          const isLastItem = index === items.length - 1;
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-          return (
-            <div
-              key={index}
-              className={`breadcrumb-item ${
-                isLastItem ? "breadcrumb-item__last" : ""
-              }`}
-            >
-              {!isLastItem ? (
-                <Link to={item.link || "#"} className="breadcrumb-item__link">
-                  {item.icon ? (
-                    typeof item.icon === "object" && "iconName" in item.icon ? (
-                      <FontAwesomeIcon
-                        icon={item.icon as IconDefinition}
-                        className="breadcrumb-item__icon"
-                      />
-                    ) : (
-                      <item.icon className="breadcrumb-item__icon" />
-                    )
-                  ) : null}
+  return (
+    <div
+      className={`breadcrumb-item ${isLastItem ? "breadcrumb-item__last" : ""}`}
+    >
+      {!isLastItem ? (
+        <Link to={item.link || "#"} className="breadcrumb-item__link">
+          {item.icon ? (
+            typeof item.icon === "object" && "iconName" in item.icon ? (
+              <FontAwesomeIcon
+                icon={item.icon as IconDefinition}
+                className="breadcrumb-item__icon"
+              />
+            ) : (
+              <item.icon className="breadcrumb-item__icon" />
+            )
+          ) : null}
 
-                  <span className="breadcrumb-item__text">
-                    {item.text || "Unnamed"}
-                  </span>
-                </Link>
-              ) : (
-                <div
-                  className="breadcrumb-item__link breadcrumb-item__link--last"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                >
-                  {item.icon ? (
-                    typeof item.icon === "object" && "iconName" in item.icon ? (
-                      <FontAwesomeIcon
-                        icon={item.icon as IconDefinition}
-                        className="breadcrumb-item__icon"
-                      />
-                    ) : (
-                      <item.icon className="breadcrumb-item__icon" />
-                    )
-                  ) : null}
+          <span className="breadcrumb-item__text">
+            {item.text || "Unnamed"}
+          </span>
+        </Link>
+      ) : (
+        <div
+          className="breadcrumb-item__link breadcrumb-item__link--last"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        >
+          {item.icon ? (
+            typeof item.icon === "object" && "iconName" in item.icon ? (
+              <FontAwesomeIcon
+                icon={item.icon as IconDefinition}
+                className="breadcrumb-item__icon"
+              />
+            ) : (
+              <item.icon className="breadcrumb-item__icon" />
+            )
+          ) : null}
 
-                  {/* {item.icon ? (
-                    typeof item.icon === "string" ? (
-                      <i
-                        className={`fa-kit ${item.icon}`}
-                      ></i>
-                    ) : typeof item.icon === "object" &&
-                      "iconName" in item.icon ? (
-                      <FontAwesomeIcon
-                        icon={item.icon as IconDefinition}
-                        className="breadcrumb-item__icon"
-                      />
-                    ) : (
-                      <item.icon className="breadcrumb-item__icon" />
-                    )
-                  ) : null} */}
+          {/* {item.icon ? (
+            typeof item.icon === "string" ? (
+              <i
+                className={`fa-kit ${item.icon}`}
+              ></i>
+            ) : typeof item.icon === "object" &&
+              "iconName" in item.icon ? (
+              <FontAwesomeIcon
+                icon={item.icon as IconDefinition}
+                className="breadcrumb-item__icon"
+              />
+            ) : (
+              <item.icon className="breadcrumb-item__icon" />
+            )
+          ) : null} */}
 
-                  <span className="breadcrumb-item__text">
-                    {item.text || "Unnamed"}
-                  </span>
-                  {item.hasDropdown && (
-                    <FontAwesomeIcon
-                      icon={faChevronDown}
-                      className="breadcrumb-item__dropdown-icon"
-                    />
-                  )}
-                </div>
-              )}
+          <span className="breadcrumb-item__text">
+            {item.text || "Unnamed"}
+          </span>
+          {item.hasDropdown && (
+            <FontAwesomeIcon
+              icon={faChevronDown}
+              className="breadcrumb-item__dropdown-icon"
+            />
+          )}
+        </div>
+      )}
 
-              {!isLastItem && (
-                <div className="breadcrumb-item__chevron">
-                  <FontAwesomeIcon icon={faChevronRight} />
-                </div>
-              )}
+      {!isLastItem && (
+        <div className="breadcrumb-item__chevron">
+          <FontAwesomeIcon icon={faChevronRight} />
+        </div>
+      )}
 
-              {isLastItem && item.hasDropdown && item.dropdownItems && (
-                <div ref={dropdownRef} className="breadcrumb-item__dropdown">
-                  <div className="breadcrumb-item__dropdown-content">
-                    {isDropdownOpen
-                      ? item.dropdownItems.map((dropdownItem, i) => (
-                          <Link
-                            key={i}
-                            to={dropdownItem.link || "#"}
-                            className="breadcrumb-item__dropdown-link"
-                          >
-                            {dropdownItem.text || "Unnamed Option"}
-                          </Link>
-                        ))
-                      : null}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    )
+      {isLastItem && item.hasDropdown && item.dropdownItems && (
+        <div ref={dropdownRef} className="breadcrumb-item__dropdown">
+          <div className="breadcrumb-item__dropdown-content">
+            {isDropdownOpen
+              ? item.dropdownItems.map((dropdownItem, i) => (
+                  <Link
+                    key={i}
+                    to={dropdownItem.link || "#"}
+                    className="breadcrumb-item__dropdown-link"
+                  >
+                    {dropdownItem.text || "Unnamed Option"}
+                  </Link>
+                ))
+              : null}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

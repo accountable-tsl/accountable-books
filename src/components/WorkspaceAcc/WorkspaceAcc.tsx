@@ -182,12 +182,15 @@ export default function AccountingWorkspace({
                   </div>
                 </div>
                 <div className="wacc-qa__bottom">
-                  <div className="wacc-qa__item">
+                  <Link
+                    to={routes.accounting.workspace.journal(companyId)}
+                    className="wacc-qa__item"
+                  >
                     <div className="wacc-qa__item--text">Create new</div>
                     <div className="wacc-qa__item--icon">
                       <FontAwesomeIcon icon={faChevronRight} />
                     </div>
-                  </div>
+                  </Link>
                 </div>
               </div>
             </div>

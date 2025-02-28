@@ -55,6 +55,17 @@
   &-right {
     @apply flex flex-shrink-0 items-center md:gap-3;
 
+    &-ai {
+      display: flex;
+      cursor: pointer;
+
+      &__text {
+        font-size: 0.5rem;
+        align-self: flex-end;
+        margin-left: -0.1rem;
+      }
+    }
+
     &__line {
       @apply md:flex hidden border-l border-l-text h-4 ml-2;
     }
@@ -70,7 +81,9 @@
     }
 
     &__meeting {
-      @apply md:flex hidden py-1.5 px-3 !important;
+      @apply md:flex hidden !important;
+      padding: 0.2rem 0.5rem !important;
+      border-radius: 0.35rem !important;
     }
 
     &__icon {

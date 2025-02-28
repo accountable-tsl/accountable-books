@@ -177,3 +177,23 @@ export function timeAgo(dateInput: Date | string, locale: string = "en") {
 
   return rtf.format(0, "second"); // "Just now" in different languages
 }
+
+/**
+ * Converts a string to title case, capitalizing the first letter of each word
+ * and converting the rest of the word to lowercase.
+ *
+ * - Handles multiple spaces and punctuation correctly.
+ * - Useful for formatting names, titles, or user-facing strings.
+ *
+ * @param str - The input string to convert.
+ * @returns A new string formatted in title case. If the input is empty, an empty string is returned.
+ */
+
+export function toTitleCase(str: string): string {
+  return str.replace(
+    /\w\S*/g,
+    (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  );
+}
+
+

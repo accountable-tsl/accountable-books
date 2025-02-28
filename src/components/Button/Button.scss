@@ -150,7 +150,7 @@
       color: $primary;
 
       &:hover {
-        color: rgba($primary, 0.1);
+        // color: rgba($primary, 0.1);
         text-decoration: underline;
       }
 
@@ -212,7 +212,7 @@
       background-color: transparent;
 
       &:hover {
-        background-color: rgba($primary, 75%);
+        background-color: rgba($primary, 15%);
       }
     }
 

@@ -10,6 +10,16 @@ export const routes = {
       root: (id: companyId) => `/${id}/workspace`,
       uploadBank: (id: companyId) => `/${id}/workspace/upload-bank`,
       catEngine: (id: companyId) => `/${id}/workspace/cat-engine`,
+      journal: (id: companyId) => `/${id}/workspace/journal`,
+      newJournal: (id: companyId) => `/${id}/workspace/journal/new`,
+      viewJournal: (id: companyId, journalId: string) =>
+        `/${id}/workspace/journal/${journalId}`,
+      editJournal: (id: companyId, journalId: string) =>
+        `/${id}/workspace/journal/edit/${journalId}`,
+      newRecurringJournal: (id: companyId) =>
+        `/${id}/workspace/journal/recurring/new`,
+      editRecurringJournal: (id: companyId, journalId: string) =>
+        `/${id}/workspace/journal/recurring/edit/${journalId}`,
       trialBalance: (id: companyId) => `/${id}/workspace/trial-balance`,
     },
 
@@ -43,6 +53,13 @@ export const staticRoutes = {
       root: "/:id/workspace",
       uploadBank: "/:id/workspace/upload-bank",
       catEngine: "/:id/workspace/cat-engine",
+      journal: "/:id/workspace/journal",
+      journalPages: "/:id/workspace/journal/*",
+      newJournal: "/:id/workspace/journal/new",
+      viewJournal: "/:id/workspace/journal/:journalId",
+      editJournal: "/:id/workspace/journal/edit/:journalId",
+      newRecurringJournal: "/:id/workspace/journal/recurring/new",
+      editRecurringJournal: "/:id/workspace/journal/recurring/edit/:journalId",
       trialBalance: "/:id/workspace/trial-balance",
     },
 

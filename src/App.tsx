@@ -15,6 +15,7 @@ import Popup from "./components/Popup/Popup";
 import AddBankAccount from "./components/AddBankAccount/AddBankAccount";
 import CategorisationEngine from "./pages-admin/CategorisationEngine/CategorisationEngine";
 import Workspace from "./pages-admin/Workspace/Workspace";
+import Journal from "./pages-admin/Journal/Journal";
 
 function App() {
   return (
@@ -52,6 +53,11 @@ function MainContent() {
             <Route path={staticRoutes.companies.root} element={<Home />} />
 
             <Route
+              path={staticRoutes.accounting.root}
+              element={<Workspace />}
+            />
+
+            <Route
               path={staticRoutes.accounting.workspace.root}
               element={<Workspace />}
             />
@@ -62,6 +68,11 @@ function MainContent() {
             <Route
               path={staticRoutes.accounting.workspace.catEngine}
               element={<CategorisationEngine />}
+            />
+
+            <Route
+              path={staticRoutes.accounting.workspace.journalPages}
+              element={<Journal />}
             />
 
             {/* Accounting Setup Pages */}
