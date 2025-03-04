@@ -1,4 +1,8 @@
 import { format, parse, isValid } from "date-fns";
+import Decimal from "decimal.js";
+import numeral from "numeral";
+import { ScreenSize } from "../types/types";
+import React from "react";
 
 const possibleDateFormats: string[] = [
   "dd-MMM-yyyy",
@@ -196,4 +200,92 @@ export function toTitleCase(str: string): string {
   );
 }
 
+export const parseDecimal = (value: unknown) => {
+  if (typeof value === "number") {
+    return new Decimal(value);
+  }
 
+  if (typeof value === "string") {
+    const parsedValue = numeral(value).value();
+    return parsedValue !== null ? new Decimal(parsedValue) : new Decimal(0);
+  }
+
+  return new Decimal(0);
+};
+
+export const SCREEN_BREAKPOINTS = {
+  mobile: 640,
+  tablet: 768,
+  desktop: 1280,
+};
+
+/**
+ * Detect current screen size
+ * @returns {ScreenSize} Current screen size category
+ */
+export const getScreenSize = (): ScreenSize => {
+  if (typeof window === "undefined") return ScreenSize.Desktop;
+
+  const width = window.innerWidth;
+
+  if (width < SCREEN_BREAKPOINTS.tablet) {
+    return ScreenSize.Mobile;
+  } else if (width < SCREEN_BREAKPOINTS.desktop) {
+    return ScreenSize.Tablet;
+  } else {
+    return ScreenSize.Desktop;
+  }
+};
+
+/**
+ * React hook for reactive screen size detection
+ * @returns {ScreenSize} Current screen size category
+ */
+export const useScreenSize = () => {
+  const [screenSize, setScreenSize] = React.useState<ScreenSize>(
+    getScreenSize()
+  );
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setScreenSize(getScreenSize());
+    };
+
+    // Add event listener
+    window.addEventListener("resize", handleResize);
+
+    // Clean up
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return screenSize;
+};
+
+/**
+ * Check if current screen size matches a specific size category
+ * @param {ScreenSize} size - Size category to check
+ * @returns {boolean} Whether current screen matches the given size
+ */
+export const isScreenSize = (size: ScreenSize): boolean => {
+  return getScreenSize() === size;
+};
+
+/**
+ * Check if screen is smaller than a specific size category
+ * @param {ScreenSize} size - Size category to compare against
+ * @returns {boolean} Whether screen is smaller than the given size
+ */
+export const isScreenSmallerThan = (size: ScreenSize): boolean => {
+  const currentSize = getScreenSize();
+
+  switch (size) {
+    case ScreenSize.Mobile:
+      return false;
+    case ScreenSize.Tablet:
+      return currentSize === ScreenSize.Mobile;
+    case ScreenSize.Desktop:
+      return (
+        currentSize === ScreenSize.Mobile || currentSize === ScreenSize.Tablet
+      );
+  }
+};

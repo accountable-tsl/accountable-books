@@ -8,10 +8,13 @@ import JournalForm from "../../components/JournalForm/JournalForm";
 import { matchPath, useLocation } from "react-router-dom";
 import { BeatLoader } from "react-spinners";
 import { useEffect, useMemo } from "react";
-import { JournalStatus } from "../../types/types";
+import { JournalStatus, ScreenSize } from "../../types/types";
+import FallbackView from "../../components/FallbackView/FallbackView";
+import { useScreenSize } from "../../utils/utils";
 
 export default function Journal() {
   const { companyId, company } = useCompany();
+  const screenSize = useScreenSize();
 
   const location = useLocation();
 
@@ -95,46 +98,57 @@ export default function Journal() {
     [companyId, showNewJournalForm, showNewRecurringJournalForm]
   );
 
+  const fbvType =
+    !companyId || !company
+      ? "unauthorized"
+      : screenSize !== ScreenSize.Desktop
+      ? "screenSize"
+      : "default";
+
   useEffect(() => {}, [location.pathname]);
 
   return (
-    <div className="journal">
-      <Breadcrumb items={journalBreadcrumbs} />
+    <>
+      <FallbackView customClass="journal-fbv-main" type={fbvType} />
 
-      {isLoading ? (
-        <div className="journal-loading">
-          <BeatLoader />
-        </div>
-      ) : (
-        <div className="journal-content">
-          {showJournalList && (
-            <JournalList
-              key={`journal-list-${location.pathname}`}
-              companyId={companyId}
-              company={company}
-            />
-          )}
+      <div className="journal">
+        <Breadcrumb items={journalBreadcrumbs} />
 
-          {showNewJournalForm && (
-            <JournalForm
-              key="new-journal"
-              journalStatus={JournalStatus.DRAFT}
-              companyId={companyId}
-              company={company}
-            />
-          )}
+        {isLoading ? (
+          <div className="journal-loading">
+            <BeatLoader />
+          </div>
+        ) : (
+          <div className="journal-content">
+            {showJournalList && (
+              <JournalList
+                key={`journal-list-${location.pathname}`}
+                companyId={companyId}
+                company={company}
+              />
+            )}
 
-          {showNewRecurringJournalForm && (
-            <JournalForm
-              key="new-recurring-journal"
-              type="recurring"
-              journalStatus={JournalStatus.DRAFT}
-              companyId={companyId}
-              company={company}
-            />
-          )}
-        </div>
-      )}
-    </div>
+            {showNewJournalForm && (
+              <JournalForm
+                key="new-journal"
+                journalStatus={JournalStatus.DRAFT}
+                companyId={companyId}
+                company={company}
+              />
+            )}
+
+            {showNewRecurringJournalForm && (
+              <JournalForm
+                key="new-recurring-journal"
+                type="recurring"
+                journalStatus={JournalStatus.DRAFT}
+                companyId={companyId}
+                company={company}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

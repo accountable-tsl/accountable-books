@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./JournalForm.scss";
 import EntryGrid, {
   ColumnConfig,
@@ -9,7 +9,7 @@ import JournalRecurrenceSettings from "../JournalRecurrenceSettings/JournalRecur
 import type { DatePickerProps } from "antd";
 import { DatePicker, Space } from "antd";
 import { CompanyData, JournalStatus } from "../../types/types";
-import { toTitleCase } from "../../utils/utils";
+import { parseDecimal, toTitleCase } from "../../utils/utils";
 import dayjs from "dayjs";
 import DatePlaceholderInput, {
   usePlaceholderInput,
@@ -17,6 +17,8 @@ import DatePlaceholderInput, {
 } from "../DatePlaceholderInput/DatePlaceholderInput";
 import { BeatLoader } from "react-spinners";
 import { fetchCoa } from "../../services/CoaServices";
+import Decimal from "decimal.js";
+import numeral from "numeral";
 
 interface JournalFormProps {
   journalStatus: JournalStatus;
@@ -157,6 +159,7 @@ export default function JournalForm({
       key: "description",
       label: "Description",
       inputType: EntryGridColumnInputType.TEXT,
+      hasDatePlaceholder: isRecurring,
     },
     {
       key: "account",
@@ -168,36 +171,63 @@ export default function JournalForm({
       key: "debit",
       label: `Debit ${reportingCurrencyCode || ""}`,
       inputType: EntryGridColumnInputType.AMOUNT,
+      exclusiveWith: "credit",
     },
     {
       key: "credit",
       label: `Credit ${reportingCurrencyCode || ""}`,
-      inputType: EntryGridColumnInputType.TEXT,
+      inputType: EntryGridColumnInputType.AMOUNT,
+      exclusiveWith: "debit",
     },
   ];
 
+  const entryGridCustomClassNames = {
+    root: "journal-form-eg",
+    textCell: "journal-form-eg__text--cell",
+  };
+
   const sumAmounts = (
-    tempJournalData: any[],
+    journalData: any[],
     entryGridColumnData: {
       key: string;
       label: string;
       inputType: EntryGridColumnInputType;
     }[]
   ) => {
-    return entryGridColumnData
-      .filter((col) => col.inputType === EntryGridColumnInputType.AMOUNT)
-      .reduce((totals, col) => {
-        const key = col.key;
-        totals[key] = tempJournalData.reduce(
-          (sum, entry) => sum + (Number(entry[key]) || 0),
-          0
+    if (
+      !journalData ||
+      !Array.isArray(journalData) ||
+      journalData.length === 0
+    ) {
+      return entryGridColumnData
+        .filter((col) => col.inputType === EntryGridColumnInputType.AMOUNT)
+        .reduce(
+          (emptyTotals, col) => ({
+            ...emptyTotals,
+            [col.key]: new Decimal(0),
+          }),
+          {} as Record<string, Decimal>
         );
-        return totals;
-      }, {} as Record<string, number>);
+    }
+    try {
+      return entryGridColumnData
+        .filter((col) => col.inputType === EntryGridColumnInputType.AMOUNT)
+        .reduce((totals, col) => {
+          const key = col.key;
+          totals[key] = journalData.reduce(
+            (sum, entry) => sum.plus(parseDecimal(entry?.[key])),
+            new Decimal(0)
+          );
+          return totals;
+        }, {} as Record<string, Decimal>);
+    } catch (error) {
+      console.error("Error calculating amount totals:", error);
+      return {} as Record<string, Decimal>;
+    }
   };
 
-  const totals = useCallback(() => {
-    sumAmounts(tempJournalGridData, entryGridColumnData);
+  const totals = useMemo(() => {
+    return sumAmounts(tempJournalGridData, entryGridColumnData);
   }, [tempJournalGridData, entryGridColumnData]);
 
   console.log(totals);
@@ -314,7 +344,7 @@ export default function JournalForm({
               showDeleteIconPerRow={true}
               initialRows={5}
               onChange={handleJournalGridChange}
-              customClassNames={{ root: "journal-form-eg" }}
+              customClassNames={entryGridCustomClassNames}
             />
 
             <dl className="journal-form-eg__summary">
@@ -325,22 +355,36 @@ export default function JournalForm({
                       Total Debits
                     </dt>
                     <dd className="journal-form-eg__summary-amount journal-form-eg__summary-debit">
-                      0.00
+                      {numeral(totals.debit.toString()).format("0,0.00")}
                     </dd>
                   </div>
-                  <div className="journal-form-eg__summary-equal">= / ≠</div>
+                  <div className="journal-form-eg__summary-equal">
+                    {totals.debit.sub(totals.credit).isZero() ? "=" : "≠"}
+                  </div>
                   <div className="journal-form-eg__summary-row">
                     <dt className="journal-form-eg__summary-label">
                       Total Credits
                     </dt>
-                    <dd className="journal-form-eg__summary-credit">0.00</dd>
+                    <dd className="journal-form-eg__summary-credit">
+                      {numeral(totals.credit.toString()).format("0,0.00")}
+                    </dd>
                   </div>
                 </div>
                 <div className="journal-form-eg__summary-diff">
                   <dt className="journal-form-eg__summary-label">
                     Difference:
                   </dt>
-                  <dd className="journal-form-eg__summary-diffamt">0.00</dd>
+                  <dd
+                    className={`journal-form-eg__summary-diffamt ${
+                      totals.debit.sub(totals.credit).isZero()
+                        ? "journal-form-eg__summary-diffamt--zero"
+                        : ""
+                    }`}
+                  >
+                    {numeral(totals.debit.sub(totals.credit).toString()).format(
+                      "0,0.00"
+                    )}
+                  </dd>
                 </div>
               </div>
             </dl>

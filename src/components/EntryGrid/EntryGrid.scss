@@ -34,9 +34,15 @@
     align-items: center;
     padding: 0 0.5rem;
     border-right: 1px solid rgba($neutral-gray, 0.65);
+    position: relative;
 
     &:last-child {
       border-right: none;
+    }
+
+    &:focus-within .entry-grid-cell__placeholder {
+      opacity: 1;
+      visibility: visible;
     }
 
     &__header {
@@ -66,7 +72,8 @@
       }
     }
 
-    &__text, &__dropdown {
+    &__text,
+    &__dropdown {
       padding: 0;
     }
 
@@ -75,11 +82,13 @@
       height: 100%;
       border: none;
 
-      &-text, &-dropdown {
+      &-text,
+      &-dropdown {
         outline: none;
         padding: 0 0.5rem !important;
         border: 1px solid transparent;
         transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        white-space: nowrap;
 
         &:focus-visible,
         :focus {
@@ -88,8 +97,17 @@
           box-shadow: inset 0 0 2px rgba($tertiary, 0.3);
         }
       }
+    }
 
-
+    &__placeholder {
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      position: absolute !important;
+      white-space: nowrap;
+      right: 0.5rem;
+      top: 25%;
+      z-index: 5;
     }
   }
 }

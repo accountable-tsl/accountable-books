@@ -341,3 +341,10 @@ export type CompanyData = {
   updatedAt: Date;
 };
 
+export enum ScreenSize {
+  Mobile = "mobile",
+  Tablet = "tablet",
+  Desktop = "desktop",
+}
+
+
