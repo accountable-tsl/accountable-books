@@ -6,7 +6,7 @@ export const useCompany = () => {
   const { id } = useParams();
   const context = useContext(CompanyContext);
 
-  if (context === null) {
+  if (!context) {
     throw new Error("useCompany must be used within a CompanyProvider");
   }
 

@@ -2,8 +2,11 @@
 @use "../../styles/partials/variables" as *;
 
 .cc {
-  @apply flex w-full justify-center fixed;
-  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  position: fixed;
+  z-index: 100000;
   top: $header-height;
 
   &-container {

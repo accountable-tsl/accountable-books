@@ -1,7 +1,7 @@
 @use "../../styles/partials/colors" as *;
 
 .coa {
-  padding: 0 1rem;
+  padding: 0.75rem 1rem;
   margin-bottom: 2rem;
   height: 100%;
 
@@ -100,9 +100,7 @@
         background-color: rgba($color: $tertiary, $alpha: 0.05);
         border-radius: 0.25rem;
 
-        &:hover {
-          // background-color: darken($color: initial, $amount: 0.2);
-        }
+
       }
 
       &-delete {
@@ -125,7 +123,7 @@
 
       &-comingsoon {
         font-size: 0.85rem;
-        color: darken($muted-orange, 30%);
+        color: rgba($color: $muted-orange, $alpha: 0.3);
         animation: slideInOut 4s ease forwards;
 
         @keyframes slideInOut {

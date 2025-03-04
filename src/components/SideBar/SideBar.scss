@@ -2,13 +2,17 @@
 @use "../../styles/partials/variables" as *;
 
 .sidebar {
-  @apply text-xs p-1 py-2 shadow-sm overflow-y-auto;
+  @apply text-xs shadow-sm flex;
   @apply h-[calc(100vh-48px)];
+  padding: 0.5rem 0.25rem;
+  padding-right: 0.5rem;
   border-left: 2px solid $muted-orange;
-  position: fixed;
+  position: sticky;
   // width: $sidebar-width-small;
   transition: width 0.75s ease-in-out, height 0.75s ease-in-out;
   top: $header-height;
+  background-color: $background-primary;
+  z-index: 9999;
 
   &-container {
     @apply sticky top-0 overflow-y-auto flex flex-col justify-between h-full;
@@ -20,6 +24,7 @@
       transition: opacity 0.75s ease-in-out, transform 0.75s ease-in-out,
         width 0.75s ease-in-out, height 0.75s ease-in-out;
       width: $sidebar-width-large;
+      max-width: 10rem;
 
       &-open {
         @apply hidden w-40 lg:flex lg:sticky absolute gap-4;
@@ -46,6 +51,7 @@
       transition: opacity 0.75s ease-in-out, transform 0.75s ease-in-out,
         width 0.75s ease-in-out, height 0.75s ease-in-out;
       width: $sidebar-width-small;
+      max-width: 3.5rem;
 
       &-open {
         opacity: 1;

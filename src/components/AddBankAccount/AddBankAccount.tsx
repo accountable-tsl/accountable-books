@@ -50,9 +50,28 @@ export default function AddBankAccount() {
     handleFetchCurrencies();
   }, []);
 
-  useEffect(() => {
-    validateForm();
-  }, [formData]);
+  // useEffect(() => {
+  //   const debounceTimer = setTimeout(() => {
+  //     validateForm();
+  //   }, 300);
+
+  //   return () => clearTimeout(debounceTimer);
+  // }, [formData]);
+
+  const validateForm = () => {
+    const newErrors: Errors = {};
+
+    if (!formData.bankId) newErrors.bankId = "Bank is required";
+    if (!formData.displayName)
+      newErrors.displayName = "Account Name is required";
+    if (!formData.bankAccountNo)
+      newErrors.bankAccountNo = "Account Number is required";
+    if (!formData.currencyId) newErrors.currencyId = "Currency is required";
+
+    if (JSON.stringify(errors) !== JSON.stringify(newErrors)) {
+      setErrors(newErrors);
+    }
+  };
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -65,22 +84,8 @@ export default function AddBankAccount() {
     }));
   };
 
-  const validateForm = () => {
-    const newErrors: Errors = {};
-
-    if (!formData.bankId) newErrors.bankId = "Bank is required";
-    if (!formData.displayName)
-      newErrors.displayName = "Account Name is required";
-    if (!formData.bankAccountNo)
-      newErrors.bankAccountNo = "Account Number is required";
-    if (!formData.currencyId) newErrors.currencyId = "Currency is required";
-
-    setErrors(newErrors);
-  };
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    console.log(formData);
 
     validateForm();
 
@@ -88,23 +93,37 @@ export default function AddBankAccount() {
       try {
         const response = await createBankAccount(companyId, formData);
         setOnSubmitMessage(response.result);
-        setFormData({
-          bankId: "",
-          displayName: "",
-          bankAccountType: "CHECKINGS_CURRENT",
-          bankAccountNo: "",
-          currencyId: "",
-        });
-        response.success && closePopup();
+
+        if (response.result.success === true) {
+          setTimeout(() => {
+            setOnSubmitMessage({});
+            setFormData({
+              bankId: "",
+              displayName: "",
+              bankAccountType: "CHECKINGS_CURRENT",
+              bankAccountNo: "",
+              currencyId: "",
+            });
+          }, 1000);
+
+          setErrors({});
+          setTimeout(() => {
+            response.success && closePopup("addBankAccount");
+          }, 5000);
+        }
       } catch (error: any) {
         console.error("Error creating bank account", error);
         setOnSubmitMessage(error.response.data);
+        setTimeout(() => {
+          setOnSubmitMessage({});
+        }, 5000);
       }
     }
   };
 
-  // console.log(banks, currencies);
-  // console.log(formData);
+  useEffect(() => {
+    validateForm();
+  }, [formData]);
 
   return (
     <div className="addbankaccount">
@@ -120,8 +139,8 @@ export default function AddBankAccount() {
             onChange={handleChange}
           >
             <option value="">Select Bank</option>
-            {banks?.map((bank: any, index: number) => (
-              <option key={bank.bankId || index} value={bank.bankId}>
+            {banks?.map((bank: any) => (
+              <option key={bank.bankId} value={bank.bankId}>
                 {bank.bankName}
               </option>
             ))}
@@ -210,15 +229,8 @@ export default function AddBankAccount() {
               onChange={handleChange}
             >
               <option value="">Select Currency</option>
-              {currencies?.map((currency: any, index) => (
-                <option
-                  key={currency.id || index}
-                  value={
-                    isNaN(parseInt(currency.id))
-                      ? currency.id
-                      : parseInt(currency.id)
-                  }
-                >
+              {currencies?.map((currency: any) => (
+                <option key={currency.id} value={currency.id}>
                   {currency.name} ({currency.symbol})
                 </option>
               ))}

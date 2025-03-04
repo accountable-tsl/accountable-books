@@ -2,7 +2,7 @@
 @use "../../styles/partials/mixins" as *;
 
 .uploadbs {
-  padding: 0 1rem;
+  padding: 0.75rem 1rem;
   height: -webkit-fill-available;
   @apply flex flex-col;
 
@@ -46,11 +46,8 @@
 
     &__upload {
       &-done {
-        color: lighten($color: $text, $amount: 50%);
+        color: rgba($text, 0.5);
       }
-    }
-
-    &__review {
     }
 
     &__icon {
@@ -83,7 +80,7 @@
     }
 
     &__note {
-      color: lighten($color: $text, $amount: 30%);
+      color: rgba($color: $text, $alpha: 0.3);
       font-size: 0.7rem;
       margin-top: -0.6rem;
     }
@@ -93,7 +90,7 @@
     @apply w-full;
 
     &__header {
-      color: lighten($color: $text, $amount: 30%);
+      color: rgba($color: $text, $alpha: 0.3);
       font-size: 0.75rem;
     }
 

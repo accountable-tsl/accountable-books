@@ -1,4 +1,4 @@
-import { CloudUpload, FileX, TableProperties } from "lucide-react";
+import { CloudUpload, TableProperties } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { routes } from "../../utils/routes";
 import "./UploadBS.scss";
@@ -11,7 +11,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import Button from "../../components/Button/Button";
 import Papa from "papaparse";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BeatLoader, MoonLoader } from "react-spinners";
 import { AgGridReact } from "ag-grid-react";
 import numeral from "numeral";
@@ -30,7 +30,7 @@ import {
 } from "../../types/types";
 import { userId } from "../../utils/user";
 import { ColDef, ValueGetterParams } from "ag-grid-community";
-import { postBankTransactions } from "../../services/BankTransactionServices";
+import { postBankTransactions } from "../../services/TransactionServices";
 
 /**
  * Configuration & Constants
@@ -142,10 +142,10 @@ export default function UploadBS() {
 
   //UI and Status States
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadSuccessful, setUploadSuccessful] = useState<boolean | null>(
-    null
-  );
-  const [error, setError] = useState<string | null>(null);
+  const [uploadSuccessful, setUploadSuccessful] = useState<
+    boolean | null | string
+  >();
+  const [_error, setError] = useState<string | null>(null);
 
   // const [columnArray, setColumnArray] = useState<any>([]);
   // const [values, setValues] = useState<any>([]);
@@ -175,7 +175,7 @@ export default function UploadBS() {
    * Fetch & Data Handling Functions
    */
 
-  const fetchBankAccounts = async (companyId: string | number) => {
+  const fetchBankAccounts = async (companyId: string) => {
     const response = await getBankAccounts(companyId);
     if (response.success) {
       setBankAccounts(response.data.bankAccounts);
@@ -280,7 +280,7 @@ export default function UploadBS() {
   const handleUpload = async () => {
     if (!companyId || !selectedBankAccount) return;
 
-    setUploadSuccessful(false);
+    setUploadSuccessful(null);
 
     const dateRange = findDateRange(bankData, "date");
     if (!dateRange?.earliestDate || !dateRange?.latestDate) {
@@ -303,10 +303,10 @@ export default function UploadBS() {
       if (result?.success === true) {
         setTimeout(() => setUploadSuccessful(true), 500);
         setTimeout(() => {
-          setCurrStep(1);
           setBankData([]);
           setSelectedBankAccount(null);
-          setUploadSuccessful(null);
+          setUploadSuccessful("Unknown");
+          setCurrStep(1);
         }, 1000);
       } else {
         console.error("Transaction upload failed:", result);
@@ -316,7 +316,13 @@ export default function UploadBS() {
     } catch (error) {
       console.error("An unexpected error occurred during upload:", error);
       setError("An unexpected error occurred. Please try again.");
-      setTimeout(() => setUploadSuccessful(null), 500);
+      setTimeout(() => setUploadSuccessful(false), 500);
+      setTimeout(() => {
+        setBankData([]);
+        setSelectedBankAccount(null);
+        setUploadSuccessful("Unknown");
+        setCurrStep(1);
+      }, 2000);
     }
   };
 
@@ -381,19 +387,19 @@ export default function UploadBS() {
           </div>
           <div
             className={`uploadbs-wrap1 ${
-              currStep === 2 && uploadSuccessful === false
+              currStep === 2 && uploadSuccessful === null
                 ? "uploadbs-wrap2"
                 : ""
             }`}
           >
             <div
               className={`uploadbs-wrap1 ${
-                currStep === 2 && uploadSuccessful === false
+                currStep === 2 && uploadSuccessful === null
                   ? "uploadbs-wrap__loader"
                   : ""
               }`}
             >
-              {currStep === 2 && uploadSuccessful === false && <MoonLoader />}
+              {currStep === 2 && uploadSuccessful === null && <MoonLoader />}
             </div>
             <div className="uploadbs-descr">
               <div className="uploadbs-descr__title">
@@ -536,8 +542,7 @@ export default function UploadBS() {
                         ? "uploadbs-button__disabled"
                         : "uploadbs-button__continue"
                     }
-                    onClick={(e) => {
-                      e.preventDefault();
+                    onClick={() => {
                       setCurrStep(2);
                     }}
                   />
@@ -549,11 +554,9 @@ export default function UploadBS() {
                         uploadSuccessful ? "uploadbs-status__success" : ""
                       }`}
                     >
-                      {uploadSuccessful === null
-                        ? ""
-                        : uploadSuccessful
-                        ? "Import Successful"
-                        : "Import Error"}
+                      {uploadSuccessful === null && ""}
+                      {uploadSuccessful === false && "Import Error"}
+                      {uploadSuccessful === true && "Import Successful"}
                     </div>
                     <Button
                       text="Back"

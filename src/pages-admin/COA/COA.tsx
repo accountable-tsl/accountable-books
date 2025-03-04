@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./COA.scss";
 import { Archive, FolderCog, TableProperties, Trash2 } from "lucide-react";
@@ -12,32 +11,30 @@ import { useCompany } from "../../utils/company";
 import { BeatLoader } from "react-spinners";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import Button from "../../components/Button/Button";
-import AccountingSetup from "../../components/AccountingSetup/AccountingSetup";
 import { usePopup } from "../../contexts/PopupContext";
+import { Coa, TabConfig } from "../../types/types";
+import TabNavigation from "../../components/TabNavigation/TabNavigation";
+import numeral from "numeral";
 
 export default function COA() {
   const { companyId } = useCompany();
   const { openPopup } = usePopup();
 
-  const [coaData, setCoaData] = useState(null);
+  const [coaData, setCoaData] = useState<Coa[] | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [sortBy, setSortBy] = useState("");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
+  const [sortBy] = useState("");
+  const [sortOrder] = useState<"asc" | "desc">("asc");
+  // const [totalPages, setTotalPages] = useState(1);
+  // const [totalItems, setTotalItems] = useState(0);
   const [coaFilter, setCoaFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("coa");
-  const [coaColDefs, setCoaColDefs] = useState([
+  const [_activeTab, setActiveTab] = useState("coa");
+  const [coaColDefs] = useState([
     {
       field: "accountCode",
       headerName: "Code",
       flex: 0.5,
       floatingFilter: false,
-      checkboxSelection: true,
-      headerCheckboxSelection: true,
-      headerCheckboxSelectionFilteredOnly: true,
-      // pinned: "left",
       cellClass: "coa-table__link",
     },
     {
@@ -54,11 +51,11 @@ export default function COA() {
       flex: 0.75,
       cellClass: "coa-table__balance",
       valueFormatter: (params: any) => {
-        return parseFloat(params.value).toFixed(2);
+        return numeral(params.value).format("(0,0.00)");
       },
     },
   ]);
-  const [rowData, setRowData] = useState([]);
+  const [rowData, setRowData] = useState<Coa[]>([]);
   const defaultColDef = useMemo(() => {
     return {
       flex: 1,
@@ -68,8 +65,6 @@ export default function COA() {
   }, []);
 
   const [selectedRowsCount, setSelectedRowsCount] = useState(0);
-  const [selectedRowsData, setSelectedRowsData] = useState([]);
-
   const [comingSoon, setComingSoon] = useState(false);
 
   const coaTableRef = useRef<AgGridReact>(null);
@@ -106,6 +101,33 @@ export default function COA() {
     },
   ];
 
+  const accountingSetupTabs: TabConfig<string>[] = [
+    {
+      label: "Chart of Accounts",
+      key: "coa",
+      link: routes.accounting.setup.coa(companyId),
+      className: "coa-tab__first",
+    },
+    {
+      label: "Contacts",
+      key: "contacts",
+      link: routes.accounting.setup.contacts(companyId),
+      className: "coa-tab__item--contacts",
+    },
+    {
+      label: "Projects",
+      key: "projects",
+      link: routes.accounting.setup.projects(companyId),
+      className: "coa-tab__item--projects",
+    },
+    {
+      label: "Financial Settings",
+      key: "settings",
+      link: routes.accounting.setup.finSettings(companyId),
+      className: "coa-tab__item--fin-settings",
+    },
+  ];
+
   const handleFetchCoa = async () => {
     if (companyId) {
       try {
@@ -122,8 +144,8 @@ export default function COA() {
           setCoaData(coa.data);
           setRowData(coa.data);
           setCurrentPage(coa.pagination.currentPage);
-          setTotalPages(coa.pagination.totalPages);
-          setTotalItems(coa.pagination.totalItems);
+          // setTotalPages(coa.pagination.totalPages);
+          // setTotalItems(coa.pagination.totalItems);
           setLimit(coa.pagination.totalItems);
         }
 
@@ -148,12 +170,13 @@ export default function COA() {
     setActiveTab(tab);
   };
 
-  const handleCOAFilter = (filter: string) => {
+  const handleCoaFilter = (filter: string) => {
     setCoaFilter(filter);
 
     if (!filter || filter.toLowerCase() === "all") {
       setRowData(coaData);
     } else {
+      if (coaData === null || coaData === undefined) return;
       const newCoaData = coaData.filter(
         (item: any) => item.parentElement.toLowerCase() === filter.toLowerCase()
       );
@@ -166,45 +189,11 @@ export default function COA() {
       <div className="coa-top">
         <Breadcrumb items={coaPageBreadcrumbs} />
 
-        {/* <div className="coa-tab">
-          <Link
-            to={routes.accounting.setup.coa(companyId)}
-            className={`coa-tab__item coa-tab__first ${
-              activeTab === "coa" ? "coa-tab__active" : ""
-            }`}
-            onClick={() => handleTabChange("coa")}
-          >
-            Chart of Accounts
-          </Link>
-          <Link
-            // to={routes.accounting.setup.contacts(companyId)}
-            className={`coa-tab__item ${
-              activeTab === "contacts" ? "coa-tab__active" : ""
-            }`}
-            // onClick={() => handleTabChange("contacts")}
-          >
-            Contacts
-          </Link>
-          <Link
-            // to={routes.accounting.setup.projects(companyId)}
-            className={`coa-tab__item ${
-              activeTab === "projects" ? "coa-tab__active" : ""
-            }`}
-            // onClick={() => handleTabChange("projects")}
-          >
-            Projects
-          </Link>
-          <Link
-            to={routes.accounting.setup.finSettings(companyId)}
-            className={`coa-tab__item coa-tab__last ${
-              activeTab === "settings" ? "coa-tab__active" : ""
-            }`}
-            onClick={() => handleTabChange("settings")}
-          >
-            Financial Settings
-          </Link>
-        </div> */}
-        <AccountingSetup activeTab="coa" onTabChange={handleTabChange} />
+        <TabNavigation
+          tabs={accountingSetupTabs}
+          activeTab="coa"
+          onTabChange={handleTabChange}
+        />
       </div>
       <div className="coa-bottom">
         <div className="coa-bottom__header">
@@ -215,7 +204,7 @@ export default function COA() {
                 className={`coa-filterbox__button ${
                   coaFilter === "all" ? "coa-filterbox__button--active" : ""
                 }`}
-                onClick={() => handleCOAFilter("all")}
+                onClick={() => handleCoaFilter("all")}
               >
                 All
               </button>
@@ -223,7 +212,7 @@ export default function COA() {
                 className={`coa-filterbox__button ${
                   coaFilter === "assets" ? "coa-filterbox__button--active" : ""
                 }`}
-                onClick={() => handleCOAFilter("assets")}
+                onClick={() => handleCoaFilter("assets")}
               >
                 Assets
               </button>
@@ -233,7 +222,7 @@ export default function COA() {
                     ? "coa-filterbox__button--active"
                     : ""
                 }`}
-                onClick={() => handleCOAFilter("liabilities")}
+                onClick={() => handleCoaFilter("liabilities")}
               >
                 Liabilities
               </button>
@@ -241,7 +230,7 @@ export default function COA() {
                 className={`coa-filterbox__button ${
                   coaFilter === "income" ? "coa-filterbox__button--active" : ""
                 }`}
-                onClick={() => handleCOAFilter("income")}
+                onClick={() => handleCoaFilter("income")}
               >
                 Income
               </button>
@@ -251,7 +240,7 @@ export default function COA() {
                     ? "coa-filterbox__button--active"
                     : ""
                 }`}
-                onClick={() => handleCOAFilter("expenses")}
+                onClick={() => handleCoaFilter("expenses")}
               >
                 Expenses
               </button>
@@ -259,7 +248,7 @@ export default function COA() {
                 className={`coa-filterbox__button ${
                   coaFilter === "equity" ? "coa-filterbox__button--active" : ""
                 }`}
-                onClick={() => handleCOAFilter("equity")}
+                onClick={() => handleCoaFilter("equity")}
               >
                 Equity
               </button>
@@ -319,10 +308,14 @@ export default function COA() {
         <div className="ag-theme-quartz coa-table">
           <AgGridReact
             rowData={rowData}
-            columnDefs={coaColDefs}
-            defaultColDef={defaultColDef}
-            rowSelection="multiple"
-            domLayout="autoHeight"
+            gridOptions={{
+              defaultColDef: defaultColDef,
+              rowSelection: {
+                mode: "multiRow",
+              },
+              columnDefs: coaColDefs,
+            }}
+            // domLayout="autoHeight"
             pagination={true}
             headerHeight={40}
             animateRows={true}

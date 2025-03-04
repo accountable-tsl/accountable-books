@@ -11,6 +11,11 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import Button from "../Button/Button";
 import { useSideBarContext } from "../../contexts/SideBarContext";
+import {
+  LoaderPinwheel,
+  LoaderPinwheelIcon,
+  LucideLoaderPinwheel,
+} from "lucide-react";
 
 export default function Header() {
   const { toggle } = useSideBarContext();
@@ -44,6 +49,10 @@ export default function Header() {
         </form>
       </div>
       <div className="header-right">
+        <div className="header-right-ai">
+          <LoaderPinwheel className="header-right-ai__wheel" />
+          <span className="header-right-ai__text">AI</span>
+        </div>
         <Button
           icon={faCalendar}
           text="Meetings"

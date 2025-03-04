@@ -3,20 +3,25 @@
 @use "./partials/variables" as *;
 @use "./partials/typography" as *;
 
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+// @use "tailwindcss/base";
+// @use "tailwindcss/components";
+// @use "tailwindcss/utilities";
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: #e5e7eb;
 }
 
 body {
   font-family: "IBMPlexSans", sans-serif;
   color: $text;
   background-color: $background-primary;
+  margin: 0;
+  height: inherit;
 }
 
 .page {
@@ -26,7 +31,8 @@ body {
 }
 
 .main {
-  @apply flex grow;
+  display: flex;
+  flex-grow: 1;
 }
 
 .body {
@@ -35,8 +41,7 @@ body {
   // height: calc(100vh - 48px);
   // max-height: calc(100vh - 48px);
 
-  margin-left: 10px;
-  margin-top: $header;
+  // margin-top: $header;
   height: calc(100vh - #{$header});
   overflow: hidden;
   position: relative;
@@ -45,16 +50,104 @@ body {
   &-sidebar {
     &__lg {
       @include desktop {
-        margin-left: $sidebar-width-large;
+        // margin-left: $sidebar-width-large;
       }
     }
 
     &__sm {
       @include tablet {
-        margin-left: $sidebar-width-small;
+        // margin-left: $sidebar-width-small;
       }
     }
   }
+}
+
+blockquote,
+dl,
+dd,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+hr,
+figure,
+p,
+pre {
+  margin: 0;
+}
+
+hr {
+  height: 0;
+  color: inherit;
+  border-top-width: 1px;
+}
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  font-feature-settings: inherit;
+  font-variation-settings: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+input {
+  &:focus-visible {
+    outline-offset: 0px;
+  }
+
+  &:not(
+      [type="image" i],
+      [type="range" i],
+      [type="checkbox" i],
+      [type="radio" i]
+    ) {
+    overflow-clip-margin: 0px !important;
+    overflow: clip !important;
+  }
+
+  &[type="text" i] {
+    padding-block: 1px;
+    padding-inline: 2px;
+  }
+}
+
+button,
+input:where([type="button"]),
+input:where([type="reset"]),
+input:where([type="submit"]) {
+  -webkit-appearance: button;
+  background-color: transparent;
+  background-image: none;
+}
+
+:focus-visible {
+  outline: -webkit-focus-ring-color auto 1px;
+}
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+button,
+select {
+  text-transform: none;
 }
 
 @keyframes slide-down {
@@ -62,6 +155,10 @@ body {
   30% {
     margin-top: -8px;
     opacity: 0;
+  }
+  60% {
+    margin-top: -4px;
+    opacity: 0.35;
   }
   100% {
     margin-top: 0;

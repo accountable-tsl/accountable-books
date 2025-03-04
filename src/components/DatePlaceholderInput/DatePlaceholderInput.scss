@@ -1,0 +1,39 @@
+@use "../../styles/partials/colors" as *;
+
+.date-ph {
+  &-dropdown {
+    position: relative;
+    font-size: 0.75rem;
+
+    &__trigger {
+      background-color: transparent;
+
+      &:hover {
+        border-bottom: 0.5px solid $border;
+      }
+    }
+
+    &__list {
+      position: absolute;
+      top: calc(100% + 0.25rem);
+      left: 0;
+      background-color: $white;
+      border: 1px solid $border;
+
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-radius: 0.25rem;
+      z-index: 100 !important;
+      min-width: 9rem;
+    }
+
+    &__item {
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      z-index: 100 !important;
+
+      &:hover {
+        background-color: rgba($border, 0.5);
+      }
+    }
+  }
+}
