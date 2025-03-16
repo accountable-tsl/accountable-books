@@ -12,7 +12,15 @@ import { createLedgerEntries, processLedgerTxns } from "./transactionModel";
 
 const prisma = new PrismaClient();
 
-interface FetchJournalFilters {}
+interface FetchJournalFilters {
+  searchQuery?: string;
+  status?: JournalStatus[];
+  startDate?: Date;
+  endDate?: Date;
+  includeEntries?: boolean;
+  page?: number;
+  pageSize?: number;
+}
 
 interface JournalEntryInput {
   date?: Date;
@@ -35,9 +43,86 @@ export type JournalData = {
 };
 
 export async function fetchJournals(
-  companyId: string,
-  filters: FetchJournalFilters
-) {}
+  companyIdentifier: string,
+  filters?: FetchJournalFilters
+) {
+  try {
+    const companyIdType = getIdentifierType(companyIdentifier);
+
+    const companyData = await prisma.company.findUnique({
+      where: {
+        ...(companyIdType === "uuid"
+          ? { id: companyIdentifier }
+          : { shortCode: companyIdentifier }),
+      },
+      select: { id: true },
+    });
+
+    const companyId = companyData?.id;
+
+    let where: any = {
+      companyId,
+      isDeleted: false,
+    };
+
+    console.log(filters?.searchQuery);
+
+    filters?.searchQuery
+      ? ((where.description = { search: filters?.searchQuery }),
+        (where.note = {
+          search: filters?.searchQuery,
+        }),
+        (where.status = {
+          search: filters?.searchQuery,
+        }))
+      : {};
+
+      
+    const journals = await prisma.journalBatch.findMany({
+      where,
+      select: {
+        id: true,
+        sequenceNumber: true,
+        date: true,
+        description: true,
+        note: true,
+        status: true,
+        ledgerTransactionId: true,
+        _count: {
+          select: {
+            journalTransactions: true,
+          },
+        },
+      },
+    });
+
+    const count = await prisma.journalBatch.count({
+      where,
+    });
+
+    if (journals) {
+      return {
+        success: true,
+        data: {
+          journals,
+          count,
+        },
+      };
+    } else {
+      return {
+        success: false,
+        message: "An unexpected error occurred",
+      };
+    }
+  } catch (error) {
+    console.error(error);
+    return {
+      success: false,
+      message: "Failed to retrieve transactions",
+      error: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
 
 export async function fetchJournalById(companyId: string, journalId: string) {}
 
@@ -169,6 +254,17 @@ export async function insertJournalRecords(
 
         sequenceNumber = (lastBatch?.sequenceNumber || 0) + 1;
 
+        const ledgerTxn = await tx.ledgerTransaction.create({
+          data: {
+            date: batch.date,
+            description: batch.description,
+            source: TransactionSource.MANUAL_JOURNAL,
+            companyId,
+            createdById: userId,
+            updatedById: userId,
+          },
+        });
+
         // Create JournalBatch
         const newBatch = await tx.journalBatch.create({
           data: {
@@ -181,17 +277,9 @@ export async function insertJournalRecords(
             postedById: userId,
             autoReversalDate: batch.autoReversalDate,
             generatedFromTemplateId: batch.generatedFromTemplateId,
-          },
-        });
-
-        const ledgerTxn = await tx.ledgerTransaction.create({
-          data: {
-            date: batch.date,
-            description: batch.description,
-            source: TransactionSource.MANUAL_JOURNAL,
-            companyId,
-            createdById: userId,
             updatedById: userId,
+            postedAt: new Date(),
+            ledgerTransactionId: ledgerTxn.id,
           },
         });
 
@@ -279,7 +367,9 @@ export async function insertJournalRecords(
       success: true,
       message: "Journal records created successfully",
       data: {
-        createdBatchIds: createdJournalBatches.map((batch) => batch.id),
+        createdBatchIds: createdJournalBatches.map(
+          (batch) => `Journal Batch ${batch.sequenceNumber}`
+        ),
       },
     };
   } catch (error: any) {

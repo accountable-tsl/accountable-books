@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { insertJournalRecords, JournalData } from "../models/journalModel";
+import {
+  fetchJournals,
+  insertJournalRecords,
+  JournalData,
+} from "../models/journalModel";
 
 export async function getJournals(req: Request, res: Response) {
   try {
@@ -7,7 +11,22 @@ export async function getJournals(req: Request, res: Response) {
     if (!companyId) {
       return res.status(400).json({ success: false, message: "Bad Request" });
     }
-  } catch (error) {}
+
+    const { search, searchQuery } = req.query;
+    const filters = {
+      searchQuery: String(search).trim() || String(searchQuery).trim(),
+    };
+
+    const response = await fetchJournals(companyId, filters);
+    if (response.success) {
+      return res.status(200).json(response);
+    } else {
+      return res.status(400).json(response);
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
 }
 export async function getSingleJournal(req: Request, res: Response) {
   try {
@@ -30,11 +49,6 @@ export async function createJournals(req: Request, res: Response) {
       companyId,
       "testId",
       journalData
-    );
-
-    console.log(
-      "Full Response from Function:",
-      JSON.stringify(response, null, 2)
     );
 
     if (response.success) {
