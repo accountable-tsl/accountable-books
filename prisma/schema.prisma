@@ -494,6 +494,7 @@ model JournalBatch {
   isDeleted               Boolean                   @default(false)
   deletedAt               DateTime?
 
+  @@unique([companyId, sequenceNumber])
   @@index([status, companyId])
 }
 
@@ -621,8 +622,8 @@ model Project {
   name         String //Project name
   description  String?
   status       ProjectStatus? @default(IN_DRAFT)
-  contactId    String
-  contact      Contact        @relation(name: "ProjectContact", fields: [contactId], references: [id])
+  contactId    String?
+  contact      Contact?       @relation(name: "ProjectContact", fields: [contactId], references: [id])
   companyId    String
   company      Company        @relation(name: "companyProjects", fields: [companyId], references: [id])
   transactions LedgerEntry[]  @relation(name: "projectTransactions")

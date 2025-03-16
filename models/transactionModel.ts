@@ -3,6 +3,7 @@ import {
   DebitCredit,
   Prisma,
   PrismaClient,
+  ProjectStatus,
   TransactionSource,
 } from "@prisma/client";
 import {
@@ -11,7 +12,6 @@ import {
 } from "./bankTransactionModel";
 import { Decimal } from "@prisma/client/runtime/library";
 import { compareDbAndUserObject, getIdentifierType } from "../utils/utils";
-import { connect } from "http2";
 
 const prisma = new PrismaClient();
 
@@ -893,6 +893,192 @@ export async function updateLedgerEntries(tx: CatEngineTransaction[]) {
       message: "Failed to update ledger entries.",
       data: { updatedLedgerTransactions, failedUpdates },
       error: error.message || error,
+    };
+  }
+}
+
+type TransactionInput = {
+  date: Date;
+  userId: string;
+  description?: string;
+  source?: TransactionSource; // Optional, defaults to MANUAL_JOURNAL
+  reference?: string; // Optional for LedgerTransaction
+  fsDate: Date; // For LedgerEntry
+  coaId: string; // For LedgerEntry
+  transactionSide: DebitCredit; // For LedgerEntry
+  amount: Decimal; // For LedgerEntry (assuming Decimal as number for simplicity)
+  projectId?: string; // Optional for LedgerEntry
+  projectName?: string;
+};
+
+export async function processLedgerTxns(
+  companyIdentifier: string,
+  transactions: TransactionInput[],
+  metaData?: any,
+  groupBy?: string
+) {
+  try {
+    let errors: string[] = [];
+
+    const companyIdType = getIdentifierType(companyIdentifier);
+    const companyData = await prisma.company.findUnique({
+      where: {
+        ...(companyIdType === "uuid"
+          ? { id: companyIdentifier }
+          : { shortCode: companyIdentifier }),
+      },
+    });
+
+    if (!companyData) {
+      return {
+        success: false,
+        message: "Company not found",
+      };
+    }
+
+    const companyId = companyData.id;
+    const reportingCurrencyId = companyData.reportingCurrencyId;
+
+    const requiredFields = [
+      "date",
+      "companyId",
+      "createdById",
+      "fsDate",
+      "coaId",
+      "transactionSide",
+      "sourceCurrencyId",
+      "sourceAmount",
+    ];
+
+    for (const tx of transactions) {
+      for (const field of requiredFields) {
+        if (
+          !(field in tx) ||
+          tx[field as keyof TransactionInput] === undefined
+        ) {
+          errors.push(
+            `Transaction at index ${transactions.indexOf(tx)} is missing required field: ${field}`
+          );
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      return {
+        success: false,
+        message: "Some transactions are missing required fields",
+        errors,
+      };
+    }
+
+    //Group transactions
+    const groups: { [key: string]: TransactionInput[] } = {};
+
+    if (groupBy && groupBy in transactions[0]) {
+      for (const tx of transactions) {
+        const key = String(tx[groupBy as keyof TransactionInput]);
+        groups[key] = groups[key] || [];
+        groups[key].push(tx);
+      }
+    } else {
+      groups["all"] = transactions;
+    }
+
+    const result: { id: string; entries: string[] }[] = [];
+
+    //Process each group
+    for (const [groupKey, groupTxs] of Object.entries(groups)) {
+      // Check if the group balances
+      const total = groupTxs.reduce((sum, tx) => {
+        return tx.transactionSide === DebitCredit.DEBIT
+          ? sum.plus(tx.amount)
+          : sum.minus(tx.amount);
+      }, new Decimal(0));
+
+      if (!total.equals(new Decimal(0))) {
+        errors.push(`Group ${groupKey} does not balance.`);
+        continue;
+      }
+    }
+
+    if (errors.length > 0) {
+      return {
+        success: false,
+        message: `We've tried to group transactions by '${groupBy}', but some groups do not balance`,
+        errors,
+      };
+    }
+
+    for (const [groupKey, groupTxs] of Object.entries(groups)) {
+      const ledgerTxn = await prisma.ledgerTransaction.create({
+        data: {
+          date: metaData.date || groupTxs[0].date,
+          companyId,
+          createdById: metaData.userId || groupTxs[0].userId,
+          updatedById: metaData.userId || groupTxs[0].userId,
+          description: metaData.description || groupTxs[0].description,
+          source:
+            metaData.source ||
+            groupTxs[0].source ||
+            TransactionSource.MANUAL_JOURNAL,
+          reference: metaData.reference || groupTxs[0].reference,
+        },
+      });
+
+      const entries = await Promise.all(
+        groupTxs.map(async (tx) => {
+          let projectId = tx.projectId;
+
+          if (tx.projectId) {
+            const projectExists = await prisma.project.findFirst({
+              where: { OR: [{ id: tx.projectId }, { name: tx.projectName }] },
+            });
+
+            if (!projectExists && tx.projectName) {
+              {
+                const project = await prisma.project.create({
+                  data: {
+                    name: tx.projectName,
+                    companyId,
+                    status: ProjectStatus.ACTIVE,
+                  },
+                });
+
+                projectId = project.id;
+              }
+            }
+          }
+          return prisma.ledgerEntry.create({
+            data: {
+              ledgerTransactionId: ledgerTxn.id,
+              fsDate: tx.fsDate,
+              coaId: tx.coaId,
+              transactionSide: tx.transactionSide,
+              sourceCurrencyId: reportingCurrencyId,
+              sourceAmount: new Decimal(tx.amount),
+              absoluteSourceAmount: new Decimal(tx.amount).abs(),
+              systemExchangeRate: new Decimal(1),
+              customExchangeRate: new Decimal(1),
+              amount: new Decimal(tx.amount),
+              absoluteAmount: new Decimal(tx.amount).abs(),
+              categorisationStatus: CategorisationStatus.CATEGORISED,
+              description: tx.description,
+              projectId: tx.projectId,
+              updatedById: tx.userId,
+            },
+          });
+        })
+      );
+
+      result.push({ id: ledgerTxn.id, entries: entries.map((e) => e.id) });
+    }
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error(error);
+    return {
+      success: false,
+      message: "An error occurred while processing the transactions",
     };
   }
 }
