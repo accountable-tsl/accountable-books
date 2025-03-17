@@ -3,6 +3,7 @@ import Decimal from "decimal.js";
 import numeral from "numeral";
 import { ScreenSize } from "../types/types";
 import React from "react";
+import dayjs from "dayjs";
 
 const possibleDateFormats: string[] = [
   "dd-MMM-yyyy",
@@ -288,4 +289,14 @@ export const isScreenSmallerThan = (size: ScreenSize): boolean => {
         currentSize === ScreenSize.Mobile || currentSize === ScreenSize.Tablet
       );
   }
+};
+
+export const normalizeDate = (inputDate: any): Date => {
+  const parsedDate = dayjs(inputDate);
+
+  if (!parsedDate.isValid()) {
+    throw new Error("Invalid date format");
+  }
+
+  return parsedDate.toDate();
 };

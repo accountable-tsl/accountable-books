@@ -10,7 +10,7 @@ import { staticRoutes } from "./utils/routes";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import FinancialSettings from "./pages-admin/FinancialSettings/FinancialSettings";
 import UploadBS from "./pages-admin/UploadBS/UploadBS";
-import { PopupProvider } from "./contexts/PopupContext";
+import { PopupProvider, usePopup } from "./contexts/PopupContext";
 import Popup from "./components/Popup/Popup";
 import AddBankAccount from "./components/AddBankAccount/AddBankAccount";
 import CategorisationEngine from "./pages-admin/CategorisationEngine/CategorisationEngine";
@@ -92,8 +92,28 @@ function MainContent() {
       <Popup popupId="addBankAccount">
         <AddBankAccount />
       </Popup>
+
+      <PopupManager />
+
+      {/* <Popup popupId="journalFormPopup">
+        <JournalFormPopup />
+      </Popup> */}
     </div>
   );
 }
+
+export const PopupManager = () => {
+  const { componentPopups } = usePopup();
+
+  return (
+    <>
+      {componentPopups.map((popup) => (
+        <Popup key={popup.id} popupId={popup.id}>
+          {popup.component}
+        </Popup>
+      ))}
+    </>
+  );
+};
 
 export default App;

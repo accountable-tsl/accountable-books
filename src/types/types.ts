@@ -347,4 +347,36 @@ export enum ScreenSize {
   Desktop = "desktop",
 }
 
+export interface JournalGridData {
+  description: string;
+  account: { label: string; value: string } | null;
+  debit: string | null;
+  credit: string | null;
+}
+export interface JournalTransaction {
+  description?: string;
+  side: DebitCredit;
+  amount: Decimal;
+  coaAccountId: string;
+}
 
+export type JournalBatchData = {
+  date: Date;
+  description: string;
+  status: JournalStatus;
+  transactions: JournalTransaction[];
+  autoReverseDate?: Date;
+  note?: string;
+};
+
+export interface PostJournalPayload {
+  data: JournalBatchData[];
+}
+
+
+
+export interface PopupState {
+  visible: boolean;
+  errors: string[];
+  isSuccess: boolean;
+}

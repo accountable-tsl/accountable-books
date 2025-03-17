@@ -3,6 +3,13 @@
 .journal {
   &-form {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    &-body {
+      flex: 1;
+    }
 
     &-header {
       display: flex;
@@ -192,7 +199,15 @@
     }
 
     &-eg {
-      overflow: visible !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+      max-height: 50vh !important;
+
+      & .entry-grid-body {
+        flex: 1;
+        overflow: auto;
+      }
 
       &__summary {
         display: flex;
@@ -272,5 +287,109 @@
         }
       }
     }
+
+    &-submit {
+      padding: 0.5rem 1rem;
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+
+      &__button {
+        border-radius: 0.5rem;
+        border: 1px solid rgba($color: $tertiary, $alpha: 0.1);
+        padding: 0.25rem 0.5rem;
+        // font-size: 0.85rem;
+        cursor: pointer;
+        color: $primary;
+
+        &:hover {
+          background-color: rgba($color: $tertiary, $alpha: 0.1);
+        }
+      }
+    }
   }
+}
+
+.jf-pop {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  overflow: hidden;
+  min-width: 20rem;
+  max-width: 30rem;
+  min-height: 15rem;
+  max-height: 30rem;
+
+  &-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  &-title {
+    &__error {
+      color: $error;
+    }
+
+    &__success {
+      color: $success;
+    }
+  }
+
+  &-icon {
+    width: 7.5rem;
+    height: 7.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+
+    & video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  &-body {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    font-size: 0.85rem;
+    padding: 1rem 0;
+    gap: 0.5rem;
+    overflow-y: auto;
+  }
+
+  &-errors {
+    border-radius: 0.25rem;
+    overflow: auto;
+  }
+
+  &-error {
+    padding: 0.5rem 1rem;
+    &:nth-child(even) {
+      background-color: rgba($color: $error, $alpha: 0.05);
+    }
+
+    &:nth-child(odd) {
+      background-color: rgba($color: $error, $alpha: 0.1);
+    }
+  }
+
+  &-footer {
+    display: flex;
+    justify-content: center;
+  }
+
+  &-close {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background-color: rgba($color: $primary, $alpha: 0.1);
+  }
+}
+
+.popup-content:has(.jf-pop) {
+  // background-color: rgba($color: $white, $alpha: 0.75);
+  padding: 0.5rem !important;
 }

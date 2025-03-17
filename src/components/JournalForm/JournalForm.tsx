@@ -8,8 +8,15 @@ import EntryGrid, {
 import JournalRecurrenceSettings from "../JournalRecurrenceSettings/JournalRecurrenceSettings";
 import type { DatePickerProps } from "antd";
 import { DatePicker, Space } from "antd";
-import { CompanyData, JournalStatus } from "../../types/types";
-import { parseDecimal, toTitleCase } from "../../utils/utils";
+import {
+  CompanyData,
+  DebitCredit,
+  JournalGridData,
+  JournalStatus,
+  JournalTransaction,
+  PostJournalPayload,
+} from "../../types/types";
+import { normalizeDate, parseDecimal, toTitleCase } from "../../utils/utils";
 import dayjs from "dayjs";
 import DatePlaceholderInput, {
   usePlaceholderInput,
@@ -19,6 +26,9 @@ import { BeatLoader } from "react-spinners";
 import { fetchCoa } from "../../services/CoaServices";
 import Decimal from "decimal.js";
 import numeral from "numeral";
+import { postJournal } from "../../services/JournalServices";
+import { usePopup } from "../../contexts/PopupContext";
+import JournalFormPopup from "./JournalFormPopup";
 
 interface JournalFormProps {
   journalStatus: JournalStatus;
@@ -33,14 +43,16 @@ export default function JournalForm({
   company,
   companyId,
 }: JournalFormProps) {
+  const { openPopup } = usePopup();
+
   const [accounts, setAccounts] = useState<EntryGridOption[]>([]);
-  const [_journalGridData, setJournalGridData] = useState<any>();
+  const [journalGridData, setJournalGridData] = useState<JournalGridData[]>();
   const [tempJournalGridData, setTempJournalGridData] = useState<any>();
   const [isRecurring, _setIsRecurring] = useState(type === "recurring");
-  const [_journalDate, setJournalDate] = useState<Date | dayjs.Dayjs | null>(
+  const [journalDate, setJournalDate] = useState<Date | dayjs.Dayjs | null>(
     dayjs()
   );
-  const [_reversalDate, setReversalDate] = useState<Date | dayjs.Dayjs | null>(
+  const [reversalDate, setReversalDate] = useState<Date | dayjs.Dayjs | null>(
     null
   );
   const [_recurringStartDate, setRecurringStartDate] = useState<
@@ -139,6 +151,280 @@ export default function JournalForm({
     }
   }, [companyId]);
 
+  const handlePostJournal = async (saveAs: JournalStatus) => {
+    if (!companyId) return;
+
+    try {
+      openPopup("journalFormPopup", <JournalFormPopup isLoading />);
+
+      const journalValidationErrors: string[] = [];
+
+      if (!journalGridData || journalGridData.length === 0) {
+        journalValidationErrors.push("Transactions: No transactions found");
+        openPopup(
+          "journalFormPopup",
+          <JournalFormPopup errors={journalValidationErrors} />
+        );
+        return;
+      }
+
+      if (!journalDate) {
+        journalValidationErrors.push("Date: Valid journal date is required");
+      } else if (isNaN(normalizeDate(journalDate).getTime())) {
+        journalValidationErrors.push("Date: Invalid journal date format");
+      }
+
+      if (reversalDate) {
+        if (isNaN(normalizeDate(reversalDate).getTime())) {
+          journalValidationErrors.push("Reversal Date: Invalid date format");
+        } else if (
+          normalizeDate(journalDate).getTime() >
+          normalizeDate(reversalDate).getTime()
+        ) {
+          journalValidationErrors.push(
+            "Reversal Date: Must be after journal date"
+          );
+        }
+      }
+
+      if (!narration || narration.trim() === "") {
+        journalValidationErrors.push("Narration: Valid narration is required");
+      } else if (narration.length > 255) {
+        journalValidationErrors.push(
+          "Narration: Must be less than 255 characters"
+        );
+      }
+
+      if (journalGridData && journalGridData.length < 2) {
+        journalValidationErrors.push(
+          "Transactions: At least two transactions required"
+        );
+      }
+
+      // const totalDebit =
+      //   journalGridData?.reduce((sum, entry) => {
+      //     if (entry.debit) {
+      //       try {
+      //         const debitAmt = new Decimal(entry.debit.replace(/,/g, ""));
+      //         return debitAmt.greaterThan(0) ? sum.plus(debitAmt) : sum;
+      //       } catch {
+      //         return sum;
+      //       }
+      //     }
+      //     return sum;
+      //   }, new Decimal(0)) || new Decimal(0);
+
+      // const totalCredit =
+      //   journalGridData?.reduce((sum, entry) => {
+      //     if (entry.credit) {
+      //       try {
+      //         const creditAmt = new Decimal(entry.credit.replace(/,/g, ""));
+      //         return creditAmt.greaterThan(0) ? sum.plus(creditAmt) : sum;
+      //       } catch {
+      //         return sum;
+      //       }
+      //     }
+      //     return sum;
+      //   }, new Decimal(0)) || new Decimal(0);
+
+      // if (totalDebit.equals(totalCredit)) {
+      //   journalValidationErrors.push(
+      //     "Transactions: Total debit and credit must be equal"
+      //   );
+      // }
+
+      const { totalDebit, totalCredit, amountErrors } = journalGridData.reduce(
+        (acc, entry, index) => {
+          // Validate individual transaction amounts first
+          const debitStr = entry.debit?.replace(/[^0-9.]/g, "") || "";
+          const creditStr = entry.credit?.replace(/[^0-9.]/g, "") || "";
+
+          // Validate only one side is populated
+          if (!!debitStr && !!creditStr) {
+            acc.amountErrors.push(
+              `Transaction ${index + 1}: Cannot have both debit and credit`
+            );
+            return acc;
+          }
+
+          // Parse amounts safely
+          const parseAmount = (str: string) => {
+            try {
+              const clean = str.replace(/,/g, "");
+              return new Decimal(clean);
+            } catch {
+              return new Decimal(NaN);
+            }
+          };
+
+          const debitAmount = parseAmount(debitStr);
+          const creditAmount = parseAmount(creditStr);
+
+          // Validate amounts are positive numbers
+          if (debitAmount.isNaN() || debitAmount.lessThanOrEqualTo(0)) {
+            if (debitStr)
+              acc.amountErrors.push(
+                `Transaction ${index + 1}: Invalid debit amount`
+              );
+          }
+          if (creditAmount.isNaN() || creditAmount.lessThanOrEqualTo(0)) {
+            if (creditStr)
+              acc.amountErrors.push(
+                `Transaction ${index + 1}: Invalid credit amount`
+              );
+          }
+
+          // Only sum valid amounts
+          if (debitAmount.greaterThan(0)) {
+            acc.totalDebit = acc.totalDebit.plus(debitAmount);
+          } else if (creditAmount.greaterThan(0)) {
+            acc.totalCredit = acc.totalCredit.plus(creditAmount);
+          }
+
+          return acc;
+        },
+        {
+          totalDebit: new Decimal(0),
+          totalCredit: new Decimal(0),
+          amountErrors: [] as string[],
+        }
+      );
+
+      // Add amount errors to validation errors
+      journalValidationErrors.push(...amountErrors);
+
+      // Now check balance (THIS WAS YOUR MAIN ISSUE - INVERTED CONDITION)
+      if (!totalDebit.equals(totalCredit)) {
+        journalValidationErrors.push(
+          `Transactions: Debits (${totalDebit}) do not match credits (${totalCredit})`
+        );
+      }
+
+      journalGridData.forEach((entry, index) => {
+        const prefix = `Transaction ${index + 1}`;
+
+        if (entry.description && entry.description.length > 255) {
+          journalValidationErrors.push(
+            `${prefix}: Description must be less than 255 characters`
+          );
+        }
+
+        if (
+          entry.description &&
+          (!entry.account || (!entry.debit && !entry.credit))
+        ) {
+          journalValidationErrors.push(
+            `${prefix}: Account and debit or credit required`
+          );
+        }
+
+        if (
+          (entry.account || entry.debit || entry.credit) &&
+          !entry.description
+        ) {
+          journalValidationErrors.push(`${prefix}: Description required`);
+        }
+
+        if (entry.account && !entry.account.value) {
+          journalValidationErrors.push(`${prefix}: Valid account required`);
+        }
+
+        let debitAmt = null;
+        let creditAmt = null;
+
+        if (entry.debit) {
+          try {
+            debitAmt = new Decimal(entry.debit.replace(/,/g, ""));
+            if (debitAmt.lessThanOrEqualTo(0)) {
+              journalValidationErrors.push(`${prefix}: Debit must be positive`);
+            }
+          } catch {
+            journalValidationErrors.push(`${prefix}: Debit has invalid format`);
+          }
+        }
+
+        if (entry.credit) {
+          try {
+            creditAmt = new Decimal(entry.credit.replace(/,/g, ""));
+            if (creditAmt.lessThanOrEqualTo(0)) {
+              journalValidationErrors.push(
+                `${prefix}: Credit must be positive`
+              );
+            }
+          } catch {
+            journalValidationErrors.push(
+              `${prefix}: Credit has invalid format`
+            );
+          }
+        }
+
+        if (debitAmt && creditAmt) {
+          journalValidationErrors.push(
+            `${prefix}: Cannot have both debit and credit`
+          );
+        }
+
+        if (entry.account && !debitAmt && !creditAmt) {
+          journalValidationErrors.push(`${prefix}: Debit or credit required`);
+        }
+      });
+
+      if (journalValidationErrors.length > 0) {
+        openPopup(
+          "journalFormPopup",
+          <JournalFormPopup errors={journalValidationErrors} />
+        );
+        return;
+      }
+
+      const payload: PostJournalPayload = {
+        data: [
+          {
+            date: normalizeDate(journalDate),
+            description: narration,
+            status: saveAs || JournalStatus.DRAFT,
+            ...(reversalDate && {
+              autoReverseDate: normalizeDate(reversalDate),
+            }),
+            transactions: transformJournalTransactions(journalGridData),
+          },
+        ],
+      };
+
+      console.log(payload);
+
+      const response = await postJournal(companyId, payload);
+      console.log(response.data);
+
+      if (response.success) {
+        openPopup("journalFormPopup", <JournalFormPopup isSuccess />);
+      } else {
+        openPopup(
+          "journalFormPopup",
+          <JournalFormPopup
+            errors={[
+              response.data.error ||
+                response.data.message ||
+                "Submission failed",
+            ]}
+          />
+        );
+      }
+    } catch (error) {
+      console.error("Error posting journal:", error);
+      openPopup(
+        "journalFormPopup",
+        <JournalFormPopup
+          errors={[
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          ]}
+        />
+      );
+    }
+  };
+
   const handleJournalGridChange = (updatedRows: any) => {
     console.log("Updated Data:", updatedRows);
     setTempJournalGridData(updatedRows);
@@ -232,6 +518,37 @@ export default function JournalForm({
 
   console.log(totals);
 
+  const transformJournalTransactions = (
+    journalData: JournalGridData[]
+  ): JournalTransaction[] => {
+    return journalData
+      .filter((tx) => {
+        return tx.account?.value && tx.description && (tx.debit || tx.credit);
+      })
+      .map((tx) => {
+        const { description, account, debit, credit } = tx;
+        console.log(tx);
+        if ((!debit && !credit) || !account) {
+          throw new Error("Unexpected null or undefined values");
+        }
+        // Determine if it's a debit or credit
+        const isDebit = !!debit;
+        const amountString = isDebit ? debit : credit;
+        const coaAccountId = account?.value;
+
+        const cleanedAmount = amountString.replace(/[,\s]/g, "");
+
+        const amount = new Decimal(cleanedAmount);
+
+        return {
+          description: description.trim() || undefined,
+          side: isDebit ? DebitCredit.Debit : DebitCredit.Credit,
+          amount: isDebit ? amount : amount.negated(),
+          coaAccountId,
+        };
+      });
+  };
+
   const isLoading =
     !companyId || !company || !accounts || accounts.length === 0;
 
@@ -244,6 +561,8 @@ export default function JournalForm({
       setJournalGridData(tempJournalGridData);
     }
   }, [tempJournalGridData]);
+
+  console.log(journalGridData);
 
   return (
     <div className="journal-form">
@@ -346,7 +665,6 @@ export default function JournalForm({
               onChange={handleJournalGridChange}
               customClassNames={entryGridCustomClassNames}
             />
-
             <dl className="journal-form-eg__summary">
               <div className="journal-form-eg__summary-container">
                 <div className="journal-form-eg__summary-inner">
@@ -389,7 +707,26 @@ export default function JournalForm({
               </div>
             </dl>
           </div>
-          <div className="journal-form-bottom"></div>
+          <div className="journal-form-bottom">
+            <div className="journal-form-submit">
+              <button
+                className="journal-form-submit__button journal-form-submit__button--draft"
+                onClick={() => {
+                  handlePostJournal(JournalStatus.DRAFT);
+                }}
+              >
+                Save as draft
+              </button>
+              <button
+                className="journal-form-submit__button journal-form-submit__button--post"
+                onClick={() => {
+                  handlePostJournal(JournalStatus.POSTED);
+                }}
+              >
+                Post Journal
+              </button>
+            </div>
+          </div>
         </>
       )}
     </div>
