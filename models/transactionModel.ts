@@ -30,9 +30,9 @@ type ExtendedLedgerTransaction = Prisma.LedgerTransactionGetPayload<{
     };
     ledgerEntries: {
       include: {
-        coa?: { select: { id: true; accountCode: true; accountName: true } };
-        sourceCurrency?: { select: { code: true } };
-        project?: { select: { name: true } };
+        coa?: true; //{ select: { id: true; accountCode: true; accountName: true } };
+        sourceCurrency?: true; //{ select: { code: true } };
+        project?: true; //{ select: { name: true } };
       };
     };
   };

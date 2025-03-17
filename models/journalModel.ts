@@ -65,19 +65,23 @@ export async function fetchJournals(
       isDeleted: false,
     };
 
-    console.log(filters?.searchQuery);
+    if (filters?.searchQuery) {
+      const searchQuery = filters.searchQuery.toUpperCase() || "";
 
-    filters?.searchQuery
-      ? ((where.description = { search: filters?.searchQuery }),
-        (where.note = {
-          search: filters?.searchQuery,
-        }),
-        (where.status = {
-          search: filters?.searchQuery,
-        }))
-      : {};
+      if (Object.values(JournalStatus).includes(searchQuery as JournalStatus)) {
+        where.OR = [
+          { status: searchQuery as JournalStatus },
+          { description: { search: `${searchQuery}:*`, mode: "insensitive" } },
+          { note: { search: `${searchQuery}:*`, mode: "insensitive" } },
+        ];
+      } else {
+        where.OR = [
+          { description: { search: `${searchQuery}:*`, mode: "insensitive" } },
+          { note: { search: `${searchQuery}:*`, mode: "insensitive" } },
+        ];
+      }
+    }
 
-      
     const journals = await prisma.journalBatch.findMany({
       where,
       select: {
@@ -88,6 +92,8 @@ export async function fetchJournals(
         note: true,
         status: true,
         ledgerTransactionId: true,
+        autoReversalDate: true,
+        reversedJournalId: true,
         _count: {
           select: {
             journalTransactions: true,
@@ -114,12 +120,12 @@ export async function fetchJournals(
         message: "An unexpected error occurred",
       };
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
     return {
       success: false,
       message: "Failed to retrieve transactions",
-      error: error instanceof Error ? error.message : undefined,
+      error: error.message,
     };
   }
 }
@@ -217,12 +223,10 @@ export async function insertJournalRecords(
           }
         }
 
-        if (!totalDebit.equals(totalCredit)) {
+        if (!totalDebit.equals(totalCredit.abs())) {
           errorString.push(
             `Batch ${batchIndex + 1}: Debits (${totalDebit}) do not match credits (${totalCredit})`
           );
-
-          console.log(errorString);
         }
       }
     }
