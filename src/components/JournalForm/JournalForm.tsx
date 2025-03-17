@@ -77,28 +77,18 @@ export default function JournalForm({
     date,
     dateString
   ) => {
-    console.log(date, dateString);
     setJournalDate(date);
-  };
-  const handleReversalDateChange: DatePickerProps["onChange"] = (
-    date,
-    dateString
-  ) => {
     console.log(date, dateString);
+  };
+  const handleReversalDateChange: DatePickerProps["onChange"] = (date) => {
     setReversalDate(date);
   };
   const handleRecurringStartDateChange: DatePickerProps["onChange"] = (
-    date,
-    dateString
+    date
   ) => {
-    console.log(date, dateString);
     setRecurringStartDate(date);
   };
-  const handleRecurringEndDateChange: DatePickerProps["onChange"] = (
-    date,
-    dateString
-  ) => {
-    console.log(date, dateString);
+  const handleRecurringEndDateChange: DatePickerProps["onChange"] = (date) => {
     setRecurringEndDate(date);
     if (date) setNeverExpires(false);
   };
@@ -391,8 +381,6 @@ export default function JournalForm({
         ],
       };
 
-      console.log(payload);
-
       const response = await postJournal(companyId, payload);
       console.log(response.data);
 
@@ -426,7 +414,7 @@ export default function JournalForm({
   };
 
   const handleJournalGridChange = (updatedRows: any) => {
-    console.log("Updated Data:", updatedRows);
+    // console.log("Updated Data:", updatedRows);
     setTempJournalGridData(updatedRows);
   };
 
@@ -516,36 +504,53 @@ export default function JournalForm({
     return sumAmounts(tempJournalGridData, entryGridColumnData);
   }, [tempJournalGridData, entryGridColumnData]);
 
-  console.log(totals);
-
   const transformJournalTransactions = (
     journalData: JournalGridData[]
   ): JournalTransaction[] => {
     return journalData
-      .filter((tx) => {
-        return tx.account?.value && tx.description && (tx.debit || tx.credit);
-      })
+      .filter(
+        (
+          tx
+        ): tx is JournalGridData &
+          (
+            | { debit: string; account: { value: string } }
+            | { credit: string; account: { value: string } }
+          ) => {
+          return Boolean(
+            tx.account?.value && tx.description && (tx.debit || tx.credit)
+          );
+        }
+      )
       .map((tx) => {
         const { description, account, debit, credit } = tx;
-        console.log(tx);
-        if ((!debit && !credit) || !account) {
-          throw new Error("Unexpected null or undefined values");
-        }
-        // Determine if it's a debit or credit
         const isDebit = !!debit;
-        const amountString = isDebit ? debit : credit;
-        const coaAccountId = account?.value;
-
+        const amountString = String(isDebit ? debit : credit) as string;
         const cleanedAmount = amountString.replace(/[,\s]/g, "");
 
-        const amount = new Decimal(cleanedAmount);
+        if (!cleanedAmount) {
+          throw new Error(
+            `Invalid empty amount in transaction: ${JSON.stringify(tx)}`
+          );
+        }
 
-        return {
-          description: description.trim() || undefined,
-          side: isDebit ? DebitCredit.Debit : DebitCredit.Credit,
-          amount: isDebit ? amount : amount.negated(),
-          coaAccountId,
-        };
+        try {
+          const amount = new Decimal(cleanedAmount);
+
+          if (amount.isZero()) {
+            throw new Error("Zero value transactions are not allowed.");
+          }
+
+          return {
+            description: description.trim() || undefined,
+            side: isDebit ? DebitCredit.Debit : DebitCredit.Credit,
+            amount: isDebit ? amount : amount.negated(),
+            coaAccountId: account.value,
+          };
+        } catch (error: any) {
+          throw new Error(
+            `Invalid amount value '${amountString}' in transaction: ${error.message}`
+          );
+        }
       });
   };
 
@@ -561,8 +566,6 @@ export default function JournalForm({
       setJournalGridData(tempJournalGridData);
     }
   }, [tempJournalGridData]);
-
-  console.log(journalGridData);
 
   return (
     <div className="journal-form">
