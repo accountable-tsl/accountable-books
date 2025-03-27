@@ -286,7 +286,9 @@ export default function JournalForm({
       // Now check balance (THIS WAS YOUR MAIN ISSUE - INVERTED CONDITION)
       if (!totalDebit.equals(totalCredit)) {
         journalValidationErrors.push(
-          `Transactions: Debits (${totalDebit}) do not match credits (${totalCredit})`
+          `Transactions: Debits (${numeral(totalDebit).format(
+            "0,0.00"
+          )}) do not match credits (${numeral(totalCredit).format("0,0.00")})`
         );
       }
 

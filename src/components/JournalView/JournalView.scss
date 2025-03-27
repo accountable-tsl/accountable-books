@@ -1,0 +1,33 @@
+@use "../../styles/partials/colors" as *;
+
+.jv {
+  &-title {
+    font-size: 1.25rem;
+  }
+
+  &-status {
+    font-size: 0.85rem;
+  }
+
+  &-meta {
+    display: flex;
+    padding: 0.5rem 1rem;
+    justify-content: space-between;
+
+    &-group {
+      display: flex;
+      gap: 2rem;
+    }
+
+    &-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    &-label{
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: rgba($color: $text, $alpha: 0.75)
+    }
+  }
+}

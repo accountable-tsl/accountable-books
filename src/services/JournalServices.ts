@@ -13,3 +13,18 @@ export const postJournal = async (
   );
   return response.data;
 };
+
+export const fetchJournals = async (companyId: string) => {
+  const response = await axios.get(`${backendUrl}/api/${companyId}/journals`);
+  return response.data;
+};
+
+export const fetchJournalById = async (
+  companyId: string,
+  journalId: string
+) => {
+  const response = await axios.get(
+    `${backendUrl}/api/${companyId}/journals/${journalId}`
+  );
+  return response.data;
+};

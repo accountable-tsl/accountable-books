@@ -361,19 +361,33 @@ export interface JournalTransaction {
 }
 
 export type JournalBatchData = {
+  id?: string;
+  sequenceNumber?: number;
   date: Date;
   description: string;
   status: JournalStatus;
-  transactions: JournalTransaction[];
+  transactions?: JournalTransaction[];
+  journalTransactions?: JournalTransaction[];
   autoReverseDate?: Date;
   note?: string;
+  generatedFromTemplateId?: string | null;
+  ledgerTransactionId?: string | null;
+  postedAt?: string | null;
+  postedById?: string | null;
+  updatedById?: string;
+  autoReversalDate?: string | null;
+  reversedJournalId?: string | null;
+  reversedById?: string | null;
+  reversedAt?: string | null;
+  reversalReason?: string | null;
+  createdById?: string;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
 };
 
 export interface PostJournalPayload {
   data: JournalBatchData[];
 }
-
-
 
 export interface PopupState {
   visible: boolean;

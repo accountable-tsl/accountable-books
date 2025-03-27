@@ -11,6 +11,7 @@ import { useEffect, useMemo } from "react";
 import { JournalStatus, ScreenSize } from "../../types/types";
 import FallbackView from "../../components/FallbackView/FallbackView";
 import { useScreenSize } from "../../utils/utils";
+import JournalView from "../../components/JournalView/JournalView";
 
 export default function Journal() {
   const { companyId, company } = useCompany();
@@ -33,9 +34,15 @@ export default function Journal() {
     location.pathname
   );
 
+  const isViewJournal = matchPath(
+    staticRoutes.accounting.workspace.viewJournal,
+    location.pathname
+  );
+
   const showJournalList = !!isDefault;
   const showNewJournalForm = !!isAddNewJournal;
   const showNewRecurringJournalForm = !!isAddNewRecurringJournal;
+  const showViewJournal = !!isViewJournal;
 
   const isLoading = !companyId || !company;
 
@@ -125,6 +132,7 @@ export default function Journal() {
                 key={`journal-list-${location.pathname}`}
                 companyId={companyId}
                 company={company}
+                data={null}
               />
             )}
 
@@ -142,6 +150,14 @@ export default function Journal() {
                 key="new-recurring-journal"
                 type="recurring"
                 journalStatus={JournalStatus.DRAFT}
+                companyId={companyId}
+                company={company}
+              />
+            )}
+
+            {showViewJournal && (
+              <JournalView
+                key={`journal-view-${location.pathname}`}
                 companyId={companyId}
                 company={company}
               />

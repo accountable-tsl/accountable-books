@@ -5,13 +5,15 @@ import numeral from "numeral";
 import { CompanyData } from "../../types/types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { routes } from "../../utils/routes";
+import { fetchJournals } from "../../services/JournalServices";
+import { format } from "date-fns";
+import { RowClickedEvent } from "ag-grid-community";
 
 export default function JournalList({
   companyId,
   company,
-  data,
 }: {
   companyId: string | null;
   company?: CompanyData | null | undefined;
@@ -21,12 +23,13 @@ export default function JournalList({
     ? company?.reportingCurrencyCode
     : "";
   const [journalFilter, setJournalFilter] = useState<string>("all");
-  const [journalData, _setJournalData] = useState<any[]>([]);
+  const [journalData, setJournalData] = useState<any[]>([]);
   const [rowData, setRowData] = useState<any[]>([]);
   const [_selectedRowsCount, setSelectedRowsCount] = useState(0);
   const [columnDefs, setColumnDefs] = useState<any[]>([]);
 
   const journalTableRef = useRef<AgGridReact>(null);
+  const navigate = useNavigate();
 
   const onSelectionChanged = () => {
     if (journalTableRef.current) {
@@ -49,35 +52,70 @@ export default function JournalList({
     }
   };
 
-  console.log(company);
+  const handleJournalData = async () => {
+    if (!companyId) return;
+
+    const response = await fetchJournals(companyId);
+    console.log(response);
+    if (response.success) {
+      setJournalData(response.data);
+      setRowData(response.data.journals);
+    }
+  };
+
+  const handleRowClick = (e: RowClickedEvent) => {
+    navigate(
+      `${routes.accounting.workspace.viewJournal(companyId, e.data.id)}`
+    );
+  };
 
   useEffect(() => {
     const newColDefs = [
       {
-        field: "accountCode",
+        field: "description",
         headerName: "Narration",
         flex: 1.5,
         sortable: true,
+        cellClass: "jl-link",
       },
-      { field: "accountName", headerName: "Date", sortable: true },
       {
-        field: "accountTypeName",
+        field: "date",
+        headerName: "Date",
+        sortable: true,
+        valueFormatter: (params: any) =>
+          format(new Date(params.value), "dd MMM yyyy"),
+      },
+      {
+        field: "totalDebit",
         headerName: `Debit ${reportingCurrency}`,
         valueFormatter: (params: any) =>
           numeral(params.value).format("(0,0.00)"),
         sortable: false,
+        cellStyle: { textAlign: "right" },
       },
       {
-        field: "accountElement",
+        field: "totalCredit",
         headerName: `Credit ${reportingCurrency}`,
         valueFormatter: (params: any) =>
           numeral(params.value).format("(0,0.00)"),
         sortable: false,
+        cellStyle: { textAlign: "right" },
       },
-      { field: "status", headerName: "Status", sortable: true },
+      {
+        field: "status",
+        headerName: "Status",
+        sortable: true,
+        cellClass: "jl-link",
+      },
     ];
     setColumnDefs(newColDefs);
   }, [reportingCurrency]);
+
+  useEffect(() => {
+    handleJournalData();
+  }, [companyId]);
+
+  console.log(rowData);
 
   return (
     <div className="journal-list">
@@ -193,6 +231,7 @@ export default function JournalList({
           animateRows={true}
           ref={journalTableRef}
           onSelectionChanged={onSelectionChanged}
+          onRowClicked={handleRowClick}
         />
       </div>
     </div>
