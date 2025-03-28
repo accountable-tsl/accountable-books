@@ -128,9 +128,9 @@ export default function JournalForm({
         const coaData = coa.data
           .filter((acc: any) => acc.accountTypeName !== "Bank")
           .map((acc: any) => ({
-            label: acc.accountCode
-              ? `${acc.accountCode} - ${acc.accountName}`
-              : acc.accountName,
+            label: acc.accountName,
+            // ? `${acc.accountCode} - ${acc.accountName}`
+            // : acc.accountName,
             value: acc.id,
           }));
 
@@ -462,46 +462,6 @@ export default function JournalForm({
     textCell: "journal-form-eg__text--cell",
   };
 
-  const sumAmounts = (
-    journalData: any[],
-    entryGridColumnData: {
-      key: string;
-      label: string;
-      inputType: EntryGridColumnInputType;
-    }[]
-  ) => {
-    if (
-      !journalData ||
-      !Array.isArray(journalData) ||
-      journalData.length === 0
-    ) {
-      return entryGridColumnData
-        .filter((col) => col.inputType === EntryGridColumnInputType.AMOUNT)
-        .reduce(
-          (emptyTotals, col) => ({
-            ...emptyTotals,
-            [col.key]: new Decimal(0),
-          }),
-          {} as Record<string, Decimal>
-        );
-    }
-    try {
-      return entryGridColumnData
-        .filter((col) => col.inputType === EntryGridColumnInputType.AMOUNT)
-        .reduce((totals, col) => {
-          const key = col.key;
-          totals[key] = journalData.reduce(
-            (sum, entry) => sum.plus(parseDecimal(entry?.[key])),
-            new Decimal(0)
-          );
-          return totals;
-        }, {} as Record<string, Decimal>);
-    } catch (error) {
-      console.error("Error calculating amount totals:", error);
-      return {} as Record<string, Decimal>;
-    }
-  };
-
   const totals = useMemo(() => {
     return sumAmounts(tempJournalGridData, entryGridColumnData);
   }, [tempJournalGridData, entryGridColumnData]);
@@ -568,6 +528,8 @@ export default function JournalForm({
       setJournalGridData(tempJournalGridData);
     }
   }, [tempJournalGridData]);
+
+  console.log(tempJournalGridData)
 
   return (
     <div className="journal-form">
@@ -666,9 +628,10 @@ export default function JournalForm({
             <EntryGrid
               columns={entryGridColumnData as ColumnConfig[]}
               showDeleteIconPerRow={true}
-              initialRows={5}
+              initialRows={3}
               onChange={handleJournalGridChange}
               customClassNames={entryGridCustomClassNames}
+              isEditable={true}
             />
             <dl className="journal-form-eg__summary">
               <div className="journal-form-eg__summary-container">
@@ -775,3 +738,39 @@ export function JournalDateField({
     </div>
   );
 }
+
+export const sumAmounts = (
+  journalData: any[],
+  entryGridColumnData: {
+    key: string;
+    label: string;
+    inputType: EntryGridColumnInputType;
+  }[]
+) => {
+  if (!journalData || !Array.isArray(journalData) || journalData.length === 0) {
+    return entryGridColumnData
+      .filter((col) => col.inputType === EntryGridColumnInputType.AMOUNT)
+      .reduce(
+        (emptyTotals, col) => ({
+          ...emptyTotals,
+          [col.key]: new Decimal(0),
+        }),
+        {} as Record<string, Decimal>
+      );
+  }
+  try {
+    return entryGridColumnData
+      .filter((col) => col.inputType === EntryGridColumnInputType.AMOUNT)
+      .reduce((totals, col) => {
+        const key = col.key;
+        totals[key] = journalData.reduce(
+          (sum, entry) => sum.plus(parseDecimal(entry?.[key])),
+          new Decimal(0)
+        );
+        return totals;
+      }, {} as Record<string, Decimal>);
+  } catch (error) {
+    console.error("Error calculating amount totals:", error);
+    return {} as Record<string, Decimal>;
+  }
+};

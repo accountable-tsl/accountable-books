@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import "./EntryGrid.scss";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import numeral from "numeral";
 import DatePlaceholderInput, {
   usePlaceholderInput,
@@ -28,7 +28,7 @@ export type ColumnConfig =
       key: string;
       label: string;
       inputType: EntryGridColumnInputType.DROPDOWN;
-      options: EntryGridOption[];
+      options?: EntryGridOption[];
     }
   | {
       key: string;
@@ -70,18 +70,25 @@ interface CustomClassNames {
 }
 interface EntryGridProps {
   columns: ColumnConfig[];
-  initialRows: number;
-  showDeleteIconPerRow: boolean;
-  onChange: (rows: RowData[]) => void;
+  initialRows?: number;
+  showDeleteIconPerRow?: boolean;
+  onChange?: (rows: RowData[]) => void;
   customClassNames?: CustomClassNames;
+
+  data?: RowData[];
+  isEditable?: boolean;
+  onToggleEdit?: () => void;
 }
 
 const EntryGrid: React.FC<EntryGridProps> = ({
   columns,
-  initialRows,
+  initialRows = 4,
   showDeleteIconPerRow = false,
   onChange,
   customClassNames,
+
+  data = [],
+  isEditable = false,
 }) => {
   const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
@@ -99,10 +106,22 @@ const EntryGrid: React.FC<EntryGridProps> = ({
     return row;
   }, [columns]);
 
-  const [rows, setRows] = useState<RowData[]>(() => [
-    ...Array.from({ length: initialRows }, createEmptyRow),
-    createEmptyRow(),
-  ]);
+  // In editable mode, we manage rows internally.
+  const [rows, setRows] = useState<RowData[]>(() => {
+    if (isEditable) {
+      if (data && data.length > 0) {
+        return [...data, createEmptyRow()];
+      } else {
+        return [
+          ...Array.from({ length: initialRows }, createEmptyRow),
+          createEmptyRow(),
+        ];
+      }
+    }
+
+    return [];
+  });
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   // Check if a row is completely empty (i.e., all cells have default values)
   const isRowEmpty = useCallback(
@@ -224,6 +243,24 @@ const EntryGrid: React.FC<EntryGridProps> = ({
     [isRowEmpty, onChange]
   );
 
+  useEffect(() => {
+    if (!isEditable) return;
+
+    if (!hasHydrated) {
+      if (data && data.length > 0) {
+        setRows([...data, createEmptyRow()]);
+      } else {
+        setRows([
+          ...Array.from({ length: initialRows }, createEmptyRow),
+          createEmptyRow(),
+        ]);
+      }
+      setHasHydrated(true);
+    }
+  }, [isEditable, data, initialRows, createEmptyRow, hasHydrated]);
+
+  const rowsToRender: RowData[] = isEditable ? rows : data;
+
   return (
     <div className={`entry-grid ${customClassNames?.root || ""}`}>
       <div className={`entry-grid-header`}>
@@ -246,7 +283,7 @@ const EntryGrid: React.FC<EntryGridProps> = ({
             </div>
           ))}
 
-          {showDeleteIconPerRow && (
+          {isEditable && showDeleteIconPerRow && (
             <div
               className={`entry-grid-cell ${
                 customClassNames?.cell || ""
@@ -260,7 +297,7 @@ const EntryGrid: React.FC<EntryGridProps> = ({
         </div>
       </div>
       <div className={`entry-grid-body`}>
-        {rows.map((row, rowIndex) => (
+        {rowsToRender.map((row, rowIndex) => (
           <div
             key={rowIndex}
             className={`entry-grid-row entry-grid-body__row ${
@@ -268,135 +305,197 @@ const EntryGrid: React.FC<EntryGridProps> = ({
             }`}
           >
             {columns.map((column) => {
-              if (column.inputType === EntryGridColumnInputType.DROPDOWN) {
-                return (
-                  <div
-                    key={column.key}
-                    className={`entry-grid-cell ${
-                      customClassNames?.cell || ""
-                    } entry-grid-cell__dropdown ${
-                      customClassNames?.dropdownCell || ""
-                    } ${customClassNames?.root}__${column.key}`}
-                  >
-                    <select
-                      className={`entry-grid-cell__input ${
-                        customClassNames?.input || ""
-                      } entry-grid-cell__input-dropdown ${
-                        customClassNames?.dropdownSelect || ""
-                      }`}
-                      value={
-                        (row[column.key] as { value: string })?.value || ""
-                      }
-                      onChange={(e) => {
-                        const option = column.options.find(
-                          (opt) => opt.value === e.target.value
-                        );
-                        option &&
-                          handleCellChange(rowIndex, column.key, option);
-                      }}
+              if (isEditable) {
+                if (column.inputType === EntryGridColumnInputType.DROPDOWN) {
+                  const cellValue = row[column.key];
+                  let selectedValue = "";
+                  if (typeof cellValue === "string") {
+                    const foundOption = column.options?.find(
+                      (opt) =>
+                        opt.label === cellValue || opt.value === cellValue
+                    );
+                    selectedValue = foundOption ? foundOption.value : "";
+                  } else {
+                    selectedValue =
+                      (cellValue as { value: string })?.value || "";
+                  }
+
+                  return (
+                    <div
+                      key={column.key}
+                      className={`entry-grid-cell ${
+                        customClassNames?.cell || ""
+                      } entry-grid-cell__dropdown ${
+                        customClassNames?.dropdownCell || ""
+                      } ${customClassNames?.root}__${column.key}`}
                     >
-                      <option
-                        value=""
-                        disabled
-                        defaultValue={""}
-                        hidden
-                        className={`entry-grid-cell__dropdown-option ${
-                          customClassNames?.dropdownOption || ""
+                      <select
+                        className={`entry-grid-cell__input ${
+                          customClassNames?.input || ""
+                        } entry-grid-cell__input-dropdown ${
+                          customClassNames?.dropdownSelect || ""
                         }`}
-                      ></option>
-                      {column.options.map((option, index) => (
+                        value={
+                          (row[column.key] as { value: string })?.value || ""
+                        }
+                        onChange={(e) => {
+                          const option = column.options?.find(
+                            (opt) => opt.value === e.target.value
+                          );
+                          option &&
+                            handleCellChange(rowIndex, column.key, option);
+                        }}
+                      >
                         <option
-                          key={index}
-                          value={option.value}
+                          value=""
+                          disabled
+                          defaultValue={""}
+                          hidden
                           className={`entry-grid-cell__dropdown-option ${
                             customClassNames?.dropdownOption || ""
                           }`}
-                        >
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              }
+                        ></option>
+                        {column.options?.map((option, index) => (
+                          <option
+                            key={index}
+                            value={option.value}
+                            className={`entry-grid-cell__dropdown-option ${
+                              customClassNames?.dropdownOption || ""
+                            }`}
+                          >
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }
 
-              if (column.inputType === EntryGridColumnInputType.AMOUNT) {
-                return (
-                  <div
-                    key={column.key}
-                    className={`entry-grid-cell ${
-                      customClassNames?.cell || ""
-                    } entry-grid-cell__text ${customClassNames?.root}__${
-                      column.key
-                    }`}
-                  >
-                    <input
-                      className={`entry-grid-cell__input ${
-                        customClassNames?.input || ""
-                      } entry-grid-cell__input-text ${
-                        customClassNames?.textInput || ""
+                if (column.inputType === EntryGridColumnInputType.AMOUNT) {
+                  return (
+                    <div
+                      key={column.key}
+                      className={`entry-grid-cell ${
+                        customClassNames?.cell || ""
+                      } entry-grid-cell__text ${customClassNames?.root}__${
+                        column.key
                       }`}
-                      type="text"
-                      inputMode="decimal"
-                      value={row[column.key]?.toString() || ""}
-                      onChange={(e) =>
-                        handleAmountChange(rowIndex, column.key, e.target.value)
-                      }
-                      onBlur={(e) =>
-                        onAmountBlur(rowIndex, column.key, e.target.value)
-                      }
+                    >
+                      <input
+                        className={`entry-grid-cell__input ${
+                          customClassNames?.input || ""
+                        } entry-grid-cell__input-text ${
+                          customClassNames?.textInput || ""
+                        }`}
+                        type="text"
+                        inputMode="decimal"
+                        value={row[column.key]?.toString() || ""}
+                        onChange={(e) =>
+                          handleAmountChange(
+                            rowIndex,
+                            column.key,
+                            e.target.value
+                          )
+                        }
+                        onBlur={(e) =>
+                          onAmountBlur(rowIndex, column.key, e.target.value)
+                        }
+                      />
+                    </div>
+                  );
+                }
+
+                if (
+                  column.inputType === EntryGridColumnInputType.TEXT &&
+                  column.hasDatePlaceholder
+                ) {
+                  return (
+                    <PlaceholderInputCell
+                      key={column.key}
+                      column={column}
+                      row={row}
+                      rowIndex={rowIndex}
+                      handleCellChange={handleCellChange}
+                      inputRefs={inputRefs}
+                      customClassNames={customClassNames}
                     />
-                  </div>
-                );
-              }
+                  );
+                }
 
-              if (
-                column.inputType === EntryGridColumnInputType.TEXT &&
-                column.hasDatePlaceholder
-              ) {
-                return (
-                  <PlaceholderInputCell
-                    key={column.key}
-                    column={column}
-                    row={row}
-                    rowIndex={rowIndex}
-                    handleCellChange={handleCellChange}
-                    inputRefs={inputRefs}
-                    customClassNames={customClassNames}
-                  />
-                );
-              }
+                if (column.inputType === EntryGridColumnInputType.TEXT) {
+                  return (
+                    <div
+                      key={column.key}
+                      className={`entry-grid-cell ${
+                        customClassNames?.cell || ""
+                      } entry-grid-cell__text ${customClassNames?.root}__${
+                        column.key
+                      }`}
+                    >
+                      <input
+                        ref={setInputRef(rowIndex, column.key)}
+                        className={`entry-grid-cell__input ${
+                          customClassNames?.input || ""
+                        } entry-grid-cell__input-text ${
+                          customClassNames?.textInput || ""
+                        } ${customClassNames?.root}__${column.key}`}
+                        type="text"
+                        value={row[column.key]?.toString() || ""}
+                        onChange={(e) =>
+                          handleCellChange(rowIndex, column.key, e.target.value)
+                        }
+                      />
+                    </div>
+                  );
+                }
 
-              if (column.inputType === EntryGridColumnInputType.TEXT) {
+                return null;
+              } else {
+                //View mode: Render formmatted value only
+                if (column.inputType === EntryGridColumnInputType.DROPDOWN) {
+                  const option = row[column.key] as EntryGridOption | null;
+                  return (
+                    <div
+                      key={column.key}
+                      className={`entry-grid-cell ${
+                        customClassNames?.cell || ""
+                      } ${customClassNames?.root}__${column.key}`}
+                    >
+                      {option ? option.label : ""}
+                    </div>
+                  );
+                }
+
+                if (column.inputType === EntryGridColumnInputType.AMOUNT) {
+                  const val = row[column.key]
+                    ? row[column.key]?.toString()
+                    : "";
+                  return (
+                    <div
+                      key={column.key}
+                      className={`entry-grid-cell ${
+                        customClassNames?.cell || ""
+                      } ${customClassNames?.root}__${column.key}`}
+                    >
+                      {val ? numeral(val).format("0,0.00") : ""}
+                    </div>
+                  );
+                }
+
+                // For TEXT (with or without date placeholder), simply show the value.
                 return (
                   <div
                     key={column.key}
                     className={`entry-grid-cell ${
                       customClassNames?.cell || ""
-                    } entry-grid-cell__text ${customClassNames?.root}__${
-                      column.key
-                    }`}
+                    } ${customClassNames?.root}__${column.key}`}
                   >
-                    <input
-                      ref={setInputRef(rowIndex, column.key)}
-                      className={`entry-grid-cell__input ${
-                        customClassNames?.input || ""
-                      } entry-grid-cell__input-text ${
-                        customClassNames?.textInput || ""
-                      } ${customClassNames?.root}__${column.key}`}
-                      type="text"
-                      value={row[column.key]?.toString() || ""}
-                      onChange={(e) =>
-                        handleCellChange(rowIndex, column.key, e.target.value)
-                      }
-                    />
+                    {row[column.key] ? row[column.key]?.toString() : ""}
                   </div>
                 );
               }
-
-              return null;
             })}
-            {showDeleteIconPerRow && (
+            {isEditable && showDeleteIconPerRow && (
               <div
                 className={`entry-grid-cell ${
                   customClassNames?.cell || ""
@@ -419,15 +518,17 @@ const EntryGrid: React.FC<EntryGridProps> = ({
       </div>
 
       <div className={`entry-grid-footer ${customClassNames?.footer || ""}`}>
-        <button
-          type="button"
-          onClick={handleAddRow}
-          className={`entry-grid-footer__button ${
-            customClassNames?.addButton || ""
-          }`}
-        >
-          Add New Line
-        </button>
+        {isEditable && (
+          <button
+            type="button"
+            onClick={handleAddRow}
+            className={`entry-grid-footer__button ${
+              customClassNames?.addButton || ""
+            }`}
+          >
+            Add New Line
+          </button>
+        )}
       </div>
     </div>
   );

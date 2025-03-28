@@ -358,6 +358,7 @@ export interface JournalTransaction {
   side: DebitCredit;
   amount: Decimal;
   coaAccountId: string;
+  coaAccount?: any;
 }
 
 export type JournalBatchData = {
@@ -381,7 +382,7 @@ export type JournalBatchData = {
   reversedAt?: string | null;
   reversalReason?: string | null;
   createdById?: string;
-  createdAt: Date | string;
+  createdAt?: Date | string;
   updatedAt?: Date | string;
 };
 

@@ -34,10 +34,9 @@ export default function Journal() {
     location.pathname
   );
 
-  const isViewJournal = matchPath(
-    staticRoutes.accounting.workspace.viewJournal,
-    location.pathname
-  );
+  const isViewJournal =
+    !(isAddNewJournal || isAddNewRecurringJournal) &&
+    matchPath(staticRoutes.accounting.workspace.viewJournal, location.pathname);
 
   const showJournalList = !!isDefault;
   const showNewJournalForm = !!isAddNewJournal;
