@@ -6,12 +6,12 @@ CREATE TABLE "LedgerEntry" (
     LIKE "LedgerEntry_old" INCLUDING ALL  -- Copy structure from old table
 ) PARTITION BY RANGE ("fsDate");
 
-CREATE TABLE ledger_entry_2024 PARTITION OF "LedgerEntry"
+CREATE TABLE IF NOT EXISTS ledger_entry_2024 PARTITION OF "LedgerEntry"
 FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
 
-CREATE TABLE ledger_entry_default PARTITION OF "LedgerEntry" DEFAULT;
+CREATE TABLE IF NOT EXISTS ledger_entry_default PARTITION OF "LedgerEntry" DEFAULT;
 
-CREATE TABLE ledger_entry_before_2024 PARTITION OF "LedgerEntry"
+CREATE TABLE IF NOT EXISTS ledger_entry_before_2024 PARTITION OF "LedgerEntry"
 FOR VALUES FROM ('1970-01-01') TO ('2024-01-01');
 
 INSERT INTO "LedgerEntry" 

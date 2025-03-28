@@ -48,6 +48,7 @@ model User {
   companies                     UserCompany[]          @relation(name: "userCompanies")
   createdCompanies              Company[]              @relation("companyCreator")
   JournalBatchPostedBy          JournalBatch[]         @relation("journalPostedBy")
+  JournalBatchCreatedBy         JournalBatch[]         @relation("journalBatchCreatedBy")
   JournalBatchUpdatedBy         JournalBatch[]         @relation("journalUpdatedBy")
   bankTransactionBatchesCreated BankTransactionBatch[] @relation("createdByUser")
   bankTransactionBatchesUpdated BankTransactionBatch[] @relation("updatedByUser")
@@ -475,8 +476,8 @@ model JournalBatch {
   ledgerTransactionId     String?                   @unique
   ledgerTransactions      LedgerTransaction?        @relation("journalLedgerTransactions", fields: [ledgerTransactionId], references: [id])
   postedAt                DateTime?
-  postedById              String
-  postedBy                User                      @relation(name: "journalPostedBy", fields: [postedById], references: [id])
+  postedById              String?
+  postedBy                User?                     @relation(name: "journalPostedBy", fields: [postedById], references: [id])
   updatedById             String?
   updatedBy               User?                     @relation(name: "journalUpdatedBy", fields: [updatedById], references: [id])
   companyId               String
@@ -489,6 +490,8 @@ model JournalBatch {
   reversedBy              User?                     @relation(name: "JournalBatchReversedBy", fields: [reversedById], references: [id])
   reversedAt              DateTime?
   reversalReason          JournalReversalReason?
+  createdById             String
+  CreatedBy               User?                     @relation(name: "journalBatchCreatedBy", fields: [createdById], references: [id])
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
   isDeleted               Boolean                   @default(false)

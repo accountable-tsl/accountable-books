@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response, NextFunction } from "express";
+import { getIdentifierType } from "../utils/utils";
 const prisma = new PrismaClient();
 
 export const checkCompanyId = async (
@@ -14,10 +15,12 @@ export const checkCompanyId = async (
     return res.status(400).json({ message: "Invalid Company Identifier" });
   }
 
-  const isUUID =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      companyId
-    );
+  const identifierType = getIdentifierType(companyId);
+  const isUUID = identifierType === "uuid";
+  // const isUUID =
+  //   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+  //     companyId
+  //   );
 
   try {
     const company = await prisma.company.findUnique({
