@@ -192,17 +192,17 @@ export async function fetchJournalById(companyId: string, journalId: string) {
 }
 
 export async function insertJournalRecords(
-  tx: PrismaTransactionalClient | null,
   companyIdentifier: string,
   userIdentifier: string,
-  journalData: JournalData[]
+  journalData: JournalData[],
+  tx?: PrismaTransactionalClient | null
 ) {
   const client = tx || prisma;
   // Validate companyId and journalData, ensure company exists, journalData is not empty, is an arry, and all required fields are present
   const companyIdType = getIdentifierType(companyIdentifier);
 
   const [companyData, userData] = await Promise.all([
-    prisma.company.findUnique({
+    client.company.findUnique({
       where: {
         ...(companyIdType === "uuid"
           ? { id: companyIdentifier }
@@ -211,7 +211,7 @@ export async function insertJournalRecords(
       select: { id: true, reportingCurrencyId: true },
     }),
 
-    prisma.user.findUnique({
+    client.user.findUnique({
       where: {
         id: userIdentifier,
       },
@@ -246,8 +246,8 @@ export async function insertJournalRecords(
     const allCoaIds = journalData.flatMap((b) =>
       b.transactions.map((t) => t.coaAccountId)
     );
-    const validCoas = await prisma.coa.findMany({
-      where: { id: { in: allCoaIds } },
+    const validCoas = await client.coa.findMany({
+      where: { id: { in: allCoaIds }, isActive: true, isDeleted: false },
     });
     const validCoaIds = new Set(validCoas.map((c) => c.id));
 
@@ -758,35 +758,37 @@ export async function updateJournalRecord(
     if (journal.status === JournalStatus.DRAFT) {
       const result = await prisma.$transaction(async (tx) => {
         const insertResult = await insertJournalRecords(
-          tx,
           companyId,
           userId,
-          journalData
+          journalData,
+          tx
         );
 
-        // Update journal batch
-        if (insertResult.success) {
-          await tx.journalBatch.update({
-            where: {
-              id: journal.id,
-              companyId,
-            },
-            data: {
-              isDeleted: true,
-              deletedAt: new Date(),
-              updatedById: userId,
-            },
-          });
-
-          await tx.journalEntry.updateMany({
-            where: {
-              journalBatchId: journal.id,
-            },
-            data: {
-              isDeleted: true,
-            },
-          });
+        if (!insertResult.success) {
+          return insertResult;
         }
+
+        // Update journal batch
+        await tx.journalBatch.update({
+          where: {
+            id: journal.id,
+            companyId,
+          },
+          data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+            updatedById: userId,
+          },
+        });
+
+        await tx.journalEntry.updateMany({
+          where: {
+            journalBatchId: journal.id,
+          },
+          data: {
+            isDeleted: true,
+          },
+        });
 
         return insertResult;
       });
@@ -799,71 +801,71 @@ export async function updateJournalRecord(
     if (journal.status === JournalStatus.POSTED) {
       const result = await prisma.$transaction(async (tx) => {
         const insertResult = await insertJournalRecords(
-          tx,
           companyId,
           userId,
-          journalData
+          journalData,
+          tx
         );
 
-        if (insertResult.success) {
-          // Update journal batch
-          const updatePromises = [
-            tx.journalBatch.update({
-              where: {
-                id: journal.id,
-                companyId,
-              },
-              data: {
-                isDeleted: true,
-                deletedAt: new Date(),
-                updatedById: userId,
-              },
-            }),
-
-            // Update journal entries
-            tx.journalEntry.updateMany({
-              where: {
-                journalBatchId: journal.id,
-              },
-              data: {
-                isDeleted: true,
-              },
-            }),
-
-            // Update ledger transactions
-            tx.ledgerTransaction.updateMany({
-              where: {
-                companyId,
-                journalBatch: {
-                  id: journal.id,
-                },
-              },
-              data: {
-                isDeleted: true,
-                deletedAt: new Date(),
-                updatedById: userId,
-              },
-            }),
-
-            // Update ledger entries
-            tx.ledgerEntry.updateMany({
-              where: {
-                ledgerTransaction: {
-                  companyId,
-                  journalBatch: {
-                    id: journal.id,
-                  },
-                },
-              },
-              data: {
-                isDeleted: true,
-                deletedAt: new Date(),
-                updatedById: userId,
-              },
-            }),
-          ];
-          await Promise.all(updatePromises);
+        if (!insertResult.success) {
+          return insertResult;
         }
+
+        // Update journal batch
+        await tx.journalBatch.update({
+          where: {
+            id: journal.id,
+            companyId,
+          },
+          data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+            updatedById: userId,
+          },
+        });
+
+        // Update journal entries
+        await tx.journalEntry.updateMany({
+          where: {
+            journalBatchId: journal.id,
+          },
+          data: {
+            isDeleted: true,
+          },
+        });
+
+        // Update ledger transactions
+        await tx.ledgerTransaction.updateMany({
+          where: {
+            companyId,
+            journalBatch: {
+              id: journal.id,
+            },
+          },
+          data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+            updatedById: userId,
+          },
+        });
+
+        // Update ledger entries
+        await tx.ledgerEntry.updateMany({
+          where: {
+            ledgerTransaction: {
+              companyId,
+              journalBatch: {
+                id: journal.id,
+              },
+            },
+          },
+          data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+            updatedById: userId,
+          },
+        });
+
         return insertResult;
       });
 

@@ -637,6 +637,7 @@ model Project {
   isDeleted    Boolean        @default(false)
 
   @@unique([code, companyId])
+  @@unique([name, companyId])
 }
 
 // For real-time bank account balances. Separate because bank accounts are independent

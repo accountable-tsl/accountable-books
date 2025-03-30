@@ -123,7 +123,7 @@ export async function updateJournal(req: Request, res: Response) {
       journalData
     );
 
-    if (response.success) {
+    if (response?.success) {
       return res.status(201).json(response);
     } else {
       return res.status(400).json(response);
