@@ -15,11 +15,13 @@ const router = express.Router({ mergeParams: true });
 
 router.get("/", checkCompanyId, getJournals);
 router.get("/:journalId", checkCompanyId, getSingleJournal);
+
 router.post("/", checkCompanyId, createJournals);
+router.put("/:journalId", checkCompanyId, updateJournal);
+
 router.post("/bulk", checkCompanyId, bulkCreateJournals);
 router.post("/recurring", checkCompanyId, createRecurringJournals);
 router.post("/:journalId/reverse", checkCompanyId, reverseJournal);
-router.post("/:journalId/edit", checkCompanyId, updateJournal);
 router.patch("/:journalId", checkCompanyId, softDeleteJournals);
 
 export default router;

@@ -3,6 +3,7 @@ import {
   DebitCredit,
   JournalStatus,
   LedgerTransaction,
+  Prisma,
   ProjectStatus,
   TransactionSource,
 } from "@prisma/client";
@@ -12,6 +13,7 @@ import { getIdentifierType } from "../utils/utils";
 import { createLedgerEntries, processLedgerTxns } from "./transactionModel";
 
 const prisma = new PrismaClient();
+export type PrismaTransactionalClient = Prisma.TransactionClient;
 
 interface FetchJournalFilters {
   searchQuery?: string;
@@ -34,6 +36,7 @@ interface JournalEntryInput {
 }
 
 export type JournalData = {
+  id?: string;
   date: Date;
   description: string;
   note?: string;
@@ -189,10 +192,12 @@ export async function fetchJournalById(companyId: string, journalId: string) {
 }
 
 export async function insertJournalRecords(
+  tx: PrismaTransactionalClient | null,
   companyIdentifier: string,
   userIdentifier: string,
   journalData: JournalData[]
 ) {
+  const client = tx || prisma;
   // Validate companyId and journalData, ensure company exists, journalData is not empty, is an arry, and all required fields are present
   const companyIdType = getIdentifierType(companyIdentifier);
 
@@ -330,160 +335,180 @@ export async function insertJournalRecords(
     }
 
     // Insert journal records into database (if no errors)
-    const createdJournalBatches = await prisma.$transaction(async (tx) => {
-      // Get current max sequence number for the company
+    // const createdJournalBatches = await prisma.$transaction(async (tx) => {
+    //   // Get current max sequence number for the company
 
-      const createdBatches = [];
-      let totalEntries = 0;
+    //   const createdBatches = [];
+    //   let totalEntries = 0;
 
-      let sequenceNumber =
-        (
-          await tx.journalBatch.findFirst({
-            where: { companyId },
-            orderBy: { sequenceNumber: "desc" },
-            select: { sequenceNumber: true },
-          })
-        )?.sequenceNumber || 0;
+    //   let sequenceNumber =
+    //     (
+    //       await tx.journalBatch.findFirst({
+    //         where: { companyId },
+    //         orderBy: { sequenceNumber: "desc" },
+    //         select: { sequenceNumber: true },
+    //       })
+    //     )?.sequenceNumber || 0;
 
-      for (const batch of journalData) {
-        //Handle potential sequence concurrency issues later
-        sequenceNumber += 1;
+    //   for (const batch of journalData) {
+    //     //Handle potential sequence concurrency issues later
+    //     sequenceNumber += 1;
 
-        if (batch.status === JournalStatus.POSTED) {
-          const ledgerTxn = await tx.ledgerTransaction.create({
-            data: {
-              date: batch.date,
-              description: batch.description,
-              source: TransactionSource.MANUAL_JOURNAL,
-              companyId,
-              createdById: userId,
-              updatedById: userId,
-            },
-          });
-          // Create JournalBatch
-          const newBatch = await tx.journalBatch.create({
-            data: {
-              companyId,
-              sequenceNumber: sequenceNumber,
-              date: batch.date,
-              description: batch.description,
-              status: batch.status,
-              note: batch.note,
-              autoReversalDate: batch.autoReversalDate,
-              generatedFromTemplateId: batch.generatedFromTemplateId,
-              createdById: userId,
-              updatedById: userId,
-              postedAt: new Date(),
-              postedById: userId,
-              ledgerTransactionId: ledgerTxn.id,
-            },
-          });
+    //     if (batch.status === JournalStatus.POSTED) {
+    //       const ledgerTxn = await tx.ledgerTransaction.create({
+    //         data: {
+    //           date: batch.date,
+    //           description: batch.description,
+    //           source: TransactionSource.MANUAL_JOURNAL,
+    //           companyId,
+    //           createdById: userId,
+    //           updatedById: userId,
+    //         },
+    //       });
+    //       // Create JournalBatch
+    //       const newBatch = await tx.journalBatch.create({
+    //         data: {
+    //           companyId,
+    //           sequenceNumber: sequenceNumber,
+    //           date: batch.date,
+    //           description: batch.description,
+    //           status: batch.status,
+    //           note: batch.note,
+    //           autoReversalDate: batch.autoReversalDate,
+    //           generatedFromTemplateId: batch.generatedFromTemplateId,
+    //           createdById: userId,
+    //           updatedById: userId,
+    //           postedAt: new Date(),
+    //           postedById: userId,
+    //           ledgerTransactionId: ledgerTxn.id,
+    //         },
+    //       });
 
-          const ledgerEntries = await Promise.all(
-            batch.transactions.map(async (transaction) => {
-              let projectId = transaction.projectId;
-              let projectName = transaction.projectName;
-              let project;
+    //       const ledgerEntries = await Promise.all(
+    //         batch.transactions.map(async (transaction) => {
+    //           let projectId = transaction.projectId;
+    //           let projectName = transaction.projectName;
+    //           let project;
 
-              if (projectId) {
-                project = await tx.project.findUnique({
-                  where: { id: projectId },
-                });
-              } else if (projectName) {
-                project = await tx.project.findFirst({
-                  where: { name: projectName, companyId },
-                });
-              }
+    //           if (projectId) {
+    //             project = await tx.project.findUnique({
+    //               where: { id: projectId },
+    //             });
+    //           } else if (projectName) {
+    //             project = await tx.project.findFirst({
+    //               where: { name: projectName, companyId },
+    //             });
+    //           }
 
-              if (!project && projectName) {
-                project = await tx.project.create({
-                  data: {
-                    name: projectName,
-                    companyId,
-                    status: ProjectStatus.ACTIVE,
-                  },
-                });
+    //           if (!project && projectName) {
+    //             project = await tx.project.create({
+    //               data: {
+    //                 name: projectName,
+    //                 companyId,
+    //                 status: ProjectStatus.ACTIVE,
+    //               },
+    //             });
 
-                projectId = project.id;
-              }
+    //             projectId = project.id;
+    //           }
 
-              const ledgerEntry = await tx.ledgerEntry.create({
-                data: {
-                  ledgerTransactionId: ledgerTxn.id,
-                  fsDate: transaction.date || batch.date,
-                  coaId: transaction.coaAccountId,
-                  transactionSide: transaction.side,
-                  sourceCurrencyId: reportingCurrencyId,
-                  sourceAmount: new Decimal(transaction.amount),
-                  absoluteSourceAmount: new Decimal(transaction.amount).abs(),
-                  systemExchangeRate: new Decimal(1),
-                  customExchangeRate: new Decimal(1),
-                  amount: new Decimal(transaction.amount),
-                  absoluteAmount: new Decimal(transaction.amount).abs(),
-                  categorisationStatus: CategorisationStatus.CATEGORISED,
-                  description: transaction.description || batch.description,
-                  ...(projectId ? { projectId: projectId } : {}),
-                  updatedById: userId,
-                },
-              });
+    //           const ledgerEntry = await tx.ledgerEntry.create({
+    //             data: {
+    //               ledgerTransactionId: ledgerTxn.id,
+    //               fsDate: transaction.date || batch.date,
+    //               coaId: transaction.coaAccountId,
+    //               transactionSide: transaction.side,
+    //               sourceCurrencyId: reportingCurrencyId,
+    //               sourceAmount: new Decimal(transaction.amount),
+    //               absoluteSourceAmount: new Decimal(transaction.amount).abs(),
+    //               systemExchangeRate: new Decimal(1),
+    //               customExchangeRate: new Decimal(1),
+    //               amount: new Decimal(transaction.amount),
+    //               absoluteAmount: new Decimal(transaction.amount).abs(),
+    //               categorisationStatus: CategorisationStatus.CATEGORISED,
+    //               description: transaction.description || batch.description,
+    //               ...(projectId ? { projectId: projectId } : {}),
+    //               updatedById: userId,
+    //             },
+    //           });
 
-              return ledgerEntry;
-            })
+    //           return ledgerEntry;
+    //         })
+    //       );
+
+    //       const journalEntriesData = batch.transactions.map(
+    //         (transaction, index) => ({
+    //           description: transaction.description || batch.description,
+    //           side: transaction.side,
+    //           amount: new Decimal(transaction.amount),
+    //           coaAccountId: transaction.coaAccountId,
+    //           journalBatchId: newBatch.id,
+    //           ledgerEntryId: ledgerEntries[index].id,
+    //         })
+    //       );
+
+    //       await tx.journalEntry.createMany({
+    //         data: journalEntriesData,
+    //       });
+
+    //       createdBatches.push(newBatch);
+    //       totalEntries += journalEntriesData.length;
+    //     } else {
+    //       // Create JournalBatch
+    //       const newBatch = await tx.journalBatch.create({
+    //         data: {
+    //           companyId,
+    //           sequenceNumber: sequenceNumber,
+    //           date: batch.date,
+    //           description: batch.description,
+    //           status: batch.status,
+    //           note: batch.note,
+    //           createdById: userId,
+    //           autoReversalDate: batch.autoReversalDate,
+    //           generatedFromTemplateId: batch.generatedFromTemplateId,
+    //           updatedById: userId,
+    //         },
+    //       });
+
+    //       const journalEntriesData = batch.transactions.map((transaction) => ({
+    //         description: transaction.description || batch.description,
+    //         side: transaction.side,
+    //         amount: new Decimal(transaction.amount),
+    //         coaAccountId: transaction.coaAccountId,
+    //         journalBatchId: newBatch.id,
+    //       }));
+
+    //       await tx.journalEntry.createMany({
+    //         data: journalEntriesData,
+    //       });
+
+    //       createdBatches.push(newBatch);
+    //       totalEntries += journalEntriesData.length;
+    //     }
+    //   }
+
+    //   return createdBatches;
+    // });
+
+    const createdJournalBatches = tx
+      ? // We're already in a transaction; use the existing tx.
+        await doInsertLogic(
+          client,
+          companyId,
+          reportingCurrencyId,
+          userId,
+          journalData
+        )
+      : // No transaction provided; start one.
+        await prisma.$transaction(async (txClient) => {
+          return await doInsertLogic(
+            txClient,
+            companyId,
+            reportingCurrencyId,
+            userId,
+            journalData
           );
-
-          const journalEntriesData = batch.transactions.map(
-            (transaction, index) => ({
-              description: transaction.description || batch.description,
-              side: transaction.side,
-              amount: new Decimal(transaction.amount),
-              coaAccountId: transaction.coaAccountId,
-              journalBatchId: newBatch.id,
-              ledgerEntryId: ledgerEntries[index].id,
-            })
-          );
-
-          await tx.journalEntry.createMany({
-            data: journalEntriesData,
-          });
-
-          createdBatches.push(newBatch);
-          totalEntries += journalEntriesData.length;
-        } else {
-          // Create JournalBatch
-          const newBatch = await tx.journalBatch.create({
-            data: {
-              companyId,
-              sequenceNumber: sequenceNumber,
-              date: batch.date,
-              description: batch.description,
-              status: batch.status,
-              note: batch.note,
-              createdById: userId,
-              autoReversalDate: batch.autoReversalDate,
-              generatedFromTemplateId: batch.generatedFromTemplateId,
-              updatedById: userId,
-            },
-          });
-
-          const journalEntriesData = batch.transactions.map((transaction) => ({
-            description: transaction.description || batch.description,
-            side: transaction.side,
-            amount: new Decimal(transaction.amount),
-            coaAccountId: transaction.coaAccountId,
-            journalBatchId: newBatch.id,
-          }));
-
-          await tx.journalEntry.createMany({
-            data: journalEntriesData,
-          });
-
-          createdBatches.push(newBatch);
-          totalEntries += journalEntriesData.length;
-        }
-      }
-
-      return createdBatches;
-    });
+        });
 
     return {
       success: true,
@@ -506,8 +531,357 @@ export async function insertJournalRecords(
   }
 }
 
+async function doInsertLogic(
+  tx: PrismaTransactionalClient,
+  companyId: string,
+  reportingCurrencyId: string,
+  userId: string,
+  journalData: JournalData[]
+) {
+  // Get current max sequence number for the company
+  const createdBatches = [];
+  let totalEntries = 0;
+
+  let sequenceNumber =
+    (
+      await tx.journalBatch.findFirst({
+        where: { companyId },
+        orderBy: { sequenceNumber: "desc" },
+        select: { sequenceNumber: true },
+      })
+    )?.sequenceNumber || 0;
+
+  for (const batch of journalData) {
+    //Handle potential sequence concurrency issues later
+    sequenceNumber += 1;
+
+    if (batch.status === JournalStatus.POSTED) {
+      const ledgerTxn = await tx.ledgerTransaction.create({
+        data: {
+          date: batch.date,
+          description: batch.description,
+          source: TransactionSource.MANUAL_JOURNAL,
+          companyId,
+          createdById: userId,
+          updatedById: userId,
+        },
+      });
+      // Create JournalBatch
+      const newBatch = await tx.journalBatch.create({
+        data: {
+          companyId,
+          sequenceNumber: sequenceNumber,
+          date: batch.date,
+          description: batch.description,
+          status: batch.status,
+          note: batch.note,
+          autoReversalDate: batch.autoReversalDate,
+          generatedFromTemplateId: batch.generatedFromTemplateId,
+          createdById: userId,
+          updatedById: userId,
+          postedAt: new Date(),
+          postedById: userId,
+          ledgerTransactionId: ledgerTxn.id,
+        },
+      });
+
+      const ledgerEntries = await Promise.all(
+        batch.transactions.map(async (transaction) => {
+          let projectId = transaction.projectId;
+          let projectName = transaction.projectName;
+          let project;
+
+          if (projectId) {
+            project = await tx.project.findUnique({
+              where: { id: projectId },
+            });
+          } else if (projectName) {
+            project = await tx.project.findFirst({
+              where: { name: projectName, companyId },
+            });
+          }
+
+          if (!project && projectName) {
+            project = await tx.project.create({
+              data: {
+                name: projectName,
+                companyId,
+                status: ProjectStatus.ACTIVE,
+              },
+            });
+
+            projectId = project.id;
+          }
+
+          const ledgerEntry = await tx.ledgerEntry.create({
+            data: {
+              ledgerTransactionId: ledgerTxn.id,
+              fsDate: transaction.date || batch.date,
+              coaId: transaction.coaAccountId,
+              transactionSide: transaction.side,
+              sourceCurrencyId: reportingCurrencyId,
+              sourceAmount: new Decimal(transaction.amount),
+              absoluteSourceAmount: new Decimal(transaction.amount).abs(),
+              systemExchangeRate: new Decimal(1),
+              customExchangeRate: new Decimal(1),
+              amount: new Decimal(transaction.amount),
+              absoluteAmount: new Decimal(transaction.amount).abs(),
+              categorisationStatus: CategorisationStatus.CATEGORISED,
+              description: transaction.description || batch.description,
+              ...(projectId ? { projectId: projectId } : {}),
+              updatedById: userId,
+            },
+          });
+
+          return ledgerEntry;
+        })
+      );
+
+      const journalEntriesData = batch.transactions.map(
+        (transaction, index) => ({
+          description: transaction.description || batch.description,
+          side: transaction.side,
+          amount: new Decimal(transaction.amount),
+          coaAccountId: transaction.coaAccountId,
+          journalBatchId: newBatch.id,
+          ledgerEntryId: ledgerEntries[index].id,
+        })
+      );
+
+      await tx.journalEntry.createMany({
+        data: journalEntriesData,
+      });
+
+      createdBatches.push(newBatch);
+      totalEntries += journalEntriesData.length;
+    } else {
+      // Create JournalBatch
+      const newBatch = await tx.journalBatch.create({
+        data: {
+          companyId,
+          sequenceNumber: sequenceNumber,
+          date: batch.date,
+          description: batch.description,
+          status: batch.status,
+          note: batch.note,
+          createdById: userId,
+          autoReversalDate: batch.autoReversalDate,
+          generatedFromTemplateId: batch.generatedFromTemplateId,
+          updatedById: userId,
+        },
+      });
+
+      const journalEntriesData = batch.transactions.map((transaction) => ({
+        description: transaction.description || batch.description,
+        side: transaction.side,
+        amount: new Decimal(transaction.amount),
+        coaAccountId: transaction.coaAccountId,
+        journalBatchId: newBatch.id,
+      }));
+
+      await tx.journalEntry.createMany({
+        data: journalEntriesData,
+      });
+
+      createdBatches.push(newBatch);
+      totalEntries += journalEntriesData.length;
+    }
+  }
+
+  return createdBatches;
+}
+
+export async function updateJournalRecord(
+  companyIdentifier: string,
+  journalIdentifier: string,
+  userIdentifier: string,
+  journalData: JournalData[]
+) {
+  /*
+   * confirm if journal exists in db and is not deleted
+   * confirm journal status in db
+   *
+   * If journal status was previously draft, remove draft from journal batch, journal entries and create new altogether
+   * If journal status was previously posted, mark journal batch, journal entries, ledger transaction, ledger entries as deleted, then and create new journal altogether
+   */
+  try {
+    const companyIdType = getIdentifierType(companyIdentifier);
+
+    const [companyData, userData, journal] = await Promise.all([
+      prisma.company.findUnique({
+        where: {
+          ...(companyIdType === "uuid"
+            ? { id: companyIdentifier }
+            : { shortCode: companyIdentifier }),
+        },
+        select: { id: true, reportingCurrencyId: true },
+      }),
+
+      prisma.user.findUnique({
+        where: {
+          id: userIdentifier,
+        },
+        select: { id: true },
+      }),
+
+      prisma.journalBatch.findFirst({
+        where: {
+          id: journalIdentifier,
+        },
+        select: {
+          id: true,
+          status: true,
+          companyId: true,
+          isDeleted: true,
+        },
+      }),
+    ]);
+
+    const companyId = companyData?.id;
+    const userId = userData?.id;
+
+    if (!companyId || !userId || !journal || companyId !== journal.companyId) {
+      return { success: false, message: "Bad Request" };
+    }
+
+    if (journal.isDeleted || journal.status === JournalStatus.VOIDED) {
+      return { success: false, message: "Journal cannot be updated" };
+    }
+
+    if (!Array.isArray(journalData) || journalData.length === 0) {
+      return {
+        success: false,
+        message: "Journal data must be a non-empty array",
+      };
+    }
+
+    if (journal.status === JournalStatus.DRAFT) {
+      const result = await prisma.$transaction(async (tx) => {
+        const insertResult = await insertJournalRecords(
+          tx,
+          companyId,
+          userId,
+          journalData
+        );
+
+        // Update journal batch
+        if (insertResult.success) {
+          await tx.journalBatch.update({
+            where: {
+              id: journal.id,
+              companyId,
+            },
+            data: {
+              isDeleted: true,
+              deletedAt: new Date(),
+              updatedById: userId,
+            },
+          });
+
+          await tx.journalEntry.updateMany({
+            where: {
+              journalBatchId: journal.id,
+            },
+            data: {
+              isDeleted: true,
+            },
+          });
+        }
+
+        return insertResult;
+      });
+
+      // Update journal entries
+
+      return result;
+    }
+
+    if (journal.status === JournalStatus.POSTED) {
+      const result = await prisma.$transaction(async (tx) => {
+        const insertResult = await insertJournalRecords(
+          tx,
+          companyId,
+          userId,
+          journalData
+        );
+
+        if (insertResult.success) {
+          // Update journal batch
+          const updatePromises = [
+            tx.journalBatch.update({
+              where: {
+                id: journal.id,
+                companyId,
+              },
+              data: {
+                isDeleted: true,
+                deletedAt: new Date(),
+                updatedById: userId,
+              },
+            }),
+
+            // Update journal entries
+            tx.journalEntry.updateMany({
+              where: {
+                journalBatchId: journal.id,
+              },
+              data: {
+                isDeleted: true,
+              },
+            }),
+
+            // Update ledger transactions
+            tx.ledgerTransaction.updateMany({
+              where: {
+                companyId,
+                journalBatch: {
+                  id: journal.id,
+                },
+              },
+              data: {
+                isDeleted: true,
+                deletedAt: new Date(),
+                updatedById: userId,
+              },
+            }),
+
+            // Update ledger entries
+            tx.ledgerEntry.updateMany({
+              where: {
+                ledgerTransaction: {
+                  companyId,
+                  journalBatch: {
+                    id: journal.id,
+                  },
+                },
+              },
+              data: {
+                isDeleted: true,
+                deletedAt: new Date(),
+                updatedById: userId,
+              },
+            }),
+          ];
+          await Promise.all(updatePromises);
+        }
+        return insertResult;
+      });
+
+      return result;
+    }
+  } catch (error) {
+    console.error("Error in updateJournalRecord:", error);
+    return {
+      success: false,
+      message: "Failed to update journal records",
+      ...(process.env.NODE_ENV === "development" && {
+        error: error,
+      }),
+    };
+  }
+}
+
 export async function insertRecurringJournal() {}
 
-export async function updateSingleJournal() {}
 export async function insertReversalJournal() {}
 export async function markJournalAsDeleted() {}
