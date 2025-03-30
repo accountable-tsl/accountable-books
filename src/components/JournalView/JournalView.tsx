@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchJournalById,
   updateJournal,
+  voidOrDeleteJournal,
 } from "../../services/JournalServices";
 import numeral from "numeral";
 import { normalizeDate, toTitleCase } from "../../utils/utils";
@@ -220,6 +221,77 @@ export default function JournalView({
     }
   };
 
+  const handleVoidorDelete = async (action: "void" | "delete") => {
+    try {
+      const voidJournalFunction = async () => {
+        if (!companyId || !journalId) {
+          openPopup(
+            "journalFormPopup",
+            <JournalFormPopup errors={["Please, try again"]} />
+          );
+          return;
+        }
+        openPopup("journalFormPopup", <JournalFormPopup isLoading />);
+
+        const response = await voidOrDeleteJournal(companyId, {
+          data: [journalId],
+        });
+
+        if (response.success) {
+          openPopup(
+            "journalFormPopup",
+            <JournalFormPopup
+              isSuccess
+              successMessage={
+                action === "void"
+                  ? "Journal voided successfully!"
+                  : "Journal deleted successfully!"
+              }
+              onClose={() => {
+                closePopup("journalFormPopup");
+                navigate(routes.accounting.workspace.journal(companyId));
+              }}
+            />
+          );
+        } else {
+          openPopup(
+            "journalFormPopup",
+            <JournalFormPopup
+              errors={[
+                response.data.error ||
+                  response.data.message ||
+                  "Deletion failed",
+              ]}
+            />
+          );
+        }
+      };
+
+      openPopup(
+        "journalFormPopup",
+        <JournalFormPopup
+          isDelete
+          errors={[
+            `Are you sure you want to ${action || "delete"} this journal?`,
+          ]}
+          onClose={() => voidJournalFunction()}
+        />
+      );
+    } catch (error) {
+      console.error("Failed to update journal:", error);
+      openPopup(
+        "journalFormPopup",
+        <JournalFormPopup
+          errors={[
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          ]}
+        />
+      );
+    }
+  };
+
   const entryGridColumnData = [
     {
       key: "description",
@@ -281,6 +353,9 @@ export default function JournalView({
     ? statusClassMap[journalData.status] || ""
     : "";
 
+  const isDraft = journalData?.status === JournalStatus.DRAFT;
+  const isVoided = journalData?.status === JournalStatus.VOIDED;
+
   const isLoading =
     !companyId ||
     !journalId ||
@@ -322,17 +397,10 @@ export default function JournalView({
                 <button
                   className={`jv-header-btn ${
                     editable ? "jv-header-btn-edit" : ""
-                  } ${
-                    (journalData.status as JournalStatus) !==
-                    JournalStatus.VOIDED
-                      ? "jv-header-btn-del"
-                      : ""
-                  }`}
-                  // onClick={() => setEditable(true)}
+                  } ${!isVoided ? "jv-header-btn-del" : ""}`}
+                  onClick={() => handleVoidorDelete("delete")}
                 >
-                  {journalData.status === JournalStatus.DRAFT
-                    ? "Delete"
-                    : "Void"}
+                  {isDraft ? "Delete" : "Void"}
                 </button>
               </div>
             )}
@@ -456,17 +524,15 @@ export default function JournalView({
               <div className="journal-form-submit">
                 <button
                   className="journal-form-submit__button journal-form-submit__button--draft"
-                  onClick={
-                    journalData.status === JournalStatus.DRAFT
-                      ? () => {
-                          handleJournalUpdate(JournalStatus.DRAFT);
-                        }
-                      : () => {}
-                  }
+                  onClick={() => {
+                    if (isDraft) {
+                      handleJournalUpdate(JournalStatus.DRAFT);
+                    } else {
+                      setEditable(false);
+                    }
+                  }}
                 >
-                  {journalData.status === JournalStatus.DRAFT
-                    ? "Update draft"
-                    : "Cancel"}
+                  {isDraft ? "Update draft" : "Cancel"}
                 </button>
                 <button
                   className="journal-form-submit__button journal-form-submit__button--post"
@@ -474,9 +540,7 @@ export default function JournalView({
                     handleJournalUpdate(JournalStatus.POSTED);
                   }}
                 >
-                  {journalData.status === JournalStatus.DRAFT
-                    ? "Post Journal"
-                    : "Update Journal"}
+                  {isDraft ? "Post Journal" : "Update Journal"}
                 </button>
               </div>
             )}

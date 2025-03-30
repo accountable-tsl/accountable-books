@@ -6,33 +6,49 @@ import { usePopup } from "../../contexts/PopupContext";
 interface JournalFormPopupProps {
   isLoading?: boolean;
   isSuccess?: boolean;
+  isDelete?: boolean;
   errors?: string[];
   onClose?: () => void;
+  successMessage?: string;
 }
 
 export default function JournalFormPopup({
   errors = [],
   isLoading = false,
   isSuccess = false,
+  isDelete = false,
   onClose,
+  successMessage = "Journal created successfully!",
 }: JournalFormPopupProps) {
   const { closePopup } = usePopup();
 
-  const [state, setState] = useState<"loading" | "error" | "success">(
-    "loading"
-  );
+  const [state, setState] = useState<
+    "loading" | "error" | "success" | "delete"
+  >("loading");
 
   useEffect(() => {
     if (isLoading) {
       setState("loading");
       return;
     }
+
+    if (isDelete) {
+      setState("delete");
+      return;
+    }
+
     const timer = setTimeout(() => {
-      setState(isSuccess && errors.length === 0 ? "success" : "error");
-    }, 3000);
+      if (isDelete) {
+        setState("delete");
+      } else if (isSuccess && errors.length === 0) {
+        setState("success");
+      } else {
+        setState("error");
+      }
+    }, 2000);
 
     return () => clearTimeout(timer);
-  }, [errors, isSuccess]);
+  }, [isLoading, isSuccess, isDelete, errors]);
 
   return (
     <div className="jf-pop">
@@ -40,7 +56,7 @@ export default function JournalFormPopup({
         <div className="jf-pop-icon">
           {state === "loading" && <BounceLoader speedMultiplier={0.75} />}
 
-          {state === "error" && (
+          {(state === "error" || state === "delete") && (
             <video
               src="/alert.webm"
               autoPlay
@@ -58,11 +74,12 @@ export default function JournalFormPopup({
           {state === "loading" && "Processing..."}
           {state === "error" && "Validation Issues"}
           {state === "success" && "Success"}
+          {state === "delete" && "Confirm Delete?"}
         </div>
       </div>
 
       <div className="jf-pop-body">
-        {state === "error" && (
+        {(state === "error" || state === "delete") && (
           <>
             {errors.length > 0 ? (
               <div className="jf-pop-errors">
@@ -78,15 +95,34 @@ export default function JournalFormPopup({
           </>
         )}
 
-        {state === "success" && <p>Journal created successfully!</p>}
+        {state === "success" && <p>{successMessage}</p>}
       </div>
       <div className="jf-pop-footer">
-        <button
-          className="jf-pop-close"
-          onClick={onClose ? onClose : () => closePopup("journalFormPopup")}
-        >
-          {errors.length > 0 ? "Close and fix errors" : "Close"}
-        </button>
+        {!isDelete && (
+          <button
+            className="jf-pop-close"
+            onClick={onClose ? onClose : () => closePopup("journalFormPopup")}
+          >
+            {errors.length > 0 ? "Close and fix errors" : "Close"}
+          </button>
+        )}
+
+        {isDelete && (
+          <>
+            <button
+              className="jf-pop-close jf-pop-close__no"
+              onClick={() => closePopup("journalFormPopup")}
+            >
+              Cancel
+            </button>
+            <button
+              className="jf-pop-close jf-pop-close__yes"
+              onClick={onClose ? onClose : () => closePopup("journalFormPopup")}
+            >
+              Delete
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -42,3 +42,14 @@ export const updateJournal = async (
   );
   return response.data;
 };
+
+export const voidOrDeleteJournal = async (
+  companyId: string,
+  data: { data: string[] }
+) => {
+  const response = await axios.patch(
+    `${backendUrl}/api/${companyId}/journals/void`,
+    data
+  );
+  return response.data;
+};
