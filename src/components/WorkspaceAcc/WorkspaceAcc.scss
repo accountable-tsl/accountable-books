@@ -109,12 +109,13 @@
       flex: 1;
       display: flex;
       gap: 0.5rem;
-      padding: 0.5rem 1rem;
+      padding: 0.5rem 0.75rem;
       justify-content: space-between;
       transition: background-color 0.3s ease;
 
       &--center {
         justify-content: center;
+        overflow: hidden;
       }
 
       &--border {

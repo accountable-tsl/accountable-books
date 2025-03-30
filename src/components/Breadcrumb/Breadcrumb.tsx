@@ -85,7 +85,8 @@ function BreadcrumbItemComponent({
           </span>
         </Link>
       ) : (
-        <div
+        <Link
+          to={item.link || "#"}
           className="breadcrumb-item__link breadcrumb-item__link--last"
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         >
@@ -125,7 +126,7 @@ function BreadcrumbItemComponent({
               className="breadcrumb-item__dropdown-icon"
             />
           )}
-        </div>
+        </Link>
       )}
 
       {!isLastItem && (

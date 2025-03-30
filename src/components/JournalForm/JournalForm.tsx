@@ -141,230 +141,36 @@ export default function JournalForm({
     }
   }, [companyId]);
 
-  const handlePostJournal = async (saveAs: JournalStatus) => {
-    if (!companyId) return;
+  const handleJournalGridChange = (updatedRows: any) => {
+    // console.log("Updated Data:", updatedRows);
+    setTempJournalGridData(updatedRows);
+  };
 
+  const handlePostJournal = async (saveAs: JournalStatus) => {
     try {
       openPopup("journalFormPopup", <JournalFormPopup isLoading />);
 
-      const journalValidationErrors: string[] = [];
-
-      if (!journalGridData || journalGridData.length === 0) {
-        journalValidationErrors.push("Transactions: No transactions found");
+      let validationErrors: string[] = [];
+      if (!companyId || !journalGridData || !journalDate) {
         openPopup(
           "journalFormPopup",
-          <JournalFormPopup errors={journalValidationErrors} />
+          <JournalFormPopup errors={["Missing required fields"]} />
         );
         return;
       }
 
-      if (!journalDate) {
-        journalValidationErrors.push("Date: Valid journal date is required");
-      } else if (isNaN(normalizeDate(journalDate).getTime())) {
-        journalValidationErrors.push("Date: Invalid journal date format");
-      }
-
-      if (reversalDate) {
-        if (isNaN(normalizeDate(reversalDate).getTime())) {
-          journalValidationErrors.push("Reversal Date: Invalid date format");
-        } else if (
-          normalizeDate(journalDate).getTime() >
-          normalizeDate(reversalDate).getTime()
-        ) {
-          journalValidationErrors.push(
-            "Reversal Date: Must be after journal date"
-          );
-        }
-      }
-
-      if (!narration || narration.trim() === "") {
-        journalValidationErrors.push("Narration: Valid narration is required");
-      } else if (narration.length > 255) {
-        journalValidationErrors.push(
-          "Narration: Must be less than 255 characters"
-        );
-      }
-
-      if (journalGridData && journalGridData.length < 2) {
-        journalValidationErrors.push(
-          "Transactions: At least two transactions required"
-        );
-      }
-
-      // const totalDebit =
-      //   journalGridData?.reduce((sum, entry) => {
-      //     if (entry.debit) {
-      //       try {
-      //         const debitAmt = new Decimal(entry.debit.replace(/,/g, ""));
-      //         return debitAmt.greaterThan(0) ? sum.plus(debitAmt) : sum;
-      //       } catch {
-      //         return sum;
-      //       }
-      //     }
-      //     return sum;
-      //   }, new Decimal(0)) || new Decimal(0);
-
-      // const totalCredit =
-      //   journalGridData?.reduce((sum, entry) => {
-      //     if (entry.credit) {
-      //       try {
-      //         const creditAmt = new Decimal(entry.credit.replace(/,/g, ""));
-      //         return creditAmt.greaterThan(0) ? sum.plus(creditAmt) : sum;
-      //       } catch {
-      //         return sum;
-      //       }
-      //     }
-      //     return sum;
-      //   }, new Decimal(0)) || new Decimal(0);
-
-      // if (totalDebit.equals(totalCredit)) {
-      //   journalValidationErrors.push(
-      //     "Transactions: Total debit and credit must be equal"
-      //   );
-      // }
-
-      const { totalDebit, totalCredit, amountErrors } = journalGridData.reduce(
-        (acc, entry, index) => {
-          // Validate individual transaction amounts first
-          const debitStr = entry.debit?.replace(/[^0-9.]/g, "") || "";
-          const creditStr = entry.credit?.replace(/[^0-9.]/g, "") || "";
-
-          // Validate only one side is populated
-          if (!!debitStr && !!creditStr) {
-            acc.amountErrors.push(
-              `Transaction ${index + 1}: Cannot have both debit and credit`
-            );
-            return acc;
-          }
-
-          // Parse amounts safely
-          const parseAmount = (str: string) => {
-            try {
-              const clean = str.replace(/,/g, "");
-              return new Decimal(clean);
-            } catch {
-              return new Decimal(NaN);
-            }
-          };
-
-          const debitAmount = parseAmount(debitStr);
-          const creditAmount = parseAmount(creditStr);
-
-          // Validate amounts are positive numbers
-          if (debitAmount.isNaN() || debitAmount.lessThanOrEqualTo(0)) {
-            if (debitStr)
-              acc.amountErrors.push(
-                `Transaction ${index + 1}: Invalid debit amount`
-              );
-          }
-          if (creditAmount.isNaN() || creditAmount.lessThanOrEqualTo(0)) {
-            if (creditStr)
-              acc.amountErrors.push(
-                `Transaction ${index + 1}: Invalid credit amount`
-              );
-          }
-
-          // Only sum valid amounts
-          if (debitAmount.greaterThan(0)) {
-            acc.totalDebit = acc.totalDebit.plus(debitAmount);
-          } else if (creditAmount.greaterThan(0)) {
-            acc.totalCredit = acc.totalCredit.plus(creditAmount);
-          }
-
-          return acc;
-        },
-        {
-          totalDebit: new Decimal(0),
-          totalCredit: new Decimal(0),
-          amountErrors: [] as string[],
-        }
+      validationErrors = validateJournalData(
+        companyId,
+        journalGridData,
+        journalDate,
+        narration,
+        reversalDate
       );
 
-      // Add amount errors to validation errors
-      journalValidationErrors.push(...amountErrors);
-
-      // Now check balance (THIS WAS YOUR MAIN ISSUE - INVERTED CONDITION)
-      if (!totalDebit.equals(totalCredit)) {
-        journalValidationErrors.push(
-          `Transactions: Debits (${numeral(totalDebit).format(
-            "0,0.00"
-          )}) do not match credits (${numeral(totalCredit).format("0,0.00")})`
-        );
-      }
-
-      journalGridData.forEach((entry, index) => {
-        const prefix = `Transaction ${index + 1}`;
-
-        if (entry.description && entry.description.length > 255) {
-          journalValidationErrors.push(
-            `${prefix}: Description must be less than 255 characters`
-          );
-        }
-
-        if (
-          entry.description &&
-          (!entry.account || (!entry.debit && !entry.credit))
-        ) {
-          journalValidationErrors.push(
-            `${prefix}: Account and debit or credit required`
-          );
-        }
-
-        if (
-          (entry.account || entry.debit || entry.credit) &&
-          !entry.description
-        ) {
-          journalValidationErrors.push(`${prefix}: Description required`);
-        }
-
-        if (entry.account && !entry.account.value) {
-          journalValidationErrors.push(`${prefix}: Valid account required`);
-        }
-
-        let debitAmt = null;
-        let creditAmt = null;
-
-        if (entry.debit) {
-          try {
-            debitAmt = new Decimal(entry.debit.replace(/,/g, ""));
-            if (debitAmt.lessThanOrEqualTo(0)) {
-              journalValidationErrors.push(`${prefix}: Debit must be positive`);
-            }
-          } catch {
-            journalValidationErrors.push(`${prefix}: Debit has invalid format`);
-          }
-        }
-
-        if (entry.credit) {
-          try {
-            creditAmt = new Decimal(entry.credit.replace(/,/g, ""));
-            if (creditAmt.lessThanOrEqualTo(0)) {
-              journalValidationErrors.push(
-                `${prefix}: Credit must be positive`
-              );
-            }
-          } catch {
-            journalValidationErrors.push(
-              `${prefix}: Credit has invalid format`
-            );
-          }
-        }
-
-        if (debitAmt && creditAmt) {
-          journalValidationErrors.push(
-            `${prefix}: Cannot have both debit and credit`
-          );
-        }
-
-        if (entry.account && !debitAmt && !creditAmt) {
-          journalValidationErrors.push(`${prefix}: Debit or credit required`);
-        }
-      });
-
-      if (journalValidationErrors.length > 0) {
+      if (validationErrors.length > 0) {
         openPopup(
           "journalFormPopup",
-          <JournalFormPopup errors={journalValidationErrors} />
+          <JournalFormPopup errors={validationErrors} />
         );
         return;
       }
@@ -415,11 +221,6 @@ export default function JournalForm({
     }
   };
 
-  const handleJournalGridChange = (updatedRows: any) => {
-    // console.log("Updated Data:", updatedRows);
-    setTempJournalGridData(updatedRows);
-  };
-
   const statusClassMap: Record<JournalStatus, string> = {
     [JournalStatus.DRAFT]: "journal-form-status__draft",
     [JournalStatus.POSTED]: "journal-form-status__posted",
@@ -466,56 +267,6 @@ export default function JournalForm({
     return sumAmounts(tempJournalGridData, entryGridColumnData);
   }, [tempJournalGridData, entryGridColumnData]);
 
-  const transformJournalTransactions = (
-    journalData: JournalGridData[]
-  ): JournalTransaction[] => {
-    return journalData
-      .filter(
-        (
-          tx
-        ): tx is JournalGridData &
-          (
-            | { debit: string; account: { value: string } }
-            | { credit: string; account: { value: string } }
-          ) => {
-          return Boolean(
-            tx.account?.value && tx.description && (tx.debit || tx.credit)
-          );
-        }
-      )
-      .map((tx) => {
-        const { description, account, debit, credit } = tx;
-        const isDebit = !!debit;
-        const amountString = String(isDebit ? debit : credit) as string;
-        const cleanedAmount = amountString.replace(/[,\s]/g, "");
-
-        if (!cleanedAmount) {
-          throw new Error(
-            `Invalid empty amount in transaction: ${JSON.stringify(tx)}`
-          );
-        }
-
-        try {
-          const amount = new Decimal(cleanedAmount);
-
-          if (amount.isZero()) {
-            throw new Error("Zero value transactions are not allowed.");
-          }
-
-          return {
-            description: description.trim() || undefined,
-            side: isDebit ? DebitCredit.Debit : DebitCredit.Credit,
-            amount: isDebit ? amount : amount.negated(),
-            coaAccountId: account.value,
-          };
-        } catch (error: any) {
-          throw new Error(
-            `Invalid amount value '${amountString}' in transaction: ${error.message}`
-          );
-        }
-      });
-  };
-
   const isLoading =
     !companyId || !company || !accounts || accounts.length === 0;
 
@@ -529,7 +280,7 @@ export default function JournalForm({
     }
   }, [tempJournalGridData]);
 
-  console.log(tempJournalGridData)
+  console.log(journalGridData);
 
   return (
     <div className="journal-form">
@@ -773,4 +524,235 @@ export const sumAmounts = (
     console.error("Error calculating amount totals:", error);
     return {} as Record<string, Decimal>;
   }
+};
+
+export const validateJournalData = (
+  companyId: string,
+  journalGridData: JournalGridData[],
+  journalDate: dayjs.Dayjs | Date | string,
+  narration: string,
+  reversalDate?: dayjs.Dayjs | Date | string | null
+): string[] => {
+  const errors: string[] = [];
+
+  if (!companyId) return ["Company ID is missing."];
+
+  if (!journalGridData || journalGridData.length === 0) {
+    errors.push("Transactions: No transactions found");
+    return errors;
+  }
+
+  if (!journalDate) {
+    errors.push("Date: Valid journal date is required");
+  } else if (isNaN(normalizeDate(journalDate).getTime())) {
+    errors.push("Date: Invalid journal date format");
+  }
+
+  // if (reversalDate) {
+  //   if (isNaN(normalizeDate(reversalDate).getTime())) {
+  //     errors.push("Reversal Date: Invalid date format");
+  //   } else if (
+  //     normalizeDate(journalDate).getTime() >
+  //     normalizeDate(reversalDate).getTime()
+  //   ) {
+  //     errors.push("Reversal Date: Must be after journal date");
+  //   }
+  // }
+  try {
+    if (reversalDate) {
+      const normalizedJournalDate = normalizeDate(journalDate);
+      const normalizedReversalDate = normalizeDate(reversalDate);
+
+      if (normalizedJournalDate.getTime() > normalizedReversalDate.getTime()) {
+        errors.push("Reversal Date: Must be after journal date");
+      }
+    }
+  } catch {
+    errors.push("Reversal Date: Invalid date format");
+  }
+
+  if (!narration || narration.trim() === "") {
+    errors.push("Narration: Valid narration is required");
+  } else if (narration.length > 255) {
+    errors.push("Narration: Must be less than 255 characters");
+  }
+
+  if (journalGridData && journalGridData.length < 2) {
+    errors.push("Transactions: At least two transactions required");
+  }
+
+  const { totalDebit, totalCredit, amountErrors } = journalGridData.reduce(
+    (acc, entry, index) => {
+      // Validate individual transaction amounts first
+      const debitStr = entry.debit?.replace(/[^0-9.]/g, "") || "";
+      const creditStr = entry.credit?.replace(/[^0-9.]/g, "") || "";
+
+      // Validate only one side is populated
+      if (!!debitStr && !!creditStr) {
+        acc.amountErrors.push(
+          `Transaction ${index + 1}: Cannot have both debit and credit`
+        );
+        return acc;
+      }
+
+      // Parse amounts safely
+      const parseAmount = (str: string) => {
+        try {
+          const clean = str.replace(/,/g, "");
+          return new Decimal(clean);
+        } catch {
+          return new Decimal(NaN);
+        }
+      };
+
+      const debitAmount = parseAmount(debitStr);
+      const creditAmount = parseAmount(creditStr);
+
+      // Validate amounts are positive numbers
+      if (debitAmount.isNaN() || debitAmount.lessThanOrEqualTo(0)) {
+        if (debitStr)
+          acc.amountErrors.push(
+            `Transaction ${index + 1}: Invalid debit amount`
+          );
+      }
+      if (creditAmount.isNaN() || creditAmount.lessThanOrEqualTo(0)) {
+        if (creditStr)
+          acc.amountErrors.push(
+            `Transaction ${index + 1}: Invalid credit amount`
+          );
+      }
+
+      // Only sum valid amounts
+      if (debitAmount.greaterThan(0)) {
+        acc.totalDebit = acc.totalDebit.plus(debitAmount);
+      } else if (creditAmount.greaterThan(0)) {
+        acc.totalCredit = acc.totalCredit.plus(creditAmount);
+      }
+
+      return acc;
+    },
+    {
+      totalDebit: new Decimal(0),
+      totalCredit: new Decimal(0),
+      amountErrors: [] as string[],
+    }
+  );
+
+  errors.push(...amountErrors);
+
+  if (!totalDebit.equals(totalCredit)) {
+    errors.push(
+      `Transactions: Debits (${numeral(totalDebit).format(
+        "0,0.00"
+      )}) do not match credits (${numeral(totalCredit).format("0,0.00")})`
+    );
+  }
+
+  journalGridData.forEach((entry, index) => {
+    const prefix = `Transaction ${index + 1}`;
+
+    if (entry.description && entry.description.length > 255) {
+      errors.push(`${prefix}: Description must be less than 255 characters`);
+    }
+
+    if (
+      entry.description &&
+      (!entry.account || (!entry.debit && !entry.credit))
+    ) {
+      errors.push(`${prefix}: Account and debit or credit required`);
+    }
+
+    if ((entry.account || entry.debit || entry.credit) && !entry.description) {
+      errors.push(`${prefix}: Description required`);
+    }
+
+    if (entry.account && !entry.account.value) {
+      errors.push(`${prefix}: Valid account required`);
+    }
+
+    let debitAmt = null;
+    let creditAmt = null;
+
+    if (entry.debit) {
+      try {
+        debitAmt = new Decimal(entry.debit.replace(/,/g, ""));
+        if (debitAmt.lessThanOrEqualTo(0)) {
+          errors.push(`${prefix}: Debit must be positive`);
+        }
+      } catch {
+        errors.push(`${prefix}: Debit has invalid format`);
+      }
+    }
+
+    if (entry.credit) {
+      try {
+        creditAmt = new Decimal(entry.credit.replace(/,/g, ""));
+        if (creditAmt.lessThanOrEqualTo(0)) {
+          errors.push(`${prefix}: Credit must be positive`);
+        }
+      } catch {
+        errors.push(`${prefix}: Credit has invalid format`);
+      }
+    }
+
+    if (debitAmt && creditAmt) {
+      errors.push(`${prefix}: Cannot have both debit and credit`);
+    }
+
+    if (entry.account && !debitAmt && !creditAmt) {
+      errors.push(`${prefix}: Debit or credit required`);
+    }
+  });
+
+  return errors;
+};
+
+export const transformJournalTransactions = (
+  journalData: JournalGridData[]
+): JournalTransaction[] => {
+  return journalData
+    .filter(
+      (
+        tx
+      ): tx is JournalGridData &
+        (
+          | { debit: string; account: { value: string } }
+          | { credit: string; account: { value: string } }
+        ) => {
+        return Boolean(
+          tx.account?.value && tx.description && (tx.debit || tx.credit)
+        );
+      }
+    )
+    .map((tx) => {
+      const { description, account, debit, credit } = tx;
+      const isDebit = !!debit;
+      const amountString = String(isDebit ? debit : credit) as string;
+      const cleanedAmount = amountString.replace(/[,\s]/g, "");
+
+      if (!cleanedAmount) {
+        throw new Error(
+          `Invalid empty amount in transaction: ${JSON.stringify(tx)}`
+        );
+      }
+
+      try {
+        const amount = new Decimal(cleanedAmount);
+
+        if (amount.isZero()) {
+          throw new Error("Zero value transactions are not allowed.");
+        }
+
+        return {
+          description: description.trim() || undefined,
+          side: isDebit ? DebitCredit.Debit : DebitCredit.Credit,
+          amount: isDebit ? amount : amount.negated(),
+          coaAccountId: account.value,
+        };
+      } catch (error: any) {
+        throw new Error(
+          `Invalid amount value '${amountString}' in transaction: ${error.message}`
+        );
+      }
+    });
 };

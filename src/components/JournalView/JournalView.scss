@@ -25,6 +25,21 @@
         opacity: 0.5;
         pointer-events: none;
       }
+
+      &-del {
+        border-color: rgba($color: $error, $alpha: 0.5);
+        color: rgba($color: $error, $alpha: 1);
+
+        &:hover {
+          background-color: rgba($color: $error, $alpha: 0.1);
+        }
+      }
+    }
+
+    &-r {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
     }
   }
 

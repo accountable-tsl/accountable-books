@@ -8,10 +8,10 @@ import {
 } from "../../types/types";
 import "./JournalView.scss";
 import { BeatLoader } from "react-spinners";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJournalById } from "../../services/JournalServices";
 import numeral from "numeral";
-import { toTitleCase } from "../../utils/utils";
+import { normalizeDate, toTitleCase } from "../../utils/utils";
 import { format } from "date-fns";
 import EntryGrid, {
   EntryGridColumnInputType,
@@ -19,7 +19,17 @@ import EntryGrid, {
 } from "../EntryGrid/EntryGrid";
 import Decimal from "decimal.js";
 import { fetchCoa } from "../../services/CoaServices";
-import { sumAmounts } from "../JournalForm/JournalForm";
+import {
+  JournalDateField,
+  sumAmounts,
+  transformJournalTransactions,
+  validateJournalData,
+} from "../JournalForm/JournalForm";
+import { validatePlaceholder } from "../DatePlaceholderInput/DatePlaceholderInput";
+import { DatePickerProps } from "antd";
+import dayjs from "dayjs";
+import JournalFormPopup from "../JournalForm/JournalFormPopup";
+import { usePopup } from "../../contexts/PopupContext";
 
 export default function JournalView({
   companyId,
@@ -28,6 +38,8 @@ export default function JournalView({
   company?: CompanyData | null;
   companyId?: string;
 }) {
+  const { openPopup } = usePopup();
+  const narrationRef = useRef<HTMLInputElement>(null);
   const { "*": journalId } = useParams();
   const reportingCurrencyCode = company?.reportingCurrencyCode;
 
@@ -36,6 +48,11 @@ export default function JournalView({
   const [accounts, setAccounts] = useState<EntryGridOption[]>([]);
   const [tempJournalGridData, setTempJournalGridData] = useState<any>();
   const [journalGridData, setJournalGridData] = useState<JournalGridData[]>();
+  const [narration, setNarration] = useState<string>("");
+  const [isNarrationValid, setIsNarrationValid] = useState(true);
+  const [journalDate, setJournalDate] = useState<Date | dayjs.Dayjs | null>(
+    dayjs()
+  );
 
   const retrieveJournalData = async () => {
     if (!companyId || !journalId) return;
@@ -43,6 +60,8 @@ export default function JournalView({
     console.log(response);
     if (response.success) {
       setJournalData(response.data);
+      setNarration(response.data.description);
+      setJournalDate(dayjs(response.data.date));
     }
   };
 
@@ -97,6 +116,61 @@ export default function JournalView({
     setTempJournalGridData(updatedRows);
   };
 
+  const handleNarrationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNarration(value);
+    setIsNarrationValid(validatePlaceholder(value));
+  };
+
+  const handleJournalDateChange: DatePickerProps["onChange"] = (
+    date,
+    dateString
+  ) => {
+    setJournalDate(date);
+    console.log(date, dateString);
+  };
+
+  const handleJournalUpdate = async (status: JournalStatus) => {
+    try {
+      openPopup("journalFormPopup", <JournalFormPopup isLoading />);
+
+      let validationErrors: string[] = [];
+      if (!companyId || !journalGridData || !journalDate) {
+        openPopup(
+          "journalFormPopup",
+          <JournalFormPopup errors={["Missing required fields"]} />
+        );
+        return;
+      }
+
+      validationErrors = validateJournalData(
+        companyId,
+        journalGridData,
+        journalDate,
+        narration
+        // reversalDate
+      );
+
+      if (validationErrors.length > 0) {
+        openPopup(
+          "journalFormPopup",
+          <JournalFormPopup errors={validationErrors} />
+        );
+        return;
+      }
+
+      const payload = {
+        journalId,
+        date: normalizeDate(journalDate),
+        description: narration,
+        status: status || journalData?.status || JournalStatus.DRAFT,
+        transactions: transformJournalTransactions(journalGridData),
+      };
+
+      
+    } catch (error) {}
+  };
+
   const entryGridColumnData = [
     {
       key: "description",
@@ -122,7 +196,7 @@ export default function JournalView({
   ];
 
   const customClassNames = {
-    root: "jv-eg",
+    root: "jv-eg journal-form-eg",
     cell: "jv-eg-cell",
   };
 
@@ -167,7 +241,7 @@ export default function JournalView({
 
   console.log(journalData, tempJournalGridData);
   return (
-    <div className="jv">
+    <div className="jv journal-form">
       {isLoading ? (
         <div className="journal-loading">
           <BeatLoader />
@@ -200,8 +274,13 @@ export default function JournalView({
                 <button
                   className={`jv-header-btn ${
                     editable ? "jv-header-btn-edit" : ""
+                  } ${
+                    (journalData.status as JournalStatus) !==
+                    JournalStatus.VOIDED
+                      ? "jv-header-btn-del"
+                      : ""
                   }`}
-                  onClick={() => setEditable(true)}
+                  // onClick={() => setEditable(true)}
                 >
                   {journalData.status === JournalStatus.DRAFT
                     ? "Delete"
@@ -212,28 +291,68 @@ export default function JournalView({
           </div>
           <hr />
 
-          <div className="jv-meta">
-            <div className="jv-meta-group">
-              <div className="jv-meta-item">
-                <span className="jv-meta-label">Date:</span>
-                <span className="jv-meta-date">
-                  {journalData?.date &&
-                    format(new Date(journalData?.date), "dd MMM yyyy")}
-                </span>
-              </div>
-
-              <div className="jv-meta-item">
-                <span className="jv-meta-label">Narration:</span>
-                <span className="jv-meta-narration">
-                  {journalData.description}
-                </span>
+          {editable ? (
+            <div className="journal-form-meta">
+              <div className="journal-form-meta__group">
+                <JournalDateField
+                  required
+                  onChange={handleJournalDateChange}
+                  defaultValue={journalDate ? dayjs(journalDate) : dayjs()}
+                />
+                <div
+                  className={`journal-form-meta__item journal-form-narration`}
+                >
+                  <div className="journal-form-input journal-form-narration__text">
+                    <span className="journal-form-narration__label">
+                      Narration<span>*</span> :
+                    </span>
+                    <input
+                      ref={narrationRef}
+                      value={narration}
+                      type="text"
+                      name=""
+                      id=""
+                      placeholder="Enter Journal Narration"
+                      className={`journal-form-narration__input ${
+                        isNarrationValid
+                          ? ""
+                          : "journal-form-narration__error-input"
+                      }`}
+                      onChange={handleNarrationChange}
+                    />
+                    {!isNarrationValid && (
+                      <span className="journal-form-narration__error-text">
+                        One or more placeholders are invalid
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
+          ) : (
+            <div className="jv-meta">
+              <div className="jv-meta-group">
+                <div className="jv-meta-item">
+                  <span className="jv-meta-label">Date:</span>
+                  <span className="jv-meta-date">
+                    {journalData?.date &&
+                      format(new Date(journalData?.date), "dd MMM yyyy")}
+                  </span>
+                </div>
 
-            {/* <div className="jv-meta-status">{journalData.status}</div> */}
-          </div>
+                <div className="jv-meta-item">
+                  <span className="jv-meta-label">Narration:</span>
+                  <span className="jv-meta-narration">
+                    {journalData.description}
+                  </span>
+                </div>
+              </div>
 
-          <div className="jv-view-body">
+              {/* <div className="jv-meta-status">{journalData.status}</div> */}
+            </div>
+          )}
+
+          <div className="jv-view-body journal-form-body">
             <EntryGrid
               columns={entryGridColumnData}
               isEditable={editable}
@@ -285,7 +404,7 @@ export default function JournalView({
             </dl>
           </div>
           <div className="journal-form-bottom">
-            {journalData.status !== JournalStatus.VOIDED && (
+            {editable && journalData.status !== JournalStatus.VOIDED && (
               <div className="journal-form-submit">
                 <button
                   className="journal-form-submit__button journal-form-submit__button--draft"

@@ -291,12 +291,14 @@ export const isScreenSmallerThan = (size: ScreenSize): boolean => {
   }
 };
 
-export const normalizeDate = (inputDate: any): Date => {
-  const parsedDate = dayjs(inputDate);
+export const normalizeDate = (input: string | Date | dayjs.Dayjs): Date => {
+  const cleanInput = typeof input === "string" ? input.trim() : input;
+
+  const parsedDate = dayjs.isDayjs(cleanInput) ? cleanInput : dayjs(cleanInput);
 
   if (!parsedDate.isValid()) {
     throw new Error("Invalid date format");
   }
 
-  return parsedDate.toDate();
+  return parsedDate.startOf("day").toDate();
 };

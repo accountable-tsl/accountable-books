@@ -101,7 +101,12 @@ export default function Journal() {
           ]
         : []),
     ],
-    [companyId, showNewJournalForm, showNewRecurringJournalForm]
+    [
+      companyId,
+      showNewJournalForm,
+      showNewRecurringJournalForm,
+      showViewJournal,
+    ]
   );
 
   const fbvType =
