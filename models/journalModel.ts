@@ -1101,11 +1101,6 @@ export async function markJournalAsDeleted(
       message: "Journal record(s) deleted successfully",
       data: { draftIds, postedIds: postedJournals.map((j) => j.id) },
     };
-
-    // Aggregate relevant messages based on the above
-    // If all checks pass and journal is draft,  delete record
-    // If all checks pass and journal is posted, mark deleted = true in journalBatch, journalEntry, ledgerTransaction, ledgerEntry
-    // Think of the possibility of using this function in a transaction else where too - build that in
   } catch (error) {
     console.error("Error in markJournalAsDeleted:", error);
     return {
