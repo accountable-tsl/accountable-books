@@ -28,3 +28,17 @@ export const fetchJournalById = async (
   );
   return response.data;
 };
+
+export const updateJournal = async (
+  companyId: string,
+  data: PostJournalPayload,
+  journalId?: string
+) => {
+  const response = await axios.put(
+    `${backendUrl}/api/${companyId}/journals${
+      journalId ? `/${journalId}` : "/"
+    }`,
+    data
+  );
+  return response.data;
+};

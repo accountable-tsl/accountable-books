@@ -7,12 +7,14 @@ interface JournalFormPopupProps {
   isLoading?: boolean;
   isSuccess?: boolean;
   errors?: string[];
+  onClose?: () => void;
 }
 
 export default function JournalFormPopup({
   errors = [],
   isLoading = false,
   isSuccess = false,
+  onClose,
 }: JournalFormPopupProps) {
   const { closePopup } = usePopup();
 
@@ -65,7 +67,9 @@ export default function JournalFormPopup({
             {errors.length > 0 ? (
               <div className="jf-pop-errors">
                 {errors.map((error, index) => (
-                  <div className="jf-pop-error" key={index}>{error}</div>
+                  <div className="jf-pop-error" key={index}>
+                    {error}
+                  </div>
                 ))}
               </div>
             ) : (
@@ -79,7 +83,7 @@ export default function JournalFormPopup({
       <div className="jf-pop-footer">
         <button
           className="jf-pop-close"
-          onClick={() => closePopup("journalFormPopup")}
+          onClick={onClose ? onClose : () => closePopup("journalFormPopup")}
         >
           {errors.length > 0 ? "Close and fix errors" : "Close"}
         </button>

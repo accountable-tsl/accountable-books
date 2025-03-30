@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   CompanyData,
   DebitCredit,
@@ -9,7 +9,10 @@ import {
 import "./JournalView.scss";
 import { BeatLoader } from "react-spinners";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchJournalById } from "../../services/JournalServices";
+import {
+  fetchJournalById,
+  updateJournal,
+} from "../../services/JournalServices";
 import numeral from "numeral";
 import { normalizeDate, toTitleCase } from "../../utils/utils";
 import { format } from "date-fns";
@@ -30,6 +33,7 @@ import { DatePickerProps } from "antd";
 import dayjs from "dayjs";
 import JournalFormPopup from "../JournalForm/JournalFormPopup";
 import { usePopup } from "../../contexts/PopupContext";
+import { routes } from "../../utils/routes";
 
 export default function JournalView({
   companyId,
@@ -38,10 +42,11 @@ export default function JournalView({
   company?: CompanyData | null;
   companyId?: string;
 }) {
-  const { openPopup } = usePopup();
+  const { openPopup, closePopup } = usePopup();
   const narrationRef = useRef<HTMLInputElement>(null);
   const { "*": journalId } = useParams();
   const reportingCurrencyCode = company?.reportingCurrencyCode;
+  const navigate = useNavigate();
 
   const [journalData, setJournalData] = useState<JournalBatchData | null>(null);
   const [editable, setEditable] = useState(false);
@@ -160,15 +165,59 @@ export default function JournalView({
       }
 
       const payload = {
-        journalId,
-        date: normalizeDate(journalDate),
-        description: narration,
-        status: status || journalData?.status || JournalStatus.DRAFT,
-        transactions: transformJournalTransactions(journalGridData),
+        data: [
+          {
+            date: normalizeDate(journalDate),
+            description: narration,
+            status: status || journalData?.status || JournalStatus.DRAFT,
+            transactions: transformJournalTransactions(journalGridData),
+          },
+        ],
       };
 
-      
-    } catch (error) {}
+      const response = await updateJournal(companyId, payload, journalId);
+
+      if (response.success) {
+        openPopup(
+          "journalFormPopup",
+          <JournalFormPopup
+            isSuccess
+            onClose={() => {
+              closePopup("journalFormPopup");
+              navigate(
+                routes.accounting.workspace.viewJournal(
+                  companyId,
+                  response.data.id
+                )
+              );
+            }}
+          />
+        );
+      } else {
+        openPopup(
+          "journalFormPopup",
+          <JournalFormPopup
+            errors={[
+              response.data.error ||
+                response.data.message ||
+                "Submission failed",
+            ]}
+          />
+        );
+      }
+    } catch (error) {
+      console.error("Failed to update journal:", error);
+      openPopup(
+        "journalFormPopup",
+        <JournalFormPopup
+          errors={[
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred",
+          ]}
+        />
+      );
+    }
   };
 
   const entryGridColumnData = [
@@ -239,7 +288,6 @@ export default function JournalView({
     !rowData ||
     (editable && !accounts);
 
-  console.log(journalData, tempJournalGridData);
   return (
     <div className="jv journal-form">
       {isLoading ? (
@@ -408,9 +456,13 @@ export default function JournalView({
               <div className="journal-form-submit">
                 <button
                   className="journal-form-submit__button journal-form-submit__button--draft"
-                  onClick={() => {
-                    handlePostJournal(JournalStatus.DRAFT);
-                  }}
+                  onClick={
+                    journalData.status === JournalStatus.DRAFT
+                      ? () => {
+                          handleJournalUpdate(JournalStatus.DRAFT);
+                        }
+                      : () => {}
+                  }
                 >
                   {journalData.status === JournalStatus.DRAFT
                     ? "Update draft"
@@ -419,7 +471,7 @@ export default function JournalView({
                 <button
                   className="journal-form-submit__button journal-form-submit__button--post"
                   onClick={() => {
-                    handlePostJournal(JournalStatus.POSTED);
+                    handleJournalUpdate(JournalStatus.POSTED);
                   }}
                 >
                   {journalData.status === JournalStatus.DRAFT
