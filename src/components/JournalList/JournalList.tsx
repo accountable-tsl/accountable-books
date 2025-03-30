@@ -56,7 +56,6 @@ export default function JournalList({
     if (!companyId) return;
 
     const response = await fetchJournals(companyId);
-    console.log(response);
     if (response.success) {
       setJournalData(response.data);
       setRowData(response.data.journals);
@@ -114,8 +113,6 @@ export default function JournalList({
   useEffect(() => {
     handleJournalData();
   }, [companyId]);
-
-  console.log(rowData);
 
   return (
     <div className="journal-list">

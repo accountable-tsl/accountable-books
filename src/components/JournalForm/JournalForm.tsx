@@ -29,6 +29,8 @@ import numeral from "numeral";
 import { postJournal } from "../../services/JournalServices";
 import { usePopup } from "../../contexts/PopupContext";
 import JournalFormPopup from "./JournalFormPopup";
+import { routes } from "../../utils/routes";
+import { useNavigate } from "react-router-dom";
 
 interface JournalFormProps {
   journalStatus: JournalStatus;
@@ -43,7 +45,8 @@ export default function JournalForm({
   company,
   companyId,
 }: JournalFormProps) {
-  const { openPopup } = usePopup();
+  const { openPopup, closePopup } = usePopup();
+  const navigate = useNavigate();
 
   const [accounts, setAccounts] = useState<EntryGridOption[]>([]);
   const [journalGridData, setJournalGridData] = useState<JournalGridData[]>();
@@ -193,7 +196,21 @@ export default function JournalForm({
       console.log(response.data);
 
       if (response.success) {
-        openPopup("journalFormPopup", <JournalFormPopup isSuccess />);
+        openPopup(
+          "journalFormPopup",
+          <JournalFormPopup
+            isSuccess
+            onClose={() => {
+              closePopup("journalFormPopup");
+              navigate(
+                routes.accounting.workspace.viewJournal(
+                  companyId,
+                  response.data.id
+                )
+              );
+            }}
+          />
+        );
       } else {
         openPopup(
           "journalFormPopup",

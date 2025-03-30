@@ -63,7 +63,6 @@ export default function JournalView({
   const retrieveJournalData = async () => {
     if (!companyId || !journalId) return;
     const response = await fetchJournalById(companyId, journalId);
-    console.log(response);
     if (response.success) {
       setJournalData(response.data);
       setNarration(response.data.description);
