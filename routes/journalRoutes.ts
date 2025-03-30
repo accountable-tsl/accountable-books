@@ -7,8 +7,8 @@ import {
   getJournals,
   getSingleJournal,
   reverseJournal,
-  softDeleteJournals,
   updateJournal,
+  voidOrDeleteJournal,
 } from "../controllers/journalControllers";
 
 const router = express.Router({ mergeParams: true });
@@ -22,6 +22,6 @@ router.put("/:journalId", checkCompanyId, updateJournal);
 router.post("/bulk", checkCompanyId, bulkCreateJournals);
 router.post("/recurring", checkCompanyId, createRecurringJournals);
 router.post("/:journalId/reverse", checkCompanyId, reverseJournal);
-router.patch("/:journalId", checkCompanyId, softDeleteJournals);
+router.patch("/void", checkCompanyId, voidOrDeleteJournal);
 
 export default router;

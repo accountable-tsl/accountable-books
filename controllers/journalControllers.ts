@@ -4,6 +4,7 @@ import {
   fetchJournals,
   insertJournalRecords,
   JournalData,
+  markJournalAsDeleted,
   updateJournalRecord,
 } from "../models/journalModel";
 
@@ -152,11 +153,28 @@ export async function reverseJournal(req: Request, res: Response) {
   } catch (error) {}
 }
 
-export async function softDeleteJournals(req: Request, res: Response) {
+export async function voidOrDeleteJournal(req: Request, res: Response) {
   try {
     const companyId = req.company!.id || req.params.companyId;
     if (!companyId) {
       return res.status(400).json({ success: false, message: "Bad Request" });
     }
-  } catch (error) {}
+
+    const journalIds: string[] = req.body.data;
+
+    const response = await markJournalAsDeleted(
+      companyId,
+      journalIds,
+      "testId"
+    );
+
+    if (response.success) {
+      return res.status(200).json(response);
+    } else {
+      return res.status(400).json(response);
+    }
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
 }

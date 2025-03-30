@@ -510,13 +510,13 @@ export async function insertJournalRecords(
           );
         });
 
+    const lastBatch = createdJournalBatches[createdJournalBatches.length - 1];
+
     return {
       success: true,
-      message: "Journal records created successfully",
+      message: `${createdJournalBatches.length} Journal record(s) created successfully`,
       data: {
-        createdBatchIds: createdJournalBatches.map(
-          (batch) => `Journal Batch ${batch.sequenceNumber}`
-        ),
+        id: lastBatch.id,
       },
     };
   } catch (error: any) {
@@ -883,7 +883,241 @@ export async function updateJournalRecord(
   }
 }
 
+export async function markJournalAsDeleted(
+  companyIdentifier: string,
+  journalIds: string[],
+  userId: string,
+  tx?: PrismaTransactionalClient | null
+) {
+  const client = tx || prisma;
+
+  const companyIdType = getIdentifierType(companyIdentifier);
+
+  const companyData = await prisma.company.findUnique({
+    where: {
+      ...(companyIdType === "uuid"
+        ? { id: companyIdentifier }
+        : { shortCode: companyIdentifier }),
+    },
+    select: { id: true },
+  });
+
+  const companyId = companyData?.id;
+
+  if (!companyId) {
+    return {
+      success: false,
+      message: "Bad Request",
+    };
+  }
+
+  try {
+    const journals = await client.journalBatch.findMany({
+      where: {
+        id: {
+          in: journalIds,
+        },
+        companyId,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        status: true,
+        isDeleted: true,
+        ledgerTransactionId: true,
+      },
+    });
+
+    if (journals.length === 0) {
+      return {
+        success: false,
+        message: "No matching journals found",
+      };
+    }
+    // Check if the journal exists and is not already deleted
+    // Check if the journal is draft or posted or voided
+    const [draftIds, postedJournals] = journals.reduce(
+      ([drafts, posted], journal) => {
+        journal.status === JournalStatus.DRAFT
+          ? drafts.push(journal.id)
+          : posted.push(journal);
+        return [drafts, posted];
+      },
+      [[], []] as [string[], typeof journals]
+    );
+
+    const voidedIds = journals
+      .filter((j) => j.status === JournalStatus.VOIDED)
+      .map((j) => j.id);
+
+    if (voidedIds.length > 0) {
+      return {
+        success: false,
+        message:
+          "Some journals are already voided and cannot be deleted again.",
+        data: voidedIds,
+      };
+    }
+
+    const deletionData = {
+      isDeleted: true,
+      deletedAt: new Date(),
+      updatedById: userId,
+    };
+
+    if (postedJournals.length > 0) {
+      const postedIds = postedJournals.map((j) => j.id);
+      const ledgerTxnIds = postedJournals
+        .map((j) => j.ledgerTransactionId)
+        .filter(Boolean);
+    }
+
+    // await client.$transaction(async (tx) => {
+    //   if (draftIds.length > 0) {
+    //     await tx.journalEntry.deleteMany({
+    //       where: {
+    //         journalBatchId: {
+    //           in: draftIds,
+    //         },
+    //       },
+    //     });
+
+    //     await tx.journalBatch.deleteMany({
+    //       where: {
+    //         id: {
+    //           in: draftIds,
+    //         },
+    //       },
+    //     });
+    //   }
+    // });
+
+    // if (postedIds.length > 0) {
+    //   await client.$transaction(async (tx) => {
+    //     await tx.journalEntry.updateMany({
+    //       where: {
+    //         journalBatchId: {
+    //           in: postedIds,
+    //         },
+    //       },
+    //       data: {
+    //         isDeleted: true,
+    //         deletedAt: new Date(),
+    //         updatedById: userId,
+    //       },
+    //     });
+
+    //     await tx.journalBatch.updateMany({
+    //       where: {
+    //         id: {
+    //           in: postedIds,
+    //         },
+    //       },
+    //       data: {
+    //         isDeleted: true,
+    //         deletedAt: new Date(),
+    //         updatedById: userId,
+    //       },
+    //     });
+
+    //     await tx.ledgerEntry.updateMany({
+    //       where: {
+    //         ledgerTransaction: {
+    //           journalBatch: {
+    //             id: {
+    //               in: postedIds,
+    //             },
+    //           },
+    //         },
+    //       },
+    //       data: {
+    //         isDeleted: true,
+    //         deletedAt: new Date(),
+    //         updatedById: userId,
+    //       },
+    //     });
+    //   });
+    // }
+
+    const execute = async (tx: PrismaTransactionalClient) => {
+      // Handle drafts
+      if (draftIds.length > 0) {
+        await tx.journalEntry.deleteMany({
+          where: { journalBatchId: { in: draftIds } },
+        });
+        await tx.journalBatch.deleteMany({
+          where: { id: { in: draftIds } },
+        });
+      }
+
+      // Handle posted journals
+      if (postedJournals.length > 0) {
+        const postedIds = postedJournals.map((j) => j.id);
+        const ledgerTxnIds = postedJournals
+          .map((j) => j.ledgerTransactionId)
+          .filter((id): id is string => typeof id === "string");
+
+        await Promise.all([
+          tx.journalBatch.updateMany({
+            where: { id: { in: postedIds } },
+            data: deletionData,
+          }),
+
+          tx.journalEntry.updateMany({
+            where: { journalBatchId: { in: postedIds } },
+            data: {
+              isDeleted: true,
+            },
+          }),
+
+          ...(ledgerTxnIds.length > 0
+            ? [
+                tx.ledgerTransaction.updateMany({
+                  where: { id: { in: ledgerTxnIds } },
+                  data: {
+                    isDeleted: true,
+                    deletedAt: new Date(),
+                    updatedById: userId,
+                  },
+                }),
+                tx.ledgerEntry.updateMany({
+                  where: { ledgerTransactionId: { in: ledgerTxnIds } },
+                  data: deletionData,
+                }),
+              ]
+            : []),
+        ]);
+      }
+    };
+
+    if (tx) {
+      await execute(tx);
+    } else {
+      await prisma.$transaction(execute);
+    }
+
+    return {
+      success: true,
+      message: "Journal record(s) deleted successfully",
+      data: { draftIds, postedIds: postedJournals.map((j) => j.id) },
+    };
+
+    // Aggregate relevant messages based on the above
+    // If all checks pass and journal is draft,  delete record
+    // If all checks pass and journal is posted, mark deleted = true in journalBatch, journalEntry, ledgerTransaction, ledgerEntry
+    // Think of the possibility of using this function in a transaction else where too - build that in
+  } catch (error) {
+    console.error("Error in markJournalAsDeleted:", error);
+    return {
+      success: false,
+      message: "Failed to delete journal records",
+      ...(process.env.NODE_ENV === "development" && {
+        error: error,
+      }),
+    };
+  }
+}
+
 export async function insertRecurringJournal() {}
 
 export async function insertReversalJournal() {}
-export async function markJournalAsDeleted() {}
