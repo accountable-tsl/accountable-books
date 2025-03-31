@@ -645,6 +645,7 @@ async function doInsertLogic(
           coaAccountId: transaction.coaAccountId,
           journalBatchId: newBatch.id,
           ledgerEntryId: ledgerEntries[index].id,
+          ledgerEntryfsDate: ledgerEntries[index].fsDate,
         })
       );
 

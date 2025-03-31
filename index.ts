@@ -12,6 +12,7 @@ import exRateRoutes from "./routes/exRateRoutes";
 import transactionRoutes from "./routes/transactionRoutes";
 import accountTransactionRoutes from "./routes/accountTransactionRoutes";
 import journalRoutes from "./routes/journalRoutes";
+import reportingRoutes from "./routes/reportingRoutes";
 import { swaggerUi, specs } from "./swagger";
 
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -39,6 +40,7 @@ app.use("/api/:companyId/bank-accounts", bankAccountRoutes);
 app.use("/api/:companyId/transactions", transactionRoutes);
 app.use("/api/:companyId/account-transactions", accountTransactionRoutes);
 app.use("/api/:companyId/journals", journalRoutes);
+app.use("/api/:companyId/reports", reportingRoutes);
 // app.use("api/users", userRoutes);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));

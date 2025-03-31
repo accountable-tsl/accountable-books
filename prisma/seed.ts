@@ -757,6 +757,8 @@ async function main() {
     countryId: "95856306-32e6-4edc-9374-49000b2660bd",
     reportingCurrencyId: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
     createdById: adminUser.id,
+    yearEndDay: 31,
+    yearEndMonth: 12,
   });
 
   if (testCompany.success && testCompany.company) {
