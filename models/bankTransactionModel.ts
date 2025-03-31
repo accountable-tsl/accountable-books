@@ -1,5 +1,13 @@
-import { DefaultSide, PrismaClient } from "@prisma/client";
+import {
+  CategorisationStatus,
+  DebitCredit,
+  Prisma,
+  PrismaClient,
+} from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
+import { getSingleExchangeRate } from "../controllers/exRateController";
+import { fetchExchangeRate } from "./exRateModel";
+import { determineExchangeRate, getIdentifierType } from "../utils/utils";
 const prisma = new PrismaClient();
 
 export interface BankTransaction {
@@ -9,7 +17,7 @@ export interface BankTransaction {
   amount: Decimal;
   payee?: string | null;
   reference?: string | null;
-  type?: DefaultSide | null;
+  transactionSide?: DebitCredit | null;
   bankAccountId?: string;
 }
 
@@ -20,6 +28,21 @@ interface BankTransactionBatchData {
   bankAccountId: string;
   bankTransactions: BankTransaction[];
   createdById: string;
+}
+
+export interface TransactionFilters {
+  startDate?: Date;
+  endDate?: Date;
+  bankAccountId?: string;
+  minAmount?: Decimal;
+  maxAmount?: Decimal;
+  categorisationStatus: CategorisationStatus[];
+  isDeleted?: boolean;
+  searchQuery?: string;
+  transactionSide?: DebitCredit;
+  currentPage?: number;
+  pageSize?: number;
+  offset?: number;
 }
 
 export async function postBankTransactions(
@@ -40,7 +63,7 @@ export async function postBankTransactions(
       //1. Fetch the relevant bank account
       const bankAccount = await prisma.bankAccount.findUnique({
         where: { id: bankAccountId },
-        include: { transactionBatches: true },
+        include: { transactionBatches: true, company: true },
       });
 
       if (!bankAccount)
@@ -66,22 +89,40 @@ export async function postBankTransactions(
       let currentRunningBalance = balanceBefore;
       let batchTotal = new Decimal(0);
 
-      const preparedTransactions = bankTransactions.map((transaction) => {
-        batchTotal = batchTotal.plus(transaction.amount);
-        currentRunningBalance = currentRunningBalance.plus(transaction.amount);
+      const preparedTransactions = await Promise.all(
+        bankTransactions.map(async (transaction) => {
+          batchTotal = batchTotal.plus(transaction.amount);
+          currentRunningBalance = currentRunningBalance.plus(
+            transaction.amount
+          );
+          const exr = await determineExchangeRate(
+            transaction.date,
+            bankAccount.company.reportingCurrencyId,
+            bankAccount.currencyId
+          );
 
-        return {
-          ...transaction,
-          balance: new Decimal(currentRunningBalance),
-          bankAccountId: bankAccountId,
-        };
-      });
+          if (exr === null) {
+            throw new Error(
+              `Exchange rate not available for ${transaction.date}: ${bankAccount.company.reportingCurrencyId} to ${bankAccount.currencyId}`
+            );
+          }
+
+          return {
+            ...transaction,
+            amount: new Decimal(transaction.amount),
+            absoluteAmount: new Decimal(transaction.amount).abs(),
+            balance: new Decimal(currentRunningBalance),
+            bankAccountId: bankAccountId,
+            systemExchangeRate: exr,
+            createdById,
+          };
+        })
+      );
 
       //4. Confirm that balanceAfter is same as currentRunningBalance
       const balanceAfter = balanceBefore.plus(batchTotal);
 
       if (!balanceAfter.equals(currentRunningBalance)) {
-        console.log(preparedTransactions);
         return {
           success: false,
           message: "Arithmetic error occured. Inaccurate balance",
@@ -103,20 +144,26 @@ export async function postBankTransactions(
           bankTransactions: {
             create: preparedTransactions.map((transaction) => ({
               date: transaction.date,
-              description: transaction.description || null,
-              amount: transaction.amount,
               payee: transaction.payee || null,
               reference: transaction.reference || null,
-              balance: transaction.balance,
+              description: transaction.description || null,
+              amount: transaction.amount,
+              systemExchangeRate: transaction.systemExchangeRate,
+              absoluteAmount: transaction.absoluteAmount,
               bankAccount: { connect: { id: String(bankAccountId) } },
-              ...(transaction.type && { type: transaction.type }),
+              createdBy: { connect: { id: String(createdById) } },
+              updatedBy: { connect: { id: String(createdById) } },
+              transactionSide:
+                transaction.amount < new Decimal(0)
+                  ? DebitCredit.CREDIT
+                  : DebitCredit.DEBIT,
             })),
           },
         },
       });
 
       //6. Recalculate running balance and update each transaction
-      let runningBalance = new Decimal(0);
+      // let runningBalance = new Decimal(0);
 
       const allTransactions: BankTransaction[] =
         await prisma.bankTransaction.findMany({
@@ -128,35 +175,22 @@ export async function postBankTransactions(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
 
-      for (const transaction of allTransactions) {
-        runningBalance = runningBalance.plus(transaction.amount);
+      // for (const transaction of allTransactions) {
+      //   runningBalance = runningBalance.plus(transaction.amount);
 
-        await prisma.bankTransaction.update({
-          where: { id: transaction.id },
-          data: { balance: runningBalance },
-        });
-      }
+      //   if (transaction.id && transaction.date) {
+      //     await prisma.bankTransaction.update({
+      //       where: { id_date: { id: transaction.id, date: transaction.date } },
+      //       data: { balance: runningBalance },
+      //     });
+      //   }
+      // }
 
-      console.log({
-        balanceBefore: balanceBefore,
-        batchTotal: batchTotal,
-        balanceAfter: balanceAfter,
-        currentRunningBalance: currentRunningBalance,
-        runningBalance: runningBalance,
-      });
-
-      //7. Update bankAccount balance and balanceAfter
-      await prisma.bankAccount.update({
-        where: { id: String(bankAccountId) },
-        data: {
-          bankBalance: runningBalance,
-        },
-      });
-
-      // await prisma.bankTransactionBatch.update({
-      //   where: { id: String(bankTransactionBatch.id) },
+      // //7. Update bankAccount balance and balanceAfter
+      // await prisma.bankAccount.update({
+      //   where: { id: String(bankAccountId) },
       //   data: {
-      //     balanceAfter: runningBalance,
+      //     bankBalance: runningBalance,
       //   },
       // });
 
@@ -171,5 +205,118 @@ export async function postBankTransactions(
   } catch (error) {
     console.error("Error posting bank transactions:", error);
     return { success: false, message: "Failed to post transactions", error };
+  }
+}
+
+export async function getBankTransactions(
+  companyId: string | number,
+  filters: TransactionFilters
+): Promise<{
+  success: boolean;
+  message: string;
+  data?: unknown;
+  error?: unknown;
+}> {
+  try {
+    //Define a base "where" object
+    const where: any = {
+      bankAccount: {
+        companyId: companyId,
+      },
+      isDeleted: filters.isDeleted ?? false,
+    };
+
+    //Dynamically add other filters
+    if (filters.bankAccountId) where.bankAccountId = filters.bankAccountId;
+
+    if (filters.startDate || filters.endDate) {
+      where.date = {};
+      if (filters.startDate) where.date.gte = filters.startDate;
+      if (filters.endDate) where.date.lte = filters.endDate;
+    }
+    //gte means "greater than or equal to"
+    //lte means "less than or equal to"
+
+    if (filters.minAmount || filters.maxAmount) {
+      where.absoluteAmount = {};
+      if (filters.minAmount) where.absoluteAmount.gte = filters.minAmount;
+      if (filters.maxAmount) where.absoluteAmount.lte = filters.maxAmount;
+    }
+
+    if (filters.searchQuery) {
+      where.body = { search: filters.searchQuery };
+    }
+
+    if (filters.transactionSide)
+      where.transactionSide = filters.transactionSide;
+
+    const page = filters.currentPage || 1;
+    const pageSize = filters.pageSize || 100;
+
+    const transactions = await prisma.bankTransaction.findMany({
+      where,
+      include: { bankAccount: { include: { bank: true, currency: true } } },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+      // skip: (page - 1) * pageSize,
+      // take: pageSize,
+    });
+
+    const total = await prisma.bankTransaction.count({ where }); //Total no of transactions matching filter
+
+    return {
+      success: true,
+      message: "Bank transactions retrieved successfully",
+      data: { transactions, total, page, pageSize },
+    };
+  } catch (error) {
+    console.error("Error retrieving bank transactions:", filters, error);
+    return {
+      success: false,
+      message: "Failed to retrieve transactions",
+      error,
+    };
+  }
+}
+
+export async function getBankTransactionById(
+  companyId: string,
+  bankTransactionId: string
+) {
+  try {
+    const companyIdType = getIdentifierType(companyId);
+
+    const bankTransaction = await prisma.bankTransaction.findFirst({
+      where: {
+        id: bankTransactionId,
+        bankAccount: {
+          ...(companyIdType === "uuid"
+            ? { companyId: companyId }
+            : { company: { shortCode: companyId } }),
+        },
+      },
+      include: {
+        bankAccount: true,
+      },
+    });
+
+    if (!bankTransaction) {
+      return {
+        success: false,
+        message: `Bank transaction with ID ${bankTransactionId} not found for company ${companyId}`,
+      };
+    }
+
+    return {
+      success: true,
+      message: `Bank transaction with id ${bankTransactionId} retrieved successfully`,
+      data: bankTransaction,
+    };
+  } catch (error: any) {
+    console.error("Error retrieving bank transaction", error);
+    return {
+      success: false,
+      message: "Failed to retrieve transactions",
+      error: error.message,
+    };
   }
 }

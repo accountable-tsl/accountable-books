@@ -1,6 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-import { toTitleCase, truncateText } from "../utils/utils";
-import { DefaultSide, Prisma } from "@prisma/client/wasm";
+import { FsKey, PrismaClient } from "@prisma/client";
+import { getIdentifierType, toTitleCase, truncateText } from "../utils/utils";
+import { DebitCredit, Prisma } from "@prisma/client/wasm";
+import { coaAccountBalances } from "./balancesModel";
+import { Decimal } from "@prisma/client/runtime/library";
 const prisma = new PrismaClient();
 
 //Get all account types
@@ -41,7 +43,7 @@ export async function getAllAccountTypes() {
 
 //Get all COA
 export async function getAllCOA(
-  companyId: number,
+  companyId: string,
   page: number = 1,
   limit: number = 50, // default page size
   sortBy: string = "accountCode", // default sort
@@ -49,11 +51,15 @@ export async function getAllCOA(
 ) {
   try {
     const offset = (page - 1) * limit;
+    const idType = getIdentifierType(companyId);
 
     const coaPerCompany = await prisma.coa.findMany({
-      where: { companyId },
-      skip: offset,
-      take: limit,
+      where:
+        idType === "uuid"
+          ? { companyId }
+          : { company: { shortCode: companyId } },
+      // skip: offset,
+      // take: limit,
       orderBy: { [sortBy]: sortOrder },
       select: {
         id: true,
@@ -80,12 +86,26 @@ export async function getAllCOA(
         currency: { select: { code: true, name: true, symbol: true } },
         defaultSide: true,
         isActive: true,
-        balance: true,
+        // balance: true,
       },
     });
 
+    // Fetch COA balances
+    let coaBalances: Record<string, Decimal> = {};
+    try {
+      coaBalances = await coaAccountBalances(prisma, companyId);
+    } catch (balanceError) {
+      console.error("Error fetching COA account balances:", balanceError);
+      coaBalances = {};
+    }
+
     // Fetch the total count for pagination metadata
-    const totalItems = await prisma.coa.count({ where: { companyId } });
+    const totalItems = await prisma.coa.count({
+      where:
+        idType === "uuid"
+          ? { companyId }
+          : { company: { shortCode: companyId } },
+    });
     const totalPages = Math.ceil(totalItems / limit);
 
     if (coaPerCompany.length === 0) {
@@ -118,17 +138,25 @@ export async function getAllCOA(
       currencySymbol: coa.currency.symbol,
       defaultSide: coa.defaultSide,
       isActive: coa.isActive,
-      balance: coa.balance,
+      balance: coaBalances[coa.id] || new Decimal(0),
     }));
+
+    formattedCoa.sort((a, b) => {
+      if (a.accountTypeName === "Bank" && b.accountTypeName !== "Bank")
+        return -1;
+      if (a.accountTypeName !== "Bank" && b.accountTypeName === "Bank")
+        return 1;
+      return 0;
+    });
 
     return {
       success: true,
       message: "Successfully retrieved chart of accounts",
       pagination: {
         totalItems,
-        totalPages,
+        totalPages: totalItems === formattedCoa.length ? 1 : totalPages,
         currentPage: page,
-        limit,
+        limit: totalItems === formattedCoa.length ? totalItems : limit,
       },
       data: formattedCoa,
     };
@@ -143,10 +171,15 @@ export async function getAllCOA(
 }
 
 //Get Single COA
-export async function getACOA(companyId: any, id: number) {
+export async function getACOA(companyId: string, id: string) {
   try {
+    const idType = getIdentifierType(companyId);
+
     const singleCOA = await prisma.coa.findFirst({
-      where: { companyId, id },
+      where:
+        idType === "uuid"
+          ? { companyId, id }
+          : { company: { shortCode: companyId }, id },
       select: {
         id: true,
         accountCode: true,
@@ -172,7 +205,7 @@ export async function getACOA(companyId: any, id: number) {
         currency: { select: { code: true, name: true, symbol: true } },
         defaultSide: true,
         isActive: true,
-        balance: true,
+        // balance: true,
       },
     });
 
@@ -195,7 +228,7 @@ export async function getACOA(companyId: any, id: number) {
         currencySymbol: singleCOA.currency.symbol,
         defaultSide: singleCOA.defaultSide,
         isActive: singleCOA.isActive,
-        balance: singleCOA.balance,
+        // balance: singleCOA.balance,
       };
 
       return {
@@ -219,11 +252,15 @@ export async function getACOA(companyId: any, id: number) {
 }
 
 //Check Account Code
-export async function checkAccCode(companyId: number, accountCode: string) {
+export async function checkAccCode(companyId: string, accountCode: string) {
   try {
+    const idType = getIdentifierType(companyId);
+
     const existingAccCode = await prisma.coa.findFirst({
       where: {
-        companyId,
+        ...(idType === "uuid"
+          ? { companyId }
+          : { company: { shortCode: companyId } }),
         accountCode: {
           equals: accountCode,
           mode: "insensitive",
@@ -236,7 +273,6 @@ export async function checkAccCode(companyId: number, accountCode: string) {
           select: { typeName: true },
         },
         description: true,
-        balance: true,
       },
     });
 
@@ -248,7 +284,6 @@ export async function checkAccCode(companyId: number, accountCode: string) {
         ...(existingAccCode.description?.trim() && {
           description: truncateText(existingAccCode.description, 40),
         }),
-        balance: existingAccCode.balance,
       };
 
       return {
@@ -269,11 +304,15 @@ export async function checkAccCode(companyId: number, accountCode: string) {
 }
 
 //Check Account Name
-export async function checkAccName(companyId: number, accountName: string) {
+export async function checkAccName(companyId: string, accountName: string) {
   try {
+    const idType = getIdentifierType(companyId);
+
     const existingAccName = await prisma.coa.findFirst({
       where: {
-        companyId,
+        ...(idType === "uuid"
+          ? { companyId }
+          : { company: { shortCode: companyId } }),
         accountName: {
           equals: accountName,
           mode: "insensitive",
@@ -286,7 +325,7 @@ export async function checkAccName(companyId: number, accountName: string) {
           select: { typeName: true },
         },
         description: true,
-        balance: true,
+        // balance: true,
       },
     });
 
@@ -298,7 +337,7 @@ export async function checkAccName(companyId: number, accountName: string) {
         ...(existingAccName.description && {
           description: truncateText(existingAccName.description, 40),
         }),
-        balance: existingAccName.balance,
+        // balance: existingAccName.balance,
       };
       return {
         success: true,
@@ -319,39 +358,53 @@ export async function checkAccName(companyId: number, accountName: string) {
 
 //Check AccountType based on Account Type ID or Account Type Name
 interface checkAccountType {
-  accountTypeId?: number;
+  accountTypeId?: string;
   accountTypeName?: string;
 }
 export async function checkAccountTypeDetails(accountType: checkAccountType) {
-  const accountTypeId = Number(accountType.accountTypeId);
+  const accountTypeId = accountType.accountTypeId;
   const accountTypeName = accountType.accountTypeName;
 
-  if (!accountType.accountTypeId && !accountType.accountTypeName) {
+  if (!accountTypeId && !accountTypeName) {
     return { success: false, message: "Invalid account type details provided" };
   }
   try {
-    const whereClause = accountType.accountTypeId
-      ? { id: accountType.accountTypeId }
+    const whereClause = accountTypeId
+      ? { id: accountTypeId }
       : {
           typeName: {
-            equals: accountType.accountTypeName,
+            equals: accountTypeName,
             mode: Prisma.QueryMode.insensitive,
           },
         };
 
     const accountTypeDetails = await prisma.accountType.findFirst({
       where: whereClause,
-      select: { id: true, typeName: true, description: true },
+      select: {
+        id: true,
+        typeName: true,
+        description: true,
+        accountElement: {
+          select: { financialStatement: { select: { statementKey: true } } },
+        },
+      },
     });
 
     if (!accountTypeDetails) {
       return { success: false, message: "Account Type not found" };
     }
 
+    const flatResult = {
+      id: accountTypeDetails.id,
+      typeName: accountTypeDetails.typeName,
+      description: accountTypeDetails.description,
+      fsKey: accountTypeDetails.accountElement?.financialStatement.statementKey,
+    };
+
     return {
       success: true,
       message: "Found Account Type",
-      data: accountTypeDetails,
+      data: flatResult,
     };
   } catch (error: any) {
     console.error("Error fetching account type:", error);
@@ -366,8 +419,9 @@ export async function checkAccountTypeDetails(accountType: checkAccountType) {
 interface COAInput {
   accountCode?: string;
   accountName: string;
+  fsKey?: FsKey;
   description?: string;
-  accountTypeId?: number;
+  accountTypeId?: string;
   accountTypeName?: string;
 }
 
@@ -375,14 +429,19 @@ interface CoaItems {
   accountCode?: string;
   accountName: string;
   description?: string;
-  accountTypeId: number;
-  defaultSide: DefaultSide;
-  currencyId: number;
-  companyId: number;
+  accountTypeId: string;
+  defaultSide: DebitCredit;
+  currencyId: string;
+  companyId: string;
 }
 
-export async function createCOAModel(companyId: number, data: COAInput) {
+export async function createCOAModel(
+  tx: any,
+  companyId: string,
+  data: COAInput
+) {
   const stdAccountName = toTitleCase(data.accountName);
+  const companyIdType = getIdentifierType(companyId);
 
   const verifyAccType = data.accountTypeId
     ? await checkAccountTypeDetails({ accountTypeId: data.accountTypeId })
@@ -390,7 +449,7 @@ export async function createCOAModel(companyId: number, data: COAInput) {
         accountTypeName: data.accountTypeName,
       });
 
-  if (!verifyAccType.success) {
+  if (!verifyAccType.success || !verifyAccType.data) {
     return verifyAccType;
   }
 
@@ -414,20 +473,28 @@ export async function createCOAModel(companyId: number, data: COAInput) {
     (!acctCode || acctCode.success === false) &&
     (!acctName || acctName.success === false)
   ) {
-    const [defaultside, reportingCurrency] = await Promise.all([
-      prisma.accountType.findFirst({
+    const [defaultside, companyData] = await Promise.all([
+      tx.accountType.findFirst({
         where: { id: data.accountTypeId },
         select: { accountElement: { select: { defaultSide: true } } },
       }),
 
-      prisma.company.findFirst({
-        where: { id: companyId },
-        select: { reportingCurrencyId: true },
+      tx.company.findFirst({
+        where:
+          companyIdType === "uuid"
+            ? { id: companyId }
+            : { shortCode: companyId },
+        select: { id: true, reportingCurrencyId: true },
       }),
     ]);
 
+    if (!companyData) {
+      throw new Error("Company not found");
+    }
+
     const defaultSideValue = defaultside?.accountElement?.defaultSide;
-    const currency = reportingCurrency?.reportingCurrencyId;
+    const currency = companyData.reportingCurrencyId;
+    const actualCompanyId = companyData.id;
 
     if (!defaultSideValue) {
       return {
@@ -436,16 +503,24 @@ export async function createCOAModel(companyId: number, data: COAInput) {
       };
     }
 
+    if (!currency) {
+      return {
+        success: false,
+        message: "Currency error",
+      };
+    }
+
     try {
-      const createdAccount = await prisma.coa.create({
+      const createdAccount = await tx.coa.create({
         data: {
           accountCode: data.accountCode,
           accountName: stdAccountName,
           description: data.description,
-          accountTypeId: verifyAccType.data && verifyAccType.data.id,
-          defaultSide: defaultSideValue as DefaultSide,
+          accountTypeId: verifyAccType.data.id,
+          fsKey: verifyAccType.data.fsKey as FsKey,
+          defaultSide: defaultSideValue as DebitCredit,
           currencyId: currency,
-          companyId: companyId,
+          companyId: actualCompanyId,
         },
       });
 
@@ -465,7 +540,8 @@ export async function createCOAModel(companyId: number, data: COAInput) {
         ...(createdAccount.description && {
           description: truncateText(createdAccount.description, 40),
         }),
-        balance: createdAccount.balance,
+        fsKey: verifyAccType.data.fsKey,
+        // balance: createdAccount.balance,
       };
 
       return {
@@ -483,7 +559,7 @@ export async function createCOAModel(companyId: number, data: COAInput) {
 }
 
 // CREATE BULK COA
-export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
+export async function createBulkCOAModel(companyId: string, data: COAInput[]) {
   const results = await Promise.all(
     data.map(async (item) => {
       try {
@@ -508,7 +584,7 @@ export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
           );
         }
 
-        const [defaultside, reportingCurrency] = await Promise.all([
+        const [defaultside, companyData] = await Promise.all([
           prisma.accountType.findFirst({
             where: { id: item.accountTypeId },
             select: { accountElement: { select: { defaultSide: true } } },
@@ -516,12 +592,17 @@ export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
 
           prisma.company.findFirst({
             where: { id: companyId },
-            select: { reportingCurrencyId: true },
+            select: { id: true, reportingCurrencyId: true },
           }),
         ]);
 
+        if (!companyData) {
+          throw new Error("Company not found");
+        }
+
         const defaultSideValue = defaultside?.accountElement?.defaultSide;
-        const currency = reportingCurrency?.reportingCurrencyId;
+        const currency = companyData?.reportingCurrencyId;
+        const actualCompanyId = companyData.id;
 
         if (!defaultSideValue) {
           return {
@@ -531,16 +612,33 @@ export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
           };
         }
 
+        if (!currency) {
+          return {
+            success: false,
+            message: "Currency error",
+            item,
+          };
+        }
+
+        if (
+          !verifyAccType.data ||
+          verifyAccType.data.id ||
+          !verifyAccType.data.fsKey
+        ) {
+          return { success: false, message: "Account type not found", item };
+        }
+
         return {
           success: true,
           data: {
-            accountCode: item.accountCode,
+            ...(item.accountCode && { accountCode: item.accountCode }),
             accountName: stdAccountName,
-            description: item.description,
-            accountTypeId: verifyAccType.data?.id,
-            defaultSide: defaultSideValue as DefaultSide,
+            ...(item.description && { description: item.description }),
+            accountTypeId: verifyAccType.data.id,
+            defaultSide: defaultSideValue as DebitCredit,
             currencyId: currency,
-            companyId: companyId,
+            companyId: actualCompanyId,
+            fsKey: verifyAccType.data.fsKey as FsKey,
           },
         };
       } catch (error: any) {
@@ -552,12 +650,13 @@ export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
   const validRecords = results
     .filter((singleResult) => singleResult.success)
     .map((singleResult) => singleResult.data);
+  const newValidRecords = validRecords.filter((record) => record !== undefined);
 
   const failedRecords = results.filter((singleResult) => !singleResult.success);
 
   try {
     const createdAccounts = await prisma.coa.createMany({
-      data: validRecords,
+      data: newValidRecords,
       skipDuplicates: true,
     });
 
@@ -578,24 +677,30 @@ export async function createBulkCOAModel(companyId: number, data: COAInput[]) {
 
 //Update COA
 interface UpdateCOAInput {
-  id: number;
+  id: string;
   accountCode?: string;
   accountName: string;
   description?: string;
-  accountTypeId?: number;
+  accountTypeId?: string;
   accountTypeName?: string;
 }
 
 export async function updateCOAModel(
-  companyId: number,
-  id: number,
+  companyId: string,
+  id: string,
   data: UpdateCOAInput
 ) {
   try {
     const coaId = id || data.id;
+    const idType = getIdentifierType(companyId);
 
     const oldAccount = await prisma.coa.findFirst({
-      where: { companyId, id },
+      where: {
+        ...(idType === "uuid"
+          ? { companyId }
+          : { company: { shortCode: companyId } }),
+        id: coaId,
+      },
       select: {
         id: true,
         accountCode: true,
@@ -641,7 +746,7 @@ export async function updateCOAModel(
       accountCode: string;
       accountName: string;
       description: string;
-      accountTypeId: number;
+      accountTypeId: string;
     }> = {
       ...(data.accountCode && { accountCode: data.accountCode }),
       ...(data.accountName && { accountName: data.accountName }),
@@ -658,7 +763,12 @@ export async function updateCOAModel(
     }
 
     const updatedAccount = await prisma.coa.update({
-      where: { companyId, id: coaId },
+      where: {
+        ...(idType === "uuid"
+          ? { companyId }
+          : { company: { shortCode: companyId } }),
+        id: coaId,
+      },
       data: updateData,
       select: {
         id: true,
@@ -670,7 +780,12 @@ export async function updateCOAModel(
     });
 
     const updatedAccountData = await prisma.coa.update({
-      where: { companyId, id: coaId },
+      where: {
+        ...(idType === "uuid"
+          ? { companyId }
+          : { company: { shortCode: companyId } }),
+        id: coaId,
+      },
       data: updateData,
       select: {
         id: true,
@@ -721,6 +836,6 @@ export async function updateCOAModel(
   }
 }
 
-export async function archiveCOAModel(companyId: number, id: number[]) {}
+export async function archiveCOAModel(companyId: string, id: string[]) {}
 
-export async function archiveSingleCOAModel(companyId: number, id: number) {}
+export async function archiveSingleCOAModel(companyId: string, id: string) {}

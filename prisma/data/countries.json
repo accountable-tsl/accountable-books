@@ -1,5 +1,6 @@
 [
   {
+    "id": "95856306-32e6-4edc-9374-49000b2660bd",
     "code": "NG",
     "name": "Nigeria",
     "phoneCode": "+234",
@@ -7,6 +8,7 @@
     "continent": "Africa"
   },
   {
+    "id": "9dde2efe-fcb3-4ecf-b26b-6d6165f94b0b",
     "code": "GH",
     "name": "Ghana",
     "phoneCode": "+233",
@@ -14,6 +16,7 @@
     "continent": "Africa"
   },
   {
+    "id": "9a6c5953-afcb-4635-9912-fcd5380088a0",
     "code": "US",
     "name": "United States",
     "phoneCode": "+1",
@@ -21,6 +24,7 @@
     "continent": "North America"
   },
   {
+    "id": "e7175571-0990-4bcd-a3c6-e38cb7fe2360",
     "code": "UK",
     "name": "United Kingdom",
     "phoneCode": "+44",

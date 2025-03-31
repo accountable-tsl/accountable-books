@@ -1,4 +1,4 @@
-import { Company, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { Request, Response, NextFunction } from "express";
 const prisma = new PrismaClient();
 
@@ -7,25 +7,28 @@ export const checkCompanyId = async (
   res: Response,
   next: NextFunction
 ) => {
-  const companyIdStr =
+  const companyId =
     req.params.companyId || req.body.companyId || req.query.companyId;
 
-  const companyId = Number(companyIdStr);
-
-  if (!companyId || companyId < 0 || isNaN(companyId)) {
-    return res.status(400).json({ message: "Invalid Company ID" });
+  if (!companyId || typeof companyId !== "string" || companyId.length > 40) {
+    return res.status(400).json({ message: "Invalid Company Identifier" });
   }
+
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      companyId
+    );
 
   try {
     const company = await prisma.company.findUnique({
-      where: { id: companyId },
+      where: isUUID ? { id: companyId } : { shortCode: companyId },
     });
 
     if (!company) {
       return res.status(404).json({ message: "Company not found" });
     }
 
-    req.company = company;
+    req.company = { ...company, id: companyId };
 
     next();
   } catch (error: any) {

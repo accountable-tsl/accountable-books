@@ -9,7 +9,7 @@ import {
 const router = express.Router({ mergeParams: true });
 
 router.get("/", checkCompanyId, allBankAccounts);
-router.get("/:id", checkCompanyId, singleBankAccount);
 router.post("/", checkCompanyId, createBankAccount);
+router.get("/:id", checkCompanyId, singleBankAccount);
 
 export default router;

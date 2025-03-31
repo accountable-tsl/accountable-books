@@ -19,7 +19,7 @@
 //     case "Other Current Assets":
 //       return {
 //         AccountElement: "Current Asset",
-//         FinancialStatement: "balance_sheet",
+//         FinancialStatement: "BALANCE_SHEET",
 //       };
 
 //     case "Property, Plant, Equipment":
@@ -28,13 +28,13 @@
 //     case "Other Noncurrent Assets":
 //       return {
 //         AccountElement: "Fixed Asset",
-//         FinancialStatement: "balance_sheet",
+//         FinancialStatement: "BALANCE_SHEET",
 //       };
 
 //     case "Noncurrent Assets":
 //       return {
 //         AccountElement: "Noncurrent Asset",
-//         FinancialStatement: "balance_sheet",
+//         FinancialStatement: "BALANCE_SHEET",
 //       };
 
 //     case "Accumulated Depreciation - PPE":
@@ -42,14 +42,14 @@
 //     case "Accumulated Amortisation - Intangible Assets":
 //       return {
 //         AccountElement: "Contra Asset",
-//         FinancialStatement: "balance_sheet",
+//         FinancialStatement: "BALANCE_SHEET",
 //       };
 
 //     case "current_liabilities":
 //     case "noncurrent_liabilities":
 //       return {
 //         AccountElement: "liabilities",
-//         FinancialStatement: "balance_sheet",
+//         FinancialStatement: "BALANCE_SHEET",
 //       };
 
 //     case "revenue":
@@ -58,7 +58,7 @@
 //     case "finance_income":
 //       return {
 //         AccountElement: "revenue",
-//         FinancialStatement: "income_statement",
+//         FinancialStatement: "INCOME_STATEMENT",
 //       };
 
 //     case "cost_of_sales":
@@ -70,11 +70,11 @@
 //     case "tax_expense":
 //       return {
 //         AccountElement: "expense",
-//         FinancialStatement: "income_statement",
+//         FinancialStatement: "INCOME_STATEMENT",
 //       };
 
 //     case "equity":
-//       return { AccountElement: "equity", FinancialStatement: "balance_sheet" };
+//       return { AccountElement: "equity", FinancialStatement: "BALANCE_SHEET" };
 
 //     default:
 //       throw new Error("Invalid account type");

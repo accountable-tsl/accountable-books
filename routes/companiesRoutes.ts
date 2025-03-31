@@ -1,12 +1,16 @@
 import express from "express";
-import { createCompany, getAllCompanies, getSingleCompany } from "../controllers/companiesController";
-import { createACompany } from "../models/companiesModel";
+import {
+  createCompany,
+  getAllCompanies,
+  getSingleCompany,
+} from "../controllers/companiesController";
 import { checkCompanyId } from "../middlewares/companyMiddleware";
+import { basicLimiter } from "../middlewares/rateLimiter";
 
 const router = express.Router();
 
 router.get("/", getAllCompanies);
-router.get("/:companyId", checkCompanyId, getSingleCompany)
+router.get("/:companyId", basicLimiter, checkCompanyId, getSingleCompany);
 
 router.post("/", createCompany);
 

@@ -1,26 +1,68 @@
 [
   {
-    "id": 1,
+    "id": "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
     "name": "Naira",
     "code": "NGN",
     "symbol": "₦"
   },
   {
-    "id": 2,
+    "id": "f3a1b0b1-c658-4af8-b5d0-b93467829a4d",
     "name": "US Dollar",
     "code": "USD",
     "symbol": "$"
   },
   {
-    "id": 3,
+    "id": "1b18aa40-0e93-466a-a8c1-5d9fdd4e0810",
     "name": "British Pounds",
     "code": "GBP",
     "symbol": "£"
   },
   {
-    "id": 4,
+    "id": "0213b00e-900c-4a08-856b-a03b63092dda",
     "name": "Euro",
     "code": "EUR",
     "symbol": "€"
+  },
+  {
+    "id": "efdfd70b-8a36-4b94-a501-2eb4385e6908",
+    "name": "CFA Franc",
+    "code": "CFA",
+    "symbol": "CFA"
+  },
+  {
+    "id": "571caa7a-0706-4b2e-af2d-e403e98cafc9",
+    "name": "Danish Kroner",
+    "code": "DKK",
+    "symbol": "kr."
+  },
+  {
+    "id": "ab022643-83fc-4e38-b7c0-7a988278f3eb",
+    "name": "Yen",
+    "code": "JPY",
+    "symbol": "¥"
+  },
+  {
+    "id": "58631a05-df7c-479f-b66e-6b50d4f44759",
+    "name": "Saudi Riyal",
+    "code": "SAR",
+    "symbol": "SAR"
+  },
+  {
+    "id": "d0301f3c-43ee-4fca-8e1d-512f8771a8ec",
+    "name": "South African Rand",
+    "code": "ZAR",
+    "symbol": "R"
+  },
+  {
+    "id": "18703e06-fbcd-490f-bc8e-5f24c2b19362",
+    "name": "Swiss Franc",
+    "code": "CHF",
+    "symbol": "CHF"
+  },
+  {
+    "id": "17dd3b8a-e959-420d-8aca-ff8cc7147dbc",
+    "name": "Chinese Yuan",
+    "code": "CNY",
+    "symbol": "¥"
   }
 ]
