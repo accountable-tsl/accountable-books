@@ -5,20 +5,24 @@ echo "Running Prisma migrations..."
 npx prisma format
 npx prisma generate
 
-echo "Waiting for database to be ready..."
-until npx prisma migrate status >/dev/null 2>&1; do
-  echo "Database not ready yet... retrying in 2s"
-  sleep 2
-done
+sleep 5
 
 # 🚀 For development, use `migrate dev`
 if [ "$NODE_ENV" = "development" ]; then
+
+  if [ ! -d "./prisma/migrations" ] || [ -z "$(ls -A ./prisma/migrations)" ]; then
+    echo "No Prisma migrations found. Please run 'npx prisma migrate dev --name init' locally first."
+    exit 1
+  fi
+  
   echo "Running Prisma Migrate (Development Mode)..."
   npx prisma migrate dev --skip-seed
 else
   echo "Running Prisma Migrate ($NODE_ENV Mode)..."
   npx prisma migrate deploy
 fi
+
+sleep 5
 
 echo "Applying raw SQL schema patches..."
 if [ -f "./prisma/post-deploy.sql" ]; then

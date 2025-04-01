@@ -146,6 +146,8 @@ export async function createACompany(
             reportingCurrencyId,
             createdById,
             shortCode,
+            yearEndDay,
+            yearEndMonth,
           },
           ...(companyData.id && createdById === "testId"
             ? {
