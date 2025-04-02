@@ -8,6 +8,6 @@
       "@prisma/client": ["./prisma/client"]
     }
   },
-  "include": ["**/*.ts", "custom.d.ts"],
+  "include": ["**/*.ts", "custom.d.ts", "knexfile.ts"],
   "exclude": ["node_modules"]
 }

@@ -173,7 +173,7 @@ function validateTransactions(transactions: CatEngineTransaction[]): string[] {
   return errors;
 }
 
-function isValidTransaction(tx: Partial<CatEngineTransaction>): {
+export function isValidTransaction(tx: Partial<CatEngineTransaction>): {
   valid: boolean;
   missing: string[];
 } {
@@ -187,3 +187,5 @@ function isValidTransaction(tx: Partial<CatEngineTransaction>): {
 
   return { valid: missing.length === 0, missing };
 }
+
+

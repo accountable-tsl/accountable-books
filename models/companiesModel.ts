@@ -17,6 +17,8 @@ interface CompanyData {
   countryId: string;
   reportingCurrencyId: string;
   createdById: string;
+  yearEndDay: number;
+  yearEndMonth: number;
 }
 
 interface CreateCompanyResponse {
@@ -49,6 +51,8 @@ export async function createACompany(
     countryId,
     reportingCurrencyId,
     createdById,
+    yearEndDay,
+    yearEndMonth,
   } = companyData;
 
   const validationErrors: Record<string, string> = {};
@@ -142,6 +146,8 @@ export async function createACompany(
             reportingCurrencyId,
             createdById,
             shortCode,
+            yearEndDay,
+            yearEndMonth,
           },
           ...(companyData.id && createdById === "testId"
             ? {
