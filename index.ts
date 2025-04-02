@@ -14,6 +14,7 @@ import accountTransactionRoutes from "./routes/accountTransactionRoutes";
 import journalRoutes from "./routes/journalRoutes";
 import reportingRoutes from "./routes/reportingRoutes";
 import { swaggerUi, specs } from "./swagger";
+import { getMergedTransactions } from "./models/transactionModel";
 
 const NODE_ENV = process.env.NODE_ENV || "development";
 

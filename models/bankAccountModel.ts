@@ -4,12 +4,14 @@ import { BankAccountType } from "@prisma/client/wasm";
 import { getIdentifierType } from "../utils/utils";
 import { getBankAccountBalances, getBankLedgerBalances } from "./balancesModel";
 import { Decimal } from "@prisma/client/runtime/library";
+import knexInstance from "../knexClient";
 
 const prisma = new PrismaClient();
 
 export async function getAllBankAccounts(companyId: string) {
   try {
     // Determine company identifier type
+    console.log("getAllBankAccounts", companyId);
     const idType = getIdentifierType(companyId);
     const companyIdReceived = companyId;
 
@@ -41,16 +43,25 @@ export async function getAllBankAccounts(companyId: string) {
 
     // Fetch related financial data in parallel
     const [bankAccountBalances, bankLedgerBalances] = await Promise.all([
-      getBankAccountBalances(prisma, companyId),
-      getBankLedgerBalances(prisma, companyId),
+      getBankAccountBalances(companyId),
+      getBankLedgerBalances(companyId),
     ]);
 
     // Get transaction statistics
-    const transactionCounts = await prisma.bankTransaction.groupBy({
-      by: ["bankAccountId", "categorisationStatus"],
-      _count: true,
-      where: { bankAccountId: { in: bankAccounts.map((acc) => acc.id) } },
-    });
+    // const transactionCounts = await prisma.bankTransaction.groupBy({
+    //   by: ["bankAccountId", "categorisationStatus"],
+    //   _count: true,
+    //   where: { bankAccountId: { in: bankAccounts.map((acc) => acc.id) } },
+    // });
+
+    const transactionCounts = await knexInstance("BankTransaction")
+      .select("bankAccountId", "categorisationStatus")
+      .whereIn(
+        "bankAccountId",
+        bankAccounts.map((acc) => acc.id)
+      )
+      .groupBy("bankAccountId", "categorisationStatus")
+      .count("* as _count");
 
     // Transaction statistics mapping
     let totalUncategorisedTransactions = 0;
@@ -68,15 +79,15 @@ export async function getAllBankAccounts(companyId: string) {
             autoCategorised: 0,
           };
         }
-        stats[bankAccountId].total += _count;
+        stats[bankAccountId].total += Number(_count);
         if (categorisationStatus === CategorisationStatus.UNCATEGORISED)
-          stats[bankAccountId].uncategorised += _count;
+          stats[bankAccountId].uncategorised += Number(_count);
 
         if (categorisationStatus === CategorisationStatus.CATEGORISED)
-          stats[bankAccountId].categorised += _count;
+          stats[bankAccountId].categorised += Number(_count);
 
         if (categorisationStatus === CategorisationStatus.AUTO_CATEGORISED)
-          stats[bankAccountId].autoCategorised += _count;
+          stats[bankAccountId].autoCategorised += Number(_count);
 
         return stats;
       },

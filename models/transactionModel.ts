@@ -12,31 +12,13 @@ import {
 } from "./bankTransactionModel";
 import { Decimal } from "@prisma/client/runtime/library";
 import { compareDbAndUserObject, getIdentifierType } from "../utils/utils";
+import { BankTransactionWhereInput } from "../types/bank";
+import { Knex } from "knex";
+// import initKnex from "knex";
+// import configuration from "../knexfile";
+import knex from "../knexClient";
 
 const prisma = new PrismaClient();
-
-type LedgerEntriesWithRelations = Prisma.LedgerEntryGetPayload<{
-  include: { coa: true; sourceCurrency: true; project: true };
-}>;
-type ExtendedLedgerTransaction = Prisma.LedgerTransactionGetPayload<{
-  include: {
-    contact: { select: { name: true } };
-    bankTransaction: {
-      include: {
-        bankAccount: {
-          include: { bank: { select: { name: true; bankLogo: true } } };
-        };
-      };
-    };
-    ledgerEntries: {
-      include: {
-        coa?: { select: { id: true; accountCode: true; accountName: true } };
-        sourceCurrency?: true; //{ select: { code: true } };
-        project?: true; //{ select: { name: true } };
-      };
-    };
-  };
-}>;
 
 export type CatEngineTransaction = {
   id: string;
@@ -71,20 +53,48 @@ export type CatEngineTransaction = {
 };
 
 const buildBankTransactionFilters = (
+  queryBuilder: Knex.QueryBuilder,
   companyId: string,
   filters: TransactionFilters
 ) => {
   const companyIdType = getIdentifierType(companyId);
 
-  const where: Prisma.BankTransactionWhereInput = {
-    isDeleted: filters.isDeleted ?? false,
-    ledgerTransactionId: null,
-    ledgerTransaction: null,
-    bankAccount: {
-      companyId: companyIdType === "uuid" ? companyId : undefined,
-      company: companyIdType !== "uuid" ? { shortCode: companyId } : undefined,
-    },
-  };
+  queryBuilder.where(
+    "bank_transactions.is_deleted",
+    filters.isDeleted ?? false
+  );
+  queryBuilder.whereNull("bank_transactions.ledger_transaction_id");
+
+  if (filters.bankAccountId) {
+    queryBuilder.where(
+      "bank_transactions.bank_account_id",
+      filters.bankAccountId
+    );
+  }
+
+  if (filters.startDate) {
+    queryBuilder.where("bank_transactions.date", ">=", filters.startDate);
+  }
+
+  if (filters.endDate) {
+    queryBuilder.where("bank_transactions.date", "<=", filters.endDate);
+  }
+
+  if (filters.minAmount) {
+    queryBuilder.where(
+      "bank_transactions.absolute_amount",
+      ">=",
+      filters.minAmount
+    );
+  }
+
+  if (filters.maxAmount) {
+    queryBuilder.where(
+      "bank_transactions.absolute_amount",
+      "<=",
+      filters.maxAmount
+    );
+  }
 
   // Ensure categorisationStatus is always an array
   const status: CategorisationStatus[] = Array.isArray(
@@ -98,58 +108,74 @@ const buildBankTransactionFilters = (
           CategorisationStatus.AUTO_CATEGORISED,
         ];
 
-  where.categorisationStatus = {
-    ...{ in: status },
-    ...{ notIn: [CategorisationStatus.CATEGORISED] },
-  };
+  queryBuilder.whereIn("bank_transactions.categorisation_status", status);
+  queryBuilder.whereNot(
+    "bank_transactions.categorisation_status",
+    CategorisationStatus.CATEGORISED
+  );
 
-  if (filters.bankAccountId) where.bankAccountId = filters.bankAccountId;
-
-  if (filters.startDate || filters.endDate) {
-    where.date = {};
-    if (filters.startDate) where.date.gte = filters.startDate;
-    if (filters.endDate) where.date.lte = filters.endDate;
-  }
-  //gte means "greater than or equal to"
-  //lte means "less than or equal to"
-
-  if (filters.minAmount || filters.maxAmount) {
-    where.absoluteAmount = {};
-    if (filters.minAmount) where.absoluteAmount.gte = filters.minAmount;
-    if (filters.maxAmount) where.absoluteAmount.lte = filters.maxAmount;
+  if (filters.transactionSide) {
+    queryBuilder.where(
+      "bank_transactions.transaction_side",
+      filters.transactionSide
+    );
   }
 
   if (filters.searchQuery) {
-    (where as any).body = { search: filters.searchQuery, mode: "insensitive" };
+    queryBuilder.whereILike(
+      "bank_transactions.body",
+      `%${filters.searchQuery}%`
+    );
   }
 
-  if (filters.transactionSide) where.transactionSide = filters.transactionSide;
+  // Company join filter
+  queryBuilder.join(
+    "bank_accounts",
+    "bank_transactions.bank_account_id",
+    "bank_accounts.id"
+  );
 
-  return where;
+  if (companyIdType === "uuid") {
+    queryBuilder.where("bank_accounts.company_id", companyId);
+  } else {
+    queryBuilder
+      .join("companies", "bank_accounts.company_id", "companies.id")
+      .where("companies.short_code", companyId);
+  }
+
+  return queryBuilder;
 };
 const buildLedgerTransactionFilters = (
+  queryBuilder: Knex.QueryBuilder,
   companyId: string,
   filters: TransactionFilters
 ) => {
   const companyIdType = getIdentifierType(companyId);
 
-  const where: Prisma.LedgerTransactionWhereInput = {
-    bankTransactionId: { not: null },
-    bankTransaction: { isNot: null },
-    isDeleted: filters.isDeleted ?? false,
-    ledgerEntries: {
-      some: {
-        isDeleted: filters.isDeleted ?? false,
-        coa: {
-          ...(companyIdType === "uuid"
-            ? { companyId: companyId }
-            : { company: { shortCode: companyId } }),
-        },
-      },
-    },
-  };
+  queryBuilder.whereNotNull(`"LedgerTransactions"."bankTransactionId"`);
 
-  const ledgerEntries = where.ledgerEntries?.some;
+  queryBuilder.where(
+    `"LedgerTransactions"."isDeleted"`,
+    filters.isDeleted ?? false
+  );  
+
+  // Join to ledger_entries and coas
+  queryBuilder
+    .join(
+      `"ledgerEntries"`,
+      `"ledgerTransactions"."id"`,
+      `"ledgerEntries"."ledgerTransactionId"`
+    )
+    .join("coas", `"ledgerEntries"."coaId"`, "coas.id")
+    .where(`"ledgerEntries"."isDeleted"`, filters.isDeleted ?? false);
+
+  if (companyIdType === "uuid") {
+    queryBuilder.where(`"coas"."companyId"`, companyId);
+  } else {
+    queryBuilder
+    .join("companies", `"coas"."companyId"`, `"companies"."id"`)
+    .where(`"companies"."shortCode"`, companyId);  
+  }
 
   // Ensure categorisationStatus is always an array
   const status: CategorisationStatus[] = Array.isArray(
@@ -160,88 +186,109 @@ const buildLedgerTransactionFilters = (
       ? [filters.categorisationStatus]
       : ["UNCATEGORISED", "AUTO_CATEGORISED"];
 
+  queryBuilder.whereIn(`"ledgerEntries"."categorisationStatus"`, status);
+
   if (filters.bankAccountId) {
-    where.bankTransaction = { bankAccount: { id: filters.bankAccountId } };
+    queryBuilder.where(
+      "bank_transactions.bank_account_id",
+      filters.bankAccountId
+    );
   }
 
-  if (ledgerEntries) {
-    ledgerEntries.categorisationStatus = { in: status };
-
-    if (filters.startDate || filters.endDate) {
-      ledgerEntries.fsDate = {};
-      if (filters.startDate) ledgerEntries.fsDate.gte = filters.startDate;
-      if (filters.endDate) ledgerEntries.fsDate.lte = filters.endDate;
-    }
-
-    if (filters.minAmount || filters.maxAmount) {
-      ledgerEntries.absoluteSourceAmount = {};
-      if (filters.minAmount)
-        ledgerEntries.absoluteSourceAmount.gte = filters.minAmount;
-      if (filters.maxAmount)
-        ledgerEntries.absoluteSourceAmount.lte = filters.maxAmount;
-    }
-
-    if (filters.searchQuery) {
-      (ledgerEntries as any).body = {
-        search: filters.searchQuery,
-        mode: "insensitive",
-      };
-    }
-
-    if (filters.transactionSide)
-      ledgerEntries.transactionSide = filters.transactionSide;
+  if (filters.startDate) {
+    queryBuilder.where("ledgerEntries"."fs_date", ">=", filters.startDate);
   }
 
-  return where;
+  if (filters.endDate) {
+    queryBuilder.where("ledgerEntries"."fs_date", "<=", filters.endDate);
+  }
+
+  if (filters.minAmount) {
+    queryBuilder.where(
+      "ledgerEntries"."absolute_source_amount",
+      ">=",
+      filters.minAmount
+    );
+  }
+
+  if (filters.maxAmount) {
+    queryBuilder.where(
+      "ledgerEntries"."absolute_source_amount",
+      "<=",
+      filters.maxAmount
+    );
+  }
+
+  if (filters.searchQuery) {
+    queryBuilder.whereILike("ledgerEntries"."body", `%${filters.searchQuery}%`);
+  }
+
+  if (filters.transactionSide) {
+    queryBuilder.where(
+      "ledgerEntries"."transaction_side",
+      filters.transactionSide
+    );
+  }
+
+  return queryBuilder;
+};
+const transformLedgerTransactionRow = (row: any): CatEngineTransaction => {
+  return {
+    id: row.ledger_entry_id,
+    transactionSource: "ledger",
+    categorisationStatus: row.ledger_entry_categorisation_status,
+    date: row.ledger_transaction_date,
+    fsDate: row.ledger_entry_fs_date,
+    contactName: row.contact_name || "",
+    projectName: row.project_name || null,
+    reference: row.ledger_transaction_reference || "",
+    description: row.ledger_entry_description || "",
+    bankCurrencyCode: row.currency_code,
+    bankCurrencySymbol: row.currency_symbol,
+    transactionSide: row.ledger_entry_transaction_side,
+    exchangeRate: row.ledger_entry_custom_exchange_rate,
+    amount: row.ledger_entry_amount,
+    bankCurrencyId: row.ledger_entry_source_currency_id,
+    bankAmount: row.bank_transaction_amount ?? null,
+    bankAccountId: row.bank_transaction_bank_account_id ?? null,
+    bankTransactionBatchId: row.bank_transaction_batch_id ?? null,
+    bankLogo: row.bank_logo ?? null,
+    bankName: row.bank_name ?? null,
+    ledgerTransactionId: row.ledger_transaction_id,
+    contactId: row.contact_id ?? null,
+    projectId: row.project_id ?? null,
+    coaId: row.ledger_entry_coa_id,
+    coaAccountName: row.coa_account_name ?? null,
+    coaAccountCode: row.coa_account_code ?? null,
+  };
 };
 
-const transformLedgerTransaction = (
-  tx: ExtendedLedgerTransaction
-): CatEngineTransaction[] => {
-  const bankCoaId = tx.bankTransaction?.bankAccount?.coaId;
+const transformBankTransactionRow = (row: any): CatEngineTransaction => {
+  const amount = new Decimal(row.bank_transaction_amount);
+  const exchangeRate = new Decimal(row.bank_transaction_system_exchange_rate);
 
-  if (!tx.ledgerEntries) return [];
-
-  return Array.isArray(tx.ledgerEntries)
-    ? tx.ledgerEntries
-        .filter(
-          (entry: LedgerEntriesWithRelations) => entry.coaId !== bankCoaId
-        )
-        .map(({ ...ledger }: LedgerEntriesWithRelations) => ({
-          id: ledger.id,
-          transactionSource: "ledger",
-          categorisationStatus: ledger.categorisationStatus,
-          date: tx.date,
-          fsDate: ledger.fsDate,
-          contactName: tx.contact?.name || "",
-          projectName: ledger.project?.name || null,
-          reference: tx.reference || "",
-          description: ledger.description || "",
-          bankCurrencyCode: ledger.sourceCurrency.code,
-          bankCurrencySymbol: ledger.sourceCurrency.symbol,
-          transactionSide: ledger.transactionSide,
-          exchangeRate: ledger.customExchangeRate,
-          amount: ledger.amount,
-          bankCurrencyId: ledger.sourceCurrencyId,
-          ...(tx.bankTransaction
-            ? {
-                bankAmount: tx.bankTransaction.amount,
-                bankAccountId: tx.bankTransaction.bankAccountId,
-                bankTransactionBatchId:
-                  tx.bankTransaction.bankTransactionBatchId,
-                bankLogo:
-                  tx.bankTransaction.bankAccount?.bank?.bankLogo || null,
-                bankName: tx.bankTransaction.bankAccount?.displayName || null,
-              }
-            : {}),
-          ledgerTransactionId: tx.id,
-          contactId: tx.contactId || null,
-          projectId: ledger.projectId || null,
-          coaId: ledger.coaId,
-          coaAccountName: ledger.coa?.accountName || null,
-          coaAccountCode: ledger.coa?.accountCode || null,
-        }))
-    : [];
+  return {
+    id: row.bank_transaction_id,
+    transactionSource: "bank",
+    categorisationStatus: row.bank_transaction_categorisation_status,
+    bankLogo: row.bank_logo || null,
+    bankName: row.bank_display_name || null,
+    date: row.bank_transaction_date,
+    fsDate: row.bank_transaction_date,
+    contactName: row.bank_transaction_payee || "",
+    reference: row.bank_transaction_reference || "",
+    description: row.bank_transaction_description || "",
+    bankCurrencyCode: row.currency_code,
+    bankCurrencySymbol: row.currency_symbol,
+    transactionSide: row.bank_transaction_transaction_side,
+    bankAmount: amount,
+    exchangeRate,
+    amount: amount.dividedBy(exchangeRate),
+    bankCurrencyId: row.currency_id,
+    bankAccountId: row.bank_account_id,
+    bankTransactionBatchId: row.bank_transaction_batch_id,
+    ledgerTransactionId: row.bank_transaction_ledger_transaction_id || null,
+  };
 };
 
 export async function getMergedTransactions(
@@ -249,110 +296,143 @@ export async function getMergedTransactions(
   filters: TransactionFilters
 ) {
   try {
-    const bankTransactionFilters = buildBankTransactionFilters(
-      companyId,
-      filters
-    );
-
-    const ledgerTransactionFilters = buildLedgerTransactionFilters(
-      companyId,
-      filters
-    );
-
-    //Dynamically add other filters
-
     const page = filters.currentPage || 1;
     const pageSize = filters.pageSize ? filters.pageSize : 100;
 
-    const bankTransactions = await prisma.bankTransaction.findMany({
-      where: bankTransactionFilters,
-      include: {
-        bankAccount: {
-          include: {
-            bank: { select: { bankLogo: true } },
-            currency: { select: { id: true, code: true, symbol: true } },
-          },
-        },
-      },
-      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      // skip: (page - 1) * pageSize,
-      // take: pageSize,
-    });
+    const bankTransactions = await buildBankTransactionFilters(
+      knex("BankTransactions")
+        .select(
+          "bank_transactions.*",
+          "bank_accounts.display_name as bankName",
+          "banks.bank_logo as bankLogo",
+          "currencies.code as bankCurrencyCode",
+          "currencies.symbol as bankCurrencySymbol",
+          "bank_accounts.currency_id as bankCurrencyId"
+        )
+        .leftJoin("banks", "bank_accounts.bank_id", "banks.id")
+        .leftJoin("currencies", "bank_accounts.currency_id", "currencies.id"),
+      companyId,
+      filters
+    )
+      .orderBy("bank_transactions.date", "asc")
+      .orderBy("bank_transactions.created_at", "asc");
 
-    const accountTransactions = await prisma.ledgerTransaction.findMany({
-      where: ledgerTransactionFilters,
-      include: {
-        contact: { select: { name: true } },
-        bankTransaction: {
-          include: {
-            bankAccount: {
-              include: { bank: { select: { name: true, bankLogo: true } } },
-            },
-          },
-        },
-        ledgerEntries: {
-          include: {
-            coa: { select: { accountCode: true, accountName: true } },
-            sourceCurrency: { select: { code: true, symbol: true } },
-            project: { select: { name: true } },
-          },
-        },
-      },
-      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      // skip: (page - 1) * pageSize,
-      // take: pageSize,
-    });
+    const accountTransactions = await buildLedgerTransactionFilters(
+      knex("LedgerTransactions")
+        .select(
+          "LedgerTransactions".*",
+          "contacts.name as contact_name",
+          "bank_transactions.amount as bank_transaction_amount",
+          "bank_transactions.bank_account_id",
+          "bank_transactions.bank_transaction_batch_id",
+          "bank_accounts.display_name as bank_account_display_name",
+          "banks.name as bank_name",
+          "banks.bank_logo as bank_logo",
+          "ledger_entries.id as ledger_entry_id",
+          "ledger_entries.fs_date",
+          "ledger_entries.coa_id",
+          "ledger_entries.transaction_side",
+          "ledger_entries.source_currency_id",
+          "ledger_entries.source_amount",
+          "ledger_entries.absolute_source_amount",
+          "ledger_entries.system_exchange_rate",
+          "ledger_entries.custom_exchange_rate",
+          "ledger_entries.amount",
+          "ledger_entries.absolute_amount",
+          "ledger_entries.categorisation_status",
+          "ledger_entries.description as ledger_description",
+          "ledger_entries.project_id",
+          "projects.name as project_name",
+          "coas.account_code",
+          "coas.account_name",
+          "currencies.code as currency_code",
+          "currencies.symbol as currency_symbol",
+          "bank_accounts.coa_id as bank_coa_id"
+        )
+        .leftJoin("contacts", "LedgerTransactions".contact_id", "contacts.id")
+        .leftJoin("bank_transactions", function () {
+          this.on(
+            "LedgerTransactions".bank_transaction_id",
+            "=",
+            "bank_transactions.id"
+          ).andOn(
+            "LedgerTransactions".bank_transaction_date",
+            "=",
+            "bank_transactions.date"
+          );
+        })
+        .leftJoin(
+          "bank_accounts",
+          "bank_transactions.bank_account_id",
+          "bank_accounts.id"
+        )
+        .leftJoin("banks", "bank_accounts.bank_id", "banks.id")
+        .join(
+          "ledger_entries",
+          "LedgerTransactions".id",
+          "ledger_entries.ledger_transaction_id"
+        )
+        .leftJoin("coas", "ledger_entries.coa_id", "coas.id")
+        .leftJoin(
+          "currencies",
+          "ledger_entries.source_currency_id",
+          "currencies.id"
+        )
+        .leftJoin("projects", "ledger_entries.project_id", "projects.id"),
+      companyId,
+      filters
+    );
 
-    const bankCount = await prisma.bankTransaction.count({
-      where: bankTransactionFilters,
-    });
-    const ledgerCount = await prisma.ledgerTransaction.count({
-      where: ledgerTransactionFilters,
-    });
+    const bankCountResult = await buildBankTransactionFilters(
+      knex("bank_transactions")
+        .join(
+          "bank_accounts",
+          "bank_transactions.bank_account_id",
+          "bank_accounts.id"
+        )
+        .countDistinct("bank_transactions.id as count"), // use countDistinct to avoid duplicates
+      companyId,
+      filters
+    );
 
-    const flattenedAccountTransactions: CatEngineTransaction[] =
-      accountTransactions.flatMap(transformLedgerTransaction);
+    const bankCount = parseInt(bankCountResult[0].count || "0", 10);
+
+    const ledgerCountResult = await buildLedgerTransactionFilters(
+      knex("LedgerTransactions"")
+        .join(
+          "ledger_entries",
+          "LedgerTransactions".id",
+          "ledger_entries.ledger_transaction_id"
+        )
+        .join("coas", "ledger_entries.coa_id", "coas.id")
+        .countDistinct("LedgerTransactions".id as count"),
+      companyId,
+      filters
+    );
+
+    const ledgerCount = parseInt(ledgerCountResult[0].count || "0", 10);
+
+    const flattenedAccountTransactions = accountTransactions
+      .filter((row) => row.ledger_entry_coa_id !== row.bank_coa_id) // contra filter
+      .map(transformLedgerTransactionRow);
+
+    const transformedbankTransactions = bankTransactions.map(
+      transformBankTransactionRow
+    );
 
     // Filter out ledger entries where coaId matches the bank account's coaId
     // This ensures we only get contra entries, not the bank account entries
 
     const transactions: CatEngineTransaction[] = [
-      ...bankTransactions.map((bankTx) => ({
-        id: bankTx.id,
-        transactionSource: "bank",
-        categorisationStatus: bankTx.categorisationStatus,
-        bankLogo: bankTx.bankAccount?.bank?.bankLogo || null,
-        bankName: bankTx.bankAccount?.displayName || null,
-        date: bankTx.date,
-        fsDate: bankTx.date,
-        contactName: bankTx.payee || "",
-        reference: bankTx.reference || "",
-        description: bankTx.description || "",
-        bankCurrencyCode: bankTx.bankAccount?.currency?.code,
-        bankCurrencySymbol: bankTx.bankAccount?.currency?.symbol,
-        transactionSide: bankTx.transactionSide,
-        bankAmount: bankTx.amount,
-        exchangeRate: bankTx.systemExchangeRate,
-        amount: new Decimal(bankTx.amount).dividedBy(
-          new Decimal(bankTx.systemExchangeRate)
-        ),
-        bankCurrencyId: bankTx.bankAccount.currencyId,
-        bankAccountId: bankTx.bankAccountId,
-        bankTransactionBatchId: bankTx.bankTransactionBatchId,
-        ledgerTransactionId: bankTx.ledgerTransactionId || null,
-      })),
+      ...transformedbankTransactions,
       ...flattenedAccountTransactions,
     ].sort((a, b) => {
-      // First, sort by bankName
       const bankNameComparison = (a.bankName || "").localeCompare(
         b.bankName || ""
       );
-      if (bankNameComparison !== 0) {
-        return bankNameComparison;
-      }
-
-      // If bankNames are the same, sort by date
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
+      return bankNameComparison !== 0
+        ? bankNameComparison
+        : new Date(a.date).getTime() - new Date(b.date).getTime();
     });
 
     // const count = transactions.length;
