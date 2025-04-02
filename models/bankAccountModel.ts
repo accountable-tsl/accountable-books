@@ -11,9 +11,8 @@ const prisma = new PrismaClient();
 export async function getAllBankAccounts(companyId: string) {
   try {
     // Determine company identifier type
-    console.log("getAllBankAccounts", companyId);
     const idType = getIdentifierType(companyId);
-    const companyIdReceived = companyId;
+    // const companyIdReceived = companyId;
 
     const bankAccounts = await prisma.bankAccount.findMany({
       where:

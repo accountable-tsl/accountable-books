@@ -5,6 +5,10 @@ import { fetchExchangeRate } from "./exRateModel";
 import type { Knex } from "knex";
 import knexInstance from "../knexClient";
 
+type RawCoaBalanceRow = {
+  coaId: string;
+  sumAmount: string | number | null;
+};
 // export async function coaAccountBalances(
 //   tx: Prisma.TransactionClient,
 //   companyIdentifier: string
@@ -159,30 +163,27 @@ export async function coaAccountBalances(companyIdentifier: string) {
       throw new Error("Invalid company identifier type");
     }
 
-    const balances = await knexInstance("ledger_entries")
-      .select("coa_id")
-      .sum({ amount: "amount" })
-      .join("coas", "ledger_entries.coa_id", "coas.id")
+    const coaBalances: RawCoaBalanceRow[] = await knexInstance("LedgerEntry")
+      .join("Coa", "LedgerEntry.coaId", "Coa.id")
       .modify((qb) => {
         if (companyIdType === "uuid") {
-          qb.where("coas.company_id", companyIdentifier);
+          qb.where("Coa.companyId", companyIdentifier);
         } else {
-          qb.join("companies", "coas.company_id", "companies.id").where(
-            "companies.short_code",
+          qb.join("Company", "Coa.companyId", "Company.id").where(
+            "Company.shortCode",
             companyIdentifier
           );
         }
       })
-      .where("coas.is_deleted", false)
-      .andWhere("ledger_entries.is_deleted", false)
-      .groupBy("coa_id");
+      .where("LedgerEntry.isDeleted", false)
+      .where("Coa.isDeleted", false)
+      .groupBy("LedgerEntry.coaId")
+      .select("LedgerEntry.coaId")
+      .sum("LedgerEntry.amount as sumAmount");
 
-    return balances.reduce(
-      (
-        acc: Record<string, Decimal>,
-        row: { coa_id: string; amount: number | null }
-      ) => {
-        acc[row.coa_id] = new Decimal(row.amount || 0);
+    return coaBalances.reduce(
+      (acc: Record<string, Decimal>, row) => {
+        acc[row.coaId] = new Decimal(row.sumAmount ?? 0);
         return acc;
       },
       {} as Record<string, Decimal>
@@ -202,96 +203,104 @@ export async function getBankAccountBalances(companyIdentifier: string) {
       throw new Error("Invalid company identifier type");
     }
 
-    const baseQuery = knexInstance("bank_transactions")
-      .where("bank_transactions.is_deleted", false)
-      .join(
-        "bank_accounts",
-        "bank_transactions.bank_account_id",
-        "bank_accounts.id"
-      )
-      .where("bank_accounts.is_deleted", false);
+    // // Helper for conditional company filtering
+    // const companyFilter = (query: Knex.QueryBuilder, table: string) => {
+    //   if (companyIdType === "uuid") {
+    //     query.where(`${table}.companyId`, companyIdentifier);
+    //   } else {
+    //     query
+    //       .join("Company", `${table}.companyId`, "Company.id")
+    //       .where("Company.shortCode", companyIdentifier);
+    //   }
+    //   return query;
+    // };
+
+    // 1. Get Bank Balances (Native Currency)
+    const bankBalancesQuery = knexInstance("BankTransaction")
+      .select("BankTransaction.bankAccountId")
+      .sum("BankTransaction.amount as totalAmount")
+      .where("BankTransaction.isDeleted", false)
+      .join("BankAccount", "BankTransaction.bankAccountId", "BankAccount.id")
+      .where("BankAccount.isDeleted", false)
+      .groupBy("BankTransaction.bankAccountId");
 
     if (companyIdType === "uuid") {
-      baseQuery.andWhere("bank_accounts.company_id", companyIdentifier);
+      bankBalancesQuery.where("BankAccount.companyId", companyIdentifier);
     } else {
-      baseQuery
-        .join("companies", "bank_accounts.company_id", "companies.id")
-        .andWhere("companies.short_code", companyIdentifier);
+      bankBalancesQuery
+        .join("Company", "BankAccount.companyId", "Company.id")
+        .where("Company.shortCode", companyIdentifier);
     }
 
-    const bankBalancesRaw = await baseQuery
-      .select("bank_transactions.bank_account_id")
-      .sum("bank_transactions.amount as sum")
-      .groupBy("bank_transactions.bank_account_id");
+    // 2. Get Bank Accounts with Currencies
+    const bankAccountsQuery = knexInstance("BankAccount")
+      .select([
+        "BankAccount.id as bankId",
+        "BankAccount.currencyId",
+        "Company.reportingCurrencyId",
+      ])
+      .where("BankAccount.isDeleted", false)
+      .leftJoin("Company", "BankAccount.companyId", "Company.id");
 
-    const bankAccounts = await knexInstance("bank_accounts")
-      .select(
-        "bank_accounts.id",
-        "bank_accounts.currency_id",
-        "companies.reporting_currency_id"
-      )
-      .join("companies", "bank_accounts.company_id", "companies.id")
-      .where("bank_accounts.is_deleted", false)
-      .modify((query) => {
-        if (companyIdType === "uuid") {
-          query.andWhere("bank_accounts.company_id", companyIdentifier);
-        } else {
-          query.andWhere("companies.short_code", companyIdentifier);
-        }
-      });
+    if (companyIdType === "uuid") {
+      bankAccountsQuery.where("BankAccount.companyId", companyIdentifier);
+    } else {
+      bankAccountsQuery.where("Company.shortCode", companyIdentifier);
+    }
+
+    const [bankBalances, bankAccounts] = await Promise.all([
+      bankBalancesQuery,
+      bankAccountsQuery,
+    ]);
 
     const balanceMap: Record<
       string,
       { reportingBalance: Decimal; nativeBalance: Decimal }
     > = {};
+
     const exchangeRateCache = new Map<string, Decimal>();
 
     for (const bankAccount of bankAccounts) {
-      const {
-        id: bankId,
-        currency_id: currencyId,
-        reporting_currency_id: reportingCurrencyId,
-      } = bankAccount;
+      const { bankId, currencyId, reportingCurrencyId } = bankAccount;
 
-      const balanceRaw = bankBalancesRaw.find(
-        (b) => b.bank_account_id === bankId
-      );
-      const nativeBalance = new Decimal(balanceRaw?.sum || 0);
+      if (!reportingCurrencyId) {
+        console.error(`No reporting currency for bank ${bankId}`);
+        continue;
+      }
+
+      // Find matching balance
+      const balance = bankBalances.find((b) => b.bankAccountId === bankId);
+      const nativeBalance = new Decimal(balance?.totalAmount || 0);
 
       let reportingBalance = nativeBalance;
 
-      if (reportingCurrencyId && reportingCurrencyId !== currencyId) {
+      if (currencyId !== reportingCurrencyId) {
         const cacheKey = `${currencyId}-${reportingCurrencyId}`;
 
         if (!exchangeRateCache.has(cacheKey)) {
-          const exchangeRateResult = await fetchExchangeRate(
-            new Date(),
-            currencyId,
-            reportingCurrencyId
-          );
+          try {
+            const rateResult = await fetchExchangeRate(
+              new Date(),
+              currencyId,
+              reportingCurrencyId
+            );
 
-          if (exchangeRateResult.success && exchangeRateResult.data?.rate) {
-            exchangeRateCache.set(
-              cacheKey,
-              new Decimal(exchangeRateResult.data.rate)
-            );
-          } else {
-            console.error(
-              `Exchange rate fetch failed for ${currencyId} to ${reportingCurrencyId} on ${new Date().toLocaleDateString()}`
-            );
+            if (rateResult.success && rateResult.data?.rate) {
+              exchangeRateCache.set(
+                cacheKey,
+                new Decimal(rateResult.data.rate)
+              );
+            }
+          } catch (error) {
+            console.error(`Exchange rate fetch failed: ${cacheKey}`, error);
           }
         }
 
-        const exchangeRate = exchangeRateCache.get(cacheKey);
-        if (exchangeRate) {
-          reportingBalance = nativeBalance.times(exchangeRate);
-        }
+        const rate = exchangeRateCache.get(cacheKey);
+        if (rate) reportingBalance = nativeBalance.times(rate);
       }
 
-      balanceMap[bankId] = {
-        reportingBalance,
-        nativeBalance,
-      };
+      balanceMap[bankId] = { reportingBalance, nativeBalance };
     }
 
     return balanceMap;
@@ -366,39 +375,48 @@ export async function getBankLedgerBalances(companyIdentifier: string) {
       throw new Error("Invalid company identifier type");
     }
 
-    const balances = await knexInstance("ledger_entries")
-      .select("coa_id")
-      .sum({ reportingBalance: "amount", nativeBalance: "source_amount" })
-      .join("coas", "ledger_entries.coa_id", "coas.id")
-      .join("account_types", "coas.account_type_id", "account_types.id")
-      .modify((qb) => {
-        if (companyIdType === "uuid") {
-          qb.where("coas.company_id", companyIdentifier);
-        } else {
-          qb.join("companies", "coas.company_id", "companies.id").where(
-            "companies.short_code",
-            companyIdentifier
-          );
-        }
-      })
-      .where("account_types.type_name", "Bank")
-      .andWhere("coas.is_deleted", false)
-      .andWhere("ledger_entries.is_deleted", false)
-      .groupBy("coa_id");
+    const ledgerBalancesQuery = knexInstance("LedgerEntry")
+      .select("LedgerEntry.coaId")
+      .sum({ totalAmount: "LedgerEntry.amount" })
+      .sum({ totalSourceAmount: "LedgerEntry.sourceAmount" })
+      .where("LedgerEntry.isDeleted", false)
+      // Join with Coa to apply filters on the associated chart of accounts.
+      .join("Coa", "LedgerEntry.coaId", "Coa.id")
+      .where("Coa.isDeleted", false)
+      // Join with AccountType to filter for Bank type accounts.
+      .join("AccountType", "Coa.accountTypeId", "AccountType.id")
+      .where("AccountType.typeName", "Bank");
 
-    return balances.reduce(
-      (acc, row) => {
-        acc[row.coa_id] = {
-          reportingBalance: new Decimal(row.reportingBalance || 0),
-          nativeBalance: new Decimal(row.nativeBalance || 0),
-        };
-        return acc;
-      },
-      {} as Record<
-        string,
-        { reportingBalance: Decimal; nativeBalance: Decimal }
-      >
-    );
+    if (companyIdType === "uuid") {
+      ledgerBalancesQuery.where("Coa.companyId", companyIdentifier);
+    } else {
+      ledgerBalancesQuery
+        .join("Company", "Coa.companyId", "Company.id")
+        .where("Company.shortCode", companyIdentifier);
+    }
+
+    ledgerBalancesQuery.groupBy("LedgerEntry.coaId");
+
+    const bankBalances = await ledgerBalancesQuery;
+
+    // Process the results into the expected output format.
+    const balanceMap: Record<
+      string,
+      { reportingBalance: Decimal; nativeBalance: Decimal }
+    > = {};
+
+    bankBalances.forEach((row: any) => {
+      const coaId = row.coaId;
+      const reportingBalance = row.totalAmount
+        ? new Decimal(row.totalAmount)
+        : new Decimal(0);
+      const nativeBalance = row.totalSourceAmount
+        ? new Decimal(row.totalSourceAmount)
+        : new Decimal(0);
+      balanceMap[coaId] = { reportingBalance, nativeBalance };
+    });
+
+    return balanceMap;
   } catch (error) {
     console.error("Error fetching bank ledger balances:", error);
     throw error;
