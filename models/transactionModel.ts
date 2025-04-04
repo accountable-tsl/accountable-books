@@ -11,12 +11,16 @@ import {
   TransactionFilters,
 } from "./bankTransactionModel";
 import { Decimal } from "@prisma/client/runtime/library";
-import { compareDbAndUserObject, getIdentifierType } from "../utils/utils";
+import {
+  compareDbAndUserObject,
+  getIdentifierType,
+  toNum,
+} from "../utils/utils";
 import { BankTransactionWhereInput } from "../types/bank";
 import { Knex } from "knex";
-// import initKnex from "knex";
-// import configuration from "../knexfile";
+
 import knexInstance from "../knexClient";
+import { randomUUID } from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -59,51 +63,41 @@ const buildBankTransactionFilters = (
 ) => {
   const companyIdType = getIdentifierType(companyId);
 
-  queryBuilder.where(
-    `"BankTransaction"."isDeleted"`,
-    filters.isDeleted ?? false
-  );
+  // FROM clause is implied by knexInstance("BankTransaction")
 
-  queryBuilder.whereNull(`"BankTransaction"."ledgerTransactionId"`);
+  // Base filters
+  queryBuilder.where("BankTransaction.isDeleted", filters.isDeleted ?? false);
+  queryBuilder.whereNull("BankTransaction.ledgerTransactionId");
 
-  // Bank account ID filter
+  // Optional filters
   if (filters.bankAccountId) {
+    queryBuilder.where("BankTransaction.bankAccountId", filters.bankAccountId);
+  }
+
+  if (filters.startDate) {
+    queryBuilder.where("BankTransaction.date", ">=", filters.startDate);
+  }
+
+  if (filters.endDate) {
+    queryBuilder.where("BankTransaction.date", "<=", filters.endDate);
+  }
+
+  if (filters.minAmount) {
     queryBuilder.where(
-      `"BankTransaction"."bankAccountId"`,
-      filters.bankAccountId
+      "BankTransaction.absoluteAmount",
+      ">=",
+      filters.minAmount
     );
   }
 
-  // Date range filters
-  if (filters.startDate || filters.endDate) {
-    if (filters.startDate) {
-      queryBuilder.where(`"BankTransaction"."date"`, ">=", filters.startDate);
-    }
-    if (filters.endDate) {
-      queryBuilder.where(`"BankTransaction"."date"`, "<=", filters.endDate);
-    }
+  if (filters.maxAmount) {
+    queryBuilder.where(
+      "BankTransaction.absoluteAmount",
+      "<=",
+      filters.maxAmount
+    );
   }
 
-  // Amount range filters
-  if (filters.minAmount || filters.maxAmount) {
-    if (filters.minAmount) {
-      queryBuilder.where(
-        `"BankTransaction"."absoluteAmount"`,
-        ">=",
-        filters.minAmount
-      );
-    }
-
-    if (filters.maxAmount) {
-      queryBuilder.where(
-        `"BankTransaction"."absoluteAmount"`,
-        "<=",
-        filters.maxAmount
-      );
-    }
-  }
-
-  // Categorisation status filter
   const status: CategorisationStatus[] = Array.isArray(
     filters.categorisationStatus
   )
@@ -115,46 +109,49 @@ const buildBankTransactionFilters = (
           CategorisationStatus.AUTO_CATEGORISED,
         ];
 
-  queryBuilder.whereIn(`"BankTransaction"."categorisationStatus"`, status);
-  queryBuilder.whereNotIn(`"BankTransaction"."categorisationStatus"`, [
-    CategorisationStatus.CATEGORISED,
-  ]);
+  queryBuilder
+    .whereIn("BankTransaction.categorisationStatus", status)
+    .whereNotIn("BankTransaction.categorisationStatus", [
+      CategorisationStatus.CATEGORISED,
+    ]);
 
   if (filters.transactionSide) {
     queryBuilder.where(
-      `"BankTransaction"."transactionSide"`,
+      "BankTransaction.transactionSide",
       filters.transactionSide
     );
   }
 
-  if (filters.searchQuery) {
+  if (filters.searchQuery?.trim()) {
     queryBuilder.whereRaw(
       `to_tsvector('english', concat_ws(' ', 
         "BankTransaction"."description", 
         "BankTransaction"."reference", 
         "BankTransaction"."payee"
       )) @@ plainto_tsquery('english', ?)`,
-      [filters.searchQuery]
+      [filters.searchQuery.trim()]
     );
   }
 
-  // Company join filter
+  // Always join BankAccount (needed for filters & select)
   queryBuilder.join(
     "BankAccount",
-    `"BankTransaction"."bankAccountId"`,
-    `"BankAccount"."id"`
+    "BankTransaction.bankAccountId",
+    "BankAccount.id"
   );
 
+  // Conditionally join Company only if needed
   if (companyIdType === "uuid") {
-    queryBuilder.where(`"BankAccount"."companyId"`, companyId);
+    queryBuilder.where("BankAccount.companyId", companyId);
   } else {
     queryBuilder
-      .join("Company", `"BankAccount"."companyId"`, `"Company"."id"`)
-      .where(`"Company"."shortCode"`, companyId);
+      .join("Company", "BankAccount.companyId", "Company.id")
+      .where("Company.shortCode", companyId);
   }
 
   return queryBuilder;
 };
+
 const buildLedgerTransactionFilters = (
   queryBuilder: Knex.QueryBuilder,
   companyId: string,
@@ -162,37 +159,50 @@ const buildLedgerTransactionFilters = (
 ) => {
   const companyIdType = getIdentifierType(companyId);
 
-  // Base query: LedgerTransaction must have a bankTransaction and a matching LedgerEntry.
   queryBuilder
     .from("LedgerTransaction")
     .distinct("LedgerTransaction.id")
     .where("LedgerTransaction.isDeleted", filters.isDeleted ?? false)
     .whereNotNull("LedgerTransaction.bankTransactionId")
-    .join(
+
+    // Join the transaction's bank tx
+    .leftJoin(
       "BankTransaction",
       "LedgerTransaction.bankTransactionId",
       "BankTransaction.id"
     )
-    // Join LedgerEntry to apply filters and later include it in the result
-    .join(
-      "LedgerEntry",
-      "LedgerTransaction.id",
-      "LedgerEntry.ledgerTransactionId"
-    )
-    .where("LedgerEntry.isDeleted", filters.isDeleted ?? false)
-    // Join Coa for company filtering and to mimic include behavior
-    .join("Coa", "LedgerEntry.coaId", "Coa.id");
+    .innerJoin("LedgerEntry", function () {
+      this.on(
+        "LedgerEntry.ledgerTransactionId",
+        "=",
+        "LedgerTransaction.id"
+      ).andOnVal("LedgerEntry.isDeleted", "=", filters.isDeleted ?? false);
+    })
+    // ✅ Join BankAccount BEFORE it's used anywhere
+    .leftJoin("BankAccount", "BankTransaction.bankAccountId", "BankAccount.id")
+    .leftJoin("Bank", "BankAccount.bankId", "Bank.id")
 
-  // Company filter via Coa
+    // Join LedgerEntry & related CoA/Project/Currency
+    // .innerJoin(
+    //   "LedgerEntry",
+    //   "LedgerTransaction.id",
+    //   "LedgerEntry.ledgerTransactionId"
+    // )
+    .leftJoin("Coa", "LedgerEntry.coaId", "Coa.id")
+    .leftJoin("Currency", "LedgerEntry.sourceCurrencyId", "Currency.id")
+    .leftJoin("Project", "LedgerEntry.projectId", "Project.id");
+
+  // .where("LedgerEntry.isDeleted", filters.isDeleted ?? false);
+
+  // Company filter
+  queryBuilder.leftJoin("Company", "Coa.companyId", "Company.id");
   if (companyIdType === "uuid") {
     queryBuilder.where("Coa.companyId", companyId);
   } else {
-    queryBuilder
-      .join("Company", "Coa.companyId", "Company.id")
-      .where("Company.shortCode", companyId);
+    queryBuilder.where("Company.shortCode", companyId);
   }
 
-  // Categorization status filter
+  // Categorization status
   const status: CategorisationStatus[] = Array.isArray(
     filters.categorisationStatus
   )
@@ -204,27 +214,22 @@ const buildLedgerTransactionFilters = (
           CategorisationStatus.AUTO_CATEGORISED,
         ];
 
-  queryBuilder.whereIn("LedgerEntry.categorisationStatus", status);
-  queryBuilder.whereNotIn("LedgerEntry.categorisationStatus", [
-    CategorisationStatus.CATEGORISED,
-  ]);
-
-  // Optional bank account filter (via BankTransaction's bankAccountId)
+  if (status.length > 0) {
+    queryBuilder.whereIn("LedgerEntry.categorisationStatus", status);
+  }
+  // Optional filters
   if (filters.bankAccountId) {
-    queryBuilder
-      .join("BankAccount", "BankTransaction.bankAccountId", "BankAccount.id")
-      .where("BankAccount.id", filters.bankAccountId);
+    queryBuilder.where("BankAccount.id", filters.bankAccountId);
   }
 
-  // Date range filter on LedgerEntry.fsDate
   if (filters.startDate) {
     queryBuilder.where("LedgerEntry.fsDate", ">=", filters.startDate);
   }
+
   if (filters.endDate) {
     queryBuilder.where("LedgerEntry.fsDate", "<=", filters.endDate);
   }
 
-  // Amount range filter on LedgerEntry.absoluteSourceAmount
   if (filters.minAmount) {
     queryBuilder.where(
       "LedgerEntry.absoluteSourceAmount",
@@ -232,6 +237,7 @@ const buildLedgerTransactionFilters = (
       filters.minAmount
     );
   }
+
   if (filters.maxAmount) {
     queryBuilder.where(
       "LedgerEntry.absoluteSourceAmount",
@@ -240,12 +246,10 @@ const buildLedgerTransactionFilters = (
     );
   }
 
-  // Transaction side filter on LedgerEntry
   if (filters.transactionSide) {
     queryBuilder.where("LedgerEntry.transactionSide", filters.transactionSide);
   }
 
-  // Full-text search on LedgerEntry fields: description, reference, and notes.
   if (filters.searchQuery?.trim()) {
     queryBuilder.whereRaw(
       `to_tsvector('english', concat_ws(' ', 
@@ -259,72 +263,69 @@ const buildLedgerTransactionFilters = (
 
   return queryBuilder;
 };
-const transformLedgerTransactionRow = (row: any): CatEngineTransaction => {
-  return {
-    id: row.ledger_entry_id,
-    transactionSource: "ledger",
-    categorisationStatus: row.ledger_entry_categorisation_status,
-    date: row.ledger_transaction_date,
-    fsDate: row.ledger_entry_fs_date,
-    contactName: row.contact_name || "",
-    projectName: row.project_name || null,
-    reference: row.ledger_transaction_reference || "",
-    description: row.ledger_entry_description || "",
-    bankCurrencyCode: row.currency_code,
-    bankCurrencySymbol: row.currency_symbol,
-    transactionSide: row.ledger_entry_transaction_side,
-    exchangeRate: row.ledger_entry_custom_exchange_rate,
-    amount: row.ledger_entry_amount,
-    bankCurrencyId: row.ledger_entry_source_currency_id,
-    bankAmount: row.bank_transaction_amount ?? null,
-    bankAccountId: row.bank_transaction_bank_account_id ?? null,
-    bankTransactionBatchId: row.bank_transaction_batch_id ?? null,
-    bankLogo: row.bank_logo ?? null,
-    bankName: row.bank_name ?? null,
-    ledgerTransactionId: row.ledger_transaction_id,
-    contactId: row.contact_id ?? null,
-    projectId: row.project_id ?? null,
-    coaId: row.ledger_entry_coa_id,
-    coaAccountName: row.coa_account_name ?? null,
-    coaAccountCode: row.coa_account_code ?? null,
-  };
-};
 
-const transformBankTransactionRow = (row: any): CatEngineTransaction => {
-  const amount = new Decimal(row.bank_transaction_amount);
-  const exchangeRate = new Decimal(row.bank_transaction_system_exchange_rate);
-
-  return {
-    id: row.bank_transaction_id,
-    transactionSource: "bank",
-    categorisationStatus: row.bank_transaction_categorisation_status,
-    bankLogo: row.bank_logo || null,
-    bankName: row.bank_display_name || null,
-    date: row.bank_transaction_date,
-    fsDate: row.bank_transaction_date,
-    contactName: row.bank_transaction_payee || "",
-    reference: row.bank_transaction_reference || "",
-    description: row.bank_transaction_description || "",
-    bankCurrencyCode: row.currency_code,
-    bankCurrencySymbol: row.currency_symbol,
-    transactionSide: row.bank_transaction_transaction_side,
-    bankAmount: amount,
-    exchangeRate,
-    amount: amount.dividedBy(exchangeRate),
-    bankCurrencyId: row.currency_id,
-    bankAccountId: row.bank_account_id,
-    bankTransactionBatchId: row.bank_transaction_batch_id,
-    ledgerTransactionId: row.bank_transaction_ledger_transaction_id || null,
-  };
-};
+// const transformLedgerTransactionRow = (row: any): CatEngineTransaction => {
+//   return {
+//     id: row.ledger_entry_id,
+//     transactionSource: "ledger",
+//     categorisationStatus: row.ledger_entry_categorisation_status,
+//     date: row.ledger_transaction_date,
+//     fsDate: row.ledger_entry_fs_date,
+//     contactName: row.contact_name || "",
+//     projectName: row.project_name || null,
+//     reference: row.ledger_transaction_reference || "",
+//     description: row.ledger_entry_description || "",
+//     bankCurrencyCode: row.currency_code,
+//     bankCurrencySymbol: row.currency_symbol,
+//     transactionSide: row.ledger_entry_transaction_side,
+//     exchangeRate: row.ledger_entry_custom_exchange_rate,
+//     amount: row.ledger_entry_amount,
+//     bankCurrencyId: row.ledger_entry_source_currency_id,
+//     bankAmount: row.bank_transaction_amount ?? null,
+//     bankAccountId: row.bank_transaction_bank_account_id ?? null,
+//     bankTransactionBatchId: row.bank_transaction_batch_id ?? null,
+//     bankLogo: row.bank_logo ?? null,
+//     bankName: row.bank_name ?? null,
+//     ledgerTransactionId: row.ledger_transaction_id,
+//     contactId: row.contact_id ?? null,
+//     projectId: row.project_id ?? null,
+//     coaId: row.ledger_entry_coa_id,
+//     coaAccountName: row.coa_account_name ?? null,
+//     coaAccountCode: row.coa_account_code ?? null,
+//   };
+// };
 
 export async function getMergedTransactions(
-  companyId: string,
+  companyIdentifier: string,
   filters: TransactionFilters
 ) {
   try {
     const page = filters.currentPage || 1;
     const pageSize = filters.pageSize ? filters.pageSize : 100;
+
+    const companyIdType = getIdentifierType(companyIdentifier);
+
+    let company;
+    if (companyIdType === "uuid") {
+      company = await knexInstance("Company")
+        .select("id")
+        .where("id", companyIdentifier)
+        .first();
+    } else if (companyIdType === "shortCode") {
+      company = await knexInstance("Company")
+        .select("id")
+        .where("shortCode", companyIdentifier)
+        .first();
+    }
+
+    if (!company) {
+      return {
+        success: false,
+        message: "Bad Request",
+      };
+    }
+
+    const companyId = company.id;
 
     // const bankTransactions = await buildBankTransactionFilters(
     //   knex("BankTransactions")
@@ -343,79 +344,75 @@ export async function getMergedTransactions(
     // )
     //   .orderBy("bank_transactions.date", "asc")
     //   .orderBy("bank_transactions.created_at", "asc");
-
     const bankTxQuery = knexInstance("BankTransaction")
       .modify((qb) => buildBankTransactionFilters(qb, companyId, filters))
-      .join(
-        "BankAccount",
-        '"BankTransaction"."bankAccountId"',
-        '"BankAccount"."id"'
-      )
-      .leftJoin("Bank", '"BankAccount"."bankId"', '"Bank"."id"')
-      .leftJoin("Currency", '"BankAccount"."currencyId"', '"Currency"."id"')
+      .leftJoin("Bank", "BankAccount.bankId", "Bank.id")
+      .leftJoin("Currency", "BankAccount.currencyId", "Currency.id")
+
       .select([
         "BankTransaction.*",
+        "BankTransaction.date as fsDate",
+        "BankTransaction.amount as bankAmount",
+        "BankTransaction.systemExchangeRate as exchangeRate",
         "BankAccount.id as bankAccountId",
-        "BankAccount.accountNumber",
-        "Bank.bankLogo",
-        "Currency.id as currencyId",
-        "Currency.code as currencyCode",
-        "Currency.symbol as currencySymbol",
+        "BankAccount.bankAccountNo",
+        "Bank.bankLogo as bankLogo",
+        "Bank.name as bankName",
+        "Currency.id as bankCurrencyId",
+        "Currency.code as bankCurrencyCode",
+        "Currency.symbol as bankCurrencySymbol",
+        "BankTransaction.payee as contactName",
       ])
       .orderBy([
         { column: "BankTransaction.date", order: "asc" },
         { column: "BankTransaction.createdAt", order: "asc" },
       ]);
+
     // .offset((page - 1) * pageSize)
     // .limit(pageSize);
 
     const bankTransactions = await bankTxQuery;
 
+    // console.log("bankTransactions", bankTransactions);
+
     const bankCountResult = await knexInstance("BankTransaction")
       .modify((qb) => buildBankTransactionFilters(qb, companyId, filters))
-      .count("* as count")
+      .countDistinct("BankTransaction.id as count")
       .first();
     const bankCount = Number(bankCountResult.count);
 
     const ledgerTxQuery = knexInstance("LedgerTransaction")
       .modify((qb) => buildLedgerTransactionFilters(qb, companyId, filters))
-      .leftJoin("Contact", '"LedgerTransaction"."contactId"', '"Contact"."id"')
-      .leftJoin(
-        "BankTransaction",
-        '"LedgerTransaction"."bankTransactionId"',
-        '"BankTransaction"."id"'
-      )
-      .leftJoin(
-        "BankAccount",
-        '"BankTransaction"."bankAccountId"',
-        '"BankAccount"."id"'
-      )
-      .leftJoin("Bank", '"BankAccount"."bankId"', '"Bank"."id"')
-      .leftJoin(
-        "LedgerEntry",
-        '"LedgerTransaction"."id"',
-        '"LedgerEntry"."ledgerTransactionId"'
-      )
-      .leftJoin("Coa", '"LedgerEntry"."coaId"', '"Coa"."id"')
-      .leftJoin(
-        "SourceCurrency",
-        '"LedgerEntry"."sourceCurrencyId"',
-        '"SourceCurrency"."id"'
-      )
-      .leftJoin("Project", '"LedgerEntry"."projectId"', '"Project"."id"')
+      .leftJoin("Contact", "LedgerTransaction.contactId", "Contact.id") // Only join here if not already joined
       .select([
         "LedgerTransaction.*",
+        "LedgerTransaction.id as ledgerTransactionId",
         "Contact.name as contactName",
         "BankTransaction.id as bankTransactionId",
-        "BankAccount.accountNumber",
+        "BankTransaction.amount as bankAmount",
+        "BankTransaction.bankTransactionBatchId as bankTransactionBatchId",
+        "BankAccount.id as bankAccountId",
+        "BankAccount.bankAccountNo",
+        "BankAccount.coaId as bankCoaId",
+        "Bank.bankLogo as bankLogo",
         "Bank.name as bankName",
-        "Bank.bankLogo",
+        "LedgerTransaction.date as date",
+        "LedgerEntry.fsDate as fsDate",
         "LedgerEntry.id as ledgerEntryId",
-        "Coa.accountCode",
-        "Coa.accountName",
-        "SourceCurrency.code as currencyCode",
-        "SourceCurrency.symbol as currencySymbol",
+        "LedgerEntry.categorisationStatus as categorisationStatus",
+        "LedgerEntry.description as description",
+        "LedgerEntry.transactionSide as transactionSide",
+        "LedgerEntry.customExchangeRate as exchangeRate",
+        "LedgerEntry.amount as amount",
+        "Contact.name as contactName",
+        "Coa.id as coaId",
+        "Coa.accountCode as coaAccountCode",
+        "Coa.accountName as coaAccountName",
+        "Currency.code as bankCurrencyCode",
+        "Currency.symbol as bankCurrencySymbol",
         "Project.name as projectName",
+        "Contact.id as contactId",
+        "Project.id as projectId",
       ])
       .orderBy([
         { column: "LedgerTransaction.date", order: "asc" },
@@ -428,24 +425,44 @@ export async function getMergedTransactions(
 
     const ledgerCountResult = await knexInstance("LedgerTransaction")
       .modify((qb) => buildLedgerTransactionFilters(qb, companyId, filters))
-      .count("* as count")
+      .clearSelect()
+      .countDistinct("LedgerTransaction.id as count")
       .first();
     const ledgerCount = Number(ledgerCountResult.count);
 
-    const flattenedAccountTransactions = accountTransactions
-      .filter((row: any) => row.ledger_entry_coa_id !== row.bank_coa_id) // contra filter
-      .map(transformLedgerTransactionRow);
+    const mappedBankTx = bankTransactions.map((tx: any) => {
+      return {
+        ...tx,
+        transactionSource: "bank",
+        amount: new Decimal(tx.bankAmount).dividedBy(
+          new Decimal(tx.exchangeRate)
+        ),
+      };
+    });
 
-    const transformedbankTransactions = bankTransactions.map(
-      transformBankTransactionRow
-    );
+    const mappedAccountTx = accountTransactions
+      .filter((tx: any) => tx.coaId !== tx.bankCoaId)
+      .map((tx: any) => ({
+        ...tx,
+        transactionSource: "ledger",
+      }));
+
+    console.log("accountTransactions", mappedAccountTx);
+
+    // const flattenedAccountTransactions = accountTransactions
+    //   .filter((row: any) => row.ledger_entry_coa_id !== row.bank_coa_id) // contra filter
+    //   .map(transformLedgerTransactionRow);
+
+    // const transformedbankTransactions = bankTransactions.map(
+    //   transformBankTransactionRow
+    // );
 
     // Filter out ledger entries where coaId matches the bank account's coaId
     // This ensures we only get contra entries, not the bank account entries
 
     const transactions: CatEngineTransaction[] = [
-      ...transformedbankTransactions,
-      ...flattenedAccountTransactions,
+      ...mappedBankTx,
+      ...mappedAccountTx,
     ].sort((a, b) => {
       const bankNameComparison = (a.bankName || "").localeCompare(
         b.bankName || ""
@@ -461,7 +478,12 @@ export async function getMergedTransactions(
     return {
       success: true,
       message: "Bank transactions retrieved successfully",
-      data: { transactions, count, currentPage: page, pageSize },
+      data: {
+        transactions,
+        count,
+        currentPage: page,
+        pageSize,
+      },
     };
   } catch (error) {
     console.error("Error retrieving bank transactions:", filters, error);
@@ -474,6 +496,7 @@ export async function getMergedTransactions(
 }
 
 interface LedgerEntryInput {
+  id?: string;
   fsDate: Date;
   ledgerTransactionId?: string;
   categorisationStatus: CategorisationStatus;
@@ -540,7 +563,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
   try {
     // We use a single Prisma transaction for all inserts/updates.
     // If any iteration fails, everything rolls back for data consistency.
-    await prisma.$transaction(async (prisma) => {
+    await knexInstance.transaction(async (trx) => {
       for (const t of tx) {
         if (
           !t.coaId ||
@@ -555,14 +578,21 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
 
         const companyIdType = getIdentifierType(t.companyId);
 
-        const companyData = await prisma.company.findUnique({
-          where: {
-            ...(companyIdType === "uuid"
+        // const companyData = await prisma.company.findUnique({
+        //   where: {
+        //     ...(companyIdType === "uuid"
+        //       ? { id: t.companyId }
+        //       : { shortCode: t.companyId }),
+        //   },
+        //   select: { id: true },
+        // });
+        const companyData = await trx("Company")
+          .where(
+            companyIdType === "uuid"
               ? { id: t.companyId }
-              : { shortCode: t.companyId }),
-          },
-          select: { id: true },
-        });
+              : { shortCode: t.companyId }
+          )
+          .first();
 
         if (!companyData) {
           ledgerPostingFailed.push(t);
@@ -571,14 +601,21 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
 
         const companyId = companyData.id;
 
-        const existingLedgerTx = await prisma.ledgerTransaction.findUnique({
-          where: {
-            bankTransactionId_bankTransactionDate: {
-              bankTransactionId: t.id,
-              bankTransactionDate: t.date,
-            },
-          },
-        });
+        // Check for existing ledger transaction
+        // const existingLedgerTx = await prisma.ledgerTransaction.findUnique({
+        //   where: {
+        //     bankTransactionId_bankTransactionDate: {
+        //       bankTransactionId: t.id,
+        //       bankTransactionDate: t.date,
+        //     },
+        //   },
+        // });
+        const existingLedgerTx = await trx("LedgerTransaction")
+          .where({
+            bankTransactionId: t.id,
+            bankTransactionDate: t.date,
+          })
+          .first();
 
         if (existingLedgerTx) {
           ledgerPostingFailed.push({
@@ -592,6 +629,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
 
         // Retrieve the bank transaction from DB
         const bankTx = await getBankTransactionById(companyId, t.id);
+
         if (!bankTx.success || !bankTx.data) {
           ledgerPostingFailed.push({
             id: t.id,
@@ -608,28 +646,59 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
 
         // Create contact if `contactName` is provided and `contactId` is missing
         if (t.contactName && !t.contactId) {
-          const contact = await prisma.contact.upsert({
-            where: {
-              name_companyId: { name: t.contactName, companyId },
-            },
-            create: { name: t.contactName, companyId: companyId },
-            update: {},
-          });
+          // const contact = await prisma.contact.upsert({
+          //   where: {
+          //     name_companyId: { name: t.contactName, companyId },
+          //   },
+          //   create: { name: t.contactName, companyId: companyId },
+          //   update: {},
+          // });
+
+          const [contact] = await trx("Contact")
+            .insert({
+              id: randomUUID(),
+              name: t.contactName,
+              companyId,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .onConflict(["name", "companyId"])
+            .merge({
+              name: t.contactName,
+              updatedAt: new Date(),
+            })
+            .returning("*");
+
           contactId = contact.id;
         }
 
         if (!t.contactName && !t.contactId && (t.projectId || t.projectName)) {
           // Handle "No Contact" if neither `contactName` nor `contactId` is provided
-          const noContact = await prisma.contact.upsert({
-            where: {
-              name_companyId: { name: "No Contact", companyId },
-            },
-            create: {
+          // const noContact = await prisma.contact.upsert({
+          //   where: {
+          //     name_companyId: { name: "No Contact", companyId },
+          //   },
+          //   create: {
+          //     name: "No Contact",
+          //     companyId,
+          //   },
+          //   update: {},
+          // });
+          const [noContact] = await trx("Contact")
+            .insert({
+              id: randomUUID(),
               name: "No Contact",
               companyId,
-            },
-            update: {},
-          });
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .onConflict(["name", "companyId"])
+            .merge({
+              name: "No Contact",
+              updatedAt: new Date(),
+            })
+            .returning("*");
+
           contactId = noContact.id;
         }
 
@@ -637,20 +706,28 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           ledgerPostingFailed.push({
             id: t.id,
             source: t.transactionSource,
-            error: "Error creating contact",
+            error: "Error resolving contact",
           });
         }
 
         //Create project if needed
         if (!t.projectId && t.projectName) {
-          const project = await prisma.project.create({
-            data: {
+          // const project = await prisma.project.create({
+          //   data: {
+          //     name: t.projectName,
+          //     companyId,
+          //     contactId,
+          //   },
+          //   include: { contact: true },
+          // });
+          const [project] = await trx("Project")
+            .insert({
+              id: randomUUID(),
               name: t.projectName,
               companyId,
               contactId,
-            },
-            include: { contact: true },
-          });
+            })
+            .returning("*");
 
           if (!project) {
             ledgerPostingFailed.push({
@@ -669,23 +746,34 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           ? "CATEGORISED"
           : "AUTO_CATEGORISED";
 
+        const ledgerTransactionId = randomUUID();
+        const now = new Date();
+
         // Build the data needed for LedgerTransaction
-        const ledgerTxData = {
+        await trx("LedgerTransaction").insert({
+          id: ledgerTransactionId,
           date: bTx.date,
           description: bTx.description || t.description || null,
-          source: "BANK" as TransactionSource,
+          source: "BANK",
           reference: bTx.reference || t.reference || null,
-          bankTransaction: {
-            connect: { id_date: { id: bTx.id, date: bTx.date } },
-          },
-          company: {
-            connect: { id: companyId },
-          },
+          bankTransactionId: bTx.id,
+          bankTransactionDate: bTx.date,
+          // bankTransaction: {
+          //   connect: { id_date: { id: bTx.id, date: bTx.date } },
+          // },
+          companyId,
+          // company: {
+          //   connect: { id: companyId },
+          // },
           notes: t.notes,
-          createdBy: { connect: { id: t.userId as string } },
-          updatedBy: { connect: { id: t.userId as string } },
-          ...(contactId && { contact: { connect: { id: contactId } } }),
-        };
+          createdById: t.userId,
+          updatedById: t.userId,
+          createdAt: now,
+          updatedAt: now,
+          // createdBy: { connect: { id: t.userId as string } },
+          // updatedBy: { connect: { id: t.userId as string } },
+          ...(contactId && { contactId: contactId }),
+        });
 
         // Decide which side gets the bank account vs. the COA
         // Bank Account is an asset account, Money in is Debit, Money out is credit
@@ -700,39 +788,49 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           new Decimal(bTx.amount).div(new Decimal(t.exchangeRate))
         );
 
-        const debitEntry: LedgerEntryInput = {
+        const debitEntry = {
+          id: randomUUID(),
+          ledgerTransactionId,
           transactionSide: "DEBIT",
           coaId: isAmountPositive ? bTx.bankAccount.coaId : t.coaId,
           categorisationStatus,
-          sourceAmount: Decimal.abs(bTx.amount), //Raw amount from bank transaction
-          absoluteSourceAmount: Decimal.abs(bTx.amount),
+          sourceAmount: toNum(Decimal.abs(bTx.amount)), //Raw amount from bank transaction
+          absoluteSourceAmount: toNum(Decimal.abs(bTx.amount)),
           sourceCurrencyId: bTx.bankAccount.currencyId,
           fsDate: t.fsDate ? t.fsDate : (bTx.date as Date),
-          systemExchangeRate: bTx.systemExchangeRate,
-          customExchangeRate: t.exchangeRate,
-          amount: absoluteAmount,
-          absoluteAmount,
+          systemExchangeRate: toNum(bTx.systemExchangeRate),
+          customExchangeRate: toNum(t.exchangeRate),
+          amount: toNum(absoluteAmount),
+          absoluteAmount: toNum(absoluteAmount),
           description: t.description || bTx.description || null,
           // ...(t.projectId && { projectId: t.projectId }),
-          ...(t.projectId && { project: { connect: { id: t.projectId } } }),
-          ...(t.userId && { updatedById: t.userId as string }),
+          // ...(t.projectId && { project: { connect: { id: t.projectId } } }),
+          // ...(t.userId && { updatedById: t.userId as string }),
+          projectId: t.projectId || null,
+          updatedById: t.userId || null,
+          createdAt: now,
+          updatedAt: now,
         };
 
-        const creditEntry: LedgerEntryInput = {
+        const creditEntry = {
+          id: randomUUID(),
+          ledgerTransactionId,
           transactionSide: "CREDIT",
           coaId: isAmountPositive ? t.coaId : bTx.bankAccount.coaId,
           categorisationStatus,
-          sourceAmount: Decimal.abs(bTx.amount).neg(),
-          absoluteSourceAmount: Decimal.abs(bTx.amount),
+          sourceAmount: toNum(Decimal.abs(bTx.amount).neg()),
+          absoluteSourceAmount: toNum(Decimal.abs(bTx.amount)),
           sourceCurrencyId: bTx.bankAccount.currencyId,
           fsDate: t.fsDate ? t.fsDate : (bTx.date as Date),
-          systemExchangeRate: bTx.systemExchangeRate,
-          customExchangeRate: t.exchangeRate,
-          amount: absoluteAmount.neg(),
-          absoluteAmount,
+          systemExchangeRate: toNum(bTx.systemExchangeRate),
+          customExchangeRate: toNum(t.exchangeRate),
+          amount: toNum(absoluteAmount.neg()),
+          absoluteAmount: toNum(absoluteAmount),
           description: t.description || bTx.description,
-          ...(t.projectId && { projectId: t.projectId }),
-          ...(t.userId && { updatedById: t.userId as string }),
+          projectId: t.projectId || null,
+          updatedById: t.userId || null,
+          createdAt: now,
+          updatedAt: now,
         };
 
         // Update bankTransaction categorisationStatus and other info,
@@ -740,52 +838,61 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
         // If t.contactName, create contact, if t.projectName, create project
 
         // 1) Create the LedgerTransaction
-        const createdLedgerTx = await prisma.ledgerTransaction.create({
-          data: ledgerTxData,
-        });
+        // const createdLedgerTx = await prisma.ledgerTransaction.create({
+        //   data: ledgerTxData,
+        // });
 
-        if (!createdLedgerTx) {
-          ledgerPostingFailed.push({
-            id: t.id,
-            source: t.transactionSource,
-            error: "Could not create ledger transaction",
-          });
-        }
+        // if (!createdLedgerTx) {
+        //   ledgerPostingFailed.push({
+        //     id: t.id,
+        //     source: t.transactionSource,
+        //     error: "Could not create ledger transaction",
+        //   });
+        // }
 
         // 2) Create the DEBIT & CREDIT LedgerEntries
-        const entries = await prisma.ledgerEntry.createMany({
-          data: [
-            { ...debitEntry, ledgerTransactionId: createdLedgerTx.id },
-            { ...creditEntry, ledgerTransactionId: createdLedgerTx.id },
-          ],
-        });
+        // const entries = await prisma.ledgerEntry.createMany({
+        //   data: [
+        //     { ...debitEntry, ledgerTransactionId: createdLedgerTx.id },
+        //     { ...creditEntry, ledgerTransactionId: createdLedgerTx.id },
+        //   ],
+        // });
+        await trx("LedgerEntry").insert([debitEntry, creditEntry]);
 
-        if (!entries) {
-          ledgerPostingFailed.push({
-            id: t.id,
-            source: t.transactionSource,
-            error: "Could not create ledger entry(ies)",
-          });
-        }
+        // if (!entries) {
+        //   ledgerPostingFailed.push({
+        //     id: t.id,
+        //     source: t.transactionSource,
+        //     error: "Could not create ledger entry(ies)",
+        //   });
+        // }
 
         // 3) Update the bankTransaction to reflect new categorisation
-        const bankTxUpdate = await prisma.bankTransaction.update({
-          where: { id_date: { id: bTx.id, date: bTx.date } },
-          data: {
+        // const bankTxUpdate = await prisma.bankTransaction.update({
+        //   where: { id_date: { id: bTx.id, date: bTx.date } },
+        //   data: {
+        //     categorisationStatus,
+        //     ledgerTransactionId: createdLedgerTx.id,
+        //   },
+        // });
+
+        await trx("BankTransaction")
+          .where({ id: bTx.id, date: bTx.date })
+          .update({
             categorisationStatus,
-            ledgerTransactionId: createdLedgerTx.id,
-          },
-        });
-
-        if (!bankTxUpdate) {
-          ledgerPostingFailed.push({
-            id: t.id,
-            source: t.transactionSource,
-            error: "Unable to update bank transaction",
+            ledgerTransactionId,
+            updatedAt: now,
           });
-        }
 
-        ledgerSuccessfullyPosted.push(createdLedgerTx);
+        // if (!bankTxUpdate) {
+        //   ledgerPostingFailed.push({
+        //     id: t.id,
+        //     source: t.transactionSource,
+        //     error: "Unable to update bank transaction",
+        //   });
+        // }
+
+        ledgerSuccessfullyPosted.push({ ledgerTransactionId });
       }
     });
 

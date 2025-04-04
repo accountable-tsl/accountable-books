@@ -11,7 +11,11 @@
     "build": "tsc",
     "staging": "NODE_ENV=staging node dist/index.ts",
     "start": "NODE_ENV=production node dist/index.ts",
-    "check-knex": "tsx -e \"import config from './knexfile'; console.log(config.development)\""
+    "knex": "tsx ./node_modules/.bin/knex",
+    "check-knex": "tsx -e \"import config from './knexfile'; console.log(config.development)\"",
+    "migrate:make": "npm run knex -- migrate:make -x ts --knexfile knexfile.ts",
+    "migrate:down": "knex migrate:down",
+    "migrate:rollback": "knex migrate:rollback"
   },
   "author": "",
   "license": "ISC",

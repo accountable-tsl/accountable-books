@@ -45,6 +45,7 @@ export async function fetchExchangeRate(
   tx: PrismaClient | Prisma.TransactionClient = prisma
 ) {
   try {
+    // 1. Early exit for identical currencies
     if (fromCurrencyId === toCurrencyId) {
       return {
         success: true,
@@ -59,66 +60,7 @@ export async function fetchExchangeRate(
       };
     }
 
-    const normalizedDate = new Date(date);
-    normalizedDate.setUTCHours(0, 0, 0, 0);
-
-    const nextDay = new Date(normalizedDate);
-    nextDay.setDate(nextDay.getDate() + 1);
-
-    // Check for exact match
-    const exactRate = await tx.exchangeRate.findFirst({
-      where: {
-        date: { gte: normalizedDate, lt: nextDay },
-        fromCurrencyId,
-        toCurrencyId,
-      },
-      select: {
-        id: true,
-        date: true,
-        fromCurrencyId: true,
-        toCurrencyId: true,
-        rate: true,
-      },
-    });
-
-    if (exactRate) {
-      return {
-        success: true,
-        data: exactRate,
-        message: "Exact rate found",
-      };
-    }
-
-    const daysAgo = 3;
-    const xDaysAgo = new Date(normalizedDate);
-    xDaysAgo.setDate(xDaysAgo.getDate() - daysAgo);
-
-
-    const closestRate = await tx.exchangeRate.findFirst({
-      where: {
-        date: { gte: xDaysAgo, lte: nextDay },
-        fromCurrencyId,
-        toCurrencyId,
-      },
-      select: {
-        id: true,
-        date: true,
-        fromCurrencyId: true,
-        toCurrencyId: true,
-        rate: true,
-      },
-      orderBy: { date: "desc" },
-    });
-
-    if (closestRate?.rate) {
-      console.warn(`Using closest rate from ${closestRate.date.toISOString()}`);
-      return {
-        success: true,
-        message: "Closest rate found",
-        data: closestRate,
-      };
-    }
-
+    // 2. Validate currencies first to fail fast
     const [fromCurrency, toCurrency] = await Promise.all([
       tx.currency.findUnique({
         where: { id: fromCurrencyId },
@@ -133,35 +75,129 @@ export async function fetchExchangeRate(
     if (!fromCurrency?.code || !toCurrency?.code) {
       return {
         success: false,
-        message: "Invalid currency identifiers",
-        error: { fromCurrencyId, toCurrencyId },
+        message: "Invalid currency IDs",
+        error: {
+          missingFrom: !fromCurrency?.code,
+          missingTo: !toCurrency?.code,
+        },
       };
     }
 
-    const apiUrl = `https://open.er-api.com/v6/latest/${fromCurrency.code}`;
+    // const normalizedDate = new Date(date);
+    // normalizedDate.setUTCHours(0, 0, 0, 0);
+    const normalizeDate = (d: Date) => {
+      const normalized = new Date(d);
+      normalized.setUTCHours(0, 0, 0, 0);
+      return normalized;
+    };
+
+    // const nextDay = new Date(normalizedDate);
+    // nextDay.setDate(nextDay.getDate() + 1);
+    const rateLookbackDays = 5;
+    const searchDate = normalizeDate(date);
+    const searchWindowEnd = new Date(searchDate);
+    searchWindowEnd.setUTCDate(searchWindowEnd.getUTCDate() + 1);
+
+    const lookbackStart = new Date(searchDate);
+    lookbackStart.setUTCDate(lookbackStart.getUTCDate() - rateLookbackDays);
+
+    // Check for exact match
+    const dbRate = await tx.exchangeRate.findFirst({
+      where: {
+        fromCurrencyId,
+        toCurrencyId,
+        date: { gte: lookbackStart, lt: searchWindowEnd },
+      },
+      select: {
+        id: true,
+        date: true,
+        rate: true,
+      },
+    });
+
+    if (dbRate) {
+      const isSameDay =
+        dbRate.date.toISOString().slice(0, 10) ===
+        searchDate.toISOString().slice(0, 10);
+
+      return {
+        success: true,
+        data: { ...dbRate, fromCurrencyId, toCurrencyId },
+        message: isSameDay ? "Exact rate" : "Closest rate",
+      };
+    }
+
+    // const daysAgo = 5;
+    // const xDaysAgo = new Date(normalizedDate);
+    // xDaysAgo.setDate(xDaysAgo.getDate() - daysAgo);
+
+    // const closestRate = await tx.exchangeRate.findFirst({
+    //   where: {
+    //     date: { gte: xDaysAgo, lte: nextDay },
+    //     fromCurrencyId,
+    //     toCurrencyId,
+    //   },
+    //   select: {
+    //     id: true,
+    //     date: true,
+    //     fromCurrencyId: true,
+    //     toCurrencyId: true,
+    //     rate: true,
+    //   },
+    //   orderBy: { date: "desc" },
+    // });
+
+    // if (closestRate?.rate) {
+    //   console.warn(`Using closest rate from ${closestRate.date.toISOString()}`);
+    //   return {
+    //     success: true,
+    //     message: "Closest rate found",
+    //     data: closestRate,
+    //   };
+    // }
+
     let apiResponse;
-    try {
-      apiResponse = await axios.get(apiUrl);
-    } catch (apiError) {
-      return {
-        success: false,
-        message: axios.isAxiosError(apiError)
-          ? `API Request Failed: ${apiError.message}`
-          : "Unknown API error",
-        error: apiError,
-      };
+    const apiUrl = `https://open.er-api.com/v6/latest/${fromCurrency.code}`;
+    const apiRetryAttempts = 2;
+
+    for (let attempt = 0; attempt <= apiRetryAttempts; attempt++) {
+      try {
+        apiResponse = await axios.get(apiUrl, { timeout: 3000 });
+        if (apiResponse.status === 200) break;
+      } catch (error) {
+        if (attempt === apiRetryAttempts) {
+          return {
+            success: false,
+            // message: axios.isAxiosError(error)
+            //   ? `API Request Failed: ${apiError.message}`
+            //   : "Unknown API error",
+            // error: error,
+            message: axios.isAxiosError(error)
+              ? `API failed: ${error.code}`
+              : "API error",
+            error: axios.isAxiosError(error) ? error.toJSON() : error,
+          };
+        }
+      }
     }
 
-    if (apiResponse.status !== 200 || !apiResponse.data.rates) {
+    // if (apiResponse.status !== 200 || !apiResponse.data.rates) {
+    //   return {
+    //     success: false,
+    //     message: `API Error: Unable to fetch exchange rate (${apiResponse.statusText})`,
+    //     error: apiResponse.statusText,
+    //   };
+    // }
+    const apiData = apiResponse?.data;
+
+    if (!apiData?.rates || !apiData.time_last_update_unix) {
       return {
         success: false,
-        message: `API Error: Unable to fetch exchange rate (${apiResponse.statusText})`,
-        error: apiResponse.statusText,
+        message: "Invalid API response",
+        error: apiData,
       };
     }
-
-    const { rates, time_last_update_unix } = apiResponse.data;
-    const apiRate = rates[toCurrency.code];
+    const apiRate = apiData.rates[toCurrency.code];
 
     if (!apiRate) {
       return {
@@ -171,24 +207,77 @@ export async function fetchExchangeRate(
       };
     }
 
-    const newRateItem: ExRateItem = {
-      date: new Date(time_last_update_unix * 1000),
-      fromCurrencyId,
-      toCurrencyId,
-      rate: new Decimal(apiRate),
-    };
+    const ratePrecision = 9;
+    const processedRate = new Decimal(apiRate).toDecimalPlaces(ratePrecision);
+    const rateDate = new Date(apiData.time_last_update_unix * 1000);
+    rateDate.setUTCHours(0, 0, 0, 0);
+
+    // const newRateItem: ExRateItem = {
+    //   date: new Date(time_last_update_unix * 1000),
+    //   fromCurrencyId,
+    //   toCurrencyId,
+    //   rate: new Decimal(apiRate),
+    // };
 
     try {
-      const persistedRate = await tx.exchangeRate.create({
-        data: newRateItem,
+      const persistedRate = await tx.exchangeRate.upsert({
+        where: {
+          fromCurrencyId_toCurrencyId_date: {
+            fromCurrencyId,
+            toCurrencyId,
+            date: rateDate,
+          },
+        },
+        create: {
+          date: rateDate,
+          fromCurrencyId,
+          toCurrencyId,
+          rate: processedRate,
+        },
+        update: {},
+        select: { id: true, date: true, rate: true },
       });
 
       return {
         success: true,
-        data: persistedRate,
-        message: "Rate fetched from API and saved",
+        data: { ...persistedRate, fromCurrencyId, toCurrencyId },
+        message: "API rate persisted",
       };
-    } catch (dbError) {
+    } catch (dbError: any) {
+      const isDuplicate =
+        dbError.code === "P2002" || // Prisma known request error code
+        dbError.message?.includes("duplicate key value");
+
+      if (isDuplicate) {
+        console.warn(
+          `Exchange rate for ${fromCurrencyId} → ${toCurrencyId} on ${rateDate.toISOString()} already exists. Skipping insert.`
+        );
+
+        // Try to fetch and return the existing one
+        const existingRate = await tx.exchangeRate.findFirst({
+          where: {
+            fromCurrencyId,
+            toCurrencyId,
+            date: rateDate,
+          },
+          select: {
+            id: true,
+            date: true,
+            fromCurrencyId: true,
+            toCurrencyId: true,
+            rate: true,
+          },
+        });
+
+        if (existingRate) {
+          return {
+            success: true,
+            data: existingRate,
+            message: "Rate already existed. Fetched existing.",
+          };
+        }
+      }
+
       return {
         success: false,
         message: "Failed to persist rate to database",

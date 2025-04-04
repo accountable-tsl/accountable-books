@@ -28,6 +28,8 @@ const baseConnection = {
   port: Number(process.env.DB_PORT) || 5432,
 };
 
+const environments = ["development", "staging", "production"];
+
 const config: { [key: string]: Knex.Config } = {
   development: {
     client: "postgresql",
@@ -37,7 +39,8 @@ const config: { [key: string]: Knex.Config } = {
       max: 10,
     },
     migrations: {
-      tableName: "knex_migrations",
+      tableName: "knex_migrations_dev",
+      directory: "./migrations",
     },
   },
 
@@ -49,7 +52,8 @@ const config: { [key: string]: Knex.Config } = {
       max: 10,
     },
     migrations: {
-      tableName: "knex_migrations",
+      tableName: "knex_migrations_staging",
+      directory: "./migrations",
     },
   },
 
@@ -62,6 +66,7 @@ const config: { [key: string]: Knex.Config } = {
     },
     migrations: {
       tableName: "knex_migrations",
+      directory: "./migrations",
     },
   },
 };

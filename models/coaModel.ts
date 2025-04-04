@@ -93,7 +93,7 @@ export async function getAllCOA(
     // Fetch COA balances
     let coaBalances: Record<string, Decimal> = {};
     try {
-      coaBalances = await coaAccountBalances(prisma, companyId);
+      coaBalances = await coaAccountBalances(companyId);
     } catch (balanceError) {
       console.error("Error fetching COA account balances:", balanceError);
       coaBalances = {};
