@@ -15,6 +15,8 @@ export async function up(knex: Knex): Promise<void> {
     table.string("symbol", 5).notNullable();
 
     addStandardColumns(table);
+
+    table.index(["code"], "currency_code_idx");
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

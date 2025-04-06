@@ -11,7 +11,7 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
     table.string("code", 256).nullable();
     table.string("name", 256).notNullable();
-    table.string("description").nullable();
+    table.string("description", 512).nullable();
     table.boolean("is_active").defaultTo(true);
 
     table

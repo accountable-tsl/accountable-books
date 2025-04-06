@@ -5,7 +5,7 @@ import {
   dropUpdateTimestampTrigger,
 } from "../utils/db";
 
-const tableName = "user_company";
+const tableName = "user_company_role";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table

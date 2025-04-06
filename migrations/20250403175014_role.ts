@@ -9,7 +9,7 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable("role", (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
     table.string("name", 50).unique().notNullable(); //super_user, admin, bookkeeper, client
-    table.text("description").nullable();
+    table.string("description", 512).nullable();
 
     addStandardColumns(table);
   });

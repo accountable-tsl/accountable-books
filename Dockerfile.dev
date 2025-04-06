@@ -22,6 +22,9 @@ RUN npm install --include=dev
 # Copy the rest of your backend code
 COPY --chown=appuser:appgroup . .
 
+# COPY --chown=appuser:appgroup entrypoint.sh /app/entrypoint.sh
+# RUN chmod +x /app/entrypoint.sh
+
 COPY --chown=appuser:appgroup entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 

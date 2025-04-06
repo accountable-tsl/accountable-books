@@ -11,12 +11,14 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
     table.string("name", 256).notNullable();
     table.string("short_code", 50).unique().notNullable();
+    table.specificType("type", "company_type").notNullable();
     table.string("website", 256).nullable();
     table.string("industry", 256).nullable();
     table.string("team_size", 256).nullable();
     table.string("revenue", 256).nullable();
     table.integer("year_end_day").notNullable();
     table.integer("year_end_month").notNullable();
+    table.specificType("reporting_framework", "reporting_framework").nullable();
 
     table
       .uuid("country_id")
@@ -38,6 +40,14 @@ export async function up(knex: Knex): Promise<void> {
       .references("id")
       .inTable("user")
       .onDelete("SET NULL");
+
+    table.boolean("is_accounting_firm").notNullable();
+    table
+      .uuid("assigned_firm_id")
+      .notNullable()
+      .references("id")
+      .inTable("company")
+      .onDelete("RESTRICT");
 
     addStandardColumns(table);
 

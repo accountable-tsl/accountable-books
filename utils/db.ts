@@ -20,6 +20,7 @@ export async function createUpdateTimestampTrigger(
   knex: Knex,
   tableName: string
 ) {
+  const quoted = `"${tableName}"`;
   await knex.raw(`
     CREATE OR REPLACE FUNCTION update_timestamp()
     RETURNS TRIGGER AS $$
@@ -33,7 +34,7 @@ export async function createUpdateTimestampTrigger(
   // Create the trigger for the specific table
   await knex.raw(`
     CREATE TRIGGER update_${tableName}_timestamp
-    BEFORE UPDATE ON ${tableName}
+    BEFORE UPDATE ON ${quoted}
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp();
   `);
@@ -43,7 +44,9 @@ export async function dropUpdateTimestampTrigger(
   knex: Knex,
   tableName: string
 ) {
+  const quoted = `"${tableName}"`;
+
   await knex.raw(
-    `DROP TRIGGER IF EXISTS update_${tableName}_timestamp ON ${tableName};`
+    `DROP TRIGGER IF EXISTS update_${tableName}_timestamp ON ${quoted};`
   );
 }

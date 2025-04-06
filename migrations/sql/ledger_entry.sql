@@ -234,7 +234,24 @@ BEGIN
     BEGIN
         ALTER TABLE ledger_entry
             ADD CONSTRAINT fk_ledger_entry_updated_by
-            FOREIGN KEY (updated_by_id) REFERENCES user (id)
+            FOREIGN KEY (updated_by_id) REFERENCES "user" (id)
             ON DELETE SET NULL;
     EXCEPTION WHEN duplicate_object THEN NULL; END;
 END $$;
+
+
+
+-- Add composite foreign key for ledger entry
+DO $$
+BEGIN
+    BEGIN
+        ALTER TABLE journal_entry
+        ADD CONSTRAINT fk_journal_entry_ledger_entry
+        FOREIGN KEY (ledger_entry_id, ledger_entry_fs_date)
+        REFERENCES ledger_entry(id, fs_date)
+        ON DELETE SET NULL;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+END$$;
+
+

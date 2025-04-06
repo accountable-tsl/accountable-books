@@ -8,9 +8,9 @@ import {
 const tableName = "financial_statement";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("generate_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
 
-    table.specificType("statement_key", "fs_key").unique().notNullable();
+    table.specificType("key", "fs_key").unique().notNullable();
 
     table.string("us_gaap_label", 256).notNullable();
     table.string("ifrs_label", 256).notNullable();

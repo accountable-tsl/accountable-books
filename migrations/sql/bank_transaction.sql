@@ -224,17 +224,33 @@ BEGIN
     BEGIN
         ALTER TABLE bank_transaction
             ADD CONSTRAINT fk_bank_transaction_created_by
-            FOREIGN KEY (created_by_id) REFERENCES user (id)
+            FOREIGN KEY (created_by_id) REFERENCES "user" (id)
             ON DELETE RESTRICT;
     EXCEPTION WHEN duplicate_object THEN NULL; END;
 
     BEGIN
         ALTER TABLE bank_transaction
             ADD CONSTRAINT fk_bank_transaction_updated_by
-            FOREIGN KEY (updated_by_id) REFERENCES user (id)
+            FOREIGN KEY (updated_by_id) REFERENCES "user" (id)
             ON DELETE SET NULL;
     EXCEPTION WHEN duplicate_object THEN NULL; END;
 END $$;
+
+
+-- Add bank_transaction composite fk to ledger_transaction here
+-- to prevent sequencing issues with the bank_transaction table
+DO $$
+BEGIN
+    BEGIN
+        ALTER TABLE ledger_transaction
+        ADD CONSTRAINT fk_ledger_transaction_to_bank_transaction
+        FOREIGN KEY (bank_transaction_id, bank_transaction_date)
+        REFERENCES bank_transaction(id, date)
+        ON DELETE SET NULL;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+END $$;
+
 
 
 

@@ -13,7 +13,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string("template_name", 256).notNullable();
     table.string("name", 256).notNullable();
     table.string("code", 256).nullable();
-    table.string("description").nullable();
+    table.string("description", 512).nullable();
 
     table
       .uuid("account_type_id")

@@ -28,3 +28,4 @@ export default function generateSecureShortCode(length = 8): string {
 
   return code;
 }
+

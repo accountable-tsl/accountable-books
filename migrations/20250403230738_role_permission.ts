@@ -22,7 +22,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("permission")
       .onDelete("CASCADE");
 
-    table.uuid("granted_at").defaultTo(knex.fn.now());
+    table.timestamp("granted_at", { useTz: true }).defaultTo(knex.fn.now());
 
     table.primary(["role_id", "permission_id"]);
   });
