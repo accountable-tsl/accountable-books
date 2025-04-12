@@ -33,6 +33,7 @@ const seedCoaTemplates = async function seed(knex: Knex): Promise<void> {
               code: data.code?.trim() || null,
               description: data.description?.trim() || null,
               account_type_id: data.account_type_id,
+              is_active: true,
             });
           } catch (e) {
             console.warn(`Invalid row skipped: ${JSON.stringify(data)}`, e);

@@ -7,6 +7,15 @@ import {
   coaTemplateTypes,
 } from "../models/coaTemplate.model";
 
+export const loadCoaTemplate = z.object({
+  companyId: z.string().uuid(),
+  created_by_id: z.string().uuid(),
+  template_name: z.string().optional(),
+  use_code: z.boolean().optional(),
+  additional_info: z.string().optional(),
+});
+export type LoadCoaTemplateInput = z.infer<typeof loadCoaTemplate>;
+
 export const coaTemplateSelection = z.object({
   companyId: z.string().uuid(),
   description: z.string().optional(),
@@ -33,12 +42,6 @@ export type CoaTemplateNameParts = [
   code: CoaTemplateCode,
   version: string,
 ];
-
-export const loadCoa = z.object({
-  companyId: z.string().uuid(),
-  template_name: z.string(),
-});
-export type LoadCoa = z.infer<typeof loadCoa>;
 
 export type SelectBestCoa = {
   company: Partial<Company>;

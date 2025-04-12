@@ -2,14 +2,9 @@ import knexInstance from "../../knexClient";
 import type { Knex } from "knex";
 import { errorResponse, successResponse } from "../utils/utils";
 
-import {
-  CoaTemplateName,
-  newCoa,
-  NewCoa,
-} from "../types/db.type";
+import { CoaTemplateName, newCoa, NewCoa } from "../types/db.type";
 import { NODE_ENV } from "../config/env";
 import { ApiResponse } from "../types/generic";
-
 
 export const createCoa = async (
   knex: Knex,
@@ -56,90 +51,3 @@ function normalizeTemplateName(name: string): string {
   }
   return name; // Explicit form
 }
-
-export const loadCoaTemplate = async (
-  knexTrx: Knex.Transaction,
-  input: LoadCoaTemplateForCompany
-) => {
-  const validatedInput = loadCoaTemplateForCompany.safeParse(input);
-  if (!validatedInput.success) {
-    return errorResponse("Invalid input", validatedInput.error.flatten());
-  }
-
-  const company = await knexTrx("company")
-    .select("industry", "type", "reporting_currency_id")
-    .where({ id: validatedInput.data.company_id })
-    .first();
-  if (!company) return errorResponse("Unauthorized");
-
-  let defaultCoa: NewCoa[] = [];
-  let template_name: CoaTemplateName;
-
-  // CASE 1: Explicit template requested (highest priority)
-  if (validatedInput.data.template_name) {
-    template_name = validatedInput.data.template_name;
-  }
-  // CASE 2: Individual user
-  else if (company.type === "individual") {
-    template_name = await determineIndividualTemplate(
-      company,
-      input.additionalInfo
-    );
-  }
-  // CASE 3: Accounting firm
-  else if (company.type === "accounting_firm") {
-    template_name = await determineAccountingFirmTemplate(company);
-  }
-  // CASE 4: Business (default case)
-  else {
-    template_name = await determineBusinessTemplate(company, input);
-  }
-
-  // if (company.type === "individual") {
-  //   template_name = "personal:basic";
-  // }
-  // if (company.type === "business" && validatedInput.data.template_name) {
-  //   template_name = validatedInput.data.template_name;
-  // }
-
-  // if (!template_name) {
-  //   template_name = getMatchingCoaTemplate(
-  //     [input.description, input.industry].filter(Boolean).join(", ")
-  //   );
-  // }
-
-  if (company.type !== "individual") {
-    const suffix = company.prefersCode === false ? "" : "_wcode";
-    template_name = `${template_name}${suffix}` as CoaTemplateName;
-  }
-
-  const retrievedCoa = await knexTrx("coa_template")
-    .select("code", "name", "description", "account_type_id")
-    .where({
-      template_name,
-    });
-
-  defaultCoa = retrievedCoa.map((coa) => {
-    return {
-      ...coa,
-      company_id: validatedInput.data.company_id,
-      created_by_id: validatedInput.data.created_by_id,
-      currency_id: company.reporting_currency_id,
-      is_active: true,
-    };
-  });
-  if (!defaultCoa.length) {
-    return errorResponse("Unable to retrieve coa template");
-  }
-
-  const insertedCoa = await knexTrx("coa").insert(defaultCoa);
-  if (!insertedCoa.length) {
-    return errorResponse("Unable to insert coa template");
-  }
-
-  return successResponse(
-    `Chart of accounts template [${template_name.toUpperCase()}, ${defaultCoa.length} entries] loaded`,
-    insertedCoa
-  );
-};
-

@@ -5,11 +5,10 @@ import {
   newCompanyInput,
   newUserDirect,
 } from "./db.type";
-import { loadCoaTemplateForCompany } from "./coa.type";
 
 export const onboardingDirectClient = newUserDirect.extend({
   company: newCompanyInput,
-  coa: loadCoaTemplateForCompany,
+  // coa: loadCoaTemplateForCompany,
 });
 export type OnboardingDirectClient = z.infer<typeof onboardingDirectClient>;
 

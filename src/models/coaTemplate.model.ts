@@ -14,13 +14,10 @@ import {
   CoaTemplateCompanyType,
   CoaTemplateIndustry,
   CoaTemplateNameParts,
-  coaTemplateSelection,
-  CoaTemplateSelection,
   coaTemplateType,
-  GetMatchingCoa,
   IndustryKeywordConfig,
-  loadCoa,
-  LoadCoa,
+  loadCoaTemplate,
+  LoadCoaTemplateInput,
   SelectBestCoa,
 } from "../types/coaTemplate.type";
 import _ from "lodash";
@@ -61,47 +58,81 @@ export const addNewCoaTemplates = async (
   }
 };
 
-const determineOptimalCoaTemplate = async (
+export const loadCoaTemplateForCompany = async (
   knex: Knex,
-  input: CoaTemplateSelection
-) => {
+  input: LoadCoaTemplateInput
+): Promise<ApiResponse> => {
   // Validate Input
-  const validatedInput = coaTemplateSelection.safeParse(input);
+  const validatedInput = loadCoaTemplate.safeParse(input);
   if (!validatedInput.success)
-    return errorResponse(
-      "Invalid CoaTemplateSelection Input",
-      validatedInput.error.flatten()
-    );
+    return errorResponse("Invalid Input", validatedInput.error.flatten());
 
-  const { companyId, ...rest } = validatedInput.data;
+  const { companyId, template_name, use_code, additional_info } =
+    validatedInput.data;
 
   try {
+    // Fetch company
     const [company]: Partial<Company[]> = await knex("company")
       .where("id", companyId)
-      .select("type", "industry", "website", "reporting_framework", "");
+      .select(
+        "display_name",
+        "type",
+        "industry",
+        "website",
+        "reporting_framework",
+        "reporting_currency_id"
+      );
 
-    const coaTemplates = await knex("coa_template")
+    if (!company || !company.type || !company.reporting_currency_id)
+      return errorResponse("Company not found or invalid type");
+
+    let chosenTemplate;
+    if (template_name) {
+      chosenTemplate = template_name;
+    }
+
+    if (!chosenTemplate) {
+      const matchInput: SelectBestCoa = {
+        company,
+        use_code,
+        additional_info,
+      };
+      const { template } = await selectBestCoaTemplate(knex, matchInput);
+      chosenTemplate = template;
+    }
+
+    const validTemplate = await knex("coa_template")
       .where("is_active", true)
-      .pluck("template_name")
-      .distinct();
+      .where("template_name", chosenTemplate)
+      .select("code", "name", "description", "account_type_id");
 
-    if (!company || company.type)
-      return errorResponse("write error message later");
-
-    const searchData = JSON.stringify({ ...rest, ...company });
-    if (company.type === companyType.Values.individual) {
-      // determineIndTemplate...
-      // pass available templates to the functions
+    if (!validTemplate.length) {
+      return errorResponse(`Template ${chosenTemplate} is invalid or inactive`);
     }
 
-    if (company.type === companyType.Values.business) {
-      // determineBizTemplate
-    }
+    return knex.transaction(async (trx) => {
+      const templateToInsert = validTemplate.map((t) => {
+        return {
+          code: t.code,
+          name: t.name,
+          description: t.description,
+          is_active: true,
+          currency_id: company.reporting_currency_id,
+          company_id: companyId,
+          created_by_id: input.created_by_id,
+        };
+      });
 
-    if (company.type === companyType.Values.accounting_firm) {
-      // determineAccTemplate
-    }
-  } catch (error) {}
+      const insertedCoa = await trx("coa").insert(templateToInsert);
+
+      return successResponse(
+        `Coa template with ${validTemplate.length} lines inserted for ${company.display_name}`,
+        chosenTemplate
+      );
+    });
+  } catch (error) {
+    return errorResponse("Failed to load and insert coa template", error);
+  }
 };
 
 const selectBestCoaTemplate = async (
@@ -341,7 +372,7 @@ const SCORE = {
 
 const DEFAULT_TEMPLATES: Record<CoaTemplateCompanyType, string> = {
   ind: "ind:none:basic:nocode:v1",
-  biz: "biz:none:basic:nocode:v1",
+  biz: "biz:none:basic:code:v1",
   acc: "acc:prof:basic:code:v1",
 };
 
