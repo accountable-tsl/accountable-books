@@ -1,7 +1,8 @@
 import type { Knex } from "knex";
+import { RoleName } from "../types/db";
 
 // Role-permission mappings
-const rolePermissions: { [role: string]: string[] } = {
+const rolePermissions: Record<Exclude<RoleName, "super_admin">, string[]> = {
   admin: [
     "users:invite",
     "reports:view",
@@ -71,12 +72,18 @@ export async function seed(knex: Knex): Promise<void> {
     // Build role_permission entries
     const entries = Object.entries(rolePermissions).flatMap(
       ([roleName, permKeys]) => {
-        const roleId = roleMap.get(roleName);
-        if (!roleId) throw new Error(`Role ${roleName} not found`);
+        const roleId = roleMap.get(roleName as RoleName);
+        if (!roleId) {
+          console.error(`Role '${roleName}' not found in roleMap`);
+          throw new Error(`Invalid role name: '${roleName}'`);
+        }
 
         return permKeys.map((key) => {
           const permissionId = permissionMap.get(key);
-          if (!permissionId) throw new Error(`Permission ${key} not found`);
+          if (!permissionId) {
+            console.error(`Permission key '${key}' not found in permissionMap`);
+            throw new Error(`Permission ${key} not found`);
+          }
           return {
             id: knex.raw("gen_random_uuid()"),
             role_id: roleId,
@@ -94,7 +101,7 @@ export async function seed(knex: Knex): Promise<void> {
         .ignore();
     });
 
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV === "local" || NODE_ENV === "docker.dev") {
       console.log(`Seeded ${entries.length} role_permission entries`);
     }
   } catch (error) {

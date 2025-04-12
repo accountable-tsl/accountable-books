@@ -29,7 +29,7 @@ export async function seed(knex: Knex): Promise<void> {
               date: new Date(data.date),
               from_currency_id: data.fromCurrencyId,
               to_currency_id: data.toCurrencyId,
-              rate: new Decimal(data.rate).toString(),
+              rate: new Decimal(data.rate),
             });
           } catch (e) {
             console.warn(`Invalid row skipped: ${JSON.stringify(data)}`, e);
@@ -50,7 +50,7 @@ export async function seed(knex: Knex): Promise<void> {
           .onConflict(["date", "from_currency_id", "to_currency_id"])
           .ignore();
       }
-      if (process.env.NODE_ENV !== "production") {
+      if (process.env.NODE_ENV === "local" || NODE_ENV === "docker.dev") {
         console.log(`Seeded ${exchangeRates.length} exchange rates`);
       }
     } catch (error) {

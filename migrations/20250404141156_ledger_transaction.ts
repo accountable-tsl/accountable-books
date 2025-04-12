@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from "../utils/db";
+} from "../src/utils/db";
 
 const tableName = "ledger_transaction";
 export async function up(knex: Knex): Promise<void> {
@@ -32,5 +32,5 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.schema.dropTable(tableName);
+  await knex.schema.dropTableIfExists(tableName);
 }

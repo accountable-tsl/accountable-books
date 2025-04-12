@@ -20,6 +20,7 @@ export const accountElementIds = {
   //Liabilities Children
   nonCurrentLiabilities: "e0b60496-12fa-43f7-8b0d-92d614ce08b7",
   currentLiabilities: "987c9f91-0d24-49c6-9fb9-b5f57c0090bf",
+  contraLiabilities: "7c7c9f91-0d24-49c6-9fb9-b5f57c0090bf",
 
   // Equity Children
   capital: "519a3026-906a-4490-8ce2-14ba2e035575",

@@ -35,7 +35,7 @@ export async function seed(knex: Knex): Promise<void> {
       .onConflict("key")
       .ignore();
 
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV === "local" || NODE_ENV === "docker.dev") {
       console.log(
         `Seeded ${defaultFinancialStatements.length} financial statements`
       );

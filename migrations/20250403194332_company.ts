@@ -3,15 +3,19 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from "../utils/db";
+} from "../src/utils/db";
 
 const tableName = "company";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
-    table.string("name", 256).notNullable();
+    table.string("legal_name", 256).notNullable();
+    table.string("display_name", 256).nullable();
     table.string("short_code", 50).unique().notNullable();
+    table.string("address", 256).nullable();
     table.specificType("type", "company_type").notNullable();
+    table.string("logo_url", 256).nullable();
+    table.string("description", 512).nullable();
     table.string("website", 256).nullable();
     table.string("industry", 256).nullable();
     table.string("team_size", 256).nullable();
@@ -39,12 +43,12 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .references("id")
       .inTable("user")
-      .onDelete("SET NULL");
+      .onDelete("RESTRICT");
 
-    table.boolean("is_accounting_firm").notNullable();
+    // table.boolean("is_accounting_firm").notNullable();
     table
       .uuid("assigned_firm_id")
-      .notNullable()
+      .nullable()
       .references("id")
       .inTable("company")
       .onDelete("RESTRICT");
@@ -59,5 +63,5 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.schema.dropTable(tableName);
+  await knex.schema.dropTableIfExists(tableName);
 }

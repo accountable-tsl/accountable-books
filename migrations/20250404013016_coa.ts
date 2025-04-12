@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from "../utils/db";
+} from "../src/utils/db";
 
 const tableName = "coa";
 export async function up(knex: Knex): Promise<void> {
@@ -35,14 +35,25 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("company")
       .onDelete("RESTRICT");
 
+    table
+      .uuid("created_by_id")
+      .notNullable()
+      .references("id")
+      .inTable("user")
+      .onDelete("RESTRICT");
+
     addStandardColumns(table);
 
     table.index(["company_id", "is_deleted"], "coa_company_deleted_idx");
     table.index(["company_id", "is_active"], "coa_company_active_idx");
     table.index(["account_type_id"], "coa_account_type_idx");
 
-    table.unique(["code", "company_id"], "coa_code_company_unique");
-    table.unique(["name", "company_id"], "coa_name_company_unique");
+    table.unique(["code", "company_id"], {
+      indexName: "coa_code_company_unique",
+    });
+    table.unique(["name", "company_id"], {
+      indexName: "coa_name_company_unique",
+    });
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
@@ -50,5 +61,5 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.schema.dropTable(tableName);
+  await knex.schema.dropTableIfExists(tableName);
 }

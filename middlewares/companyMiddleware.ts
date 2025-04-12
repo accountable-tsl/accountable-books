@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response, NextFunction } from "express";
-import { getIdentifierType } from "../utils/utils";
+import { getIdentifierType } from "../../utils/utils-old";
 const prisma = new PrismaClient();
 
 export const checkCompanyId = async (

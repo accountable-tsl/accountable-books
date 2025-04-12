@@ -1,9 +1,74 @@
 import type { Knex } from "knex";
+import path from "path";
+import fs from "fs/promises";
+import { fileURLToPath } from "url";
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from "../utils/db";
+  preventUpdateOrDelete,
+} from "../src/utils/db";
+import { currencyWithId, NewCurrencyWithId } from "../src/types/db.type";
+import { NODE_ENV } from "../src/config/env";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export async function seedCurrencies(knex: Knex): Promise<void> {
+  const filePath = path.join(__dirname, "data/currencies.json");
+
+  try {
+    const rawData = await fs.readFile(filePath, "utf-8");
+    const jsonData: unknown = JSON.parse(rawData);
+
+    if (!Array.isArray(jsonData)) {
+      throw new Error("currencies.json must be an array");
+    }
+
+    const currencies = jsonData as Array<NewCurrencyWithId>;
+    const seedData: Array<NewCurrencyWithId> = [];
+    let skipped = 0;
+
+    for (const currency of currencies) {
+      const result = currencyWithId.safeParse(currency);
+
+      if (result.success) {
+        seedData.push({
+          id: result.data.id,
+          name: result.data.name.trim(),
+          code: result.data.code.trim().toUpperCase(),
+          symbol: result.data.symbol.trim(),
+        });
+      } else {
+        skipped++;
+        console.warn(
+          `Skipped invalid currency: ${JSON.stringify(currency)}`,
+          result.error
+        );
+      }
+    }
+
+    if (skipped > 0) {
+      throw new Error(`Skipped ${skipped} invalid currencies from ${filePath}`);
+    }
+
+    if (seedData.length === 0) {
+      console.warn(`No valid currencies to seed from ${filePath}`);
+    }
+
+    if (seedData.length > 0) {
+      await knex.transaction(async (trx) => {
+        await trx("currency").insert(seedData).onConflict("code").ignore();
+      });
+    }
+    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+      console.log(`Seeded ${seedData.length} currencies`);
+    }
+  } catch (error) {
+    console.error(`Error seeding currencies from ${filePath}:`, error);
+    throw error;
+  }
+}
 
 const tableName = "currency";
 
@@ -20,9 +85,12 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
+  await preventUpdateOrDelete(knex, tableName);
+
+  await seedCurrencies(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.schema.dropTable(tableName);
+  await knex.schema.dropTableIfExists(tableName);
 }

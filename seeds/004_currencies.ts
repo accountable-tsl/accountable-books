@@ -32,7 +32,7 @@ export async function seed(knex: Knex): Promise<void> {
       }
     });
 
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV === "local" || NODE_ENV === "docker.dev") {
       console.log(`Seeded ${currencies.length} currencies`);
     }
   } catch (error) {

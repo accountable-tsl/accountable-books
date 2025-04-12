@@ -1,17 +1,44 @@
 #!/bin/sh
 set -e
 
+# KNEX
+
+echo "Running Knex migrations..."
+npx tsx node_modules/knex/bin/cli.js migrate:latest --knexfile ./knexfile.ts
+
+# sleep 2
+
+# if [ "$NODE_ENV" != "production" ] && [ "$SEED_DB" == "true" ]; then
+#   echo "Running seeds..."
+#   npx tsx node_modules/knex/bin/cli.js seed:run --knexfile ./knexfile.ts
+# fi
+
+# echo "Starting email worker..."
+# npx tsx src/jobs/workers/email.worker.ts &
+
+sleep 2
+
+chown -R appuser:appgroup /app/node_modules
+
+sleep 2
+
+echo "Starting the backend in $NODE_ENV mode..."
+exec npm run dev:docker
+ 
+ 
+# PRISMA
+
+# echo "Resetting Prisma DB (dev only)..."
+# npx prisma migrate reset --force --skip-seed
+
+
 # echo "Running Prisma migrations..."
 # npx prisma format
 # npx prisma generate
 
-echo "Running Knex migrations..."
+# sleep 5
 
-npx tsx node_modules/knex/bin/cli.js migrate:latest --knexfile ./knexfile.ts
-
-sleep 5
-
-# 🚀 For development, use `migrate dev`
+# # 🚀 For development, use `migrate dev`
 # if [ "$NODE_ENV" = "development" ]; then
 
 #   if [ ! -d "./prisma/migrations" ] || [ -z "$(ls -A ./prisma/migrations)" ]; then
@@ -26,18 +53,8 @@ sleep 5
 #   npx prisma migrate deploy
 # fi
 
-# echo "Applying raw SQL files..."
-# for f in ./migrations/sql/*.sql; do
-#   [ -e "$f" ] || continue
-#   echo "Applying $f..."
-#   if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"; then
-#     echo "Successfully applied $f"
-#   else
-#     echo "Warning: Failed to apply $f"
-#   fi
-# done
 
-sleep 5
+# sleep 5
 
 # echo "Applying raw SQL schema patches..."
 # if [ -f "./prisma/post-deploy.sql" ]; then
@@ -46,12 +63,20 @@ sleep 5
 #   echo "No post-deploy.sql file found, skipping..."
 # fi
 
+
 # if [ "$SEED_DB" = "true" ]; then
-#   echo "Seeding the database..."
-#   npm run seed || echo "No seed script found"
+#   echo "🌱 Seeding the database..."
+#   if npm run seed; then
+#     echo "✅ Database seeded successfully"
+#   else
+#     echo "⚠️  Seed script failed or missing"
+#   fi
 # fi
 
-chown -R appuser:appgroup /app/node_modules
 
-echo "Starting the backend in $NODE_ENV mode..."
-exec npm run dev:docker
+# chown -R appuser:appgroup /app/node_modules
+
+# sleep 2
+
+# echo "Starting the backend in $NODE_ENV mode..."
+# exec npm run dev:docker

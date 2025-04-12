@@ -1,10 +1,8 @@
 import type { Knex } from "knex";
-import { NewAccountElementInput } from "../types/db";
+import { AccountElementWithRequiredReportCode } from "../types/db";
 import { accountElementIds, financialStatementIds } from "./constants/ids";
 
-type NewAccountElementWithId = NewAccountElementInput & { id: string };
-
-const parentAccountElements: NewAccountElementWithId[] = [
+const parentAccountElements: AccountElementWithRequiredReportCode[] = [
   {
     id: accountElementIds.assets,
     label: "Assets",
@@ -13,6 +11,7 @@ const parentAccountElements: NewAccountElementWithId[] = [
     parent_id: null,
     financial_statement_id: financialStatementIds.bs,
     description: "All asset accounts",
+    report_code: "BS.ASS",
   },
   {
     id: accountElementIds.liabilities,
@@ -22,6 +21,7 @@ const parentAccountElements: NewAccountElementWithId[] = [
     parent_id: null,
     financial_statement_id: financialStatementIds.bs,
     description: "All liability accounts",
+    report_code: "BS.LIA",
   },
   {
     id: accountElementIds.equity,
@@ -31,6 +31,7 @@ const parentAccountElements: NewAccountElementWithId[] = [
     parent_id: null,
     financial_statement_id: financialStatementIds.bs,
     description: "Ownership interests",
+    report_code: "BS.EQU",
   },
   {
     id: accountElementIds.income,
@@ -40,6 +41,7 @@ const parentAccountElements: NewAccountElementWithId[] = [
     parent_id: null,
     financial_statement_id: financialStatementIds.is,
     description: "All income and revenue accounts",
+    report_code: "IS.INC",
   },
   {
     id: accountElementIds.expenses,
@@ -49,10 +51,11 @@ const parentAccountElements: NewAccountElementWithId[] = [
     parent_id: null,
     financial_statement_id: financialStatementIds.is,
     description: "All expenses, cost of sales, etc",
+    report_code: "IS.EXP",
   },
 ];
 
-const childrenAccountElements: NewAccountElementWithId[] = [
+const childrenAccountElements: AccountElementWithRequiredReportCode[] = [
   {
     id: accountElementIds.nonCurrentAsset,
     key: "non_current_asset",
@@ -62,6 +65,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     financial_statement_id: financialStatementIds.bs,
     description:
       "Long-term assets such as property, equipment, investments, and intangibles",
+    report_code: "BS.ASS.NCA",
   },
   {
     id: accountElementIds.contraAsset,
@@ -72,6 +76,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     financial_statement_id: financialStatementIds.bs,
     description:
       "Accounts that offset asset balances, such as accumulated depreciation",
+    report_code: "BS.ASS.CTR",
   },
   {
     id: accountElementIds.currentAsset,
@@ -81,7 +86,9 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     parent_id: accountElementIds.assets,
     financial_statement_id: financialStatementIds.bs,
     description: "Short-term, liquid assets like cash, receivables, inventory",
+    report_code: "BS.ASS.CUR",
   },
+
   {
     id: accountElementIds.currentLiabilities,
     key: "current_liabilities",
@@ -91,6 +98,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     financial_statement_id: financialStatementIds.bs,
     description:
       "Short-term liabilities like accounts payable, short-term debt",
+    report_code: "BS.LIA.CUR",
   },
   {
     id: accountElementIds.nonCurrentLiabilities,
@@ -100,6 +108,18 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     parent_id: accountElementIds.liabilities,
     financial_statement_id: financialStatementIds.bs,
     description: "Long-term liabilities like long-term debt, deferred taxes",
+    report_code: "BS.LIA.NCL",
+  },
+  {
+    id: accountElementIds.contraLiabilities,
+    key: "contra_liabilities",
+    label: "Contra Liabilities",
+    default_side: "debit",
+    parent_id: accountElementIds.liabilities,
+    financial_statement_id: financialStatementIds.bs,
+    description:
+      "Accounts that reduce the balance of a standard liability account",
+    report_code: "BS.LIA.CTR",
   },
   {
     id: accountElementIds.capital,
@@ -110,6 +130,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     financial_statement_id: financialStatementIds.bs,
     description:
       "Share capital, premium, APIC, other direct contributions from owners",
+    report_code: "BS.EQU.CAP",
   },
   {
     id: accountElementIds.reserves,
@@ -119,6 +140,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     parent_id: accountElementIds.equity,
     financial_statement_id: financialStatementIds.bs,
     description: "Retained Earnings and Other Reserves",
+    report_code: "BS.EQU.RES",
   },
   {
     id: accountElementIds.otherEquity,
@@ -129,6 +151,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     financial_statement_id: financialStatementIds.bs,
     description:
       "Accumulated Other Comprehensive Income and other components of equity",
+    report_code: "BS.EQU.OTH",
   },
   {
     id: accountElementIds.revenue,
@@ -139,6 +162,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     financial_statement_id: financialStatementIds.is,
     description:
       "Income from primary business activities, including sales and services",
+    report_code: "IS.INC.REV",
   },
   {
     id: accountElementIds.otherIncome,
@@ -148,6 +172,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     parent_id: accountElementIds.income,
     financial_statement_id: financialStatementIds.is,
     description: "Income from sources outside primary business activities",
+    report_code: "IS.INC.OTH",
   },
   {
     id: accountElementIds.contraRevenue,
@@ -158,6 +183,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     financial_statement_id: financialStatementIds.is,
     description:
       "Reductions to gross revenue like discounts, returns, and allowances",
+    report_code: "IS.INC.CTR",
   },
   {
     id: accountElementIds.costOfSales,
@@ -167,6 +193,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     parent_id: accountElementIds.expenses,
     financial_statement_id: financialStatementIds.is,
     description: "Direct costs tied to production or services",
+    report_code: "IS.EXP.COS",
   },
   {
     id: accountElementIds.opex,
@@ -176,6 +203,7 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     parent_id: accountElementIds.expenses,
     financial_statement_id: financialStatementIds.is,
     description: "Ongoing expenses like SG&A, payroll, rent, utilities etc.",
+    report_code: "IS.EXP.OPX",
   },
   {
     id: accountElementIds.nonOpex,
@@ -185,10 +213,11 @@ const childrenAccountElements: NewAccountElementWithId[] = [
     parent_id: accountElementIds.expenses,
     financial_statement_id: financialStatementIds.is,
     description: "Non-recurring or unusual expenses",
+    report_code: "IS.EXP.NOP",
   },
 ];
 
-const defaultAccountElements: NewAccountElementWithId[] = [
+const defaultAccountElements: AccountElementWithRequiredReportCode[] = [
   ...parentAccountElements,
   ...childrenAccountElements,
 ];
@@ -200,7 +229,7 @@ export async function seed(knex: Knex): Promise<void> {
       .onConflict()
       .ignore();
 
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV === "local" || NODE_ENV === "docker.dev") {
       console.log(`Seeded ${parentAccountElements.length} parent elements`);
       console.log(`Seeded ${childrenAccountElements.length} child elements`);
     }

@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from "../utils/db";
+} from "../src/utils/db";
 
 const tableName = "user_company_role";
 export async function up(knex: Knex): Promise<void> {
@@ -45,5 +45,5 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.schema.dropTable("user_company");
+  await knex.schema.dropTableIfExists(tableName);
 }
