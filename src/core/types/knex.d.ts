@@ -27,6 +27,10 @@ import {
 import { User } from "../../domains/user/user.types";
 import { Company, NewCompany } from "../../domains/company/company.types";
 import { Coa, NewCoa } from "../../domains/chart-of-accounts/coa.types";
+import {
+  AccFirm,
+  NewAccFirm,
+} from "../../domains/accounting-firm/accountingFirm.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -92,7 +96,11 @@ declare module "knex/types/tables" {
       Partial<Omit<Company, "id">>
     >;
 
-    accounting_firm: AccountingFirm;
+    accounting_firm: Knex.CompositeTableType<
+      AccFirm,
+      NewAccFirm,
+      Partial<Omit<AccFirm, "id">>
+    >;
 
     user_company_role: Knex.CompositeTableType<
       UserCompanyRole,

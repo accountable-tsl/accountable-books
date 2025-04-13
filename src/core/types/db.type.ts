@@ -156,32 +156,6 @@ export type AccountTypeWithRequiredReportCode = z.infer<
   typeof accountTypeWithRequiredReportCode
 >;
 
-export const firmType = z.enum([
-  "freelancer",
-  "ca_cpa",
-  "tax_preparer",
-  "international",
-]);
-// accounting_firm
-export const newAccountingFirm = z.object({
-  legal_name: z.string().max(256),
-  country_id: z.string().uuid(),
-  company_id: z.string().uuid(),
-  created_by_id: z.string().uuid(),
-
-  firm_type: firmType.nullish(),
-  display_name: z.string().nullish(),
-  firm_size: z.string().max(256).nullish(),
-  website: z.string().max(256).nullish(),
-  revenue: z.string().max(256).nullish(),
-  logo_url: z.string().max(256).nullish(),
-});
-export const accountingFirm = newAccountingFirm.merge(dbBaseFields);
-
-export type FirmType = z.infer<typeof firmType>;
-export type NewAccountingFirmInput = z.infer<typeof newAccountingFirm>;
-export type AccountingFirm = z.infer<typeof accountingFirm>;
-
 export const newUserCompanyRole = z.object({
   user_id: z.string().uuid(),
   company_id: z.string().uuid(),

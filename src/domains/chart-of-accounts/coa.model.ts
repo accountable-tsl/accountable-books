@@ -5,6 +5,8 @@ import {
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
+import { DEFAULT_ACCOUNT_TYPE_IDS } from "./coa.constants";
+import { accountTypeIds } from "../../shared/constants/account.constants";
 
 export const createCoa = async (
   knex: Knex,
@@ -43,11 +45,52 @@ export const createCoa = async (
   }
 };
 
-function normalizeTemplateName(name: string): string {
-  const parts = name.split(":");
-  if (parts.length === 3) {
-    // Shorthand: ind::basic::v1 → ind:none:basic:none:v1
-    return `${parts[0]}:none:${parts[1]}:none:${parts[2]}`;
+export const createDefaultAccounts = async (
+  trx: Knex.Transaction,
+  companyId: string,
+  userId: string,
+  currencyId: string
+) => {
+  const mustHaveAccounts = [
+    {
+      company_id: companyId,
+      created_by_id: userId,
+      currency_id: currencyId,
+      name: "Trade Receivables",
+      description: "Amount due from customers",
+      account_type_id:
+        accountTypeIds.ca_trade_receivable ||
+        DEFAULT_ACCOUNT_TYPE_IDS.tradeReceivables,
+      is_active: true,
+    },
+    {
+      company_id: companyId,
+      created_by_id: userId,
+      currency_id: currencyId,
+      name: "Trade Payables",
+      description: "Amounts owed to suppliers",
+      account_type_id:
+        accountTypeIds.cl_trade_payable ||
+        DEFAULT_ACCOUNT_TYPE_IDS.tradePayables,
+      is_active: true,
+    },
+    {
+      company_id: companyId,
+      created_by_id: userId,
+      currency_id: currencyId,
+      name: "Owner Equity",
+      description: "Initial investment or funding",
+      account_type_id:
+        accountTypeIds.eq_contributed_capital ||
+        DEFAULT_ACCOUNT_TYPE_IDS.ownersEquity,
+      is_active: true,
+    },
+  ];
+
+  const validatedMustHaveAcc = newCoa.array().safeParse(mustHaveAccounts);
+  if (!validatedMustHaveAcc.success) {
+    throw new Error("Failed to validate must-have accounts");
   }
-  return name; // Explicit form
-}
+
+  return trx("coa").insert(validatedMustHaveAcc.data).returning("*");
+};

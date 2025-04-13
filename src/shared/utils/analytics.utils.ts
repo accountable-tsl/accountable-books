@@ -1,8 +1,9 @@
 import { NODE_ENV } from "../../config/env";
 import { mixpanelClient } from "../../lib/mixpanel";
+import { TrackingEvent } from "../constants/tracking.constants";
 
 export const trackEvent = (
-  event: string,
+  event: TrackingEvent,
   distinctId: string,
   props: Record<string, any>
 ) => {
