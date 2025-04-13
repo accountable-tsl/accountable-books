@@ -5,7 +5,7 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from "../src/utils/db";
-import { NewFinancialStatementInput } from "../src/types/db.type";
+import { NewFinancialStatementInput } from "../src/core/types/db.type";
 import { financialStatementIds } from "./data/ids";
 import { NODE_ENV } from "../src/config/env";
 

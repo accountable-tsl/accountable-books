@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
 import { ENV } from "../../config/env";
-import { InviteEmailPayload, TokenBasedEmailPayload } from "../../types/email";
+import { InviteEmailPayload, TokenBasedEmailPayload } from "../../domains/communications/email.types";
 import {
   getUserInviteTemplate,
   getVerifyEmailTemplate,

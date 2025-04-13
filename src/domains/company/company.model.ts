@@ -1,12 +1,12 @@
 import type { Knex } from "knex";
-import { ApiResponse } from "../types/generic";
-import { newCompanyInput, NewCompanyInput } from "../types/db.type";
+import { ApiResponse } from "../../types/generic";
+import { newCompanyInput, NewCompanyInput } from "../../core/types/db.type";
 import generateSecureShortCode, {
   camelToSnake,
   errorResponse,
   snakeToCamel,
   successResponse,
-} from "../utils/utils";
+} from "../../utils/utils";
 
 export const createCompany = async (
   knexTrx: Knex.Transaction,
@@ -19,6 +19,7 @@ export const createCompany = async (
     return errorResponse("Invalid input", validateInput.error.flatten());
   }
 
+  const { assigned_firm_id } = validateInput.data;
   try {
     const userExists = await knexTrx("user")
       .where({ id: validateInput.data.created_by_id })
@@ -26,6 +27,19 @@ export const createCompany = async (
 
     if (!userExists) {
       return errorResponse("Unauthorized");
+    }
+
+    let firmId = assigned_firm_id;
+    if (!firmId) {
+      const [firm] = await knexTrx("accounting_firm")
+        .where("is_platform", true)
+        .select("id");
+
+      if (!firm.id) {
+        return errorResponse("Company must be assigned to a firm");
+      }
+
+      firmId = firm.id;
     }
 
     let short_code: string;
@@ -53,6 +67,7 @@ export const createCompany = async (
         year_end_month: validateInput.data.year_end_month || 12,
         reporting_framework: validateInput.data.reporting_framework || "ifrs",
         created_by_id: userExists.id,
+        assigned_firm_id: firmId,
       })
       .returning("*");
 

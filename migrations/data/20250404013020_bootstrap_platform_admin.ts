@@ -2,7 +2,7 @@ import type { Knex } from "knex";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { ENV, NODE_ENV } from "../../src/config/env";
-import { newUserDirect, NewUserDirect } from "../../src/types/db.type";
+import { newUserDirect, NewUserDirect } from "../../src/core/types/db.type";
 import { createUserDirect } from "../../src/models/user.model";
 import { generateRandomToken } from "../../utils/utils";
 import { hashPassword } from "../../src/lib/bcrypt";

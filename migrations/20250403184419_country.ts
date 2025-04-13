@@ -8,7 +8,7 @@ import {
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
-import { newCountry, NewCountryInput } from "../src/types/db.type";
+import { newCountry, NewCountryInput } from "../src/core/types/db.type";
 import { randomUUID } from "crypto";
 import { NODE_ENV } from "../src/config/env";
 

@@ -9,7 +9,7 @@ import {
   preventUpdateOrDelete,
 } from "../src/utils/db";
 import { NODE_ENV } from "../src/config/env";
-import { NewPermissionInput } from "../src/types/db.type";
+import { NewPermissionInput } from "../src/core/types/db.type";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

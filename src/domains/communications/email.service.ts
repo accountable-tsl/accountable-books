@@ -1,18 +1,14 @@
 import nodemailer from "nodemailer";
 import { Transporter } from "nodemailer";
+import { ENV, NODE_ENV } from "../../config/env";
 import {
   EmailPayload,
   InviteEmailPayload,
   TokenBasedEmailPayload,
-  UrlParams,
-  UrlType,
-} from "../types/email";
-import { errorResponse } from "../utils/utils";
-import { ENV, NODE_ENV } from "../config/env";
-import { emailQueue } from "../jobs/queues/email.queue";
-import { z } from "zod";
-import { tr } from "@faker-js/faker";
-console.log("📦 Loaded sendEmail from services/email.service");
+} from "./email.types";
+import { errorResponse } from "../../shared/utils/response.utils";
+import { buildEmailServiceUrl } from "./email.utils";
+import { emailQueue } from "../../jobs/queues/email.queue";
 
 let transporter: Transporter | null = null;
 
@@ -132,32 +128,3 @@ export async function sendUserInviteEmail(payload: InviteEmailPayload) {
 
   emailQueue.add("send_user_invite_email", { ...payload, url });
 }
-
-const routePaths = {
-  "verify-email": "/verify-email",
-  "reset-password": "/reset-password",
-  "accept-invite": "/accept-invite",
-};
-
-export const buildEmailServiceUrl = (
-  type: UrlType,
-  params: UrlParams
-): string => {
-  const baseUrl = ENV.BASE_URL?.trim().replace(/\/+$/, ""); // remove trailing slashes
-  if (!baseUrl) throw new Error("BASE_URL is not set");
-
-  if (!params.token) {
-    throw new Error("Token parameter is required");
-  }
-
-  const path = routePaths[type];
-  const query = new URLSearchParams();
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined) {
-      query.append(key, value);
-    }
-  });
-
-  return `${baseUrl}${path}?${query.toString()}`;
-};

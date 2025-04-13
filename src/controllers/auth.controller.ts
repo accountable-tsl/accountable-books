@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { newUserDirect, newUserInvite } from "../types/db.type";
+import { newUserDirect, newUserInvite } from "../core/types/db.type";
 import { errorResponse } from "../utils/utils";
 import { createUserDirect, createUserInvite } from "../models/user.model";
 

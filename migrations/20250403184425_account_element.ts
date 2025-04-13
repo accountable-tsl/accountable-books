@@ -5,7 +5,7 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from "../src/utils/db";
-import { AccountElementWithRequiredReportCode } from "../src/types/db.type";
+import { AccountElementWithRequiredReportCode } from "../src/core/types/db.type";
 import { accountElementIds, financialStatementIds } from "./data/ids";
 import { NODE_ENV } from "../src/config/env";
 

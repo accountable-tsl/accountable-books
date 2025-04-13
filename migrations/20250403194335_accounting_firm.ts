@@ -18,12 +18,14 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("company")
       .onDelete("RESTRICT"); // Company that is the accounting firm's HQ
     table.string("legal_name", 256).notNullable();
+    table.string("display_name", 256).notNullable();
     table.string("short_code", 50).unique().notNullable();
     table.string("firm_type", 50).nullable(); //freelancer, ca / cpa, tax preparer, international
     table.string("firm_size", 50).nullable();
     table.string("website", 256).nullable();
     table.string("revenue", 50).nullable();
     table.string("logo_url", 256).nullable();
+    table.boolean("is_platform").defaultTo(false);
 
     table
       .uuid("country_id")

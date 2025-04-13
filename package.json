@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:local": "NODE_ENV=local tsx --watch index.ts",
-    "dev:docker": "tsx DOCKER_MODE=true NODE_ENV=development --watch index.ts",
+    "dev:local": "NODE_ENV=local tsx watch --import ./sentry.bootstrap.ts index.ts",
+    "dev:docker": "DOCKER_MODE=true NODE_ENV=development tsx watch --import ./sentry.bootstrap.ts index.ts",
     "build": "tsc",
     "knex": "tsx node_modules/knex/bin/cli.js",
     "check-knex": "tsx -e \"import config from './knexfile.ts'; console.log(config.development)\"",
@@ -22,7 +22,8 @@
     "start:worker": "tsx src/jobs/workers/email.worker.ts",
     "staging": "NODE_ENV=staging node dist/index.ts",
     "start": "NODE_ENV=production node dist/index.ts",
-    "reset:db": "NODE_ENV=local tsx scripts/resetDatabase.ts"
+    "reset:db": "NODE_ENV=local tsx scripts/resetDatabase.ts",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org accountable-0p --project node-express . && sentry-cli sourcemaps upload --org accountable-0p --project node-express ."
   },
   "author": "",
   "license": "ISC",
@@ -31,6 +32,9 @@
     "@bull-board/api": "^6.9.0",
     "@bull-board/express": "^6.9.0",
     "@faker-js/faker": "^9.6.0",
+    "@sentry/cli": "^2.43.0",
+    "@sentry/node": "^9.12.0",
+    "@sentry/profiling-node": "^9.12.0",
     "@types/bcrypt": "^5.0.2",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
@@ -49,6 +53,7 @@
     "ioredis": "^5.6.0",
     "knex": "^3.1.0",
     "lodash": "^4.17.21",
+    "mixpanel": "^0.18.1",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.10.0",
     "pg": "^8.14.1",

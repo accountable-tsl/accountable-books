@@ -1,7 +1,7 @@
 import type { Knex } from "knex";
 import { preventUpdateOrDelete } from "../src/utils/db";
 import { NODE_ENV } from "../src/config/env";
-import { RoleName } from "../src/types/db.type";
+import { RoleName } from "../src/core/types/db.type";
 
 // Role-permission mappings
 const rolePermissions: Record<Exclude<RoleName, "super_admin">, string[]> = {

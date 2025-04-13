@@ -8,7 +8,7 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from "../src/utils/db";
-import { currencyWithId, NewCurrencyWithId } from "../src/types/db.type";
+import { currencyWithId, NewCurrencyWithId } from "../src/core/types/db.type";
 import { NODE_ENV } from "../src/config/env";
 
 const __filename = fileURLToPath(import.meta.url);

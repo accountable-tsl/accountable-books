@@ -9,9 +9,8 @@ import path from "path";
 import fs from "fs";
 import csv from "csv-parser";
 import { fileURLToPath } from "url";
-import { NewCoaTemplateInput } from "../src/types/db.type";
-import { NODE_ENV } from "../src/config/env";
-import { addNewCoaTemplates } from "../src/models/coaTemplate.model";
+import { addNewCoaTemplates } from "../src/domains/chart-of-accounts/coaTemplate.model";
+import { NewCoaTemplateInput } from "../src/domains/chart-of-accounts/coaTemplate.type";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

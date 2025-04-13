@@ -4,7 +4,7 @@ import fs from "fs";
 import csv from "csv-parser";
 import { fileURLToPath } from "url";
 import { NODE_ENV } from "../src/config/env";
-import { NewExchangeRateInput } from "../src/types/db.type";
+import { NewExchangeRateInput } from "../src/core/types/db.type";
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,

@@ -3,16 +3,12 @@ import {
   AccountElement,
   AccountingFirm,
   AccountType,
-  CoaTemplate,
-  Company,
   Country,
   Currency,
   ExchangeRate,
   FinancialStatement,
   NewAccountElementInput,
   NewAccountTypeInput,
-  NewCoaTemplateInput,
-  NewCompany,
   NewCountryInput,
   NewCurrencyInput,
   NewExchangeRateInput,
@@ -22,9 +18,15 @@ import {
   NewUserCompanyRole,
   Permission,
   Role,
-  User,
   UserCompanyRole,
 } from "./db.type";
+import {
+  CoaTemplate,
+  NewCoaTemplateInput,
+} from "../../domains/chart-of-accounts/coaTemplate.type";
+import { User } from "../../domains/user/user.types";
+import { Company, NewCompany } from "../../domains/company/company.types";
+import { Coa, NewCoa } from "../../domains/chart-of-accounts/coa.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -97,5 +99,7 @@ declare module "knex/types/tables" {
       NewUserCompanyRole,
       Partial<Omit<UserCompanyRole, "id">>
     >;
+
+    coa: Knex.CompositeTableType<Coa, NewCoa, Partial<Omit<Coa, "id">>>;
   }
 }

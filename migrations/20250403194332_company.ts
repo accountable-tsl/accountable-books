@@ -23,6 +23,7 @@ export async function up(knex: Knex): Promise<void> {
     table.integer("year_end_day").notNullable();
     table.integer("year_end_month").notNullable();
     table.specificType("reporting_framework", "reporting_framework").nullable();
+    table.boolean("is_platform").defaultTo(false);
 
     table
       .uuid("country_id")
@@ -45,7 +46,6 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("user")
       .onDelete("RESTRICT");
 
-    // table.boolean("is_accounting_firm").notNullable();
     table
       .uuid("assigned_firm_id")
       .nullable()

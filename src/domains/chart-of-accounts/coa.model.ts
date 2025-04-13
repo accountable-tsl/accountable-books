@@ -1,10 +1,10 @@
-import knexInstance from "../../knexClient";
 import type { Knex } from "knex";
-import { errorResponse, successResponse } from "../utils/utils";
-
-import { CoaTemplateName, newCoa, NewCoa } from "../types/db.type";
-import { NODE_ENV } from "../config/env";
-import { ApiResponse } from "../types/generic";
+import { newCoa, NewCoa } from "./coa.types";
+import { ApiResponse } from "../../core/types/api.types";
+import {
+  errorResponse,
+  successResponse,
+} from "../../shared/utils/response.utils";
 
 export const createCoa = async (
   knex: Knex,

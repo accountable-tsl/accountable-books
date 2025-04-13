@@ -1,4 +1,6 @@
-import express from "express";
+import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
+import express, { NextFunction, Request, Response } from "express";
 import "dotenv/config";
 import cors from "cors";
 // import usersRoute from "./controllers/usersController";
@@ -17,6 +19,7 @@ import auth from "./src/routes/auth.routes";
 import { swaggerUi, specs } from "./swagger";
 import { basicAuth } from "./src/middlewares/basicAuth.middleware";
 import { serverAdapter } from "./src/routes/bullboard.routes";
+import { ENV } from "./src/config/env";
 
 const NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -51,6 +54,8 @@ app.use("/admin/queues", serverAdapter.getRouter());
 // app.use("api/users", userRoutes);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
+
+Sentry.setupExpressErrorHandler(app);
 
 app.listen(Number(PORT), "0.0.0.0", () => {
   console.log(`Server is running in ${NODE_ENV} on ${BACKEND_URL}:${PORT}`);
