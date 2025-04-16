@@ -44,6 +44,12 @@ export const routes = {
     root: (id: companyId) => `/${id}/reports`,
     coa: (id: companyId) => `/${id}/reports/coa`,
   },
+
+  auth: {
+    root: "/auth",
+    login: "/login",
+    signup: "/signup",
+  },
 };
 
 export const staticRoutes = {
@@ -86,5 +92,11 @@ export const staticRoutes = {
   reports: {
     root: "/:id/reports",
     coa: "/:id/reports/coa",
+  },
+
+  auth: {
+    root: "/auth",
+    login: "/login",
+    signup: "/signup",
   },
 };
