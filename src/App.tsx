@@ -17,20 +17,23 @@ import CategorisationEngine from "./pages-admin/CategorisationEngine/Categorisat
 import Workspace from "./pages-admin/Workspace/Workspace";
 import Journal from "./pages-admin/Journal/Journal";
 import AccountingTxns from "./pages-admin/AccountingTxns/AccountingTxns";
+import ThemeProvider from "./theme/themeProvider";
 
 function App() {
   return (
-    <CompanyProvider>
-      <PopupProvider>
-        <SideBarProvider>
-          <BrowserRouter
-            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-          >
-            <MainContent />
-          </BrowserRouter>
-        </SideBarProvider>
-      </PopupProvider>
-    </CompanyProvider>
+    <ThemeProvider>
+      <CompanyProvider>
+        <PopupProvider>
+          <SideBarProvider>
+            <BrowserRouter
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            >
+              <MainContent />
+            </BrowserRouter>
+          </SideBarProvider>
+        </PopupProvider>
+      </CompanyProvider>
+    </ThemeProvider>
   );
 }
 
@@ -87,7 +90,10 @@ function MainContent() {
               element={<FinancialSettings />}
             />
 
-            <Route path={staticRoutes.reports.coa} element={<AccountingTxns />} />
+            <Route
+              path={staticRoutes.reports.coa}
+              element={<AccountingTxns />}
+            />
           </Routes>
         </section>
       </main>
