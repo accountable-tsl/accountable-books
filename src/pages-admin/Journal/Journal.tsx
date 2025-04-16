@@ -11,6 +11,7 @@ import { useEffect, useMemo } from "react";
 import { JournalStatus, ScreenSize } from "../../types/types";
 import FallbackView from "../../components/FallbackView/FallbackView";
 import { useScreenSize } from "../../utils/utils";
+import JournalView from "../../components/JournalView/JournalView";
 
 export default function Journal() {
   const { companyId, company } = useCompany();
@@ -33,38 +34,16 @@ export default function Journal() {
     location.pathname
   );
 
+  const isViewJournal =
+    !(isAddNewJournal || isAddNewRecurringJournal) &&
+    matchPath(staticRoutes.accounting.workspace.viewJournal, location.pathname);
+
   const showJournalList = !!isDefault;
   const showNewJournalForm = !!isAddNewJournal;
   const showNewRecurringJournalForm = !!isAddNewRecurringJournal;
+  const showViewJournal = !!isViewJournal;
 
   const isLoading = !companyId || !company;
-
-  //   const journalBreadcrumbs = [
-  //     {
-  //       text: "Accounting",
-  //       icon: TableProperties,
-  //       link: routes.accounting.root(companyId),
-  //     },
-  //     {
-  //       text: "Journal",
-  //       icon: NotepadText,
-  //       link: routes.accounting.workspace.journal(companyId),
-  //       hasDropdown: false,
-  //     },
-  //     ...(showNewJournalForm || showNewRecurringJournalForm
-  //       ? [
-  //           {
-  //             text: showNewJournalForm ? "New Journal" : "New Recurring Journal",
-  //             link: companyId
-  //               ? showNewJournalForm
-  //                 ? routes.accounting.workspace.newJournal(companyId)
-  //                 : routes.accounting.workspace.newRecurringJournal(companyId)
-  //               : "#",
-  //             hasDropdown: false,
-  //           },
-  //         ]
-  //       : []),
-  //   ];
 
   const journalBreadcrumbs = useMemo(
     () => [
@@ -95,7 +74,12 @@ export default function Journal() {
           ]
         : []),
     ],
-    [companyId, showNewJournalForm, showNewRecurringJournalForm]
+    [
+      companyId,
+      showNewJournalForm,
+      showNewRecurringJournalForm,
+      showViewJournal,
+    ]
   );
 
   const fbvType =
@@ -125,6 +109,7 @@ export default function Journal() {
                 key={`journal-list-${location.pathname}`}
                 companyId={companyId}
                 company={company}
+                data={null}
               />
             )}
 
@@ -142,6 +127,14 @@ export default function Journal() {
                 key="new-recurring-journal"
                 type="recurring"
                 journalStatus={JournalStatus.DRAFT}
+                companyId={companyId}
+                company={company}
+              />
+            )}
+
+            {showViewJournal && (
+              <JournalView
+                key={`journal-view-${location.pathname}`}
                 companyId={companyId}
                 company={company}
               />

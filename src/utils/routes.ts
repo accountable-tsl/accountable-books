@@ -40,7 +40,10 @@ export const routes = {
     },
   },
 
-  reports: (id: companyId) => `/companies/${id}/reports`,
+  reports: {
+    root: (id: companyId) => `/${id}/reports`,
+    coa: (id: companyId) => `/${id}/reports/coa`,
+  },
 };
 
 export const staticRoutes = {
@@ -80,5 +83,8 @@ export const staticRoutes = {
     },
   },
 
-  reports: "/companies/:id/reports",
+  reports: {
+    root: "/:id/reports",
+    coa: "/:id/reports/coa",
+  },
 };

@@ -19,9 +19,12 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useSideBarContext } from "../../contexts/SideBarContext";
 import { Link } from "react-router-dom";
+import { useCompany } from "../../utils/company";
+import { routes } from "../../utils/routes";
 
 export default function SideBar() {
   const { sideBarType } = useSideBarContext();
+  const { companyId } = useCompany();
   const [isAdmin] = useState(true);
 
   return (
@@ -34,21 +37,30 @@ export default function SideBar() {
         }`}
       >
         <div className="sidebar-top">
-          <SmallSideBarItem isActive Icon={House} title="Home" url="/" />
+          <SmallSideBarItem
+            isActive
+            Icon={House}
+            title="Home"
+            url={`/${companyId}`}
+          />
           <SmallSideBarItem
             Icon={Calculator}
             title="Accounting"
-            url="/accounting"
+            url={routes.accounting.root(companyId)}
           />
           {isAdmin && (
             <SmallSideBarItem
               Icon={Briefcase}
               title="Workspace
             "
-              url="/accounting/workspace"
+              url={routes.accounting.workspace.root(companyId)}
             />
           )}
-          <SmallSideBarItem Icon={Scale} title="Tax" url="/tax" />
+          <SmallSideBarItem
+            Icon={Scale}
+            title="Tax"
+            url={routes.tax.root(companyId)}
+          />
           <SmallSideBarItem Icon={ChartPie} title="Reports" url="/reports" />
           <SmallSideBarItem icon={faComment} title="Messages" url="/messages" />
         </div>

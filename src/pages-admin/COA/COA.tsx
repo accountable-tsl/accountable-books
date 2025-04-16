@@ -15,10 +15,13 @@ import { usePopup } from "../../contexts/PopupContext";
 import { Coa, TabConfig } from "../../types/types";
 import TabNavigation from "../../components/TabNavigation/TabNavigation";
 import numeral from "numeral";
+import { RowClickedEvent } from "ag-grid-community";
+import { useNavigate } from "react-router-dom";
 
 export default function COA() {
   const { companyId } = useCompany();
   const { openPopup } = usePopup();
+  const navigate = useNavigate();
 
   const [coaData, setCoaData] = useState<Coa[] | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -158,6 +161,30 @@ export default function COA() {
     }
   };
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+  };
+
+  const handleCoaFilter = (filter: string) => {
+    setCoaFilter(filter);
+    if (coaData === null || coaData === undefined) return;
+
+    if (!filter || filter.toLowerCase() === "all") {
+      setRowData(coaData);
+    } else {
+      const newCoaData = coaData.filter(
+        (item: any) => item.parentElement.toLowerCase() === filter.toLowerCase()
+      );
+      setRowData(newCoaData);
+    }
+  };
+
+  const handleRowClick = (e: RowClickedEvent) => {
+    navigate(
+      `${routes.accounting.workspace.viewJournal(companyId, e.data.id)}`
+    );
+  };
+
   useEffect(() => {
     handleFetchCoa();
   }, [companyId, currentPage, limit, sortBy, sortOrder]);
@@ -165,24 +192,6 @@ export default function COA() {
   if (!coaData) {
     return <BeatLoader color="#ffcc99" />;
   }
-
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-  };
-
-  const handleCoaFilter = (filter: string) => {
-    setCoaFilter(filter);
-
-    if (!filter || filter.toLowerCase() === "all") {
-      setRowData(coaData);
-    } else {
-      if (coaData === null || coaData === undefined) return;
-      const newCoaData = coaData.filter(
-        (item: any) => item.parentElement.toLowerCase() === filter.toLowerCase()
-      );
-      setRowData(newCoaData);
-    }
-  };
 
   return (
     <div className="coa">
@@ -321,6 +330,7 @@ export default function COA() {
             animateRows={true}
             ref={coaTableRef}
             onSelectionChanged={onSelectionChanged}
+            onRowClicked={handleRowClick}
           />
         </div>
       </div>

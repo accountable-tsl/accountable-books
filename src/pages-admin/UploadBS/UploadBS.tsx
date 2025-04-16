@@ -31,6 +31,7 @@ import {
 import { userId } from "../../utils/user";
 import { ColDef, ValueGetterParams } from "ag-grid-community";
 import { postBankTransactions } from "../../services/TransactionServices";
+import { useNavigate } from "react-router-dom";
 
 /**
  * Configuration & Constants
@@ -129,6 +130,7 @@ const defaultColDef = {
 
 export default function UploadBS() {
   const { companyId } = useCompany();
+  const navigate = useNavigate();
 
   // Step and State Management
   // currStep: 1 => Upload Screen, 2 => Review Screen
@@ -301,22 +303,26 @@ export default function UploadBS() {
       const result = await postBankTransactions(companyId, bankTransactionData);
 
       if (result?.success === true) {
-        setTimeout(() => setUploadSuccessful(true), 500);
+        // setTimeout(() => setUploadSuccessful(true), 500);
+        setUploadSuccessful(true);
+
         setTimeout(() => {
           setBankData([]);
           setSelectedBankAccount(null);
           setUploadSuccessful("Unknown");
-          setCurrStep(1);
-        }, 1000);
+          // setCurrStep(1);
+          navigate(routes.accounting.workspace.catEngine(companyId));
+        }, 1500);
       } else {
         console.error("Transaction upload failed:", result);
+        setUploadSuccessful(false);
         setError("Upload failed. Please check the file and try again.");
-        setTimeout(() => setUploadSuccessful(null), 500);
+        setTimeout(() => setUploadSuccessful(null), 1500);
       }
     } catch (error) {
       console.error("An unexpected error occurred during upload:", error);
       setError("An unexpected error occurred. Please try again.");
-      setTimeout(() => setUploadSuccessful(false), 500);
+      setUploadSuccessful(false);
       setTimeout(() => {
         setBankData([]);
         setSelectedBankAccount(null);

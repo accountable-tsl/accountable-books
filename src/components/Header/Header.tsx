@@ -11,20 +11,18 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import Button from "../Button/Button";
 import { useSideBarContext } from "../../contexts/SideBarContext";
-import {
-  LoaderPinwheel,
-  LoaderPinwheelIcon,
-  LucideLoaderPinwheel,
-} from "lucide-react";
+import { LoaderPinwheel } from "lucide-react";
+import { useCompany } from "../../utils/company";
 
 export default function Header() {
   const { toggle } = useSideBarContext();
+  const { companyId } = useCompany();
 
   return (
     <header className="header">
       <div className="header-left">
         <Button icon={faBars} text="" variant="text" onClick={toggle} />
-        <Link to="/">
+        <Link to={`/${companyId}`}>
           <img
             src={logo}
             alt="Accountable Logo"

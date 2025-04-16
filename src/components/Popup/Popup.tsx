@@ -1,24 +1,35 @@
-import { RefObject, useRef } from "react";
+import { RefObject, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark } from "@fortawesome/free-solid-svg-icons";
 import { usePopup } from "../../contexts/PopupContext";
 import "./Popup.scss";
 
-export default function Popup({ popupId, children }: any) {
-  const { popups, closePopup } = usePopup();
+interface PopupProps {
+  popupId: string;
+  children: React.ReactNode;
+}
+export default function Popup({ popupId, children }: PopupProps) {
+  const { popups, componentPopups, closePopup } = usePopup();
 
   const popupRef: RefObject<HTMLDivElement> = useRef(null);
 
-  const handleOutsideClick = (event: any) => {
-    if (popupRef.current && !popupRef.current.contains(event.target)) {
-      closePopup(popupId);
-    }
-  };
+  const isVisible =
+    popups.includes(popupId) || componentPopups.some((p) => p.id === popupId);
 
-  if (!popups.includes(popupId)) {
-    return null;
-  }
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(event.target as Node))
+        closePopup(popupId);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [isVisible, popupId, closePopup]);
+
+  if (!isVisible) return null;
 
   const portalRoot = document.getElementById("portal-root");
   if (!portalRoot) {
@@ -26,7 +37,7 @@ export default function Popup({ popupId, children }: any) {
   }
 
   return ReactDOM.createPortal(
-    <div className="popup" onClick={handleOutsideClick}>
+    <div className="popup">
       <div className="popup-content" ref={popupRef}>
         {children}
         <button className="popup-close" onClick={() => closePopup(popupId)}>

@@ -181,12 +181,22 @@ export default function AccountingWorkspace({
                     <NotepadText />
                   </div>
                 </div>
+
                 <div className="wacc-qa__bottom">
                   <Link
                     to={routes.accounting.workspace.journal(companyId)}
-                    className="wacc-qa__item"
+                    className="wacc-qa__item wacc-qa__item--center"
                   >
-                    <div className="wacc-qa__item--text">Create new</div>
+                    <div className="wacc-qa__item--label">View journals</div>
+                    <div className="wacc-qa__item--icon">
+                      {/* <FontAwesomeIcon icon={faEye} /> */}
+                    </div>
+                  </Link>
+                  <Link
+                    to={routes.accounting.workspace.newJournal(companyId)}
+                    className="wacc-qa__item wacc-qa__item--center wacc-qa__item--border"
+                  >
+                    <div className="wacc-qa__item--label">Create new</div>
                     <div className="wacc-qa__item--icon">
                       <FontAwesomeIcon icon={faChevronRight} />
                     </div>
