@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import Decimal from "decimal.js";
 
 export enum DebitCredit {
@@ -48,24 +49,25 @@ export interface ServerResponseFormat<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
+  error?: any;
 }
 
 export interface Company {
-  id?: number;
+  id?: string;
   name?: string;
   email?: string;
   address?: string | null;
   phone?: string | null;
   taxId?: string | null;
-  userId?: number;
-  currencyId: number;
+  userId?: string;
+  currencyId: string;
   currency?: Currency;
   bankAccounts?: BankAccount[];
   coas?: Coa[];
 }
 
 export interface Currency {
-  id?: number;
+  id?: string;
   code?: string;
   name?: string;
   symbol?: string;
@@ -75,7 +77,7 @@ export interface Currency {
 }
 
 export interface Country {
-  id?: number;
+  id?: string;
   code?: string;
   name?: string;
   phoneCode?: string;
@@ -86,7 +88,7 @@ export interface Country {
 }
 
 export interface FinancialStatement {
-  id?: number;
+  id?: string;
   statementKey?: string;
   usGaapLabel?: string;
   ifrsLabel?: string;
@@ -95,10 +97,10 @@ export interface FinancialStatement {
 }
 
 export interface Bank {
-  id?: number;
+  id?: string;
   name?: string;
   bankLogo?: string | null;
-  countryId?: number;
+  countryId?: string;
   country?: Country;
   bankAccounts?: BankAccount[];
 }
@@ -118,18 +120,18 @@ export interface TabNavigationProps<T> {
 
 export interface BankAccount {
   id?: string;
-  bankId?: string | number;
+  bankId?: string;
   bank?: Bank;
   displayName?: string;
   bankAccountType?: BankAccountType;
   bankAccountNo?: string;
   bankBalance: string | number;
   lastReconciled?: Date | string | null;
-  currencyId?: string | number;
+  currencyId?: string;
   currency?: Currency;
-  companyId?: number;
+  companyId?: string;
   company?: Company;
-  coaId?: number | null;
+  coaId?: string | null;
   accountInCoa?: Coa | null;
   transactionBatches?: BankTransactionBatch[];
   autoCategorisedCount?: number | string;
@@ -140,7 +142,7 @@ export interface BankAccount {
 }
 
 export interface BankTransaction {
-  id?: string | number;
+  id?: string;
   date: Date | string | null;
   payee?: string;
   reference?: string;
@@ -149,8 +151,8 @@ export interface BankTransaction {
   transactionSide?: DebitCredit;
   source?: BankTransactionSource;
   isReconciled?: boolean;
-  bankTransactionBatchId?: string | number;
-  accountTransactionId?: string | number;
+  bankTransactionBatchId?: string;
+  accountTransactionId?: string;
   bankAccountId?: string;
   bankAccount?: BankAccount;
 }
@@ -202,19 +204,20 @@ export interface AccountElement {
 }
 
 export interface Coa {
-  id?: string | number;
+  id?: string;
   accountCode?: string;
   accountName: string;
   description?: string;
-  accountTypeId?: number;
+  accountTypeId?: string;
+  accountTypeName?: string;
   accountType?: AccountType;
   defaultSide?: DebitCredit;
-  currencyId?: number;
+  currencyId?: string;
   currency?: Currency;
-  companyId?: number;
+  companyId?: string;
   company?: Company;
   isActive?: boolean;
-  balance?: number;
+  balance?: Decimal | number;
   bankAccountId?: string;
   bankAccount?: BankAccount;
   createdAt?: Date;
@@ -394,4 +397,85 @@ export interface PopupState {
   visible: boolean;
   errors: string[];
   isSuccess: boolean;
+}
+
+export type MultiSelectOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
+export type MultiSelectOptionGroup = {
+  label: string; // The group heading
+  options: MultiSelectOption[];
+};
+
+export type GroupableOption = MultiSelectOption | MultiSelectOptionGroup;
+
+export type MultiSelectProps = {
+  options: (MultiSelectOption | MultiSelectOptionGroup)[];
+  selectedValues?: string[];
+  placeholder?: string;
+  onChange: (selectedValues: string[]) => void;
+  className?: string;
+  disabled?: boolean;
+  searchable?: boolean;
+  maxDisplayItems?: number;
+  maxHeight?: string;
+  selectAllLabel?: string;
+  deselectAllLabel?: string;
+  clearLabel?: string;
+  noOptionsMessage?: string;
+  searchPlaceholder?: string;
+  renderOption?: (
+    option: MultiSelectOption,
+    isSelected: boolean
+  ) => React.ReactNode;
+  renderSelectedItem?: (option: MultiSelectOption) => React.ReactNode;
+  loading?: boolean;
+  error?: string;
+  id?: string;
+};
+
+export type AccountingTxnFilters = {
+  startDate: Date | string | dayjs.Dayjs;
+  endDate: Date | string | dayjs.Dayjs;
+  showContact: boolean;
+  showProject: boolean;
+  showCurrency: boolean;
+  showSourceAmounts: boolean;
+  accountIds?: string[];
+};
+
+export interface AccountTxn {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  date: string;
+  description: string;
+  contactId?: string;
+  contact?: any;
+  projectId?: string;
+  project?: any;
+  currency: string;
+  debitSource?: Decimal;
+  creditSource?: Decimal;
+  debitAmount: Decimal;
+  creditAmount: Decimal;
+}
+
+export interface AccountTxns {
+  account: Coa;
+  transactions: AccountTxn[];
+  openingBalance: Decimal;
+  closingBalance: Decimal;
+}
+
+export interface AccountTxnTableProps {
+  data: AccountTxns;
+  showContact: boolean;
+  showProject: boolean;
+  showCurrency: boolean;
+  showSourceAmounts: boolean;
 }

@@ -19,7 +19,7 @@ export const CompanyContext = createContext<CompanyContextType | null>(null);
 
 export const CompanyProvider = ({
   children,
-  initialCompanyId = "",
+  initialCompanyId = "default",
 }: CompanyProviderProps) => {
   const [companyId, setCompanyId] = useState<string | null>(initialCompanyId);
   const [company, setCompany] = useState<any>(null);

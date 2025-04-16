@@ -1,6 +1,7 @@
 import axios from "axios";
 import qs from "qs";
 import {
+  AccountingTxnFilters,
   BankTransactionBatch,
   BankTransactionFilters,
   CatEngineTransaction,
@@ -44,6 +45,18 @@ export const categoriseTransactions = async (
   const response = await axios.post(
     `${backendUrl}/api/${companyId}/transactions/categorise`,
     transactions
+  );
+
+  return response.data;
+};
+
+export const fetchGenLedgerEntries = async (
+  companyId: string,
+  filters: AccountingTxnFilters
+): Promise<ServerResponseFormat> => {
+  const response = await axios.post(
+    `${backendUrl}/api/${companyId}/t`,
+    filters
   );
 
   return response.data;

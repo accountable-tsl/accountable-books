@@ -45,33 +45,6 @@ export default function Journal() {
 
   const isLoading = !companyId || !company;
 
-  //   const journalBreadcrumbs = [
-  //     {
-  //       text: "Accounting",
-  //       icon: TableProperties,
-  //       link: routes.accounting.root(companyId),
-  //     },
-  //     {
-  //       text: "Journal",
-  //       icon: NotepadText,
-  //       link: routes.accounting.workspace.journal(companyId),
-  //       hasDropdown: false,
-  //     },
-  //     ...(showNewJournalForm || showNewRecurringJournalForm
-  //       ? [
-  //           {
-  //             text: showNewJournalForm ? "New Journal" : "New Recurring Journal",
-  //             link: companyId
-  //               ? showNewJournalForm
-  //                 ? routes.accounting.workspace.newJournal(companyId)
-  //                 : routes.accounting.workspace.newRecurringJournal(companyId)
-  //               : "#",
-  //             hasDropdown: false,
-  //           },
-  //         ]
-  //       : []),
-  //   ];
-
   const journalBreadcrumbs = useMemo(
     () => [
       {

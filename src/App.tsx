@@ -16,6 +16,7 @@ import AddBankAccount from "./components/AddBankAccount/AddBankAccount";
 import CategorisationEngine from "./pages-admin/CategorisationEngine/CategorisationEngine";
 import Workspace from "./pages-admin/Workspace/Workspace";
 import Journal from "./pages-admin/Journal/Journal";
+import AccountingTxns from "./pages-admin/AccountingTxns/AccountingTxns";
 
 function App() {
   return (
@@ -85,6 +86,8 @@ function MainContent() {
               path={staticRoutes.accounting.setup.finSettings}
               element={<FinancialSettings />}
             />
+
+            <Route path={staticRoutes.reports.coa} element={<AccountingTxns />} />
           </Routes>
         </section>
       </main>
