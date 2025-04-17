@@ -1,5 +1,81 @@
 import dayjs from "dayjs";
 import Decimal from "decimal.js";
+import z from "zod";
+
+// export const zEmail = () =>
+//   z
+//     .string()
+//     .email()
+//     .transform((email) => email.trim().toLowerCase());
+
+export const zEmail = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .superRefine((val, ctx) => {
+    if (!val) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Email is required",
+      });
+      return;
+    }
+
+    if (!val.includes("@")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Email must include an '@' symbol",
+      });
+      return;
+    }
+
+    const [local, domain] = val.split("@");
+    if (!local || !domain) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Email must have a part before & after '@'",
+      });
+      return;
+    }
+
+    if (!domain.includes(".")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Domain must include a '.' like '.com'",
+      });
+    }
+  });
+
+export type Email = z.infer<typeof zEmail>;
+
+export const companyType = z.enum([
+  "business",
+  "accounting_firm",
+  "individual",
+]);
+export type CompanyType = z.infer<typeof companyType>;
+
+export const userType = z.enum(["admin", "client", "bookkeeper"]);
+export type UserType = z.infer<typeof userType>;
+
+// Country
+export type CountryList = {
+  id: string;
+  code: string;
+  name: string;
+  phoneCode?: string;
+  flag?: string;
+  continent?: string;
+};
+
+export type CurrencyList = {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+};
+
+//////////////////////////////////////
 
 export enum DebitCredit {
   Debit = "DEBIT",

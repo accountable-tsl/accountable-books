@@ -1,8 +1,9 @@
-import axios from "axios";
+import axios from "@/lib/axios";
+import { CurrencyList, ServerResponseFormat } from "@/types/types";
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL;
-
-export const fetchCurrencies = async () => {
-  const response = await axios.get(`${backendUrl}/api/currencies`);
+export const fetchCurrencies = async (): Promise<
+  ServerResponseFormat<CurrencyList[]>
+> => {
+  const response = await axios.get(`/api/currencies`);
   return response.data;
 };

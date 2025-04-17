@@ -14,16 +14,17 @@ import Workspace from "./pages-admin/Workspace/Workspace";
 import Journal from "./pages-admin/Journal/Journal";
 import AccountingTxns from "./pages-admin/AccountingTxns/AccountingTxns";
 import ThemeProvider from "./theme/themeProvider";
-import { SidebarProvider } from "./components/ui/sidebar";
 import Signup from "./features/auth/Signup";
 import AppLayout from "./layouts/AppLayout";
 import AuthLayout from "./layouts/AuthLayout";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 function App() {
+  const queryClient = new QueryClient();
   return (
     <ThemeProvider>
-      <CompanyProvider>
-        <PopupProvider>
+      <PopupProvider>
+        <QueryClientProvider client={queryClient}>
           <BrowserRouter
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
@@ -80,8 +81,8 @@ function App() {
               </Route>
             </Routes>
           </BrowserRouter>
-        </PopupProvider>
-      </CompanyProvider>
+        </QueryClientProvider>
+      </PopupProvider>
     </ThemeProvider>
   );
 }

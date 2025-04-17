@@ -4,24 +4,27 @@ import CurrentCompany from "@/components/CurrentCompany/CurrentCompany";
 import Popup from "@/components/Popup/Popup";
 import { AppSidebar } from "@/components/SideBar/Sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { CompanyProvider } from "@/contexts/CompanyContext";
 import { Outlet } from "react-router-dom";
 
 export default function AppLayout() {
   return (
-    <SidebarProvider>
-      <div className="page">
-        <main className="main">
-          <AppSidebar />
-          <CurrentCompany />
-          <Outlet />
-        </main>
+    <CompanyProvider>
+      <SidebarProvider>
+        <div className="page">
+          <main className="main">
+            <AppSidebar />
+            <CurrentCompany />
+            <Outlet />
+          </main>
 
-        <Popup popupId="addBankAccount">
-          <AddBankAccount />
-        </Popup>
+          <Popup popupId="addBankAccount">
+            <AddBankAccount />
+          </Popup>
 
-        <PopupManager />
-      </div>
-    </SidebarProvider>
+          <PopupManager />
+        </div>
+      </SidebarProvider>
+    </CompanyProvider>
   );
 }
