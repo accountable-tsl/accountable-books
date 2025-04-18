@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
-import { ThemeToggle } from "../ThemeToggle/ThemeToggle";
+import { ThemeToggle } from "../ThemeToggle";
 import { useThemeToggle } from "@/theme/useThemeToggle";
+import { routes } from "@/utils/routes";
+import { Button } from "../ui/button";
 
 export function AuthHeader() {
   const { theme } = useThemeToggle();
@@ -16,7 +18,12 @@ export function AuthHeader() {
           className="w-32"
         />
       </Link>
-      <ThemeToggle />
+      <div className="flex items-center gap-1">
+        <Button variant={"link"}>
+          <Link to={routes.auth.login}>Login</Link>
+        </Button>
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

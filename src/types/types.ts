@@ -2,49 +2,12 @@ import dayjs from "dayjs";
 import Decimal from "decimal.js";
 import z from "zod";
 
-// export const zEmail = () =>
-//   z
-//     .string()
-//     .email()
-//     .transform((email) => email.trim().toLowerCase());
-
 export const zEmail = z
   .string()
   .trim()
   .toLowerCase()
-  .superRefine((val, ctx) => {
-    if (!val) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Email is required",
-      });
-      return;
-    }
-
-    if (!val.includes("@")) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Email must include an '@' symbol",
-      });
-      return;
-    }
-
-    const [local, domain] = val.split("@");
-    if (!local || !domain) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Email must have a part before & after '@'",
-      });
-      return;
-    }
-
-    if (!domain.includes(".")) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Domain must include a '.' like '.com'",
-      });
-    }
-  });
+  .email("Please enter a valid email address")
+  .min(8, "Email is required");
 
 export type Email = z.infer<typeof zEmail>;
 

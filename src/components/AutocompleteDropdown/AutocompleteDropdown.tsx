@@ -16,7 +16,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { VariantProps } from "class-variance-authority";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Drawer,
@@ -34,6 +34,7 @@ type Item =
     };
 
 interface AutocompleteDropdownProps {
+  id?: string;
   items: Item[] | any[];
   value?: string;
   onChange?: (value: string) => void;
@@ -89,6 +90,7 @@ const normalizeItem = (
  */
 
 export const AutocompleteDropdown = ({
+  id,
   items,
   value = "",
   onChange,
@@ -99,12 +101,21 @@ export const AutocompleteDropdown = ({
   mapItem,
   drawerTitle = " ",
   drawerDescription = " ",
-  width = "w-[200px]",
+  width = "", // w-200px for small
 }: AutocompleteDropdownProps) => {
   const [open, setOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState(value);
 
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const selectedItemRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      // On mount: scroll into view
+      requestAnimationFrame(() => {
+        node.scrollIntoView({ behavior: "auto", block: "center" });
+      });
+    }
+    // On unmount: React will pass null, nothing else needed
+  }, []);
 
   // Sync external value with internal state
   useEffect(() => {
@@ -137,25 +148,30 @@ export const AutocompleteDropdown = ({
   // Shared content for Popover and Drawer
   const dropdownContent = (
     <Command>
-      <CommandInput placeholder={searchPlaceholder} className="h-9" />
+      <CommandInput id={id} placeholder={searchPlaceholder} className="h-9" />
       <CommandList>
         <CommandEmpty>No options found.</CommandEmpty>
         <CommandGroup>
-          {normalizedItems.map((item) => (
-            <CommandItem
-              key={item.value}
-              value={`${item.value} |_| ${item.label}`}
-              onSelect={handleSelect}
-            >
-              {item.label}
-              <Check
-                className={cn(
-                  "ml-auto",
-                  selectedValue === item.value ? "opacity-100" : "opacity-0"
-                )}
-              />
-            </CommandItem>
-          ))}
+          {normalizedItems.map((item) => {
+            const isSelected = selectedValue === item.value;
+
+            return (
+              <CommandItem
+                key={item.value}
+                ref={isSelected ? selectedItemRef : undefined}
+                value={`${item.value} |_| ${item.label}`}
+                onSelect={handleSelect}
+              >
+                {item.label}
+                <Check
+                  className={cn(
+                    "ml-auto",
+                    isSelected ? "opacity-100" : "opacity-0"
+                  )}
+                />
+              </CommandItem>
+            );
+          })}
         </CommandGroup>
       </CommandList>
     </Command>
@@ -167,9 +183,13 @@ export const AutocompleteDropdown = ({
       variant={variant}
       role="combobox"
       aria-expanded={open}
-      className={cn("w-[200px] justify-between", width, className)}
+      className={cn("w-full justify-between", width, className)}
     >
-      <span className="truncate text-left">
+      <span
+        className={`truncate text-left ${
+          selectedValue ? "" : "text-muted-foreground"
+        }`}
+      >
         {selectedValue
           ? normalizedItems.find((item) => item.value === selectedValue)?.label
           : placeholder}
@@ -195,7 +215,10 @@ export const AutocompleteDropdown = ({
   ) : (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
-      <PopoverContent className={`w-[200px] p-0 ${width}`}>
+      <PopoverContent
+        className={`p-0`}
+        style={{ width: "var(--radix-popover-trigger-width)" }}
+      >
         {dropdownContent}
       </PopoverContent>
     </Popover>

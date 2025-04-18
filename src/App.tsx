@@ -14,7 +14,7 @@ import Workspace from "./pages-admin/Workspace/Workspace";
 import Journal from "./pages-admin/Journal/Journal";
 import AccountingTxns from "./pages-admin/AccountingTxns/AccountingTxns";
 import ThemeProvider from "./theme/themeProvider";
-import Signup from "./features/auth/Signup";
+import Signup from "./features/auth/signup/Signup";
 import AppLayout from "./layouts/AppLayout";
 import AuthLayout from "./layouts/AuthLayout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

@@ -5,29 +5,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import "./Signup.scss";
-import { SignupSelector } from "./SignupSelector";
 import { StepProgress } from "@/components/StepProgress/StepProgress";
-import { useState } from "react";
-import { SignupBasicInfo } from "./SignupBasicInfo";
-import { SignupCompanyInfo } from "./SignupCompanyInfo";
-import { CompanyType } from "@/types/types";
+import { useEffect, useRef, useState } from "react";
+import { CompanyType, CountryList } from "@/types/types";
 import { Button } from "@/components/ui/button";
 import {
   defaultMockCompany,
-  newCompany,
   NewCompany,
   NewFirm,
   newUser,
   NewUser,
-} from "./SignupTypes";
+} from "./signupTypes";
 import { useSearchParams } from "react-router-dom";
 import { typeToFlattenedError } from "zod";
+import { useCountries } from "@/hooks/useCountries";
+import { getDefaultCurrencyForCountry } from "@/constants/countryCurrencyMap";
+import { useCurrencies } from "@/hooks/useCurrencies";
+import { SignupSelector } from "./steps/SignupSelector";
+import {
+  SignupBasicInfo,
+  SignupBasicInfoHandle,
+} from "./steps/SignupBasicInfo";
+import { SignupCompanyInfo } from "./steps/SignupCompanyInfo";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 export default function Signup() {
   const [searchParams] = useSearchParams();
   const prefillEmail = searchParams.get("email") || "";
 
-  const [currentStep, setCurrentStep] = useState(3);
+  const [currentStep, setCurrentStep] = useState(1);
   const [selectedType, setSelectedType] = useState<CompanyType | null>(null);
 
   const [basicInfo, setBasicInfo] = useState<NewUser>({
@@ -36,8 +42,9 @@ export default function Signup() {
     firstname: "",
     lastname: "",
   });
-  const [basicInfoError, setBasicInfoError] =
-    useState<typeToFlattenedError<NewUser>>();
+  // const [basicInfoError, setBasicInfoError] =
+  //   useState<typeToFlattenedError<NewUser>>();
+  const [basicInfoError, setBasicInfoError] = useState<any>();
 
   const [companyDetails, setCompanyDetails] =
     useState<NewCompany>(defaultMockCompany);
@@ -46,33 +53,55 @@ export default function Signup() {
   const [formData, setFormData] = useState({});
   const [error, setError] = useState<string>("");
 
+  // This tracks whether the user has explicitly selected a reporting currency.
+  // If true, we won't auto-set the currency based on country anymore.
+  const userHasSelectedCurrency = useRef(false);
+
   const steps = ["Get started", "Basic Info", "Company Details"];
 
-  const handleContinue = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const { data: country } = useCountries();
+
+  const { data: currencies } = useCurrencies();
+
+  const basicInfoRef = useRef<SignupBasicInfoHandle>(null);
+
+  const checkEmail = async (email: string) => {
+    // Placeholder API call
+    return true; // true if email is available
+  };
+
+  const { trigger } = useForm<NewUser>({
+    resolver: zodResolver(newUser),
+    defaultValues: basicInfo,
+  });
+
+  const handleBack = () => {
+    if (currentStep === 2) setSelectedType(null);
+
+    selectedType && currentStep > 1
+      ? setCurrentStep((prev) => prev - 1)
+      : setCurrentStep(1);
+  };
+  const handleContinue = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
 
     if (currentStep === 1) {
-      if (selectedType) {
-        setCompanyDetails((prev) => ({
-          ...prev,
-          type: selectedType,
-        }));
-        setCurrentStep(currentStep + 1);
-      } else {
-        setError("Please select a category.");
+      if (!selectedType) {
+        setError("Please choose a category to proceed.");
+        return;
       }
+      setCompanyDetails((prev) => ({ ...prev, type: selectedType }));
+      setCurrentStep(currentStep + 1);
     }
 
     if (currentStep === 2) {
-      const validateInfo = newUser.safeParse(basicInfo);
-      if (!validateInfo.success) {
-        console.log("Validation error:", validateInfo.error.flatten());
-        setBasicInfoError(validateInfo.error.flatten());
+      const isValid = await basicInfoRef.current?.validate();
+      if (!isValid) return;
+      if (!(await checkEmail(basicInfo.email))) {
+        setError("Email already exists");
+        return;
       }
-      // Verify that email doesn't already exist in db
-      else {
-        setCurrentStep(currentStep + 1);
-      }
+      setCurrentStep(currentStep + 1);
     }
 
     if (currentStep === steps.length) {
@@ -87,11 +116,35 @@ export default function Signup() {
   };
 
   const handleSelect = (category: CompanyType) => {
-    setSelectedType(category);
+    if (!category) return;
+    if (currentStep === 1) setSelectedType(category);
+    setError("");
   };
 
-  const handleFormChange = (key: keyof NewUser, value: string) => {
+  const handleBasicInfoChange = (key: keyof NewUser, value: string) => {
     setBasicInfo((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const getCountryFromLocale = (): CountryList | undefined => {
+    const locale = navigator.language;
+    const countryCode = locale.split("-")[1];
+    const userCountry =
+      country && country?.data?.find((item) => item.code === countryCode);
+    return userCountry;
+  };
+
+  const getDefaultCurrency = () => {
+    const ctry = companyDetails.countryId
+      ? country?.data?.find((item) => item.id === companyDetails.countryId)
+      : "";
+    const userCountry = ctry || getCountryFromLocale();
+    const curr = userCountry
+      ? getDefaultCurrencyForCountry(userCountry?.code)
+      : "";
+
+    console.log(userCountry, "Curr: ", curr);
+
+    return curr;
   };
 
   const handleDetailsChange = (
@@ -121,6 +174,11 @@ export default function Signup() {
       if (isFirm) {
         setFirmDetails((prev) => ({ ...prev, [field]: value }));
       }
+    }
+
+    // If user manually selects a currency, mark the override flag
+    if (field === "reportingCurrencyId") {
+      userHasSelectedCurrency.current = true;
     }
 
     // 1. Handle shared fields like legalName, countryId
@@ -172,7 +230,7 @@ export default function Signup() {
   if (currentStep === 1) {
     stepContent = (
       <SignupSelector
-        onSelect={handleSelect}
+        selectCompanyType={handleSelect}
         selectedType={selectedType}
         error={error}
       />
@@ -182,18 +240,76 @@ export default function Signup() {
   if (currentStep === 2) {
     stepContent = (
       <SignupBasicInfo
-        data={basicInfo}
-        onChange={handleFormChange}
-        errors={basicInfoError}
+        ref={basicInfoRef}
+        userData={basicInfo}
+        updateUserField={handleBasicInfoChange}
+        checkEmail={checkEmail}
       />
     );
   }
 
-  if (currentStep === 3) {
+  if (currentStep === 3 && selectedType) {
     stepContent = (
-      <SignupCompanyInfo formData={formData} onChange={handleFormChange} />
+      <SignupCompanyInfo
+        companyDetails={companyDetails}
+        firmDetails={firmDetails}
+        onChange={handleDetailsChange}
+        userType={selectedType}
+      />
+    );
+  } else if (currentStep > 1 && !selectedType) {
+    stepContent = (
+      <div className="flex flex-col items-center gap-2">
+        Please revert to step 1 to select valid category
+        <Button
+          variant={"destructive"}
+          onClick={() => setCurrentStep(1)}
+          className="max-w-[5rem]"
+        >
+          Back
+        </Button>
+      </div>
     );
   }
+
+  useEffect(() => {
+    if (!country?.data) return;
+    const userCountry = getCountryFromLocale();
+    if (userCountry?.id && !companyDetails.countryId) {
+      setCompanyDetails((prev) => ({
+        ...prev,
+        countryId: userCountry.id,
+      }));
+    }
+  }, [country?.data, companyDetails.countryId]);
+
+  useEffect(() => {
+    // Only run when currency list is ready and a country is selected
+    if (
+      !currencies?.data ||
+      !companyDetails.countryId ||
+      userHasSelectedCurrency.current // ❌ Stop if user already picked one manually
+    ) {
+      return;
+    }
+
+    // Get the default currency code for the selected country
+    const defaultCurrencyCode = getDefaultCurrency();
+    const defaultCurrency = currencies?.data?.find(
+      (c) => c.code === defaultCurrencyCode
+    );
+
+    // Only set if the default is different from what's already set
+    if (
+      defaultCurrency &&
+      companyDetails.reportingCurrencyId !== defaultCurrency.id
+    ) {
+      setCompanyDetails((prev) => ({
+        ...prev,
+        reportingCurrencyId: defaultCurrency?.id,
+      }));
+    }
+  }, [currencies?.data, companyDetails.countryId]);
 
   return (
     <div className="flex flex-1 w-full items-center justify-center p-6 md:p-10">
@@ -225,14 +341,16 @@ export default function Signup() {
                 <Button
                   variant="outline"
                   disabled={currentStep === 1}
-                  onClick={() => setCurrentStep((prev) => prev - 1)}
+                  onClick={handleBack}
                 >
                   Back
                 </Button>
 
-                <Button onClick={handleContinue}>
-                  {currentStep === steps.length ? "Submit" : "Continue"}
-                </Button>
+                {selectedType && (
+                  <Button onClick={handleContinue}>
+                    {currentStep === steps.length ? "Submit" : "Continue"}
+                  </Button>
+                )}
               </div>
             </CardFooter>
           }

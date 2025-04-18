@@ -7,7 +7,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { NewCompany, NewFirm } from "./SignupTypes";
+import { NewCompany, NewFirm } from "../signupTypes";
 import { CompanyType, CountryList } from "@/types/types";
 import { useIndustries } from "@/hooks/useIndustries";
 import { CircleHelp } from "lucide-react";
@@ -15,8 +15,10 @@ import { useState } from "react";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown/AutocompleteDropdown";
 import { useCountries } from "@/hooks/useCountries";
 import { useCurrencies } from "@/hooks/useCurrencies";
+import { HelpLabel } from "@/components/LabelHelper";
 export function SignupCompanyInfo({
-  data,
+  companyDetails,
+  firmDetails,
   onChange,
   userType,
 }: {
@@ -43,19 +45,6 @@ export function SignupCompanyInfo({
     isError: isCountryError,
   } = useCountries();
 
-  const [currenciesOpen, setCurrenciesOpen] = useState(false);
-  const [industryOpen, setIndustryOpen] = useState(false);
-  const [countriesOpen, setCountriesOpen] = useState(false);
-  //   const isDesktop = useMedia
-
-  const getCountryFromLocale = (): CountryList | undefined => {
-    const locale = navigator.language;
-    const countryCode = locale.split("-")[1];
-    const country =
-      countries && countries?.data?.find((item) => item.code === locale);
-    return country;
-  };
-
   return (
     <div className="flex flex-col gap-4">
       <div className="space-y-2">
@@ -67,51 +56,67 @@ export function SignupCompanyInfo({
         //   onChange={(e) => onChange("companyName", e.target.value)}
         />
       </div>
+      <div className="grid grid-cols-2 gap-2 -w-full overflow-hidden">
+        {/* // Country */}
+        <div className="space-y-2 flex flex-col flex-1">
+          <HelpLabel
+            htmlFor="country"
+            helpIconWithTooltip
+            tooltipContent="Select the country your business operates in"
+            tooltipStyling="w-full"
+          >
+            Country
+          </HelpLabel>
 
-      <div className="space-y-2">
-        <Label>Country</Label>
+          <AutocompleteDropdown
+            id="country"
+            items={
+              isCountryLoading
+                ? [{ value: "loading", label: "Loading..." }]
+                : isCountryError
+                ? [{ value: "error", label: "Error loading countries" }]
+                : countries?.data || []
+            }
+            mapItem={(item) => ({
+              value: item.id,
+              label: `${item.flag} ${item.name}`,
+            })}
+            value={companyDetails?.countryId}
+            onChange={(value) => onChange("countryId", value)}
+            placeholder="Select country"
+          />
+        </div>
 
-        <AutocompleteDropdown
-          items={
-            isCountryLoading
-              ? [{ value: "loading", label: "Loading..." }]
-              : isCountryError
-              ? [{ value: "error", label: "Error loading countries" }]
-              : countries?.data || []
-          }
-          mapItem={(item) => ({
-            value: item.id,
-            label: item.name,
-          })}
-          onChange={(v) => console.log(v)}
-          placeholder="Select country"
-        />
+        {/* // Reporting Currency */}
+        <div className="space-y-2 flex flex-col flex-1">
+          <HelpLabel
+            htmlFor="reportingCurrency"
+            helpIconWithTooltip
+            tooltipContent="In what currency do you need to track your financials in? Not sure, check with your regulator or call us"
+          >
+            Reporting Currency
+          </HelpLabel>
+
+          <AutocompleteDropdown
+            id="reportingCurrency"
+            items={
+              isCurrencyLoading
+                ? [{ value: "loading", label: "Loading..." }]
+                : isCurrencyError
+                ? [{ value: "error", label: "Error loading countries" }]
+                : currencies?.data || []
+            }
+            mapItem={(item) => ({
+              value: item.id,
+              label: item.name,
+            })}
+            value={companyDetails.reportingCurrencyId}
+            onChange={(v) => onChange("reportingCurrencyId", v)}
+            placeholder="Select currency"
+          />
+        </div>
       </div>
       <div className="grid grid-cols-[1.25fr_1fr] gap-2">
-        <div className="space-y-2 w-full">
-          <Label>Country</Label>
-          <Select
-          //   onValueChange={(v) => onChange("industry", v)}
-          //   value={data.industry}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select country" />
-            </SelectTrigger>
-            <SelectContent>
-              {!countries && (
-                <SelectItem key="countriesLoading" value="loading">
-                  Loading...
-                </SelectItem>
-              )}
-              {countries?.data &&
-                countries?.data.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.flag} {item.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>{" "}
         <div className="space-y-2 w-full">
           <div className="flex gap-1">
             <Label className="flex gap-0.5">

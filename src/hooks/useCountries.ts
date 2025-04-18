@@ -5,6 +5,6 @@ export const useCountries = () => {
   return useQuery({
     queryKey: ["countries"],
     queryFn: getCountries,
-    staleTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 60 * 24,
   });
 };
