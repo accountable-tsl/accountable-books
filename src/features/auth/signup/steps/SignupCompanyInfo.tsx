@@ -1,5 +1,4 @@
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectTrigger,
@@ -7,26 +6,56 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { NewCompany, NewFirm } from "../signupTypes";
+import {
+  newCompany,
+  NewCompany,
+  newFirm,
+  NewFirm,
+  NewUser,
+} from "../signupTypes";
 import { CompanyType, CountryList } from "@/types/types";
 import { useIndustries } from "@/hooks/useIndustries";
-import { CircleHelp } from "lucide-react";
-import { useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown/AutocompleteDropdown";
 import { useCountries } from "@/hooks/useCountries";
 import { useCurrencies } from "@/hooks/useCurrencies";
-import { HelpLabel } from "@/components/LabelHelper";
-export function SignupCompanyInfo({
-  companyDetails,
-  firmDetails,
-  onChange,
-  userType,
-}: {
-  companyDetails: NewCompany;
-  firmDetails: NewFirm;
-  onChange: (field: keyof NewCompany | keyof NewFirm, value: string) => void;
-  userType: CompanyType;
-}) {
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FormField, FormFieldLabel } from "@/components/FormField";
+import {
+  COMPANY_SIZE,
+  COMPANY_TYPES,
+  TOOLTIP,
+} from "../constants/signupConstants";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
+import { TooltipHelper } from "@/components/TooltipHelper";
+
+export interface SignupCompanyInfoHandle {
+  validate: () => Promise<boolean>;
+}
+export const SignupCompanyInfo = forwardRef<
+  SignupCompanyInfoHandle,
+  {
+    companyData: NewCompany;
+    firmData: NewFirm;
+    userData: NewUser;
+    updateCompanyField: (
+      field: keyof NewCompany | keyof NewFirm,
+      value: string
+    ) => void;
+    userType: CompanyType;
+  }
+>(({ companyData, firmData, userData, updateCompanyField, userType }, ref) => {
+  const isFirm = userType === "accounting_firm";
+  const isIndividual = userType === "individual";
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  const [isDescriptonTouched, setIsDescriptionTouched] = useState(false);
+  const [viewOptionalFields, setViewOptionalFields] = useState(false);
   const {
     data: industries,
     isLoading: isIndustriesLoading,
@@ -45,144 +74,444 @@ export function SignupCompanyInfo({
     isError: isCountryError,
   } = useCountries();
 
+  const schema = isFirm ? newFirm : newCompany;
+
+  const defaultValues = isFirm
+    ? firmData
+    : {
+        ...companyData,
+        legalName: isIndividual
+          ? `${userData.firstname}'s Finances`.trim()
+          : companyData.legalName,
+      };
+
+  const {
+    register,
+    watch,
+    formState: { errors },
+    setValue,
+    trigger,
+  } = useForm<NewCompany | NewFirm>({
+    resolver: zodResolver(schema),
+    defaultValues,
+    mode: "onChange",
+  });
+
+  const description = watch("description") || "";
+  const showOptionalFieldsButton =
+    viewOptionalFields || isDescriptonTouched || description.length > 0;
+
+  useImperativeHandle(ref, () => ({
+    validate: async () => await trigger(),
+  }));
+
+  const handleChange = (
+    field: keyof NewCompany | keyof NewFirm,
+    value: string | number
+  ) => {
+    setValue(field, value);
+    updateCompanyField(field, value.toString());
+  };
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="space-y-2">
-        <Label>
-          {userType === "accounting_firm" ? "Practice Name" : "Company Name"}
-        </Label>
-        <Input
-        //   value={data.companyName}
-        //   onChange={(e) => onChange("companyName", e.target.value)}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-2 -w-full overflow-hidden">
-        {/* // Country */}
-        <div className="space-y-2 flex flex-col flex-1">
-          <HelpLabel
-            htmlFor="country"
-            helpIconWithTooltip
-            tooltipContent="Select the country your business operates in"
-            tooltipStyling="w-full"
-          >
-            Country
-          </HelpLabel>
-
-          <AutocompleteDropdown
-            id="country"
-            items={
-              isCountryLoading
-                ? [{ value: "loading", label: "Loading..." }]
-                : isCountryError
-                ? [{ value: "error", label: "Error loading countries" }]
-                : countries?.data || []
-            }
-            mapItem={(item) => ({
-              value: item.id,
-              label: `${item.flag} ${item.name}`,
-            })}
-            value={companyDetails?.countryId}
-            onChange={(value) => onChange("countryId", value)}
-            placeholder="Select country"
-          />
-        </div>
-
-        {/* // Reporting Currency */}
-        <div className="space-y-2 flex flex-col flex-1">
-          <HelpLabel
-            htmlFor="reportingCurrency"
-            helpIconWithTooltip
-            tooltipContent="In what currency do you need to track your financials in? Not sure, check with your regulator or call us"
-          >
-            Reporting Currency
-          </HelpLabel>
-
-          <AutocompleteDropdown
-            id="reportingCurrency"
-            items={
-              isCurrencyLoading
-                ? [{ value: "loading", label: "Loading..." }]
-                : isCurrencyError
-                ? [{ value: "error", label: "Error loading countries" }]
-                : currencies?.data || []
-            }
-            mapItem={(item) => ({
-              value: item.id,
-              label: item.name,
-            })}
-            value={companyDetails.reportingCurrencyId}
-            onChange={(v) => onChange("reportingCurrencyId", v)}
-            placeholder="Select currency"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-[1.25fr_1fr] gap-2">
-        <div className="space-y-2 w-full">
-          <div className="flex gap-1">
-            <Label className="flex gap-0.5">
-              Reporting Currency<span className="">*</span>
-            </Label>
-            <CircleHelp size={14} />
-          </div>
-          <Select
-          //   onValueChange={(v) => onChange("industry", v)}
-          //   value={data.industry}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select currency" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem key={`notSure${Math.random()}`} value="notSure">
-                I'm not sure
-              </SelectItem>
-              {!currencies && (
-                <SelectItem key="currenciesLoading" value="loading">
-                  Loading...
-                </SelectItem>
-              )}
-              {currencies?.data &&
-                currencies?.data.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.code} ({item.symbol})
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Industry</Label>
-        <Select
-        //   onValueChange={(v) => onChange("industry", v)}
-        //   value={data.industry}
+    <div>
+      <div className="flex flex-col gap-4">
+        {/* Legal Name */}
+        <FormField
+          id="legalName"
+          label={isFirm ? "Practice Name" : "Company Name"}
+          error={errors.legalName?.message}
+          required
         >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select industry" />
-          </SelectTrigger>
-          <SelectContent className="w-[200px]">
-            {!industries && <SelectItem value="loading">Loading...</SelectItem>}
-            {industries?.map((item) => (
-              <SelectItem key={item.code} value={item.label}>
-                {item.shortLabel}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {userType && (
+            <div className="text-[0.75rem] text-chart-2 absolute right-3 top-[55%]">
+              {COMPANY_TYPES.find((t) => t.key === userType)?.type || ""}
+            </div>
+          )}
+          <Input
+            id="legalName"
+            {...register("legalName")}
+            onChange={(e) => handleChange("legalName", e.target.value)}
+            aria-describedby={errors.legalName ? "legalName-error" : undefined}
+            placeholder={
+              isIndividual
+                ? `${userData?.firstname}'s Finances`
+                : isFirm
+                ? "Jerome and Associates"
+                : "Acme Ltd"
+            }
+          />
+        </FormField>
+
+        <div className="grid md:grid-cols-2 gap-2 -w-full overflow-hidden">
+          {/* // Country */}
+          <FormField
+            id="country"
+            label="Country"
+            required
+            helpTooltip={TOOLTIP.country}
+            tooltipStyle="w-full"
+            error={errors.countryId?.message}
+            errorTooltip={errors.countryId?.message}
+          >
+            <AutocompleteDropdown
+              id="country"
+              items={
+                isCountryLoading
+                  ? [{ value: "loading", label: "Loading..." }]
+                  : isCountryError
+                  ? [{ value: "error", label: "Error loading countries" }]
+                  : countries?.data || []
+              }
+              mapItem={(item) => ({
+                value: item.id,
+                label: `${item.flag} ${item.name}`,
+              })}
+              value={watch("countryId") || ""}
+              onChange={(value) => handleChange("countryId", value)}
+              placeholder="Select country"
+              aria-describedby={
+                errors.countryId ? "countryId-error" : undefined
+              }
+            />
+          </FormField>
+          {/* <div className="space-y-2 flex flex-col flex-1"></div> */}
+
+          {/* // Reporting Currency */}
+
+          <div className="space-y-2 flex flex-col flex-1">
+            <FormField
+              id="reportingCurrencyId"
+              label="Reporting Currency"
+              required
+              helpTooltip={TOOLTIP.reportingCurrency}
+              error={errors.reportingCurrencyId?.message}
+              errorTooltip={errors.reportingCurrencyId?.message}
+            >
+              <AutocompleteDropdown
+                id="reportingCurrency"
+                items={
+                  isCurrencyLoading
+                    ? [{ value: "loading", label: "Loading..." }]
+                    : isCurrencyError
+                    ? [{ value: "error", label: "Error loading countries" }]
+                    : currencies?.data || []
+                }
+                mapItem={(item) => ({
+                  value: item.id,
+                  label: item.name,
+                })}
+                value={watch("reportingCurrencyId") || ""}
+                onChange={(value) => handleChange("reportingCurrencyId", value)}
+                placeholder="Select currency"
+                aria-describedby={
+                  errors.reportingCurrencyId
+                    ? "reportingCurrencyId-error"
+                    : undefined
+                }
+              />
+            </FormField>
+          </div>
+        </div>
+        {!isIndividual && (
+          <div
+            className={cn(
+              "flex overflow-hidden",
+              isFirm ? "grid md:grid-cols-2 gap-2" : ""
+            )}
+          >
+            <FormField
+              id="industry"
+              label="Industry"
+              error={errors.industry?.message}
+              helpTooltip={TOOLTIP.industry || ""}
+              required
+              className="w-full"
+            >
+              <AutocompleteDropdown
+                id="industry"
+                items={
+                  isIndustriesLoading
+                    ? [{ value: "loading", label: "Loading..." }]
+                    : isIndustriesError
+                    ? [{ value: "error", label: "Error loading countries" }]
+                    : industries || []
+                }
+                mapItem={(item) => ({
+                  value: item.label,
+                  label: item.shortLabel,
+                })}
+                value={watch("industry") || ""}
+                onChange={(value) => handleChange("industry", value)}
+              />
+            </FormField>
+
+            {isFirm && (
+              <>
+                <FormField
+                  id="fiscalPeriod"
+                  required
+                  renderLabel={
+                    <FormFieldLabel
+                      id="fiscalPeriod"
+                      label="Financial Year End"
+                      helpTooltip={TOOLTIP.yearEnd}
+                      required
+                    />
+                  }
+                >
+                  <div className="grid md:grid-cols-2 gap-1">
+                    <div className="relative">
+                      <Select
+                        onValueChange={(value) =>
+                          handleChange("yearEndDay", Number(value))
+                        }
+                        value={watch("yearEndDay")?.toString() || ""}
+                      >
+                        <SelectTrigger className="w-full [&_svg]:hidden">
+                          <SelectValue placeholder="Select day" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {days.map((day) => (
+                            <SelectItem key={day} value={day.toString()}>
+                              {day}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {watch("yearEndDay") && (
+                        <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                          Day
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Select
+                        onValueChange={(value) =>
+                          handleChange("yearEndMonth", Number(value))
+                        }
+                        value={watch("yearEndMonth")?.toString() || ""}
+                      >
+                        <SelectTrigger className="w-full [&_svg]:hidden">
+                          <SelectValue placeholder="Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {months.map((month) => (
+                            <SelectItem key={month} value={month.toString()}>
+                              {month}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {watch("yearEndMonth") && (
+                        <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                          Month
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </FormField>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col">
+          <FormField
+            id="description"
+            label="Description"
+            helpTooltip={TOOLTIP.description}
+          >
+            <Textarea
+              placeholder={
+                isIndividual
+                  ? "Tell us a bit about yourself"
+                  : isFirm
+                  ? "Tell us a bit about your practice"
+                  : "Tell us a bit about your company"
+              }
+              className={cn(
+                "resize-none mb-6",
+                showOptionalFieldsButton || isIndividual ? "mb-0" : ""
+              )}
+              value={description}
+              onChange={(e) => {
+                const value = e.target.value;
+                setValue("description", value);
+                updateCompanyField("description", value);
+              }}
+              onFocus={() => setIsDescriptionTouched(true)}
+              // onBlur={() => setIsDescriptionTouched(false)}
+            />
+          </FormField>
+          {!isIndividual && showOptionalFieldsButton && (
+            <div>
+              <motion.div
+                layout
+                initial={{ opacity: 1, scale: 0.75 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0.5, scale: 0.5 }}
+                key="optionalFieldButton"
+                className="flex items-center justify-center"
+              >
+                <TooltipHelper
+                  contentStyle="w-full"
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="link"
+                      className={
+                        "text-muted-foreground hover:text-foreground p-1 h-6 self-center cursor-pointer"
+                      }
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        // setIsDescriptionTouched(true);
+                        setViewOptionalFields(true);
+                      }}
+                    >
+                      Fill other optional fields
+                    </Button>
+                  }
+                  content="You can always complete these later"
+                />
+              </motion.div>
+            </div>
+          )}
+        </div>
       </div>
-      <div></div>
-      <div className="space-y-2">
-        {/* <Label>Company Size</Label>
-        <Select onValueChange={(v) => onChange("size", v)} value={""}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select size" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1-10">1-10 employees</SelectItem>
-            <SelectItem value="11-50">11-50 employees</SelectItem>
-            <SelectItem value="51-200">51-200 employees</SelectItem>
-          </SelectContent>
-        </Select> */}
-      </div>
+      {/* Optional Fields */}
+
+      {/* {!isIndividual && viewOptionalFields && ( */}
+      <motion.div
+        // initial={{ opacity: 0, scale: 0.5 }}
+        // animate={{ opacity: 1, scale: 1 }}
+        // transition={{
+        //   duration: 0.5,
+        //   delay: 0.2,
+        //   ease: [0, 0.65, 0.2, 1],
+        // }}
+        // exit={{ opacity: 0, scale: 0 }}
+        className={cn(
+          "bg-card z-50 inset-0 w-full py-4 border-[1px] rounded-sm absolute top-[17%] md:top-1/3",
+          "transition-all duration-300 ease-out transform",
+          viewOptionalFields && !isIndividual
+            ? "opacity-100 scale-100 pointer-events-auto"
+            : "opacity-0 scale-95 pointer-events-none"
+
+          // ? "translate-y-0 opacity-100 pointer-events-auto"
+          // : "translate-y-full opacity-0 pointer-events-none"
+        )}
+      >
+        <div className="flex flex-col">
+          <div className="text-sm px-6 pb-2 flex justify-between">
+            <span>Optional Fields</span>
+            <span
+              className="text-muted-foreground hover:underline cursor-pointer"
+              onClick={() => setViewOptionalFields(false)}
+            >
+              Hide
+            </span>
+          </div>
+          <hr className="py-2" />
+          <div className="opacity-75 flex flex-col gap-3 px-6">
+            <div className="grid md:grid-cols-2 gap-2">
+              <FormField
+                id="registrationNumber"
+                label="Company Reg No."
+                error={errors.registrationNumber?.message}
+                helpTooltip={TOOLTIP.registrationNumber}
+                tooltipStyle="text-center"
+              >
+                <Input
+                  id="registrationNumber"
+                  {...register("registrationNumber")}
+                  onChange={(e) =>
+                    handleChange("registrationNumber", e.target.value)
+                  }
+                  aria-describedby={
+                    errors.registrationNumber
+                      ? "registrationNumber-error"
+                      : undefined
+                  }
+                  placeholder="12345678"
+                />
+              </FormField>
+              <FormField
+                id="taxId"
+                label="Tax ID"
+                error={errors.taxId?.message}
+                helpTooltip={TOOLTIP.taxId}
+                tooltipStyle="text-center"
+              >
+                <Input
+                  id="taxId"
+                  {...register("taxId")}
+                  onChange={(e) => handleChange("taxId", e.target.value)}
+                  aria-describedby={errors.taxId ? "taxId-error" : undefined}
+                  placeholder="AB123456C"
+                />
+              </FormField>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-2">
+              <FormField
+                id="teamSize"
+                label="Company size"
+                error={errors.teamSize?.message}
+              >
+                <Select
+                  onValueChange={(value) =>
+                    handleChange(isFirm ? "firmSize" : "teamSize", value)
+                  }
+                  value={watch(isFirm ? "firmSize" : "teamSize") || ""}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMPANY_SIZE.map((size) => (
+                      <SelectItem value={size.value}>{size.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField
+                id="website"
+                label="Website"
+                error={errors.website?.message}
+                helpTooltip={TOOLTIP.website}
+                tooltipStyle="w-full"
+              >
+                <Input
+                  id="website"
+                  {...register("website")}
+                  onChange={(e) => handleChange("website", e.target.value)}
+                  aria-describedby={
+                    errors.website ? "website-error" : undefined
+                  }
+                  placeholder="yourcompany.com"
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Address">
+              <Textarea
+                placeholder="123 Main Street, New York, NY"
+                className="resize-none"
+              />
+            </FormField>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setViewOptionalFields(false)}
+            >
+              Done
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+      {/* )} */}
     </div>
   );
-}
+});

@@ -94,3 +94,12 @@ const newClientSignup = z.object({
   lastname: z.string().min(3).max(20),
   companyType: companyType,
 });
+
+// For company,
+// Name, reporting curr, country, industry and YE are compulsory
+const companyInfoPage = newCompany.extend({
+
+})
+
+// For individual
+// Only Name, country and reporting currency is compulsory

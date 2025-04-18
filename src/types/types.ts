@@ -7,7 +7,7 @@ export const zEmail = z
   .trim()
   .toLowerCase()
   .email("Please enter a valid email address")
-  .min(8, "Email is required");
+  .min(4, "Email is required");
 
 export type Email = z.infer<typeof zEmail>;
 

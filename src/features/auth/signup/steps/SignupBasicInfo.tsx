@@ -57,7 +57,7 @@ export const SignupBasicInfo = forwardRef<
       } catch (error: any) {
         return {
           isValid: false,
-          error: "This email has already been registered",
+          error: error?.message || "This email has already been registered",
         };
       }
     }

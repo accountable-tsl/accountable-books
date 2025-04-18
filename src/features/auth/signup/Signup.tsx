@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { StepProgress } from "@/components/StepProgress/StepProgress";
 import { useEffect, useRef, useState } from "react";
-import { CompanyType, CountryList } from "@/types/types";
+import { CompanyType, CountryList, zEmail } from "@/types/types";
 import { Button } from "@/components/ui/button";
 import {
   defaultMockCompany,
@@ -26,15 +26,15 @@ import {
   SignupBasicInfo,
   SignupBasicInfoHandle,
 } from "./steps/SignupBasicInfo";
-import { SignupCompanyInfo } from "./steps/SignupCompanyInfo";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useCheckEmail } from "@/hooks/useCheckEmail";
+import { SignupCompanyInfo } from "./steps/SignupCompanyInfo";
 export default function Signup() {
   const [searchParams] = useSearchParams();
   const prefillEmail = searchParams.get("email") || "";
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(3);
   const [selectedType, setSelectedType] = useState<CompanyType | null>(null);
 
   const [basicInfo, setBasicInfo] = useState<NewUser>({
@@ -49,7 +49,10 @@ export default function Signup() {
 
   const [companyDetails, setCompanyDetails] =
     useState<NewCompany>(defaultMockCompany);
-  const [firmDetails, setFirmDetails] = useState<NewFirm>({});
+  const [firmDetails, setFirmDetails] = useState<NewFirm>({
+    legalName: "",
+    countryId: "",
+  });
 
   const [formData, setFormData] = useState({});
   const [error, setError] = useState<string>("");
@@ -70,6 +73,9 @@ export default function Signup() {
 
   const checkEmailWrapper = async (email: string): Promise<boolean> => {
     // try {
+    const validEmail = zEmail.safeParse(email);
+    if (!validEmail.success)
+      throw new Error("Please enter a valid email address");
     const response = await checkEmail({ email, purpose: "signup" });
     console.log(response);
     if (!response?.success) {
@@ -127,7 +133,10 @@ export default function Signup() {
 
   const handleSelect = (category: CompanyType) => {
     if (!category) return;
-    if (currentStep === 1) setSelectedType(category);
+    if (currentStep === 1) {
+      setSelectedType(category);
+      setCompanyDetails((prev) => ({ ...prev, type: category }));
+    }
     setError("");
   };
 
@@ -261,9 +270,10 @@ export default function Signup() {
   if (currentStep === 3 && selectedType) {
     stepContent = (
       <SignupCompanyInfo
-        companyDetails={companyDetails}
-        firmDetails={firmDetails}
-        onChange={handleDetailsChange}
+        userData={basicInfo}
+        companyData={companyDetails}
+        firmData={firmDetails}
+        updateCompanyField={handleDetailsChange}
         userType={selectedType}
       />
     );
@@ -329,7 +339,7 @@ export default function Signup() {
           alt=""
           className="absolute right-1/2 bottom-3/5 -z-5 opacity-10 h-100 w-100"
         />
-        <Card>
+        <Card className="relative">
           <CardHeader>
             <CardTitle className="text-2xl">
               {selectedType === "accounting_firm" && currentStep === 3
