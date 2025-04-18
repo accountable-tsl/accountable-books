@@ -84,7 +84,7 @@ export type NewFirm = z.infer<typeof newFirm>;
 const baseSignupSchema = z.object({
   user: newUser,
   company: newCompany,
-  firm: z.object({}).optional(),
+  firm: z.object({}).nullish(),
 });
 
 const newClientSignup = z.object({

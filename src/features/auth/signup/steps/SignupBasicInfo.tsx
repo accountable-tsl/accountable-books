@@ -1,23 +1,13 @@
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useState,
-} from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
-import { typeToFlattenedError } from "zod";
-import { zEmail } from "@/types/types";
 import { usePasswordRules } from "@/hooks/usePasswordRules";
 import { newUser, NewUser } from "../signupTypes";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField } from "@/components/FormField";
-import { validate } from "numeral";
 
 export interface SignupBasicInfoHandle {
   validate: () => Promise<boolean>;
@@ -38,6 +28,8 @@ export const SignupBasicInfo = forwardRef<
     formState: { errors },
     setValue,
     trigger,
+    setError,
+    clearErrors,
   } = useForm<NewUser>({
     resolver: zodResolver(newUser),
     defaultValues: userData,
@@ -53,10 +45,36 @@ export const SignupBasicInfo = forwardRef<
     });
   }, [userData, setValue]);
 
-  // Expose validate method to parent
+  const validateEmail = async (email: string) => {
+    // await trigger("email"); // First validate format via Zod
+    // if (errors.email) return false;
+
+    if (checkEmail) {
+      try {
+        const isValid = await checkEmail(email);
+        if (isValid) clearErrors("email");
+        return { isValid, error: null };
+      } catch (error: any) {
+        return {
+          isValid: false,
+          error: "This email has already been registered",
+        };
+      }
+    }
+    return { isValid: true, error: null };
+  };
+
+  // Sync & Validation
   useImperativeHandle(ref, () => ({
     validate: async () => {
-      return await trigger();
+      const isValid = await trigger();
+      const { isValid: isEmailValid, error: emailError } = await validateEmail(
+        userData.email
+      );
+      if (emailError) {
+        setError("email", { message: emailError });
+      }
+      return isValid && isEmailValid;
     },
   }));
 
@@ -64,9 +82,6 @@ export const SignupBasicInfo = forwardRef<
     setShowPassword(!showPassword);
   };
 
-  console.log(password);
-  console.log("password", userData.password);
-  console.log("userData", userData);
   return (
     <div className="flex flex-col gap-4">
       {/* Firstname */}
@@ -111,8 +126,14 @@ export const SignupBasicInfo = forwardRef<
           type="email"
           {...register("email", {
             onChange: (e) => updateUserField("email", e.target.value),
-            onBlur: async (e) =>
-              checkEmail && (await checkEmail(e.target.value)),
+            onBlur: async (e) => {
+              const { isValid, error } = await validateEmail(e.target.value);
+              if (error) {
+                setError("email", { message: error });
+              } else if (isValid) {
+                clearErrors("email");
+              }
+            },
           })}
           placeholder="m@example.com"
           aria-describedby={errors.email ? "email-error" : undefined}
@@ -126,7 +147,6 @@ export const SignupBasicInfo = forwardRef<
         required
         error={errors.password?.message}
       >
-        {/* <div className="relative"> */}
         <Input
           id="password"
           type={showPassword ? "text" : "password"}

@@ -29,6 +29,7 @@ import {
 import { SignupCompanyInfo } from "./steps/SignupCompanyInfo";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useCheckEmail } from "@/hooks/useCheckEmail";
 export default function Signup() {
   const [searchParams] = useSearchParams();
   const prefillEmail = searchParams.get("email") || "";
@@ -65,15 +66,17 @@ export default function Signup() {
 
   const basicInfoRef = useRef<SignupBasicInfoHandle>(null);
 
-  const checkEmail = async (email: string) => {
-    // Placeholder API call
-    return true; // true if email is available
-  };
+  const { mutateAsync: checkEmail } = useCheckEmail();
 
-  const { trigger } = useForm<NewUser>({
-    resolver: zodResolver(newUser),
-    defaultValues: basicInfo,
-  });
+  const checkEmailWrapper = async (email: string): Promise<boolean> => {
+    // try {
+    const response = await checkEmail({ email, purpose: "signup" });
+    console.log(response);
+    if (!response?.success) {
+      throw new Error("This email has already been registered");
+    }
+    return true;
+  };
 
   const handleBack = () => {
     if (currentStep === 2) setSelectedType(null);
@@ -97,10 +100,17 @@ export default function Signup() {
     if (currentStep === 2) {
       const isValid = await basicInfoRef.current?.validate();
       if (!isValid) return;
-      if (!(await checkEmail(basicInfo.email))) {
-        setError("Email already exists");
-        return;
-      }
+      // const emailAvailable = await checkEmail({
+      //   email: basicInfo.email,
+      //   purpose: "signup",
+      // });
+
+      // console.log(emailAvailable);
+
+      // if (!emailAvailable.success) {
+      //   setError("Email already exists");
+      //   return;
+      // }
       setCurrentStep(currentStep + 1);
     }
 
@@ -243,7 +253,7 @@ export default function Signup() {
         ref={basicInfoRef}
         userData={basicInfo}
         updateUserField={handleBasicInfoChange}
-        checkEmail={checkEmail}
+        checkEmail={checkEmailWrapper}
       />
     );
   }
