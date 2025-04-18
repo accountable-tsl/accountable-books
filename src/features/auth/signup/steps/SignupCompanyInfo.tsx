@@ -30,7 +30,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { motion } from "motion/react";
 import { TooltipHelper } from "@/components/TooltipHelper";
 
 export interface SignupCompanyInfoHandle {
@@ -316,7 +315,9 @@ export const SignupCompanyInfo = forwardRef<
           </div>
         )}
 
-        <div className="flex flex-col">
+        <div
+          className={cn("flex flex-col", !isIndividual ? "-mb-[1.75rem]" : "")}
+        >
           <FormField
             id="description"
             label="Description"
@@ -341,18 +342,22 @@ export const SignupCompanyInfo = forwardRef<
                 updateCompanyField("description", value);
               }}
               onFocus={() => setIsDescriptionTouched(true)}
-              // onBlur={() => setIsDescriptionTouched(false)}
+              onBlur={() => {
+                setTimeout(() => {
+                  !viewOptionalFields && setIsDescriptionTouched(false);
+                }, 2000);
+              }}
             />
           </FormField>
           {!isIndividual && showOptionalFieldsButton && (
             <div>
-              <motion.div
-                layout
-                initial={{ opacity: 1, scale: 0.75 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0.5, scale: 0.5 }}
-                key="optionalFieldButton"
-                className="flex items-center justify-center"
+              <div
+                className={cn(
+                  "flex items-center justify-center",
+                  !isIndividual && showOptionalFieldsButton
+                    ? "pointer-events-auto opacity-100"
+                    : "pointer-events-none opacity-0"
+                )}
               >
                 <TooltipHelper
                   contentStyle="w-full"
@@ -374,32 +379,21 @@ export const SignupCompanyInfo = forwardRef<
                   }
                   content="You can always complete these later"
                 />
-              </motion.div>
+              </div>
             </div>
           )}
         </div>
       </div>
-      {/* Optional Fields */}
 
+      {/* Optional Fields */}
       {/* {!isIndividual && viewOptionalFields && ( */}
-      <motion.div
-        // initial={{ opacity: 0, scale: 0.5 }}
-        // animate={{ opacity: 1, scale: 1 }}
-        // transition={{
-        //   duration: 0.5,
-        //   delay: 0.2,
-        //   ease: [0, 0.65, 0.2, 1],
-        // }}
-        // exit={{ opacity: 0, scale: 0 }}
+      <div
         className={cn(
           "bg-card z-50 inset-0 w-full py-4 border-[1px] rounded-sm absolute top-[17%] md:top-1/3",
-          "transition-all duration-300 ease-out transform",
+          "transition-all duration-500 ease transform",
           viewOptionalFields && !isIndividual
             ? "opacity-100 scale-100 pointer-events-auto"
             : "opacity-0 scale-95 pointer-events-none"
-
-          // ? "translate-y-0 opacity-100 pointer-events-auto"
-          // : "translate-y-full opacity-0 pointer-events-none"
         )}
       >
         <div className="flex flex-col">
@@ -495,9 +489,9 @@ export const SignupCompanyInfo = forwardRef<
             </div>
 
             <FormField label="Address">
-              <Textarea
+              <Input
                 placeholder="123 Main Street, New York, NY"
-                className="resize-none"
+                // className="resize-none"
               />
             </FormField>
 
@@ -510,7 +504,7 @@ export const SignupCompanyInfo = forwardRef<
             </Button>
           </div>
         </div>
-      </motion.div>
+      </div>
       {/* )} */}
     </div>
   );
