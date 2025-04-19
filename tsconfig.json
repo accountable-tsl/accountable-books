@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
-    "module": "ESNext",
-    "target": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "bundler",
     "strict": true,
+    "esModuleInterop": true,
 
     "paths": {
-      "@prisma/client": ["./prisma/client"]
+      // "@prisma/client": ["./prisma/client"]
     },
 
     "sourceMap": true,

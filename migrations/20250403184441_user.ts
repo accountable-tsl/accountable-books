@@ -4,6 +4,60 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
+import { createUserDirect } from "../src/domains/user/user.model";
+import { ENV, NODE_ENV } from "../src/config/env";
+import { NewUserDirect } from "../src/domains/user/user.types";
+
+const getAdminUserConfig = (): NewUserDirect => {
+  if (NODE_ENV === "production") {
+    return {
+      id: ENV.ADMIN_ID,
+      firstname: ENV.ADMIN_FIRSTNAME!,
+      lastname: ENV.ADMIN_LASTNAME,
+      email: ENV.ADMIN_EMAIL!,
+      password: ENV.ADMIN_PASSWORD!,
+      status: "active",
+    };
+  }
+
+  // Default to test admin in non-production environments
+  return {
+    id: ENV.TEST_ADMIN_ID,
+    firstname: ENV.TEST_ADMIN_FIRSTNAME!,
+    lastname: ENV.TEST_ADMIN_LASTNAME,
+    email: ENV.TEST_ADMIN_EMAIL!,
+    password: ENV.TEST_ADMIN_PASSWORD!,
+    status: "active",
+  };
+};
+export const adminUser = getAdminUserConfig();
+
+const seedAdminUser = async (knex: Knex) => {
+  const { password, email, firstname } = adminUser;
+
+  if (!password || !email || !firstname) {
+    throw new Error(
+      "Admin user configuration is incomplete. Required fields: password, email, firstname"
+    );
+  }
+  return knex.transaction(async (trx) => {
+    const existingUser = await trx("user").where({ email }).first();
+
+    if (existingUser) {
+      console.log(`Admin user ${email} already exists. Skipping insert.`);
+      return { success: true, data: existingUser };
+    }
+
+    const result = await createUserDirect(trx, adminUser);
+    if (!result.success) {
+      console.error(`Failed to create admin user: ${result.message}`);
+      throw new Error(result.message);
+    }
+
+    console.log(`Successfully created admin user: ${email}`);
+    return result;
+  });
+};
 
 const tableName = "user";
 export async function up(knex: Knex): Promise<void> {
@@ -13,7 +67,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string("lastname", 256).nullable();
 
     table.string("email", 254).unique().notNullable();
-    table.string("password_hash", 256).nullable();
+    table.string("password", 256).nullable();
     table.string("phone_number", 20).nullable();
     table.string("avatar_url").nullable();
     table.specificType("status", "user_status").notNullable();
@@ -48,6 +102,7 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
+  await seedAdminUser(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

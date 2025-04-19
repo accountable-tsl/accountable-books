@@ -1,12 +1,15 @@
 import type { Knex } from "knex";
-import { ApiResponse } from "../../types/generic";
-import { newCompanyInput, NewCompanyInput } from "../../core/types/db.type";
-import generateSecureShortCode, {
+import { newCompanyInput, NewCompanyInput } from "./company.types";
+import { ApiResponse } from "../../core/types/api.types";
+import {
   camelToSnake,
-  errorResponse,
   snakeToCamel,
+} from "../../shared/utils/formatting.utils";
+import {
+  errorResponse,
   successResponse,
-} from "../../utils/utils";
+} from "../../shared/utils/response.utils";
+import generateSecureShortCode from "../../shared/utils/crypto.utils";
 
 export const createCompany = async (
   knexTrx: Knex.Transaction,
@@ -20,6 +23,7 @@ export const createCompany = async (
   }
 
   const { assigned_firm_id } = validateInput.data;
+
   try {
     const userExists = await knexTrx("user")
       .where({ id: validateInput.data.created_by_id })
@@ -29,7 +33,7 @@ export const createCompany = async (
       return errorResponse("Unauthorized");
     }
 
-    let firmId = assigned_firm_id;
+    let firmId = assigned_firm_id || null;
     if (!firmId) {
       const [firm] = await knexTrx("accounting_firm")
         .where("is_platform", true)
@@ -67,13 +71,17 @@ export const createCompany = async (
         year_end_month: validateInput.data.year_end_month || 12,
         reporting_framework: validateInput.data.reporting_framework || "ifrs",
         created_by_id: userExists.id,
-        assigned_firm_id: firmId,
       })
       .returning("*");
 
     if (!company) {
       return errorResponse("Unable to create company");
     }
+
+    const assignToFirm = await knexTrx("firm_company").insert({
+      company_id: company.id,
+      accounting_firm_id: firmId,
+    });
 
     return successResponse(
       "Company created successfully",
@@ -82,4 +90,18 @@ export const createCompany = async (
   } catch (error) {
     return errorResponse("Unable to create company", error);
   }
+};
+
+export const verifyCompanyDependenciesExist = async (
+  knex: Knex,
+  input: { reportingCurrencyId: string; countryId: string }
+) => {
+  const [currency, country] = await Promise.all([
+    knex("currency").where({ id: input.reportingCurrencyId }).first(),
+    knex("country").where({ id: input.countryId }).first(),
+  ]);
+
+  if (!currency)
+    throw new Error(`Currency ${input.reportingCurrencyId} not found`);
+  if (!country) throw new Error(`Country ${input.countryId} not found`);
 };

@@ -4,6 +4,74 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
+import { ENV, NODE_ENV } from "../src/config/env";
+import { adminUser } from "./20250403184441_user";
+import { verifyCompanyDependenciesExist } from "../src/domains/company/company.model";
+import { newCompany } from "../src/domains/company/company.types";
+
+export const buildPlatformCompany = (adminUserId: string) => ({
+  id: ENV.PLATFORM_COMPANY_ID || "a494b675-fedd-455c-ab6d-00ffdff9a047",
+  legal_name: ENV.PLATFORM_COMPANY_NAME || "Accountable Techserve Ltd",
+  display_name: "Accountable HQ",
+  type: "accounting_firm",
+  country_id: "84258bff-b7ab-4d9f-83f5-1bd1f4e39ace",
+  reporting_currency_id: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
+  created_by_id: adminUserId,
+
+  short_code: ENV.PLATFORM_COMPANY_SHORT_CODE || "platform",
+  website: "https://getaccountable.com",
+  logo_url:
+    ENV.PLATFORM_COMPANY_LOGO_URL || `${ENV.BASE_URL}/accountable-logo.png`,
+  year_end_day: 31,
+  year_end_month: 12,
+  reporting_framework: "ifrs",
+  is_platform: true,
+});
+
+export const createPlatformCompany = async (knex: Knex) => {
+  if (NODE_ENV === "production" && !process.env.CONFIRM_PLATFORM_SETUP) {
+    throw new Error(
+      "Must set CONFIRM_PLATFORM_SETUP=yes to create platform company"
+    );
+  }
+
+  if (!adminUser.id) throw new Error("adminUserId is required");
+  const platformCompany = buildPlatformCompany(adminUser.id);
+
+  return await knex.transaction(async (trx) => {
+    // Check if company exists
+    const existingPlatformCompany = await trx("company")
+      .where({ id: platformCompany.id })
+      .first();
+
+    if (existingPlatformCompany) {
+      console.log("Platform company already exists. Skipping insert.");
+      return existingPlatformCompany;
+    }
+
+    if (!platformCompany.legal_name)
+      throw new Error("PLATFORM_COMPANY_NAME must be set");
+
+    if (platformCompany.type !== "accounting_firm")
+      throw new Error("PLATFORM_COMPANY_TYPE must be set to accounting_firm");
+
+    await verifyCompanyDependenciesExist(trx, {
+      reportingCurrencyId: platformCompany.reporting_currency_id,
+      countryId: platformCompany.country_id,
+    });
+
+    const validatedInput = newCompany.safeParse(platformCompany);
+    if (!validatedInput.success) {
+      throw new Error(validatedInput.error.message);
+    }
+
+    const [inserted] = await knex("company")
+      .insert(validatedInput.data)
+      .returning("*");
+    console.log(`Created platform company: ${platformCompany.legal_name}`);
+    return inserted;
+  });
+};
 
 const tableName = "company";
 export async function up(knex: Knex): Promise<void> {
@@ -12,10 +80,10 @@ export async function up(knex: Knex): Promise<void> {
     table.string("legal_name", 256).notNullable();
     table.string("display_name", 256).nullable();
     table.string("short_code", 50).unique().notNullable();
-    table.string("address", 256).nullable();
+    table.string("address", 512).nullable();
     table.specificType("type", "company_type").notNullable();
     table.string("logo_url", 256).nullable();
-    table.string("description", 512).nullable();
+    table.string("description", 2000).nullable();
     table.string("website", 256).nullable();
     table.string("industry", 256).nullable();
     table.string("team_size", 256).nullable();
@@ -24,6 +92,8 @@ export async function up(knex: Knex): Promise<void> {
     table.integer("year_end_month").notNullable();
     table.specificType("reporting_framework", "reporting_framework").nullable();
     table.boolean("is_platform").defaultTo(false);
+    table.string("registration_number").nullable();
+    table.string("tax_id").nullable();
 
     table
       .uuid("country_id")
@@ -46,19 +116,13 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("user")
       .onDelete("RESTRICT");
 
-    table
-      .uuid("assigned_firm_id")
-      .nullable()
-      .references("id")
-      .inTable("company")
-      .onDelete("RESTRICT");
-
     addStandardColumns(table);
 
     table.index("short_code");
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
+  await createPlatformCompany(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

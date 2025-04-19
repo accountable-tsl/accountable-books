@@ -1,7 +1,6 @@
 import { Knex } from "knex";
 import {
   AccountElement,
-  AccountingFirm,
   AccountType,
   Country,
   Currency,
@@ -23,14 +22,18 @@ import {
 import {
   CoaTemplate,
   NewCoaTemplateInput,
-} from "../../domains/chart-of-accounts/coaTemplate.type";
-import { User } from "../../domains/user/user.types";
+} from "../../domains/chartOfAccounts/coaTemplate.type";
+import {
+  NewUserDirect,
+  NewUserInput,
+  User,
+} from "../../domains/user/user.types";
 import { Company, NewCompany } from "../../domains/company/company.types";
-import { Coa, NewCoa } from "../../domains/chart-of-accounts/coa.types";
+import { Coa, NewCoa } from "../../domains/chartOfAccounts/coa.types";
 import {
   AccFirm,
   NewAccFirm,
-} from "../../domains/accounting-firm/accountingFirm.types";
+} from "../../domains/accountingFirm/accountingFirm.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -88,7 +91,11 @@ declare module "knex/types/tables" {
       Partial<Omit<CoaTemplate, "id">>
     >;
 
-    user: User;
+    user: Knex.CompositeTableType<
+      User,
+      NewUserDirect | NewUserInput,
+      Partial<Omit<User, "id">>
+    >;
 
     company: Knex.CompositeTableType<
       Company,
@@ -110,4 +117,5 @@ declare module "knex/types/tables" {
 
     coa: Knex.CompositeTableType<Coa, NewCoa, Partial<Omit<Coa, "id">>>;
   }
+
 }

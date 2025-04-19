@@ -4,7 +4,7 @@ import {
   fetchTransactions,
 } from "../../controllers/transactionController";
 import { checkCompanyId } from "../middlewares/companyMiddleware";
-import { basicLimiter } from "../middlewares/rateLimiter";
+import { basicLimiter } from "../middlewares/rateLimiter.middleware";
 
 const router = express.Router({ mergeParams: true });
 

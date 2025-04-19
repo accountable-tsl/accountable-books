@@ -16,14 +16,37 @@ const run = async () => {
 
   // Drops all public schema tables, views, etc.
   await client.query(`
-    DO $$ DECLARE
-      r RECORD;
-    BEGIN
-      -- drop all constraints
-      FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
-        EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
-      END LOOP;
-    END $$;
+DO $$ DECLARE
+  r RECORD;
+BEGIN
+
+  -- Drop all views
+  FOR r IN (SELECT table_name FROM information_schema.views WHERE table_schema = 'public') LOOP
+    EXECUTE 'DROP VIEW IF EXISTS public.' || quote_ident(r.table_name) || ' CASCADE';
+  END LOOP;
+
+  -- Drop all materialized views
+  FOR r IN (SELECT matviewname FROM pg_matviews WHERE schemaname = 'public') LOOP
+    EXECUTE 'DROP MATERIALIZED VIEW IF EXISTS public.' || quote_ident(r.matviewname) || ' CASCADE';
+  END LOOP;
+
+  -- Drop all tables
+  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+    EXECUTE 'DROP TABLE IF EXISTS public.' || quote_ident(r.tablename) || ' CASCADE';
+  END LOOP;
+
+  -- Drop all sequences
+  FOR r IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public') LOOP
+    EXECUTE 'DROP SEQUENCE IF EXISTS public.' || quote_ident(r.sequence_name) || ' CASCADE';
+  END LOOP;
+
+  -- Drop all types (including enums)
+  FOR r IN (SELECT t.typname FROM pg_type t
+            LEFT JOIN pg_namespace n ON n.oid = t.typnamespace
+            WHERE n.nspname = 'public' AND t.typtype = 'e') LOOP
+    EXECUTE 'DROP TYPE IF EXISTS public.' || quote_ident(r.typname) || ' CASCADE';
+  END LOOP;
+END $$;
   `);
 
   await client.end();

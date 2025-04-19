@@ -1,8 +1,8 @@
 import { Queue } from "bullmq";
-import { redis } from "../../lib/bullmq";
+import { redis } from "../../lib/redis";
 import { NODE_ENV } from "../../config/env";
 
-const isProd = NODE_ENV === "docker.production";
+const isProd = NODE_ENV === "production";
 
 export const emailQueue = new Queue("email", {
   connection: redis,

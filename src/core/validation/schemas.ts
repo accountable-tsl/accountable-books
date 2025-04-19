@@ -2,10 +2,11 @@ import Decimal from "decimal.js";
 import { z } from "zod";
 
 export const nodeEnv = z.enum([
+  "test",
   "local",
   "docker.dev",
-  "docker.staging",
-  "docker.production",
+  "staging",
+  "production",
 ]);
 export type NodeEnv = z.infer<typeof nodeEnv>;
 

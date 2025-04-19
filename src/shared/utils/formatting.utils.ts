@@ -1,50 +1,84 @@
+/**
+ * Recursively converts object keys from camelCase or PascalCase to snake_case.
+ * Leaves values and non-string keys unchanged.
+ *
+ * Useful for preparing objects before inserting into snake_case databases.
+ */
+
 export function camelToSnake<T>(input: T): T {
-  if (
-    !input ||
-    input === null ||
-    typeof input !== "object" ||
-    input instanceof Date
-  )
+  if (!input || typeof input !== "object" || input instanceof Date)
     return input;
 
   if (Array.isArray(input)) {
-    return input.map((item) => camelToSnake(item)) as T;
+    return input.map(camelToSnake) as T;
   }
 
-  return Object.keys(input).reduce(
-    (acc, key) => {
-      const snakeKey = key
-        .replace(/([A-Z]+)/g, "_$1")
-        .toLowerCase()
-        .replace(/^_/, "");
-      acc[snakeKey] = camelToSnake((input as Record<string, any>)[key]);
+  return Object.entries(input).reduce(
+    (acc, [key, value]) => {
+      if (typeof key !== "string") return acc; // Skip non-string keys
+      const snakeKey = toSnakeCase(key);
+      acc[snakeKey] = camelToSnake(value);
       return acc;
     },
     {} as Record<string, any>
   ) as T;
 }
 
+/**
+ * Recursively converts object keys from snake_case to camelCase.
+ * Leaves values and non-string keys unchanged.
+ *
+ * Useful for converting DB results to frontend-friendly format.
+ */
+
 export function snakeToCamel<T>(input: T): T {
-  if (
-    !input ||
-    input === null ||
-    typeof input !== "object" ||
-    input instanceof Date
-  )
+  if (!input || typeof input !== "object" || input instanceof Date)
     return input;
 
   if (Array.isArray(input)) {
-    return input.map((item) => snakeToCamel(item)) as T;
+    return input.map(snakeToCamel) as T;
   }
 
-  return Object.keys(input).reduce(
-    (acc, key) => {
-      const camelKey = key.replace(/_([a-z])/g, (_, char) =>
-        char.toUpperCase()
-      );
-      acc[camelKey] = snakeToCamel((input as Record<string, any>)[key]);
+  return Object.entries(input).reduce(
+    (acc, [key, value]) => {
+      if (typeof key !== "string") return acc; // Skip non-string keys
+      const camelKey = key.includes("_") ? toCamelCase(key) : key;
+      acc[camelKey] = snakeToCamel(value);
       return acc;
     },
     {} as Record<string, any>
   ) as T;
+}
+
+/**
+ * Converts a single string from camelCase or PascalCase to snake_case.
+ *
+ * Handles acronyms (e.g., XMLParser → xml_parser),
+ * collapses multiple underscores, trims edge underscores.
+ */
+
+export function toSnakeCase(str: string): string {
+  if (!str) return str;
+  return str
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // camelCase
+    .replace(/([A-Z]+)([A-Z][a-z0-9])/g, "$1_$2") // Acronyms (XMLParser)
+    .replace(/__+/g, "_") // Collapse multiple underscores
+    .toLowerCase()
+    .replace(/^_+|_+$/g, ""); // Trim leading/trailing underscores
+}
+
+/**
+ * Converts a single snake_case string to camelCase.
+ * If input is already in camelCase or PascalCase, returns a safe normalized version.
+ *
+ * Handles double underscores and trims edge underscores.
+ */
+export function toCamelCase(str: string): string {
+  if (!str) return str;
+  return str
+    .replace(/[_]+/g, "_") // Collapse underscores
+    .replace(/^_+|_+$/g, "") // Trim underscores
+    .toLowerCase()
+    .replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase())
+    .replace(/^([A-Z])/, (_, char) => char.toLowerCase());
 }

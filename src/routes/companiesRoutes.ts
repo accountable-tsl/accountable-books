@@ -5,7 +5,7 @@ import {
   getSingleCompany,
 } from "../../controllers/companiesController";
 import { checkCompanyId } from "../middlewares/companyMiddleware";
-import { basicLimiter } from "../middlewares/rateLimiter";
+import { basicLimiter } from "../middlewares/rateLimiter.middleware";
 import { RequestHandler } from "express";
 
 const limiter: RequestHandler =

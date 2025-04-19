@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import { z } from "zod";
 import { zDate, zEmail } from "../../types/generic";
-import { coaTemplateName } from "../../domains/chart-of-accounts/coaTemplate.model";
+import { coaTemplateName } from "../../domains/chartOfAccounts/coaTemplate.model";
 import { dbBaseFields, DecimalInput } from "../validation/schemas";
 
 // role

@@ -4,7 +4,7 @@ import {
   companyType,
   newCompanyInput,
 } from "../../domains/company/company.types";
-import { newAccFirmInput } from "../../domains/accounting-firm/accountingFirm.types";
+import { newAccFirmInput } from "../../domains/accountingFirm/accountingFirm.types";
 
 const onboardingBase = z.object({
   user: newUserDirect,
@@ -14,7 +14,7 @@ const onboardingBase = z.object({
   }),
   firm: z
     .object({
-      id: z.string().uuid(),
+      id: z.string().uuid().optional(),
     })
     .optional(),
 });

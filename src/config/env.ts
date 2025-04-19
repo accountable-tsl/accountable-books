@@ -17,10 +17,11 @@ export const NODE_ENV: NodeEnv = nodeEnv.parse(process.env.NODE_ENV || "local");
 
 // Mapping from NODE_ENV and Docker context to .env file names
 const envFileMap: Record<NodeEnv, string> = {
+  test: ".env.test",
   local: ".env.local",
   "docker.dev": ".env.docker.dev",
-  "docker.staging": ".env.docker.staging",
-  "docker.production": ".env.docker.production",
+  "staging": ".env.docker.staging",
+  production: ".env.production",
 };
 
 const determineEnvKey = (): NodeEnv => {

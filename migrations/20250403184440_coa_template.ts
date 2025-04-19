@@ -9,14 +9,14 @@ import path from "path";
 import fs from "fs";
 import csv from "csv-parser";
 import { fileURLToPath } from "url";
-import { addNewCoaTemplates } from "../src/domains/chart-of-accounts/coaTemplate.model";
-import { NewCoaTemplateInput } from "../src/domains/chart-of-accounts/coaTemplate.type";
+import { addNewCoaTemplates } from "../src/domains/chartOfAccounts/coaTemplate.model";
+import { NewCoaTemplateInput } from "../src/domains/chartOfAccounts/coaTemplate.type";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const seedCoaTemplates = async function seed(knex: Knex): Promise<void> {
-  const coaFilePath = path.join(__dirname, "data/seed_coa_templates_v1.csv");
+  const coaFilePath = path.join(__dirname, "data/seed_coa_templates_v0.csv");
   const seedCoaData: NewCoaTemplateInput[] = [];
 
   // Read and parse CSV
@@ -71,7 +71,9 @@ export async function up(knex: Knex): Promise<void> {
 
     addStandardColumns(table);
 
-    table.unique(["template_name", "name"]);
+    table.unique(["template_name", "name", "code"], {
+      indexName: "coa_template_name_code_unique",
+    });
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

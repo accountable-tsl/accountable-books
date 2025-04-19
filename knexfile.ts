@@ -51,7 +51,7 @@ const config: { [key: string]: Knex.Config } = {
     },
   },
 
-  "docker.staging": {
+  staging: {
     client: "postgresql",
     connection: baseConnection,
     pool: {
@@ -64,7 +64,7 @@ const config: { [key: string]: Knex.Config } = {
     },
   },
 
-  "docker.production": {
+  production: {
     client: "postgresql",
     connection: baseConnection,
     pool: {
@@ -74,6 +74,19 @@ const config: { [key: string]: Knex.Config } = {
     migrations: {
       tableName: "knex_migrations",
       directory: "./migrations",
+    },
+  },
+  test: {
+    client: "sqlite3",
+    connection: {
+      filename: ":memory:",
+    },
+    useNullAsDefault: true,
+    migrations: {
+      directory: "./migrations",
+    },
+    seeds: {
+      directory: "./seeds",
     },
   },
 };

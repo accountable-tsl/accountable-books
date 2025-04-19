@@ -1,12 +1,15 @@
 import { Worker } from "bullmq";
 import { ENV } from "../../config/env";
-import { InviteEmailPayload, TokenBasedEmailPayload } from "../../domains/communications/email.types";
+import {
+  InviteEmailPayload,
+  TokenBasedEmailPayload,
+} from "../../domains/communications/email.types";
 import {
   getUserInviteTemplate,
   getVerifyEmailTemplate,
 } from "../../utils/emailTemplates/emailTemplates";
 import { sendEmail } from "../../services/email.service";
-import { redis } from "../../lib/bullmq";
+import { redis } from "../../lib/redis";
 
 const baseUrl = ENV.BASE_URL;
 
@@ -17,7 +20,8 @@ export const emailWorker = new Worker(
       case "send_verification_email": {
         const payload: TokenBasedEmailPayload & { url: string } = job.data;
 
-        if (!payload.url) throw new Error("Missing url @ send_verification_email");
+        if (!payload.url)
+          throw new Error("Missing url @ send_verification_email");
 
         const url =
           payload.url ?? `${baseUrl}/verify-email?token=${payload.token}`;

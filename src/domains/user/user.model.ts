@@ -1,12 +1,11 @@
 import type { Knex } from "knex";
 import { ApiResponse } from "../../core/types/api.types";
+import { snakeToCamel } from "../../shared/utils/formatting.utils";
 import {
-  camelToSnake,
-  snakeToCamel,
-} from "../../shared/utils/formatting.utils";
-import {
-  newUserDirect,
   NewUserDirect,
+  newUserDirect,
+  // newUserDirectWithTransform,
+  NewUserInput,
   newUserInvite,
   NewUserInvite,
 } from "./user.types";
@@ -25,16 +24,15 @@ import { sendVerificationEmail } from "../communications/email.service";
 
 export async function createUserDirect(
   knexTrx: Knex,
-  input: NewUserDirect
+  input: NewUserInput | NewUserDirect
 ): Promise<ApiResponse> {
-  const snakeInput = camelToSnake(input);
-  const validateInput = newUserDirect.safeParse(snakeInput);
+  const validateInput = newUserDirect.safeParse(input);
 
   if (!validateInput.success) {
     return errorResponse("Invalid input", validateInput.error.format());
   }
 
-  const { email } = validateInput.data;
+  const { email, password, ...rest } = validateInput.data;
 
   try {
     const existingUser = await knexTrx("user")
@@ -43,20 +41,19 @@ export async function createUserDirect(
       .first();
 
     if (existingUser) {
-      return errorResponse("User with this email already exists");
+      throw new Error("User with this email already exists");
     }
 
     const [verificationToken, hashedPassword] = await Promise.all([
       generateRandomToken(),
-      hashPassword(input.password),
+      hashPassword(password),
     ]);
-
-    const { password, ...rest } = validateInput.data;
 
     const [user] = await knexTrx("user")
       .insert({
         ...rest,
-        password_hash: hashedPassword,
+        email,
+        password: hashedPassword,
         email_verified: false,
         status: "active",
         email_verification_token_hash: hashToken(verificationToken),
@@ -76,8 +73,8 @@ export async function createUserDirect(
       console.error(error);
     });
 
+    console.log("✅ User created successfully:", user);
     return successResponse("Account created successfully", snakeToCamel(user));
-    // });
   } catch (error) {
     return errorResponse(
       "We couldn't create your account. Please try again.",

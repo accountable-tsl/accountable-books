@@ -4,6 +4,7 @@
     "description": "Full system access across all organizations, roles, and settings. Reserved for platform administrators."
   },
   {
+    "id": "83a2fb16-8008-45a8-bcca-fd012aa8bd63",
     "name": "admin",
     "description": "Organization administrator with limited system settings access."
   },

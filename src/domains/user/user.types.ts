@@ -6,15 +6,16 @@ export const userStatus = z.enum(["active", "inactive", "invited", "disabled"]);
 export const userInviteStatus = z.enum(["pending", "accepted", "declined"]);
 export const authProvider = z.enum(["local"]);
 export const newUser = z.object({
+  id: z.string().uuid().optional(),
   firstname: z.string().min(1).max(256),
-  lastname: z.string().min(1).max(256).nullish(),
   email: zEmail(),
-  password_hash: z.string().min(8).optional(),
+  lastname: z.string().min(1).max(256).nullish(),
+  password: z.string().min(8).optional(),
   phone_number: z.string().max(50).nullish(),
   avatar_url: z.string().nullish(),
-  status: userStatus,
+  status: userStatus.optional(),
 
-  email_verified: z.boolean().default(false),
+  email_verified: z.boolean().default(false).optional(),
   email_verification_expiry: zDate.nullish(),
   email_verified_at: zDate.nullish(),
   email_verification_token_hash: z.string().nullish(),
@@ -24,7 +25,7 @@ export const newUser = z.object({
   invited_at: zDate.nullish(),
   invite_expiry: zDate.nullish(),
 
-  failed_login_attempts: z.number().default(0),
+  failed_login_attempts: z.number().default(0).nullish(),
   last_login_at: zDate.nullish(),
   last_failed_login_at: zDate.nullish(),
 
@@ -34,13 +35,27 @@ export const newUser = z.object({
 
 export const newUserDirect = newUser.extend({
   password: z.string().min(8),
-  status: z.literal("active"),
+  status: userStatus.default("active"),
 });
+// .transform((data) => ({
+//     ...data,
+//     password_hash: data.password, // Rename password to password_hash
+//     password: undefined, // Remove original password
+//   }))
+//   .pipe(
+//     z.object({
+//       ...newUser.shape, // Keep other fields from newUser
+//       password: z.undefined(), // Ensure password is removed
+//       password_hash: z.string().min(8), // Define password_hash
+//       status: userStatus.default("active"), // Keep status
+//     })
+//   );;
 
-export const newUserInvite = newUser.extend({
-  password: z.undefined(),
-  status: z.literal("invited"),
-});
+export const newUserInvite = newUser
+  .extend({
+    status: userStatus.default("invited"),
+  })
+  .omit({ password: true });
 
 export const user = newUser.merge(dbBaseFields);
 export type NewUserDirect = z.infer<typeof newUserDirect>;

@@ -12,13 +12,13 @@ import {
   successResponse,
 } from "../../shared/utils/response.utils";
 import { createCompany } from "../../domains/company/company.model";
-import { loadCoaTemplateForCompany } from "../../domains/chart-of-accounts/coaTemplate.model";
+import { loadCoaTemplateForCompany } from "../../domains/chartOfAccounts/coaTemplate.model";
 import { trackEvent } from "../../shared/utils/analytics.utils";
 import {
   createAccountingFirm,
   resolveFirm,
-} from "../../domains/accounting-firm/accountingFirm.model";
-import { createDefaultAccounts } from "../../domains/chart-of-accounts/coa.model";
+} from "../../domains/accountingFirm/accountingFirm.model";
+import { createDefaultAccounts } from "../../domains/chartOfAccounts/coa.model";
 import { determineFirmCompanyDisplayName } from "./onboarding.utils";
 
 export const onboardingClientDirect = async (
@@ -29,7 +29,7 @@ export const onboardingClientDirect = async (
   const validateInput = onboardingDirectClient.safeParse(snakeInput);
 
   if (!validateInput.success) {
-    return errorResponse("Invalid input", validateInput.error.format());
+    return errorResponse("Invalid input", validateInput.error.flatten());
   }
 
   const {
@@ -38,12 +38,15 @@ export const onboardingClientDirect = async (
     firm: firmInput,
   } = validateInput.data;
 
+  console.log(userInput);
+
   let firmId: string | null = null;
 
   try {
     const result = await knex.transaction(async (trx) => {
       // Create user
       const user = await createUserDirect(trx, userInput);
+      console.log(user);
       if (!user.success) {
         throw new Error(`User creation failed: ${user.error}`);
       }
@@ -191,12 +194,38 @@ export const onboardingAccountingFirm = async (knex: Knex, input: unknown) => {
         throw new Error(`Company creation failed: ${company.error}`);
       }
 
+      let createdCoa;
+      if (companyInput.load_coa_template === false) {
+        // All coys must have accounts = trade receivables, payables, owner's equity
+        const mustHaveCoa = await createDefaultAccounts(
+          trx,
+          company.data.id,
+          user.data.id,
+          company.data.reporting_currency_id
+        );
+        createdCoa = mustHaveCoa;
+      } else {
+        const loadedCoa = await loadCoaTemplateForCompany(trx, {
+          companyId: company.data.id,
+          created_by_id: user.data.id,
+          use_code: companyInput.use_code,
+        });
+
+        if (!loadedCoa.success) {
+          throw new Error(
+            `COA loading failed: ${loadedCoa.error || "Unable to load COA"}`
+          );
+        }
+        createdCoa = loadedCoa.data;
+      }
+
       // Create firm
       const firm = await createAccountingFirm(trx, {
         ...firmInput,
-        created_by_id: user.data.id,
-        company_id: company.data.id,
         display_name: companyInput.display_name || companyInput.legal_name,
+        country_id: companyInput.country_id,
+        company_id: company.data.id,
+        created_by_id: user.data.id,
       });
 
       if (!firm.success) {
@@ -223,24 +252,28 @@ export const onboardingAccountingFirm = async (knex: Knex, input: unknown) => {
         .count<{ count: string }>("id");
       const totalCompaniesByUser = parseInt(count, 10) || 1;
 
-      return { user, company, firm, totalCompaniesByUser };
+      return { user, company, firm, createdCoa, totalCompaniesByUser };
     });
 
-    trackEvent("User Signed Up", result.user.data.id, {
-      email: result.user.data.email,
-      role: "admin",
-      method: "direct",
-      firm_id: result.firm.data.id,
-    });
+    try {
+      trackEvent("User Signed Up", result.user.data.id, {
+        email: result.user.data.email,
+        role: "admin",
+        method: "direct",
+        firm_id: result.firm.data.id,
+      });
 
-    trackEvent("Company Created", result.user.data.id, {
-      company_id: result.company.data.id,
-      company_type: companyInput.type,
-      firm_id: result.firm.data.id,
-      total_companies_by_user: result.totalCompaniesByUser,
-      user_type: "admin",
-      industry: companyInput.industry,
-    });
+      trackEvent("Company Created", result.user.data.id, {
+        company_id: result.company.data.id,
+        company_type: companyInput.type,
+        firm_id: result.firm.data.id,
+        total_companies_by_user: result.totalCompaniesByUser,
+        user_type: "admin",
+        industry: companyInput.industry,
+      });
+    } catch (trackError) {
+      console.warn("Failed to track event:", trackError);
+    }
 
     return successResponse(
       "Accounting firm onboarded successfully",
@@ -248,24 +281,29 @@ export const onboardingAccountingFirm = async (knex: Knex, input: unknown) => {
         user: result.user.data,
         company: result.company.data,
         firm: result.firm.data,
+        coa: result.createdCoa,
       })
     );
   } catch (error) {
-    Sentry.captureException(error, {
-      user: {
-        email: userInput?.email,
-        name: `${userInput.firstname} ${userInput.lastname ? userInput.lastname : ""}`,
-      },
-      extra: {
-        firm_name: firmInput?.legal_name,
-        company_type: companyInput.type,
-        method: "direct",
-        input,
-      },
-      tags: {
-        flow: "onboardingAccountingFirm",
-      },
-    });
+    try {
+      Sentry.captureException(error, {
+        user: {
+          email: userInput?.email,
+          name: `${userInput.firstname} ${userInput.lastname ? userInput.lastname : ""}`,
+        },
+        extra: {
+          firm_name: firmInput?.legal_name,
+          company_type: companyInput.type,
+          method: "direct",
+          input,
+        },
+        tags: {
+          flow: "onboardingAccountingFirm",
+        },
+      });
+    } catch (sentryError) {
+      console.warn("Failed to log to Sentry:", sentryError);
+    }
     return errorResponse("Onboarding accounting firm failed", error);
   }
 };

@@ -10,16 +10,17 @@ export const reportingFramework = z.enum(["ifrs", "us_gaap"]);
 
 export const newCompanyInput = z.object({
   legal_name: z.string().max(256),
-  display_name: z.string().max(256).optional(),
+  country_id: z.string().uuid(),
   type: companyType,
+  reporting_currency_id: z.string().uuid(),
+
+  display_name: z.string().max(256).optional(),
   year_end_day: z.number().optional(),
   year_end_month: z.number().optional(),
-  reporting_currency_id: z.string().uuid(),
-  country_id: z.string().uuid(),
   created_by_id: z.string().uuid().optional(),
-  address: z.string().max(256).nullish(),
+  address: z.string().max(512).nullish(),
   logo_url: z.string().max(256).nullish(),
-  description: z.string().max(512).nullish(),
+  description: z.string().max(2000).nullish(),
   website: z.string().url().max(256).nullish(),
   industry: z.string().max(256).nullish(),
   team_size: z.string().max(256).nullish(),
@@ -36,7 +37,6 @@ export const newCompany = newCompanyInput.extend({
   year_end_day: z.number(),
   year_end_month: z.number(),
   created_by_id: z.string().uuid(),
-  assigned_firm_id: z.string().uuid(),
 });
 
 export const company = newCompany.merge(dbBaseFields);
