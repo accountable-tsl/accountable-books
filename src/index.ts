@@ -18,7 +18,7 @@ import cors from "cors";
 import currencyRoutes from "./domains/currency/currency.routes";
 import countryRoutes from "./domains/country/country.routes";
 import emailRoutes from "./domains/email/email.routes";
-import onboarding from "./features/onboarding/onboarding.routes";
+import onboarding from "./features/signup/signup.routes";
 import { swaggerUi, specs } from "../swagger";
 import { basicAuth } from "./middlewares/basicAuth.middleware";
 import { serverAdapter } from "./routes/bullboard.routes";

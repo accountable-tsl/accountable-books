@@ -19,13 +19,13 @@ import {
   hashToken,
 } from "../../shared/utils/crypto.utils";
 import dayjs from "dayjs";
-import { buildEmailServiceUrl } from "../communications/email.utils";
-import { sendVerificationEmail } from "../communications/email.service";
+import { isProduction } from "../../config/env";
 
 export async function createUserDirect(
-  knexTrx: Knex,
+  knexTrx: Knex.Transaction,
   input: NewUserInput | NewUserDirect
 ): Promise<ApiResponse> {
+  // Don't throw within this function, it should only ever be used in a service
   const validateInput = newUserDirect.safeParse(input);
 
   if (!validateInput.success) {
@@ -41,7 +41,7 @@ export async function createUserDirect(
       .first();
 
     if (existingUser) {
-      throw new Error("User with this email already exists");
+      errorResponse("User with this email already exists");
     }
 
     const [verificationToken, hashedPassword] = await Promise.all([
@@ -61,20 +61,12 @@ export async function createUserDirect(
       })
       .returning(["id", "firstname", "lastname", "email", "status"]);
 
-    const url = buildEmailServiceUrl("verify-email", {
-      token: verificationToken,
-    });
-    //   await sendWelcomeEmail(user.email, user.firstname, verifyUrl); // Send this almost immediately
-    await sendVerificationEmail({
-      to: user.email,
-      name: user.firstname,
-      url,
-    }).catch((error) => {
-      console.error(error);
-    });
+    if (!isProduction) console.log("✅ User created successfully:", user);
 
-    console.log("✅ User created successfully:", user);
-    return successResponse("Account created successfully", snakeToCamel(user));
+    return successResponse(
+      "Account created successfully",
+      snakeToCamel({ ...user, verificationToken })
+    );
   } catch (error) {
     return errorResponse(
       "We couldn't create your account. Please try again.",

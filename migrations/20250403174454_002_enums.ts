@@ -123,6 +123,9 @@ export async function up(knex: Knex): Promise<void> {
     ])
   );
   await knex.raw(
+    createEnumIfNotExists("coa_source", ["user", "template", "system"])
+  );
+  await knex.raw(
     createEnumIfNotExists("categorization_status", [
       "uncategorized",
       "categorized",

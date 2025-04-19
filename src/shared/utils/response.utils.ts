@@ -1,5 +1,6 @@
-import { NODE_ENV } from "../../config/env";
+import { isProduction, NODE_ENV } from "../../config/env";
 import { ApiResponse } from "../../core/types/api.types";
+import * as Sentry from "@sentry/node";
 
 export function successResponse<T>(
   message = "Query successful",
@@ -16,8 +17,17 @@ export function errorResponse<T = null>(
   message = "Something went wrong",
   error?: unknown
 ): ApiResponse {
-  if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+  if (!isProduction) {
     console.error("Error:", error);
+  }
+
+  if (isProduction && error) {
+    Sentry.captureException(
+      error instanceof Error ? error : new Error(message),
+      {
+        extra: { error },
+      }
+    );
   }
 
   let parsedError: string | Record<string, any> | string[] | undefined;
@@ -37,3 +47,15 @@ export function errorResponse<T = null>(
     data: null,
   };
 }
+
+export const throwError = (message: string, errorDetails?: any): never => {
+  if (!isProduction) {
+    console.error(message, errorDetails);
+  }
+
+  if (isProduction) {
+    Sentry.captureException(new Error(message), { extra: errorDetails });
+  }
+
+  throw new Error(message);
+};

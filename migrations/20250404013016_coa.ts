@@ -50,6 +50,8 @@ export async function up(knex: Knex): Promise<void> {
     table.string("name", 256).notNullable();
     table.string("description", 512).nullable();
     table.boolean("is_active").defaultTo(true);
+    table.boolean("locked").defaultTo(false);
+    table.specificType("source", "coa_source").nullable();
 
     table
       .uuid("account_type_id")

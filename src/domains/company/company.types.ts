@@ -17,7 +17,7 @@ export const newCompanyInput = z.object({
   display_name: z.string().max(256).optional(),
   year_end_day: z.number().optional(),
   year_end_month: z.number().optional(),
-  created_by_id: z.string().uuid().optional(),
+  created_by_id: z.string().optional(),
   address: z.string().max(512).nullish(),
   logo_url: z.string().max(256).nullish(),
   description: z.string().max(2000).nullish(),

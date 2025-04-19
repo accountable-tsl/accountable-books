@@ -128,6 +128,7 @@ export const newCoaTemplate = z.object({
   description: z.string().max(512).nullish(),
   account_type_id: z.string().uuid("Account Type ID is required"),
   is_active: z.boolean().default(true),
+  locked: z.boolean().default(false),
 });
 export const coaTemplate = newCoaTemplate.merge(dbBaseFields);
 

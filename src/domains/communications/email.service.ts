@@ -6,9 +6,14 @@ import {
   InviteEmailPayload,
   TokenBasedEmailPayload,
 } from "./email.types";
-import { errorResponse } from "../../shared/utils/response.utils";
+import {
+  errorResponse,
+  successResponse,
+  throwError,
+} from "../../shared/utils/response.utils";
 import { buildEmailServiceUrl } from "./email.utils";
 import { emailQueue } from "../../jobs/queues/email.queue";
+import { ApiResponse } from "../../core/types/api.types";
 
 let transporter: Transporter | null = null;
 
@@ -103,7 +108,9 @@ export async function sendEmail(payload: EmailPayload) {
   }
 }
 
-export async function sendVerificationEmail(payload: TokenBasedEmailPayload) {
+export async function sendVerificationEmail(
+  payload: TokenBasedEmailPayload
+): Promise<ApiResponse> {
   console.log(payload);
 
   const url =
@@ -111,10 +118,11 @@ export async function sendVerificationEmail(payload: TokenBasedEmailPayload) {
     buildEmailServiceUrl("verify-email", { token: payload.token! });
 
   if (!url) {
-    throw new Error("Missing token and url...");
+    throwError("Missing token and url...");
   }
 
   await emailQueue.add("send_verification_email", { ...payload, url });
+  return successResponse("Verification email sent", payload.to);
 }
 
 export async function sendUserInviteEmail(payload: InviteEmailPayload) {

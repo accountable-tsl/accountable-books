@@ -15,6 +15,9 @@ export const createCompany = async (
   knexTrx: Knex.Transaction,
   input: NewCompanyInput
 ): Promise<ApiResponse> => {
+  // Don't throw within this function, it should only ever be used in a service
+  console.log(input);
+
   const snakeInput = camelToSnake(input);
   const validateInput = newCompanyInput.safeParse(snakeInput);
 
@@ -22,11 +25,14 @@ export const createCompany = async (
     return errorResponse("Invalid input", validateInput.error.flatten());
   }
 
+  if (!input.created_by_id) {
+    return errorResponse("UserID is required");
+  }
   const { assigned_firm_id } = validateInput.data;
 
   try {
     const userExists = await knexTrx("user")
-      .where({ id: validateInput.data.created_by_id })
+      .where({ id: input.created_by_id })
       .first();
 
     if (!userExists) {
@@ -78,7 +84,7 @@ export const createCompany = async (
       return errorResponse("Unable to create company");
     }
 
-    const assignToFirm = await knexTrx("firm_company").insert({
+    await knexTrx("firm_company").insert({
       company_id: company.id,
       accounting_firm_id: firmId,
     });

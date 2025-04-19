@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { dbBaseFields } from "../../core/validation/schemas";
 
+export const coaSource = z.enum(["user", "system", "template"]);
+export type CoaSource = z.infer<typeof coaSource>;
 // coa
 export const newCoa = z.object({
   company_id: z.string().uuid(),
@@ -11,6 +13,8 @@ export const newCoa = z.object({
   is_active: z.boolean().default(true),
   code: z.string().max(256).nullish(),
   description: z.string().max(512).nullish(),
+  locked: z.boolean().default(false).nullish(),
+  source: coaSource.nullish(),
 });
 export const coa = newCoa.merge(dbBaseFields);
 

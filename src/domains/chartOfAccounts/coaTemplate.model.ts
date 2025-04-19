@@ -13,6 +13,8 @@ import {
 } from "../../shared/utils/response.utils";
 import { Company } from "../company/company.types";
 import { selectBestCoaTemplate } from "./coaTemplateSelector.service";
+import { createDefaultAccounts } from "./coa.model";
+import { CoaSource, NewCoa } from "./coa.types";
 
 export const addNewCoaTemplates = async (
   knex: Knex,
@@ -76,13 +78,15 @@ export const loadCoaTemplateForCompany = async (
       );
 
     if (!company || !company.type || !company.reporting_currency_id)
-      return errorResponse("Company not found or invalid type");
+      return errorResponse("Company not found or missing required fields");
 
     let chosenTemplate;
     if (template_name) {
+      // If user provided a template name, use that
       chosenTemplate = template_name;
     }
 
+    // If no template name provided, try to determine best template
     if (!chosenTemplate) {
       const matchInput: SelectBestCoa = {
         company,
@@ -93,17 +97,29 @@ export const loadCoaTemplateForCompany = async (
       chosenTemplate = template;
     }
 
-    const validTemplate = await knex("coa_template")
+    // Check if template is valid and select valid template
+    const validTemplate: NewCoa[] = await knex("coa_template")
       .where("is_active", true)
       .where("template_name", chosenTemplate)
-      .select("code", "name", "description", "account_type_id");
+      .select("code", "name", "description", "account_type_id", "locked");
 
-    if (!validTemplate.length) {
-      return errorResponse(`Template ${chosenTemplate} is invalid or inactive`);
+    if (!validTemplate || !validTemplate.length) {
+      // No valid template could be found? Attempt to create default accounts
+      await createDefaultAccounts(
+        knex,
+        companyId,
+        input.created_by_id,
+        company.reporting_currency_id
+      );
+
+      return successResponse(
+        `No valid template found. Default accounts created for ${company.display_name}`,
+        null
+      );
     }
 
     return knex.transaction(async (trx) => {
-      const templateToInsert = validTemplate.map((t) => {
+      const templateToInsert: NewCoa[] = validTemplate.map((t) => {
         return {
           code: t.code,
           name: t.name,
@@ -113,10 +129,12 @@ export const loadCoaTemplateForCompany = async (
           currency_id: company.reporting_currency_id,
           company_id: companyId,
           created_by_id: input.created_by_id,
+          locked: t.locked,
+          source: "template",
         };
       });
 
-      const insertedCoa = await trx("coa").insert(templateToInsert);
+      await trx("coa").insert(templateToInsert);
 
       return successResponse(
         `Coa template with ${validTemplate.length} lines inserted for ${company.display_name}`,

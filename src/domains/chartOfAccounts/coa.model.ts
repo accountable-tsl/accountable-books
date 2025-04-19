@@ -4,9 +4,11 @@ import { ApiResponse } from "../../core/types/api.types";
 import {
   errorResponse,
   successResponse,
+  throwError,
 } from "../../shared/utils/response.utils";
-import { DEFAULT_ACCOUNT_TYPE_IDS } from "./coa.constants";
+import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from "./coa.constants";
 import { accountTypeIds } from "../../shared/constants/account.constants";
+import { isProduction } from "../../config/env";
 
 export const createCoa = async (
   knex: Knex,
@@ -46,51 +48,55 @@ export const createCoa = async (
 };
 
 export const createDefaultAccounts = async (
-  trx: Knex.Transaction,
+  trx: Knex,
   companyId: string,
   userId: string,
   currencyId: string
-) => {
-  const mustHaveAccounts = [
-    {
+): Promise<ApiResponse> => {
+  const defaultAccounts: NewCoa[] = mustHaveAccounts.map((acc) => {
+    return {
+      ...acc,
       company_id: companyId,
       created_by_id: userId,
       currency_id: currencyId,
-      name: "Trade Receivables",
-      description: "Amount due from customers",
-      account_type_id:
-        accountTypeIds.ca_trade_receivable ||
-        DEFAULT_ACCOUNT_TYPE_IDS.tradeReceivables,
-      is_active: true,
-    },
-    {
-      company_id: companyId,
-      created_by_id: userId,
-      currency_id: currencyId,
-      name: "Trade Payables",
-      description: "Amounts owed to suppliers",
-      account_type_id:
-        accountTypeIds.cl_trade_payable ||
-        DEFAULT_ACCOUNT_TYPE_IDS.tradePayables,
-      is_active: true,
-    },
-    {
-      company_id: companyId,
-      created_by_id: userId,
-      currency_id: currencyId,
-      name: "Owner Equity",
-      description: "Initial investment or funding",
-      account_type_id:
-        accountTypeIds.eq_contributed_capital ||
-        DEFAULT_ACCOUNT_TYPE_IDS.ownersEquity,
-      is_active: true,
-    },
-  ];
+      locked: true,
+      source: "template",
+    };
+  });
 
-  const validatedMustHaveAcc = newCoa.array().safeParse(mustHaveAccounts);
-  if (!validatedMustHaveAcc.success) {
-    throw new Error("Failed to validate must-have accounts");
+  const existingLockedAccounts = await trx("coa")
+    .where({
+      company_id: companyId,
+      locked: true,
+    })
+    .whereIn("account_type_id", Object.values(DEFAULT_ACCOUNT_TYPE_IDS))
+    .select("account_type_id");
+
+  const existingAccountTypeIds = new Set(
+    existingLockedAccounts.map((acc) => acc.account_type_id)
+  );
+
+  const accountsToCreate = defaultAccounts.filter(
+    (acc) => !existingAccountTypeIds.has(acc.account_type_id)
+  );
+
+  if (!accountsToCreate.length)
+    return successResponse("No accounts to create", null);
+
+  const validatedAccounts = newCoa.array().safeParse(accountsToCreate);
+  if (!validatedAccounts.success) {
+    throwError(
+      "Failed to validate default accounts",
+      validatedAccounts.error.flatten()
+    );
+  }
+  let inserted;
+  if (validatedAccounts.success) {
+    inserted = await trx("coa").insert(validatedAccounts.data).returning("*");
   }
 
-  return trx("coa").insert(validatedMustHaveAcc.data).returning("*");
+  if (!inserted || inserted.length === 0) {
+    return errorResponse("Failed to insert default chart of accounts records");
+  }
+  return successResponse("Must-have accounts successfully inserted", inserted);
 };

@@ -33,6 +33,7 @@ const seedCoaTemplates = async function seed(knex: Knex): Promise<void> {
               description: data.description?.trim() || null,
               account_type_id: data.account_type_id,
               is_active: true,
+              locked: data.locked?.toLowerCase() === "true",
             });
           } catch (e) {
             console.warn(`Invalid row skipped: ${JSON.stringify(data)}`, e);
@@ -61,6 +62,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string("code", 256).nullable();
     table.string("description", 512).nullable();
     table.boolean("is_active").defaultTo(true);
+    table.boolean("locked").defaultTo(false);
 
     table
       .uuid("account_type_id")

@@ -20,7 +20,7 @@ const envFileMap: Record<NodeEnv, string> = {
   test: ".env.test",
   local: ".env.local",
   "docker.dev": ".env.docker.dev",
-  "staging": ".env.docker.staging",
+  staging: ".env.docker.staging",
   production: ".env.production",
 };
 
@@ -56,3 +56,4 @@ dotenv.config({
 console.log(`🌱 Loaded environment from: ${envFile}`);
 
 export const ENV = process.env;
+export const isProduction = NODE_ENV === "production";
