@@ -9,15 +9,8 @@ import { StepProgress } from "@/components/StepProgress/StepProgress";
 import { useEffect, useRef, useState } from "react";
 import { CompanyType, CountryList, zEmail } from "@/types/types";
 import { Button } from "@/components/ui/button";
-import {
-  defaultMockCompany,
-  NewCompany,
-  NewFirm,
-  newUser,
-  NewUser,
-} from "./signupTypes";
+import { NewCompany, NewFirm, NewUser } from "./signupTypes";
 import { useSearchParams } from "react-router-dom";
-import { typeToFlattenedError } from "zod";
 import { useCountries } from "@/hooks/useCountries";
 import { getDefaultCurrencyForCountry } from "@/constants/countryCurrencyMap";
 import { useCurrencies } from "@/hooks/useCurrencies";
@@ -26,15 +19,19 @@ import {
   SignupBasicInfo,
   SignupBasicInfoHandle,
 } from "./steps/SignupBasicInfo";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { useCheckEmail } from "@/hooks/useCheckEmail";
-import { SignupCompanyInfo } from "./steps/SignupCompanyInfo";
+import {
+  SignupCompanyInfo,
+  SignupCompanyInfoHandle,
+} from "./steps/SignupCompanyInfo";
+import { toast } from "sonner";
+import { submitSignup } from "./signupService";
+
 export default function Signup() {
   const [searchParams] = useSearchParams();
   const prefillEmail = searchParams.get("email") || "";
 
-  const [currentStep, setCurrentStep] = useState(3);
+  const [currentStep, setCurrentStep] = useState(1);
   const [selectedType, setSelectedType] = useState<CompanyType | null>(null);
 
   const [basicInfo, setBasicInfo] = useState<NewUser>({
@@ -43,18 +40,15 @@ export default function Signup() {
     firstname: "",
     lastname: "",
   });
-  // const [basicInfoError, setBasicInfoError] =
-  //   useState<typeToFlattenedError<NewUser>>();
-  const [basicInfoError, setBasicInfoError] = useState<any>();
-
-  const [companyDetails, setCompanyDetails] =
-    useState<NewCompany>(defaultMockCompany);
-  const [firmDetails, setFirmDetails] = useState<NewFirm>({
+  const [companyDetails, setCompanyDetails] = useState<NewCompany>({
     legalName: "",
     countryId: "",
+    type: "business",
+    reportingCurrencyId: "",
+    yearEndDay: 31,
+    yearEndMonth: 12,
   });
 
-  const [formData, setFormData] = useState({});
   const [error, setError] = useState<string>("");
 
   // This tracks whether the user has explicitly selected a reporting currency.
@@ -68,6 +62,8 @@ export default function Signup() {
   const { data: currencies } = useCurrencies();
 
   const basicInfoRef = useRef<SignupBasicInfoHandle>(null);
+  const companyInfoRef = useRef<SignupCompanyInfoHandle>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const { mutateAsync: checkEmail } = useCheckEmail();
 
@@ -77,7 +73,6 @@ export default function Signup() {
     if (!validEmail.success)
       throw new Error("Please enter a valid email address");
     const response = await checkEmail({ email, purpose: "signup" });
-    console.log(response);
     if (!response?.success) {
       throw new Error("This email has already been registered");
     }
@@ -99,38 +94,45 @@ export default function Signup() {
         setError("Please choose a category to proceed.");
         return;
       }
-      setCompanyDetails((prev) => ({ ...prev, type: selectedType }));
+      setCompanyDetails((prev) => ({
+        ...prev,
+        type: selectedType,
+        ...(selectedType === "accounting_firm"
+          ? { industry: "Professional, Scientific, and Technical Services" }
+          : {}),
+      }));
       setCurrentStep(currentStep + 1);
     }
 
     if (currentStep === 2) {
       const isValid = await basicInfoRef.current?.validate();
-      if (!isValid) return;
-      // const emailAvailable = await checkEmail({
-      //   email: basicInfo.email,
-      //   purpose: "signup",
-      // });
-
-      // console.log(emailAvailable);
-
-      // if (!emailAvailable.success) {
-      //   setError("Email already exists");
-      //   return;
-      // }
+      if (!isValid) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
       setCurrentStep(currentStep + 1);
     }
 
     if (currentStep === steps.length) {
-      // Handle form submission
-      setFormData({
-        selectedType,
-        ...basicInfo,
-        ...companyDetails,
+      const isValid = await companyInfoRef.current?.validate();
+      if (!isValid) {
+        toast.error("Please fix the errors in your company details");
+        return;
+      }
+
+      await submitSignup({
+        user: basicInfo,
+        company: companyDetails,
       });
-      console.log("Form submitted:", formData);
+
+      // Successful? Clear form, send user to dashboard
+      // TODO: Redirect to dashboard
+      // Basically log user in already, JWT and all
     }
   };
 
+  console.log("companyDetails", companyDetails);
+  console.log("basicInfo", basicInfo);
   const handleSelect = (category: CompanyType) => {
     if (!category) return;
     if (currentStep === 1) {
@@ -138,6 +140,15 @@ export default function Signup() {
       setCompanyDetails((prev) => ({ ...prev, type: category }));
     }
     setError("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleContinue({
+        preventDefault: () => {},
+      } as React.MouseEvent<HTMLButtonElement>);
+    }
   };
 
   const handleBasicInfoChange = (key: keyof NewUser, value: string) => {
@@ -161,88 +172,16 @@ export default function Signup() {
       ? getDefaultCurrencyForCountry(userCountry?.code)
       : "";
 
-    console.log(userCountry, "Curr: ", curr);
-
     return curr;
   };
 
-  const handleDetailsChange = (
-    field: keyof NewCompany | keyof NewFirm,
-    value: string
-  ) => {
-    const isFirm =
-      selectedType === "accounting_firm" ||
-      companyDetails.type === "accounting_firm";
-
-    const sharedFields: (keyof NewCompany & keyof NewFirm)[] = [
-      "legalName",
-      "countryId",
-    ];
-
-    // Aliases for semantically similar fields with different names
-    const aliasFields: Record<string, keyof NewCompany | keyof NewFirm> = {
-      firmSize: "teamSize",
-      teamSize: "firmSize",
-    };
-
-    const alias = aliasFields[field as string];
-
-    if (sharedFields.includes(field as keyof NewCompany & keyof NewFirm)) {
-      setCompanyDetails((prev) => ({ ...prev, [field]: value }));
-
-      if (isFirm) {
-        setFirmDetails((prev) => ({ ...prev, [field]: value }));
-      }
-    }
-
+  const handleCompanyInfoChange = (field: keyof NewCompany, value: string) => {
     // If user manually selects a currency, mark the override flag
     if (field === "reportingCurrencyId") {
       userHasSelectedCurrency.current = true;
     }
 
-    // 1. Handle shared fields like legalName, countryId
-    if (sharedFields.includes(field as keyof NewCompany & keyof NewFirm)) {
-      setCompanyDetails((prev) => ({ ...prev, [field]: value }));
-
-      if (isFirm) {
-        setFirmDetails((prev) => ({ ...prev, [field]: value }));
-      }
-    }
-
-    // 2. Handle alias fields like firmSize ↔ teamSize
-    else if (alias) {
-      // Update company side
-      if (field in companyDetails || alias in companyDetails) {
-        setCompanyDetails((prev) => ({
-          ...prev,
-          [field in companyDetails ? field : alias]: value,
-        }));
-      }
-
-      // Update firm side only if applicable
-      if (isFirm && (field in firmDetails || alias in firmDetails)) {
-        setFirmDetails((prev) => ({
-          ...prev,
-          [field in firmDetails ? field : alias]: value,
-        }));
-      }
-    }
-    // 3. Handle form-specific fields
-    else {
-      if (field in companyDetails) {
-        setCompanyDetails((prev) => ({
-          ...prev,
-          [field]: value,
-        }));
-      }
-
-      if (isFirm && field in firmDetails) {
-        setFirmDetails((prev) => ({
-          ...prev,
-          [field]: value,
-        }));
-      }
-    }
+    setCompanyDetails((prev) => ({ ...prev, [field]: value }));
   };
 
   let stepContent;
@@ -270,11 +209,10 @@ export default function Signup() {
   if (currentStep === 3 && selectedType) {
     stepContent = (
       <SignupCompanyInfo
+        ref={companyInfoRef}
         userData={basicInfo}
         companyData={companyDetails}
-        firmData={firmDetails}
-        updateCompanyField={handleDetailsChange}
-        userType={selectedType}
+        updateCompanyField={handleCompanyInfoChange}
       />
     );
   } else if (currentStep > 1 && !selectedType) {
@@ -304,6 +242,7 @@ export default function Signup() {
   }, [country?.data, companyDetails.countryId]);
 
   useEffect(() => {
+    console.log(userHasSelectedCurrency.current);
     // Only run when currency list is ready and a country is selected
     if (
       !currencies?.data ||
@@ -353,7 +292,9 @@ export default function Signup() {
             />
           </CardHeader>
           <CardContent className="min-h-50">
-            <form>{stepContent}</form>
+            <form ref={formRef} onKeyDown={handleKeyDown}>
+              {stepContent}
+            </form>
           </CardContent>
           {
             <CardFooter className="py-2">

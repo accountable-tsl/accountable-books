@@ -6,14 +6,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import {
-  newCompany,
-  NewCompany,
-  newFirm,
-  NewFirm,
-  NewUser,
-} from "../signupTypes";
-import { CompanyType, CountryList } from "@/types/types";
+import { newCompany, NewCompany, NewUser } from "../signupTypes";
 import { useIndustries } from "@/hooks/useIndustries";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown/AutocompleteDropdown";
@@ -21,16 +14,13 @@ import { useCountries } from "@/hooks/useCountries";
 import { useCurrencies } from "@/hooks/useCurrencies";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormField, FormFieldLabel } from "@/components/FormField";
-import {
-  COMPANY_SIZE,
-  COMPANY_TYPES,
-  TOOLTIP,
-} from "../constants/signupConstants";
+import { FormField } from "@/components/FormField";
+import { COMPANY_SIZE, COMPANY_TYPES, TOOLTIP } from "../signupConstants";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TooltipHelper } from "@/components/TooltipHelper";
+import DOMPurify from "dompurify";
 
 export interface SignupCompanyInfoHandle {
   validate: () => Promise<boolean>;
@@ -39,15 +29,11 @@ export const SignupCompanyInfo = forwardRef<
   SignupCompanyInfoHandle,
   {
     companyData: NewCompany;
-    firmData: NewFirm;
     userData: NewUser;
-    updateCompanyField: (
-      field: keyof NewCompany | keyof NewFirm,
-      value: string
-    ) => void;
-    userType: CompanyType;
+    updateCompanyField: (field: keyof NewCompany, value: string) => void;
   }
->(({ companyData, firmData, userData, updateCompanyField, userType }, ref) => {
+>(({ companyData, userData, updateCompanyField }, ref) => {
+  const userType = companyData.type;
   const isFirm = userType === "accounting_firm";
   const isIndividual = userType === "individual";
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -61,28 +47,18 @@ export const SignupCompanyInfo = forwardRef<
     isError: isIndustriesError,
   } = useIndustries();
 
-  const {
-    data: currencies,
-    isLoading: isCurrencyLoading,
-    isError: isCurrencyError,
-  } = useCurrencies();
+  const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
 
-  const {
-    data: countries,
-    isLoading: isCountryLoading,
-    isError: isCountryError,
-  } = useCountries();
+  const { data: countries, isLoading: isCountryLoading } = useCountries();
 
-  const schema = isFirm ? newFirm : newCompany;
-
-  const defaultValues = isFirm
-    ? firmData
-    : {
-        ...companyData,
-        legalName: isIndividual
-          ? `${userData.firstname}'s Finances`.trim()
-          : companyData.legalName,
-      };
+  const defaultValues = {
+    ...companyData,
+    legalName: isIndividual
+      ? `${userData.firstname}'s Finances`.trim()
+      : companyData.legalName,
+    yearEndDay: companyData.yearEndDay || 31,
+    yearEndMonth: companyData.yearEndMonth || 12,
+  };
 
   const {
     register,
@@ -90,8 +66,8 @@ export const SignupCompanyInfo = forwardRef<
     formState: { errors },
     setValue,
     trigger,
-  } = useForm<NewCompany | NewFirm>({
-    resolver: zodResolver(schema),
+  } = useForm<NewCompany>({
+    resolver: zodResolver(newCompany),
     defaultValues,
     mode: "onChange",
   });
@@ -104,14 +80,32 @@ export const SignupCompanyInfo = forwardRef<
     validate: async () => await trigger(),
   }));
 
-  const handleChange = (
-    field: keyof NewCompany | keyof NewFirm,
-    value: string | number
-  ) => {
-    setValue(field, value);
+  const handleChange = (field: keyof NewCompany, value: string | number) => {
+    setValue(field, value, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+
+    // Force revalidation of both fields any time one changes
+    trigger(["yearEndDay", "yearEndMonth"]);
+
     updateCompanyField(field, value.toString());
   };
 
+  useEffect(() => {
+    if (
+      companyData.reportingCurrencyId &&
+      watch("reportingCurrencyId") !== companyData.reportingCurrencyId
+    ) {
+      setValue("reportingCurrencyId", companyData.reportingCurrencyId, {
+        shouldValidate: true,
+        shouldDirty: false,
+      });
+    }
+  }, [companyData.reportingCurrencyId]);
+
+  console.log("companydata", companyData);
+  console.log("errors", errors);
   return (
     <div>
       <div className="flex flex-col gap-4">
@@ -143,23 +137,21 @@ export const SignupCompanyInfo = forwardRef<
         </FormField>
 
         <div className="grid md:grid-cols-2 gap-2 -w-full overflow-hidden">
-          {/* // Country */}
+          {/* Country */}
           <FormField
-            id="country"
+            id="countryId"
             label="Country"
             required
             helpTooltip={TOOLTIP.country}
             tooltipStyle="w-full"
             error={errors.countryId?.message}
-            errorTooltip={errors.countryId?.message}
+            errorTooltip
           >
             <AutocompleteDropdown
-              id="country"
+              id="countryId"
               items={
                 isCountryLoading
                   ? [{ value: "loading", label: "Loading..." }]
-                  : isCountryError
-                  ? [{ value: "error", label: "Error loading countries" }]
                   : countries?.data || []
               }
               mapItem={(item) => ({
@@ -174,44 +166,40 @@ export const SignupCompanyInfo = forwardRef<
               }
             />
           </FormField>
-          {/* <div className="space-y-2 flex flex-col flex-1"></div> */}
 
-          {/* // Reporting Currency */}
-
-          <div className="space-y-2 flex flex-col flex-1">
-            <FormField
+          {/* Reporting Currency */}
+          <FormField
+            id="reportingCurrencyId"
+            label="Reporting Currency"
+            required
+            helpTooltip={TOOLTIP.reportingCurrency}
+            error={errors.reportingCurrencyId?.message}
+            errorTooltip
+            className="flex flex-col flex-1"
+          >
+            <AutocompleteDropdown
               id="reportingCurrencyId"
-              label="Reporting Currency"
-              required
-              helpTooltip={TOOLTIP.reportingCurrency}
-              error={errors.reportingCurrencyId?.message}
-              errorTooltip={errors.reportingCurrencyId?.message}
-            >
-              <AutocompleteDropdown
-                id="reportingCurrency"
-                items={
-                  isCurrencyLoading
-                    ? [{ value: "loading", label: "Loading..." }]
-                    : isCurrencyError
-                    ? [{ value: "error", label: "Error loading countries" }]
-                    : currencies?.data || []
-                }
-                mapItem={(item) => ({
-                  value: item.id,
-                  label: item.name,
-                })}
-                value={watch("reportingCurrencyId") || ""}
-                onChange={(value) => handleChange("reportingCurrencyId", value)}
-                placeholder="Select currency"
-                aria-describedby={
-                  errors.reportingCurrencyId
-                    ? "reportingCurrencyId-error"
-                    : undefined
-                }
-              />
-            </FormField>
-          </div>
+              items={
+                isCurrencyLoading
+                  ? [{ value: "loading", label: "Loading..." }]
+                  : currencies?.data || []
+              }
+              mapItem={(item) => ({
+                value: item.id,
+                label: `${item.name} (${item.symbol})`,
+              })}
+              value={watch("reportingCurrencyId")}
+              onChange={(value) => handleChange("reportingCurrencyId", value)}
+              placeholder="Select currency"
+              aria-describedby={
+                errors.reportingCurrencyId
+                  ? "reportingCurrencyId-error"
+                  : undefined
+              }
+            />
+          </FormField>
         </div>
+
         {!isIndividual && (
           <div
             className={cn(
@@ -219,12 +207,12 @@ export const SignupCompanyInfo = forwardRef<
               isFirm ? "grid md:grid-cols-2 gap-2" : ""
             )}
           >
+            {/* Industry */}
             <FormField
               id="industry"
               label="Industry"
               error={errors.industry?.message}
               helpTooltip={TOOLTIP.industry || ""}
-              required
               className="w-full"
             >
               <AutocompleteDropdown
@@ -245,72 +233,72 @@ export const SignupCompanyInfo = forwardRef<
               />
             </FormField>
 
+            {/* Fiscal Period */}
             {isFirm && (
-              <>
-                <FormField
-                  id="fiscalPeriod"
-                  required
-                  renderLabel={
-                    <FormFieldLabel
-                      id="fiscalPeriod"
-                      label="Financial Year End"
-                      helpTooltip={TOOLTIP.yearEnd}
-                      required
-                    />
-                  }
-                >
-                  <div className="grid md:grid-cols-2 gap-1">
-                    <div className="relative">
-                      <Select
-                        onValueChange={(value) =>
-                          handleChange("yearEndDay", Number(value))
-                        }
-                        value={watch("yearEndDay")?.toString() || ""}
-                      >
-                        <SelectTrigger className="w-full [&_svg]:hidden">
-                          <SelectValue placeholder="Select day" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {days.map((day) => (
-                            <SelectItem key={day} value={day.toString()}>
-                              {day}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {watch("yearEndDay") && (
-                        <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
-                          Day
-                        </span>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <Select
-                        onValueChange={(value) =>
-                          handleChange("yearEndMonth", Number(value))
-                        }
-                        value={watch("yearEndMonth")?.toString() || ""}
-                      >
-                        <SelectTrigger className="w-full [&_svg]:hidden">
-                          <SelectValue placeholder="Month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {months.map((month) => (
-                            <SelectItem key={month} value={month.toString()}>
-                              {month}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {watch("yearEndMonth") && (
-                        <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
-                          Month
-                        </span>
-                      )}
-                    </div>
+              <FormField
+                id="fiscalPeriod"
+                label="Year End"
+                helpTooltip={TOOLTIP.yearEnd}
+                required
+                error={
+                  errors.yearEndDay?.message ||
+                  errors.yearEndMonth?.message ||
+                  errors.root?.message
+                }
+                errorTooltip
+                errorTooltipStyle="w-full"
+              >
+                <div className="grid md:grid-cols-2 gap-1">
+                  <div className="relative">
+                    <Select
+                      onValueChange={(value) =>
+                        handleChange("yearEndDay", value)
+                      }
+                      value={watch("yearEndDay")?.toString() || "31"}
+                    >
+                      <SelectTrigger className="w-full [&_svg]:hidden">
+                        <SelectValue placeholder="Select day" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {days.map((day) => (
+                          <SelectItem key={day} value={day.toString()}>
+                            {day}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {watch("yearEndDay") && (
+                      <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                        Day
+                      </span>
+                    )}
                   </div>
-                </FormField>
-              </>
+                  <div className="relative">
+                    <Select
+                      onValueChange={(value) =>
+                        handleChange("yearEndMonth", value)
+                      }
+                      value={watch("yearEndMonth")?.toString() || "12"}
+                    >
+                      <SelectTrigger className="w-full [&_svg]:hidden">
+                        <SelectValue placeholder="Month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {months.map((month) => (
+                          <SelectItem key={month} value={month.toString()}>
+                            {month}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {watch("yearEndMonth") && (
+                      <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                        Month
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </FormField>
             )}
           </div>
         )}
@@ -318,12 +306,17 @@ export const SignupCompanyInfo = forwardRef<
         <div
           className={cn("flex flex-col", !isIndividual ? "-mb-[1.75rem]" : "")}
         >
+          {/* Description */}
           <FormField
             id="description"
             label="Description"
             helpTooltip={TOOLTIP.description}
           >
             <Textarea
+              {...register("description")}
+              onChange={(e) =>
+                handleChange("description", DOMPurify.sanitize(e.target.value))
+              }
               placeholder={
                 isIndividual
                   ? "Tell us a bit about yourself"
@@ -335,20 +328,17 @@ export const SignupCompanyInfo = forwardRef<
                 "resize-none mb-6",
                 showOptionalFieldsButton || isIndividual ? "mb-0" : ""
               )}
-              value={description}
-              onChange={(e) => {
-                const value = e.target.value;
-                setValue("description", value);
-                updateCompanyField("description", value);
-              }}
+              // value={description}
               onFocus={() => setIsDescriptionTouched(true)}
               onBlur={() => {
-                setTimeout(() => {
-                  !viewOptionalFields && setIsDescriptionTouched(false);
-                }, 2000);
+                setTimeout(
+                  () => !viewOptionalFields && setIsDescriptionTouched(false),
+                  2000
+                );
               }}
             />
           </FormField>
+
           {!isIndividual && showOptionalFieldsButton && (
             <div>
               <div
@@ -370,7 +360,6 @@ export const SignupCompanyInfo = forwardRef<
                       }
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        // setIsDescriptionTouched(true);
                         setViewOptionalFields(true);
                       }}
                     >
@@ -386,7 +375,6 @@ export const SignupCompanyInfo = forwardRef<
       </div>
 
       {/* Optional Fields */}
-      {/* {!isIndividual && viewOptionalFields && ( */}
       <div
         className={cn(
           "bg-card z-50 inset-0 w-full py-4 border-[1px] rounded-sm absolute top-[17%] md:top-1/3",
@@ -409,6 +397,7 @@ export const SignupCompanyInfo = forwardRef<
           <hr className="py-2" />
           <div className="opacity-75 flex flex-col gap-3 px-6">
             <div className="grid md:grid-cols-2 gap-2">
+              {/* Company Registration Number */}
               <FormField
                 id="registrationNumber"
                 label="Company Reg No."
@@ -448,27 +437,30 @@ export const SignupCompanyInfo = forwardRef<
             </div>
 
             <div className="grid md:grid-cols-2 gap-2">
+              {/* Company Size */}
               <FormField
                 id="teamSize"
                 label="Company size"
                 error={errors.teamSize?.message}
               >
                 <Select
-                  onValueChange={(value) =>
-                    handleChange(isFirm ? "firmSize" : "teamSize", value)
-                  }
-                  value={watch(isFirm ? "firmSize" : "teamSize") || ""}
+                  onValueChange={(value) => handleChange("teamSize", value)}
+                  value={watch("teamSize") || ""}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select company size" />
                   </SelectTrigger>
                   <SelectContent>
                     {COMPANY_SIZE.map((size) => (
-                      <SelectItem value={size.value}>{size.label}</SelectItem>
+                      <SelectItem key={size.value} value={size.value}>
+                        {size.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </FormField>
+
+              {/* Website */}
               <FormField
                 id="website"
                 label="Website"
@@ -488,10 +480,18 @@ export const SignupCompanyInfo = forwardRef<
               </FormField>
             </div>
 
-            <FormField label="Address">
+            {/* Address */}
+            <FormField
+              id="address"
+              label="Address"
+              error={errors.address?.message}
+            >
               <Input
+                id="address"
+                {...register("address")}
+                onChange={(e) => handleChange("address", e.target.value)}
                 placeholder="123 Main Street, New York, NY"
-                // className="resize-none"
+                aria-describedby={errors.address ? "address-error" : undefined}
               />
             </FormField>
 

@@ -7,7 +7,7 @@ import {
 import { CircleHelp } from "lucide-react";
 
 type HelpTooltipProps = {
-  content: string;
+  content?: string;
   trigger?: React.ReactNode | string;
   icon?: boolean;
   iconSize?: number;

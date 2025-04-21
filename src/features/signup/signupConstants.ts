@@ -1,5 +1,5 @@
-import { companyType, CompanyType } from "@/types/types";
-import { NewCompany, NewUser } from "../signupTypes";
+import {  CompanyType } from "@/types/types";
+
 
 export const COMPANY_TYPES: {
   key: CompanyType;

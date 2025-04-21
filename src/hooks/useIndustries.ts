@@ -8,8 +8,6 @@ export type IndustryItem = {
   shortLabel: string;
 };
 
-console.log(csvUrl);
-
 export const useIndustries = () => {
   return useQuery({
     queryKey: ["industries"],

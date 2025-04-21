@@ -14,7 +14,7 @@ type FormFieldProps = {
   iconSize?: number;
   tooltipStyle?: string;
   children: React.ReactNode;
-  errorTooltip?: string;
+  errorTooltip?: boolean;
   errorTooltipStyle?: string;
 
   // Optional class overrides
@@ -103,11 +103,12 @@ export const FormFieldLabel = ({
         )}
         id={`${id}-error`}
       >
-        {error}
+        {errorTooltip ? "" : error}
         {errorTooltip && (
           <TooltipHelper
-            content={errorTooltip}
+            content={error}
             contentStyle={errorTooltipStyle}
+            trigger={error}
           />
         )}
       </div>

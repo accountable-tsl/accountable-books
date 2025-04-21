@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import { format, parse, isValid } from "date-fns";
 import Decimal from "decimal.js";
 import numeral from "numeral";
@@ -377,4 +378,14 @@ const readFile = (file: File): Promise<string> => {
     reader.onerror = reject;
     reader.readAsText(file);
   });
+};
+
+export const sanitizeInput = (input: string | null | undefined): string =>
+  DOMPurify.sanitize(input || "").trim();
+
+export const sanitizeOptionalInput = (
+  value: string | null | undefined
+): string | null => {
+  if (!value) return null;
+  return sanitizeInput(value);
 };

@@ -57,7 +57,7 @@ export const SignupBasicInfo = forwardRef<
       } catch (error: any) {
         return {
           isValid: false,
-          error: error?.message || "This email has already been registered",
+          error: "This email has already been registered",
         };
       }
     }
@@ -89,6 +89,7 @@ export const SignupBasicInfo = forwardRef<
         id="firstname"
         label="First name"
         error={errors.firstname?.message}
+        required
       >
         <Input
           id="firstname"
@@ -99,20 +100,42 @@ export const SignupBasicInfo = forwardRef<
         />
       </FormField>
 
-      {/* Lastname */}
-      <FormField
-        id="lastname"
-        label="Last name"
-        error={errors.lastname?.message}
-      >
-        <Input
+      <div className="grid md:grid-cols-2 gap-2">
+        {/* Lastname */}
+        <FormField
           id="lastname"
-          {...register("lastname", {
-            onChange: (e) => updateUserField("lastname", e.target.value),
-          })}
-          aria-describedby={errors.lastname ? "lastname-error" : undefined}
-        />
-      </FormField>
+          label="Last name"
+          error={errors.lastname?.message}
+        >
+          <Input
+            id="lastname"
+            {...register("lastname", {
+              onChange: (e) => updateUserField("lastname", e.target.value),
+            })}
+            aria-describedby={errors.lastname ? "lastname-error" : undefined}
+          />
+        </FormField>
+
+        {/* Phone Number */}
+        <FormField
+          id="phoneNumber"
+          label="Phone number"
+          error={errors.phoneNumber?.message}
+          helpTooltip="Leave your number if you’d like more personalized help from our team"
+          tooltipStyle="text-center"
+        >
+          <Input
+            id="phoneNumber"
+            {...register("phoneNumber", {
+              onChange: (e) => updateUserField("phoneNumber", e.target.value),
+            })}
+            aria-describedby={
+              errors.phoneNumber ? "phoneNumber-error" : undefined
+            }
+            placeholder="+65 9123 4567"
+          />
+        </FormField>
+      </div>
 
       {/* Email */}
       <FormField
