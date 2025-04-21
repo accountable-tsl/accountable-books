@@ -1,10 +1,10 @@
-import { FsKey, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import csv from "csv-parser";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import path from "path";
-import { normalizeData } from "../utils/utils";
+import { normalizeData } from "../utils/utils-old";
 import bankData from "./data/banks.json";
 import countriesData from "./data/countries.json";
 import currenciesData from "./data/currencies.json";

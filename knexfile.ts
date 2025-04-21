@@ -1,35 +1,32 @@
-import dotenv from "dotenv";
 import type { Knex } from "knex";
 import fs from "fs";
-import path from "path";
+import { ENV, envFile } from "./src/config/env";
 
-// Determine the base path
-const envBase = path.resolve(process.cwd());
-
-// Determine what to load
-const envFile = fs.existsSync(path.join(envBase, ".env.docker"))
-  ? ".env.docker"
-  : fs.existsSync(path.join(envBase, `.env.${process.env.NODE_ENV}`))
-    ? `.env.${process.env.NODE_ENV}`
-    : ".env";
-
-// Load it
-dotenv.config({ path: envFile });
+const isDocker = ENV.DOCKER_MODE === "true" || fs.existsSync("/.dockerenv");
 
 /**
  * @type { Object.<string, import("knex").Knex.Config> }
  */
 
 const baseConnection = {
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT) || 5432,
+  database: ENV.DB_NAME,
+  user: ENV.DB_USER,
+  password: ENV.DB_PASSWORD,
+  host: isDocker ? ENV.DB_HOST || "db" : ENV.DB_HOST || "localhost",
+  port: Number(ENV.DB_PORT) || 5432,
 };
 
+console.log("[DEBUG] Loaded DB Config:", {
+  file: envFile,
+  isDocker,
+  host: baseConnection.host,
+  port: baseConnection.port,
+  database: baseConnection.database,
+  user: baseConnection.user,
+});
+
 const config: { [key: string]: Knex.Config } = {
-  development: {
+  local: {
     client: "postgresql",
     connection: baseConnection,
     pool: {
@@ -37,7 +34,20 @@ const config: { [key: string]: Knex.Config } = {
       max: 10,
     },
     migrations: {
-      tableName: "knex_migrations",
+      tableName: "knex_migrations_dev",
+      directory: "./migrations",
+    },
+  },
+  "docker.dev": {
+    client: "postgresql",
+    connection: baseConnection,
+    pool: {
+      min: 2,
+      max: 10,
+    },
+    migrations: {
+      tableName: "knex_migrations_dev",
+      directory: "./migrations",
     },
   },
 
@@ -49,7 +59,8 @@ const config: { [key: string]: Knex.Config } = {
       max: 10,
     },
     migrations: {
-      tableName: "knex_migrations",
+      tableName: "knex_migrations_staging",
+      directory: "./migrations",
     },
   },
 
@@ -62,6 +73,20 @@ const config: { [key: string]: Knex.Config } = {
     },
     migrations: {
       tableName: "knex_migrations",
+      directory: "./migrations",
+    },
+  },
+  test: {
+    client: "sqlite3",
+    connection: {
+      filename: ":memory:",
+    },
+    useNullAsDefault: true,
+    migrations: {
+      directory: "./migrations",
+    },
+    seeds: {
+      directory: "./seeds",
     },
   },
 };

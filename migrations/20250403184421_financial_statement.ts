@@ -1,0 +1,75 @@
+import type { Knex } from "knex";
+import {
+  addStandardColumns,
+  createUpdateTimestampTrigger,
+  dropUpdateTimestampTrigger,
+  preventUpdateOrDelete,
+} from "../src/utils/db";
+import { NewFinancialStatementInput } from "../src/core/types/db.type";
+import { financialStatementIds } from "./data/ids";
+import { NODE_ENV } from "../src/config/env";
+
+type NewFinancialStatementWithId = NewFinancialStatementInput & { id: string };
+
+export const defaultFinancialStatements: NewFinancialStatementWithId[] = [
+  {
+    id: financialStatementIds.is,
+    key: "is",
+    us_gaap_label: "Income Statement",
+    ifrs_label: "Statement of Profit or Loss",
+    default_label: "Profit & Loss",
+  },
+  {
+    id: financialStatementIds.bs,
+    key: "bs",
+    us_gaap_label: "Balance Sheet",
+    ifrs_label: "Statement of Financial Position",
+    default_label: "Balance Sheet",
+  },
+  {
+    id: financialStatementIds.cf,
+    key: "cf",
+    us_gaap_label: "Statement of Cash Flows",
+    ifrs_label: "Statement of Cash Flows",
+    default_label: "Cash Flow Statement",
+  },
+];
+
+const seedFs = async function seed(knex: Knex): Promise<void> {
+  await knex.transaction(async (trx) => {
+    await trx("financial_statement")
+      .insert(defaultFinancialStatements)
+      .onConflict("key")
+      .ignore();
+
+    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+      console.log(
+        `Seeded ${defaultFinancialStatements.length} financial statements`
+      );
+    }
+  });
+};
+
+const tableName = "financial_statement";
+export async function up(knex: Knex): Promise<void> {
+  await knex.schema.createTable(tableName, (table) => {
+    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+
+    table.specificType("key", "fs_key").unique().notNullable();
+
+    table.string("us_gaap_label", 256).notNullable();
+    table.string("ifrs_label", 256).notNullable();
+    table.string("default_label", 256).notNullable();
+
+    addStandardColumns(table);
+  });
+
+  await createUpdateTimestampTrigger(knex, tableName);
+  await preventUpdateOrDelete(knex, tableName);
+  await seedFs(knex);
+}
+
+export async function down(knex: Knex): Promise<void> {
+  await dropUpdateTimestampTrigger(knex, tableName);
+  await knex.schema.dropTableIfExists(tableName);
+}

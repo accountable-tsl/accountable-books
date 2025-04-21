@@ -1,0 +1,19 @@
+[
+  {
+    "name": "super_admin",
+    "description": "Full system access across all organizations, roles, and settings. Reserved for platform administrators."
+  },
+  {
+    "id": "83a2fb16-8008-45a8-bcca-fd012aa8bd63",
+    "name": "admin",
+    "description": "Organization administrator with limited system settings access."
+  },
+  {
+    "name": "bookkeeper",
+    "description": "Access to financial data with categorization and reporting capabilities."
+  },
+  {
+    "name": "client",
+    "description": "View financial records, upload files, and communicate with bookkeepers"
+  }
+]
