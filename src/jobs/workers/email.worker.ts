@@ -4,12 +4,9 @@ import {
   InviteEmailPayload,
   TokenBasedEmailPayload,
 } from "../../domains/communications/email.types";
-import {
-  getUserInviteTemplate,
-  getVerifyEmailTemplate,
-} from "../../utils/emailTemplates/emailTemplates";
-import { sendEmail } from "../../services/email.service";
 import { redis } from "../../lib/redis";
+import { sendEmail } from "../../domains/communications/email.service";
+import { getUserInviteTemplate, getVerifyEmailTemplate } from "../../domains/communications/emailTemplates/emailTemplates";
 
 const baseUrl = ENV.BASE_URL;
 

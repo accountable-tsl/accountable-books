@@ -18,31 +18,48 @@ import { ApiResponse } from "../../core/types/api.types";
 let transporter: Transporter | null = null;
 
 async function createTransporter(): Promise<Transporter> {
-  console.log("📧 Something touched me...");
   const provider = ENV.EMAIL_PROVIDER;
+console.log("provider", provider)
+  // if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+  //   if (!ENV.ETHEREAL_EMAIL || !ENV.ETHEREAL_PASSWORD) {
+  //     throw new Error("Ethereal credentials missing in development");
+  //   }
 
-  if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
-    if (!ENV.ETHEREAL_EMAIL || !ENV.ETHEREAL_PASSWORD) {
-      throw new Error("Ethereal credentials missing in development");
-    }
+  //   console.log("🧪 Using ethereal:", process.env.ETHEREAL_EMAIL);
 
-    console.log("🧪 Using ethereal:", process.env.ETHEREAL_EMAIL);
-
-    return nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      auth: {
-        user: ENV.ETHEREAL_EMAIL,
-        pass: ENV.ETHEREAL_PASSWORD,
-      },
-    });
-  }
+  //   return nodemailer.createTransport({
+  //     host: "smtp.ethereal.email",
+  //     port: 587,
+  //     auth: {
+  //       user: ENV.ETHEREAL_EMAIL,
+  //       pass: ENV.ETHEREAL_PASSWORD,
+  //     },
+  //   });
+  // }
 
   switch (provider) {
+    case "dev": {
+      if (!ENV.ETHEREAL_EMAIL || !ENV.ETHEREAL_PASSWORD) {
+        throw new Error("Ethereal credentials missing in development");
+      }
+
+      console.log("🧪 Using ethereal:", process.env.ETHEREAL_EMAIL);
+
+      return nodemailer.createTransport({
+        host: "smtp.ethereal.email",
+        port: 587,
+        auth: {
+          user: ENV.ETHEREAL_EMAIL,
+          pass: ENV.ETHEREAL_PASSWORD,
+        },
+      });
+    }
+
     case "postmark":
       if (!ENV.POSTMARK_API_KEY) {
         throw new Error("Postmark API key missing");
       }
+      console.log("Postmark's being hit");
 
       return nodemailer.createTransport({
         host: "smtp.postmarkapp.com",

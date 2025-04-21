@@ -17,7 +17,6 @@ import { loadCoaTemplateForCompany } from "../../domains/chartOfAccounts/coaTemp
 import { trackEvent } from "../../shared/utils/analytics.utils";
 import {
   createAccountingFirm,
-  resolveFirm,
 } from "../../domains/accountingFirm/accountingFirm.model";
 import { createDefaultAccounts } from "../../domains/chartOfAccounts/coa.model";
 import { buildEmailServiceUrl } from "../../domains/communications/email.utils";
@@ -29,7 +28,6 @@ import {
 } from "../../domains/company/company.types";
 import {
   newAccFirm,
-  NewAccFirmInput,
 } from "../../domains/accountingFirm/accountingFirm.types";
 import { CreateUserDirectResponse, newSignup } from "./signup.types";
 import { NewUserDirect, user } from "../../domains/user/user.types";
