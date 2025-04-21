@@ -5,12 +5,14 @@ import { dbBaseFields, zDate, zEmail } from "../../core/validation/schemas";
 export const userStatus = z.enum(["active", "inactive", "invited", "disabled"]);
 export const userInviteStatus = z.enum(["pending", "accepted", "declined"]);
 export const authProvider = z.enum(["local"]);
+
 export const newUser = z.object({
   id: z.string().uuid().optional(),
   firstname: z.string().min(1).max(256),
   email: zEmail(),
   lastname: z.string().min(1).max(256).nullish(),
-  password: z.string().min(8).optional(),
+  password: z.string().min(8).nullable(),
+
   phone_number: z.string().max(50).nullish(),
   avatar_url: z.string().nullish(),
   status: userStatus.optional(),
@@ -36,24 +38,13 @@ export const newUser = z.object({
 export const newUserDirect = newUser.extend({
   password: z.string().min(8),
   status: userStatus.default("active"),
+  email_verified: z.boolean().default(false),
 });
-// .transform((data) => ({
-//     ...data,
-//     password_hash: data.password, // Rename password to password_hash
-//     password: undefined, // Remove original password
-//   }))
-//   .pipe(
-//     z.object({
-//       ...newUser.shape, // Keep other fields from newUser
-//       password: z.undefined(), // Ensure password is removed
-//       password_hash: z.string().min(8), // Define password_hash
-//       status: userStatus.default("active"), // Keep status
-//     })
-//   );;
 
 export const newUserInvite = newUser
   .extend({
     status: userStatus.default("invited"),
+    invite_status: userInviteStatus.default("pending"),
   })
   .omit({ password: true });
 
@@ -64,3 +55,8 @@ export type UserStatus = z.infer<typeof userStatus>;
 export type UserInviteStatus = z.infer<typeof userInviteStatus>;
 export type NewUserInput = z.infer<typeof newUser>;
 export type User = z.infer<typeof user>;
+
+
+export type UserRecord = z.infer<typeof user> & {
+  password?: string; // Only present for local auth
+};

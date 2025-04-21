@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { errorResponse } from "../../shared/utils/response.utils";
 import knexInstance from "../../../knexClient";
-import { directClientSignup } from "./signup.service";
+import { registerNewAccount } from "./signup.service";
 
 export const clientSignup = async (req: Request, res: Response) => {
   try {
-    const newUser = await directClientSignup(knexInstance, req.body);
+    const newUser = await registerNewAccount(knexInstance, req.body);
     if (newUser.success) {
       return res.status(201).json(newUser);
     } else {

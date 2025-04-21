@@ -29,6 +29,9 @@ export const newCompanyInput = z.object({
   id: z.string().uuid().optional(),
   short_code: z.string().max(50).optional(),
   assigned_firm_id: z.string().uuid().optional(),
+  load_coa_template: z.boolean().optional(),
+  registration_number: z.string().max(256).nullish(),
+  tax_id: z.string().max(256).nullish(),
 });
 
 export const newCompany = newCompanyInput.extend({

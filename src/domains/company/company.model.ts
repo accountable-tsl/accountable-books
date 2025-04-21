@@ -1,5 +1,10 @@
 import type { Knex } from "knex";
-import { newCompanyInput, NewCompanyInput } from "./company.types";
+import {
+  Company,
+  newCompany,
+  newCompanyInput,
+  NewCompanyInput,
+} from "./company.types";
 import { ApiResponse } from "../../core/types/api.types";
 import {
   camelToSnake,
@@ -8,6 +13,7 @@ import {
 import {
   errorResponse,
   successResponse,
+  throwError,
 } from "../../shared/utils/response.utils";
 import generateSecureShortCode from "../../shared/utils/crypto.utils";
 
@@ -15,9 +21,6 @@ export const createCompany = async (
   knexTrx: Knex.Transaction,
   input: NewCompanyInput
 ): Promise<ApiResponse> => {
-  // Don't throw within this function, it should only ever be used in a service
-  console.log(input);
-
   const snakeInput = camelToSnake(input);
   const validateInput = newCompanyInput.safeParse(snakeInput);
 
@@ -36,7 +39,7 @@ export const createCompany = async (
       .first();
 
     if (!userExists) {
-      return errorResponse("Unauthorized");
+      return throwError("Unauthorized");
     }
 
     let firmId = assigned_firm_id || null;
@@ -46,7 +49,7 @@ export const createCompany = async (
         .select("id");
 
       if (!firm.id) {
-        return errorResponse("Company must be assigned to a firm");
+        return throwError("Company must be assigned to a firm");
       }
 
       firmId = firm.id;
@@ -64,7 +67,7 @@ export const createCompany = async (
     } while (exists && attempts < maxAttempts);
 
     if (!short_code) {
-      return errorResponse("Unable to generate short code");
+      return throwError("Unable to generate short code");
     }
 
     const [company] = await knexTrx("company")
@@ -81,18 +84,21 @@ export const createCompany = async (
       .returning("*");
 
     if (!company) {
-      return errorResponse("Unable to create company");
+      return throwError("Unable to create company");
     }
 
-    await knexTrx("firm_company").insert({
+    const firmAssignment = await knexTrx("firm_company").insert({
       company_id: company.id,
       accounting_firm_id: firmId,
     });
 
-    return successResponse(
-      "Company created successfully",
-      snakeToCamel(company)
-    );
+    const companyData = newCompany.safeParse(company);
+
+    if (!firmAssignment) {
+      return throwError("Unable to assign company to firm");
+    }
+
+    return successResponse("Company created successfully", companyData.data);
   } catch (error) {
     return errorResponse("Unable to create company", error);
   }

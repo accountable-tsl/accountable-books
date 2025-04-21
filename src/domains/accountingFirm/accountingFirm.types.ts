@@ -16,7 +16,7 @@ export const newAccFirmInput = z.object({
   created_by_id: z.string().uuid().nullish(),
 
   display_name: z.string().max(256).optional(),
-  short_code: z.string().max(50).optional(),
+  slug: z.string().max(50).optional(),
   firm_type: firmType.nullish(),
   firm_size: z.string().max(50).nullish(),
   website: z.string().max(256).nullish(),

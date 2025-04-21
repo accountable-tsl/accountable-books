@@ -1,14 +1,7 @@
 import type { Knex } from "knex";
 import { ApiResponse } from "../../core/types/api.types";
 import { snakeToCamel } from "../../shared/utils/formatting.utils";
-import {
-  NewUserDirect,
-  newUserDirect,
-  // newUserDirectWithTransform,
-  NewUserInput,
-  newUserInvite,
-  NewUserInvite,
-} from "./user.types";
+import { NewUserDirect, newUserDirect } from "./user.types";
 import {
   errorResponse,
   successResponse,
@@ -23,15 +16,12 @@ import { isProduction } from "../../config/env";
 
 export async function createUserDirect(
   knexTrx: Knex.Transaction,
-  input: NewUserInput | NewUserDirect
+  input: NewUserDirect
 ): Promise<ApiResponse> {
-  // Don't throw within this function, it should only ever be used in a service
   const validateInput = newUserDirect.safeParse(input);
-
   if (!validateInput.success) {
     return errorResponse("Invalid input", validateInput.error.format());
   }
-
   const { email, password, ...rest } = validateInput.data;
 
   try {
@@ -60,9 +50,6 @@ export async function createUserDirect(
         email_verification_expiry: dayjs().add(24, "hours").toDate(),
       })
       .returning(["id", "firstname", "lastname", "email", "status"]);
-
-    if (!isProduction) console.log("✅ User created successfully:", user);
-
     return successResponse(
       "Account created successfully",
       snakeToCamel({ ...user, verificationToken })
