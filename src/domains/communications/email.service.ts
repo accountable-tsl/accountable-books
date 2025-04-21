@@ -19,7 +19,7 @@ let transporter: Transporter | null = null;
 
 async function createTransporter(): Promise<Transporter> {
   const provider = ENV.EMAIL_PROVIDER;
-console.log("provider", provider)
+  console.log("provider", provider);
   // if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
   //   if (!ENV.ETHEREAL_EMAIL || !ENV.ETHEREAL_PASSWORD) {
   //     throw new Error("Ethereal credentials missing in development");

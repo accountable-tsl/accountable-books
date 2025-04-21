@@ -15,9 +15,7 @@ import {
 import { createCompany } from "../../domains/company/company.model";
 import { loadCoaTemplateForCompany } from "../../domains/chartOfAccounts/coaTemplate.model";
 import { trackEvent } from "../../shared/utils/analytics.utils";
-import {
-  createAccountingFirm,
-} from "../../domains/accountingFirm/accountingFirm.model";
+import { createAccountingFirm } from "../../domains/accountingFirm/accountingFirm.model";
 import { createDefaultAccounts } from "../../domains/chartOfAccounts/coa.model";
 import { buildEmailServiceUrl } from "../../domains/communications/email.utils";
 import { sendVerificationEmail } from "../../domains/communications/email.service";
@@ -26,12 +24,9 @@ import {
   NewCompany,
   NewCompanyInput,
 } from "../../domains/company/company.types";
-import {
-  newAccFirm,
-} from "../../domains/accountingFirm/accountingFirm.types";
+import { newAccFirm } from "../../domains/accountingFirm/accountingFirm.types";
 import { CreateUserDirectResponse, newSignup } from "./signup.types";
 import { NewUserDirect, user } from "../../domains/user/user.types";
-import { RoleName } from "../../core/types/db.type";
 
 export const registerNewAccount = async (
   knex: Knex,
@@ -221,6 +216,7 @@ const setupAccountingFirm = async (
   // Validate Input
   const firmInput = newAccFirm.safeParse({
     ...firmData,
+    firm_size: firmData.team_size,
     company_id: companyId,
     created_by_id: userId,
   });

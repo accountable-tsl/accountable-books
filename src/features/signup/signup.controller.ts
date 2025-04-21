@@ -5,7 +5,8 @@ import { registerNewAccount } from "./signup.service";
 
 export const clientSignup = async (req: Request, res: Response) => {
   try {
-    const newUser = await registerNewAccount(knexInstance, req.body);
+    console.log(req.body);
+    const newUser = await registerNewAccount(knexInstance, req.body.data);
     if (newUser.success) {
       return res.status(201).json(newUser);
     } else {
