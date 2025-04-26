@@ -27,7 +27,7 @@ import {
   NewUserInput,
   User,
 } from "../../domains/user/user.types";
-import { Company, NewCompany } from "../../domains/company/company.types";
+import { Company, NewCompany } from "../../domains/companies/companies.types";
 import { Coa, NewCoa } from "../../domains/chartOfAccounts/coa.types";
 import {
   AccFirm,
@@ -40,25 +40,25 @@ import {
 
 declare module "knex/types/tables" {
   interface Tables {
-    role: Knex.CompositeTableType<
+    roles: Knex.CompositeTableType<
       Role,
       NewRoleInput,
       Partial<Omit<Role, "id">>
     >;
 
-    permission: Knex.CompositeTableType<
+    permissions: Knex.CompositeTableType<
       Permission,
       NewPermissionInput,
       Partial<Omit<Permission, "id">>
     >;
 
-    currency: Knex.CompositeTableType<
+    currencies: Knex.CompositeTableType<
       Currency,
       NewCurrencyInput,
       Partial<Omit<Currency, "id">>
     >;
 
-    country: Knex.CompositeTableType<
+    countries: Knex.CompositeTableType<
       Country,
       NewCountryInput,
       Partial<Omit<Country, "id">>
@@ -70,49 +70,49 @@ declare module "knex/types/tables" {
       Partial<Omit<ExchangeRate, "id">>
     >;
 
-    financial_statement: Knex.CompositeTableType<
+    financial_statements: Knex.CompositeTableType<
       FinancialStatement,
       NewFinancialStatementInput,
       Partial<Omit<FinancialStatement, "id">>
     >;
 
-    account_element: Knex.CompositeTableType<
+    account_elements: Knex.CompositeTableType<
       AccountElement,
       NewAccountElementInput,
       Partial<Omit<AccountElement, "id">>
     >;
 
-    account_type: Knex.CompositeTableType<
+    account_types: Knex.CompositeTableType<
       AccountType,
       NewAccountTypeInput,
       Partial<Omit<AccountType, "id">>
     >;
 
-    coa_template: Knex.CompositeTableType<
+    coa_templates: Knex.CompositeTableType<
       CoaTemplate,
       NewCoaTemplateInput,
       Partial<Omit<CoaTemplate, "id">>
     >;
 
-    user: Knex.CompositeTableType<
+    users: Knex.CompositeTableType<
       User,
       NewUserDirect | NewUserInput,
       Partial<Omit<User, "id">>
     >;
 
-    company: Knex.CompositeTableType<
+    companies: Knex.CompositeTableType<
       Company,
       NewCompany,
       Partial<Omit<Company, "id">>
     >;
 
-    accounting_firm: Knex.CompositeTableType<
+    accounting_firms: Knex.CompositeTableType<
       AccFirm,
       NewAccFirm,
       Partial<Omit<AccFirm, "id">>
     >;
 
-    user_company_role: Knex.CompositeTableType<
+    users_companies_roles: Knex.CompositeTableType<
       UserCompanyRole,
       NewUserCompanyRole,
       Partial<Omit<UserCompanyRole, "id">>

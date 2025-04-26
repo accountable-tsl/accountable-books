@@ -3,7 +3,7 @@ import { newUserDirect, UserStatus } from "../../domains/user/user.types";
 import {
   companyType,
   newCompanyInput,
-} from "../../domains/company/company.types";
+} from "../../domains/companies/companies.types";
 import { newAccFirmInput } from "../../domains/accountingFirm/accountingFirm.types";
 
 export const newSignup = z.object({

@@ -49,13 +49,21 @@ export function errorResponse<T = null>(
 }
 
 export const throwError = (message: string, errorDetails?: any): never => {
-  if (!isProduction) {
-    console.error(message, errorDetails);
-  }
+  if (!isProduction) console.error(message, errorDetails);
 
-  if (isProduction) {
+  if (isProduction)
     Sentry.captureException(new Error(message), { extra: errorDetails });
-  }
 
   throw new Error(message);
 };
+
+export function ensure<T>(
+  value: T | undefined | null,
+  errorMessage: string,
+  errorDetails?: any
+): asserts value is T {
+  if (value == null) {
+    // Loose equality here is deliberate
+    throwError(errorMessage, errorDetails);
+  }
+}

@@ -27,8 +27,9 @@ export const newUser = z.object({
   invited_at: zDate.nullish(),
   invite_expiry: zDate.nullish(),
 
-  failed_login_attempts: z.number().default(0).nullish(),
+  last_active_company_id: z.string().uuid().nullish(),
   last_login_at: zDate.nullish(),
+  failed_login_attempts: z.number().default(0).nullish(),
   last_failed_login_at: zDate.nullish(),
 
   auth_provider: authProvider.default("local").nullish(),

@@ -4,18 +4,22 @@ import {
   newCompany,
   newCompanyInput,
   NewCompanyInput,
-} from "./company.types";
+} from "./companies.types";
 import { ApiResponse } from "../../core/types/api.types";
 import {
   camelToSnake,
   snakeToCamel,
 } from "../../shared/utils/formatting.utils";
 import {
+  ensure,
   errorResponse,
   successResponse,
   throwError,
 } from "../../shared/utils/response.utils";
 import generateSecureShortCode from "../../shared/utils/crypto.utils";
+import knex from "../../../knexClient";
+import { generateAuthTokens } from "../../features/auth/auth.utils";
+import { getCompanyUUID } from "../../shared/utils/random.utils";
 
 export const createCompany = async (
   knexTrx: Knex.Transaction,
@@ -116,4 +120,43 @@ export const verifyCompanyDependenciesExist = async (
   if (!currency)
     throw new Error(`Currency ${input.reportingCurrencyId} not found`);
   if (!country) throw new Error(`Country ${input.countryId} not found`);
+};
+
+export const switchCompany = async (
+  userId: string,
+  companyIdentifier: string
+) => {
+  try {
+    const companyId = getCompanyUUID(companyIdentifier);
+
+    const role = await knex("users_companies_roles")
+      .where({
+        user_id: userId,
+        company_id: companyId,
+        is_deleted: false,
+      })
+      .select("company_id", "role_id")
+      .first();
+
+    if (!role) {
+      return errorResponse("User not authorized for this company");
+    }
+
+    await knex("users")
+      .where("id", userId)
+      .update("last_active_company_id", companyId);
+
+    const { accessToken, refreshToken } = generateAuthTokens({
+      id: userId,
+      currentCompanyId: companyId,
+    });
+
+    return successResponse("Company switched successfully", {
+      accessToken,
+      refreshToken,
+      user: { id: userId, currentCompanyId: companyId },
+    });
+  } catch (error) {
+    return errorResponse("Something went wrong", error);
+  }
 };

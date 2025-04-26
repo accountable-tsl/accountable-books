@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Company } from "../company/company.types";
+import { Company } from "../companies/companies.types";
 import { dbBaseFields } from "../../core/validation/schemas";
 
 export const loadCoaTemplate = z.object({

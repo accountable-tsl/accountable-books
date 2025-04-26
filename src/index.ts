@@ -18,11 +18,12 @@ import cors from "cors";
 import currencyRoutes from "./domains/currency/currency.routes";
 import countryRoutes from "./domains/country/country.routes";
 import emailRoutes from "./domains/email/email.routes";
-import onboarding from "./features/signup/signup.routes";
+import signupRoutes from "./features/signup/signup.routes";
+import authRoutes from "./features/auth/auth.routes";
+import companiesRoutes from "./domains/companies/companies.routes";
 import { swaggerUi, specs } from "../swagger";
-import { basicAuth } from "./middlewares/basicAuth.middleware";
 import { serverAdapter } from "./routes/bullboard.routes";
-import { ENV } from "./config/env";
+import { basicAuth } from "./core/middlewares/basicAuth.middleware";
 
 const NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -50,10 +51,13 @@ const bullboardPass = process.env.BULLBOARD_PASSWORD || "secret";
 // app.use("/api/:companyId/account-transactions", accountTransactionRoutes);
 // app.use("/api/:companyId/journals", journalRoutes);
 // app.use("/api/:companyId/reports", reportingRoutes);
-app.use("/api", onboarding);
+app.use("/api", signupRoutes);
+app.use("/auth", authRoutes);
 app.use("/api/currencies", currencyRoutes);
 app.use("/api/countries", countryRoutes);
 app.use("/api/email", emailRoutes);
+
+app.use("api/companies", companiesRoutes);
 
 app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
 app.use("/admin/queues", serverAdapter.getRouter());

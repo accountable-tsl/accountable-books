@@ -9,8 +9,9 @@ export function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-export const hashPassword = (password: string) => bcrypt.hash(password, 12);
-export const comparePassword = (input: string, hash: string) =>
+export const hashPassword = async (password: string) =>
+  bcrypt.hash(password, 12);
+export const comparePassword = async (input: string, hash: string) =>
   bcrypt.compare(input, hash);
 
 // Define a safe Base58 alphabet (avoiding ambiguous characters).

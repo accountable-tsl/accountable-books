@@ -12,7 +12,7 @@ import {
   successResponse,
   throwError,
 } from "../../shared/utils/response.utils";
-import { createCompany } from "../../domains/company/company.model";
+import { createCompany } from "../../domains/companies/companies.model";
 import { loadCoaTemplateForCompany } from "../../domains/chartOfAccounts/coaTemplate.model";
 import { trackEvent } from "../../shared/utils/analytics.utils";
 import { createAccountingFirm } from "../../domains/accountingFirm/accountingFirm.model";
@@ -23,7 +23,7 @@ import {
   CompanyType,
   NewCompany,
   NewCompanyInput,
-} from "../../domains/company/company.types";
+} from "../../domains/companies/companies.types";
 import { newAccFirm } from "../../domains/accountingFirm/accountingFirm.types";
 import { CreateUserDirectResponse, newSignup } from "./signup.types";
 import { NewUserDirect, user } from "../../domains/user/user.types";

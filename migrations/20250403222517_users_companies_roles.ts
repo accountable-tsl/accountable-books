@@ -4,8 +4,6 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
-import { adminUser } from "./20250403184441_users";
-import { NODE_ENV } from "../src/config/env";
 import { createPlatformCompany } from "./20250403194332_companies";
 
 const assignAdminRole = async (knex: Knex) => {

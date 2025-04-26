@@ -7,7 +7,7 @@ import {
   IndustryKeywordConfig,
   SelectBestCoa,
 } from "./coaTemplate.type";
-import { CompanyType } from "../company/company.types";
+import { CompanyType } from "../companies/companies.types";
 import { splitIntoWords } from "../../shared/utils/string.utils";
 import _ from "lodash";
 export const selectBestCoaTemplate = async (

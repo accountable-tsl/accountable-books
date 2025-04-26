@@ -82,3 +82,15 @@ export function toCamelCase(str: string): string {
     .replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase())
     .replace(/^([A-Z])/, (_, char) => char.toLowerCase());
 }
+
+export function getIdentifierType(id: string): "uuid" | "shortCode" {
+  if (!id || typeof id !== "string" || id.length > 40) {
+    throw new Error("Invalid company identifier");
+  }
+
+  // Regex to check if it's a valid UUID (v1, v2, v3, v4, v5)
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+  return isUUID ? "uuid" : "shortCode";
+}
