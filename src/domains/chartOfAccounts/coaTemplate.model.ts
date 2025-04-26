@@ -33,7 +33,7 @@ export const addNewCoaTemplates = async (
 
   try {
     const insertedRecords = await knex.transaction(async (trx) => {
-      const inserted = await trx("coa_template")
+      const inserted = await trx("coa_templates")
         .insert(validatedInput.data)
         .returning("*");
       return inserted;
@@ -66,7 +66,7 @@ export const loadCoaTemplateForCompany = async (
 
   try {
     // Fetch company
-    const [company]: Partial<Company[]> = await knex("company")
+    const [company]: Partial<Company[]> = await knex("companies")
       .where("id", companyId)
       .select(
         "display_name",
@@ -98,7 +98,7 @@ export const loadCoaTemplateForCompany = async (
     }
 
     // Check if template is valid and select valid template
-    const validTemplate: NewCoa[] = await knex("coa_template")
+    const validTemplate: NewCoa[] = await knex("coa_templates")
       .where("is_active", true)
       .where("template_name", chosenTemplate)
       .select("code", "name", "description", "account_type_id", "locked");

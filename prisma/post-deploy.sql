@@ -378,7 +378,7 @@ BEGIN
     BEGIN
         ALTER TABLE "LedgerEntry"
             ADD CONSTRAINT fk_ledger_entry_currency
-            FOREIGN KEY ("sourceCurrencyId") REFERENCES "Currency" ("id")
+            FOREIGN KEY ("sourceCurrencyId") REFERENCES "currencies" ("id")
             ON DELETE RESTRICT;
     EXCEPTION WHEN duplicate_object THEN NULL; END;
 
@@ -392,7 +392,7 @@ BEGIN
     BEGIN
         ALTER TABLE "LedgerEntry"
             ADD CONSTRAINT fk_ledger_entry_updated_by
-            FOREIGN KEY ("updatedById") REFERENCES "User" ("id")
+            FOREIGN KEY ("updatedById") REFERENCES "users" ("id")
             ON DELETE SET NULL;
     EXCEPTION WHEN duplicate_object THEN NULL; END;
 END $$;
@@ -425,14 +425,14 @@ BEGIN
     BEGIN
         ALTER TABLE "BankTransaction"
             ADD CONSTRAINT fk_bank_transaction_created_by
-            FOREIGN KEY ("createdById") REFERENCES "User" ("id")
+            FOREIGN KEY ("createdById") REFERENCES "users" ("id")
             ON DELETE RESTRICT;
     EXCEPTION WHEN duplicate_object THEN NULL; END;
 
     BEGIN
         ALTER TABLE "BankTransaction"
             ADD CONSTRAINT fk_bank_transaction_updated_by
-            FOREIGN KEY ("updatedById") REFERENCES "User" ("id")
+            FOREIGN KEY ("updatedById") REFERENCES "users" ("id")
             ON DELETE SET NULL;
     EXCEPTION WHEN duplicate_object THEN NULL; END;
 END $$;

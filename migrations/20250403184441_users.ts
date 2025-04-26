@@ -8,6 +8,8 @@ import { createUserDirect } from "../src/domains/user/user.model";
 import { ENV, NODE_ENV } from "../src/config/env";
 import { NewUserDirect } from "../src/domains/user/user.types";
 
+const tableName = "users";
+
 const getAdminUserConfig = (): NewUserDirect => {
   if (NODE_ENV === "production") {
     return {
@@ -17,6 +19,7 @@ const getAdminUserConfig = (): NewUserDirect => {
       email: ENV.ADMIN_EMAIL!,
       password: ENV.ADMIN_PASSWORD!,
       status: "active",
+      email_verified: true,
     };
   }
 
@@ -28,6 +31,7 @@ const getAdminUserConfig = (): NewUserDirect => {
     email: ENV.TEST_ADMIN_EMAIL!,
     password: ENV.TEST_ADMIN_PASSWORD!,
     status: "active",
+    email_verified: true,
   };
 };
 export const adminUser = getAdminUserConfig();
@@ -41,7 +45,7 @@ const seedAdminUser = async (knex: Knex) => {
     );
   }
   return knex.transaction(async (trx) => {
-    const existingUser = await trx("user").where({ email }).first();
+    const existingUser = await trx(tableName).where({ email }).first();
 
     if (existingUser) {
       console.log(`Admin user ${email} already exists. Skipping insert.`);
@@ -59,7 +63,6 @@ const seedAdminUser = async (knex: Knex) => {
   });
 };
 
-const tableName = "user";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
@@ -84,17 +87,25 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("invited_by_id")
       .nullable()
       .references("id")
-      .inTable("user")
+      .inTable("users")
       .onDelete("SET NULL");
     table.timestamp("invited_at", { useTz: true }).nullable();
     table.timestamp("invite_expiry", { useTz: true }).nullable();
 
-    table.integer("failed_login_attempts").defaultTo(0).notNullable();
+    table
+      .uuid("last_active_company_id")
+      .nullable()
+      // .references("id")
+      // .inTable("companies");
     table.timestamp("last_login_at", { useTz: true }).nullable();
+    table.integer("failed_login_attempts").defaultTo(0).notNullable();
     table.timestamp("last_failed_login_at", { useTz: true }).nullable();
 
     table.string("auth_provider").defaultTo("local"); // 'local', 'google', 'apple', etc.
     table.string("provider_user_id").nullable();
+
+    table.boolean("mfa_enabled").defaultTo(false);
+    table.string("mfa_secret").nullable();
 
     addStandardColumns(table);
 

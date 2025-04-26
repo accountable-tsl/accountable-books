@@ -5,12 +5,12 @@ import {
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
 import { ENV } from "../src/config/env";
-import { adminUser } from "./20250403184441_user";
-import { createPlatformCompany } from "./20250403194332_company";
+import { adminUser } from "./20250403184441_users";
+import { createPlatformCompany } from "./20250403194332_companies";
 import { newAccFirm } from "../src/domains/accountingFirm/accountingFirm.types";
 import { z } from "zod";
 
-const tableName = "accounting_firm";
+const tableName = "accounting_firms";
 
 export const buildPlatformAccountingFirm = (platformCompany: any) => ({
   id: ENV.PLATFORM_FIRM_ID || "fb60dc2d-732e-4bf6-9f0c-74577354e816",
@@ -65,7 +65,7 @@ export async function up(knex: Knex): Promise<void> {
       .unique()
       .notNullable()
       .references("id")
-      .inTable("company")
+      .inTable("companies")
       .onDelete("RESTRICT"); // Company that is the accounting firm's HQ
     table.string("legal_name", 256).notNullable();
     table.string("display_name", 256).notNullable();
@@ -83,26 +83,29 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("country_id")
       .notNullable()
       .references("id")
-      .inTable("country")
+      .inTable("countries")
       .onDelete("RESTRICT");
 
     table
       .uuid("created_by_id")
       .notNullable()
       .references("id")
-      .inTable("user")
+      .inTable("users")
       .onDelete("RESTRICT");
 
     addStandardColumns(table);
   });
 
-  const hasColumn = await knex.schema.hasColumn("company", "assigned_firm_id");
+  const hasColumn = await knex.schema.hasColumn(
+    "companies",
+    "assigned_firm_id"
+  );
   if (!hasColumn) {
-    await knex.schema.alterTable("company", (table) => {
+    await knex.schema.alterTable("companies", (table) => {
       table
         .uuid("assigned_firm_id")
         .references("id")
-        .inTable("accounting_firm")
+        .inTable("accounting_firms")
         .onDelete("SET NULL");
     });
   }

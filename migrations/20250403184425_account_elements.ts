@@ -231,7 +231,7 @@ const defaultAccountElements: AccountElementWithRequiredReportCode[] = [
 
 const seedAccountElements = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
-    await trx("account_element")
+    await trx(tableName)
       .insert(defaultAccountElements)
       .onConflict()
       .ignore();
@@ -243,7 +243,7 @@ const seedAccountElements = async function seed(knex: Knex): Promise<void> {
   });
 };
 
-const tableName = "account_element";
+const tableName = "account_elements";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
@@ -258,7 +258,7 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("financial_statement_id")
       .notNullable()
       .references("id")
-      .inTable("financial_statement")
+      .inTable("financial_statements")
       .onDelete("RESTRICT");
 
     addStandardColumns(table);

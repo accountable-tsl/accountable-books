@@ -43,7 +43,7 @@ export const selectBestCoaTemplate = async (
   if (!templates.length) {
     console.log(`Fetching templates from DB for ${companyType}`);
 
-    templates = await knex("coa_template")
+    templates = await knex("coa_templates")
       .where("is_active", true)
       .andWhere("template_name", "like", `${companyType}:%`)
       .pluck("template_name");

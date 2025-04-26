@@ -14,6 +14,8 @@ import { NODE_ENV } from "../src/config/env";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const tableName = "currencies";
+
 export async function seedCurrencies(knex: Knex): Promise<void> {
   const filePath = path.join(__dirname, "data/currencies.json");
 
@@ -58,7 +60,7 @@ export async function seedCurrencies(knex: Knex): Promise<void> {
 
     if (seedData.length > 0) {
       await knex.transaction(async (trx) => {
-        await trx("currency").insert(seedData).onConflict("code").ignore();
+        await trx(tableName).insert(seedData).onConflict("code").ignore();
       });
     }
     if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
@@ -69,8 +71,6 @@ export async function seedCurrencies(knex: Knex): Promise<void> {
     throw error;
   }
 }
-
-const tableName = "currency";
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {

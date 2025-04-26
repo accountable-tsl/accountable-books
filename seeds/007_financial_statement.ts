@@ -30,7 +30,7 @@ export const defaultFinancialStatements: NewFinancialStatementWithId[] = [
 
 export async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
-    await trx("financial_statement")
+    await trx("financial_statements")
       .insert(defaultFinancialStatements)
       .onConflict("key")
       .ignore();

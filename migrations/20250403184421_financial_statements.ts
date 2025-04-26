@@ -10,6 +10,7 @@ import { financialStatementIds } from "./data/ids";
 import { NODE_ENV } from "../src/config/env";
 
 type NewFinancialStatementWithId = NewFinancialStatementInput & { id: string };
+const tableName = "financial_statements";
 
 export const defaultFinancialStatements: NewFinancialStatementWithId[] = [
   {
@@ -37,7 +38,7 @@ export const defaultFinancialStatements: NewFinancialStatementWithId[] = [
 
 const seedFs = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
-    await trx("financial_statement")
+    await trx(tableName)
       .insert(defaultFinancialStatements)
       .onConflict("key")
       .ignore();
@@ -50,7 +51,6 @@ const seedFs = async function seed(knex: Knex): Promise<void> {
   });
 };
 
-const tableName = "financial_statement";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));

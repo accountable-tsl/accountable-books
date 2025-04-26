@@ -5,44 +5,53 @@ import {
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
 
-const tableName = "contact";
+const tableName = "bank_accounts";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
-    table.string("name").notNullable();
-    table.string("code").nullable();
-    table.string("description", 512).nullable();
-    table.string("primary_email", 256).nullable();
-    table.string("secondary_email", 256).nullable();
-    table.string("phone", 50).nullable();
-    table.string("address").nullable();
-    table.string("website").nullable();
-    table.string("business_registration_number").nullable();
+    table.string("display_name").notNullable();
+    table.specificType("account_type", "bank_account_type").notNullable();
+    table.string("account_number").notNullable();
+
+    table
+      .uuid("bank_id")
+      .notNullable()
+      .references("id")
+      .inTable("banks")
+      .onDelete("RESTRICT");
+
+    table
+      .uuid("currency_id")
+      .notNullable()
+      .references("id")
+      .inTable("currencies")
+      .onDelete("RESTRICT");
 
     table
       .uuid("company_id")
       .notNullable()
       .references("id")
-      .inTable("company")
+      .inTable("companies")
+      .onDelete("RESTRICT");
+
+    table
+      .uuid("coa_id")
+      .notNullable()
+      .references("id")
+      .inTable("coa")
       .onDelete("RESTRICT");
 
     table
       .uuid("created_by_id")
       .notNullable()
       .references("id")
-      .inTable("user")
+      .inTable("users")
       .onDelete("RESTRICT");
-
-    table
-      .uuid("updated_by_id")
-      .nullable()
-      .references("id")
-      .inTable("user")
-      .onDelete("SET NULL");
 
     addStandardColumns(table);
 
-    table.unique(["company_id", "name"]);
+    table.index(["company_id", "bank_id"], "bank_account_company_bank_index");
+    table.unique(["company_id", "account_number", "bank_id"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

@@ -8,7 +8,7 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("contact_id")
       .notNullable()
       .references("id")
-      .inTable("contact")
+      .inTable("contacts")
       .onDelete("CASCADE");
 
     table.specificType("type", "contact_type").notNullable();

@@ -14,10 +14,10 @@ ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankAccountId_fkey
 ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_bankTransactionBatchId_fkey" FOREIGN KEY ("bankTransactionBatchId") REFERENCES "BankTransactionBatch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "BankTransaction" ADD CONSTRAINT "BankTransaction_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_bankTransactionId_bankTransactionDate_fkey" FOREIGN KEY ("bankTransactionId", "bankTransactionDate") REFERENCES "BankTransaction"("id", "date") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -29,13 +29,13 @@ ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_ledgerTransactionId_fkey" 
 ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_coaId_fkey" FOREIGN KEY ("coaId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_sourceCurrencyId_fkey" FOREIGN KEY ("sourceCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_sourceCurrencyId_fkey" FOREIGN KEY ("sourceCurrencyId") REFERENCES "currencies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "LedgerEntry" ADD CONSTRAINT "LedgerEntry_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_ledgerEntryId_ledgerEntryfsDate_fkey" FOREIGN KEY ("ledgerEntryId", "ledgerEntryfsDate") REFERENCES "LedgerEntry"("id", "fsDate") ON DELETE SET NULL ON UPDATE CASCADE;

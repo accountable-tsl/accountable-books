@@ -18,7 +18,7 @@ export async function seed(knex: Knex): Promise<void> {
     // Insert Roles
     await knex.transaction(async (trx) => {
       for (const role of roles) {
-        await trx("role")
+        await trx("roles")
           .insert({
             name: roleName.parse(role.name.toLowerCase().trim()),
             description: role.description,

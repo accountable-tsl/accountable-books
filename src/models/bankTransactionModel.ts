@@ -70,8 +70,8 @@ export async function postBankTransactions(
       //   include: { transactionBatches: true, company: true },
       // });
       const bankAccount = await trx("BankAccount")
-        .select("BankAccount.*", trx.raw('to_jsonb("Company") as company'))
-        .leftJoin("Company", "BankAccount.companyId", "Company.id")
+        .select("BankAccount.*", trx.raw('to_jsonb("companies") as company'))
+        .leftJoin("companies", "BankAccount.companyId", "Company.id")
         .where("BankAccount.id", bankAccountId)
         .first();
 
@@ -260,7 +260,7 @@ export async function getBankTransactions(
     let baseQuery = knexInstance("BankTransaction")
       .join("BankAccount", "BankTransaction.bankAccountId", "BankAccount.id")
       .leftJoin("Bank", "BankAccount.bankId", "Bank.id")
-      .leftJoin("Currency", "BankAccount.currencyId", "Currency.id")
+      .leftJoin("currencies", "BankAccount.currencyId", "Currency.id")
       // Filter by company using BankAccount.companyId:
       .where("BankAccount.companyId", companyId)
       // Default BankTransaction isDeleted filter
@@ -353,8 +353,8 @@ export async function getBankTransactions(
       .select(
         knexInstance.raw(
           `to_jsonb("BankAccount") || jsonb_build_object(
-          'bank', to_jsonb("Bank"),
-          'currency', to_jsonb("Currency")
+          'bank', to_jsonb("banks"),
+          'currency', to_jsonb("currencies")
         ) as "bankAccount"`
         )
       )
@@ -409,7 +409,7 @@ export async function getBankTransactionById(
       query = query.andWhere("BankAccount.companyId", companyId);
     } else {
       query = query
-        .join("Company", "BankAccount.companyId", "Company.id")
+        .join("companies", "BankAccount.companyId", "Company.id")
         .andWhere("Company.shortCode", companyId);
     }
 

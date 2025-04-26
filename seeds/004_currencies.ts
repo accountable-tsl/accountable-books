@@ -20,7 +20,7 @@ export async function seed(knex: Knex): Promise<void> {
 
     await knex.transaction(async (trx) => {
       for (const currency of currencies) {
-        await trx("currency")
+        await trx("currencies")
           .insert({
             id: currency.id,
             name: currency.name.trim(),

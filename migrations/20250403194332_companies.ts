@@ -5,7 +5,7 @@ import {
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
 import { ENV, NODE_ENV } from "../src/config/env";
-import { adminUser } from "./20250403184441_user";
+import { adminUser } from "./20250403184441_users";
 import { verifyCompanyDependenciesExist } from "../src/domains/company/company.model";
 import { newCompany } from "../src/domains/company/company.types";
 
@@ -13,7 +13,7 @@ export const buildPlatformCompany = (adminUserId: string) => ({
   id: ENV.PLATFORM_COMPANY_ID || "a494b675-fedd-455c-ab6d-00ffdff9a047",
   legal_name: ENV.PLATFORM_COMPANY_NAME || "Accountable Techserve Ltd",
   display_name: "Accountable HQ",
-  type: "accounting_firm",
+  type: "accounting_firms",
   country_id: "84258bff-b7ab-4d9f-83f5-1bd1f4e39ace",
   reporting_currency_id: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
   created_by_id: adminUserId,
@@ -40,7 +40,7 @@ export const createPlatformCompany = async (knex: Knex) => {
 
   return await knex.transaction(async (trx) => {
     // Check if company exists
-    const existingPlatformCompany = await trx("company")
+    const existingPlatformCompany = await trx("companies")
       .where({ id: platformCompany.id })
       .first();
 
@@ -52,7 +52,7 @@ export const createPlatformCompany = async (knex: Knex) => {
     if (!platformCompany.legal_name)
       throw new Error("PLATFORM_COMPANY_NAME must be set");
 
-    if (platformCompany.type !== "accounting_firm")
+    if (platformCompany.type !== "accounting_firms")
       throw new Error("PLATFORM_COMPANY_TYPE must be set to accounting_firm");
 
     await verifyCompanyDependenciesExist(trx, {
@@ -65,7 +65,7 @@ export const createPlatformCompany = async (knex: Knex) => {
       throw new Error(validatedInput.error.message);
     }
 
-    const [inserted] = await knex("company")
+    const [inserted] = await knex(tableName)
       .insert(validatedInput.data)
       .returning("*");
     console.log(`Created platform company: ${platformCompany.legal_name}`);
@@ -73,7 +73,7 @@ export const createPlatformCompany = async (knex: Knex) => {
   });
 };
 
-const tableName = "company";
+const tableName = "companies";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
@@ -99,21 +99,21 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("country_id")
       .notNullable()
       .references("id")
-      .inTable("country")
+      .inTable("countries")
       .onDelete("RESTRICT");
 
     table
       .uuid("reporting_currency_id")
       .notNullable()
       .references("id")
-      .inTable("currency")
+      .inTable("currencies")
       .onDelete("RESTRICT");
 
     table
       .uuid("created_by_id")
       .notNullable()
       .references("id")
-      .inTable("user")
+      .inTable("users")
       .onDelete("RESTRICT");
 
     addStandardColumns(table);
@@ -123,9 +123,19 @@ export async function up(knex: Knex): Promise<void> {
 
   await createUpdateTimestampTrigger(knex, tableName);
   await createPlatformCompany(knex);
+
+  await knex.schema.alterTable("users", (table) => {
+    table
+      .foreign("last_active_company_id")
+      .references("id")
+      .inTable("companies");
+  });
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.schema.alterTable("users", (table) => {
+    table.dropForeign(["last_active_company_id"]);
+  });
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

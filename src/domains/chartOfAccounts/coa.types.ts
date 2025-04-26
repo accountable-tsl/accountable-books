@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { dbBaseFields } from "../../core/validation/schemas";
 
-export const coaSource = z.enum(["user", "system", "template"]);
+export const coaSource = z.enum(["users", "system", "template"]);
 export type CoaSource = z.infer<typeof coaSource>;
 // coa
 export const newCoa = z.object({

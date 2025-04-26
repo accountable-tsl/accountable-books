@@ -5,13 +5,13 @@ import {
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
 import { loadCoaTemplateForCompany } from "../src/domains/chartOfAccounts/coaTemplate.model";
-import { createPlatformCompany } from "./20250403194332_company";
+import { createPlatformCompany } from "./20250403194332_companies";
 
 const tableName = "coa";
 
 const addCoaToPlatformCompany = async (knex: Knex) => {
   const template_name = "acc:prof:basic:code:v1";
-  const [templateExists] = await knex("coa_template").where({
+  const [templateExists] = await knex("coa_templates").where({
     template_name,
   });
 
@@ -57,28 +57,28 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("account_type_id")
       .notNullable()
       .references("id")
-      .inTable("account_type")
+      .inTable("account_types")
       .onDelete("RESTRICT");
 
     table
       .uuid("currency_id")
       .notNullable()
       .references("id")
-      .inTable("currency")
+      .inTable("currencies")
       .onDelete("RESTRICT");
 
     table
       .uuid("company_id")
       .notNullable()
       .references("id")
-      .inTable("company")
+      .inTable("companies")
       .onDelete("RESTRICT");
 
     table
       .uuid("created_by_id")
       .notNullable()
       .references("id")
-      .inTable("user")
+      .inTable("users")
       .onDelete("RESTRICT");
 
     addStandardColumns(table);

@@ -38,7 +38,7 @@ export async function seed(knex: Knex): Promise<void> {
   // Insert with transaction
   await knex.transaction(async (trx) => {
     try {
-      await trx("coa_template").insert(seedCoaData).onConflict().ignore();
+      await trx("coa_templates").insert(seedCoaData).onConflict().ignore();
 
       if (process.env.NODE_ENV === "local" || NODE_ENV === "docker.dev") {
         console.log(`Attempted to insert ${seedCoaData.length} COA lines`);

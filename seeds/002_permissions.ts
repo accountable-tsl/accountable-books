@@ -23,7 +23,7 @@ export async function seed(knex: Knex): Promise<void> {
     // Batch insert for better performance
     await knex.transaction(async (trx) => {
       for (const permission of permissions) {
-        await trx("permission")
+        await trx("permissions")
           .insert({
             key: permission.key,
             action: permission.action,

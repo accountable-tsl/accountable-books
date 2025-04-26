@@ -14,11 +14,11 @@
 //     email: "test@firm.com",
 //     password: "ValidPass123!",
 //     firstname: "Test",
-//     lastname: "User",
+//     lastname: "users",
 //   },
 //   company: {
 //     legalName: "Test Firm LLC",
-//     type: "accounting_firm",
+//     type: "accounting_firms",
 //     reportingCurrencyId: "1d6a1e31-7e36-4eab-94e1-11f2173ea972", // Real UUID
 //     countryId: "9bcb8a51-43e4-4875-aa8b-119465e8b18d", // Real UUID
 //   },
@@ -116,7 +116,7 @@
 //       expect.objectContaining({
 //         legal_name: "Test Firm LLC",
 //         display_name: "Test Firm HQ", // Verify naming fallback
-//         type: "accounting_firm",
+//         type: "accounting_firms",
 //         created_by_id: "user-1",
 //         reporting_currency_id: "1d6a1e31-7e36-4eab-94e1-11f2173ea972",
 //         country_id: "9bcb8a51-43e4-4875-aa8b-119465e8b18d",

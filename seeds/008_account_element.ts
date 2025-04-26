@@ -224,7 +224,7 @@ const defaultAccountElements: AccountElementWithRequiredReportCode[] = [
 
 export async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
-    await trx("account_element")
+    await trx("account_elements")
       .insert(defaultAccountElements)
       .onConflict()
       .ignore();

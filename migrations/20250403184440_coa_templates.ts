@@ -15,6 +15,8 @@ import { NewCoaTemplateInput } from "../src/domains/chartOfAccounts/coaTemplate.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const tableName = "coa_templates";
+
 const seedCoaTemplates = async function seed(knex: Knex): Promise<void> {
   const coaFilePath = path.join(__dirname, "data/seed_coa_templates_v0.csv");
   const seedCoaData: NewCoaTemplateInput[] = [];
@@ -52,8 +54,6 @@ const seedCoaTemplates = async function seed(knex: Knex): Promise<void> {
   }
 };
 
-const tableName = "coa_template";
-
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
@@ -68,7 +68,7 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("account_type_id")
       .notNullable()
       .references("id")
-      .inTable("account_type")
+      .inTable("account_types")
       .onDelete("RESTRICT");
 
     addStandardColumns(table);
