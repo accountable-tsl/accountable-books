@@ -9,7 +9,7 @@ import { StepProgress } from "@/components/StepProgress/StepProgress";
 import { useEffect, useRef, useState } from "react";
 import { CompanyType, CountryList, zEmail } from "@/types/types";
 import { Button } from "@/components/ui/button";
-import { NewCompany, NewFirm, NewUser } from "./signupTypes";
+import { NewCompany, NewUser } from "./signupTypes";
 import { useSearchParams } from "react-router-dom";
 import { useCountries } from "@/hooks/useCountries";
 import { getDefaultCurrencyForCountry } from "@/constants/countryCurrencyMap";
@@ -26,6 +26,8 @@ import {
 } from "./steps/SignupCompanyInfo";
 import { toast } from "sonner";
 import { submitSignup } from "./signupService";
+import { PuffLoader } from "react-spinners";
+import { XIcon } from "lucide-react";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
@@ -50,6 +52,10 @@ export default function Signup() {
   });
 
   const [error, setError] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<
+    "idle" | "submitting" | "success" | "error"
+  >("idle");
 
   // This tracks whether the user has explicitly selected a reporting currency.
   // If true, we won't auto-set the currency based on country anymore.
@@ -120,13 +126,42 @@ export default function Signup() {
         return;
       }
 
-      await submitSignup({
-        user: basicInfo,
-        company: companyDetails,
-      });
+      setSubmitStatus("submitting");
 
-      // Successful? Clear form, send user to dashboard
-      // TODO: Redirect to dashboard
+      try {
+        const signup = await submitSignup({
+          user: basicInfo,
+          company: companyDetails,
+        });
+
+        if (signup.success) {
+          setTimeout(() => {
+            setSubmitStatus("success");
+            toast.success("Signup successful");
+            setError("");
+          }, 1000);
+
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 1500);
+        } else {
+          setTimeout(() => {
+            setSubmitStatus("error");
+            setError(signup.message);
+            toast.error(signup.message || "Something went wrong.");
+          }, 1000);
+        }
+      } catch (error) {
+        setTimeout(() => {
+          setSubmitStatus("error");
+          setError("Something went wrong. Please try again.");
+          toast.error("Something went wrong. Please try again.");
+        }, 1000);
+      } finally {
+        setIsSubmitting(false);
+      }
+
+      // Successful? Clear form, send user to dashboard or something
       // Basically log user in already, JWT and all
     }
   };
@@ -279,42 +314,65 @@ export default function Signup() {
           className="absolute right-1/2 bottom-3/5 -z-5 opacity-10 h-100 w-100"
         />
         <Card className="relative">
-          <CardHeader>
-            <CardTitle className="text-2xl">
-              {selectedType === "accounting_firm" && currentStep === 3
-                ? "Your Practice's Details"
-                : steps[currentStep - 1]}
-            </CardTitle>
-            <StepProgress
-              currentStep={currentStep}
-              totalSteps={steps.length}
-              steps={steps}
-            />
-          </CardHeader>
-          <CardContent className="min-h-50">
-            <form ref={formRef} onKeyDown={handleKeyDown}>
-              {stepContent}
-            </form>
-          </CardContent>
-          {
-            <CardFooter className="py-2">
-              <div className="flex justify-between w-full">
-                <Button
-                  variant="outline"
-                  disabled={currentStep === 1}
-                  onClick={handleBack}
-                >
-                  Back
-                </Button>
+          {!isSubmitting && submitStatus === "idle" && (
+            <>
+              <CardHeader>
+                <CardTitle className="text-2xl">
+                  {selectedType === "accounting_firm" && currentStep === 3
+                    ? "Your Practice's Details"
+                    : steps[currentStep - 1]}
+                </CardTitle>
+                <StepProgress
+                  currentStep={currentStep}
+                  totalSteps={steps.length}
+                  steps={steps}
+                />
+              </CardHeader>
+              <CardContent className="min-h-50">
+                <form ref={formRef} onKeyDown={handleKeyDown}>
+                  {stepContent}
+                </form>
+              </CardContent>
+              {
+                <CardFooter className="py-2">
+                  <div className="flex justify-between w-full">
+                    <Button
+                      variant="outline"
+                      disabled={currentStep === 1}
+                      onClick={handleBack}
+                    >
+                      Back
+                    </Button>
 
-                {selectedType && (
-                  <Button onClick={handleContinue}>
-                    {currentStep === steps.length ? "Submit" : "Continue"}
-                  </Button>
-                )}
+                    {selectedType && (
+                      <Button onClick={handleContinue}>
+                        {currentStep === steps.length ? "Submit" : "Continue"}
+                      </Button>
+                    )}
+                  </div>
+                </CardFooter>
+              }
+            </>
+          )}
+
+          {submitStatus === "submitting" && (
+            <>
+              <div className="flex flex-col gap-2 justify-center items-center text-center p-16 py-22">
+                {/* <div className="flex justify-center"> */}
+                <PuffLoader color="var(--muted-foreground)" />
+                {/* </div> */}
+                <p>Creating your account...</p>
               </div>
-            </CardFooter>
-          }
+            </>
+          )}
+
+          {submitStatus === "error" && (
+            <div className="text-center text-red-600">
+              <XIcon />
+              <p>{error}</p>
+              <Button onClick={() => setSubmitStatus("idle")}>Back</Button>
+            </div>
+          )}
         </Card>
         <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary  ">
           By clicking continue, you agree to our{" "}

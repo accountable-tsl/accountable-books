@@ -48,7 +48,14 @@ export const routes = {
   auth: {
     root: "/auth",
     login: "/login",
+    logout: "/logout",
     signup: "/signup",
+    forgotPassword: "/forgot-password",
+  },
+
+  onboarding: {
+    root: "/onboarding",
+    welcome: "/welcome",
   },
 };
 
@@ -97,6 +104,13 @@ export const staticRoutes = {
   auth: {
     root: "/auth",
     login: "/login",
+    logout: "/logout",
     signup: "/signup",
+    forgotPassword: "/forgot-password",
+  },
+
+  onboarding: {
+    root: "/onboarding",
+    welcome: "/welcome",
   },
 };

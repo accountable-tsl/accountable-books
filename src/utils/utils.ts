@@ -389,3 +389,14 @@ export const sanitizeOptionalInput = (
   if (!value) return null;
   return sanitizeInput(value);
 };
+
+export function getCookie(name: string) {
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  if (match) return match[2];
+}
+
+export enum ErrorCode {
+  GENERIC = "GENERIC_ERROR",
+  INVALID_CREDENTIALS = "INVALID_CREDENTIALS",
+  NO_ROLES = "NO_ROLES",
+}

@@ -15,8 +15,19 @@ export const useCompany = () => {
   useEffect(() => {
     if (id) {
       setCompanyId(id);
+      setGlobalCompanyId(id);
     }
   }, [id, setCompanyId]);
 
   return context;
 };
+
+let companyId: string | null = null;
+
+export function setGlobalCompanyId(id: string) {
+  companyId = id;
+}
+
+export function getGlobalCompanyId() {
+  return companyId;
+}

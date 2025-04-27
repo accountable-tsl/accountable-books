@@ -4,7 +4,6 @@ import "./styles/App.scss";
 import Home from "./pages-users/Home/Home";
 import COA from "./pages-admin/COA/COA";
 import { staticRoutes } from "./utils/routes";
-import { CompanyProvider } from "./contexts/CompanyContext";
 import FinancialSettings from "./pages-admin/FinancialSettings/FinancialSettings";
 import UploadBS from "./pages-admin/UploadBS/UploadBS";
 import { PopupProvider, usePopup } from "./contexts/PopupContext";
@@ -18,6 +17,10 @@ import Signup from "./features/signup/Signup";
 import AppLayout from "./layouts/AppLayout";
 import AuthLayout from "./layouts/AuthLayout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import OnboardingLayout from "./layouts/OnboardingLayout";
+import Welcome from "./features/onboarding/Welcome";
+import Login from "./features/auth/Login";
+import BlankLayout from "./layouts/BlankLayout";
 
 function App() {
   const queryClient = new QueryClient();
@@ -29,6 +32,12 @@ function App() {
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
             <Routes>
+              <Route element={<AuthLayout />}>
+                <Route path={staticRoutes.auth.signup} element={<Signup />} />
+              </Route>
+              <Route element={<OnboardingLayout />}>
+                {/* <Route path="/welcome" element={<VerifyEmail />} /> */}
+              </Route>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Home />} />
 
@@ -76,8 +85,12 @@ function App() {
                   element={<AccountingTxns />}
                 />
               </Route>
-              <Route element={<AuthLayout />}>
-                <Route path={staticRoutes.auth.signup} element={<Signup />} />
+              <Route element={<BlankLayout />}>
+                <Route path={staticRoutes.auth.login} element={<Login />} />
+                <Route
+                  path={staticRoutes.onboarding.welcome}
+                  element={<Welcome />}
+                />
               </Route>
             </Routes>
           </BrowserRouter>
