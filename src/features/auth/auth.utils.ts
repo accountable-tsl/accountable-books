@@ -4,6 +4,7 @@ import { ENV } from "../../config/env";
 import { throwError } from "../../shared/utils/response.utils";
 import { TokenConfig, TokenExpiration } from "./auth.types";
 import { Request, Response } from "express";
+import { generateRandomToken } from "../../shared/utils/crypto.utils";
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throwError("JWT secrets must be defined in .env");
@@ -54,26 +55,27 @@ export const setAuthCookies = (
   req: Request,
   res: Response,
   accessToken: string,
-  refreshToken: string,
-  callback: (csrfToken: string) => void
+  refreshToken: string
 ) => {
-  csrfProtection(req, res, () => {
-    const csrfToken = req.csrfToken();
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-    });
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-    });
-    res.cookie("csrfToken", csrfToken, {
-      httpOnly: false,
-      secure: true,
-      sameSite: "strict",
-    });
-    callback(csrfToken);
+  const csrfToken = generateRandomToken();
+
+  res.cookie("access-token", accessToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
   });
+
+  res.cookie("refresh-token", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+  });
+
+  res.cookie("csrf-token", csrfToken, {
+    httpOnly: false,
+    secure: true,
+    sameSite: "strict",
+  });
+
+  return csrfToken;
 };

@@ -4,8 +4,8 @@ import {
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
-import { setAuthCookies } from "./auth.utils";
 import { AuthRequest } from "./auth.types";
+import { setAuthCookies } from "./auth.utils";
 
 export async function loginController(req: Request, res: Response) {
   try {
@@ -19,17 +19,17 @@ export async function loginController(req: Request, res: Response) {
 
     const { accessToken, refreshToken, user, currentCompanyId } = login.data;
 
-    setAuthCookies(req, res, accessToken, refreshToken, (csrfToken) => {
-      res.json(
-        successResponse("User logged in successfully", {
-          user,
-          csrfToken,
-          currentCompanyId,
-        })
-      );
-    });
+    const csrfToken = setAuthCookies(req, res, accessToken, refreshToken);
+
+    return res.json(
+      successResponse("User logged in successfully", {
+        user,
+        csrfToken,
+        currentCompanyId,
+      })
+    );
   } catch (error) {
-    res.status(500).json(errorResponse("Something went wrong"));
+    return res.status(500).json(errorResponse("Something went wrong"));
   }
 }
 
@@ -61,10 +61,9 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
       user,
     } = refreshResult.data;
 
-    setAuthCookies(req, res, accessToken, newRefreshToken, (csrfToken) => {
-      res.json(successResponse("Tokens refreshed", { user, csrfToken }));
-    });
+    const csrfToken = setAuthCookies(req, res, accessToken, newRefreshToken);
+    return res.json(successResponse("Tokens refreshed", { user, csrfToken }));
   } catch (error) {
-    res.status(500).json(errorResponse("Something went wrong"));
+    return res.status(500).json(errorResponse("Something went wrong"));
   }
 }

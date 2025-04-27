@@ -24,18 +24,18 @@ import companiesRoutes from "./domains/companies/companies.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";
+import { ENV, NODE_ENV } from "./config/env";
 
-const NODE_ENV = process.env.NODE_ENV || "development";
-
-const PORT = process.env.PORT || 8080;
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost";
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const PORT = ENV.PORT || 8080;
+const BACKEND_URL = ENV.BACKEND_URL || "http://localhost";
+const FRONTEND_URL = ENV.FRONTEND_URL || "http://localhost:5173";
 
 const app = express();
 app.use(express.json());
 
-// app.use(cors({ origin: FRONTEND_URL }));
-app.use(cors({ origin: "*" }));
+const allowedOrigins = [FRONTEND_URL];
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.static("./public"));
 
 const bullboardUser = process.env.BULLBOARD_USER || "admin";
