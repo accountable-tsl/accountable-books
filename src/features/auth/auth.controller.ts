@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { loginService, refreshTokenService } from "./auth.service";
 import {
+  ErrorCode,
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
@@ -12,12 +13,23 @@ export async function loginController(req: Request, res: Response) {
   try {
     const { email, password } = req.body;
 
-    const login = await loginService(email, password);
-    if (!login.success) {
-      return res.status(403).json(errorResponse(login.message));
+    const { success, code, message, data } = await loginService(
+      email,
+      password
+    );
+    if (!success) {
+      const status =
+        code === ErrorCode.INVALID_CREDENTIALS
+          ? 401
+          : code === ErrorCode.GENERIC
+            ? 500
+            : 403;
+      return res
+        .status(status)
+        .json(errorResponse(message, undefined, code as ErrorCode));
     }
 
-    const { accessToken, refreshToken, user, currentCompanyId } = login.data;
+    const { accessToken, refreshToken, user, currentCompanyId } = data;
 
     const csrfToken = setAuthCookies(req, res, accessToken, refreshToken);
 
@@ -36,35 +48,40 @@ export async function loginController(req: Request, res: Response) {
 export async function refreshTokenController(req: AuthRequest, res: Response) {
   try {
     const refreshToken = req.cookies.refreshToken;
-    const userId = req.user?.id;
-    const currentCompanyId =
-      req.user?.currentCompanyId || req.body.currentCompanyId;
+    if (!refreshToken) {
+      return res.status(401).json(errorResponse("Refresh token missing"));
+    }
 
-    if (!userId || !currentCompanyId) {
+    const { id: userId, currentCompanyId } = req.user!;
+
+    if (!userId) {
+      return res.status(403).json(errorResponse("User not authenticated"));
+    }
+
+    const result = await refreshTokenService(refreshToken, userId);
+
+    if (!result.success) {
+      res.clearCookie("accessToken");
+      res.clearCookie("refreshToken");
       return res
-        .status(400)
-        .json(errorResponse("User ID or company ID missing"));
+        .status(403)
+        .json(errorResponse("Refresh token validation failed", result));
     }
 
-    const refreshResult = await refreshTokenService(
-      refreshToken,
-      userId,
-      currentCompanyId
-    );
-    if (!refreshResult.success) {
-      return res.status(403).json(errorResponse(refreshResult.message));
-    }
-
-    const {
-      accessToken,
-      refreshToken: newRefreshToken,
-      user,
-    } = refreshResult.data;
+    const { accessToken, refreshToken: newRefreshToken, user } = result.data;
 
     const csrfToken = setAuthCookies(req, res, accessToken, newRefreshToken);
+
     return res.json(successResponse("Tokens refreshed", { user, csrfToken }));
   } catch (error) {
-    return res.status(500).json(errorResponse("Something went wrong"));
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+    res.clearCookie("csrfToken");
+
+    return res.status(401).json({
+      code: "REFRESH_FAILED",
+      message: "Session expired - please login again",
+    });
   }
 }
 
@@ -75,16 +92,19 @@ export async function logoutController(req: AuthRequest, res: Response) {
   }
 
   res.clearCookie("accessToken", {
+    path: "/",
     httpOnly: true,
     secure: true,
     sameSite: "strict",
   });
   res.clearCookie("refreshToken", {
+    path: "/",
     httpOnly: true,
     secure: true,
     sameSite: "strict",
   });
   res.clearCookie("csrfToken", {
+    path: "/",
     httpOnly: false,
     secure: true,
     sameSite: "strict",

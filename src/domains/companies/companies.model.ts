@@ -191,7 +191,11 @@ const companyFields = [
   "currencies.symbol as reportingCurrencySymbol",
   "companies.created_by_id as createdById",
 ];
-export const getCompanies = async () => {
+export const getCompanies = async (
+  userId?: string,
+  pageSize?: number,
+  page?: number
+) => {
   try {
     const result = await knexClient("companies")
       .select(companyFields)

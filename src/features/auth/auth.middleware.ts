@@ -1,11 +1,12 @@
 import { NextFunction, Request, Response } from "express";
-import { JWT_CONFIG } from "./auth.utils";
+import { csrfProtection, JWT_CONFIG } from "./auth.utils";
 import jwt from "jsonwebtoken";
 import { AuthRequest, DecodedToken } from "./auth.types";
 import { getCompanyRolesForUser } from "../../domains/userCompanyRole/userCompanyRole.model";
 import { errorResponse } from "../../shared/utils/response.utils";
 import { getPermissionsForRole } from "../../domains/permission/permission.model";
 import { redis } from "../../lib/redis";
+import { generateRandomToken } from "../../shared/utils/crypto.utils";
 
 export const verifyAccessToken = async (
   req: AuthRequest,
@@ -42,7 +43,7 @@ export const verifyAccessToken = async (
     // Attach user ID and company roles to the request object
     req.user = {
       id: decoded.sub,
-      currentCompanyId: decoded.companyId,
+      currentCompanyId: decoded.currentCompanyId,
       companyRoles: roles.data,
     };
 
@@ -54,7 +55,6 @@ export const verifyAccessToken = async (
 };
 
 function handleJwtError(err: unknown, res: Response) {
-  console.error(err);
   if (err instanceof jwt.TokenExpiredError) {
     return res.status(401).json(errorResponse("Token expired"));
   }
@@ -63,6 +63,56 @@ function handleJwtError(err: unknown, res: Response) {
   }
   res.status(500).json(errorResponse("Authentication failed"));
 }
+
+export const verifyRefreshToken = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) {
+    return res.status(401).json(errorResponse("No refresh token provided"));
+  }
+
+  try {
+    const decoded = jwt.verify(
+      refreshToken,
+      JWT_CONFIG.refreshToken.secret
+    ) as DecodedToken;
+
+    if (!decoded.sub) {
+      return res.status(403).json(errorResponse("Invalid refresh token"));
+    }
+
+    req.user = { id: decoded.sub, currentCompanyId: decoded.currentCompanyId };
+    next();
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json(errorResponse("Refresh token expired"));
+    }
+    return res.status(403).json(errorResponse("Invalid refresh token"));
+  }
+};
+
+export const conditionalCsrf = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const skipPaths = ["/auth/login", "/auth/refresh"];
+
+  if (skipPaths.some((p) => req.originalUrl.includes(p))) {
+    console.log("Skipping CSRF for", req.originalUrl);
+
+    // Manually create random CSRF token
+    const csrfToken = req.csrfToken ? req.csrfToken() : generateRandomToken();
+    req.csrfToken = () => csrfToken;
+
+    return next();
+  }
+
+  return csrfProtection(req, res, next);
+};
 
 export const requirePermission = (permission: string) => {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -108,33 +158,4 @@ export const requirePermission = (permission: string) => {
     req.user.permissions = permissions.map((p) => ({ permission: p }));
     next();
   };
-};
-
-export const verifyRefreshToken = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const refreshToken = req.cookies.refreshToken;
-  if (!refreshToken) {
-    return res.status(401).json(errorResponse("No refresh token provided"));
-  }
-
-  try {
-    const decoded = jwt.verify(
-      refreshToken,
-      JWT_CONFIG.refreshToken.secret
-    ) as { sub: string };
-    if (!decoded.sub) {
-      return res.status(403).json(errorResponse("Invalid refresh token"));
-    }
-
-    req.user = { id: decoded.sub };
-    next();
-  } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      return res.status(401).json(errorResponse("Refresh token expired"));
-    }
-    return res.status(403).json(errorResponse("Invalid refresh token"));
-  }
 };

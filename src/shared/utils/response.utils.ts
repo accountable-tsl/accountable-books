@@ -15,7 +15,8 @@ export function successResponse<T>(
 
 export function errorResponse<T = null>(
   message = "Something went wrong",
-  error?: unknown
+  error?: unknown,
+  code: ErrorCode = ErrorCode.GENERIC
 ): ApiResponse {
   if (!isProduction) {
     console.error("Error:", error);
@@ -43,6 +44,7 @@ export function errorResponse<T = null>(
   return {
     success: false,
     message,
+    code,
     error: parsedError,
     data: null,
   };
@@ -62,8 +64,13 @@ export function ensure<T>(
   errorMessage: string,
   errorDetails?: any
 ): asserts value is T {
-  if (value == null) {
-    // Loose equality here is deliberate
+  if (!value) {
     throwError(errorMessage, errorDetails);
   }
+}
+
+export enum ErrorCode {
+  GENERIC = "GENERIC_ERROR",
+  INVALID_CREDENTIALS = "INVALID_CREDENTIALS",
+  NO_ROLES = "NO_ROLES",
 }

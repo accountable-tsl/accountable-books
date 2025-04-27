@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken";
 import { generateAuthTokens, JWT_CONFIG } from "./auth.utils";
-import { LoginRole, TokenExpiration } from "./auth.types";
+import { DecodedToken, LoginRole, TokenExpiration } from "./auth.types";
 import knex from "../../../knexClient";
 import {
-  ensure,
+  ErrorCode,
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
@@ -17,24 +17,42 @@ export async function loginService(
 ): Promise<ApiResponse> {
   try {
     const user = await knex("users").select("*").where({ email }).first();
-    if (!user) return errorResponse("Invalid credentials", user);
+    if (!user)
+      return errorResponse(
+        "Email or password is incorrect",
+        user,
+        ErrorCode.INVALID_CREDENTIALS
+      );
     if (!user.password)
-      return errorResponse("Password not set (maybe invited user)");
+      return errorResponse(
+        "Password not set",
+        undefined,
+        ErrorCode.INVALID_CREDENTIALS
+      );
 
     const isValidPassword = await comparePassword(password, user.password);
-    ensure(isValidPassword, "Invalid credentials");
+    if (!isValidPassword)
+      return errorResponse(
+        "Email or password is incorrect",
+        undefined,
+        ErrorCode.INVALID_CREDENTIALS
+      );
+    // ensure(isValidPassword, "Invalid credentials");
 
     // Fetch user's companies and roles
     const roles: LoginRole[] = await knex("users_companies_roles")
       .where({ user_id: user.id })
       .select("company_id", "role_id");
-    ensure(roles.length, "No roles assigned to this user within any company");
+    if (!roles.length)
+      return errorResponse("No roles assigned", undefined, ErrorCode.NO_ROLES);
 
     const currentCompanyId = user.last_active_company_id || roles[0].company_id;
     const { accessToken, refreshToken } = generateAuthTokens({
       id: user.id,
       currentCompanyId,
     });
+    await redis.setex(`refreshToken:${user.id}`, 604800, refreshToken); // 7 days
+
     return successResponse("User logged in successfully", {
       accessToken,
       refreshToken,
@@ -55,14 +73,18 @@ export async function loginService(
 
 export async function refreshTokenService(
   refreshToken: string,
-  userId: string,
-  currentCompanyId: string
+  userId: string
 ): Promise<ApiResponse> {
+  const lockKey = `refreshLock:${userId}`;
+  const locked = await redis.set(lockKey, "1", "PX", 1000, "NX");
+  if (!locked) throw new Error("Refresh already in progress");
+
   try {
     const decoded = jwt.verify(
       refreshToken,
       JWT_CONFIG.refreshToken.secret
-    ) as { sub: string };
+    ) as DecodedToken;
+
     if (decoded.sub !== userId) {
       return errorResponse("Invalid refresh token");
     }
@@ -76,7 +98,7 @@ export async function refreshTokenService(
     // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateAuthTokens({
       id: userId,
-      currentCompanyId,
+      currentCompanyId: decoded.currentCompanyId,
     });
 
     // Rotate refresh token in Redis
@@ -85,9 +107,11 @@ export async function refreshTokenService(
     return successResponse("Tokens refreshed", {
       accessToken,
       refreshToken: newRefreshToken,
-      user: { id: userId, currentCompanyId },
+      user: { id: userId, currentCompanyId: decoded.currentCompanyId },
     });
   } catch (error) {
     return errorResponse("Failed to refresh token");
+  } finally {
+    await redis.del(lockKey).catch(() => {});
   }
 }

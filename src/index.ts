@@ -15,6 +15,7 @@ import { basicAuth } from "./core/middlewares/basicAuth.middleware";
 import { ENV, NODE_ENV } from "./config/env";
 import { loadRoles } from "./domains/roles/roles.model";
 import cookieParser from "cookie-parser";
+import { conditionalCsrf } from "./features/auth/auth.middleware";
 
 const PORT = ENV.PORT || 8080;
 const BACKEND_URL = ENV.BACKEND_URL || "http://localhost";
@@ -33,6 +34,8 @@ async function startServer() {
 
     app.use(cors({ origin: allowedOrigins, credentials: true }));
     app.use(express.static("./public"));
+
+    app.use(conditionalCsrf);
 
     const bullboardUser = process.env.BULLBOARD_USER || "admin";
     const bullboardPass = process.env.BULLBOARD_PASSWORD || "secret";

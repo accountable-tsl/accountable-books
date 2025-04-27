@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import csurf from "csurf";
-import { ENV } from "../../config/env";
+import { ENV, isProduction } from "../../config/env";
 import { throwError } from "../../shared/utils/response.utils";
 import { TokenConfig, TokenExpiration } from "./auth.types";
 import { Request, Response } from "express";
@@ -28,7 +28,7 @@ export const generateAuthTokens = (user: {
 }) => {
   const payload = {
     sub: user.id,
-    companyId: user.currentCompanyId,
+    currentCompanyId: user.currentCompanyId,
     // Add other minimal claims needed for authorization/permission later
   };
 
@@ -36,19 +36,20 @@ export const generateAuthTokens = (user: {
     expiresIn: TokenExpiration.Access,
   });
 
-  const refreshToken = jwt.sign(
-    { sub: user.id },
-    JWT_CONFIG.refreshToken.secret,
-    {
-      expiresIn: TokenExpiration.Refresh,
-    }
-  );
+  const refreshToken = jwt.sign(payload, JWT_CONFIG.refreshToken.secret, {
+    expiresIn: TokenExpiration.Refresh,
+  });
 
   return { accessToken, refreshToken };
 };
 
 export const csrfProtection = csurf({
-  cookie: { httpOnly: true, secure: true, sameSite: "strict" },
+  cookie: {
+    key: "csrfToken",
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "strict",
+  },
 });
 
 export const setAuthCookies = (
@@ -57,7 +58,7 @@ export const setAuthCookies = (
   accessToken: string,
   refreshToken: string
 ) => {
-  const csrfToken = generateRandomToken();
+  const csrfToken = req.csrfToken ? req.csrfToken() : generateRandomToken();
 
   res.cookie("accessToken", accessToken, {
     httpOnly: true,

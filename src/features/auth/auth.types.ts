@@ -10,7 +10,7 @@ export interface TokenConfig {
 export enum TokenExpiration {
   Access = "15m",
   Refresh = "7d",
-  Verification = "5m",
+  Verification = "15m",
 }
 
 export interface TokenPayload extends JwtPayload {
@@ -19,7 +19,7 @@ export interface TokenPayload extends JwtPayload {
 
 export interface DecodedToken {
   sub: string;
-  companyId?: string;
+  currentCompanyId: string;
 }
 
 export interface LoginRole {
@@ -30,7 +30,7 @@ export interface LoginRole {
 export interface AuthRequest extends Request {
   user?: {
     id: string;
-    currentCompanyId?: string;
+    currentCompanyId: string;
     companyRoles?: Array<{ company_id: string; role_id: string }>;
     permissions?: Array<{ permission: string }>;
   };
