@@ -12,6 +12,10 @@ export const verifyAccessToken = async (
   res: Response,
   next: NextFunction
 ) => {
+  if (!req.cookies) {
+    return res.status(401).json(errorResponse("Unauthorized"));
+  }
+
   // Extract the access token from cookies
   const token = req.cookies.accessToken;
 
@@ -50,6 +54,7 @@ export const verifyAccessToken = async (
 };
 
 function handleJwtError(err: unknown, res: Response) {
+  console.error(err);
   if (err instanceof jwt.TokenExpiredError) {
     return res.status(401).json(errorResponse("Token expired"));
   }

@@ -6,13 +6,13 @@ import {
 } from "../../shared/utils/response.utils";
 import { AuthRequest } from "./auth.types";
 import { setAuthCookies } from "./auth.utils";
+import { redis } from "../../lib/redis";
 
 export async function loginController(req: Request, res: Response) {
   try {
     const { email, password } = req.body;
 
     const login = await loginService(email, password);
-    console.log(login);
     if (!login.success) {
       return res.status(403).json(errorResponse(login.message));
     }
@@ -66,4 +66,29 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
   } catch (error) {
     return res.status(500).json(errorResponse("Something went wrong"));
   }
+}
+
+export async function logoutController(req: AuthRequest, res: Response) {
+  const userId = req.user?.id;
+  if (userId) {
+    await redis.del(`refreshToken:${userId}`);
+  }
+
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+  });
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+  });
+  res.clearCookie("csrfToken", {
+    httpOnly: false,
+    secure: true,
+    sameSite: "strict",
+  });
+
+  return res.status(200).json(successResponse("Logged out successfully", null));
 }

@@ -59,22 +59,28 @@ export const setAuthCookies = (
 ) => {
   const csrfToken = generateRandomToken();
 
-  res.cookie("access-token", accessToken, {
+  res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: true,
     sameSite: "strict",
+    maxAge: 15 * 60 * 1000, // 15 minutes
+    path: "/",
   });
 
-  res.cookie("refresh-token", refreshToken, {
+  res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: true,
     sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: "/",
   });
 
-  res.cookie("csrf-token", csrfToken, {
+  res.cookie("csrfToken", csrfToken, {
     httpOnly: false,
     secure: true,
     sameSite: "strict",
+    maxAge: 15 * 60 * 1000, // 15 minutes
+    path: "/",
   });
 
   return csrfToken;

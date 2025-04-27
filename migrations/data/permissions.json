@@ -21,18 +21,25 @@
     "description": "Download or export financial reports"
   },
   {
-    "key": "company:switch",
+    "key": "companies:switch",
     "action": "switch",
     "resource": "companies",
-    "label": "Switch Company",
+    "label": "Switch Companies",
     "description": "Switch between accessible companies"
   },
   {
-    "key": "company:manage",
+    "key": "companies:manage",
     "action": "manage",
     "resource": "companies",
-    "label": "Manage Company",
+    "label": "Manage Companies",
     "description": "Update company settings"
+  },
+  {
+    "key": "companies:view",
+    "action": "view",
+    "resource": "companies",
+    "label": "View Companies",
+    "description": "View a list of companies"
   },
   {
     "key": "accounting_firm:change",

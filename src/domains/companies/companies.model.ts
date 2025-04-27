@@ -17,7 +17,7 @@ import {
   throwError,
 } from "../../shared/utils/response.utils";
 import generateSecureShortCode from "../../shared/utils/crypto.utils";
-import knex from "../../../knexClient";
+import knexClient from "../../../knexClient";
 import { generateAuthTokens } from "../../features/auth/auth.utils";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 
@@ -127,9 +127,9 @@ export const switchCompany = async (
   companyIdentifier: string
 ) => {
   try {
-    const companyId = getCompanyUUID(companyIdentifier);
+    const companyId = await getCompanyUUID(companyIdentifier);
 
-    const role = await knex("users_companies_roles")
+    const role = await knexClient("users_companies_roles")
       .where({
         user_id: userId,
         company_id: companyId,
@@ -142,7 +142,7 @@ export const switchCompany = async (
       return errorResponse("User not authorized for this company");
     }
 
-    await knex("users")
+    await knexClient("users")
       .where("id", userId)
       .update("last_active_company_id", companyId);
 
@@ -158,5 +158,87 @@ export const switchCompany = async (
     });
   } catch (error) {
     return errorResponse("Something went wrong", error);
+  }
+};
+
+const companyFields = [
+  "companies.id",
+  "companies.legal_name as legalName",
+  "companies.display_name as displayName",
+  "companies.short_code as shortCode",
+  "companies.address as address",
+  "companies.type as companyType",
+  "companies.logo_url as companyLogo",
+  "companies.description as description",
+  "companies.website as website",
+  "companies.industry as industry",
+  "companies.team_size as companySize",
+  "companies.revenue as revenue",
+  "companies.year_end_day as yearEndDay",
+  "companies.year_end_month as yearEndMonth",
+  "companies.registration_number as companyRegistrationNumber",
+  "companies.tax_id as companyTaxId",
+  "companies.assigned_firm_id as assignedFirmId",
+  "companies.country_id as countryId",
+  "countries.code as countryCode",
+  "countries.name as countryName",
+  "countries.phone_code as countryPhoneCode",
+  "countries.flag as countryFlag",
+  "countries.continent as countryContinent",
+  "companies.reporting_currency_id as reportingCurrencyId",
+  "currencies.code as reportingCurrencyCode",
+  "currencies.name as reportingCurrencyName",
+  "currencies.symbol as reportingCurrencySymbol",
+  "companies.created_by_id as createdById",
+];
+export const getCompanies = async () => {
+  try {
+    const result = await knexClient("companies")
+      .select(companyFields)
+      .leftJoin("countries", "companies.country_id", "countries.id")
+      .leftJoin(
+        "currencies",
+        "companies.reporting_currency_id",
+        "currencies.id"
+      );
+
+    if (!result.length) {
+      return errorResponse("Error retrieving companies");
+    }
+
+    return successResponse(
+      "Successfully retrieved all companies",
+      snakeToCamel(result)
+    );
+  } catch (error: any) {
+    return errorResponse("An unexpected error occured", error?.message);
+  }
+};
+
+export const getSingleCompany = async (identifier: string) => {
+  try {
+    const companyId = await getCompanyUUID(identifier);
+    ensure(companyId, "Forbidden");
+
+    const company = await knexClient("companies")
+      .select(companyFields)
+      .leftJoin("countries", "companies.country_id", "countries.id")
+      .leftJoin(
+        "currencies",
+        "companies.reporting_currency_id",
+        "currencies.id"
+      )
+      .where("companies.id", companyId)
+      .first();
+
+    if (!company)
+      return errorResponse(`Company with ID ${identifier} not found`);
+
+    return successResponse(
+      `Successfully retrieved details for company`,
+      company
+    );
+  } catch (error) {
+    errorResponse("Error retrieving company details");
   }
 };

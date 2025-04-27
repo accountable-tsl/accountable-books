@@ -57,3 +57,4 @@ console.log(`🌱 Loaded environment from: ${envFile}`);
 
 export const ENV = process.env;
 export const isProduction = NODE_ENV === "production";
+export const isDev = NODE_ENV === "local" || NODE_ENV === "docker.dev";

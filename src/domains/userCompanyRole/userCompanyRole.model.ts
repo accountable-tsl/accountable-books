@@ -11,7 +11,7 @@ export const getCompanyRolesForUser = async (userId: string) => {
   }
 
   const userRoleByCompany = await knex("users_companies_roles")
-    .select("id", "user_id", "company_id", "role_id")
+    .select("user_id", "company_id", "role_id")
     .where({ user_id: userId, is_deleted: false });
 
   if (userRoleByCompany.length === 0) {
