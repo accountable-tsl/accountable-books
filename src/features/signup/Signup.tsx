@@ -28,6 +28,8 @@ import { toast } from "sonner";
 import { submitSignup } from "./signupService";
 import { PuffLoader } from "react-spinners";
 import { XIcon } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
+import { AuthHeader } from "@/components/Header/AuthHeader";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
@@ -306,79 +308,83 @@ export default function Signup() {
   }, [currencies?.data, companyDetails.countryId]);
 
   return (
-    <div className="flex flex-1 w-full items-center justify-center p-6 md:p-10">
-      <div className="flex w-full max-w-md flex-col gap-6 relative">
-        <img
-          src="./icon.svg"
-          alt=""
-          className="absolute right-1/2 bottom-3/5 -z-5 opacity-10 h-100 w-100"
-        />
-        <Card className="relative">
-          {!isSubmitting && submitStatus === "idle" && (
-            <>
-              <CardHeader>
-                <CardTitle className="text-2xl">
-                  {selectedType === "accounting_firm" && currentStep === 3
-                    ? "Your Practice's Details"
-                    : steps[currentStep - 1]}
-                </CardTitle>
-                <StepProgress
-                  currentStep={currentStep}
-                  totalSteps={steps.length}
-                  steps={steps}
-                />
-              </CardHeader>
-              <CardContent className="min-h-50">
-                <form ref={formRef} onKeyDown={handleKeyDown}>
-                  {stepContent}
-                </form>
-              </CardContent>
-              {
-                <CardFooter className="py-2">
-                  <div className="flex justify-between w-full">
-                    <Button
-                      variant="outline"
-                      disabled={currentStep === 1}
-                      onClick={handleBack}
-                    >
-                      Back
-                    </Button>
-
-                    {selectedType && (
-                      <Button onClick={handleContinue}>
-                        {currentStep === steps.length ? "Submit" : "Continue"}
+    <div className="flex flex-col min-h-svh">
+      <AuthHeader />
+      <div className="flex flex-1 w-full items-center justify-center p-6 md:p-10">
+        <div className="flex w-full max-w-md flex-col gap-6 relative">
+          <img
+            src="./icon.svg"
+            alt=""
+            className="absolute right-1/2 bottom-3/5 -z-5 opacity-10 h-100 w-100"
+          />
+          <Card className="relative">
+            {!isSubmitting && submitStatus === "idle" && (
+              <>
+                <CardHeader>
+                  <CardTitle className="text-2xl">
+                    {selectedType === "accounting_firm" && currentStep === 3
+                      ? "Your Practice's Details"
+                      : steps[currentStep - 1]}
+                  </CardTitle>
+                  <StepProgress
+                    currentStep={currentStep}
+                    totalSteps={steps.length}
+                    steps={steps}
+                  />
+                </CardHeader>
+                <CardContent className="min-h-50">
+                  <form ref={formRef} onKeyDown={handleKeyDown}>
+                    {stepContent}
+                  </form>
+                </CardContent>
+                {
+                  <CardFooter className="py-2">
+                    <div className="flex justify-between w-full">
+                      <Button
+                        variant="outline"
+                        disabled={currentStep === 1}
+                        onClick={handleBack}
+                      >
+                        Back
                       </Button>
-                    )}
-                  </div>
-                </CardFooter>
-              }
-            </>
-          )}
 
-          {submitStatus === "submitting" && (
-            <>
-              <div className="flex flex-col gap-2 justify-center items-center text-center p-16 py-22">
-                {/* <div className="flex justify-center"> */}
-                <PuffLoader color="var(--muted-foreground)" />
-                {/* </div> */}
-                <p>Creating your account...</p>
+                      {selectedType && (
+                        <Button onClick={handleContinue}>
+                          {currentStep === steps.length ? "Submit" : "Continue"}
+                        </Button>
+                      )}
+                    </div>
+                  </CardFooter>
+                }
+              </>
+            )}
+
+            {submitStatus === "submitting" && (
+              <>
+                <div className="flex flex-col gap-2 justify-center items-center text-center p-16 py-22">
+                  {/* <div className="flex justify-center"> */}
+                  <PuffLoader color="var(--muted-foreground)" />
+                  {/* </div> */}
+                  <p>Creating your account...</p>
+                </div>
+              </>
+            )}
+
+            {submitStatus === "error" && (
+              <div className="text-center text-red-600">
+                <XIcon />
+                <p>{error}</p>
+                <Button onClick={() => setSubmitStatus("idle")}>Back</Button>
               </div>
-            </>
-          )}
-
-          {submitStatus === "error" && (
-            <div className="text-center text-red-600">
-              <XIcon />
-              <p>{error}</p>
-              <Button onClick={() => setSubmitStatus("idle")}>Back</Button>
-            </div>
-          )}
-        </Card>
-        <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary  ">
-          By clicking continue, you agree to our{" "}
-          <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+            )}
+          </Card>
+          <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary  ">
+            By clicking continue, you agree to our{" "}
+            <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+          </div>
         </div>
       </div>
+      <Toaster />
     </div>
   );
 }

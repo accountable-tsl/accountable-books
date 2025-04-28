@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AccountingWorkspace from "../../components/WorkspaceAcc/WorkspaceAcc";
 import "./Workspace.scss";
-import { useCompany } from "../../utils/company";
+import { useCompany } from "@/hooks/useCompany";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { routes } from "../../utils/routes";
 import { TableProperties } from "lucide-react";

@@ -1,7 +1,7 @@
 import { Coins, Proportions } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./AccountingTxns.scss";
-import { useCompany } from "../../utils/company";
+import { useCompany } from "@/hooks/useCompany";
 import { useEffect, useMemo, useState } from "react";
 import { routes } from "../../utils/routes";
 import MultiSelectDropdown from "../../components/MultiSelectDropdown/MultiSelectDropdown";
@@ -21,6 +21,7 @@ import { groupOptionsBy } from "./AccountingTxnsUtils";
 
 export default function AccountingTxns() {
   const { companyId } = useCompany();
+
   const startOfMonth = dayjs().startOf("month");
   const endOfMonth = dayjs().endOf("month");
 

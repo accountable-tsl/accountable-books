@@ -9,21 +9,24 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { routes } from "@/utils/routes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
-import { loginForm, LoginForm } from "./authTypes";
+import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { handleLogin } from "./authService";
+import { handleLogin } from "./service";
 import { toast } from "sonner";
-import { getGlobalCompanyId, setGlobalCompanyId } from "@/utils/company";
 import { ErrorCode } from "@/utils/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
 
 export default function Login() {
+  const { setUser, isLoggedIn, checkingSession, user } = useAuth();
+  const { setCompany, companyId, company } = useCompany();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
 
   const {
     register,
@@ -37,40 +40,44 @@ export default function Login() {
   const onSubmit = async (data: LoginForm) => {
     try {
       setIsLoading(true);
-
       const res = await handleLogin(data);
 
-      console.log("Data response", res);
-
       if (!res.success) {
+        const message = res.message || "Email or password is incorrect";
         if (res.code === ErrorCode.INVALID_CREDENTIALS) {
-          setError("email", {
-            type: "manual",
-            message: res.message || "Email or password is incorrect",
-          });
-          setError("password", {
-            type: "manual",
-            message: res.message || "Email or password is incorrect",
-          });
-          toast.error(res.message || "Email or password is incorrect");
-        } else {
-          toast.error(res.message);
+          setError("email", { type: "manual", message });
+          setError("password", { type: "manual", message });
         }
-
-        setIsLoading(false);
+        toast.error(message);
         return;
       }
 
-      setGlobalCompanyId(res.data!.currentCompanyId);
-      console.log(getGlobalCompanyId());
-      navigate(routes.home);
-    } catch (error: any) {
+      const { user, company } = res.data;
+      if (!user || !company) {
+        toast.error("Login failed");
+        return;
+      }
+
+      setUser(user);
+      setCompany(company);
+    } catch (error) {
       console.error(error);
-      toast(error.message || "An unexpected error occured, please try again");
+      toast("An unexpected error occurred, please try again");
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const companyIdentifier =
+      company?.id ||
+      companyId ||
+      (user && user.currentCompanyId) ||
+      (user && user.company?.id);
+    if (!checkingSession && isLoggedIn && companyIdentifier) {
+      navigate(routes.dashboard.root(companyIdentifier), { replace: true });
+    }
+  }, [isLoggedIn, companyId, checkingSession, user, company, navigate]);
 
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">

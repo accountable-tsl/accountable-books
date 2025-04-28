@@ -2,7 +2,7 @@ import "./Journal.scss";
 import { NotepadText, TableProperties } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { routes, staticRoutes } from "../../utils/routes";
-import { useCompany } from "../../utils/company";
+import { useCompany } from "@/hooks/useCompany";
 import JournalList from "../../components/JournalList/JournalList";
 import JournalForm from "../../components/JournalForm/JournalForm";
 import { matchPath, useLocation } from "react-router-dom";

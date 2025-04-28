@@ -1,8 +1,23 @@
 type companyId = string | null;
+const PROD_ROOT = "getaccountable.com";
+
+function getTenantBaseUrl(slug: string): string {
+  const { protocol, hostname, port, origin } = window.location;
+
+  if (hostname.endsWith(PROD_ROOT)) {
+    return `${protocol}//${slug}.${PROD_ROOT}`;
+  }
+
+  return origin;
+}
 
 export const routes = {
   home: "/",
   companies: { root: "/companies" },
+
+  dashboard: {
+    root: (id: companyId) => `/${id}/dashboard`,
+  },
 
   accounting: {
     root: (id: companyId) => `/${id}/accounting`,
@@ -62,6 +77,7 @@ export const routes = {
 export const staticRoutes = {
   home: "/",
   companies: { root: "/companies" },
+  dashboard: { root: "/:id/dashboard" },
 
   accounting: {
     root: "/:id/accounting",

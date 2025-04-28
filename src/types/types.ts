@@ -359,30 +359,6 @@ export type TransactionKey = keyof CatEngineTransaction;
 
 export type BankAccounts = BankAccount[];
 
-export type CompanyData = {
-  id: string;
-  name: string;
-  website: string;
-  industry: string;
-  teamSize: string;
-  revenue: string;
-  countryId: string;
-  countryCode: string;
-  countryName: string;
-  countryPhoneCode: string;
-  countryFlag: string;
-  countryContinent: string;
-  reportingCurrencyId: string;
-  reportingCurrencyCode: string;
-  reportingCurrencyName: string;
-  reportingCurrencySymbol: string;
-  createdById: string;
-  createdByFirstname: string;
-  createdByLastname: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
 export enum ScreenSize {
   Mobile = "mobile",
   Tablet = "tablet",

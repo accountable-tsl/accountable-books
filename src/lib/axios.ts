@@ -44,10 +44,11 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     const original = error.config as RequestWithRetry;
+
     if (
       error.response?.status === 401 &&
       !original._retry &&
-      !original.url?.includes("/auth/refresh")
+      !original.url?.includes("/auth")
     ) {
       original._retry = true;
       if (isRefreshing) {

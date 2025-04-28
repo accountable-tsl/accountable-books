@@ -19,12 +19,13 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useSideBarContext } from "../../contexts/SideBarContext";
 import { Link } from "react-router-dom";
-import { useCompany } from "../../utils/company";
+import { useCompany } from "@/hooks/useCompany";
 import { routes } from "../../utils/routes";
 
 export default function SideBar() {
   const { sideBarType } = useSideBarContext();
   const { companyId } = useCompany();
+
   const [isAdmin] = useState(true);
 
   return (

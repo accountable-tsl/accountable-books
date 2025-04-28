@@ -1,10 +1,10 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "./CurrentCompany.scss";
 import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
-import { useCompany } from "../../utils/company";
-import { fetchCompany } from "../../services/CompanyServices";
+import { useCompany } from "@/hooks/useCompany";
 import { useEffect, useState } from "react";
 import { CompanyData } from "../../types/types";
+import {getCompanyDetails as fetchCompany } from "@/domains/company/api";
 
 export default function CurrentCompany() {
   const { companyId } = useCompany();
