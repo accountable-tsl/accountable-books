@@ -18,14 +18,18 @@ import cookieParser from "cookie-parser";
 import { conditionalCsrf } from "./features/auth/auth.middleware";
 
 const PORT = ENV.PORT || 8080;
-const BACKEND_URL = ENV.BACKEND_URL || "http://localhost";
-const FRONTEND_URL = ENV.FRONTEND_URL || "http://localhost:5173";
+export const BACKEND_URL = ENV.BACKEND_URL || "http://localhost";
+export const FRONTEND_URL = ENV.FRONTEND_URL || "http://localhost:5173";
 
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-const allowedOrigins = [FRONTEND_URL];
+const allowedOrigins = [
+  FRONTEND_URL,
+  "http://lvh.me:5173",
+  /\.lvh\.me(:5173)?$/,
+];
 async function startServer() {
   try {
     // Load critical stuff first

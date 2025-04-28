@@ -10,9 +10,6 @@ export const getCompanyUUID = async (identifier: string): Promise<string> => {
   ensure(trimmedId, "Missing or empty company identifier");
 
   const idType = getIdentifierType(trimmedId);
-
-  console.log("Looking up company:", { trimmedId, idType });
-
   const query = knex("companies")
     .select<{ id: string }>("id")
     .where(idType === "uuid" ? { id: trimmedId } : { short_code: trimmedId })
@@ -21,7 +18,6 @@ export const getCompanyUUID = async (identifier: string): Promise<string> => {
   const company = await query.first();
 
   ensure(company, "Invalid company identifier");
-  console.log("Found company:", company.id);
 
   return company.id;
 };

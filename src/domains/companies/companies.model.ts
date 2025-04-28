@@ -162,10 +162,9 @@ export const switchCompany = async (
 };
 
 const companyFields = [
-  "companies.id",
+  "companies.short_code as id",
   "companies.legal_name as legalName",
   "companies.display_name as displayName",
-  "companies.short_code as shortCode",
   "companies.address as address",
   "companies.type as companyType",
   "companies.logo_url as companyLogo",
@@ -190,6 +189,12 @@ const companyFields = [
   "currencies.name as reportingCurrencyName",
   "currencies.symbol as reportingCurrencySymbol",
   "companies.created_by_id as createdById",
+
+  // accounting firm fields
+  "accounting_firms.display_name as assignedFirmName",
+  "accounting_firms.slug as assignedFirmSlug",
+  "accounting_firms.is_platform as assignedFirmIsPlatform",
+  "accounting_firms.logo_url as assignedFirmLogo",
 ];
 export const getCompanies = async (
   userId?: string,
@@ -219,10 +224,12 @@ export const getCompanies = async (
   }
 };
 
-export const getSingleCompany = async (identifier: string) => {
+export const getSingleCompany = async (
+  identifier: string
+): Promise<ApiResponse> => {
   try {
     const companyId = await getCompanyUUID(identifier);
-    ensure(companyId, "Forbidden");
+    if (!companyId) return errorResponse("Forbidden");
 
     const company = await knexClient("companies")
       .select(companyFields)
@@ -231,6 +238,11 @@ export const getSingleCompany = async (identifier: string) => {
         "currencies",
         "companies.reporting_currency_id",
         "currencies.id"
+      )
+      .leftJoin(
+        "accounting_firms",
+        "companies.assigned_firm_id",
+        "accounting_firms.id"
       )
       .where("companies.id", companyId)
       .first();
@@ -243,6 +255,6 @@ export const getSingleCompany = async (identifier: string) => {
       company
     );
   } catch (error) {
-    errorResponse("Error retrieving company details");
+    return errorResponse("Error retrieving company details");
   }
 };

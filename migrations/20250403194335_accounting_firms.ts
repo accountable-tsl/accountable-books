@@ -23,6 +23,7 @@ export const buildPlatformAccountingFirm = (platformCompany: any) => ({
   is_platform: true,
   logo_url: platformCompany.logo_url,
   website: platformCompany.website,
+  slug: "app",
 });
 export const createPlatformFirm = async (knex: Knex) => {
   if (!adminUser.id) throw new Error("adminUserId is required");

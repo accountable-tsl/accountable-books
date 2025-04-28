@@ -10,6 +10,7 @@ import {
 import { comparePassword } from "../../shared/utils/crypto.utils";
 import { ApiResponse } from "../../core/types/api.types";
 import { redis } from "../../lib/redis";
+import { getSingleCompany } from "../../domains/companies/companies.model";
 
 export async function loginService(
   email: string,
@@ -46,10 +47,29 @@ export async function loginService(
     if (!roles.length)
       return errorResponse("No roles assigned", undefined, ErrorCode.NO_ROLES);
 
-    const currentCompanyId = user.last_active_company_id || roles[0].company_id;
-    const { accessToken, refreshToken } = generateAuthTokens({
+    let currentCompanyId = "";
+    currentCompanyId = user.last_active_company_id || roles[0].company_id;
+
+    const company = await getSingleCompany(currentCompanyId);
+    if (!company.success) {
+      return errorResponse("Unable to resolve company");
+    }
+    currentCompanyId = company.data.id;
+
+    const userData = {
       id: user.id,
       currentCompanyId,
+      email: user.email,
+      firstname: user.firstname,
+      ...(user.lastname && { lastname: user.lastname }),
+      status: user.status!,
+    };
+
+    const { id, ...rest } = userData;
+
+    const { accessToken, refreshToken } = generateAuthTokens({
+      sub: id,
+      ...rest,
     });
     await redis.setex(`refreshToken:${user.id}`, 604800, refreshToken); // 7 days
 
@@ -57,14 +77,15 @@ export async function loginService(
       accessToken,
       refreshToken,
       user: {
-        id: user.id,
-        email: user.email,
+        ...userData,
         companyRoles: roles.map((r) => ({
           companyId: r.company_id,
           roleId: r.role_id,
         })),
       },
       currentCompanyId,
+      slug: company.data.assignedFirmSlug,
+      company: company.data,
     });
   } catch (error) {
     return errorResponse("An unexpected error occurred");
@@ -97,8 +118,12 @@ export async function refreshTokenService(
 
     // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateAuthTokens({
-      id: userId,
+      sub: userId,
       currentCompanyId: decoded.currentCompanyId,
+      email: decoded.email,
+      firstname: decoded.firstname,
+      lastname: decoded.lastname,
+      status: decoded.status,
     });
 
     // Rotate refresh token in Redis
@@ -110,8 +135,11 @@ export async function refreshTokenService(
       user: { id: userId, currentCompanyId: decoded.currentCompanyId },
     });
   } catch (error) {
+    console.error("refreshTokenService error:", error);
     return errorResponse("Failed to refresh token");
   } finally {
-    await redis.del(lockKey).catch(() => {});
+    await redis.del(lockKey).catch((err) => {
+      console.error("Failed to delete Redis lock:", err);
+    });
   }
 }

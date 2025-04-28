@@ -20,6 +20,10 @@ export interface TokenPayload extends JwtPayload {
 export interface DecodedToken {
   sub: string;
   currentCompanyId: string;
+  email: string;
+  firstname: string;
+  lastname?: string;
+  status: string;
 }
 
 export interface LoginRole {
@@ -30,6 +34,10 @@ export interface LoginRole {
 export interface AuthRequest extends Request {
   user?: {
     id: string;
+    email: string;
+    firstname: string;
+    lastname?: string;
+    status: string;
     currentCompanyId: string;
     companyRoles?: Array<{ company_id: string; role_id: string }>;
     permissions?: Array<{ permission: string }>;

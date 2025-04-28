@@ -28,16 +28,14 @@ export async function loginController(req: Request, res: Response) {
         .status(status)
         .json(errorResponse(message, undefined, code as ErrorCode));
     }
-
-    const { accessToken, refreshToken, user, currentCompanyId } = data;
+    const { accessToken, refreshToken, ...rest } = data;
 
     const csrfToken = setAuthCookies(req, res, accessToken, refreshToken);
 
     return res.json(
       successResponse("User logged in successfully", {
-        user,
+        ...rest,
         csrfToken,
-        currentCompanyId,
       })
     );
   } catch (error) {
@@ -111,4 +109,19 @@ export async function logoutController(req: AuthRequest, res: Response) {
   });
 
   return res.status(200).json(successResponse("Logged out successfully", null));
+}
+
+export async function meController(req: AuthRequest, res: Response) {
+  if (!req.user) {
+    return res.status(401).json(errorResponse("Not authenticated"));
+  }
+  return res.status(200).json(
+    successResponse("User retrieved successfully", {
+      id: req.user.id,
+      email: req.user.email,
+      firstname: req.user.firstname,
+      lastname: req.user.lastname,
+      currentCompanyId: req.user.currentCompanyId,
+    })
+  );
 }

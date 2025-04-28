@@ -7,6 +7,8 @@ import { errorResponse } from "../../shared/utils/response.utils";
 import { getPermissionsForRole } from "../../domains/permission/permission.model";
 import { redis } from "../../lib/redis";
 import { generateRandomToken } from "../../shared/utils/crypto.utils";
+import { publicPaths } from "./auth.constants";
+import { getUserDetails } from "../../domains/user/user.model";
 
 export const verifyAccessToken = async (
   req: AuthRequest,
@@ -36,6 +38,8 @@ export const verifyAccessToken = async (
     if (!decoded.sub)
       return res.status(403).json(errorResponse("Invalid token payload"));
 
+    const user = await getUserDetails(decoded.sub);
+    if (!user.success) return res.status(403).json(user.message);
     // Fetch all roles the user has across companies
     const roles = await getCompanyRolesForUser(decoded.sub);
     if (!roles.success) return res.status(403).json(roles.message);
@@ -44,6 +48,10 @@ export const verifyAccessToken = async (
     req.user = {
       id: decoded.sub,
       currentCompanyId: decoded.currentCompanyId,
+      firstname: decoded.firstname,
+      lastname: decoded.lastname,
+      email: decoded.email,
+      status: decoded.status,
       companyRoles: roles.data,
     };
 
@@ -84,7 +92,14 @@ export const verifyRefreshToken = async (
       return res.status(403).json(errorResponse("Invalid refresh token"));
     }
 
-    req.user = { id: decoded.sub, currentCompanyId: decoded.currentCompanyId };
+    req.user = {
+      id: decoded.sub,
+      currentCompanyId: decoded.currentCompanyId,
+      email: decoded.email,
+      firstname: decoded.firstname,
+      lastname: decoded.lastname,
+      status: decoded.status,
+    };
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -99,9 +114,7 @@ export const conditionalCsrf = (
   res: Response,
   next: NextFunction
 ) => {
-  const skipPaths = ["/auth/login", "/auth/refresh"];
-
-  if (skipPaths.some((p) => req.originalUrl.includes(p))) {
+  if (publicPaths.some((p) => req.originalUrl.includes(p))) {
     console.log("Skipping CSRF for", req.originalUrl);
 
     // Manually create random CSRF token
@@ -112,6 +125,35 @@ export const conditionalCsrf = (
   }
 
   return csrfProtection(req, res, next);
+};
+
+export const requireAuth = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (publicPaths.some((p) => req.originalUrl.includes(p))) {
+    return next();
+  }
+
+  const token = req.cookies?.accessToken;
+  if (!token) {
+    if (req.accepts("html")) {
+      return res.redirect("/login");
+    } else {
+      return res.status(401).json(errorResponse("Unauthorized"));
+    }
+  }
+
+  try {
+    await verifyAccessToken(req, res, next);
+  } catch (error) {
+    if (req.accepts("html")) {
+      return res.redirect("/login");
+    } else {
+      return res.status(401).json(errorResponse("Unauthorized"));
+    }
+  }
 };
 
 export const requirePermission = (permission: string) => {

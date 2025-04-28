@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import csurf from "csurf";
 import { ENV, isProduction } from "../../config/env";
 import { throwError } from "../../shared/utils/response.utils";
-import { TokenConfig, TokenExpiration } from "./auth.types";
+import { DecodedToken, TokenConfig, TokenExpiration } from "./auth.types";
 import { Request, Response } from "express";
 import { generateRandomToken } from "../../shared/utils/crypto.utils";
 
@@ -22,25 +22,28 @@ export const JWT_CONFIG = {
   } as TokenConfig,
 };
 
-export const generateAuthTokens = (user: {
-  id: string;
-  currentCompanyId: string;
-}) => {
-  const payload = {
-    sub: user.id,
-    currentCompanyId: user.currentCompanyId,
-    // Add other minimal claims needed for authorization/permission later
-  };
+export const generateAuthTokens = (payload: DecodedToken) => {
+  try {
+    if (
+      !payload.sub ||
+      !JWT_CONFIG.accessToken.secret ||
+      !JWT_CONFIG.refreshToken.secret
+    ) {
+      throw new Error("Invalid payload or missing JWT secrets");
+    }
 
-  const accessToken = jwt.sign(payload, JWT_CONFIG.accessToken.secret, {
-    expiresIn: TokenExpiration.Access,
-  });
+    const accessToken = jwt.sign(payload, JWT_CONFIG.accessToken.secret, {
+      expiresIn: TokenExpiration.Access,
+    });
 
-  const refreshToken = jwt.sign(payload, JWT_CONFIG.refreshToken.secret, {
-    expiresIn: TokenExpiration.Refresh,
-  });
+    const refreshToken = jwt.sign(payload, JWT_CONFIG.refreshToken.secret, {
+      expiresIn: TokenExpiration.Refresh,
+    });
 
-  return { accessToken, refreshToken };
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw error;
+  }
 };
 
 export const csrfProtection = csurf({

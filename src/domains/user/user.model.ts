@@ -13,6 +13,8 @@ import {
 } from "../../shared/utils/crypto.utils";
 import dayjs from "dayjs";
 import { isProduction } from "../../config/env";
+import knexClient from "../../../knexClient";
+import { first } from "lodash";
 
 export async function createUserDirect(
   knexTrx: Knex.Transaction,
@@ -59,6 +61,37 @@ export async function createUserDirect(
       "We couldn't create your account. Please try again.",
       error
     );
+  }
+}
+
+export async function getUserDetails(userId: string): Promise<ApiResponse> {
+  try {
+    const user = await knexClient("users")
+      .select("id", "firstname", "lastname", "email", "status")
+      .where({ id: userId })
+      .first();
+
+    if (!user) {
+      return errorResponse("User not found");
+    }
+
+    const userData = user as {
+      id: string;
+      firstname: string;
+      lastname?: string;
+      email: string;
+      status: string;
+    };
+
+    return successResponse<{
+      id: string;
+      firstname: string;
+      lastname?: string;
+      email: string;
+      status: string;
+    }>("User details found", userData);
+  } catch (error) {
+    return errorResponse("Error getting user details", error);
   }
 }
 

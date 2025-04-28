@@ -25,7 +25,6 @@ export const checkCompanyId = async (
 
     req.company = { ...company.data, id: company.data?.id };
 
-    console.log(req.company);
     next();
   } catch (error: any) {
     res
