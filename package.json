@@ -55,6 +55,7 @@
     "dayjs": "^1.11.13",
     "decimal.js": "^10.4.3",
     "dompurify": "^3.2.5",
+    "immer": "^10.1.1",
     "lodash": "^4.17.21",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.428.0",

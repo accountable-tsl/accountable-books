@@ -12,7 +12,7 @@ import {
 import Button from "../Button/Button";
 import { useSideBarContext } from "../../contexts/SideBarContext";
 import { LoaderPinwheel } from "lucide-react";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 export default function Header() {
   const { toggle } = useSideBarContext();
   const { companyId } = useCompany();

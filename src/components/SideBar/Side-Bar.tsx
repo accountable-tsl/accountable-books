@@ -19,7 +19,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useSideBarContext } from "../../contexts/SideBarContext";
 import { Link } from "react-router-dom";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 import { routes } from "../../utils/routes";
 
 export default function SideBar() {

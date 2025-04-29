@@ -23,6 +23,7 @@ import { SessionChecker } from "./components/SessionChecker";
 import NotFound from "./components/NotFound";
 import Dashboard from "./features/dashboard/Dashboard";
 import DashboardRedirect from "./components/DashboardRedirect";
+import { routes } from "./shared/routes";
 
 function App() {
   const queryClient = new QueryClient();
@@ -94,11 +95,9 @@ function AnimatedRoutes() {
           }
         >
           <Route index element={<DashboardRedirect />} />
-          <Route path={staticRoutes.dashboard.root} element={<Dashboard />} />
+          <Route path={routes.dashboard.staticPath} element={<Dashboard />} />
           <Route path=":companyId" element={<Home />} />
-
           <Route path={staticRoutes.companies.root} element={<Home />} />
-
           <Route path={staticRoutes.accounting.root} element={<Workspace />} />
           <Route
             path={staticRoutes.accounting.workspace.uploadBank}
@@ -112,16 +111,13 @@ function AnimatedRoutes() {
             path={staticRoutes.accounting.workspace.journalPages}
             element={<Journal />}
           />
-
           <Route path={staticRoutes.accounting.setup.root} element={<COA />} />
           <Route path={staticRoutes.accounting.setup.coa} element={<COA />} />
           <Route
             path={staticRoutes.accounting.setup.finSettings}
             element={<FinancialSettings />}
           />
-
           <Route path={staticRoutes.reports.coa} element={<AccountingTxns />} />
-
           {/* <Route path="*" element={<NotFound />} /> */}
         </Route>
 

@@ -1,5 +1,8 @@
+import { z } from "zod";
+
 export type CompanyStore = {
   companyId: string | null;
+  companyType: CompanyType | null;
   slug: string | null;
   company: CompanyData | null;
   isLoading: boolean;
@@ -12,6 +15,7 @@ export type CompanyStore = {
 export type CompanyData = {
   id: string;
   legalName: string;
+  companyType: CompanyType;
   yearEndDay: number;
   yearEndMonth: number;
   displayName?: string;
@@ -37,3 +41,11 @@ export type CompanyData = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export const companyType = z.enum([
+  "business",
+  "accounting_firm",
+  "individual",
+]);
+
+export type CompanyType = z.infer<typeof companyType>;

@@ -7,7 +7,7 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import { routes } from "../../utils/routes";
 import { fetchCoa } from "../../services/CoaServices";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 import { BeatLoader } from "react-spinners";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import Button from "../../components/Button/Button";

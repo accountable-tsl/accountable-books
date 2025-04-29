@@ -7,6 +7,7 @@ export const companyStore = create<CompanyStore>()(
   persist(
     (set) => ({
       companyId: null,
+      companyType: null,
       slug: null,
       company: null,
       isLoading: false,
@@ -22,6 +23,7 @@ export const companyStore = create<CompanyStore>()(
             set({
               company: res.data,
               companyId: res.data.id,
+              companyType: res.data.companyType,
               slug: res.data.assignedFirmSlug || null,
               isLoading: false,
               error: null,
@@ -38,6 +40,7 @@ export const companyStore = create<CompanyStore>()(
         set({
           company,
           companyId: company.id,
+          companyType: company.companyType,
           slug: company.assignedFirmSlug,
           isLoading: false,
           error: null,
@@ -62,3 +65,29 @@ export const companyStore = create<CompanyStore>()(
     }
   )
 );
+
+export const useCompany = () => {
+  const {
+    company,
+    companyId,
+    companyType,
+    slug,
+    isLoading,
+    error,
+    setCompany,
+    fetchCompany,
+    clearCompany,
+  } = companyStore((s) => s);
+
+  return {
+    company,
+    companyId,
+    companyType,
+    slug,
+    isLoading,
+    error,
+    setCompany,
+    fetchCompany,
+    clearCompany,
+  };
+};

@@ -1,4 +1,4 @@
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 import { Navigate } from "react-router-dom";
 
 export default function DashboardRedirect() {

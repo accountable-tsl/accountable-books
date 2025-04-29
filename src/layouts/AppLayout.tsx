@@ -1,16 +1,25 @@
-import { PopupManager } from "@/App";
-import AddBankAccount from "@/components/AddBankAccount/AddBankAccount";
-import CurrentCompany from "@/components/CurrentCompany/CurrentCompany";
-import Popup from "@/components/Popup/Popup";
-import { AppSidebar } from "@/components/SideBar/Sidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppHeader } from "@/components/AppHeader";
+import { AppSidebar, AppSidebarProps } from "@/components/SideBar/Sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
-import { routes } from "@/utils/routes";
-import { Navigate, Outlet } from "react-router-dom";
+import { routes } from "@/shared/routes";
+import {
+  pageStore,
+  usePageMeta,
+  useUpdatePageInfo,
+} from "@/shared/stores/page";
+import { Navigate, Outlet, matchPath, useLocation } from "react-router-dom";
 import { HashLoader } from "react-spinners";
 
-export default function AppLayout() {
+interface AppLayoutProps extends AppSidebarProps {}
+export default function AppLayout({
+  sidebarCollapsible = "icon",
+}: AppLayoutProps) {
   const { user, checkingSession } = useAuth();
+  const { sidebarCollapsed } = pageStore();
+  useUpdatePageInfo();
+  usePageMeta();
+  const location = useLocation();
 
   if (checkingSession) {
     return (
@@ -21,24 +30,16 @@ export default function AppLayout() {
   }
 
   if (!user) {
-    return <Navigate to={routes.auth.login} replace />;
+    return <Navigate to={routes.login.buildPath()} replace />;
   }
 
   return (
-    <SidebarProvider>
-      <div className="page">
-        <main className="main">
-          <AppSidebar />
-          <CurrentCompany />
-          <Outlet />
-        </main>
-
-        <Popup popupId="addBankAccount">
-          <AddBankAccount />
-        </Popup>
-
-        <PopupManager />
-      </div>
+    <SidebarProvider defaultOpen={!sidebarCollapsed}>
+      <AppSidebar sidebarCollapsible={sidebarCollapsible} />
+      <SidebarInset>
+        <AppHeader />
+        <Outlet />
+      </SidebarInset>
     </SidebarProvider>
   );
 }

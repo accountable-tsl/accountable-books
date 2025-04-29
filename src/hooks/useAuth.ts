@@ -20,7 +20,8 @@ export const useAuth = () => {
   };
   const logout = async () => {
     try {
-      await backendLogout();
+      const res = await backendLogout();
+      console.log(res);
     } catch (err) {
       console.error("Logout failed, forcing client clear anyway", err);
     } finally {

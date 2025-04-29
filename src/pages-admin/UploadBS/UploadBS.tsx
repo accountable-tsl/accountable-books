@@ -2,7 +2,7 @@ import { CloudUpload, TableProperties } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { routes } from "../../utils/routes";
 import "./UploadBS.scss";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowUpRightFromSquare,

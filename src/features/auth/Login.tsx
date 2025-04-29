@@ -8,7 +8,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { routes } from "@/utils/routes";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
@@ -19,7 +18,8 @@ import { handleLogin } from "./service";
 import { toast } from "sonner";
 import { ErrorCode } from "@/utils/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
+import { routes } from "@/shared/routes";
 
 export default function Login() {
   const { setUser, isLoggedIn, checkingSession, user } = useAuth();
@@ -38,9 +38,11 @@ export default function Login() {
   });
 
   const onSubmit = async (data: LoginForm) => {
+    console.log("onSubmit triggered:", data);
     try {
       setIsLoading(true);
       const res = await handleLogin(data);
+      console.log("handleLogin response:", res);
 
       if (!res.success) {
         const message = res.message || "Email or password is incorrect";
@@ -53,7 +55,7 @@ export default function Login() {
       }
 
       const { user, company } = res.data;
-      if (!user || !company) {
+      if (!user || !company || !company.id || !company.assignedFirmSlug) {
         toast.error("Login failed");
         return;
       }
@@ -75,7 +77,7 @@ export default function Login() {
       (user && user.currentCompanyId) ||
       (user && user.company?.id);
     if (!checkingSession && isLoggedIn && companyIdentifier) {
-      navigate(routes.dashboard.root(companyIdentifier), { replace: true });
+      navigate(routes.dashboard.buildUrl(companyIdentifier), { replace: true });
     }
   }, [isLoggedIn, companyId, checkingSession, user, company, navigate]);
 

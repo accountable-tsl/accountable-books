@@ -1,7 +1,7 @@
 import { Coins, Proportions } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./AccountingTxns.scss";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 import { useEffect, useMemo, useState } from "react";
 import { routes } from "../../utils/routes";
 import MultiSelectDropdown from "../../components/MultiSelectDropdown/MultiSelectDropdown";

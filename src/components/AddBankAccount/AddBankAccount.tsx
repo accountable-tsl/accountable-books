@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faQuestionCircle } from "@fortawesome/free-regular-svg-icons";
 import { fetchCurrencies } from "../../services/currencyServices";
 import { createBankAccount } from "../../services/BankAccountServices";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 type Errors = {
   bankId?: string;
   displayName?: string;

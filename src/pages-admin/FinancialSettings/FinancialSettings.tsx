@@ -6,7 +6,7 @@ import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import { BeatLoader } from "react-spinners";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import AccountingSetup from "../../components/AccountingSetup/AccountingSetup";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 import { routes } from "../../utils/routes";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 

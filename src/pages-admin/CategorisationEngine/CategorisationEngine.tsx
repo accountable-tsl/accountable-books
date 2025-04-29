@@ -8,7 +8,7 @@ import {
   TableProperties,
 } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 import { routes } from "../../utils/routes";
 import { DatePicker, Select, SelectProps, Space } from "antd";
 import "./CategorisationEngine.scss";

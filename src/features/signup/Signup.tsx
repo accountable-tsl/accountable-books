@@ -29,7 +29,7 @@ import { submitSignup } from "./signupService";
 import { PuffLoader } from "react-spinners";
 import { XIcon } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthHeader } from "@/components/Header/AuthHeader";
+import { AuthHeader } from "@/components/AuthHeader";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();

@@ -1,6 +1,6 @@
 import { fetchSession } from "@/features/auth/service";
 import { useAuth } from "@/hooks/useAuth";
-import { useCompany } from "@/hooks/useCompany";
+import { useCompany } from "@/domains/company/store";
 import { useEffect } from "react";
 
 export function SessionChecker() {
