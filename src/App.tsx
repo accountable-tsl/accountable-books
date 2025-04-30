@@ -20,10 +20,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Welcome from "./features/onboarding/Welcome";
 import Login from "./features/auth/Login";
 import { SessionChecker } from "./components/SessionChecker";
-import NotFound from "./components/NotFound";
 import Dashboard from "./features/dashboard/Dashboard";
 import DashboardRedirect from "./components/DashboardRedirect";
-import { routes } from "./shared/routes";
+import { routes } from "./shared/routes/routes";
+import ErrorPage from "./components/ErrorPage";
 
 function App() {
   const queryClient = new QueryClient();
@@ -71,6 +71,7 @@ function AnimatedRoutes() {
 
   return (
     <AnimatePresence mode="wait">
+      
       <Routes location={location} key={location.pathname}>
         {/* PUBLIC */}
 
@@ -126,7 +127,7 @@ function AnimatedRoutes() {
 
         {/* FIRM-SPECIFIC PAGES */}
 
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<ErrorPage />} />
       </Routes>
     </AnimatePresence>
   );

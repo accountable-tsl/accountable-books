@@ -1,8 +1,9 @@
 import { useLocation } from "react-router-dom";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { RouteMeta, routes } from "../routes";
+import { RouteMeta, routes } from "../routes/routes";
 import { useEffect } from "react";
+import { companyStore } from "@/domains/company/store";
 
 export type BreadcrumbItem = {
   label: string;
@@ -31,7 +32,7 @@ export const pageStore = create<PageStore>()(
     setPageInfo: (currentPage, breadcrumbs = [], options = {}) =>
       set((state) => {
         state.currentPage = currentPage || getDefaultPageName();
-        state.breadcrumbs = breadcrumbs.length ? breadcrumbs.slice(0, 2) : [];
+        state.breadcrumbs = breadcrumbs.length ? breadcrumbs.slice(0, 3) : [];
         Object.assign(state, options);
       }),
   }))
@@ -67,31 +68,58 @@ export function useUpdatePageInfo() {
 
   useEffect(() => {
     const path = location.pathname;
+    const parts = path.split("/").filter(Boolean);
+    const pathWithoutCompanyId =
+      parts.length > 1 ? "/" + parts.slice(1).join("/") : "/";
 
     const match = flatRoutes.find((r) => {
-      const routeParts = r.path.split("/:companyId")[1] || "";
-      return path.includes(routeParts);
+      const routeWithoutCompanyId = r.path.replace("/:companyId", "");
+      return (
+        pathWithoutCompanyId === routeWithoutCompanyId ||
+        pathWithoutCompanyId.startsWith(routeWithoutCompanyId + "/")
+      );
     });
+
+    const { companyId } = companyStore.getState();
+    const dashboardPath = companyId
+      ? routes.dashboard.buildPath({ companyId })
+      : "/";
 
     if (match) {
       const meta = match.meta;
-      setPageInfo(
-        meta.label || "accountable",
-        [
-          { label: "Home", link: "/" },
-          { label: meta.label || "accountable", link: location.pathname },
-        ],
-        {
-          description: meta.description,
-          pageIcon: meta.pageIcon,
-          accessDenied: meta.role ? false : undefined,
-          sidebarCollapsed: meta.sidebarCollapsed ?? false,
-          customMeta: {
-            role: meta.role,
-            firmsOnly: meta.firmsOnly,
-          },
-        }
-      );
+
+      const isDashboardPage =
+        match.path === routes.dashboard.staticPath ||
+        location.pathname === dashboardPath;
+
+      console.log(isDashboardPage);
+
+      const breadcrumbs: BreadcrumbItem[] = [];
+
+      if (!isDashboardPage) {
+        breadcrumbs.push({
+          label: "Home",
+          link: companyId ? routes.dashboard.buildPath({ companyId }) : "/",
+        });
+      }
+
+      if (meta.label && meta.label.toLowerCase() !== "home") {
+        breadcrumbs.push({
+          label: meta.label,
+          link: location.pathname,
+        });
+      }
+
+      setPageInfo(meta.label || "accountable", breadcrumbs, {
+        description: meta.description,
+        pageIcon: meta.pageIcon,
+        accessDenied: meta.role ? false : undefined,
+        sidebarCollapsed: meta.sidebarCollapsed ?? false,
+        customMeta: {
+          role: meta.role,
+          firmsOnly: meta.firmsOnly,
+        },
+      });
     } else {
       setPageInfo("Page Not Found", [{ label: "Home", link: "/" }]);
     }

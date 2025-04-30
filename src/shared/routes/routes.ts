@@ -1,5 +1,33 @@
-import { useCompany } from "@/domains/company/store";
+import { companyStore } from "@/domains/company/store";
 import { CompanyType } from "@/types/types";
+
+/**
+ * =====================
+ * ROUTE BUILDING RULES
+ * =====================
+ *
+ * buildPath(params)
+ * -------------------
+ * - Use when navigating inside the app (React Router <Navigate> or <Link>).
+ * - Returns a relative path (e.g., "/accX/dashboard").
+ * - Example: <Navigate to={routes.dashboard.buildPath({ companyId })} />
+ *
+ * buildUrl(params)
+ * -------------------
+ * - Use when you need a full URL (including domain, slug, etc).
+ * - For example when doing a hard redirect with window.location.href.
+ * - Example: window.location.href = routes.dashboard.buildUrl({ companyId });
+ *
+ * Summary:
+ * - <Navigate> → buildPath
+ * - <Link> → buildPath
+ * - window.location.href → buildUrl
+ *
+ * Important:
+ * - NEVER pass buildUrl() result into <Navigate> or <Link>.
+ *   It expects relative path, not full URL.
+ * - buildUrl() automatically includes tenant slug + domain.
+ */
 
 export const routes = {
   home: makeRoute({ staticPath: "/" }),
@@ -30,7 +58,10 @@ export const routes = {
   },
 
   setup: {
-    coa: makeRoute({ staticPath: "/:companyId/setup/coa" }), // Chart of Accounts
+    coa: makeRoute({
+      staticPath: "/:companyId/setup/coa",
+      meta: { firmsOnly: true },
+    }), // Chart of Accounts
     contacts: makeRoute({
       staticPath: "/:companyId/setup/contacts",
     }),
@@ -98,12 +129,6 @@ export const routes = {
     index: makeRoute({ staticPath: "/:companyId/reports" }),
   },
 } as const;
-
-type RouteParams = {
-  companyId: string;
-  journalId?: string;
-  [key: string]: string | undefined;
-};
 
 // Extract parameters from staticPath (e.g., ":companyId" -> "companyId")
 type ExtractParams<T extends string> =
@@ -204,7 +229,7 @@ export function makeRoute<T extends string>({
 
     /** buildUrl: Full URL builder, safe to use inside components */
     buildUrl: (params: ValidParams<T>, tenant?: Tenant) => {
-      const ctx = tenant ?? useCompany();
+      const ctx = tenant ?? companyStore.getState();
       const { slug: firmSlug, companyId, companyType } = ctx;
       if (
         !companyId ||
@@ -239,11 +264,14 @@ export function makeRoute<T extends string>({
         : staticPath;
 
       let builtPath = finalPath;
+
+      console.log("builtPath", builtPath);
       for (const [key, value] of Object.entries(params)) {
         builtPath = builtPath.replace(`:${key}`, value || "");
       }
-      if (builtPath.startsWith("/:companyId")) {
-        builtPath = builtPath.replace("/:companyId", "");
+
+      if (builtPath.startsWith(`/${params.companyId}`)) {
+        builtPath = builtPath.replace(`/${params.companyId}`, "");
       }
       return buildTenantUrl({
         firmSlug: firmSlug || "app",
@@ -283,11 +311,12 @@ export function buildTenantUrl({
   const cleanPath = path?.startsWith("/") ? path : `/${path || ""}`;
 
   const baseDomain = import.meta.env.VITE_BASE_DOMAIN || "getaccountable.com";
-  console.log(baseDomain);
-  if (import.meta.env.PROD) {
-    return `https://${firmSlug}.${baseDomain}/${companyId}${cleanPath}`;
-  }
+  const port = window.location.port || "5173";
+  const url = import.meta.env.PROD
+    ? `https://${firmSlug}.${baseDomain}/${companyId}${cleanPath}`
+    : `http://${firmSlug}.${baseDomain}:${port}/${companyId}${cleanPath}`;
 
-  const port = window.location.port || "5173"; // fallback
-  return `http://${firmSlug}.localhost:${port}/${companyId}${cleanPath}`;
+  console.log(url);
+
+  return url;
 }

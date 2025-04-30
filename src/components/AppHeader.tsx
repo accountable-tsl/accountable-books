@@ -31,11 +31,9 @@ export function AppHeader({}: // currentPage = "Home",
 // breadcrumbs = defaultBreadcrumbs,
 AppHeaderProps) {
   const { company } = useCompany();
-  const { currentPage, breadcrumbs } = pageStore();
-  const limitedBreadcrumbs =
-    breadcrumbs.length === 1 && breadcrumbs[0].label === currentPage
-      ? []
-      : breadcrumbs.slice(0, 2);
+  const { breadcrumbs } = pageStore();
+
+  console.log("AppHeader breadcrumbs:", breadcrumbs);
 
   return (
     <header className="group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear relative">
@@ -47,25 +45,22 @@ AppHeaderProps) {
         />
         <Breadcrumb>
           <BreadcrumbList>
-            {limitedBreadcrumbs.length > 0 &&
-              limitedBreadcrumbs.map((item, index) => (
-                <React.Fragment key={item.label}>
-                  <BreadcrumbItem className="hidden md:block">
+            {breadcrumbs.map((item, index) => (
+              <React.Fragment key={`${item.label}-${index}`}>
+                <BreadcrumbItem className="hidden md:block">
+                  {index === breadcrumbs.length - 1 ? (
+                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                  ) : (
                     <BreadcrumbLink href={item.link}>
                       {item.label}
                     </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  {index < limitedBreadcrumbs.length - 1 && (
-                    <BreadcrumbSeparator className="hidden md:block" />
                   )}
-                </React.Fragment>
-              ))}
-            {limitedBreadcrumbs.length > 0 && (
-              <BreadcrumbSeparator className="hidden md:block" />
-            )}
-            <BreadcrumbItem className="hidden md:block">
-              <BreadcrumbPage>{currentPage}</BreadcrumbPage>
-            </BreadcrumbItem>
+                </BreadcrumbItem>
+                {index < breadcrumbs.length - 1 && (
+                  <BreadcrumbSeparator className="hidden md:block" />
+                )}
+              </React.Fragment>
+            ))}
           </BreadcrumbList>
         </Breadcrumb>
       </div>

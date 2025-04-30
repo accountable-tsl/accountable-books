@@ -17,9 +17,9 @@ import { Eye, EyeOff } from "lucide-react";
 import { handleLogin } from "./service";
 import { toast } from "sonner";
 import { ErrorCode } from "@/utils/utils";
-import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/domains/company/store";
-import { routes } from "@/shared/routes";
+import { useAuth } from "./hooks";
+import { routes } from "@/shared/routes/routes";
 
 export default function Login() {
   const { setUser, isLoggedIn, checkingSession, user } = useAuth();
@@ -42,7 +42,6 @@ export default function Login() {
     try {
       setIsLoading(true);
       const res = await handleLogin(data);
-      console.log("handleLogin response:", res);
 
       if (!res.success) {
         const message = res.message || "Email or password is incorrect";
@@ -54,14 +53,27 @@ export default function Login() {
         return;
       }
 
-      const { user, company } = res.data;
-      if (!user || !company || !company.id || !company.assignedFirmSlug) {
+      const { user, company, slug, currentCompanyId } = res.data;
+      if (
+        !user ||
+        (!company.id && !currentCompanyId) ||
+        (!company.assignedFirmSlug && slug)
+      ) {
         toast.error("Login failed");
         return;
       }
 
       setUser(user);
       setCompany(company);
+
+      if (
+        !company.assignedFirmSlug ||
+        (!company.id && !user.currentCompanyId) ||
+        !company.companyType
+      ) {
+        toast.error("Login failed");
+        return;
+      }
     } catch (error) {
       console.error(error);
       toast("An unexpected error occurred, please try again");
@@ -71,13 +83,8 @@ export default function Login() {
   };
 
   useEffect(() => {
-    const companyIdentifier =
-      company?.id ||
-      companyId ||
-      (user && user.currentCompanyId) ||
-      (user && user.company?.id);
-    if (!checkingSession && isLoggedIn && companyIdentifier) {
-      navigate(routes.dashboard.buildUrl(companyIdentifier), { replace: true });
+    if (!checkingSession && companyId && company?.assignedFirmSlug) {
+      window.location.href = routes.dashboard.buildUrl({ companyId });
     }
   }, [isLoggedIn, companyId, checkingSession, user, company, navigate]);
 
@@ -140,7 +147,7 @@ export default function Login() {
                       {/* </div> */}
                     </FormField>
                     <Link
-                      to={routes.auth.forgotPassword}
+                      to={routes.forgotPassword.staticPath}
                       className="absolute -bottom-3.5 right-0 text-right text-sm underline-offset-4 hover:underline"
                     >
                       Forgot your password?
@@ -155,7 +162,7 @@ export default function Login() {
                 <div className="text-center text-sm">
                   Don't have an account?{" "}
                   <Link
-                    to={routes.auth.signup}
+                    to={routes.signup.staticPath}
                     className="underline underline-offset-4"
                   >
                     Sign up

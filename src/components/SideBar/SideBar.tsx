@@ -22,7 +22,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useCompany } from "@/domains/company/store";
 import { Link } from "react-router-dom";
 import {
   getNavMain,
@@ -31,9 +30,10 @@ import {
 } from "@/constants/sidebarData";
 import { NavMain } from "../NavMain";
 import { NavUser } from "../NavUser";
-import { useAuth } from "@/hooks/useAuth";
 import { NavSecondary } from "../NavSecondary";
-import { routes } from "@/shared/routes";
+import { routes } from "@/shared/routes/routes";
+import { useAuth } from "@/features/auth/hooks";
+import { useCompany } from "@/domains/company/store";
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   sidebarCollapsible?: "icon" | "offcanvas";
@@ -48,9 +48,18 @@ export function AppSidebar({
   // e.g on categorization engine, we'd use collapsible but on dashboard, we'd use icon
   const { companyId, companyType, company } = useCompany();
   const { user } = useAuth();
-  console.log(company, user);
+  console.log(
+    "company",
+    company,
+    "user",
+    user,
+    "companyId",
+    companyId,
+    "companyType",
+    companyType
+  );
 
-  if (!companyId || !companyType) return null;
+  if (!companyId || !companyType) return "#";
   const navMain = getNavMain(companyId, companyType);
   const navSecondary = getNavSecondary(companyId, companyType);
   const navUser = getNavUser({

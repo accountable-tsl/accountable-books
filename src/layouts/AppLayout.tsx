@@ -1,14 +1,17 @@
 import { AppHeader } from "@/components/AppHeader";
+import ErrorPage from "@/components/ErrorPage";
 import { AppSidebar, AppSidebarProps } from "@/components/SideBar/Sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useAuth } from "@/hooks/useAuth";
-import { routes } from "@/shared/routes";
+import { useCompany } from "@/domains/company/store";
+import { useAuth } from "@/features/auth/hooks";
+import { routes } from "@/shared/routes/routes";
 import {
   pageStore,
   usePageMeta,
   useUpdatePageInfo,
 } from "@/shared/stores/page";
-import { Navigate, Outlet, matchPath, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Outlet } from "react-router-dom";
 import { HashLoader } from "react-spinners";
 
 interface AppLayoutProps extends AppSidebarProps {}
@@ -16,10 +19,20 @@ export default function AppLayout({
   sidebarCollapsible = "icon",
 }: AppLayoutProps) {
   const { user, checkingSession } = useAuth();
+  const { companyId, companyType, slug } = useCompany();
   const { sidebarCollapsed } = pageStore();
   useUpdatePageInfo();
   usePageMeta();
-  const location = useLocation();
+
+  useEffect(() => {
+    if (user && companyId && slug) {
+      const isCorrectSubdomain = window.location.hostname.startsWith(slug);
+      if (!isCorrectSubdomain) {
+        const url = routes.dashboard.buildUrl({ companyId });
+        if (url) window.location.href = url;
+      }
+    }
+  }, [user, companyId, slug]);
 
   if (checkingSession) {
     return (
@@ -30,7 +43,11 @@ export default function AppLayout({
   }
 
   if (!user) {
-    return <Navigate to={routes.login.buildPath()} replace />;
+    return <Navigate to={routes.login.staticPath} replace />;
+  }
+
+  if (!companyId || !companyType || !slug) {
+    return <ErrorPage type="default" />;
   }
 
   return (

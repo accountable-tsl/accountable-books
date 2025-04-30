@@ -1,5 +1,5 @@
 import { NavMainItems } from "@/components/NavMain";
-import { routes } from "@/shared/routes";
+import { routes } from "@/shared/routes/routes";
 import { CompanyType } from "@/types/types";
 import {
   BriefcaseIcon,
@@ -37,7 +37,9 @@ export const getNavMain = (
             sub: [
               {
                 title: "Accounting",
-                url: routes.accounting.workstation.index.buildUrl({ companyId }),
+                url: routes.accounting.workstation.index.buildUrl({
+                  companyId,
+                }),
               },
               {
                 title: "Tax",
