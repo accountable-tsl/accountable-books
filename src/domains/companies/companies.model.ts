@@ -1,6 +1,7 @@
 import type { Knex } from "knex";
 import {
   Company,
+  getCompanyResponse,
   newCompany,
   newCompanyInput,
   NewCompanyInput,
@@ -123,15 +124,23 @@ export const verifyCompanyDependenciesExist = async (
 };
 
 export const switchCompany = async (
-  userId: string,
-  companyIdentifier: string
+  user: {
+    id: string;
+    firstname: string;
+    lastname?: string;
+    email: string;
+    status: string;
+    currentCompanyId: string;
+  },
+  newCompanyId: string
 ) => {
   try {
-    const companyId = await getCompanyUUID(companyIdentifier);
+    // Update this formula later
+    const companyId = await getCompanyUUID(newCompanyId);
 
     const role = await knexClient("users_companies_roles")
       .where({
-        user_id: userId,
+        user_id: user.id,
         company_id: companyId,
         is_deleted: false,
       })
@@ -143,18 +152,22 @@ export const switchCompany = async (
     }
 
     await knexClient("users")
-      .where("id", userId)
+      .where("id", user.id)
       .update("last_active_company_id", companyId);
 
     const { accessToken, refreshToken } = generateAuthTokens({
-      id: userId,
+      sub: user.id,
       currentCompanyId: companyId,
+      email: user.email,
+      firstname: user.firstname,
+      status: user.status,
+      lastname: user.lastname,
     });
 
     return successResponse("Company switched successfully", {
       accessToken,
       refreshToken,
-      user: { id: userId, currentCompanyId: companyId },
+      user: { ...user, currentCompanyId: companyId },
     });
   } catch (error) {
     return errorResponse("Something went wrong", error);
@@ -177,7 +190,6 @@ const companyFields = [
   "companies.year_end_month as yearEndMonth",
   "companies.registration_number as companyRegistrationNumber",
   "companies.tax_id as companyTaxId",
-  "companies.assigned_firm_id as assignedFirmId",
   "companies.country_id as countryId",
   "countries.code as countryCode",
   "countries.name as countryName",
@@ -191,6 +203,7 @@ const companyFields = [
   "companies.created_by_id as createdById",
 
   // accounting firm fields
+  "companies.assigned_firm_id as assignedFirmId",
   "accounting_firms.display_name as assignedFirmName",
   "accounting_firms.slug as assignedFirmSlug",
   "accounting_firms.is_platform as assignedFirmIsPlatform",
@@ -215,7 +228,7 @@ export const getCompanies = async (
       return errorResponse("Error retrieving companies");
     }
 
-    return successResponse(
+    return successResponse<getCompanyResponse[]>(
       "Successfully retrieved all companies",
       snakeToCamel(result)
     );
@@ -250,7 +263,7 @@ export const getSingleCompany = async (
     if (!company)
       return errorResponse(`Company with ID ${identifier} not found`);
 
-    return successResponse(
+    return successResponse<getCompanyResponse>(
       `Successfully retrieved details for company`,
       company
     );

@@ -6,9 +6,13 @@ import { bankAccountSchemas, bankAccountsDocs } from "./docs/bankAccountsDocs";
 import { coaDocs, coaSchemas } from "./docs/coaDocs";
 import { companyDocs, companySchemas } from "./docs/companyDocs";
 import { currenciesDocs, currenciesSchemas } from "./docs/currenciesDocs";
-import { bankTransactionDocs, bankTransactionSchemas } from "./docs/bankTransactionsDocs";
+import {
+  bankTransactionDocs,
+  bankTransactionSchemas,
+} from "./docs/bankTransactionsDocs";
+import { ENV } from "./src/config/env";
 
-const baseUrl = `${process.env.BACKEND_URL}:${process.env.PORT}`;
+const baseUrl = ENV.BACKEND_URL;
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -29,7 +33,7 @@ const options: swaggerJsdoc.Options = {
       ...bankDocs,
       ...bankAccountsDocs,
       ...currenciesDocs,
-      ...bankTransactionDocs
+      ...bankTransactionDocs,
     },
     components: {
       schemas: {
@@ -38,7 +42,7 @@ const options: swaggerJsdoc.Options = {
         ...bankSchemas,
         ...bankAccountSchemas,
         ...currenciesSchemas,
-        ...bankTransactionSchemas
+        ...bankTransactionSchemas,
       },
     },
   },

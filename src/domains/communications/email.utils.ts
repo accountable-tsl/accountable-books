@@ -11,7 +11,7 @@ export const buildEmailServiceUrl = (
   type: UrlType,
   params: UrlParams
 ): string => {
-  const baseUrl = ENV.BASE_URL?.trim().replace(/\/+$/, ""); // remove trailing slashes
+  const baseUrl = ENV.BACKEND_URL?.trim().replace(/\/+$/, ""); // remove trailing slashes
   if (!baseUrl) throw new Error("BASE_URL is not set");
 
   if (!params.token) {

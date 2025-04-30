@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
-import { csrfProtection, JWT_CONFIG } from "./auth.utils";
+import { buildAuthContext, csrfProtection, JWT_CONFIG } from "./auth.utils";
 import jwt from "jsonwebtoken";
-import { AuthRequest, DecodedToken } from "./auth.types";
+import { AuthRequest, AuthUserContext, DecodedToken } from "./auth.types";
 import { getCompanyRolesForUser } from "../../domains/userCompanyRole/userCompanyRole.model";
 import { errorResponse } from "../../shared/utils/response.utils";
 import { getPermissionsForRole } from "../../domains/permission/permission.model";
@@ -9,24 +9,16 @@ import { redis } from "../../lib/redis";
 import { generateRandomToken } from "../../shared/utils/crypto.utils";
 import { publicPaths } from "./auth.constants";
 import { getUserDetails } from "../../domains/user/user.model";
+import { getSingleCompany } from "../../domains/companies/companies.model";
 
 export const verifyAccessToken = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-  if (!req.cookies) {
-    return res.status(401).json(errorResponse("Unauthorized"));
-  }
+  const token = req.cookies?.accessToken;
+  if (!token) return res.status(401).json(errorResponse("Unauthorized"));
 
-  // Extract the access token from cookies
-  const token = req.cookies.accessToken;
-
-  if (!token) {
-    return res.status(401).json(errorResponse("Unauthorized"));
-  }
-
-  // Verify token
   try {
     // Verify the JWT and extract the decoded payload
     const decoded = jwt.verify(
@@ -38,22 +30,15 @@ export const verifyAccessToken = async (
     if (!decoded.sub)
       return res.status(403).json(errorResponse("Invalid token payload"));
 
-    const user = await getUserDetails(decoded.sub);
-    if (!user.success) return res.status(403).json(user.message);
-    // Fetch all roles the user has across companies
-    const roles = await getCompanyRolesForUser(decoded.sub);
-    if (!roles.success) return res.status(403).json(roles.message);
+    const result = await buildAuthContext(decoded);
+    if (!result.success) {
+      return res.status(403).json(result.error);
+    }
+
+    req.user = result.user;
+    req.company = result.company;
 
     // Attach user ID and company roles to the request object
-    req.user = {
-      id: decoded.sub,
-      currentCompanyId: decoded.currentCompanyId,
-      firstname: decoded.firstname,
-      lastname: decoded.lastname,
-      email: decoded.email,
-      status: decoded.status,
-      companyRoles: roles.data,
-    };
 
     // proceed
     next();
@@ -81,25 +66,20 @@ export const verifyRefreshToken = async (
   if (!refreshToken) {
     return res.status(401).json(errorResponse("No refresh token provided"));
   }
-
   try {
     const decoded = jwt.verify(
       refreshToken,
       JWT_CONFIG.refreshToken.secret
     ) as DecodedToken;
 
-    if (!decoded.sub) {
-      return res.status(403).json(errorResponse("Invalid refresh token"));
+    const result = await buildAuthContext(decoded);
+    if (!result.success) {
+      return res.status(403).json(result.error);
     }
 
-    req.user = {
-      id: decoded.sub,
-      currentCompanyId: decoded.currentCompanyId,
-      email: decoded.email,
-      firstname: decoded.firstname,
-      lastname: decoded.lastname,
-      status: decoded.status,
-    };
+    req.user = result.user;
+    req.company = result.company;
+
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -115,8 +95,6 @@ export const conditionalCsrf = (
   next: NextFunction
 ) => {
   if (publicPaths.some((p) => req.originalUrl.includes(p))) {
-    console.log("Skipping CSRF for", req.originalUrl);
-
     // Manually create random CSRF token
     const csrfToken = req.csrfToken ? req.csrfToken() : generateRandomToken();
     req.csrfToken = () => csrfToken;
@@ -166,7 +144,7 @@ export const requirePermission = (permission: string) => {
     }
 
     const role = req.user.companyRoles?.find(
-      (r) => r.company_id === currentCompanyId
+      (r) => r.companyId === currentCompanyId
     );
     if (!role) {
       return res
@@ -175,14 +153,14 @@ export const requirePermission = (permission: string) => {
     }
 
     // Redis Cache
-    const cacheKey = `permissions:${role.role_id}`;
+    const cacheKey = `permissions:${role.roleId}`;
     const cached = await redis.get(cacheKey);
     let permissions: string[];
 
     if (cached) {
       permissions = JSON.parse(cached);
     } else {
-      const result = await getPermissionsForRole(role.role_id);
+      const result = await getPermissionsForRole(role.roleId);
       if (!result.success)
         return res.status(403).json(errorResponse("No permissions found"));
 

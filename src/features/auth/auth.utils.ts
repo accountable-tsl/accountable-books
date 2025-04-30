@@ -1,10 +1,18 @@
 import jwt from "jsonwebtoken";
 import csurf from "csurf";
 import { ENV, isProduction } from "../../config/env";
-import { throwError } from "../../shared/utils/response.utils";
-import { DecodedToken, TokenConfig, TokenExpiration } from "./auth.types";
+import { errorResponse, throwError } from "../../shared/utils/response.utils";
+import {
+  AuthCompanyContext,
+  AuthUserContext,
+  DecodedToken,
+  TokenConfig,
+  TokenExpiration,
+} from "./auth.types";
 import { Request, Response } from "express";
 import { generateRandomToken } from "../../shared/utils/crypto.utils";
+import { getSingleCompany } from "../../domains/companies/companies.model";
+import { getCompanyRolesForUser } from "../../domains/userCompanyRole/userCompanyRole.model";
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throwError("JWT secrets must be defined in .env");
@@ -46,14 +54,7 @@ export const generateAuthTokens = (payload: DecodedToken) => {
   }
 };
 
-export const csrfProtection = csurf({
-  cookie: {
-    key: "csrfToken",
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: "strict",
-  },
-});
+const cookieDomain = ENV.COOKIE_DOMAIN;
 
 export const setAuthCookies = (
   req: Request,
@@ -64,24 +65,27 @@ export const setAuthCookies = (
   const csrfToken = req.csrfToken ? req.csrfToken() : generateRandomToken();
 
   res.cookie("accessToken", accessToken, {
+    domain: cookieDomain,
     httpOnly: true,
-    secure: true,
+    secure: isProduction,
     sameSite: "strict",
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: "/",
   });
 
   res.cookie("refreshToken", refreshToken, {
+    domain: cookieDomain,
     httpOnly: true,
-    secure: true,
+    secure: isProduction,
     sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: "/",
   });
 
   res.cookie("csrfToken", csrfToken, {
+    domain: cookieDomain,
     httpOnly: false,
-    secure: true,
+    secure: isProduction,
     sameSite: "strict",
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: "/",
@@ -89,3 +93,55 @@ export const setAuthCookies = (
 
   return csrfToken;
 };
+
+export const csrfProtection = csurf({
+  cookie: {
+    key: "csrfToken",
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "strict",
+    domain: cookieDomain,
+    path: "/",
+  },
+});
+
+export async function buildAuthContext(decoded: DecodedToken) {
+  const { sub, email, firstname, lastname, status, currentCompanyId } = decoded;
+
+  if (!sub || !currentCompanyId) {
+    return { success: false, error: errorResponse("Invalid token payload") };
+  }
+
+  const [roles, companyResult] = await Promise.all([
+    getCompanyRolesForUser(sub),
+    getSingleCompany(currentCompanyId),
+  ]);
+
+  if (!roles.success) {
+    return { success: false, error: errorResponse(roles.message) };
+  }
+
+  if (!companyResult.success) {
+    return { success: false, error: errorResponse("Company not found") };
+  }
+
+  const user: AuthUserContext = {
+    id: sub,
+    email,
+    firstname,
+    lastname,
+    status,
+    currentCompanyId,
+    companyRoles: roles.data,
+    assignedFirmSlug: companyResult.data.assignedFirmSlug,
+  };
+
+  const company: AuthCompanyContext = {
+    id: companyResult.data.id,
+    type: companyResult.data.companyType,
+    assignedFirmSlug: companyResult.data.assignedFirmSlug,
+    name: companyResult.data.name,
+  };
+
+  return { success: true, user, company };
+}

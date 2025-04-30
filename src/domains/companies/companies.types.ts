@@ -4,7 +4,7 @@ import { dbBaseFields } from "../../core/validation/schemas";
 export const companyType = z.enum([
   "business",
   "individual",
-  "accounting_firms",
+  "accounting_firm",
 ]);
 export const reportingFramework = z.enum(["ifrs", "us_gaap"]);
 
@@ -49,3 +49,43 @@ export type ReportingFramework = z.infer<typeof reportingFramework>;
 export type NewCompanyInput = z.infer<typeof newCompanyInput>;
 export type NewCompany = z.infer<typeof newCompany>;
 export type Company = z.infer<typeof company>;
+
+export type getCompanyResponse = {
+  id: string;
+  legalName: string;
+  companyType: CompanyType;
+  yearEndDay: number;
+  yearEndMonth: number;
+  countryId: string;
+  reportingCurrencyId: string;
+  createdById: string;
+
+  displayName: string | null;
+  address: string | null;
+  companyLogo: string | null;
+  description: string | null;
+  website: string | null;
+  industry: string | null;
+  companySize: string | null;
+  revenue: string | null;
+  companyRegistrationNumber: string | null;
+  companyTaxId: string | null;
+  reportingFramework: ReportingFramework | null;
+  isPlatform: boolean;
+
+  countryCode: string | null;
+  countryName: string | null;
+  countryPhoneCode: string | null;
+  countryFlag: string | null;
+  countryContinent: string | null;
+
+  reportingCurrencyCode: string;
+  reportingCurrencyName: string;
+  reportingCurrencySymbol: string | null;
+
+  assignedFirmId: string | null;
+  assignedFirmName: string | null;
+  assignedFirmSlug: string | null;
+  assignedFirmIsPlatform: boolean | null;
+  assignedFirmLogo: string | null;
+};

@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
-import { generateAuthTokens, JWT_CONFIG } from "./auth.utils";
-import { DecodedToken, LoginRole, TokenExpiration } from "./auth.types";
+import { buildAuthContext, generateAuthTokens, JWT_CONFIG } from "./auth.utils";
+import { DecodedToken } from "./auth.types";
 import knex from "../../../knexClient";
 import {
   ErrorCode,
@@ -11,6 +11,7 @@ import { comparePassword } from "../../shared/utils/crypto.utils";
 import { ApiResponse } from "../../core/types/api.types";
 import { redis } from "../../lib/redis";
 import { getSingleCompany } from "../../domains/companies/companies.model";
+import { getCompanyShortCode } from "../../shared/utils/random.utils";
 
 export async function loginService(
   email: string,
@@ -21,7 +22,7 @@ export async function loginService(
     if (!user)
       return errorResponse(
         "Email or password is incorrect",
-        user,
+        undefined,
         ErrorCode.INVALID_CREDENTIALS
       );
     if (!user.password)
@@ -38,26 +39,20 @@ export async function loginService(
         undefined,
         ErrorCode.INVALID_CREDENTIALS
       );
-    // ensure(isValidPassword, "Invalid credentials");
 
     // Fetch user's companies and roles
-    const roles: LoginRole[] = await knex("users_companies_roles")
+    const roles = await knex("users_companies_roles")
       .where({ user_id: user.id })
       .select("company_id", "role_id");
     if (!roles.length)
       return errorResponse("No roles assigned", undefined, ErrorCode.NO_ROLES);
 
-    let currentCompanyId = "";
-    currentCompanyId = user.last_active_company_id || roles[0].company_id;
-
-    const company = await getSingleCompany(currentCompanyId);
-    if (!company.success) {
-      return errorResponse("Unable to resolve company");
-    }
-    currentCompanyId = company.data.id;
+    const currentCompanyId = await getCompanyShortCode(
+      user.last_active_company_id || roles[0].company_id
+    );
 
     const userData = {
-      id: user.id,
+      sub: user.id,
       currentCompanyId,
       email: user.email,
       firstname: user.firstname,
@@ -65,28 +60,23 @@ export async function loginService(
       status: user.status!,
     };
 
-    const { id, ...rest } = userData;
+    const { accessToken, refreshToken } = generateAuthTokens(userData);
+    const result = await buildAuthContext(userData);
 
-    const { accessToken, refreshToken } = generateAuthTokens({
-      sub: id,
-      ...rest,
-    });
-    await redis.setex(`refreshToken:${user.id}`, 604800, refreshToken); // 7 days
+    // Add refreshToken to Redis set
+    const tokenCount = await redis.scard(`refreshTokens:${user.id}`);
+    if (tokenCount >= 5) {
+      const oldestToken = await redis.spop(`refreshTokens:${user.id}`);
+    }
+    await redis.sadd(`refreshTokens:${user.id}`, refreshToken);
+    await redis.expire(`refreshTokens:${user.id}`, 604800); // 7 days
 
     return successResponse("User logged in successfully", {
       accessToken,
       refreshToken,
-      user: {
-        ...userData,
-        companyRoles: roles.map((r) => ({
-          companyId: r.company_id,
-          roleId: r.role_id,
-        })),
-      },
-      currentCompanyId,
-      slug: company.data.assignedFirmSlug,
-      company: company.data,
-    });
+      user: result.user,
+      company: result.company,
+    } as const);
   } catch (error) {
     return errorResponse("An unexpected error occurred");
   }
@@ -110,12 +100,15 @@ export async function refreshTokenService(
       return errorResponse("Invalid refresh token");
     }
 
-    // Check Redis for token validity
-    const storedToken = await redis.get(`refreshToken:${userId}`);
-    if (storedToken !== refreshToken) {
+    // Check if refreshToken exists in Redis set
+    const isValidToken = await redis.sismember(
+      `refreshTokens:${userId}`,
+      refreshToken
+    );
+
+    if (!isValidToken) {
       return errorResponse("Refresh token revoked or invalid");
     }
-
     // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateAuthTokens({
       sub: userId,
@@ -126,8 +119,10 @@ export async function refreshTokenService(
       status: decoded.status,
     });
 
-    // Rotate refresh token in Redis
-    await redis.setex(`refreshToken:${userId}`, 604800, newRefreshToken); // 7 days
+    // Rotate refreshToken in Redis set
+    await redis.srem(`refreshTokens:${userId}`, refreshToken); // Remove old
+    await redis.sadd(`refreshTokens:${userId}`, newRefreshToken); // Add new
+    await redis.expire(`refreshTokens:${userId}`, 604800); // Reset TTL
 
     return successResponse("Tokens refreshed", {
       accessToken,

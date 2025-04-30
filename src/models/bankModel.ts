@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { ENV } from "../config/env";
 
 const prisma = new PrismaClient();
 
@@ -60,7 +61,7 @@ interface CreateBank {
   countryId: number;
 }
 
-const baseUrl = `${process.env.BACKEND_URL}:${process.env.PORT}`;
+const baseUrl = ENV.BACKEND_URL;
 const defaultBankLogo = `${baseUrl}/bank-default.png`;
 
 export async function createNewBank(data: CreateBank) {

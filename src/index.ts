@@ -15,11 +15,15 @@ import { basicAuth } from "./core/middlewares/basicAuth.middleware";
 import { ENV, NODE_ENV } from "./config/env";
 import { loadRoles } from "./domains/roles/roles.model";
 import cookieParser from "cookie-parser";
-import { conditionalCsrf } from "./features/auth/auth.middleware";
+import {
+  conditionalCsrf,
+  verifyRefreshToken,
+} from "./features/auth/auth.middleware";
+import { subdomain } from "./core/middlewares/subdomain.middleware";
 
-const PORT = ENV.PORT || 8080;
-export const BACKEND_URL = ENV.BACKEND_URL || "http://localhost";
-export const FRONTEND_URL = ENV.FRONTEND_URL || "http://localhost:5173";
+const PORT = ENV.PORT!;
+export const BACKEND_URL = ENV.BACKEND_URL!;
+export const FRONTEND_URL = ENV.FRONTEND_URL!;
 
 const app = express();
 app.use(express.json());
@@ -27,14 +31,17 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   FRONTEND_URL,
+  /^https?:\/\/[\w-]+\.localhost(:\d+)?$/,
   "http://lvh.me:5173",
   /\.lvh\.me(:5173)?$/,
+  new RegExp(
+    `^https?:\/\/[\w-]+\.${FRONTEND_URL.replace(/^https?:\/\//, "").replace(/\./g, "\\.")}$`
+  ),
 ];
 async function startServer() {
   try {
     // Load critical stuff first
     await loadRoles();
-    console.log("Roles loaded ✅");
 
     app.use(cors({ origin: allowedOrigins, credentials: true }));
     app.use(express.static("./public"));
@@ -47,6 +54,9 @@ async function startServer() {
     // Mount routes AFTER successful load
     app.use("/api", signupRoutes);
     app.use("/auth", authRoutes);
+
+    app.use(verifyRefreshToken);
+
     app.use("/api/currencies", currencyRoutes);
     app.use("/api/countries", countryRoutes);
     app.use("/api/email", emailRoutes);
@@ -58,12 +68,10 @@ async function startServer() {
     app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
     Sentry.setupExpressErrorHandler(app);
-
-    app.listen(Number(PORT), "0.0.0.0", () => {
-      console.log(`Server is running in ${NODE_ENV} on ${BACKEND_URL}:${PORT}`);
-      console.log(
-        `Bull Board available at ${BACKEND_URL}:${PORT}/admin/queues`
-      );
+    const listeningOn = `api.${ENV.BASE_DOMAIN!}`; //
+    app.listen(Number(PORT), listeningOn, () => {
+      console.log(`Server is running in ${NODE_ENV} on ${BACKEND_URL}`);
+      console.log(`Bull Board available at ${BACKEND_URL}/admin/queues`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);
@@ -72,15 +80,3 @@ async function startServer() {
 }
 
 startServer();
-
-// app.use("/api/:companyId/coa", coaRoutes);
-// app.use("/api", exRateRoutes);
-// app.use("/api/banks", bankRoutes);
-// app.use("/api/:companyId/bank-accounts/transactions", bankTransactionRoutes);
-// app.use("/api/:companyId/bank-accounts", bankAccountRoutes);
-// app.use("/api/:companyId/transactions", transactionRoutes);
-// app.use("/api/:companyId/account-transactions", accountTransactionRoutes);
-// app.use("/api/:companyId/journals", journalRoutes);
-// app.use("/api/:companyId/reports", reportingRoutes);
-
-// app.use("api/users", userRoutes);

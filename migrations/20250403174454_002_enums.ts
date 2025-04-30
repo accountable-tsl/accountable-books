@@ -17,7 +17,7 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists("company_type", [
       "business",
-      "accounting_firms",
+      "accounting_firm",
       "individual",
     ])
   );

@@ -13,7 +13,7 @@ export const buildPlatformCompany = (adminUserId: string) => ({
   id: ENV.PLATFORM_COMPANY_ID || "a494b675-fedd-455c-ab6d-00ffdff9a047",
   legal_name: ENV.PLATFORM_COMPANY_NAME || "Accountable Techserve Ltd",
   display_name: "Accountable HQ",
-  type: "accounting_firms",
+  type: "accounting_firm",
   country_id: "84258bff-b7ab-4d9f-83f5-1bd1f4e39ace",
   reporting_currency_id: "1d6a1e31-7e36-4eab-94e1-42f2173ea972",
   created_by_id: adminUserId,
@@ -21,7 +21,7 @@ export const buildPlatformCompany = (adminUserId: string) => ({
   short_code: ENV.PLATFORM_COMPANY_SHORT_CODE || "platform",
   website: "https://getaccountable.com",
   logo_url:
-    ENV.PLATFORM_COMPANY_LOGO_URL || `${ENV.BASE_URL}/accountable-logo.png`,
+    ENV.PLATFORM_COMPANY_LOGO_URL || `${ENV.BACKEND_URL}/accountable-logo.png`,
   year_end_day: 31,
   year_end_month: 12,
   reporting_framework: "ifrs",
@@ -52,7 +52,7 @@ export const createPlatformCompany = async (knex: Knex) => {
     if (!platformCompany.legal_name)
       throw new Error("PLATFORM_COMPANY_NAME must be set");
 
-    if (platformCompany.type !== "accounting_firms")
+    if (platformCompany.type !== "accounting_firm")
       throw new Error("PLATFORM_COMPANY_TYPE must be set to accounting_firm");
 
     await verifyCompanyDependenciesExist(trx, {

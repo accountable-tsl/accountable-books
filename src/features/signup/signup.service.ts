@@ -62,7 +62,7 @@ export const registerNewAccount = async (
 
       let firm;
       // For an accounting firm, create accounting_firm
-      if (companyInput.type === "accounting_firms") {
+      if (companyInput.type === "accounting_firm") {
         firm = await setupAccountingFirm(trx, {
           companyId: company.id,
           userId: user.id,
@@ -183,7 +183,7 @@ const createUserAndCompany = async (
   console.log("Company Response", companyResponse.data);
   // Assign role
   const roleName =
-    companyInput.type === "accounting_firms" ? "admin" : "client";
+    companyInput.type === "accounting_firm" ? "admin" : "client";
   const role = await trx("roles")
     .where("name", roleName)
     .first<{ id: string }>();
@@ -285,7 +285,7 @@ export const trackSignupEvents = async (
     await Promise.all([
       trackEvent("User Signed Up", userId, {
         email,
-        role: companyType === "accounting_firms" ? "admin" : "client",
+        role: companyType === "accounting_firm" ? "admin" : "client",
         firm_id: firmId,
       }),
       trackEvent("Company Created", userId, {

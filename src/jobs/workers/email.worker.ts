@@ -6,9 +6,12 @@ import {
 } from "../../domains/communications/email.types";
 import { redis } from "../../lib/redis";
 import { sendEmail } from "../../domains/communications/email.service";
-import { getUserInviteTemplate, getVerifyEmailTemplate } from "../../domains/communications/emailTemplates/emailTemplates";
+import {
+  getUserInviteTemplate,
+  getVerifyEmailTemplate,
+} from "../../domains/communications/emailTemplates/emailTemplates";
 
-const baseUrl = ENV.BASE_URL;
+const baseUrl = ENV.BACKEND_URL;
 
 export const emailWorker = new Worker(
   "email",

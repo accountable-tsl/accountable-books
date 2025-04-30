@@ -8,8 +8,11 @@ import {
 import { AuthRequest } from "./auth.types";
 import { setAuthCookies } from "./auth.utils";
 import { redis } from "../../lib/redis";
+import { user } from "../../domains/user/user.types";
+import { ENV, isProduction } from "../../config/env";
 
 export async function loginController(req: Request, res: Response) {
+  const baseDomain = ENV.BASE_DOMAIN || "lvh.me";
   try {
     const { email, password } = req.body;
 
@@ -29,13 +32,13 @@ export async function loginController(req: Request, res: Response) {
         .json(errorResponse(message, undefined, code as ErrorCode));
     }
     const { accessToken, refreshToken, ...rest } = data;
-
     const csrfToken = setAuthCookies(req, res, accessToken, refreshToken);
 
     return res.json(
       successResponse("User logged in successfully", {
         ...rest,
         csrfToken,
+        redirectTo: `https://${data.slug}.${baseDomain}/${data.currentCompanyId}/dashboard`,
       })
     );
   } catch (error) {
@@ -86,25 +89,32 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
 export async function logoutController(req: AuthRequest, res: Response) {
   const userId = req.user?.id;
   if (userId) {
-    await redis.del(`refreshToken:${userId}`);
+    const refreshToken = req.cookies.refreshToken;
+    if (refreshToken) {
+      await redis.srem(`refreshTokens:${userId}`, refreshToken);
+    }
   }
 
+  const cookieDomain = ENV.COOKIE_DOMAIN;
   res.clearCookie("accessToken", {
+    domain: cookieDomain,
     path: "/",
     httpOnly: true,
-    secure: true,
+    secure: isProduction,
     sameSite: "strict",
   });
   res.clearCookie("refreshToken", {
+    domain: cookieDomain,
     path: "/",
     httpOnly: true,
-    secure: true,
+    secure: isProduction,
     sameSite: "strict",
   });
   res.clearCookie("csrfToken", {
+    domain: cookieDomain,
     path: "/",
     httpOnly: false,
-    secure: true,
+    secure: isProduction,
     sameSite: "strict",
   });
 

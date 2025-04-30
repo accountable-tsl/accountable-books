@@ -1,6 +1,7 @@
 import { Request } from "express";
 import { JwtPayload } from "jsonwebtoken";
 import { UserCompanyRole } from "../../domains/userCompanyRole/userCompanyRole.types";
+import { CompanyType } from "../../domains/companies/companies.types";
 
 export interface TokenConfig {
   secret: string;
@@ -24,22 +25,32 @@ export interface DecodedToken {
   firstname: string;
   lastname?: string;
   status: string;
+  [key: string]: any;
 }
 
-export interface LoginRole {
-  company_id: string;
-  role_id: string;
+export interface AuthUserContext {
+  id: string;
+  email: string;
+  firstname: string;
+  lastname?: string;
+  status: string;
+  companyRoles: {
+    companyId: string;
+    roleId: string;
+  }[];
+  currentCompanyId: string;
+  assignedFirmSlug?: string;
+  permissions?: any;
+}
+
+export interface AuthCompanyContext {
+  id: string;
+  type: CompanyType;
+  name: string;
+  assignedFirmSlug?: string;
 }
 
 export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    firstname: string;
-    lastname?: string;
-    status: string;
-    currentCompanyId: string;
-    companyRoles?: Array<{ company_id: string; role_id: string }>;
-    permissions?: Array<{ permission: string }>;
-  };
+  user?: AuthUserContext;
+  company?: AuthCompanyContext;
 }

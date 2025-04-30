@@ -1,23 +1,15 @@
-import knex from "../../../knexClient";
-import { NODE_ENV } from "../../config/env";
-import { getIdentifierType } from "./formatting.utils";
-import { ensure } from "./response.utils";
+import { getCompanyIdentifiers } from "../../domains/companies/companies.utils";
 
 export const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export const getCompanyUUID = async (identifier: string): Promise<string> => {
-  const trimmedId = identifier.trim();
-  ensure(trimmedId, "Missing or empty company identifier");
+  const { id } = await getCompanyIdentifiers(identifier);
+  return id;
+};
 
-  const idType = getIdentifierType(trimmedId);
-  const query = knex("companies")
-    .select<{ id: string }>("id")
-    .where(idType === "uuid" ? { id: trimmedId } : { short_code: trimmedId })
-    .timeout(5000);
-
-  const company = await query.first();
-
-  ensure(company, "Invalid company identifier");
-
-  return company.id;
+export const getCompanyShortCode = async (
+  identifier: string
+): Promise<string> => {
+  const { short_code } = await getCompanyIdentifiers(identifier);
+  return short_code;
 };
