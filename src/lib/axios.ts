@@ -1,3 +1,5 @@
+import { isPublicRoute } from "@/shared/routes/utils";
+import { routes } from "@/shared/routes/routes";
 import { getCookie } from "@/utils/utils";
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 
@@ -75,7 +77,12 @@ api.interceptors.response.use(
           })
           .catch((err) => {
             processQueue(err);
-            window.location.href = "/login";
+            const path = window.location.pathname;
+            const shouldRedirect = !isPublicRoute(path);
+
+            if (shouldRedirect) {
+              window.location.href = routes.login.staticPath;
+            }
             reject(err);
           })
           .finally(() => {

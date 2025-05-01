@@ -49,6 +49,7 @@ export default function AppLayout({
   if (!companyId || !companyType || !slug) {
     return <ErrorPage type="default" />;
   }
+  console.log("AppLayout rendered on:", window.location.pathname);
 
   return (
     <SidebarProvider defaultOpen={!sidebarCollapsed}>

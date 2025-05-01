@@ -1,5 +1,5 @@
 import { companyStore } from "@/domains/company/store";
-import { CompanyType } from "@/types/types";
+import { MakeRouteParams, RouteMeta, Tenant, ValidParams } from "./types";
 
 /**
  * =====================
@@ -33,10 +33,13 @@ export const routes = {
   home: makeRoute({ staticPath: "/" }),
 
   // AUTH
-  login: makeRoute({ staticPath: "/login" }),
-  logout: makeRoute({ staticPath: "/logout" }),
-  signup: makeRoute({ staticPath: "/signup" }),
-  forgotPassword: makeRoute({ staticPath: "/forgot-password" }),
+  login: makeRoute({ staticPath: "/login", meta: { public: true } }),
+  logout: makeRoute({ staticPath: "/logout", meta: { public: true } }),
+  signup: makeRoute({ staticPath: "/signup", meta: { public: true } }),
+  forgotPassword: makeRoute({
+    staticPath: "/forgot-password",
+    meta: { public: true },
+  }),
 
   // ONBOARDING
   onboarding: {
@@ -129,44 +132,6 @@ export const routes = {
     index: makeRoute({ staticPath: "/:companyId/reports" }),
   },
 } as const;
-
-// Extract parameters from staticPath (e.g., ":companyId" -> "companyId")
-type ExtractParams<T extends string> =
-  T extends `${string}:${infer P}/${infer R}`
-    ? P | ExtractParams<R>
-    : T extends `${string}:${infer P}`
-    ? P
-    : never;
-
-// Metadata for UX and access control
-export type RouteMeta = {
-  label?: string;
-  description?: string;
-  pageIcon?: string;
-  role?: string[];
-  sidebarCollapsed?: boolean;
-  firmsOnly?: boolean;
-};
-
-interface Tenant {
-  slug: string;
-  companyId: string;
-  companyType: CompanyType;
-}
-
-// Restrict params to only those in staticPath, ensuring companyId is required
-type ValidParams<T extends string> = {
-  [K in ExtractParams<T>]: K extends "companyId" ? string : string | undefined;
-} & { companyId: string };
-
-// Route definition
-
-interface MakeRouteParams<T extends string> {
-  staticPath: T;
-  relativePath?: string;
-  dynamicPath?: (params: ValidParams<T>) => string;
-  meta?: RouteMeta;
-}
 
 export function makeRoute<T extends string>({
   staticPath,

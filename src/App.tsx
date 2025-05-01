@@ -19,11 +19,11 @@ import AppLayout from "./layouts/AppLayout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Welcome from "./features/onboarding/Welcome";
 import Login from "./features/auth/Login";
-import { SessionChecker } from "./components/SessionChecker";
 import Dashboard from "./features/dashboard/Dashboard";
 import DashboardRedirect from "./components/DashboardRedirect";
 import { routes } from "./shared/routes/routes";
 import ErrorPage from "./components/ErrorPage";
+import { SessionChecker } from "./components/SessionChecker";
 
 function App() {
   const queryClient = new QueryClient();
@@ -71,13 +71,15 @@ function AnimatedRoutes() {
 
   return (
     <AnimatePresence mode="wait">
-      
       <Routes location={location} key={location.pathname}>
         {/* PUBLIC */}
 
-        <Route path={staticRoutes.auth.login} element={<Login />} />
-        <Route path={staticRoutes.onboarding.welcome} element={<Welcome />} />
-        <Route path={staticRoutes.auth.signup} element={<Signup />} />
+        <Route path={routes.signup.staticPath} element={<Signup />} />
+        <Route path={routes.login.staticPath} element={<Login />} />
+        <Route
+          path={routes.onboarding.welcome.staticPath}
+          element={<Welcome />}
+        />
 
         {/* PROTECTED */}
         <Route

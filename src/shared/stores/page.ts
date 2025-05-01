@@ -1,9 +1,10 @@
 import { useLocation } from "react-router-dom";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { RouteMeta, routes } from "../routes/routes";
+import { routes } from "../routes/routes";
 import { useEffect } from "react";
 import { companyStore } from "@/domains/company/store";
+import { RouteMeta } from "../routes/types";
 
 export type BreadcrumbItem = {
   label: string;
