@@ -6,6 +6,5 @@ export const getCompanyDetails = async (
   companyId: string
 ): Promise<ServerResponseFormat<CompanyData>> => {
   const response = await api.get(`/api/companies/${companyId}`);
-  console.log(response);
   return response.data;
 };

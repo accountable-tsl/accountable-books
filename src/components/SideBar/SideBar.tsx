@@ -48,16 +48,6 @@ export function AppSidebar({
   // e.g on categorization engine, we'd use collapsible but on dashboard, we'd use icon
   const { companyId, companyType, company } = useCompany();
   const { user } = useAuth();
-  console.log(
-    "company",
-    company,
-    "user",
-    user,
-    "companyId",
-    companyId,
-    "companyType",
-    companyType
-  );
 
   if (!companyId || !companyType) return "#";
   const navMain = getNavMain(companyId, companyType);
@@ -70,7 +60,7 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible={sidebarCollapsible} {...props}>
-      <SidebarHeader>
+      <SidebarHeader className="h-12 md:border-b">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -78,7 +68,7 @@ export function AppSidebar({
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <Link
-                to={routes.dashboard.staticPath}
+                to={routes.dashboard.buildPath({ companyId })}
                 className="flex items-center gap-2"
               >
                 <div className="flex items-center justify-center h-5 w-5 overflow-hidden">
@@ -91,7 +81,7 @@ export function AppSidebar({
                     <ArrowUpCircleIcon />
                   )}
                 </div>
-                <span className="truncate text-base font-semibold">
+                <span className="truncate text-sm font-medium">
                   {company?.assignedFirmName}
                 </span>
               </Link>
@@ -110,28 +100,29 @@ export function AppSidebar({
   );
 }
 
-// export function OnboardingSidebar() {
-//   return (
-//     <Sidebar>
-//       <SidebarContent>
-//         <SidebarGroup>
-//           <SidebarGroupLabel>Application</SidebarGroupLabel>
-//           <SidebarGroupContent>
-//             <SidebarMenu>
-//               {items.map((item) => (
-//                 <SidebarMenuItem key={item.title}>
-//                   <SidebarMenuButton asChild>
-//                     <a href={item.url}>
-//                       <item.icon />
-//                       <span>{item.title}</span>
-//                     </a>
-//                   </SidebarMenuButton>
-//                 </SidebarMenuItem>
-//               ))}
-//             </SidebarMenu>
-//           </SidebarGroupContent>
-//         </SidebarGroup>
-//       </SidebarContent>
-//     </Sidebar>
-//   );
-// }
+export function MockSidebar(items: any[] = []) {
+  return (
+    <Sidebar>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Application</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.length &&
+                items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <a href={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+}

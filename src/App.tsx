@@ -24,6 +24,8 @@ import DashboardRedirect from "./components/DashboardRedirect";
 import { routes } from "./shared/routes/routes";
 import ErrorPage from "./components/ErrorPage";
 import { SessionChecker } from "./components/SessionChecker";
+import OnboardingLayout from "./layouts/OnboardingLayout";
+import { OnboardingForm } from "./features/onboarding/Onboarding";
 
 function App() {
   const queryClient = new QueryClient();
@@ -73,13 +75,20 @@ function AnimatedRoutes() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         {/* PUBLIC */}
-
         <Route path={routes.signup.staticPath} element={<Signup />} />
         <Route path={routes.login.staticPath} element={<Login />} />
         <Route
           path={routes.onboarding.welcome.staticPath}
           element={<Welcome />}
         />
+
+        {/* ONBOARDING */}
+        <Route element={<OnboardingLayout />}>
+          <Route
+            path={routes.onboarding.index.staticPath}
+            element={<OnboardingForm />}
+          />
+        </Route>
 
         {/* PROTECTED */}
         <Route
@@ -122,13 +131,11 @@ function AnimatedRoutes() {
           />
           <Route path={staticRoutes.reports.coa} element={<AccountingTxns />} />
           {/* <Route path="*" element={<NotFound />} /> */}
+
+          {/* CLIENT-SPECIFIC PAGES */}
+
+          {/* FIRM-SPECIFIC PAGES */}
         </Route>
-
-        {/* CLIENT-SPECIFIC PAGES */}
-        <Route></Route>
-
-        {/* FIRM-SPECIFIC PAGES */}
-
         <Route path="*" element={<ErrorPage />} />
       </Routes>
     </AnimatePresence>

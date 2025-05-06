@@ -230,7 +230,6 @@ export function makeRoute<T extends string>({
 
       let builtPath = finalPath;
 
-      console.log("builtPath", builtPath);
       for (const [key, value] of Object.entries(params)) {
         builtPath = builtPath.replace(`:${key}`, value || "");
       }
@@ -280,8 +279,6 @@ export function buildTenantUrl({
   const url = import.meta.env.PROD
     ? `https://${firmSlug}.${baseDomain}/${companyId}${cleanPath}`
     : `http://${firmSlug}.${baseDomain}:${port}/${companyId}${cleanPath}`;
-
-  console.log(url);
 
   return url;
 }

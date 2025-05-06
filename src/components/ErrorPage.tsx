@@ -65,8 +65,16 @@ export default function ErrorPage({
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="text-center max-w-md space-y-4">
           <h1 className="text-4xl font-bold flex items-center justify-center gap-1">
-            {type}{" "}
-            {showIcon && <span className="h-5 w-5 text-sm">{config.icon}</span>}
+            {type === "default" ? (
+              <span>{config.icon}</span>
+            ) : (
+              <>
+                {type}{" "}
+                {showIcon && (
+                  <span className="h-5 w-5 text-sm">{config.icon}</span>
+                )}
+              </>
+            )}
           </h1>
 
           {showTitle && (

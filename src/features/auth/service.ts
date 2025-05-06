@@ -6,7 +6,6 @@ import { ServerResponseFormat } from "@/types/types";
 export const handleLogin = async (data: LoginForm) => {
   try {
     const resp = await api.post("/auth/login", data);
-    console.log("handleLogin response:", resp);
     return { success: true, data: resp.data.data };
   } catch (err: any) {
     if (isAxiosError(err) && err.response?.data) {
@@ -30,8 +29,6 @@ export const fetchSession = async (): Promise<
     currentCompanyId: string;
   }>
 > => {
-  console.log("fetchSession triggered");
   const res = await api.get("/auth/me");
-  console.log(res.data);
   return res.data;
 };

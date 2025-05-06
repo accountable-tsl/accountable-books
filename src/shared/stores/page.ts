@@ -93,7 +93,6 @@ export function useUpdatePageInfo() {
         match.path === routes.dashboard.staticPath ||
         location.pathname === dashboardPath;
 
-      console.log(isDashboardPage);
 
       const breadcrumbs: BreadcrumbItem[] = [];
 

@@ -7,7 +7,6 @@ export function SessionChecker() {
   const { setUser, clearSession, setCheckingSession } = useAuth();
   const { fetchCompany } = useCompany();
 
-  console.log("SessionChecker touched");
   useEffect(() => {
     const validateSession = async () => {
       try {
@@ -26,7 +25,7 @@ export function SessionChecker() {
     };
 
     validateSession();
-  }, [setUser, setCheckingSession, fetchCompany]);
+  }, []); //[setUser, setCheckingSession, fetchCompany]
 
   return null;
 }

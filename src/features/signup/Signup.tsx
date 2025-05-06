@@ -168,8 +168,6 @@ export default function Signup() {
     }
   };
 
-  console.log("companyDetails", companyDetails);
-  console.log("basicInfo", basicInfo);
   const handleSelect = (category: CompanyType) => {
     if (!category) return;
     if (currentStep === 1) {

@@ -104,8 +104,7 @@ export const SignupCompanyInfo = forwardRef<
     }
   }, [companyData.reportingCurrencyId]);
 
-  console.log("companydata", companyData);
-  console.log("errors", errors);
+
   return (
     <div>
       <div className="flex flex-col gap-4">
