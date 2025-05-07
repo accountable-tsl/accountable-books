@@ -6,8 +6,20 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { MousePointerClick } from "lucide-react";
+import { useState } from "react";
 
 export const OnboardingCallback = () => {
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  const handlePhoneChange = (value: {
+    phoneNumber: string;
+    countryCode: string;
+    completeNumber: string;
+  }) => {
+    console.log(value);
+    setPhoneNumber(value.completeNumber);
+  };
+
   return (
     <Dialog>
       <DialogTrigger>
@@ -25,7 +37,10 @@ export const OnboardingCallback = () => {
       <DialogContent>
         <DialogHeader></DialogHeader>
         <div>Submit your phone number</div>
-        <SmartPhoneInput />
+        <SmartPhoneInput
+          value={{ phoneNumber: "", countryCode: "", completeNumber: "" }}
+          onChange={handlePhoneChange}
+        />
       </DialogContent>
     </Dialog>
   );

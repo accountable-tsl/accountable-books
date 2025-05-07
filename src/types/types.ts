@@ -26,8 +26,8 @@ export type CountryList = {
   id: string;
   code: string;
   name: string;
-  phoneCode?: string;
-  flag?: string;
+  phoneCode: string;
+  flag: string;
   continent?: string;
 };
 
