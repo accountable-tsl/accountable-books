@@ -16,6 +16,17 @@ import { HeadsetIcon, ScreenShareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VerifyEmail } from "./steps/VerifyEmail";
+import { getUserDetails } from "@/domains/user/api";
+import { useEffect, useMemo, useState } from "react";
+import { UserData, UserOnboardingStatus } from "@/domains/user/types";
+import { getCurrentStep } from "./utils";
+import { CompanyInfo } from "./steps/CompanyInfo";
+import { BankAccount } from "./steps/BankAccount";
+import { Miscellaneous } from "./steps/Miscellaneous";
+import { toast } from "sonner";
+import { useParams } from "react-router-dom";
+import { onboardingSteps, OnboardingSteps } from "./types";
+import { CenteredLoader } from "@/components/CenteredLoader";
 
 /*
  * Steps (Direct Signup)
@@ -29,14 +40,119 @@ import { VerifyEmail } from "./steps/VerifyEmail";
  * If user is not creator, show message asking them to contact creator or get help
  */
 
-export function OnboardingForm() {
-  const { company, companyId, companyType } = useCompany();
-  const { user, isLoggedIn } = useAuth();
+export function OnboardingForm({
+  step: overrideStep,
+}: {
+  step?: OnboardingSteps;
+}) {
+  // Hooks, Context
   const isMobile = useIsMobile();
-  if (!companyType || !company) return null;
+  const { company, companyType } = useCompany();
+  const { user, isLoggedIn } = useAuth();
+  const { step: paramStep } = useParams();
+  console.log(isLoggedIn);
+
+  // State
+  const [_userData, setUserData] = useState<UserData>();
+  const [onboardingStatus, setOnboardingStatus] =
+    useState<UserOnboardingStatus>("not_started");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Computed
+  const isCreator = user?.id === company?.createdById; // user is the creator of the company
+
+  const currentStep =
+    companyType && company
+      ? getCurrentStep(onboardingStatus, companyType, isCreator)
+      : undefined;
+
+  const parsedStep = onboardingSteps.safeParse(paramStep); // Param Step from URL, check if it's a valid step
+  const validParamStep = parsedStep.success ? parsedStep.data : undefined;
+
+  const step: OnboardingSteps =
+    overrideStep ?? validParamStep ?? currentStep ?? "verifyEmail"; // Actual step to render
+
+  const isMinimalStep =
+    step === "verifyEmail" && (!isLoggedIn || !company || !companyType); // If user is not logged in, allow minimal verify email result to render
+
+  const shouldBlockRender =
+    isLoading ||
+    (!isMinimalStep &&
+      (!company || !companyType || !step || step === undefined));
+
+  // The sidebar uses this data to determine which steps to show
+  const sidebarProps = useMemo(() => {
+    if (!company || !companyType || !user) return null;
+    return {
+      company: company,
+      companyType: companyType,
+      isCreator: user?.id === company?.createdById,
+      currentStep: currentStep!,
+    };
+  }, [company, companyType, user?.id, onboardingStatus]);
+
+  // Components
+  const stepComponents: Record<OnboardingSteps, JSX.Element> = {
+    verifyEmail: <VerifyEmail />,
+    companyVitals: <CompanyInfo />,
+    companyDetails: <CompanyInfo />,
+    addBankAccount: <BankAccount />,
+    miscellaneous: <Miscellaneous />,
+  };
+
+  // Functions
+  // Function to get User Data and update user data and onboarding status
+  const getUserData = async () => {
+    if (!user?.id) return;
+
+    try {
+      const res = await getUserDetails(user.id);
+      if (res.success && res.data) {
+        setUserData(res.data);
+        setOnboardingStatus(res.data.onboardingStatus);
+      } else {
+        toast.error(res.message);
+      }
+    } catch (error) {
+      toast.error("An unexpected error occurred");
+    }
+  };
+
+  // Actuall get & update user data / onboarding status as user moves through steps
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      await getUserData();
+      setIsLoading(false);
+    };
+    load();
+  }, [user?.id]);
+
+  // User fully onboarded? navigate to dashboard
+
+  if (shouldBlockRender) return <CenteredLoader />;
+
+  console.log("Rendering step:", step, stepComponents[step]);
+  console.log({
+    company,
+    companyType,
+    user,
+    isLoggedIn,
+    step,
+    validParamStep,
+    currentStep,
+  });
   return (
     <>
-      {!isMobile ? (
+      {/* No fancy UI if user is not logged in */}
+      {isMinimalStep ? (
+        <div className="p-6">{stepComponents[step]}</div>
+      ) : !isMobile ? (
         <div>
           <MockDashboard />
 
@@ -48,23 +164,16 @@ export function OnboardingForm() {
                 platform
               </DialogDescription>
             </DialogHeader>
-            {/* <DialogContent className="w-full max-w-4xl min-h-[400px] max-h-[90vh] max-w-[90vw] overflow-y-auto p-6 sm:max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[85vh]"> */}
             <DialogContent className="[&>button]:hidden h-fit min-h-[70vh] min-w-[85vw] max-w-[90vw] overflow-y-auto p-0">
               <div className="flex">
-                {/* // md:w-1/4 w-full */}
                 <div className="w-[20rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
-                  <OnboardingSidebar
-                    company={company}
-                    companyType={companyType}
-                    isCreator={user.id === company?.createdById}
-                    currentStep="companyVitals"
-                  />
+                  {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
                   <OnboardingFormFooter />
                 </div>
 
                 <div className="flex flex-col flex-1">
                   <OnboardingHeader />
-                  <VerifyEmail />
+                  {stepComponents[step]}
                 </div>
               </div>
             </DialogContent>
@@ -73,14 +182,8 @@ export function OnboardingForm() {
       ) : (
         <Sheet>
           <div className="flex flex-col h-dvh overflow-hidden">
-            <OnboardingSidebar
-              company={company}
-              companyType={companyType}
-              isCreator={user.id === company?.createdById}
-              currentStep="companyVitals"
-              footer={<OnboardingFormFooter />}
-            />
-            <VerifyEmail />
+            {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
+            {stepComponents[step]}
           </div>
         </Sheet>
       )}

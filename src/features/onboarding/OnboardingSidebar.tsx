@@ -6,14 +6,14 @@ import {
   Building2Icon,
   CreditCardIcon,
   FileTextIcon,
-  LucideIcon,
   MailCheckIcon,
   SettingsIcon,
 } from "lucide-react";
-import { ReactElement } from "react";
+import { OnboardingSideBarSteps } from "./types";
+import { getSteps, onboardingSteps } from "./utils";
 
 // Define step configurations
-const steps = {
+const steps: OnboardingSideBarSteps = {
   verifyEmail: {
     icon: MailCheckIcon,
     key: "verifyEmail",
@@ -45,23 +45,23 @@ const steps = {
     description: "Additional settings",
   },
 };
-const getSteps = (companyType: CompanyType, isCreator: boolean) => {
-  if (!isCreator) {
-    return [steps.verifyEmail, steps.miscellaneous];
-  }
+// const getSteps = (companyType: CompanyType, isCreator: boolean) => {
+//   if (!isCreator) {
+//     return [steps.verifyEmail, steps.miscellaneous];
+//   }
 
-  if (companyType === "individual") {
-    return [steps.verifyEmail, steps.addBankAccount, steps.miscellaneous];
-  }
+//   if (companyType === "individual") {
+//     return [steps.verifyEmail, steps.addBankAccount, steps.miscellaneous];
+//   }
 
-  return [
-    steps.verifyEmail,
-    steps.companyVitals,
-    steps.companyDetails,
-    steps.addBankAccount,
-    steps.miscellaneous,
-  ];
-};
+//   return [
+//     steps.verifyEmail,
+//     steps.companyVitals,
+//     steps.companyDetails,
+//     steps.addBankAccount,
+//     steps.miscellaneous,
+//   ];
+// };
 
 export function OnboardingSidebar({
   company,
@@ -76,7 +76,7 @@ export function OnboardingSidebar({
   currentStep: keyof typeof steps;
   footer?: string | React.ReactNode;
 }) {
-  const stepList = getSteps(companyType, isCreator);
+  const stepList = getSteps(onboardingSteps, companyType, isCreator);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center border-b h-12">

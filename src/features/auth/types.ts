@@ -14,5 +14,15 @@ export interface AuthStore {
 
 export interface SessionStore {
   checkingSession: boolean;
+  sessionValid: boolean | null;
+  failedAttempts: number;
   setCheckingSession: (value: boolean) => void;
+  setSessionValid: (value: boolean | null) => void;
+  incrementFailedAttempts: () => void;
+  resetFailedAttempts: () => void;
 }
+
+export type LogoutOptions = {
+  redirectTo?: string | false; // absolute or relative path
+  query?: Record<string, string>; // e.g., { email: "foo@example.com" }
+};

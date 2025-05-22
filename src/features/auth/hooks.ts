@@ -1,7 +1,8 @@
 import { companyStore } from "@/domains/company/store";
 import { backendLogout } from "@/features/auth/service";
 import { authStore, sessionStore } from "@/features/auth/store";
-import { staticRoutes } from "@/utils/routes";
+import { routes } from "@/shared/routes/routes";
+import { LogoutOptions } from "./types";
 
 export const useAuth = () => {
   const user = authStore((s) => s.user);
@@ -9,8 +10,14 @@ export const useAuth = () => {
   const clearCompany = companyStore((s) => s.clearCompany);
   const checkingSession = sessionStore((s) => s.checkingSession);
   const setCheckingSession = sessionStore((s) => s.setCheckingSession);
+  const sessionValid = sessionStore((s) => s.sessionValid);
+  const setSessionValid = sessionStore((s) => s.setSessionValid);
+  const incrementFailedAttempts = sessionStore(
+    (s) => s.incrementFailedAttempts
+  );
+  const resetFailedAttempts = sessionStore((s) => s.resetFailedAttempts);
 
-  const isLoggedIn = !!user && !checkingSession;
+  const isLoggedIn = !!user && !checkingSession && sessionValid === true;
 
   const clearSession = () => {
     setUser(null);
@@ -18,7 +25,7 @@ export const useAuth = () => {
     localStorage.removeItem("auth-storage");
     localStorage.removeItem("company-store");
   };
-  const logout = async () => {
+  const logout = async (options?: LogoutOptions) => {
     try {
       const res = await backendLogout();
       console.log(res);
@@ -26,14 +33,22 @@ export const useAuth = () => {
       console.error("Logout failed, forcing client clear anyway", err);
     } finally {
       clearSession();
-      window.location.replace(staticRoutes.auth.login);
-      return true;
-      //   const currentPath = location.pathname;
-      //   const authPaths = ["/login", "/signup", "/forgot-password"];
 
-      //   if (!authPaths.includes(currentPath)) {
-      //     return true;
-      //   }
+      if (options?.redirectTo === false) {
+        let target: string = routes.login.staticPath; //default fallback
+
+        if (options?.redirectTo) {
+          target = options.redirectTo;
+        }
+
+        if (options?.query) {
+          const queryString = new URLSearchParams(options.query).toString();
+          target += `?${queryString}`;
+        }
+        window.location.replace(target);
+      }
+
+      return true;
     }
   };
 
@@ -45,5 +60,9 @@ export const useAuth = () => {
     clearSession,
     checkingSession,
     setCheckingSession,
+    sessionValid,
+    setSessionValid,
+    incrementFailedAttempts,
+    resetFailedAttempts,
   };
 };

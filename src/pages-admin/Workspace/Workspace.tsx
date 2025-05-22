@@ -3,7 +3,7 @@ import AccountingWorkspace from "../../components/WorkspaceAcc/WorkspaceAcc";
 import "./Workspace.scss";
 import { useCompany } from "@/domains/company/store";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
-import { routes } from "../../utils/routes";
+import { routes } from "@/shared/routes/routes";
 import { TableProperties } from "lucide-react";
 import TabNavigation from "../../components/TabNavigation/TabNavigation";
 import { TabConfig } from "../../types/types";

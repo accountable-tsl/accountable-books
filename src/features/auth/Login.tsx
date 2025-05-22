@@ -8,26 +8,37 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
 import { handleLogin } from "./service";
-import { toast } from "sonner";
 import { ErrorCode } from "@/utils/utils";
 import { useCompany } from "@/domains/company/store";
 import { useAuth } from "./hooks";
 import { routes } from "@/shared/routes/routes";
 import { AuthHeader } from "@/components/AuthHeader";
+import { getUserDetails } from "@/domains/user/api";
+import { toast } from "sonner";
 
 export default function Login() {
-  const { setUser, isLoggedIn, checkingSession, user } = useAuth();
+  const {
+    setUser,
+    isLoggedIn,
+    checkingSession,
+    clearSession,
+    logout,
+  } = useAuth();
   const { setCompany, companyId, company } = useCompany();
+  const [params] = useSearchParams();
+
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [_isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const prefillEmail = params.get("email") ?? "";
 
   const {
     register,
@@ -53,13 +64,23 @@ export default function Login() {
         return;
       }
 
-      const { user, company, slug, currentCompanyId } = res.data;
+      const { user, company } = res.data;
+      console.log(user, company);
+      const assignedFirmSlug =
+        user?.assignedFirmSlug || company?.assignedFirmSlug;
+      const currentCompanyId = company?.id || user?.currentCompanyId;
+
+      const userData = await getUserDetails(user.id);
+      console.log(userData);
 
       if (
         !user ||
-        (!company.id && !currentCompanyId) ||
-        (!company.assignedFirmSlug && slug)
+        !currentCompanyId ||
+        !assignedFirmSlug ||
+        !userData.success
       ) {
+        clearSession();
+        await logout();
         toast.error("Login failed");
         return;
       }
@@ -67,27 +88,23 @@ export default function Login() {
       setUser(user);
       setCompany(company);
 
-      if (
-        !company.assignedFirmSlug ||
-        (!company.id && !user.currentCompanyId) ||
-        !company.companyType
-      ) {
-        toast.error("Login failed");
-        return;
+      toast.success("Login successful!");
+
+      if (userData.data?.onboardingStatus !== "onboarding_complete") {
+        navigate(routes.onboarding.index.staticPath);
+      } else {
+        navigate(routes.dashboard.buildPath({ companyId: company.id }));
       }
     } catch (error) {
       console.error(error);
-      toast("An unexpected error occurred, please try again");
+      clearSession();
+      await logout();
+      toast.error("An unexpected error occurred, please try again");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // useEffect(() => {
-  //   if (!checkingSession && companyId && company?.assignedFirmSlug) {
-  //     window.location.href = routes.dashboard.buildUrl({ companyId });
-  //   }
-  // }, [isLoggedIn, companyId, checkingSession, user, company, navigate]);
   const alreadyLoggedIn =
     !checkingSession && isLoggedIn && companyId && company?.assignedFirmSlug;
 
@@ -133,6 +150,7 @@ export default function Login() {
                       <Input
                         id="email"
                         type="email"
+                        defaultValue={prefillEmail}
                         {...register("email")}
                         placeholder="m@example.com"
                         required
@@ -175,7 +193,7 @@ export default function Login() {
                   </div>
                   <div className="flex flex-col gap-3 mt-2">
                     <Button type="submit" className="w-full">
-                      Login
+                      {isLoading ? "Logging in..." : "Login"}{" "}
                     </Button>
                   </div>
                   <div className="text-center text-sm">

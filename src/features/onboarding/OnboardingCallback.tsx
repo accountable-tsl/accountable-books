@@ -1,23 +1,45 @@
 import { SmartPhoneInput } from "@/components/SmartPhoneInput";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { DialogDescription } from "@radix-ui/react-dialog";
 import { MousePointerClick } from "lucide-react";
 import { useState } from "react";
+import { Contact } from "./types";
 
 export const OnboardingCallback = () => {
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [contact, setContact] = useState<Contact>({
+    phoneNumber: "",
+    countryCode: "",
+    completeNumber: "",
+  });
+  const [submitted, setSubmitted] = useState(false);
 
   const handlePhoneChange = (value: {
     phoneNumber: string;
     countryCode: string;
     completeNumber: string;
   }) => {
-    console.log(value);
-    setPhoneNumber(value.completeNumber);
+    setContact({
+      phoneNumber: value.phoneNumber,
+      countryCode: value.countryCode,
+      completeNumber: value.completeNumber,
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!contact?.completeNumber) {
+      return;
+    }
+
+    // TODO: Send to Slack / Google Chat
+    // TODO: Send to email
   };
 
   return (
@@ -34,13 +56,25 @@ export const OnboardingCallback = () => {
           </span> */}
         </div>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader></DialogHeader>
-        <div>Submit your phone number</div>
-        <SmartPhoneInput
-          value={{ phoneNumber: "", countryCode: "", completeNumber: "" }}
-          onChange={handlePhoneChange}
-        />
+      <DialogContent
+        className="sm:max-w-sm"
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="">Phone Number</DialogHeader>
+        <DialogDescription className="hidden"></DialogDescription>
+
+        {submitted ? (
+          <div>Submitted</div>
+        ) : (
+          <form className="flex flex-col gap-4 shadow-sm max-w-md">
+            <SmartPhoneInput
+              value={{ phoneNumber: "", countryCode: "", completeNumber: "" }}
+              onChange={handlePhoneChange}
+              showLabel={false}
+            />
+            <Button onClick={handleSubmit}>Submit</Button>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -1,5 +1,13 @@
 import { companyStore } from "@/domains/company/store";
-import { MakeRouteParams, RouteMeta, Tenant, ValidParams } from "./types";
+import {
+  MakeRouteParams,
+  ParamConstraintMap,
+  RouteMeta,
+  Tenant,
+  ValidParams,
+} from "./types";
+import { verify } from "crypto";
+import { OnboardingSteps } from "@/features/onboarding/types";
 
 /**
  * =====================
@@ -43,7 +51,18 @@ export const routes = {
 
   // ONBOARDING
   onboarding: {
-    index: makeRoute({ staticPath: "/onboarding" }),
+    index: makeRoute({
+      staticPath: "/onboarding",
+      meta: { public: true },
+    }),
+    step: makeRoute<string, { step: OnboardingSteps }>({
+      staticPath: "/onboarding/:step",
+      meta: { public: true },
+    }),
+    verifyEmail: makeRoute({
+      staticPath: "/email-verified",
+      meta: { public: true },
+    }),
     welcome: makeRoute({ staticPath: "/onboarding/welcome" }),
   },
 
@@ -133,12 +152,16 @@ export const routes = {
   },
 } as const;
 
-export function makeRoute<T extends string>({
+export function makeRoute<
+  T extends string,
+  P extends ParamConstraintMap = Record<string, string>
+>({
   staticPath,
   relativePath,
   dynamicPath,
   meta = {},
-}: MakeRouteParams<T>) {
+  constraints,
+}: MakeRouteParams<T> & { constraints?: P }) {
   const computedRelativePath =
     relativePath || staticPath.replace(/:[^/]+/g, "");
   const computedMeta: RouteMeta = {
@@ -160,7 +183,13 @@ export function makeRoute<T extends string>({
     meta: computedMeta,
 
     /** buildPath: Only builds relative path, no slug/companyId */
-    buildPath: (params: Partial<ValidParams<T>> = {}) => {
+    buildPath: (
+      params: Partial<
+        ValidParams<T> & {
+          [K in keyof P]: P[K]; // Add constrained parameters
+        }
+      > = {}
+    ) => {
       // If no params are required, allow empty params
       if (!requiredParams.length && !params.companyId) {
         return dynamicPath ? dynamicPath({} as ValidParams<T>) : staticPath;
@@ -169,8 +198,8 @@ export function makeRoute<T extends string>({
       //   .map((p) => p.slice(1))
       //   .filter((p) => p !== "companyId");
 
-      // Enforce companyId for routes with params
-      if (!params.companyId) {
+      // Enforce companyId for non-public routes with params
+      if (!meta.public && !params.companyId) {
         return "/not-found";
       }
 
@@ -193,7 +222,12 @@ export function makeRoute<T extends string>({
     },
 
     /** buildUrl: Full URL builder, safe to use inside components */
-    buildUrl: (params: ValidParams<T>, tenant?: Tenant) => {
+    buildUrl: (
+      params: ValidParams<T> & {
+        [K in keyof P]: P[K];
+      },
+      tenant?: Tenant
+    ) => {
       const ctx = tenant ?? companyStore.getState();
       const { slug: firmSlug, companyId, companyType } = ctx;
       if (

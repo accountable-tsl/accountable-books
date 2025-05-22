@@ -4,7 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "./ui/input";
 import { useCountries } from "@/hooks/useCountries";
 import { CountryList } from "@/types/types";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  SearchIcon,
+  X,
+} from "lucide-react";
 import { formatPhoneNumber } from "@/shared/utils/formattingUtils";
 
 interface PhoneData {
@@ -19,6 +26,7 @@ interface SmartPhoneInputProps {
   onChange: (value: PhoneData) => void;
   isValid?: boolean | null;
   label?: string;
+  showLabel?: boolean;
 }
 
 const getCountryFromLocale = (countries: CountryList[]): CountryList => {
@@ -33,13 +41,13 @@ export function SmartPhoneInput({
   onChange,
   isValid,
   label,
+  showLabel = true,
 }: SmartPhoneInputProps) {
   const countriesHook = useCountries();
   let countries = (countriesHook.data?.data ?? []).sort((a, b) =>
     a.phoneCode.localeCompare(b.phoneCode)
   );
 
-  console.log(countries);
   let phoneCodeMap = new Map<string, CountryList[]>();
   const allCountries = useMemo(() => {
     return countries.length
@@ -66,17 +74,32 @@ export function SmartPhoneInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [focused, setFocused] = useState(false);
   const [unknownCountryCode, setUnknownCountryCode] = useState("");
   const [countryDetectionActive, setCountryDetectionActive] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<CountryList>(
     getCountryFromLocale(allCountries)
   );
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const isUnknownCountry = value?.countryCode === "UNKNOWN";
-  const maxLength = 16;
+  const maxLength = 15;
+
+  const filteredCountries = countries.filter((country) => {
+    if (!searchQuery) return true;
+
+    const query = searchQuery.toLowerCase();
+    return (
+      country.name.toLowerCase().includes(query) ||
+      country.phoneCode.includes(query) ||
+      country.code.toLowerCase().includes(query)
+    );
+  });
 
   // Extract standardized country code from input (for unknown countries)
   const extractCountryCode = (input: string): string => {
@@ -134,37 +157,43 @@ export function SmartPhoneInput({
       ? "+" + input.substring(1).replace(/[^\d]/g, "")
       : input.replace(/[^\d]/g, "");
 
-    let strippedInput = cleanedInput;
-    if (
-      cleanedInput.startsWith("+") &&
-      selectedCountry.phoneCode &&
-      cleanedInput.startsWith(selectedCountry.phoneCode)
-    ) {
-      const remaining = cleanedInput.substring(
-        selectedCountry.phoneCode.length
-      );
-      // Only strip if input exactly matches phoneCode or remaining is digits
-      if (remaining === "" || /^\d*$/.test(remaining)) {
-        strippedInput = remaining;
-      }
-    }
+    // let strippedInput = cleanedInput;
+    // if (
+    //   cleanedInput.startsWith("+") &&
+    //   selectedCountry.phoneCode &&
+    //   cleanedInput.startsWith(selectedCountry.phoneCode)
+    // ) {
+    //   const remaining = cleanedInput.substring(
+    //     selectedCountry.phoneCode.length
+    //   );
+    //   // Only strip if input exactly matches phoneCode or remaining is digits
+    //   if (remaining === "" || /^\d*$/.test(remaining)) {
+    //     strippedInput = remaining;
+    //   }
+    // }
 
-    setInputValue(strippedInput);
+    console.log("Cleaned input", cleanedInput);
+
+    setInputValue(cleanedInput);
     setCountryDetectionActive(cleanedInput.startsWith("+"));
 
     // If input starts with +, try to detect country
     if (cleanedInput.startsWith("+")) {
       const detectedCountry = detectCountryFromInput(input);
+      console.log("Detected country", detectedCountry);
 
       if (detectedCountry) {
         setSelectedCountry(detectedCountry.country);
+        setInputValue(detectedCountry.remainingDigits);
+
+        console.log("Selected country", selectedCountry);
 
         const formattedPhoneNumber = formatPhoneNumber(
           detectedCountry.remainingDigits,
           detectedCountry.country
         );
 
-        console.log("formattedPhoneNumber", formattedPhoneNumber);
+        console.log(formattedPhoneNumber);
 
         const completeNumber =
           `${detectedCountry.country.phoneCode} ${formattedPhoneNumber}`.trim();
@@ -189,8 +218,19 @@ export function SmartPhoneInput({
           });
         }
       }
-    } else if (isUnknownCountry && selectedCountry) {
-      // For unknown country with no + prefix, just use the input as is
+    } else if (isUnknownCountry) {
+      if (onChange) {
+        onChange({
+          phoneNumber: input,
+          countryCode: "UNKNOWN",
+          completeNumber:
+            unknownCountryCode +
+            (unknownCountryCode && input ? " " : "") +
+            input,
+        });
+      }
+    } else {
+      // Normal input handling for known country
       const formattedPhoneNumber = formatPhoneNumber(
         cleanedInput,
         selectedCountry
@@ -198,6 +238,7 @@ export function SmartPhoneInput({
       const completeNumber =
         `${selectedCountry.phoneCode} ${formattedPhoneNumber}`.trim();
 
+      console.log(completeNumber);
       if (onChange) {
         onChange({
           phoneNumber: formattedPhoneNumber,
@@ -248,6 +289,69 @@ export function SmartPhoneInput({
     inputRef.current?.focus();
   };
 
+  // Handle paste event
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData("text");
+
+    // Set the input value to the pasted text to trigger the change handler
+    handleChange({
+      target: { value: pastedText },
+    } as React.ChangeEvent<HTMLInputElement>);
+  };
+
+  // Handle keydown to prevent non-numeric input
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow: backspace, delete, tab, escape, enter, and navigation keys
+    if (
+      [8, 9, 13, 27, 46, 37, 38, 39, 40].indexOf(e.keyCode) !== -1 ||
+      // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+      (e.ctrlKey === true && [65, 67, 86, 88].indexOf(e.keyCode) !== -1) ||
+      // Allow: home, end, page up, page down
+      (e.keyCode >= 35 && e.keyCode <= 40)
+    ) {
+      return;
+    }
+
+    // Allow + only at the beginning of an empty field
+    if (e.key === "+" && inputValue === "") {
+      return;
+    }
+
+    // Prevent if not a number or if max length reached
+    if (
+      !/^\d$/.test(e.key) ||
+      (!isUnknownCountry && inputValue.replace(/\D/g, "").length >= maxLength)
+    ) {
+      e.preventDefault();
+    }
+  };
+
+  // Handle dropdown toggle
+  const handleDropdownToggle = () => {
+    const newDropdownState = !dropdownOpen;
+    setDropdownOpen(newDropdownState);
+
+    if (newDropdownState) {
+      // When opening dropdown, pre-fill search with current country's dial code
+      if (!isUnknownCountry) {
+        setSearchQuery(selectedCountry.phoneCode);
+      } else if (unknownCountryCode) {
+        setSearchQuery(unknownCountryCode);
+      }
+
+      // Focus the search input
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }, 10);
+    } else {
+      // Clear search when closing
+      setSearchQuery("");
+    }
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -283,7 +387,7 @@ export function SmartPhoneInput({
 
       setSelectedCountry(initialCountry);
     }
-  }, [countries]);
+  }, [allCountries, selectedCountry]);
 
   useEffect(() => {
     if (dropdownOpen && selectedRef.current) {
@@ -295,16 +399,16 @@ export function SmartPhoneInput({
     return <div>Loading...</div>;
   }
 
-  console.log(selectedCountry);
-
   return (
-    <div className="space-y-2">
-      <Label
-        htmlFor="phone"
-        // className={cn("transition-colors", focused ? "text-primary" : "")}
-      >
-        {label ?? "Phone Number"}
-      </Label>
+    <div className="space-y-4">
+      {showLabel && (
+        <Label
+          htmlFor="phone"
+          className={cn("transition-colors", focused ? "text-primary" : "")}
+        >
+          {label ?? "Phone Number"}
+        </Label>
+      )}
       <div className="relative" ref={dropdownRef}>
         <div
           className={cn(
@@ -314,7 +418,7 @@ export function SmartPhoneInput({
           {/* Country Selector */}
           <div
             className="flex items-center text-sm cursor-pointer border-r px-3 py-2"
-            onClick={() => setDropdownOpen(!dropdownOpen)}
+            onClick={handleDropdownToggle}
           >
             <span>{selectedCountry?.flag}</span>
             <span className="px-1 font-medium">
@@ -337,6 +441,10 @@ export function SmartPhoneInput({
             inputMode="numeric"
             value={inputValue}
             onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             placeholder={
               isUnknownCountry
                 ? "Enter full number with country code"
@@ -345,36 +453,92 @@ export function SmartPhoneInput({
             className={cn(
               "border-none focus-visible:ring-0 flex-1 focus:outline-none bg-transparent"
             )}
-          ></Input>
+            aria-invalid={isValid === false}
+            aria-describedby={isValid === false ? "phone-error" : undefined}
+          />
         </div>
         {/* Country Dropdown */}
         {dropdownOpen && (
-          <div className="absolute z-10 mt-1 w-full bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
-            {allCountries.map((country) => (
-              <div
-                key={country.code}
-                ref={
-                  country.code === selectedCountry?.code ? selectedRef : null
-                }
-                className={cn(
-                  "flex items-center cursor-pointer hover:bg-muted px-3 py-2",
-                  country.code === selectedCountry?.code ? "bg-muted" : ""
+          <div className="absolute z-10 mt-1 w-full bg-background border rounded-md shadow-lg max-h-80 overflow-hidden flex flex-col">
+            {/* Search Input */}
+            <div className="p-2 border-b sticky top-0 bg-background z-20">
+              <div className="relative">
+                <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search countries..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-8 h-9"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 )}
-                onClick={() => {
-                  handleCountryChange(country.code);
-                }}
-              >
-                <span>{country.flag}</span>
-                <span className="px-1 font-medium">{country.phoneCode}</span>
-                <span className="ml-1 text-muted-foreground text-sm">
-                  {country.name}
-                </span>
               </div>
-            ))}
+            </div>
+
+            {/* Countries List */}
+            <div className="overflow-auto max-h-60">
+              {filteredCountries.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground">
+                  No countries found
+                </div>
+              ) : (
+                filteredCountries.map((country) => (
+                  <div
+                    key={country.code}
+                    ref={
+                      country.code === selectedCountry?.code
+                        ? selectedRef
+                        : null
+                    }
+                    className={cn(
+                      "flex items-center cursor-pointer hover:bg-muted px-3 py-2",
+                      country.code === selectedCountry?.code ? "bg-muted" : ""
+                    )}
+                    onClick={() => {
+                      handleCountryChange(country.code);
+                    }}
+                  >
+                    <span>{country.flag}</span>
+                    <span className="px-1 font-medium">
+                      {country.phoneCode}
+                    </span>
+                    <span className="ml-1 text-muted-foreground text-sm">
+                      {country.name}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
-        <p>{}</p>
+        <p className="text-xs text-muted-foreground mt-1.5">
+          {isUnknownCountry ? (
+            <span className="flex items-center text-purple-500">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Unknown country code - enter your full number including country
+              code
+            </span>
+          ) : !isUnknownCountry && inputValue.length >= maxLength ? (
+            <span className="flex items-center text-green-500">
+              <Check className="h-3 w-3 mr-1" />
+              Maximum length reached
+            </span>
+          ) : countryDetectionActive ? (
+            "Enter country code (e.g. +44) to auto-detect country"
+          ) : (
+            `Format example: 000 000 0000`
+          )}
+        </p>
       </div>
     </div>
   );

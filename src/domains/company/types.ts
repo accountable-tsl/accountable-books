@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export type CompanyStore = {
   companyId: string | null;
-  companyType: CompanyType | null;
+  companyType: CompanyType | undefined;
   slug: string | null;
   company: CompanyData | null;
   isLoading: boolean;

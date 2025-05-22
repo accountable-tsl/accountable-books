@@ -26,6 +26,7 @@ import ErrorPage from "./components/ErrorPage";
 import { SessionChecker } from "./components/SessionChecker";
 import OnboardingLayout from "./layouts/OnboardingLayout";
 import { OnboardingForm } from "./features/onboarding/Onboarding";
+import { Toaster } from "./components/ui/sonner";
 
 function App() {
   const queryClient = new QueryClient();
@@ -73,6 +74,7 @@ function AnimatedRoutes() {
 
   return (
     <AnimatePresence mode="wait">
+      <Toaster />
       <Routes location={location} key={location.pathname}>
         {/* PUBLIC */}
         <Route path={routes.signup.staticPath} element={<Signup />} />
@@ -87,6 +89,14 @@ function AnimatedRoutes() {
           <Route
             path={routes.onboarding.index.staticPath}
             element={<OnboardingForm />}
+          />
+          <Route
+            path={routes.onboarding.step.staticPath}
+            element={<OnboardingForm />}
+          />
+          <Route
+            path={routes.onboarding.verifyEmail.staticPath}
+            element={<OnboardingForm step="verifyEmail" />}
           />
         </Route>
 

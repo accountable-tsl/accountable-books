@@ -33,7 +33,7 @@ import { DatePickerProps } from "antd";
 import dayjs from "dayjs";
 import JournalFormPopup from "../JournalForm/JournalFormPopup";
 import { usePopup } from "../../contexts/PopupContext";
-import { routes } from "../../utils/routes";
+import { routes } from "@/shared/routes/routes";
 import { sumAmounts } from "../JournalForm/journalFormUtils";
 
 export default function JournalView({

@@ -31,8 +31,9 @@ export type ValidParams<T extends string> = {
   [K in ExtractParams<T>]: K extends "companyId" ? string : string | undefined;
 } & { companyId: string };
 
-// Route definition
+export type ParamConstraintMap = Record<string, string>;
 
+// Route definition
 export interface MakeRouteParams<T extends string> {
   staticPath: T;
   relativePath?: string;

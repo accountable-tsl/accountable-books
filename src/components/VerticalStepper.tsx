@@ -87,7 +87,6 @@ export function VerticalStepper({
       completed: isCompleted,
     };
 
-    console.log(stepObj);
 
     return (
       <div
@@ -182,7 +181,7 @@ const SingleStep: React.FC<SingleStepProps> = ({
       <div className="flex flex-col min-w-0">
         <div
           className={cn(
-            "truncate text-sm text-muted-foreground",
+            "truncate text-sm text-muted-foreground/50",
             active ? "text-card-foreground" : ""
             // active || completed ? "text-gray-900" : "text-gray-500"
           )}
@@ -191,7 +190,7 @@ const SingleStep: React.FC<SingleStepProps> = ({
         </div>
         <div
           className={cn(
-            "text-muted-foreground text-xs truncate",
+            "text-muted-foreground/30 text-xs truncate",
             active ? "text-card-foreground" : "" // "truncate text-xs text-gray-500"
           )}
         >

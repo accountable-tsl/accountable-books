@@ -6,7 +6,7 @@ import { CompanyData } from "../../types/types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
-import { routes } from "../../utils/routes";
+import { routes } from "@/shared/routes/routes";
 import { fetchJournals } from "../../services/JournalServices";
 import { format } from "date-fns";
 import { RowClickedEvent } from "ag-grid-community";

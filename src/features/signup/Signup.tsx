@@ -28,7 +28,6 @@ import { toast } from "sonner";
 import { submitSignup } from "./signupService";
 import { PuffLoader } from "react-spinners";
 import { XIcon } from "lucide-react";
-import { Toaster } from "@/components/ui/sonner";
 import { AuthHeader } from "@/components/AuthHeader";
 
 export default function Signup() {
@@ -382,7 +381,6 @@ export default function Signup() {
           </div>
         </div>
       </div>
-      <Toaster />
     </div>
   );
 }

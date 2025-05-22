@@ -7,7 +7,7 @@ export const companyStore = create<CompanyStore>()(
   persist(
     (set) => ({
       companyId: null,
-      companyType: null,
+      companyType: undefined,
       slug: null,
       company: null,
       isLoading: false,
