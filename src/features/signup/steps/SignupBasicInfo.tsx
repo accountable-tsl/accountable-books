@@ -52,6 +52,7 @@ export const SignupBasicInfo = forwardRef<
     if (checkEmail) {
       try {
         const isValid = await checkEmail(email);
+        console.log(isValid)
         if (isValid) clearErrors("email");
         return { isValid, error: null };
       } catch (error: any) {
@@ -78,6 +79,7 @@ export const SignupBasicInfo = forwardRef<
     },
   }));
 
+  console.log()
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };

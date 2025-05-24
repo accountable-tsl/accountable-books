@@ -12,5 +12,6 @@ export const checkEmail = async ({
 }: CheckEmailProps): Promise<ServerResponseFormat<string | null>> => {
   const res = await axios.post(`/api/email/check`, { email, purpose });
 
+  console.log(res)
   return res.data;
 };

@@ -276,7 +276,6 @@ export default function Signup() {
   }, [country?.data, companyDetails.countryId]);
 
   useEffect(() => {
-    console.log(userHasSelectedCurrency.current);
     // Only run when currency list is ready and a country is selected
     if (
       !currencies?.data ||

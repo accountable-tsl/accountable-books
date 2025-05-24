@@ -9,7 +9,8 @@ import {
 import { Button } from "../../components/ui/button";
 import { Loader2, Upload, X } from "lucide-react";
 import { extractPath } from "@/shared/utils/formattingUtils";
-import { ImageUploaderProps, ImageUploaderRef } from "./objectTypes";
+import { ImageUploaderProps, ImageUploaderRef } from "./types";
+import { matchesType } from "./utils";
 
 export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
   (
@@ -43,24 +44,42 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
     const [showMessage, setShowMessage] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const lastBlobUrl = useRef<string | null>(null);
+
     const inputId = useRef(
       `image-uploader-${Math.random().toString(36).substring(2, 9)}`
     ).current;
-    const maxSizeNum = maxSizeMB > 1 ? maxSizeMB : maxSizeMB * 1000;
-    const maxSizeText = maxSizeMB > 1 ? `${maxSizeNum}MB` : `${maxSizeNum}KB`;
+
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    const maxSizeText =
+      maxSizeBytes >= 1024 * 1024
+        ? `${(maxSizeBytes / 1024 / 1024).toFixed(1)} MB`
+        : `${Math.round(maxSizeBytes / 1024)} KB`;
     const errorMessage = (msg: string, fallback: string) =>
       msg && typeof msg === "string" && msg.length > 30 ? msg : fallback;
     const defaultValidateFile = (file: File): string | null => {
-      if (file.size > maxSizeMB * 1024 * 1024) {
+      if (file.size > maxSizeBytes) {
         return `File size must be less than ${maxSizeText}`;
       }
-      if (!accept.split(",").some((type) => file.type.match(type.trim()))) {
+      if (!accept.split(",").some((t) => matchesType(file.type, t))) {
         return `Invalid file type. Allowed: ${accept}`;
       }
+
       return null;
     };
 
+    const revokeLastBlob = () => {
+      if (lastBlobUrl.current?.startsWith("blob:")) {
+        URL.revokeObjectURL(lastBlobUrl.current);
+        lastBlobUrl.current = null;
+      }
+    };
+
     const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+      if (lastBlobUrl.current?.startsWith("blob:")) {
+        URL.revokeObjectURL(lastBlobUrl.current); // release previous preview
+      }
+
       const file = e.target.files?.[0];
       setError(null);
       setUploadedUrl(null);
@@ -85,6 +104,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
 
       // Create preview
       const imageUrl = URL.createObjectURL(file);
+      lastBlobUrl.current = imageUrl;
       setImage(imageUrl);
       onImageChange?.(file);
 
@@ -101,6 +121,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
       try {
         const result = await onUpload(file, metadata);
         if (result) {
+          revokeLastBlob();
           setUploadedUrl(result.url);
           setImage(result.url);
           if (result.key) setImageKey(result.key);
@@ -119,6 +140,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
 
     const handleRemove = async () => {
       if (!imageKey || !onRemove) {
+        revokeLastBlob();
         setImage(null);
         setUploadedUrl(null);
         setImageKey(null);
@@ -150,6 +172,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
 
     useImperativeHandle(ref, () => ({
       reset: () => {
+        revokeLastBlob();
         setImage(null);
         setUploadedUrl(null);
         setImageKey(null);
@@ -171,6 +194,20 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
         setShowMessage(false);
       }
     }, [error, uploadedUrl]);
+
+    useEffect(() => {
+      return () => {
+        if (lastBlobUrl.current?.startsWith("blob:")) {
+          URL.revokeObjectURL(lastBlobUrl.current);
+        }
+      };
+    }, []);
+
+    useEffect(() => {
+      if (initialImage) {
+        setImage(initialImage);
+      }
+    }, [initialImage]);
 
     const renderLabel = () => {
       if (!label) return null;
@@ -222,7 +259,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
                 <img
                   src={image || uploadedUrl || ""}
                   alt="Profile preview"
-                  className="object-cover w-full h-full"
+                  className="object-contain w-full h-full"
                   sizes={`${size}px`}
                   loading="lazy"
                 />
@@ -284,7 +321,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
                 e.stopPropagation();
                 handleRemove();
               }}
-              disabled={isUploading || !onRemove || !imageKey}
+              disabled={isUploading || !onRemove}
             >
               <X size={16} />
               <span className="sr-only">Remove image</span>

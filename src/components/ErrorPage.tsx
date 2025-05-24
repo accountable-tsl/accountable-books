@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { AuthHeader } from "./AuthHeader";
 import { useAuth } from "@/features/auth/hooks";
+import { cn } from "@/lib/utils";
 
 type ErrorType = "404" | "403" | "default";
 // | "500"
@@ -51,6 +52,8 @@ export default function ErrorPage({
   showHomeLink = true,
   showSupport = true,
   supportEmail = "hello@accountable.global",
+  showHeader = true,
+  className = "",
 }: ErrorPageProps) {
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
@@ -60,8 +63,10 @@ export default function ErrorPage({
   const displayMessage = message || config.message;
 
   return (
-    <div className="flex flex-col min-h-screen justify-between">
-      <AuthHeader />
+    <div
+      className={cn("flex flex-col min-h-screen justify-between", className)}
+    >
+      {showHeader && <AuthHeader />}
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="text-center max-w-md space-y-4">
           <h1 className="text-4xl font-bold flex items-center justify-center gap-1">

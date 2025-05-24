@@ -1,5 +1,7 @@
+import { z } from "zod";
+
 export interface ImageUploaderProps {
-  initialImage?: string;
+  initialImage?: string | null;
   onImageChange?: (file: File | null) => void;
   onUpload?: (
     file: File,
@@ -30,4 +32,30 @@ export interface ImageUploaderRef {
   getImage: () => string | null;
   getKey: () => string | null;
   upload: (file: File) => Promise<{ url: string; key?: string } | null>;
+}
+
+export const logoUploadParams = z.object({
+  file: z.instanceof(File),
+  companyId: z.string().min(1, "Company ID is required"),
+});
+
+export const profilePictureUploadParams = z.object({
+  file: z.instanceof(File),
+  userId: z.string().min(1, "User ID is required"),
+});
+
+export type LogoUploadParams = z.infer<typeof logoUploadParams>;
+export type ProfilePictureUploadParams = z.infer<
+  typeof profilePictureUploadParams
+>;
+
+export type UploadParams = LogoUploadParams | ProfilePictureUploadParams;
+
+export const objectTypes = ["logos", "profile_picture"] as const;
+export type ObjectType = (typeof objectTypes)[number];
+
+export interface ObjectTypeConfig {
+  schema: z.ZodSchema<any>;
+  uploadEndpoint: string;
+  deleteEndpoint: string;
 }
