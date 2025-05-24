@@ -1,11 +1,16 @@
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { MousePointerClick } from "lucide-react";
 import { OnboardingCallback } from "./OnboardingCallback";
+import { cn } from "@/lib/utils";
 
-export const OnboardingHeader = () => {
+export const OnboardingHeader = ({ className }: { className?: string }) => {
   return (
     <>
-      <div className="border-b h-12 flex items-center justify-between px-2 relative">
+      <div
+        className={cn(
+          "border-b h-12 flex items-center justify-between px-2 relative",
+          className
+        )}
+      >
         <div></div>
         <ThemeToggle />
         <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2">

@@ -73,7 +73,7 @@ function AnimatedRoutes() {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="sync">
       <Toaster />
       <Routes location={location} key={location.pathname}>
         {/* PUBLIC */}

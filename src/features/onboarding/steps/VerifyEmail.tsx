@@ -1,24 +1,22 @@
 import icon from "@/assets/images/email-file.gif";
 import { Button } from "@/components/ui/button";
-import { VerifyEmailProps } from "../types";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/features/auth/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { getUserDetails } from "@/domains/user/api";
-import { UserData, UserOnboardingStatus } from "@/domains/user/types";
+import { UserOnboardingStatus } from "@/domains/user/types";
 import { routes } from "@/shared/routes/routes";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { toast } from "sonner";
 import { updateOnboardingStatus } from "../onboardingService";
 export const VerifyEmail = () => {
-  console.log("VerifyEmail rendered");
   // Hooks, Context
   const { user, isLoggedIn, logout } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
   // State
-  const [emailVerificationTokenHash, setEmailVerificationTokenHash] =
+  const [_emailVerificationTokenHash, setEmailVerificationTokenHash] =
     useState<string>("");
   const [emailVerifiedStatus, setEmailVerifiedStatus] =
     useState<boolean>(false);

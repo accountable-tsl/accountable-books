@@ -50,7 +50,6 @@ export function OnboardingForm({
   const { company, companyType } = useCompany();
   const { user, isLoggedIn } = useAuth();
   const { step: paramStep } = useParams();
-  console.log(isLoggedIn);
 
   // State
   const [_userData, setUserData] = useState<UserData>();
@@ -137,16 +136,6 @@ export function OnboardingForm({
 
   if (shouldBlockRender) return <CenteredLoader />;
 
-  console.log("Rendering step:", step, stepComponents[step]);
-  console.log({
-    company,
-    companyType,
-    user,
-    isLoggedIn,
-    step,
-    validParamStep,
-    currentStep,
-  });
   return (
     <>
       {/* No fancy UI if user is not logged in */}
@@ -164,17 +153,15 @@ export function OnboardingForm({
                 platform
               </DialogDescription>
             </DialogHeader>
-            <DialogContent className="[&>button]:hidden h-fit min-h-[70vh] min-w-[85vw] max-w-[90vw] overflow-y-auto p-0">
-              <div className="flex">
-                <div className="w-[20rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
-                  {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
-                  <OnboardingFormFooter />
-                </div>
+            <DialogContent className="flex [&>button]:hidden h-fit min-h-[70vh] max-h-[80vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0">
+              <div className="w-[20rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
+                {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
+                <OnboardingFormFooter />
+              </div>
 
-                <div className="flex flex-col flex-1">
-                  <OnboardingHeader />
-                  {stepComponents[step]}
-                </div>
+              <div className="flex flex-col flex-1">
+                <OnboardingHeader className="md:mb-4" />
+                {stepComponents[step]}
               </div>
             </DialogContent>
           </Dialog>

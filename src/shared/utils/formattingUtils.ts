@@ -20,3 +20,7 @@ export const formatPhoneNumber = (input: string, country: CountryList) => {
   // Return with + prefix if it was originally included
   return cleaned.startsWith("+") ? `+${formatted}` : formatted;
 };
+
+export const extractPath = (url: string): string => {
+  return url.replace(/^.*?\.[\w.]+\//, "");
+};
