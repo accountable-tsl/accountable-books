@@ -1,8 +1,9 @@
 import { TooltipHelper } from "@/components/TooltipHelper";
 import { Card } from "@/components/ui/card";
 import { CompanyType } from "@/types/types";
-import { COMPANY_TYPES, TOOLTIP } from "../signupConstants";
+import { TOOLTIP } from "../signupConstants";
 import { cn } from "@/lib/utils";
+import { COMPANY_TYPES } from "@/domains/company/constants";
 
 export function SignupSelector({
   selectCompanyType,

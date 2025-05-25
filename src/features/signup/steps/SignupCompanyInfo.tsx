@@ -15,12 +15,13 @@ import { useCurrencies } from "@/hooks/useCurrencies";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField } from "@/components/FormField";
-import { COMPANY_SIZE, COMPANY_TYPES, TOOLTIP } from "../signupConstants";
+import { TOOLTIP } from "../signupConstants";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TooltipHelper } from "@/components/TooltipHelper";
 import DOMPurify from "dompurify";
+import { COMPANY_SIZE, COMPANY_TYPES } from "@/domains/company/constants";
 
 export interface SignupCompanyInfoHandle {
   validate: () => Promise<boolean>;
@@ -103,7 +104,6 @@ export const SignupCompanyInfo = forwardRef<
       });
     }
   }, [companyData.reportingCurrencyId]);
-
 
   return (
     <div>

@@ -8,7 +8,10 @@ import { UserOnboardingStatus } from "@/domains/user/types";
 import { routes } from "@/shared/routes/routes";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { toast } from "sonner";
-import { updateOnboardingStatus } from "../onboardingService";
+import {
+  resendVerificationEmail,
+  updateOnboardingStatus,
+} from "../onboardingService";
 export const VerifyEmail = () => {
   // Hooks, Context
   const { user, isLoggedIn, logout } = useAuth();
@@ -43,7 +46,22 @@ export const VerifyEmail = () => {
   const showFailed = useMemo(() => urlStatus === "failed", [urlStatus]);
   const loadingStatus = isLoggedIn && onboardingStatus === undefined;
 
-  const handleResendEmail = async () => {};
+  const handleResendEmail = async () => {
+    try {
+      const res = await resendVerificationEmail({
+        email: userEmail,
+        userId: user.id,
+      });
+
+      if (!res.success) {
+        toast.error(res.message);
+      }
+
+      toast.success(res.message);
+    } catch (error) {
+      toast.error("An unexpected error occurred");
+    }
+  };
   const handleContinue = () => {
     try {
       // Update user onboarding status
@@ -107,7 +125,7 @@ export const VerifyEmail = () => {
   //   loadingStatus,
   // });
   return (
-    <div className="flex flex-col items-center p-8 md:p-16 gap-4 w-full flex-1 justify-between md:justify-center max-h-[45rem]">
+    <div className="flex flex-col items-center p-8 md:p-16 gap-4 w-full flex-1  justify-center max-h-[45rem]">
       {emailVerifiedStatus && !emailMismatch ? (
         <>
           <h2 className="text-xl font-bold mb-2">✅ Email Verified</h2>

@@ -61,9 +61,10 @@ export function OnboardingForm({
   const isCreator = user?.id === company?.createdById; // user is the creator of the company
 
   const currentStep =
-    companyType && company
+    overrideStep ||
+    (companyType && company
       ? getCurrentStep(onboardingStatus, companyType, isCreator)
-      : undefined;
+      : undefined);
 
   const parsedStep = onboardingSteps.safeParse(paramStep); // Param Step from URL, check if it's a valid step
   const validParamStep = parsedStep.success ? parsedStep.data : undefined;
@@ -153,7 +154,7 @@ export function OnboardingForm({
                 platform
               </DialogDescription>
             </DialogHeader>
-            <DialogContent className="flex [&>button]:hidden h-fit min-h-[70vh] max-h-[80vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0">
+            <DialogContent className="flex [&>button]:hidden h-fit min-h-[70vh] max-h-[80vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0 gap-0">
               <div className="w-[20rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
                 {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
                 <OnboardingFormFooter />

@@ -39,3 +39,15 @@ export type Contact = {
   countryCode: string;
   completeNumber: string;
 };
+
+export type ResendVerEmailService =
+  | {
+      userId: string;
+    }
+  | {
+      email: string;
+    }
+  | {
+      userId: string;
+      email: string;
+    };

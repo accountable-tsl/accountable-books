@@ -11,6 +11,7 @@ import { Loader2, Upload, X } from "lucide-react";
 import { extractPath } from "@/shared/utils/formattingUtils";
 import { ImageUploaderProps, ImageUploaderRef } from "./types";
 import { matchesType } from "./utils";
+import { cn } from "@/lib/utils";
 
 export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
   (
@@ -226,7 +227,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
     );
 
     return (
-      <div className={`flex flex-col items-center gap-2 p-4 ${className}`}>
+      <div className={cn(`flex flex-col items-center gap-2 p-4, ${className}`)}>
         {labelPosition === "top" && renderLabel()}
 
         <div
