@@ -170,6 +170,7 @@ export const CompanyInfo = () => {
 
   const scrollToSubmit = () => {
     const footer = document.querySelector("[data-footer]");
+    console.log("Scrolling to submit", footer);
     footer?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
@@ -411,7 +412,10 @@ export const CompanyInfo = () => {
           </FormField>
         </div>
         {/* Form navigation */}
-        <div className="pb-4 flex justify-center md:justify-between">
+        <div
+          className="pb-4 flex justify-center md:justify-between"
+          data-footer
+        >
           {!isMobile && (
             <Button type="submit" variant="outline" disabled>
               Previous
@@ -422,12 +426,9 @@ export const CompanyInfo = () => {
       </form>
 
       {showQuickSubmit && (
-        <div
-          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 md:translate-x-0  z-50 w-xs md:max-w-xs overflow-hidden rounded-md"
-          data-footer
-        >
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 md:translate-x-0 z-50 w-xs md:max-w-xs overflow-hidden rounded-md">
           <div className="animate-in slide-in-from-bottom-8 fade-in-0 duration-500 ease-out">
-            <div className="relative bg-linear-to-r from-cyan-700 via-blue-500 to-indigo-600">
+            <div className="relative bg-linear-to-r from-cyan-700 via-blue-500 to-indigo-600 z-50">
               {/* Animated background sparkles #00d3f2, #2b7fff #4f39f6*/}
               <div className="absolute inset-0 overflow-hidden rounded-2xl">
                 <div className="absolute -top-1 -left-1 w-3 h-3 bg-white/30 rounded-full animate-pulse"></div>
@@ -436,7 +437,7 @@ export const CompanyInfo = () => {
               </div>
 
               {/* Content */}
-              <div className="px-4 py-3 bg-black/10 text-white flex flex-col gap-2">
+              <div className="px-4 py-3 bg-black/10 text-white flex flex-col gap-2 relative z-50">
                 <p className="text-center">
                   You've completed the essential fields. Continue or scroll to
                   submit
@@ -448,10 +449,10 @@ export const CompanyInfo = () => {
                     className="bg-transparent cursor-pointer"
                     onClick={scrollToSubmit}
                   >
-                    Scroll to submit
+                    Scroll to Submit
                   </Button>
                   <Button size="sm" onClick={dismissQuickSubmit}>
-                    Continue
+                    Continue Form
                   </Button>
                 </div>
               </div>
