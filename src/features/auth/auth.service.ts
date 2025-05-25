@@ -1,17 +1,29 @@
 import jwt from "jsonwebtoken";
 import { buildAuthContext, generateAuthTokens, JWT_CONFIG } from "./auth.utils";
-import { DecodedToken } from "./auth.types";
+import {
+  DecodedToken,
+  ResendEmailParams,
+  VerifyEmailParams,
+} from "./auth.types";
 import knex from "../../../knexClient";
 import {
   ErrorCode,
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
-import { comparePassword } from "../../shared/utils/crypto.utils";
+import {
+  comparePassword,
+  compareToken,
+  generateRandomToken,
+  hashToken,
+} from "../../shared/utils/crypto.utils";
 import { ApiResponse } from "../../core/types/api.types";
 import { redis } from "../../lib/redis";
 import { getSingleCompany } from "../../domains/companies/companies.model";
 import { getCompanyShortCode } from "../../shared/utils/random.utils";
+import dayjs from "dayjs";
+import { buildEmailServiceUrl } from "../communications/email/email.utils";
+import { sendVerificationEmail } from "../communications/email/email.service";
 
 export async function loginService(
   email: string,
@@ -136,5 +148,133 @@ export async function refreshTokenService(
     await redis.del(lockKey).catch((err) => {
       console.error("Failed to delete Redis lock:", err);
     });
+  }
+}
+
+export async function verifyEmailService(
+  params: VerifyEmailParams
+): Promise<ApiResponse> {
+  if (!params.token) return errorResponse("Missing token");
+  const { token } = params;
+
+  try {
+    const user = await knex("users")
+      .select("id", "email_verification_token_hash")
+      .where((qb) => {
+        if ("userId" in params) {
+          qb.where("id", params.userId);
+        } else {
+          qb.where("email", params.email);
+        }
+      })
+      .whereNotNull("email_verification_token_hash")
+      .andWhere("email_verified_at", null)
+      .andWhere("email_verification_expiry", ">", new Date())
+      .first();
+
+    console.log("user", user);
+
+    if (!user || !user.email_verification_token_hash) {
+      return errorResponse("Invalid or expired token");
+    }
+
+    console.log("URL token:", token);
+    console.log("DB token hash:", user?.email_verification_token_hash);
+
+    const verifyToken = await compareToken(
+      token,
+      user?.email_verification_token_hash
+    );
+
+    console.log(verifyToken);
+
+    if (!user || !verifyToken) return errorResponse("Invalid or expired token");
+
+    const updatedUser = await knex("users")
+      .returning(["id", "email", "email_verified", "onboarding_status"])
+      .where({ id: user.id })
+      .update({
+        email_verified: true,
+        email_verified_at: new Date(),
+        email_verification_token_hash: null,
+        email_verification_expiry: null,
+        onboarding_status: "email_verified",
+      });
+
+    return successResponse("Email verified successfully", updatedUser);
+  } catch (error) {
+    return errorResponse("Failed to verify email");
+  }
+}
+
+export async function resendVerificationEmailService(
+  params: ResendEmailParams
+): Promise<ApiResponse> {
+  if (!params.email && !params.userId) {
+    return errorResponse("Missing email or userId");
+  }
+
+  try {
+    // Get user details
+    const user = await knex("users")
+      .select(
+        "id",
+        "email",
+        "email_verified",
+        "email_verification_expiry",
+        "email_verification_token_hash",
+        "email_verified_at",
+        "firstname"
+      )
+      .where((qb) => {
+        if (params.userId) {
+          qb.where("id", params.userId);
+        } else {
+          qb.where("email", params.email);
+        }
+      })
+      .first();
+
+    if (!user) {
+      return errorResponse("User not found");
+    }
+
+    if (user.email_verified && user.email_verified_at) {
+      return errorResponse("Email already verified");
+    }
+
+    const token = generateRandomToken();
+    const hashedToken = await hashToken(token);
+
+    await knex("users")
+      .where({ id: user.id })
+      .update({
+        email_verification_token_hash: hashedToken,
+        email_verification_expiry: dayjs().add(24, "hours").toDate(), // 24 hours
+      });
+
+    const url = buildEmailServiceUrl("verify-email", {
+      token,
+      slug: params.slug || "app",
+      email: user.email,
+    });
+    const sendEmail = await sendVerificationEmail({
+      to: user.email,
+      name: user.firstname,
+      url,
+    });
+
+    if (!sendEmail) {
+      errorResponse(
+        "Unable to send verification email",
+        sendEmail,
+        ErrorCode.GENERIC,
+        true
+      );
+    }
+
+    return successResponse("Verification email sent", user.email);
+  } catch (error) {
+    return errorResponse("Failed to resend verification email");
   }
 }

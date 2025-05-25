@@ -4,9 +4,9 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
-import { createUserDirect } from "../src/domains/user/user.model";
+import { createUserDirect } from "../src/domains/users/users.model";
 import { ENV, NODE_ENV } from "../src/config/env";
-import { NewUserDirect } from "../src/domains/user/user.types";
+import { NewUserDirect } from "../src/domains/users/users.types";
 
 const tableName = "users";
 
@@ -20,6 +20,7 @@ const getAdminUserConfig = (): NewUserDirect => {
       password: ENV.ADMIN_PASSWORD!,
       status: "active",
       email_verified: true,
+      onboarding_status: "onboarding_complete",
     };
   }
 
@@ -32,6 +33,7 @@ const getAdminUserConfig = (): NewUserDirect => {
     password: ENV.TEST_ADMIN_PASSWORD!,
     status: "active",
     email_verified: true,
+    onboarding_status: "onboarding_complete",
   };
 };
 export const adminUser = getAdminUserConfig();
@@ -73,6 +75,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string("password", 256).nullable();
     table.string("phone_number", 20).nullable();
     table.string("avatar_url").nullable();
+    table.string("avatar_key").nullable();
     table.specificType("status", "user_status").notNullable();
 
     table.specificType("invite_status", "user_invite_status").nullable();
@@ -91,12 +94,13 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete("SET NULL");
     table.timestamp("invited_at", { useTz: true }).nullable();
     table.timestamp("invite_expiry", { useTz: true }).nullable();
-
     table
-      .uuid("last_active_company_id")
-      .nullable()
-      // .references("id")
-      // .inTable("companies");
+      .specificType("onboarding_status", "user_onboarding_status")
+      .defaultTo("not_started")
+      .notNullable();
+    table.uuid("last_active_company_id").nullable();
+    // .references("id")
+    // .inTable("companies"); // Added foreign key after migrating companies talbe
     table.timestamp("last_login_at", { useTz: true }).nullable();
     table.integer("failed_login_attempts").defaultTo(0).notNullable();
     table.timestamp("last_failed_login_at", { useTz: true }).nullable();
@@ -106,6 +110,8 @@ export async function up(knex: Knex): Promise<void> {
 
     table.boolean("mfa_enabled").defaultTo(false);
     table.string("mfa_secret").nullable();
+
+    table.boolean("is_demo_user").defaultTo(false);
 
     addStandardColumns(table);
 

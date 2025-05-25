@@ -21,7 +21,10 @@ export const newAccFirmInput = z.object({
   firm_size: z.string().max(50).nullish(),
   website: z.string().max(256).nullish(),
   revenue: z.string().max(50).nullish(),
-  logo_url: z.string().max(256).nullish(),
+  logo_url: z.string().nullish(),
+  logo_key: z.string().nullish(),
+
+  is_demo_firm: z.boolean().default(false).optional(),
 });
 export const newAccFirm = newAccFirmInput.extend({
   company_id: z.string().uuid(),

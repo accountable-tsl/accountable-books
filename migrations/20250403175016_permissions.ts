@@ -37,7 +37,7 @@ const seedPermissions = async function seed(knex: Knex): Promise<void> {
         .ignore();
     });
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${seedData.length} permissions from ${filePath}`);
     }
   } catch (error) {

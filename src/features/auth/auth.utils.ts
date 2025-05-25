@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import csurf from "csurf";
-import { ENV, isProduction } from "../../config/env";
-import { errorResponse, throwError } from "../../shared/utils/response.utils";
+import { ENV, isProd } from "../../config/env";
+import { AppError, errorResponse } from "../../shared/utils/response.utils";
 import {
   AuthCompanyContext,
   AuthUserContext,
@@ -15,7 +15,7 @@ import { getSingleCompany } from "../../domains/companies/companies.model";
 import { getCompanyRolesForUser } from "../../domains/userCompanyRole/userCompanyRole.model";
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
-  throwError("JWT secrets must be defined in .env");
+  throw new AppError("JWT secrets must be defined in .env");
 }
 
 export const JWT_CONFIG = {
@@ -67,7 +67,7 @@ export const setAuthCookies = (
   res.cookie("accessToken", accessToken, {
     domain: cookieDomain,
     httpOnly: true,
-    secure: isProduction,
+    secure: isProd,
     sameSite: "strict",
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: "/",
@@ -76,7 +76,7 @@ export const setAuthCookies = (
   res.cookie("refreshToken", refreshToken, {
     domain: cookieDomain,
     httpOnly: true,
-    secure: isProduction,
+    secure: isProd,
     sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: "/",
@@ -85,7 +85,7 @@ export const setAuthCookies = (
   res.cookie("csrfToken", csrfToken, {
     domain: cookieDomain,
     httpOnly: false,
-    secure: isProduction,
+    secure: isProd,
     sameSite: "strict",
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: "/",
@@ -98,7 +98,7 @@ export const csrfProtection = csurf({
   cookie: {
     key: "csrfToken",
     httpOnly: true,
-    secure: isProduction,
+    secure: isProd,
     sameSite: "strict",
     domain: cookieDomain,
     path: "/",
@@ -107,7 +107,6 @@ export const csrfProtection = csurf({
 
 export async function buildAuthContext(decoded: DecodedToken) {
   const { sub, email, firstname, lastname, status, currentCompanyId } = decoded;
-
   if (!sub || !currentCompanyId) {
     return { success: false, error: errorResponse("Invalid token payload") };
   }
@@ -121,8 +120,15 @@ export async function buildAuthContext(decoded: DecodedToken) {
     return { success: false, error: errorResponse(roles.message) };
   }
 
-  if (!companyResult.success) {
-    return { success: false, error: errorResponse("Company not found") };
+  if (
+    !companyResult.success ||
+    !companyResult.data ||
+    !companyResult.data.assignedFirmSlug
+  ) {
+    return {
+      success: false,
+      error: errorResponse(companyResult.message || "Company not found"),
+    };
   }
 
   const user: AuthUserContext = {
@@ -140,7 +146,7 @@ export async function buildAuthContext(decoded: DecodedToken) {
     id: companyResult.data.id,
     type: companyResult.data.companyType,
     assignedFirmSlug: companyResult.data.assignedFirmSlug,
-    name: companyResult.data.name,
+    name: companyResult.data.legalName,
   };
 
   return { success: true, user, company };

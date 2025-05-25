@@ -1,6 +1,6 @@
 import knexClient from "../../../knexClient";
 import { getIdentifierType } from "../../shared/utils/formatting.utils";
-import { ensure } from "../../shared/utils/response.utils";
+import { AppError, ensure } from "../../shared/utils/response.utils";
 
 type CompanyIdentifierResult = {
   id: string;
@@ -11,7 +11,8 @@ export const getCompanyIdentifiers = async (
   identifier: string
 ): Promise<CompanyIdentifierResult> => {
   const trimmedId = identifier.trim();
-  ensure(trimmedId, "Missing or empty company identifier");
+  if (!trimmedId || trimmedId.length > 50)
+    throw new AppError("Invalid company identifier");
 
   const idType = getIdentifierType(trimmedId);
 
@@ -21,7 +22,7 @@ export const getCompanyIdentifiers = async (
     .timeout(1000)
     .first();
 
-  ensure(company, "Invalid company identifier");
+  if (!company) throw new AppError("Company not found");
 
   return { id: company.id, short_code: company.short_code };
 };

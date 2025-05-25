@@ -34,7 +34,7 @@ const seedRoles = async function seed(knex: Knex): Promise<void> {
       await trx(tableName).insert(seedData).onConflict("name").ignore();
     });
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${seedData.length} roles from ${filePath}`);
     }
   } catch (error) {

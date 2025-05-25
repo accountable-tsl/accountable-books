@@ -4,7 +4,7 @@ import { z } from "zod";
 export const nodeEnv = z.enum([
   "test",
   "local",
-  "docker.dev",
+  "docker",
   "staging",
   "production",
 ]);

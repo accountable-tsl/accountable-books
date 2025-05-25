@@ -63,7 +63,7 @@ export async function seedCurrencies(knex: Knex): Promise<void> {
         await trx(tableName).insert(seedData).onConflict("code").ignore();
       });
     }
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${seedData.length} currencies`);
     }
   } catch (error) {

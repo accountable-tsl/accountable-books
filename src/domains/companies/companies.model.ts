@@ -12,10 +12,10 @@ import {
   snakeToCamel,
 } from "../../shared/utils/formatting.utils";
 import {
-  ensure,
+  AppError,
+  ErrorCode,
   errorResponse,
   successResponse,
-  throwError,
 } from "../../shared/utils/response.utils";
 import generateSecureShortCode from "../../shared/utils/crypto.utils";
 import knexClient from "../../../knexClient";
@@ -44,7 +44,11 @@ export const createCompany = async (
       .first();
 
     if (!userExists) {
-      return throwError("Unauthorized");
+      throw new AppError(
+        "Unauthorized",
+        `Non existent user trying to create company ${input.legal_name} with userId: ${input.created_by_id}`,
+        true
+      );
     }
 
     let firmId = assigned_firm_id || null;
@@ -54,7 +58,7 @@ export const createCompany = async (
         .select("id");
 
       if (!firm.id) {
-        return throwError("Company must be assigned to a firm");
+        throw new AppError("Company must be assigned to a firm");
       }
 
       firmId = firm.id;
@@ -72,7 +76,7 @@ export const createCompany = async (
     } while (exists && attempts < maxAttempts);
 
     if (!short_code) {
-      return throwError("Unable to generate short code");
+      throw new AppError("Unable to generate short code", input, true);
     }
 
     const [company] = await knexTrx("companies")
@@ -85,11 +89,17 @@ export const createCompany = async (
         year_end_month: validateInput.data.year_end_month || 12,
         reporting_framework: validateInput.data.reporting_framework || "ifrs",
         created_by_id: userExists.id,
+        accounting_basis:
+          validateInput.data.accounting_basis ??
+          (validateInput.data.type === "individual"
+            ? "modified_cash_basis"
+            : "modified_accrual_basis"),
+        is_demo_company: validateInput.data.is_demo_company || false,
       })
       .returning("*");
 
     if (!company) {
-      return throwError("Unable to create company");
+      throw new AppError("Unable to create company");
     }
 
     const firmAssignment = await knexTrx("firms_companies").insert({
@@ -100,7 +110,7 @@ export const createCompany = async (
     const companyData = newCompany.safeParse(company);
 
     if (!firmAssignment) {
-      return throwError("Unable to assign company to firm");
+      throw new AppError("Unable to assign company to firm");
     }
 
     return successResponse("Company created successfully", companyData.data);
@@ -181,6 +191,7 @@ const companyFields = [
   "companies.address as address",
   "companies.type as companyType",
   "companies.logo_url as companyLogo",
+  "companies.logo_key as companyLogoKey",
   "companies.description as description",
   "companies.website as website",
   "companies.industry as industry",
@@ -196,6 +207,12 @@ const companyFields = [
   "countries.phone_code as countryPhoneCode",
   "countries.flag as countryFlag",
   "countries.continent as countryContinent",
+
+  "companies.reporting_framework as reportingFramework",
+  "companies.accounting_basis as accountingBasis",
+  "companies.is_onboarding_complete as isOnboardingComplete",
+  "companies.is_demo_company as isDemoCompany",
+
   "companies.reporting_currency_id as reportingCurrencyId",
   "currencies.code as reportingCurrencyCode",
   "currencies.name as reportingCurrencyName",
@@ -208,6 +225,7 @@ const companyFields = [
   "accounting_firms.slug as assignedFirmSlug",
   "accounting_firms.is_platform as assignedFirmIsPlatform",
   "accounting_firms.logo_url as assignedFirmLogo",
+  "accounting_firms.logo_key as assignedFirmLogoKey",
 ];
 export const getCompanies = async (
   userId?: string,
@@ -239,10 +257,16 @@ export const getCompanies = async (
 
 export const getSingleCompany = async (
   identifier: string
-): Promise<ApiResponse> => {
+): Promise<ApiResponse<getCompanyResponse>> => {
   try {
     const companyId = await getCompanyUUID(identifier);
-    if (!companyId) return errorResponse("Forbidden");
+    if (!companyId) {
+      return errorResponse(
+        `Invalid company identifier: ${identifier}`,
+        undefined,
+        ErrorCode.INVALID_CREDENTIALS
+      );
+    }
 
     const company = await knexClient("companies")
       .select(companyFields)
@@ -252,7 +276,7 @@ export const getSingleCompany = async (
         "companies.reporting_currency_id",
         "currencies.id"
       )
-      .leftJoin(
+      .innerJoin(
         "accounting_firms",
         "companies.assigned_firm_id",
         "accounting_firms.id"
@@ -261,7 +285,7 @@ export const getSingleCompany = async (
       .first();
 
     if (!company)
-      return errorResponse(`Company with ID ${identifier} not found`);
+      return errorResponse(`Error retrieving company with ID ${identifier}`);
 
     return successResponse<getCompanyResponse>(
       `Successfully retrieved details for company`,

@@ -3,13 +3,13 @@ import { ENV } from "../../config/env";
 import {
   InviteEmailPayload,
   TokenBasedEmailPayload,
-} from "../../domains/communications/email.types";
+} from "../../features/communications/email/email.types";
 import { redis } from "../../lib/redis";
-import { sendEmail } from "../../domains/communications/email.service";
 import {
   getUserInviteTemplate,
   getVerifyEmailTemplate,
-} from "../../domains/communications/emailTemplates/emailTemplates";
+} from "../../features/communications/email/emailTemplates";
+import { sendEmail } from "../../features/communications/email/email.service";
 
 const baseUrl = ENV.BACKEND_URL;
 
@@ -24,7 +24,7 @@ export const emailWorker = new Worker(
           throw new Error("Missing url @ send_verification_email");
 
         const url =
-          payload.url ?? `${baseUrl}/verify-email?token=${payload.token}`;
+          payload.url ?? `${baseUrl}/auth/verify-email?token=${payload.token}`;
 
         const { subject, html, text } = getVerifyEmailTemplate(
           payload.name,

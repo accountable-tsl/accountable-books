@@ -43,7 +43,7 @@ const seedFs = async function seed(knex: Knex): Promise<void> {
       .onConflict("key")
       .ignore();
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(
         `Seeded ${defaultFinancialStatements.length} financial statements`
       );

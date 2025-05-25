@@ -1,5 +1,10 @@
 import { Request, Response } from "express";
-import { loginService, refreshTokenService } from "./auth.service";
+import {
+  loginService,
+  refreshTokenService,
+  resendVerificationEmailService,
+  verifyEmailService,
+} from "./auth.service";
 import {
   ErrorCode,
   errorResponse,
@@ -8,8 +13,9 @@ import {
 import { AuthRequest } from "./auth.types";
 import { setAuthCookies } from "./auth.utils";
 import { redis } from "../../lib/redis";
-import { user } from "../../domains/user/user.types";
-import { ENV, isProduction } from "../../config/env";
+import { user } from "../../domains/users/users.types";
+import { ENV, isProd } from "../../config/env";
+import { getAppUrl } from "../../shared/utils/string.utils";
 
 export async function loginController(req: Request, res: Response) {
   const baseDomain = ENV.BASE_DOMAIN || "lvh.me";
@@ -38,7 +44,7 @@ export async function loginController(req: Request, res: Response) {
       successResponse("User logged in successfully", {
         ...rest,
         csrfToken,
-        redirectTo: `https://${data.slug}.${baseDomain}/${data.currentCompanyId}/dashboard`,
+        redirectTo: `https://${data.user.assignedFirmSlug}.${baseDomain}/${data.user.currentCompanyId}/dashboard`,
       })
     );
   } catch (error) {
@@ -100,21 +106,21 @@ export async function logoutController(req: AuthRequest, res: Response) {
     domain: cookieDomain,
     path: "/",
     httpOnly: true,
-    secure: isProduction,
+    secure: isProd,
     sameSite: "strict",
   });
   res.clearCookie("refreshToken", {
     domain: cookieDomain,
     path: "/",
     httpOnly: true,
-    secure: isProduction,
+    secure: isProd,
     sameSite: "strict",
   });
   res.clearCookie("csrfToken", {
     domain: cookieDomain,
     path: "/",
     httpOnly: false,
-    secure: isProduction,
+    secure: isProd,
     sameSite: "strict",
   });
 
@@ -125,6 +131,7 @@ export async function meController(req: AuthRequest, res: Response) {
   if (!req.user) {
     return res.status(401).json(errorResponse("Not authenticated"));
   }
+
   return res.status(200).json(
     successResponse("User retrieved successfully", {
       id: req.user.id,
@@ -134,4 +141,64 @@ export async function meController(req: AuthRequest, res: Response) {
       currentCompanyId: req.user.currentCompanyId,
     })
   );
+}
+
+export async function verifyEmailController(req: Request, res: Response) {
+  const { token, email, slug } = req.query;
+
+  const appUrl = getAppUrl(String(slug));
+
+  if (!token || !email) {
+    return res.redirect(`${appUrl}/email-verified?status=failed`);
+  }
+
+  try {
+    const result = await verifyEmailService({
+      token: String(token),
+      email: String(email),
+    });
+
+    return res.redirect(
+      `${appUrl}/email-verified?status=${result?.success ? "success" : "failed"}&email=${encodeURIComponent(String(email))}`
+    );
+  } catch (error) {
+    return res.redirect(
+      `${appUrl}/email-verified?status=failed&email=${encodeURIComponent(String(email))}`
+    );
+  }
+}
+
+export async function resendVerEmailController(
+  req: AuthRequest,
+  res: Response
+) {
+  const email = req.body.email || req.query.email || req.user?.email;
+  const userId = req.body.userId || req.user?.id;
+  const slug = req.user?.assignedFirmSlug || req.company?.assignedFirmSlug;
+
+  if (!email || !userId) {
+    return res.status(400).json(errorResponse("User email or id is required"));
+  }
+
+  if (email && typeof email !== "string") {
+    return res.status(400).json(errorResponse("Invalid email format"));
+  }
+
+  try {
+    const result = await resendVerificationEmailService({
+      email: email.trim(),
+      slug: slug?.trim(),
+      userId: userId?.toString(),
+    });
+
+    console.log("result", result);
+    if (!result.success) {
+      const status = result.message === "User not found" ? 404 : 400;
+      return res.status(status).json(result);
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(500).json(errorResponse("Something went wrong"));
+  }
 }

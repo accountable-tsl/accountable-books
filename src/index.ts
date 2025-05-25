@@ -6,9 +6,12 @@ import cors from "cors";
 import currencyRoutes from "./domains/currency/currency.routes";
 import countryRoutes from "./domains/country/country.routes";
 import emailRoutes from "./domains/email/email.routes";
+import onboardingRoutes from "./features/onboarding/onboarding.routes";
 import signupRoutes from "./features/signup/signup.routes";
+import usersRoutes from "./domains/users/users.routes";
 import authRoutes from "./features/auth/auth.routes";
 import companiesRoutes from "./domains/companies/companies.routes";
+import objectRoutes from "./domains/objects/objects.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";
@@ -28,6 +31,22 @@ export const FRONTEND_URL = ENV.FRONTEND_URL!;
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
+
+const originalError = console.error;
+console.error = (...args: unknown[]) => {
+  originalError(...args);
+
+  for (const arg of args) {
+    if (arg instanceof Error && arg.stack) {
+      originalError("Stack Trace:", arg.stack);
+      return;
+    }
+  }
+
+  // fallback if no Error instance is found
+  const fallbackStack = new Error().stack;
+  if (fallbackStack) originalError("Generated Stack Trace:", fallbackStack);
+};
 
 const allowedOrigins = [
   FRONTEND_URL,
@@ -54,13 +73,16 @@ async function startServer() {
     // Mount routes AFTER successful load
     app.use("/api", signupRoutes);
     app.use("/auth", authRoutes);
-
-    app.use(verifyRefreshToken);
-
+    app.use("/api/onboarding", onboardingRoutes);
     app.use("/api/currencies", currencyRoutes);
     app.use("/api/countries", countryRoutes);
     app.use("/api/email", emailRoutes);
+
+    app.use(verifyRefreshToken);
+
+    app.use("/api", objectRoutes);
     app.use("/api/companies", companiesRoutes);
+    app.use("/api/users", usersRoutes);
 
     app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
     app.use("/admin/queues", serverAdapter.getRouter());

@@ -13,10 +13,6 @@ import {
 import { basicLimiter } from "../../core/middlewares/rateLimiter.middleware";
 import { isDev } from "../../config/env";
 
-const limiter: RequestHandler = isDev
-  ? (req, res, next) => next()
-  : basicLimiter;
-
 const router = express.Router({ mergeParams: true });
 
 router.post(
@@ -29,7 +25,6 @@ router.post(
 
 router.get(
   "/",
-  limiter,
   verifyAccessToken,
   // requirePermission("companies:view"),
   getCompaniesController
@@ -37,7 +32,6 @@ router.get(
 
 router.get(
   "/:companyId",
-  limiter,
   verifyAccessToken,
   checkCompanyId,
   getCompanyController

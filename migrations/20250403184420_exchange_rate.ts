@@ -64,7 +64,7 @@ const seedExchangeRates = async function seed(knex: Knex): Promise<void> {
     });
   }
 
-  if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+  if (NODE_ENV === "local" || NODE_ENV === "docker") {
     console.log(
       `Seeded ${exchangeRates.length} exchange rates, skipped ${skipped} from ${filePath}`
     );

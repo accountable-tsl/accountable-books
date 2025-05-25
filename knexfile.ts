@@ -16,14 +16,14 @@ const baseConnection = {
   port: Number(ENV.DB_PORT) || 5432,
 };
 
-console.log("[DEBUG] Loaded DB Config:", {
-  file: envFile,
-  isDocker,
-  host: baseConnection.host,
-  port: baseConnection.port,
-  database: baseConnection.database,
-  user: baseConnection.user,
-});
+// console.log("[DEBUG] Loaded DB Config:", {
+//   file: envFile,
+//   isDocker,
+//   host: baseConnection.host,
+//   port: baseConnection.port,
+//   database: baseConnection.database,
+//   user: baseConnection.user,
+// });
 
 const config: { [key: string]: Knex.Config } = {
   local: {
@@ -38,7 +38,7 @@ const config: { [key: string]: Knex.Config } = {
       directory: "./migrations",
     },
   },
-  "docker.dev": {
+  docker: {
     client: "postgresql",
     connection: baseConnection,
     pool: {

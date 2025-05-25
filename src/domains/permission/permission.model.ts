@@ -1,10 +1,9 @@
 import knex from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import {
-  ensure,
+  AppError,
   errorResponse,
   successResponse,
-  throwError,
 } from "../../shared/utils/response.utils";
 
 export async function getPermissionsForRole(
@@ -16,7 +15,7 @@ export async function getPermissionsForRole(
       .where("roles_permissions.role_id", roleId)
       .select("permissions.key as permission");
 
-    ensure(results.length, "No permissions found for role");
+    if (!results.length) throw new AppError("No permissions found for role");
 
     return successResponse("Permissions retrieved", results);
   } catch (error) {

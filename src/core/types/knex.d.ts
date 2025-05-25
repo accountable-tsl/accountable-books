@@ -26,7 +26,7 @@ import {
   NewUserDirect,
   NewUserInput,
   User,
-} from "../../domains/user/user.types";
+} from "../../domains/users/users.types";
 import { Company, NewCompany } from "../../domains/companies/companies.types";
 import { Coa, NewCoa } from "../../domains/chartOfAccounts/coa.types";
 import {

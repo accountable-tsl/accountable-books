@@ -3,7 +3,6 @@ import knexModule from "knex";
 import type { Knex } from "knex";
 import { NODE_ENV } from "./src/config/env";
 
-console.log(NODE_ENV);
 const knexConfig = config[NODE_ENV];
 
 if (!knexConfig?.client) {

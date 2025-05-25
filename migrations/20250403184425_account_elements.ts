@@ -231,12 +231,9 @@ const defaultAccountElements: AccountElementWithRequiredReportCode[] = [
 
 const seedAccountElements = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
-    await trx(tableName)
-      .insert(defaultAccountElements)
-      .onConflict()
-      .ignore();
+    await trx(tableName).insert(defaultAccountElements).onConflict().ignore();
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${parentAccountElements.length} parent elements`);
       console.log(`Seeded ${childrenAccountElements.length} child elements`);
     }

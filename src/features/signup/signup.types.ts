@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { newUserDirect, UserStatus } from "../../domains/user/user.types";
+import { newUserDirect, UserStatus } from "../../domains/users/users.types";
 import {
   companyType,
   newCompanyInput,

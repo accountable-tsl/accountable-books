@@ -1,8 +1,8 @@
 import type { Knex } from "knex";
 import { ENV, NODE_ENV } from "../../src/config/env";
 import { hashPassword } from "../../src/shared/utils/crypto.utils";
-import { newUserDirect } from "../../src/domains/user/user.types";
-import { createUserDirect } from "../../src/domains/user/user.model";
+import { newUserDirect } from "../../src/domains/users/users.types";
+import { createUserDirect } from "../../src/domains/users/users.model";
 
 export async function up(knex: Knex.Transaction): Promise<void> {
   const isProd = NODE_ENV === "production";

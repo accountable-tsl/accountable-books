@@ -54,3 +54,13 @@ export interface AuthRequest extends Request {
   user?: AuthUserContext;
   company?: AuthCompanyContext;
 }
+
+export type VerifyEmailParams =
+  | { token: string; email: string }
+  | { token: string; userId: string };
+
+export interface ResendEmailParams {
+  email: string;
+  slug?: string;
+  userId?: string;
+}

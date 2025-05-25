@@ -565,7 +565,7 @@ const seedAccountTypes = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
     await trx(tableName).insert(defaultAccountTypes).onConflict().ignore();
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${defaultAccountTypes.length} account types`);
     }
   });

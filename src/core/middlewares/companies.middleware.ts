@@ -18,7 +18,6 @@ export const checkCompanyId = async (
 
   try {
     const company = await getSingleCompany(companyId);
-
     if (!company) {
       return res.status(404).json(errorResponse("Company not found"));
     }

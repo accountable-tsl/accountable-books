@@ -2,13 +2,13 @@ import type { Knex } from "knex";
 import { newCoa, NewCoa } from "./coa.types";
 import { ApiResponse } from "../../core/types/api.types";
 import {
+  AppError,
   errorResponse,
   successResponse,
-  throwError,
 } from "../../shared/utils/response.utils";
 import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from "./coa.constants";
 import { accountTypeIds } from "../../shared/constants/account.constants";
-import { isProduction } from "../../config/env";
+import { isProd } from "../../config/env";
 
 export const createCoa = async (
   knex: Knex,
@@ -85,7 +85,7 @@ export const createDefaultAccounts = async (
 
   const validatedAccounts = newCoa.array().safeParse(accountsToCreate);
   if (!validatedAccounts.success) {
-    throwError(
+    throw new AppError(
       "Failed to validate default accounts",
       validatedAccounts.error.flatten()
     );

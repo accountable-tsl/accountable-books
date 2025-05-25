@@ -1,15 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 import { buildAuthContext, csrfProtection, JWT_CONFIG } from "./auth.utils";
 import jwt from "jsonwebtoken";
-import { AuthRequest, AuthUserContext, DecodedToken } from "./auth.types";
-import { getCompanyRolesForUser } from "../../domains/userCompanyRole/userCompanyRole.model";
+import { AuthRequest, DecodedToken } from "./auth.types";
 import { errorResponse } from "../../shared/utils/response.utils";
 import { getPermissionsForRole } from "../../domains/permission/permission.model";
 import { redis } from "../../lib/redis";
 import { generateRandomToken } from "../../shared/utils/crypto.utils";
 import { publicPaths } from "./auth.constants";
-import { getUserDetails } from "../../domains/user/user.model";
-import { getSingleCompany } from "../../domains/companies/companies.model";
 
 export const verifyAccessToken = async (
   req: AuthRequest,
@@ -83,9 +80,11 @@ export const verifyRefreshToken = async (
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
-      return res.status(401).json(errorResponse("Refresh token expired"));
+      return res
+        .status(401)
+        .json(errorResponse("Refresh token expired", error));
     }
-    return res.status(403).json(errorResponse("Invalid refresh token"));
+    return res.status(403).json(errorResponse("Invalid refresh token", error));
   }
 };
 

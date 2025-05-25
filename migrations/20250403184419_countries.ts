@@ -67,7 +67,7 @@ const seedCountries = async function seed(knex: Knex): Promise<void> {
       });
     }
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${seedData.length} countries`);
     }
   } catch (error) {

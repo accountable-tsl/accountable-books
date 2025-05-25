@@ -26,6 +26,8 @@ export const buildPlatformCompany = (adminUserId: string) => ({
   year_end_month: 12,
   reporting_framework: "ifrs",
   is_platform: true,
+  is_onboarding_complete: true,
+  accounting_basis: "modified_accrual_basis",
 });
 
 export const createPlatformCompany = async (knex: Knex) => {
@@ -82,7 +84,8 @@ export async function up(knex: Knex): Promise<void> {
     table.string("short_code", 50).unique().notNullable();
     table.string("address", 512).nullable();
     table.specificType("type", "company_type").notNullable();
-    table.string("logo_url", 256).nullable();
+    table.string("logo_url").nullable();
+    table.string("logo_key").nullable();
     table.string("description", 2000).nullable();
     table.string("website", 256).nullable();
     table.string("industry", 256).nullable();
@@ -90,10 +93,13 @@ export async function up(knex: Knex): Promise<void> {
     table.string("revenue", 256).nullable();
     table.integer("year_end_day").notNullable();
     table.integer("year_end_month").notNullable();
+    table.specificType("accounting_basis", "accounting_basis").notNullable();
     table.specificType("reporting_framework", "reporting_framework").nullable();
-    table.boolean("is_platform").defaultTo(false);
     table.string("registration_number").nullable();
     table.string("tax_id").nullable();
+    table.boolean("is_onboarding_complete").defaultTo(false);
+    table.boolean("is_demo_company").defaultTo(false);
+    table.boolean("is_platform").defaultTo(false);
 
     table
       .uuid("country_id")

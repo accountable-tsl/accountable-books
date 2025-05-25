@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import {
-  ensure,
+  AppError,
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
@@ -17,8 +17,8 @@ export const switchCompanyController = async (
   res: Response
 ) => {
   try {
-    const companyId = req.company.id;
-    ensure(req.user, "Unauthorized");
+    const companyId = req?.company?.id;
+    if (!req.user || !companyId) throw new AppError("Unauthorized");
 
     const switchResult = await switchCompany(req.user.id, companyId);
 

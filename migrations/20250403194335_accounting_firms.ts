@@ -75,10 +75,12 @@ export async function up(knex: Knex): Promise<void> {
     table.string("firm_size", 50).nullable();
     table.string("website", 256).nullable();
     table.string("revenue", 50).nullable();
-    table.string("logo_url", 256).nullable();
-    table.boolean("is_platform").defaultTo(false);
+    table.string("logo_url").nullable();
+    table.string("logo_key").nullable();
     table.string("registration_number").nullable();
     table.string("tax_id").nullable();
+    table.boolean("is_platform").defaultTo(false);
+    table.boolean("is_demo_firm").defaultTo(false);
 
     table
       .uuid("country_id")

@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import { ENV, NODE_ENV } from "./src/config/env";
 
-// const disableSentry = NODE_ENV === "local" || NODE_ENV === "docker.dev";
+// const disableSentry = NODE_ENV === "local" || NODE_ENV === "docker";
 // Sentry.init({
 //   dsn: disableSentry
 //     ? "disabled"
