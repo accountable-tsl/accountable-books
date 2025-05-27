@@ -16,7 +16,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { VariantProps } from "class-variance-authority";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  HTMLAttributes,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Drawer,
@@ -33,7 +39,8 @@ type Item =
       label: string;
     };
 
-interface AutocompleteDropdownProps {
+interface AutocompleteDropdownProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   id?: string;
   items: Item[] | any[];
   value?: string;
@@ -46,6 +53,7 @@ interface AutocompleteDropdownProps {
   drawerTitle?: string;
   drawerDescription?: string;
   width?: string;
+  disabled?: boolean;
 }
 
 // Normalize items to { value, label } format
@@ -102,6 +110,8 @@ export const AutocompleteDropdown = ({
   drawerTitle = " ",
   drawerDescription = " ",
   width = "", // w-200px for small
+  disabled = false,
+  ...rest
 }: AutocompleteDropdownProps) => {
   const [open, setOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState(value);
@@ -145,6 +155,7 @@ export const AutocompleteDropdown = ({
     [items, mapItem]
   );
 
+  console.log({ items, normalizedItems, onChange, value });
   // Shared content for Popover and Drawer
   const dropdownContent = (
     <Command>
@@ -183,7 +194,13 @@ export const AutocompleteDropdown = ({
       variant={variant}
       role="combobox"
       aria-expanded={open}
-      className={cn("w-full justify-between", width, className)}
+      className={cn(
+        "w-full justify-between",
+        width,
+        className,
+        disabled ? "opacity-50 cursor-not-allowed" : ""
+      )}
+      disabled={disabled}
     >
       <span
         className={`truncate text-left ${
@@ -213,7 +230,7 @@ export const AutocompleteDropdown = ({
       </DrawerContent>
     </Drawer>
   ) : (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} {...rest} modal>
       <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
       <PopoverContent
         className={`p-0`}

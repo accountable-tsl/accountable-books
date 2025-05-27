@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getCompanyDetails } from "@/domains/company/api";
+import { ACCOUNTING_BASIS, COMPANY_SIZE } from "@/domains/company/constants";
 import { useCompany } from "@/domains/company/store";
-import { CompanyData } from "@/domains/company/types";
+import { companyData, CompanyData } from "@/domains/company/types";
 import {
   getCompanyTypeDisplay,
   getDefaultCompanyData,
@@ -23,10 +24,15 @@ import { deleteObject, uploadObject } from "@/domains/objects/api";
 import { ImageUploader } from "@/domains/objects/ImageUploader";
 import { TOOLTIP } from "@/features/signup/signupConstants";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCountries } from "@/hooks/useCountries";
+import { useCurrencies } from "@/hooks/useCurrencies";
 import { useIndustries } from "@/hooks/useIndustries";
 import { cn } from "@/lib/utils";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
 
 export const CompanyInfo = () => {
   const { company, companyId, companyType } = useCompany();
@@ -35,13 +41,20 @@ export const CompanyInfo = () => {
     isLoading: isIndustriesLoading,
     isError: isIndustriesError,
   } = useIndustries();
+  const { data: countries, isLoading: isCountryLoading } = useCountries();
+  const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
+
   const isMobile = useIsMobile();
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [c, setCompanyDetails] = useState<CompanyData>(getDefaultCompanyData());
   const [showQuickSubmit, setShowQuickSubmit] = useState(false);
   const [isManuallyDismissed, setIsManuallyDismissed] = useState(false);
+  const [manuallyDismissedCount, setManuallyDismissedCount] = useState(0);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [controlledInputError, setControlledInputError] = useState<
+    Partial<Record<keyof CompanyData, string>>
+  >({ companyType: "" });
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -49,9 +62,24 @@ export const CompanyInfo = () => {
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const isAccountingFirm = companyType === "accounting_firm";
 
+  // Initialize form
+  const {
+    control,
+    handleSubmit,
+    reset,
+    trigger,
+    watch,
+    setValue,
+    register,
+    formState: { errors, isSubmitting },
+  } = useForm<CompanyData>({
+    resolver: zodResolver(companyData),
+    values: c,
+  });
+
   const fetchCompanyDetails = async () => {
     if (!companyId) {
-      setError("Company ID is missing");
+      setPageError("Company ID is missing");
       setIsLoading(false);
       return;
     }
@@ -64,13 +92,13 @@ export const CompanyInfo = () => {
         const res = await getCompanyDetails(companyId);
         if (res.success && res.data) {
           setCompanyDetails(res.data);
-          setError(null);
+          setPageError(null);
         } else {
-          setError(res.message || "Failed to fetch company details");
+          setPageError(res.message || "Failed to fetch company details");
         }
       }
     } catch (err: any) {
-      setError(err.message || "Failed to fetch company details");
+      setPageError(err.message || "Failed to fetch company details");
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +106,7 @@ export const CompanyInfo = () => {
 
   const handleUpload = async (file: File) => {
     if (!companyId) {
-      setError("Cannot upload: Company ID is missing");
+      setPageError("Cannot upload: Company ID is missing");
       return null;
     }
 
@@ -90,10 +118,10 @@ export const CompanyInfo = () => {
         companyLogo: response.data?.url,
         companyLogoKey: response.data?.key,
       }));
-      setError(null);
+      setPageError(null);
       return { url: response.data.url, key: response.data.key };
     }
-    setError(response.message || "Upload failed");
+    setPageError(response.message || "Upload failed");
     return null;
   };
 
@@ -105,15 +133,20 @@ export const CompanyInfo = () => {
         companyLogo: null,
         companyLogoKey: null,
       }));
-      setError(null);
+      setPageError(null);
     } else {
-      setError(response.message || "Remove failed");
+      setPageError(response.message || "Remove failed");
     }
   };
 
   const handleError = (message: string) => {
-    setError(message);
+    setPageError(message);
     toast.error(message);
+  };
+
+  const handleIndustryChange = (value: string) => {
+    setCompanyDetails((prev) => ({ ...prev, industry: value }));
+    setValue("industry", value, { shouldValidate: true, shouldDirty: true });
   };
   const handleInputChange =
     (key: keyof typeof c) => (event: ChangeEvent<HTMLInputElement>) => {
@@ -134,10 +167,10 @@ export const CompanyInfo = () => {
       "reportingCurrencyId",
       // "industry",
     ];
-    // const accountingRequired: (keyof Partial<CompanyData>)[] = isAccountingFirm
-    //   ? ["accountingBasis", "assignedFirmSlug"]
-    //   : [];
-    const accountingRequired: (keyof CompanyData)[] = [];
+    const accountingRequired: (keyof Partial<CompanyData>)[] = isAccountingFirm
+      ? ["accountingBasis", "assignedFirmSlug"]
+      : [];
+    // const accountingRequired: (keyof CompanyData)[] = [];
     return [...baseRequired, ...accountingRequired];
   };
 
@@ -147,6 +180,23 @@ export const CompanyInfo = () => {
     return requiredFields.every(
       (field) => c[field] && c[field].toString().trim() !== ""
     );
+  };
+
+  const scrollToSubmit = () => {
+    const footer = document.querySelector("[data-footer]");
+    console.log("Scrolling to submit", footer);
+    footer?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const dismissQuickSubmit = () => {
+    setIsManuallyDismissed(true);
+    setManuallyDismissedCount((prev) => {
+      const newCount = prev + 1;
+      if (newCount < 2) {
+        setTimeout(() => setIsManuallyDismissed(false), 10000);
+      }
+      return newCount;
+    });
   };
 
   // Handle scroll to track position
@@ -167,17 +217,9 @@ export const CompanyInfo = () => {
     scrollContainer.addEventListener("scroll", handleScroll);
     return () => scrollContainer.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const scrollToSubmit = () => {
-    const footer = document.querySelector("[data-footer]");
-    console.log("Scrolling to submit", footer);
-    footer?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-
-  const dismissQuickSubmit = () => {
-    setIsManuallyDismissed(true);
-    // Reset dismissal after 10 seconds to give another chance
-    setTimeout(() => setIsManuallyDismissed(false), 10000);
+  const handleChange = (field: keyof CompanyData, value: string | number) => {
+    setValue(field, value, { shouldValidate: true, shouldDirty: true });
+    trigger(["yearEndDay", "yearEndMonth"]);
   };
 
   // Update showQuickSubmit based on form completion and scroll position
@@ -192,6 +234,18 @@ export const CompanyInfo = () => {
   useEffect(() => {
     fetchCompanyDetails();
   }, [companyId, company]);
+
+  useEffect(() => {
+    if (
+      c.reportingCurrencyId &&
+      watch("reportingCurrencyId") !== c.reportingCurrencyId
+    ) {
+      setValue("reportingCurrencyId", c.reportingCurrencyId, {
+        shouldValidate: true,
+        shouldDirty: false,
+      });
+    }
+  }, [c.reportingCurrencyId]);
 
   if (isLoading) {
     return <CenteredLoader />;
@@ -224,37 +278,54 @@ export const CompanyInfo = () => {
             Company Information
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField label="Legal Name" required>
-              <Input
-                value={c.legalName}
-                readOnly
-                className="text-muted-foreground"
-              />
+            <FormField
+              label="Legal Name"
+              required
+              onClick={() => {
+                setControlledInputError((prev) => ({
+                  ...prev,
+                  legalName: "Contact support to change legal name",
+                }));
+              }}
+            >
+              <Input value={c.legalName || ""} disabled readOnly />
             </FormField>
             <FormField
               label="Display Name"
               helpTooltip="Name displayed in app"
               required
             >
-              <Input
-                value={c.displayName || ""}
-                onChange={handleInputChange("displayName")}
-              />
+              <Input {...register("displayName", { required: true })} />
             </FormField>
-            <FormField label="Company Type" required>
-              <Input
-                value={getCompanyTypeDisplay(c.companyType)}
-                readOnly
-                className="text-muted-foreground"
+            <FormField
+              label="Company Type"
+              required
+              error={controlledInputError.companyType}
+              onClick={() => {
+                setControlledInputError((prev) => ({
+                  ...prev,
+                  companyType: "Company type cannot be changed",
+                }));
+              }}
+            >
+              <Controller
+                name="companyType"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    value={getCompanyTypeDisplay(field.value)} // Transform for display
+                    readOnly
+                    disabled
+                  />
+                )}
               />
             </FormField>
             <FormField
               id="industry"
               label="Industry"
-              // error={errors.industry?.message}
+              error={errors.industry?.message}
               helpTooltip={TOOLTIP.industry || ""}
               className="w-full"
-              required
             >
               <AutocompleteDropdown
                 id="industry"
@@ -262,20 +333,20 @@ export const CompanyInfo = () => {
                   isIndustriesLoading
                     ? [{ value: "loading", label: "Loading..." }]
                     : isIndustriesError
-                    ? [{ value: "error", label: "Error loading countries" }]
+                    ? [{ value: "error", label: "Error loading industries" }]
                     : industries || []
                 }
                 mapItem={(item) => ({
                   value: item.label,
                   label: item.shortLabel,
                 })}
-                value={c.industry || ""}
-                // value={watch("industry") || ""}
-                // onChange={(value) => handleChange("industry", value)}
+                value={watch("industry") || ""}
+                onChange={(value) => handleChange("industry", value)}
               />
             </FormField>
           </div>
         </div>
+
         {/* Registration & Legal Details */}
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-muted-foreground border-b">
@@ -283,10 +354,10 @@ export const CompanyInfo = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField label="Company Registration Number">
-              <Input value={c.companyRegistrationNumber || ""} />
+              <Input {...register("companyRegistrationNumber")} />
             </FormField>
             <FormField label="Tax Identification Number">
-              <Input value={c.companyTaxId || ""} />
+              <Input {...register("companyTaxId")} />
             </FormField>
           </div>
         </div>
@@ -296,14 +367,68 @@ export const CompanyInfo = () => {
             Location & Currency
           </h3>
           <FormField label="Address">
-            <Input />
+            <Input {...register("address")} />
           </FormField>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField label="Country">
-              <Input />
+            <FormField
+              id="countryId"
+              label="Country"
+              required
+              helpTooltip={TOOLTIP.country}
+              tooltipStyle="w-full"
+              error={errors.countryId?.message}
+              errorTooltip
+            >
+              <AutocompleteDropdown
+                id="countryId"
+                items={
+                  isCountryLoading
+                    ? [{ value: "loading", label: "Loading..." }]
+                    : countries?.data || []
+                }
+                mapItem={(item) => ({
+                  value: item.id,
+                  label: `${item.flag} ${item.name}`,
+                })}
+                placeholder="Select country"
+                aria-describedby={
+                  errors.countryId ? "countryId-error" : undefined
+                }
+                onChange={(value) => handleChange("countryId", value)}
+                value={watch("countryId") || ""}
+                disabled
+              />
             </FormField>
-            <FormField label="Reporting Currency">
-              <Input />
+            <FormField
+              id="reportingCurrencyId"
+              label="Reporting Currency"
+              required
+              helpTooltip={TOOLTIP.reportingCurrency}
+              error={errors.reportingCurrencyId?.message}
+              errorTooltip
+              className="flex flex-col flex-1"
+            >
+              <AutocompleteDropdown
+                id="reportingCurrencyId"
+                items={
+                  isCurrencyLoading
+                    ? [{ value: "loading", label: "Loading..." }]
+                    : currencies?.data || []
+                }
+                mapItem={(item) => ({
+                  value: item.id,
+                  label: `${item.name} (${item.symbol})`,
+                })}
+                value={watch("reportingCurrencyId")}
+                onChange={(value) => handleChange("reportingCurrencyId", value)}
+                placeholder="Select currency"
+                aria-describedby={
+                  errors.reportingCurrencyId
+                    ? "reportingCurrencyId-error"
+                    : undefined
+                }
+                disabled
+              />
             </FormField>
           </div>
         </div>
@@ -316,11 +441,41 @@ export const CompanyInfo = () => {
             <FormField label="Revenue">
               <Input />
             </FormField>
-            <FormField label="Team Size">
-              <Input />
+            <FormField
+              id="companySize"
+              label="Company size"
+              error={errors.companySize?.message}
+            >
+              <Select
+                onValueChange={(value) => handleChange("companySize", value)}
+                value={watch("companySize") || ""}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select company size" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPANY_SIZE.map((size) => (
+                    <SelectItem key={size.value} value={size.value}>
+                      {size.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormField>
-            <FormField label="Website">
-              <Input />
+            <FormField
+              id="website"
+              label="Website"
+              error={errors.website?.message}
+              helpTooltip={TOOLTIP.website}
+              tooltipStyle="w-full"
+            >
+              <Input
+                id="website"
+                {...register("website")}
+                onChange={(e) => handleChange("website", e.target.value)}
+                aria-describedby={errors.website ? "website-error" : undefined}
+                placeholder="yourcompany.com"
+              />
             </FormField>
             <FormField
               id="fiscalPeriod"
@@ -386,11 +541,36 @@ export const CompanyInfo = () => {
             </FormField>
             {c.companyType === "accounting_firm" && (
               <>
-                <FormField label="Slug" required>
-                  <Input />
+                <FormField
+                  label="Slug"
+                  helpTooltip="This is what your clients will use to identify you on the platform e.g kpmg.getaccountable.com, your slug will be kpmg"
+                  tooltipStyle="text-center"
+                  required
+                >
+                  <Input placeholder="firm" {...register("assignedFirmSlug")} />
                 </FormField>
-                <FormField label="Accounting Basis">
-                  <Input />
+                <FormField
+                  id="accountingBasis"
+                  label="Accounting Basis"
+                  error={errors.accountingBasis?.message}
+                >
+                  <Select
+                    onValueChange={(value) =>
+                      handleChange("accountingBasis", value)
+                    }
+                    value={watch("accountingBasis") || ""}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select accounting basis" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ACCOUNTING_BASIS.map((a) => (
+                        <SelectItem key={a.value} value={a.value}>
+                          {a.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </FormField>
               </>
             )}
@@ -402,12 +582,12 @@ export const CompanyInfo = () => {
           </h3>
           <FormField id="description" label="Description">
             <Textarea
-              // {...register("description")}
-              // onChange={(e) =>
-              //   handleChange("description", DOMPurify.sanitize(e.target.value))
-              // }
+              {...register("description")}
+              onChange={(e) =>
+                handleChange("description", DOMPurify.sanitize(e.target.value))
+              }
               className={cn("resize-none mb-6")}
-              // value={description}
+              placeholder="Tell us a bit about your company"
             />
           </FormField>
         </div>

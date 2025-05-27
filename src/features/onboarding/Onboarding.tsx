@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VerifyEmail } from "./steps/VerifyEmail";
 import { getUserDetails } from "@/domains/user/api";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { UserData, UserOnboardingStatus } from "@/domains/user/types";
 import { getCurrentStep } from "./utils";
 import { CompanyInfo } from "./steps/CompanyInfo";
@@ -57,6 +57,7 @@ export function OnboardingForm({
     useState<UserOnboardingStatus>("not_started");
   const [isLoading, setIsLoading] = useState(true);
 
+  const dialogContentRef = useRef<HTMLDivElement>(null);
   // Computed
   const isCreator = user?.id === company?.createdById; // user is the creator of the company
 
@@ -155,7 +156,7 @@ export function OnboardingForm({
               </DialogDescription>
             </DialogHeader>
             <DialogContent className="flex [&>button]:hidden h-fit min-h-[70vh] max-h-[80vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0 gap-0">
-              <div className="w-[20rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
+              <div className="min-w-[15rem] w-1/5 md:w-[20rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
                 {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
                 <OnboardingFormFooter />
               </div>

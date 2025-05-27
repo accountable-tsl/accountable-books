@@ -2,8 +2,9 @@ import { CircleHelp } from "lucide-react";
 import { Label } from "./ui/label";
 import { TooltipHelper } from "./TooltipHelper";
 import { cn } from "@/lib/utils";
+import { HTMLAttributes } from "react";
 
-type FormFieldProps = {
+interface FormFieldProps extends HTMLAttributes<HTMLDivElement> {
   id?: string;
   label?: string;
   renderLabel?: React.ReactNode;
@@ -22,7 +23,7 @@ type FormFieldProps = {
   labelWrapperClassName?: string;
   labelClassName?: string;
   errorClassName?: string;
-};
+}
 
 export const FormField = ({
   id,
@@ -38,8 +39,9 @@ export const FormField = ({
   errorTooltip,
   errorTooltipStyle,
   className = "",
+  ...rest
 }: FormFieldProps) => (
-  <div className={cn("space-y-2 relative", className)}>
+  <div className={cn("space-y-2 relative", className)} {...rest}>
     {renderLabel ?? (
       <FormFieldLabel
         id={id}

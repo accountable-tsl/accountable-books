@@ -25,7 +25,7 @@ export type CompanyStore = {
   clearCompany: () => void;
 };
 
-const BaseCompanyDataSchema = z.object({
+export const baseCompanyData = z.object({
   id: z.string(),
   legalName: z.string(),
   companyType: companyType,
@@ -39,7 +39,34 @@ const BaseCompanyDataSchema = z.object({
   assignedFirmId: z.string(),
   isPlatform: z.boolean().optional(),
 });
-export type BaseCompanyData = z.infer<typeof BaseCompanyDataSchema>;
+export type BaseCompanyData = z.infer<typeof baseCompanyData>;
+
+export const companyData = baseCompanyData.extend({
+  displayName: z.string().nullish(),
+  address: z.string().nullish(),
+  companyLogo: z.string().nullish(),
+  companyLogoKey: z.string().nullish(),
+  description: z.string().nullish(),
+  website: z.string().nullish(),
+  industry: z.string().nullish(),
+  companySize: z.string().nullish(),
+  revenue: z.string().nullish(),
+  companyRegistrationNumber: z.string().nullish(),
+  companyTaxId: z.string().nullish(),
+  reportingFramework: z.string().nullish(),
+  accountingBasis: accountingBasis.nullish(),
+  countryCode: z.string().nullish(),
+  countryName: z.string().nullish(),
+  countryPhoneCode: z.string().nullish(),
+  countryFlag: z.string().nullish(),
+  countryContinent: z.string().nullish(),
+  reportingCurrencySymbol: z.string().nullish(),
+  assignedFirmName: z.string().nullish(),
+  assignedFirmSlug: z.string().nullish(),
+  assignedFirmIsPlatform: z.boolean().nullish(),
+  assignedFirmLogo: z.string().nullish(),
+});
+export type CompanyData = z.infer<typeof companyData>;
 
 // export type CompanyData = {
 //   id: string;
@@ -80,31 +107,3 @@ export type BaseCompanyData = z.infer<typeof BaseCompanyDataSchema>;
 //   assignedFirmIsPlatform: boolean | null;
 //   assignedFirmLogo: string | null;
 // };
-
-const CompanyDataSchema = BaseCompanyDataSchema.extend({
-  displayName: z.string().nullish(),
-  address: z.string().nullish(),
-  companyLogo: z.string().nullish(),
-  companyLogoKey: z.string().nullish(),
-  description: z.string().nullish(),
-  website: z.string().nullish(),
-  industry: z.string().nullish(),
-  companySize: z.string().nullish(),
-  revenue: z.string().nullish(),
-  companyRegistrationNumber: z.string().nullish(),
-  companyTaxId: z.string().nullish(),
-  reportingFramework: z.string().nullish(),
-  accountingBasis: accountingBasis.nullish(),
-  countryCode: z.string().nullish(),
-  countryName: z.string().nullish(),
-  countryPhoneCode: z.string().nullish(),
-  countryFlag: z.string().nullish(),
-  countryContinent: z.string().nullish(),
-  reportingCurrencySymbol: z.string().nullish(),
-  assignedFirmName: z.string().nullish(),
-  assignedFirmSlug: z.string().nullish(),
-  assignedFirmIsPlatform: z.boolean().nullish(),
-  assignedFirmLogo: z.string().nullish(),
-});
-
-export type CompanyData = z.infer<typeof CompanyDataSchema>;

@@ -220,7 +220,7 @@ export const SignupCompanyInfo = forwardRef<
                   isIndustriesLoading
                     ? [{ value: "loading", label: "Loading..." }]
                     : isIndustriesError
-                    ? [{ value: "error", label: "Error loading countries" }]
+                    ? [{ value: "error", label: "Error loading industries" }]
                     : industries || []
                 }
                 mapItem={(item) => ({
