@@ -77,7 +77,7 @@ export type Company = z.infer<typeof company>;
 
 export type NewCompanyInputCamel = SnakeToCamelCaseObject<NewCompanyInput>;
 
-export type getCompanyResponse = {
+export type GetCompanyResponse = {
   id: string;
   legalName: string;
   companyType: CompanyType;
@@ -90,6 +90,7 @@ export type getCompanyResponse = {
   displayName: string | null;
   address: string | null;
   companyLogo: string | null;
+  companyLogoKey: string | null;
   description: string | null;
   website: string | null;
   industry: string | null;
@@ -119,4 +120,32 @@ export type getCompanyResponse = {
   assignedFirmSlug: string | null;
   assignedFirmIsPlatform: boolean | null;
   assignedFirmLogo: string | null;
+};
+
+export const fieldToColumnMap: Partial<
+  Record<keyof GetCompanyResponse, string>
+> = {
+  legalName: "legal_name",
+  displayName: "display_name",
+  address: "address",
+  companyType: "type",
+  companyLogo: "logo_url",
+  companyLogoKey: "logo_key",
+  description: "description",
+  website: "website",
+  industry: "industry",
+  companySize: "team_size",
+  revenue: "revenue",
+  yearEndDay: "year_end_day",
+  yearEndMonth: "year_end_month",
+  companyRegistrationNumber: "registration_number",
+  companyTaxId: "tax_id",
+
+  countryId: "country_id",
+  reportingFramework: "reporting_framework",
+  accountingBasis: "accounting_basis",
+  reportingCurrencyId: "reporting_currency_id",
+
+  assignedFirmId: "assigned_firm_id",
+  isPlatform: "is_platform",
 };

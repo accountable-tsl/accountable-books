@@ -191,7 +191,6 @@ export async function resendVerEmailController(
       userId: userId?.toString(),
     });
 
-    console.log("result", result);
     if (!result.success) {
       const status = result.message === "User not found" ? 404 : 400;
       return res.status(status).json(result);

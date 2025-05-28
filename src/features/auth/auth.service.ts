@@ -172,21 +172,14 @@ export async function verifyEmailService(
       .andWhere("email_verification_expiry", ">", new Date())
       .first();
 
-    console.log("user", user);
-
     if (!user || !user.email_verification_token_hash) {
       return errorResponse("Invalid or expired token");
     }
-
-    console.log("URL token:", token);
-    console.log("DB token hash:", user?.email_verification_token_hash);
 
     const verifyToken = await compareToken(
       token,
       user?.email_verification_token_hash
     );
-
-    console.log(verifyToken);
 
     if (!user || !verifyToken) return errorResponse("Invalid or expired token");
 

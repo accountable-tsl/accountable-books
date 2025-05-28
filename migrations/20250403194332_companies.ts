@@ -122,6 +122,13 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("users")
       .onDelete("RESTRICT");
 
+    table
+      .uuid("last_updated_by_id")
+      .nullable()
+      .references("id")
+      .inTable("users")
+      .onDelete("SET NULL");
+
     addStandardColumns(table);
 
     table.index("short_code");

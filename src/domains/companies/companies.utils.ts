@@ -1,6 +1,6 @@
 import knexClient from "../../../knexClient";
 import { getIdentifierType } from "../../shared/utils/formatting.utils";
-import { AppError, ensure } from "../../shared/utils/response.utils";
+import { AppError } from "../../shared/utils/response.utils";
 
 type CompanyIdentifierResult = {
   id: string;

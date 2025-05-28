@@ -1,7 +1,7 @@
 import type { Knex } from "knex";
 import {
-  Company,
-  getCompanyResponse,
+  fieldToColumnMap,
+  GetCompanyResponse,
   newCompany,
   newCompanyInput,
   NewCompanyInput,
@@ -9,6 +9,7 @@ import {
 import { ApiResponse } from "../../core/types/api.types";
 import {
   camelToSnake,
+  getIdentifierType,
   snakeToCamel,
 } from "../../shared/utils/formatting.utils";
 import {
@@ -95,6 +96,11 @@ export const createCompany = async (
             ? "modified_cash_basis"
             : "modified_accrual_basis"),
         is_demo_company: validateInput.data.is_demo_company || false,
+        industry:
+          validateInput.data.industry ||
+          validateInput.data.type === "accounting_firm"
+            ? "Professional Services - Accounting Firm"
+            : null,
       })
       .returning("*");
 
@@ -246,7 +252,7 @@ export const getCompanies = async (
       return errorResponse("Error retrieving companies");
     }
 
-    return successResponse<getCompanyResponse[]>(
+    return successResponse<GetCompanyResponse[]>(
       "Successfully retrieved all companies",
       snakeToCamel(result)
     );
@@ -257,7 +263,7 @@ export const getCompanies = async (
 
 export const getSingleCompany = async (
   identifier: string
-): Promise<ApiResponse<getCompanyResponse>> => {
+): Promise<ApiResponse<GetCompanyResponse>> => {
   try {
     const companyId = await getCompanyUUID(identifier);
     if (!companyId) {
@@ -287,11 +293,68 @@ export const getSingleCompany = async (
     if (!company)
       return errorResponse(`Error retrieving company with ID ${identifier}`);
 
-    return successResponse<getCompanyResponse>(
+    return successResponse<GetCompanyResponse>(
       `Successfully retrieved details for company`,
       company
     );
   } catch (error) {
     return errorResponse("Error retrieving company details");
+  }
+};
+
+export const updateCompany = async (
+  identifier: string,
+  payload: Partial<GetCompanyResponse>,
+  userId: string
+): Promise<ApiResponse<GetCompanyResponse>> => {
+  try {
+    const idType = getIdentifierType(identifier);
+    const companyId =
+      idType === "uuid" ? identifier : await getCompanyUUID(identifier);
+
+    if (!companyId) {
+      return errorResponse(
+        `Invalid company identifier: ${identifier}`,
+        undefined,
+        ErrorCode.INVALID_CREDENTIALS
+      );
+    }
+
+    const dbUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (value === undefined) continue;
+      const column = fieldToColumnMap[key as keyof GetCompanyResponse];
+      if (column) dbUpdates[column] = value === null ? null : value;
+    }
+
+    if (Object.keys(dbUpdates).length === 0) {
+      return errorResponse("Nothing to update – no valid fields supplied");
+    }
+
+    const validInput = newCompanyInput.partial().safeParse(dbUpdates);
+    if (!validInput.success) {
+      return errorResponse(`Invalid input: ${validInput.error.message}`);
+    }
+
+    const [updatedRow] = await knexClient("companies")
+      .where("id", companyId)
+      .update({ ...validInput.data, updated_by_id: userId })
+      .returning("*");
+
+    if (!updatedRow) {
+      return errorResponse("Error updating company details");
+    }
+
+    const refreshed = await getSingleCompany(companyId);
+    if (!refreshed.success) {
+      return refreshed;
+    }
+
+    return successResponse(
+      "Successfully updated company details",
+      refreshed.data
+    );
+  } catch (error) {
+    return errorResponse("Error updating company details");
   }
 };
