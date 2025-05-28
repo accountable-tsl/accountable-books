@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VerifyEmail } from "./steps/VerifyEmail";
 import { getUserDetails } from "@/domains/user/api";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { UserData, UserOnboardingStatus } from "@/domains/user/types";
 import { getCurrentStep } from "./utils";
 import { CompanyInfo } from "./steps/CompanyInfo";
@@ -57,7 +57,6 @@ export function OnboardingForm({
     useState<UserOnboardingStatus>("not_started");
   const [isLoading, setIsLoading] = useState(true);
 
-  const dialogContentRef = useRef<HTMLDivElement>(null);
   // Computed
   const isCreator = user?.id === company?.createdById; // user is the creator of the company
 

@@ -155,7 +155,6 @@ export const AutocompleteDropdown = ({
     [items, mapItem]
   );
 
-  console.log({ items, normalizedItems, onChange, value });
   // Shared content for Popover and Drawer
   const dropdownContent = (
     <Command>

@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getCompanyDetails } from "@/domains/company/api";
-import { ACCOUNTING_BASIS, COMPANY_SIZE } from "@/domains/company/constants";
+import {
+  ACCOUNTING_BASIS,
+  COMPANY_REVENUE_RANGE,
+  COMPANY_SIZE,
+} from "@/domains/company/constants";
 import { useCompany } from "@/domains/company/store";
 import { companyData, CompanyData } from "@/domains/company/types";
 import {
@@ -29,10 +33,19 @@ import { useCurrencies } from "@/hooks/useCurrencies";
 import { useIndustries } from "@/hooks/useIndustries";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { debounce } from "lodash";
+import { mergeInitialData } from "../utils";
 
 export const CompanyInfo = () => {
   const { company, companyId, companyType } = useCompany();
@@ -46,21 +59,21 @@ export const CompanyInfo = () => {
 
   const isMobile = useIsMobile();
   const [isLoading, setIsLoading] = useState(false);
-  const [c, setCompanyDetails] = useState<CompanyData>(getDefaultCompanyData());
+  const [initialData, setInitialData] = useState<CompanyData | null>(null);
   const [showQuickSubmit, setShowQuickSubmit] = useState(false);
   const [isManuallyDismissed, setIsManuallyDismissed] = useState(false);
-  const [manuallyDismissedCount, setManuallyDismissedCount] = useState(0);
   const [scrollPosition, setScrollPosition] = useState(0);
-  const [pageError, setPageError] = useState<string | null>(null);
-  const [controlledInputError, setControlledInputError] = useState<
-    Partial<Record<keyof CompanyData, string>>
-  >({ companyType: "" });
+  const [controlledInputError, setControlledInputError] = useState<Partial<
+    Record<keyof CompanyData, string>
+  > | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const isAccountingFirm = companyType === "accounting_firm";
+  const isIndividual = companyType === "individual";
 
   // Initialize form
   const {
@@ -70,35 +83,39 @@ export const CompanyInfo = () => {
     trigger,
     watch,
     setValue,
+    getValues,
     register,
     formState: { errors, isSubmitting },
   } = useForm<CompanyData>({
     resolver: zodResolver(companyData),
-    values: c,
+    mode: "onChange",
+    defaultValues: initialData ?? getDefaultCompanyData(),
   });
 
-  const fetchCompanyDetails = async () => {
+  const fetchCompanyDetails = async (
+    companyId: string
+  ): Promise<CompanyData | null> => {
     if (!companyId) {
-      setPageError("Company ID is missing");
+      toast.error("Company ID is missing");
       setIsLoading(false);
-      return;
+      return null;
     }
 
     setIsLoading(true);
     try {
       if (company && company?.companyLogo) {
-        setCompanyDetails(company);
+        return company;
       } else {
         const res = await getCompanyDetails(companyId);
         if (res.success && res.data) {
-          setCompanyDetails(res.data);
-          setPageError(null);
-        } else {
-          setPageError(res.message || "Failed to fetch company details");
+          return res.data;
         }
+        toast.error(res.message || "Failed to fetch company details");
+        return null;
       }
     } catch (err: any) {
-      setPageError(err.message || "Failed to fetch company details");
+      toast.error(err.message || "Failed to fetch company details");
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -106,56 +123,51 @@ export const CompanyInfo = () => {
 
   const handleUpload = async (file: File) => {
     if (!companyId) {
-      setPageError("Cannot upload: Company ID is missing");
+      toast.error("Cannot upload: Company ID is missing");
       return null;
     }
 
     const params = { file, companyId: companyId! };
     const response = await uploadObject("logos", params);
     if (response.success && response.data) {
-      setCompanyDetails((prev) => ({
-        ...prev,
-        companyLogo: response.data?.url,
-        companyLogoKey: response.data?.key,
-      }));
-      setPageError(null);
+      setValue("companyLogo", response.data.url, { shouldValidate: true });
+      setValue("companyLogoKey", response.data.key, { shouldValidate: true });
       return { url: response.data.url, key: response.data.key };
     }
-    setPageError(response.message || "Upload failed");
+    toast.error(response.message || "Upload failed");
     return null;
   };
 
   const handleRemove = async (key: string) => {
     const response = await deleteObject("logos", key);
     if (response.success) {
-      setCompanyDetails((prev) => ({
-        ...prev,
-        companyLogo: null,
-        companyLogoKey: null,
-      }));
-      setPageError(null);
+      setValue("companyLogo", null, { shouldValidate: true });
+      setValue("companyLogoKey", null, { shouldValidate: true });
     } else {
-      setPageError(response.message || "Remove failed");
+      toast.error(response.message || "Remove failed");
     }
   };
 
   const handleError = (message: string) => {
-    setPageError(message);
     toast.error(message);
   };
 
-  const handleIndustryChange = (value: string) => {
-    setCompanyDetails((prev) => ({ ...prev, industry: value }));
-    setValue("industry", value, { shouldValidate: true, shouldDirty: true });
+  const handleChange = (field: keyof CompanyData, value: string | number) => {
+    let processedValue = value;
+    const fieldSchema = companyData.shape[field];
+    if (
+      fieldSchema._def.typeName === "ZodNumber" &&
+      typeof value === "string"
+    ) {
+      processedValue = parseInt(value, 10);
+    }
+
+    setValue(field, processedValue, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    trigger(["yearEndDay", "yearEndMonth"]);
   };
-  const handleInputChange =
-    (key: keyof typeof c) => (event: ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      setCompanyDetails((prev) => ({
-        ...prev,
-        [key]: value,
-      }));
-    };
 
   // Essential required fields for quick submit
   const getRequiredFields = () => {
@@ -165,46 +177,100 @@ export const CompanyInfo = () => {
       "companyType",
       "countryId",
       "reportingCurrencyId",
-      // "industry",
+      "yearEndDay",
+      "yearEndMonth",
     ];
-    const accountingRequired: (keyof Partial<CompanyData>)[] = isAccountingFirm
+    const accountingRequired: (keyof CompanyData)[] = isAccountingFirm
       ? ["accountingBasis", "assignedFirmSlug"]
       : [];
-    // const accountingRequired: (keyof CompanyData)[] = [];
     return [...baseRequired, ...accountingRequired];
   };
 
+  const requiredFields = getRequiredFields();
   // Check if essential fields are filled
-  const checkEssentialFieldsComplete = () => {
-    const requiredFields = getRequiredFields();
+  const checkEssentialFieldsComplete = (): boolean => {
+    const fieldValues = watch(requiredFields);
     return requiredFields.every(
-      (field) => c[field] && c[field].toString().trim() !== ""
+      (_, index) =>
+        fieldValues[index] && fieldValues[index].toString().trim() !== ""
     );
   };
 
   const scrollToSubmit = () => {
     const footer = document.querySelector("[data-footer]");
-    console.log("Scrolling to submit", footer);
     footer?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const dismissQuickSubmit = () => {
     setIsManuallyDismissed(true);
-    setManuallyDismissedCount((prev) => {
-      const newCount = prev + 1;
-      if (newCount < 2) {
-        setTimeout(() => setIsManuallyDismissed(false), 10000);
-      }
-      return newCount;
-    });
+    const timeout = setTimeout(() => setIsManuallyDismissed(false), 10000);
+    return () => clearTimeout(timeout);
   };
+
+  // Submit form to backend
+  const onSubmit = async () => {
+    try {
+      const formData = getValues();
+      console.log(formData);
+      const dbData = await fetchCompanyDetails(companyId!);
+      // Compare form data with original db data and extract changes (Not super sure if this offers any speed or optimization benefits)
+      // Make API Call to update company details
+      const response = { success: true, message: "" };
+      if (response.success) {
+        localStorage.removeItem(`companyInfo_${companyId}`);
+        // Direct to next step as indicated in the API response
+        setConfirmOpen(false);
+        toast.success("Company details saved");
+      } else {
+        throw new Error(response.message || "Failed to save company details");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save company details");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!companyId) return;
+
+      const db = await fetchCompanyDetails(companyId);
+      const saved = JSON.parse(
+        localStorage.getItem(`companyInfo_${companyId}`) || "null"
+      ) as Partial<CompanyData> | null;
+
+      if (isMounted) setInitialData(mergeInitialData(db, saved));
+    }
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [companyId]);
+
+  useEffect(() => {
+    if (initialData) {
+      reset(initialData, { keepDefaultValues: false, keepValues: false });
+    }
+  }, [initialData, reset]);
+
+  useEffect(() => {
+    if (controlledInputError) {
+      const timeout = setTimeout(() => {
+        setControlledInputError(null);
+      }, 5000);
+
+      return () => clearTimeout(timeout);
+    }
+  });
 
   // Handle scroll to track position
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer) return;
 
-    const handleScroll = () => {
+    const handleScroll = debounce(() => {
       const scrollTop = scrollContainer.scrollTop;
       const scrollHeight = scrollContainer.scrollHeight;
       const clientHeight = scrollContainer.clientHeight;
@@ -212,15 +278,11 @@ export const CompanyInfo = () => {
         (scrollTop / (scrollHeight - clientHeight)) * 100;
 
       setScrollPosition(scrollPercentage);
-    };
+    }, 200);
 
     scrollContainer.addEventListener("scroll", handleScroll);
     return () => scrollContainer.removeEventListener("scroll", handleScroll);
   }, []);
-  const handleChange = (field: keyof CompanyData, value: string | number) => {
-    setValue(field, value, { shouldValidate: true, shouldDirty: true });
-    trigger(["yearEndDay", "yearEndMonth"]);
-  };
 
   // Update showQuickSubmit based on form completion and scroll position
   useEffect(() => {
@@ -229,44 +291,43 @@ export const CompanyInfo = () => {
     const shouldShow = isComplete && isInUpperPortion && !isManuallyDismissed;
 
     setShowQuickSubmit(shouldShow);
-  }, [c, scrollPosition, isManuallyDismissed]);
+  }, [watch(requiredFields), scrollPosition, isManuallyDismissed]);
 
+  // Save form data to local storage
   useEffect(() => {
-    fetchCompanyDetails();
-  }, [companyId, company]);
+    const autosave = debounce(() => {
+      const formData = getValues();
+      localStorage.setItem(
+        `companyInfo_${companyId}`,
+        JSON.stringify(formData)
+      );
+    }, 500);
+    const subscription = watch(() => autosave()); // Save on every change
+    return () => {
+      subscription.unsubscribe();
+      autosave.cancel();
+    };
+  }, [watch, getValues, companyId]);
 
-  useEffect(() => {
-    if (
-      c.reportingCurrencyId &&
-      watch("reportingCurrencyId") !== c.reportingCurrencyId
-    ) {
-      setValue("reportingCurrencyId", c.reportingCurrencyId, {
-        shouldValidate: true,
-        shouldDirty: false,
-      });
-    }
-  }, [c.reportingCurrencyId]);
-
-  if (isLoading) {
+  if (isLoading || !initialData) {
     return <CenteredLoader />;
   }
 
-  if (!companyId || !companyType || !company) {
+  if (!companyId || !companyType) {
     return (
       <ErrorPage type="default" showHeader={false} className="min-h-0 h-full" />
     );
   }
 
-  console.log(c, companyId, companyType, company);
   return (
     <div className="p-4 md:p-6 flex-1 overflow-y-auto" ref={scrollContainerRef}>
       <form className="space-y-8 ">
         <ImageUploader
           label="Company logo / icon"
           labelPosition="bottom"
-          initialImage={c.companyLogo}
+          initialImage={watch("companyLogo")}
           onUpload={handleUpload}
-          onRemove={c.companyLogoKey ? handleRemove : undefined}
+          onRemove={watch("companyLogo") ? handleRemove : undefined}
           onError={handleError}
           metadata={{ companyId }}
           accept="image/png,image/jpeg,image/jpg"
@@ -281,6 +342,11 @@ export const CompanyInfo = () => {
             <FormField
               label="Legal Name"
               required
+              error={
+                controlledInputError?.legalName ||
+                errors.legalName?.message ||
+                ""
+              }
               onClick={() => {
                 setControlledInputError((prev) => ({
                   ...prev,
@@ -288,7 +354,11 @@ export const CompanyInfo = () => {
                 }));
               }}
             >
-              <Input value={c.legalName || ""} disabled readOnly />
+              <Input
+                {...register("legalName", { required: true })}
+                disabled
+                readOnly
+              />
             </FormField>
             <FormField
               label="Display Name"
@@ -300,7 +370,11 @@ export const CompanyInfo = () => {
             <FormField
               label="Company Type"
               required
-              error={controlledInputError.companyType}
+              error={
+                controlledInputError?.companyType ||
+                errors.companyType?.message ||
+                ""
+              }
               onClick={() => {
                 setControlledInputError((prev) => ({
                   ...prev,
@@ -354,7 +428,10 @@ export const CompanyInfo = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField label="Company Registration Number">
-              <Input {...register("companyRegistrationNumber")} />
+              <Input
+                {...register("companyRegistrationNumber")}
+                placeholder="Not Incorporated"
+              />
             </FormField>
             <FormField label="Tax Identification Number">
               <Input {...register("companyTaxId")} />
@@ -374,8 +451,6 @@ export const CompanyInfo = () => {
               id="countryId"
               label="Country"
               required
-              helpTooltip={TOOLTIP.country}
-              tooltipStyle="w-full"
               error={errors.countryId?.message}
               errorTooltip
             >
@@ -403,7 +478,6 @@ export const CompanyInfo = () => {
               id="reportingCurrencyId"
               label="Reporting Currency"
               required
-              helpTooltip={TOOLTIP.reportingCurrency}
               error={errors.reportingCurrencyId?.message}
               errorTooltip
               className="flex flex-col flex-1"
@@ -419,7 +493,7 @@ export const CompanyInfo = () => {
                   value: item.id,
                   label: `${item.name} (${item.symbol})`,
                 })}
-                value={watch("reportingCurrencyId")}
+                value={watch("reportingCurrencyId") || ""}
                 onChange={(value) => handleChange("reportingCurrencyId", value)}
                 placeholder="Select currency"
                 aria-describedby={
@@ -433,149 +507,180 @@ export const CompanyInfo = () => {
           </div>
         </div>
         {/* Business Details */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-muted-foreground border-b">
-            Business & Accounting
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField label="Revenue">
-              <Input />
-            </FormField>
-            <FormField
-              id="companySize"
-              label="Company size"
-              error={errors.companySize?.message}
-            >
-              <Select
-                onValueChange={(value) => handleChange("companySize", value)}
-                value={watch("companySize") || ""}
+        {!isIndividual && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-muted-foreground border-b">
+              Business & Accounting
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                id="revenue"
+                label="Annual Revenue"
+                error={errors.revenue?.message}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select company size" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPANY_SIZE.map((size) => (
-                    <SelectItem key={size.value} value={size.value}>
-                      {size.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField
-              id="website"
-              label="Website"
-              error={errors.website?.message}
-              helpTooltip={TOOLTIP.website}
-              tooltipStyle="w-full"
-            >
-              <Input
+                <Select
+                  onValueChange={(value) => handleChange("revenue", value)}
+                  value={watch("revenue") || ""}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose revenue range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMPANY_REVENUE_RANGE.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>{" "}
+              </FormField>
+              <FormField
+                id="companySize"
+                label="Company size"
+                error={errors.companySize?.message}
+              >
+                <Select
+                  onValueChange={(value) => handleChange("companySize", value)}
+                  value={watch("companySize") || ""}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select company size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMPANY_SIZE.map((size) => (
+                      <SelectItem key={size.value} value={size.value}>
+                        {size.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField
                 id="website"
-                {...register("website")}
-                onChange={(e) => handleChange("website", e.target.value)}
-                aria-describedby={errors.website ? "website-error" : undefined}
-                placeholder="yourcompany.com"
-              />
-            </FormField>
-            <FormField
-              id="fiscalPeriod"
-              label="Financial Year End"
-              helpTooltip={TOOLTIP.yearEnd}
-              required
-              // error={
-              //   errors.yearEndDay?.message ||
-              //   errors.yearEndMonth?.message ||
-              //   errors.root?.message
-              // }
-              errorTooltip
-              errorTooltipStyle="w-full"
-            >
-              <div className="grid md:grid-cols-2 gap-1">
-                <div className="relative">
-                  <Select
-                    // onValueChange={(value) => handleChange("yearEndDay", value)}
-                    // value={watch("yearEndDay")?.toString() || "31"}
-                    value={c.yearEndDay?.toString() || "31"}
-                  >
-                    <SelectTrigger className="w-full [&_svg]:hidden">
-                      <SelectValue placeholder="Select day" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {days.map((day) => (
-                        <SelectItem key={day} value={day.toString()}>
-                          {day}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {/* {watch("yearEndDay") && (
-                    <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
-                      Day
-                    </span>
-                  )} */}
+                label="Website"
+                error={errors.website?.message}
+                helpTooltip={TOOLTIP.website}
+                tooltipStyle="w-full"
+              >
+                <Input
+                  id="website"
+                  {...register("website")}
+                  onChange={(e) => handleChange("website", e.target.value)}
+                  aria-describedby={
+                    errors.website ? "website-error" : undefined
+                  }
+                  placeholder="yourcompany.com"
+                />
+              </FormField>
+              <FormField
+                id="fiscalPeriod"
+                label="Financial Year End"
+                helpTooltip={TOOLTIP.yearEnd}
+                required
+                error={
+                  errors.yearEndDay?.message ||
+                  errors.yearEndMonth?.message ||
+                  errors.root?.message
+                }
+                errorTooltip
+                errorTooltipStyle="w-full"
+              >
+                <div className="grid md:grid-cols-2 gap-1">
+                  <div className="relative">
+                    <Select
+                      onValueChange={(value) =>
+                        setValue("yearEndDay", Number(value), {
+                          shouldValidate: true,
+                        })
+                      }
+                      value={watch("yearEndDay")?.toString() || "31"}
+                    >
+                      <SelectTrigger className="w-full [&_svg]:hidden">
+                        <SelectValue placeholder="Select day" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {days.map((day) => (
+                          <SelectItem key={day} value={day.toString()}>
+                            {day}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {watch("yearEndDay") && (
+                      <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                        Day
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Select
+                      onValueChange={(value) =>
+                        setValue("yearEndMonth", Number(value), {
+                          shouldValidate: true,
+                        })
+                      }
+                      value={watch("yearEndMonth")?.toString() || "12"}
+                    >
+                      <SelectTrigger className="w-full [&_svg]:hidden">
+                        <SelectValue placeholder="Month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {months.map((month) => (
+                          <SelectItem key={month} value={month.toString()}>
+                            {month}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {watch("yearEndMonth") && (
+                      <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                        Month
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="relative">
-                  <Select
-                    // onValueChange={(value) => handleChange("yearEndMonth", value)}
-                    // value={watch("yearEndMonth")?.toString() || "12"}
-                    value={c.yearEndMonth?.toString() || "12"}
+              </FormField>
+              {isAccountingFirm && (
+                <>
+                  <FormField
+                    label="Slug"
+                    helpTooltip="This is what your clients will use to identify you on the platform e.g kpmg.getaccountable.com, your slug will be kpmg"
+                    tooltipStyle="text-center"
+                    required
                   >
-                    <SelectTrigger className="w-full [&_svg]:hidden">
-                      <SelectValue placeholder="Month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {months.map((month) => (
-                        <SelectItem key={month} value={month.toString()}>
-                          {month}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {/* {watch("yearEndMonth") && (
-                    <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
-                      Month
-                    </span>
-                  )} */}
-                </div>
-              </div>
-            </FormField>
-            {c.companyType === "accounting_firm" && (
-              <>
-                <FormField
-                  label="Slug"
-                  helpTooltip="This is what your clients will use to identify you on the platform e.g kpmg.getaccountable.com, your slug will be kpmg"
-                  tooltipStyle="text-center"
-                  required
-                >
-                  <Input placeholder="firm" {...register("assignedFirmSlug")} />
-                </FormField>
-                <FormField
-                  id="accountingBasis"
-                  label="Accounting Basis"
-                  error={errors.accountingBasis?.message}
-                >
-                  <Select
-                    onValueChange={(value) =>
-                      handleChange("accountingBasis", value)
-                    }
-                    value={watch("accountingBasis") || ""}
+                    <Input
+                      placeholder="firm"
+                      {...register("assignedFirmSlug")}
+                    />
+                  </FormField>
+                  <FormField
+                    id="accountingBasis"
+                    label="Accounting Basis"
+                    error={errors.accountingBasis?.message}
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select accounting basis" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ACCOUNTING_BASIS.map((a) => (
-                        <SelectItem key={a.value} value={a.value}>
-                          {a.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </>
-            )}
+                    <Select
+                      onValueChange={(value) =>
+                        handleChange("accountingBasis", value)
+                      }
+                      value={watch("accountingBasis") || ""}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select accounting basis" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ACCOUNTING_BASIS.map((a) => (
+                          <SelectItem key={a.value} value={a.value}>
+                            {a.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-muted-foreground border-b">
             Other
@@ -597,13 +702,60 @@ export const CompanyInfo = () => {
           data-footer
         >
           {!isMobile && (
-            <Button type="submit" variant="outline" disabled>
+            <Button type="button" variant="outline" disabled>
               Previous
             </Button>
           )}
-          <Button type="submit">Submit and Continue</Button>
+          <Button type="button" onClick={() => setConfirmOpen(true)}>
+            Submit and Continue
+          </Button>
         </div>
       </form>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        {/* <DialogTrigger asChild></DialogTrigger> */}
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              Confirm Company Details
+            </DialogTitle>
+            <DialogDescription className="text-destructive sr-only">
+              Critical: Most company details cannot be changed once saved.
+              Please review everything carefully.
+            </DialogDescription>
+            <hr />
+          </DialogHeader>
+          <div className=" flex flex-col justify-center items-center gap-4">
+            <p className="text-center">
+              <span className="font-semibold text-destructive">
+                Are you sure all details are correct?
+              </span>{" "}
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Most company settings become permanent once saved and cannot be
+                modified.
+              </span>
+            </p>
+            {/* Summarize other fields */}
+            <div className="-mb-2">
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  disabled={isLoading || isSubmitting}
+                  onClick={handleSubmit(onSubmit)}
+                >
+                  Yes, Submit
+                </Button>
+                <Button onClick={() => setConfirmOpen(false)} variant="outline">
+                  Not sure
+                </Button>
+              </div>
+              <span className="italic text-xs text-muted-foreground/70">
+                Request a callback if you need some help
+              </span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {showQuickSubmit && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 md:translate-x-0 z-50 w-xs md:max-w-xs overflow-hidden rounded-md">
@@ -618,7 +770,7 @@ export const CompanyInfo = () => {
 
               {/* Content */}
               <div className="px-4 py-3 bg-black/10 text-white flex flex-col gap-2 relative z-50">
-                <p className="text-center">
+                <p className="text-center text-white/80">
                   You've completed the essential fields. Continue or scroll to
                   submit
                 </p>
@@ -626,7 +778,7 @@ export const CompanyInfo = () => {
                   <Button
                     size="sm"
                     variant="link"
-                    className="bg-transparent cursor-pointer"
+                    className="bg-transparent cursor-pointer text-white"
                     onClick={scrollToSubmit}
                   >
                     Scroll to Submit

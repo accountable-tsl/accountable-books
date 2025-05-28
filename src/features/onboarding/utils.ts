@@ -7,7 +7,8 @@ import {
 } from "lucide-react";
 import { OnboardingSideBarSteps, OnboardingSteps } from "./types";
 import { UserOnboardingStatus } from "@/domains/user/types";
-import { CompanyType } from "@/domains/company/types";
+import { CompanyData, CompanyType } from "@/domains/company/types";
+import { getDefaultCompanyData } from "@/domains/company/utils";
 
 // export const stepMap: Record<UserOnboardingStatus, OnboardingSteps> = {
 //   not_started: "verifyEmail",
@@ -93,3 +94,11 @@ export const getCurrentStep = (
 
   return "verifyEmail";
 };
+
+export function mergeInitialData(
+  dbData: CompanyData | null,
+  saved: Partial<CompanyData> | null
+): CompanyData {
+  const base = getDefaultCompanyData();
+  return { ...base, ...dbData, ...saved } as CompanyData; // precedence: saved > db > defaults
+}
