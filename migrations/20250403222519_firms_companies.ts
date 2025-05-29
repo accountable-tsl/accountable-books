@@ -58,7 +58,7 @@ export async function up(knex: Knex): Promise<void> {
     table
       .uuid("accounting_firm_id")
       .notNullable()
-      .references("id")
+      .references("company_id")
       .inTable("accounting_firms")
       .onDelete("CASCADE");
 

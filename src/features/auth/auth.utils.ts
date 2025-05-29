@@ -120,14 +120,21 @@ export async function buildAuthContext(decoded: DecodedToken) {
     return { success: false, error: errorResponse(roles.message) };
   }
 
-  if (
-    !companyResult.success ||
-    !companyResult.data ||
-    !companyResult.data.assignedFirmSlug
-  ) {
+  if (!companyResult.success || !companyResult.data) {
     return {
       success: false,
       error: errorResponse(companyResult.message || "Company not found"),
+    };
+  }
+
+  const companyData = Array.isArray(companyResult.data)
+    ? companyResult.data[0]
+    : companyResult.data;
+
+  if (!companyData?.assignedFirmSlug) {
+    return {
+      success: false,
+      error: errorResponse("Company not found"),
     };
   }
 
@@ -139,14 +146,14 @@ export async function buildAuthContext(decoded: DecodedToken) {
     status,
     currentCompanyId,
     companyRoles: roles.data,
-    assignedFirmSlug: companyResult.data.assignedFirmSlug,
+    assignedFirmSlug: companyData.assignedFirmSlug,
   };
 
   const company: AuthCompanyContext = {
-    id: companyResult.data.id,
-    type: companyResult.data.companyType,
-    assignedFirmSlug: companyResult.data.assignedFirmSlug,
-    name: companyResult.data.legalName,
+    id: companyData.id,
+    type: companyData.companyType,
+    assignedFirmSlug: companyData.assignedFirmSlug,
+    name: companyData.legalName,
   };
 
   return { success: true, user, company };

@@ -19,7 +19,6 @@ import {
 } from "../../shared/utils/crypto.utils";
 import { ApiResponse } from "../../core/types/api.types";
 import { redis } from "../../lib/redis";
-import { getSingleCompany } from "../../domains/companies/companies.model";
 import { getCompanyShortCode } from "../../shared/utils/random.utils";
 import dayjs from "dayjs";
 import { buildEmailServiceUrl } from "../communications/email/email.utils";

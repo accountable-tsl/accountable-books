@@ -22,7 +22,10 @@ export const checkOnboardingStatus = async (
   if (!company || !company.success || !company.data) {
     return res.status(404).json(errorResponse("Company not found"));
   }
-  const companyData = company.data;
+
+  const companyData = Array.isArray(company.data)
+    ? company.data[0]
+    : company.data;
 
   // If company is demo company, allow access
   if (companyData.isDemoCompany) {
@@ -75,24 +78,12 @@ export const checkOnboardingStatus = async (
   if (isCreator) {
     return res
       .status(403)
-      .json(
-        errorResponse(
-          "Onboarding not complete",
-          undefined,
-          ErrorCode.ONBOARDING_INCOMPLETE
-        )
-      )
+      .json(errorResponse("Onboarding not complete"))
       .redirect("/onboarding");
   }
 
   // if user is not the creator, maybe just return success false and some code and let frontend ask them to contact whoever invited them to the company
   return res
     .status(403)
-    .json(
-      errorResponse(
-        "Company setup not complete. Contact creator",
-        undefined,
-        ErrorCode.ONBOARDING_INCOMPLETE
-      )
-    );
+    .json(errorResponse("Company setup not complete. Contact creator"));
 };

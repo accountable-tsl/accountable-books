@@ -5,6 +5,8 @@ import {
   newCompany,
   newCompanyInput,
   NewCompanyInput,
+  UpdateCompanySchema,
+  updateCompanySchema,
 } from "./companies.types";
 import { ApiResponse } from "../../core/types/api.types";
 import {
@@ -22,6 +24,7 @@ import generateSecureShortCode from "../../shared/utils/crypto.utils";
 import knexClient from "../../../knexClient";
 import { generateAuthTokens } from "../../features/auth/auth.utils";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
+import { RoleName } from "../../core/types/db.type";
 
 export const createCompany = async (
   knexTrx: Knex.Transaction,
@@ -54,9 +57,10 @@ export const createCompany = async (
 
     let firmId = assigned_firm_id || null;
     if (!firmId) {
-      const [firm] = await knexTrx("accounting_firms")
-        .where("is_platform", true)
-        .select("id");
+      const [firm] = await knexTrx("accounting_firms as af")
+        .join("companies as c", "af.company_id", "c.id")
+        .where("c.is_platform", true)
+        .select("af.company_id as id");
 
       if (!firm.id) {
         throw new AppError("Company must be assigned to a firm");
@@ -90,6 +94,7 @@ export const createCompany = async (
         year_end_month: validateInput.data.year_end_month || 12,
         reporting_framework: validateInput.data.reporting_framework || "ifrs",
         created_by_id: userExists.id,
+        last_updated_by_id: userExists.id,
         accounting_basis:
           validateInput.data.accounting_basis ??
           (validateInput.data.type === "individual"
@@ -227,45 +232,84 @@ const companyFields = [
 
   // accounting firm fields
   "companies.assigned_firm_id as assignedFirmId",
-  "accounting_firms.display_name as assignedFirmName",
   "accounting_firms.slug as assignedFirmSlug",
-  "accounting_firms.is_platform as assignedFirmIsPlatform",
-  "accounting_firms.logo_url as assignedFirmLogo",
-  "accounting_firms.logo_key as assignedFirmLogoKey",
+  "firm_meta.display_name as assignedFirmName",
+  "firm_meta.is_platform as assignedFirmIsPlatform",
+  "firm_meta.logo_url as assignedFirmLogo",
+  "firm_meta.logo_key as assignedFirmLogoKey",
 ];
-export const getCompanies = async (
-  userId?: string,
-  pageSize?: number,
-  page?: number
-) => {
+export const fetchCompanies = async (
+  identifier?: string
+  // userId?: string,
+  // pageSize?: number,
+  // page?: number
+): Promise<ApiResponse<GetCompanyResponse[] | GetCompanyResponse>> => {
   try {
-    const result = await knexClient("companies")
+    const query = knexClient("companies")
       .select(companyFields)
       .leftJoin("countries", "companies.country_id", "countries.id")
       .leftJoin(
         "currencies",
         "companies.reporting_currency_id",
         "currencies.id"
+      )
+      .leftJoin(
+        "accounting_firms",
+        "companies.assigned_firm_id",
+        "accounting_firms.company_id"
+      )
+      .leftJoin(
+        "companies as firm_meta",
+        "accounting_firms.company_id",
+        "firm_meta.id"
       );
 
-    if (!result.length) {
-      return errorResponse("Error retrieving companies");
+    if (identifier) {
+      const companyId = await getCompanyUUID(identifier);
+      if (!companyId) {
+        return errorResponse(
+          `Invalid company identifier: ${identifier}`,
+          undefined,
+          ErrorCode.INVALID_CREDENTIALS
+        );
+      }
+
+      query.where("companies.id", companyId).first();
     }
 
+    const result = await query;
+
+    if (!result || (Array.isArray(result) && result.length === 0)) {
+      return errorResponse(
+        `Error retrieving ${identifier ? "company" : "companies"}`
+      );
+    }
+
+    const data = snakeToCamel(result);
+
     return successResponse<GetCompanyResponse[]>(
-      "Successfully retrieved all companies",
-      snakeToCamel(result)
+      identifier
+        ? "Successfully retrieved company"
+        : "Successfully retrieved all companies",
+      data
     );
   } catch (error: any) {
     return errorResponse("An unexpected error occured", error?.message);
   }
 };
 
-export const getSingleCompany = async (
-  identifier: string
+export const getCompanies = () => fetchCompanies();
+
+export const getSingleCompany = (id: string) => fetchCompanies(id);
+
+export const updateCompany = async (
+  identifier: string,
+  payload: UpdateCompanySchema,
+  userId: string
 ): Promise<ApiResponse<GetCompanyResponse>> => {
   try {
     const companyId = await getCompanyUUID(identifier);
+
     if (!companyId) {
       return errorResponse(
         `Invalid company identifier: ${identifier}`,
@@ -274,85 +318,86 @@ export const getSingleCompany = async (
       );
     }
 
-    const company = await knexClient("companies")
-      .select(companyFields)
-      .leftJoin("countries", "companies.country_id", "countries.id")
-      .leftJoin(
-        "currencies",
-        "companies.reporting_currency_id",
-        "currencies.id"
-      )
-      .innerJoin(
-        "accounting_firms",
-        "companies.assigned_firm_id",
-        "accounting_firms.id"
-      )
-      .where("companies.id", companyId)
+    // Check user's role on this company
+    const roleRecord = await knexClient("users_companies_roles")
+      .where({ user_id: userId, company_id: companyId, is_deleted: false })
+      .select("role_id", "name")
       .first();
 
-    if (!company)
-      return errorResponse(`Error retrieving company with ID ${identifier}`);
-
-    return successResponse<GetCompanyResponse>(
-      `Successfully retrieved details for company`,
-      company
-    );
-  } catch (error) {
-    return errorResponse("Error retrieving company details");
-  }
-};
-
-export const updateCompany = async (
-  identifier: string,
-  payload: Partial<GetCompanyResponse>,
-  userId: string
-): Promise<ApiResponse<GetCompanyResponse>> => {
-  try {
-    const idType = getIdentifierType(identifier);
-    const companyId =
-      idType === "uuid" ? identifier : await getCompanyUUID(identifier);
-
-    if (!companyId) {
+    if (!roleRecord) {
       return errorResponse(
-        `Invalid company identifier: ${identifier}`,
+        "You are not authorized to update this company",
         undefined,
-        ErrorCode.INVALID_CREDENTIALS
+        ErrorCode.UNAUTHORIZED
       );
+    }
+
+    const allowedRoles: RoleName[] = ["super_admin", "admin"];
+    if (!allowedRoles.includes(roleRecord.name))
+      return errorResponse(
+        "You are not authorized to update company details",
+        undefined,
+        ErrorCode.FORBIDDEN
+      );
+
+    const validInput = updateCompanySchema.safeParse(payload);
+    if (!validInput.success) {
+      return errorResponse(`Invalid input: ${validInput.error.message}`);
     }
 
     const dbUpdates: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(payload)) {
       if (value === undefined) continue;
       const column = fieldToColumnMap[key as keyof GetCompanyResponse];
-      if (column) dbUpdates[column] = value === null ? null : value;
+      if (column)
+        dbUpdates[column] =
+          value === null || (typeof value === "string" && value.trim() === "")
+            ? null
+            : value;
     }
 
     if (Object.keys(dbUpdates).length === 0) {
       return errorResponse("Nothing to update – no valid fields supplied");
     }
 
-    const validInput = newCompanyInput.partial().safeParse(dbUpdates);
-    if (!validInput.success) {
-      return errorResponse(`Invalid input: ${validInput.error.message}`);
-    }
-
     const [updatedRow] = await knexClient("companies")
       .where("id", companyId)
-      .update({ ...validInput.data, updated_by_id: userId })
+      .update({ ...dbUpdates, updated_by_id: userId })
       .returning("*");
 
     if (!updatedRow) {
       return errorResponse("Error updating company details");
     }
 
+    if (
+      updatedRow.type === "accounting_firm" &&
+      (validInput.data.slug || validInput.data.firmType)
+    ) {
+      await knexClient("accounting_firms")
+        .where("company_id", companyId)
+        .update({
+          slug: validInput.data.slug,
+          firm_type: validInput.data.firmType,
+        });
+    }
+
     const refreshed = await getSingleCompany(companyId);
-    if (!refreshed.success) {
-      return refreshed;
+    const refreshedData = Array.isArray(refreshed.data)
+      ? refreshed.data[0]
+      : refreshed.data;
+
+    if (!refreshedData) {
+      return errorResponse(
+        "Company not found after update",
+        refreshed,
+        undefined,
+        true
+      );
     }
 
     return successResponse(
       "Successfully updated company details",
-      refreshed.data
+      refreshedData
     );
   } catch (error) {
     return errorResponse("Error updating company details");

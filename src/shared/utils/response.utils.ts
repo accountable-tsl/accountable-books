@@ -93,10 +93,26 @@ export function errorResponse<T = null>(
 // }
 
 export enum ErrorCode {
-  GENERIC = "GENERIC_ERROR",
+  // 1xx: Authentication & Authorization
   INVALID_CREDENTIALS = "INVALID_CREDENTIALS",
   NO_ROLES = "NO_ROLES",
-  ONBOARDING_INCOMPLETE = "ONBOARDING_INCOMPLETE",
+  UNAUTHORIZED = "UNAUTHORIZED", // No login or invalid session
+  FORBIDDEN = "FORBIDDEN", // Logged in but no permission
+
+  // 2xx: Validation & Input
+  INVALID_INPUT = "INVALID_INPUT",
+  CONFLICT = "CONFLICT", // e.g. duplicate short_code or email
+
+  // 3xx: Not Found
+  NOT_FOUND = "NOT_FOUND", // resource "not found"
+
+  // 4xx: Business Logic / Domain Rules
+  OPERATION_NOT_ALLOWED = "OPERATION_NOT_ALLOWED", // e.g. trying to delete demo company
+
+  // 5xx: System/Internal Errors
+  GENERIC = "GENERIC_ERROR",
+  DATABASE_ERROR = "DATABASE_ERROR",
+  SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE",
 }
 
 export class AppError extends Error {

@@ -19,14 +19,13 @@ export const buildPlatformCompany = (adminUserId: string) => ({
   created_by_id: adminUserId,
 
   short_code: ENV.PLATFORM_COMPANY_SHORT_CODE || "platform",
-  website: "https://getaccountable.com",
+  website: "getaccountable.com",
   logo_url:
     ENV.PLATFORM_COMPANY_LOGO_URL || `${ENV.BACKEND_URL}/accountable-logo.png`,
   year_end_day: 31,
   year_end_month: 12,
   reporting_framework: "ifrs",
   is_platform: true,
-  is_onboarding_complete: true,
   accounting_basis: "modified_accrual_basis",
 });
 
@@ -97,7 +96,6 @@ export async function up(knex: Knex): Promise<void> {
     table.specificType("reporting_framework", "reporting_framework").nullable();
     table.string("registration_number").nullable();
     table.string("tax_id").nullable();
-    table.boolean("is_onboarding_complete").defaultTo(false);
     table.boolean("is_demo_company").defaultTo(false);
     table.boolean("is_platform").defaultTo(false);
 

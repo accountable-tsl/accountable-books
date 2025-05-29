@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { dbBaseFields } from "../../core/validation/schemas";
 
-const firmType = z.enum([
+export const firmType = z.enum([
   "freelancer",
   "ca_cpa",
   "tax_preparer",
@@ -9,29 +9,20 @@ const firmType = z.enum([
 ]);
 
 export const newAccFirmInput = z.object({
-  id: z.string().uuid().optional(),
-  legal_name: z.string().max(256),
-  country_id: z.string().uuid(),
   company_id: z.string().uuid().nullish(),
-  created_by_id: z.string().uuid().nullish(),
-
-  display_name: z.string().max(256).optional(),
   slug: z.string().max(50).optional(),
   firm_type: firmType.nullish(),
-  firm_size: z.string().max(50).nullish(),
-  website: z.string().max(256).nullish(),
-  revenue: z.string().max(50).nullish(),
-  logo_url: z.string().nullish(),
-  logo_key: z.string().nullish(),
-
-  is_demo_firm: z.boolean().default(false).optional(),
 });
+
 export const newAccFirm = newAccFirmInput.extend({
   company_id: z.string().uuid(),
-  created_by_id: z.string().uuid(),
+  slug: z.string().max(50),
 });
-export const accFirm = newAccFirm.merge(dbBaseFields);
+
+export const accFirm = newAccFirm.merge(dbBaseFields).omit({ id: true });
 
 export type NewAccFirmInput = z.infer<typeof newAccFirmInput>;
 export type NewAccFirm = z.infer<typeof newAccFirm>;
 export type AccFirm = z.infer<typeof accFirm>;
+
+export type AccFirmWithId = Omit<AccFirm, "company_id"> & { id: string };

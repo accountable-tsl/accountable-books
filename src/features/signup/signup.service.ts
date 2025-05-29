@@ -71,7 +71,6 @@ export const registerNewAccount = async (
       if (companyInput.type === "accounting_firm") {
         firm = await setupAccountingFirm(trx, {
           companyId: company.id,
-          userId: user.id,
           firmData: companyInput,
         });
       }
@@ -166,18 +165,18 @@ const createUserAndCompany = async (
     );
   }
 
-  let platformFirmId: string = "";
-  let platformFirmSlug: string = "";
-  // Get platform firmId
-  const platformFirm = await trx("accounting_firms")
-    .where("is_platform", true)
-    .first();
-  if (!platformFirm || !platformFirm.id || !platformFirm.slug) {
+  const platformFirm = await trx("accounting_firms as af")
+    .join("companies as c", "af.company_id", "c.id")
+    .where("c.is_platform", true)
+    .first<{ company_id: string; slug: string }>();
+
+  console.log("Platform firm:", platformFirm);
+  if (!platformFirm) {
     throw new AppError("Unable to retrieve platform firm");
-  } else {
-    platformFirmId = platformFirm.id;
-    platformFirmSlug = platformFirm.slug;
   }
+
+  const platformFirmId = platformFirm.company_id; // ← new PK
+  const platformFirmSlug = platformFirm.slug;
 
   const { slug, ...restOfCompanyInput } = companyInput;
   // Create company
@@ -218,21 +217,16 @@ const setupAccountingFirm = async (
   trx: Knex.Transaction,
   {
     companyId,
-    userId,
     firmData,
   }: {
     companyId: string;
-    userId: string;
     firmData: NewCompanyInput;
   }
 ) => {
   // Validate Input
   const firmInput = newAccFirm.safeParse({
     ...firmData,
-    firm_size: firmData.team_size,
     company_id: companyId,
-    created_by_id: userId,
-    is_demo_firm: firmData.is_demo_company || false,
   });
 
   // Check if validation succeeded
@@ -242,8 +236,8 @@ const setupAccountingFirm = async (
 
   // Create accounting firm
   const firmResponse = await createAccountingFirm(trx, firmInput.data!);
-  if (!firmResponse.success) {
-    throw new AppError(`Firm creation failed: ${firmResponse.error}`);
+  if (!firmResponse.success || !firmResponse.data?.id) {
+    throw new AppError(`Firm creation failed: ${firmResponse.message}`);
   }
 
   // Update the company's assigned_firm_id

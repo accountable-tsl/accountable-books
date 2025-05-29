@@ -1,12 +1,20 @@
 import type { Knex } from "knex";
 import { ApiResponse } from "../../core/types/api.types";
-import { NewAccFirm, newAccFirm } from "./accountingFirm.types";
+import {
+  AccFirm,
+  AccFirmWithId,
+  NewAccFirm,
+  newAccFirm,
+} from "./accountingFirm.types";
 import {
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
 
-export const resolveFirm = async (trx: Knex.Transaction, firmId?: string) => {
+export const resolveFirm = async (
+  trx: Knex.Transaction,
+  firmId?: string
+): Promise<string> => {
   if (firmId) {
     const [verifyFirm] = await trx("accounting_firms")
       .where("id", firmId)
@@ -17,9 +25,10 @@ export const resolveFirm = async (trx: Knex.Transaction, firmId?: string) => {
     }
   }
 
-  const platformFirm = await trx("accounting_firms")
-    .where("is_platform", true)
-    .select("id");
+  const platformFirm = await trx("accounting_firms as af")
+    .join("companies as c", "af.company_id", "c.id")
+    .where("c.is_platform", true)
+    .select("af.id");
 
   if (!platformFirm || platformFirm.length > 1) {
     throw new Error("Unable to resolve firm to assign");
@@ -30,7 +39,7 @@ export const resolveFirm = async (trx: Knex.Transaction, firmId?: string) => {
 export const createAccountingFirm = async (
   knexTrx: Knex,
   input: NewAccFirm
-): Promise<ApiResponse> => {
+): Promise<ApiResponse<AccFirmWithId>> => {
   const validatedInput = newAccFirm.safeParse(input);
 
   if (!validatedInput.success) {
@@ -40,15 +49,16 @@ export const createAccountingFirm = async (
 
   try {
     const [newFirm] = await knexTrx("accounting_firms")
-      .insert({
-        ...data,
-        display_name: data.display_name || data.legal_name,
-      })
+      .insert(data)
       .returning("*");
 
-    if (!newFirm || !newFirm.id) return errorResponse("Failed to create firm");
+    if (!newFirm) return errorResponse("Failed to create firm");
+    const { company_id: id, ...rest } = newFirm;
 
-    return successResponse("Accounting firm successfully created", newFirm);
+    return successResponse("Accounting firm successfully created", {
+      id,
+      ...rest,
+    });
   } catch (error) {
     return errorResponse("Unknown error occured", error);
   }
