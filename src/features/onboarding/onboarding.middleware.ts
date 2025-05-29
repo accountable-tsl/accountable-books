@@ -4,7 +4,7 @@ import { ErrorCode, errorResponse } from "../../shared/utils/response.utils";
 import { getSingleCompany } from "../../domains/companies/companies.model";
 import { redis } from "../../lib/redis";
 import { getUserDetails } from "../../domains/users/users.model";
-import { userOnboardingStatus } from "../../domains/users/users.types";
+import { onboardingStatus } from "../../domains/companies/companies.types";
 
 export const checkOnboardingStatus = async (
   req: AuthRequest,
@@ -43,7 +43,7 @@ export const checkOnboardingStatus = async (
     redis.get(companyCacheKey),
   ]);
 
-  const onboardingComplete = userOnboardingStatus.enum.onboarding_complete;
+  const onboardingComplete = onboardingStatus.enum.onboarding_complete;
   let userComplete = cachedUserStatus === onboardingComplete;
   let companyComplete = cachedCompanyStatus === "1";
 
@@ -55,7 +55,7 @@ export const checkOnboardingStatus = async (
         .json(errorResponse("User not found", undefined, ErrorCode.NOT_FOUND));
     }
 
-    if (user.data?.onboardingStatus === onboardingComplete) {
+    if (companyData.onboardingStatus === onboardingComplete) {
       await redis.set(userCacheKey, onboardingComplete, "EX", 7200); // 2 hour cache
       userComplete = true;
     }
@@ -64,7 +64,7 @@ export const checkOnboardingStatus = async (
   // Check if onboarding_status in users table is onboarding_complete
   // Check if the current company they are trying to access has is_onboarding_complete set to true
   // if both are true, allow access (next())
-  if (!companyComplete && companyData.isOnboardingComplete) {
+  if (!companyComplete && companyData.onboardingStatus === onboardingComplete) {
     await redis.set(companyCacheKey, "true", "EX", 21600); // 6 hour cache
     companyComplete = true;
   }

@@ -2,8 +2,8 @@ import { Response } from "express";
 import { AuthRequest } from "../auth/auth.types";
 import { updateOnboardingStatus } from "./onboarding.service";
 import {
-  userOnboardingStatus,
-  UserOnboardingStatus,
+  onboardingStatus,
+  OnboardingStatus,
 } from "../../domains/users/users.types";
 import { errorResponse } from "../../shared/utils/response.utils";
 
@@ -12,13 +12,13 @@ export async function updateOnboardingStatusController(
   res: Response
 ) {
   const userId = req.user?.id || req.body.userId;
-  const onboardingStatus: UserOnboardingStatus = req.body.onboardingStatus;
+  const onboardingStatus: OnboardingStatus = req.body.onboardingStatus;
 
   if (!userId) {
     return res.status(403).json(errorResponse("Unauthorized"));
   }
 
-  const parsedStatus = userOnboardingStatus.safeParse(onboardingStatus);
+  const parsedStatus = onboardingStatus.safeParse(onboardingStatus);
   if (!onboardingStatus || !parsedStatus.success) {
     return res.status(400).json(errorResponse("Invalid onboarding status"));
   }

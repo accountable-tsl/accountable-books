@@ -49,7 +49,6 @@ export async function createUserDirect(
         status: "active",
         email_verification_token_hash: hashedVerificationToken,
         email_verification_expiry: dayjs().add(24, "hours").toDate(),
-        onboarding_status: "not_started",
       })
       .returning(["id", "firstname", "lastname", "email", "status"]);
     return successResponse(

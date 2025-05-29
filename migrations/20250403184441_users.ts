@@ -20,7 +20,6 @@ const getAdminUserConfig = (): NewUserDirect => {
       password: ENV.ADMIN_PASSWORD!,
       status: "active",
       email_verified: true,
-      onboarding_status: "onboarding_complete",
     };
   }
 
@@ -33,7 +32,6 @@ const getAdminUserConfig = (): NewUserDirect => {
     password: ENV.TEST_ADMIN_PASSWORD!,
     status: "active",
     email_verified: true,
-    onboarding_status: "onboarding_complete",
   };
 };
 export const adminUser = getAdminUserConfig();
@@ -94,10 +92,6 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete("SET NULL");
     table.timestamp("invited_at", { useTz: true }).nullable();
     table.timestamp("invite_expiry", { useTz: true }).nullable();
-    table
-      .specificType("onboarding_status", "user_onboarding_status")
-      .defaultTo("not_started")
-      .notNullable();
     table.uuid("last_active_company_id").nullable();
     // .references("id")
     // .inTable("companies"); // Added foreign key after migrating companies talbe

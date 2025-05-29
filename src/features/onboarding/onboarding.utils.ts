@@ -1,24 +1,26 @@
-import { CompanyType } from "../../domains/companies/companies.types";
-import { UserOnboardingStatus } from "../../domains/users/users.types";
+import {
+  CompanyType,
+  OnboardingStatus,
+} from "../../domains/companies/companies.types";
 
 export const decideNextStatus = (
-  currentStatus: UserOnboardingStatus,
+  currentStatus: OnboardingStatus,
   companyType: CompanyType,
   isInvited: boolean = false
-): UserOnboardingStatus => {
+): OnboardingStatus => {
   switch (currentStatus) {
     case "not_started":
       return "email_verified";
 
     case "email_verified":
       if (isInvited) return "onboarding_complete";
-      if (companyType === "individual") return "creator_bank_account_needed";
-      return "creator_vitals_needed";
+      if (companyType === "individual") return "first_bank_account_needed";
+      return "company_vitals_needed";
 
-    case "creator_vitals_needed":
-      return "creator_bank_account_needed";
+    case "company_vitals_needed":
+      return "first_bank_account_needed";
 
-    case "creator_bank_account_needed":
+    case "first_bank_account_needed":
       return "onboarding_complete";
 
     default:

@@ -221,7 +221,7 @@ const companyFields = [
 
   "companies.reporting_framework as reportingFramework",
   "companies.accounting_basis as accountingBasis",
-  "companies.is_onboarding_complete as isOnboardingComplete",
+  "companies.onboarding_status as onboardingStatus",
   "companies.is_demo_company as isDemoCompany",
 
   "companies.reporting_currency_id as reportingCurrencyId",
@@ -362,7 +362,7 @@ export const updateCompany = async (
 
     const [updatedRow] = await knexClient("companies")
       .where("id", companyId)
-      .update({ ...dbUpdates, updated_by_id: userId })
+      .update({ ...dbUpdates, last_updated_by_id: userId })
       .returning("*");
 
     if (!updatedRow) {
@@ -370,7 +370,7 @@ export const updateCompany = async (
     }
 
     if (
-      updatedRow.type === "accounting_firms" &&
+      updatedRow.type === "accounting_firm" &&
       (validInput.data.slug || validInput.data.firmType)
     ) {
       await knexClient("accounting_firms")

@@ -6,14 +6,6 @@ import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
 export const userStatus = z.enum(["active", "inactive", "invited", "disabled"]);
 export const userInviteStatus = z.enum(["pending", "accepted", "declined"]);
 export const authProvider = z.enum(["local"]);
-export const userOnboardingStatus = z.enum([
-  "not_started",
-  "email_verified",
-  "creator_vitals_needed",
-  "creator_bank_account_needed",
-  "onboarding_complete",
-]);
-export type UserOnboardingStatus = z.infer<typeof userOnboardingStatus>;
 
 export const newUser = z.object({
   id: z.string().uuid().optional(),
@@ -37,7 +29,6 @@ export const newUser = z.object({
   invited_at: zDate.nullish(),
   invite_expiry: zDate.nullish(),
 
-  onboarding_status: userOnboardingStatus.default("not_started"),
   last_active_company_id: z.string().uuid().nullish(),
   last_login_at: zDate.nullish(),
   failed_login_attempts: z.number().default(0).nullish(),
@@ -53,7 +44,6 @@ export const newUserDirect = newUser.extend({
   password: z.string().min(8),
   status: userStatus.default("active"),
   email_verified: z.boolean().default(false),
-  onboarding_status: userOnboardingStatus,
 });
 
 export const newUserInvite = newUser

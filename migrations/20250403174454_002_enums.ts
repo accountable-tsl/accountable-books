@@ -125,18 +125,18 @@ export async function up(knex: Knex): Promise<void> {
   );
 
   await knex.raw(
-    createEnumIfNotExists("user_onboarding_status", [
+    createEnumIfNotExists("onboarding_status", [
       "not_started",
       "email_verified",
-      "creator_vitals_needed",
-      "creator_bank_account_needed",
+      "company_vitals_needed",
+      "first_bank_account_needed",
       "onboarding_complete",
     ])
   );
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(`DROP TYPE IF EXISTS user_onboarding_status`);
+  await knex.raw(`DROP TYPE IF EXISTS onboarding_status`);
   await knex.raw(`DROP TYPE IF EXISTS accounting_basis`);
   await knex.raw(`DROP TYPE IF EXISTS project_status`);
   await knex.raw(`DROP TYPE IF EXISTS contact_type`);
