@@ -1,5 +1,44 @@
 import dayjs from "dayjs";
 import Decimal from "decimal.js";
+import z from "zod";
+
+export const zEmail = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("Please enter a valid email address")
+  .min(4, "Email is required");
+
+export type Email = z.infer<typeof zEmail>;
+
+export const companyType = z.enum([
+  "business",
+  "accounting_firm",
+  "individual",
+]);
+export type CompanyType = z.infer<typeof companyType>;
+
+export const userType = z.enum(["admin", "client", "bookkeeper"]);
+export type UserType = z.infer<typeof userType>;
+
+// Country
+export type CountryList = {
+  id: string;
+  code: string;
+  name: string;
+  phoneCode?: string;
+  flag?: string;
+  continent?: string;
+};
+
+export type CurrencyList = {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+};
+
+//////////////////////////////////////
 
 export enum DebitCredit {
   Debit = "DEBIT",
@@ -319,30 +358,6 @@ export type CatEngineTransaction = {
 export type TransactionKey = keyof CatEngineTransaction;
 
 export type BankAccounts = BankAccount[];
-
-export type CompanyData = {
-  id: string;
-  name: string;
-  website: string;
-  industry: string;
-  teamSize: string;
-  revenue: string;
-  countryId: string;
-  countryCode: string;
-  countryName: string;
-  countryPhoneCode: string;
-  countryFlag: string;
-  countryContinent: string;
-  reportingCurrencyId: string;
-  reportingCurrencyCode: string;
-  reportingCurrencyName: string;
-  reportingCurrencySymbol: string;
-  createdById: string;
-  createdByFirstname: string;
-  createdByLastname: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
 
 export enum ScreenSize {
   Mobile = "mobile",

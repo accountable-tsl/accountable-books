@@ -1,9 +1,11 @@
+import DOMPurify from "dompurify";
 import { format, parse, isValid } from "date-fns";
 import Decimal from "decimal.js";
 import numeral from "numeral";
 import { ScreenSize } from "../types/types";
 import React from "react";
 import dayjs from "dayjs";
+import Papa, { ParseResult } from "papaparse";
 
 const possibleDateFormats: string[] = [
   "dd-MMM-yyyy",
@@ -302,3 +304,99 @@ export const normalizeDate = (input: string | Date | dayjs.Dayjs): Date => {
 
   return parsedDate.startOf("day").toDate();
 };
+
+/**
+ * Reads a CSV file from a URL or File object and returns an array of objects.
+ * @param source - The source of the CSV, either a URL (string) or a File object.
+ * @param config - Optional configuration for parsing (header and dynamicTyping).
+ * @returns A promise resolving to an array of objects representing CSV rows.
+ * @template T - Type of the objects in the returned array, extending Record<string, unknown>.
+ * @throws Error if CSV reading or parsing fails.
+ */
+export const readCSV = async <T extends Record<string, unknown>>(
+  source: string | File,
+  config: { header?: boolean; dynamicTyping?: boolean } = {}
+): Promise<T[]> => {
+  const { header = true, dynamicTyping = true } = config;
+
+  try {
+    // Read CSV content based on source type (File or URL)
+    const text =
+      source instanceof File
+        ? await readFile(source)
+        : await fetchRemoteFile(source);
+
+    // Parse CSV text using PapaParse and return parsed data
+    return new Promise<T[]>((resolve, reject) => {
+      Papa.parse<T>(text, {
+        header,
+        dynamicTyping, // Automatically convert strings to numbers/booleans if true
+        complete: (result: ParseResult<T>) => {
+          if (result.errors.length > 0) {
+            reject(result.errors);
+          } else {
+            resolve(result.data);
+          }
+        },
+        error: reject,
+      });
+    });
+  } catch (error) {
+    throw new Error(
+      `CSV read failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+};
+
+/**
+ * Fetches a remote CSV file from a URL and returns its text content.
+ * @param url - The URL of the CSV file.
+ * @returns A promise resolving to the file's text content.
+ * @throws Error if the HTTP request fails.
+ */
+const fetchRemoteFile = async (url: string): Promise<string> => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return response.text();
+};
+
+/**
+ * Reads a local File object and returns its text content.
+ * @param file - The File object to read.
+ * @returns A promise resolving to the file's text content.
+ * @throws Error if file reading fails.
+ */
+const readFile = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    // Resolve with file content on successful read
+    reader.onload = () => resolve(reader.result as string);
+
+    // Reject on read error
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+};
+
+export const sanitizeInput = (input: string | null | undefined): string =>
+  DOMPurify.sanitize(input || "").trim();
+
+export const sanitizeOptionalInput = (
+  value: string | null | undefined
+): string | null => {
+  if (!value) return null;
+  return sanitizeInput(value);
+};
+
+export function getCookie(name: string) {
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  if (match) return match[2];
+}
+
+export enum ErrorCode {
+  GENERIC = "GENERIC_ERROR",
+  INVALID_CREDENTIALS = "INVALID_CREDENTIALS",
+  NO_ROLES = "NO_ROLES",
+}

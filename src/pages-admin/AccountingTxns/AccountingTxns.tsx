@@ -1,7 +1,7 @@
 import { Coins, Proportions } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./AccountingTxns.scss";
-import { useCompany } from "../../utils/company";
+import { useCompany } from "@/domains/company/store";
 import { useEffect, useMemo, useState } from "react";
 import { routes } from "../../utils/routes";
 import MultiSelectDropdown from "../../components/MultiSelectDropdown/MultiSelectDropdown";
@@ -17,9 +17,11 @@ import { RangePickerProps } from "antd/es/date-picker";
 import dayjs from "dayjs";
 import { fetchGenLedgerEntries } from "../../services/TransactionServices";
 import { AccountTxnTable } from "./AccountTxnTable";
+import { groupOptionsBy } from "./AccountingTxnsUtils";
 
 export default function AccountingTxns() {
   const { companyId } = useCompany();
+
   const startOfMonth = dayjs().startOf("month");
   const endOfMonth = dayjs().endOf("month");
 
@@ -202,41 +204,4 @@ export default function AccountingTxns() {
       <div className="atx-footer"></div>
     </div>
   );
-}
-
-export function groupOptionsBy<T extends Record<string, any>>(
-  data: T[],
-  groupByKey: keyof T,
-  sortGroups: boolean = false,
-  othersLabel: string = "Others"
-): MultiSelectOptionGroup[] {
-  const groupMap: Record<string, MultiSelectOption[]> = {};
-
-  for (const item of data) {
-    const group = item[groupByKey]?.trim?.() || "Others";
-
-    if (!groupMap[group]) {
-      groupMap[group] = [];
-    }
-
-    groupMap[group].push({
-      label: item.accountName,
-      value: item.id,
-      disabled: item.disabled,
-    });
-  }
-
-  let entries = Object.entries(groupMap);
-
-  if (sortGroups) {
-    entries = entries.sort(([a], [b]) => a.localeCompare(b));
-  }
-
-  const othersEntry = entries.find(([label]) => label === othersLabel);
-  entries = entries.filter(([label]) => label !== othersLabel);
-
-  if (othersEntry) {
-    entries.push(othersEntry);
-  }
-  return entries.map(([label, options]) => ({ label, options }));
 }

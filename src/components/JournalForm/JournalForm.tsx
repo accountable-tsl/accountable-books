@@ -16,7 +16,7 @@ import {
   JournalTransaction,
   PostJournalPayload,
 } from "../../types/types";
-import { normalizeDate, parseDecimal, toTitleCase } from "../../utils/utils";
+import { normalizeDate, toTitleCase } from "../../utils/utils";
 import dayjs from "dayjs";
 import DatePlaceholderInput, {
   usePlaceholderInput,
@@ -31,6 +31,7 @@ import { usePopup } from "../../contexts/PopupContext";
 import JournalFormPopup from "./JournalFormPopup";
 import { routes } from "../../utils/routes";
 import { useNavigate } from "react-router-dom";
+import { sumAmounts } from "./journalFormUtils";
 
 interface JournalFormProps {
   journalStatus: JournalStatus;
@@ -506,42 +507,6 @@ export function JournalDateField({
     </div>
   );
 }
-
-export const sumAmounts = (
-  journalData: any[],
-  entryGridColumnData: {
-    key: string;
-    label: string;
-    inputType: EntryGridColumnInputType;
-  }[]
-) => {
-  if (!journalData || !Array.isArray(journalData) || journalData.length === 0) {
-    return entryGridColumnData
-      .filter((col) => col.inputType === EntryGridColumnInputType.AMOUNT)
-      .reduce(
-        (emptyTotals, col) => ({
-          ...emptyTotals,
-          [col.key]: new Decimal(0),
-        }),
-        {} as Record<string, Decimal>
-      );
-  }
-  try {
-    return entryGridColumnData
-      .filter((col) => col.inputType === EntryGridColumnInputType.AMOUNT)
-      .reduce((totals, col) => {
-        const key = col.key;
-        totals[key] = journalData.reduce(
-          (sum, entry) => sum.plus(parseDecimal(entry?.[key])),
-          new Decimal(0)
-        );
-        return totals;
-      }, {} as Record<string, Decimal>);
-  } catch (error) {
-    console.error("Error calculating amount totals:", error);
-    return {} as Record<string, Decimal>;
-  }
-};
 
 export const validateJournalData = (
   companyId: string,

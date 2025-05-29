@@ -25,7 +25,6 @@ import Decimal from "decimal.js";
 import { fetchCoa } from "../../services/CoaServices";
 import {
   JournalDateField,
-  sumAmounts,
   transformJournalTransactions,
   validateJournalData,
 } from "../JournalForm/JournalForm";
@@ -35,6 +34,7 @@ import dayjs from "dayjs";
 import JournalFormPopup from "../JournalForm/JournalFormPopup";
 import { usePopup } from "../../contexts/PopupContext";
 import { routes } from "../../utils/routes";
+import { sumAmounts } from "../JournalForm/journalFormUtils";
 
 export default function JournalView({
   companyId,

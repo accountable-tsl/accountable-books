@@ -7,7 +7,7 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import { routes } from "../../utils/routes";
 import { fetchCoa } from "../../services/CoaServices";
-import { useCompany } from "../../utils/company";
+import { useCompany } from "@/domains/company/store";
 import { BeatLoader } from "react-spinners";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import Button from "../../components/Button/Button";
@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function COA() {
   const { companyId } = useCompany();
+
   const { openPopup } = usePopup();
   const navigate = useNavigate();
 

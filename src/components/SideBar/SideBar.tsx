@@ -1,221 +1,137 @@
-import { Children, ElementType, ReactNode, useState } from "react";
-import "./SideBar.scss";
 import {
-  Briefcase,
-  Calculator,
-  ChartPie,
-  House,
-  LogOut,
-  Scale,
+  ArrowUpCircleIcon,
+  AudioWaveform,
+  Calendar,
+  GalleryVerticalEnd,
+  Home,
+  Inbox,
+  Search,
+  Settings,
+  UserIcon,
 } from "lucide-react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { faComment } from "@fortawesome/free-regular-svg-icons";
-import Button from "../Button/Button";
+
 import {
-  faChevronDown,
-  faChevronUp,
-  faUser,
-} from "@fortawesome/free-solid-svg-icons";
-import { useSideBarContext } from "../../contexts/SideBarContext";
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 import { Link } from "react-router-dom";
-import { useCompany } from "../../utils/company";
-import { routes } from "../../utils/routes";
+import {
+  getNavMain,
+  getNavSecondary,
+  getNavUser,
+} from "@/constants/sidebarData";
+import { NavMain } from "../NavMain";
+import { NavUser } from "../NavUser";
+import { NavSecondary } from "../NavSecondary";
+import { routes } from "@/shared/routes/routes";
+import { useAuth } from "@/features/auth/hooks";
+import { useCompany } from "@/domains/company/store";
 
-export default function SideBar() {
-  const { sideBarType } = useSideBarContext();
-  const { companyId } = useCompany();
-  const [isAdmin] = useState(true);
+export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  sidebarCollapsible?: "icon" | "offcanvas";
+  defaultCollapsed?: boolean;
+}
+
+export function AppSidebar({
+  sidebarCollapsible = "icon",
+  ...props
+}: AppSidebarProps) {
+  // Side bar options, depending on page, I'd use collapsible or icon
+  // e.g on categorization engine, we'd use collapsible but on dashboard, we'd use icon
+  const { companyId, companyType, company } = useCompany();
+  const { user } = useAuth();
+  console.log(
+    "company",
+    company,
+    "user",
+    user,
+    "companyId",
+    companyId,
+    "companyType",
+    companyType
+  );
+
+  if (!companyId || !companyType) return "#";
+  const navMain = getNavMain(companyId, companyType);
+  const navSecondary = getNavSecondary(companyId, companyType);
+  const navUser = getNavUser({
+    name: user.firstname,
+    email: user.email,
+    avatar: user.avatar || "",
+  });
 
   return (
-    <div className="sidebar">
-      <aside
-        className={`sidebar-container ${
-          sideBarType === "small"
-            ? "sidebar-container__sm sidebar-container__sm-open"
-            : "sidebar-container__sm sidebar-container__sm-close"
-        }`}
-      >
-        <div className="sidebar-top">
-          <SmallSideBarItem
-            isActive
-            Icon={House}
-            title="Home"
-            url={`/${companyId}`}
-          />
-          <SmallSideBarItem
-            Icon={Calculator}
-            title="Accounting"
-            url={routes.accounting.root(companyId)}
-          />
-          {isAdmin && (
-            <SmallSideBarItem
-              Icon={Briefcase}
-              title="Workspace
-            "
-              url={routes.accounting.workspace.root(companyId)}
-            />
-          )}
-          <SmallSideBarItem
-            Icon={Scale}
-            title="Tax"
-            url={routes.tax.root(companyId)}
-          />
-          <SmallSideBarItem Icon={ChartPie} title="Reports" url="/reports" />
-          <SmallSideBarItem icon={faComment} title="Messages" url="/messages" />
-        </div>
-        <div className="sidebar-bottom">
-          <SmallSideBarItem Icon={LogOut} title="Log out" url="/logout" />
-          <hr />
-          <SmallSideBarItem icon={faUser} title="FirstName" url="/profile" />
-        </div>
-      </aside>
-      <aside
-        className={`sidebar-container ${
-          sideBarType === "large"
-            ? "sidebar-container__lg sidebar-container__lg-open"
-            : "sidebar-container__lg sidebar-container__lg-close"
-        }`}
-      >
-        <div className="sidebar-top">
-          <LargeSideBarSection>
-            <LargeSideBarItem isActive Icon={House} title="Home" url="/" />
-            <LargeSideBarItem
-              Icon={Calculator}
-              title="Accounting"
-              url="/accounting"
-            />
-            {isAdmin && (
-              <LargeSideBarItem
-                Icon={Briefcase}
-                title="Workspace"
-                url="/accounting/workspace"
-              />
-            )}
-            <LargeSideBarItem Icon={Scale} title="Tax" url="/tax" />
-            <LargeSideBarItem Icon={ChartPie} title="Reports" url="/reports" />
-            <LargeSideBarItem
-              icon={faComment}
-              title="Messages"
-              url="/messages"
-            />
-          </LargeSideBarSection>
-        </div>
-        <div className="sidebar-bottom">
-          <LargeSideBarSection>
-            <LargeSideBarItem Icon={LogOut} title="Log out" url="/logout" />
-            <hr />
-            <LargeSideBarItem icon={faUser} title="FirstName" url="/profile" />
-          </LargeSideBarSection>
-        </div>
-      </aside>
-    </div>
+    <Sidebar collapsible={sidebarCollapsible} {...props}>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              className="data-[slot=sidebar-menu-button]:!p-1.5"
+            >
+              <Link
+                to={routes.dashboard.staticPath}
+                className="flex items-center gap-2"
+              >
+                <div className="flex items-center justify-center h-5 w-5 overflow-hidden">
+                  {company?.assignedFirmLogo ? (
+                    <img
+                      src={company?.assignedFirmLogo}
+                      alt={`${company?.assignedFirmName} Logo`}
+                    />
+                  ) : (
+                    <ArrowUpCircleIcon />
+                  )}
+                </div>
+                <span className="truncate text-base font-semibold">
+                  {company?.assignedFirmName}
+                </span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      <SidebarContent>
+        <NavMain items={navMain} />
+        <NavSecondary items={navSecondary} className="mt-auto" />
+      </SidebarContent>
+      <SidebarFooter>
+        <NavUser user={navUser} />
+      </SidebarFooter>
+    </Sidebar>
   );
 }
 
-type SmallSideBarItemProps = {
-  Icon?: ElementType;
-  icon?: IconDefinition | string | JSX.Element;
-  title: string;
-  url: string;
-  isActive?: boolean;
-};
-
-function SmallSideBarItem({
-  Icon,
-  icon,
-  title,
-  url,
-  isActive = false,
-}: SmallSideBarItemProps) {
-  return (
-    <Link
-      to={url}
-      className={`sidebar-item sidebar-item__sm ${
-        isActive ? "sidebar-item__active" : undefined
-      }`}
-    >
-      {Icon && <Icon className="sidebar-icon" />}
-      {icon &&
-        (typeof icon === "string" ? (
-          <img src={icon} alt={title} className="sidebar-icon" />
-        ) : (
-          <FontAwesomeIcon
-            icon={icon as IconDefinition}
-            className="sidebar-icon"
-          />
-        ))}
-      <div className="sidebar-text">{title}</div>
-    </Link>
-  );
-}
-
-type LargeSideBarSectionProps = {
-  children: ReactNode;
-  title?: string;
-  visibleItemCount?: number;
-};
-
-function LargeSideBarSection({
-  children,
-  title,
-  visibleItemCount = Number.POSITIVE_INFINITY,
-}: LargeSideBarSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const childrenArray = Children.toArray(children).flat();
-  const showExpandButton = childrenArray.length > visibleItemCount;
-  const visibleChildren = isExpanded
-    ? childrenArray
-    : childrenArray.slice(0, visibleItemCount);
-
-  return (
-    <>
-      {title && <div className="sidebar-title">{title}</div>}
-      {visibleChildren}
-      {showExpandButton && (
-        <Button
-          icon={isExpanded ? faChevronUp : faChevronDown}
-          customClass="sidebar-icon__expand"
-          text={isExpanded ? "Show Less" : "Show More"}
-          onClick={() => setIsExpanded((e) => !e)}
-        />
-      )}
-    </>
-  );
-}
-
-type LargeSideBarItemProps = {
-  Icon?: ElementType;
-  icon?: IconDefinition | string | JSX.Element;
-  title: string;
-  url: string;
-  isActive?: boolean;
-};
-function LargeSideBarItem({
-  Icon,
-  icon,
-  title,
-  url,
-  isActive = false,
-}: LargeSideBarItemProps) {
-  return (
-    <Link
-      to={url}
-      className={`sidebar-item sidebar-item__lg ${
-        isActive ? "sidebar-item__active" : undefined
-      }`}
-    >
-      {Icon && <Icon className="sidebar-icon" />}
-      {icon &&
-        (typeof icon === "string" ? (
-          <img src={icon} alt={title} className="sidebar-icon" />
-        ) : (
-          <FontAwesomeIcon
-            icon={icon as IconDefinition}
-            className="sidebar-icon"
-          />
-        ))}
-      <div className="sidebar-text">{title}</div>
-    </Link>
-  );
-}
+// export function OnboardingSidebar() {
+//   return (
+//     <Sidebar>
+//       <SidebarContent>
+//         <SidebarGroup>
+//           <SidebarGroupLabel>Application</SidebarGroupLabel>
+//           <SidebarGroupContent>
+//             <SidebarMenu>
+//               {items.map((item) => (
+//                 <SidebarMenuItem key={item.title}>
+//                   <SidebarMenuButton asChild>
+//                     <a href={item.url}>
+//                       <item.icon />
+//                       <span>{item.title}</span>
+//                     </a>
+//                   </SidebarMenuButton>
+//                 </SidebarMenuItem>
+//               ))}
+//             </SidebarMenu>
+//           </SidebarGroupContent>
+//         </SidebarGroup>
+//       </SidebarContent>
+//     </Sidebar>
+//   );
+// }

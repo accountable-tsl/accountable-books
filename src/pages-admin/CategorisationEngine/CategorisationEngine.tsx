@@ -8,7 +8,7 @@ import {
   TableProperties,
 } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
-import { useCompany } from "../../utils/company";
+import { useCompany } from "@/domains/company/store";
 import { routes } from "../../utils/routes";
 import { DatePicker, Select, SelectProps, Space } from "antd";
 import "./CategorisationEngine.scss";
@@ -33,11 +33,11 @@ import Decimal from "decimal.js";
 import { getBankAccounts } from "../../services/BankAccountServices";
 
 import numeral from "numeral";
-import { fetchCompany } from "../../services/CompanyServices";
 import { fetchCoa } from "../../services/CoaServices";
 import CustomSelect from "../../components/CoaSelectCellEditor/CoaSelectCellEditor";
 import debounce from "lodash.debounce";
 import { userId } from "../../utils/user";
+import { getCompanyDetails as fetchCompany } from "@/domains/company/api";
 
 const catengineHeaders = [
   { label: "Bank", key: "bankAccount", pinned: "left" },

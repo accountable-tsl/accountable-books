@@ -6,8 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faQuestionCircle } from "@fortawesome/free-regular-svg-icons";
 import { fetchCurrencies } from "../../services/currencyServices";
 import { createBankAccount } from "../../services/BankAccountServices";
-import { useCompany } from "../../utils/company";
-
+import { useCompany } from "@/domains/company/store";
 type Errors = {
   bankId?: string;
   displayName?: string;
@@ -17,6 +16,7 @@ type Errors = {
 
 export default function AddBankAccount() {
   const { companyId } = useCompany();
+
   const { closePopup } = usePopup();
 
   const [banks, setBanks] = useState([]);
