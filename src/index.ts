@@ -23,6 +23,7 @@ import {
   verifyRefreshToken,
 } from "./features/auth/auth.middleware";
 import { subdomain } from "./core/middlewares/subdomain.middleware";
+import { checkOnboardingStatus } from "./features/onboarding/onboarding.middleware";
 
 const PORT = ENV.PORT!;
 export const BACKEND_URL = ENV.BACKEND_URL!;
@@ -78,11 +79,12 @@ async function startServer() {
     app.use("/api/countries", countryRoutes);
     app.use("/api/email", emailRoutes);
 
-    app.use(verifyRefreshToken);
+    app.use("/api", verifyRefreshToken);
+    app.use("/api", checkOnboardingStatus);
 
-    app.use("/api", objectRoutes);
     app.use("/api/companies", companiesRoutes);
     app.use("/api/users", usersRoutes);
+    app.use("/api", objectRoutes);
 
     app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
     app.use("/admin/queues", serverAdapter.getRouter());

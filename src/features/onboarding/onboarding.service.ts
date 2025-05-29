@@ -37,7 +37,7 @@ export async function updateOnboardingStatus(
 
     const company = await knexClient("companies")
       .select("id", "type")
-      .where({ id: user.last_active_company_id })
+      .where({ id: user.last_active_company_id ?? undefined })
       .orWhere({ created_by_id: user.id })
       .first();
 

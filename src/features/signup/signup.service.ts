@@ -170,7 +170,6 @@ const createUserAndCompany = async (
     .where("c.is_platform", true)
     .first<{ company_id: string; slug: string }>();
 
-  console.log("Platform firm:", platformFirm);
   if (!platformFirm) {
     throw new AppError("Unable to retrieve platform firm");
   }

@@ -1,10 +1,10 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Response } from "express";
 import { AuthRequest } from "../auth/auth.types";
 import { ErrorCode, errorResponse } from "../../shared/utils/response.utils";
-import knexClient from "../../../knexClient";
 import { getSingleCompany } from "../../domains/companies/companies.model";
 import { redis } from "../../lib/redis";
 import { getUserDetails } from "../../domains/users/users.model";
+import { userOnboardingStatus } from "../../domains/users/users.types";
 
 export const checkOnboardingStatus = async (
   req: AuthRequest,
@@ -15,7 +15,9 @@ export const checkOnboardingStatus = async (
   const companyId = req.user?.currentCompanyId;
 
   if (!userId || !companyId) {
-    return res.status(403).json(errorResponse("Unauthorized"));
+    return res
+      .status(403)
+      .json(errorResponse("Unauthorized", undefined, ErrorCode.UNAUTHORIZED));
   }
 
   const company = await getSingleCompany(companyId);
@@ -41,34 +43,34 @@ export const checkOnboardingStatus = async (
     redis.get(companyCacheKey),
   ]);
 
-  const userComplete = cachedUserStatus === "onboarding_complete";
-  const companyComplete = cachedCompanyStatus === "true";
+  const onboardingComplete = userOnboardingStatus.enum.onboarding_complete;
+  let userComplete = cachedUserStatus === onboardingComplete;
+  let companyComplete = cachedCompanyStatus === "1";
 
   if (!userComplete) {
     const user = await getUserDetails(userId);
     if (!user || !user.success) {
-      return res.status(404).json(errorResponse("User not found"));
+      return res
+        .status(404)
+        .json(errorResponse("User not found", undefined, ErrorCode.NOT_FOUND));
     }
 
-    if (user.data?.onboardingStatus === "onboarding_complete") {
-      await redis.set(userCacheKey, "onboarding_complete", "EX", 7200); // 2 hour cache
-      cachedUserStatus = "onboarding_complete";
+    if (user.data?.onboardingStatus === onboardingComplete) {
+      await redis.set(userCacheKey, onboardingComplete, "EX", 7200); // 2 hour cache
+      userComplete = true;
     }
   }
 
   // Check if onboarding_status in users table is onboarding_complete
   // Check if the current company they are trying to access has is_onboarding_complete set to true
   // if both are true, allow access (next())
-  if (!companyComplete && companyData.isOnboardingComplete === true) {
+  if (!companyComplete && companyData.isOnboardingComplete) {
     await redis.set(companyCacheKey, "true", "EX", 21600); // 6 hour cache
-    cachedCompanyStatus = "true";
+    companyComplete = true;
   }
 
-  if (
-    cachedUserStatus === "onboarding_complete" &&
-    (cachedCompanyStatus === "true" ||
-      companyData.isOnboardingComplete === true)
-  ) {
+  // Allow access if both user and company onboarding are complete
+  if (userComplete && companyComplete) {
     return next();
   }
 
@@ -78,12 +80,23 @@ export const checkOnboardingStatus = async (
   if (isCreator) {
     return res
       .status(403)
-      .json(errorResponse("Onboarding not complete"))
-      .redirect("/onboarding");
+      .json(
+        errorResponse(
+          "Onboarding not complete",
+          undefined,
+          ErrorCode.ONBOARDING_INCOMPLETE
+        )
+      );
   }
 
   // if user is not the creator, maybe just return success false and some code and let frontend ask them to contact whoever invited them to the company
   return res
     .status(403)
-    .json(errorResponse("Company setup not complete. Contact creator"));
+    .json(
+      errorResponse(
+        "Company setup not complete. Contact creator",
+        undefined,
+        ErrorCode.ONBOARDING_INCOMPLETE
+      )
+    );
 };

@@ -66,9 +66,7 @@ export const newCompany = newCompanyInput
   })
   .omit({ slug: true });
 
-export const company = newCompany
-  .merge(dbBaseFields)
-  .transform(stripSlugIfNotAccountingFirm);
+export const company = newCompany.merge(dbBaseFields);
 
 export type CompanyType = z.infer<typeof companyType>;
 export type ReportingFramework = z.infer<typeof reportingFramework>;

@@ -370,7 +370,7 @@ export const updateCompany = async (
     }
 
     if (
-      updatedRow.type === "accounting_firm" &&
+      updatedRow.type === "accounting_firms" &&
       (validInput.data.slug || validInput.data.firmType)
     ) {
       await knexClient("accounting_firms")

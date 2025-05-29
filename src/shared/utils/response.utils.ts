@@ -108,6 +108,7 @@ export enum ErrorCode {
 
   // 4xx: Business Logic / Domain Rules
   OPERATION_NOT_ALLOWED = "OPERATION_NOT_ALLOWED", // e.g. trying to delete demo company
+  ONBOARDING_INCOMPLETE = "ONBOARDING_INCOMPLETE", // e.g. user or company onboarding not complete
 
   // 5xx: System/Internal Errors
   GENERIC = "GENERIC_ERROR",
