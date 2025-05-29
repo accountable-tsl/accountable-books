@@ -4,20 +4,20 @@
 BEGIN;
 
 -- Clean up existing objects to ensure script is idempotent
-DROP TRIGGER IF EXISTS lock_firm_platform_flag ON accounting_firm;
-DROP TRIGGER IF EXISTS lock_company_platform_flag ON company;
+DROP TRIGGER IF EXISTS lock_firm_platform_flag ON accounting_firms;
+DROP TRIGGER IF EXISTS lock_company_platform_flag ON companies;
 DROP FUNCTION IF EXISTS prevent_platform_flag_update() CASCADE;
 DROP INDEX IF EXISTS only_one_platform_firm;
 DROP INDEX IF EXISTS only_one_platform_company;
 
 
 -- Add platform flag columns to both tables
-ALTER TABLE accounting_firm ADD COLUMN IF NOT EXISTS is_platform BOOLEAN DEFAULT false;
-ALTER TABLE company ADD COLUMN IF NOT EXISTS is_platform BOOLEAN DEFAULT false;
+ALTER TABLE accounting_firms ADD COLUMN IF NOT EXISTS is_platform BOOLEAN DEFAULT false;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS is_platform BOOLEAN DEFAULT false;
 
 -- Create partial unique indexes to ensure only one record can be marked as platform
-CREATE UNIQUE INDEX only_one_platform_firm ON accounting_firm (is_platform) WHERE is_platform = true;
-CREATE UNIQUE INDEX only_one_platform_company ON company (is_platform) WHERE is_platform = true;
+CREATE UNIQUE INDEX only_one_platform_firm ON accounting_firms (is_platform) WHERE is_platform = true;
+CREATE UNIQUE INDEX only_one_platform_company ON companies (is_platform) WHERE is_platform = true;
 
 -- Create function to prevent removing the platform flag once set
 CREATE FUNCTION prevent_platform_flag_update()
@@ -31,13 +31,13 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER lock_firm_platform_flag
-BEFORE UPDATE ON accounting_firm
+BEFORE UPDATE ON accounting_firms
 FOR EACH ROW
 WHEN (OLD.is_platform IS TRUE)
 EXECUTE FUNCTION prevent_platform_flag_update();
 
 CREATE TRIGGER lock_company_platform_flag
-BEFORE UPDATE ON company
+BEFORE UPDATE ON companies
 FOR EACH ROW
 WHEN (OLD.is_platform IS TRUE)
 EXECUTE FUNCTION prevent_platform_flag_update();

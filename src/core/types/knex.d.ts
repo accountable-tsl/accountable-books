@@ -14,10 +14,9 @@ import {
   NewFinancialStatementInput,
   NewPermissionInput,
   NewRoleInput,
-  NewUserCompanyRole,
   Permission,
   Role,
-  UserCompanyRole,
+  RolePermission,
 } from "./db.type";
 import {
   CoaTemplate,
@@ -34,6 +33,10 @@ import {
   AccFirm,
   NewAccFirm,
 } from "../../domains/accountingFirm/accountingFirm.types";
+import {
+  NewUserCompanyRole,
+  UserCompanyRole,
+} from "../../domains/userCompanyRole/userCompanyRole.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -116,6 +119,11 @@ declare module "knex/types/tables" {
     >;
 
     coa: Knex.CompositeTableType<Coa, NewCoa, Partial<Omit<Coa, "id">>>;
-  }
 
+    roles_permissions: Knex.CompositeTableType<
+      RolePermission,
+      RolePermission,
+      Partial<RolePermission>
+    >;
+  }
 }

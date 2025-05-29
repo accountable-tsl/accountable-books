@@ -3,6 +3,8 @@ import { preventUpdateOrDelete } from "../src/utils/db";
 import { NODE_ENV } from "../src/config/env";
 import { RoleName } from "../src/core/types/db.type";
 
+const tableName = "roles_permissions";
+
 // Role-permission mappings
 const rolePermissions: Record<Exclude<RoleName, "super_admin">, string[]> = {
   admin: [
@@ -63,14 +65,14 @@ const rolePermissions: Record<Exclude<RoleName, "super_admin">, string[]> = {
 
 const seedRolePermissions = async function seed(knex: Knex): Promise<void> {
   try {
-    const roles = await knex("role").select("id", "name");
-    const permissions = await knex("permission").select("id", "key");
+    const roles = await knex("roles").select("id", "name");
+    const permissions = await knex("permissions").select("id", "key");
 
     // Map role/permission IDs
     const roleMap = new Map(roles.map((r) => [r.name, r.id]));
     const permissionMap = new Map(permissions.map((p) => [p.key, p.id]));
 
-    // Build role_permission entries
+    // Build roles_permissions entries
     const entries = Object.entries(rolePermissions).flatMap(
       ([roleName, permKeys]) => {
         const roleId = roleMap.get(roleName as RoleName);
@@ -95,22 +97,20 @@ const seedRolePermissions = async function seed(knex: Knex): Promise<void> {
 
     // Insert with transaction
     await knex.transaction(async (trx) => {
-      await trx("role_permission")
+      await trx(tableName)
         .insert(entries)
         .onConflict(["role_id", "permission_id"])
         .ignore();
     });
 
     if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
-      console.log(`Seeded ${entries.length} role_permission entries`);
+      console.log(`Seeded ${entries.length} roles_permissions entries`);
     }
   } catch (error) {
-    console.error("Error seeding role_permissions:", error);
+    console.error("Error seeding roles_permissions:", error);
     throw error;
   }
 };
-
-const tableName = "role_permission";
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
@@ -118,19 +118,19 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("role_id")
       .notNullable()
       .references("id")
-      .inTable("role")
+      .inTable("roles")
       .onDelete("CASCADE");
     table
       .uuid("permission_id")
       .notNullable()
       .references("id")
-      .inTable("permission")
+      .inTable("permissions")
       .onDelete("CASCADE");
 
     table.timestamp("granted_at", { useTz: true }).defaultTo(knex.fn.now());
 
     table.primary(["role_id", "permission_id"]);
-    table.index(["role_id"], "role_permission_role_id_idx");
+    table.index(["role_id"], "roles_permissions_role_id_idx");
   });
 
   await preventUpdateOrDelete(knex, tableName);

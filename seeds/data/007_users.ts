@@ -56,14 +56,14 @@ export async function seed(knex: Knex): Promise<void> {
     },
     {
       firstname: "Inactive",
-      lastname: "User",
+      lastname: "users",
       email: "inactive@example.com",
       password: hashedTestAdmin,
       status: "inactive",
     },
     {
       firstname: "Admin",
-      lastname: "User",
+      lastname: "users",
       email: "admin@example.com",
       password: hashedTestAdmin,
       status: "active",
@@ -79,7 +79,7 @@ export async function seed(knex: Knex): Promise<void> {
 
   await knex.transaction(async (trx) => {
     try {
-      await trx("user").insert(users).onConflict("email").ignore();
+      await trx("users").insert(users).onConflict("email").ignore();
 
       // ONLY log this once, add to .env file and then delete this part
       if (!isProd) {

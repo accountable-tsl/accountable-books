@@ -4,7 +4,7 @@ import { dbBaseFields } from "../../core/validation/schemas";
 export const companyType = z.enum([
   "business",
   "individual",
-  "accounting_firm",
+  "accounting_firms",
 ]);
 export const reportingFramework = z.enum(["ifrs", "us_gaap"]);
 

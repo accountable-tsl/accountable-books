@@ -13,6 +13,7 @@ import { NewPermissionInput } from "../src/core/types/db.type";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const tableName = "permissions";
 
 const seedPermissions = async function seed(knex: Knex): Promise<void> {
   const filePath = path.join(__dirname, "data/permissions.json");
@@ -30,7 +31,7 @@ const seedPermissions = async function seed(knex: Knex): Promise<void> {
     }));
 
     await knex.transaction(async (trx) => {
-      await trx("permission")
+      await trx(tableName)
         .insert(seedData)
         .onConflict(["action", "resource"])
         .ignore();
@@ -44,8 +45,6 @@ const seedPermissions = async function seed(knex: Knex): Promise<void> {
     throw error;
   }
 };
-
-const tableName = "permission";
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {

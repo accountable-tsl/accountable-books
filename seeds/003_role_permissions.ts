@@ -62,14 +62,14 @@ const rolePermissions: Record<Exclude<RoleName, "super_admin">, string[]> = {
 export async function seed(knex: Knex): Promise<void> {
   try {
     // Fetch existing roles and permissions
-    const roles = await knex("role").select("id", "name");
-    const permissions = await knex("permission").select("id", "key");
+    const roles = await knex("roles").select("id", "name");
+    const permissions = await knex("permissions").select("id", "key");
 
     // Map role/permission IDs
     const roleMap = new Map(roles.map((r) => [r.name, r.id]));
     const permissionMap = new Map(permissions.map((p) => [p.key, p.id]));
 
-    // Build role_permission entries
+    // Build roles_permissions entries
     const entries = Object.entries(rolePermissions).flatMap(
       ([roleName, permKeys]) => {
         const roleId = roleMap.get(roleName as RoleName);
@@ -95,17 +95,17 @@ export async function seed(knex: Knex): Promise<void> {
 
     // Insert with transaction
     await knex.transaction(async (trx) => {
-      await trx("role_permission")
+      await trx("roles_permissions")
         .insert(entries)
         .onConflict(["role_id", "permission_id"])
         .ignore();
     });
 
     if (process.env.NODE_ENV === "local" || NODE_ENV === "docker.dev") {
-      console.log(`Seeded ${entries.length} role_permission entries`);
+      console.log(`Seeded ${entries.length} roles_permissions entries`);
     }
   } catch (error) {
-    console.error("Error seeding role_permissions:", error);
+    console.error("Error seeding roles_permissionss:", error);
     throw error;
   }
 }

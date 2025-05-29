@@ -23,21 +23,21 @@
   {
     "key": "company:switch",
     "action": "switch",
-    "resource": "company",
+    "resource": "companies",
     "label": "Switch Company",
     "description": "Switch between accessible companies"
   },
   {
     "key": "company:manage",
     "action": "manage",
-    "resource": "company",
+    "resource": "companies",
     "label": "Manage Company",
     "description": "Update company settings"
   },
   {
     "key": "accounting_firm:change",
     "action": "change",
-    "resource": "accounting_firm",
+    "resource": "accounting_firms",
     "label": "Change Accounting Firm",
     "description": "Request a change in accounting firm"
   },

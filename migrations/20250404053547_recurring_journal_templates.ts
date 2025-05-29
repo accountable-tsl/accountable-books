@@ -5,7 +5,7 @@ import {
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
 
-const tableName = "recurring_journal_template";
+const tableName = "recurring_journal_templates";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
@@ -16,7 +16,11 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo("draft");
 
-    table.uuid("company_id").notNullable().references("id").inTable("company");
+    table
+      .uuid("company_id")
+      .notNullable()
+      .references("id")
+      .inTable("companies");
     table.specificType("frequency", "recurrence_frequency").notNullable();
     table.timestamp("start_date", { useTz: true }).notNullable();
     table.timestamp("end_date", { useTz: true }).nullable();
@@ -27,7 +31,7 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("created_by_id")
       .notNullable()
       .references("id")
-      .inTable("user")
+      .inTable("users")
       .onDelete("RESTRICT");
     addStandardColumns(table);
 

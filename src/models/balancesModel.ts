@@ -169,7 +169,7 @@ export async function coaAccountBalances(companyIdentifier: string) {
         if (companyIdType === "uuid") {
           qb.where("Coa.companyId", companyIdentifier);
         } else {
-          qb.join("Company", "Coa.companyId", "Company.id").where(
+          qb.join("companies", "Coa.companyId", "Company.id").where(
             "Company.shortCode",
             companyIdentifier
           );
@@ -209,7 +209,7 @@ export async function getBankAccountBalances(companyIdentifier: string) {
     //     query.where(`${table}.companyId`, companyIdentifier);
     //   } else {
     //     query
-    //       .join("Company", `${table}.companyId`, "Company.id")
+    //       .join("companies", `${table}.companyId`, "Company.id")
     //       .where("Company.shortCode", companyIdentifier);
     //   }
     //   return query;
@@ -228,7 +228,7 @@ export async function getBankAccountBalances(companyIdentifier: string) {
       bankBalancesQuery.where("BankAccount.companyId", companyIdentifier);
     } else {
       bankBalancesQuery
-        .join("Company", "BankAccount.companyId", "Company.id")
+        .join("companies", "BankAccount.companyId", "Company.id")
         .where("Company.shortCode", companyIdentifier);
     }
 
@@ -240,7 +240,7 @@ export async function getBankAccountBalances(companyIdentifier: string) {
         "Company.reportingCurrencyId",
       ])
       .where("BankAccount.isDeleted", false)
-      .leftJoin("Company", "BankAccount.companyId", "Company.id");
+      .leftJoin("companies", "BankAccount.companyId", "Company.id");
 
     if (companyIdType === "uuid") {
       bankAccountsQuery.where("BankAccount.companyId", companyIdentifier);
@@ -391,7 +391,7 @@ export async function getBankLedgerBalances(companyIdentifier: string) {
       ledgerBalancesQuery.where("Coa.companyId", companyIdentifier);
     } else {
       ledgerBalancesQuery
-        .join("Company", "Coa.companyId", "Company.id")
+        .join("companies", "Coa.companyId", "Company.id")
         .where("Company.shortCode", companyIdentifier);
     }
 

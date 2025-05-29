@@ -32,7 +32,7 @@ export async function checkEmail(
       return errorResponse("Invalid email format", isValidEmailFormat.error);
     }
 
-    const user = await knex("user").where({ email }).first();
+    const user = await knex("users").where({ email }).first();
 
     const messages = purpose
       ? purposes[purpose]

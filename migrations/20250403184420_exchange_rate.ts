@@ -80,13 +80,13 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("from_currency_id")
       .notNullable()
       .references("id")
-      .inTable("currency")
+      .inTable("currencies")
       .onDelete("RESTRICT");
     table
       .uuid("to_currency_id")
       .notNullable()
       .references("id")
-      .inTable("currency")
+      .inTable("currencies")
       .onDelete("RESTRICT");
 
     table.decimal("rate", 20, 10).notNullable();

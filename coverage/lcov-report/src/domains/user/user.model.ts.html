@@ -1,68 +1,64 @@
-
 <!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <title>Code coverage report for src/domains/user/user.model.ts</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../../../prettify.css" />
     <link rel="stylesheet" href="../../../base.css" />
     <link rel="shortcut icon" type="image/x-icon" href="../../../favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style type='text/css'>
-        .coverage-summary .sorter {
-            background-image: url(../../../sort-arrow-sprite.png);
-        }
+    <style type="text/css">
+      .coverage-summary .sorter {
+        background-image: url(../../../sort-arrow-sprite.png);
+      }
     </style>
-</head>
-    
-<body>
-<div class='wrapper'>
-    <div class='pad1'>
-        <h1><a href="../../../index.html">All files</a> / <a href="index.html">src/domains/user</a> user.model.ts</h1>
-        <div class='clearfix'>
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">71.88% </span>
-                <span class="quiet">Statements</span>
-                <span class='fraction'>156/217</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
-                <span class="quiet">Branches</span>
-                <span class='fraction'>0/0</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
-                <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">71.88% </span>
-                <span class="quiet">Lines</span>
-                <span class='fraction'>156/217</span>
-            </div>
-        
-            
+  </head>
+
+  <body>
+    <div class="wrapper">
+      <div class="pad1">
+        <h1>
+          <a href="../../../index.html">All files</a> /
+          <a href="index.html">src/domains/user</a> user.model.ts
+        </h1>
+        <div class="clearfix">
+          <div class="fl pad1y space-right2">
+            <span class="strong">71.88% </span>
+            <span class="quiet">Statements</span>
+            <span class="fraction">156/217</span>
+          </div>
+
+          <div class="fl pad1y space-right2">
+            <span class="strong">100% </span>
+            <span class="quiet">Branches</span>
+            <span class="fraction">0/0</span>
+          </div>
+
+          <div class="fl pad1y space-right2">
+            <span class="strong">0% </span>
+            <span class="quiet">Functions</span>
+            <span class="fraction">0/1</span>
+          </div>
+
+          <div class="fl pad1y space-right2">
+            <span class="strong">71.88% </span>
+            <span class="quiet">Lines</span>
+            <span class="fraction">156/217</span>
+          </div>
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+          Press <em>n</em> or <em>j</em> to go to the next uncovered block,
+          <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
         </p>
         <template id="filterTemplate">
-            <div class="quiet">
-                Filter:
-                <input type="search" id="fileSearch">
-            </div>
+          <div class="quiet">
+            Filter:
+            <input type="search" id="fileSearch" />
+          </div>
         </template>
-    </div>
-    <div class='status-line medium'></div>
-    <pre><table class="coverage">
+      </div>
+      <div class="status-line medium"></div>
+      <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
 <a name='L3'></a><a href='#L3'>3</a>
@@ -536,7 +532,7 @@ export <span class="fstat-no" title="function not covered" >async function creat
 <span class="cstat-no" title="statement not covered" >  const { email } = validateInput.data;</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    const existingUser = await knexTrx("user")</span>
+<span class="cstat-no" title="statement not covered" >    const existingUser = await knexTrx("users")</span>
 <span class="cstat-no" title="statement not covered" >      .select("id")</span>
 <span class="cstat-no" title="statement not covered" >      .where({ email })</span>
 <span class="cstat-no" title="statement not covered" >      .first();</span>
@@ -552,7 +548,7 @@ export <span class="fstat-no" title="function not covered" >async function creat
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >    const { password, ...rest } = validateInput.data;</span>
 <span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >    const [user] = await knexTrx("user")</span>
+<span class="cstat-no" title="statement not covered" >    const [user] = await knexTrx("users")</span>
 <span class="cstat-no" title="statement not covered" >      .insert({</span>
 <span class="cstat-no" title="statement not covered" >        ...rest,</span>
 <span class="cstat-no" title="statement not covered" >        password_hash: hashedPassword,</span>
@@ -599,7 +595,7 @@ export <span class="fstat-no" title="function not covered" >async function creat
 //   const inviteTokens: Array&lt;{ email: string; token: string }&gt; = [];
 &nbsp;
 //   const [invitedByUser, invitedByOrg] = await Promise.all([
-//     await knex("user")
+//     await knex("users")
 //       .select("id", "firstname", "email")
 //       .where({ email: invitedBy.email })
 //       .first(),
@@ -716,21 +712,27 @@ export <span class="fstat-no" title="function not covered" >async function creat
 // }
 &nbsp;</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-04-13T17:09:31.081Z
-            </div>
-        <script src="../../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../../sorter.js"></script>
-        <script src="../../../block-navigation.js"></script>
-    </body>
+      <div class="push"></div>
+      <!-- for sticky footer -->
+    </div>
+    <!-- /wrapper -->
+    <div class="footer quiet pad2 space-top1 center small">
+      Code coverage generated by
+      <a
+        href="https://istanbul.js.org/"
+        target="_blank"
+        rel="noopener noreferrer"
+        >istanbul</a
+      >
+      at 2025-04-13T17:09:31.081Z
+    </div>
+    <script src="../../../prettify.js"></script>
+    <script>
+      window.onload = function () {
+        prettyPrint();
+      };
+    </script>
+    <script src="../../../sorter.js"></script>
+    <script src="../../../block-navigation.js"></script>
+  </body>
 </html>
-    

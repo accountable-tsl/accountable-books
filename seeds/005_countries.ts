@@ -22,7 +22,7 @@ export async function seed(knex: Knex): Promise<void> {
 
     await knex.transaction(async (trx) => {
       for (const country of countries) {
-        await trx("country")
+        await trx("countries")
           .insert({
             id: country.id,
             code: country.code.trim().toUpperCase(),

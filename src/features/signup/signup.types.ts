@@ -20,7 +20,7 @@ export const newSignup = z.object({
 
 // export const firmSignup = onboardingBase.extend({
 //   company: onboardingBase.shape.company.extend({
-//     type: companyType.extract(["accounting_firm"]),
+//     type: companyType.extract(["accounting_firms"]),
 //   }),
 //   firm: newAccFirmInput,
 // });

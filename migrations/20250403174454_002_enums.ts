@@ -12,76 +12,12 @@ const createEnumIfNotExists = (typeName: string, values: string[]) => {
     $$;
   `;
 };
-// export async function up(knex: Knex): Promise<void> {
-//   await knex.raw(
-//     `CREATE TYPE company_type AS ENUM ('business', 'accounting_firm', 'individual')`
-//   );
 
-//   await knex.raw(
-//     `CREATE TYPE user_status AS ENUM ('active', 'inactive', 'disabled', 'invited')`
-//   );
-
-//   await knex.raw(
-//     `CREATE TYPE user_invite_status AS ENUM ('pending', 'accepted', 'expired')`
-//   );
-
-//   await knex.raw(`
-//     CREATE TYPE fs_key AS ENUM ('is', 'bs', 'cf');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE reporting_framework AS ENUM ('ifrs', 'us_gaap');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE debit_credit AS ENUM ('debit', 'credit');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE bank_transaction_source AS ENUM ('file_import', 'bank_feed', 'manual_entry');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE bank_account_type AS ENUM ('other', 'credit_card', 'debit_card', 'savings', 'checkings_current', 'utility');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE categorization_status AS ENUM ('uncategorized', 'categorized', 'auto_categorized');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE transaction_source AS ENUM ('bank', 'manual_journal', 'system');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE journal_status AS ENUM ('draft', 'posted', 'voided');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE journal_reversal_reason AS ENUM ('auto_reversal', 'voided');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE recurrence_frequency AS ENUM ('daily', 'weekly', 'monthly', 'yearly');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE recurring_journal_status AS ENUM ('draft', 'active', 'paused', 'closed');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE contact_type AS ENUM ('customer', 'supplier', 'employee', 'other');
-//   `);
-
-//   await knex.raw(`
-//     CREATE TYPE project_status AS ENUM ('in_draft', 'active', 'on_hold', 'completed');
-//   `);
-// }
 export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists("company_type", [
       "business",
-      "accounting_firm",
+      "accounting_firms",
       "individual",
     ])
   );

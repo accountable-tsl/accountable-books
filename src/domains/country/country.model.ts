@@ -8,7 +8,7 @@ import {
 
 export async function getCountries(): Promise<ApiResponse> {
   try {
-    const countries = await knex("country")
+    const countries = await knex("countries")
       .select("id", "code", "name", "phone_code", "flag", "continent")
       .where("is_deleted", false)
       .orderBy("name", "asc");

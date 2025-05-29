@@ -34,7 +34,7 @@ export const createCompany = async (
   const { assigned_firm_id } = validateInput.data;
 
   try {
-    const userExists = await knexTrx("user")
+    const userExists = await knexTrx("users")
       .where({ id: input.created_by_id })
       .first();
 
@@ -44,7 +44,7 @@ export const createCompany = async (
 
     let firmId = assigned_firm_id || null;
     if (!firmId) {
-      const [firm] = await knexTrx("accounting_firm")
+      const [firm] = await knexTrx("accounting_firms")
         .where("is_platform", true)
         .select("id");
 
@@ -62,7 +62,7 @@ export const createCompany = async (
 
     do {
       short_code = generateSecureShortCode();
-      exists = await knexTrx("company").where({ short_code }).first();
+      exists = await knexTrx("companies").where({ short_code }).first();
       attempts++;
     } while (exists && attempts < maxAttempts);
 
@@ -70,7 +70,7 @@ export const createCompany = async (
       return throwError("Unable to generate short code");
     }
 
-    const [company] = await knexTrx("company")
+    const [company] = await knexTrx("companies")
       .insert({
         ...validateInput.data,
         display_name:
@@ -87,7 +87,7 @@ export const createCompany = async (
       return throwError("Unable to create company");
     }
 
-    const firmAssignment = await knexTrx("firm_company").insert({
+    const firmAssignment = await knexTrx("firms_companies").insert({
       company_id: company.id,
       accounting_firm_id: firmId,
     });
@@ -109,8 +109,8 @@ export const verifyCompanyDependenciesExist = async (
   input: { reportingCurrencyId: string; countryId: string }
 ) => {
   const [currency, country] = await Promise.all([
-    knex("currency").where({ id: input.reportingCurrencyId }).first(),
-    knex("country").where({ id: input.countryId }).first(),
+    knex("currencies").where({ id: input.reportingCurrencyId }).first(),
+    knex("countries").where({ id: input.countryId }).first(),
   ]);
 
   if (!currency)

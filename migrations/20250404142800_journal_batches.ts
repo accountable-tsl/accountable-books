@@ -5,7 +5,7 @@ import {
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
 
-const tableName = "journal_batch";
+const tableName = "journal_batches";
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
@@ -24,40 +24,40 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("generated_from_template_id")
       .nullable()
       .references("id")
-      .inTable("recurring_journal_template");
+      .inTable("recurring_journal_templates");
 
     table
       .uuid("ledger_transaction_id")
       .notNullable()
       .unique()
       .references("id")
-      .inTable("ledger_transaction")
+      .inTable("ledger_transactions")
       .onDelete("RESTRICT");
 
     table
       .uuid("company_id")
       .notNullable()
       .references("id")
-      .inTable("company")
+      .inTable("companies")
       .onDelete("RESTRICT");
 
     table
       .uuid("created_by_id")
       .notNullable()
       .references("id")
-      .inTable("user")
+      .inTable("users")
       .onDelete("RESTRICT");
     table
       .uuid("updated_by_id")
       .nullable()
       .references("id")
-      .inTable("user")
+      .inTable("users")
       .onDelete("SET NULL");
     table
       .uuid("reversed_by_id")
       .nullable()
       .references("id")
-      .inTable("user")
+      .inTable("users")
       .onDelete("SET NULL");
     table.timestamp("reversed_at", { useTz: true }).nullable();
     table.specificType("reversal_reason", "journal_reversal_reason").nullable();
@@ -83,7 +83,7 @@ export async function up(knex: Knex): Promise<void> {
     BEGIN
       NEW.sequence_number := (
         SELECT COALESCE(MAX(sequence_number), 0) + 1
-        FROM journal_batch
+        FROM journal_batches
         WHERE company_id = NEW.company_id
       );
       RETURN NEW;
@@ -94,7 +94,7 @@ export async function up(knex: Knex): Promise<void> {
   // Create trigger to set sequence_number before insert
   await knex.raw(`
     CREATE TRIGGER trigger_set_journal_batch_sequence_number
-    BEFORE INSERT ON journal_batch
+    BEFORE INSERT ON journal_batches
     FOR EACH ROW
     WHEN (NEW.sequence_number IS NULL)
     EXECUTE FUNCTION set_journal_batch_sequence_number();
@@ -103,7 +103,7 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await knex.raw(
-    "DROP TRIGGER IF EXISTS trigger_set_journal_batch_sequence_number ON journal_batch;"
+    "DROP TRIGGER IF EXISTS trigger_set_journal_batch_sequence_number ON journal_batches;"
   );
   await knex.raw("DROP FUNCTION IF EXISTS set_journal_batch_sequence_number;");
   await dropUpdateTimestampTrigger(knex, tableName);

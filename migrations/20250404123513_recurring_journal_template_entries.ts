@@ -1,6 +1,6 @@
 import type { Knex } from "knex";
 
-const tableName = "recurring_journal_template_entry";
+const tableName = "recurring_journal_template_entries";
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
@@ -19,7 +19,7 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("template_id")
       .notNullable()
       .references("id")
-      .inTable("recurring_journal_template")
+      .inTable("recurring_journal_templates")
       .onDelete("CASCADE");
   });
 }

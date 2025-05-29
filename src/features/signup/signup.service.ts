@@ -62,7 +62,7 @@ export const registerNewAccount = async (
 
       let firm;
       // For an accounting firm, create accounting_firm
-      if (companyInput.type === "accounting_firm") {
+      if (companyInput.type === "accounting_firms") {
         firm = await setupAccountingFirm(trx, {
           companyId: company.id,
           userId: user.id,
@@ -77,7 +77,7 @@ export const registerNewAccount = async (
         loadCoaTemplate: companyInput.load_coa_template || true,
       });
 
-      const { count } = await trx("company")
+      const { count } = await trx("companies")
         .where("created_by_id", user.id)
         .count<{ count: string }>("id");
 
@@ -160,7 +160,7 @@ const createUserAndCompany = async (
 
   let platformFirmId: string = "";
   // Get platform firmId
-  const platformFirm = await trx("accounting_firm")
+  const platformFirm = await trx("accounting_firms")
     .where("is_platform", true)
     .first();
   if (!platformFirm || !platformFirm.id) {
@@ -182,14 +182,15 @@ const createUserAndCompany = async (
 
   console.log("Company Response", companyResponse.data);
   // Assign role
-  const roleName = companyInput.type === "accounting_firm" ? "admin" : "client";
-  const role = await trx("role")
+  const roleName =
+    companyInput.type === "accounting_firms" ? "admin" : "client";
+  const role = await trx("roles")
     .where("name", roleName)
     .first<{ id: string }>();
   if (!role) throwError(`${roleName} role not found`);
   const roleId = role.id;
 
-  await trx("user_company_role").insert({
+  await trx("users_companies_roles").insert({
     user_id: userResponse.data.id,
     company_id: companyResponse.data.id,
     role_id: roleId,
@@ -233,12 +234,12 @@ const setupAccountingFirm = async (
   }
 
   // Update the company's assigned_firm_id
-  await trx("company")
+  await trx("companies")
     .where("id", companyId)
     .update({ assigned_firm_id: firmResponse.data.id });
 
   // Assign the company to the firm
-  await trx("firm_company").where("company_id", companyId).update({
+  await trx("firms_companies").where("company_id", companyId).update({
     accounting_firm_id: firmResponse.data.id,
   });
 
@@ -284,7 +285,7 @@ export const trackSignupEvents = async (
     await Promise.all([
       trackEvent("User Signed Up", userId, {
         email,
-        role: companyType === "accounting_firm" ? "admin" : "client",
+        role: companyType === "accounting_firms" ? "admin" : "client",
         firm_id: firmId,
       }),
       trackEvent("Company Created", userId, {

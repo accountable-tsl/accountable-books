@@ -8,7 +8,7 @@ import {
 
 export const resolveFirm = async (trx: Knex.Transaction, firmId?: string) => {
   if (firmId) {
-    const [verifyFirm] = await trx("accounting_firm")
+    const [verifyFirm] = await trx("accounting_firms")
       .where("id", firmId)
       .select("id");
 
@@ -17,7 +17,7 @@ export const resolveFirm = async (trx: Knex.Transaction, firmId?: string) => {
     }
   }
 
-  const platformFirm = await trx("accounting_firm")
+  const platformFirm = await trx("accounting_firms")
     .where("is_platform", true)
     .select("id");
 
@@ -39,7 +39,7 @@ export const createAccountingFirm = async (
   const { data } = validatedInput;
 
   try {
-    const [newFirm] = await knexTrx("accounting_firm")
+    const [newFirm] = await knexTrx("accounting_firms")
       .insert({
         ...data,
         display_name: data.display_name || data.legal_name,

@@ -56,7 +56,11 @@ export type UserInviteStatus = z.infer<typeof userInviteStatus>;
 export type NewUserInput = z.infer<typeof newUser>;
 export type User = z.infer<typeof user>;
 
-
 export type UserRecord = z.infer<typeof user> & {
   password?: string; // Only present for local auth
 };
+
+export type UserInfo = Omit<
+  NewUserInput,
+  "password" | "auth_provider" | "provider_user_id"
+> & { id: string };

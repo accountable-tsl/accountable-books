@@ -559,9 +559,11 @@ const defaultAccountTypes: AccountTypeWithRequiredReportCode[] = [
   ...defaultExpenseTypes,
 ];
 
+const tableName = "account_types";
+
 const seedAccountTypes = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
-    await trx("account_type").insert(defaultAccountTypes).onConflict().ignore();
+    await trx(tableName).insert(defaultAccountTypes).onConflict().ignore();
 
     if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
       console.log(`Seeded ${defaultAccountTypes.length} account types`);
@@ -569,7 +571,6 @@ const seedAccountTypes = async function seed(knex: Knex): Promise<void> {
   });
 };
 
-const tableName = "account_type";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
@@ -582,7 +583,7 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("account_element_id")
       .notNullable()
       .references("id")
-      .inTable("account_element")
+      .inTable("account_elements")
       .onDelete("RESTRICT");
 
     addStandardColumns(table);

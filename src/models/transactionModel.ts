@@ -145,7 +145,7 @@ const buildBankTransactionFilters = (
     queryBuilder.where("BankAccount.companyId", companyId);
   } else {
     queryBuilder
-      .join("Company", "BankAccount.companyId", "Company.id")
+      .join("companies", "BankAccount.companyId", "Company.id")
       .where("Company.shortCode", companyId);
   }
 
@@ -189,13 +189,13 @@ const buildLedgerTransactionFilters = (
     //   "LedgerEntry.ledgerTransactionId"
     // )
     .leftJoin("Coa", "LedgerEntry.coaId", "Coa.id")
-    .leftJoin("Currency", "LedgerEntry.sourceCurrencyId", "Currency.id")
+    .leftJoin("currencies", "LedgerEntry.sourceCurrencyId", "Currency.id")
     .leftJoin("Project", "LedgerEntry.projectId", "Project.id");
 
   // .where("LedgerEntry.isDeleted", filters.isDeleted ?? false);
 
   // Company filter
-  queryBuilder.leftJoin("Company", "Coa.companyId", "Company.id");
+  queryBuilder.leftJoin("companies", "Coa.companyId", "Company.id");
   if (companyIdType === "uuid") {
     queryBuilder.where("Coa.companyId", companyId);
   } else {
@@ -307,12 +307,12 @@ export async function getMergedTransactions(
 
     let company;
     if (companyIdType === "uuid") {
-      company = await knexInstance("Company")
+      company = await knexInstance("companies")
         .select("id")
         .where("id", companyIdentifier)
         .first();
     } else if (companyIdType === "shortCode") {
-      company = await knexInstance("Company")
+      company = await knexInstance("companies")
         .select("id")
         .where("shortCode", companyIdentifier)
         .first();
@@ -347,7 +347,7 @@ export async function getMergedTransactions(
     const bankTxQuery = knexInstance("BankTransaction")
       .modify((qb) => buildBankTransactionFilters(qb, companyId, filters))
       .leftJoin("Bank", "BankAccount.bankId", "Bank.id")
-      .leftJoin("Currency", "BankAccount.currencyId", "Currency.id")
+      .leftJoin("currencies", "BankAccount.currencyId", "Currency.id")
 
       .select([
         "BankTransaction.*",
@@ -586,7 +586,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
         //   },
         //   select: { id: true },
         // });
-        const companyData = await trx("Company")
+        const companyData = await trx("companies")
           .where(
             companyIdType === "uuid"
               ? { id: t.companyId }
@@ -654,7 +654,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           //   update: {},
           // });
 
-          const [contact] = await trx("Contact")
+          const [contact] = await trx("contacts")
             .insert({
               id: randomUUID(),
               name: t.contactName,
@@ -684,7 +684,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           //   },
           //   update: {},
           // });
-          const [noContact] = await trx("Contact")
+          const [noContact] = await trx("contacts")
             .insert({
               id: randomUUID(),
               name: "No Contact",
@@ -720,7 +720,7 @@ export async function createLedgerEntries(tx: CatEngineTransaction[]) {
           //   },
           //   include: { contact: true },
           // });
-          const [project] = await trx("Project")
+          const [project] = await trx("projects")
             .insert({
               id: randomUUID(),
               name: t.projectName,

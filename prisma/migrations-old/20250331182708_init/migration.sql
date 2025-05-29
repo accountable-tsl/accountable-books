@@ -44,7 +44,7 @@ CREATE TYPE "ProjectStatus" AS ENUM ('IN_DRAFT', 'ACTIVE', 'ON_HOLD', 'COMPLETED
 CREATE TYPE "SnapshotPeriodType" AS ENUM ('MONTH', 'QUARTER', 'ANNUAL');
 
 -- CreateTable
-CREATE TABLE "Role" (
+CREATE TABLE "roles" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -57,7 +57,7 @@ CREATE TABLE "Role" (
 );
 
 -- CreateTable
-CREATE TABLE "User" (
+CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "firstname" TEXT NOT NULL,
     "lastname" TEXT,
@@ -76,7 +76,7 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "Company" (
+CREATE TABLE "companies" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "shortCode" TEXT NOT NULL,
@@ -101,14 +101,14 @@ CREATE TABLE "Company" (
 CREATE TABLE "UserCompany" (
     "userId" TEXT NOT NULL,
     "companyId" TEXT NOT NULL,
-    "role" "UserCompanyRole" NOT NULL,
+    "roles" "UserCompanyRole" NOT NULL,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "UserCompany_pkey" PRIMARY KEY ("userId","companyId")
 );
 
 -- CreateTable
-CREATE TABLE "Currency" (
+CREATE TABLE "currencies" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -122,7 +122,7 @@ CREATE TABLE "Currency" (
 );
 
 -- CreateTable
-CREATE TABLE "Country" (
+CREATE TABLE "countries" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -552,46 +552,46 @@ CREATE TABLE "CurrentAccountingPeriod" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
+CREATE UNIQUE INDEX "Role_name_key" ON "roles"("name");
 
 -- CreateIndex
-CREATE INDEX "Role_id_idx" ON "Role"("id");
+CREATE INDEX "Role_id_idx" ON "roles"("id");
 
 -- CreateIndex
-CREATE INDEX "Role_name_idx" ON "Role"("name");
+CREATE INDEX "Role_name_idx" ON "roles"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX "User_email_key" ON "users"("email");
 
 -- CreateIndex
-CREATE INDEX "User_email_status_idx" ON "User"("email", "status");
+CREATE INDEX "User_email_status_idx" ON "users"("email", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Company_shortCode_key" ON "Company"("shortCode");
+CREATE UNIQUE INDEX "Company_shortCode_key" ON "companies"("shortCode");
 
 -- CreateIndex
-CREATE INDEX "Company_name_idx" ON "Company"("name");
+CREATE INDEX "Company_name_idx" ON "companies"("name");
 
 -- CreateIndex
-CREATE INDEX "Company_shortCode_idx" ON "Company"("shortCode");
+CREATE INDEX "Company_shortCode_idx" ON "companies"("shortCode");
 
 -- CreateIndex
-CREATE INDEX "Company_countryId_idx" ON "Company"("countryId");
+CREATE INDEX "Company_countryId_idx" ON "companies"("countryId");
 
 -- CreateIndex
 CREATE INDEX "UserCompany_userId_companyId_idx" ON "UserCompany"("userId", "companyId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Currency_code_key" ON "Currency"("code");
+CREATE UNIQUE INDEX "Currency_code_key" ON "currencies"("code");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Currency_name_key" ON "Currency"("name");
+CREATE UNIQUE INDEX "Currency_name_key" ON "currencies"("name");
 
 -- CreateIndex
-CREATE INDEX "Currency_code_idx" ON "Currency"("code");
+CREATE INDEX "Currency_code_idx" ON "currencies"("code");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Country_code_key" ON "Country"("code");
+CREATE UNIQUE INDEX "Country_code_key" ON "countries"("code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "FinancialStatement_statementKey_key" ON "FinancialStatement"("statementKey");
@@ -765,22 +765,22 @@ CREATE UNIQUE INDEX "CurrentAccountingPeriod_companyId_key" ON "CurrentAccountin
 CREATE INDEX "CurrentAccountingPeriod_companyId_idx" ON "CurrentAccountingPeriod"("companyId");
 
 -- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "users" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Company" ADD CONSTRAINT "Company_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "Country"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "companies" ADD CONSTRAINT "Company_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "countries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Company" ADD CONSTRAINT "Company_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "companies" ADD CONSTRAINT "Company_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Company" ADD CONSTRAINT "Company_reportingCurrencyId_fkey" FOREIGN KEY ("reportingCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "companies" ADD CONSTRAINT "Company_reportingCurrencyId_fkey" FOREIGN KEY ("reportingCurrencyId") REFERENCES "currencies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserCompany" ADD CONSTRAINT "UserCompany_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "UserCompany" ADD CONSTRAINT "UserCompany_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserCompany" ADD CONSTRAINT "UserCompany_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "UserCompany" ADD CONSTRAINT "UserCompany_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AccountElement" ADD CONSTRAINT "AccountElement_financialStatementId_fkey" FOREIGN KEY ("financialStatementId") REFERENCES "FinancialStatement"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -795,13 +795,13 @@ ALTER TABLE "AccountType" ADD CONSTRAINT "AccountType_accountElementId_fkey" FOR
 ALTER TABLE "Coa" ADD CONSTRAINT "Coa_accountTypeId_fkey" FOREIGN KEY ("accountTypeId") REFERENCES "AccountType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Coa" ADD CONSTRAINT "Coa_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Coa" ADD CONSTRAINT "Coa_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Coa" ADD CONSTRAINT "Coa_currencyId_fkey" FOREIGN KEY ("currencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Coa" ADD CONSTRAINT "Coa_currencyId_fkey" FOREIGN KEY ("currencyId") REFERENCES "currencies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Bank" ADD CONSTRAINT "Bank_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "Country"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Bank" ADD CONSTRAINT "Bank_countryId_fkey" FOREIGN KEY ("countryId") REFERENCES "countries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_bankId_fkey" FOREIGN KEY ("bankId") REFERENCES "Bank"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -810,37 +810,37 @@ ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_bankId_fkey" FOREIGN KEY (
 ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_coaId_fkey" FOREIGN KEY ("coaId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_currencyId_fkey" FOREIGN KEY ("currencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BankAccount" ADD CONSTRAINT "BankAccount_currencyId_fkey" FOREIGN KEY ("currencyId") REFERENCES "currencies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_bankAccountId_fkey" FOREIGN KEY ("bankAccountId") REFERENCES "BankAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "BankTransactionBatch" ADD CONSTRAINT "BankTransactionBatch_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "LedgerTransaction" ADD CONSTRAINT "LedgerTransaction_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_generatedFromTemplateId_fkey" FOREIGN KEY ("generatedFromTemplateId") REFERENCES "RecurringJournalTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -849,16 +849,16 @@ ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_generatedFromTemplateId_
 ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_ledgerTransactionId_fkey" FOREIGN KEY ("ledgerTransactionId") REFERENCES "LedgerTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_postedById_fkey" FOREIGN KEY ("postedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_postedById_fkey" FOREIGN KEY ("postedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_reversedById_fkey" FOREIGN KEY ("reversedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_reversedById_fkey" FOREIGN KEY ("reversedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_reversedJournalId_fkey" FOREIGN KEY ("reversedJournalId") REFERENCES "JournalBatch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "JournalBatch" ADD CONSTRAINT "JournalBatch_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_coaAccountId_fkey" FOREIGN KEY ("coaAccountId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -867,22 +867,22 @@ ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_coaAccountId_fkey" FOREI
 ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_journalBatchId_fkey" FOREIGN KEY ("journalBatchId") REFERENCES "JournalBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RecurringJournalTemplate" ADD CONSTRAINT "RecurringJournalTemplate_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "RecurringJournalTemplate" ADD CONSTRAINT "RecurringJournalTemplate_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "RecurringJournalTemplateEntry" ADD CONSTRAINT "RecurringJournalTemplateEntry_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "RecurringJournalTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ExchangeRate" ADD CONSTRAINT "ExchangeRate_fromCurrencyId_fkey" FOREIGN KEY ("fromCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ExchangeRate" ADD CONSTRAINT "ExchangeRate_fromCurrencyId_fkey" FOREIGN KEY ("fromCurrencyId") REFERENCES "currencies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ExchangeRate" ADD CONSTRAINT "ExchangeRate_toCurrencyId_fkey" FOREIGN KEY ("toCurrencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ExchangeRate" ADD CONSTRAINT "ExchangeRate_toCurrencyId_fkey" FOREIGN KEY ("toCurrencyId") REFERENCES "currencies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Contact" ADD CONSTRAINT "Contact_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Contact" ADD CONSTRAINT "Contact_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Project" ADD CONSTRAINT "Project_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Project" ADD CONSTRAINT "Project_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Project" ADD CONSTRAINT "Project_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -897,4 +897,4 @@ ALTER TABLE "LiveBankLedgerBalance" ADD CONSTRAINT "LiveBankLedgerBalance_bankAc
 ALTER TABLE "LiveCoaAccountBalance" ADD CONSTRAINT "LiveCoaAccountBalance_coaId_fkey" FOREIGN KEY ("coaId") REFERENCES "Coa"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CurrentAccountingPeriod" ADD CONSTRAINT "CurrentAccountingPeriod_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CurrentAccountingPeriod" ADD CONSTRAINT "CurrentAccountingPeriod_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

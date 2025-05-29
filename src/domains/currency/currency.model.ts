@@ -7,7 +7,7 @@ import {
 
 export async function getAllCurrencies(): Promise<ApiResponse> {
   try {
-    const currencies = await knex("currency")
+    const currencies = await knex("currencies")
       .select("id", "code", "name", "symbol")
       .where("is_deleted", false);
     if (currencies.length === 0) errorResponse("No currencies found");

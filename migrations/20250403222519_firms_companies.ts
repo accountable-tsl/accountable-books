@@ -4,10 +4,10 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
-import { createPlatformCompany } from "./20250403194332_company";
-import { createPlatformFirm } from "./20250403194335_accounting_firm";
+import { createPlatformCompany } from "./20250403194332_companies";
+import { createPlatformFirm } from "./20250403194335_accounting_firms";
 
-const tableName = "firm_company";
+const tableName = "firms_companies";
 
 // This table maps which business is assigned to which accounting firm. Think of it like:
 // Business A is being managed by Accounting Firm X.
@@ -37,7 +37,7 @@ const insertPlatformFirmCompany = async (knex: Knex) => {
     accounting_firm_id: platformAccountingFirm.id,
   });
 
-  await knex("company")
+  await knex("companies")
     .where({ id: platformCompany.id })
     .update({ assigned_firm_id: platformAccountingFirm.id });
 
@@ -52,14 +52,14 @@ export async function up(knex: Knex): Promise<void> {
       .uuid("company_id")
       .notNullable()
       .references("id")
-      .inTable("company")
+      .inTable("companies")
       .onDelete("CASCADE");
 
     table
       .uuid("accounting_firm_id")
       .notNullable()
       .references("id")
-      .inTable("accounting_firm")
+      .inTable("accounting_firms")
       .onDelete("CASCADE");
 
     addStandardColumns(table);

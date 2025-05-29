@@ -14,6 +14,8 @@ import { NODE_ENV } from "../src/config/env";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const tableName = "roles";
+
 const seedRoles = async function seed(knex: Knex): Promise<void> {
   const filePath = path.join(__dirname, "data/roles.json");
 
@@ -29,7 +31,7 @@ const seedRoles = async function seed(knex: Knex): Promise<void> {
 
     // Bulk insert
     await knex.transaction(async (trx) => {
-      await trx("role").insert(seedData).onConflict("name").ignore();
+      await trx(tableName).insert(seedData).onConflict("name").ignore();
     });
 
     if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
@@ -40,8 +42,6 @@ const seedRoles = async function seed(knex: Knex): Promise<void> {
     throw error;
   }
 };
-
-const tableName = "role";
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {

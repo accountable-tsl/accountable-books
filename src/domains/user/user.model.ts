@@ -25,7 +25,7 @@ export async function createUserDirect(
   const { email, password, ...rest } = validateInput.data;
 
   try {
-    const existingUser = await knexTrx("user")
+    const existingUser = await knexTrx("users")
       .select("id")
       .where({ email })
       .first();
@@ -39,7 +39,7 @@ export async function createUserDirect(
       hashPassword(password),
     ]);
 
-    const [user] = await knexTrx("user")
+    const [user] = await knexTrx("users")
       .insert({
         ...rest,
         email,
@@ -76,7 +76,7 @@ export async function createUserDirect(
 //   const inviteTokens: Array<{ email: string; token: string }> = [];
 
 //   const [invitedByUser, invitedByOrg] = await Promise.all([
-//     await knex("user")
+//     await knex("users")
 //       .select("id", "firstname", "email")
 //       .where({ email: invitedBy.email })
 //       .first(),
