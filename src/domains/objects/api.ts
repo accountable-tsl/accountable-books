@@ -1,7 +1,7 @@
 import api from "@/lib/axios";
 import { ObjectType, UploadParams } from "./types";
 import { buildFormData, objectTypeConfigs } from "./utils";
-import { ServerResponseFormat } from "@/types/types";
+import { ApiResponse } from "@/types/types";
 
 export const fetchLogoUrl = async (key: string) => {
   try {
@@ -20,7 +20,7 @@ export const fetchLogoUrl = async (key: string) => {
 export async function uploadObject<T extends UploadParams>(
   objectType: ObjectType,
   params: T
-): Promise<ServerResponseFormat<{ url: string; key: string }>> {
+): Promise<ApiResponse<{ url: string; key: string }>> {
   const config = objectTypeConfigs[objectType];
   if (!config) {
     return {
@@ -67,7 +67,7 @@ export async function uploadObject<T extends UploadParams>(
 export async function deleteObject(
   objectType: ObjectType,
   key: string
-): Promise<ServerResponseFormat<null>> {
+): Promise<ApiResponse<null>> {
   const config = objectTypeConfigs[objectType];
   if (!config) {
     return {

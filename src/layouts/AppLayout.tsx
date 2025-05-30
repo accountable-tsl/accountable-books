@@ -11,7 +11,7 @@ import {
   useUpdatePageInfo,
 } from "@/shared/stores/page";
 import { useEffect } from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useParams } from "react-router-dom";
 import { HashLoader } from "react-spinners";
 
 interface AppLayoutProps extends AppSidebarProps {}
@@ -20,6 +20,9 @@ export default function AppLayout({
 }: AppLayoutProps) {
   const { user, checkingSession } = useAuth();
   const { companyId, companyType, slug } = useCompany();
+  const params = useParams();
+  const routeCompanyId = params.companyId;
+
   const { sidebarCollapsed } = pageStore();
   useUpdatePageInfo();
   usePageMeta();
@@ -48,6 +51,15 @@ export default function AppLayout({
 
   if (!companyId || !companyType || !slug) {
     return <ErrorPage type="default" />;
+  }
+
+  if (routeCompanyId && routeCompanyId !== companyId) {
+    return (
+      <ErrorPage
+        type="404"
+        message="We couldn't find the page you were looking for"
+      />
+    );
   }
 
   return (

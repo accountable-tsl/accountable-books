@@ -4,6 +4,16 @@ import { authStore, sessionStore } from "@/features/auth/store";
 import { routes } from "@/shared/routes/routes";
 import { LogoutOptions } from "./types";
 
+export const clearSessionFn = () => {
+  authStore.getState().setUser(null);
+  companyStore.getState().clearCompany();
+  const theme = localStorage.getItem("theme");
+  localStorage.clear();
+  if (theme) {
+    localStorage.setItem("theme", theme);
+  }
+};
+
 export const useAuth = () => {
   const user = authStore((s) => s.user);
   const setUser = authStore((s) => s.setUser);
@@ -19,12 +29,7 @@ export const useAuth = () => {
 
   const isLoggedIn = !!user && !checkingSession && sessionValid === true;
 
-  const clearSession = () => {
-    setUser(null);
-    clearCompany();
-    localStorage.removeItem("auth-storage");
-    localStorage.removeItem("company-store");
-  };
+  const clearSession = () => clearSessionFn();
   const logout = async (options?: LogoutOptions) => {
     try {
       const res = await backendLogout();
@@ -34,7 +39,7 @@ export const useAuth = () => {
     } finally {
       clearSession();
 
-      if (options?.redirectTo === false) {
+      if (options?.redirectTo !== false) {
         let target: string = routes.login.staticPath; //default fallback
 
         if (options?.redirectTo) {

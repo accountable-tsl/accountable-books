@@ -1,10 +1,10 @@
 import api from "@/lib/axios";
-import { ServerResponseFormat } from "@/types/types";
+import { ApiResponse } from "@/types/types";
 import { CompanyData } from "./types";
 
 export const getCompanyDetails = async (
   companyId: string
-): Promise<ServerResponseFormat<CompanyData>> => {
+): Promise<ApiResponse<CompanyData>> => {
   const response = await api.get(`/api/companies/${companyId}`);
   return response.data;
 };

@@ -13,6 +13,15 @@ export const accountingBasis = z.enum([
 ]);
 export type AccountingBasis = z.infer<typeof accountingBasis>;
 
+export const onboardingStatus = z.enum([
+  "not_started",
+  "email_verified",
+  "company_vitals_needed",
+  "first_bank_account_needed",
+  "onboarding_complete",
+]);
+export type OnboardingStatus = z.infer<typeof onboardingStatus>;
+
 export type CompanyStore = {
   companyId: string | null;
   companyType: CompanyType | undefined;
@@ -20,8 +29,12 @@ export type CompanyStore = {
   company: CompanyData | null;
   isLoading: boolean;
   error: string | null;
+  onboardingStatus: OnboardingStatus | null;
   fetchCompany: (companyId: string) => void;
-  setCompany: (company: CompanyData) => void;
+  setCompany: (
+    company: CompanyData | ((prev: CompanyData | null) => CompanyData | null)
+  ) => void;
+  setOnboardingStatus: (status: OnboardingStatus) => void;
   clearCompany: () => void;
 };
 
@@ -42,6 +55,7 @@ export const baseCompanyData = z.object({
 export type BaseCompanyData = z.infer<typeof baseCompanyData>;
 
 export const companyData = baseCompanyData.extend({
+  onboardingStatus: onboardingStatus,
   displayName: z.string().nullish(),
   address: z.string().nullish(),
   companyLogo: z.string().nullish(),

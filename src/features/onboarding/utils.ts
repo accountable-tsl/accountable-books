@@ -6,17 +6,20 @@ import {
   SettingsIcon,
 } from "lucide-react";
 import { OnboardingSideBarSteps, OnboardingSteps } from "./types";
-import { UserOnboardingStatus } from "@/domains/user/types";
-import { CompanyData, CompanyType } from "@/domains/company/types";
+import {
+  CompanyData,
+  CompanyType,
+  OnboardingStatus,
+} from "@/domains/company/types";
 import { getDefaultCompanyData } from "@/domains/company/utils";
 
-// export const stepMap: Record<UserOnboardingStatus, OnboardingSteps> = {
-//   not_started: "verifyEmail",
-//   email_verified: "verifyEmail",
-//   creator_vitals_needed: "companyVitals",
-//   creator_bank_account_needed: "addBankAccount",
-//   onboarding_complete: "miscellaneous",
-// };
+export const stepMap: Record<OnboardingStatus, OnboardingSteps> = {
+  not_started: "verifyEmail",
+  email_verified: "verifyEmail", // Verify Email Page 2
+  company_vitals_needed: "companyVitals",
+  first_bank_account_needed: "addBankAccount",
+  onboarding_complete: "miscellaneous",
+};
 
 // Define step configurations
 export const onboardingSteps: OnboardingSideBarSteps = {
@@ -32,12 +35,6 @@ export const onboardingSteps: OnboardingSideBarSteps = {
     title: "Company Vitals",
     description: "Enter company name and type",
   },
-  companyDetails: {
-    icon: FileTextIcon,
-    key: "companyDetails",
-    title: "Company Details",
-    description: "Provide country and registration ID",
-  },
   addBankAccount: {
     icon: CreditCardIcon,
     key: "addBankAccount",
@@ -52,6 +49,21 @@ export const onboardingSteps: OnboardingSideBarSteps = {
   },
 };
 
+export const stepOrder: OnboardingSteps[] = [
+  "verifyEmail",
+  "companyVitals",
+  "addBankAccount",
+  "miscellaneous",
+];
+export const isStepAllowed = (
+  targetStep: OnboardingSteps,
+  currentStatus: OnboardingStatus
+): boolean => {
+  const allowedStep = stepMap[currentStatus] || "verifyEmail";
+  const allowedIndex = stepOrder.indexOf(allowedStep);
+  const targetIndex = stepOrder.indexOf(targetStep);
+  return targetIndex <= allowedIndex;
+};
 export const getSteps = (
   steps: OnboardingSideBarSteps,
   companyType: CompanyType,
@@ -68,31 +80,9 @@ export const getSteps = (
   return [
     steps.verifyEmail,
     steps.companyVitals,
-    steps.companyDetails,
     steps.addBankAccount,
     steps.miscellaneous,
   ];
-};
-
-export const getCurrentStep = (
-  status: UserOnboardingStatus,
-  companyType: CompanyType | undefined,
-  isCreator: boolean | undefined
-): OnboardingSteps => {
-  if (!companyType || isCreator === undefined) return "verifyEmail";
-
-  if (companyType === "individual") {
-    if (status === "creator_bank_account_needed") return "addBankAccount";
-    if (status === "onboarding_complete") return "miscellaneous";
-    return "verifyEmail";
-  }
-
-  // for companies & firms
-  if (status === "creator_vitals_needed") return "companyVitals";
-  if (status === "creator_bank_account_needed") return "addBankAccount";
-  if (status === "onboarding_complete") return "miscellaneous";
-
-  return "verifyEmail";
 };
 
 export function mergeInitialData(

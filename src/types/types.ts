@@ -84,7 +84,7 @@ export enum JournalRecurrenceFrequency {
   YEARLY = "YEARLY",
 }
 
-export interface ServerResponseFormat<T = unknown> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;

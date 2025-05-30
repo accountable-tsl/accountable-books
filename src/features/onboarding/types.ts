@@ -1,4 +1,3 @@
-import { UserOnboardingStatus } from "@/domains/user/types";
 import { LucideIcon } from "lucide-react";
 import { z } from "zod";
 
@@ -19,7 +18,6 @@ export type VerifyEmailProps = {
 export const onboardingSteps = z.enum([
   "verifyEmail",
   "companyVitals",
-  "companyDetails",
   "addBankAccount",
   "miscellaneous",
 ]);

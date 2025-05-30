@@ -1,5 +1,5 @@
 import axios from "@/lib/axios";
-import { ServerResponseFormat } from "@/types/types";
+import { ApiResponse } from "@/types/types";
 
 export type CheckEmailProps = {
   email: string;
@@ -9,9 +9,9 @@ export type CheckEmailProps = {
 export const checkEmail = async ({
   email,
   purpose = "signup",
-}: CheckEmailProps): Promise<ServerResponseFormat<string | null>> => {
+}: CheckEmailProps): Promise<ApiResponse<string | null>> => {
   const res = await axios.post(`/api/email/check`, { email, purpose });
 
-  console.log(res)
+  console.log(res);
   return res.data;
 };

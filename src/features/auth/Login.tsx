@@ -90,7 +90,7 @@ export default function Login() {
 
       toast.success("Login successful!");
 
-      if (userData.data?.onboardingStatus !== "onboarding_complete") {
+      if (company.data?.onboardingStatus !== "onboarding_complete") {
         navigate(routes.onboarding.index.staticPath);
       } else {
         navigate(routes.dashboard.buildPath({ companyId: company.id }));

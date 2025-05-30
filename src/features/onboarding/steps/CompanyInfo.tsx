@@ -37,15 +37,16 @@ import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { debounce } from "lodash";
 import { mergeInitialData } from "../utils";
+import { getChangesOnly } from "@/shared/utils/comparisonUtils";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const CompanyInfo = () => {
   const { company, companyId, companyType } = useCompany();
@@ -89,7 +90,7 @@ export const CompanyInfo = () => {
   } = useForm<CompanyData>({
     resolver: zodResolver(companyData),
     mode: "onChange",
-    defaultValues: initialData ?? getDefaultCompanyData(),
+    defaultValues: getDefaultCompanyData(),
   });
 
   const fetchCompanyDetails = async (
@@ -179,14 +180,15 @@ export const CompanyInfo = () => {
       "reportingCurrencyId",
       "yearEndDay",
       "yearEndMonth",
+      "industry",
     ];
     const accountingRequired: (keyof CompanyData)[] = isAccountingFirm
       ? ["accountingBasis", "assignedFirmSlug"]
       : [];
     return [...baseRequired, ...accountingRequired];
   };
-
   const requiredFields = getRequiredFields();
+
   // Check if essential fields are filled
   const checkEssentialFieldsComplete = (): boolean => {
     const fieldValues = watch(requiredFields);
@@ -210,15 +212,71 @@ export const CompanyInfo = () => {
   // Submit form to backend
   const onSubmit = async () => {
     try {
+      setIsLoading(true);
       const formData = getValues();
-      console.log(formData);
-      const dbData = await fetchCompanyDetails(companyId!);
-      // Compare form data with original db data and extract changes (Not super sure if this offers any speed or optimization benefits)
-      // Make API Call to update company details
-      const response = { success: true, message: "" };
-      if (response.success) {
+      console.log("Form data:", formData);
+
+      const validatedForm = companyData.safeParse(formData);
+      if (!validatedForm.success) {
+        toast.error("Please fill all required fields");
+        console.error("Validation errors:", validatedForm.error);
+        return;
+      }
+
+      //Fetch existing company details
+      let dbData: CompanyData | undefined = undefined;
+      if (company) {
+        dbData = company;
+      } else {
+        const res = await getCompanyDetails(companyId!);
+        dbData = res.data;
+      }
+
+      if (!dbData) {
+        throw new Error("Failed to fetch original company data");
+      }
+
+      // Check if required fields are filled (including previously unset ones)
+      const missingRequired = requiredFields.filter((field) => {
+        const formValue = formData[field];
+        const dbValue = dbData[field];
+        // Field is required but either empty in form or unchanged from null/undefined in db
+        return (
+          !formValue ||
+          formValue.toString().trim() === "" ||
+          (dbValue == null && formValue === dbValue)
+        );
+      });
+
+      if (missingRequired.length > 0) {
+        toast.error(
+          `Please provide: ${missingRequired
+            .map((f) => f.replace(/([A-Z])/g, " $1").toLowerCase())
+            .join(", ")}`
+        );
+        return;
+      }
+
+      // Get only changed fields
+      const updatedData: Record<string, any> = getChangesOnly(dbData, formData);
+      console.log(updatedData);
+
+      const response = { success: true, message: "", data: {} };
+      const { success, message, data } = await updateCompanyDetails(
+        companyId,
+        updatedData
+      );
+      if (
+        Object.keys(updatedData).length === 0 ||
+        (success && data && data.onboardingStatus)
+      ) {
+        if (Object.keys(updatedData).length === 0) {
+          toast.info("No changes detected. Proceeding to next step...");
+        }
+
         localStorage.removeItem(`companyInfo_${companyId}`);
-        // Direct to next step as indicated in the API response
+        // Redirect to next step using onboardingStatus in the API response otherwise
+
         setConfirmOpen(false);
         toast.success("Company details saved");
       } else {
@@ -270,19 +328,21 @@ export const CompanyInfo = () => {
     const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer) return;
 
-    const handleScroll = debounce(() => {
+    const handleScroll = () => {
       const scrollTop = scrollContainer.scrollTop;
       const scrollHeight = scrollContainer.scrollHeight;
       const clientHeight = scrollContainer.clientHeight;
+      const maxScroll = scrollHeight - clientHeight;
       const scrollPercentage =
-        (scrollTop / (scrollHeight - clientHeight)) * 100;
-
+        maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
       setScrollPosition(scrollPercentage);
-    }, 200);
+    };
 
-    scrollContainer.addEventListener("scroll", handleScroll);
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
     return () => scrollContainer.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [scrollContainerRef.current]);
 
   // Update showQuickSubmit based on form completion and scroll position
   useEffect(() => {
@@ -400,6 +460,7 @@ export const CompanyInfo = () => {
               error={errors.industry?.message}
               helpTooltip={TOOLTIP.industry || ""}
               className="w-full"
+              required
             >
               <AutocompleteDropdown
                 id="industry"
@@ -451,8 +512,19 @@ export const CompanyInfo = () => {
               id="countryId"
               label="Country"
               required
-              error={errors.countryId?.message}
+              error={
+                controlledInputError?.countryId ||
+                errors.countryId?.message ||
+                ""
+              }
+              onClick={() =>
+                setControlledInputError((prev) => ({
+                  ...prev,
+                  countryId: "Contact support to change country",
+                }))
+              }
               errorTooltip
+              errorTooltipStyle="w-full"
             >
               <AutocompleteDropdown
                 id="countryId"
@@ -478,9 +550,20 @@ export const CompanyInfo = () => {
               id="reportingCurrencyId"
               label="Reporting Currency"
               required
-              error={errors.reportingCurrencyId?.message}
+              error={
+                controlledInputError?.reportingCurrencyId ||
+                errors.reportingCurrencyId?.message ||
+                ""
+              }
               errorTooltip
+              errorTooltipStyle="w-full"
               className="flex flex-col flex-1"
+              onClick={() =>
+                setControlledInputError((prev) => ({
+                  ...prev,
+                  reportingCurrencyId: "Reporting currency cannot be changed",
+                }))
+              }
             >
               <AutocompleteDropdown
                 id="reportingCurrencyId"
@@ -712,19 +795,19 @@ export const CompanyInfo = () => {
         </div>
       </form>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         {/* <DialogTrigger asChild></DialogTrigger> */}
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="text-center">
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center">
               Confirm Company Details
-            </DialogTitle>
-            <DialogDescription className="text-destructive sr-only">
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-destructive sr-only">
               Critical: Most company details cannot be changed once saved.
               Please review everything carefully.
-            </DialogDescription>
+            </AlertDialogDescription>
             <hr />
-          </DialogHeader>
+          </AlertDialogHeader>
           <div className=" flex flex-col justify-center items-center gap-4">
             <p className="text-center">
               <span className="font-semibold text-destructive">
@@ -754,8 +837,8 @@ export const CompanyInfo = () => {
               </span>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {showQuickSubmit && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 md:translate-x-0 z-50 w-xs md:max-w-xs overflow-hidden rounded-md">

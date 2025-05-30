@@ -39,6 +39,7 @@ import { OnboardingSteps } from "@/features/onboarding/types";
 
 export const routes = {
   home: makeRoute({ staticPath: "/" }),
+  company: makeRoute({ staticPath: "/:companyId" }),
 
   // AUTH
   login: makeRoute({ staticPath: "/login", meta: { public: true } }),

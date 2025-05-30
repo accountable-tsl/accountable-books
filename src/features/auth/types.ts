@@ -1,3 +1,4 @@
+import { CompanyType, OnboardingStatus } from "@/domains/company/types";
 import { zEmail } from "@/types/types";
 import { z } from "zod";
 
@@ -26,3 +27,26 @@ export type LogoutOptions = {
   redirectTo?: string | false; // absolute or relative path
   query?: Record<string, string>; // e.g., { email: "foo@example.com" }
 };
+
+export interface AuthUserContext {
+  id: string;
+  email: string;
+  firstname: string;
+  lastname?: string;
+  status: string;
+  companyRoles: {
+    companyId: string;
+    roleId: string;
+  }[];
+  currentCompanyId: string;
+  assignedFirmSlug?: string;
+  permissions?: any;
+}
+
+export interface AuthCompanyContext {
+  id: string;
+  type: CompanyType;
+  name: string;
+  onboardingStatus: OnboardingStatus;
+  assignedFirmSlug?: string;
+}

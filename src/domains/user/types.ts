@@ -6,14 +6,7 @@ export type UserStatus = z.infer<typeof userStatus>;
 export const userInviteStatus = z.enum(["pending", "accepted", "declined"]);
 export type UserInviteStatus = z.infer<typeof userInviteStatus>;
 
-export const userOnboardingStatus = z.enum([
-  "not_started",
-  "email_verified",
-  "creator_vitals_needed",
-  "creator_bank_account_needed",
-  "onboarding_complete",
-]);
-export type UserOnboardingStatus = z.infer<typeof userOnboardingStatus>;
+
 
 export type UserData = {
   id: string;
@@ -22,7 +15,6 @@ export type UserData = {
   lastname: string;
   phoneNumber: string | null;
   status: UserStatus;
-  onboardingStatus: UserOnboardingStatus;
 
   avatarUrl?: string | null;
   inviteStatus?: UserInviteStatus | null;

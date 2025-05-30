@@ -16,29 +16,18 @@ import { HeadsetIcon, ScreenShareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VerifyEmail } from "./steps/VerifyEmail";
-import { getUserDetails } from "@/domains/user/api";
-import { useEffect, useMemo, useState } from "react";
-import { UserData, UserOnboardingStatus } from "@/domains/user/types";
-import { getCurrentStep } from "./utils";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { isStepAllowed, stepMap } from "./utils";
 import { CompanyInfo } from "./steps/CompanyInfo";
 import { BankAccount } from "./steps/BankAccount";
 import { Miscellaneous } from "./steps/Miscellaneous";
 import { toast } from "sonner";
-import { useParams } from "react-router-dom";
-import { onboardingSteps, OnboardingSteps } from "./types";
+import { useNavigate } from "react-router-dom";
+import { OnboardingSteps } from "./types";
 import { CenteredLoader } from "@/components/CenteredLoader";
-
-/*
- * Steps (Direct Signup)
- * companyType === business or accounting_firm, Verify Email, Company Vitals, Company Details, Add Bank Account, Miscellaneous -- End
- * companyType === individual, Verify Email, Add Bank Account, Miscellaneous -- End
- * Handle Later, Invited user, Verify Email, Miscellaneous -- End
- *
- *
- * Notes
- * Show steps based on user path, confirm user is creator by checking that user.id === company.createdById
- * If user is not creator, show message asking them to contact creator or get help
- */
+import { onboardingStatus, OnboardingStatus } from "@/domains/company/types";
+import { getCompanyDetails } from "@/domains/company/api";
+import { routes } from "@/shared/routes/routes";
 
 export function OnboardingForm({
   step: overrideStep,
@@ -47,78 +36,73 @@ export function OnboardingForm({
 }) {
   // Hooks, Context
   const isMobile = useIsMobile();
-  const { company, companyType } = useCompany();
+  const navigate = useNavigate();
+  const { companyId, company, companyType, setCompany, setOnboardingStatus } =
+    useCompany();
   const { user, isLoggedIn } = useAuth();
-  const { step: paramStep } = useParams();
 
   // State
-  const [_userData, setUserData] = useState<UserData>();
-  const [onboardingStatus, setOnboardingStatus] =
-    useState<UserOnboardingStatus>("not_started");
+  // const [status, setStatus] = useState<OnboardingStatus>("not_started");
+  const status: OnboardingStatus = company?.onboardingStatus ?? "not_started";
   const [isLoading, setIsLoading] = useState(true);
 
   // Computed
-  const isCreator = user?.id === company?.createdById; // user is the creator of the company
-
-  const currentStep =
-    overrideStep ||
-    (companyType && company
-      ? getCurrentStep(onboardingStatus, companyType, isCreator)
-      : undefined);
-
-  const parsedStep = onboardingSteps.safeParse(paramStep); // Param Step from URL, check if it's a valid step
-  const validParamStep = parsedStep.success ? parsedStep.data : undefined;
-
+  const currentStep: OnboardingSteps = stepMap[status] || "verifyEmail";
   const step: OnboardingSteps =
-    overrideStep ?? validParamStep ?? currentStep ?? "verifyEmail"; // Actual step to render
+    overrideStep && isStepAllowed(overrideStep, status)
+      ? overrideStep
+      : currentStep;
 
   const isMinimalStep =
-    step === "verifyEmail" && (!isLoggedIn || !company || !companyType); // If user is not logged in, allow minimal verify email result to render
+    step === "verifyEmail" && (!isLoggedIn || !company || !companyType);
 
   const shouldBlockRender =
-    isLoading ||
-    (!isMinimalStep &&
-      (!company || !companyType || !step || step === undefined));
+    isLoading || (!isMinimalStep && (!company || !companyType || !step));
 
   // The sidebar uses this data to determine which steps to show
   const sidebarProps = useMemo(() => {
-    if (!company || !companyType || !user) return null;
+    if (!company || !user) return null;
     return {
-      company: company,
-      companyType: companyType,
-      isCreator: user?.id === company?.createdById,
-      currentStep: currentStep!,
+      company,
+      currentStep: step,
     };
-  }, [company, companyType, user?.id, onboardingStatus]);
+  }, [company, user, step]);
+
+  const handleStatusChange = (s: OnboardingStatus) => setOnboardingStatus(s);
 
   // Components
-  const stepComponents: Record<OnboardingSteps, JSX.Element> = {
-    verifyEmail: <VerifyEmail />,
-    companyVitals: <CompanyInfo />,
-    companyDetails: <CompanyInfo />,
-    addBankAccount: <BankAccount />,
-    miscellaneous: <Miscellaneous />,
-  };
+  const stepElement = useMemo(() => {
+    switch (step) {
+      case "verifyEmail":
+        return <VerifyEmail onStatusChange={handleStatusChange} />;
+      case "companyVitals":
+        return <CompanyInfo />;
+      case "addBankAccount":
+        return <BankAccount />;
+      case "miscellaneous":
+        return <Miscellaneous />;
+      default:
+        return null;
+    }
+  }, [step, handleStatusChange]);
 
   // Functions
-  // Function to get User Data and update user data and onboarding status
-  const getUserData = async () => {
-    if (!user?.id) return;
+  const fetchCompanyData = useCallback(async () => {
+    const id = companyId || company?.id;
+    if (!user?.id || !id) return;
 
     try {
-      const res = await getUserDetails(user.id);
+      const res = await getCompanyDetails(id);
       if (res.success && res.data) {
-        setUserData(res.data);
-        setOnboardingStatus(res.data.onboardingStatus);
+        setCompany(res.data);
       } else {
-        toast.error(res.message);
+        toast.error(res.message || "Failed to fetch company data");
       }
     } catch (error) {
       toast.error("An unexpected error occurred");
     }
-  };
+  }, [user?.id, companyId, setCompany]);
 
-  // Actuall get & update user data / onboarding status as user moves through steps
   useEffect(() => {
     const load = async () => {
       if (!user?.id) {
@@ -127,13 +111,31 @@ export function OnboardingForm({
       }
 
       setIsLoading(true);
-      await getUserData();
+      await fetchCompanyData();
       setIsLoading(false);
     };
     load();
-  }, [user?.id]);
 
-  // User fully onboarded? navigate to dashboard
+    const id = companyId || company?.id;
+    if (!user?.id || !id) return;
+    const intervalId = setInterval(fetchCompanyData, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [user?.id, fetchCompanyData]);
+
+  useEffect(() => {
+    const id = companyId || company?.id;
+    if (status === onboardingStatus.enum.onboarding_complete && id) {
+      navigate(routes.dashboard.buildPath({ companyId: id }));
+    }
+  }, [status, companyId, company, navigate]);
+
+  useEffect(() => {
+    if (overrideStep && !isStepAllowed(overrideStep, status)) {
+      toast.error(`Cannot access ${overrideStep} yet. Complete prior steps.`);
+      navigate(routes.onboarding.step.buildPath({ step: currentStep }));
+    }
+  }, [overrideStep, status, navigate, currentStep]);
 
   if (shouldBlockRender) return <CenteredLoader />;
 
@@ -141,7 +143,7 @@ export function OnboardingForm({
     <>
       {/* No fancy UI if user is not logged in */}
       {isMinimalStep ? (
-        <div className="p-6">{stepComponents[step]}</div>
+        <div className="p-6">{stepElement}</div>
       ) : !isMobile ? (
         <div>
           <MockDashboard />
@@ -162,7 +164,7 @@ export function OnboardingForm({
 
               <div className="flex flex-col flex-1">
                 <OnboardingHeader className="md:mb-4" />
-                {stepComponents[step]}
+                {stepElement}
               </div>
             </DialogContent>
           </Dialog>
@@ -171,7 +173,7 @@ export function OnboardingForm({
         <Sheet>
           <div className="flex flex-col h-dvh overflow-hidden">
             {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
-            {stepComponents[step]}
+            {stepElement}
           </div>
         </Sheet>
       )}

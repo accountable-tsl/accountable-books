@@ -1,5 +1,5 @@
 import { checkEmail, CheckEmailProps } from "@/services/EmailServices";
-import { ServerResponseFormat } from "@/types/types";
+import { ApiResponse } from "@/types/types";
 import { useMutation } from "@tanstack/react-query";
 
 export function useCheckEmail() {

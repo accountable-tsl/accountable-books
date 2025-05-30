@@ -5,7 +5,7 @@ import {
   BankTransactionBatch,
   BankTransactionFilters,
   CatEngineTransaction,
-  ServerResponseFormat,
+  ApiResponse,
 } from "../types/types";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -13,7 +13,7 @@ const backendUrl = import.meta.env.VITE_BACKEND_URL;
 export const postBankTransactions = async (
   companyId: string | number,
   data: BankTransactionBatch
-): Promise<ServerResponseFormat> => {
+): Promise<ApiResponse> => {
   const response = await axios.post(
     `${backendUrl}/api/${companyId}/bank-accounts/transactions/import`,
     data
@@ -53,7 +53,7 @@ export const categoriseTransactions = async (
 export const fetchGenLedgerEntries = async (
   companyId: string,
   filters: AccountingTxnFilters
-): Promise<ServerResponseFormat> => {
+): Promise<ApiResponse> => {
   const response = await axios.post(
     `${backendUrl}/api/${companyId}/t`,
     filters

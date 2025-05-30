@@ -9,6 +9,5 @@ export default function DashboardRedirect() {
     return <Navigate to={routes.login.staticPath} replace />;
   }
 
-  console.log("Redirecting to dashboard with companyId:", companyId);
   return <Navigate to={routes.dashboard.buildPath({ companyId })} replace />;
 }

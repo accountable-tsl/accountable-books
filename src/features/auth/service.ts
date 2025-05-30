@@ -1,7 +1,7 @@
-import { LoginForm } from "./types";
+import { AuthCompanyContext, AuthUserContext, LoginForm } from "./types";
 import api from "@/lib/axios";
 import { isAxiosError } from "axios";
-import { ServerResponseFormat } from "@/types/types";
+import { ApiResponse } from "@/types/types";
 
 export const handleLogin = async (data: LoginForm) => {
   try {
@@ -21,13 +21,7 @@ export const backendLogout = async () => {
 };
 
 export const fetchSession = async (): Promise<
-  ServerResponseFormat<{
-    id: string;
-    email: string;
-    firstname: string;
-    lastname?: string;
-    currentCompanyId: string;
-  }>
+  ApiResponse<{ user: AuthUserContext; company: AuthCompanyContext }>
 > => {
   const res = await api.get("/auth/me");
   return res.data;

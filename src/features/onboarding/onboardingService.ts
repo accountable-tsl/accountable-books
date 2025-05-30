@@ -1,16 +1,14 @@
-import { UserOnboardingStatus } from "@/domains/user/types";
 import api from "@/lib/axios";
 import { ResendVerEmailService } from "./types";
+import { ApiResponse } from "@/types/types";
+import { CompanyData } from "@/domains/company/types";
+import { UserData } from "@/domains/user/types";
 
-// export const resendVerificationEmail = async (token) => {
-//   await api.get(`"/auth/verify-email`);
-// };
-
-export const updateOnboardingStatus = async (data: {
+export const updateCompanyOnboardingStatus = async (data: {
   userId: string;
-  onboardingStatus: UserOnboardingStatus;
-}) => {
-  const res = await api.post(`/api/onboarding/status`, data);
+  companyId: string;
+}): Promise<ApiResponse<{ user: UserData; company: CompanyData }>> => {
+  const res = await api.post(`/api/onboarding/advance`, data);
   return res.data;
 };
 

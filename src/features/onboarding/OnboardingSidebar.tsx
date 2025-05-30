@@ -1,82 +1,19 @@
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { VerticalStepper } from "@/components/VerticalStepper";
-import { CompanyData, CompanyType } from "@/domains/company/types";
-import {
-  ArrowUpCircleIcon,
-  Building2Icon,
-  CreditCardIcon,
-  FileTextIcon,
-  MailCheckIcon,
-  SettingsIcon,
-} from "lucide-react";
-import { OnboardingSideBarSteps } from "./types";
-import { getSteps, onboardingSteps } from "./utils";
-
-// Define step configurations
-const steps: OnboardingSideBarSteps = {
-  verifyEmail: {
-    icon: MailCheckIcon,
-    key: "verifyEmail",
-    title: "Verify Email",
-    description: "Confirm your email address",
-  },
-  companyVitals: {
-    icon: Building2Icon,
-    key: "companyVitals",
-    title: "Company Vitals",
-    description: "Enter company name and type",
-  },
-  companyDetails: {
-    icon: FileTextIcon,
-    key: "companyDetails",
-    title: "Company Details",
-    description: "Provide country and registration ID",
-  },
-  addBankAccount: {
-    icon: CreditCardIcon,
-    key: "addBankAccount",
-    title: "Add Bank Account",
-    description: "Link your bank account",
-  },
-  miscellaneous: {
-    icon: SettingsIcon,
-    key: "miscellaneous",
-    title: "Miscellaneous",
-    description: "Additional settings",
-  },
-};
-// const getSteps = (companyType: CompanyType, isCreator: boolean) => {
-//   if (!isCreator) {
-//     return [steps.verifyEmail, steps.miscellaneous];
-//   }
-
-//   if (companyType === "individual") {
-//     return [steps.verifyEmail, steps.addBankAccount, steps.miscellaneous];
-//   }
-
-//   return [
-//     steps.verifyEmail,
-//     steps.companyVitals,
-//     steps.companyDetails,
-//     steps.addBankAccount,
-//     steps.miscellaneous,
-//   ];
-// };
+import { CompanyData } from "@/domains/company/types";
+import { ArrowUpCircleIcon } from "lucide-react";
+import { onboardingSteps } from "./utils";
 
 export function OnboardingSidebar({
   company,
-  companyType,
-  isCreator,
   currentStep,
   footer,
 }: {
   company: CompanyData;
-  companyType: CompanyType;
-  isCreator: boolean;
-  currentStep: keyof typeof steps;
+  currentStep: keyof typeof onboardingSteps;
   footer?: string | React.ReactNode;
 }) {
-  const stepList = getSteps(onboardingSteps, companyType, isCreator);
+  const steps = Object.values(onboardingSteps);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center border-b h-12">
@@ -99,7 +36,7 @@ export function OnboardingSidebar({
       </div>
       {/* <div className="px-4">Onboarding Steps</div> */}
       <VerticalStepper
-        steps={stepList}
+        steps={steps}
         currentStep={currentStep}
         footer={footer}
       />
