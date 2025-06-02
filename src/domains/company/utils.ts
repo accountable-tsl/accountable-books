@@ -45,4 +45,5 @@ export const getDefaultCompanyData = (): CompanyData => ({
   assignedFirmSlug: null,
   assignedFirmIsPlatform: null,
   assignedFirmLogo: null,
+  onboardingStatus: "not_started",
 });

@@ -1,4 +1,4 @@
-import { fetchCurrencies } from "@/services/currencyServices";
+import { fetchCurrencies } from "@/shared/services/currencyServices";
 import { useQuery } from "@tanstack/react-query";
 
 export const useCurrencies = () => {

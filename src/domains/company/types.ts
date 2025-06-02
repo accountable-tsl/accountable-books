@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { checkSlug } from "../firms/api";
 
 export const companyType = z.enum([
   "business",
@@ -22,6 +23,13 @@ export const onboardingStatus = z.enum([
 ]);
 export type OnboardingStatus = z.infer<typeof onboardingStatus>;
 
+export const firmType = z.enum([
+  "freelancer",
+  "ca_cpa",
+  "tax_preparer",
+  "international",
+]);
+export type FirmType = z.infer<typeof firmType>;
 export type CompanyStore = {
   companyId: string | null;
   companyType: CompanyType | undefined;
@@ -75,6 +83,7 @@ export const companyData = baseCompanyData.extend({
   countryFlag: z.string().nullish(),
   countryContinent: z.string().nullish(),
   reportingCurrencySymbol: z.string().nullish(),
+  isDemoCompany: z.boolean().optional(),
   assignedFirmName: z.string().nullish(),
   assignedFirmSlug: z.string().nullish(),
   assignedFirmIsPlatform: z.boolean().nullish(),
@@ -121,3 +130,64 @@ export type CompanyData = z.infer<typeof companyData>;
 //   assignedFirmIsPlatform: boolean | null;
 //   assignedFirmLogo: string | null;
 // };
+
+export const updateCompanySchema = companyData
+  .omit({
+    id: true,
+    createdById: true,
+    isPlatform: true,
+    isDemoCompany: true,
+    assignedFirmIsPlatform: true,
+    assignedFirmLogo: true,
+    assignedFirmName: true,
+    assignedFirmSlug: true,
+  })
+  .extend({
+    slug: z.string().max(20).optional(),
+    firmType: firmType.optional(),
+  })
+  .partial();
+
+export type UpdateCompanyData = z.infer<typeof updateCompanySchema>;
+
+export const slugSchema = z
+  .string()
+  .trim()
+  .min(3, "Slug must be at least 3 characters ")
+  .max(20, "Slug must not exceed 20 characters")
+  .refine((v) => !v.startsWith("-") && !v.endsWith("-"), {
+    message: "Slug cannot start or end with a hyphen",
+  })
+  .refine((v) => !v.includes("--"), {
+    message: "Slug cannot contain consecutive hyphens",
+  })
+  .refine((v) => !/\d/.test(v), {
+    message: "Slug must not contain numbers",
+  })
+  .refine((v) => v === v.toLowerCase(), {
+    message: "Slug must be all lowercase letters",
+  })
+  .refine((val) => /^[a-z-]+$/.test(val), {
+    message: "Slug must contain only lowercase letters and hyphens",
+  });
+
+export const updateCompanyVitalsSchema = companyData
+  .omit({
+    id: true,
+    createdById: true,
+    isPlatform: true,
+    isDemoCompany: true,
+    assignedFirmIsPlatform: true,
+    assignedFirmLogo: true,
+    assignedFirmName: true,
+  })
+  .extend({
+    assignedFirmSlug: slugSchema.nullish(),
+    displayName: z
+      .string()
+      .min(2, "Display name must be at least 2 characters")
+      .max(256)
+      .nullish(),
+  });
+
+export type UpdateCompanyVitalsData = z.infer<typeof updateCompanyVitalsSchema>;

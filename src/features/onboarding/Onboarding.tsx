@@ -157,7 +157,7 @@ export function OnboardingForm({
               </DialogDescription>
             </DialogHeader>
             <DialogContent className="flex [&>button]:hidden h-fit min-h-[70vh] max-h-[80vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0 gap-0">
-              <div className="min-w-[15rem] w-1/5 md:w-[20rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
+              <div className="min-w-[14rem] w-1/5 md:w-[18rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
                 {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
                 <OnboardingFormFooter />
               </div>

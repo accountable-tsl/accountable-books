@@ -12,14 +12,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getCompanyDetails } from "@/domains/company/api";
+import {
+  checkSlugExists,
+  getCompanyDetails,
+  updateCompanyDetails,
+} from "@/domains/company/api";
 import {
   ACCOUNTING_BASIS,
   COMPANY_REVENUE_RANGE,
   COMPANY_SIZE,
 } from "@/domains/company/constants";
 import { useCompany } from "@/domains/company/store";
-import { companyData, CompanyData } from "@/domains/company/types";
+import {
+  companyData,
+  CompanyData,
+  UpdateCompanyData,
+} from "@/domains/company/types";
 import {
   getCompanyTypeDisplay,
   getDefaultCompanyData,
@@ -32,7 +40,6 @@ import { useCountries } from "@/hooks/useCountries";
 import { useCurrencies } from "@/hooks/useCurrencies";
 import { useIndustries } from "@/hooks/useIndustries";
 import { cn } from "@/lib/utils";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -47,9 +54,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/features/auth/hooks";
+import { useSlugCheck } from "@/domains/firms/hooks";
+import { validateSlug } from "@/domains/firms/utils";
 
 export const CompanyInfo = () => {
-  const { company, companyId, companyType } = useCompany();
+  const { company, companyId, companyType, setCompany } = useCompany();
+  const { logout } = useAuth();
   const {
     data: industries,
     isLoading: isIndustriesLoading,
@@ -86,9 +97,9 @@ export const CompanyInfo = () => {
     setValue,
     getValues,
     register,
+
     formState: { errors, isSubmitting },
   } = useForm<CompanyData>({
-    resolver: zodResolver(companyData),
     mode: "onChange",
     defaultValues: getDefaultCompanyData(),
   });
@@ -121,6 +132,13 @@ export const CompanyInfo = () => {
       setIsLoading(false);
     }
   };
+
+  const watchedSlug = watch("assignedFirmSlug")?.trim() || "";
+  const { data: slugCheck, isFetching } = useSlugCheck(watchedSlug, companyId!);
+
+  const isSlugTaken = slugCheck?.data?.isAvailable === false;
+  const isSlugOwned = slugCheck?.data?.isCurrent === true;
+  const slugTakenMessage = isSlugTaken ? slugCheck?.message : "";
 
   const handleUpload = async (file: File) => {
     if (!companyId) {
@@ -209,18 +227,26 @@ export const CompanyInfo = () => {
     return () => clearTimeout(timeout);
   };
 
-  // Submit form to backend
-  const onSubmit = async () => {
+  // const slugExists = async (slug: string): Promise<boolean> => {
+  //   const response = await checkSlugExists(slug);
+  //   return !response.success;
+  // };
+  // On click of submit & continue, validate form, if valid, open confirmation dialog
+  const handleInitialSubmit = async (): Promise<{
+    success: boolean;
+    message?: string;
+    formData?: CompanyData;
+    dbData?: CompanyData;
+  }> => {
     try {
       setIsLoading(true);
       const formData = getValues();
-      console.log("Form data:", formData);
 
       const validatedForm = companyData.safeParse(formData);
       if (!validatedForm.success) {
         toast.error("Please fill all required fields");
         console.error("Validation errors:", validatedForm.error);
-        return;
+        return { success: false };
       }
 
       //Fetch existing company details
@@ -240,13 +266,18 @@ export const CompanyInfo = () => {
       const missingRequired = requiredFields.filter((field) => {
         const formValue = formData[field];
         const dbValue = dbData[field];
-        // Field is required but either empty in form or unchanged from null/undefined in db
+        // Field is required but either empty in form or still null/undefined in both
         return (
           !formValue ||
-          formValue.toString().trim() === "" ||
-          (dbValue == null && formValue === dbValue)
+          (typeof formValue === "string" && formValue.trim() === "") ||
+          (formValue == null && dbValue == null)
         );
       });
+
+      if (slugTakenMessage) {
+        toast.error(slugTakenMessage);
+        return { success: false };
+      }
 
       if (missingRequired.length > 0) {
         toast.error(
@@ -254,34 +285,79 @@ export const CompanyInfo = () => {
             .map((f) => f.replace(/([A-Z])/g, " $1").toLowerCase())
             .join(", ")}`
         );
+        return { success: false };
+      }
+      setConfirmOpen(true);
+
+      return { success: true, formData, dbData };
+    } catch (error) {
+      toast.error("An unexpected error occurred, check form details");
+      return { success: false };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Submit form to backend
+  const onSubmit = async () => {
+    try {
+      setIsLoading(true);
+
+      const res = await handleInitialSubmit(); // Ensure initial validation is done
+      if (!res.success) {
+        setIsLoading(false);
         return;
       }
 
-      // Get only changed fields
-      const updatedData: Record<string, any> = getChangesOnly(dbData, formData);
-      console.log(updatedData);
+      const { formData, dbData } = res;
 
-      const response = { success: true, message: "", data: {} };
-      const { success, message, data } = await updateCompanyDetails(
-        companyId,
-        updatedData
-      );
-      if (
-        Object.keys(updatedData).length === 0 ||
-        (success && data && data.onboardingStatus)
-      ) {
-        if (Object.keys(updatedData).length === 0) {
-          toast.info("No changes detected. Proceeding to next step...");
+      // Get only changed fields
+      const updates: Record<string, any> = getChangesOnly(dbData, formData);
+      const { onboardingStatus, assignedFirmSlug, ...rest } = updates;
+      console.log(rest);
+
+      let dataToUpdate: UpdateCompanyData = rest;
+      if (companyType === "accounting_firm" && assignedFirmSlug) {
+        // ensure slug is lowercase and no dots, spaces and not more than 20 characters
+        // check if slug already exists
+        // then remove assignedFirmSlug from fieldsToUpdate, name the key as slug
+        const slug = assignedFirmSlug
+          .toLowerCase()
+          .replace(/[\s.]/g, "")
+          .slice(0, 20);
+
+        if (!slug) {
+          toast.error(`Please provide a valid slug ${slug}`);
+          return;
         }
 
-        localStorage.removeItem(`companyInfo_${companyId}`);
-        // Redirect to next step using onboardingStatus in the API response otherwise
+        const slugExists = await checkSlugExists(slug);
+        if (slugExists.success && slugExists.data?.exists) {
+          toast.error(`Slug "${slug}" already exists. Please choose another.`);
+          return;
+        }
 
-        setConfirmOpen(false);
-        toast.success("Company details saved");
-      } else {
-        throw new Error(response.message || "Failed to save company details");
+        dataToUpdate = { ...rest, slug };
       }
+
+      if (Object.keys(dataToUpdate).length === 0) {
+        toast.info("No changes detected. Proceeding to next step...");
+      } else {
+        const { success, message, data } = await updateCompanyDetails(
+          companyId!,
+          dataToUpdate
+        );
+
+        if (!success) {
+          throw new Error(message || "Failed to update company details");
+        }
+
+        setCompany(data as CompanyData);
+      }
+
+      localStorage.removeItem(`companyInfo_${companyId}`);
+      setConfirmOpen(false);
+      toast.success("Company details saved");
     } catch (error: any) {
       toast.error(error.message || "Failed to save company details");
     } finally {
@@ -321,7 +397,7 @@ export const CompanyInfo = () => {
 
       return () => clearTimeout(timeout);
     }
-  });
+  }, [controlledInputError]);
 
   // Handle scroll to track position
   useEffect(() => {
@@ -727,13 +803,33 @@ export const CompanyInfo = () => {
                 <>
                   <FormField
                     label="Slug"
-                    helpTooltip="This is what your clients will use to identify you on the platform e.g kpmg.getaccountable.com, your slug will be kpmg"
+                    helpTooltip="This is what your clients will use to identify you on the platform e.g kpmg.getaccountable.com, your slug will be kpmg. The shorter the better."
                     tooltipStyle="text-center"
                     required
+                    error={`${
+                      errors.assignedFirmSlug?.message || slugTakenMessage
+                    }`}
+                    errorTooltip
+                    errorTooltipStyle="text-center"
                   >
                     <Input
-                      placeholder="firm"
-                      {...register("assignedFirmSlug")}
+                      placeholder="e.g. kpmg, afandco"
+                      {...register("assignedFirmSlug", {
+                        validate: async (value) => {
+                          const trimmedValue = value?.trim() ?? "";
+                          const { isValid, error } = validateSlug(trimmedValue);
+                          if (!isValid) {
+                            return error;
+                          }
+                          if (isFetching) return "Checking...";
+
+                          if (!isFetching && isSlugTaken) {
+                            return slugTakenMessage;
+                          }
+
+                          return true;
+                        },
+                      })}
                     />
                   </FormField>
                   <FormField
@@ -780,17 +876,20 @@ export const CompanyInfo = () => {
           </FormField>
         </div>
         {/* Form navigation */}
-        <div
-          className="pb-4 flex justify-center md:justify-between"
-          data-footer
-        >
+        <div className="flex justify-center md:justify-between" data-footer>
           {!isMobile && (
             <Button type="button" variant="outline" disabled>
               Previous
             </Button>
           )}
-          <Button type="button" onClick={() => setConfirmOpen(true)}>
+          <Button type="button" onClick={handleInitialSubmit}>
             Submit and Continue
+          </Button>
+        </div>
+
+        <div className="flex justify-center bg-transparent -mt-[2rem]">
+          <Button variant="link" onClick={() => logout()}>
+            Logout
           </Button>
         </div>
       </form>

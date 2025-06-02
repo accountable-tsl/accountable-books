@@ -8,3 +8,29 @@ export const getCompanyDetails = async (
   const response = await api.get(`/api/companies/${companyId}`);
   return response.data;
 };
+
+export const updateCompanyDetails = async (
+  companyId: string,
+  data: Partial<
+    Omit<CompanyData, "id" | "onboardingStatus" | "companyType" | "createdById">
+  >
+): Promise<ApiResponse<CompanyData>> => {
+  const response = await api.put(`/api/companies/${companyId}`, data);
+  return response.data;
+};
+
+export const checkSlugExists = async (
+  slug: string
+): Promise<ApiResponse<{ exists: boolean }>> => {
+  if (!slug) {
+    return {
+      success: false,
+      message: "Slug not provided",
+      data: { exists: false },
+    };
+  }
+  const response = await api.get<ApiResponse<{ exists: boolean }>>(
+    `/api/accounting-firms/check-slug?slug=${encodeURIComponent(slug)}`
+  );
+  return response.data;
+};

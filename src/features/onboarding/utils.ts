@@ -33,7 +33,7 @@ export const onboardingSteps: OnboardingSideBarSteps = {
     icon: Building2Icon,
     key: "companyVitals",
     title: "Company Vitals",
-    description: "Enter company name and type",
+    description: "Update or verify company details",
   },
   addBankAccount: {
     icon: CreditCardIcon,

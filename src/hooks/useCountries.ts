@@ -1,4 +1,4 @@
-import { getCountries } from "@/services/countryServices";
+import { getCountries } from "@/shared/services/countryServices";
 import { useQuery } from "@tanstack/react-query";
 
 export const useCountries = () => {
