@@ -24,13 +24,8 @@ import { getUserDetails } from "@/domains/user/api";
 import { toast } from "sonner";
 
 export default function Login() {
-  const {
-    setUser,
-    isLoggedIn,
-    checkingSession,
-    clearSession,
-    logout,
-  } = useAuth();
+  const { setUser, isLoggedIn, checkingSession, clearSession, logout } =
+    useAuth();
   const { setCompany, companyId, company } = useCompany();
   const [params] = useSearchParams();
 
@@ -63,9 +58,7 @@ export default function Login() {
         toast.error(message);
         return;
       }
-
       const { user, company } = res.data;
-      console.log(user, company);
       const assignedFirmSlug =
         user?.assignedFirmSlug || company?.assignedFirmSlug;
       const currentCompanyId = company?.id || user?.currentCompanyId;
@@ -120,7 +113,11 @@ export default function Login() {
                   You're already logged in.
                 </span>{" "}
                 <Link
-                  to={routes.dashboard.buildUrl({ companyId })}
+                  to={
+                    company.onboardingStatus !== "onboarding_complete"
+                      ? routes.onboarding.index.staticPath
+                      : routes.dashboard.buildUrl({ companyId })
+                  }
                   className="underline font-medium"
                 >
                   Go to dashboard

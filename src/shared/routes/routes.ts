@@ -54,16 +54,17 @@ export const routes = {
   onboarding: {
     index: makeRoute({
       staticPath: "/onboarding",
-      meta: { public: true },
     }),
+
     step: makeRoute<string, { step: OnboardingSteps }>({
       staticPath: "/onboarding/:step",
-      meta: { public: true },
     }),
+
     verifyEmail: makeRoute({
       staticPath: "/email-verified",
       meta: { public: true },
     }),
+
     welcome: makeRoute({ staticPath: "/onboarding/welcome" }),
   },
 

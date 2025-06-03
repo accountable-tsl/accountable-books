@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import {
   resendVerificationEmail,
   updateCompanyOnboardingStatus,
-} from "../onboardingService";
+} from "../service";
 import { OnboardingStatus } from "@/domains/company/types";
 import { useCompany } from "@/domains/company/store";
 import { cn } from "@/lib/utils";
@@ -305,6 +305,22 @@ export const VerifyEmail = ({
                     Resend Email
                   </Button>
                 )}
+              </>
+            )}
+            {!isLoggedIn && (
+              <>
+                <Link
+                  to={
+                    userEmail
+                      ? `${routes.login.staticPath}?email=${encodeURIComponent(
+                          userEmail
+                        )}`
+                      : routes.login.staticPath
+                  }
+                  className="text-blue-600 underline mt-4 block"
+                >
+                  Log in to continue onboarding
+                </Link>
               </>
             )}
           </div>

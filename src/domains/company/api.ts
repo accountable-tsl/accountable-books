@@ -15,7 +15,8 @@ export const updateCompanyDetails = async (
     Omit<CompanyData, "id" | "onboardingStatus" | "companyType" | "createdById">
   >
 ): Promise<ApiResponse<CompanyData>> => {
-  const response = await api.put(`/api/companies/${companyId}`, data);
+  const response = await api.patch(`/api/companies/${companyId}`, data);
+  console.log("Update Company Response:", response.data);
   return response.data;
 };
 

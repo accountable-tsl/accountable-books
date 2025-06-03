@@ -6,6 +6,7 @@ import { ApiResponse } from "@/types/types";
 export const handleLogin = async (data: LoginForm) => {
   try {
     const resp = await api.post("/auth/login", data);
+    localStorage.setItem("csrfToken", resp.data.data.csrfToken || "");
     return { success: true, data: resp.data.data };
   } catch (err: any) {
     if (isAxiosError(err) && err.response?.data) {

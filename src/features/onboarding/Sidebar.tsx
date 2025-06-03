@@ -2,18 +2,20 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { VerticalStepper } from "@/components/VerticalStepper";
 import { CompanyData } from "@/domains/company/types";
 import { ArrowUpCircleIcon } from "lucide-react";
-import { onboardingSteps } from "./utils";
+import { getSteps, onboardingSteps } from "./utils";
 
 export function OnboardingSidebar({
   company,
   currentStep,
+  isCreator,
   footer,
 }: {
   company: CompanyData;
   currentStep: keyof typeof onboardingSteps;
+  isCreator: boolean;
   footer?: string | React.ReactNode;
 }) {
-  const steps = Object.values(onboardingSteps);
+  const steps = getSteps(onboardingSteps, company?.companyType, isCreator);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center border-b h-12">

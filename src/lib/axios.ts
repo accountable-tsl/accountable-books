@@ -11,6 +11,15 @@ const api = axios.create({
 // Auto-attach CSRF token for mutating requests
 api.interceptors.request.use((config) => {
   const csrfToken = getCookie("csrfToken");
+  const token = localStorage.getItem("csrfToken");
+
+  const method = config.method?.toLowerCase() || "";
+
+  if (token && ["post", "put", "patch", "delete"].includes(method)) {
+    config.headers["X-CSRF-Token"] = token;
+    return config;
+  }
+
   if (
     csrfToken &&
     config.method &&
@@ -65,12 +74,16 @@ api.interceptors.response.use(
       return new Promise((resolve, reject) => {
         api
           .post("/auth/refresh", {}, { withCredentials: true })
-          .then(() => {
+          .then((refreshResp) => {
             // cookies (accessToken, csrfToken) are reset by server
-            const csrf = getCookie("csrfToken");
-            if (csrf) {
+            // const csrf = getCookie("csrfToken");
+            const newCsrfToken =
+              refreshResp.data.csrfToken || localStorage.getItem("csrfToken");
+
+            if (newCsrfToken) {
               // update header on the original request
-              original.headers!["X-CSRF-Token"] = csrf;
+              localStorage.setItem("csrfToken", newCsrfToken);
+              original.headers!["X-CSRF-Token"] = newCsrfToken;
             }
             processQueue(null);
             resolve(api(original));

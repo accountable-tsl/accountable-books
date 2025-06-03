@@ -1,5 +1,5 @@
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { OnboardingCallback } from "./OnboardingCallback";
+import { OnboardingCallback } from "./Callback";
 import { cn } from "@/lib/utils";
 
 export const OnboardingHeader = ({ className }: { className?: string }) => {

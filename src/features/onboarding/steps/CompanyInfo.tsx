@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  checkSlugExists,
   getCompanyDetails,
   updateCompanyDetails,
 } from "@/domains/company/api";
@@ -60,7 +59,7 @@ import { validateSlug } from "@/domains/firms/utils";
 
 export const CompanyInfo = () => {
   const { company, companyId, companyType, setCompany } = useCompany();
-  const { logout } = useAuth();
+  const { isLoggedIn, logout } = useAuth();
   const {
     data: industries,
     isLoading: isIndustriesLoading,
@@ -90,7 +89,6 @@ export const CompanyInfo = () => {
   // Initialize form
   const {
     control,
-    handleSubmit,
     reset,
     trigger,
     watch,
@@ -133,7 +131,7 @@ export const CompanyInfo = () => {
     }
   };
 
-  const watchedSlug = watch("assignedFirmSlug")?.trim() || "";
+  const watchedSlug = companyType === "accounting_firm" ? watch("assignedFirmSlug")?.trim() || "" : "";
   const { data: slugCheck, isFetching } = useSlugCheck(watchedSlug, companyId!);
 
   const isSlugTaken = slugCheck?.data?.isAvailable === false;
@@ -274,7 +272,7 @@ export const CompanyInfo = () => {
         );
       });
 
-      if (slugTakenMessage) {
+      if (isAccountingFirm && slugTakenMessage) {
         toast.error(slugTakenMessage);
         return { success: false };
       }
@@ -299,12 +297,14 @@ export const CompanyInfo = () => {
   };
 
   // Submit form to backend
-  const onSubmit = async () => {
+  const handleSubmit = async () => {
+    console.log("Submitting company info...");
     try {
       setIsLoading(true);
 
       const res = await handleInitialSubmit(); // Ensure initial validation is done
       if (!res.success) {
+        toast.error(res.message || "Failed to validate form");
         setIsLoading(false);
         return;
       }
@@ -318,22 +318,10 @@ export const CompanyInfo = () => {
 
       let dataToUpdate: UpdateCompanyData = rest;
       if (companyType === "accounting_firm" && assignedFirmSlug) {
-        // ensure slug is lowercase and no dots, spaces and not more than 20 characters
-        // check if slug already exists
-        // then remove assignedFirmSlug from fieldsToUpdate, name the key as slug
-        const slug = assignedFirmSlug
-          .toLowerCase()
-          .replace(/[\s.]/g, "")
-          .slice(0, 20);
+        const slug = assignedFirmSlug;
 
         if (!slug) {
           toast.error(`Please provide a valid slug ${slug}`);
-          return;
-        }
-
-        const slugExists = await checkSlugExists(slug);
-        if (slugExists.success && slugExists.data?.exists) {
-          toast.error(`Slug "${slug}" already exists. Please choose another.`);
           return;
         }
 
@@ -347,6 +335,8 @@ export const CompanyInfo = () => {
           companyId!,
           dataToUpdate
         );
+
+        console.log("Update response:", { success, message, data });
 
         if (!success) {
           throw new Error(message || "Failed to update company details");
@@ -449,7 +439,7 @@ export const CompanyInfo = () => {
     return <CenteredLoader />;
   }
 
-  if (!companyId || !companyType) {
+  if (!companyId || !companyType || !isLoggedIn) {
     return (
       <ErrorPage type="default" showHeader={false} className="min-h-0 h-full" />
     );
@@ -876,7 +866,10 @@ export const CompanyInfo = () => {
           </FormField>
         </div>
         {/* Form navigation */}
-        <div className="flex justify-center md:justify-between" data-footer>
+        <div
+          className="pb-4 flex justify-center md:justify-between"
+          data-footer
+        >
           {!isMobile && (
             <Button type="button" variant="outline" disabled>
               Previous
@@ -884,12 +877,6 @@ export const CompanyInfo = () => {
           )}
           <Button type="button" onClick={handleInitialSubmit}>
             Submit and Continue
-          </Button>
-        </div>
-
-        <div className="flex justify-center bg-transparent -mt-[2rem]">
-          <Button variant="link" onClick={() => logout()}>
-            Logout
           </Button>
         </div>
       </form>
@@ -923,7 +910,7 @@ export const CompanyInfo = () => {
               <div className="flex items-center justify-center gap-2">
                 <Button
                   disabled={isLoading || isSubmitting}
-                  onClick={handleSubmit(onSubmit)}
+                  onClick={handleSubmit}
                 >
                   Yes, Submit
                 </Button>

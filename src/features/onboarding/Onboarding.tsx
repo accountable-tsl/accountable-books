@@ -7,11 +7,11 @@ import {
 } from "@/components/ui/dialog";
 import { useCompany } from "@/domains/company/store";
 import { useAuth } from "../auth/hooks";
-import { OnboardingSidebar } from "./OnboardingSidebar";
+import { OnboardingSidebar } from "./Sidebar";
 import { MockDashboard } from "../dashboard/MockDashboard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet } from "@/components/ui/sheet";
-import { OnboardingHeader } from "./OnboardingHeader";
+import { OnboardingHeader } from "./Header";
 import { HeadsetIcon, ScreenShareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ export function OnboardingForm({
   const navigate = useNavigate();
   const { companyId, company, companyType, setCompany, setOnboardingStatus } =
     useCompany();
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, logout } = useAuth();
 
   // State
   // const [status, setStatus] = useState<OnboardingStatus>("not_started");
@@ -47,6 +47,7 @@ export function OnboardingForm({
   const [isLoading, setIsLoading] = useState(true);
 
   // Computed
+  const isCreator = user?.id === company?.createdById;
   const currentStep: OnboardingSteps = stepMap[status] || "verifyEmail";
   const step: OnboardingSteps =
     overrideStep && isStepAllowed(overrideStep, status)
@@ -65,6 +66,7 @@ export function OnboardingForm({
     return {
       company,
       currentStep: step,
+      isCreator,
     };
   }, [company, user, step]);
 
@@ -172,7 +174,12 @@ export function OnboardingForm({
       ) : (
         <Sheet>
           <div className="flex flex-col h-dvh overflow-hidden">
-            {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
+            {sidebarProps && (
+              <OnboardingSidebar
+                {...sidebarProps}
+                footer={<OnboardingFormFooter />}
+              />
+            )}
             {stepElement}
           </div>
         </Sheet>
@@ -183,6 +190,7 @@ export function OnboardingForm({
 
 const OnboardingFormFooter = () => {
   const isMobile = useIsMobile();
+  const { logout } = useAuth();
 
   return (
     <div className="flex flex-col items-center gap-2 mb-4 md:mb-8">
@@ -191,20 +199,32 @@ const OnboardingFormFooter = () => {
           For a better experience, view on larger screen
         </span>
       )}
-      <div
-        className={cn(
-          "text-sm hover:underline flex gap-1 text-muted-foreground hover:text-foreground cursor-pointer",
-          "flex items-center gap-1",
-          isMobile ? "font-medium underline text-foreground" : ""
-        )}
-      >
-        <span>See the platform in action</span> <ScreenShareIcon size={14} />
-        {/* <span className={cn("font-medium cursor-pointer")}>Demo Company</span> */}
+      {!isMobile && (
+        <div
+          className={cn(
+            "text-sm hover:underline flex gap-1 text-muted-foreground hover:text-foreground cursor-pointer",
+            "flex items-center gap-1",
+            isMobile ? "font-medium underline text-foreground" : ""
+          )}
+        >
+          <span>See the platform in action</span> <ScreenShareIcon size={14} />
+          {/* <span className={cn("font-medium cursor-pointer")}>Demo Company</span> */}
+        </div>
+      )}
+      <div className="flex flex-col">
+        <Button variant={"outline"} size={"sm"}>
+          <HeadsetIcon size={14} />
+          <span className="font-light text-xs">Contact support</span>
+        </Button>
+        <Button
+          variant="link"
+          size={"sm"}
+          className="text-xs text-muted-foreground h-6"
+          onClick={() => logout()}
+        >
+          Logout
+        </Button>
       </div>
-      <Button variant={"outline"} size={"sm"}>
-        <HeadsetIcon size={14} />
-        <span className="font-light text-xs">Contact support</span>
-      </Button>
     </div>
   );
 };

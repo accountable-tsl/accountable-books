@@ -41,7 +41,6 @@ export function VerticalStepper({
   footer?: string | React.ReactNode;
 }) {
   const [internalStep] = useState<string | number>(steps[0]?.key ?? "");
-
   // Use controlledStep if provided, otherwise fall back to internalStep
   const currentStep =
     controlledStep !== undefined ? controlledStep : internalStep;
@@ -86,7 +85,6 @@ export function VerticalStepper({
       active: isActive,
       completed: isCompleted,
     };
-
 
     return (
       <div
