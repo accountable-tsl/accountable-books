@@ -7,7 +7,7 @@ export const publicPaths = [
   "/signup",
   "/forgot-password",
   "/public",
-  "/api/onboarding/status",
+  "/api/onboarding/advance",
   "/api/logos/upload",
   "/api/logos/delete",
   "/api/logos/signed-url",

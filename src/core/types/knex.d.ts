@@ -29,10 +29,7 @@ import {
 } from "../../domains/users/users.types";
 import { Company, NewCompany } from "../../domains/companies/companies.types";
 import { Coa, NewCoa } from "../../domains/chartOfAccounts/coa.types";
-import {
-  AccFirm,
-  NewAccFirm,
-} from "../../domains/accountingFirm/accountingFirm.types";
+import { AccFirm, NewAccFirm } from "../../domains/accountingFirms/firms.types";
 import {
   NewUserCompanyRole,
   UserCompanyRole,

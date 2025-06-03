@@ -29,7 +29,6 @@ const generateDemoSignupInput = (
       password: "StrongDemoPass!",
       avatarUrl: faker.image.avatar(),
       isDemoUser: true,
-      onboardingStatus: "not_started",
     },
     company: {
       legalName: companyName || faker.company.name(),

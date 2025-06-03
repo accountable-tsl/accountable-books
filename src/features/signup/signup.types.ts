@@ -4,7 +4,7 @@ import {
   companyType,
   newCompanyInput,
 } from "../../domains/companies/companies.types";
-import { newAccFirmInput } from "../../domains/accountingFirm/accountingFirm.types";
+import { newAccFirmInput } from "../../domains/accountingFirms/firms.types";
 
 export const newSignup = z.object({
   user: newUserDirect,

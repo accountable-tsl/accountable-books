@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { dbBaseFields } from "../../core/validation/schemas";
 import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
-import { firmType } from "../accountingFirm/accountingFirm.types";
+import { firmType } from "../accountingFirms/firms.types";
 
 export const companyType = z.enum([
   "business",

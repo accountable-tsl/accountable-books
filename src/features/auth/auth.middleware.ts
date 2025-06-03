@@ -89,19 +89,30 @@ export const verifyRefreshToken = async (
 };
 
 export const conditionalCsrf = (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-  if (publicPaths.some((p) => req.originalUrl.includes(p))) {
-    // Manually create random CSRF token
-    const csrfToken = req.csrfToken ? req.csrfToken() : generateRandomToken();
-    req.csrfToken = () => csrfToken;
+  csrfProtection(req, res, (err) => {
+    const isPublic = publicPaths.some((p) => req.originalUrl.includes(p));
+
+    // Ignore CSRF errors on public routes
+    if (err && isPublic) return next();
+
+    console.log({
+      xCSRF: req.headers["x-csrf-token"],
+      csrfHeader: req.headers["csrfToken"],
+      csrfCookie: req.cookies.csrfToken,
+      headers: req.headers,
+    });
+
+    if (err) {
+      console.warn("Blocked by CSRF middleware:", err, err.message);
+      return res.status(403).json({ error: "Invalid CSRF token" });
+    }
 
     return next();
-  }
-
-  return csrfProtection(req, res, next);
+  });
 };
 
 export const requireAuth = async (

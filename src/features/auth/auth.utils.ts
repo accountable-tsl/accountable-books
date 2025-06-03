@@ -62,8 +62,6 @@ export const setAuthCookies = (
   accessToken: string,
   refreshToken: string
 ) => {
-  const csrfToken = req.csrfToken ? req.csrfToken() : generateRandomToken();
-
   res.cookie("accessToken", accessToken, {
     domain: cookieDomain,
     httpOnly: true,
@@ -82,27 +80,28 @@ export const setAuthCookies = (
     path: "/",
   });
 
-  res.cookie("csrfToken", csrfToken, {
-    domain: cookieDomain,
-    httpOnly: false,
-    secure: isProd,
-    sameSite: "strict",
-    maxAge: 15 * 60 * 1000, // 15 minutes
-    path: "/",
-  });
+  // res.cookie("csrfToken", csrfToken, {
+  //   domain: cookieDomain,
+  //   httpOnly: false,
+  //   secure: isProd,
+  //   sameSite: "strict",
+  //   maxAge: 15 * 60 * 1000, // 15 minutes
+  //   path: "/",
+  // });
 
-  return csrfToken;
+  return req.csrfToken();
 };
 
 export const csrfProtection = csurf({
-  cookie: {
-    key: "csrfToken",
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "strict",
-    domain: cookieDomain,
-    path: "/",
-  },
+  // cookie: {
+  //   key: "csrfToken",
+  //   httpOnly: true,
+  //   secure: isProd,
+  //   sameSite: "strict",
+  //   domain: cookieDomain,
+  //   path: "/",
+  // },
+  cookie: true,
 });
 
 export async function buildAuthContext(decoded: DecodedToken) {
@@ -154,6 +153,7 @@ export async function buildAuthContext(decoded: DecodedToken) {
     type: companyData.companyType,
     assignedFirmSlug: companyData.assignedFirmSlug,
     name: companyData.legalName,
+    onboardingStatus: companyData.onboardingStatus,
   };
 
   return { success: true, user, company };

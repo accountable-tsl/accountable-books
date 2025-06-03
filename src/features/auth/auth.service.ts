@@ -183,18 +183,18 @@ export async function verifyEmailService(
     if (!user || !verifyToken) return errorResponse("Invalid or expired token");
 
     const updatedUser = await knex("users")
-      .returning(["id", "email", "email_verified", "onboarding_status"])
+      .returning(["id", "email", "email_verified"])
       .where({ id: user.id })
       .update({
         email_verified: true,
         email_verified_at: new Date(),
         email_verification_token_hash: null,
         email_verification_expiry: null,
-        onboarding_status: "email_verified",
       });
 
     return successResponse("Email verified successfully", updatedUser);
   } catch (error) {
+    console.log(error);
     return errorResponse("Failed to verify email");
   }
 }

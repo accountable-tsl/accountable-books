@@ -43,7 +43,7 @@ export async function loginController(req: Request, res: Response) {
     return res.json(
       successResponse("User logged in successfully", {
         ...rest,
-        csrfToken,
+        csrfToken: req.csrfToken() || csrfToken,
         redirectTo: `https://${data.user.assignedFirmSlug}.${baseDomain}/${data.user.currentCompanyId}/dashboard`,
       })
     );
@@ -77,9 +77,14 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
 
     const { accessToken, refreshToken: newRefreshToken, user } = result.data;
 
-    const csrfToken = setAuthCookies(req, res, accessToken, newRefreshToken);
+    const token = setAuthCookies(req, res, accessToken, newRefreshToken);
 
-    return res.json(successResponse("Tokens refreshed", { user, csrfToken }));
+    return res.json(
+      successResponse("Tokens refreshed", {
+        user,
+        csrfToken: req.csrfToken() || token,
+      })
+    );
   } catch (error) {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
@@ -128,17 +133,16 @@ export async function logoutController(req: AuthRequest, res: Response) {
 }
 
 export async function meController(req: AuthRequest, res: Response) {
-  if (!req.user) {
+  if (!req.user || !req.company) {
     return res.status(401).json(errorResponse("Not authenticated"));
   }
 
+  const { user, company } = req;
+
   return res.status(200).json(
     successResponse("User retrieved successfully", {
-      id: req.user.id,
-      email: req.user.email,
-      firstname: req.user.firstname,
-      lastname: req.user.lastname,
-      currentCompanyId: req.user.currentCompanyId,
+      user,
+      company,
     })
   );
 }

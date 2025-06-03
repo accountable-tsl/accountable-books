@@ -6,6 +6,7 @@ import {
 export const decideNextStatus = (
   currentStatus: OnboardingStatus,
   companyType: CompanyType,
+  isLoggedIn: boolean = false,
   isInvited: boolean = false
 ): OnboardingStatus => {
   switch (currentStatus) {

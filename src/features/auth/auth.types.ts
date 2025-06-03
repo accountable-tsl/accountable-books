@@ -1,7 +1,10 @@
 import { Request } from "express";
 import { JwtPayload } from "jsonwebtoken";
 import { UserCompanyRole } from "../../domains/userCompanyRole/userCompanyRole.types";
-import { CompanyType } from "../../domains/companies/companies.types";
+import {
+  CompanyType,
+  OnboardingStatus,
+} from "../../domains/companies/companies.types";
 
 export interface TokenConfig {
   secret: string;
@@ -47,6 +50,7 @@ export interface AuthCompanyContext {
   id: string;
   type: CompanyType;
   name: string;
+  onboardingStatus: OnboardingStatus;
   assignedFirmSlug?: string;
 }
 

@@ -25,6 +25,7 @@ import knexClient from "../../../knexClient";
 import { generateAuthTokens } from "../../features/auth/auth.utils";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { RoleName } from "../../core/types/db.type";
+import { updateFirm } from "../accountingFirms/firms.model";
 
 export const createCompany = async (
   knexTrx: Knex.Transaction,
@@ -305,11 +306,13 @@ export const getSingleCompany = (id: string) => fetchCompanies(id);
 export const updateCompany = async (
   identifier: string,
   payload: UpdateCompanySchema,
-  userId: string
+  userId: string,
+  knex?: Knex.Transaction
 ): Promise<ApiResponse<GetCompanyResponse>> => {
+  const db = knex || knexClient;
+
   try {
     const companyId = await getCompanyUUID(identifier);
-
     if (!companyId) {
       return errorResponse(
         `Invalid company identifier: ${identifier}`,
@@ -318,88 +321,100 @@ export const updateCompany = async (
       );
     }
 
-    // Check user's role on this company
-    const roleRecord = await knexClient("users_companies_roles")
-      .where({ user_id: userId, company_id: companyId, is_deleted: false })
-      .select("role_id", "name")
-      .first();
+    const result = await db.transaction(async (trx) => {
+      // Implement later if needed
+      // Check user's role on this company
+      // const roleRecord = await trx("users_companies_roles")
+      //   .where({ user_id: userId, company_id: companyId })
+      //   .where("users_companies_roles.is_deleted", false)
+      //   .where("roles.is_deleted", false)
+      //   .join("roles", "users_companies_roles.role_id", "roles.id")
+      //   .select("users_companies_roles.role_id", "roles.name")
+      //   .first();
 
-    if (!roleRecord) {
-      return errorResponse(
-        "You are not authorized to update this company",
-        undefined,
-        ErrorCode.UNAUTHORIZED
-      );
-    }
+      // if (!roleRecord) {
+      //   return errorResponse(
+      //     "You are not authorized to update this company",
+      //     undefined,
+      //     ErrorCode.UNAUTHORIZED
+      //   );
+      // }
 
-    const allowedRoles: RoleName[] = ["super_admin", "admin"];
-    if (!allowedRoles.includes(roleRecord.name))
-      return errorResponse(
-        "You are not authorized to update company details",
-        undefined,
-        ErrorCode.FORBIDDEN
-      );
+      // const allowedRoles: RoleName[] = ["super_admin", "admin", "client"];
+      // if (!allowedRoles.includes(roleRecord.name))
+      //   return errorResponse(
+      //     "You are not authorized to update company details",
+      //     undefined,
+      //     ErrorCode.FORBIDDEN
+      //   );
 
-    const validInput = updateCompanySchema.safeParse(payload);
-    if (!validInput.success) {
-      return errorResponse(`Invalid input: ${validInput.error.message}`);
-    }
+      const validInput = updateCompanySchema.safeParse(payload);
+      console.log("Validating input:", validInput);
+      if (!validInput.success) {
+        return errorResponse(`Invalid input: ${validInput.error.message}`);
+      }
 
-    const dbUpdates: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(payload)) {
-      if (value === undefined) continue;
-      const column = fieldToColumnMap[key as keyof GetCompanyResponse];
-      if (column)
-        dbUpdates[column] =
-          value === null || (typeof value === "string" && value.trim() === "")
-            ? null
-            : value;
-    }
+      const dbUpdates: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(payload)) {
+        if (value === undefined) continue;
+        const column = fieldToColumnMap[key as keyof GetCompanyResponse];
+        if (column)
+          dbUpdates[column] =
+            value === null || (typeof value === "string" && value.trim() === "")
+              ? null
+              : value;
+      }
 
-    if (Object.keys(dbUpdates).length === 0) {
-      return errorResponse("Nothing to update – no valid fields supplied");
-    }
+      if (Object.keys(dbUpdates).length === 0) {
+        return errorResponse("Nothing to update – no valid fields supplied");
+      }
 
-    const [updatedRow] = await knexClient("companies")
-      .where("id", companyId)
-      .update({ ...dbUpdates, last_updated_by_id: userId })
-      .returning("*");
+      const [updatedRow] = await trx("companies")
+        .where("id", companyId)
+        .update({ ...dbUpdates, last_updated_by_id: userId })
+        .returning("*");
 
-    if (!updatedRow) {
-      return errorResponse("Error updating company details");
-    }
+      if (!updatedRow) {
+        return errorResponse("Error updating company details");
+      }
 
-    if (
-      updatedRow.type === "accounting_firm" &&
-      (validInput.data.slug || validInput.data.firmType)
-    ) {
-      await knexClient("accounting_firms")
-        .where("company_id", companyId)
-        .update({
+      if (
+        updatedRow.type === "accounting_firm" &&
+        (validInput.data.slug || validInput.data.firmType)
+      ) {
+        await updateFirm(trx, updatedRow.id, {
           slug: validInput.data.slug,
           firm_type: validInput.data.firmType,
         });
-    }
+      }
 
-    const refreshed = await getSingleCompany(companyId);
-    const refreshedData = Array.isArray(refreshed.data)
-      ? refreshed.data[0]
-      : refreshed.data;
+      const refreshed = await getSingleCompany(companyId);
+      const refreshedData = Array.isArray(refreshed.data)
+        ? refreshed.data[0]
+        : refreshed.data;
 
-    if (!refreshedData) {
-      return errorResponse(
-        "Company not found after update",
-        refreshed,
-        undefined,
-        true
+      if (!refreshedData) {
+        return errorResponse(
+          "Company not found after update",
+          refreshed,
+          undefined,
+          true
+        );
+      }
+
+      return successResponse(
+        "Successfully updated company details",
+        refreshedData
       );
-    }
+    });
 
-    return successResponse(
-      "Successfully updated company details",
-      refreshedData
-    );
+    return result;
   } catch (error) {
-    return errorResponse("Error updating company details");
+    return errorResponse(
+      "Error updating company details",
+      error,
+      undefined,
+      true
+    );
   }
 };

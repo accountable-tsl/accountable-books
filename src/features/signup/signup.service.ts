@@ -15,7 +15,7 @@ import {
 import { createCompany } from "../../domains/companies/companies.model";
 import { loadCoaTemplateForCompany } from "../../domains/chartOfAccounts/coaTemplate.model";
 import { trackEvent } from "../../shared/utils/analytics.utils";
-import { createAccountingFirm } from "../../domains/accountingFirm/accountingFirm.model";
+import { createAccountingFirm } from "../../domains/accountingFirms/firms.model";
 import { createDefaultAccounts } from "../../domains/chartOfAccounts/coa.model";
 import { buildEmailServiceUrl } from "../communications/email/email.utils";
 import { sendVerificationEmail } from "../communications/email/email.service";
@@ -25,7 +25,7 @@ import {
   NewCompanyInput,
   NewCompanyInputCamel,
 } from "../../domains/companies/companies.types";
-import { newAccFirm } from "../../domains/accountingFirm/accountingFirm.types";
+import { newAccFirm } from "../../domains/accountingFirms/firms.types";
 import { CreateUserDirectResponse, newSignup } from "./signup.types";
 import {
   NewUserDirect,

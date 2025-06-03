@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getCountries } from "./country.model";
+import { getCountries } from "./countries.model";
 import { errorResponse } from "../../shared/utils/response.utils";
 
 export async function getCountryList(req: Request, res: Response) {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { dbBaseFields } from "../../core/validation/schemas";
+import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
 
 export const firmType = z.enum([
   "freelancer",
@@ -26,3 +27,4 @@ export type NewAccFirm = z.infer<typeof newAccFirm>;
 export type AccFirm = z.infer<typeof accFirm>;
 
 export type AccFirmWithId = Omit<AccFirm, "company_id"> & { id: string };
+export type AccFirmCamelResponse = SnakeToCamelCaseObject<NewAccFirm>;

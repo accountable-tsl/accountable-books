@@ -45,7 +45,7 @@ export const checkOnboardingStatus = async (
 
   const onboardingComplete = onboardingStatus.enum.onboarding_complete;
   let userComplete = cachedUserStatus === onboardingComplete;
-  let companyComplete = cachedCompanyStatus === "1";
+  let companyComplete = cachedCompanyStatus === "true";
 
   if (!userComplete) {
     const user = await getUserDetails(userId);

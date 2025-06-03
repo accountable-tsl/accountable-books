@@ -3,6 +3,7 @@ import {
   getCompaniesController,
   getCompanyController,
   switchCompanyController,
+  updateCompanyController,
 } from "./companies.controller";
 import { checkCompanyId } from "../../core/middlewares/companies.middleware";
 import { csrfProtection } from "../../features/auth/auth.utils";
@@ -36,5 +37,7 @@ router.get(
   checkCompanyId,
   getCompanyController
 );
+
+router.patch("/:companyId", checkCompanyId, updateCompanyController);
 
 export default router;

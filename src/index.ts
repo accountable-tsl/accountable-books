@@ -4,7 +4,7 @@ import express, { NextFunction, Request, Response } from "express";
 import "dotenv/config";
 import cors from "cors";
 import currencyRoutes from "./domains/currency/currency.routes";
-import countryRoutes from "./domains/country/country.routes";
+import countryRoutes from "./domains/country/countries.routes";
 import emailRoutes from "./domains/email/email.routes";
 import onboardingRoutes from "./features/onboarding/onboarding.routes";
 import signupRoutes from "./features/signup/signup.routes";
@@ -12,6 +12,7 @@ import usersRoutes from "./domains/users/users.routes";
 import authRoutes from "./features/auth/auth.routes";
 import companiesRoutes from "./domains/companies/companies.routes";
 import objectRoutes from "./domains/objects/objects.routes";
+import firmRoutes from "./domains/accountingFirms/firms.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";
@@ -22,8 +23,6 @@ import {
   conditionalCsrf,
   verifyRefreshToken,
 } from "./features/auth/auth.middleware";
-import { subdomain } from "./core/middlewares/subdomain.middleware";
-import { checkOnboardingStatus } from "./features/onboarding/onboarding.middleware";
 
 const PORT = ENV.PORT!;
 export const BACKEND_URL = ENV.BACKEND_URL!;
@@ -74,17 +73,17 @@ async function startServer() {
     // Mount routes AFTER successful load
     app.use("/api", signupRoutes);
     app.use("/auth", authRoutes);
-    app.use("/api/onboarding", onboardingRoutes);
     app.use("/api/currencies", currencyRoutes);
     app.use("/api/countries", countryRoutes);
     app.use("/api/email", emailRoutes);
 
     app.use("/api", verifyRefreshToken);
-    app.use("/api", checkOnboardingStatus);
 
+    app.use("/api/onboarding", onboardingRoutes);
     app.use("/api/companies", companiesRoutes);
     app.use("/api/users", usersRoutes);
     app.use("/api", objectRoutes);
+    app.use("/api/accounting-firms", firmRoutes);
 
     app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
     app.use("/admin/queues", serverAdapter.getRouter());

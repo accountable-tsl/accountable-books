@@ -1,7 +1,9 @@
 import knexClient from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
+import { getSingleCompany } from "../../domains/companies/companies.model";
 import {
   CompanyType,
+  GetCompanyResponse,
   onboardingStatus,
   OnboardingStatus,
 } from "../../domains/companies/companies.types";
@@ -14,7 +16,7 @@ import {
 } from "../../shared/utils/response.utils";
 import { decideNextStatus } from "./onboarding.utils";
 
-export async function checkOnboardingPrerequisites(
+async function checkOnboardingPrerequisites(
   userId: string,
   companyId: string,
   currentStatus: OnboardingStatus
@@ -98,13 +100,20 @@ export async function checkOnboardingPrerequisites(
         };
     }
   } catch (error) {
-    return { valid: false, message: "An unexpected error occurred" };
+    return {
+      valid: false,
+      message:
+        "An unexpected error occurred within checkOnboardingPrerequisites",
+    };
   }
 }
 export async function updateOnboardingStatus(
   userId: string,
-  companyId: string
-): Promise<ApiResponse<UserResponseCamel>> {
+  companyId: string,
+  isLoggedIn: boolean = false
+): Promise<
+  ApiResponse<{ user: UserResponseCamel; company: GetCompanyResponse }>
+> {
   if (!userId || !companyId) {
     return errorResponse("User ID and Company ID are required");
   }
@@ -141,7 +150,7 @@ export async function updateOnboardingStatus(
 
     const check = await checkOnboardingPrerequisites(
       userId,
-      companyId,
+      companyUUID, // UUID
       company.onboarding_status
     );
 
@@ -152,28 +161,36 @@ export async function updateOnboardingStatus(
     const nextStatus: OnboardingStatus = decideNextStatus(
       company.onboarding_status as OnboardingStatus,
       companyType,
+      isLoggedIn,
       isInvited
     );
 
     if (nextStatus === company.onboarding_status) {
-      const fresh = await getUserDetails(userId);
-      return successResponse(
-        "No changes made to onboarding status",
-        fresh.data
-      );
+      const freshUser = await getUserDetails(userId);
+      const freshCompany = await getSingleCompany(company.id);
+      return successResponse("No changes made to onboarding status", {
+        user: freshUser.data,
+        company: freshCompany.data,
+      });
     }
 
     // Save new status
     const result = await knexClient("companies")
-      .where({ id: companyUUID })
+      .where({ id: companyUUID, onboarding_status: company.onboarding_status })
       .update({ onboarding_status: nextStatus });
 
     if (result === 0) {
-      return errorResponse("Update failed");
+      return errorResponse(
+        "Onboarding status was modified by another process. Please retry."
+      );
     }
 
-    const fresh = await getUserDetails(userId);
-    return successResponse("Onboarding status updated", fresh.data);
+    const freshUser = await getUserDetails(userId);
+    const freshCompany = await getSingleCompany(company.id);
+    return successResponse("Onboarding status updated", {
+      user: freshUser.data,
+      company: freshCompany.data,
+    });
   } catch (error) {
     return errorResponse("Error updating onboarding status", error);
   }

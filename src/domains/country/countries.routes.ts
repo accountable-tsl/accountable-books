@@ -1,5 +1,5 @@
 import express from "express";
-import { getCountryList } from "./country.controller";
+import { getCountryList } from "./countries.controller";
 
 const router = express.Router({ mergeParams: true });
 

@@ -8,7 +8,7 @@ import { createPlatformCompany } from "./20250403194332_companies";
 import {
   AccFirmWithId,
   newAccFirm,
-} from "../src/domains/accountingFirm/accountingFirm.types";
+} from "../src/domains/accountingFirms/firms.types";
 
 const tableName = "accounting_firms";
 
