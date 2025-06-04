@@ -81,6 +81,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("users")
       .onDelete("RESTRICT");
 
+    table
+      .uuid("updated_by_id")
+      .references("id")
+      .inTable("users")
+      .onDelete("SET NULL");
+
     addStandardColumns(table);
 
     table.index(["company_id", "is_deleted"], "coa_company_deleted_idx");

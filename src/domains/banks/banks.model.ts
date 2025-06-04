@@ -23,14 +23,11 @@ export async function addNewBank(
       validatedData.error.flatten()
     );
   }
-
-  console.log(validatedData.data);
   try {
     const inserted = await knexInstance("banks")
       .insert(validatedData.data)
       .returning("id");
 
-    console.log(inserted);
     if (!inserted || inserted.length === 0) {
       return errorResponse("No banks were inserted");
     }

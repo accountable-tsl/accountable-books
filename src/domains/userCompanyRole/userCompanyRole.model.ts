@@ -30,7 +30,6 @@ export const hasAccessToCompany = async (data: {
   userId: string;
   companyId: string;
 }): Promise<ApiResponse<{ hasAccess: boolean }>> => {
-  console.log("🚨 hasAccessToCompany is being called");
   const { userId, companyId } = data;
   if (!userId?.trim() || !companyId?.trim()) {
     return errorResponse("Please provide a valid user ID and company ID");
@@ -42,8 +41,6 @@ export const hasAccessToCompany = async (data: {
       return errorResponse("Unauthorized");
     }
 
-    console.log({ companyUUID });
-
     const allUserRoles = await knexClient("users_companies_roles as ucr")
       .select("roles.name as roleName", "ucr.company_id as userRoleCompanyId")
       .join("roles", "ucr.role_id", "roles.id")
@@ -51,8 +48,6 @@ export const hasAccessToCompany = async (data: {
         "ucr.user_id": userId,
         "ucr.is_deleted": false,
       });
-
-    console.log({ allUserRoles });
 
     if (!allUserRoles || allUserRoles.length === 0) {
       return successResponse("Unauthorized", {

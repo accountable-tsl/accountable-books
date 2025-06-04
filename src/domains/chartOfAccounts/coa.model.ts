@@ -24,13 +24,14 @@ export const createCoa = async ({
   companyId,
   userId,
   input,
-  knex = knexClient,
+  trx,
 }: {
   companyId: string;
   userId: string;
   input: (NewCoaInputCamel | NewCoaInput)[];
-  knex?: Knex;
+  trx?: Knex.Transaction;
 }): Promise<ApiResponse> => {
+  const knexInstance = trx || knexClient;
   // Validate input
   const snakeCasedInput = camelToSnake(input);
   const validatedInput = newCoaInput.array().safeParse(snakeCasedInput);
@@ -53,7 +54,7 @@ export const createCoa = async ({
   }
 
   // Get company reporting currency which serves as account currency
-  const company = await knex("companies")
+  const company = await knexInstance("companies")
     .select("reporting_currency_id")
     .where("id", companyUUID)
     .first();
@@ -85,7 +86,7 @@ export const createCoa = async ({
   let rawTypes: { id: string; key: string; label: string }[] = [];
 
   if (typeIds.size > 0 || typeKeys.size > 0 || typeLabels.size > 0) {
-    rawTypes = await knex("account_types")
+    rawTypes = await knexInstance("account_types")
       .select("id", "key", "label")
       .where((builder) => {
         if (typeIds.size > 0) {
@@ -119,8 +120,15 @@ export const createCoa = async ({
       return errorResponse(`Invalid or unknown account type for "${coa.name}"`);
     }
 
+    const {
+      account_type_key,
+      account_type_label,
+      account_type_id,
+      ...validCoaFields
+    } = coa;
+
     toInsert.push({
-      ...coa,
+      ...validCoaFields,
       account_type_id: resolvedTypeId,
       currency_id: company?.reporting_currency_id,
       company_id: companyUUID,
@@ -129,11 +137,14 @@ export const createCoa = async ({
     });
   }
 
+  const executeWithTransaction = async (tx: Knex.Transaction) => {
+    const inserted = await tx("coa").insert(toInsert).returning("*");
+    return inserted;
+  };
   try {
-    const insertedRecords = await knex.transaction(async (trx) => {
-      const inserted = await trx("coa").insert(toInsert).returning("*");
-      return inserted;
-    });
+    const insertedRecords = trx
+      ? await executeWithTransaction(trx)
+      : await knexInstance.transaction(executeWithTransaction);
 
     if (!insertedRecords || insertedRecords.length === 0) {
       return errorResponse("Failed to insert any chart of accounts records");

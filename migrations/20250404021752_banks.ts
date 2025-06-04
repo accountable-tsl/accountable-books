@@ -21,19 +21,27 @@ const seedBanks = async function seed(knex: Knex): Promise<void> {
     updated_by_id: adminUserId,
   }));
 
+  data.forEach((bank, index) => {
+    if (!bank.key || !bank.country_id || !bank.display_name) {
+      console.log(bank);
+      throw new Error(`Bank at index ${index} is missing a required field`);
+    }
+  });
+
   const res = await addNewBank(data, knex);
-  console.log(res);
   if (!res.success) {
     console.error("Error creating banks:", res.error);
     throw new Error(res.message);
   }
+
+  console.log(`Successfully created ${res.data.length} banks`);
 };
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
     table.string("key").notNullable();
-    table.string("name").notNullable();
+    table.string("display_name").notNullable();
     table.string("official_name").nullable();
 
     table.string("swift_code").nullable();
@@ -69,8 +77,8 @@ export async function up(knex: Knex): Promise<void> {
 
     table.unique(["key", "country_id"]);
     table.index(["key", "country_id"]);
-    table.index(["name", "country_id"]);
-    table.index(["name"]);
+    table.index(["display_name", "country_id"]);
+    table.index(["display_name"]);
     table.index(["country_id"]);
   });
 

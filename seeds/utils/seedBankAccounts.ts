@@ -15,7 +15,7 @@ import {
   banksInSystem,
   countriesInSystem,
   currenciesInSystem,
-} from "../data/sharedData";
+} from "../data/shared";
 
 export const seedBankAccounts = async (bankAccountCreationData: {
   companyType: CompanyType;
@@ -134,7 +134,7 @@ export const generateFakeBankAccount = ({
   }
 
   const countryBanks = banksInSystem.filter(
-    (b) => b.countryId === resolvedCountry.id
+    (b) => b.country_id === resolvedCountry.id
   );
 
   if (countryBanks.length === 0) {

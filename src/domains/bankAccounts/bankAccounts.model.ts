@@ -236,7 +236,7 @@ export async function createNewBankAccount(input: {
         companyId: companyUUID,
         userId,
         input: [coaInput],
-        knex: tx,
+        trx: tx,
       });
 
       if (!coa.success) {
@@ -251,7 +251,11 @@ export async function createNewBankAccount(input: {
       // Create new bank account
       const [newBankAccount] = await tx("bank_accounts")
         .insert({
-          ...data,
+          display_name: data.display_name,
+          account_type: data.account_type,
+          account_number: data.account_number,
+          bank_id: data.bank_id,
+          currency_id: data.currency_id,
           company_id: companyUUID,
           coa_id: coaId,
           created_by_id: userId,
