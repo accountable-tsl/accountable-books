@@ -34,6 +34,10 @@ import {
   NewUserCompanyRole,
   UserCompanyRole,
 } from "../../domains/userCompanyRole/userCompanyRole.types";
+import {
+  BankAccount,
+  NewBankAccount,
+} from "../../domains/bankAccounts/bankAccounts.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -121,6 +125,12 @@ declare module "knex/types/tables" {
       RolePermission,
       RolePermission,
       Partial<RolePermission>
+    >;
+
+    bank_accounts: Knex.CompositeTableType<
+      BankAccount,
+      NewBankAccount,
+      Partial<Omit<BankAccount, "id">>
     >;
   }
 }

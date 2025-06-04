@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import csurf from "csurf";
-import { ENV, isProd } from "../../config/env";
+import { ENV, isDev, isProd } from "../../config/env";
 import { AppError, errorResponse } from "../../shared/utils/response.utils";
 import {
   AuthCompanyContext,
@@ -80,28 +80,17 @@ export const setAuthCookies = (
     path: "/",
   });
 
-  // res.cookie("csrfToken", csrfToken, {
-  //   domain: cookieDomain,
-  //   httpOnly: false,
-  //   secure: isProd,
-  //   sameSite: "strict",
-  //   maxAge: 15 * 60 * 1000, // 15 minutes
-  //   path: "/",
-  // });
-
   return req.csrfToken();
 };
 
 export const csrfProtection = csurf({
-  // cookie: {
-  //   key: "csrfToken",
-  //   httpOnly: true,
-  //   secure: isProd,
-  //   sameSite: "strict",
-  //   domain: cookieDomain,
-  //   path: "/",
-  // },
-  cookie: true,
+  cookie: {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isDev ? "lax" : "strict",
+    domain: cookieDomain,
+    path: "/",
+  },
 });
 
 export async function buildAuthContext(decoded: DecodedToken) {

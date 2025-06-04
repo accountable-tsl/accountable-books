@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/node";
 
 export function successResponse<T>(
   message = "Query successful",
-  data: T | T[] | Partial<T> | null
+  data: T | T[] | Partial<T> | Record<any, any> | null
 ): ApiResponse {
   return {
     success: true,

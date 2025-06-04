@@ -98,7 +98,7 @@ export function getIdentifierType(id: string): "uuid" | "shortCode" {
 export type SnakeToCamelCase<S extends string> =
   S extends `${infer T}_${infer U}`
     ? `${Lowercase<T>}${Capitalize<SnakeToCamelCase<U>>}`
-    : Lowercase<S>;
+    : S;
 
 export type SnakeToCamelCaseObject<T> = {
   [K in keyof T as K extends string

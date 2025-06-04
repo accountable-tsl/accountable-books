@@ -99,16 +99,11 @@ export const conditionalCsrf = (
     // Ignore CSRF errors on public routes
     if (err && isPublic) return next();
 
-    console.log({
-      xCSRF: req.headers["x-csrf-token"],
-      csrfHeader: req.headers["csrfToken"],
-      csrfCookie: req.cookies.csrfToken,
-      headers: req.headers,
-    });
-
     if (err) {
-      console.warn("Blocked by CSRF middleware:", err, err.message);
-      return res.status(403).json({ error: "Invalid CSRF token" });
+      console.warn("Blocked by CSRF middleware:", err.message);
+      return res
+        .status(403)
+        .json({ error: "A security injection was detected" });
     }
 
     return next();

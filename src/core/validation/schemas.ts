@@ -17,9 +17,9 @@ export const DecimalInput = z.union([
   z.instanceof(Decimal),
 ]);
 
-export const DecimalSchema = z
+export const decimalSchema = z
   .union([z.string(), z.number(), z.instanceof(Decimal)])
-  .transform((val) => new Decimal(val.toString()));
+  .transform((val) => new Decimal(val));
 
 // Base
 export const dbStandardFields = z.object({
