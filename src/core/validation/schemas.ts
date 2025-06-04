@@ -11,7 +11,7 @@ export const nodeEnv = z.enum([
 export type NodeEnv = z.infer<typeof nodeEnv>;
 
 //Custom decimal handler
-export const DecimalInput = z.union([
+export const decimalInput = z.union([
   z.string(),
   z.number(),
   z.instanceof(Decimal),

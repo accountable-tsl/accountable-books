@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
-import { z } from "zod";
 import { dbBaseFields, DecimalInput } from "../validation/schemas";
+import { z } from "zod";
 
 // role
 export const roleName = z.enum([
@@ -75,18 +75,6 @@ export const country = newCountry.merge(dbBaseFields);
 export type NewCountryInput = z.infer<typeof newCountry>;
 export type Country = z.infer<typeof country>;
 
-// exchange_rate
-export const newExchangeRate = z.object({
-  date: z.coerce.date(),
-  from_currency_id: z.string().uuid(),
-  to_currency_id: z.string().uuid(),
-  rate: DecimalInput,
-});
-export const exchangeRate = newExchangeRate.merge(dbBaseFields);
-
-export type NewExchangeRateInput = z.infer<typeof newExchangeRate>;
-export type ExchangeRate = z.infer<typeof exchangeRate>;
-
 // financial_statement
 export const fsKey = z.enum(["is", "bs", "cf"]);
 export const newFinancialStatement = z.object({
@@ -160,6 +148,10 @@ export type AccountTypeWithRequiredReportCode = z.infer<
   typeof accountTypeWithRequiredReportCode
 >;
 
+export const categorizationStatus = z.enum([
+  "uncategorized",
+  "categorized",
+  "auto_categorized",
+]);
 
-
-
+export type CategorizationStatus = z.infer<typeof categorizationStatus>;

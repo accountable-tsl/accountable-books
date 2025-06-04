@@ -1,0 +1,140 @@
+[
+  {
+    "id": "1c620e90-e2bb-44fb-8d2a-d58751a0b966",
+    "name": "GTBank",
+    "logoUrl": "/ng-gtb.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "499dda6d-865c-4be7-a3a3-c486ad3868e9",
+    "name": "Access Bank",
+    "logoUrl": "/ng-accessbank.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "c9f7994e-79c3-4456-96ba-5afecc22177c",
+    "name": "Alat by Wema",
+    "logoUrl": "/ng-alat.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "105a3b8f-0cd5-4a5f-82ae-65d04116988e",
+    "name": "FCMB",
+    "logoUrl": "/ng-fcmb.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "63a645d9-aa77-494e-8bc2-95a29a8405d6",
+    "name": "First Bank",
+    "logoUrl": "/ng-firstbank.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "99838457-082d-4560-87ff-1343a9434628",
+    "name": "Providus Bank",
+    "logoUrl": "/ng-providus.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "78c5b993-d09c-4586-95dc-0984765c126a",
+    "name": "Sterling",
+    "logoUrl": "/ng-sterling.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "c8d0994b-6e07-42a4-96ad-1627a697446a",
+    "name": "Wema",
+    "logoUrl": "/ng-wema.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "e97f6d2d-77d0-4d86-99c2-9547821ee2f1",
+    "name": "Union Bank",
+    "logoUrl": "/ng-union.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "5ae28494-4000-4e95-af5e-6167bcf88842",
+    "name": "UBA",
+    "logoUrl": "/ng-uba.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "18fbd57f-19e4-4110-8814-885e5bd71dbf",
+    "name": "Zenith",
+    "logoUrl": "/ng-zenith.svg",
+    "countryId": "95856306-32e6-4edc-9374-49000b2660bd"
+  },
+  {
+    "id": "4a46f28c-0f8e-4f9a-b6cf-925de77295a7",
+    "name": "Bank of America",
+    "logoUrl": "/us-bankofamerica.svg",
+    "countryId": "f0a1a43d-94d6-4d2a-b246-5c1656ee13a5"
+  },
+  {
+    "id": "920fa212-81c6-4fc1-b4be-05c05cf7351e",
+    "name": "Chase Bank",
+    "logoUrl": "/us-chase.svg",
+    "countryId": "f0a1a43d-94d6-4d2a-b246-5c1656ee13a5"
+  },
+  {
+    "id": "23ddf2b5-7336-4c13-bf9c-33ad33cd313f",
+    "name": "Wells Fargo",
+    "logoUrl": "/us-wellsfargo.svg",
+    "countryId": "f0a1a43d-94d6-4d2a-b246-5c1656ee13a5"
+  },
+  {
+    "id": "f7be8ed4-38b5-4536-9a2d-3e0e5390c6ec",
+    "name": "Citibank",
+    "logoUrl": "/us-citi.svg",
+    "countryId": "f0a1a43d-94d6-4d2a-b246-5c1656ee13a5"
+  },
+  {
+    "id": "af84029b-64a0-4a61-8355-0d41adcd5f27",
+    "name": "Capital One",
+    "logoUrl": "/us-capitalone.svg",
+    "countryId": "f0a1a43d-94d6-4d2a-b246-5c1656ee13a5"
+  },
+  {
+    "id": "6ce14e2b-cc8a-4864-8e68-6d5ec12f0480",
+    "name": "Barclays",
+    "logoUrl": "/uk-barclays.svg",
+    "countryId": "e043317e-c4d7-4b84-a21e-dbc55c3288fa"
+  },
+  {
+    "id": "4d3bbf3a-63b9-4a35-8e93-1c5b25d1a9fc",
+    "name": "HSBC",
+    "logoUrl": "/uk-hsbc.svg",
+    "countryId": "e043317e-c4d7-4b84-a21e-dbc55c3288fa"
+  },
+  {
+    "id": "7d6f9f1d-d93c-4638-9917-4607ec3cd1ee",
+    "name": "Lloyds Bank",
+    "logoUrl": "/uk-lloyds.svg",
+    "countryId": "e043317e-c4d7-4b84-a21e-dbc55c3288fa"
+  },
+  {
+    "id": "03c30a5c-9a1e-4800-9292-dcb2e7e2c6de",
+    "name": "NatWest",
+    "logoUrl": "/uk-natwest.svg",
+    "countryId": "e043317e-c4d7-4b84-a21e-dbc55c3288fa"
+  },
+  {
+    "id": "d3f4a1c2-5b6e-4a7f-9c8d-1e2f3a4b5c6d",
+    "name": "Revolut",
+    "logoUrl": "/uk-revolut.svg",
+    "countryId": "e043317e-c4d7-4b84-a21e-dbc55c3288fa"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "name": "Wise",
+    "logoUrl": "/uk-wise.svg",
+    "countryId": "e043317e-c4d7-4b84-a21e-dbc55c3288fa"
+  },
+  {
+    "id": "9fa79387-8b30-43b3-bd4e-f2d1c2dc2f5f",
+    "name": "Monzo",
+    "logoUrl": "/uk-monzo.svg",
+    "countryId": "e043317e-c4d7-4b84-a21e-dbc55c3288fa"
+  }
+]

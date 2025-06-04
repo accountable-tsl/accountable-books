@@ -1,8 +1,14 @@
 import Decimal from "decimal.js";
-import { getCompanyUUID } from "./random.utils";
-import { errorResponse, successResponse } from "./response.utils";
-import { ApiResponse } from "../../core/types/api.types";
 import knexClient from "../../../knexClient";
+import {
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from "../../shared/utils/response.utils";
+import { getCompanyUUID } from "../../shared/utils/random.utils";
+import { ApiResponse } from "../../core/types/api.types";
+import { fetchExchangeRate } from "../exchangeRates/exchangeRates.model";
+import { categorizationStatus } from "../../core/types/db.type";
 
 interface CoaBalance {
   accountName: string;
@@ -183,108 +189,185 @@ export async function getCompanyCoaBalances(
   }
 }
 
-interface BankLedgerBalance {
-  reportingBalance: Decimal;
-  nativeBalance: Decimal;
+export async function getCompanyBankLedgerBalances(
+  companyId: string
+): Promise<ApiResponse<Record<string, CoaBalance>>> {
+  return getCompanyCoaBalances(companyId, {
+    accountTypeIdsOrKeys: ["ca_bank"],
+    includeSourceAmount: true,
+  });
 }
 
-interface BankLedgerBalanceOptions {
-  onlyActive?: boolean;
-  coaIds?: string[];
+interface BankBalance {
+  reportingBalance: Decimal;
+  nativeBalance: Decimal;
+  transactionCount?: number;
+  categorizedCount?: number;
+  uncategorizedCount?: number;
+  autoCategorizedCount?: number;
+}
+
+interface GetBankAccountBalancesOptions {
+  includeStats?: boolean;
 }
 
 /**
- * Fetches balances for all (or some) Bank-type COA accounts owned by a company.
+ * Returns balances for each active bank account in a company.
  *
- * For each bank account, returns:
- * - `reportingBalance`: the sum of `amount` (in reporting currency)
- * - `nativeBalance`: the sum of `source_amount` (in the bank account's native currency)
+ * - Balances are derived from BankTransaction amounts (`nativeBalance`)
+ * - If the account's currency differs from the company's reporting currency,
+ *   exchange rates are used to compute a `reportingBalance`.
+ * - Accounts with no transactions are returned with 0 balances.
  *
- * By default, includes all bank accounts (active and inactive). You can:
- * - Pass `onlyActive: true` to include only active accounts
- * - Pass `coaIds: string[]` to get balances for specific accounts (ownership validated)
+ * @param companyId - External company identifier (UUID or shortCode)
+ * @param options - Optional config (e.g., includeStats)
+ * @returns A map of bank account IDs to their balances
  */
-export async function getCompanyBankLedgerBalances(
+export async function getBankAccountBalances(
   companyId: string,
-  options: BankLedgerBalanceOptions = { onlyActive: true, coaIds: [] }
-): Promise<ApiResponse<Record<string, BankLedgerBalance>>> {
+  options: GetBankAccountBalancesOptions = {}
+): Promise<ApiResponse<Record<string, BankBalance>>> {
+  if (!companyId) {
+    return errorResponse("Company ID is required");
+  }
+
   try {
-    // Get the company's UUID
-    const companyUUID = await getCompanyUUID(companyId);
+    const companyUUID = getCompanyUUID(companyId);
     if (!companyUUID) {
       return errorResponse("Invalid company ID");
     }
 
-    // If specific COA IDs are provided, verify they belong to the company and are Bank accounts
-    if (options.coaIds?.length) {
-      const uniqueIds = [...new Set(options.coaIds)];
+    const includeStats = options.includeStats ?? false;
 
-      const ownedBankCoaIds = await knexClient("coa")
-        .join("account_types", "coa.account_type_id", "account_types.id")
-        .whereIn("coa.id", uniqueIds)
-        .andWhere("coa.company_id", companyUUID)
-        .andWhere("account_types.name", "Bank")
-        .pluck("coa.id");
+    // Fetch filtered transactions
+    const transactions = await knexClient("bank_transactions as bt")
+      .select("bt.bank_account_id", "bt.amount", "bt.categorization_status")
+      .join("bank_accounts as ba", "bt.bank_account_id", "ba.id")
+      .where({
+        "bt.is_deleted": false,
+        "ba.is_deleted": false,
+        "ba.company_id": companyUUID,
+      });
 
-      if (ownedBankCoaIds.length !== uniqueIds.length) {
-        return errorResponse(
-          "One or more COA accounts are invalid or not Bank accounts owned by the company"
-        );
+    // Aggregate balances and stats
+    const groupedTx: Record<string, BankBalance> = {};
+    for (const tx of transactions) {
+      const bankId = tx.bank_account_id;
+      const amount = new Decimal(tx.amount);
+      const status = tx.categorization_status;
+
+      if (!groupedTx[bankId]) {
+        groupedTx[bankId] = {
+          nativeBalance: new Decimal(0),
+          reportingBalance: new Decimal(0),
+          ...(includeStats && {
+            transactionCount: 0,
+            categorizedCount: 0,
+            uncategorizedCount: 0,
+            autoCategorizedCount: 0,
+          }),
+        };
       }
 
-      // Replace input with validated ids
-      options.coaIds = ownedBankCoaIds;
+      groupedTx[bankId].nativeBalance =
+        groupedTx[bankId].nativeBalance.plus(amount);
+
+      if (includeStats) {
+        groupedTx[bankId].transactionCount!++;
+
+        if (status === categorizationStatus.enum.categorized)
+          groupedTx[bankId].categorizedCount!++;
+        if (status === categorizationStatus.enum.auto_categorized)
+          groupedTx[bankId].autoCategorizedCount!++;
+        if (status === categorizationStatus.enum.uncategorized)
+          groupedTx[bankId].uncategorizedCount!++;
+      }
     }
 
-    // Build a base query to calculate Bank ledger balances.
-    // This query:
-    // - Filters for non-deleted ledger entries & bank accounts
-    // - Joins COA and AccountType to filter only Bank accounts
-    // - Filters by the company's UUID
-    // - Groups results by coa_id (one row per account)
-    // - Returns:
-    //   - coa_id
-    //   - Sum of amount (as reportingBalance)
-    //   - Sum of source_amount (as nativeBalance)
-    const query = knexClient("ledger_entries as le")
-      .join("coa", "le.coa_id", "coa.id")
-      .join("account_types", "coa.account_type_id", "account_types.id")
-      .where("le.is_deleted", false)
-      .where("coa.company_id", companyUUID)
-      .where("coa.is_deleted", false)
-      .where("account_types.name", "Bank")
-      .groupBy("le.coa_id")
-      .select("le.coa_id")
-      .sum("le.amount as reportingBalance")
-      .sum("le.source_amount as nativeBalance");
+    // Fetch metadata for each bank account to help with native balance conversion:
+    // - Account currency
+    // - Company's reporting currency
+    const bankAccounts = await knexClient("bank_accounts as ba")
+      .select(
+        "ba.id as bankId",
+        "ba.currency_id as currencyId",
+        "c.reporting_currency_id as reportingCurrencyId"
+      )
+      .where("ba.is_deleted", false)
+      .andWhere("ba.company_id", companyUUID)
+      .join("companies as c", "ba.company_id", "c.id");
 
-    // Apply active account filter if requested
-    if (options.onlyActive) {
-      query.andWhere("coa.is_active", true);
+    const exchangeRateCache = new Map<string, Decimal>();
+
+    for (const account of bankAccounts) {
+      const { bankId, currencyId, reportingCurrencyId } = account;
+      const group = groupedTx[bankId];
+      if (!group) continue; // no transactions for this account
+
+      let reportingBalance = group.nativeBalance;
+
+      // Convert to reporting currency if necessary
+      if (
+        currencyId &&
+        reportingCurrencyId &&
+        currencyId !== reportingCurrencyId
+      ) {
+        const cacheKey = `${currencyId}-${reportingCurrencyId}`;
+
+        if (!exchangeRateCache.has(cacheKey)) {
+          try {
+            const rateRes = await fetchExchangeRate(
+              new Date(),
+              currencyId,
+              reportingCurrencyId
+            );
+            if (rateRes.success && rateRes.data?.rate) {
+              exchangeRateCache.set(cacheKey, new Decimal(rateRes.data.rate));
+            }
+          } catch (err) {
+            // Continue gracefully, fallback to native
+            console.warn("Exchange rate fetch failed", cacheKey, err);
+            errorResponse(
+              "Exchange rate fetch failed",
+              err,
+              ErrorCode.GENERIC,
+              true
+            );
+          }
+        }
+
+        const rate = exchangeRateCache.get(cacheKey);
+        if (rate) reportingBalance = group.nativeBalance.times(rate);
+      }
+
+      group.reportingBalance = reportingBalance;
     }
 
-    // Apply COA ID filter if provided
-    if (options.coaIds?.length) {
-      query.andWhere("le.coa_id", "in", options.coaIds);
-    }
-
-    // Run the query
-    const results = await query;
-
-    // Format the result as a map of { coaId: { reportingBalance, nativeBalance } }
-    const balanceMap: Record<string, BankLedgerBalance> = {};
-    for (const row of results) {
-      balanceMap[row.coa_id] = {
-        reportingBalance: new Decimal(row.reportingBalance ?? 0),
-        nativeBalance: new Decimal(row.nativeBalance ?? 0),
-      };
-    }
-
-    return successResponse(
-      "Bank ledger balances fetched successfully",
-      balanceMap
-    );
+    return successResponse("Bank balances fetched successfully", groupedTx);
   } catch (error) {
-    return errorResponse("Error fetching bank ledger balances", error);
+    return errorResponse("Failed to fetch bank account balances", error);
+  }
+}
+
+export async function convertAmountToReportingCurrency(
+  amount: Decimal,
+  currencyId: string,
+  reportingCurrencyId: string
+): Promise<ApiResponse<Decimal>> {
+  try {
+    const rate = await fetchExchangeRate(
+      new Date(),
+      currencyId,
+      reportingCurrencyId
+    );
+
+    if (!rate.success || !rate.data) {
+      return errorResponse(rate.message || "Failed to fetch exchange rate");
+    }
+
+    const convertedAmount = amount.times(new Decimal(rate.data.rate));
+    return successResponse("Amount converted successfully", convertedAmount);
+  } catch (error) {
+    return errorResponse("Failed to convert amount", error);
   }
 }

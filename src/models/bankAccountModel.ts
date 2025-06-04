@@ -228,112 +228,112 @@ export interface CreateBankData {
   currencyId: string;
 }
 
-export async function createNewBankAccount(
-  companyId: string,
-  data: CreateBankData
-) {
-  try {
-    const companyIdType = getIdentifierType(companyId);
+// export async function createNewBankAccount(
+//   companyId: string,
+//   data: CreateBankData
+// ) {
+//   try {
+//     const companyIdType = getIdentifierType(companyId);
 
-    const company = await prisma.company.findFirst({
-      where:
-        companyIdType === "uuid" ? { id: companyId } : { shortCode: companyId },
-      select: { id: true },
-    });
+//     const company = await prisma.company.findFirst({
+//       where:
+//         companyIdType === "uuid" ? { id: companyId } : { shortCode: companyId },
+//       select: { id: true },
+//     });
 
-    if (!company) {
-      return {
-        success: false,
-        message: "Unauthorized access",
-      };
-    }
+//     if (!company) {
+//       return {
+//         success: false,
+//         message: "Unauthorized access",
+//       };
+//     }
 
-    const [bank, currency] = await Promise.all([
-      prisma.bank.findUnique({ where: { id: data.bankId } }),
-      prisma.currency.findUnique({ where: { id: data.currencyId } }),
-    ]);
+//     const [bank, currency] = await Promise.all([
+//       prisma.bank.findUnique({ where: { id: data.bankId } }),
+//       prisma.currency.findUnique({ where: { id: data.currencyId } }),
+//     ]);
 
-    if (!bank) {
-      return {
-        success: false,
-        message: "BankId incorrect",
-      };
-    }
+//     if (!bank) {
+//       return {
+//         success: false,
+//         message: "BankId incorrect",
+//       };
+//     }
 
-    if (!currency) {
-      return {
-        success: false,
-        message: "Currency not found",
-      };
-    }
+//     if (!currency) {
+//       return {
+//         success: false,
+//         message: "Currency not found",
+//       };
+//     }
 
-    const existingBankAccount = await prisma.bankAccount.findFirst({
-      where: {
-        bankId: data.bankId,
-        bankAccountNo: data.bankAccountNo,
-        companyId: company.id,
-      },
-    });
+//     const existingBankAccount = await prisma.bankAccount.findFirst({
+//       where: {
+//         bankId: data.bankId,
+//         bankAccountNo: data.bankAccountNo,
+//         companyId: company.id,
+//       },
+//     });
 
-    if (existingBankAccount) {
-      return {
-        success: false,
-        message: "Bank account number already exists",
-      };
-    }
+//     if (existingBankAccount) {
+//       return {
+//         success: false,
+//         message: "Bank account number already exists",
+//       };
+//     }
 
-    let coaId;
+//     let coaId;
 
-    const coaInput = {
-      accountName: data.displayName,
-      accountTypeName: "Bank",
-    };
+//     const coaInput = {
+//       accountName: data.displayName,
+//       accountTypeName: "Bank",
+//     };
 
-    const result = await prisma.$transaction(async (tx) => {
-      //Create COA entry
-      const coa = await createCOAModel(tx, company.id, coaInput);
+//     const result = await prisma.$transaction(async (tx) => {
+//       //Create COA entry
+//       const coa = await createCOAModel(tx, company.id, coaInput);
 
-      if (coa.success && "data" in coa && coa.data?.id) {
-        coaId = coa.data.id;
-      } else {
-        return coa;
-      }
+//       if (coa.success && "data" in coa && coa.data?.id) {
+//         coaId = coa.data.id;
+//       } else {
+//         return coa;
+//       }
 
-      //Create new bank account
-      const newBankAccount = await tx.bankAccount.create({
-        data: {
-          companyId: company.id,
-          bankId: data.bankId,
-          displayName: data.displayName,
-          bankAccountType: data.bankAccountType,
-          bankAccountNo: data.bankAccountNo,
-          currencyId: data.currencyId,
-          coaId: coaId,
-          updatedAt: new Date(),
-        },
-      });
+//       //Create new bank account
+//       const newBankAccount = await tx.bankAccount.create({
+//         data: {
+//           companyId: company.id,
+//           bankId: data.bankId,
+//           displayName: data.displayName,
+//           bankAccountType: data.bankAccountType,
+//           bankAccountNo: data.bankAccountNo,
+//           currencyId: data.currencyId,
+//           coaId: coaId,
+//           updatedAt: new Date(),
+//         },
+//       });
 
-      //Update COA with Bank Account ID
-      await tx.coa.update({
-        where: { id: coaId },
-        data: { bankAccountId: newBankAccount.id },
-      });
+//       //Update COA with Bank Account ID
+//       await tx.coa.update({
+//         where: { id: coaId },
+//         data: { bankAccountId: newBankAccount.id },
+//       });
 
-      return {
-        success: true,
-        message: "Bank account created successfully",
-        data: newBankAccount,
-      };
-    });
+//       return {
+//         success: true,
+//         message: "Bank account created successfully",
+//         data: newBankAccount,
+//       };
+//     });
 
-    return result;
-  } catch (error: unknown) {
-    console.error("Error creating bank account:", error);
-    return {
-      success: false,
-      message: "Failed to create bank account",
-    };
-  }
-}
+//     return result;
+//   } catch (error: unknown) {
+//     console.error("Error creating bank account:", error);
+//     return {
+//       success: false,
+//       message: "Failed to create bank account",
+//     };
+//   }
+// }
 
 // For bank transaction uploads, remember to check that the transaction did not exist before allowing new upload

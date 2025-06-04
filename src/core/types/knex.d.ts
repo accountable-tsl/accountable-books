@@ -4,13 +4,11 @@ import {
   AccountType,
   Country,
   Currency,
-  ExchangeRate,
   FinancialStatement,
   NewAccountElementInput,
   NewAccountTypeInput,
   NewCountryInput,
   NewCurrencyInput,
-  NewExchangeRateInput,
   NewFinancialStatementInput,
   NewPermissionInput,
   NewRoleInput,
@@ -38,6 +36,11 @@ import {
   BankAccount,
   NewBankAccount,
 } from "../../domains/bankAccounts/bankAccounts.types";
+import {
+  ExchangeRate,
+  NewExchangeRateInput,
+} from "../../domains/exchangeRates/exchangeRate.types";
+import { Bank, NewBank } from "../../domains/banks/banks.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -126,6 +129,8 @@ declare module "knex/types/tables" {
       RolePermission,
       Partial<RolePermission>
     >;
+
+    banks: Knex.CompositeTableType<Bank, NewBank, Partial<Omit<Bank, "id">>>;
 
     bank_accounts: Knex.CompositeTableType<
       BankAccount,

@@ -4,7 +4,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
-import { ENV, NODE_ENV } from "../src/config/env";
+import { ENV, isProd, NODE_ENV } from "../src/config/env";
 import { adminUser } from "./20250403184441_users";
 import { verifyCompanyDependenciesExist } from "../src/domains/companies/companies.model";
 import { newCompany } from "../src/domains/companies/companies.types";
@@ -30,7 +30,7 @@ export const buildPlatformCompany = (adminUserId: string) => ({
 });
 
 export const createPlatformCompany = async (knex: Knex) => {
-  if (NODE_ENV === "production" && !process.env.CONFIRM_PLATFORM_SETUP) {
+  if (isProd && !process.env.CONFIRM_PLATFORM_SETUP) {
     throw new Error(
       "Must set CONFIRM_PLATFORM_SETUP=yes to create platform company"
     );

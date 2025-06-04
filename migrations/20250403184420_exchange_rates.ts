@@ -4,7 +4,6 @@ import fs from "fs";
 import csv from "csv-parser";
 import { fileURLToPath } from "url";
 import { NODE_ENV } from "../src/config/env";
-import { NewExchangeRateInput } from "../src/core/types/db.type";
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
@@ -12,6 +11,7 @@ import {
   preventUpdateOrDelete,
 } from "../src/utils/db";
 import { safeDecimal } from "../src/utils/utils";
+import { NewExchangeRateInput } from "../src/domains/exchangeRates/exchangeRate.types";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,7 +56,7 @@ const seedExchangeRates = async function seed(knex: Knex): Promise<void> {
     await knex.transaction(async (trx) => {
       const chunkSize = 1000;
       for (let i = 0; i < exchangeRates.length; i += chunkSize) {
-        await trx("exchange_rate")
+        await trx("exchange_rates")
           .insert(exchangeRates.slice(i, i + chunkSize))
           .onConflict(["date", "from_currency_id", "to_currency_id"])
           .ignore();
@@ -71,7 +71,7 @@ const seedExchangeRates = async function seed(knex: Knex): Promise<void> {
   }
 };
 
-const tableName = "exchange_rate";
+const tableName = "exchange_rates";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
@@ -95,11 +95,11 @@ export async function up(knex: Knex): Promise<void> {
 
     table.index(
       ["from_currency_id", "to_currency_id"],
-      "exchange_rate_currency_idx"
+      "exchange_rates_currency_idx"
     );
-    table.index(["date"], "exchange_rate_date_idx");
+    table.index(["date"], "exchange_rates_date_idx");
     table.unique(["date", "from_currency_id", "to_currency_id"], {
-      indexName: "exchange_rate_date_currency_unique",
+      indexName: "exchange_rates_date_currency_unique",
     });
   });
 
