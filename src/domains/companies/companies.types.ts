@@ -71,6 +71,8 @@ export const newCompany = newCompanyInput
     year_end_day: z.number(),
     year_end_month: z.number(),
     created_by_id: z.string().uuid(),
+    created_at: z.date().optional(),
+    updated_at: z.date().optional(),
     is_demo_company: z.boolean().default(false),
     is_platform: z.boolean().default(false).optional(),
   })
@@ -141,6 +143,7 @@ export type GetCompanyResponse = {
   countryId: string;
   reportingCurrencyId: string;
   createdById: string;
+  createdAt: Date;
 
   displayName: string | null;
   address: string | null;
@@ -153,7 +156,7 @@ export type GetCompanyResponse = {
   revenue: string | null;
   companyRegistrationNumber: string | null;
   companyTaxId: string | null;
-  isPlatform: boolean;
+  isPlatform?: boolean;
 
   countryCode: string | null;
   countryName: string | null;
@@ -186,6 +189,8 @@ export const fieldToColumnMap: Partial<
   yearEndMonth: "year_end_month",
   countryId: "country_id",
   reportingCurrencyId: "reporting_currency_id",
+  createdById: "created_by_id",
+  createdAt: "created_at",
 
   displayName: "display_name",
   address: "address",
@@ -226,3 +231,20 @@ export const updateCompanySchema = getCompanyResponse
   .partial();
 
 export type UpdateCompanySchema = z.infer<typeof updateCompanySchema>;
+
+export interface CompanyFilters {
+  companyType?: CompanyType[];
+  country?: string;
+  assignedFirm?: string;
+  isDemoCompany?: boolean;
+}
+
+export interface FetchCompaniesOptions {
+  identifier?: string;
+  filters?: CompanyFilters;
+  // Future extensions
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}

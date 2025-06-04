@@ -20,6 +20,7 @@ import {
 import { createCoa } from "../chartOfAccounts/coa.model";
 import { coaSource } from "../chartOfAccounts/coa.types";
 import { hasAccessToCompany } from "../userCompanyRole/userCompanyRole.model";
+import type { Knex } from "knex";
 
 const bankRespFields = [
   "ba.id as id",
@@ -156,7 +157,9 @@ export async function createNewBankAccount(input: {
   companyId: string;
   userId: string;
   data: NewBankAccountInput;
+  trx?: Knex.Transaction;
 }) {
+  const knexInstance = input.trx || knexClient;
   const { data: inputData, userId, companyId } = input;
   if (!companyId) return errorResponse("Company ID is required");
   try {
@@ -183,8 +186,6 @@ export async function createNewBankAccount(input: {
       companyId: companyUUID,
     });
 
-    console.log(hasAccess);
-
     if (!hasAccess.success || !hasAccess.data?.hasAccess) {
       return errorResponse(
         hasAccess.message || "You do not have access to this company"
@@ -193,8 +194,8 @@ export async function createNewBankAccount(input: {
 
     // Check if bank and currency ids are valid
     const [bank, currency] = await Promise.all([
-      knexClient("banks").select("id").where("id", data.bank_id).first(),
-      knexClient("currencies")
+      knexInstance("banks").select("id").where("id", data.bank_id).first(),
+      knexInstance("currencies")
         .select("id")
         .where("id", data.currency_id)
         .first(),
@@ -209,7 +210,7 @@ export async function createNewBankAccount(input: {
     if (!currency) return errorResponse("Invalid currency");
 
     // Check that bank account does not already exist
-    const existing = await knexClient("bank_accounts")
+    const existing = await knexInstance("bank_accounts")
       .select("id")
       .where({
         company_id: companyUUID,
@@ -227,11 +228,10 @@ export async function createNewBankAccount(input: {
       code: data.account_code,
       name: data.display_name,
       account_type_key: "ca_bank",
-      source: coaSource.enum.users,
+      source: data.source || coaSource.enum.users,
     };
 
-    const result = await knexClient.transaction(async (tx) => {
-      // Create Coa entry
+    const executeWithTransaction = async (tx: Knex.Transaction) => {
       const coa = await createCoa({
         companyId: companyUUID,
         userId,
@@ -267,9 +267,13 @@ export async function createNewBankAccount(input: {
         "Bank account created successfully",
         snakeToCamel(newBankAccount)
       );
-    });
+    };
 
-    return result;
+    if (input.trx) {
+      return await executeWithTransaction(input.trx);
+    } else {
+      return await knexInstance.transaction(executeWithTransaction);
+    }
   } catch (error) {
     return errorResponse(
       "An unexpected error occurred while creating the bank account",

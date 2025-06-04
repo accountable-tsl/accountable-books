@@ -7,17 +7,30 @@ import { NewUserInputCamel } from "../../src/domains/users/users.types";
 import knexClient from "../../knexClient";
 import { registerNewAccount } from "../../src/features/signup/signup.service";
 
-const generateDemoSignupInput = (
-  companyType: CompanyType,
-  companyName?: string,
-  currencyId?: string,
-  countryId?: string,
-  yearEndDay?: number,
-  yearEndMonth?: number
-): {
+const generateDemoSignupInput = (input: {
+  companyType: CompanyType;
+  userId?: string;
+  companyId?: string;
+  companyName?: string;
+  currencyId?: string;
+  countryId?: string;
+  yearEndDay?: number;
+  yearEndMonth?: number;
+}): {
   user: NewUserInputCamel;
   company: NewCompanyInputCamel;
 } => {
+  const {
+    companyType,
+    userId,
+    companyId,
+    companyName,
+    currencyId,
+    countryId,
+    yearEndDay,
+    yearEndMonth,
+  } = input;
+
   const firstName = faker.person.firstName();
   const lastName = faker.person.lastName();
   const slugs = ["firm", "zrxl", "beta", "alpha", "lambda"];
@@ -29,6 +42,7 @@ const generateDemoSignupInput = (
       password: "StrongDemoPass!",
       avatarUrl: faker.image.avatar(),
       isDemoUser: true,
+      ...(userId && { id: userId }),
     },
     company: {
       legalName: companyName || faker.company.name(),
@@ -43,26 +57,42 @@ const generateDemoSignupInput = (
           }
         : {}),
       isDemoCompany: true,
+      ...(companyId && { id: companyId }),
     },
   };
 };
 
-export const createSeedCompanyAndUser = async (
-  companyType: CompanyType,
-  companyName?: string,
-  currencyId?: string,
-  countryId?: string,
-  yearEndDay?: number,
-  yearEndMonth?: number
-) => {
-  const { user, company } = generateDemoSignupInput(
+export const createSeedCompanyAndUser = async (input: {
+  companyType: CompanyType;
+  userId?: string;
+  companyId?: string;
+  companyName?: string;
+  currencyId?: string;
+  countryId?: string;
+  yearEndDay?: number;
+  yearEndMonth?: number;
+}) => {
+  const {
     companyType,
+    userId,
+    companyId,
     companyName,
     currencyId,
     countryId,
     yearEndDay,
-    yearEndMonth
-  );
+    yearEndMonth,
+  } = input;
+
+  const { user, company } = generateDemoSignupInput({
+    companyType,
+    userId,
+    companyId,
+    companyName,
+    currencyId,
+    countryId,
+    yearEndDay,
+    yearEndMonth,
+  });
 
   const existingUser = await knexClient("users")
     .select("id")

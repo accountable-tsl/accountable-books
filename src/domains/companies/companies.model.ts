@@ -1,5 +1,8 @@
 import type { Knex } from "knex";
 import {
+  CompanyFilters,
+  companyType,
+  FetchCompaniesOptions,
   fieldToColumnMap,
   GetCompanyResponse,
   newCompany,
@@ -11,7 +14,7 @@ import {
 import { ApiResponse } from "../../core/types/api.types";
 import {
   camelToSnake,
-  getIdentifierType,
+  isValidUUID,
   snakeToCamel,
 } from "../../shared/utils/formatting.utils";
 import {
@@ -214,6 +217,9 @@ const companyFields = [
   "companies.registration_number as companyRegistrationNumber",
   "companies.tax_id as companyTaxId",
   "companies.country_id as countryId",
+  "companies.created_by_id as createdById",
+  "companies.created_at as createdAt",
+
   "countries.code as countryCode",
   "countries.name as countryName",
   "countries.phone_code as countryPhoneCode",
@@ -229,7 +235,6 @@ const companyFields = [
   "currencies.code as reportingCurrencyCode",
   "currencies.name as reportingCurrencyName",
   "currencies.symbol as reportingCurrencySymbol",
-  "companies.created_by_id as createdById",
 
   // accounting firm fields
   "companies.assigned_firm_id as assignedFirmId",
@@ -239,12 +244,10 @@ const companyFields = [
   "firm_meta.logo_url as assignedFirmLogo",
   "firm_meta.logo_key as assignedFirmLogoKey",
 ];
-export const fetchCompanies = async (
-  identifier?: string
-  // userId?: string,
-  // pageSize?: number,
-  // page?: number
-): Promise<ApiResponse<GetCompanyResponse[] | GetCompanyResponse>> => {
+export const fetchCompanies = async ({
+  identifier,
+  filters,
+}: FetchCompaniesOptions = {}): Promise<ApiResponse<GetCompanyResponse[]>> => {
   try {
     const query = knexClient("companies")
       .select(companyFields)
@@ -275,7 +278,49 @@ export const fetchCompanies = async (
         );
       }
 
-      query.where("companies.id", companyId).first();
+      query.where("companies.id", companyId);
+    }
+
+    if (filters) {
+      if (filters.companyType?.length) {
+        if (
+          filters.companyType.every((type) =>
+            companyType.options.includes(type)
+          )
+        ) {
+          query.whereIn("companies.type", filters.companyType);
+        } else {
+          return errorResponse(
+            `Invalid company type(s): ${filters.companyType}`
+          );
+        }
+      }
+
+      if (filters.country) {
+        if (filters.country.length === 2) {
+          query.where("countries.code", filters.country);
+        } else {
+          query.where("companies.country_id", filters.country);
+        }
+      }
+
+      if (typeof filters.assignedFirm === "string") {
+        if (isValidUUID(filters.assignedFirm)) {
+          query.where("companies.assigned_firm_id", filters.assignedFirm);
+        } else if (filters.assignedFirm.length <= 20) {
+          query.where("accounting_firms.slug", filters.assignedFirm);
+        } else {
+          return errorResponse(
+            `Invalid assigned firm identifier: ${filters.assignedFirm}`
+          );
+        }
+      }
+
+      if (typeof filters.isDemoCompany === "boolean") {
+        query.where("companies.is_demo_company", filters.isDemoCompany);
+      } else {
+        query.where("companies.is_demo_company", false); // Exclude demo companies by default
+      }
     }
 
     const result = await query;
@@ -290,8 +335,10 @@ export const fetchCompanies = async (
 
     return successResponse<GetCompanyResponse[]>(
       identifier
-        ? "Successfully retrieved company"
-        : "Successfully retrieved all companies",
+        ? `Successfully retrieved company`
+        : filters
+          ? `Successfully retrieved filtered companies`
+          : `Successfully retrieved all companies`,
       data
     );
   } catch (error: any) {
@@ -299,9 +346,23 @@ export const fetchCompanies = async (
   }
 };
 
-export const getCompanies = () => fetchCompanies();
+export const getCompanies = (options?: FetchCompaniesOptions) =>
+  fetchCompanies(options ?? {});
 
-export const getSingleCompany = (id: string) => fetchCompanies(id);
+export const getSingleCompany = async (
+  id: string
+): Promise<ApiResponse<GetCompanyResponse>> => {
+  const res = await fetchCompanies({ identifier: id });
+
+  if (!res.success || !res.data || res.data.length === 0) {
+    return errorResponse(res.message, null);
+  }
+
+  return successResponse<GetCompanyResponse>(
+    "Successfully retrieved company",
+    res.data[0]
+  );
+};
 
 export const updateCompany = async (
   identifier: string,

@@ -60,7 +60,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("companies")
       .onDelete("CASCADE"); // Company that is the accounting firm's HQ
 
-    table.string("slug", 50).unique().nullable();
+    table.string("slug", 20).unique().nullable();
     table.string("firm_type", 50).nullable(); //freelancer, ca / cpa, tax preparer, international
 
     addStandardColumns(table);

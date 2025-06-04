@@ -6,7 +6,10 @@ import {
 } from "../../shared/utils/response.utils";
 import { newBank, NewInput } from "./banks.types";
 
-export async function addNewBank(data: NewInput | NewInput[]) {
+export async function addNewBank(
+  data: NewInput | NewInput[],
+  knexInstance = knexClient
+) {
   // Normalize input to an array
   const bankData = Array.isArray(data) ? data : [data];
   const banks = camelToSnake(bankData);
@@ -20,11 +23,14 @@ export async function addNewBank(data: NewInput | NewInput[]) {
       validatedData.error.flatten()
     );
   }
+
+  console.log(validatedData.data);
   try {
-    const inserted = await knexClient("banks")
+    const inserted = await knexInstance("banks")
       .insert(validatedData.data)
       .returning("id");
 
+    console.log(inserted);
     if (!inserted || inserted.length === 0) {
       return errorResponse("No banks were inserted");
     }
@@ -33,6 +39,6 @@ export async function addNewBank(data: NewInput | NewInput[]) {
       inserted
     );
   } catch (error) {
-    return errorResponse("Failed to add new bank");
+    return errorResponse("Failed to add new bank", error);
   }
 }

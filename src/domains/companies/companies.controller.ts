@@ -19,7 +19,7 @@ export const switchCompanyController = async (
 ) => {
   try {
     const companyId = req?.company?.id;
-    if (!req.user || !companyId) throw new AppError("Unauthorized");
+    if (!req.user?.id || !companyId) throw new AppError("Unauthorized");
 
     const switchResult = await switchCompany(req.user.id, companyId);
 

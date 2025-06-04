@@ -133,9 +133,22 @@ export async function up(knex: Knex): Promise<void> {
       "onboarding_complete",
     ])
   );
+
+  await knex.raw(
+    createEnumIfNotExists("bank_local_code_type", [
+      "sort_code",
+      "routing",
+      "bank_code",
+      "ifsc",
+      "blz",
+      "zengin_code",
+      "cnaps",
+    ])
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP TYPE IF EXISTS bank_local_code_type`);
   await knex.raw(`DROP TYPE IF EXISTS onboarding_status`);
   await knex.raw(`DROP TYPE IF EXISTS accounting_basis`);
   await knex.raw(`DROP TYPE IF EXISTS project_status`);
@@ -146,6 +159,7 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP TYPE IF EXISTS journal_status`);
   await knex.raw(`DROP TYPE IF EXISTS transaction_source`);
   await knex.raw(`DROP TYPE IF EXISTS categorization_status`);
+  await knex.raw(`DROP TYPE IF EXISTS coa_source`);
   await knex.raw(`DROP TYPE IF EXISTS bank_account_type`);
   await knex.raw(`DROP TYPE IF EXISTS bank_transaction_source`);
   await knex.raw(`DROP TYPE IF EXISTS debit_credit`);

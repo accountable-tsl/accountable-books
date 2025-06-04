@@ -11,13 +11,13 @@ export const firmType = z.enum([
 
 export const newAccFirmInput = z.object({
   company_id: z.string().uuid().nullish(),
-  slug: z.string().max(50).optional(),
+  slug: z.string().max(20).optional(),
   firm_type: firmType.nullish(),
 });
 
 export const newAccFirm = newAccFirmInput.extend({
   company_id: z.string().uuid(),
-  slug: z.string().max(50),
+  slug: z.string().max(20),
 });
 
 export const accFirm = newAccFirm.merge(dbBaseFields).omit({ id: true });

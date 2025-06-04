@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { dbBaseFields, decimalSchema } from "../../core/validation/schemas";
 import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
+import { coaSource } from "../chartOfAccounts/coa.types";
 
 export const bankAccountType = z.enum([
   "other",
@@ -20,6 +21,7 @@ export const newBankAccountInput = z.object({
   account_code: z.string().optional(),
   bank_id: z.string().uuid(),
   currency_id: z.string().uuid(),
+  source: coaSource.optional(),
 
   // company_id: z.string().uuid(),
   // coa_id: z.string().uuid(),

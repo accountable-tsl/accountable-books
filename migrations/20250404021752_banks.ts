@@ -21,7 +21,8 @@ const seedBanks = async function seed(knex: Knex): Promise<void> {
     updated_by_id: adminUserId,
   }));
 
-  const res = await addNewBank(data);
+  const res = await addNewBank(data, knex);
+  console.log(res);
   if (!res.success) {
     console.error("Error creating banks:", res.error);
     throw new Error(res.message);
@@ -31,7 +32,16 @@ const seedBanks = async function seed(knex: Knex): Promise<void> {
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.string("key").notNullable();
     table.string("name").notNullable();
+    table.string("official_name").nullable();
+
+    table.string("swift_code").nullable();
+    table.string("local_code").nullable();
+    table.specificType("local_code_type", "bank_local_code_type").nullable(); // value: e.g., 'sort_code'
+
+    table.string("website").nullable();
+
     table.string("logo_url").nullable();
     table.string("logo_key").nullable();
 
@@ -56,9 +66,17 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete("SET NULL");
 
     addStandardColumns(table);
+
+    table.unique(["key", "country_id"]);
+    table.index(["key", "country_id"]);
+    table.index(["name", "country_id"]);
+    table.index(["name"]);
+    table.index(["country_id"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
+
+  await seedBanks(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {
