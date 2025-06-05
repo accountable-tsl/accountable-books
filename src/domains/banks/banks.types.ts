@@ -40,3 +40,18 @@ export type NewInput = NewBank | NewBankCamel;
 
 export const bank = newBank.merge(dbBaseFields);
 export type Bank = z.infer<typeof bank>;
+
+export type FetchBanksResponse = NewBankCamel & {
+  countryCode: string | null;
+  countryName: string | null;
+  countryFlag: string | null;
+};
+
+export const fetchBanksOptions = z.object({
+  id: z.string().uuid().optional(),
+  key: z.string().optional(),
+  countryId: z.string().uuid().optional(),
+  countryCode: z.string().optional(),
+});
+
+export type FetchBanksOptions = z.infer<typeof fetchBanksOptions>;

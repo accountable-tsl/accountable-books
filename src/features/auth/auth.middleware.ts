@@ -100,10 +100,11 @@ export const conditionalCsrf = (
     if (err && isPublic) return next();
 
     if (err) {
+      console.log(err);
       console.warn("Blocked by CSRF middleware:", err.message);
       return res
         .status(403)
-        .json({ error: "A security injection was detected" });
+        .json({ error: "A security breach was detected - invalid CSRF token" });
     }
 
     return next();

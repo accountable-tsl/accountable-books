@@ -16,6 +16,7 @@ const generateDemoSignupInput = (input: {
   countryId?: string;
   yearEndDay?: number;
   yearEndMonth?: number;
+  shortCode?: string;
 }): {
   user: NewUserInputCamel;
   company: NewCompanyInputCamel;
@@ -29,6 +30,7 @@ const generateDemoSignupInput = (input: {
     countryId,
     yearEndDay,
     yearEndMonth,
+    shortCode,
   } = input;
 
   const firstName = faker.person.firstName();
@@ -58,6 +60,7 @@ const generateDemoSignupInput = (input: {
         : {}),
       isDemoCompany: true,
       ...(companyId && { id: companyId }),
+      ...(shortCode && { shortCode }),
     },
   };
 };
@@ -71,6 +74,7 @@ export const createSeedCompanyAndUser = async (input: {
   countryId?: string;
   yearEndDay?: number;
   yearEndMonth?: number;
+  shortCode?: string;
 }) => {
   const {
     companyType,
@@ -81,6 +85,7 @@ export const createSeedCompanyAndUser = async (input: {
     countryId,
     yearEndDay,
     yearEndMonth,
+    shortCode,
   } = input;
 
   const { user, company } = generateDemoSignupInput({
@@ -92,6 +97,7 @@ export const createSeedCompanyAndUser = async (input: {
     countryId,
     yearEndDay,
     yearEndMonth,
+    shortCode,
   });
 
   const existingUser = await knexClient("users")

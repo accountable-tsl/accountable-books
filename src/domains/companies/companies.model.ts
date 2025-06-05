@@ -79,7 +79,7 @@ export const createCompany = async (
     const maxAttempts = 5;
 
     do {
-      short_code = generateSecureShortCode();
+      short_code = input.short_code || generateSecureShortCode();
       exists = await knexTrx("companies").where({ short_code }).first();
       attempts++;
     } while (exists && attempts < maxAttempts);

@@ -13,6 +13,7 @@ import authRoutes from "./features/auth/auth.routes";
 import companiesRoutes from "./domains/companies/companies.routes";
 import objectRoutes from "./domains/objects/objects.routes";
 import firmRoutes from "./domains/accountingFirms/firms.routes";
+import bankRoutes from "./domains/banks/banks.routes";
 import bankAccountsRoutes from "./domains/bankAccounts/bankAccounts.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
@@ -86,6 +87,7 @@ async function startServer() {
     app.use("/api", objectRoutes);
     app.use("/api/accounting-firms", firmRoutes);
 
+    app.use("/api/banks", bankRoutes);
     app.use("/api/:companyId/bank-accounts", bankAccountsRoutes);
 
     app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));

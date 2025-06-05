@@ -1,6 +1,3 @@
-import { seedDemoAccountingFirm } from "./demoAccountingFirm";
-import { seedDemoBusiness } from "./demoBusiness";
-import { seedDemoIndividual } from "./demoIndividual";
 import { seedAllDemos } from "./demoSeeds";
 
 (async () => {

@@ -174,7 +174,7 @@ const createUserAndCompany = async (
     throw new AppError("Unable to retrieve platform firm");
   }
 
-  const platformFirmId = platformFirm.company_id; // ← new PK
+  const platformFirmId = platformFirm.company_id; // new PK
   const platformFirmSlug = platformFirm.slug;
 
   const { slug, ...restOfCompanyInput } = companyInput;
