@@ -64,7 +64,7 @@ export const routes = {
       staticPath: "/email-verified",
       meta: { public: true },
     }),
-
+    
     welcome: makeRoute({ staticPath: "/onboarding/welcome" }),
   },
 

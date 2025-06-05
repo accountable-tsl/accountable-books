@@ -120,13 +120,14 @@ function AnimatedRoutes() {
           <Route path={routes.home.staticPath} element={<Dashboard />} />
           <Route path={routes.company.staticPath} element={<Dashboard />} />
           <Route path={routes.dashboard.staticPath} element={<Dashboard />} />
+          <Route
+            path={routes.accounting.index.staticPath}
+            element={<UploadBS />}
+          />
           {/* <Route path=":companyId" element={<Home />} /> */}
           {/* <Route path={staticRoutes.companies.root} element={<Home />} />
           <Route path={staticRoutes.accounting.root} element={<Workspace />} /> */}
-          {/* <Route
-            path={staticRoutes.accounting.workspace.uploadBank}
-            element={<UploadBS />}
-          />
+          {/* 
           <Route
             path={staticRoutes.accounting.workspace.catEngine}
             element={<CategorisationEngine />}

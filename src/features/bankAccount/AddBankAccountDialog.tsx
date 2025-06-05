@@ -1,0 +1,48 @@
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AddBankAccountDialogProps } from "./types";
+import AddBankAccount from "@/features/bankAccount/AddBankAccount";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+export function AddBankAccountDialog({
+  open,
+  onOpenChange,
+  onSuccess,
+}: AddBankAccountDialogProps) {
+  const isMobile = useIsMobile();
+  const handleSuccess = onSuccess ?? (() => onOpenChange(false));
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Add Bank Account</DrawerTitle>
+          </DrawerHeader>
+          <AddBankAccount onSuccess={onSuccess ?? handleSuccess} />
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Bank Account</DialogTitle>
+        </DialogHeader>
+        <AddBankAccount onSuccess={onSuccess ?? handleSuccess} />
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -9,7 +9,7 @@ import {
 import { newCompany, NewCompany, NewUser } from "../signupTypes";
 import { useIndustries } from "@/hooks/useIndustries";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
-import { AutocompleteDropdown } from "@/components/AutocompleteDropdown/AutocompleteDropdown";
+import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
 import { useCountries } from "@/hooks/useCountries";
 import { useCurrencies } from "@/hooks/useCurrencies";
 import { useForm } from "react-hook-form";
@@ -158,7 +158,7 @@ export const SignupCompanyInfo = forwardRef<
                 label: `${item.flag} ${item.name}`,
               })}
               value={watch("countryId") || ""}
-              onChange={(value) => handleChange("countryId", value)}
+              onValueChange={(value) => handleChange("countryId", value)}
               placeholder="Select country"
               aria-describedby={
                 errors.countryId ? "countryId-error" : undefined
@@ -188,7 +188,9 @@ export const SignupCompanyInfo = forwardRef<
                 label: `${item.name} (${item.symbol})`,
               })}
               value={watch("reportingCurrencyId")}
-              onChange={(value) => handleChange("reportingCurrencyId", value)}
+              onValueChange={(value) =>
+                handleChange("reportingCurrencyId", value)
+              }
               placeholder="Select currency"
               aria-describedby={
                 errors.reportingCurrencyId
@@ -228,7 +230,7 @@ export const SignupCompanyInfo = forwardRef<
                   label: item.shortLabel,
                 })}
                 value={watch("industry") || ""}
-                onChange={(value) => handleChange("industry", value)}
+                onValueChange={(value) => handleChange("industry", value)}
               />
             </FormField>
 

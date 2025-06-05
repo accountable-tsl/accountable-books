@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { NewCompany, NewUser } from "./signupTypes";
 import { useSearchParams } from "react-router-dom";
 import { useCountries } from "@/hooks/useCountries";
-import { getDefaultCurrencyForCountry } from "@/constants/countryCurrencyMap";
+import { getDefaultCurrencyCodeForCountry } from "@/constants/countryCurrencyMap";
 import { useCurrencies } from "@/hooks/useCurrencies";
 import { SignupSelector } from "./steps/SignupSelector";
 import {
@@ -203,7 +203,7 @@ export default function Signup() {
       : "";
     const userCountry = ctry || getCountryFromLocale();
     const curr = userCountry
-      ? getDefaultCurrencyForCountry(userCountry?.code)
+      ? getDefaultCurrencyCodeForCountry(userCountry?.code)
       : "";
 
     return curr;

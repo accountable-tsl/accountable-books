@@ -24,3 +24,27 @@ export const formatPhoneNumber = (input: string, country: CountryList) => {
 export const extractPath = (url: string): string => {
   return url.replace(/^.*?\.[\w.]+\//, "");
 };
+
+export function toTitleCase(
+  text: string,
+  options?: {
+    delimiter?: string | RegExp;
+    joinWith?: string;
+    preserveUppercase?: boolean;
+  }
+) {
+  const {
+    delimiter = /\s+/,
+    joinWith = " ",
+    preserveUppercase = true,
+  } = options || {};
+
+  return text
+    .split(delimiter)
+    .filter(Boolean)
+    .map((word) => {
+      if (preserveUppercase && word === word.toUpperCase()) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(joinWith);
+}

@@ -37,18 +37,18 @@ export function SessionChecker() {
         resetFailedAttempts();
         fetchCompany(res.data.company.id);
 
-        if (
-          res.data.company.onboardingStatus !==
-            onboardingStatus.enum.onboarding_complete &&
-          !isOnboardingPage &&
-          !isPublicRoute(location.pathname)
-        ) {
-          window.location.replace(
-            routes.onboarding.index.buildPath({
-              companyId: res.data.company.id,
-            })
-          );
-        }
+        // if (
+        //   res.data.company.onboardingStatus !==
+        //     onboardingStatus.enum.onboarding_complete &&
+        //   !isOnboardingPage &&
+        //   !isPublicRoute(location.pathname)
+        // ) {
+        //   window.location.replace(
+        //     routes.onboarding.index.buildPath({
+        //       companyId: res.data.company.id,
+        //     })
+        //   );
+        // }
       } catch (err) {
         incrementFailedAttempts();
         setSessionValid(false);

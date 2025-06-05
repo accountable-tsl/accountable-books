@@ -1,19 +1,38 @@
+import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { BeatLoader } from "react-spinners";
 
-export function CenteredLoader({ delay = 2000 }: { delay?: number }) {
-  const [visible, setVisible] = useState(true);
+export function CenteredLoader({
+  delay = 0,
+  fullscreen = false,
+  className,
+}: {
+  delay?: number;
+  fullscreen?: boolean;
+  className?: string;
+}) {
+  const [visible, setVisible] = useState(delay === 0);
 
   useEffect(() => {
-    const timeout = setTimeout(() => setVisible(false), delay);
+    if (delay === 0) return;
+
+    const timeout = setTimeout(() => setVisible(true), delay);
     return () => clearTimeout(timeout);
   }, [delay]);
 
   if (!visible) return null;
 
   return (
-    <div className="flex items-center justify-center W-full h-full min-h-[6rem]">
-      <BeatLoader color={`text-foreground`} />
+    <div
+      className={cn(
+        "flex items-center justify-center",
+        fullscreen
+          ? "fixed inset-0 z-50 bg-background/50 backdrop-blur-sm"
+          : "w-full h-full",
+        className
+      )}
+    >
+      <BeatLoader color="currentColor" />
     </div>
   );
 }

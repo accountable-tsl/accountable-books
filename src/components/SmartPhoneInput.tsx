@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
-import { Label } from "./ui/label";
+import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Input } from "./ui/input";
+import { Input } from "@/components/ui/input";
 import { useCountries } from "@/hooks/useCountries";
 import { CountryList } from "@/types/types";
 import {

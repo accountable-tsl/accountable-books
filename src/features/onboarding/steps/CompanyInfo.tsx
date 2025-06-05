@@ -1,4 +1,4 @@
-import { AutocompleteDropdown } from "@/components/AutocompleteDropdown/AutocompleteDropdown";
+import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import ErrorPage from "@/components/ErrorPage";
 import { FormField } from "@/components/FormField";
@@ -12,10 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  getCompanyDetails,
-  updateCompanyDetails,
-} from "@/domains/company/api";
+import { getCompanyDetails, updateCompanyDetails } from "@/domains/company/api";
 import {
   ACCOUNTING_BASIS,
   COMPANY_REVENUE_RANGE,
@@ -56,10 +53,11 @@ import {
 import { useAuth } from "@/features/auth/hooks";
 import { useSlugCheck } from "@/domains/firms/hooks";
 import { validateSlug } from "@/domains/firms/utils";
+import { updateCompanyOnboardingStatus } from "../service";
 
 export const CompanyInfo = () => {
   const { company, companyId, companyType, setCompany } = useCompany();
-  const { isLoggedIn, logout } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const {
     data: industries,
     isLoading: isIndustriesLoading,
@@ -131,7 +129,10 @@ export const CompanyInfo = () => {
     }
   };
 
-  const watchedSlug = companyType === "accounting_firm" ? watch("assignedFirmSlug")?.trim() || "" : "";
+  const watchedSlug =
+    companyType === "accounting_firm"
+      ? watch("assignedFirmSlug")?.trim() || ""
+      : "";
   const { data: slugCheck, isFetching } = useSlugCheck(watchedSlug, companyId!);
 
   const isSlugTaken = slugCheck?.data?.isAvailable === false;
@@ -346,8 +347,12 @@ export const CompanyInfo = () => {
       }
 
       localStorage.removeItem(`companyInfo_${companyId}`);
+      await updateCompanyOnboardingStatus({
+        userId: user?.id,
+        companyId: companyId || "",
+      });
       setConfirmOpen(false);
-      toast.success("Company details saved");
+      toast.success("Company details saved. Proceeding to next step...");
     } catch (error: any) {
       toast.error(error.message || "Failed to save company details");
     } finally {
@@ -542,7 +547,7 @@ export const CompanyInfo = () => {
                   label: item.shortLabel,
                 })}
                 value={watch("industry") || ""}
-                onChange={(value) => handleChange("industry", value)}
+                onValueChange={(value) => handleChange("industry", value)}
               />
             </FormField>
           </div>
@@ -607,7 +612,7 @@ export const CompanyInfo = () => {
                 aria-describedby={
                   errors.countryId ? "countryId-error" : undefined
                 }
-                onChange={(value) => handleChange("countryId", value)}
+                onValueChange={(value) => handleChange("countryId", value)}
                 value={watch("countryId") || ""}
                 disabled
               />
@@ -643,7 +648,9 @@ export const CompanyInfo = () => {
                   label: `${item.name} (${item.symbol})`,
                 })}
                 value={watch("reportingCurrencyId") || ""}
-                onChange={(value) => handleChange("reportingCurrencyId", value)}
+                onValueChange={(value) =>
+                  handleChange("reportingCurrencyId", value)
+                }
                 placeholder="Select currency"
                 aria-describedby={
                   errors.reportingCurrencyId

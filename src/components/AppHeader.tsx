@@ -7,13 +7,14 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "./ui/breadcrumb";
+} from "@/components/ui/breadcrumb";
 import React from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { ChevronDownIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { pageStore } from "@/shared/stores/page";
 import { useCompany } from "@/domains/company/store";
+import { cn } from "@/lib/utils";
 
 type BreadcrumbItem = {
   label: string;
@@ -34,7 +35,13 @@ AppHeaderProps) {
   const { breadcrumbs } = pageStore();
 
   return (
-    <header className="group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear relative">
+    <header
+      className={cn(
+        "group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0",
+        "items-center gap-2 border-b transition-[width,height] ease-linear relative",
+        "flex-shrink-0 z-50"
+      )}
+    >
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2">
         <SidebarTrigger className="-ml-1" />
         <Separator
