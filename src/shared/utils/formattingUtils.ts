@@ -1,4 +1,6 @@
 import { CountryList } from "@/types/types";
+import Decimal from "decimal.js";
+import { getUserLocale } from "./randomUtils";
 
 export const formatPhoneNumber = (input: string, country: CountryList) => {
   // Filter input: keep digits and leading + if present
@@ -127,4 +129,115 @@ export function formatAccountText(
   }
 
   return `${initialText}${separator}${maskChar}${finalChars}`;
+}
+
+/**
+ * Formats a numeric value for financial/accounting display.
+ *
+ * @param amount - The value to format.
+ * @param options - Formatting options.
+ *   - currency (optional): The currency code, e.g., 'USD', 'GBP'.
+ *   - locale (optional): The locale string, e.g., 'en-US'.
+ *   - showSymbol (default: false): If true, include the currency symbol.
+ *   - showCode (default: false): If true, append the currency code.
+ *   - minFractionDigits (default: 2): Minimum decimal places.
+ *   - maxFractionDigits (default: 2): Maximum decimal places.
+ *   - accountingNegatives (default: false): If true, show negatives in parentheses.
+ * @returns The formatted string.
+ */
+
+export interface FormatAmountOptions {
+  currency?: string;
+  locale?: string;
+  showSymbol?: boolean;
+  showCode?: boolean;
+  minFractionDigits?: number;
+  maxFractionDigits?: number;
+  accountingNegatives?: boolean;
+}
+
+export function formatAmount(
+  amount: number | string | Decimal,
+  options?: FormatAmountOptions
+): string {
+  if (
+    amount === null ||
+    amount === undefined ||
+    (typeof amount === "string" && amount.trim() === "")
+  )
+    return "";
+
+  // Convert amount to a JS number for formatting
+  let num: number;
+  if (typeof amount === "number") {
+    num = amount;
+  } else if (typeof amount === "string") {
+    num = parseFloat(amount);
+  } else if (amount instanceof Decimal) {
+    num = amount.toNumber();
+  } else {
+    return "";
+  }
+
+  if (isNaN(num)) return "";
+
+  const {
+    currency,
+    locale = getUserLocale(),
+    showSymbol = false,
+    showCode = false,
+    minFractionDigits = 2,
+    maxFractionDigits = 2,
+    accountingNegatives = false,
+  } = options || {};
+
+  const isNegative = num < 0;
+  const absNum = accountingNegatives && isNegative ? Math.abs(num) : num;
+
+  let formatted = "";
+
+  if (currency && showSymbol) {
+    formatted = new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: minFractionDigits,
+      maximumFractionDigits: maxFractionDigits,
+    }).format(Number(absNum));
+  } else {
+    formatted = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: minFractionDigits,
+      maximumFractionDigits: maxFractionDigits,
+    }).format(Number(absNum));
+  }
+
+  // Append currency code if needed
+  if (showCode && currency) {
+    formatted += ` ${currency}`;
+  }
+
+  if (isNegative && accountingNegatives) {
+    formatted = `(${formatted})`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Formats amount divided by 1,000
+ */
+export function formatAmountInThousands(
+  amount: number | string,
+  options?: Parameters<typeof formatAmount>[1]
+): string {
+  return formatAmount(Number(amount) / 1_000, options);
+}
+
+/**
+ * Formats amount divided by 1,000,000
+ */
+export function formatAmountInMillions(
+  amount: number | string,
+  options?: Parameters<typeof formatAmount>[1]
+): string {
+  return formatAmount(Number(amount) / 1_000_000, options);
 }

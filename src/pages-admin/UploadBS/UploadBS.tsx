@@ -359,7 +359,7 @@ export default function UploadBS() {
 
   return (
     <>
-      <div className="uploadbs">
+      <div className="uploadbs-">
         <Breadcrumb items={breadcrumbs} />
 
         <div className="rounded-md flex justify-center grow items-start">
@@ -600,7 +600,6 @@ export default function UploadBS() {
         </div>
       </div>
       <BankTransactionImporter />
-      <AddBankAccount />
     </>
   );
 }

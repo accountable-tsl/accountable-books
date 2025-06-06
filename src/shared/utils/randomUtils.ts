@@ -2,6 +2,10 @@ import { getDefaultCurrencyCodeForCountry } from "@/constants/countryCurrencyMap
 import { CompanyData } from "@/domains/company/types";
 import { CountryList, CurrencyList } from "@/types/types";
 
+export const getUserLocale = () => {
+  return navigator.language || navigator.languages?.[0] || "en-US";
+};
+
 export const getCountryFromLocale = (
   countries: CountryList[]
 ): CountryList | undefined => {
