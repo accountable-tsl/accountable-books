@@ -1,13 +1,16 @@
 import express from "express";
 import {
   getAllBanksController,
-  getSingleBankController,
+  getBankByCountryController,
+  getBankByIdController,
+  getBankByKeyController,
 } from "./banks.controller";
 
 const router = express.Router({ mergeParams: true });
 
 router.get("/", getAllBanksController);
-router.get("/id/:id", getSingleBankController);
-router.get("/key/:key", getSingleBankController);
+router.get("/by-id/:id", getBankByIdController);
+router.get("/by-key/:key", getBankByKeyController);
+router.get("/by-country", getBankByCountryController);
 
 export default router;

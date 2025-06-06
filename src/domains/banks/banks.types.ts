@@ -51,7 +51,7 @@ export const fetchBanksOptions = z.object({
   id: z.string().uuid().optional(),
   key: z.string().optional(),
   countryId: z.string().uuid().optional(),
-  countryCode: z.string().optional(),
+  countryCode: z.string().length(2).optional(),
 });
 
 export type FetchBanksOptions = z.infer<typeof fetchBanksOptions>;

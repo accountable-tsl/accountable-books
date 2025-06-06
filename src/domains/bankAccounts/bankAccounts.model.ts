@@ -32,7 +32,7 @@ const bankRespFields = [
   "ba.bank_id as bankId",
   "ba.company_id as companyId",
 
-  "b.name as bankName",
+  "b.display_name as bankName",
   "b.logo_url as bankLogo",
 
   "cur.name as currencyName",
@@ -158,7 +158,7 @@ export async function createNewBankAccount(input: {
   userId: string;
   data: NewBankAccountInput;
   trx?: Knex.Transaction;
-}) {
+}): Promise<ApiResponse<BankAccountWithMeta>> {
   const knexInstance = input.trx || knexClient;
   const { data: inputData, userId, companyId } = input;
   if (!companyId) return errorResponse("Company ID is required");
@@ -228,7 +228,7 @@ export async function createNewBankAccount(input: {
       code: data.account_code,
       name: data.display_name,
       account_type_key: "ca_bank",
-      source: data.source || coaSource.enum.users,
+      source: data.source || coaSource.enum.user,
     };
 
     const executeWithTransaction = async (tx: Knex.Transaction) => {
@@ -267,9 +267,19 @@ export async function createNewBankAccount(input: {
         return errorResponse("Failed to create bank account record");
       }
 
+      const [newBankAccountDetails] = await tx("bank_accounts as ba")
+        .select(bankRespFields)
+        .where("ba.id", newBankAccount.id)
+        .join("banks as b", "ba.bank_id", "b.id")
+        .join("currencies as cur", "ba.currency_id", "cur.id")
+        .join("companies as c", "ba.company_id", "c.id")
+        .join("currencies as rc", "c.reporting_currency_id", "rc.id")
+        .join("coa", "ba.coa_id", "coa.id")
+        .leftJoin("account_types as at", "coa.account_type_id", "at.id");
+
       return successResponse(
         "Bank account created successfully",
-        snakeToCamel(newBankAccount)
+        snakeToCamel(newBankAccountDetails)
       );
     };
 

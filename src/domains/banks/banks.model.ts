@@ -67,8 +67,8 @@ const bankResponse = [
 ];
 
 function getCacheKeyFromOptions(opts: FetchBanksOptions): string | null {
-  if (opts.id) return generateCacheKey("bank", "id", opts.id);
-  if (opts.key) return generateCacheKey("bank", "key", opts.key);
+  if (opts.id) return generateCacheKey("banks", "id", opts.id);
+  if (opts.key) return generateCacheKey("banks", "key", opts.key);
   if (opts.countryId)
     return generateCacheKey("banks", "country", opts.countryId);
   if (opts.countryCode)
@@ -140,6 +140,10 @@ export async function fetchBanks(
       return errorResponse("Bank not found");
     }
 
+    if ((countryCode || countryId) && !results.length) {
+      return errorResponse("No banks found for the specified country");
+    }
+
     if (cacheKey && results.length > 0) {
       try {
         const ttl =
@@ -183,4 +187,30 @@ export async function getSingleBank(
     return errorResponse("Bank not found", res);
   }
   return successResponse("Successfully retrieved bank", res.data[0]);
+}
+
+export async function getBankByCountry(
+  country: string
+): Promise<ApiResponse<FetchBanksResponse[]>> {
+  if (!country) {
+    return errorResponse("Country code or ID is required");
+  }
+
+  const isUUID = isValidUUID(country);
+  const options = isUUID
+    ? { countryId: country }
+    : { countryCode: country.toUpperCase() };
+
+  const countryCode = country.length === 2 ? country : null;
+  const countryId = isValidUUID(country) ? country : null;
+
+  if (!isUUID && country.length !== 2) {
+    return errorResponse("Country code must be 2 characters");
+  }
+
+  if (!countryId && !countryCode) {
+    return errorResponse("Country code or id is required");
+  }
+
+  return await fetchBanks(options);
 }

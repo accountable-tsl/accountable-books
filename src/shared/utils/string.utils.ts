@@ -31,13 +31,20 @@ type CacheKeyInput = string | number | Record<string, unknown>;
 
 /**
  * Normalizes input to a consistent string format for cache key generation.
- * @param input - The input to normalize (string, number, or object).
+ * @param input - The input to normalize (string, number, object, or array).
  * @returns A string representation of the input.
  * @example
  * normalizeInput({ b: 1, a: 2 }) // '{"a":2,"b":1}'
+ * normalizeInput([1, 2]) // '[1,2]'
  * normalizeInput(123) // '123'
  */
+
 export function normalizeInput(input: CacheKeyInput): string {
+  // Handle arrays by normalizing each element
+  if (Array.isArray(input)) {
+    return `[${input.map(normalizeInput).join(",")}]`;
+  }
+
   // Handle objects by sorting keys for consistent JSON stringification
   if (typeof input === "object" && input !== null) {
     const sortedObj: Record<string, unknown> = {};

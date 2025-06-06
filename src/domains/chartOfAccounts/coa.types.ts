@@ -2,7 +2,7 @@ import { z } from "zod";
 import { dbBaseFields } from "../../core/validation/schemas";
 import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
 
-export const coaSource = z.enum(["users", "system", "template"]);
+export const coaSource = z.enum(["user", "system", "template"]);
 export type CoaSource = z.infer<typeof coaSource>;
 
 // coa
