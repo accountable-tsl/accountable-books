@@ -30,7 +30,10 @@ import { userId } from "../../utils/user";
 import { ColDef, ValueGetterParams } from "ag-grid-community";
 import { getBankAccounts } from "@/domains/bankAccounts/services";
 import { postBankTransactions } from "@/shared/services/TransactionServices";
-import { BankAccountImporter } from "@/components/BankAccountImporter";
+import {
+  BankAccountImporter,
+  BankTransactionImporter,
+} from "@/components/BankTransactionImporter";
 import AddBankAccount from "@/features/bankAccount/AddBankAccount";
 
 /**
@@ -596,7 +599,7 @@ export default function UploadBS() {
           </div>
         </div>
       </div>
-      <BankAccountImporter />
+      <BankTransactionImporter />
       <AddBankAccount />
     </>
   );

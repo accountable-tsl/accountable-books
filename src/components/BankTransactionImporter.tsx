@@ -11,7 +11,7 @@ import { maskDigits } from "@/shared/utils/formattingUtils";
 import { AddBankAccountDialog } from "@/features/bankAccount/AddBankAccountDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-export const BankAccountImporter = () => {
+export const BankTransactionImporter = () => {
   // States
   const [companyBankAccounts, setCompanyBankAccounts] = useState<
     BankAccountWithMeta[] | null
