@@ -1,9 +1,5 @@
 import api from "@/lib/axios";
-import {
-  BankAccountWithMeta,
-  newBankAccountInput,
-  NewBankAccountInput,
-} from "./types";
+import { BankAccountWithMeta, NewBankAccountInput } from "./types";
 import { ApiResponse } from "@/types/types";
 
 export async function createNewBankAccount({
@@ -18,4 +14,9 @@ export async function createNewBankAccount({
   return response.data;
 }
 
-export async function getBankAccounts(companyId: string) {}
+export async function getBankAccountsForCompany(
+  companyId: string
+): Promise<ApiResponse<BankAccountWithMeta[]>> {
+  const response = await api.get(`/api/${companyId}/bank-accounts`);
+  return response.data;
+}

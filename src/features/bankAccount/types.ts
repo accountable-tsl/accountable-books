@@ -25,15 +25,17 @@ export const newBankAccountInput = z.object({
 });
 export type NewBankAccountInput = z.infer<typeof newBankAccountInput>;
 
-export interface AddBankAccountDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
-}
 export interface AddBankAccountProps {
   onSuccess?: (data?: BankAccountWithMeta) => void;
   onCancel?: () => void;
 }
+
+export type AddBankAccountDialogProps = AddBankAccountProps & {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  overlayClassName?: string;
+  showHeader?: boolean;
+};
 
 export const bankAccountWithMeta = z.object({
   id: z.string().uuid(),

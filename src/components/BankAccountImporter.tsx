@@ -1,72 +1,95 @@
 import { FileUploader } from "@/components/FileUploader";
-
-import { getBankAccounts } from "@/domains/bankAccounts/services";
-import { BankAccount, BankAccounts } from "@/domains/bankAccounts/types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FormField } from "./FormField";
 import { AutocompleteDropdown } from "./AutocompleteDropdown";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import { getBankAccountsForCompany } from "@/features/bankAccount/api";
+import { BankAccountWithMeta } from "@/features/bankAccount/types";
+import { useCompany } from "@/domains/company/store";
+import { maskDigits } from "@/shared/utils/formattingUtils";
+import { AddBankAccountDialog } from "@/features/bankAccount/AddBankAccountDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-interface BankAccountImporterProps {
-  bankAccounts?: BankAccounts;
-}
-export const BankAccountImporter = ({
-  bankAccounts: initialBankAccounts = [],
-}: BankAccountImporterProps) => {
-  // By default show bank accounts for the current company unless overridden by props
-  const [bankAccounts, setBankAccounts] =
-    useState<BankAccounts>(initialBankAccounts);
+export const BankAccountImporter = () => {
+  // States
+  const [companyBankAccounts, setCompanyBankAccounts] = useState<
+    BankAccountWithMeta[] | null
+  >();
   const [selectedBankAccount, setSelectedBankAccount] =
-    useState<BankAccount | null>(null);
+    useState<BankAccountWithMeta | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  //   const fetchBankAccounts = async (companyId: string) => {
-  //     const response = await getBankAccounts(companyId);
-  //     if (response.success) {
-  //       setBankAccounts(response.data.bankAccounts);
-  //     } else {
-  //       console.error("Failed to fetch bank accounts:", response);
-  //       setError("Failed to fetch bank accounts. Please try again later.");
-  //     }
-  //   };
+  // Hooks
+  const { companyId } = useCompany();
+  const isMobile = useIsMobile();
+  const fetchBankAccounts = async (companyId: string) => {
+    try {
+      const res = await getBankAccountsForCompany(companyId);
 
+      if (!res.success) {
+        toast.error(res.message || "Failed to fetch bank accounts");
+      }
+      setCompanyBankAccounts(res.data);
+    } catch (error) {
+      toast.error("Failed to fetch bank accounts");
+    }
+  };
+
+  const onNewBankAccount = (newAccount?: BankAccountWithMeta) => {
+    newAccount &&
+      setCompanyBankAccounts((prev) =>
+        prev ? [...prev, newAccount] : [newAccount]
+      );
+
+    setSelectedBankAccount(newAccount ?? null);
+    setDialogOpen(false);
+    if (companyId) {
+      fetchBankAccounts(companyId); // re-fetch for consistency
+    }
+  };
+
+  useEffect(() => {
+    if (!companyId) {
+      return;
+    }
+    fetchBankAccounts(companyId);
+  }, [companyId]);
   return (
     <>
       <div className="w-full max-w-4xl mx-auto rounded-lg overflow-hidden shadow-md p-6">
         <div className="grid grid-cols-2 grid-rows-[auto_1fr] ">
           <div className="">
-            <FormField
-              //   id="industry"
-              //   label="Industry"
-              //   error={errors.industry?.message}
-              //   helpTooltip={TOOLTIP.industry || ""}
-              className="w-full"
-              //   required
-            >
+            <FormField className="w-full">
               <AutocompleteDropdown
                 id="bank-account"
-                items={bankAccounts || []}
+                drawerTitle="Select Bank Account"
+                items={companyBankAccounts || []}
                 mapItem={(item) => ({
                   value: item.id,
-                  label: item.displayName,
+                  label: `${item.displayName} ${maskDigits(
+                    item.accountNumber
+                  )} (${item.currencyCode})`,
                 })}
-                // onValueChange={(value) => {
-                //   setSelectedBankAccount(value);
-                // }}
+                value={selectedBankAccount?.id || ""}
+                onValueChange={(id) => {
+                  const found =
+                    companyBankAccounts?.find((acc) => acc.id === id) ?? null;
+                  setSelectedBankAccount(found);
+                }}
+                groupBy={isMobile ? "" : "bankName"}
                 actionItems={[
                   {
                     id: "add-new",
                     label: "Add New Bank Account",
-                    icon: <Plus className="mr-2 h-4 w-4" />,
+                    icon: <Plus />,
                   },
                 ]}
-                // onAction={(actionId) => {
-                //   if (actionId === "add-new") {
-                //     // Open your add bank account modal/form
-                //     openAddBankAccountModal();
-                //     // Optionally close the dropdown
-                //     // setOpen(false); // if you had access to setOpen
-                //   }
-                // }}
+                onAction={(actionId) => {
+                  if (actionId === "add-new") {
+                    setDialogOpen(true);
+                  }
+                }}
                 emptyStateMessage="No bank accounts found"
                 placeholder="Select a bank account..."
               />
@@ -80,9 +103,17 @@ export const BankAccountImporter = ({
               maxSize={2 * 1024 * 1024}
               maxFileCount={1}
               className=""
+              disabled={!selectedBankAccount}
             />
           </div>
         </div>
+        <AddBankAccountDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onSuccess={onNewBankAccount}
+          onCancel={() => setDialogOpen(false)}
+          overlayClassName="bg-black/85"
+        />
       </div>
     </>
   );

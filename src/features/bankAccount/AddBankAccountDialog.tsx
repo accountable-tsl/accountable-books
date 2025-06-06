@@ -18,6 +18,9 @@ export function AddBankAccountDialog({
   open,
   onOpenChange,
   onSuccess,
+  onCancel,
+  overlayClassName,
+  showHeader = false,
 }: AddBankAccountDialogProps) {
   const isMobile = useIsMobile();
   const handleSuccess = onSuccess ?? (() => onOpenChange(false));
@@ -26,10 +29,10 @@ export function AddBankAccountDialog({
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent>
-          <DrawerHeader>
+          <DrawerHeader className={showHeader ? "" : "sr-only"}>
             <DrawerTitle>Add Bank Account</DrawerTitle>
           </DrawerHeader>
-          <AddBankAccount onSuccess={onSuccess ?? handleSuccess} />
+          <AddBankAccount onSuccess={handleSuccess} onCancel={onCancel} />
         </DrawerContent>
       </Drawer>
     );
@@ -37,11 +40,11 @@ export function AddBankAccountDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent overlayClassName={overlayClassName}>
+        <DialogHeader className={showHeader ? "" : "sr-only"}>
           <DialogTitle>Add Bank Account</DialogTitle>
         </DialogHeader>
-        <AddBankAccount onSuccess={onSuccess ?? handleSuccess} />
+        <AddBankAccount onSuccess={handleSuccess} onCancel={onCancel} />
       </DialogContent>
     </Dialog>
   );

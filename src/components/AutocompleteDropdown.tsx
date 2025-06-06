@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -19,7 +18,6 @@ import {
 import { VariantProps } from "class-variance-authority";
 import {
   forwardRef,
-  HTMLAttributes,
   useCallback,
   useEffect,
   useMemo,
@@ -470,7 +468,7 @@ export const AutocompleteDropdown = forwardRef<
           {drawerTitle}
         </DrawerTitle>
         <DrawerDescription>{drawerDescription}</DrawerDescription>
-        <div className="max-h-[300px]">{dropdownContent}</div>
+        <div className="max-h-[300px] overflow-y-auto">{dropdownContent}</div>
       </DrawerContent>
     </Drawer>
   ) : (

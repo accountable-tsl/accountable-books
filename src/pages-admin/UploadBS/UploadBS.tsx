@@ -1,6 +1,5 @@
 import { CloudUpload, TableProperties } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
-import { routes } from "@/shared/routes/routes";
 import "./UploadBS.scss";
 import { useCompany } from "@/domains/company/store";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -29,10 +28,8 @@ import {
 } from "../../types/types";
 import { userId } from "../../utils/user";
 import { ColDef, ValueGetterParams } from "ag-grid-community";
-import { useNavigate } from "react-router-dom";
 import { getBankAccounts } from "@/domains/bankAccounts/services";
 import { postBankTransactions } from "@/shared/services/TransactionServices";
-import { FileUploader } from "@/components/FileUploader";
 import { BankAccountImporter } from "@/components/BankAccountImporter";
 import AddBankAccount from "@/features/bankAccount/AddBankAccount";
 
@@ -133,8 +130,6 @@ const defaultColDef = {
 
 export default function UploadBS() {
   const { companyId } = useCompany();
-
-  const navigate = useNavigate();
 
   // Step and State Management
   // currStep: 1 => Upload Screen, 2 => Review Screen
@@ -465,12 +460,16 @@ export default function UploadBS() {
                           value={selectedBankAccount?.id}
                         >
                           <option value="">--Select Bank--</option>
-                          {bankAccounts.map((bankAccount) => (
-                            <option key={bankAccount.id} value={bankAccount.id}>
-                              {bankAccount.displayName} (
-                              {bankAccount.bankAccountNo})
-                            </option>
-                          ))}
+                          {bankAccounts &&
+                            bankAccounts.map((bankAccount) => (
+                              <option
+                                key={bankAccount.id}
+                                value={bankAccount.id}
+                              >
+                                {bankAccount.displayName} (
+                                {bankAccount.bankAccountNo})
+                              </option>
+                            ))}
                         </select>
                       </div>
                       <div className="h-full flex items-center p-[0 0.5rem 0]">

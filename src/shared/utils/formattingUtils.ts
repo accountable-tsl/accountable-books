@@ -48,3 +48,83 @@ export function toTitleCase(
     })
     .join(joinWith);
 }
+
+/**
+ * Returns the last N chars of text, preceded by M asterisks.
+ * @param text The string to mask.
+ * @param finalCharsLength How many digits to show at the end (default 4).
+ * @param maskCount How many asterisks to prepend (default 3).
+ */
+export function maskDigits(
+  text: string,
+  finalCharsLength: number = 4,
+  maskCount: number = 3
+) {
+  if (!text) return "";
+  const final = text.slice(-finalCharsLength);
+  return `${"*".repeat(maskCount)}${final}`;
+}
+
+/**
+ * Formats a string (e.g., bank account number, identifier) for user-friendly display
+ * by showing just the start and end, hiding the middle, or just the end if specified.
+ *
+ * @param text - The full text to format (e.g., an account number).
+ * @param options - Formatting options:
+ *   - maxInitialLength: Number of initial characters to show (default: 4)
+ *   - finalCharsLength: Number of ending characters to show (default: 4)
+ *   - onlyLast: If true, show only the last N characters (finalCharsLength)
+ *   - separator: String to show in the middle (default: '... ')
+ *   - maskChar: Prefix for the final segment (default: '*')
+ *   - minHideLength: Minimum length of string before hiding is triggered (default: 10)
+ * @returns The formatted text for display.
+ *
+ * @example
+ *   formatAccountText('1234567890123456') // "1234... *3456"
+ *   formatAccountText('1234567890', { onlyLast: true }) // "*7890"
+ *   formatAccountText('1234567890', { maxInitialLength: 6, finalCharsLength: 2 }) // "123456... *90"
+ */
+export function formatAccountText(
+  text: string,
+  options?: {
+    maxInitialLength?: number;
+    finalCharsLength?: number;
+    onlyLast?: boolean;
+    separator?: string;
+    maskChar?: string;
+    minHideLength?: number;
+  }
+): string {
+  if (!text) return "";
+
+  const {
+    maxInitialLength = 4,
+    finalCharsLength = 4,
+    onlyLast = false,
+    separator = "... ",
+    maskChar = "*",
+    minHideLength = 10,
+  } = options || {};
+
+  if (onlyLast) {
+    const last = text.slice(-finalCharsLength);
+    return `${maskChar}${last}`;
+  }
+
+  if (
+    text.length <= minHideLength ||
+    text.length <= maxInitialLength + finalCharsLength
+  ) {
+    return text;
+  }
+
+  let initialText = text.slice(0, maxInitialLength);
+  let finalChars = text.slice(-finalCharsLength);
+
+  // Prevent overlap
+  while (initialText && finalChars && initialText.endsWith(finalChars[0])) {
+    initialText = initialText.slice(0, -1);
+  }
+
+  return `${initialText}${separator}${maskChar}${finalChars}`;
+}

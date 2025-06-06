@@ -11,6 +11,7 @@ import { Controller, useForm } from "react-hook-form";
 import {
   AddBankAccountProps,
   bankAccountType,
+  BankAccountWithMeta,
   NewBankAccountInput,
   newBankAccountInput,
 } from "./types";
@@ -30,6 +31,7 @@ import { toast } from "sonner";
 import { createNewBankAccount } from "./api";
 import { cn } from "@/lib/utils";
 import { SkeletonBlock } from "@/components/SkeletonBlock";
+import { CircleCheck } from "lucide-react";
 
 export default function AddBankAccount({
   onSuccess,
@@ -39,16 +41,15 @@ export default function AddBankAccount({
   const [selectedCountry, setSelectedCountry] = useState<
     CountryList | undefined
   >();
-  const [countryError, setCountryError] = useState("");
+  const [countryError, _setCountryError] = useState("");
+  const [createdAccount, setCreatedAccount] =
+    useState<BankAccountWithMeta | null>(null);
 
   // Hooks
   const { data: currenciesData, isLoading: isLoadingCurrencies } =
     useCurrencies();
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
-  const { data: bankData, isLoading: isLoadingBanks } = useBanks(
-    "countryId",
-    selectedCountry?.id
-  );
+  const { data: bankData } = useBanks("countryId", selectedCountry?.id);
   const { company } = useCompany();
 
   // Computed
@@ -96,16 +97,14 @@ export default function AddBankAccount({
         data,
       });
 
-      if (!res.success) {
+      if (!res.success || !res.data) {
         toast.error(res.message || "Failed to add bank account");
         return;
       }
 
-      console.log({ data: res.data, message: res.message });
-      // Show success feedback & reset form
+      setCreatedAccount(res.data);
       toast.success("Bank account added successfully");
       reset();
-      onSuccess?.(res.data);
     } catch (error) {
       toast.error("Failed to add bank account");
     }
@@ -139,6 +138,44 @@ export default function AddBankAccount({
   // Handle loading and error states
   if (!currenciesData?.success || !countriesData?.success) {
     return <ErrorPage type="default" />;
+  }
+
+  if (createdAccount) {
+    return (
+      <div className="flex flex-col gap-4 p-4 max-w-md justify-between">
+        <div className="text-green-600 flex flex-col items-center justify-center">
+          <CircleCheck size={50} />
+          <span className="text-lg font-semibold">🎉 Bank Account Added!</span>
+        </div>
+        <div className="rounded flex-1 border p-4 w-full bg-muted grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          <div className="">Account Name:</div>
+          <div className="font-semibold">{createdAccount.displayName}</div>
+          <div className="">Bank:</div>
+          <div>{createdAccount.bankName}</div>
+          <div className="">Currency:</div>
+          <div>{`${createdAccount.currencyCode} (${createdAccount.currencySymbol})`}</div>
+        </div>
+        <div className="flex gap-2 w-full justify-end my-4">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setCreatedAccount(null);
+              reset();
+            }}
+          >
+            Add Another
+          </Button>
+          <Button
+            onClick={() => {
+              setCreatedAccount(null);
+              onSuccess?.(createdAccount);
+            }}
+          >
+            Done
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -276,7 +313,10 @@ export default function AddBankAccount({
                       .filter((b) => ["checkings_current"].includes(b))
                       .map((b) => (
                         <SelectItem key={b} value={b}>
-                          {toTitleCase(b, { delimiter: "_", joinWith: " / " })}
+                          {toTitleCase(b, {
+                            delimiter: "_",
+                            joinWith: " / ",
+                          })}
                         </SelectItem>
                       ))}
                     {bankAccountType.options
