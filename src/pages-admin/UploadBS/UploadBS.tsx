@@ -28,13 +28,10 @@ import {
 } from "../../types/types";
 import { userId } from "../../utils/user";
 import { ColDef, ValueGetterParams } from "ag-grid-community";
-import { getBankAccounts } from "@/domains/bankAccounts/services";
 import { postBankTransactions } from "@/shared/services/TransactionServices";
-import {
-  BankAccountImporter,
-  BankTransactionImporter,
-} from "@/components/BankTransactionImporter";
-import AddBankAccount from "@/features/bankAccount/AddBankAccount";
+import { BankTransactionImporter } from "@/features/bankTransactions/BankTransactionImporter";
+import { getBankAccountsForCompany } from "@/features/bankAccount/api";
+import { toast } from "sonner";
 
 /**
  * Configuration & Constants
@@ -180,12 +177,15 @@ export default function UploadBS() {
    */
 
   const fetchBankAccounts = async (companyId: string) => {
-    const response = await getBankAccounts(companyId);
-    if (response.success) {
-      setBankAccounts(response.data.bankAccounts);
-    } else {
-      console.error("Failed to fetch bank accounts:", response);
-      setError("Failed to fetch bank accounts. Please try again later.");
+    try {
+      const res = await getBankAccountsForCompany(companyId);
+
+      if (!res.success) {
+        toast.error(res.message || "Failed to fetch bank accounts");
+      }
+      setBankAccounts(res.data);
+    } catch (error) {
+      toast.error("Failed to fetch bank accounts");
     }
   };
 
@@ -359,7 +359,7 @@ export default function UploadBS() {
 
   return (
     <>
-      <div className="uploadbs-">
+      <div className="uploadbs hidden">
         <Breadcrumb items={breadcrumbs} />
 
         <div className="rounded-md flex justify-center grow items-start">

@@ -1,4 +1,4 @@
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useQuery } from "@tanstack/react-query";
 import { checkSlug } from "./api";
 

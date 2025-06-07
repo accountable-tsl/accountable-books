@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
-import { usePasswordRules } from "@/hooks/usePasswordRules";
+import { usePasswordRules } from "@/shared/hooks/usePasswordRules";
 import { newUser, NewUser } from "../signupTypes";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -52,7 +52,7 @@ export const SignupBasicInfo = forwardRef<
     if (checkEmail) {
       try {
         const isValid = await checkEmail(email);
-        console.log(isValid)
+        console.log(isValid);
         if (isValid) clearErrors("email");
         return { isValid, error: null };
       } catch (error: any) {
@@ -79,7 +79,7 @@ export const SignupBasicInfo = forwardRef<
     },
   }));
 
-  console.log()
+  console.log();
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };

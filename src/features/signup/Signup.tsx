@@ -11,15 +11,15 @@ import { CompanyType, CountryList, zEmail } from "@/types/types";
 import { Button } from "@/components/ui/button";
 import { NewCompany, NewUser } from "./signupTypes";
 import { useSearchParams } from "react-router-dom";
-import { useCountries } from "@/hooks/useCountries";
+import { useCountries } from "@/shared/hooks/useCountries";
 import { getDefaultCurrencyCodeForCountry } from "@/constants/countryCurrencyMap";
-import { useCurrencies } from "@/hooks/useCurrencies";
+import { useCurrencies } from "@/shared/hooks/useCurrencies";
 import { SignupSelector } from "./steps/SignupSelector";
 import {
   SignupBasicInfo,
   SignupBasicInfoHandle,
 } from "./steps/SignupBasicInfo";
-import { useCheckEmail } from "@/hooks/useCheckEmail";
+import { useCheckEmail } from "@/shared/hooks/useCheckEmail";
 import {
   SignupCompanyInfo,
   SignupCompanyInfoHandle,

@@ -7,11 +7,11 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { newCompany, NewCompany, NewUser } from "../signupTypes";
-import { useIndustries } from "@/hooks/useIndustries";
+import { useIndustries } from "@/shared/hooks/useIndustries";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
-import { useCountries } from "@/hooks/useCountries";
-import { useCurrencies } from "@/hooks/useCurrencies";
+import { useCountries } from "@/shared/hooks/useCountries";
+import { useCurrencies } from "@/shared/hooks/useCurrencies";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField } from "@/components/FormField";

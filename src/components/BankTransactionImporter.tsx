@@ -1,4 +1,3 @@
-import { FileUploader } from "@/components/FileUploader";
 import { useEffect, useState } from "react";
 import { FormField } from "./FormField";
 import { AutocompleteDropdown } from "./AutocompleteDropdown";
@@ -7,11 +6,17 @@ import { toast } from "sonner";
 import { getBankAccountsForCompany } from "@/features/bankAccount/api";
 import { BankAccountWithMeta } from "@/features/bankAccount/types";
 import { useCompany } from "@/domains/company/store";
-import { formatAmount, maskDigits } from "@/shared/utils/formattingUtils";
+import { maskDigits } from "@/shared/utils/formattingUtils";
 import { AddBankAccountDialog } from "@/features/bankAccount/AddBankAccountDialog";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { FormattedAmount } from "./FormattedAmount";
+import { SpreadsheetImporter } from "./SpreadsheetImporter";
 
+interface UploadedFile {
+  file: File;
+  data: any[];
+  preview: any[];
+}
 export const BankTransactionImporter = () => {
   // States
   const [companyBankAccounts, setCompanyBankAccounts] = useState<
@@ -20,10 +25,16 @@ export const BankTransactionImporter = () => {
   const [selectedBankAccount, setSelectedBankAccount] =
     useState<BankAccountWithMeta | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-
+  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   // Hooks
   const { companyId } = useCompany();
   const isMobile = useIsMobile();
+
+  const fields = [{ label: "Date", value: "date", required: true }];
+  console.log(uploadedFile);
+  const handleParsedData = async (file: File) => {
+    setUploadedFile({ file: file, data: [], preview: [] });
+  };
   const fetchBankAccounts = async (companyId: string) => {
     try {
       const res = await getBankAccountsForCompany(companyId);
@@ -139,28 +150,11 @@ export const BankTransactionImporter = () => {
             )}
           </div>
           <div className="col-span-2">
-            <FileUploader
-              accept={{ "text/csv": [] }}
-              multiple={false}
-              maxSize={2 * 1024 * 1024}
-              maxFileCount={1}
-              className=""
-              disabled={!selectedBankAccount}
-              // Using this without uploading immediately
-              onValueChange={(files) => {
-                const file = files[0];
-                if (!file) return;
-              }}
-              // Alternatively, we could opt to upload the file immediately
-              // e.g
-              // onUpload={async (files) => {
-              //   const file = files[0];
-              //   if (!file) return;
-              //   await onUpload(files);
-
-              //   onParse({ file, limit: 1001 });
-              //   setStep("map");
-              // }}
+            <SpreadsheetImporter
+              fields={fields}
+              onParsed={handleParsedData}
+              accept={["csv"]}
+              uploaderDisabled={!selectedBankAccount}
             />
           </div>
         </div>

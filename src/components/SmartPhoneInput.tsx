@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { useCountries } from "@/hooks/useCountries";
+import { useCountries } from "@/shared/hooks/useCountries";
 import { CountryList } from "@/types/types";
 import {
   AlertCircle,

@@ -31,10 +31,10 @@ import {
 import { deleteObject, uploadObject } from "@/domains/objects/api";
 import { ImageUploader } from "@/domains/objects/ImageUploader";
 import { TOOLTIP } from "@/features/signup/signupConstants";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useCountries } from "@/hooks/useCountries";
-import { useCurrencies } from "@/hooks/useCurrencies";
-import { useIndustries } from "@/hooks/useIndustries";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useCountries } from "@/shared/hooks/useCountries";
+import { useCurrencies } from "@/shared/hooks/useCurrencies";
+import { useIndustries } from "@/shared/hooks/useIndustries";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";

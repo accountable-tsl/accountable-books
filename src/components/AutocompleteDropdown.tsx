@@ -16,14 +16,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { VariantProps } from "class-variance-authority";
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import {
   Drawer,
   DrawerContent,

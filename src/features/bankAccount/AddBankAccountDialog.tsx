@@ -1,4 +1,4 @@
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { AddBankAccountDialogProps } from "./types";
 import AddBankAccount from "@/features/bankAccount/AddBankAccount";
 import {

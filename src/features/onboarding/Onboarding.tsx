@@ -9,7 +9,7 @@ import { useCompany } from "@/domains/company/store";
 import { useAuth } from "../auth/hooks";
 import { OnboardingSidebar } from "./Sidebar";
 import { MockDashboard } from "../dashboard/MockDashboard";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { Sheet } from "@/components/ui/sheet";
 import { OnboardingHeader } from "./Header";
 import { HeadsetIcon, ScreenShareIcon } from "lucide-react";

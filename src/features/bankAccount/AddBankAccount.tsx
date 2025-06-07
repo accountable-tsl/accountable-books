@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { FormField } from "@/components/FormField";
 import { AutocompleteDropdown } from "../../components/AutocompleteDropdown";
-import { useCurrencies } from "@/hooks/useCurrencies";
-import { useCountries } from "@/hooks/useCountries";
+import { useCurrencies } from "@/shared/hooks/useCurrencies";
+import { useCountries } from "@/shared/hooks/useCountries";
 import ErrorPage from "../../components/ErrorPage";
 import { getDefaultCountryAndCurrency } from "@/shared/utils/randomUtils";
 import { companyType, CountryList } from "@/types/types";

@@ -10,8 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { FileTextIcon, UploadIcon, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useControllableState } from "@/hooks/useControllableState";
+import { useControllableState } from "@/shared/hooks/useControllableState";
 import { Image } from "@/components/ui/Image";
+import {
+  getSpreadsheetRowCount,
+  isSpreadsheetFile,
+} from "@/features/spreadsheets/utils";
+import { Card, CardContent } from "./ui/card";
 
 interface FileUploaderProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
@@ -88,6 +93,47 @@ interface FileUploaderProps extends React.HTMLAttributes<HTMLDivElement> {
    * @example disabled
    */
   disabled?: boolean;
+
+  /**
+   * Maximum number of rows if file is a CSV or other spreadsheet.
+   * @type number | undefined
+   * @default undefined
+   */
+  maxRows?: number;
+
+  /**
+   * Text to show the accepted file types.
+   * @type string | undefined
+   * @default undefined
+   */
+  acceptText?: string;
+
+  showFileCard?: boolean;
+
+  fileCardContainerClassName?: string;
+  fileCardClassName?: string;
+  fileCardContentClassName?: string;
+
+  className?: string;
+
+  /**
+   * Custom file card renderer.
+   * If provided, this will be used to render each file in the file list.
+   * @type (file: File, index: number, onRemove: () => void, progress?: number) => React.ReactNode
+   * @default undefined
+   * @example customFileCard={(file, index, onRemove, progress) => <MyCard file={file} onRemove={onRemove} progress={progress} />}
+   */
+  customFileCard?: (
+    file: File,
+    index: number,
+    onRemove: () => void,
+    progress?: number
+  ) => React.ReactNode;
+
+  fileCardExtra?: (file?: File, idx?: number) => React.ReactNode;
+  footer?: React.ReactNode;
+  header?: React.ReactNode;
+  summary?: (files: File[]) => React.ReactNode;
 }
 
 export function FileUploader(props: FileUploaderProps) {
@@ -101,9 +147,19 @@ export function FileUploader(props: FileUploaderProps) {
     },
     maxSize = 1024 * 1024 * 2,
     maxFileCount = 1,
+    maxRows,
     multiple = false,
     disabled = false,
     className,
+    acceptText,
+    showFileCard = true,
+    fileCardClassName,
+    fileCardContentClassName,
+    fileCardContainerClassName,
+    customFileCard,
+    fileCardExtra,
+    footer,
+    header,
     ...dropzoneProps
   } = props;
 
@@ -185,7 +241,13 @@ export function FileUploader(props: FileUploaderProps) {
   const isDisabled = disabled || (files?.length ?? 0) >= maxFileCount;
 
   return (
-    <div className="relative flex flex-col gap-6 overflow-hidden">
+    <div
+      className={cn(
+        "relative flex flex-col gap-6 overflow-hidden",
+        className ?? ""
+      )}
+    >
+      {header}
       <Dropzone
         onDrop={onDrop}
         accept={accept}
@@ -232,76 +294,151 @@ export function FileUploader(props: FileUploaderProps) {
                     Drag {`'n'`} drop files here, or click to select files
                   </p>
                   <p className="text-sm text-muted-foreground/70">
+                    {acceptText && `Allowed file types: ${acceptText}`}
+                    <br />
                     {maxFileCount > 1
                       ? `Upload up to ${maxFileCount} files (not exceeding ${formatBytes(
                           maxSize
                         )} each)`
                       : `Max file size: ${formatBytes(maxSize)}`}
+                    {maxRows && ` | Maximum rows: ${maxRows.toLocaleString()}.`}
                   </p>
+                  {maxRows && (
+                    <p className="text-sm text-muted-foreground/70"></p>
+                  )}
                 </div>
               </div>
             )}
           </div>
         )}
       </Dropzone>
-      {files?.length ? (
-        <ScrollArea className="h-fit w-full px-3">
-          <div className="flex max-h-48 flex-col gap-4">
-            {files?.map((file, index) => (
-              <FileCard
-                key={index}
-                file={file}
-                onRemove={() => onRemove(index)}
-                progress={progresses?.[file.name]}
-              />
-            ))}
+      {showFileCard && files?.length ? (
+        <ScrollArea className="h-fit w-full">
+          <div
+            className={cn("flex flex-col gap-4", fileCardContainerClassName)}
+          >
+            {files?.map((file, index) =>
+              customFileCard ? (
+                <React.Fragment key={`${file.name}-${file.size}-${index}`}>
+                  {customFileCard(
+                    file,
+                    index,
+                    () => onRemove(index),
+                    progresses?.[file.name]
+                  )}
+                </React.Fragment>
+              ) : (
+                <FileCard
+                  key={`${file.name}-${file.size}-${index}`}
+                  file={file}
+                  onRemove={() => onRemove(index)}
+                  progress={progresses?.[file.name]}
+                  className={fileCardClassName}
+                  contentClassName={fileCardContentClassName}
+                >
+                  {props.fileCardExtra?.(file, index)}
+                </FileCard>
+              )
+            )}
           </div>
         </ScrollArea>
       ) : null}
+      {footer}
     </div>
   );
 }
 
-interface FileCardProps {
+export interface FileCardProps {
   file: File;
   onRemove: () => void;
   progress?: number;
+  className?: string;
+  children?: React.ReactNode;
+  contentClassName?: string;
 }
 
-function FileCard({ file, progress, onRemove }: FileCardProps) {
+function FileCard({
+  file,
+  progress,
+  onRemove,
+  className,
+  contentClassName,
+  children,
+}: FileCardProps) {
+  const [rowCount, setRowCount] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    if (isSpreadsheetFile(file)) {
+      getSpreadsheetRowCount(file)
+        .then((count) => {
+          if (!cancelled) {
+            setRowCount(count);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setRowCount(null);
+          }
+        });
+    } else {
+      setRowCount(null);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
   return (
-    <div className="relative flex items-center gap-2.5">
-      <div className="flex flex-1 gap-2.5">
-        {isFileWithPreview(file) ? <FilePreview file={file} /> : null}
-        <div className="flex w-full flex-col gap-2">
-          <div className="flex flex-col gap-px">
-            <p className="line-clamp-1 text-sm font-medium text-foreground/80">
-              {file.name}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {formatBytes(file.size)}
-            </p>
+    <Card className={cn("rounded-md", className ?? "")}>
+      <CardContent className={cn("relative", contentClassName ?? "")}>
+        <div className="relative flex items-center gap-2.5">
+          <div className="flex flex-1 gap-2.5">
+            {isFileWithPreview(file) ? <FilePreview file={file} /> : null}
+            <div className="flex w-full flex-col gap-2">
+              <div className="flex flex-col gap-px">
+                <p className="line-clamp-1 text-sm font-medium text-foreground/80">
+                  {file.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatBytes(file.size)}
+                  {rowCount !== null && (
+                    <>
+                      <span className="mx-1">•</span>
+                      <span>
+                        {rowCount.toLocaleString()} row
+                        {rowCount === 1 ? "" : "s"}
+                      </span>
+                    </>
+                  )}
+                </p>
+              </div>
+              {progress ? <Progress value={progress} /> : null}
+            </div>
           </div>
-          {progress ? <Progress value={progress} /> : null}
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-7"
+              onClick={onRemove}
+            >
+              <X className="size-4" aria-hidden="true" />
+              <span className="sr-only">Remove file</span>
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="size-7"
-          onClick={onRemove}
-        >
-          <X className="size-4" aria-hidden="true" />
-          <span className="sr-only">Remove file</span>
-        </Button>
-      </div>
-    </div>
+        {children && <>{children}</>}
+      </CardContent>
+    </Card>
   );
 }
 
-function isFileWithPreview(file: File): file is File & { preview: string } {
+export function isFileWithPreview(
+  file: File
+): file is File & { preview: string } {
   return "preview" in file && typeof file.preview === "string";
 }
 
@@ -309,7 +446,7 @@ interface FilePreviewProps {
   file: File & { preview: string };
 }
 
-function FilePreview({ file }: FilePreviewProps) {
+export function FilePreview({ file }: FilePreviewProps) {
   if (file.type.startsWith("image/")) {
     return (
       <Image
