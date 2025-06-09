@@ -115,6 +115,7 @@ interface FileUploaderProps extends React.HTMLAttributes<HTMLDivElement> {
   fileCardContentClassName?: string;
 
   className?: string;
+  uploaderClassName?: string;
 
   /**
    * Custom file card renderer.
@@ -151,6 +152,7 @@ export function FileUploader(props: FileUploaderProps) {
     multiple = false,
     disabled = false,
     className,
+    uploaderClassName,
     acceptText,
     showFileCard = true,
     fileCardClassName,
@@ -243,7 +245,7 @@ export function FileUploader(props: FileUploaderProps) {
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-6 overflow-hidden",
+        "relative flex flex-col h-full gap-6 justify-center",
         className ?? ""
       )}
     >
@@ -264,7 +266,7 @@ export function FileUploader(props: FileUploaderProps) {
               "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               isDragActive && "border-muted-foreground/50",
               isDisabled && "pointer-events-none opacity-60",
-              className
+              uploaderClassName
             )}
             {...dropzoneProps}
           >
@@ -391,8 +393,8 @@ function FileCard({
     };
   }, [file]);
   return (
-    <Card className={cn("rounded-md", className ?? "")}>
-      <CardContent className={cn("relative", contentClassName ?? "")}>
+    <Card className={cn("rounded-md py-4", className ?? "")}>
+      <CardContent className={cn("relative px-4", contentClassName ?? "")}>
         <div className="relative flex items-center gap-2.5">
           <div className="flex flex-1 gap-2.5">
             {isFileWithPreview(file) ? <FilePreview file={file} /> : null}
@@ -430,7 +432,14 @@ function FileCard({
             </Button>
           </div>
         </div>
-        {children && <>{children}</>}
+
+        {children && (
+          <>
+            <hr className="my-1" />
+
+            {children}
+          </>
+        )}
       </CardContent>
     </Card>
   );

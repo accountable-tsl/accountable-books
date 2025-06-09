@@ -27,7 +27,10 @@ export function isSpreadsheetFile(file: File) {
 export const countCsvRows = async (file: File) => {
   try {
     const text = await file.text();
-    const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
+    const lines = text.split(/\r?\n/).filter((line) => {
+      const values = line.split(",");
+      return values.some((v) => v.trim() !== "");
+    });
     return lines.length;
   } catch {
     return 0;
@@ -40,7 +43,17 @@ const countExcelRows = async (file: File) => {
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // array of arrays
-    return data.length;
+
+    const nonEmptyRows = data.filter((row) =>
+      Array.isArray(row)
+        ? row.some(
+            (cell) =>
+              cell !== null && cell !== undefined && String(cell).trim() !== ""
+          )
+        : false
+    );
+
+    return nonEmptyRows.length;
   } catch {
     return 0;
   }
@@ -175,6 +188,12 @@ export function parseCsvFile({
           });
         }
 
+        // ✅ Skip fully empty rows (all null, undefined, or empty string)
+        const isCompletelyEmpty = Object.values(results.data).every(
+          (v) => v === null || v === undefined || v === ""
+        );
+        if (isCompletelyEmpty) return;
+
         // Store row if data is present and not empty
         if (results.data && Object.keys(results.data).length > 0) {
           allData.push(results.data);
@@ -233,6 +252,7 @@ export function parseCsvFile({
           error,
           rawErrors,
           rowErrors,
+          isValid: !error && allData.length > 0,
         });
       },
       error: (err, fileObj) => {
@@ -246,6 +266,7 @@ export function parseCsvFile({
           error: err.message,
           rawErrors: [err],
           rowErrors: {},
+          isValid: false,
         });
       },
     });
@@ -452,7 +473,7 @@ export const normalizeRow = (
 export const getDisplayFields = ({
   fields,
   parsedHeaders,
-  showAllFields,
+  showAllFields = false,
 }: {
   fields: SpreadsheetImporterField[];
   parsedHeaders: string[] | undefined;

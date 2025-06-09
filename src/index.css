@@ -121,11 +121,13 @@
 
 @layer utilities {
   .scrollbar-thin-2px::-webkit-scrollbar {
-    width: 2px !important;
+    height: 2px;
+    width: 2px;
+    background: transparent;
   }
 
   .scrollbar-thin-2px::-webkit-scrollbar-thumb {
-    background-color: var(--muted-foreground);
+    background-color: var(--muted-foreground, #d1d5db);
     border-radius: 1px;
   }
 }

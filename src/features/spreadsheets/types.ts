@@ -12,6 +12,9 @@ export interface SpreadsheetImporterField {
     index?: number,
     options?: any
   ) => React.ReactNode;
+
+  align?: "left" | "center" | "right";
+  width?: string;
 }
 
 export type SpreadsheetAcceptType = "csv" | "xls" | "xlsx";
@@ -153,6 +156,8 @@ export interface ParsedCsvResult {
   rowErrors?: { [row: number]: string[] };
 
   duplicateHeaders?: string[];
+
+  isValid?: boolean;
 }
 
 export interface ParseCsvOptions {

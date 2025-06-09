@@ -1,4 +1,4 @@
-import { CloudUpload, TableProperties } from "lucide-react";
+import { CircleCheck, CloudUpload, TableProperties, X } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./UploadBS.scss";
 import { useCompany } from "@/domains/company/store";
@@ -368,27 +368,25 @@ export default function UploadBS() {
               currStep === 2 ? "uploadbs-container__2" : ""
             }`}
           >
-            <div className="uploadbs-header">
-              <FontAwesomeIcon icon={faX} className="uploadbs-cancel" />
-              <div className="uploadbs-progress">
+            <div className="flex flex-col gap-8">
+              <X className="text-destructive self-end" />
+              <div className="flex justify-between items-center gap-2 w-7/12 self-center">
                 <div
                   className={`uploadbs-progress__upload ${
-                    currStep === 2 ? "uploadbs-progress__upload-done" : ""
+                    currStep === 2 ? "text-muted-foreground" : ""
                   }`}
                 >
-                  <FontAwesomeIcon
-                    icon={faCircleCheck}
-                    className={`uploadbs-progress__icon ${
-                      currStep === 2 ? "uploadbs-progress__icon-done" : ""
+                  <CircleCheck
+                    className={`pr-1 ${
+                      currStep === 2 ? "text-muted-foreground" : ""
                     }`}
                   />
                   Upload
                 </div>
                 <hr className="uploadbs-line" />
                 <div className="uploadbs-progress__review">
-                  <FontAwesomeIcon
-                    icon={faCircleCheck}
-                    className="uploadbs-progress__icon"
+                  <CircleCheck
+                    className="pr-1"
                   />
                   Review
                 </div>

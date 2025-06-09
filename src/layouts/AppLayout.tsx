@@ -67,7 +67,9 @@ export default function AppLayout({
       <AppSidebar sidebarCollapsible={sidebarCollapsible} />
       <SidebarInset className="flex flex-col h-dvh overflow-hidden">
         <AppHeader />
-        <div className="overflow-y-auto overflow-x-hidden flex-1 min-h-0 scrollbar-thin-2px">
+
+        <div className="flex-1 min-h-0">
+          {/* overflow-y-auto overflow-x-hidden scrollbar-thin-2px */}
           <Outlet />
         </div>
       </SidebarInset>

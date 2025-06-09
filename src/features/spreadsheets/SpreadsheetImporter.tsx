@@ -22,6 +22,7 @@ import {
   validateHeaders as validateFileHeaders,
 } from "@/features/spreadsheets/utils";
 import { FILE_TYPE_MAP } from "@/features/spreadsheets/constants";
+import { SkeletonBlock } from "@/components/SkeletonBlock";
 
 export const SpreadsheetImporter = ({
   fields,
@@ -46,6 +47,7 @@ export const SpreadsheetImporter = ({
   requireAllExpectedHeaders = false,
   rejectUnexpectedColumns = false,
   showAllFields = false,
+  ...props
 }: SpreadsheetImporterProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const [parsedResults, setParsedResults] = useState<ParsedCsvResult[]>([]);
@@ -100,6 +102,7 @@ export const SpreadsheetImporter = ({
             preview: [],
             rowCount: 0,
             error: validationError,
+            isValid: false,
           });
           continue;
         }
@@ -131,6 +134,7 @@ export const SpreadsheetImporter = ({
             // Add validation results to the parsed result
             result.error = error || undefined;
             result.warning = warning || undefined;
+            result.isValid = isValid;
             if (unexpectedColumns?.length) {
               result.unexpectedColumns = unexpectedColumns;
             }
@@ -155,6 +159,7 @@ export const SpreadsheetImporter = ({
             preview: [],
             rowCount: 0,
             error: err instanceof Error ? err.message : String(err),
+            isValid: false,
           });
         }
       }
@@ -177,9 +182,7 @@ export const SpreadsheetImporter = ({
 
   // Send results to parent when they're ready
   useEffect(() => {
-    if (parsedResults.length > 0) {
-      onParsed(parsedResults);
-    }
+    onParsed(parsedResults);
   }, [parsedResults, onParsed]);
 
   // Handle server upload (separate from parsing)
@@ -208,6 +211,8 @@ export const SpreadsheetImporter = ({
           result.file.name === file.name && result.file.size === file.size
       );
 
+      if (isProcessing || !parsed) return <SkeletonBlock />;
+
       if (!parsed) return null;
 
       return (
@@ -228,16 +233,16 @@ export const SpreadsheetImporter = ({
       multiple={uploadMultiple}
       maxSize={maxSizeInBytes}
       maxFileCount={effectiveMaxFileCount}
-      className={uploaderClassName ?? ""}
+      uploaderClassName={uploaderClassName ?? ""}
       disabled={uploaderDisabled}
       value={files}
       onValueChange={setFiles}
       onUpload={onServerUpload ? handleServerUpload : undefined}
       fileCardExtra={getFileCardExtra}
+      fileCardClassName="border-0 rounded-none border-t border-foreground/20"
+      {...props}
     />
   );
-
-  console.log("Files in importer:", files);
 
   if (useDialog) {
     return (
@@ -279,11 +284,11 @@ export const CustomFileCard = ({
   // Error: Show only error & nothing else
   if (parsedResult.error) {
     return (
-      <div>
-        <div className="text-red-600 font-bold mb-2">{parsedResult.error}</div>
+      <div className="flex flex-col gap-2">
+        <div className="text-destructive font-bold">{parsedResult.error}</div>
         {parsedResult.duplicateHeaders &&
           parsedResult.duplicateHeaders?.length > 0 && (
-            <div className="text-red-500">
+            <div className="text-destructive">
               Duplicate columns: {parsedResult.duplicateHeaders.join(", ")}
             </div>
           )}
@@ -309,20 +314,28 @@ export const CustomFileCard = ({
   }
 
   return (
-    <div>
-      {/* Show warning/info if present */}
-      {parsedResult.warning && (
-        <div className="text-yellow-700 mb-2">{parsedResult.warning}</div>
-      )}
-      {parsedResult.unexpectedColumns &&
-        parsedResult.unexpectedColumns?.length > 0 && (
-          <div className="text-blue-700 mb-2">
-            Unexpected columns: {parsedResult.unexpectedColumns.join(", ")}
+    <div className="flex flex-col gap-2">
+      <div>
+        {/* Show warning/info if present */}
+        {parsedResult.warning && (
+          <div className="text-muted-foreground text-[15px]">
+            {parsedResult.warning}
           </div>
         )}
+        {parsedResult.unexpectedColumns &&
+          parsedResult.unexpectedColumns?.length > 0 && (
+            <div className="text-blue-500 text-sm">
+              Unexpected columns: {parsedResult.unexpectedColumns.join(", ")}
+            </div>
+          )}
+      </div>
       <div>
         <p className="text-sm font-medium mb-2">
-          {`Preview (first ${parsedResult.preview.length} rows)`}
+          {`Preview (${
+            parsedResult.preview.length === 1
+              ? "Only 1 row available"
+              : `first ${parsedResult.preview.length} rows`
+          })`}
         </p>
         <div className="border rounded overflow-hidden">
           <table className="w-full text-sm">
@@ -331,7 +344,7 @@ export const CustomFileCard = ({
                 {displayFields.map((f) => (
                   <th
                     key={f.value}
-                    className={`p-2 font-medium ${f.className ?? ""}`}
+                    className={`p-2 font-medium text-left ${f.className ?? ""}`}
                   >
                     {f.label}
                   </th>
