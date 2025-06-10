@@ -16,8 +16,8 @@ const prisma = new PrismaClient();
 export interface BankTransaction {
   id?: string;
   date: Date | string;
-  description?: string | null;
   amount: Decimal;
+  description?: string | null;
   payee?: string | null;
   reference?: string | null;
   transactionSide?: DebitCredit | null;
@@ -145,36 +145,6 @@ export async function postBankTransactions(
       }
 
       //5. Write batch and transactions to database
-      // const bankTransactionBatch = await prisma.bankTransactionBatch.create({
-      //   data: {
-      //     startDate,
-      //     endDate,
-      //     balanceBefore,
-      //     balanceAfter,
-      //     source,
-      //     bankAccount: { connect: { id: String(bankAccountId) } },
-      //     createdBy: { connect: { id: String(createdById) } },
-      //     updatedBy: { connect: { id: String(createdById) } },
-      //     bankTransactions: {
-      //       create: preparedTransactions.map((transaction) => ({
-      //         date: transaction.date,
-      //         payee: transaction.payee || null,
-      //         reference: transaction.reference || null,
-      //         description: transaction.description || null,
-      //         amount: transaction.amount,
-      //         systemExchangeRate: transaction.systemExchangeRate,
-      //         absoluteAmount: transaction.absoluteAmount,
-      //         bankAccount: { connect: { id: String(bankAccountId) } },
-      //         createdBy: { connect: { id: String(createdById) } },
-      //         updatedBy: { connect: { id: String(createdById) } },
-      //         transactionSide:
-      //           transaction.amount < new Decimal(0)
-      //             ? DebitCredit.CREDIT
-      //             : DebitCredit.DEBIT,
-      //       })),
-      //     },
-      //   },
-      // });
 
       const [bankTransactionBatch] = await trx("BankTransactionBatch")
         .insert({

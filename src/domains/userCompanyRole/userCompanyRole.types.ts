@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dbBaseFields } from "../../core/validation/schemas";
+import { dbBaseFields } from "../../core/types/core";
 
 export const newUserCompanyRole = z.object({
   user_id: z.string().uuid(),

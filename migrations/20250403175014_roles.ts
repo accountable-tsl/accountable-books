@@ -8,7 +8,7 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from "../src/utils/db";
-import { NewRoleInput, roleName } from "../src/core/types/db.type";
+import { NewRoleInput, roleName } from "../src/core/types/db.types";
 import { NODE_ENV } from "../src/config/env";
 
 const __filename = fileURLToPath(import.meta.url);

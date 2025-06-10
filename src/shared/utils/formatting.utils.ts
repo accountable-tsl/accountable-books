@@ -5,6 +5,8 @@
  * Useful for preparing objects before inserting into snake_case databases.
  */
 
+import { z } from "zod";
+
 export function camelToSnake<T>(input: T): T {
   if (!input || typeof input !== "object" || input instanceof Date)
     return input;
@@ -110,3 +112,7 @@ export type SnakeToCamelCaseObject<T> = {
     ? SnakeToCamelCase<K>
     : K]: T[K] extends object ? SnakeToCamelCaseObject<T[K]> : T[K];
 };
+
+export function createCamelCaseSchema<T extends z.ZodTypeAny>(snakeSchema: T) {
+  return z.preprocess(camelToSnake, snakeSchema);
+}

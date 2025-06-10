@@ -19,83 +19,84 @@ import {
 
 export const seedBankAccounts = async (bankAccountCreationData: {
   companyType: CompanyType;
-  companyId?: string;
+  company?: any;
   userId?: string;
   data?: NewBankAccountInput[];
 }) => {
   const {
     companyType,
-    companyId,
+    company: companyInput,
     userId: userIdInput,
     data,
   } = bankAccountCreationData;
 
-  // Get all demo companies
-  const demoCompanies = await getCompanies({
-    filters: {
-      isDemoCompany: true,
-    },
-  });
+  let company = companyInput;
+  let userId = userIdInput || "";
 
   if (
-    !demoCompanies.success ||
-    !demoCompanies.data ||
-    demoCompanies.data?.length === 0
+    !companyInput ||
+    !companyInput.reportingCurrencyId ||
+    !companyInput.id ||
+    !companyInput.countryId
   ) {
-    throw new Error("No demo companies found");
+    // Get all demo companies
+    const demoCompanies = await getCompanies({
+      filters: {
+        isDemoCompany: true,
+      },
+    });
+
+    if (
+      !demoCompanies.success ||
+      !demoCompanies.data ||
+      demoCompanies.data?.length === 0
+    ) {
+      throw new Error("No demo companies found");
+    }
+
+    const demoCompany = demoCompanies.data.find(
+      (company) => company.companyType === companyType
+    );
+
+    if (!demoCompany) {
+      throw new Error("No demo company found");
+    }
+    //  id = demoCompany.reportingCurrencyId
+    company = demoCompany;
+    userId = demoCompany.createdById;
   }
-
-  const demoCompany = demoCompanies.data.find(
-    (company) => company.companyType === companyType
-  );
-
-  if (!demoCompany) {
-    throw new Error("No demo company found");
-  }
-
-  const userId = userIdInput || demoCompany?.createdById;
 
   if (!userId) {
     throw new Error("No user id found");
   }
 
-  const localBankAccount = generateFakeBankAccount({
-    currency: demoCompany.reportingCurrencyCode,
-    country: demoCompany.countryCode || "US",
-  });
+  const companyId = company.id;
+  const reportingCurrencyId = company.reportingCurrencyId;
+  const countryId = company.countryId;
 
-  const USDBankAccount = generateFakeBankAccount({
-    currency: "USD",
-    country: "US",
-  });
+  const bankData =
+    data ||
+    generateDemoBankAccounts({
+      currency: reportingCurrencyId,
+      country: countryId,
+      companyType,
+    });
 
-  const EURBankAccount = generateFakeBankAccount({
-    currency: "EUR",
-    country: "DE",
-  });
-
-  const GBPBankAccount = generateFakeBankAccount({
-    currency: "GBP",
-    country: "GB",
-  });
-
-  const bankData = data || [
-    localBankAccount,
-    USDBankAccount,
-    EURBankAccount,
-    GBPBankAccount,
-  ];
+  // console.log(bankData);
+  if (!bankData || bankData.length === 0) {
+    throw new Error("No bank account data to process");
+  }
 
   return await knexClient.transaction(async (trx) => {
     const results = await Promise.all(
       bankData.map(async (bank) => {
         const result = await createNewBankAccount({
-          companyId: demoCompany.id,
+          companyId,
           userId,
           data: bank,
-          trx,
         });
 
+        console.log(result);
         // Check if individual creation failed
         if (!result.success) {
           throw new Error(`Failed to create bank account: ${result.message}`);
@@ -113,46 +114,176 @@ export const seedBankAccounts = async (bankAccountCreationData: {
   });
 };
 
-export const generateFakeBankAccount = ({
+export const generateDemoBankAccounts = ({
   currency,
   country,
-  source = coaSource.enum.system,
+  companyType,
 }: {
   currency: string;
   country: string;
-  source?: CoaSource;
-}): NewBankAccountInput => {
+  companyType: CompanyType;
+}): NewBankAccountInput[] => {
+  // Generate two local bank accounts (in their company reporting currency)
+  // One in a currency that's not their company reporting currency
+  // One account in a different country
+  // Random: Any currency, any country
+
   const resolvedCurrency = resolveCurrency(currency);
   const resolvedCountry = resolveCountry(country);
 
-  if (!resolvedCurrency) {
-    throw new Error(`Currency not found: ${currency}`);
-  }
+  if (!resolvedCurrency) throw new Error(`Currency not found: ${currency}`);
+  if (!resolvedCountry) throw new Error(`Country not found: ${country}`);
 
-  if (!resolvedCountry) {
-    throw new Error(`Country not found: ${country}`);
-  }
+  const namePool =
+    companyType === "individual"
+      ? [
+          "Personal Account",
+          "Savings",
+          "Emergency Fund",
+          "Salary Account",
+          "Bills Account",
+          "Rent Account",
+          "Groceries",
+          "Travel Fund",
+          "Investment Account",
+          "Daily Spending",
+        ]
+      : [
+          "Main Account",
+          "Operating Account",
+          "Petty Cash",
+          "Reserve Fund",
+          "Online Sales",
+          "Marketing Budget",
+          "Payroll Account",
+          "Tax Reserve",
+          "Equipment Fund",
+          "Client Deposits",
+        ];
+  if (namePool.length < 5)
+    throw new Error("Name pool must have at least 5 entries");
 
-  const countryBanks = banksInSystem.filter(
-    (b) => b.country_id === resolvedCountry.id
+  // Shuffle and pick 5 unique names
+  const shuffledNames = faker.helpers.shuffle(namePool).slice(0, 5);
+
+  const ALLOWED_DEMO_COUNTRY_CODES = ["US", "NG", "GB", "FR", "DE"];
+  // Filter all countries and banks to only allowed demo countries
+  const allowedCountries = countriesInSystem.filter((c) =>
+    ALLOWED_DEMO_COUNTRY_CODES.includes(c.code)
+  );
+  const allowedCountryIds = new Set(allowedCountries.map((c) => c.id));
+
+  // Local banks in user's country
+  // Only allowed local banks
+  const localBanks = banksInSystem.filter(
+    (b) =>
+      b.country_id === resolvedCountry.id && allowedCountryIds.has(b.country_id)
   );
 
-  if (countryBanks.length === 0) {
+  if (localBanks.length === 0)
     throw new Error(`No banks found for country: ${resolvedCountry.name}`);
-  }
 
-  const randomBank = faker.helpers.arrayElement(countryBanks);
-  const randomAccountType = faker.helpers.arrayElement(bankAccountType.options);
+  // Other allowed countries (excluding the input one)
+  const otherCountries = allowedCountries.filter(
+    (c) => c.id !== resolvedCountry.id
+  );
+  if (otherCountries.length === 0)
+    throw new Error(`No other countries available`);
 
-  return {
-    displayName: faker.finance.accountName(),
+  // All other currencies
+  const otherCurrencies = currenciesInSystem.filter(
+    (c) => c.id !== resolvedCurrency.id
+  );
+  if (otherCurrencies.length === 0)
+    throw new Error(`No other currencies available`);
+
+  // --- 1. Two local accounts in company reporting currency ---
+  const localBank1 = faker.helpers.arrayElement(localBanks);
+  const filteredLocalBanks =
+    localBanks.length > 1
+      ? localBanks.filter((b) => b.id !== localBank1.id)
+      : localBanks;
+  const localBank2 = faker.helpers.arrayElement(filteredLocalBanks);
+
+  const localAccounts: NewBankAccountInput[] = [
+    {
+      displayName: shuffledNames[0],
+      accountType: faker.helpers.arrayElement(bankAccountType.options),
+      accountNumber: faker.finance.accountNumber(10),
+      bankId: localBank1.id,
+      currencyId: resolvedCurrency.id,
+      source: coaSource.enum.system,
+    },
+    {
+      displayName: shuffledNames[1],
+      accountType: faker.helpers.arrayElement(bankAccountType.options),
+      accountNumber: faker.finance.accountNumber(10),
+      bankId: localBank2.id,
+      currencyId: resolvedCurrency.id,
+      source: coaSource.enum.system,
+    },
+  ];
+
+  // --- 2. One local account in a different currency ---
+  const otherCurrency = faker.helpers.arrayElement(otherCurrencies);
+  const localOtherCurrencyAccount: NewBankAccountInput = {
+    displayName: shuffledNames[2],
+    accountType: faker.helpers.arrayElement(bankAccountType.options),
     accountNumber: faker.finance.accountNumber(10),
-    // accountCode: `BA-${faker.string.alphanumeric(4).toUpperCase()}`,
-    currencyId: resolvedCurrency.id,
-    bankId: randomBank.id,
-    accountType: randomAccountType,
-    source,
+    bankId: faker.helpers.arrayElement(localBanks).id,
+    currencyId: otherCurrency.id,
+    source: coaSource.enum.system,
   };
+
+  // All allowed banks
+  const allowedBanksInSystem = banksInSystem.filter((b) =>
+    allowedCountryIds.has(b.country_id)
+  );
+  if (allowedBanksInSystem.length === 0)
+    throw new Error(`No allowed banks in system`);
+
+  // --- 3. One account in a different country (any currency) ---
+  // When selecting random bank or foreign bank, use allowedBanksInSystem
+  // For foreign account:
+  const foreignCountry = faker.helpers.arrayElement(otherCountries);
+  const foreignBanks = allowedBanksInSystem.filter(
+    (b) => b.country_id === foreignCountry.id
+  );
+  if (foreignBanks.length === 0)
+    throw new Error(
+      `No banks found for foreign country: ${foreignCountry.name}`
+    );
+  const foreignBank = faker.helpers.arrayElement(foreignBanks);
+  const foreignCurrency = faker.helpers.arrayElement(currenciesInSystem);
+
+  const foreignAccount: NewBankAccountInput = {
+    displayName: shuffledNames[3],
+    accountType: faker.helpers.arrayElement(bankAccountType.options),
+    accountNumber: faker.finance.accountNumber(10),
+    bankId: foreignBank.id,
+    currencyId: foreignCurrency.id,
+    source: coaSource.enum.system,
+  };
+
+  const randomBank = faker.helpers.arrayElement(allowedBanksInSystem);
+  const randomCurrency = faker.helpers.arrayElement(currenciesInSystem);
+
+  const randomAccount: NewBankAccountInput = {
+    displayName: shuffledNames[4],
+    accountType: faker.helpers.arrayElement(bankAccountType.options),
+    accountNumber: faker.finance.accountNumber(10),
+    bankId: randomBank.id,
+    currencyId: randomCurrency.id,
+    source: coaSource.enum.system,
+  };
+
+  // --- Return all 5 accounts ---
+  return [
+    ...localAccounts,
+    localOtherCurrencyAccount,
+    foreignAccount,
+    randomAccount,
+  ];
 };
 
 export function resolveCurrency(codeOrId: string) {

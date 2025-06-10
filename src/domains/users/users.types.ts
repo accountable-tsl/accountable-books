@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dbBaseFields, zDate, zEmail } from "../../core/validation/schemas";
+import { dbBaseFields, zDate, zEmail } from "../../core/types/core";
 import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
 
 // user

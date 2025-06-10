@@ -8,8 +8,12 @@ import { seedBankAccounts } from "../utils/seedBankAccounts";
 export async function seedDemo(config: DemoSeedConfig): Promise<void> {
   console.log(`Seeding ${config.companyType} demo`);
 
-  await createSeedCompanyAndUser(config);
-  await seedBankAccounts({ companyType: config.companyType });
+  const { user, company } = await createSeedCompanyAndUser(config);
+  await seedBankAccounts({
+    companyType: config.companyType,
+    company,
+    userId: user.id,
+  });
 }
 
 /** Seed all demos (serially by default, or in parallel with the flag). */

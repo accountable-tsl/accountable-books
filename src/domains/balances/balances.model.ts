@@ -8,21 +8,14 @@ import {
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { ApiResponse } from "../../core/types/api.types";
 import { fetchExchangeRate } from "../exchangeRates/exchangeRates.model";
-import { categorizationStatus } from "../../core/types/db.type";
-
-interface CoaBalance {
-  accountName: string;
-  reportingBalance: Decimal;
-  nativeBalance?: Decimal;
-}
-
-interface CoaBalanceOptions {
-  onlyActive?: boolean;
-  coaIds?: string[]; // filter for specific COA accounts
-  accountTypeIdsOrKeys?: string[];
-  excludeAccountTypeIdsOrKeys?: string[];
-  includeSourceAmount?: boolean;
-}
+import { categorizationStatus } from "../../core/types/core";
+import type { Knex } from "knex";
+import {
+  CoaBalance,
+  CoaBalanceOptions,
+  BankBalance,
+  GetBankAccountBalancesOptions,
+} from "./balances.types";
 
 /**
  * Fetches balances for one or more COA (Chart of Accounts) accounts owned by a company.
@@ -176,9 +169,9 @@ export async function getCompanyCoaBalances(
 
       balanceMap[result.coaId] = {
         accountName: result.accountName || "Unknown Account",
-        reportingBalance: new Decimal(result.reportingBalance ?? 0),
+        reportingBalance: Number(result.reportingBalance) ?? 0,
         nativeBalance: includeSourceAmount
-          ? new Decimal(result.nativeBalance ?? 0)
+          ? Number(result.nativeBalance ?? 0)
           : undefined,
       };
     }
@@ -198,19 +191,6 @@ export async function getCompanyBankLedgerBalances(
   });
 }
 
-interface BankBalance {
-  reportingBalance: Decimal;
-  nativeBalance: Decimal;
-  transactionCount?: number;
-  categorizedCount?: number;
-  uncategorizedCount?: number;
-  autoCategorizedCount?: number;
-}
-
-interface GetBankAccountBalancesOptions {
-  includeStats?: boolean;
-}
-
 /**
  * Returns balances for each active bank account in a company.
  *
@@ -224,6 +204,7 @@ interface GetBankAccountBalancesOptions {
  * @returns A map of bank account IDs to their balances
  */
 export async function getBankAccountBalances(
+  knex: Knex.Transaction,
   companyId: string,
   options: GetBankAccountBalancesOptions = {}
 ): Promise<ApiResponse<Record<string, BankBalance>>> {
@@ -232,15 +213,15 @@ export async function getBankAccountBalances(
   }
 
   try {
-    const companyUUID = getCompanyUUID(companyId);
+    const companyUUID = await getCompanyUUID(companyId);
     if (!companyUUID) {
       return errorResponse("Invalid company ID");
     }
 
-    const includeStats = options.includeStats ?? false;
+    const { includeStats = false, bankAccountIds } = options;
 
-    // Fetch filtered transactions
-    const transactions = await knexClient("bank_transactions as bt")
+    // Build base query with optional bank account ID filtering
+    let transactionQuery = knex("bank_transactions as bt")
       .select("bt.bank_account_id", "bt.amount", "bt.categorization_status")
       .join("bank_accounts as ba", "bt.bank_account_id", "ba.id")
       .where({
@@ -249,17 +230,29 @@ export async function getBankAccountBalances(
         "ba.company_id": companyUUID,
       });
 
+    // Add bank account ID filtering if specified
+    if (bankAccountIds && bankAccountIds.length > 0) {
+      transactionQuery = transactionQuery.whereIn(
+        "bt.bank_account_id",
+        bankAccountIds
+      );
+    }
+
+    const transactions = await transactionQuery;
+    const statusEnum = categorizationStatus.enum;
+    const { categorized, auto_categorized, uncategorized } = statusEnum;
+
     // Aggregate balances and stats
     const groupedTx: Record<string, BankBalance> = {};
     for (const tx of transactions) {
       const bankId = tx.bank_account_id;
-      const amount = new Decimal(tx.amount);
+      const amount = Number(tx.amount);
       const status = tx.categorization_status;
 
       if (!groupedTx[bankId]) {
         groupedTx[bankId] = {
-          nativeBalance: new Decimal(0),
-          reportingBalance: new Decimal(0),
+          nativeBalance: 0,
+          reportingBalance: 0,
           ...(includeStats && {
             transactionCount: 0,
             categorizedCount: 0,
@@ -269,25 +262,29 @@ export async function getBankAccountBalances(
         };
       }
 
-      groupedTx[bankId].nativeBalance =
-        groupedTx[bankId].nativeBalance.plus(amount);
+      console.log(groupedTx);
+      const group = groupedTx[bankId];
+      group.nativeBalance = group.nativeBalance+(amount);
 
       if (includeStats) {
-        groupedTx[bankId].transactionCount!++;
+        group.transactionCount!++;
 
-        if (status === categorizationStatus.enum.categorized)
-          groupedTx[bankId].categorizedCount!++;
-        if (status === categorizationStatus.enum.auto_categorized)
-          groupedTx[bankId].autoCategorizedCount!++;
-        if (status === categorizationStatus.enum.uncategorized)
-          groupedTx[bankId].uncategorizedCount!++;
+        switch (status) {
+          case categorized:
+            group.categorizedCount!++;
+            break;
+          case auto_categorized:
+            group.autoCategorizedCount!++;
+            break;
+          case uncategorized:
+            group.uncategorizedCount!++;
+            break;
+        }
       }
     }
 
-    // Fetch metadata for each bank account to help with native balance conversion:
-    // - Account currency
-    // - Company's reporting currency
-    const bankAccounts = await knexClient("bank_accounts as ba")
+    // Build bank accounts query with same filtering logic
+    let bankAccountsQuery = knex("bank_accounts as ba")
       .select(
         "ba.id as bankId",
         "ba.currency_id as currencyId",
@@ -297,12 +294,31 @@ export async function getBankAccountBalances(
       .andWhere("ba.company_id", companyUUID)
       .join("companies as c", "ba.company_id", "c.id");
 
+    // Apply same filtering to bank accounts query
+    if (bankAccountIds && bankAccountIds.length > 0) {
+      bankAccountsQuery = bankAccountsQuery.whereIn("ba.id", bankAccountIds);
+    }
+
+    const bankAccounts = await bankAccountsQuery;
+
     const exchangeRateCache = new Map<string, Decimal>();
 
+    // Process currency conversions
     for (const account of bankAccounts) {
       const { bankId, currencyId, reportingCurrencyId } = account;
+      if (!groupedTx[bankId]) {
+        groupedTx[bankId] = {
+          nativeBalance: 0,
+          reportingBalance: 0,
+          ...(includeStats && {
+            transactionCount: 0,
+            categorizedCount: 0,
+            uncategorizedCount: 0,
+            autoCategorizedCount: 0,
+          }),
+        };
+      }
       const group = groupedTx[bankId];
-      if (!group) continue; // no transactions for this account
 
       let reportingBalance = group.nativeBalance;
 
@@ -319,17 +335,39 @@ export async function getBankAccountBalances(
             const rateRes = await fetchExchangeRate(
               new Date(),
               currencyId,
-              reportingCurrencyId
+              reportingCurrencyId,
+              knex
             );
-            if (rateRes.success && rateRes.data?.rate) {
-              exchangeRateCache.set(cacheKey, new Decimal(rateRes.data.rate));
+
+            if (!rateRes.success || !rateRes.data) {
+              errorResponse(
+                "Exchange rate fetch failed",
+                rateRes.error,
+                ErrorCode.GENERIC,
+                true
+              );
             }
+
+            const { data } = rateRes;
+            const rate = data?.rate as Decimal;
+
+            if (!rateRes.success || !rate) {
+              errorResponse(
+                "Exchange rate fetch failed",
+                rateRes.error,
+                ErrorCode.GENERIC,
+                true
+              );
+            }
+
+            exchangeRateCache.set(cacheKey, new Decimal(rate.toString()));
           } catch (err) {
             // Continue gracefully, fallback to native
+            // TODO: Return here instead
             console.warn("Exchange rate fetch failed", cacheKey, err);
             errorResponse(
               "Exchange rate fetch failed",
-              err,
+              { cacheKey, err },
               ErrorCode.GENERIC,
               true
             );
@@ -337,7 +375,7 @@ export async function getBankAccountBalances(
         }
 
         const rate = exchangeRateCache.get(cacheKey);
-        if (rate) reportingBalance = group.nativeBalance.times(rate);
+        if (rate) reportingBalance = group.nativeBalance*(Number(rate));
       }
 
       group.reportingBalance = reportingBalance;

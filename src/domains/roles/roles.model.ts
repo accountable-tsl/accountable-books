@@ -1,5 +1,5 @@
 import knex from "../../../knexClient";
-import { roleName, RoleName } from "../../core/types/db.type";
+import { roleName, RoleName } from "../../core/types/db.types";
 import { AppError } from "../../shared/utils/response.utils";
 
 let rolesLoaded = false;

@@ -27,7 +27,7 @@ import generateSecureShortCode from "../../shared/utils/crypto.utils";
 import knexClient from "../../../knexClient";
 import { generateAuthTokens } from "../../features/auth/auth.utils";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
-import { RoleName } from "../../core/types/db.type";
+import { RoleName } from "../../core/types/db.types";
 import { updateFirm } from "../accountingFirms/firms.model";
 
 export const createCompany = async (
@@ -410,7 +410,6 @@ export const updateCompany = async (
       //   );
 
       const validInput = updateCompanySchema.safeParse(payload);
-      console.log("Validating input:", validInput);
       if (!validInput.success) {
         return errorResponse(`Invalid input: ${validInput.error.message}`);
       }

@@ -11,7 +11,7 @@ import {
   newBankAccountInput,
   NewBankAccountInput,
 } from "./bankAccounts.types";
-import Decimal from "decimal.js";
+// import Decimal from "decimal.js";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import {
   camelToSnake,
@@ -124,9 +124,9 @@ export async function getBankAccountsSnapshot(
         bankAccounts: [],
         totals: {
           totalAccounts: 0,
-          totalNativeBalance: new Decimal(0),
-          totalReportingFromBankTx: new Decimal(0),
-          totalReportingFromLedger: new Decimal(0),
+          totalNativeBalance: 0,
+          totalReportingFromBankTx: 0,
+          totalReportingFromLedger: 0,
           totalTransactions: 0,
           totalCategorizedCount: 0,
           totalAutoCategorizedCount: 0,
@@ -139,9 +139,9 @@ export async function getBankAccountsSnapshot(
       bankAccounts: [],
       totals: {
         totalAccounts: 0,
-        totalNativeBalance: new Decimal(0),
-        totalReportingFromBankTx: new Decimal(0),
-        totalReportingFromLedger: new Decimal(0),
+        totalNativeBalance: 0,
+        totalReportingFromBankTx: 0,
+        totalReportingFromLedger: 0,
         totalTransactions: 0,
         totalCategorizedCount: 0,
         totalAutoCategorizedCount: 0,
@@ -153,6 +153,11 @@ export async function getBankAccountsSnapshot(
   }
 }
 
+/**
+ * Creates a new bank account for a company, just one
+ * @param input
+ * @returns
+ */
 export async function createNewBankAccount(input: {
   companyId: string;
   userId: string;
@@ -230,6 +235,22 @@ export async function createNewBankAccount(input: {
       account_type_key: "ca_bank",
       source: data.source || coaSource.enum.user,
     };
+
+    const existingCoa = await knexInstance("coa")
+      .select("id")
+      .where({
+        company_id: companyUUID,
+        name: coaInput.name,
+      })
+      .first();
+
+    if (existingCoa) {
+      return errorResponse(
+        `A chart of account with the name "${coaInput.name}" already exists in this company`,
+        undefined,
+        ErrorCode.CONFLICT
+      );
+    }
 
     const executeWithTransaction = async (tx: Knex.Transaction) => {
       const coa = await createCoa({

@@ -70,21 +70,18 @@ export async function fetchExchangeRate(
   fromCurrencyId: string,
   toCurrencyId: string,
   knex: Knex = knexClient
-): Promise<ApiResponse<ExchangeRateData>> {
+): Promise<ApiResponse<ExchangeRateItem>> {
   // TODO: Cache in Redis to reduce API calls
   try {
     // 1. Early exit for identical currencies
     if (fromCurrencyId === toCurrencyId) {
-      return successResponse<ExchangeRateData>(
-        "Base and target currencies are identical",
-        {
-          id: "SYNTHETIC",
-          date: new Date(date),
-          fromCurrencyId,
-          toCurrencyId,
-          rate: new Decimal(1),
-        }
-      );
+      return successResponse("Base and target currencies are identical", {
+        id: "SYNTHETIC",
+        date: new Date(date),
+        fromCurrencyId,
+        toCurrencyId,
+        rate: new Decimal(1),
+      });
     }
 
     // 2. Validate currencies first to fail fast

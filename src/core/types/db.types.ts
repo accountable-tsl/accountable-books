@@ -1,5 +1,4 @@
-import Decimal from "decimal.js";
-import { dbBaseFields, DecimalInput } from "../validation/schemas";
+import { dbBaseFields, debitCredit } from "./core";
 import { z } from "zod";
 
 // role
@@ -90,8 +89,8 @@ export type NewFinancialStatementInput = z.infer<typeof newFinancialStatement>;
 export type FinancialStatement = z.infer<typeof financialStatement>;
 
 // debit_credit
-export const debitCredit = z.enum(["debit", "credit"]);
-export type DebitCredit = z.infer<typeof debitCredit>;
+// export const debitCredit = z.enum(["debit", "credit"]);
+// export type DebitCredit = z.infer<typeof debitCredit>;
 
 // account_element
 export const newAccountElement = z.object({
@@ -148,10 +147,10 @@ export type AccountTypeWithRequiredReportCode = z.infer<
   typeof accountTypeWithRequiredReportCode
 >;
 
-export const categorizationStatus = z.enum([
-  "uncategorized",
-  "categorized",
-  "auto_categorized",
-]);
+// export const categorizationStatus = z.enum([
+//   "uncategorized",
+//   "categorized",
+//   "auto_categorized",
+// ]);
 
-export type CategorizationStatus = z.infer<typeof categorizationStatus>;
+// export type CategorizationStatus = z.infer<typeof categorizationStatus>;

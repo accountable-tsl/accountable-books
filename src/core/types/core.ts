@@ -11,15 +11,9 @@ export const nodeEnv = z.enum([
 export type NodeEnv = z.infer<typeof nodeEnv>;
 
 //Custom decimal handler
-export const decimalInput = z.union([
-  z.string(),
-  z.number(),
-  z.instanceof(Decimal),
-]);
+const decimalInput = z.union([z.string(), z.number(), z.instanceof(Decimal)]);
 
-export const decimalSchema = z
-  .union([z.string(), z.number(), z.instanceof(Decimal)])
-  .transform((val) => new Decimal(val));
+export const decimalSchema = decimalInput.transform((val) => new Decimal(val));
 
 // Base
 export const dbStandardFields = z.object({
@@ -51,3 +45,13 @@ export const zEmail = () =>
     .string()
     .email()
     .transform((email) => email.trim().toLowerCase());
+
+export const debitCredit = z.enum(["debit", "credit"]);
+export type DebitCredit = z.infer<typeof debitCredit>;
+
+export const categorizationStatus = z.enum([
+  "uncategorized",
+  "categorized",
+  "auto_categorized",
+]);
+export type CategorizationStatus = z.infer<typeof categorizationStatus>;

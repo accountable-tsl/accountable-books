@@ -96,6 +96,9 @@ export async function up(knex: Knex): Promise<void> {
     table.unique(["name", "code", "company_id"], {
       indexName: "coa_name_code_company_unique",
     });
+
+    table.unique(["name","account_type_id", "company_id"]);
+    table.unique(["code", "company_id"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dbBaseFields, decimalSchema } from "../../core/validation/schemas";
+import { dbBaseFields } from "../../core/types/core";
 import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
 import { coaSource } from "../chartOfAccounts/coa.types";
 
@@ -76,9 +76,9 @@ export const bankAccountWithMeta = z.object({
 export type BankAccountWithMeta = z.infer<typeof bankAccountWithMeta>;
 
 export const bankAccountWithBalancesAndStats = bankAccountWithMeta.extend({
-  nativeBalance: decimalSchema,
-  reportingBalanceFromBankTx: decimalSchema,
-  reportingBalanceFromLedger: decimalSchema,
+  nativeBalance: z.number(),
+  reportingBalanceFromBankTx: z.number(),
+  reportingBalanceFromLedger: z.number(),
   transactionCount: z.number().min(0),
   categorizedCount: z.number().min(0),
   autoCategorizedCount: z.number().min(0),
@@ -90,9 +90,9 @@ export type BankAccountWithBalancesAndStats = z.infer<
 
 export const bankAccountsMeta = z.object({
   totalAccounts: z.number().min(0),
-  totalNativeBalance: decimalSchema,
-  totalReportingFromBankTx: decimalSchema,
-  totalReportingFromLedger: decimalSchema,
+  totalNativeBalance: z.number(),
+  totalReportingFromBankTx: z.number(),
+  totalReportingFromLedger: z.number(),
   totalTransactions: z.number().min(0),
   totalCategorizedCount: z.number().min(0),
   totalAutoCategorizedCount: z.number().min(0),

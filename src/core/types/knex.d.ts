@@ -15,7 +15,7 @@ import {
   Permission,
   Role,
   RolePermission,
-} from "./db.type";
+} from "./db.types";
 import {
   CoaTemplate,
   NewCoaTemplateInput,
@@ -41,6 +41,12 @@ import {
   NewExchangeRateInput,
 } from "../../domains/exchangeRates/exchangeRate.types";
 import { Bank, NewBank } from "../../domains/banks/banks.types";
+import {
+  BankTransaction,
+  BankTransactionBatches,
+  NewBankTransaction,
+  NewBankTransactionBatches,
+} from "../../domains/bankTransactions/bankTransactions.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -136,6 +142,18 @@ declare module "knex/types/tables" {
       BankAccount,
       NewBankAccount,
       Partial<Omit<BankAccount, "id">>
+    >;
+
+    bank_transactions: Knex.CompositeTableType<
+      BankTransaction,
+      NewBankTransaction,
+      Partial<Omit<BankTransaction, "id">>
+    >;
+
+    bank_transaction_batches: Knex.CompositeTableType<
+      BankTransactionBatches,
+      NewBankTransactionBatches,
+      Partial<Omit<BankTransactionBatches, "id">>
     >;
   }
 }

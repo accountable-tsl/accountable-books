@@ -2,7 +2,7 @@ import type { Knex } from "knex";
 import {
   newAccountingFirm,
   NewAccountingFirmInput,
-} from "../core/types/db.type";
+} from "../core/types/db.types";
 import { ApiResponse } from "../core/types/api.types";
 import { errorResponse, successResponse } from "../shared/utils/response.utils";
 
