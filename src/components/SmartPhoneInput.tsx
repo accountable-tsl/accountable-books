@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useCountries } from "@/shared/hooks/useCountries";
-import { CountryList } from "@/types/types";
+import { CountryList } from "@/shared/types/core";
 import {
   AlertCircle,
   Check,

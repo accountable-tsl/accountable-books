@@ -10,7 +10,7 @@ import {
   Coa,
   MultiSelectOption,
   MultiSelectOptionGroup,
-} from "../../types/types";
+} from "../../shared/types/core";
 import { fetchCoa } from "../../services/CoaServices";
 import { DatePicker } from "antd";
 import { RangePickerProps } from "antd/es/date-picker";

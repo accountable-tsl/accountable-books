@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { ApiResponse } from "@/types/types";
+import { ApiResponse } from "@/shared/types/core";
 import { CompanyData } from "./types";
 
 export const getCompanyDetails = async (

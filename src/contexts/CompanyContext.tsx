@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
-import { CompanyData } from "../types/types";
+import { CompanyData } from "../shared/types/core";
 import { getCompanyDetails as fetchCompany } from "@/domains/company/api";
 
 type CompanyProviderProps = {

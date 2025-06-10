@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { StepProgress } from "@/components/StepProgress/StepProgress";
 import { useEffect, useRef, useState } from "react";
-import { CompanyType, CountryList, zEmail } from "@/types/types";
+import { CompanyType, CountryList, zEmail } from "@/shared/types/core";
 import { Button } from "@/components/ui/button";
 import { NewCompany, NewUser } from "./signupTypes";
 import { useSearchParams } from "react-router-dom";

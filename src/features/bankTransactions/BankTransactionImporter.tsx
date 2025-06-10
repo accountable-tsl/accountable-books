@@ -19,7 +19,12 @@ import { AddBankAccountDialog } from "@/features/bankAccount/AddBankAccountDialo
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { FormattedAmount } from "@/components/FormattedAmount";
 import { SpreadsheetImporter } from "@/features/spreadsheets/SpreadsheetImporter";
-import { FileTransaction } from "@/features/bankTransactions/types";
+import {
+  BankTransactionBatchInput,
+  bankTransactionInput,
+  bankTransactionSource,
+  FileTransaction,
+} from "@/features/bankTransactions/types";
 import { ParsedCsvResult } from "../spreadsheets/types";
 import { Button } from "@/components/ui/button";
 
@@ -28,8 +33,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { computeStats } from "./utils";
 import { getDisplayFields } from "../spreadsheets/utils";
 import { bankTransactionImporterfields } from "./constants";
+import { addNewBankTransactions } from "@/features/bankTransactions/api";
+import { CenteredLoader } from "@/components/CenteredLoader";
+import { PuffLoader } from "react-spinners";
+import { Success } from "@/components/Success";
+import { Failed } from "@/components/Failed";
 
-export const BankTransactionImporter = () => {
+export const BankTransactionImporter = ({
+  onImportSuccess,
+  onImportError,
+}: {
+  onImportSuccess?: (data: any) => void;
+  onImportError?: (data: any) => void;
+}) => {
   // States
   const [companyBankAccounts, setCompanyBankAccounts] = useState<
     BankAccountWithMeta[] | null
@@ -44,6 +60,10 @@ export const BankTransactionImporter = () => {
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<"success" | "failed" | null>(
+    null
+  );
   const [selectedStep, setSelectedStep] = useState<"upload" | "review">(
     "upload"
   );
@@ -84,7 +104,7 @@ export const BankTransactionImporter = () => {
     const prevKeys = prevParsedKeys.current;
 
     // Only run if files actually changed
-    if (currKeys.join(",") === prevKeys.join(",")) {
+    if (currKeys.join(",") === prevKeys.join(",") && hasUserInteracted) {
       return;
     }
     prevParsedKeys.current = currKeys;
@@ -101,6 +121,7 @@ export const BankTransactionImporter = () => {
             return {
               ...t,
               date: parseDateString(t.date.toString()) || t.date,
+              bankAccountId: selectedBankAccount.id,
             };
           })
           .sort((a, b) => {
@@ -159,11 +180,10 @@ export const BankTransactionImporter = () => {
 
   // Handler for general errors
   const handleError = (msg: string) => {
-    toast.error(msg);
+    toast.error(msg, { position: "top-right" });
   };
 
   const handleReview = () => {
-    // TODO: Send user to review page
     setSelectedStep("review");
   };
   const handleBack = () => {
@@ -171,27 +191,110 @@ export const BankTransactionImporter = () => {
       if (
         window.confirm("Are you sure? You may lose unsaved transaction data.")
       ) {
+        setFileTransactions(null);
+        setParsedResults([]);
+        setHasUserInteracted(false);
+        setIsSubmitting(false);
+        setUploadStatus(null);
+        setParsedResults([]);
         setSelectedStep("upload");
       }
     } else {
-      setSelectedStep("upload");
+      setSelectedStep("review");
     }
   };
   const handleSubmit = async () => {
-    // TODO: Send to backend
     if (!fileTransactions || fileTransactions.length === 0) {
-      toast.error("No transactions to submit.");
+      toast.error("No transactions to submit.", {
+        position: "top-right",
+      });
       return;
     }
 
-    // Just the first file for now
-    const transactions = fileTransactions[0].transactions;
+    // Only support single file for now
+    const { stats, transactions, bankAccount } = fileTransactions[0];
 
-    // toast.promise()
+    // Guard: Incomplete data
+    if (
+      !stats.earliestDate ||
+      !stats.latestDate ||
+      !transactions ||
+      !bankAccount.id
+    ) {
+      toast.error("Error reading transaction data", {
+        position: "top-right",
+      });
+      return;
+    }
+
+    // Guard: Invalid transaction structure
+    const txnsForDb = bankTransactionInput.array().safeParse(transactions);
+    if (!txnsForDb.success) {
+      toast.error("Error re-validating transaction data", {
+        position: "top-right",
+      });
+      return;
+    }
+
+    // Guard: No company context
+    if (!companyId) {
+      toast.error("Something went wrong. Please try again.", {
+        position: "top-right",
+      });
+      return;
+    }
+
+    const batchData: BankTransactionBatchInput = {
+      startDate: stats.earliestDate,
+      endDate: stats.latestDate,
+      bankAccountId: bankAccount.id,
+      source: bankTransactionSource.enum.file_import,
+      bankTransactions: txnsForDb.data,
+    };
+
+    setIsSubmitting(true);
+    const toastId = toast.loading("Submitting transactions...", {
+      position: "top-right",
+    });
+
     try {
-      // await submitBankTransactions(transactions);
-    } catch (error) {
-      toast.error("Failed to submit transactions");
+      if (isSubmitting) {
+        toast.loading("Submitting transactions...", { position: "top-right" });
+      }
+
+      const [apiResult] = await Promise.allSettled([
+        addNewBankTransactions(companyId, batchData),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
+
+      let response;
+
+      if (apiResult.status === "fulfilled") {
+        response = apiResult.value;
+      } else {
+        response = null;
+      }
+
+      if (!response || !response.success) {
+        toast.error("Failed to submit transactions", {
+          id: toastId,
+          position: "top-right",
+        });
+        setUploadStatus("failed");
+        onImportError?.(
+          apiResult.status === "rejected" ? apiResult.reason : response
+        );
+        return;
+      }
+
+      toast.success("Bank transactions submitted successfully", {
+        id: toastId,
+        position: "top-right",
+      });
+      setUploadStatus("success");
+      onImportSuccess?.(response);
+    } finally {
+      setIsSubmitting(false);
     }
   };
   const fetchBankAccounts = async (companyId: string) => {
@@ -203,6 +306,7 @@ export const BankTransactionImporter = () => {
 
       if (!res.success) {
         toast.error(res.message || "Failed to fetch bank accounts");
+        return;
       }
       setCompanyBankAccounts(res.data);
     } catch (error) {
@@ -383,11 +487,7 @@ export const BankTransactionImporter = () => {
           <hr />
           <Button
             type="button"
-            disabled={
-              !selectedBankAccount ||
-              !fileTransactions ||
-              fileTransactions.length === 0
-            }
+            disabled={!selectedBankAccount}
             onClick={handleReview}
           >
             Review Transactions
@@ -404,7 +504,6 @@ export const BankTransactionImporter = () => {
           <div className="flex flex-col text-sm gap-6 h-full min-h-0">
             {fileTransactions?.map((tx, idx) => {
               const { transactions, stats, bankAccount } = tx;
-              console.log(tx);
               const displayFields = getDisplayFields({
                 fields: bankTransactionImporterfields,
                 parsedHeaders: parsedResults?.[idx]?.headers,
@@ -533,7 +632,23 @@ export const BankTransactionImporter = () => {
                     <div className="font-semibold text-lg">
                       Transactions to import
                     </div>
-                    <div className="flex-1 min-h-0 flex flex-col overflow-clip mb-2 inset-shadow-sm">
+                    <div className="flex-1 min-h-0 flex flex-col overflow-clip mb-2 inset-shadow-sm relative">
+                      {(isSubmitting || uploadStatus) && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/40 backdrop-blur-sm">
+                          {isSubmitting && (
+                            <CenteredLoader
+                              loader={
+                                <div className="flex flex-col gap-2 items-center">
+                                  <PuffLoader />
+                                  <div>Uploading ...</div>
+                                </div>
+                              }
+                            />
+                          )}
+                          {uploadStatus === "success" && <Success />}
+                          {uploadStatus === "failed" && <Failed />}
+                        </div>
+                      )}
                       {/* Fixed Header */}
                       <div role="table" className="bg-muted/50">
                         <div role="rowgroup" className="last:border-b">
@@ -631,11 +746,24 @@ export const BankTransactionImporter = () => {
                         type="button"
                         variant={"outline"}
                         onClick={handleBack}
+                        disabled={
+                          isSubmitting ||
+                          selectedStep !== "review" ||
+                          uploadStatus === "success"
+                        }
                       >
                         Back
                       </Button>
 
-                      <Button type="button" onClick={handleSubmit}>
+                      <Button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={
+                          isSubmitting ||
+                          selectedStep !== "review" ||
+                          typeof uploadStatus === "string"
+                        }
+                      >
                         All good, upload
                       </Button>
                     </div>
@@ -651,4 +779,3 @@ export const BankTransactionImporter = () => {
 
   return null;
 };
-

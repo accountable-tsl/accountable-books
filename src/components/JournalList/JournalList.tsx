@@ -2,7 +2,7 @@ import "./JournalList.scss";
 import { useEffect, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import numeral from "numeral";
-import { CompanyData } from "../../types/types";
+import { CompanyData } from "../../shared/types/core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";

@@ -25,7 +25,7 @@ import {
   BankAccounts,
   BankTransaction,
   BankTransactionBatch,
-} from "../../types/types";
+} from "../../shared/types/core";
 import { userId } from "../../utils/user";
 import { ColDef, ValueGetterParams } from "ag-grid-community";
 import { postBankTransactions } from "@/shared/services/TransactionServices";
@@ -385,9 +385,7 @@ export default function UploadBS() {
                 </div>
                 <hr className="uploadbs-line" />
                 <div className="uploadbs-progress__review">
-                  <CircleCheck
-                    className="pr-1"
-                  />
+                  <CircleCheck className="pr-1" />
                   Review
                 </div>
               </div>

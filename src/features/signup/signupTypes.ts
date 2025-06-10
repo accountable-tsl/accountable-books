@@ -1,4 +1,4 @@
-import { companyType, zEmail } from "@/types/types";
+import { companyType, zEmail } from "@/shared/types/core";
 import { sanitizeInput, sanitizeOptionalInput } from "@/utils/utils";
 import { z } from "zod";
 

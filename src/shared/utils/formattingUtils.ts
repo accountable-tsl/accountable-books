@@ -1,4 +1,4 @@
-import { CountryList } from "@/types/types";
+import { CountryList } from "@/shared/types/core";
 import Decimal from "decimal.js";
 import { getUserLocale } from "./randomUtils";
 import { format, parse, isValid } from "date-fns";

@@ -12,7 +12,7 @@ import { BeatLoader } from "react-spinners";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import Button from "../../components/Button/Button";
 import { usePopup } from "../../contexts/PopupContext";
-import { Coa, TabConfig } from "../../types/types";
+import { Coa, TabConfig } from "../../shared/types/core";
 import TabNavigation from "../../components/TabNavigation/TabNavigation";
 import numeral from "numeral";
 import { RowClickedEvent } from "ag-grid-community";

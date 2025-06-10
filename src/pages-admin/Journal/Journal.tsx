@@ -8,7 +8,7 @@ import JournalForm from "../../components/JournalForm/JournalForm";
 import { matchPath, useLocation } from "react-router-dom";
 import { BeatLoader } from "react-spinners";
 import { useEffect, useMemo } from "react";
-import { JournalStatus, ScreenSize } from "../../types/types";
+import { JournalStatus, ScreenSize } from "../../shared/types/core";
 import FallbackView from "../../components/FallbackView/FallbackView";
 import { useScreenSize } from "../../utils/utils";
 import JournalView from "../../components/JournalView/JournalView";

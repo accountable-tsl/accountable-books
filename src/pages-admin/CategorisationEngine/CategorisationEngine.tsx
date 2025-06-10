@@ -27,7 +27,7 @@ import {
   Coa,
   CompanyData,
   TransactionKey,
-} from "../../types/types";
+} from "../../shared/types/core";
 import { formatDate, formatNumericValue } from "../../utils/utils";
 import Decimal from "decimal.js";
 import { getBankAccounts } from "../../services/BankAccountServices";

@@ -6,7 +6,7 @@ import {
   BankTransactionFilters,
   CatEngineTransaction,
   ApiResponse,
-} from "../types/types";
+} from "../types/core";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 

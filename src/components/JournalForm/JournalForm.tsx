@@ -15,7 +15,7 @@ import {
   JournalStatus,
   JournalTransaction,
   PostJournalPayload,
-} from "../../types/types";
+} from "../../shared/types/core";
 import { normalizeDate, toTitleCase } from "../../utils/utils";
 import dayjs from "dayjs";
 import DatePlaceholderInput, {

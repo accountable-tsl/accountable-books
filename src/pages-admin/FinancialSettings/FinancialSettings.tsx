@@ -12,7 +12,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 
 import "./FinancialSettings.scss";
 import TabNavigation from "../../components/TabNavigation/TabNavigation";
-import { TabConfig } from "../../types/types";
+import { TabConfig } from "../../shared/types/core";
 import { getCompanyDetails as fetchCompany } from "@/domains/company/api";
 
 export default function FinancialSettings() {

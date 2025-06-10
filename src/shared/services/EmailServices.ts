@@ -1,5 +1,5 @@
 import axios from "@/lib/axios";
-import { ApiResponse } from "@/types/types";
+import { ApiResponse } from "@/shared/types/core";
 
 export type CheckEmailProps = {
   email: string;

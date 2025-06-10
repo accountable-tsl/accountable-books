@@ -5,7 +5,7 @@ import {
   JournalBatchData,
   JournalGridData,
   JournalStatus,
-} from "../../types/types";
+} from "../../shared/types/core";
 import "./JournalView.scss";
 import { BeatLoader } from "react-spinners";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

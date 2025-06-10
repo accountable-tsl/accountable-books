@@ -6,7 +6,7 @@ import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { routes } from "@/shared/routes/routes";
 import { TableProperties } from "lucide-react";
 import TabNavigation from "../../components/TabNavigation/TabNavigation";
-import { TabConfig } from "../../types/types";
+import { TabConfig } from "../../shared/types/core";
 
 export default function Workspace() {
   const { companyId, company } = useCompany();

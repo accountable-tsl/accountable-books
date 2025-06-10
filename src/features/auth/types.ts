@@ -1,5 +1,5 @@
 import { CompanyType, OnboardingStatus } from "@/domains/company/types";
-import { zEmail } from "@/types/types";
+import { zEmail } from "@/shared/types/core";
 import { z } from "zod";
 
 export const loginForm = z.object({

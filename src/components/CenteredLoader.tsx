@@ -6,10 +6,12 @@ export function CenteredLoader({
   delay = 0,
   fullscreen = false,
   className,
+  loader,
 }: {
   delay?: number;
   fullscreen?: boolean;
   className?: string;
+  loader?: React.ReactNode;
 }) {
   const [visible, setVisible] = useState(delay === 0);
 
@@ -32,7 +34,7 @@ export function CenteredLoader({
         className
       )}
     >
-      <BeatLoader color="currentColor" />
+      {loader ?? <BeatLoader color="currentColor" />}
     </div>
   );
 }

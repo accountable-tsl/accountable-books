@@ -1,6 +1,6 @@
 import api from "@/lib/axios";
 import { ResendVerEmailService } from "./types";
-import { ApiResponse } from "@/types/types";
+import { ApiResponse } from "@/shared/types/core";
 import { CompanyData } from "@/domains/company/types";
 import { UserData } from "@/domains/user/types";
 

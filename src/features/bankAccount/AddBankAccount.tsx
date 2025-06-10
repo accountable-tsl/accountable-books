@@ -5,7 +5,7 @@ import { useCurrencies } from "@/shared/hooks/useCurrencies";
 import { useCountries } from "@/shared/hooks/useCountries";
 import ErrorPage from "../../components/ErrorPage";
 import { getDefaultCountryAndCurrency } from "@/shared/utils/randomUtils";
-import { companyType, CountryList } from "@/types/types";
+import { companyType, CountryList } from "@/shared/types/core";
 import { useCompany } from "@/domains/company/store";
 import { Controller, useForm } from "react-hook-form";
 import {

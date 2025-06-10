@@ -3,7 +3,7 @@ import {
   GroupableOption,
   MultiSelectOption,
   MultiSelectProps,
-} from "../../types/types";
+} from "../../shared/types/core";
 import "./MultiSelectDropdown.scss";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 

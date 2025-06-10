@@ -38,22 +38,26 @@ export type CurrencyList = {
   symbol: string;
 };
 
-//////////////////////////////////////
+export const debitCredit = z.enum(["debit", "credit"]);
+export type DebitCredit = z.infer<typeof debitCredit>;
 
-export enum DebitCredit {
-  Debit = "DEBIT",
-  Credit = "CREDIT",
-}
+export const zDate = z.preprocess((val) => {
+  if (
+    typeof val === "string" ||
+    typeof val === "number" ||
+    val instanceof Date
+  ) {
+    const date = new Date(val);
+    return isNaN(date.getTime()) ? undefined : date;
+  }
+  return undefined;
+}, z.date());
+
+//////////////////////////////////////
 
 export enum BankTransactionStatus {
   RECONCILED = "RECONCILED",
   UNRECONCILED = "UNRECONCILED",
-}
-
-export enum BankTransactionSource {
-  IMPORTED = "FILE_IMPORT",
-  CONNECTED = "BANK_FEED",
-  MANUAL = "MANUAL_ENTRY",
 }
 
 export enum CategorisationStatus {
@@ -299,7 +303,7 @@ export type Transaction = {
     bankId: string;
     bankName: string;
     bankLogo: string;
-    bankBalance: string | Decimal;
+    bankBalance: string;
   };
   bankTransaction?: {
     id: string;

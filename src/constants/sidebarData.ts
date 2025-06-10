@@ -1,6 +1,6 @@
 import { NavMainItems } from "@/components/NavMain";
 import { routes } from "@/shared/routes/routes";
-import { CompanyType } from "@/types/types";
+import { CompanyType } from "@/shared/types/core";
 import {
   BriefcaseIcon,
   CalculatorIcon,
