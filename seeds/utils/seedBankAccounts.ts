@@ -16,6 +16,7 @@ import {
   countriesInSystem,
   currenciesInSystem,
 } from "../data/shared";
+import { all } from "axios";
 
 export const seedBankAccounts = async (bankAccountCreationData: {
   companyType: CompanyType;
@@ -96,7 +97,6 @@ export const seedBankAccounts = async (bankAccountCreationData: {
           data: bank,
         });
 
-        console.log(result);
         // Check if individual creation failed
         if (!result.success) {
           throw new Error(`Failed to create bank account: ${result.message}`);
@@ -151,14 +151,21 @@ export const generateDemoBankAccounts = ({
       : [
           "Main Account",
           "Operating Account",
-          "Petty Cash",
           "Reserve Fund",
           "Online Sales",
           "Marketing Budget",
-          "Payroll Account",
+          "Salary Account",
           "Tax Reserve",
-          "Equipment Fund",
-          "Client Deposits",
+          "Fixed Deposit Account",
+          "Stripe Clearing",
+          "PayPal Balance",
+          "VAT Holding Account",
+          "Credit Card Repayment",
+          "Loan Disbursement Account",
+          "Amazon Payouts",
+          "Facebook Ads Wallet",
+          "Google Ads Wallet",
+          "Temporary Holding Account",
         ];
   if (namePool.length < 5)
     throw new Error("Name pool must have at least 5 entries");
@@ -191,7 +198,7 @@ export const generateDemoBankAccounts = ({
     throw new Error(`No other countries available`);
 
   // All other currencies
-  const otherCurrencies = currenciesInSystem.filter(
+  const otherCurrencies = allowedCurrencies.filter(
     (c) => c.id !== resolvedCurrency.id
   );
   if (otherCurrencies.length === 0)
@@ -254,7 +261,7 @@ export const generateDemoBankAccounts = ({
       `No banks found for foreign country: ${foreignCountry.name}`
     );
   const foreignBank = faker.helpers.arrayElement(foreignBanks);
-  const foreignCurrency = faker.helpers.arrayElement(currenciesInSystem);
+  const foreignCurrency = faker.helpers.arrayElement(allowedCurrencies);
 
   const foreignAccount: NewBankAccountInput = {
     displayName: shuffledNames[3],
@@ -266,7 +273,7 @@ export const generateDemoBankAccounts = ({
   };
 
   const randomBank = faker.helpers.arrayElement(allowedBanksInSystem);
-  const randomCurrency = faker.helpers.arrayElement(currenciesInSystem);
+  const randomCurrency = faker.helpers.arrayElement(allowedCurrencies);
 
   const randomAccount: NewBankAccountInput = {
     displayName: shuffledNames[4],
@@ -286,8 +293,13 @@ export const generateDemoBankAccounts = ({
   ];
 };
 
+const ALLOWED_DEMO_CURRENCY_CODES = ["NGN", "GHS", "USD", "GBP", "EUR"];
+const allowedCurrencies = currenciesInSystem.filter((c) =>
+  ALLOWED_DEMO_CURRENCY_CODES.includes(c.code)
+);
+
 export function resolveCurrency(codeOrId: string) {
-  return currenciesInSystem.find(
+  return allowedCurrencies.find(
     (c) => c.id === codeOrId || c.code === codeOrId
   );
 }

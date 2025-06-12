@@ -246,7 +246,7 @@ export async function createNewBankAccount(input: {
 
     if (existingCoa) {
       return errorResponse(
-        `A chart of account with the name "${coaInput.name}" already exists in this company`,
+        `A chart of account with the name "${coaInput.name}" ${coaInput.code ? `and code "${coaInput.code}"` : ""} already exists in this company`,
         undefined,
         ErrorCode.CONFLICT
       );

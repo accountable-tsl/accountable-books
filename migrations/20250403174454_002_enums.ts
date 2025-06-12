@@ -145,9 +145,18 @@ export async function up(knex: Knex): Promise<void> {
       "cnaps",
     ])
   );
+
+  await knex.raw(
+    createEnumIfNotExists("bank_feed_provider_status", [
+      "active",
+      "inactive",
+      "deprecated",
+    ])
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP TYPE IF EXISTS bank_feed_provider_status`);
   await knex.raw(`DROP TYPE IF EXISTS bank_local_code_type`);
   await knex.raw(`DROP TYPE IF EXISTS onboarding_status`);
   await knex.raw(`DROP TYPE IF EXISTS accounting_basis`);

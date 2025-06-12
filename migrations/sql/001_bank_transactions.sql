@@ -60,6 +60,7 @@ BEGIN
             bank_account_id         UUID NOT NULL,
             bank_transaction_batch_id  UUID,
             ledger_transaction_id   UUID,
+            external_id             TEXT,
             created_by_id           UUID NOT NULL,
             updated_by_id           UUID,
             created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
