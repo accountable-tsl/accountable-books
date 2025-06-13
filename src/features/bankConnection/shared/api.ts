@@ -1,7 +1,11 @@
 import {
+  BankAccountWithMeta,
+  NewBankAccountInput,
+} from "@/domains/bankAccounts/types";
+import {
   AddBankTransactionsResponse,
   BankTransactionBatchInput,
-} from "@/features/bankTransactions/types";
+} from "@/features/bankConnection/manualUpload/types";
 import api from "@/lib/axios";
 import { ApiResponse } from "@/shared/types/core";
 
@@ -15,3 +19,15 @@ export const addNewBankTransactions = async (
   );
   return response.data;
 };
+
+export async function createNewBankAccount({
+  companyId,
+  data,
+}: {
+  companyId: string;
+  data: NewBankAccountInput;
+  userId?: string;
+}): Promise<ApiResponse<BankAccountWithMeta>> {
+  const response = await api.post(`/api/${companyId}/bank-accounts`, data);
+  return response.data;
+}

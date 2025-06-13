@@ -53,7 +53,7 @@ import {
 import { useAuth } from "@/features/auth/hooks";
 import { useSlugCheck } from "@/domains/firms/hooks";
 import { validateSlug } from "@/domains/firms/utils";
-import { updateCompanyOnboardingStatus } from "../service";
+import { updateCompanyOnboardingStatus } from "@/features/onboarding/service";
 
 export const CompanyInfo = () => {
   const { company, companyId, companyType, setCompany } = useCompany();

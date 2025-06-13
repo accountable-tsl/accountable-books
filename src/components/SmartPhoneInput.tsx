@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useCountries } from "@/shared/hooks/useCountries";
-import { CountryList } from "@/shared/types/core";
+import { Country } from "@/shared/types/core";
 import {
   AlertCircle,
   Check,
@@ -29,7 +29,7 @@ interface SmartPhoneInputProps {
   showLabel?: boolean;
 }
 
-const getCountryFromLocale = (countries: CountryList[]): CountryList => {
+const getCountryFromLocale = (countries: Country[]): Country => {
   const locale = navigator.language;
   const countryCode = locale.split("-")[1];
   const userCountry = countries.find((country) => country.code === countryCode);
@@ -48,7 +48,7 @@ export function SmartPhoneInput({
     a.phoneCode.localeCompare(b.phoneCode)
   );
 
-  let phoneCodeMap = new Map<string, CountryList[]>();
+  let phoneCodeMap = new Map<string, Country[]>();
   const allCountries = useMemo(() => {
     return countries.length
       ? [
@@ -81,7 +81,7 @@ export function SmartPhoneInput({
   const [focused, setFocused] = useState(false);
   const [unknownCountryCode, setUnknownCountryCode] = useState("");
   const [countryDetectionActive, setCountryDetectionActive] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState<CountryList>(
+  const [selectedCountry, setSelectedCountry] = useState<Country>(
     getCountryFromLocale(allCountries)
   );
 
@@ -116,7 +116,7 @@ export function SmartPhoneInput({
 
   const detectCountryFromInput = (
     input: string
-  ): { country: CountryList; remainingDigits: string } | null => {
+  ): { country: Country; remainingDigits: string } | null => {
     if (!input || !input.startsWith("+")) return null;
 
     // Try to match the input against known country codes

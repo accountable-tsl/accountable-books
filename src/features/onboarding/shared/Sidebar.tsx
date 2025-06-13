@@ -2,7 +2,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { VerticalStepper } from "@/components/VerticalStepper";
 import { CompanyData } from "@/domains/company/types";
 import { ArrowUpCircleIcon } from "lucide-react";
-import { getSteps, onboardingSteps } from "./utils";
+import { getSteps, onboardingSteps } from "@/features/onboarding/utils";
 
 export function OnboardingSidebar({
   company,

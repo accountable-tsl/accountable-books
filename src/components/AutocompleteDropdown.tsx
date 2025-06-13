@@ -235,6 +235,7 @@ export const AutocompleteDropdown = forwardRef<
     if (items.length > 0 && groupBy) {
       const itemGroups: { [key: string]: any[] } = {};
       const groupLabels: { [key: string]: string } = {};
+      const ungroupedItems: any[] = [];
 
       items.forEach((item) => {
         // Get group key
@@ -243,7 +244,15 @@ export const AutocompleteDropdown = forwardRef<
             ? groupBy(item)
             : getNestedValue(item, groupBy);
 
-        if (!groupKey) return; // Skip items without group
+        if (
+          !groupKey ||
+          groupKey === null ||
+          groupKey === undefined ||
+          groupKey === ""
+        ) {
+          ungroupedItems.push(item);
+          return;
+        }
 
         // Get group label
         let groupLabelText = groupKey;
@@ -277,6 +286,20 @@ export const AutocompleteDropdown = forwardRef<
             });
           }
         });
+
+      if (ungroupedItems.length > 0) {
+        const normalizedUngroupedItems = ungroupedItems
+          .map((item) => normalizeItem(item, mapItem))
+          .filter((item) => item.value.trim() !== "");
+
+        if (normalizedUngroupedItems.length > 0) {
+          result.push({
+            id: "ungrouped",
+            label: ungroupedLabel, // Uses the prop you already have
+            items: normalizedUngroupedItems,
+          });
+        }
+      }
     }
 
     return result;

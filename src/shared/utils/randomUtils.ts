@@ -1,14 +1,14 @@
 import { getDefaultCurrencyCodeForCountry } from "@/constants/countryCurrencyMap";
 import { CompanyData } from "@/domains/company/types";
-import { CountryList, CurrencyList } from "@/shared/types/core";
+import { Country, CurrencyList } from "@/shared/types/core";
 
 export const getUserLocale = () => {
   return navigator.language || navigator.languages?.[0] || "en-US";
 };
 
 export const getCountryFromLocale = (
-  countries: CountryList[]
-): CountryList | undefined => {
+  countries: Country[]
+): Country | undefined => {
   const locale = navigator.language;
   const countryCode = locale.split("-")[1];
 
@@ -16,7 +16,7 @@ export const getCountryFromLocale = (
   return userCountry;
 };
 
-export const getDefaultCurrency = (company: any, countries: CountryList[]) => {
+export const getDefaultCurrency = (company: any, countries: Country[]) => {
   const countryCode = company.countryId
     ? countries.find((ctry) => ctry.id === company.countryId)
     : "";
@@ -33,9 +33,9 @@ export const getDefaultCountryAndCurrency = ({
   currencies,
 }: {
   company?: CompanyData;
-  countries: CountryList[];
+  countries: Country[];
   currencies: CurrencyList[];
-}): { country: CountryList; currency: CurrencyList } => {
+}): { country: Country; currency: CurrencyList } => {
   if (!countries.length || !currencies.length) {
     return {
       country: countries?.[0],

@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { BankAccountWithMeta } from "@/features/bankAccount/types";
+import { BankAccountWithMeta } from "@/features/bankConnection/shared/types";
 import { z } from "zod";
 import { debitCredit } from "@/shared/types/core";
 

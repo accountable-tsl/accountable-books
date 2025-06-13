@@ -9,7 +9,7 @@ export const loginForm = z.object({
 export type LoginForm = z.infer<typeof loginForm>;
 
 export interface AuthStore {
-  user: any | null;
+  user: UserContext | null;
   setUser: (user: any | null) => void;
 }
 
@@ -28,7 +28,7 @@ export type LogoutOptions = {
   query?: Record<string, string>; // e.g., { email: "foo@example.com" }
 };
 
-export interface AuthUserContext {
+export interface UserContext {
   id: string;
   email: string;
   firstname: string;

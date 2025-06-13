@@ -29,9 +29,10 @@ import {
 import { userId } from "../../utils/user";
 import { ColDef, ValueGetterParams } from "ag-grid-community";
 import { postBankTransactions } from "@/shared/services/TransactionServices";
-import { BankTransactionImporter } from "@/features/bankTransactions/BankTransactionImporter";
-import { getBankAccountsForCompany } from "@/features/bankAccount/api";
+import { BankTransactionImporter } from "@/features/bankConnection/manualUpload/BankTransactionImporter";
 import { toast } from "sonner";
+import ConnectBankAccount from "@/features/bankConnection/connectViaFeed/ConnectBankAccount";
+import { getBankAccountsForCompany } from "@/domains/bankAccounts/api";
 
 /**
  * Configuration & Constants
@@ -595,7 +596,8 @@ export default function UploadBS() {
           </div>
         </div>
       </div>
-      <BankTransactionImporter />
+      {/* <BankTransactionImporter /> */}
+      <ConnectBankAccount />
     </>
   );
 }

@@ -5,7 +5,7 @@ import { useCurrencies } from "@/shared/hooks/useCurrencies";
 import { useCountries } from "@/shared/hooks/useCountries";
 import ErrorPage from "../../components/ErrorPage";
 import { getDefaultCountryAndCurrency } from "@/shared/utils/randomUtils";
-import { companyType, CountryList } from "@/shared/types/core";
+import { companyType, Country } from "@/shared/types/core";
 import { useCompany } from "@/domains/company/store";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -14,7 +14,7 @@ import {
   BankAccountWithMeta,
   NewBankAccountInput,
   newBankAccountInput,
-} from "./types";
+} from "@/domains/bankAccounts/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { toTitleCase } from "@/shared/utils/formattingUtils";
@@ -28,19 +28,17 @@ import {
 } from "@/components/ui/select";
 import { useBanks } from "@/domains/banks/hooks";
 import { toast } from "sonner";
-import { createNewBankAccount } from "./api";
 import { cn } from "@/lib/utils";
 import { SkeletonBlock } from "@/components/SkeletonBlock";
 import { CircleCheck } from "lucide-react";
+import { createNewBankAccount } from "@/features/bankConnection/shared/api";
 
 export default function AddBankAccount({
   onSuccess,
   onCancel,
 }: AddBankAccountProps) {
   // States
-  const [selectedCountry, setSelectedCountry] = useState<
-    CountryList | undefined
-  >();
+  const [selectedCountry, setSelectedCountry] = useState<Country | undefined>();
   const [countryError, _setCountryError] = useState("");
   const [createdAccount, setCreatedAccount] =
     useState<BankAccountWithMeta | null>(null);

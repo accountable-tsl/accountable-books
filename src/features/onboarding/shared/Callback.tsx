@@ -9,7 +9,7 @@ import {
 import { DialogDescription } from "@radix-ui/react-dialog";
 import { MousePointerClick } from "lucide-react";
 import { useState } from "react";
-import { Contact } from "./types";
+import { Contact } from "@/features/onboarding/types";
 
 export const OnboardingCallback = () => {
   const [contact, setContact] = useState<Contact>({

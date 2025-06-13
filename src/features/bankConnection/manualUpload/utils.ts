@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { TransactionsStat } from "@/features/bankTransactions/types";
+import { TransactionsStat } from "@/features/bankConnection/manualUpload/types";
 import { findDateRange } from "@/shared/utils/formattingUtils";
 
 export const computeStats = ({

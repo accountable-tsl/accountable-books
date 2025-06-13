@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { StepProgress } from "@/components/StepProgress/StepProgress";
 import { useEffect, useRef, useState } from "react";
-import { CompanyType, CountryList, zEmail } from "@/shared/types/core";
+import { CompanyType, Country, zEmail } from "@/shared/types/core";
 import { Button } from "@/components/ui/button";
 import { NewCompany, NewUser } from "./signupTypes";
 import { useSearchParams } from "react-router-dom";
@@ -189,7 +189,7 @@ export default function Signup() {
     setBasicInfo((prev) => ({ ...prev, [key]: value }));
   };
 
-  const getCountryFromLocale = (): CountryList | undefined => {
+  const getCountryFromLocale = (): Country | undefined => {
     const locale = navigator.language;
     const countryCode = locale.split("-")[1];
     const userCountry =

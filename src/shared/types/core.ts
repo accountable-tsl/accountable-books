@@ -22,7 +22,7 @@ export const userType = z.enum(["admin", "client", "bookkeeper"]);
 export type UserType = z.infer<typeof userType>;
 
 // Country
-export type CountryList = {
+export type Country = {
   id: string;
   code: string;
   name: string;

@@ -11,11 +11,10 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getBankAccountsForCompany } from "@/features/bankAccount/api";
-import { BankAccountWithMeta } from "@/features/bankAccount/types";
+import { addNewBankTransactions, } from "@/features/bankConnection/shared/api";
 import { useCompany } from "@/domains/company/store";
 import { maskDigits, parseDateString } from "@/shared/utils/formattingUtils";
-import { AddBankAccountDialog } from "@/features/bankAccount/AddBankAccountDialog";
+import { AddBankAccountDialog } from "@/domains/bankAccounts/AddBankAccountDialog";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { FormattedAmount } from "@/components/FormattedAmount";
 import { SpreadsheetImporter } from "@/features/spreadsheets/SpreadsheetImporter";
@@ -24,20 +23,21 @@ import {
   bankTransactionInput,
   bankTransactionSource,
   FileTransaction,
-} from "@/features/bankTransactions/types";
-import { ParsedCsvResult } from "../spreadsheets/types";
+} from "@/features/bankConnection/manualUpload/types";
+import { ParsedCsvResult } from "../../spreadsheets/types";
 import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { computeStats } from "./utils";
-import { getDisplayFields } from "../spreadsheets/utils";
+import { getDisplayFields } from "../../spreadsheets/utils";
 import { bankTransactionImporterfields } from "./constants";
-import { addNewBankTransactions } from "@/features/bankTransactions/api";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { PuffLoader } from "react-spinners";
 import { Success } from "@/components/Success";
 import { Failed } from "@/components/Failed";
+import { BankAccountWithMeta } from "@/domains/bankAccounts/types";
+import { getBankAccountsForCompany } from "@/domains/bankAccounts/api";
 
 export const BankTransactionImporter = ({
   onImportSuccess,

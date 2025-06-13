@@ -1,4 +1,4 @@
-import { CountryList } from "@/shared/types/core";
+import { Country } from "@/shared/types/core";
 import Decimal from "decimal.js";
 import { getUserLocale } from "./randomUtils";
 import { format, parse, isValid } from "date-fns";
@@ -94,7 +94,7 @@ export const findDateRange = <D>(
   return { earliestDate, latestDate };
 };
 
-export const formatPhoneNumber = (input: string, country: CountryList) => {
+export const formatPhoneNumber = (input: string, country: Country) => {
   // Filter input: keep digits and leading + if present
   const cleaned = input
     .replace(/[^\d+]/g, "") // Remove non-digits except +
