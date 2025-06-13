@@ -16,6 +16,7 @@ import firmRoutes from "./domains/accountingFirms/firms.routes";
 import bankRoutes from "./domains/banks/banks.routes";
 import bankAccountsRoutes from "./domains/bankAccounts/bankAccounts.routes";
 import bankTransactionRoutes from "./domains/bankTransactions/bankTransactions.routes";
+import bankFeedProvidersRoutes from "./domains/bankFeedProviders/bankFeedProviders.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";
@@ -90,7 +91,11 @@ async function startServer() {
 
     app.use("/api/banks", bankRoutes);
     app.use("/api/:companyId/bank-accounts", bankAccountsRoutes);
-    app.use("/api/:companyId/bank-accounts/transactions", bankTransactionRoutes);
+    app.use(
+      "/api/:companyId/bank-accounts/transactions",
+      bankTransactionRoutes
+    );
+    app.use("/api/bank-feed-providers", bankFeedProvidersRoutes);
 
     app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
     app.use("/admin/queues", serverAdapter.getRouter());

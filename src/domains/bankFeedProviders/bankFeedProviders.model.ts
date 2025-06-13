@@ -8,11 +8,26 @@ import {
 import {
   bankFeedProviderInputCamel,
   BankFeedProviderInputCamel,
+  BankFeedProviderStatus,
+  BankFeedProviderWithCountries,
   BpcInput,
   bpcInputCamel,
   BpcInputCamel,
   NewBankFeedProviderCountry,
 } from "./bankFeedProviders.types";
+import { redis } from "../../lib/redis";
+
+export async function invalidateBankFeedProvidersCache(providerIds?: string[]) {
+  try {
+    const pattern = "bank_feed_providers:*";
+    const keys = await redis.keys(pattern);
+    if (keys.length > 0) {
+      await redis.del(...keys);
+    }
+  } catch (error) {
+    console.warn("Cache invalidation failed:", error);
+  }
+}
 
 export async function addBankFeedProvider({
   userId,
@@ -42,6 +57,7 @@ export async function addBankFeedProvider({
       .returning("*");
 
     if (!providers.length) return errorResponse("Failed to create provider(s)");
+    await invalidateBankFeedProvidersCache();
     return successResponse("Provider(s) successfully created", providers);
   } catch (error: any) {
     if (error.code === "23505") {
@@ -207,6 +223,7 @@ export async function addBankFeedProviderCountries({
     if (!rows.length) {
       return errorResponse("Failed to create country mapping(s)");
     }
+    await invalidateBankFeedProvidersCache();
     return successResponse("Mapping(s) successfully created", rows);
   } catch (error: any) {
     if (error.code === "23505") {
@@ -229,4 +246,129 @@ export function buildProviderCountryMappings(
     country_code: countryCode,
     ...(userId && { updatedById: userId, createdById: userId }),
   }));
+}
+
+export async function getBankFeedProviders({
+  providerIds,
+  providerKeys,
+  useCache = true,
+}: {
+  providerIds?: string | string[];
+  providerKeys?: string | string[];
+  useCache?: boolean;
+}): Promise<ApiResponse<BankFeedProviderWithCountries[]>> {
+  try {
+    // Normalize inputs to arrays
+    const idsArray = providerIds
+      ? Array.isArray(providerIds)
+        ? providerIds
+        : [providerIds]
+      : [];
+    const keysArray = providerKeys
+      ? Array.isArray(providerKeys)
+        ? providerKeys
+        : [providerKeys]
+      : [];
+
+    // Generate cache key
+    const cacheKey = `bank_feed_providers:${JSON.stringify({
+      ids: idsArray.sort(),
+      keys: keysArray.sort(),
+    })}`;
+
+    // Try to get from cache first
+    if (useCache) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          const data = JSON.parse(cached);
+          return successResponse("Providers fetched (cached)", data);
+        }
+      } catch (cacheError) {
+        console.error({ cacheError });
+      }
+    }
+
+    const results = (await knexClient("bank_feed_providers as p")
+      .where("p.is_deleted", false)
+      .whereNot("p.status", "deprecated")
+      .leftJoin(
+        "bank_feed_provider_countries as bpc",
+        "p.id",
+        "bpc.bank_feed_provider_id"
+      )
+      .leftJoin("countries as c", "bpc.country_id", "c.id")
+      .modify((qb) => {
+        if (idsArray.length && keysArray.length) {
+          qb.where(function () {
+            this.whereIn("p.id", idsArray).orWhereIn("p.key", keysArray);
+          });
+        } else if (idsArray.length) {
+          qb.whereIn("p.id", idsArray);
+        } else if (keysArray.length) {
+          qb.whereIn("p.key", keysArray);
+        }
+        // If no filters, return all providers
+      })
+      .select(
+        "p.id",
+        "p.key",
+        "p.name",
+        "p.description",
+        "p.website",
+        "p.logo_url as logoUrl",
+        "p.logo_key as logoKey",
+        "p.status",
+        "p.priority",
+        "p.external_id as externalId",
+        "c.id as countryId",
+        "c.code as countryCode"
+      )) as Array<
+      Omit<BankFeedProviderWithCountries, "countries"> & {
+        countryId: string | null;
+        countryCode: string | null;
+      }
+    >;
+
+    if (!results.length) {
+      return successResponse("No providers found", []);
+    }
+
+    // Group the results
+    const providerMap: Record<string, BankFeedProviderWithCountries> = {};
+
+    results.forEach((row) => {
+      if (!providerMap[row.id]) {
+        providerMap[row.id] = {
+          id: row.id,
+          key: row.key,
+          name: row.name,
+          description: row.description,
+          website: row.website,
+          logoUrl: row.logoUrl,
+          logoKey: row.logoKey,
+          status: row.status,
+          priority: row.priority,
+          externalId: row.externalId,
+          countries: [],
+        };
+      }
+
+      if (row.countryId && row.countryCode) {
+        providerMap[row.id].countries.push({
+          id: row.countryId,
+          code: row.countryCode,
+        });
+      }
+    });
+
+    const result = Object.values(providerMap);
+    if (useCache) {
+      await redis.set(cacheKey, JSON.stringify(result), "EX", 60 * 15);
+    }
+
+    return successResponse("Providers fetched", result);
+  } catch (error: any) {
+    return errorResponse("Failed to fetch providers", error.message);
+  }
 }

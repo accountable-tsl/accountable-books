@@ -10,6 +10,7 @@ export const bankFeedProviderStatus = z.enum([
   "inactive",
   "deprecated",
 ]);
+export type BankFeedProviderStatus = z.infer<typeof bankFeedProviderStatus>;
 
 export const bankFeedProviderInput = z.object({
   id: z.string().uuid().optional(),
@@ -21,6 +22,7 @@ export const bankFeedProviderInput = z.object({
   logo_key: z.string().nullish(),
   status: bankFeedProviderStatus.optional(),
   priority: z.number().int().min(1).optional(),
+  external_id: z.string().nullish(),
   created_by_id: z.string().uuid().optional(),
   updated_by_id: z.string().uuid().nullish(),
 });
@@ -32,7 +34,9 @@ export const bankFeedProviderInputCamel = createCamelCaseSchema(
   bankFeedProviderInput
 );
 
+export type NewBankFeedProvider = BankFeedProviderInput;
 export const bankFeedProvider = bankFeedProviderInput.merge(dbBaseFields);
+export type BankFeedProvider = z.infer<typeof bankFeedProvider>;
 
 export const bpcInput = z.object({
   bank_feed_provider_id: z.string().uuid().optional(),
@@ -71,3 +75,17 @@ export const bankFeedProviderCountries = newBankFeedProviderCountry
 export type BankFeedProviderCountries = z.infer<
   typeof bankFeedProviderCountries
 >;
+
+export type BankFeedProviderWithCountries = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  website: string;
+  logoUrl: string;
+  logoKey: string;
+  status: BankFeedProviderStatus;
+  priority: number;
+  externalId: string;
+  countries: { id: string; code: string }[];
+};

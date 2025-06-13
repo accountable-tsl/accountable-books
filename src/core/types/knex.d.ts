@@ -47,6 +47,12 @@ import {
   NewBankTransaction,
   NewBankTransactionBatches,
 } from "../../domains/bankTransactions/bankTransactions.types";
+import {
+  BankFeedProvider,
+  BankFeedProviderCountries,
+  NewBankFeedProvider,
+  NewBankFeedProviderCountry,
+} from "../../domains/bankFeedProviders/bankFeedProviders.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -154,6 +160,18 @@ declare module "knex/types/tables" {
       BankTransactionBatches,
       NewBankTransactionBatches,
       Partial<Omit<BankTransactionBatches, "id">>
+    >;
+
+    bank_feed_providers: Knex.CompositeTableType<
+      BankFeedProvider,
+      NewBankFeedProvider,
+      Partial<Omit<BankFeedProvider, "id">>
+    >;
+
+    bank_feed_provider_countries: Knex.CompositeTableType<
+      BankFeedProviderCountries,
+      NewBankFeedProviderCountry,
+      Partial<Omit<BankFeedProviderCountries, "id">>
     >;
   }
 }
