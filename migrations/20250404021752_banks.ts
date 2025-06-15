@@ -14,21 +14,21 @@ const seedBanks = async function seed(knex: Knex): Promise<void> {
   const adminUserId = adminUser.id;
   if (!adminUserId) throw new Error("adminUserId is required");
 
-  //include admin user id as created_by_id within the bank data
-  const data = bankData.map((bank) => ({
-    ...bank,
-    created_by_id: adminUserId,
-    updated_by_id: adminUserId,
-  }));
+  // //include admin user id as created_by_id within the bank data
+  // const data = bankData.map((bank) => ({
+  //   ...bank,
+  //   created_by_id: adminUserId,
+  //   updated_by_id: adminUserId,
+  // }));
 
-  data.forEach((bank, index) => {
-    if (!bank.key || !bank.country_id || !bank.display_name) {
-      console.log(bank);
-      throw new Error(`Bank at index ${index} is missing a required field`);
-    }
-  });
+  // data.forEach((bank, index) => {
+  //   if (!bank.key || !bank.country_id || !bank.display_name) {
+  //     console.log(bank);
+  //     throw new Error(`Bank at index ${index} is missing a required field`);
+  //   }
+  // });
 
-  const res = await addNewBank(data, knex);
+  const res = await addNewBank(bankData, adminUserId, knex);
   if (!res.success) {
     console.error("Error creating banks:", res.error);
     throw new Error(res.message);
@@ -45,8 +45,9 @@ export async function up(knex: Knex): Promise<void> {
     table.string("official_name").nullable();
 
     table.string("swift_code").nullable();
-    table.string("local_code").nullable();
+    table.string("local_code").nullable(); // We use NIP code for Nigeria
     table.specificType("local_code_type", "bank_local_code_type").nullable(); // value: e.g., 'sort_code'
+    table.string("secondary_reference").nullable();
 
     table.string("website").nullable();
 

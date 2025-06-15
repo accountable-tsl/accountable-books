@@ -139,6 +139,7 @@ export async function up(knex: Knex): Promise<void> {
       "sort_code",
       "routing",
       "bank_code",
+      "nip_code",
       "ifsc",
       "blz",
       "zengin_code",
@@ -153,9 +154,19 @@ export async function up(knex: Knex): Promise<void> {
       "deprecated",
     ])
   );
+
+  await knex.raw(
+    createEnumIfNotExists("bank_account_connection_status", [
+      "active",
+      "revoked",
+      "pending",
+      "error",
+    ])
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP TYPE IF EXISTS bank_account_connection_status`);
   await knex.raw(`DROP TYPE IF EXISTS bank_feed_provider_status`);
   await knex.raw(`DROP TYPE IF EXISTS bank_local_code_type`);
   await knex.raw(`DROP TYPE IF EXISTS onboarding_status`);

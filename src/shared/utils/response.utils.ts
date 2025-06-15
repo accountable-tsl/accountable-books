@@ -16,13 +16,18 @@ export function successResponse<T>(
 export function errorResponse<T = null>(
   message: string = "Something went wrong",
   error?: unknown,
-  code: ErrorCode = ErrorCode.GENERIC,
-  report: boolean = false
+  options: {
+    code?: ErrorCode;
+    report?: boolean;
+  } = {
+    code: ErrorCode.GENERIC,
+    report: false,
+  }
 ): ApiResponse<T> {
   let parsedError: string | object | undefined = undefined;
   let finalMessage = message;
-  let finalCode = code;
-  let shouldReport = report;
+  let finalCode = options.code;
+  let shouldReport = options.report;
 
   if (error instanceof AppError) {
     parsedError = error.details ?? error.message;

@@ -13,3 +13,16 @@ export const getCompanyShortCode = async (
   const { short_code } = await getCompanyIdentifiers(identifier);
   return short_code;
 };
+
+export const retryAxios = async <T>(
+  fn: () => Promise<T>,
+  retries = 3
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    await new Promise((res) => setTimeout(res, 1000 * (4 - retries)));
+    return retryAxios(fn, retries - 1);
+  }
+};

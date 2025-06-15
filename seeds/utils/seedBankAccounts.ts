@@ -16,7 +16,6 @@ import {
   countriesInSystem,
   currenciesInSystem,
 } from "../data/shared";
-import { all } from "axios";
 
 export const seedBankAccounts = async (bankAccountCreationData: {
   companyType: CompanyType;
@@ -138,7 +137,6 @@ export const generateDemoBankAccounts = ({
     companyType === "individual"
       ? [
           "Personal Account",
-          "Savings",
           "Emergency Fund",
           "Salary Account",
           "Bills Account",
@@ -183,8 +181,7 @@ export const generateDemoBankAccounts = ({
   // Local banks in user's country
   // Only allowed local banks
   const localBanks = banksInSystem.filter(
-    (b) =>
-      b.country_id === resolvedCountry.id && allowedCountryIds.has(b.country_id)
+    (b) => b.country === resolvedCountry.code
   );
 
   if (localBanks.length === 0)
@@ -243,8 +240,10 @@ export const generateDemoBankAccounts = ({
   };
 
   // All allowed banks
-  const allowedBanksInSystem = banksInSystem.filter((b) =>
-    allowedCountryIds.has(b.country_id)
+  const allowedBanksInSystem = banksInSystem.filter(
+    (b) =>
+      allowedCountryIds.has(b.country) ||
+      ALLOWED_DEMO_COUNTRY_CODES.includes(b.country)
   );
   if (allowedBanksInSystem.length === 0)
     throw new Error(`No allowed banks in system`);
@@ -254,8 +253,9 @@ export const generateDemoBankAccounts = ({
   // For foreign account:
   const foreignCountry = faker.helpers.arrayElement(otherCountries);
   const foreignBanks = allowedBanksInSystem.filter(
-    (b) => b.country_id === foreignCountry.id
+    (b) => b.country === foreignCountry.id || b.country === foreignCountry.code
   );
+
   if (foreignBanks.length === 0)
     throw new Error(
       `No banks found for foreign country: ${foreignCountry.name}`

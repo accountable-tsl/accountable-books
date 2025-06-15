@@ -53,6 +53,11 @@ import {
   NewBankFeedProvider,
   NewBankFeedProviderCountry,
 } from "../../domains/bankFeedProviders/bankFeedProviders.types";
+import {
+  BankAccountConnection,
+  NewBankAccountConnection,
+} from "../../domains/bankAccountConnections/bankAccountConnection.types";
+import { BankProviderMapping, NewBankProviderMapping } from "../../domains/mapBankToProviderBank/bankProviderMappings.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -172,6 +177,18 @@ declare module "knex/types/tables" {
       BankFeedProviderCountries,
       NewBankFeedProviderCountry,
       Partial<Omit<BankFeedProviderCountries, "id">>
+    >;
+
+    bank_provider_mappings: Knex.CompositeTableType<
+      BankProviderMapping,
+      NewBankProviderMapping,
+      Partial<Omit<BankProviderMapping, "id">>
+    >;
+
+    bank_account_connections: Knex.CompositeTableType<
+      BankAccountConnection,
+      NewBankAccountConnection,
+      Partial<Omit<BankAccountConnection, "id">>
     >;
   }
 }

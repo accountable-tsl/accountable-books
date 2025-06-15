@@ -12,19 +12,21 @@ import {
   FetchBanksOptions,
   FetchBanksResponse,
   newBank,
+  newBankInput,
   NewInput,
 } from "./banks.types";
 
 export async function addNewBank(
   data: NewInput | NewInput[],
-  knexInstance = knexClient
+  userId: string,
+  knex = knexClient
 ) {
   // Normalize input to an array
   const bankData = Array.isArray(data) ? data : [data];
   const banks = camelToSnake(bankData);
 
   // Validate all entries
-  const validatedData = newBank.array().safeParse(banks);
+  const validatedData = newBankInput.array().safeParse(banks);
 
   if (!validatedData.success) {
     return errorResponse(
@@ -32,9 +34,79 @@ export async function addNewBank(
       validatedData.error.flatten()
     );
   }
+
+  // Extract unique countries for batch lookup
+  const uniqueCountries = [
+    ...new Set(validatedData.data.map((bank) => bank.country)),
+  ];
+
+  // Batch fetch countries by code and ID
+  const [countriesByCode, countriesById] = await Promise.all([
+    knex("countries")
+      .whereIn(
+        "code",
+        uniqueCountries.filter((c) => c.length === 2)
+      )
+      .select("id", "code"),
+    knex("countries")
+      .whereIn(
+        "id",
+        uniqueCountries.filter((c) => c.length !== 2)
+      )
+      .select("id"),
+  ]);
+
+  // Create lookup maps
+  const countryCodeMap = new Map(countriesByCode.map((c) => [c.code, c.id]));
+  const countryIdMap = new Map(countriesById.map((c) => [c.id, c.id]));
+
+  // Process banks and collect errors
+  const bankCountryErrors: string[] = [];
+  const processedBanks = validatedData.data
+    .map((bank, index) => {
+      const countryId =
+        bank.country.length === 2
+          ? countryCodeMap.get(bank.country)
+          : countryIdMap.get(bank.country);
+
+      if (!countryId) {
+        bankCountryErrors.push(
+          `Bank #${index + 1}: Country ${bank.country} not found`
+        );
+        return null;
+      }
+
+      return {
+        ...bank,
+        country_id: countryId,
+        created_by_id: userId,
+        updated_by_id: userId,
+      };
+    })
+    .filter(Boolean); // Remove nulls
+
+  // Return early if there are country validation errors
+  if (bankCountryErrors.length > 0) {
+    return errorResponse("Country validation failed", {
+      errors: bankCountryErrors,
+    });
+  }
+
+  const validateProcessedBanks = newBank.array().safeParse(processedBanks);
+  if (!validateProcessedBanks.success) {
+    return errorResponse(
+      `Invalid input provided: ${validateProcessedBanks.error.message}`,
+      validateProcessedBanks.error.flatten()
+    );
+  }
+
+  console.log(
+    `Inserting ${validateProcessedBanks.data.length} banks..., ${JSON.stringify(validateProcessedBanks.data[0])}`
+  );
+
   try {
-    const inserted = await knexInstance("banks")
-      .insert(validatedData.data)
+    const inserted = await knex("banks")
+      .insert(validateProcessedBanks.data)
       .returning("id");
 
     if (!inserted || inserted.length === 0) {
