@@ -45,11 +45,12 @@ export const handleMonoConnection = async ({
   trx?: Knex.Transaction;
 }): Promise<ApiResponse<{ connections: ConnectionResponse[] }>> => {
   const secretKey = ENV.MONO_SECRET_KEY;
-  if (!secretKey)
+  if (!secretKey) {
+    if (providedTrx) await providedTrx.rollback();
     return errorResponse("Mono secret key is required", null, {
       report: true,
     });
-
+  }
   // Remember to run relevant parts in a transaction whether passed in or not and make sure to not nest transactions
   let trx;
 
@@ -66,7 +67,7 @@ export const handleMonoConnection = async ({
     // Exchange code for permanent Mono ID
     const exchangeRes = await exchangeMonoCode({ code, secretKey });
     if (!exchangeRes.success || !exchangeRes.data) {
-      await trx.rollback(); // unnecessary //TODO: remove
+      if (!providedTrx && trx) await trx.rollback();
       return errorResponse("Failed to exchange Mono code", exchangeRes);
     }
     const permanentMonoId = exchangeRes.data.permanentMonoId;
@@ -77,12 +78,25 @@ export const handleMonoConnection = async ({
       secretKey,
     });
     if (!monoAccountRes.success || !monoAccountRes.data) {
-      await trx.rollback();
+      if (!providedTrx && trx) await trx.rollback();
       return errorResponse(
         "Failed to fetch Mono account details",
         monoAccountRes
       );
     }
+
+    const jsonToSave = {
+      id: monoAccountRes.data.id,
+      name: monoAccountRes.data.name,
+      currency: monoAccountRes.data.currency,
+      account_number: monoAccountRes.data.account_number,
+      bvn: monoAccountRes.data.bvn,
+      institution: {
+        name: monoAccountRes.data.institution.name,
+        bank_code: monoAccountRes.data.institution.bank_code,
+        type: monoAccountRes.data.institution.type,
+      },
+    };
 
     // Fetch mono id from bank_feed_providers table
     const monoProviderRes = await getBankFeedProviders({
@@ -94,7 +108,7 @@ export const handleMonoConnection = async ({
       !monoProviderRes.data ||
       !monoProviderRes.data.length
     ) {
-      await trx.rollback();
+      if (!providedTrx && trx) await trx.rollback();
       return errorResponse("Mono provider not configured in system");
     }
     const monoProvider = monoProviderRes.data[0];
@@ -108,7 +122,7 @@ export const handleMonoConnection = async ({
       trx,
     });
     if (alreadyConnected) {
-      await trx.rollback();
+      if (!providedTrx && trx) await trx.rollback();
       return errorResponse("Bank account already connected via Mono.", {
         code,
         providerBankAccountId: permanentMonoId,
@@ -127,7 +141,7 @@ export const handleMonoConnection = async ({
       providerId,
       bankAccountId: null,
       status: "pending",
-      rawMetadata: monoAccountRes.data,
+      rawMetadata: jsonToSave,
     };
     const newConnectionRes = await addBankAccountConnection({
       userId,
@@ -135,7 +149,7 @@ export const handleMonoConnection = async ({
       trx,
     });
     if (!newConnectionRes.success || !newConnectionRes.data?.id) {
-      await trx.rollback();
+      if (!providedTrx && trx) await trx.rollback();
       return errorResponse(
         "Could not save pending bank connection",
         newConnectionRes
@@ -174,6 +188,7 @@ export const handleMonoConnection = async ({
           bankAccountId: finalBankAccountId,
           status: "active",
         },
+        trx,
       });
     } else if (
       matchResult.fuzzyMatches.length > 0 ||
@@ -203,6 +218,7 @@ export const handleMonoConnection = async ({
       });
 
       if (!newBankAccount.success || !newBankAccount.data) {
+        if (!providedTrx && trx) await trx.rollback();
         return errorResponse(
           "Failed to create new bank account",
           newBankAccount,
@@ -222,6 +238,18 @@ export const handleMonoConnection = async ({
         updates: {
           bankAccountId: finalBankAccountId,
           status: "active",
+        },
+      });
+    } else {
+      // NO MATCHES AND NO RESOLVED BANK/CURRENCY: Cannot process
+      connStatus = "error";
+      responseMessage =
+        "Unable to match or create account - bank or currency not supported.";
+
+      await updateBankAccountConnection({
+        connectionId,
+        updates: {
+          status: "error",
         },
       });
     }
@@ -261,7 +289,7 @@ export const handleMonoConnection = async ({
       connections: [connectionResponse],
     });
   } catch (error) {
-    if (trx) await trx.rollback();
+    if (!providedTrx && trx) await trx.rollback();
     return errorResponse(
       "Unexpected error during bank connection process",
       error,
@@ -436,15 +464,12 @@ export const addBankAccountConnection = async ({
   data,
   trx,
 }: CreateNewBankAccountConnection): Promise<ApiResponse<{ id: string }>> => {
+  const validInput = bankAccountConnectionInputCamel.safeParse(data);
+  if (!validInput.success) {
+    return errorResponse("Invalid input provided", validInput.error.flatten());
+  }
   try {
     const knex = trx || knexClient;
-    const validInput = bankAccountConnectionInputCamel.safeParse(data);
-    if (!validInput.success) {
-      return errorResponse(
-        "Invalid input provided",
-        validInput.error.flatten()
-      );
-    }
 
     const toInsert = {
       ...validInput.data,
@@ -826,24 +851,27 @@ export const connectBankAccountWithMono = async ({
 export const updateBankAccountConnection = async ({
   connectionId,
   updates,
+  trx,
 }: {
   connectionId: string;
   updates: UpdateBankAccountConnection;
+  trx?: Knex.Transaction;
 }) => {
+  const validatedUpdates = updateBankAccountConnectionCamel.safeParse(updates);
+
+  if (!validatedUpdates.success) {
+    return errorResponse(
+      "Invalid input provided",
+      validatedUpdates.error.flatten()
+    );
+  }
+
   try {
-    const validatedUpdates =
-      updateBankAccountConnectionCamel.safeParse(updates);
+    const knex = trx || knexClient;
 
-    if (!validatedUpdates.success) {
-      return errorResponse(
-        "Invalid input provided",
-        validatedUpdates.error.flatten()
-      );
-    }
-
-    const [updated] = await knexClient("bank_account_connections")
+    const [updated] = await knex("bank_account_connections")
       .where({ id: connectionId })
-      .update(updates)
+      .update(validatedUpdates.data)
       .returning("*");
 
     if (!updated) {

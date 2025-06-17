@@ -108,7 +108,7 @@ export type MonoAccountResponse =
   | MonoAccountSuccessResponse
   | MonoAccountErrorResponse;
 
-export type ConnectionStatus =
+export type ConnectionStatus = // For response only
   | "connected"
   | "needs_user_confirmation"
   | "new_account_created"
