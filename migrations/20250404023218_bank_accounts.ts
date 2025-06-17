@@ -10,7 +10,8 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
     table.string("display_name").notNullable();
-    table.specificType("account_type", "bank_account_type").notNullable();
+    table.string("account_name").nullable();
+    table.specificType("account_type", "bank_account_type").nullable();
     table.string("account_number").notNullable();
 
     table

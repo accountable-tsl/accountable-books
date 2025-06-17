@@ -4,6 +4,7 @@ import {
   SnakeToCamelCaseObject,
 } from "../../shared/utils/formatting.utils";
 import type { Knex } from "knex";
+import { BankAccount } from "../bankAccounts/bankAccounts.types";
 
 export const bankAccountConnectionStatus = z.enum([
   "active",
@@ -16,21 +17,19 @@ export type BankAccountConnectionStatus = z.infer<
 >;
 
 export const bankAccountConnectionInput = z.object({
-  provider_id: z.string().uuid(),
-  bank_account_id: z.string().uuid(),
   provider_bank_account_id: z.string().min(1),
   provider_bank_account_secondary_id: z.string().min(1).optional(),
+  bank_account_id: z.string().uuid().nullish(),
+  provider_id: z.string().uuid(),
   status: bankAccountConnectionStatus,
   raw_metadata: z.record(z.string(), z.any()).optional(),
   last_sync_at: z.date().optional(),
   connected_at: z.date().optional(),
-  created_by_id: z.string().uuid().optional(),
 });
 
 export const bankAccountConnectionInputCamel = createCamelCaseSchema(
   bankAccountConnectionInput
 );
-
 export type BankAccountConnectionInput = SnakeToCamelCaseObject<
   z.infer<typeof bankAccountConnectionInput>
 >;
@@ -45,6 +44,15 @@ export const bankAccountConnection = newBankAccountConnection.extend({
 });
 export type BankAccountConnection = z.infer<typeof bankAccountConnection>;
 
+const updateBankAccConnection = bankAccountConnectionInput
+  .omit({ connected_at: true })
+  .partial();
+export const updateBankAccountConnectionCamel = createCamelCaseSchema(
+  updateBankAccConnection
+);
+export type UpdateBankAccountConnection = SnakeToCamelCaseObject<
+  z.infer<typeof updateBankAccConnection>
+>;
 export type CreateNewBankAccountConnection = {
   userId: string;
   data: BankAccountConnectionInput;
@@ -67,8 +75,8 @@ export interface MonoAccountDetails {
   name: string;
   currency: string;
   type: string;
-  account_number: string;
-  balance: number;
+  account_number: string | number;
+  balance: number | string;
   bvn: string;
   institution: InstitutionDetails;
 }
@@ -99,3 +107,49 @@ export interface MonoAccountSuccessResponse {
 export type MonoAccountResponse =
   | MonoAccountSuccessResponse
   | MonoAccountErrorResponse;
+
+export type ConnectionStatus =
+  | "connected"
+  | "needs_user_confirmation"
+  | "new_account_created"
+  | "error";
+
+export type BankAccountMatch = {
+  bankAccountId: string | null;
+  accountName: string;
+  accountNumber: string;
+
+  bankId: string | null;
+  bankName: string;
+
+  currencyId: string;
+  currencyCode: string;
+  currencyName: string;
+  currencySymbol: string;
+
+  matchedFields?: string[];
+};
+
+export interface FuzzyMatch extends BankAccountMatch {
+  matchScore: number;
+  matchReasons: string[];
+}
+export type ConnectionResponse = {
+  connectionDetails: {
+    connectionId: string;
+
+    providerId: string;
+    providerName: string;
+    providerKey: string;
+
+    providerBankAccountId: string;
+    bankAccountId: string | null;
+
+    connectionStatus: ConnectionStatus;
+  };
+
+  suggestedBankAccountMatches: BankAccountMatch[];
+
+  userActionRequired: boolean;
+  message: string;
+};

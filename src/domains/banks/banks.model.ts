@@ -1,4 +1,4 @@
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import { redis } from "../../lib/redis";
 import { camelToSnake, isValidUUID } from "../../shared/utils/formatting.utils";

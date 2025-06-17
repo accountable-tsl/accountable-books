@@ -10,6 +10,7 @@ const newBankProviderMappingInput = z.object({
   provider_id: z.string().uuid(),
   bank_id: z.string().uuid(),
   provider_bank_id: z.string(),
+  provider_alternate_id: z.string().nullish(),
   provider_bank_secondary_reference: z.string().nullish(),
   provider_bank_name: z.string().nullish(),
   raw_provider_data: z.record(z.string(), z.any()).nullish(),
@@ -25,6 +26,7 @@ export type NewBankProviderMappingInputCamel = SnakeToCamelCaseObject<
 >;
 
 export const newBankProviderMapping = newBankProviderMappingInput.extend({
+  id: z.string().uuid().optional(),
   created_by_id: z.string().uuid(),
   updated_by_id: z.string().uuid().optional(),
 });

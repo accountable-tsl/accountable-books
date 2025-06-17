@@ -7,7 +7,7 @@ import {
   successResponse,
 } from "../../shared/utils/response.utils";
 import axios from "axios";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import {
   ExchangeRateData,
   ExchangeRateItem,

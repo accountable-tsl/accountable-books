@@ -56,8 +56,11 @@ import {
 import {
   BankAccountConnection,
   NewBankAccountConnection,
-} from "../../domains/bankAccountConnections/bankAccountConnection.types";
-import { BankProviderMapping, NewBankProviderMapping } from "../../domains/mapBankToProviderBank/bankProviderMappings.types";
+} from "../../domains/bankAccountConnections/bankAccountConnections.types";
+import {
+  BankProviderMapping,
+  NewBankProviderMapping,
+} from "../../domains/mapBankToProviderBank/bankProviderMappings.types";
 
 declare module "knex/types/tables" {
   interface Tables {

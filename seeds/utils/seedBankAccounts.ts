@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import knexClient from "../../knexClient";
+import { knexClient } from "../../knexClient";
 import { createNewBankAccount } from "../../src/domains/bankAccounts/bankAccounts.model";
 import {
   bankAccountType,

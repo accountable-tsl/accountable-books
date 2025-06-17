@@ -3,7 +3,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { getIdentifierType } from "../utils/utils-old";
 import { fetchExchangeRate } from "./exRateModel";
 import type { Knex } from "knex";
-import knexInstance from "../knexClient";
+import { knexClient } from "../knexClient";
 
 type RawCoaBalanceRow = {
   coaId: string;

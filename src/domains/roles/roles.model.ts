@@ -1,4 +1,4 @@
-import knex from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { roleName, RoleName } from "../../core/types/db.types";
 import { AppError } from "../../shared/utils/response.utils";
 
@@ -11,7 +11,7 @@ export const roles: Record<RoleName, string> = {
   client: "",
 };
 export const loadRoles = async () => {
-  const result = await knex("roles")
+  const result = await knexClient("roles")
     .select("id", "name")
     .where("is_deleted", false);
 

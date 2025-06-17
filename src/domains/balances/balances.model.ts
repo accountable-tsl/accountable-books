@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import {
   ErrorCode,
   errorResponse,
@@ -264,7 +264,7 @@ export async function getBankAccountBalances(
 
       console.log(groupedTx);
       const group = groupedTx[bankId];
-      group.nativeBalance = group.nativeBalance+(amount);
+      group.nativeBalance = group.nativeBalance + amount;
 
       if (includeStats) {
         group.transactionCount!++;
@@ -375,7 +375,7 @@ export async function getBankAccountBalances(
         }
 
         const rate = exchangeRateCache.get(cacheKey);
-        if (rate) reportingBalance = group.nativeBalance*(Number(rate));
+        if (rate) reportingBalance = group.nativeBalance * Number(rate);
       }
 
       group.reportingBalance = reportingBalance;

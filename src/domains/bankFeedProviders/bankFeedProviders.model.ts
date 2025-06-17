@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import {
   errorResponse,

@@ -5,23 +5,23 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
 
+    table.string("provider_bank_account_id").notNullable(); // The account id from the provider
+
+    table.string("provider_bank_account_secondary_id").nullable(); // The secondary id from the provider
+
+    table
+      .uuid("bank_account_id") // The bank account this connection belongs to
+      .nullable()
+      .references("id")
+      .inTable("bank_accounts")
+      .onDelete("CASCADE");
+
     table
       .uuid("provider_id") // The provider this connection belongs to
       .notNullable()
       .references("id")
       .inTable("bank_feed_providers")
       .onDelete("CASCADE");
-
-    table
-      .uuid("bank_account_id") // The bank account this connection belongs to
-      .notNullable()
-      .references("id")
-      .inTable("bank_accounts")
-      .onDelete("CASCADE");
-
-    table.string("provider_bank_account_id").notNullable(); // The account id from the provider
-
-    table.string("provider_bank_account_secondary_id").nullable(); // The secondary id from the provider
 
     table
       .specificType("status", "bank_account_connection_status")

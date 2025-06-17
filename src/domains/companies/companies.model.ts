@@ -24,7 +24,7 @@ import {
   successResponse,
 } from "../../shared/utils/response.utils";
 import generateSecureShortCode from "../../shared/utils/crypto.utils";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { generateAuthTokens } from "../../features/auth/auth.utils";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { RoleName } from "../../core/types/db.types";

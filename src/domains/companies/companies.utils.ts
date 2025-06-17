@@ -1,4 +1,4 @@
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { getIdentifierType } from "../../shared/utils/formatting.utils";
 import { AppError } from "../../shared/utils/response.utils";
 

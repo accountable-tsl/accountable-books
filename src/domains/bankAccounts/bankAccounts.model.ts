@@ -3,7 +3,7 @@ import {
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import {
   BankAccountWithMeta,
@@ -207,11 +207,9 @@ export async function createNewBankAccount(input: {
     ]);
 
     if (!bank)
-      return errorResponse(
-        "The selected bank cannot be verified",
-        undefined,
-        ErrorCode.NOT_FOUND
-      );
+      return errorResponse("The selected bank cannot be verified", undefined, {
+        code: ErrorCode.NOT_FOUND,
+      });
     if (!currency) return errorResponse("Invalid currency");
 
     // Check that bank account does not already exist
@@ -248,7 +246,7 @@ export async function createNewBankAccount(input: {
       return errorResponse(
         `A chart of account with the name "${coaInput.name}" ${coaInput.code ? `and code "${coaInput.code}"` : ""} already exists in this company`,
         undefined,
-        ErrorCode.CONFLICT
+        { code: ErrorCode.CONFLICT }
       );
     }
 
@@ -273,6 +271,7 @@ export async function createNewBankAccount(input: {
       const [newBankAccount] = await tx("bank_accounts")
         .insert({
           display_name: data.display_name,
+          account_name: data.account_name || data.display_name,
           account_type: data.account_type,
           account_number: data.account_number,
           bank_id: data.bank_id,

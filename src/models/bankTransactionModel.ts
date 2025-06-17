@@ -8,7 +8,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { getSingleExchangeRate } from "../controllers/exRateController";
 import { fetchExchangeRate } from "./exRateModel";
 import { determineExchangeRate, getIdentifierType } from "../utils/utils-old";
-import knexInstance from "../knexClient";
+import { knexClient } from "../knexClient";
 import { randomUUID } from "crypto";
 
 const prisma = new PrismaClient();

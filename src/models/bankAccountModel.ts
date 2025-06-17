@@ -4,7 +4,7 @@ import { BankAccountType } from "@prisma/client/wasm";
 import { getIdentifierType } from "../utils/utils-old";
 import { getBankAccountBalances, getBankLedgerBalances } from "./balancesModel";
 import { Decimal } from "@prisma/client/runtime/library";
-import knexInstance from "../knexClient";
+import { knexClient } from "../knexClient";
 
 const prisma = new PrismaClient();
 

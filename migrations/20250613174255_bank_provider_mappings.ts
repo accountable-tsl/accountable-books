@@ -36,6 +36,8 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .comment("Provider's primary bank identifier");
 
+    table.string("provider_alternate_id").nullable(); // Another ID or Bank Code from provider
+
     table
       .string("provider_bank_secondary_reference")
       .nullable()

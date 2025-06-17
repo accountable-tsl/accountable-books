@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import {

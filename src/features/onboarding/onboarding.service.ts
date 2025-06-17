@@ -1,4 +1,4 @@
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import { getSingleCompany } from "../../domains/companies/companies.model";
 import {

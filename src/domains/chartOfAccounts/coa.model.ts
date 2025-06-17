@@ -18,7 +18,7 @@ import Decimal from "decimal.js";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { hasAccessToCompany } from "../userCompanyRole/userCompanyRole.model";
 import { camelToSnake } from "../../shared/utils/formatting.utils";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 
 export const createCoa = async ({
   companyId,

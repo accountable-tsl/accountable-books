@@ -46,12 +46,12 @@ export const verifyAccessToken = async (
 
 function handleJwtError(err: unknown, res: Response) {
   if (err instanceof jwt.TokenExpiredError) {
-    return res.status(401).json(errorResponse("Token expired"));
+    return res.status(401).json(errorResponse("Token expired", err.message));
   }
   if (err instanceof jwt.JsonWebTokenError) {
-    return res.status(403).json(errorResponse("Invalid token"));
+    return res.status(403).json(errorResponse("Invalid token", err.message));
   }
-  res.status(500).json(errorResponse("Authentication failed"));
+  res.status(500).json(errorResponse("Authentication failed", err));
 }
 
 export const verifyRefreshToken = async (

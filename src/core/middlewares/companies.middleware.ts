@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { errorResponse } from "../../shared/utils/response.utils";
-import knex from "../../../knexClient";
 import { getSingleCompany } from "../../domains/companies/companies.model";
 
 export const checkCompanyId = async (

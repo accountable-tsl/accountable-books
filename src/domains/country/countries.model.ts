@@ -1,4 +1,4 @@
-import knex from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import { snakeToCamel } from "../../shared/utils/formatting.utils";
 import {
@@ -8,7 +8,7 @@ import {
 
 export async function getCountries(): Promise<ApiResponse> {
   try {
-    const countries = await knex("countries")
+    const countries = await knexClient("countries")
       .select("id", "code", "name", "phone_code", "flag", "continent")
       .where("is_deleted", false)
       .orderBy("name", "asc");

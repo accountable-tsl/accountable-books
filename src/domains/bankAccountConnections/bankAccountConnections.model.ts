@@ -8,21 +8,267 @@ import {
 import axios from "axios";
 import { ENV } from "../../config/env";
 import { createNewBankAccount } from "../bankAccounts/bankAccounts.model";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import {
   bankAccountType,
   NewBankAccountInput,
 } from "../bankAccounts/bankAccounts.types";
 import { coaSource } from "../chartOfAccounts/coa.types";
+import { ApiResponse } from "../../core/types/api.types";
 import {
   BankAccountConnectionInput,
   bankAccountConnectionInputCamel,
+  ConnectionResponse,
   CreateNewBankAccountConnection,
   MonoAccountDetails,
   MonoAccountErrorResponse,
   MonoAccountResponse,
-} from "./bankAccountConnection.types";
-import { ApiResponse } from "../../core/types/api.types";
+  FuzzyMatch,
+  BankAccountMatch,
+  ConnectionStatus,
+  UpdateBankAccountConnection,
+  updateBankAccountConnectionCamel,
+} from "./bankAccountConnections.types";
+import { computeMatchScoreAndReasons } from "./bankAccountConnections.utils";
+
+export const handleMonoConnection = async ({
+  code,
+  providerKey = "mono",
+  userId,
+  companyId,
+  trx: providedTrx,
+}: {
+  code: string;
+  providerKey?: string;
+  userId: string;
+  companyId: string;
+  trx?: Knex.Transaction;
+}): Promise<ApiResponse<{ connections: ConnectionResponse[] }>> => {
+  const secretKey = ENV.MONO_SECRET_KEY;
+  if (!secretKey)
+    return errorResponse("Mono secret key is required", null, {
+      report: true,
+    });
+
+  // Remember to run relevant parts in a transaction whether passed in or not and make sure to not nest transactions
+  let trx;
+
+  try {
+    // Start transaction
+    trx = providedTrx || (await knexClient.transaction());
+    /**
+     * Steps 1-3: Data Acquisition
+     * Exchange code → Get permanent ID
+     * Fetch details → Get full account info
+     * Check duplicates → Prevent re-connections
+     */
+
+    // Exchange code for permanent Mono ID
+    const exchangeRes = await exchangeMonoCode({ code, secretKey });
+    if (!exchangeRes.success || !exchangeRes.data) {
+      await trx.rollback(); // unnecessary //TODO: remove
+      return errorResponse("Failed to exchange Mono code", exchangeRes);
+    }
+    const permanentMonoId = exchangeRes.data.permanentMonoId;
+
+    // Fetch full account details from Mono
+    const monoAccountRes = await getMonoAccountDetails({
+      accountId: permanentMonoId,
+      secretKey,
+    });
+    if (!monoAccountRes.success || !monoAccountRes.data) {
+      await trx.rollback();
+      return errorResponse(
+        "Failed to fetch Mono account details",
+        monoAccountRes
+      );
+    }
+
+    // Fetch mono id from bank_feed_providers table
+    const monoProviderRes = await getBankFeedProviders({
+      providerKeys: providerKey,
+      useCache: false,
+    });
+    if (
+      !monoProviderRes.success ||
+      !monoProviderRes.data ||
+      !monoProviderRes.data.length
+    ) {
+      await trx.rollback();
+      return errorResponse("Mono provider not configured in system");
+    }
+    const monoProvider = monoProviderRes.data[0];
+    const providerId = monoProvider.id;
+
+    // Check for existing active connection
+    const alreadyConnected = await checkExistingConnection({
+      providerBankAccountId: permanentMonoId,
+      providerId,
+      status: ["active", "pending"], // check pending status to avoid re-attempts during processing
+      trx,
+    });
+    if (alreadyConnected) {
+      await trx.rollback();
+      return errorResponse("Bank account already connected via Mono.", {
+        code,
+        providerBankAccountId: permanentMonoId,
+        providerId,
+      });
+    }
+
+    /**
+     * Step 4: Data Safety
+     * Save immediately with bank_account_id: null
+     * No data loss risk - connection is preserved even if matching fails
+     * Status: "pending" until processing completes
+     */
+    const newConnection: BankAccountConnectionInput = {
+      providerBankAccountId: permanentMonoId,
+      providerId,
+      bankAccountId: null,
+      status: "pending",
+      rawMetadata: monoAccountRes.data,
+    };
+    const newConnectionRes = await addBankAccountConnection({
+      userId,
+      data: newConnection,
+      trx,
+    });
+    if (!newConnectionRes.success || !newConnectionRes.data?.id) {
+      await trx.rollback();
+      return errorResponse(
+        "Could not save pending bank connection",
+        newConnectionRes
+      );
+    }
+    const connectionId = newConnectionRes.data.id;
+
+    /**
+     * Steps 5-6: Smart Matching
+     * Find matches using your matching algorithm
+     * Decide action based on match quality
+     * Update connection with final bank account ID
+     */
+
+    const matchResult = await findBankAccountMatches({
+      providerId,
+      accountDetails: monoAccountRes.data,
+      companyId,
+    });
+
+    let finalBankAccountId: string | null = null;
+    let connStatus: ConnectionStatus = "connected";
+    let userActionRequired = false;
+    let responseMessage = "";
+
+    if (matchResult.exactMatch) {
+      // EXACT MATCH: Auto-connect
+      finalBankAccountId = matchResult.exactMatch.bankAccountId;
+      connStatus = "connected";
+      responseMessage = "Connected automatically to existing account.";
+
+      // Update the connection with the matched bank account
+      await updateBankAccountConnection({
+        connectionId,
+        updates: {
+          bankAccountId: finalBankAccountId,
+          status: "active",
+        },
+      });
+    } else if (
+      matchResult.fuzzyMatches.length > 0 ||
+      matchResult.unconnectedAccounts.length > 0
+    ) {
+      // FUZZY MATCHES OR UNCONNECTED ACCOUNTS: Need user confirmation
+      connStatus = "needs_user_confirmation";
+      userActionRequired = true;
+      responseMessage =
+        "Please select which account this connection belongs to.";
+    } else if (
+      matchResult.other?.resolvedBankId &&
+      matchResult.other?.resolvedCurrencyId
+    ) {
+      // NO MATCHES: Create new bank account
+      const acc = monoAccountRes.data;
+      const newBankAccount = await createNewBankAccount({
+        companyId,
+        userId,
+        data: {
+          displayName: acc.name,
+          accountName: acc.name,
+          accountNumber: acc.account_number.toString(),
+          bankId: matchResult.other?.resolvedBankId,
+          currencyId: matchResult.other?.resolvedCurrencyId,
+        },
+      });
+
+      if (!newBankAccount.success || !newBankAccount.data) {
+        return errorResponse(
+          "Failed to create new bank account",
+          newBankAccount,
+          {
+            report: true,
+          }
+        );
+      }
+
+      finalBankAccountId = newBankAccount.data.id;
+      connStatus = "new_account_created";
+      responseMessage = "New account created and connected automatically.";
+
+      // Update the connection with the new bank account
+      await updateBankAccountConnection({
+        connectionId,
+        updates: {
+          bankAccountId: finalBankAccountId,
+          status: "active",
+        },
+      });
+    }
+
+    /**
+     * Steps 7-8:
+     * Build Response
+     * Build suggestions for frontend display
+     * Create response with all necessary data
+     */
+
+    const connectionResponse: ConnectionResponse = {
+      connectionDetails: {
+        connectionId,
+        providerId,
+        providerName: monoProvider.name,
+        providerKey: monoProvider.key,
+
+        providerBankAccountId: permanentMonoId,
+        bankAccountId: finalBankAccountId,
+
+        connectionStatus: connStatus,
+      },
+
+      suggestedBankAccountMatches: [
+        ...matchResult.fuzzyMatches,
+        ...matchResult.unconnectedAccounts,
+      ],
+
+      userActionRequired,
+      message: responseMessage,
+    };
+
+    if (!providedTrx && trx) await trx.commit();
+
+    return successResponse("Bank account processed successfully.", {
+      connections: [connectionResponse],
+    });
+  } catch (error) {
+    if (trx) await trx.rollback();
+    return errorResponse(
+      "Unexpected error during bank connection process",
+      error,
+      { report: true }
+    );
+  }
+};
 
 const exchangeMonoCode = async ({
   code,
@@ -83,6 +329,28 @@ const exchangeMonoCode = async ({
       error: (error as Error).message,
     });
   }
+};
+
+const checkExistingConnection = async ({
+  providerBankAccountId,
+  providerId,
+  status = ["active"],
+  trx,
+}: {
+  providerBankAccountId: string;
+  providerId: string;
+  status?: string[];
+  trx?: Knex.Transaction;
+}) => {
+  const knex = trx || knexClient;
+  const connection = await knex("bank_account_connections")
+    .where({
+      provider_bank_account_id: providerBankAccountId,
+      provider_id: providerId,
+    })
+    .whereIn("status", status)
+    .first();
+  return !!connection;
 };
 
 const getMonoAccountDetails = async ({
@@ -163,110 +431,7 @@ const getMonoAccountDetails = async ({
   }
 };
 
-// const createBankAccountFromMono = async (monoAccount: any, companyId: string, userId: string) => { ... }
-
-// Exchange temporary code to get permanent id from mono
-export const getPermanentMonoId = async (
-  code: string,
-  userId: string,
-  companyId: string
-  //   trx?: Knex.Transaction
-) => {
-  //Maybe to even break this a little bit more
-  try {
-    const monoSecretKey = ENV.MONO_SECRET_KEY;
-    if (!monoSecretKey)
-      return errorResponse("Mono secret key is required", null, {
-        report: true,
-      });
-
-    // Exchange temporary code to get permanent id
-    const exchangeCode = await exchangeMonoCode({
-      code,
-      secretKey: monoSecretKey,
-    });
-    if (!exchangeCode.success || !exchangeCode.data) {
-      return exchangeCode;
-    }
-    const monoAccountId = exchangeCode.data.permanentMonoId;
-
-    // get mono account details
-    const monoAccount = await getMonoAccountDetails({
-      accountId: monoAccountId,
-      secretKey: monoSecretKey,
-    });
-    if (!monoAccount.success || !monoAccount.data) {
-      return monoAccount;
-    }
-    console.log({ monoAccountId, monoAccount });
-
-    // Get mono provider
-    const mono = await getBankFeedProviders({
-      providerKeys: "mono",
-    });
-
-    if (!mono.success || !mono.data) {
-      return errorResponse(mono.message || "Failed to get Mono provider");
-    }
-    const monoId = mono.data[0].id;
-
-    // Get currencyId in db
-    // Get bankId in db
-
-    const newAccountData: NewBankAccountInput = {
-      displayName: account.name, // required in bank account bable
-      currencyId: "", // required in bank account bable
-      bankId: "", // required in bank account bable
-      accountNumber: account.number,
-      accountType: bankAccountType.enum.other, // update later
-      source: coaSource.enum.user,
-    };
-
-    // Create internal bank account
-    const newBankAccount = await createNewBankAccount({
-      companyId,
-      userId,
-      data: newAccountData,
-    });
-    if (
-      !newBankAccount.success ||
-      !newBankAccount.data ||
-      !newBankAccount.data.id
-    ) {
-      return errorResponse(
-        newBankAccount.message || "Failed to create bank account internally"
-      );
-    }
-
-    const bankAccountId = newBankAccount.data.id;
-    const connectionData: BankAccountConnectionInput = {
-      providerId: monoId,
-      bankAccountId,
-      providerBankAccountId: account.id,
-      status: "active",
-      rawMetadata: response,
-      lastSyncAt: new Date(),
-    };
-
-    // Create bank connection
-    // Maybe we should make bank account id nullable in bank_account_connections table but we don't allow read ops if no bank account id
-    // Coz the following have higher risk of failing
-    const newBankAccountConnection = await createNewBankAccountConnection({
-      userId,
-      data: connectionData,
-    });
-
-    // Not sure what data to return
-    return successResponse("Bank account connection created successfully", {
-      code,
-      newBankAccountConnection,
-    });
-  } catch (error) {
-    return errorResponse("Failed to connect bank account", error);
-  }
-};
-
-export const createNewBankAccountConnection = async ({
+export const addBankAccountConnection = async ({
   userId,
   data,
   trx,
@@ -283,7 +448,7 @@ export const createNewBankAccountConnection = async ({
 
     const toInsert = {
       ...validInput.data,
-      created_by_id: validInput.data.created_by_id || userId,
+      created_by_id: userId,
     };
 
     const [id] = await knex("bank_account_connections")
@@ -298,5 +463,396 @@ export const createNewBankAccountConnection = async ({
     });
   } catch (error) {
     return errorResponse("Failed to create bank account connection", error);
+  }
+};
+
+const findBankAccountMatches = async ({
+  accountDetails,
+  providerId,
+  companyId,
+}: {
+  accountDetails: MonoAccountDetails;
+  providerId?: string;
+  companyId: string;
+}): Promise<{
+  exactMatch?: BankAccountMatch;
+  fuzzyMatches: FuzzyMatch[];
+  unconnectedAccounts: BankAccountMatch[];
+  other?: { resolvedBankId?: string; resolvedCurrencyId?: string };
+}> => {
+  try {
+    // Get all bank accounts for the company that are not connected to any provider
+    const unconnectedBankAccounts: BankAccountMatch[] = await knexClient(
+      "bank_accounts as ba"
+    )
+      .leftJoin(
+        "bank_account_connections as bacc",
+        "bank_accounts.id",
+        "bank_account_connections.bank_account_id"
+      )
+      .join("banks as b", "ba.bank_id", "b.id")
+      .join("currencies as cur", "ba.currency_id", "cur.id")
+      .where("ba.company_id", companyId)
+      .whereNull("bacc.id") // Not connected to any provider
+      .andWhere("ba.is_deleted", false)
+      .select([
+        "ba.id as bankAccountId",
+        "ba.display_name as accountName",
+        "ba.account_number as accountNumber",
+        "ba.bank_id as bankId",
+        "b.display_name as bankName",
+        "ba.currency_id as currencyId",
+        "cur.code as currencyCode",
+        "cur.name as currencyName",
+        "cur.symbol as currencySymbol",
+      ]);
+
+    if (unconnectedBankAccounts.length === 0) {
+      return {
+        fuzzyMatches: [],
+        unconnectedAccounts: [],
+      };
+    }
+
+    const {
+      currency: accountCurrencyCode,
+      account_number: accountNumber,
+      institution: { name: bankName, bank_code: bankCode },
+    } = accountDetails;
+
+    /**
+     * Same account number, same bank, in the same company and currency; exact match
+     * Get bank by checking bank_provider_mappings using bankInfo, retrieve bank_id
+     * Get currency ID from currencies table using accountCurrencyCode
+     * Check bank_accounts for account_number, bank_id, in the same company and maybe currency
+     */
+
+    // Resolve bank
+    let bankQuery = knexClient("bank_provider_mappings");
+    if (providerId) {
+      bankQuery = bankQuery.where("provider_id", providerId).andWhere((qb) =>
+        qb
+          .where({ provider_alternate_id: bankCode })
+          .orWhere({ provider_bank_secondary_reference: bankCode })
+          .orWhere({ provider_bank_name: bankName })
+          .orWhereRaw("raw_provider_data::jsonb @> ?", [
+            JSON.stringify({ bank_code: bankCode }),
+          ])
+      );
+    } else {
+      // fallback for legacy data or when providerId missing
+      bankQuery = bankQuery
+        .where({ provider_alternate_id: bankCode })
+        .orWhere({ provider_bank_secondary_reference: bankCode });
+    }
+
+    const resolvedBank: { bank_id: string } | undefined = await bankQuery
+      .select("bank_provider_mappings.bank_id")
+      .first();
+    if (!resolvedBank) {
+      return {
+        fuzzyMatches: [],
+        unconnectedAccounts: [],
+      };
+    }
+    const resolvedBankId = resolvedBank.bank_id;
+
+    // Resolve currency
+    const resolvedCurrency: { id: string } | undefined = await knexClient(
+      "currencies"
+    )
+      .select("id")
+      .where("code", accountCurrencyCode.trim().toUpperCase())
+      .first();
+
+    if (!resolvedCurrency) {
+      return {
+        fuzzyMatches: [],
+        unconnectedAccounts: [],
+      };
+    }
+    const resolvedCurrencyId = resolvedCurrency.id;
+
+    // Look for EXACT matches
+    // Exact match criteria: account_number AND bank_id and currency_id must match exactly
+    const exactMatch = unconnectedBankAccounts.find((acc) => {
+      const accountNumberMatch =
+        acc.accountNumber &&
+        acc.accountNumber.toString().replace(/\s+/g, "") ===
+          accountNumber.toString().replace(/\s+/g, "");
+
+      const bankIdMatch = acc.bankId && acc.bankId === resolvedBankId;
+
+      const currencyIdMatch =
+        acc.currencyId && acc.currencyId === resolvedCurrencyId;
+
+      return accountNumberMatch && bankIdMatch && currencyIdMatch;
+    });
+
+    if (exactMatch) {
+      return {
+        exactMatch,
+        fuzzyMatches: [],
+        unconnectedAccounts: unconnectedBankAccounts.filter(
+          (acc) => acc.bankAccountId !== exactMatch.bankAccountId
+        ),
+      };
+    }
+
+    // Look for FUZZY matches
+    const fuzzyMatches: FuzzyMatch[] = [];
+    for (const account of unconnectedBankAccounts) {
+      const matchScoreAndReasons = computeMatchScoreAndReasons({
+        bankAccount: account,
+        providerAccount: {
+          ...accountDetails,
+          resolvedBankId,
+          resolvedCurrencyId,
+        },
+      });
+      const { matchScore, matchReasons } = matchScoreAndReasons;
+
+      // Only consider it a fuzzy match if score is above threshold (0.6)
+      if (matchScore >= 0.6) {
+        fuzzyMatches.push({
+          ...account,
+          matchScore,
+          matchReasons,
+        });
+      }
+    }
+
+    // Sort fuzzy matches by score (highest first)
+    fuzzyMatches.sort((a, b) => b.matchScore - a.matchScore);
+
+    // Get remaining unconnected accounts (those not in fuzzy matches)
+    const fuzzyMatchIds = new Set(
+      fuzzyMatches.map((match) => match.bankAccountId)
+    );
+    const remainingUnconnected = unconnectedBankAccounts.filter(
+      (account) => !fuzzyMatchIds.has(account.bankAccountId)
+    );
+
+    return {
+      fuzzyMatches,
+      unconnectedAccounts: remainingUnconnected,
+      other: { resolvedBankId, resolvedCurrencyId },
+    };
+  } catch (error) {
+    console.error("Error finding bank account matches:", error);
+    return {
+      fuzzyMatches: [],
+      unconnectedAccounts: [],
+    };
+  }
+};
+
+// Exchange temporary code to get permanent id from mono
+export const connectBankAccountWithMono = async ({
+  code,
+  userId,
+  companyId,
+  bankAccountId: providedBankAccountId,
+}: {
+  code: string;
+  userId: string;
+  companyId: string;
+  bankAccountId?: string;
+  //   trx?: Knex.Transaction
+}) => {
+  // This function should be build to have little or no tolerance for failures
+  try {
+    const monoSecretKey = ENV.MONO_SECRET_KEY;
+    if (!monoSecretKey)
+      return errorResponse("Mono secret key is required", null, {
+        report: true,
+      });
+
+    // Exchange temporary code for permanent ID
+    const exchangeCode = await exchangeMonoCode({
+      code,
+      secretKey: monoSecretKey,
+    });
+    if (!exchangeCode.success || !exchangeCode.data) return exchangeCode;
+
+    const monoAccountId = exchangeCode.data.permanentMonoId;
+
+    // get mono account details
+    const monoAccount = await getMonoAccountDetails({
+      accountId: monoAccountId,
+      secretKey: monoSecretKey,
+    });
+    if (!monoAccount.success || !monoAccount.data) {
+      return monoAccount;
+    }
+    const account = monoAccount.data;
+    console.log({ monoAccountId, monoAccount });
+
+    // Get mono provider
+    const mono = await getBankFeedProviders({
+      providerKeys: "mono",
+    });
+
+    if (!mono.success || !mono.data) {
+      return errorResponse(mono.message || "Failed to get Mono provider");
+    }
+    const monoId = mono.data[0].id;
+
+    let bankAccountId = providedBankAccountId?.trim();
+    if (bankAccountId) {
+      const existingBankAccount = await knexClient("bank_accounts")
+        .where("id", bankAccountId)
+        .first();
+
+      if (!existingBankAccount) {
+        return errorResponse(
+          `Bank account with id ${providedBankAccountId} not found`,
+          null,
+          { report: true }
+        );
+      }
+
+      bankAccountId = existingBankAccount.id;
+    } else {
+      // Create new bank account
+
+      // Get currencyId in db
+      const currency = await knexClient("currencies")
+        .where("code", account.currency)
+        .first();
+
+      if (!currency) {
+        return errorResponse("Currency not found in database", currency, {
+          report: true,
+        });
+      }
+
+      /**
+       * Get bankId in db,
+       * Maybe first check banks table for local code or secondary reference that matches account.institution.bank_code
+       * If not found, then check the raw meta data bank provider mappings in for info that matches info in the account.institution which is name, bank_code, type
+       * If not found, fallback to other financial institution for the country, in this case nigera, get ng_other_financial_institution from db and assign id to bankId
+       *  */
+
+      let bank = await knexClient("banks")
+        .where({ local_code: account.institution?.bank_code })
+        .first();
+
+      if (!bank && account.institution?.bank_code) {
+        bank = await knexClient("banks")
+          .where({ secondary_reference: account.institution.bank_code })
+          .first();
+      }
+
+      if (!bank) {
+        bank = await knexClient("banks")
+          .where({ key: "ng_other_financial_institution" })
+          .first();
+      }
+
+      if (!bank) {
+        return errorResponse(
+          "Failed to find or fallback to a bank record @ mono bank account connection",
+          null,
+          {
+            report: true,
+          }
+        );
+      }
+
+      const newAccountData: NewBankAccountInput = {
+        displayName: account.name, // required
+        currencyId: currency.id, // required
+        bankId: bank.id, // required
+        accountNumber: account.account_number,
+        accountType: bankAccountType.enum.other, // update later
+        source: coaSource.enum.user,
+      };
+
+      // Create New Bank Account (Internal)
+      const newBankAccount = await createNewBankAccount({
+        companyId,
+        userId,
+        data: newAccountData,
+      });
+      if (
+        !newBankAccount.success ||
+        !newBankAccount.data ||
+        !newBankAccount.data.id
+      ) {
+        return errorResponse(
+          newBankAccount.message || "Failed to create bank account internally"
+        );
+      }
+
+      const createdBankAccount = newBankAccount.data;
+      bankAccountId = createdBankAccount.id;
+      console.log("Created bank account", createdBankAccount);
+    }
+
+    // Update Bank Account Connection Table
+    const connectionData: BankAccountConnectionInput = {
+      providerId: monoId,
+      bankAccountId,
+      providerBankAccountId: account.id,
+      status: "active",
+      rawMetadata: account,
+      lastSyncAt: new Date(),
+    };
+    // Maybe we should make bank account id nullable in bank_account_connections table but we don't allow read ops if no bank account id to reduce failures and be able to complete connection first
+    // Coz creating new bank account has higher risk of failure
+    const newBankAccountConnection = await createNewBankAccountConnection({
+      userId,
+      data: connectionData,
+    });
+
+    if (!newBankAccountConnection.success || !newBankAccountConnection.data) {
+      return errorResponse(
+        newBankAccountConnection.message ||
+          "Failed to create bank account connection"
+      );
+    }
+
+    // Not sure what data to return
+    return successResponse("Bank account connection created successfully", {
+      code,
+      connectionId: newBankAccountConnection.data.id,
+    });
+  } catch (error) {
+    return errorResponse("Failed to connect bank account", error);
+  }
+};
+
+export const updateBankAccountConnection = async ({
+  connectionId,
+  updates,
+}: {
+  connectionId: string;
+  updates: UpdateBankAccountConnection;
+}) => {
+  try {
+    const validatedUpdates =
+      updateBankAccountConnectionCamel.safeParse(updates);
+
+    if (!validatedUpdates.success) {
+      return errorResponse(
+        "Invalid input provided",
+        validatedUpdates.error.flatten()
+      );
+    }
+
+    const [updated] = await knexClient("bank_account_connections")
+      .where({ id: connectionId })
+      .update(updates)
+      .returning("*");
+
+    if (!updated) {
+      return errorResponse("Failed to update bank account connection");
+    }
+    return successResponse("Bank account connection updated successfully", {
+      id: updated.id,
+    });
+  } catch (error) {
+    return errorResponse("Failed to update bank account connection", error);
   }
 };

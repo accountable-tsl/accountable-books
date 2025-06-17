@@ -1,4 +1,4 @@
-import knex from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import {
   errorResponse,
@@ -7,7 +7,7 @@ import {
 
 export async function getAllCurrencies(): Promise<ApiResponse> {
   try {
-    const currencies = await knex("currencies")
+    const currencies = await knexClient("currencies")
       .select("id", "code", "name", "symbol")
       .where("is_deleted", false);
     if (currencies.length === 0) errorResponse("No currencies found");

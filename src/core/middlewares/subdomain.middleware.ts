@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { AuthRequest } from "../../features/auth/auth.types";
 
 export async function subdomain(

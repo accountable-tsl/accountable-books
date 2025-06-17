@@ -1,5 +1,5 @@
 import axios from "axios";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import {
   errorResponse,
@@ -8,6 +8,7 @@ import {
 import {
   CreateBankProviderMappings,
   MonoBankCoverage,
+  NewBankProviderMapping,
   newBankProviderMappingCamel,
   NewBankProviderMappingInput,
 } from "./bankProviderMappings.types";
@@ -188,8 +189,10 @@ export async function syncMonoInstitutionsToMappingsNG(
       const batch = monoInstitutionsToMap.slice(i, i + BATCH_SIZE);
 
       const processInTransaction = async (trx: Knex | Knex.Transaction) => {
-        const toInsert = [];
-        const toUpdate = [];
+        const toInsert: NewBankProviderMapping[] = [];
+        const toUpdate: Partial<
+          Omit<NewBankProviderMapping, "created_by_id">
+        >[] = [];
 
         for (const inst of batch) {
           // Simplified bank lookup
@@ -206,6 +209,7 @@ export async function syncMonoInstitutionsToMappingsNG(
             bank_id: bank.id,
             provider_id: provider.id,
             provider_bank_id: inst.id,
+            provider_alternate_id: inst.bank_code,
             provider_bank_secondary_reference: inst.nip_code,
             provider_bank_name: inst.institution,
             raw_provider_data: inst,

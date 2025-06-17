@@ -12,7 +12,7 @@ import {
   hashToken,
 } from "../../shared/utils/crypto.utils";
 import dayjs from "dayjs";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 
 export async function createUserDirect(
   knexTrx: Knex.Transaction,

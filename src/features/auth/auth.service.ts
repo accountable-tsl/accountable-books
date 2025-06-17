@@ -5,7 +5,7 @@ import {
   ResendEmailParams,
   VerifyEmailParams,
 } from "./auth.types";
-import knex from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import {
   ErrorCode,
   errorResponse,
@@ -29,34 +29,30 @@ export async function loginService(
   password: string
 ): Promise<ApiResponse> {
   try {
-    const user = await knex("users").select("*").where({ email }).first();
+    const user = await knexClient("users").select("*").where({ email }).first();
     if (!user)
-      return errorResponse(
-        "Email or password is incorrect",
-        undefined,
-        ErrorCode.INVALID_CREDENTIALS
-      );
+      return errorResponse("Email or password is incorrect", undefined, {
+        code: ErrorCode.INVALID_CREDENTIALS,
+      });
     if (!user.password)
-      return errorResponse(
-        "Password not set",
-        undefined,
-        ErrorCode.INVALID_CREDENTIALS
-      );
+      return errorResponse("Password not set", undefined, {
+        code: ErrorCode.INVALID_CREDENTIALS,
+      });
 
     const isValidPassword = await comparePassword(password, user.password);
     if (!isValidPassword)
-      return errorResponse(
-        "Email or password is incorrect",
-        undefined,
-        ErrorCode.INVALID_CREDENTIALS
-      );
+      return errorResponse("Email or password is incorrect", undefined, {
+        code: ErrorCode.INVALID_CREDENTIALS,
+      });
 
     // Fetch user's companies and roles
-    const roles = await knex("users_companies_roles")
+    const roles = await knexClient("users_companies_roles")
       .where({ user_id: user.id })
       .select("company_id", "role_id");
     if (!roles.length)
-      return errorResponse("No roles assigned", undefined, ErrorCode.NO_ROLES);
+      return errorResponse("No roles assigned", undefined, {
+        code: ErrorCode.NO_ROLES,
+      });
 
     const currentCompanyId = await getCompanyShortCode(
       user.last_active_company_id || roles[0].company_id
@@ -157,7 +153,7 @@ export async function verifyEmailService(
   const { token } = params;
 
   try {
-    const user = await knex("users")
+    const user = await knexClient("users")
       .select("id", "email_verification_token_hash")
       .where((qb) => {
         if ("userId" in params) {
@@ -182,7 +178,7 @@ export async function verifyEmailService(
 
     if (!user || !verifyToken) return errorResponse("Invalid or expired token");
 
-    const updatedUser = await knex("users")
+    const updatedUser = await knexClient("users")
       .returning(["id", "email", "email_verified"])
       .where({ id: user.id })
       .update({
@@ -208,7 +204,7 @@ export async function resendVerificationEmailService(
 
   try {
     // Get user details
-    const user = await knex("users")
+    const user = await knexClient("users")
       .select(
         "id",
         "email",
@@ -238,7 +234,7 @@ export async function resendVerificationEmailService(
     const token = generateRandomToken();
     const hashedToken = await hashToken(token);
 
-    await knex("users")
+    await knexClient("users")
       .where({ id: user.id })
       .update({
         email_verification_token_hash: hashedToken,
@@ -257,12 +253,10 @@ export async function resendVerificationEmailService(
     });
 
     if (!sendEmail) {
-      errorResponse(
-        "Unable to send verification email",
-        sendEmail,
-        ErrorCode.GENERIC,
-        true
-      );
+      errorResponse("Unable to send verification email", sendEmail, {
+        code: ErrorCode.GENERIC,
+        report: true,
+      });
     }
 
     return successResponse("Verification email sent", user.email);

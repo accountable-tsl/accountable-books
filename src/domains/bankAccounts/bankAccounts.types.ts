@@ -16,8 +16,9 @@ export type BankAccountType = z.infer<typeof bankAccountType>;
 export const newBankAccountInput = z.object({
   id: z.string().uuid().optional(),
   display_name: z.string().min(1, "Display name is required"),
-  account_type: bankAccountType,
-  account_number: z.string().optional(),
+  account_name: z.string().nullish(),
+  account_type: bankAccountType.nullish(),
+  account_number: z.string(),
   account_code: z.string().optional(),
   bank_id: z.string().uuid(),
   currency_id: z.string().uuid(),

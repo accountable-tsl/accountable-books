@@ -52,6 +52,7 @@ export const newBank = newBankInput.omit({ country: true }).extend({
   created_by_id: z.string().uuid(),
   updated_by_id: z.string().uuid().optional(),
 });
+export type NewBank = z.infer<typeof newBank>;
 
 export const bank = newBank.merge(dbBaseFields);
 export type Bank = z.infer<typeof bank>;

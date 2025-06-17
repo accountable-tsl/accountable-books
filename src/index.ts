@@ -17,6 +17,7 @@ import bankRoutes from "./domains/banks/banks.routes";
 import bankAccountsRoutes from "./domains/bankAccounts/bankAccounts.routes";
 import bankTransactionRoutes from "./domains/bankTransactions/bankTransactions.routes";
 import bankFeedProvidersRoutes from "./domains/bankFeedProviders/bankFeedProviders.routes";
+import bankAccountConnectionsRoutes from "./domains/bankAccountConnections/bankAccountConnections.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";
@@ -36,21 +37,30 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-const originalError = console.error;
-console.error = (...args: unknown[]) => {
-  originalError(...args);
+// const originalError = console.error;
+// console.error = (...args: unknown[]) => {
+//   originalError(...args);
 
-  for (const arg of args) {
-    if (arg instanceof Error && arg.stack) {
-      originalError("Stack Trace:", arg.stack);
-      return;
-    }
-  }
+//   // Skip stack trace generation for specific patterns
+//   const firstArg = args[0];
+//   if (
+//     typeof firstArg === "string" &&
+//     firstArg.includes("Received undefined or null error")
+//   ) {
+//     return; // Don't generate stack trace for these expected cases
+//   }
 
-  // fallback if no Error instance is found
-  const fallbackStack = new Error().stack;
-  if (fallbackStack) originalError("Generated Stack Trace:", fallbackStack);
-};
+//   for (const arg of args) {
+//     if (arg instanceof Error && arg.stack) {
+//       originalError("Stack Trace:", arg.stack);
+//       return;
+//     }
+//   }
+
+//   // Only generate fallback stack if it seems like a real error
+//   const fallbackStack = new Error().stack;
+//   if (fallbackStack) originalError("Generated Stack Trace:", fallbackStack);
+// };
 
 const allowedOrigins = [
   FRONTEND_URL,
@@ -96,6 +106,7 @@ async function startServer() {
       bankTransactionRoutes
     );
     app.use("/api/bank-feed-providers", bankFeedProvidersRoutes);
+    app.use("/api/:companyId/bank-connections", bankAccountConnectionsRoutes);
 
     app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
     app.use("/admin/queues", serverAdapter.getRouter());

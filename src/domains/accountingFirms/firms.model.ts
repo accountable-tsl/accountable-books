@@ -12,7 +12,7 @@ import {
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
-import knexClient from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { redis } from "../../lib/redis";
 import { firmSlugRedisKey, isReservedSlug, isValidSlug } from "./firms.utils";
