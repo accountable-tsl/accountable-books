@@ -31,3 +31,4 @@ export async function createNewBankAccount({
   const response = await api.post(`/api/${companyId}/bank-accounts`, data);
   return response.data;
 }
+

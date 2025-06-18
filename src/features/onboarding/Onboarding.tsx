@@ -23,7 +23,11 @@ import { BankAccount } from "@/features/onboarding/steps/BankAccount";
 import { Miscellaneous } from "@/features/onboarding/steps/Miscellaneous";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { OnboardingSteps } from "@/features/onboarding/types";
+import {
+  OnboardingSideBarProps,
+  onboardingSteps,
+  OnboardingSteps,
+} from "@/features/onboarding/types";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { onboardingStatus, OnboardingStatus } from "@/domains/company/types";
 import { getCompanyDetails } from "@/domains/company/api";
@@ -42,53 +46,46 @@ export function OnboardingForm({
   const { user, isLoggedIn, logout } = useAuth();
 
   // State
-  // const [status, setStatus] = useState<OnboardingStatus>("not_started");
-  const status: OnboardingStatus = company?.onboardingStatus ?? "not_started";
   const [isLoading, setIsLoading] = useState(true);
 
   // Computed
-  const isCreator = user?.id === company?.createdById;
-  const currentStep: OnboardingSteps = stepMap[status] || "verifyEmail";
-  const step: OnboardingSteps =
-    overrideStep && isStepAllowed(overrideStep, status)
+  const status = useMemo<OnboardingStatus>(
+    () => company?.onboardingStatus ?? "not_started",
+    [company?.onboardingStatus]
+  );
+
+  const isCreator = useMemo(
+    () => user?.id === company?.createdById,
+    [user?.id, company?.createdById]
+  );
+
+  const currentStep = useMemo<OnboardingSteps>(
+    () => stepMap[status] || "verifyEmail",
+    [status]
+  );
+
+  const step = useMemo<OnboardingSteps>(() => {
+    return overrideStep && isStepAllowed(overrideStep, status)
       ? overrideStep
       : currentStep;
+  }, [overrideStep, status, currentStep]);
 
-  const isMinimalStep =
-    step === "verifyEmail" && (!isLoggedIn || !company || !companyType);
+  const isMinimalStep = useMemo(
+    () => step === "verifyEmail" && (!isLoggedIn || !company || !companyType),
+    [step, isLoggedIn, company, companyType]
+  );
 
-  const shouldBlockRender =
-    isLoading || (!isMinimalStep && (!company || !companyType || !step));
+  const shouldBlockRender = useMemo(
+    () => isLoading || (!isMinimalStep && (!company || !companyType || !step)),
+    [isLoading, isMinimalStep, company, companyType, step]
+  );
 
-  // The sidebar uses this data to determine which steps to show
-  const sidebarProps = useMemo(() => {
-    if (!company || !user) return null;
-    return {
-      company,
-      currentStep: step,
-      isCreator,
-    };
-  }, [company, user, step]);
+  // Callbacks
+  const handleStatusChange = useCallback(
+    (s: OnboardingStatus) => setOnboardingStatus(s),
+    [setOnboardingStatus]
+  );
 
-  const handleStatusChange = (s: OnboardingStatus) => setOnboardingStatus(s);
-
-  // Components
-  const stepElement = useMemo(() => {
-    switch (step) {
-      case "verifyEmail":
-        return <VerifyEmail onStatusChange={handleStatusChange} />;
-      case "companyVitals":
-        return <CompanyInfo />;
-      case "addBankAccount":
-        return <BankAccount />;
-      case "miscellaneous":
-        return <Miscellaneous />;
-      default:
-        return null;
-    }
-  }, [step, handleStatusChange]);
-
-  // Functions
   const fetchCompanyData = useCallback(async () => {
     const id = companyId || company?.id;
     if (!user?.id || !id) return;
@@ -103,10 +100,13 @@ export function OnboardingForm({
     } catch (error) {
       toast.error("An unexpected error occurred");
     }
-  }, [user?.id, companyId, setCompany]);
+  }, [user?.id, companyId, company?.id, setCompany]);
 
+  // Effects
   useEffect(() => {
-    const load = async () => {
+    let intervalId: NodeJS.Timeout;
+
+    const loadData = async () => {
       if (!user?.id) {
         setIsLoading(false);
         return;
@@ -115,14 +115,18 @@ export function OnboardingForm({
       setIsLoading(true);
       await fetchCompanyData();
       setIsLoading(false);
+
+      const id = companyId || company?.id;
+      if (id) {
+        intervalId = setInterval(fetchCompanyData, 10_000);
+      }
     };
-    load();
 
-    const id = companyId || company?.id;
-    if (!user?.id || !id) return;
-    const intervalId = setInterval(fetchCompanyData, 5000);
+    loadData();
 
-    return () => clearInterval(intervalId);
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [user?.id, fetchCompanyData]);
 
   useEffect(() => {
@@ -137,56 +141,113 @@ export function OnboardingForm({
       toast.error(`Cannot access ${overrideStep} yet. Complete prior steps.`);
       navigate(routes.onboarding.step.buildPath({ step: currentStep }));
     }
-  }, [overrideStep, status, navigate, currentStep]);
+  }, [overrideStep, status, currentStep, navigate]);
+
+  // Components
+  // The sidebar uses this data to determine which steps to show
+  const sidebarProps = useMemo(() => {
+    if (!company || !user) return null;
+    return {
+      company,
+      currentStep: step as keyof typeof onboardingSteps,
+      isCreator,
+    };
+  }, [company, user, step, isCreator]);
+
+  const stepElement = useMemo(() => {
+    switch (step) {
+      case "verifyEmail":
+        return <VerifyEmail onStatusChange={handleStatusChange} />;
+      case "companyVitals":
+        return <CompanyInfo />;
+      case "addBankAccount":
+        return <BankAccount key="addBankAccount" />;
+      case "miscellaneous":
+        return <Miscellaneous />;
+      default:
+        return null;
+    }
+  }, [step, handleStatusChange]);
 
   if (shouldBlockRender) return <CenteredLoader />;
 
   return (
-    <>
-      {/* No fancy UI if user is not logged in */}
-      {isMinimalStep ? (
-        <div className="p-6">{stepElement}</div>
-      ) : !isMobile ? (
-        <div>
-          <MockDashboard />
-
-          <Dialog open={true}>
-            <DialogHeader className="hidden">
-              <DialogTitle>Onboarding Form</DialogTitle>
-              <DialogDescription>
-                Multi step onboarding process to setup your company on the
-                platform
-              </DialogDescription>
-            </DialogHeader>
-            <DialogContent className="flex [&>button]:hidden h-fit min-h-[70vh] max-h-[80vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0 gap-0">
-              <div className="min-w-[14rem] w-1/5 md:w-[18rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
-                {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
-                <OnboardingFormFooter />
-              </div>
-
-              <div className="flex flex-col flex-1">
-                <OnboardingHeader className="md:mb-4" />
-                {stepElement}
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      ) : (
-        <Sheet>
-          <div className="flex flex-col h-dvh overflow-hidden">
-            {sidebarProps && (
-              <OnboardingSidebar
-                {...sidebarProps}
-                footer={<OnboardingFormFooter />}
-              />
-            )}
-            {stepElement}
-          </div>
-        </Sheet>
-      )}
-    </>
+    <OnboardingFormWrapper
+      isMinimalStep={isMinimalStep}
+      isMobile={isMobile}
+      sidebarProps={sidebarProps}
+      stepElement={stepElement}
+    />
   );
 }
+
+const OnboardingFormWrapper = ({
+  isMinimalStep,
+  isMobile,
+  sidebarProps,
+  stepElement,
+}: {
+  isMinimalStep: boolean;
+  isMobile: boolean;
+  sidebarProps: OnboardingSideBarProps | null;
+  stepElement: React.ReactNode;
+}) => {
+  if (isMinimalStep) {
+    return <div className="p-6">{stepElement}</div>;
+  }
+
+  if (isMobile) {
+    return (
+      <Sheet>
+        <div className="flex flex-col h-dvh overflow-hidden">
+          {sidebarProps && (
+            <OnboardingSidebar
+              {...sidebarProps}
+              footer={<OnboardingFormFooter />}
+            />
+          )}
+          {stepElement}
+        </div>
+      </Sheet>
+    );
+  }
+
+  return (
+    <>
+      {/* No fancy UI if user is not logged in */}
+      <div>
+        <MockDashboard />
+
+        <StableDialog>
+          <DialogHeader className="hidden">
+            <DialogTitle>Onboarding Form</DialogTitle>
+            <DialogDescription>
+              Multi step onboarding process to setup your company on the
+              platform
+            </DialogDescription>
+          </DialogHeader>
+          <DialogContent className="flex [&>button]:hidden h-fit min-h-[70vh] max-h-[80vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0 gap-0">
+            <div className="min-w-[14rem] w-1/5 md:w-[18rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
+              {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
+              <OnboardingFormFooter />
+            </div>
+
+            <div className="flex flex-col flex-1">
+              <OnboardingHeader className="md:mb-4" />
+              {stepElement}
+            </div>
+          </DialogContent>
+        </StableDialog>
+      </div>
+    </>
+  );
+};
+
+const StableDialog = ({ children }: { children: React.ReactNode }) => {
+  const [isOpen] = useState(true);
+
+  return <Dialog open={isOpen}>{children}</Dialog>;
+};
 
 const OnboardingFormFooter = () => {
   const isMobile = useIsMobile();

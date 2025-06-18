@@ -3,6 +3,7 @@ import { z } from "zod";
 export interface MonoWidgetProps {
   open: boolean;
   onClose?: () => void;
+  onLoad?: () => void;
   onSuccess?: (code: string) => void;
   data: MonoConnectCustomer;
 }

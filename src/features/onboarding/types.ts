@@ -1,3 +1,4 @@
+import { CompanyData } from "@/domains/company/types";
 import { LucideIcon } from "lucide-react";
 import { z } from "zod";
 
@@ -49,3 +50,10 @@ export type ResendVerEmailService =
       userId: string;
       email: string;
     };
+
+export type OnboardingSideBarProps = {
+  company: CompanyData;
+  currentStep: keyof typeof onboardingSteps;
+  isCreator: boolean;
+  footer?: string | React.ReactNode;
+};

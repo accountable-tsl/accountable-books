@@ -1,9 +1,9 @@
 import { useCountries } from "@/shared/hooks/useCountries";
-import { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import CountrySelection from "@/features/bankConnection/connectViaFeed/steps/CountrySelection";
 import { Country } from "@/shared/types/core";
 import { EyeOff, Lock, Shield } from "lucide-react";
-import ProviderSelection from "./steps/ProviderSelection";
+import {ProviderSelection} from "./steps/ProviderSelection";
 import { BankFeedProvider } from "@/domains/bankFeedProviders/types";
 import { useBankFeedProviders } from "@/domains/bankFeedProviders/hooks";
 import { UnsupportedCountryProps } from "@/features/bankConnection/shared/types";
@@ -14,8 +14,8 @@ export default function ConnectBankAccount() {
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [selectedProvider, setSelectedProvider] =
     useState<BankFeedProvider | null>(null);
-  const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
   const [showUnsupported, setShowUnsupported] = useState(false);
+  // const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
 
   // Hooks
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
@@ -26,117 +26,144 @@ export default function ConnectBankAccount() {
   const providers = providersData?.data || [];
 
   // Functions
-
-  const providersForCountry = (country: Country) =>
-    providers.filter((provider) =>
-      provider.countries.some((c) => c.code === country.code)
+  const supportedCountries = useMemo(() => {
+    return countries.filter((country) =>
+      providers.some((provider) =>
+        provider.countries.some((c) => c.code === country.code)
+      )
     );
+  }, [countries, providers]);
 
-  const supportedCountries = countries.filter((country) =>
-    providers.some((provider) =>
-      provider.countries.some((c) => c.code === country.code)
-    )
+  const providersForCountry = useCallback(
+    (country: Country) =>
+      providers.filter((provider) =>
+        provider.countries.some((c) => c.code === country.code)
+      ),
+    [providers]
   );
 
-  const countryIsSupported = (country: Country) =>
-    providers.some((provider) =>
-      provider.countries.some((c) => c.code === country.code)
-    );
+  const countryIsSupported = useCallback(
+    (country: Country) =>
+      providers.some((provider) =>
+        provider.countries.some((c) => c.code === country.code)
+      ),
+    [providers]
+  );
 
+  const handleCountrySelect = useCallback(
+    (country: Country) => {
+      setSelectedCountry(country);
+      setShowUnsupported(!countryIsSupported(country));
 
+      // if (!countryIsSupported(country)) {
+      //   setShowUnsupported(true);
+      //   return;
+      // }
 
+      // setShowUnsupported(false);
+    },
+    [countryIsSupported]
+  );
 
-  const handleCountrySelect = (country: Country) => {
-    setSelectedCountry(country);
-    if (!countryIsSupported(country)) {
-      setShowUnsupported(true);
-      return;
-    }
-
-    setShowUnsupported(false);
-  };
-
-  const handleProviderSelect = (provider: BankFeedProvider) => {
+  const handleProviderSelect = useCallback((provider: BankFeedProvider) => {
     setSelectedProvider(provider);
-  };
+  }, []);
 
-  const nextStep = () => {
-    if (currentStep < 4) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
+  const nextStep = useCallback(() => {
+    setCurrentStep((prev) => (prev < 4 ? prev + 1 : prev));
+  }, []);
 
-  const backStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+  const backStep = useCallback(() => {
+    setCurrentStep((prev) => (prev > 1 ? prev - 1 : prev));
+  }, []);
 
-  const resetToCountrySelection = () => {
+  const resetToCountrySelection = useCallback(() => {
     setCurrentStep(1);
     setSelectedCountry(null);
     setSelectedProvider(null);
-    setSelectedBank(null);
     setShowUnsupported(false);
-  };
+  }, []);
 
-  return (
-    <div>
-      {showUnsupported ? (
+  const stepContent = useMemo(() => {
+    if (showUnsupported) {
+      return (
         <UnsupportedCountry
           countryName={selectedCountry?.name || "this country"}
           onBack={resetToCountrySelection}
         />
-      ) : (
-        <>
-          <div className="max-w-2xl mx-auto">
-            <div className="p-8">
-              {currentStep === 1 && (
-                <CountrySelection
-                  supportedCountries={supportedCountries}
-                  onCountrySelect={handleCountrySelect}
+      );
+    }
+
+    return (
+      <>
+        <div className="max-w-2xl mx-auto">
+          <div className="p-8">
+            {currentStep === 1 && (
+              <CountrySelection
+                supportedCountries={supportedCountries}
+                onCountrySelect={handleCountrySelect}
+                onNext={nextStep}
+              />
+            )}
+            {currentStep === 2 &&
+              selectedCountry && ( //
+                <ProviderSelection
+                  key={`provider-${selectedCountry.id}`}
+                  selectedCountry={selectedCountry}
+                  providers={providersForCountry(selectedCountry)}
+                  onProviderSelect={handleProviderSelect}
                   onNext={nextStep}
+                  onBack={backStep}
                 />
               )}
-              {currentStep === 2 &&
-                selectedCountry && ( //
-                  <ProviderSelection
-                    selectedCountry={selectedCountry}
-                    providers={providersForCountry(selectedCountry)}
-                    onProviderSelect={handleProviderSelect}
-                    onNext={nextStep}
-                    onBack={backStep}
-                  />
-                )}
-            </div>
-          </div>
-        </>
-      )}
-      {/* Footer */}
-      <footer className="max-w-4xl mx-auto px-4 py-8 text-center">
-        <div className="flex items-center justify-center space-x-8 text-sm text-gray-500 mb-4">
-          <div className="flex items-center space-x-2">
-            <Shield className="w-4 h-4 text-green-600" />
-            <span>Bank-Level Security</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Lock className="w-4 h-4 text-green-600" />
-            <span>256-bit Encryption</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <EyeOff className="w-4 h-4 text-green-600" />
-            <span>Read-Only Access</span>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground/60">
-          Protected by bank-grade security, Powered by leading financial data
-          providers. We do not have access to your authorization details.
-        </p>
-      </footer>
+      </>
+    );
+  }, [
+    showUnsupported,
+    selectedCountry,
+    currentStep,
+    supportedCountries,
+    providersForCountry,
+    handleCountrySelect,
+    nextStep,
+    backStep,
+    resetToCountrySelection,
+    handleProviderSelect,
+  ]);
+
+  return (
+    <div>
+      {stepContent}
+      {/* Footer */}
+      <BankAccountFooter />
     </div>
   );
 }
 
+const BankAccountFooter = React.memo(() => (
+  <footer className="max-w-4xl mx-auto px-4 py-8 text-center">
+    <div className="flex items-center justify-center space-x-8 text-sm text-gray-500 mb-4">
+      <div className="flex items-center space-x-2">
+        <Shield className="w-4 h-4 text-green-600" />
+        <span>Bank-Level Security</span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Lock className="w-4 h-4 text-green-600" />
+        <span>256-bit Encryption</span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <EyeOff className="w-4 h-4 text-green-600" />
+        <span>Read-Only Access</span>
+      </div>
+    </div>
+    <p className="text-xs text-muted-foreground/60">
+      Protected by bank-grade security, Powered by leading financial data
+      providers. We do not have access to your authorization details.
+    </p>
+  </footer>
+));
 function UnsupportedCountry({ countryName, onBack }: UnsupportedCountryProps) {
   return (
     <div className="max-w-2xl mx-auto">
