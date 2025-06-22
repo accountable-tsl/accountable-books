@@ -12,7 +12,7 @@ import {
 import { Request, Response } from "express";
 import { generateRandomToken } from "../../shared/utils/crypto.utils";
 import { getSingleCompany } from "../../domains/companies/companies.model";
-import { getCompanyRolesForUser } from "../../domains/userCompanyRole/userCompanyRole.model";
+import { getCompanyRolesForUser } from "../../domains/usersCompaniesRoles/usersCompaniesRoles.model";
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throw new AppError("JWT secrets must be defined in .env");

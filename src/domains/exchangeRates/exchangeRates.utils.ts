@@ -5,10 +5,10 @@ export async function determineExchangeRate(
   date: Date | string,
   fromCurrencyId: string,
   toCurrencyId: string
-): Promise<Decimal | null> {
+): Promise<number | null> {
   try {
     if (fromCurrencyId === toCurrencyId) {
-      return new Decimal(1);
+      return Number(1);
     }
 
     const exr = await fetchExchangeRate(
@@ -18,7 +18,7 @@ export async function determineExchangeRate(
     );
 
     if (exr.success && exr.data?.rate) {
-      return new Decimal(exr.data.rate);
+      return Number(exr.data.rate);
     } else {
       console.error(
         `Failed to determine exchange rate for ${fromCurrencyId} to ${toCurrencyId} on ${new Date(date).toLocaleDateString()}`

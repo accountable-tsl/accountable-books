@@ -19,7 +19,7 @@ import {
 } from "../../shared/utils/formatting.utils";
 import { createCoa } from "../chartOfAccounts/coa.model";
 import { coaSource } from "../chartOfAccounts/coa.types";
-import { hasAccessToCompany } from "../userCompanyRole/userCompanyRole.model";
+import { hasAccessToCompany } from "../usersCompaniesRoles/usersCompaniesRoles.model";
 import type { Knex } from "knex";
 
 const bankRespFields = [
@@ -223,7 +223,9 @@ export async function createNewBankAccount(input: {
       .first();
 
     if (existing) {
-      return errorResponse("Bank account already exists");
+      return errorResponse(
+        "Bank account with same account number already exists"
+      );
     }
 
     // Create chart of account (aka ledger) for the bank account

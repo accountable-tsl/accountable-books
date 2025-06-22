@@ -100,9 +100,7 @@ export async function addNewBank(
     );
   }
 
-  console.log(
-    `Inserting ${validateProcessedBanks.data.length} banks..., ${JSON.stringify(validateProcessedBanks.data[0])}`
-  );
+  console.log(`Inserting ${validateProcessedBanks.data.length} banks...`);
 
   try {
     const inserted = await knex("banks")

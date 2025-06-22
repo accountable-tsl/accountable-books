@@ -10,12 +10,14 @@ export async function updateOnboardingStatusController(
   const isLoggedIn = req.user?.id || req.company?.id ? true : false;
   const userId = req.user?.id || req.body.userId;
   const companyId =
-    req.body.companyId || req.company?.id || req.user?.currentCompanyId;
+    req.company?.id || req.user?.currentCompanyId || req.body.companyId;
 
   if (!userId || !companyId) {
-    return res
-      .status(403)
-      .json(errorResponse("Unauthorized", undefined, ErrorCode.UNAUTHORIZED));
+    return res.status(403).json(
+      errorResponse("Unauthorized", undefined, {
+        code: ErrorCode.UNAUTHORIZED,
+      })
+    );
   }
 
   try {

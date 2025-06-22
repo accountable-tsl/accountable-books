@@ -1,4 +1,3 @@
-import Decimal from "decimal.js";
 import type { Knex } from "knex";
 import { ApiResponse } from "../../core/types/api.types";
 import {
@@ -80,7 +79,7 @@ export async function fetchExchangeRate(
         date: new Date(date),
         fromCurrencyId,
         toCurrencyId,
-        rate: new Decimal(1),
+        rate: Number(1),
       });
     }
 
@@ -88,12 +87,12 @@ export async function fetchExchangeRate(
     const [fromCurrency, toCurrency] = await Promise.all([
       knex("currencies")
         .where({ id: fromCurrencyId })
-        .select({ code: true })
+        .select("code")
         .first() as Promise<{ code: string } | undefined>,
 
       knex("currencies")
         .where({ id: toCurrencyId })
-        .select({ code: true })
+        .select("code")
         .first() as Promise<{ code: string } | undefined>,
     ]);
 
@@ -143,7 +142,7 @@ export async function fetchExchangeRate(
         {
           id: dbRate.id,
           date: dbRate.date,
-          rate: new Decimal(dbRate.rate),
+          rate: Number(dbRate.rate),
           fromCurrencyId: dbRate.from_currency_id,
           toCurrencyId: dbRate.to_currency_id,
         }
@@ -167,8 +166,7 @@ export async function fetchExchangeRate(
               ? `API request failed after ${apiRetryAttempts + 1} attempts: ${error.code || error.message}`
               : "Unknown API error after multiple attempts",
             axios.isAxiosError(error) ? error.toJSON() : error,
-            ErrorCode.SERVICE_UNAVAILABLE,
-            true
+            { code: ErrorCode.SERVICE_UNAVAILABLE, report: true }
           );
         }
 
@@ -185,8 +183,7 @@ export async function fetchExchangeRate(
       return errorResponse(
         "Invalid or incomplete Exchange Rates API response received",
         apiData,
-        ErrorCode.SERVICE_UNAVAILABLE,
-        true
+        { code: ErrorCode.SERVICE_UNAVAILABLE, report: true }
       );
     }
 
@@ -195,13 +192,12 @@ export async function fetchExchangeRate(
       return errorResponse(
         `Exchange rate for ${fromCurrency.code} → ${toCurrency.code} not available from API`,
         { from: fromCurrency.code, to: toCurrency.code },
-        ErrorCode.NOT_FOUND,
-        true // report
+        { code: ErrorCode.NOT_FOUND, report: true }
       );
     }
 
     const ratePrecision = 9;
-    const processedRate = new Decimal(apiRate).toDecimalPlaces(ratePrecision);
+    const processedRate = Number(apiRate).toPrecision(ratePrecision);
     const rateDate = new Date(apiData.time_last_update_unix * 1000);
     rateDate.setUTCHours(0, 0, 0, 0);
 
@@ -221,13 +217,15 @@ export async function fetchExchangeRate(
       let persistedRate;
 
       try {
-        const [insertedId] = await knex("exchange_rates")
+        const [inserted] = await knex("exchange_rates")
           .insert(rateData)
           .returning("id");
 
+        console.log({ inserted });
+
         persistedRate = await knex("exchange_rates")
           .select("id", "date", "rate", "from_currency_id", "to_currency_id")
-          .where("id", insertedId)
+          .where("id", inserted.id)
           .first();
       } catch (insertError: any) {
         // Handle duplicate key constraint violations
@@ -259,7 +257,7 @@ export async function fetchExchangeRate(
               date: persistedRate.date,
               fromCurrencyId,
               toCurrencyId,
-              rate: new Decimal(persistedRate.rate),
+              rate: Number(persistedRate.rate),
             });
           }
         }
@@ -276,7 +274,7 @@ export async function fetchExchangeRate(
         date: persistedRate.date,
         fromCurrencyId: persistedRate.from_currency_id,
         toCurrencyId: persistedRate.to_currency_id,
-        rate: new Decimal(persistedRate.rate),
+        rate: Number(persistedRate.rate),
       });
     } catch (dbError: any) {
       return errorResponse("Failed to persist exchange rate to database", {

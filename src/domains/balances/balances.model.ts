@@ -1,4 +1,3 @@
-import Decimal from "decimal.js";
 import { knexClient } from "../../../knexClient";
 import {
   ErrorCode,
@@ -301,7 +300,7 @@ export async function getBankAccountBalances(
 
     const bankAccounts = await bankAccountsQuery;
 
-    const exchangeRateCache = new Map<string, Decimal>();
+    const exchangeRateCache = new Map<string, number>();
 
     // Process currency conversions
     for (const account of bankAccounts) {
@@ -340,27 +339,23 @@ export async function getBankAccountBalances(
             );
 
             if (!rateRes.success || !rateRes.data) {
-              errorResponse(
-                "Exchange rate fetch failed",
-                rateRes.error,
-                ErrorCode.GENERIC,
-                true
-              );
+              errorResponse("Exchange rate fetch failed", rateRes.error, {
+                code: ErrorCode.GENERIC,
+                report: true,
+              });
             }
 
-            const { data } = rateRes;
-            const rate = data?.rate as Decimal;
+            const data = rateRes.data!;
+            const rate = data.rate;
 
             if (!rateRes.success || !rate) {
-              errorResponse(
-                "Exchange rate fetch failed",
-                rateRes.error,
-                ErrorCode.GENERIC,
-                true
-              );
+              errorResponse("Exchange rate fetch failed", rateRes.error, {
+                code: ErrorCode.GENERIC,
+                report: true,
+              });
             }
 
-            exchangeRateCache.set(cacheKey, new Decimal(rate.toString()));
+            exchangeRateCache.set(cacheKey, Number(rate.toString()));
           } catch (err) {
             // Continue gracefully, fallback to native
             // TODO: Return here instead
@@ -368,8 +363,7 @@ export async function getBankAccountBalances(
             errorResponse(
               "Exchange rate fetch failed",
               { cacheKey, err },
-              ErrorCode.GENERIC,
-              true
+              { code: ErrorCode.GENERIC, report: true }
             );
           }
         }
@@ -388,10 +382,10 @@ export async function getBankAccountBalances(
 }
 
 export async function convertAmountToReportingCurrency(
-  amount: Decimal,
+  amount: number,
   currencyId: string,
   reportingCurrencyId: string
-): Promise<ApiResponse<Decimal>> {
+): Promise<ApiResponse<number>> {
   try {
     const rate = await fetchExchangeRate(
       new Date(),
@@ -403,7 +397,7 @@ export async function convertAmountToReportingCurrency(
       return errorResponse(rate.message || "Failed to fetch exchange rate");
     }
 
-    const convertedAmount = amount.times(new Decimal(rate.data.rate));
+    const convertedAmount = Number(amount) * Number(rate.data.rate);
     return successResponse("Amount converted successfully", convertedAmount);
   } catch (error) {
     return errorResponse("Failed to convert amount", error);

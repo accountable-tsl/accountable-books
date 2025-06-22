@@ -163,9 +163,17 @@ export async function up(knex: Knex): Promise<void> {
       "error",
     ])
   );
+
+  await knex.raw(
+    createEnumIfNotExists("business_or_personal_account", [
+      "business",
+      "personal",
+    ])
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP TYPE IF EXISTS business_or_personal_account`);
   await knex.raw(`DROP TYPE IF EXISTS bank_account_connection_status`);
   await knex.raw(`DROP TYPE IF EXISTS bank_feed_provider_status`);
   await knex.raw(`DROP TYPE IF EXISTS bank_local_code_type`);

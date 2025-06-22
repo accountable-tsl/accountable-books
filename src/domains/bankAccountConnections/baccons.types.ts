@@ -109,10 +109,7 @@ export type MonoAccountResponse =
   | MonoAccountErrorResponse;
 
 export type ConnectionStatus = // For response only
-  | "connected"
-  | "needs_user_confirmation"
-  | "new_account_created"
-  | "error";
+  "connected" | "needs_user_confirmation" | "new_account_created" | "error";
 
 export type BankAccountMatch = {
   bankAccountId: string | null;
@@ -135,6 +132,10 @@ export interface FuzzyMatch extends BankAccountMatch {
   matchReasons: string[];
 }
 export type ConnectionResponse = {
+  userActionRequired: boolean;
+  connectionStatus: ConnectionStatus;
+  message: string;
+
   connectionDetails: {
     connectionId: string;
 
@@ -143,13 +144,16 @@ export type ConnectionResponse = {
     providerKey: string;
 
     providerBankAccountId: string;
-    bankAccountId: string | null;
 
-    connectionStatus: ConnectionStatus;
+    bankAccountId: string;
+  };
+
+  accountDetails?: {
+    bankAccountId: string;
+    bankName: string;
+    accountName: string;
+    accountNumber: string;
   };
 
   suggestedBankAccountMatches: BankAccountMatch[];
-
-  userActionRequired: boolean;
-  message: string;
 };

@@ -1,6 +1,6 @@
 import { Request } from "express";
 import { JwtPayload } from "jsonwebtoken";
-import { UserCompanyRole } from "../../domains/userCompanyRole/userCompanyRole.types";
+import { UserCompanyRole } from "../../domains/usersCompaniesRoles/usersCompaniesRoles.types";
 import {
   CompanyType,
   OnboardingStatus,

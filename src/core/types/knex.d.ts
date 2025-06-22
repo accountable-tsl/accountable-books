@@ -31,7 +31,7 @@ import { AccFirm, NewAccFirm } from "../../domains/accountingFirms/firms.types";
 import {
   NewUserCompanyRole,
   UserCompanyRole,
-} from "../../domains/userCompanyRole/userCompanyRole.types";
+} from "../../domains/usersCompaniesRoles/usersCompaniesRoles.types";
 import {
   BankAccount,
   NewBankAccount,
@@ -56,7 +56,7 @@ import {
 import {
   BankAccountConnection,
   NewBankAccountConnection,
-} from "../../domains/bankAccountConnections/bankAccountConnections.types";
+} from "../../domains/bankAccountConnections/baccons.types";
 import {
   BankProviderMapping,
   NewBankProviderMapping,

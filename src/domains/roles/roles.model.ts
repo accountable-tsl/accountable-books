@@ -9,6 +9,8 @@ export const roles: Record<RoleName, string> = {
   admin: "",
   bookkeeper: "",
   client: "",
+  demo_user: "",
+  support: "",
 };
 export const loadRoles = async () => {
   const result = await knexClient("roles")

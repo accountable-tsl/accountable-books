@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dbBaseFields, decimalSchema } from "../../core/types/core";
+import { dbBaseFields } from "../../core/types/core";
 import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
 import Decimal from "decimal.js";
 
@@ -8,7 +8,7 @@ export const newExchangeRate = z.object({
   date: z.coerce.date(),
   from_currency_id: z.string().uuid(),
   to_currency_id: z.string().uuid(),
-  rate: decimalSchema,
+  rate: z.number(),
 });
 export const exchangeRateWithId = newExchangeRate.extend({
   id: z.string().uuid(),
@@ -23,7 +23,7 @@ export interface ExchangeRateItem {
   date: Date;
   fromCurrencyId: string;
   toCurrencyId: string;
-  rate: Decimal;
+  rate: number;
 }
 
 export type ExchangeRateData = SnakeToCamelCaseObject<ExchangeRateWithId>;

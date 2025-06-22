@@ -13,6 +13,9 @@ export async function up(knex: Knex): Promise<void> {
     table.string("account_name").nullable();
     table.specificType("account_type", "bank_account_type").nullable();
     table.string("account_number").notNullable();
+    table
+      .specificType("business_or_personal", "business_or_personal_account")
+      .nullable();
 
     table
       .uuid("bank_id")

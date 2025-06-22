@@ -10,7 +10,6 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from "../src/utils/db";
-import { safeDecimal } from "../src/utils/utils";
 import { NewExchangeRateInput } from "../src/domains/exchangeRates/exchangeRate.types";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -37,7 +36,7 @@ const seedExchangeRates = async function seed(knex: Knex): Promise<void> {
               date: new Date(data.date),
               from_currency_id: data.from_currency_id.trim(),
               to_currency_id: data.to_currency_id.trim(),
-              rate: safeDecimal(data.rate),
+              rate: Number(data.rate),
             });
           } else {
             skipped++;

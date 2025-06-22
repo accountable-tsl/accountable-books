@@ -15,5 +15,13 @@
   {
     "name": "client",
     "description": "View financial records, upload files, and communicate with bookkeepers"
+  },
+  {
+    "name": "support",
+    "description": "Support user"
+  },
+  {
+    "name": "demo_user",
+    "description": "Limited role for users accessing demo companies"
   }
 ]

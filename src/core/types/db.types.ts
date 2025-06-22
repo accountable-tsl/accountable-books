@@ -7,6 +7,8 @@ export const roleName = z.enum([
   "admin",
   "bookkeeper",
   "client",
+  "demo_user",
+  "support",
 ]);
 
 export const newRole = z.object({

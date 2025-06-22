@@ -2,10 +2,7 @@ import {
   calculateStringSimilarity,
   getLastNDigits,
 } from "../../shared/utils/string.utils";
-import {
-  BankAccountMatch,
-  MonoAccountDetails,
-} from "./bankAccountConnections.types";
+import { BankAccountMatch, MonoAccountDetails } from "./baccons.types";
 
 /**
  * Calculate match score between existing bank account and provider (mono) account
@@ -27,8 +24,8 @@ export function computeMatchScoreAndReasons({
   const reasons: string[] = [];
 
   const WEIGHTS = {
-    accountNumber: 0.4, //40%
-    bankId: 0.2, // 20%
+    accountNumber: 0.35, //35%
+    bankId: 0.25, // 25%
     accountName: 0.2, // 20%
     bankName: 0.125, // 12.5%
     currencyId: 0.05, // 5%
@@ -71,9 +68,9 @@ export function computeMatchScoreAndReasons({
       providerAccount.resolvedBankId.toLowerCase().trim()
     );
     score += WEIGHTS.bankId * similarity;
-    if (similarity > 0.8) {
+    if (similarity > 0.9) {
       reasons.push("Bank ID matches");
-    } else if (similarity > 0.6) {
+    } else if (similarity > 0.75) {
       reasons.push("Bank ID is similar");
     }
   }
@@ -86,9 +83,9 @@ export function computeMatchScoreAndReasons({
       providerAccount.institution.name.toLowerCase().trim()
     );
     score += WEIGHTS.bankName * similarity;
-    if (similarity > 0.8) {
+    if (similarity > 0.9) {
       reasons.push("Bank name matches");
-    } else if (similarity > 0.6) {
+    } else if (similarity > 0.8) {
       reasons.push("Bank name is similar");
     }
   }

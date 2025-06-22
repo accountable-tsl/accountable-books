@@ -61,7 +61,6 @@ export async function addNewBankTransactions({
         })
         .first();
 
-      console.log({ bankAccount });
       if (!bankAccount) return errorResponse("Bank account not found");
       const { bankAccountId, bankCurrencyId, reportingCurrencyId } =
         bankAccount;
@@ -82,7 +81,6 @@ export async function addNewBankTransactions({
           bankAccountIds: [bankAccountId],
         }
       );
-      console.log({ balanceBeforeResponse });
       if (!balanceBeforeResponse.success || !balanceBeforeResponse.data) {
         return errorResponse(
           "Failed to calculate balance before new transactions"
@@ -90,7 +88,6 @@ export async function addNewBankTransactions({
       }
       const balanceBeforeObj = balanceBeforeResponse.data[bankAccountId];
 
-      console.log({ balanceBeforeObj });
       //   ----
       // Sort and Calculate or verify batch total
       const sortedTransactions = [...batch.bank_transactions].sort(
@@ -251,7 +248,6 @@ export async function getBankTransactions(
       return errorResponse(validateFilters.error.message);
     }
     const validFilters = validateFilters.data;
-    console.log({ companyUUID, validFilters });
 
     const baseQuery = buildBankTransactionQuery({
       knex: knexClient,
@@ -259,7 +255,6 @@ export async function getBankTransactions(
       filters: validFilters,
     });
 
-    console.log({ baseQuery });
     const transactionsQuery = baseQuery;
 
     const countQuery = baseQuery

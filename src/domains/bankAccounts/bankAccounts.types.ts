@@ -13,11 +13,14 @@ export const bankAccountType = z.enum([
 ]);
 export type BankAccountType = z.infer<typeof bankAccountType>;
 
+export const businessOrPersonalAccount = z.enum(["business", "personal"]);
+
 export const newBankAccountInput = z.object({
   id: z.string().uuid().optional(),
   display_name: z.string().min(1, "Display name is required"),
   account_name: z.string().nullish(),
   account_type: bankAccountType.nullish(),
+  business_or_personal: businessOrPersonalAccount.nullish(),
   account_number: z.string(),
   account_code: z.string().optional(),
   bank_id: z.string().uuid(),
