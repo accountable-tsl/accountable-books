@@ -11,7 +11,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
-import { addNewBankTransactions, } from "@/features/bankConnection/shared/api";
+import { addNewBankTransactions } from "@/features/bankConnection/shared/api";
 import { useCompany } from "@/domains/company/store";
 import { maskDigits, parseDateString } from "@/shared/utils/formattingUtils";
 import { AddBankAccountDialog } from "@/domains/bankAccounts/AddBankAccountDialog";
@@ -20,6 +20,7 @@ import { FormattedAmount } from "@/components/FormattedAmount";
 import { SpreadsheetImporter } from "@/features/spreadsheets/SpreadsheetImporter";
 import {
   BankTransactionBatchInput,
+  BankTransactionImporterProps,
   bankTransactionInput,
   bankTransactionSource,
   FileTransaction,
@@ -42,10 +43,8 @@ import { getBankAccountsForCompany } from "@/domains/bankAccounts/api";
 export const BankTransactionImporter = ({
   onImportSuccess,
   onImportError,
-}: {
-  onImportSuccess?: (data: any) => void;
-  onImportError?: (data: any) => void;
-}) => {
+  options,
+}: BankTransactionImporterProps) => {
   // States
   const [companyBankAccounts, setCompanyBankAccounts] = useState<
     BankAccountWithMeta[] | null
@@ -75,6 +74,8 @@ export const BankTransactionImporter = ({
   const prevParsedKeys = useRef<string[]>([]);
   const isFetching = useRef(false);
 
+  const { className: importedClassName, toastPosition } = options ?? {};
+
   // Handler for parsed results
   const handleParsed = (results: ParsedCsvResult[]) => {
     if (isFirstRender.current) {
@@ -90,7 +91,7 @@ export const BankTransactionImporter = ({
 
     if (!selectedBankAccount) {
       toast.error("Please select a bank account before uploading files", {
-        position: "top-right",
+        position: toastPosition || "top-right",
       });
       return;
     }
@@ -156,7 +157,7 @@ export const BankTransactionImporter = ({
         `Some files had errors: ${filesWithErrors
           .map((r) => r.file.name)
           .join(", ")}`,
-        { position: "top-right" }
+        { position: toastPosition || "top-right" }
       );
     }
     if (filesWithData.length) {
@@ -164,14 +165,14 @@ export const BankTransactionImporter = ({
         `Imported ${filesWithData.length} file(s): ${filesWithData
           .map((r) => r.file.name)
           .join(", ")}`,
-        { position: "top-right" }
+        { position: toastPosition || "top-right" }
       );
     }
     if (!filesWithData.length && !filesWithErrors.length) {
       setFileTransactions(null);
       setParsedResults([]);
       toast("No files imported. Please upload a valid CSV file", {
-        position: "top-right",
+        position: toastPosition || "top-right",
       });
     }
 
@@ -180,7 +181,7 @@ export const BankTransactionImporter = ({
 
   // Handler for general errors
   const handleError = (msg: string) => {
-    toast.error(msg, { position: "top-right" });
+    toast.error(msg, { position: toastPosition || "top-right" });
   };
 
   const handleReview = () => {
@@ -192,6 +193,7 @@ export const BankTransactionImporter = ({
         window.confirm("Are you sure? You may lose unsaved transaction data.")
       ) {
         setFileTransactions(null);
+        setSelectedBankAccount(null);
         setParsedResults([]);
         setHasUserInteracted(false);
         setIsSubmitting(false);
@@ -206,7 +208,7 @@ export const BankTransactionImporter = ({
   const handleSubmit = async () => {
     if (!fileTransactions || fileTransactions.length === 0) {
       toast.error("No transactions to submit.", {
-        position: "top-right",
+        position: toastPosition || "top-right",
       });
       return;
     }
@@ -222,7 +224,7 @@ export const BankTransactionImporter = ({
       !bankAccount.id
     ) {
       toast.error("Error reading transaction data", {
-        position: "top-right",
+        position: toastPosition || "top-right",
       });
       return;
     }
@@ -231,7 +233,7 @@ export const BankTransactionImporter = ({
     const txnsForDb = bankTransactionInput.array().safeParse(transactions);
     if (!txnsForDb.success) {
       toast.error("Error re-validating transaction data", {
-        position: "top-right",
+        position: toastPosition || "top-right",
       });
       return;
     }
@@ -239,7 +241,7 @@ export const BankTransactionImporter = ({
     // Guard: No company context
     if (!companyId) {
       toast.error("Something went wrong. Please try again.", {
-        position: "top-right",
+        position: toastPosition || "top-right",
       });
       return;
     }
@@ -254,12 +256,14 @@ export const BankTransactionImporter = ({
 
     setIsSubmitting(true);
     const toastId = toast.loading("Submitting transactions...", {
-      position: "top-right",
+      position: toastPosition || "top-right",
     });
 
     try {
       if (isSubmitting) {
-        toast.loading("Submitting transactions...", { position: "top-right" });
+        toast.loading("Submitting transactions...", {
+          position: toastPosition || "top-right",
+        });
       }
 
       const [apiResult] = await Promise.allSettled([
@@ -278,7 +282,7 @@ export const BankTransactionImporter = ({
       if (!response || !response.success) {
         toast.error("Failed to submit transactions", {
           id: toastId,
-          position: "top-right",
+          position: toastPosition || "top-right",
         });
         setUploadStatus("failed");
         onImportError?.(
@@ -289,7 +293,7 @@ export const BankTransactionImporter = ({
 
       toast.success("Bank transactions submitted successfully", {
         id: toastId,
-        position: "top-right",
+        position: toastPosition || "top-right",
       });
       setUploadStatus("success");
       onImportSuccess?.(response);
@@ -338,7 +342,12 @@ export const BankTransactionImporter = ({
 
   if (selectedStep === "upload") {
     return (
-      <div className="h-full text-sm w-full max-w-5xl mx-auto p-6 flex flex-col gap-6">
+      <div
+        className={cn(
+          "h-full text-sm w-full max-w-5xl mx-auto p-6 flex flex-col gap-6",
+          importedClassName
+        )}
+      >
         <>
           <h3 className="text-lg font-semibold">Import Bank Transactions</h3>
 
@@ -499,7 +508,12 @@ export const BankTransactionImporter = ({
 
   if (selectedStep === "review") {
     return (
-      <div className="h-full text-sm w-full max-w-5xl mx-auto p-6 flex flex-col">
+      <div
+        className={cn(
+          "h-full text-sm w-full min-w-0 max-w-5xl mx-auto p-6 flex flex-col",
+          importedClassName
+        )}
+      >
         <>
           <div className="flex flex-col text-sm gap-6 h-full min-h-0">
             {fileTransactions?.map((tx, idx) => {
@@ -540,10 +554,13 @@ export const BankTransactionImporter = ({
                     <div className="border-b font-semibold text-lg">
                       Import Summary
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 inset-shadow-sm pt-4">
+                    <div 
+                    // className="grid grid-cols-1 sm:grid-cols-2 lg:[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-3 inset-shadow-sm pt-4"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[auto_1fr_1fr_1fr] gap-3 inset-shadow-sm pt-4"
+                    >
                       <Card className="p-0 rounded-lg shadow-none">
                         <CardContent className="p-4 overflow-hidden">
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
                             <div className="p-2 bg-blue-100 rounded-lg">
                               <Activity className="h-4 w-4 text-blue-600" />
                             </div>
@@ -561,7 +578,7 @@ export const BankTransactionImporter = ({
 
                       <Card className="p-0 rounded-lg shadow-none">
                         <CardContent className="p-4 overflow-hidden">
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
                             <div className="p-2 bg-green-100 rounded-lg">
                               <TrendingUp className="h-4 w-4 text-green-600" />
                             </div>
@@ -583,7 +600,7 @@ export const BankTransactionImporter = ({
 
                       <Card className="p-0 rounded-lg shadow-none">
                         <CardContent className="p-4 overflow-hidden">
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
                             <div className="p-2 bg-red-100 rounded-lg">
                               <TrendingDown className="h-4 w-4 text-red-600" />
                             </div>
@@ -605,7 +622,7 @@ export const BankTransactionImporter = ({
 
                       <Card className="p-0 rounded-lg shadow-none">
                         <CardContent className="p-4 overflow-hidden">
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
                             <div className="p-2 bg-gray-100 rounded-lg">
                               <DollarSign className="h-4 w-4 text-gray-600" />
                             </div>

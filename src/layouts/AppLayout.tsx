@@ -69,7 +69,6 @@ export default function AppLayout({
         <AppHeader />
 
         <div className="flex-1 min-h-0">
-          {/* overflow-y-auto overflow-x-hidden scrollbar-thin-2px */}
           <Outlet />
         </div>
       </SidebarInset>

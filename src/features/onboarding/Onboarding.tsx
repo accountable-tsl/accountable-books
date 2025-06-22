@@ -16,7 +16,7 @@ import { HeadsetIcon, ScreenShareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VerifyEmail } from "./steps/VerifyEmail";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isStepAllowed, stepMap } from "./utils";
 import { CompanyInfo } from "@/features/onboarding/steps/CompanyInfo";
 import { BankAccount } from "@/features/onboarding/steps/BankAccount";
@@ -32,6 +32,7 @@ import { CenteredLoader } from "@/components/CenteredLoader";
 import { onboardingStatus, OnboardingStatus } from "@/domains/company/types";
 import { getCompanyDetails } from "@/domains/company/api";
 import { routes } from "@/shared/routes/routes";
+import { handleDemoAccess } from "../demo/utils";
 
 export function OnboardingForm({
   step: overrideStep,
@@ -46,13 +47,19 @@ export function OnboardingForm({
   const { user, isLoggedIn, logout } = useAuth();
 
   // State
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasDoneMiscInSession, setHasDoneMiscInSession] = useState(false);
 
   // Computed
   const status = useMemo<OnboardingStatus>(
     () => company?.onboardingStatus ?? "not_started",
     [company?.onboardingStatus]
   );
+
+  console.log(user)
+  const statusRef = useRef(status);
+  const companyIdRef = useRef(companyId || company?.id);
+  const companyRef = useRef(company);
 
   const isCreator = useMemo(
     () => user?.id === company?.createdById,
@@ -80,6 +87,10 @@ export function OnboardingForm({
     [isLoading, isMinimalStep, company, companyType, step]
   );
 
+  const shouldShowMisc =
+    status === onboardingStatus.enum.onboarding_complete &&
+    !hasDoneMiscInSession;
+
   // Callbacks
   const handleStatusChange = useCallback(
     (s: OnboardingStatus) => setOnboardingStatus(s),
@@ -87,22 +98,79 @@ export function OnboardingForm({
   );
 
   const fetchCompanyData = useCallback(async () => {
-    const id = companyId || company?.id;
+    const id = companyIdRef.current;
     if (!user?.id || !id) return;
 
     try {
       const res = await getCompanyDetails(id);
       if (res.success && res.data) {
-        setCompany(res.data);
+        const currentCompany = companyRef.current;
+
+        if (!currentCompany) {
+          setCompany(res.data); // First load
+          return;
+        }
+
+        // Check specific fields that affect the UI
+        const fieldsToCheck: (keyof typeof res.data)[] = [
+          "onboardingStatus",
+          "legalName",
+          "createdById",
+        ];
+
+        const hasChanged = fieldsToCheck.some(
+          (field) => res.data?.[field] !== currentCompany[field]
+        );
+
+        if (hasChanged) {
+          setCompany(res.data);
+        }
+
+        // if (res.data.onboardingStatus !== statusRef.current) {
+        //   setCompany(res.data);
+        // }
       } else {
         toast.error(res.message || "Failed to fetch company data");
       }
     } catch (error) {
       toast.error("An unexpected error occurred");
     }
-  }, [user?.id, companyId, company?.id, setCompany]);
+  }, [user?.id, setCompany]);
+
+  /**
+   * TODO: Replace polling with real-time onboarding status updates
+   * PROBLEM: Current polling causes unnecessary re-renders even when status unchanged,
+   * breaking components like ConnectBankAccount that have external widgets
+   *
+   * IDEAL SOLUTION:
+   * 1. WebSocket/SSE connection for real-time status updates
+   * 2. Server pushes status changes instead of client polling
+   * 3. Only re-render when status actually changes
+   * 4. Add connection health monitoring and fallback polling
+   *
+   * IMPLEMENTATION:
+   * - Add WebSocket endpoint: /ws/companies/{id}/onboarding-status
+   * - Server broadcasts when: email verified, bank connected, etc.
+   * - Client subscribes on mount, unsubscribes on unmount
+   * - Fallback to polling only if WebSocket connection fails
+   *
+   * BENEFITS: Real-time updates, no unnecessary re-renders, better UX
+   * */
 
   // Effects
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    companyIdRef.current = companyId || company?.id;
+  }, [companyId, company?.id]);
+
+  useEffect(() => {
+    companyRef.current = company;
+  }, [company]);
+
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
@@ -112,12 +180,17 @@ export function OnboardingForm({
         return;
       }
 
-      setIsLoading(true);
-      await fetchCompanyData();
-      setIsLoading(false);
+      if (!company) {
+        setIsLoading(true);
+      }
 
-      const id = companyId || company?.id;
-      if (id) {
+      await fetchCompanyData();
+      if (!company) {
+        setIsLoading(false);
+      }
+
+      const id = companyIdRef.current;
+      if (id && status !== onboardingStatus.enum.onboarding_complete) {
         intervalId = setInterval(fetchCompanyData, 10_000);
       }
     };
@@ -155,19 +228,21 @@ export function OnboardingForm({
   }, [company, user, step, isCreator]);
 
   const stepElement = useMemo(() => {
+    if (shouldShowMisc) {
+      return <Miscellaneous onDone={() => setHasDoneMiscInSession(true)} />;
+    }
+
     switch (step) {
       case "verifyEmail":
         return <VerifyEmail onStatusChange={handleStatusChange} />;
       case "companyVitals":
         return <CompanyInfo />;
       case "addBankAccount":
-        return <BankAccount key="addBankAccount" />;
-      case "miscellaneous":
-        return <Miscellaneous />;
+        return <BankAccount onBankAccountComplete={handleStatusChange} />;
       default:
         return null;
     }
-  }, [step, handleStatusChange]);
+  }, [step, handleStatusChange, shouldShowMisc]);
 
   if (shouldBlockRender) return <CenteredLoader />;
 
@@ -226,7 +301,7 @@ const OnboardingFormWrapper = ({
               platform
             </DialogDescription>
           </DialogHeader>
-          <DialogContent className="flex [&>button]:hidden h-fit min-h-[70vh] max-h-[80vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0 gap-0">
+          <DialogContent className="flex [&>button]:hidden h-fit min-h-[75vh] max-h-[75vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0 gap-0">
             <div className="min-w-[14rem] w-1/5 md:w-[18rem] bg-card shadow-md overflow-hidden flex flex-col justify-between">
               {sidebarProps && <OnboardingSidebar {...sidebarProps} />}
               <OnboardingFormFooter />
@@ -252,6 +327,17 @@ const StableDialog = ({ children }: { children: React.ReactNode }) => {
 const OnboardingFormFooter = () => {
   const isMobile = useIsMobile();
   const { logout } = useAuth();
+  const { companyType } = useCompany();
+
+  const handleDemoCompanyAccess = () => {
+    if (!companyType) {
+      toast.error("We are sorry, Demo company is not available at this time.");
+      return;
+    }
+    handleDemoAccess({
+      companyType,
+    });
+  };
 
   return (
     <div className="flex flex-col items-center gap-2 mb-4 md:mb-8">
@@ -268,7 +354,10 @@ const OnboardingFormFooter = () => {
             isMobile ? "font-medium underline text-foreground" : ""
           )}
         >
-          <span>See the platform in action</span> <ScreenShareIcon size={14} />
+          <span onClick={handleDemoCompanyAccess}>
+            See the platform in action
+          </span>{" "}
+          <ScreenShareIcon size={14} />
           {/* <span className={cn("font-medium cursor-pointer")}>Demo Company</span> */}
         </div>
       )}

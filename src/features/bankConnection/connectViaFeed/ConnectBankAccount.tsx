@@ -2,13 +2,24 @@ import { useCountries } from "@/shared/hooks/useCountries";
 import React, { useCallback, useMemo, useState } from "react";
 import CountrySelection from "@/features/bankConnection/connectViaFeed/steps/CountrySelection";
 import { Country } from "@/shared/types/core";
-import { EyeOff, Lock, Shield } from "lucide-react";
-import {ProviderSelection} from "./steps/ProviderSelection";
+import { Dot, EyeOff, Lock, Shield } from "lucide-react";
+import { ProviderSelection } from "./steps/ProviderSelection";
 import { BankFeedProvider } from "@/domains/bankFeedProviders/types";
 import { useBankFeedProviders } from "@/domains/bankFeedProviders/hooks";
 import { UnsupportedCountryProps } from "@/features/bankConnection/shared/types";
+import { Button } from "@/components/ui/button";
+import { ConnectBankAccountProps, ConnectionResponse } from "./types";
+import { cn } from "@/lib/utils";
+import { AccountLinked } from "./steps/AccountLinked";
+import { useCompany } from "@/domains/company/store";
+import { handleMonoConnection } from "../widgets/api";
+import { toast } from "sonner";
+import { sampleConnections } from "./constants";
 
-export default function ConnectBankAccount() {
+export default function ConnectBankAccount({
+  onSuccess,
+  options,
+}: ConnectBankAccountProps) {
   // States
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
@@ -16,14 +27,18 @@ export default function ConnectBankAccount() {
     useState<BankFeedProvider | null>(null);
   const [showUnsupported, setShowUnsupported] = useState(false);
   // const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
+  const [connections, setConnections] = useState<ConnectionResponse[]>([]);
 
   // Hooks
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
   const { data: providersData, isLoading: isLoadingProviders } =
     useBankFeedProviders({});
+  const { company } = useCompany();
 
   const countries = countriesData?.data || [];
   const providers = providersData?.data || [];
+
+  const { className, stepClassName } = options || {};
 
   // Functions
   const supportedCountries = useMemo(() => {
@@ -54,13 +69,6 @@ export default function ConnectBankAccount() {
     (country: Country) => {
       setSelectedCountry(country);
       setShowUnsupported(!countryIsSupported(country));
-
-      // if (!countryIsSupported(country)) {
-      //   setShowUnsupported(true);
-      //   return;
-      // }
-
-      // setShowUnsupported(false);
     },
     [countryIsSupported]
   );
@@ -68,6 +76,46 @@ export default function ConnectBankAccount() {
   const handleProviderSelect = useCallback((provider: BankFeedProvider) => {
     setSelectedProvider(provider);
   }, []);
+
+  const handleWidgetSuccess = useCallback(
+    async (code: string) => {
+      if (!selectedProvider || !company) {
+        toast.error("Failed to add bank account. Please try again.");
+        setCurrentStep(1);
+        return;
+      }
+      try {
+        switch (selectedProvider.key) {
+          case "mono":
+            const res = await handleMonoConnection({
+              companyId: company.id,
+              data: {
+                code,
+              },
+            });
+
+            console.log(res);
+            if (!res.success || !res.data) {
+              toast.error(res.message || "Failed to add bank account,  please try again.");
+              setCurrentStep(1);
+              return;
+            }
+            setConnections(res.data?.connections || []);
+            setCurrentStep(3);
+            break;
+
+          default:
+            break;
+        }
+      } catch (error: any) {
+        const { response, message } = error;
+        toast.error(
+          response.data?.message || message || "Failed to add bank account"
+        );
+      }
+    },
+    [selectedProvider, company]
+  );
 
   const nextStep = useCallback(() => {
     setCurrentStep((prev) => (prev < 4 ? prev + 1 : prev));
@@ -80,7 +128,7 @@ export default function ConnectBankAccount() {
   const resetToCountrySelection = useCallback(() => {
     setCurrentStep(1);
     setSelectedCountry(null);
-    setSelectedProvider(null);
+    // setSelectedProvider(null);
     setShowUnsupported(false);
   }, []);
 
@@ -96,28 +144,34 @@ export default function ConnectBankAccount() {
 
     return (
       <>
-        <div className="max-w-2xl mx-auto">
-          <div className="p-8">
-            {currentStep === 1 && (
-              <CountrySelection
-                supportedCountries={supportedCountries}
-                onCountrySelect={handleCountrySelect}
-                onNext={nextStep}
-              />
-            )}
-            {currentStep === 2 &&
-              selectedCountry && ( //
-                <ProviderSelection
-                  key={`provider-${selectedCountry.id}`}
-                  selectedCountry={selectedCountry}
-                  providers={providersForCountry(selectedCountry)}
-                  onProviderSelect={handleProviderSelect}
-                  onNext={nextStep}
-                  onBack={backStep}
-                />
-              )}
-          </div>
-        </div>
+        {currentStep === 1 && (
+          <CountrySelection
+            supportedCountries={supportedCountries}
+            onCountrySelect={handleCountrySelect}
+            onNext={nextStep}
+          />
+        )}
+        {currentStep === 2 &&
+          selectedCountry && ( //
+            <ProviderSelection
+              key={`provider-${selectedCountry.id}`}
+              selectedCountry={selectedCountry}
+              providers={providersForCountry(selectedCountry)}
+              onWidgetSuccess={handleWidgetSuccess}
+              onProviderSelect={handleProviderSelect}
+              onNext={nextStep}
+              onBack={backStep}
+            />
+          )}
+
+        {currentStep === 3 && (
+          <AccountLinked
+            connections={connections}
+            handleDone={onSuccess}
+            reset={resetToCountrySelection}
+            // connections={sampleConnections}
+          />
+        )}
       </>
     );
   }, [
@@ -134,33 +188,48 @@ export default function ConnectBankAccount() {
   ]);
 
   return (
-    <div>
-      {stepContent}
-      {/* Footer */}
-      <BankAccountFooter />
+    <div className="flex flex-col flex-1 min-h-0 h-full max-w-3xl mx-auto">
+      <div className={cn("flex flex-col flex-1 min-h-0", "p-6", className)}>
+        <div className={cn("min-h-0 overflow-hidden flex-1", stepClassName)}>
+          {stepContent}
+        </div>
+        <div className="flex-shrink-0">
+          <BankAccountFooter />
+        </div>
+      </div>
     </div>
+
+    // </div>
   );
 }
 
 const BankAccountFooter = React.memo(() => (
-  <footer className="max-w-4xl mx-auto px-4 py-8 text-center">
-    <div className="flex items-center justify-center space-x-8 text-sm text-gray-500 mb-4">
+  <footer className="flex-shrink-0 flex flex-col gap-1 items-center">
+    <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
       <div className="flex items-center space-x-2">
         <Shield className="w-4 h-4 text-green-600" />
         <span>Bank-Level Security</span>
       </div>
-      <div className="flex items-center space-x-2">
-        <Lock className="w-4 h-4 text-green-600" />
-        <span>256-bit Encryption</span>
-      </div>
-      <div className="flex items-center space-x-2">
-        <EyeOff className="w-4 h-4 text-green-600" />
-        <span>Read-Only Access</span>
+
+      <div className="hidden lg:flex">
+        <Dot />
+
+        <div className="flex items-center space-x-2">
+          <Lock className="w-4 h-4 text-green-600" />
+          <span>256-bit Encryption</span>
+        </div>
+
+        <Dot />
+
+        <div className="flex items-center space-x-2">
+          <EyeOff className="w-4 h-4 text-green-600" />
+          <span>Read-Only Access</span>
+        </div>
       </div>
     </div>
-    <p className="text-xs text-muted-foreground/60">
+    <p className="text-xs text-muted-foreground/60 text-center">
       Protected by bank-grade security, Powered by leading financial data
-      providers. We do not have access to your authorization details.
+      providers.
     </p>
   </footer>
 ));

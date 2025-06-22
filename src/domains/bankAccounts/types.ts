@@ -44,7 +44,7 @@ export const newBankAccountInput = z.object({
   bankId: z.string().uuid("Please select a valid bank"),
   currencyId: z.string().uuid("Please select a valid currency"),
   accountType: bankAccountType.optional(),
-  accountNumber: z.string().optional(),
+  accountNumber: z.string().min(1, "Account number is required"),
   accountCode: z.string().optional(),
   source: coaSource.default("user").optional(),
 });

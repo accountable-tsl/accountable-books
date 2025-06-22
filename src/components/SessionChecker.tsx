@@ -7,6 +7,7 @@ import { isPublicRoute } from "@/shared/routes/utils";
 import { sessionStore } from "@/features/auth/store";
 import { onboardingStatus } from "@/domains/company/types";
 import { routes } from "@/shared/routes/routes";
+import { isDemoMode } from "@/features/demo/utils";
 
 export function SessionChecker() {
   const location = useLocation();
@@ -19,6 +20,8 @@ export function SessionChecker() {
     resetFailedAttempts,
   } = useAuth();
   const { fetchCompany } = useCompany();
+  const isDemo = isDemoMode();
+
   const failedAttempts = sessionStore((s) => s.failedAttempts);
   const MAX_ATTEMPTS = 3;
   const isOnboardingPage = location.pathname.includes("/onboarding");
@@ -27,8 +30,15 @@ export function SessionChecker() {
     const validateSession = async () => {
       try {
         setCheckingSession(true);
-        const res = await fetchSession();
 
+        if (isDemo) {
+          // Skip validation in demo mode
+          setSessionValid(true);
+          setCheckingSession(false);
+          return;
+        }
+
+        const res = await fetchSession();
         if (!res.success || !res.data) {
           throw new Error(res.message || "Session validation failed");
         }
@@ -37,18 +47,18 @@ export function SessionChecker() {
         resetFailedAttempts();
         fetchCompany(res.data.company.id);
 
-        // if (
-        //   res.data.company.onboardingStatus !==
-        //     onboardingStatus.enum.onboarding_complete &&
-        //   !isOnboardingPage &&
-        //   !isPublicRoute(location.pathname)
-        // ) {
-        //   window.location.replace(
-        //     routes.onboarding.index.buildPath({
-        //       companyId: res.data.company.id,
-        //     })
-        //   );
-        // }
+        if (
+          res.data.company.onboardingStatus !==
+            onboardingStatus.enum.onboarding_complete &&
+          !isOnboardingPage &&
+          !isPublicRoute(location.pathname)
+        ) {
+          window.location.replace(
+            routes.onboarding.index.buildPath({
+              companyId: res.data.company.id,
+            })
+          );
+        }
       } catch (err) {
         incrementFailedAttempts();
         setSessionValid(false);

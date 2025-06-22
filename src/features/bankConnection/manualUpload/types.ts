@@ -69,3 +69,14 @@ export type AddBankTransactionsResponse = {
   batchTotal: Decimal | string;
   balanceAfter: Decimal | string;
 };
+
+export type BankTransactionImportOptions = {
+  className?: string;
+  toastPosition?: "top-right" | "bottom-right" | "top-left" | "bottom-left";
+};
+
+export type BankTransactionImporterProps = {
+  onImportSuccess?: (data: any) => void;
+  onImportError?: (data: any) => void;
+  options?: BankTransactionImportOptions;
+};

@@ -348,7 +348,7 @@ export const CompanyInfo = () => {
 
       localStorage.removeItem(`companyInfo_${companyId}`);
       await updateCompanyOnboardingStatus({
-        userId: user?.id,
+        userId: user?.id || "",
         companyId: companyId || "",
       });
       setConfirmOpen(false);
@@ -889,7 +889,6 @@ export const CompanyInfo = () => {
       </form>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        {/* <DialogTrigger asChild></DialogTrigger> */}
         <AlertDialogContent className="sm:max-w-[425px]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-center">

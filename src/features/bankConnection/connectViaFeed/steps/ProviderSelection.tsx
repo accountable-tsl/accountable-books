@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { BankFeedProvider } from "@/domains/bankFeedProviders/types";
 import { Country } from "@/shared/types/core";
-import { Building, Clock, NetworkIcon, Shield } from "lucide-react";
+import { ArrowLeft, Building, Clock, NetworkIcon, Shield } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { sortProviders } from "@/features/bankConnection/shared/utils";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ import {
 interface ProviderSelectionProps {
   selectedCountry: Country;
   onProviderSelect: (provider: BankFeedProvider) => void;
+  onWidgetSuccess: (code: string) => Promise<void>;
   providers: BankFeedProvider[];
   onNext: () => void;
   onBack: () => void;
@@ -30,6 +31,7 @@ export const ProviderSelection = React.memo(
     selectedCountry,
     providers,
     onProviderSelect,
+    onWidgetSuccess,
     onNext,
     onBack,
   }: ProviderSelectionProps) => {
@@ -45,14 +47,15 @@ export const ProviderSelection = React.memo(
 
     // Computed
     const userData = useMemo(() => {
-      // Potentially problematic
+      // Potentially problematic function, rerender risk
+      if (!selectedProvider?.key || !user || !company) return undefined;
+
       return selectedProvider?.key && user && company
         ? getProviderData[selectedProvider.key]?.(user, company)
         : undefined;
     }, [selectedProvider, user, company]);
 
-    console.log(selectedProvider);
-    console.log({ userData });
+    // console.trace({ selectedProvider, userData });
 
     const sortedProviders = useMemo(() => {
       return sortProviders(providers, {
@@ -80,32 +83,6 @@ export const ProviderSelection = React.memo(
       setWidgetOpen(false);
     }, []);
 
-    const handleWidgetSuccess = useCallback(
-      async (code: string) => {
-        if (!selectedProvider || !company) return;
-        try {
-          switch (selectedProvider.key) {
-            case "mono":
-              const res = await handleMonoConnection({
-                companyId: company.id,
-                data: {
-                  code,
-                },
-              });
-
-              console.log(res);
-              break;
-
-            default:
-              break;
-          }
-        } catch (error) {
-          console.error(error);
-        }
-      },
-      [selectedProvider, company]
-    );
-
     const handleNext = useCallback(() => {
       if (selectedProvider) {
         onNext();
@@ -120,8 +97,8 @@ export const ProviderSelection = React.memo(
           key={`widget-${selectedProvider.key}`}
           open={widgetOpen}
           onClose={handleWidgetClose}
-          // data={userData}
-          onSuccess={handleWidgetSuccess}
+          data={userData}
+          onSuccess={onWidgetSuccess}
         />
       ) : (
         <p>Unsupported provider</p>
@@ -131,7 +108,7 @@ export const ProviderSelection = React.memo(
       widgetOpen,
       handleWidgetClose,
       userData,
-      handleWidgetSuccess,
+      onWidgetSuccess,
     ]);
 
     const providerCards = useMemo(() => {
@@ -146,7 +123,7 @@ export const ProviderSelection = React.memo(
           <div
             key={provider.id}
             className={cn(
-              "cursor-pointer w-full flex-1 transition-all duration-200 border rounded-sm p-4 shadow-sm max-w-sm overflow-hidden",
+              "cursor-pointer h-fit w-full flex-1 transition-all duration-200 border rounded-sm p-4 shadow-sm max-w-sm overflow-hidden",
               isSelected
                 ? "border-blue-600 ring-2 ring-blue-100 dark:ring-blue-900"
                 : recommended
@@ -222,16 +199,16 @@ export const ProviderSelection = React.memo(
           </div>
         );
       });
-    }, [sortProviders, selectedProvider, handleProviderSelectInternal]);
+    }, [sortedProviders, selectedProvider, handleProviderSelectInternal]);
 
     return (
       <>
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <NetworkIcon className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-semibold mb-2">Choose Your Provider</h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
+          <h2 className="text-lg font-semibold">Choose Your Provider</h2>
+          <p className="text-muted-foreground max-w-md mx-auto text-sm">
             Select the service that will securely connect to your bank
           </p>
         </div>
@@ -274,14 +251,29 @@ export const ProviderSelection = React.memo(
         {/* Provider Cards */}
         <div
           className={cn(
-            "flex gap-2 lg:gap-4 mb-8 flex-wrap",
-            isMobile ? "flex-col items-center" : ""
+            "flex gap-2 lg:gap-4 mb-8 flex-wrap justify-center",
+            isMobile ? "flex-col items-center" : "min-h-40"
           )}
         >
           {providerCards}
         </div>
 
         {widgetComponent}
+
+        {/* Navigation */}
+        <div className="flex justify-between pb-6">
+          <Button variant="ghost" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <Button
+            onClick={handleNext}
+            disabled={!selectedProvider || !widgetOpen}
+            className="px-6"
+          >
+            Continue
+          </Button>
+        </div>
       </>
     );
   },
@@ -295,3 +287,5 @@ export const ProviderSelection = React.memo(
     );
   }
 );
+
+ProviderSelection.whyDidYouRender = true;

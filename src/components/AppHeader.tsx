@@ -15,6 +15,7 @@ import { Link } from "react-router-dom";
 import { pageStore } from "@/shared/stores/page";
 import { useCompany } from "@/domains/company/store";
 import { cn } from "@/lib/utils";
+import { handleExitDemo } from "@/features/demo/utils";
 
 type BreadcrumbItem = {
   label: string;
@@ -33,6 +34,15 @@ export function AppHeader({}: // currentPage = "Home",
 AppHeaderProps) {
   const { company } = useCompany();
   const { breadcrumbs } = pageStore();
+
+  const handleSwitch = async () => {
+    console.log("Switch");
+
+    // if is demo, handle exit demo, otherwise show dropdown
+    if (company?.isDemoCompany) {
+      await handleExitDemo();
+    }
+  };
 
   return (
     <header
@@ -74,6 +84,9 @@ AppHeaderProps) {
         <div className="text-muted-foreground">
           You are signed into{" "}
           <strong>
+            <span className="text-destructive">
+              {company?.isDemoCompany ? "Demo Company → " : ""}
+            </span>
             {company?.displayName ||
               company?.legalName ||
               "No Company Selected"}
@@ -81,13 +94,13 @@ AppHeaderProps) {
           <span>{company?.countryFlag}</span>
         </div>
         {/* TODO: Handle company switching later */}
-        <Link
-          to="#"
-          className="flex items-center justify-center gap-1 text-blue-500"
+        <div
+          className="flex items-center justify-center gap-1 text-blue-500 hover:text-blue-500/80 cursor-pointer"
+          onClick={handleSwitch}
         >
           switch
           <ChevronDownIcon size={10} />
-        </Link>
+        </div>
       </div>
 
       <ThemeToggle />

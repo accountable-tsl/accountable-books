@@ -39,9 +39,10 @@ export default function AddBankAccount({
 }: AddBankAccountProps) {
   // States
   const [selectedCountry, setSelectedCountry] = useState<Country | undefined>();
-  const [countryError, _setCountryError] = useState("");
+  const [countryError, setCountryError] = useState("");
   const [createdAccount, setCreatedAccount] =
     useState<BankAccountWithMeta | null>(null);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   // Hooks
   const { data: currenciesData, isLoading: isLoadingCurrencies } =
@@ -75,6 +76,7 @@ export default function AddBankAccount({
 
   // Handle country selection
   const handleCountryChange = (countryId: string) => {
+    setHasUserInteracted(true);
     const country = countries.find((country) => country.id === countryId);
     setSelectedCountry(country);
     setValue("bankId", "");
@@ -87,6 +89,12 @@ export default function AddBankAccount({
       // Example: await api.addBankAccount(data);
       if (!company?.id) {
         toast.error("Failed to add bank account. Please try again.");
+        return;
+      }
+
+      if (!selectedCountry) {
+        setCountryError("Please select a country");
+        toast.error("Please select a country");
         return;
       }
 
@@ -110,7 +118,12 @@ export default function AddBankAccount({
 
   // Set default country and currency
   useEffect(() => {
-    if (company && currencies.length && countries.length) {
+    if (
+      !hasUserInteracted &&
+      company &&
+      currencies.length &&
+      countries.length
+    ) {
       const { country, currency } = getDefaultCountryAndCurrency({
         company,
         countries,
@@ -124,7 +137,7 @@ export default function AddBankAccount({
         bankId: "",
       });
     }
-  }, [company, countries, currencies]);
+  }, [company, countries, currencies, hasUserInteracted, setValue]);
 
   if (isLoadingCurrencies || isLoadingCountries) {
     return (
@@ -283,9 +296,11 @@ export default function AddBankAccount({
 
         <FormField
           label="Account Number"
-          helpTooltip="Your official bank account number"
+          helpTooltip="Enter your bank account number exactly as it appears on your account. If this account doesn’t have a bank account number (e.g., for wallets or virtual accounts), enter 'NA'."
+          tooltipStyle="w-full max-w-[16rem] text-center"
           className="flex-1"
           error={formErrors.accountNumber?.message}
+          required
         >
           <Input {...register("accountNumber")} placeholder="0011223344" />
         </FormField>

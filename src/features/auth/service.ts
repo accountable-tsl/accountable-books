@@ -1,4 +1,4 @@
-import { AuthCompanyContext, AuthUserContext, LoginForm } from "./types";
+import { AuthCompanyContext, UserContext, LoginForm } from "./types";
 import api from "@/lib/axios";
 import { isAxiosError } from "axios";
 import { ApiResponse } from "@/shared/types/core";
@@ -22,7 +22,7 @@ export const backendLogout = async () => {
 };
 
 export const fetchSession = async (): Promise<
-  ApiResponse<{ user: AuthUserContext; company: AuthCompanyContext }>
+  ApiResponse<{ user: UserContext; company: AuthCompanyContext }>
 > => {
   const res = await api.get("/auth/me");
   return res.data;

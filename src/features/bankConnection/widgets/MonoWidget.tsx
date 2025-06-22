@@ -1,6 +1,6 @@
 import MonoConnect from "@mono.co/connect.js";
 import { MonoWidgetProps } from "./types";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 
 export function MonoWidget({
   open,
@@ -12,6 +12,8 @@ export function MonoWidget({
   const key = import.meta.env.VITE_MONO_PUBLIC_KEY;
   const monoInstanceRef = useRef<MonoConnect | null>(null);
   const isUnmountedRef = useRef(false);
+  const hasCalledOnSuccessRef = useRef(false);
+
   const styleElementRef = useRef<HTMLStyleElement | null>(null);
 
   const callbacksRef = useRef({
@@ -19,6 +21,11 @@ export function MonoWidget({
     providedOnLoad,
     providedOnSuccess,
   });
+
+  // Noticed onSuccess firing multiple time, adding this to reset, added to onSuccess to prevent
+  useEffect(() => {
+    hasCalledOnSuccessRef.current = false; // reset on new mount
+  }, [key, customerData]);
 
   // Update refs on callback changes
   useEffect(() => {
@@ -48,10 +55,16 @@ export function MonoWidget({
           callbacksRef.current.providedOnLoad?.();
         },
 
-        onSuccess: ({ code }) => {
+        onSuccess: async ({ code }) => {
+          if (hasCalledOnSuccessRef.current) {
+            console.warn("onSuccess already called; ignoring duplicate");
+            return;
+          }
+          hasCalledOnSuccessRef.current = true;
+
           console.log(`Linked successfully: ${code}`);
-          callbacksRef.current.providedOnSuccess?.(code);
-          callbacksRef.current.providedOnClose?.();
+          await callbacksRef.current.providedOnSuccess?.(code);
+          // callbacksRef.current.providedOnClose?.();
         },
       });
 
@@ -78,6 +91,8 @@ export function MonoWidget({
   // Styling hack to get the widget to appear above everything including dialogs and make it interactive
   useEffect(() => {
     if (open) {
+      const prevColorScheme = document.documentElement.style.colorScheme;
+
       // Create and inject CSS styles
       const styleElement = document.createElement("style");
       styleElement.id = "mono-widget-portal-styles";
@@ -87,6 +102,7 @@ export function MonoWidget({
           display: flex !important;
           visibility: visible !important;
           pointer-events: auto !important;
+          background: rgba(0, 0, 0, 0.80) !important;
         }
 
         #mono-connect--frame-id {
@@ -94,24 +110,20 @@ export function MonoWidget({
           visibility: visible !important;
           pointer-events: auto !important;
         }
-
+            
         /* Disable pointer events on dialog overlays when widget is open */
-        [data-radix-dialog-overlay] {
-          pointer-events: none !important;
-        }
-
         /* Disable focus guards that might interfere */
-        [data-radix-focus-guard] {
-          pointer-events: none !important;
-        }
-
         /* Ensure dialog content can't capture events */
+    
+        [data-radix-dialog-overlay],
+        [data-radix-focus-guard],
         [data-radix-dialog-content] {
           pointer-events: none !important;
         }
       `;
 
       document.head.appendChild(styleElement);
+      document.documentElement.style.colorScheme = "light";
       styleElementRef.current = styleElement;
 
       return () => {
@@ -120,6 +132,8 @@ export function MonoWidget({
           document.head.removeChild(styleElementRef.current);
           styleElementRef.current = null;
         }
+
+        document.documentElement.style.colorScheme = prevColorScheme;
       };
     } else {
       // Remove styles if widget is closed or not using portal
@@ -132,3 +146,5 @@ export function MonoWidget({
 
   return null;
 }
+
+MonoWidget.whyDidYouRender = true;

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Check, LucideIcon, MenuIcon } from "lucide-react";
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   SheetContent,
   SheetDescription,
@@ -74,42 +74,44 @@ export function VerticalStepper({
     );
   };
 
-  const renderedSteps = steps.map((step, index) => {
-    const uniqueKey = step.key;
-    const isActive = String(uniqueKey) === String(currentStep);
-    const isCompleted = index < currentIndex;
-    const isLastStep = index === steps.length - 1;
+  const renderedSteps = useMemo(() => {
+    return steps.map((step, index) => {
+      const uniqueKey = step.key;
+      const isActive = String(uniqueKey) === String(currentStep);
+      const isCompleted = index < currentIndex;
+      const isLastStep = index === steps.length - 1;
 
-    const stepObj = {
-      ...step,
-      active: isActive,
-      completed: isCompleted,
-    };
+      const stepObj = {
+        ...step,
+        active: isActive,
+        completed: isCompleted,
+      };
 
-    return (
-      <div
-        key={String(uniqueKey)}
-        className={cn(
-          isMobile ? "" : "hidden md:block relative space-y-6",
-          className
-        )}
-      >
-        {stepUi(stepObj)}
+      return (
+        <div
+          key={String(uniqueKey)}
+          className={cn(
+            isMobile ? "" : "hidden md:block relative space-y-6",
+            className
+          )}
+        >
+          {stepUi(stepObj)}
 
-        {/* Connecting line on desktop */}
-        {!isMobile && !isLastStep && (
-          <div
-            className={cn(
-              "absolute left-4 top-8 -ml-px h-full w-0.5",
-              isCompleted ? "bg-ring/50" : "bg-ring"
-            )}
-            // style={{ height: "2.5rem" }} // Matches space-y-4 and SingleStep height
-            aria-hidden="true"
-          />
-        )}
-      </div>
-    );
-  });
+          {/* Connecting line on desktop */}
+          {!isMobile && !isLastStep && (
+            <div
+              className={cn(
+                "absolute left-4 top-8 -ml-px h-full w-0.5",
+                isCompleted ? "bg-ring/50" : "bg-ring"
+              )}
+              // style={{ height: "2.5rem" }} // Matches space-y-4 and SingleStep height
+              aria-hidden="true"
+            />
+          )}
+        </div>
+      );
+    });
+  }, [steps, currentStep, className, isMobile, stepperOption, currentIndex]);
 
   if (!steps.length || currentStepObj === undefined) return null;
 
@@ -155,49 +157,45 @@ export function VerticalStepper({
   );
 }
 
-const SingleStep: React.FC<SingleStepProps> = ({
-  icon: Icon,
-  title,
-  description,
-  active,
-  completed,
-}) => {
-  return (
-    <div className="flex items-center gap-2 text-sm md:text-base">
-      <div
-        className={cn(
-          "bg-background p-2 rounded-md outline relative z-10 flex h-8 w-8 shrink-0 items-center justify-center border",
-          active ? "outline-card-foreground" : ""
-        )}
-      >
-        {completed ? (
-          <Check />
-        ) : (
-          <Icon color={`${active ? "currentColor" : "gray"}`} />
-        )}
-      </div>
-      <div className="flex flex-col min-w-0">
+const SingleStep = memo(
+  ({ icon: Icon, title, description, active, completed }: SingleStepProps) => {
+    return (
+      <div className="flex items-center gap-2 text-sm md:text-base">
         <div
           className={cn(
-            "truncate text-sm text-muted-foreground/50",
-            active ? "text-card-foreground" : ""
-            // active || completed ? "text-gray-900" : "text-gray-500"
+            "bg-background p-2 rounded-md outline relative z-10 flex h-8 w-8 shrink-0 items-center justify-center border",
+            active ? "outline-card-foreground" : ""
           )}
         >
-          {title}
+          {completed ? (
+            <Check />
+          ) : (
+            <Icon color={`${active ? "currentColor" : "gray"}`} />
+          )}
         </div>
-        <div
-          className={cn(
-            "text-muted-foreground/30 text-xs truncate",
-            active ? "text-card-foreground" : "" // "truncate text-xs text-gray-500"
-          )}
-        >
-          {description}
+        <div className="flex flex-col min-w-0">
+          <div
+            className={cn(
+              "truncate text-sm text-muted-foreground/50",
+              active ? "text-card-foreground" : ""
+              // active || completed ? "text-gray-900" : "text-gray-500"
+            )}
+          >
+            {title}
+          </div>
+          <div
+            className={cn(
+              "text-muted-foreground/30 text-xs truncate",
+              active ? "text-card-foreground" : "" // "truncate text-xs text-gray-500"
+            )}
+          >
+            {description}
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  }
+);
 
 interface StepperFooterProps extends React.HTMLAttributes<HTMLDivElement> {
   children: string | React.ReactNode;
