@@ -42,15 +42,6 @@ const originalError = console.error;
 console.error = (...args: unknown[]) => {
   originalError(...args);
 
-  // Skip stack trace generation for specific patterns
-  const firstArg = args[0];
-  if (
-    typeof firstArg === "string" &&
-    firstArg.includes("Received undefined or null error")
-  ) {
-    return; // Don't generate stack trace for these expected cases
-  }
-
   for (const arg of args) {
     if (arg instanceof Error && arg.stack) {
       originalError("Stack Trace:", arg.stack);
@@ -58,7 +49,7 @@ console.error = (...args: unknown[]) => {
     }
   }
 
-  // Only generate fallback stack if it seems like a real error
+  // fallback if no Error instance is found
   const fallbackStack = new Error().stack;
   if (fallbackStack) originalError("Generated Stack Trace:", fallbackStack);
 };
@@ -80,7 +71,7 @@ async function startServer() {
     app.use(cors({ origin: allowedOrigins, credentials: true }));
     app.use(express.static("./public"));
 
-    app.use(conditionalCsrf);
+    // app.use(conditionalCsrf);
 
     const bullboardUser = process.env.BULLBOARD_USER || "admin";
     const bullboardPass = process.env.BULLBOARD_PASSWORD || "secret";

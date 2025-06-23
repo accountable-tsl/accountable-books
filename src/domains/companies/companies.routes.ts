@@ -18,7 +18,6 @@ const router = express.Router({ mergeParams: true });
 
 router.post(
   "/switch",
-  csrfProtection,
   verifyAccessToken,
   checkCompanyId,
   switchCompanyController

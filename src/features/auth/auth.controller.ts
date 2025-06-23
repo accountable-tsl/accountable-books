@@ -33,9 +33,7 @@ export async function loginController(req: Request, res: Response) {
           : code === ErrorCode.GENERIC
             ? 500
             : 403;
-      return res
-        .status(status)
-        .json(errorResponse(message, undefined, code as ErrorCode));
+      return res.status(status).json(errorResponse(message, undefined));
     }
     const { accessToken, refreshToken, ...rest } = data;
     const csrfToken = setAuthCookies(req, res, accessToken, refreshToken);

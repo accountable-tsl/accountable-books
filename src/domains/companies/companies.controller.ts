@@ -18,20 +18,27 @@ export const switchCompanyController = async (
   res: Response
 ) => {
   try {
-    const companyId = req?.company?.id;
-    if (!req.user?.id || !companyId) throw new AppError("Unauthorized");
+    const companyId = req.body.companyId;
+    if (!req.user || !companyId) throw new AppError("Unauthorized");
 
-    const switchResult = await switchCompany(req.user.id, companyId);
+    const switchResult = await switchCompany({
+      user: req.user,
+      newCompanyId: companyId,
+    });
 
     if (!switchResult.success) {
       return res.status(403).json(errorResponse(switchResult.message));
     }
 
-    const { accessToken, refreshToken, user } = switchResult.data;
+    const { accessToken, refreshToken, user, company } = switchResult.data;
 
     const csrfToken = setAuthCookies(req, res, accessToken, refreshToken);
     return res.json(
-      successResponse("Company switched successfully", { user, csrfToken })
+      successResponse("Company switched successfully", {
+        user,
+        company,
+        csrfToken,
+      })
     );
   } catch (error) {
     res.status(500).json(errorResponse("Something went wrong"));

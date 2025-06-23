@@ -19,7 +19,10 @@ import {
 } from "../../shared/utils/crypto.utils";
 import { ApiResponse } from "../../core/types/api.types";
 import { redis } from "../../lib/redis";
-import { getCompanyShortCode } from "../../shared/utils/random.utils";
+import {
+  getCompanyShortCode,
+  getCompanyUUID,
+} from "../../shared/utils/random.utils";
 import dayjs from "dayjs";
 import { buildEmailServiceUrl } from "../communications/email/email.utils";
 import { sendVerificationEmail } from "../communications/email/email.service";
@@ -58,6 +61,11 @@ export async function loginService(
       user.last_active_company_id || roles[0].company_id
     );
 
+    if (currentCompanyId !== user.last_active_company_id) {
+      await knexClient("users")
+        .where({ id: user.id })
+        .update({ last_active_company_id: roles[0].company_id });
+    }
     const userData = {
       sub: user.id,
       currentCompanyId,

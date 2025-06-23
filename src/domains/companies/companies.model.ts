@@ -25,10 +25,19 @@ import {
 } from "../../shared/utils/response.utils";
 import generateSecureShortCode from "../../shared/utils/crypto.utils";
 import { knexClient } from "../../../knexClient";
-import { generateAuthTokens } from "../../features/auth/auth.utils";
+import {
+  buildAuthContext,
+  generateAuthTokens,
+} from "../../features/auth/auth.utils";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { RoleName } from "../../core/types/db.types";
 import { updateFirm } from "../accountingFirms/firms.model";
+import { AuthUserContext } from "../../features/auth/auth.types";
+import {
+  grantAccessToCompany,
+  hasAccessToCompany,
+} from "../usersCompaniesRoles/usersCompaniesRoles.model";
+import { redis } from "../../lib/redis";
 
 export const createCompany = async (
   knexTrx: Knex.Transaction,
@@ -149,50 +158,74 @@ export const verifyCompanyDependenciesExist = async (
 };
 
 export const switchCompany = async (
-  user: {
-    id: string;
-    firstname: string;
-    lastname?: string;
-    email: string;
-    status: string;
-    currentCompanyId: string;
-  },
-  newCompanyId: string
-) => {
+  { user, newCompanyId }: { user: AuthUserContext; newCompanyId: string } // The company they wish to switch to
+): Promise<ApiResponse<any>> => {
   try {
-    // Update this formula later
-    const companyId = await getCompanyUUID(newCompanyId);
-
-    const role = await knexClient("users_companies_roles")
-      .where({
-        user_id: user.id,
-        company_id: companyId,
-        is_deleted: false,
-      })
-      .select("company_id", "role_id")
+    const companyUUID = await getCompanyUUID(newCompanyId);
+    // Get company details
+    const company = await knexClient("companies")
+      .select("is_demo_company")
+      .where({ is_deleted: false, id: companyUUID })
       .first();
 
-    if (!role) {
-      return errorResponse("User not authorized for this company");
+    if (!company) {
+      return errorResponse("Company not found");
     }
 
-    await knexClient("users")
-      .where("id", user.id)
-      .update("last_active_company_id", companyId);
+    console.log(company);
 
-    const { accessToken, refreshToken } = generateAuthTokens({
+    // Grant demo access if needed
+    if (company.is_demo_company) {
+      const accessGranted = await grantAccessToCompany({
+        companyId: companyUUID,
+        userId: user.id,
+        roleName: "demo_user",
+      });
+
+      console.log({ accessGranted });
+    }
+
+    // Confirm access
+    const accessCheck = await hasAccessToCompany({
+      userId: user.id,
+      companyId: companyUUID,
+    });
+
+    console.log({ accessCheck });
+    if (!accessCheck.data?.hasAccess) {
+      return errorResponse("You do not have access to this company");
+    }
+
+    // Update user's last active company
+    if (!company.is_demo_company) {
+      await knexClient("users")
+        .where("id", user.id)
+        .update("last_active_company_id", companyUUID);
+    }
+
+    const userData = {
       sub: user.id,
-      currentCompanyId: companyId,
       email: user.email,
       firstname: user.firstname,
-      status: user.status,
       lastname: user.lastname,
-    });
+      status: user.status,
+      currentCompanyId: companyUUID,
+    };
+    console.log(userData);
+    // Generate new tokens reflecting the new active company
+    const { accessToken, refreshToken } = generateAuthTokens(userData);
+
+    // Store refresh token in Redis
+    await redis.sadd(`refreshTokens:${user.id}`, refreshToken);
+    await redis.expire(`refreshTokens:${user.id}`, 604800); // 7 days
+
+    const authContext = await buildAuthContext(userData);
 
     return successResponse("Company switched successfully", {
       accessToken,
       refreshToken,
-      user: { ...user, currentCompanyId: companyId },
+      user: authContext.user,
+      company: authContext.company,
     });
   } catch (error) {
     return errorResponse("Something went wrong", error);
@@ -274,7 +307,7 @@ export const fetchCompanies = async ({
         return errorResponse(
           `Invalid company identifier: ${identifier}`,
           undefined,
-          ErrorCode.INVALID_CREDENTIALS
+          { code: ErrorCode.INVALID_CREDENTIALS }
         );
       }
 
@@ -378,7 +411,7 @@ export const updateCompany = async (
       return errorResponse(
         `Invalid company identifier: ${identifier}`,
         undefined,
-        ErrorCode.INVALID_CREDENTIALS
+        { code: ErrorCode.INVALID_CREDENTIALS }
       );
     }
 
@@ -454,12 +487,9 @@ export const updateCompany = async (
         : refreshed.data;
 
       if (!refreshedData) {
-        return errorResponse(
-          "Company not found after update",
-          refreshed,
-          undefined,
-          true
-        );
+        return errorResponse("Company not found after update", refreshed, {
+          report: true,
+        });
       }
 
       return successResponse(
@@ -470,11 +500,8 @@ export const updateCompany = async (
 
     return result;
   } catch (error) {
-    return errorResponse(
-      "Error updating company details",
-      error,
-      undefined,
-      true
-    );
+    return errorResponse("Error updating company details", error, {
+      report: true,
+    });
   }
 };

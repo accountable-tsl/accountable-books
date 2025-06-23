@@ -146,10 +146,11 @@ export const grantAccessToCompany = async ({
           company_id: company.id,
           role_id: roleId,
         })
+        .returning("*")
         .onConflict(["user_id", "company_id"])
         .ignore();
 
-      console.log(res);
+      console.log({ res });
       return successResponse("Access granted", null);
     }
 
