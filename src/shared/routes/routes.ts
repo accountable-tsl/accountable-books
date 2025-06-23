@@ -64,7 +64,7 @@ export const routes = {
       staticPath: "/email-verified",
       meta: { public: true },
     }),
-    
+
     welcome: makeRoute({ staticPath: "/onboarding/welcome" }),
   },
 
@@ -309,7 +309,7 @@ export function buildTenantUrl({
   path?: string;
 }): string {
   const cleanPath = path?.startsWith("/") ? path : `/${path || ""}`;
-
+  console.log(cleanPath);
   const baseDomain = import.meta.env.VITE_BASE_DOMAIN || "getaccountable.com";
   const port = window.location.port || "5173";
   const url = import.meta.env.PROD

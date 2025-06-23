@@ -88,15 +88,9 @@ export function useCompanySwitch() {
       setUser(user);
       await fetchCompany(newCompanyId);
 
-      const tenantUrl = buildTenantUrl({
-        firmSlug: slug,
-        companyId: newCompanyId,
-        path: routes.dashboard.relativePath,
+      navigate(routes.dashboard.buildPath({ companyId: newCompanyId }), {
+        replace: true,
       });
-
-      console.log("tenantUrl", tenantUrl);
-      window.location.href = tenantUrl;
-      //   window.location.replace (tenantUrl);
 
       onSuccess?.();
     } catch (err) {
