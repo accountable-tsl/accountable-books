@@ -11,11 +11,10 @@ import {
 import React from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { ChevronDownIcon } from "lucide-react";
-import { Link } from "react-router-dom";
 import { pageStore } from "@/shared/stores/page";
 import { useCompany } from "@/domains/company/store";
 import { cn } from "@/lib/utils";
-import { handleExitDemo } from "@/features/demo/utils";
+import { useCompanySwitch } from "@/features/switchCompany/hooks";
 
 type BreadcrumbItem = {
   label: string;
@@ -34,6 +33,7 @@ export function AppHeader({}: // currentPage = "Home",
 AppHeaderProps) {
   const { company } = useCompany();
   const { breadcrumbs } = pageStore();
+  const { handleExitDemo } = useCompanySwitch();
 
   const handleSwitch = async () => {
     console.log("Switch");

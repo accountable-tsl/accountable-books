@@ -35,6 +35,7 @@ export interface UserContext {
   lastname?: string;
   status: string;
   companyRoles: {
+    userId?: string;
     companyId: string;
     roleId: string;
   }[];

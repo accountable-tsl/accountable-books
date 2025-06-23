@@ -54,3 +54,9 @@ export const COMPANY_REVENUE_RANGE = [
   { value: "50000001-100000000", label: "$50,000,001 - $100,000,000" },
   { value: "over-100000000", label: "Over $100,000,000" },
 ];
+
+export const DEMO_COMPANIES_IDS: Record<CompanyType, string> = {
+  individual: "indDemo",
+  accounting_firm: "firmDemo",
+  business: "bizDemo",
+};

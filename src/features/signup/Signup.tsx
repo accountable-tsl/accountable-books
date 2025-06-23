@@ -142,8 +142,10 @@ export default function Signup() {
             setError("");
           }, 1000);
 
+          // Log the user in
+
           setTimeout(() => {
-            window.location.href = "/";
+            window.location.href = "/onboarding";
           }, 1500);
         } else {
           setTimeout(() => {

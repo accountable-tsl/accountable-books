@@ -32,7 +32,8 @@ import { CenteredLoader } from "@/components/CenteredLoader";
 import { onboardingStatus, OnboardingStatus } from "@/domains/company/types";
 import { getCompanyDetails } from "@/domains/company/api";
 import { routes } from "@/shared/routes/routes";
-import { handleDemoAccess } from "../demo/utils";
+import { useCompanySwitch } from "../switchCompany/hooks";
+import { DEMO_COMPANIES_IDS } from "@/domains/company/constants";
 
 export function OnboardingForm({
   step: overrideStep,
@@ -56,7 +57,6 @@ export function OnboardingForm({
     [company?.onboardingStatus]
   );
 
-  console.log(user)
   const statusRef = useRef(status);
   const companyIdRef = useRef(companyId || company?.id);
   const companyRef = useRef(company);
@@ -113,8 +113,13 @@ export function OnboardingForm({
 
         // Check specific fields that affect the UI
         const fieldsToCheck: (keyof typeof res.data)[] = [
+          "id",
           "onboardingStatus",
           "legalName",
+          "displayName",
+          "companyType",
+          "assignedFirmLogo",
+          "assignedFirmName",
           "createdById",
         ];
 
@@ -220,12 +225,36 @@ export function OnboardingForm({
   // The sidebar uses this data to determine which steps to show
   const sidebarProps = useMemo(() => {
     if (!company || !user) return null;
+
+    const stableCompany = {
+      id: company.id,
+      onboardingStatus: company.onboardingStatus,
+      legalName: company.legalName,
+      companyType: company.companyType,
+      assignedFirmLogo: company.assignedFirmLogo,
+      assignedFirmName: company.assignedFirmName,
+      displayName: company.displayName,
+      createdById: company.createdById,
+    };
+
     return {
-      company,
+      company: stableCompany,
       currentStep: step as keyof typeof onboardingSteps,
       isCreator,
     };
-  }, [company, user, step, isCreator]);
+  }, [
+    company?.id,
+    company?.onboardingStatus,
+    company?.legalName,
+    company?.displayName,
+    company?.companyType,
+    company?.assignedFirmLogo,
+    company?.assignedFirmName,
+    company?.createdById,
+    user?.id,
+    step,
+    isCreator,
+  ]);
 
   const stepElement = useMemo(() => {
     if (shouldShowMisc) {
@@ -328,15 +357,16 @@ const OnboardingFormFooter = () => {
   const isMobile = useIsMobile();
   const { logout } = useAuth();
   const { companyType } = useCompany();
+  const { switchCompany } = useCompanySwitch();
 
   const handleDemoCompanyAccess = () => {
     if (!companyType) {
       toast.error("We are sorry, Demo company is not available at this time.");
       return;
     }
-    handleDemoAccess({
-      companyType,
-    });
+
+    const demoCompany = DEMO_COMPANIES_IDS[companyType];
+    switchCompany({ companyId: demoCompany });
   };
 
   return (
@@ -378,3 +408,5 @@ const OnboardingFormFooter = () => {
     </div>
   );
 };
+
+// OnboardingForm.whyDidYouRender = true;

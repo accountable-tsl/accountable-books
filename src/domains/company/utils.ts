@@ -1,4 +1,8 @@
-import { ACCOUNTING_BASIS, COMPANY_TYPES } from "./constants";
+import {
+  ACCOUNTING_BASIS,
+  COMPANY_TYPES,
+  DEMO_COMPANIES_IDS,
+} from "./constants";
 import { CompanyData, CompanyType } from "./types";
 
 export const getCompanyTypeDisplay = (key: CompanyType) => {
@@ -47,3 +51,7 @@ export const getDefaultCompanyData = (): CompanyData => ({
   assignedFirmLogo: null,
   onboardingStatus: "not_started",
 });
+
+export function isDemoCompany(companyId: string): boolean {
+  return Object.values(DEMO_COMPANIES_IDS).includes(companyId);
+}

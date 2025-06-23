@@ -10,7 +10,6 @@ import { useCompany } from "@/domains/company/store";
 import { toast } from "sonner";
 import { fetchSession } from "@/features/auth/service";
 import { OnboardingStatus } from "@/domains/company/types";
-import { handleDemoAccess } from "@/features/demo/utils";
 
 export const BankAccount = ({
   onBankAccountComplete,
@@ -47,9 +46,7 @@ export const BankAccount = ({
       toast.error("We are sorry, Demo company is not available at this time.");
       return;
     }
-    handleDemoAccess({
-      companyType,
-    });
+
   };
 
   const handleUploadSuccess = async (response: any) => {

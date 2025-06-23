@@ -52,7 +52,17 @@ export type ResendVerEmailService =
     };
 
 export type OnboardingSideBarProps = {
-  company: CompanyData;
+  company: Pick<
+    CompanyData,
+    | "id"
+    | "onboardingStatus"
+    | "legalName"
+    | "displayName"
+    | "companyType"
+    | "assignedFirmLogo"
+    | "assignedFirmName"
+    | "createdById"
+  >;
   currentStep: keyof typeof onboardingSteps;
   isCreator: boolean;
   footer?: string | React.ReactNode;

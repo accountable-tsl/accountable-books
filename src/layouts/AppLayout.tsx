@@ -1,9 +1,11 @@
 import { AppHeader } from "@/components/AppHeader";
+import { CenteredLoader } from "@/components/CenteredLoader";
 import ErrorPage from "@/components/ErrorPage";
 import { AppSidebar, AppSidebarProps } from "@/components/SideBar/Sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useCompany } from "@/domains/company/store";
 import { useAuth } from "@/features/auth/hooks";
+import { useCompanySwitch } from "@/features/switchCompany/hooks";
 import { routes } from "@/shared/routes/routes";
 import {
   pageStore,
@@ -20,6 +22,7 @@ export default function AppLayout({
 }: AppLayoutProps) {
   const { user, checkingSession } = useAuth();
   const { companyId, companyType, slug } = useCompany();
+  const { isSwitching } = useCompanySwitch();
   const params = useParams();
   const routeCompanyId = params.companyId;
 
@@ -28,7 +31,15 @@ export default function AppLayout({
   usePageMeta();
 
   useEffect(() => {
-    if (user && companyId && slug) {
+    console.log("App Layout: I'm hit", { slug, companyId, routeCompanyId });
+
+    if (
+      user &&
+      companyId &&
+      slug &&
+      !isSwitching &&
+      routeCompanyId !== companyId
+    ) {
       const isCorrectSubdomain = window.location.hostname.startsWith(slug);
       if (!isCorrectSubdomain) {
         const url = routes.dashboard.buildUrl({ companyId });
@@ -53,12 +64,13 @@ export default function AppLayout({
     return <ErrorPage type="default" />;
   }
 
-  if (routeCompanyId && routeCompanyId !== companyId) {
+  if (routeCompanyId && routeCompanyId !== companyId && !isSwitching) {
     return (
-      <ErrorPage
-        type="404"
-        message="We couldn't find the page you were looking for"
-      />
+      // <ErrorPage
+      //   type="404"
+      //   message="We couldn't find the page you were looking for"
+      // />
+      <CenteredLoader />
     );
   }
 

@@ -25,5 +25,6 @@ export const fetchSession = async (): Promise<
   ApiResponse<{ user: UserContext; company: AuthCompanyContext }>
 > => {
   const res = await api.get("/auth/me");
+  console.log("fetchSession", res.data);
   return res.data;
 };
