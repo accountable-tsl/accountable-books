@@ -7,30 +7,41 @@ import {
   successResponse,
 } from "../../shared/utils/response.utils";
 import { getRoleId } from "../roles/roles.model";
-import { NewUserCompanyRole } from "./usersCompaniesRoles.types";
+import {
+  NewUserCompanyRole,
+  UserCompanyRoleResponse,
+} from "./usersCompaniesRoles.types";
 
-export const getCompanyRolesForUser = async (userId: string) => {
+export const getCompanyRolesForUser = async (
+  userId: string
+): Promise<ApiResponse<UserCompanyRoleResponse[]>> => {
   if (!userId?.trim()) {
     return errorResponse("Please provide a valid user ID");
   }
 
-  const userRoleByCompany = await knexClient("users_companies_roles as ucr")
-    .select(
-      "ucr.user_id as userId",
-      "c.short_code as companyId",
-      "ucr.role_id as roleId"
-    )
-    .join("companies as c", "ucr.company_id", "c.id")
-    .where({ "ucr.user_id": userId, "ucr.is_deleted": false });
+  try {
+    const userRoleByCompany = await knexClient("users_companies_roles as ucr")
+      .join("companies as c", "ucr.company_id", "c.id")
+      .join("roles as r", "ucr.role_id", "r.id")
+      .where({ "ucr.user_id": userId, "ucr.is_deleted": false })
+      .select(
+        "ucr.user_id as userId",
+        "c.short_code as companyId",
+        "ucr.role_id as roleId",
+        "r.name as roleName"
+      );
 
-  if (userRoleByCompany.length === 0) {
-    return errorResponse("No user role found");
+    if (userRoleByCompany.length === 0) {
+      return errorResponse("No user role found");
+    }
+
+    return successResponse(
+      "Account is not assigned to any company",
+      userRoleByCompany
+    );
+  } catch (error) {
+    return errorResponse("Failed to fetch user roles", error);
   }
-
-  return successResponse<NewUserCompanyRole[]>(
-    "User roles found",
-    userRoleByCompany
-  );
 };
 
 export const hasAccessToCompany = async (data: {

@@ -278,7 +278,7 @@ const companyFields = [
   "firm_meta.logo_key as assignedFirmLogoKey",
 ];
 export const fetchCompanies = async ({
-  identifier,
+  identifiers,
   filters,
 }: FetchCompaniesOptions = {}): Promise<ApiResponse<GetCompanyResponse[]>> => {
   try {
@@ -301,17 +301,23 @@ export const fetchCompanies = async ({
         "firm_meta.id"
       );
 
-    if (identifier) {
-      const companyId = await getCompanyUUID(identifier);
-      if (!companyId) {
-        return errorResponse(
-          `Invalid company identifier: ${identifier}`,
-          undefined,
-          { code: ErrorCode.INVALID_CREDENTIALS }
-        );
+    if (identifiers?.length) {
+      const companyIds = [];
+
+      for (const identifier of identifiers) {
+        const companyId = await getCompanyUUID(identifier);
+        if (!companyId) {
+          return errorResponse(
+            `Invalid company identifier: ${identifier}`,
+            undefined,
+            { code: ErrorCode.INVALID_CREDENTIALS }
+          );
+        }
+
+        companyIds.push(companyId);
       }
 
-      query.where("companies.id", companyId);
+      query.whereIn("companies.id", companyIds);
     }
 
     if (filters) {
@@ -360,14 +366,14 @@ export const fetchCompanies = async ({
 
     if (!result || (Array.isArray(result) && result.length === 0)) {
       return errorResponse(
-        `Error retrieving ${identifier ? "company" : "companies"}`
+        `Error retrieving ${identifiers?.length === 1 ? "company" : "companies"}`
       );
     }
 
     const data = snakeToCamel(result);
 
     return successResponse<GetCompanyResponse[]>(
-      identifier
+      identifiers?.length === 1
         ? `Successfully retrieved company`
         : filters
           ? `Successfully retrieved filtered companies`
@@ -382,10 +388,20 @@ export const fetchCompanies = async ({
 export const getCompanies = (options?: FetchCompaniesOptions) =>
   fetchCompanies(options ?? {});
 
+export const getCompaniesByIds = async (
+  ids: string[]
+): Promise<ApiResponse<GetCompanyResponse[]>> => {
+  if (!ids || ids.length === 0) {
+    return errorResponse("No company identifiers provided", null);
+  }
+
+  return fetchCompanies({ identifiers: ids });
+};
+
 export const getSingleCompany = async (
   id: string
 ): Promise<ApiResponse<GetCompanyResponse>> => {
-  const res = await fetchCompanies({ identifier: id });
+  const res = await fetchCompanies({ identifiers: [id] });
 
   if (!res.success || !res.data || res.data.length === 0) {
     return errorResponse(res.message, null);

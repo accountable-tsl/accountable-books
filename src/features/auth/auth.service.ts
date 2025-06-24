@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import { buildAuthContext, generateAuthTokens, JWT_CONFIG } from "./auth.utils";
 import {
+  AuthCompanyContext,
+  AuthUserContext,
   DecodedToken,
   ResendEmailParams,
   VerifyEmailParams,
@@ -30,68 +32,75 @@ import { sendVerificationEmail } from "../communications/email/email.service";
 export async function loginService(
   email: string,
   password: string
-): Promise<ApiResponse> {
+): Promise<
+  ApiResponse<{
+    accessToken: string;
+    refreshToken: string;
+    user: AuthUserContext;
+    activeCompany: AuthCompanyContext;
+  }>
+> {
   try {
+    // Look up user by email
     const user = await knexClient("users").select("*").where({ email }).first();
-    if (!user)
+    if (!user) {
+      // If no user found, fail with invalid credentials error
       return errorResponse("Email or password is incorrect", undefined, {
         code: ErrorCode.INVALID_CREDENTIALS,
       });
-    if (!user.password)
+    }
+
+    if (!user.password) {
+      // If user has no password set (e.g. invited but not registered), fail
       return errorResponse("Password not set", undefined, {
         code: ErrorCode.INVALID_CREDENTIALS,
       });
+    }
 
+    // Check password matches hashed password in DB
     const isValidPassword = await comparePassword(password, user.password);
     if (!isValidPassword)
       return errorResponse("Email or password is incorrect", undefined, {
         code: ErrorCode.INVALID_CREDENTIALS,
       });
 
-    // Fetch user's companies and roles
-    const roles = await knexClient("users_companies_roles")
-      .where({ user_id: user.id })
-      .select("company_id", "role_id");
-    if (!roles.length)
-      return errorResponse("No roles assigned", undefined, {
-        code: ErrorCode.NO_ROLES,
-      });
-
-    const currentCompanyId = await getCompanyShortCode(
-      user.last_active_company_id || roles[0].company_id
-    );
-
-    if (currentCompanyId !== user.last_active_company_id) {
-      await knexClient("users")
-        .where({ id: user.id })
-        .update({ last_active_company_id: roles[0].company_id });
-    }
-    const userData = {
+    // Build token payload (user ID, email, company info, etc.)
+    const userData: DecodedToken = {
       sub: user.id,
-      currentCompanyId,
       email: user.email,
       firstname: user.firstname,
       ...(user.lastname && { lastname: user.lastname }),
-      status: user.status!,
+      status: user?.status || "",
+      currentCompanyId: user.last_active_company_id || undefined, // Let buildAuthContext finalize company
     };
 
+    // Fetch extra user + company info for frontend (enriched context)
+    const contextRes = await buildAuthContext(userData);
+    if (!contextRes.success || !contextRes.data) {
+      return errorResponse(
+        contextRes.message || "Failed to build auth context"
+      );
+    }
+    const { user: userContext, activeCompany } = contextRes.data;
+
+    // Generate short-lived access token + long-lived refresh token
     const { accessToken, refreshToken } = generateAuthTokens(userData);
-    const result = await buildAuthContext(userData);
 
     // Add refreshToken to Redis set
     const tokenCount = await redis.scard(`refreshTokens:${user.id}`);
     if (tokenCount >= 5) {
-      const oldestToken = await redis.spop(`refreshTokens:${user.id}`);
+      // Remove oldest token if token count for this user exceeds 5
+      await redis.spop(`refreshTokens:${user.id}`);
     }
     await redis.sadd(`refreshTokens:${user.id}`, refreshToken);
     await redis.expire(`refreshTokens:${user.id}`, 604800); // 7 days
 
-    return successResponse("User logged in successfully", {
+    return successResponse("Login successful", {
       accessToken,
       refreshToken,
-      user: result.user,
-      company: result.company,
-    } as const);
+      user: userContext,
+      activeCompany,
+    });
   } catch (error) {
     return errorResponse("An unexpected error occurred");
   }
@@ -100,7 +109,7 @@ export async function loginService(
 export async function refreshTokenService(
   refreshToken: string,
   userId: string
-): Promise<ApiResponse> {
+): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
   const lockKey = `refreshLock:${userId}`;
   const locked = await redis.set(lockKey, "1", "PX", 1000, "NX");
   if (!locked) throw new Error("Refresh already in progress");
@@ -142,7 +151,6 @@ export async function refreshTokenService(
     return successResponse("Tokens refreshed", {
       accessToken,
       refreshToken: newRefreshToken,
-      user: { id: userId, currentCompanyId: decoded.currentCompanyId },
     });
   } catch (error) {
     console.error("refreshTokenService error:", error);

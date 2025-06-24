@@ -57,6 +57,8 @@ console.error = (...args: unknown[]) => {
 const allowedOrigins = [
   FRONTEND_URL,
   /^https?:\/\/[\w-]+\.localhost(:\d+)?$/,
+  "http://localhost:5173",
+  "localhost:5173",
   "http://lvh.me:5173",
   /\.lvh\.me(:5173)?$/,
   new RegExp(
@@ -71,7 +73,7 @@ async function startServer() {
     app.use(cors({ origin: allowedOrigins, credentials: true }));
     app.use(express.static("./public"));
 
-    // app.use(conditionalCsrf);
+    app.use(conditionalCsrf);
 
     const bullboardUser = process.env.BULLBOARD_USER || "admin";
     const bullboardPass = process.env.BULLBOARD_PASSWORD || "secret";

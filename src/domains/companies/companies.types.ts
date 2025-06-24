@@ -135,7 +135,7 @@ export const getCompanyResponse = z.object({
 });
 
 export type GetCompanyResponse = {
-  id: string;
+  id: string; // This is short code
   legalName: string;
   companyType: CompanyType;
   yearEndDay: number;
@@ -240,7 +240,7 @@ export interface CompanyFilters {
 }
 
 export interface FetchCompaniesOptions {
-  identifier?: string;
+  identifiers?: string[];
   filters?: CompanyFilters;
   // Future extensions
   page?: number;

@@ -10,3 +10,10 @@ export const userCompanyRole = newUserCompanyRole.merge(dbBaseFields);
 
 export type NewUserCompanyRole = z.infer<typeof newUserCompanyRole>;
 export type UserCompanyRole = z.infer<typeof userCompanyRole>;
+
+export type UserCompanyRoleResponse = {
+  userId: string;
+  companyId: string;
+  roleId: string;
+  roleName: string;
+};

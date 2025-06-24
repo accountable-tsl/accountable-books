@@ -23,11 +23,11 @@ export interface TokenPayload extends JwtPayload {
 
 export interface DecodedToken {
   sub: string;
-  currentCompanyId: string;
   email: string;
   firstname: string;
   lastname?: string;
   status: string;
+  currentCompanyId?: string;
   [key: string]: any;
 }
 
@@ -37,21 +37,19 @@ export interface AuthUserContext {
   firstname: string;
   lastname?: string;
   status: string;
-  companyRoles: {
-    companyId: string;
-    roleId: string;
-  }[];
+  companies: AuthCompanyContext[];
   currentCompanyId: string;
-  assignedFirmSlug?: string;
   permissions?: any;
+  // assignedFirmSlug?: string;
 }
 
 export interface AuthCompanyContext {
   id: string;
-  type: CompanyType;
+  assignedFirmSlug: string;
   name: string;
+  type: CompanyType;
+  role: string;
   onboardingStatus: OnboardingStatus;
-  assignedFirmSlug?: string;
 }
 
 export interface AuthRequest extends Request {

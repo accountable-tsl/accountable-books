@@ -63,6 +63,7 @@ export const verifyRefreshToken = async (
   if (!refreshToken) {
     return res.status(401).json(errorResponse("No refresh token provided"));
   }
+
   try {
     const decoded = jwt.verify(
       refreshToken,
@@ -70,12 +71,13 @@ export const verifyRefreshToken = async (
     ) as DecodedToken;
 
     const result = await buildAuthContext(decoded);
-    if (!result.success) {
-      return res.status(403).json(result.error);
+    if (!result.success || !result.data) {
+      return res.status(403).json(errorResponse(result.message, result.error));
     }
+    const { user, activeCompany } = result.data;
 
-    req.user = result.user;
-    req.company = result.company;
+    req.user = user;
+    req.company = activeCompany;
 
     next();
   } catch (error) {

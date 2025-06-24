@@ -18,35 +18,34 @@ import { ENV, isProd } from "../../config/env";
 import { getAppUrl } from "../../shared/utils/string.utils";
 
 export async function loginController(req: Request, res: Response) {
-  const baseDomain = ENV.BASE_DOMAIN || "lvh.me";
   try {
     const { email, password } = req.body;
 
-    const { success, code, message, data } = await loginService(
-      email,
-      password
-    );
-    if (!success) {
+    const serviceRes = await loginService(email, password);
+
+    if (!serviceRes.success || !serviceRes.data) {
       const status =
-        code === ErrorCode.INVALID_CREDENTIALS
+        serviceRes?.code === ErrorCode.INVALID_CREDENTIALS
           ? 401
-          : code === ErrorCode.GENERIC
+          : serviceRes?.code === ErrorCode.GENERIC
             ? 500
             : 403;
-      return res.status(status).json(errorResponse(message, undefined));
+      return res
+        .status(status)
+        .json(errorResponse(serviceRes.message, serviceRes.data || undefined));
     }
-    const { accessToken, refreshToken, ...rest } = data;
-    const csrfToken = setAuthCookies(req, res, accessToken, refreshToken);
+    const { accessToken, refreshToken, ...rest } = serviceRes.data;
+    setAuthCookies(req, res, accessToken, refreshToken);
+    const csrfToken = req.csrfToken();
 
     return res.json(
       successResponse("User logged in successfully", {
-        ...rest,
-        csrfToken: req.csrfToken() || csrfToken,
-        redirectTo: `https://${data.user.assignedFirmSlug}.${baseDomain}/${data.user.currentCompanyId}/dashboard`,
+        user: rest.user,
+        csrfToken,
       })
     );
   } catch (error) {
-    return res.status(500).json(errorResponse("Something went wrong"));
+    return res.status(500).json(errorResponse("Something went wrong", error));
   }
 }
 
@@ -57,7 +56,7 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
       return res.status(401).json(errorResponse("Refresh token missing"));
     }
 
-    const { id: userId, currentCompanyId } = req.user!;
+    const { id: userId } = req.user || {};
 
     if (!userId) {
       return res.status(403).json(errorResponse("User not authenticated"));
@@ -65,7 +64,7 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
 
     const result = await refreshTokenService(refreshToken, userId);
 
-    if (!result.success) {
+    if (!result.success || !result.data) {
       res.clearCookie("accessToken");
       res.clearCookie("refreshToken");
       return res
@@ -73,16 +72,12 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
         .json(errorResponse("Refresh token validation failed", result));
     }
 
-    const { accessToken, refreshToken: newRefreshToken, user } = result.data;
+    const { accessToken, refreshToken: newRefreshToken } = result.data;
 
-    const token = setAuthCookies(req, res, accessToken, newRefreshToken);
+    setAuthCookies(req, res, accessToken, newRefreshToken);
+    const csrfToken = req.csrfToken();
 
-    return res.json(
-      successResponse("Tokens refreshed", {
-        user,
-        csrfToken: req.csrfToken() || token,
-      })
-    );
+    return res.json(successResponse("Tokens refreshed", { csrfToken }));
   } catch (error) {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
@@ -131,16 +126,14 @@ export async function logoutController(req: AuthRequest, res: Response) {
 }
 
 export async function meController(req: AuthRequest, res: Response) {
-  if (!req.user || !req.company) {
+  if (!req.user) {
     return res.status(401).json(errorResponse("Not authenticated"));
   }
 
-  const { user, company } = req;
-
   return res.status(200).json(
     successResponse("User retrieved successfully", {
-      user,
-      company,
+      user: req.user,
+      csrfToken: req.csrfToken(),
     })
   );
 }
@@ -176,7 +169,7 @@ export async function resendVerEmailController(
 ) {
   const email = req.body.email || req.query.email || req.user?.email;
   const userId = req.body.userId || req.user?.id;
-  const slug = req.user?.assignedFirmSlug || req.company?.assignedFirmSlug;
+  const slug = req.company?.assignedFirmSlug;
 
   if (!email || !userId) {
     return res.status(400).json(errorResponse("User email or id is required"));
