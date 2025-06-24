@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useThemeToggle } from "@/theme/useThemeToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { routes } from "@/shared/routes/routes";
+import { routes } from "@/shared/routes/routes-old";
 
 export function AuthHeader() {
   const { theme } = useThemeToggle();

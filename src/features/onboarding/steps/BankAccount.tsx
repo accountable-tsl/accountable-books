@@ -8,7 +8,7 @@ import { updateCompanyOnboardingStatus } from "../service";
 import { useAuth } from "@/features/auth/hooks";
 import { useCompany } from "@/domains/company/store";
 import { toast } from "sonner";
-import { fetchSession } from "@/features/auth/service";
+import { fetchSession } from "@/features/auth/api";
 import { OnboardingStatus } from "@/domains/company/types";
 
 export const BankAccount = ({
@@ -46,7 +46,6 @@ export const BankAccount = ({
       toast.error("We are sorry, Demo company is not available at this time.");
       return;
     }
-
   };
 
   const handleUploadSuccess = async (response: any) => {

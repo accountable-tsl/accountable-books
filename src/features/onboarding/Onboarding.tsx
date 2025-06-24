@@ -31,7 +31,7 @@ import {
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { onboardingStatus, OnboardingStatus } from "@/domains/company/types";
 import { getCompanyDetails } from "@/domains/company/api";
-import { routes } from "@/shared/routes/routes";
+import { routes } from "@/shared/routes/routes-old";
 import { useCompanySwitch } from "../switchCompany/hooks";
 import { DEMO_COMPANIES_IDS } from "@/domains/company/constants";
 

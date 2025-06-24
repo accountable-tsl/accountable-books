@@ -93,6 +93,7 @@ export interface ApiResponse<T = unknown> {
   message: string;
   data?: T;
   error?: any;
+  code?: string;
 }
 
 export interface Company {

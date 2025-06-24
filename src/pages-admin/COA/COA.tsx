@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
-import { routes } from "@/shared/routes/routes";
+import { routes } from "@/shared/routes/routes-old";
 import { fetchCoa } from "../../services/CoaServices";
 import { useCompany } from "@/domains/company/store";
 import { BeatLoader } from "react-spinners";

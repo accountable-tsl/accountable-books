@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/features/auth/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { getUserDetails } from "@/domains/user/api";
-import { routes } from "@/shared/routes/routes";
+import { routes } from "@/shared/routes/routes-old";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { toast } from "sonner";
 import {

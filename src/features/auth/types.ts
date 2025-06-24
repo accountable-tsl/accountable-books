@@ -8,9 +8,15 @@ export const loginForm = z.object({
 });
 export type LoginForm = z.infer<typeof loginForm>;
 
-export interface AuthStore {
-  user: UserContext | null;
-  setUser: (user: any | null) => void;
+export interface AuthState {
+  user: AuthUserContext | null;
+  csrfToken: string | null;
+
+  setUser: (user: AuthUserContext) => void;
+  setCsrf: (csrfToken: string) => void;
+
+  setAuth: (user: AuthUserContext, csrfToken: string) => void;
+  clearAuth: () => void;
 }
 
 export interface SessionStore {
@@ -28,26 +34,22 @@ export type LogoutOptions = {
   query?: Record<string, string>; // e.g., { email: "foo@example.com" }
 };
 
-export interface UserContext {
+export interface AuthUserContext {
   id: string;
   email: string;
   firstname: string;
   lastname?: string;
   status: string;
-  companyRoles: {
-    userId?: string;
-    companyId: string;
-    roleId: string;
-  }[];
+  companies: AuthCompanyContext[];
   currentCompanyId: string;
-  assignedFirmSlug?: string;
-  permissions?: any;
+  // permissions?: any;
 }
 
 export interface AuthCompanyContext {
   id: string;
-  type: CompanyType;
+  assignedFirmSlug: string;
   name: string;
+  type: CompanyType;
+  role: string;
   onboardingStatus: OnboardingStatus;
-  assignedFirmSlug?: string;
 }

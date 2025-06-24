@@ -1,4 +1,4 @@
-import { fetchSession } from "@/features/auth/service";
+import { fetchSession } from "@/features/auth/api";
 import { useCompany } from "@/domains/company/store";
 import { useEffect } from "react";
 import { useAuth } from "@/features/auth/hooks";
@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { isPublicRoute } from "@/shared/routes/utils";
 import { sessionStore } from "@/features/auth/store";
 import { onboardingStatus } from "@/domains/company/types";
-import { routes } from "@/shared/routes/routes";
+import { routes } from "@/shared/routes/routes-old";
 import { isDemoCompany } from "@/domains/company/utils";
 // import { useCompanySwitch } from "@/features/switchCompany/hooks";
 
@@ -100,74 +100,74 @@ import { isDemoCompany } from "@/domains/company/utils";
 //   return null;
 // }
 
-export function SessionChecker() {
-  const location = useLocation();
-  const {
-    setUser,
-    clearSession,
-    setCheckingSession,
-    setSessionValid,
-    incrementFailedAttempts,
-    resetFailedAttempts,
-  } = useAuth();
-  const { fetchCompany } = useCompany();
-  const failedAttempts = sessionStore((s) => s.failedAttempts);
-  const MAX_ATTEMPTS = 3;
+// export function SessionChecker() {
+//   const location = useLocation();
+//   const {
+//     setUser,
+//     clearSession,
+//     setCheckingSession,
+//     setSessionValid,
+//     incrementFailedAttempts,
+//     resetFailedAttempts,
+//   } = useAuth();
+//   const { fetchCompany } = useCompany();
+//   const failedAttempts = sessionStore((s) => s.failedAttempts);
+//   const MAX_ATTEMPTS = 3;
 
-  const isOnboardingPage = location.pathname.includes("/onboarding");
-  const isPublic = isPublicRoute(location.pathname);
+//   const isOnboardingPage = location.pathname.includes("/onboarding");
+//   const isPublic = isPublicRoute(location.pathname);
 
-  useEffect(() => {
-    const validateSession = async () => {
-      try {
-        if (isOnboardingPage || isPublic) {
-          setCheckingSession(false);
-          return;
-        }
+//   useEffect(() => {
+//     const validateSession = async () => {
+//       try {
+//         if (isOnboardingPage || isPublic) {
+//           setCheckingSession(false);
+//           return;
+//         }
 
-        setCheckingSession(true);
-        const res = await fetchSession();
+//         setCheckingSession(true);
+//         const res = await fetchSession();
 
-        if (!res.success || !res.data) {
-          throw new Error(res.message || "Session validation failed");
-        }
-        setUser(res.data.user);
-        setSessionValid(true);
-        resetFailedAttempts();
-        fetchCompany(res.data.company.id);
+//         if (!res.success || !res.data) {
+//           throw new Error(res.message || "Session validation failed");
+//         }
+//         setUser(res.data.user);
+//         setSessionValid(true);
+//         resetFailedAttempts();
+//         fetchCompany(res.data.company.id);
 
-        const isDemo = isDemoCompany(res.data.company.id);
+//         const isDemo = isDemoCompany(res.data.company.id);
 
-        // if (
-        //   res.data.company.onboardingStatus !==
-        //     onboardingStatus.enum.onboarding_complete &&
-        //   !isOnboardingPage &&
-        //   !isPublic &&
-        //   !isDemo
-        // ) {
-        //   window.location.replace(
-        //     routes.onboarding.index.buildPath({
-        //       companyId: res.data.company.id,
-        //     })
-        //   );
-        // }
-      } catch (err) {
-        incrementFailedAttempts();
-        setSessionValid(false);
-        if (failedAttempts + 1 >= MAX_ATTEMPTS) {
-          if (!isPublicRoute(location.pathname)) {
-            clearSession();
-            window.location.replace(routes.login.staticPath);
-          }
-          resetFailedAttempts();
-        }
-      } finally {
-        setCheckingSession(false); // very important
-      }
-    };
+//         // if (
+//         //   res.data.company.onboardingStatus !==
+//         //     onboardingStatus.enum.onboarding_complete &&
+//         //   !isOnboardingPage &&
+//         //   !isPublic &&
+//         //   !isDemo
+//         // ) {
+//         //   window.location.replace(
+//         //     routes.onboarding.index.buildPath({
+//         //       companyId: res.data.company.id,
+//         //     })
+//         //   );
+//         // }
+//       } catch (err) {
+//         incrementFailedAttempts();
+//         setSessionValid(false);
+//         if (failedAttempts + 1 >= MAX_ATTEMPTS) {
+//           if (!isPublicRoute(location.pathname)) {
+//             clearSession();
+//             window.location.replace(routes.login.staticPath);
+//           }
+//           resetFailedAttempts();
+//         }
+//       } finally {
+//         setCheckingSession(false); // very important
+//       }
+//     };
 
-    validateSession();
-  }, [location.pathname]);
+//     validateSession();
+//   }, [location.pathname]);
 
-  return null;
-}
+//   return null;
+// }

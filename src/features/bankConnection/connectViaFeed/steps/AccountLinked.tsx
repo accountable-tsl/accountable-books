@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
+import { routes } from "@/shared/routes/routes-old";
 
 export const AccountLinked = ({
   connections,
@@ -23,6 +25,8 @@ export const AccountLinked = ({
   reset?: () => void;
 }) => {
   const [selections, setSelections] = useState<Record<string, string>>({});
+
+  const navigate = useNavigate();
 
   // Group connections by connection status 3 groups - connected, new_account_created together, user_action_required, error
   const grouped = connections.reduce(
@@ -67,7 +71,12 @@ export const AccountLinked = ({
   };
 
   const handleSuccess = () => {
-    handleDone?.();
+    // If handleDone is provided, use it, otherwise navigate to categorization engine
+    if (handleDone) {
+      handleDone?.();
+    } else {
+      navigate(routes.accounting.workstation.catEngine.relativePath);
+    }
   };
 
   // Do all accounts in connections have userActionRequired set to false && connectionStatus set to connected or new_account_created? Render Success

@@ -1,5 +1,7 @@
 import { CompanyType } from "@/domains/company/types";
-import { makeRoute } from "./routes";
+import { makeRoute } from "./routes-old";
+import { AuthUserContext } from "@/features/auth/types";
+import { routes } from "@/shared/routes/routes";
 
 // Extract parameters from staticPath (e.g., ":companyId" -> "companyId")
 export type ExtractParams<T extends string> =
@@ -10,15 +12,6 @@ export type ExtractParams<T extends string> =
     : never;
 
 // Metadata for UX and access control
-export type RouteMeta = {
-  label?: string;
-  description?: string;
-  pageIcon?: string;
-  role?: string[];
-  sidebarCollapsed?: boolean;
-  firmsOnly?: boolean;
-  public?: boolean;
-};
 
 export interface Tenant {
   slug: string;
@@ -42,3 +35,28 @@ export interface MakeRouteParams<T extends string> {
 }
 
 export type RouteLike = ReturnType<typeof makeRoute>;
+
+export interface BuildCanonicalUrlOptions {
+  user: AuthUserContext;
+  subpath?: string;
+  origin?: string; // Optional override for testing
+}
+
+export type RouteMeta = {
+  label?: string;
+  description?: string;
+  pageIcon?: string;
+  role?: string[];
+  sidebarCollapsed?: boolean;
+  firmsOnly?: boolean;
+  public?: boolean;
+  hideInBreadcrumb?: boolean;
+};
+
+export type RouteConfig = {
+  path: (...args: string[]) => string; // dynamic path builder
+  staticPath: string; // React Router path (e.g. "/:companyId/dashboard")
+  meta?: RouteMeta;
+};
+
+export type RouteKey = keyof typeof routes;

@@ -14,7 +14,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { handleLogin } from "./service";
+import { handleLogin } from "./api";
 import { ErrorCode } from "@/utils/utils";
 import { useCompany } from "@/domains/company/store";
 import { useAuth } from "./hooks";
@@ -22,11 +22,15 @@ import { routes } from "@/shared/routes/routes";
 import { AuthHeader } from "@/components/AuthHeader";
 import { getUserDetails } from "@/domains/user/api";
 import { toast } from "sonner";
+import { buildCanonicalUrl } from "@/shared/routes/utils";
+import { useTenantRoutes } from "@/shared/routes/hooks";
 
 export default function Login() {
-  const { setUser, isLoggedIn, checkingSession, clearSession, logout } =
-    useAuth();
-  const { setCompany, companyId, company } = useCompany();
+  // const { setUser, isLoggedIn, checkingSession, clearSession, logout } =
+  //   useAuth();
+  const { setAuth, logout, isLoggedIn } = useAuth();
+  const { companyId, company } = useCompany();
+  const { dashboard } = useTenantRoutes();
   const [params] = useSearchParams();
 
   const navigate = useNavigate();
@@ -49,48 +53,47 @@ export default function Login() {
       setIsLoading(true);
       const res = await handleLogin(data);
 
-      if (!res.success) {
+      if (!res.success || !res.data) {
         const message = res.message || "Email or password is incorrect";
-        if (res.code === ErrorCode.INVALID_CREDENTIALS) {
+        if (res?.code === ErrorCode.INVALID_CREDENTIALS) {
           setError("email", { type: "manual", message });
           setError("password", { type: "manual", message });
         }
         toast.error(message);
         return;
       }
-      const { user, company } = res.data;
-      const assignedFirmSlug =
-        user?.assignedFirmSlug || company?.assignedFirmSlug;
-      const currentCompanyId = company?.id || user?.currentCompanyId;
 
-      const userData = await getUserDetails(user.id);
-      console.log(userData);
+      const { user, csrfToken } = res.data;
+      if (!user || !csrfToken) {
+        // Maybe do something here
+        return;
+      }
+      setAuth(user, csrfToken);
 
-      if (
-        !user ||
-        !currentCompanyId ||
-        !assignedFirmSlug ||
-        !userData.success
-      ) {
-        clearSession();
+      // Find company
+      const currentCompany = user.companies.find(
+        (company) => company.id === user.currentCompanyId
+      );
+
+      if (!currentCompany) {
         await logout();
         toast.error("Login failed");
         return;
       }
 
-      setUser(user);
-      setCompany(company);
-
-      toast.success("Login successful!");
-
-      if (company.data?.onboardingStatus !== "onboarding_complete") {
-        navigate(routes.onboarding.index.staticPath);
-      } else {
-        navigate(routes.dashboard.buildPath({ companyId: company.id }));
+      if (currentCompany.onboardingStatus !== "onboarding_complete") {
+        navigate(routes.onboarding.staticPath);
+        return;
       }
+
+      const canonicalUrl = buildCanonicalUrl({
+        user,
+        subpath: "",
+      });
+      toast.success("Login successful!");
+      window.location.replace(canonicalUrl);
     } catch (error) {
       console.error(error);
-      clearSession();
       await logout();
       toast.error("An unexpected error occurred, please try again");
     } finally {
@@ -98,8 +101,7 @@ export default function Login() {
     }
   };
 
-  const alreadyLoggedIn =
-    !checkingSession && isLoggedIn && companyId && company?.assignedFirmSlug;
+  const alreadyLoggedIn = isLoggedIn && companyId && company?.assignedFirmSlug;
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -115,8 +117,8 @@ export default function Login() {
                 <Link
                   to={
                     company.onboardingStatus !== "onboarding_complete"
-                      ? routes.onboarding.index.staticPath
-                      : routes.dashboard.buildUrl({ companyId })
+                      ? routes.onboarding.staticPath
+                      : dashboard()
                   }
                   className="underline font-medium"
                 >

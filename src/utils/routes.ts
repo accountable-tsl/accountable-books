@@ -1,4 +1,4 @@
-import { makeRoute } from "../shared/routes/routes";
+import { makeRoute } from "../shared/routes/routes-old";
 
 // URL Structure: <firm-subdomain>.getaccountable.com/<companyId>/...
 

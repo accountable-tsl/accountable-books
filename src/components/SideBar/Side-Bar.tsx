@@ -20,7 +20,7 @@ import {
 import { useSideBarContext } from "../../contexts/SideBarContext";
 import { Link } from "react-router-dom";
 import { useCompany } from "@/domains/company/store";
-import { routes } from "@/shared/routes/routes";
+import { routes } from "@/shared/routes/routes-old";
 
 export default function SideBar() {
   const { sideBarType } = useSideBarContext();

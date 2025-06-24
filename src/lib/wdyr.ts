@@ -8,6 +8,9 @@ if (
 ) {
   whyDidYouRender(React, {
     trackAllPureComponents: true,
+    trackHooks: true,
+    // collapseGroups: true,
+    
     // logOnDifferentValues: true,
   });
 }

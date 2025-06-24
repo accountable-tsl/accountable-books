@@ -9,6 +9,7 @@ import { Country } from "@/shared/types/core";
 import { getCountryFromLocale } from "@/shared/utils/randomUtils";
 import { CheckCircle, Globe, MapPin, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface CountrySelectionProps {
   supportedCountries: Country[];
@@ -27,6 +28,7 @@ export default function CountrySelection({
 
   // Hooks
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
+  const navigate = useNavigate();
 
   // Computed
   const countries = useMemo(
@@ -69,6 +71,15 @@ export default function CountrySelection({
   const handleUseDetected = () => {
     if (detectedCountry && isCountrySupported(detectedCountry)) {
       handleCountrySelect(detectedCountry);
+    }
+  };
+
+  const handleCancel = () => {
+    setSelectedCountry(null);
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(routes.catEngine.relativePath, { replace: true });
     }
   };
 
@@ -240,6 +251,9 @@ export default function CountrySelection({
       </div>
 
       <div className="flex-shrink-0 flex justify-end">
+        <Button variant="outline" onClick={handleCancel}>
+          Cancel
+        </Button>
         <Button
           onClick={handleNext}
           disabled={!selectedCountry || isLoadingCountries}

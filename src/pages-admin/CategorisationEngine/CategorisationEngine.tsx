@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { useCompany } from "@/domains/company/store";
-import { routes } from "@/shared/routes/routes";
+import { routes } from "@/shared/routes/routes-old";
 import { DatePicker, Select, SelectProps, Space } from "antd";
 import "./CategorisationEngine.scss";
 import React, { useCallback, useEffect, useMemo, useState } from "react";

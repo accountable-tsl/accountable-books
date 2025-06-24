@@ -21,12 +21,13 @@ import Welcome from "./features/onboarding/Welcome";
 import Login from "./features/auth/Login";
 import Dashboard from "./features/dashboard/Dashboard";
 import DashboardRedirect from "./components/DashboardRedirect";
-import { routes } from "./shared/routes/routes";
+import { routes as tenantRoutes } from "./shared/routes/routes-old";
 import ErrorPage from "./components/ErrorPage";
-import { SessionChecker } from "./components/SessionChecker";
+// import { SessionChecker } from "./features/auth/SessionChecker";
 import OnboardingLayout from "./layouts/OnboardingLayout";
-import { OnboardingForm } from "./features/onboarding/Onboarding";
-import { Toaster } from "./components/ui/sonner";
+import { OnboardingForm } from "@/features/onboarding/Onboarding";
+import { Toaster } from "@/components/ui/sonner";
+import { routes } from "@/shared/routes/routes";
 
 function App() {
   const queryClient = new QueryClient();
@@ -38,7 +39,7 @@ function App() {
           <BrowserRouter
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
-            <SessionChecker />
+            {/* <SessionChecker /> */}
             <AnimatedRoutes />
           </BrowserRouter>
         </QueryClientProvider>
@@ -79,23 +80,20 @@ function AnimatedRoutes() {
         {/* PUBLIC */}
         <Route path={routes.signup.staticPath} element={<Signup />} />
         <Route path={routes.login.staticPath} element={<Login />} />
-        <Route
-          path={routes.onboarding.welcome.staticPath}
-          element={<Welcome />}
-        />
+        <Route path={routes.welcome.staticPath} element={<Welcome />} />
 
         {/* ONBOARDING */}
         <Route element={<OnboardingLayout />}>
           <Route
-            path={routes.onboarding.index.staticPath}
+            path={tenantRoutes.onboarding.index.staticPath}
             element={<OnboardingForm />}
           />
           <Route
-            path={routes.onboarding.step.staticPath}
+            path={tenantRoutes.onboarding.step.staticPath}
             element={<OnboardingForm />}
           />
           <Route
-            path={routes.onboarding.verifyEmail.staticPath}
+            path={tenantRoutes.onboarding.verifyEmail.staticPath}
             element={<OnboardingForm step="verifyEmail" />}
           />
         </Route>
@@ -118,10 +116,13 @@ function AnimatedRoutes() {
         >
           <Route index element={<DashboardRedirect />} />
           <Route path={routes.home.staticPath} element={<Dashboard />} />
-          <Route path={routes.company.staticPath} element={<Dashboard />} />
-          <Route path={routes.dashboard.staticPath} element={<Dashboard />} />
+          <Route path={routes.homeAlias.staticPath} element={<Dashboard />} />
+          {/* <Route
+            path={tenantRoutes.dashboard.staticPath}
+            element={<Dashboard />}
+          /> */}
           <Route
-            path={routes.accounting.index.staticPath}
+            path={tenantRoutes.accounting.index.staticPath}
             element={<UploadBS />}
           />
           {/* <Route path=":companyId" element={<Home />} /> */}

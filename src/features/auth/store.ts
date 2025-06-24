@@ -1,30 +1,19 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { AuthStore, SessionStore } from "./types";
+import { AuthState, SessionStore } from "./types";
 
-export const authStore = create<AuthStore>()(
-  persist(
-    (set) => ({
-      user: null,
-      setUser: (user) => set({ user }),
-      isSessionValid: false,
-    }),
-    {
-      name: "user-store",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({
-        user: s.user
-          ? {
-              id: s.user.id,
-              email: s.user.email,
-              firstname: s.user.firstname,
-              lastname: s.user.lastname,
-            }
-          : null,
-      }),
-    }
-  )
-);
+export const authStore = create<AuthState>()((set) => ({
+  user: null,
+  csrfToken: null,
+
+  setUser: (user) => set({ user }),
+  setCsrf: (csrfToken) => set({ csrfToken }),
+
+  setAuth: (user, csrfToken) => set({ user, csrfToken }),
+  clearAuth: () => set({ user: null, csrfToken: null }),
+
+  // isSessionValid: false,
+}));
 
 export const sessionStore = create<SessionStore>()(
   persist(
