@@ -1,21 +1,24 @@
 import icon from "@/assets/images/email-file.gif";
 import { Button } from "@/components/ui/button";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/features/auth/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { getUserDetails } from "@/domains/user/api";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { toast } from "sonner";
 import {
+  handleEmailVerification,
   resendVerificationEmail,
   updateCompanyOnboardingStatus,
-} from "../service";
+} from "@/features/onboarding/api";
 import { OnboardingStatus } from "@/domains/company/types";
 import { useCompany } from "@/domains/company/store";
 import { cn } from "@/lib/utils";
 import { getCompanyDetails } from "@/domains/company/api";
 import { onboardingStatus as onbStatus } from "@/domains/company/types";
+import { VerifyEmailFnResponse } from "@/features/onboarding/types";
+import ErrorPage from "@/components/ErrorPage";
 
 export const VerifyEmail = ({
   onStatusChange,
@@ -23,8 +26,15 @@ export const VerifyEmail = ({
   onStatusChange?: (status: OnboardingStatus) => void;
 }) => {
   // Hooks, Context
-  const { user, isLoggedIn, logout } = useAuth();
-  const { company, setCompany } = useCompany();
+  const {
+    user,
+    isLoggedIn,
+    logout,
+    currentCompanyId,
+    currentCompany: company,
+  } = useAuth();
+  const navigate = useNavigate();
+  // const { company, setCompany } = useCompany();
   const [params] = useSearchParams();
 
   // State
@@ -33,13 +43,34 @@ export const VerifyEmail = ({
   const onboardingStatus = company?.onboardingStatus;
   const [retryExhausted, setRetryExhausted] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [verifyEmailResponse, setVerifyEmailResponse] =
+    useState<VerifyEmailFnResponse>({
+      emailVerified: false,
+      status: null,
+      slug: null,
+      email: null,
+    });
 
   // Computed
+  const userIdFromUrl = params.get("userId");
+  const verificationToken = params.get("token");
+  const emailMismatch =
+    isLoggedIn &&
+    verifyEmailResponse.email &&
+    user?.email !== verifyEmailResponse.email;
+
+  // let isEmailVerified: boolean = false;
+  // let verificationStatus: "verified" | "invalid_or_expired" | "error" | null =
+  //   null;
+  // let firmSlug: string | null = null;
+  // let emailToVerify: string | null = null;
+
   const urlStatus = params.get("status"); // Get status from URL: success | failed | null
   const verifiedEmail = params.get("email"); // Get email from URL
   const userEmail = verifiedEmail || user?.email || "";
 
-  const emailMismatch =
+  const emailMismatcha =
     isLoggedIn && verifiedEmail && user?.email !== verifiedEmail;
 
   const showInitialPrompt =
@@ -52,10 +83,42 @@ export const VerifyEmail = ({
   const showFailed = useMemo(() => urlStatus === "failed", [urlStatus]);
   const loadingStatus = isLoggedIn && onboardingStatus === undefined;
 
+  // Functions
+  const verifyEmailFn = async () => {
+    if (!verificationToken || !userIdFromUrl) return;
+
+    toast.loading("Verifying your email...");
+    setIsLoading(true);
+    try {
+      const res = await handleEmailVerification({
+        token: verificationToken,
+        userId: userIdFromUrl,
+      });
+
+      if (!res.success || !res.data) {
+        toast.dismiss();
+        toast.error(res.message || "Verification failed.");
+        setVerifyEmailResponse((prev) => ({ ...prev, status: "error" }));
+        return;
+      }
+
+      toast.dismiss();
+      setVerifyEmailResponse(res.data);
+
+      // No navigations here, let ui handle it
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Something went wrong.");
+      setVerifyEmailResponse((prev) => ({ ...prev, status: "error" }));
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const handleTryAgain = () => {
     setRetryExhausted(false);
     setRetryCount(0);
   };
+
   const handleResendEmail = async () => {
     if (!user?.id) {
       toast.error("User not found. Please log in again.");
@@ -109,97 +172,119 @@ export const VerifyEmail = ({
   };
 
   useEffect(() => {
+    if (verificationToken && userIdFromUrl) {
+      verifyEmailFn();
+    }
+  }, [userIdFromUrl, verificationToken]);
+
+  useEffect(() => {
     if (!company?.id) return;
     // setOnboardingStatus(company.onboardingStatus);
   }, [company]);
 
-  useEffect(() => {
-    let isCancelled = false;
-    let timeoutId: any = null;
-    const maxRetries = 10;
+  // useEffect(() => {
+  //   let isCancelled = false;
+  //   let timeoutId: any = null;
+  //   const maxRetries = 10;
 
-    const poll = async () => {
-      if (
-        !isLoggedIn ||
-        !user?.id ||
-        emailMismatch ||
-        isCancelled ||
-        !company?.id
-      )
-        return;
+  //   const poll = async () => {
+  //     if (
+  //       !isLoggedIn ||
+  //       !user?.id ||
+  //       emailMismatch ||
+  //       isCancelled ||
+  //       !company?.id
+  //     )
+  //       return;
 
-      try {
-        const res = await getUserDetails(user.id);
-        if (res.success && res.data) {
-          if (isCancelled) return;
+  //     try {
+  //       const res = await getUserDetails(user.id);
+  //       if (res.success && res.data) {
+  //         if (isCancelled) return;
 
-          // if (res.data.emailVerificationTokenHash) {
-          //   setEmailVerificationTokenHash(res.data.emailVerificationTokenHash);
-          // }
+  //         // if (res.data.emailVerificationTokenHash) {
+  //         //   setEmailVerificationTokenHash(res.data.emailVerificationTokenHash);
+  //         // }
 
-          if (res.data.emailVerified) {
-            setEmailVerifiedStatus(true);
+  //         if (res.data.emailVerified) {
+  //           setEmailVerifiedStatus(true);
 
-            const companyD = await getCompanyDetails(company.id);
-            const { success: companySuccess, data: companyData } = companyD;
-            if (isLoggedIn && companySuccess && companyData) {
-              if (companyData.onboardingStatus === onbStatus.enum.not_started) {
-                await updateCompanyOnboardingStatus({
-                  userId: user.id,
-                  companyId: company.id,
-                });
-              }
+  //           const companyD = await getCompanyDetails(company.id);
+  //           const { success: companySuccess, data: companyData } = companyD;
+  //           if (isLoggedIn && companySuccess && companyData) {
+  //             if (companyData.onboardingStatus === onbStatus.enum.not_started) {
+  //               await updateCompanyOnboardingStatus({
+  //                 userId: user.id,
+  //                 companyId: company.id,
+  //               });
+  //             }
 
-              setCompany(companyData);
-            }
+  //             setCompany(companyData);
+  //           }
 
-            return;
-          }
+  //           return;
+  //         }
 
-          setRetryCount((prev) => {
-            const next = prev + 1;
-            if (next >= maxRetries) setRetryExhausted(true);
-            return next;
-          });
+  //         setRetryCount((prev) => {
+  //           const next = prev + 1;
+  //           if (next >= maxRetries) setRetryExhausted(true);
+  //           return next;
+  //         });
 
-          if (retryCount >= maxRetries) return;
-          timeoutId = setTimeout(poll, 5000); // poll again only if not yet verified
-        }
-      } catch (err) {
-        console.error("Email verification poll failed", err);
-        setRetryCount((prev) => {
-          const next = prev + 1;
-          if (next >= maxRetries) setRetryExhausted(true);
-          return next;
-        });
-        if (retryCount >= maxRetries) return;
-        timeoutId = setTimeout(poll, 5000);
-      }
-    };
+  //         if (retryCount >= maxRetries) return;
+  //         timeoutId = setTimeout(poll, 5000); // poll again only if not yet verified
+  //       }
+  //     } catch (err) {
+  //       console.error("Email verification poll failed", err);
+  //       setRetryCount((prev) => {
+  //         const next = prev + 1;
+  //         if (next >= maxRetries) setRetryExhausted(true);
+  //         return next;
+  //       });
+  //       if (retryCount >= maxRetries) return;
+  //       timeoutId = setTimeout(poll, 5000);
+  //     }
+  //   };
 
-    poll();
+  //   poll();
 
-    return () => {
-      isCancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [isLoggedIn, user?.id, emailMismatch, company?.id, retryExhausted]);
+  //   return () => {
+  //     isCancelled = true;
+  //     if (timeoutId) clearTimeout(timeoutId);
+  //   };
+  // }, [isLoggedIn, user?.id, emailMismatch, company?.id, retryExhausted]);
 
-  if (loadingStatus || (company && !company.id)) return <CenteredLoader />;
+  // if (loadingStatus || (company && !company.id)) return <CenteredLoader />;
+  if (isLoading) {
+    return (
+      <CenteredLoader
+        fullscreen
+        message="Loading..."
+        showAuthHeader={!isLoggedIn}
+      />
+    );
+  }
+
+  if (!userIdFromUrl || !verificationToken) {
+    return <ErrorPage />;
+  }
+
+  const verifiedSuccessfully = (
+    <>
+      <h2 className="text-xl font-bold mb-2">✅ Email Verified</h2>
+      <p className="mb-4">Your email has been verified successfully.</p>
+      <Button onClick={handleContinue}>Continue Onboarding</Button>
+    </>
+  );
 
   return (
     <div className="flex flex-col items-center p-8 md:p-16 gap-4 w-full flex-1  justify-center max-h-[45rem]">
       {emailVerifiedStatus && !emailMismatch ? (
-        <>
-          <h2 className="text-xl font-bold mb-2">✅ Email Verified</h2>
-          <p className="mb-4">Your email has been verified successfully.</p>
-
-          <Button onClick={handleContinue}>Continue Onboarding</Button>
-        </>
+        verifiedSuccessfully
       ) : showFailed ? (
         <>
           <h2 className="text-xl font-bold mb-2">❌ Verification Failed</h2>
-          <p>This verification link may have expired or already been used.</p>
+          <p>This verification is invalid or has expired.</p>
           <Link
             to={`${routes.login.staticPath}?email=${encodeURIComponent(
               userEmail

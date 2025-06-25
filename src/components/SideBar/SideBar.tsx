@@ -44,8 +44,8 @@ export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   defaultCollapsed?: boolean;
   companyId?: string;
   companyType?: CompanyType;
-  company: CompanyData;
-  user: AuthUserContext;
+  company?: CompanyData;
+  user?: AuthUserContext;
 }
 
 export const AppSidebar = React.memo(function AppSidebar({
@@ -90,7 +90,8 @@ export const AppSidebar = React.memo(function AppSidebar({
     [companyId]
   );
 
-  if (!companyId || !companyType) return <SkeletonBlock />;
+  if (!companyId || !companyType || !company)
+    return <SkeletonBlock className="max-w-5xl" />;
 
   return (
     <Sidebar collapsible={sidebarCollapsible} {...props}>

@@ -28,6 +28,11 @@ import OnboardingLayout from "./layouts/OnboardingLayout";
 import { OnboardingForm } from "@/features/onboarding/Onboarding";
 import { Toaster } from "@/components/ui/sonner";
 import { routes } from "@/shared/routes/routes";
+import { VerifyEmail } from "@/features/onboarding/steps/VerifyEmail";
+import { useSessionLoader } from "@/features/auth/hooks";
+import { CenteredLoader } from "./components/CenteredLoader";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { useEffect } from "react";
 
 function App() {
   const queryClient = new QueryClient();
@@ -39,8 +44,11 @@ function App() {
           <BrowserRouter
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
-            {/* <SessionChecker /> */}
+            {/* <AppWithSession /> */}
             <AnimatedRoutes />
+            {/* {import.meta.env.DEV && (
+              <ReactQueryDevtools initialIsOpen={false} />
+            )} */}
           </BrowserRouter>
         </QueryClientProvider>
       </PopupProvider>
@@ -84,6 +92,10 @@ function AnimatedRoutes() {
 
         {/* ONBOARDING */}
         <Route element={<OnboardingLayout />}>
+          <Route
+            path={routes.verifyEmail.staticPath}
+            element={<VerifyEmail />}
+          />
           <Route
             path={tenantRoutes.onboarding.index.staticPath}
             element={<OnboardingForm />}

@@ -4,7 +4,7 @@ import ConnectBankAccount from "@/features/bankConnection/connectViaFeed/Connect
 import { BankTransactionImporter } from "@/features/bankConnection/manualUpload/BankTransactionImporter";
 import { BankTransactionImportOptions } from "@/features/bankConnection/manualUpload/types";
 import { useState } from "react";
-import { updateCompanyOnboardingStatus } from "../service";
+import { updateCompanyOnboardingStatus } from "../api";
 import { useAuth } from "@/features/auth/hooks";
 import { useCompany } from "@/domains/company/store";
 import { toast } from "sonner";

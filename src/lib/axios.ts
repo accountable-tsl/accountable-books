@@ -72,7 +72,11 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // If it's not a 401 error or we don't have the original request, just reject
-    if (error.response?.status !== 401 || !originalRequest) {
+    if (
+      error.response?.status !== 401 ||
+      !originalRequest ||
+      originalRequest.url?.includes("/auth/me")
+    ) {
       return Promise.reject(error);
     }
 
@@ -109,16 +113,13 @@ api.interceptors.response.use(
 
       // Process queue: retry all failed requests
       processQueue(null, true);
+      return api(originalRequest);
     } catch (refreshErr) {
       // Refresh failed: clean up and log out
       processQueue(refreshErr, false);
       authStore.getState().clearAuth();
-      const path = window.location.pathname;
-      const shouldRedirect = !isPublicRoute(path);
 
-      if (shouldRedirect) {
-        window.location.replace(routes.login.staticPath);
-      }
+      // Let useSession handle redirect
 
       return Promise.reject(refreshErr);
     } finally {

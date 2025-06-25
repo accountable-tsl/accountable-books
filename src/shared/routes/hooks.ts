@@ -1,7 +1,7 @@
 import { useAuth } from "@/features/auth/hooks";
 import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import { enforceCanonicalUrl } from "@/shared/routes/utils";
+import { enforceCanonicalUrl, isPublicRoute } from "@/shared/routes/utils";
 import { routes } from "@/shared/routes/routes";
 import Dashboard from "@/features/dashboard/Dashboard";
 export function useRoutePath<T extends Record<string, any>>(
@@ -36,9 +36,11 @@ export function useCanonicalUrlEnforcer(): void {
 
 export const useTenantRoutes = () => {
   const { user } = useAuth();
-  if (!user) throw new Error("No user context");
-
-  const companyId = user.currentCompanyId;
+  const location = useLocation();
+  if (!user && !isPublicRoute(location.pathname)) {
+    throw new Error("No user context");
+  }
+  const companyId = user?.currentCompanyId || "";
   return {
     home: () => routes.home.path(companyId),
     homeAlias: () => routes.homeAlias.path(companyId),

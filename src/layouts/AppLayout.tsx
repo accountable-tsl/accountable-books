@@ -25,6 +25,7 @@ export default function AppLayout({
     companyType,
     currentCompanyId: companyId,
     firmSlug: slug,
+    isLoggedIn,
   } = useAuth();
   const { loading: sessionLoading } = useSessionLoader();
   useCanonicalUrlEnforcer();
@@ -62,9 +63,14 @@ export default function AppLayout({
   //     }
   //   }
   // }, [user, companyId, slug]);
+  // if (user && user.)
 
   if (sessionLoading || companyDetailsLoading) {
     return <CenteredLoader fullscreen />;
+  }
+
+  if (!isLoggedIn && !sessionLoading) {
+    return <Navigate to={routes.login.staticPath} replace />;
   }
 
   if (
@@ -77,6 +83,15 @@ export default function AppLayout({
   ) {
     return <ErrorPage type="default" />;
   }
+
+  console.log({
+    sessionLoading,
+    companyDetailsLoading,
+    companyDetailsError,
+    isLoggedIn,
+    user,
+    slug,
+  });
 
   // if (routeCompanyId && routeCompanyId !== companyId && !isSwitching) {
   //   return (
@@ -107,4 +122,4 @@ export default function AppLayout({
   );
 }
 
-AppLayout.whyDidYouRender = true;
+// AppLayout.whyDidYouRender = true;

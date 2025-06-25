@@ -67,3 +67,10 @@ export type OnboardingSideBarProps = {
   isCreator: boolean;
   footer?: string | React.ReactNode;
 };
+
+export type VerifyEmailFnResponse = {
+  emailVerified: boolean;
+  status: "verified" | "invalid_or_expired" | "error" | null;
+  slug?: string | null;
+  email: string | null;
+};

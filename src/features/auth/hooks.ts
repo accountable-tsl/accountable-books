@@ -4,6 +4,8 @@ import { authStore, sessionStore } from "@/features/auth/store";
 import { routes } from "@/shared/routes/routes-old";
 import { LogoutOptions } from "./types";
 import { useCallback, useEffect, useState } from "react";
+import { isPublicRoute } from "@/shared/routes/utils";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export const clearSessionFn = () => {
   authStore.getState().clearAuth();
@@ -120,23 +122,41 @@ export const useAuth = () => {
 };
 
 export const useSessionLoader = () => {
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isLoggedIn, setAuth } = useAuth();
 
-  useEffect(() => {
-    const loadSession = async () => {
+  const [loading, setLoading] = useState(true); // Start with true to prevent flickering
+  const isPublic = isPublicRoute(location.pathname);
+
+  const loadSession = useCallback(async () => {
+    // Skip if user is already authenticated
+    if (user && isLoggedIn) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Fetch session
       const res = await fetchSession();
       if (res.success && res.data) {
-        authStore.getState().setAuth(res.data.user, res.data.csrfToken);
+        setAuth(res.data.user, res.data.csrfToken);
       } else {
         clearSessionFn();
-        window.location.replace("/login");
+        if (!isPublic) navigate(routes.login.staticPath, { replace: true });
       }
-
+    } catch (error) {
+      clearSessionFn();
+      if (!isPublic) navigate(routes.login.staticPath, { replace: true });
+    } finally {
       setLoading(false);
-    };
+    }
+  }, [user, isLoggedIn, location.pathname, navigate, setAuth]);
 
+  useEffect(() => {
     loadSession();
-  }, []);
+  }, [loadSession]);
 
   return { loading };
 };
