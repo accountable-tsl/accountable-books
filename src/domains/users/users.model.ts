@@ -13,6 +13,7 @@ import {
 } from "../../shared/utils/crypto.utils";
 import dayjs from "dayjs";
 import { knexClient } from "../../../knexClient";
+import { addNewToken } from "../tokens/tokens.model";
 
 export async function createUserDirect(
   knexTrx: Knex.Transaction,
@@ -45,12 +46,25 @@ export async function createUserDirect(
         ...rest,
         email,
         password: hashedPassword,
-        email_verified: false,
-        status: "active",
-        email_verification_token_hash: hashedVerificationToken,
-        email_verification_expiry: dayjs().add(24, "hours").toDate(),
       })
-      .returning(["id", "firstname", "lastname", "email", "status"]);
+      .returning(["id", "firstname", "lastname", "email"]);
+
+    if (!user) {
+      return errorResponse(
+        "We couldn't create your account. Please try again."
+      );
+    }
+
+    await addNewToken(
+      {
+        user_id: user.id,
+        token_hash: hashedVerificationToken,
+        expires_at: dayjs().add(24, "hours").toDate(),
+        token_type: "email_verification",
+      },
+      knexTrx
+    );
+
     return successResponse(
       "Account created successfully",
       snakeToCamel({ ...user, verificationToken })

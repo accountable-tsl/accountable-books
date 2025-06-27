@@ -1,10 +1,11 @@
 import { Request } from "express";
 import { JwtPayload } from "jsonwebtoken";
-import { UserCompanyRole } from "../../domains/usersCompaniesRoles/usersCompaniesRoles.types";
+import { UserCompanyRole } from "../../domains/userRoles/userRoles.types";
 import {
   CompanyType,
   OnboardingStatus,
 } from "../../domains/companies/companies.types";
+import { Verify } from "crypto";
 
 export interface TokenConfig {
   secret: string;
@@ -57,12 +58,9 @@ export interface AuthRequest extends Request {
   company?: AuthCompanyContext;
 }
 
-export type VerifyEmailParams =
-  | { token: string; email: string }
-  | { token: string; userId: string };
+export type VerifyEmailParams = {
+  token: string;
+  userId: string;
+};
 
-export interface ResendEmailParams {
-  email: string;
-  slug?: string;
-  userId?: string;
-}
+export type ResendVerificationEmailParams = VerifyEmailParams;

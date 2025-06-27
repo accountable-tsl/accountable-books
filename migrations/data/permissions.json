@@ -44,7 +44,7 @@
   {
     "key": "accounting_firm:change",
     "action": "change",
-    "resource": "accounting_firms",
+    "resource": "accounting_firms_meta",
     "label": "Change Accounting Firm",
     "description": "Request a change in accounting firm"
   },

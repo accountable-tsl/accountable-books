@@ -24,7 +24,7 @@ export const resolveFirm = async (
   firmId?: string
 ): Promise<string> => {
   if (firmId) {
-    const [verifyFirm] = await trx("accounting_firms")
+    const [verifyFirm] = await trx("accounting_firms_meta")
       .where("id", firmId)
       .select("id");
 
@@ -33,7 +33,7 @@ export const resolveFirm = async (
     }
   }
 
-  const platformFirm = await trx("accounting_firms as af")
+  const platformFirm = await trx("accounting_firms_meta as af")
     .join("companies as c", "af.company_id", "c.id")
     .where("c.is_platform", true)
     .select("af.id");
@@ -56,7 +56,7 @@ export const createAccountingFirm = async (
   const { data } = validatedInput;
 
   try {
-    const [newFirm] = await knexTrx("accounting_firms")
+    const [newFirm] = await knexTrx("accounting_firms_meta")
       .insert(data)
       .returning("*");
 
@@ -74,7 +74,7 @@ export const createAccountingFirm = async (
 
 export const getSlugs = async (): Promise<ApiResponse<string[]>> => {
   try {
-    const slugs = await knexClient("accounting_firms")
+    const slugs = await knexClient("accounting_firms_meta")
       .pluck("slug")
       .whereNotNull("slug")
       .where("deleted_at", null)
@@ -136,7 +136,9 @@ export const checkSlug = async ({
     }
 
     //  Slug not in cache, Check database
-    const exists = await knexClient("accounting_firms").where({ slug }).first();
+    const exists = await knexClient("accounting_firms_meta")
+      .where({ slug })
+      .first();
 
     // Cache result
     if (exists) {
@@ -196,7 +198,7 @@ export const updateFirm = async (
     }
 
     const [firm, company] = await Promise.all([
-      trx("accounting_firms").where("company_id", companyUUID).first(),
+      trx("accounting_firms_meta").where("company_id", companyUUID).first(),
       trx("companies").where("id", companyUUID).first(),
     ]);
 
@@ -217,7 +219,7 @@ export const updateFirm = async (
       return errorResponse(validatedData.error.message);
     }
 
-    const [updatedFirm] = await trx("accounting_firms")
+    const [updatedFirm] = await trx("accounting_firms_meta")
       .where({ company_id: companyUUID })
       .update(validatedData.data)
       .returning(["company_id", "slug", "firm_type"]);

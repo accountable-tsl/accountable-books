@@ -8,37 +8,38 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from "../src/utils/db";
-import { NewRoleInput, roleName } from "../src/core/types/db.types";
-import { NODE_ENV } from "../src/config/env";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { NewRoleInput, roleScope } from "../src/domains/roles/roles.types";
+import { isDev } from "../src/config/env";
+import { ROLES } from "./data/roles";
 
 const tableName = "roles";
+const { PLATFORM_ROLES, FIRM_ROLES, COMPANY_ROLES } = ROLES;
 
 const seedRoles = async function seed(knex: Knex): Promise<void> {
-  const filePath = path.join(__dirname, "data/roles.json");
-
   try {
-    const rawData = await fs.readFile(filePath, "utf-8");
-    const roles: Array<NewRoleInput> = JSON.parse(rawData);
-
     // Validate and prepare data
-    const seedData = roles.map((role) => ({
-      name: roleName.parse(role.name.toLowerCase().trim()),
-      description: role.description?.trim(),
-    }));
+    const seedData: Array<NewRoleInput> = [
+      ...PLATFORM_ROLES.map((role) => ({
+        ...role,
+        scope: roleScope.enum.platform,
+      })),
+      ...FIRM_ROLES.map((role) => ({ ...role, scope: roleScope.enum.firm })),
+      ...COMPANY_ROLES.map((role) => ({
+        ...role,
+        scope: roleScope.enum.company,
+      })),
+    ];
 
     // Bulk insert
     await knex.transaction(async (trx) => {
       await trx(tableName).insert(seedData).onConflict("name").ignore();
     });
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker") {
-      console.log(`Seeded ${seedData.length} roles from ${filePath}`);
+    if (isDev) {
+      console.log(`Seeded ${seedData.length} roles`);
     }
   } catch (error) {
-    console.error(`Error seeding roles from ${filePath}:`, error);
+    console.error(`Error seeding roles:`, error);
     throw error;
   }
 };
@@ -46,7 +47,9 @@ const seedRoles = async function seed(knex: Knex): Promise<void> {
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
-    table.string("name", 50).unique().notNullable(); //super_user, admin, bookkeeper, client
+    table.string("key").unique().notNullable();
+    table.string("name", 50).notNullable();
+    table.specificType("scope", "role_scope").notNullable();
     table.string("description", 512).nullable();
 
     addStandardColumns(table);

@@ -10,8 +10,6 @@ import {
   newAccFirm,
 } from "../src/domains/accountingFirms/firms.types";
 
-const tableName = "accounting_firms";
-
 export const buildPlatformAccountingFirm = (platformCompany: any) => ({
   company_id: platformCompany.id,
   slug: "app",
@@ -51,6 +49,7 @@ export const createPlatformFirm = async (
   return { id, ...rest };
 };
 
+const tableName = "accounting_firms_meta";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table
@@ -75,7 +74,7 @@ export async function up(knex: Knex): Promise<void> {
       table
         .uuid("assigned_firm_id")
         .references("company_id")
-        .inTable("accounting_firms")
+        .inTable("accounting_firms_meta")
         .onDelete("SET NULL");
     });
   }

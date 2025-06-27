@@ -31,11 +31,12 @@ const assignAdminRole = async (knex: Knex) => {
     user_id: platformCompany.created_by_id,
     company_id: platformCompany.id,
     role_id: role.id,
+    created_by_id: platformCompany.created_by_id,
   });
   console.log("Assigned admin role to platform company creator.");
 };
 
-const tableName = "users_companies_roles";
+const tableName = "user_company_roles";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table
@@ -60,9 +61,17 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete("CASCADE");
 
     table
-      .timestamp("joined_at", { useTz: true })
+      .uuid("updated_by_id")
       .notNullable()
-      .defaultTo(knex.fn.now());
+      .references("id")
+      .inTable("users")
+      .onDelete("SET NULL");
+    table
+      .uuid("created_by_id")
+      .notNullable()
+      .references("id")
+      .inTable("users")
+      .onDelete("RESTRICT");
 
     addStandardColumns(table);
 

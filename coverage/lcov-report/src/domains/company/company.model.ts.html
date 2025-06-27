@@ -271,7 +271,7 @@ export const createCompany = <span class="fstat-no" title="function not covered"
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >    let firmId = assigned_firm_id;</span>
 <span class="cstat-no" title="statement not covered" >    if (!firmId) {</span>
-<span class="cstat-no" title="statement not covered" >      const [firm] = await knexTrx("accounting_firms")</span>
+<span class="cstat-no" title="statement not covered" >      const [firm] = await knexTrx("accounting_firms_meta")</span>
 <span class="cstat-no" title="statement not covered" >        .where("is_platform", true)</span>
 <span class="cstat-no" title="statement not covered" >        .select("id");</span>
 <span class="cstat-no" title="statement not covered" ></span>

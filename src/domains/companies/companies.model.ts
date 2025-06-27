@@ -36,7 +36,7 @@ import { AuthUserContext } from "../../features/auth/auth.types";
 import {
   grantAccessToCompany,
   hasAccessToCompany,
-} from "../usersCompaniesRoles/usersCompaniesRoles.model";
+} from "../userRoles/userRoles.model";
 import { redis } from "../../lib/redis";
 
 export const createCompany = async (
@@ -70,7 +70,7 @@ export const createCompany = async (
 
     let firmId = assigned_firm_id || null;
     if (!firmId) {
-      const [firm] = await knexTrx("accounting_firms as af")
+      const [firm] = await knexTrx("accounting_firms_meta as af")
         .join("companies as c", "af.company_id", "c.id")
         .where("c.is_platform", true)
         .select("af.company_id as id");
@@ -126,7 +126,7 @@ export const createCompany = async (
       throw new AppError("Unable to create company");
     }
 
-    const firmAssignment = await knexTrx("firms_companies").insert({
+    const firmAssignment = await knexTrx("client_firm_assignments").insert({
       company_id: company.id,
       accounting_firm_id: firmId,
     });
@@ -271,7 +271,7 @@ const companyFields = [
 
   // accounting firm fields
   "companies.assigned_firm_id as assignedFirmId",
-  "accounting_firms.slug as assignedFirmSlug",
+  "accounting_firms_meta.slug as assignedFirmSlug",
   "firm_meta.display_name as assignedFirmName",
   "firm_meta.is_platform as assignedFirmIsPlatform",
   "firm_meta.logo_url as assignedFirmLogo",
@@ -291,13 +291,13 @@ export const fetchCompanies = async ({
         "currencies.id"
       )
       .leftJoin(
-        "accounting_firms",
+        "accounting_firms_meta",
         "companies.assigned_firm_id",
-        "accounting_firms.company_id"
+        "accounting_firms_meta.company_id"
       )
       .leftJoin(
         "companies as firm_meta",
-        "accounting_firms.company_id",
+        "accounting_firms_meta.company_id",
         "firm_meta.id"
       );
 
@@ -347,7 +347,7 @@ export const fetchCompanies = async ({
         if (isValidUUID(filters.assignedFirm)) {
           query.where("companies.assigned_firm_id", filters.assignedFirm);
         } else if (filters.assignedFirm.length <= 20) {
-          query.where("accounting_firms.slug", filters.assignedFirm);
+          query.where("accounting_firms_meta.slug", filters.assignedFirm);
         } else {
           return errorResponse(
             `Invalid assigned firm identifier: ${filters.assignedFirm}`
@@ -434,12 +434,12 @@ export const updateCompany = async (
     const result = await db.transaction(async (trx) => {
       // Implement later if needed
       // Check user's role on this company
-      // const roleRecord = await trx("users_companies_roles")
+      // const roleRecord = await trx("user_company_roles")
       //   .where({ user_id: userId, company_id: companyId })
-      //   .where("users_companies_roles.is_deleted", false)
+      //   .where("user_company_roles.is_deleted", false)
       //   .where("roles.is_deleted", false)
-      //   .join("roles", "users_companies_roles.role_id", "roles.id")
-      //   .select("users_companies_roles.role_id", "roles.name")
+      //   .join("roles", "user_company_roles.role_id", "roles.id")
+      //   .select("user_company_roles.role_id", "roles.name")
       //   .first();
 
       // if (!roleRecord) {

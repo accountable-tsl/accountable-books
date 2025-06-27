@@ -14,23 +14,6 @@ export const accountingBasis = z.enum([
   "modified_accrual_basis",
 ]);
 
-export const onboardingStatus = z.enum([
-  "not_started",
-  "email_verified",
-  "company_vitals_needed",
-  "first_bank_account_needed",
-  "onboarding_complete",
-]);
-export type OnboardingStatus = z.infer<typeof onboardingStatus>;
-
-const stripSlugIfNotAccountingFirm = (data: any) => {
-  if (data.type !== "accounting_firm") {
-    const { slug, ...rest } = data;
-    return rest;
-  }
-  return data;
-};
-
 export const newCompanyInput = z.object({
   legal_name: z.string().max(256),
   country_id: z.string().uuid(),
@@ -60,7 +43,7 @@ export const newCompanyInput = z.object({
   tax_id: z.string().max(256).nullish(),
   is_demo_company: z.boolean().default(false).optional(),
   slug: z.string().max(50).optional(),
-  onboarding_status: onboardingStatus.default("not_started").optional(),
+  // onboarding_status: onboardingStatus.default("not_started").optional(),
 });
 
 export const newCompany = newCompanyInput
@@ -120,7 +103,7 @@ export const getCompanyResponse = z.object({
 
   reportingFramework: reportingFramework.nullable(),
   accountingBasis: accountingBasis,
-  onboardingStatus: onboardingStatus,
+  // onboardingStatus: onboardingStatus,
   isDemoCompany: z.boolean(),
 
   reportingCurrencyCode: z.string(),
@@ -166,7 +149,7 @@ export type GetCompanyResponse = {
 
   reportingFramework: ReportingFramework | null;
   accountingBasis: AccountingBasis;
-  onboardingStatus: OnboardingStatus;
+  // onboardingStatus: OnboardingStatus;
   isDemoCompany: boolean;
 
   reportingCurrencyCode: string;
@@ -205,7 +188,7 @@ export const fieldToColumnMap: Partial<
   companyTaxId: "tax_id",
   isPlatform: "is_platform",
   isDemoCompany: "is_demo_company",
-  onboardingStatus: "onboarding_status",
+  // onboardingStatus: "onboarding_status",
 
   reportingFramework: "reporting_framework",
   accountingBasis: "accounting_basis",

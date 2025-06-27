@@ -1,35 +1,21 @@
+import { roleKey } from "../../domains/roles/roles.types";
+import {
+  createCamelCaseSchema,
+  SnakeToCamelCaseObject,
+} from "../../shared/utils/formatting.utils";
 import { dbBaseFields, debitCredit } from "./core";
 import { z } from "zod";
 
-// role
-export const roleName = z.enum([
-  "super_admin",
-  "admin",
-  "bookkeeper",
-  "client",
-  "demo_user",
-  "support",
-]);
-
-export const newRole = z.object({
-  name: roleName,
-  description: z.string().optional(),
-});
-
-export const role = newRole.merge(dbBaseFields);
-
-export type RoleName = z.infer<typeof roleName>;
-export type NewRoleInput = z.infer<typeof newRole>;
-export type Role = z.infer<typeof role>;
-
 // permission
-export const newPermission = z.object({
+export const newPermissionInput = z.object({
   key: z.string().regex(/^[a-z_]+:[a-z_]+$/), // "resource:action"
   action: z.string().min(2),
   resource: z.string().min(2),
-  description: z.string().nullish(),
+  description: z.string().optional(),
   label: z.string().min(2),
+  roles: z.array(roleKey).optional(),
 });
+export const newPermission = newPermissionInput.omit({ roles: true });
 
 export const permission = newPermission.merge(dbBaseFields);
 
@@ -149,10 +135,44 @@ export type AccountTypeWithRequiredReportCode = z.infer<
   typeof accountTypeWithRequiredReportCode
 >;
 
-// export const categorizationStatus = z.enum([
-//   "uncategorized",
-//   "categorized",
-//   "auto_categorized",
-// ]);
+export const newClientFirmAssignment = z.object({
+  client_company_id: z.string().uuid(),
+  accounting_firm_company_id: z.string().uuid(),
+  created_by_id: z.string().uuid().nullish(),
+  updated_by_id: z.string().uuid().nullish(),
+});
+type CFI = z.infer<typeof newClientFirmAssignment>;
+type CFISnake = SnakeToCamelCaseObject<CFI>;
 
-// export type CategorizationStatus = z.infer<typeof categorizationStatus>;
+export type NewClientFirmAssignmentsInput = CFI | CFISnake;
+export const newClientFirmAssignmentsInput = createCamelCaseSchema(
+  newClientFirmAssignment
+);
+
+export const newClientFirmAssignments = newClientFirmAssignment.extend({
+  created_by_id: z.string().uuid(),
+});
+export type NewClientFirmAssignments = z.infer<typeof newClientFirmAssignments>;
+
+export const clientFirmAssignments =
+  newClientFirmAssignments.merge(dbBaseFields);
+export type ClientFirmAssignments = z.infer<typeof clientFirmAssignments>;
+
+// firm_user_client_assignments (fuca)
+const newFucaBase = z.object({
+  firm_staff_user_id: z.string().uuid(),
+  client_company_id: z.string().uuid(),
+  updated_by_id: z.string().uuid().nullish(),
+  created_by_id: z.string().uuid().nullish(),
+});
+
+export const newFucaInput = createCamelCaseSchema(newFucaBase);
+export type NewFucaInput = SnakeToCamelCaseObject<z.infer<typeof newFucaBase>>;
+
+export const newFuca = newFucaBase.extend({
+  created_by_id: z.string().uuid(),
+});
+export type NewFuca = z.infer<typeof newFuca>;
+
+export const fuca = newFuca.merge(dbBaseFields);
+export type Fuca = z.infer<typeof fuca>;

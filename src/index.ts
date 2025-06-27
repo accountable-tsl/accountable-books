@@ -18,7 +18,7 @@ import bankAccountsRoutes from "./domains/bankAccounts/bankAccounts.routes";
 import bankTransactionRoutes from "./domains/bankTransactions/bankTransactions.routes";
 import bankFeedProvidersRoutes from "./domains/bankFeedProviders/bankFeedProviders.routes";
 import bankAccountConnectionsRoutes from "./domains/bankAccountConnections/baccons.routes";
-import usersCompaniesRolesRoutes from "./domains/usersCompaniesRoles/usersCompaniesRoles.routes";
+import usersCompaniesRolesRoutes from "./domains/userRoles/userRoles.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";

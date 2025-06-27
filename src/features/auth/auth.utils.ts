@@ -19,7 +19,7 @@ import {
   getCompaniesByIds,
   getSingleCompany,
 } from "../../domains/companies/companies.model";
-import { getCompanyRolesForUser } from "../../domains/usersCompaniesRoles/usersCompaniesRoles.model";
+import { getCompanyRolesForUser } from "../../domains/userRoles/userRoles.model";
 import { knexClient } from "../../../knexClient";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { ApiResponse } from "../../core/types/api.types";

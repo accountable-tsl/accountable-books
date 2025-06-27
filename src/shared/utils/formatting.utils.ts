@@ -113,6 +113,18 @@ export type SnakeToCamelCaseObject<T> = {
     : K]: T[K] extends object ? SnakeToCamelCaseObject<T[K]> : T[K];
 };
 
+/**
+ * Creates a Zod schema that preprocesses input by converting camelCase
+ * keys to snake_case before validation.
+ *
+ * This is useful for ensuring that input objects have keys in the expected
+ * snake_case format when interfacing with systems or databases that use
+ * snake_case naming conventions.
+ *
+ * @param snakeSchema - The Zod schema to apply after preprocessing.
+ * @returns A Zod schema with preprocessing to convert camelCase keys to snake_case.
+ */
+
 export function createCamelCaseSchema<T extends z.ZodTypeAny>(snakeSchema: T) {
   return z.preprocess(camelToSnake, snakeSchema);
 }

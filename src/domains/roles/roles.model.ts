@@ -1,41 +1,54 @@
 import { knexClient } from "../../../knexClient";
-import { roleName, RoleName } from "../../core/types/db.types";
 import { AppError } from "../../shared/utils/response.utils";
+import { RoleInfo, roleKey, RoleKey } from "./roles.types";
 
 let rolesLoaded = false;
 
-export const roles: Record<RoleName, string> = {
-  super_admin: "",
-  admin: "",
-  bookkeeper: "",
-  client: "",
-  demo_user: "",
-  support: "",
-};
+export const roles: Record<RoleKey, RoleInfo> = Object.fromEntries(
+  roleKey.options.map((key) => [key, { id: "", name: "", description: "" }])
+) as Record<RoleKey, RoleInfo>;
+
 export const loadRoles = async () => {
+  if (rolesLoaded) return;
+
   const result = await knexClient("roles")
-    .select("id", "name")
+    .select("id", "key", "name", "description")
     .where("is_deleted", false);
 
   for (const role of result) {
-    if (roleName.options.includes(role.name)) {
-      roles[role.name as RoleName] = role.id;
+    if (roleKey.options.includes(role.key)) {
+      roles[role.key as RoleKey] = {
+        id: String(role.id),
+        name: role.name,
+        description: role.description,
+      };
+    } else {
+      console.warn(`Unknown role key in DB: ${role.key}`);
     }
   }
 
   // Validate all required roles are loaded
-  for (const role of roleName.options) {
-    if (!roles[role]) {
-      throw new AppError(`Missing critical role: ${roleName}`);
+  for (const role of roleKey.options) {
+    if (!roles[role].id) {
+      throw new AppError(`Missing critical role: ${role}`);
     }
   }
 
   rolesLoaded = true;
 };
 
-export function getRoleId(name: RoleName): string {
+export const isRolesLoaded = () => rolesLoaded;
+
+export function getRoleId(key: RoleKey): string {
   if (!rolesLoaded) {
     throw new AppError("Roles not loaded yet! Call loadRoles() at startup.");
   }
-  return roles[name];
+  return roles[key].id;
+}
+
+export function getRoleDetails(key: RoleKey): RoleInfo {
+  if (!rolesLoaded) {
+    throw new AppError("Roles not loaded yet! Call loadRoles() at startup.");
+  }
+  return roles[key];
 }

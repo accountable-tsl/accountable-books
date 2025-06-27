@@ -31,7 +31,7 @@ export async function subdomain(
 
   (req as any).subdomain = subdomain;
   console.log("subdomain", subdomain);
-  const firm = await knexClient("accounting_firms")
+  const firm = await knexClient("accounting_firms_meta")
     .where("slug", subdomain)
     .select("id")
     .first();

@@ -4,7 +4,7 @@ import {
   AuthCompanyContext,
   AuthUserContext,
   DecodedToken,
-  ResendEmailParams,
+  ResendVerificationEmailParams,
   VerifyEmailParams,
 } from "./auth.types";
 import { knexClient } from "../../../knexClient";
@@ -162,7 +162,100 @@ export async function refreshTokenService(
   }
 }
 
-export async function verifyEmailService(
+export async function verifyEmailService(params: VerifyEmailParams): Promise<
+  ApiResponse<{
+    emailVerified: boolean;
+    status: "verified" | "invalid_or_expired" | "error";
+    slug?: string | null;
+    email: string | null;
+  }>
+> {
+  const { token, userId } = params;
+
+  if (!token || !userId)
+    return errorResponse("Missing required parameters", {
+      emailVerified: false,
+      status: "error",
+      email: null,
+    });
+
+  try {
+    const result = knexClient.transaction(async (trx) => {
+      // Get user information
+      const user = await trx("users")
+        .select("id", "email", "email_verification_token_hash")
+        .where("id", userId)
+        .whereNotNull("email_verification_token_hash")
+        .andWhere("email_verified_at", null)
+        .andWhere("email_verification_expiry", ">", new Date())
+        .first();
+
+      if (!user || !user.email_verification_token_hash || !user.email) {
+        return errorResponse("Invalid or expired token", {
+          emailVerified: false,
+          status: "invalid_or_expired",
+          email: user?.email || null,
+        });
+      }
+
+      // Compare token received with the hashed one in the database
+      const verifyToken = await compareToken(
+        token,
+        user.email_verification_token_hash
+      );
+
+      if (!verifyToken)
+        return errorResponse("Invalid or expired token", {
+          emailVerified: false,
+          status: "invalid_or_expired",
+          email: user?.email || null,
+        });
+
+      // Verified token, update user
+      await trx("users").where({ id: user.id }).update({
+        email_verified: true,
+        email_verified_at: new Date(),
+        email_verification_token_hash: null,
+        email_verification_expiry: null,
+      });
+    });
+
+    const slugs = await knexClient("user_company_roles as ucr")
+      .select(["af.slug as slug", "c.created_by_id as creatorId"])
+      .join("companies as c", "ucr.company_id", "c.id")
+      .join("accounting_firms_meta as af", "c.assigned_firm_id", "af.id")
+      .where("ucr.user_id", user.id);
+
+    // We prefer to return a slug for the company the user *created* (if any),
+    // since this is likely their primary or most important company.
+    // If the user didn't create any companies, we fallback to any valid company slug.
+
+    let slugToReturn: string | null = null;
+    if (slugs.length > 0) {
+      const createdCompany = slugs.find((s) => s.creatorId === user.id);
+      if (createdCompany) {
+        slugToReturn = createdCompany.slug;
+      } else {
+        slugToReturn = slugs[0].slug;
+      }
+    }
+
+    return successResponse("Email verified successfully", {
+      emailVerified: true,
+      status: "verified",
+      slug: slugToReturn,
+      email: user?.email || null,
+    });
+  } catch (error: any) {
+    console.log(error);
+    return errorResponse("Failed to verify email", {
+      emailVerified: false,
+      status: "error",
+      email: null,
+    });
+  }
+}
+export async function verifyEmailServiceOld(
   params: VerifyEmailParams
 ): Promise<ApiResponse> {
   if (!params.token) return errorResponse("Missing token");
@@ -212,10 +305,10 @@ export async function verifyEmailService(
 }
 
 export async function resendVerificationEmailService(
-  params: ResendEmailParams
+  params: ResendVerificationEmailParams
 ): Promise<ApiResponse> {
-  if (!params.email && !params.userId) {
-    return errorResponse("Missing email or userId");
+  if (!params.userId) {
+    return errorResponse("Missing required parameters");
   }
 
   try {
@@ -230,13 +323,7 @@ export async function resendVerificationEmailService(
         "email_verified_at",
         "firstname"
       )
-      .where((qb) => {
-        if (params.userId) {
-          qb.where("id", params.userId);
-        } else {
-          qb.where("email", params.email);
-        }
-      })
+      .where({ id: params.userId })
       .first();
 
     if (!user) {
@@ -258,9 +345,8 @@ export async function resendVerificationEmailService(
       });
 
     const url = buildEmailServiceUrl("verify-email", {
+      userId: user.id,
       token,
-      slug: params.slug || "app",
-      email: user.email,
     });
     const sendEmail = await sendVerificationEmail({
       to: user.email,

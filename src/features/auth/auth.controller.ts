@@ -139,6 +139,36 @@ export async function meController(req: AuthRequest, res: Response) {
 }
 
 export async function verifyEmailController(req: Request, res: Response) {
+  const { token, userId } = req.body;
+
+  if (!token || !userId) {
+    return res.status(400).json(
+      errorResponse("Missing required parameters", {
+        emailVerified: false,
+        status: "error",
+      })
+    );
+  }
+
+  try {
+    const result = await verifyEmailService({
+      token: String(token),
+      userId: String(userId),
+    });
+
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse("Something went wrong", {
+        emailVerified: false,
+        status: "error",
+      })
+    );
+  }
+}
+async function verifyEmailControllerOld(req: Request, res: Response) {
   const { token, email, slug } = req.query;
 
   const appUrl = getAppUrl(String(slug));
@@ -151,6 +181,7 @@ export async function verifyEmailController(req: Request, res: Response) {
     const result = await verifyEmailService({
       token: String(token),
       email: String(email),
+      slug: String(slug),
     });
 
     return res.redirect(

@@ -16,7 +16,7 @@ import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from "./coa.constants";
 import { accountTypeIds } from "../../shared/constants/account.constants";
 import Decimal from "decimal.js";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
-import { hasAccessToCompany } from "../usersCompaniesRoles/usersCompaniesRoles.model";
+import { hasAccessToCompany } from "../userRoles/userRoles.model";
 import { camelToSnake } from "../../shared/utils/formatting.utils";
 import { knexClient } from "../../../knexClient";
 

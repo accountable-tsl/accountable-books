@@ -1,5 +1,5 @@
 import express from "express";
-import { grantAccessToCompanyController } from "./usersCompaniesRoles.controller";
+import { grantAccessToCompanyController } from "./userRoles.controller";
 import { checkCompanyId } from "../../core/middlewares/companies.middleware";
 const router = express.Router({ mergeParams: true });
 

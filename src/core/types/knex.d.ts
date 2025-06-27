@@ -2,18 +2,20 @@ import { Knex } from "knex";
 import {
   AccountElement,
   AccountType,
+  ClientFirmAssignments,
   Country,
   Currency,
   FinancialStatement,
+  Fuca,
   NewAccountElementInput,
   NewAccountTypeInput,
+  NewClientFirmAssignments,
   NewCountryInput,
   NewCurrencyInput,
   NewFinancialStatementInput,
+  NewFuca,
   NewPermissionInput,
-  NewRoleInput,
   Permission,
-  Role,
   RolePermission,
 } from "./db.types";
 import {
@@ -31,7 +33,7 @@ import { AccFirm, NewAccFirm } from "../../domains/accountingFirms/firms.types";
 import {
   NewUserCompanyRole,
   UserCompanyRole,
-} from "../../domains/usersCompaniesRoles/usersCompaniesRoles.types";
+} from "../../domains/userRoles/userRoles.types";
 import {
   BankAccount,
   NewBankAccount,
@@ -61,6 +63,8 @@ import {
   BankProviderMapping,
   NewBankProviderMapping,
 } from "../../domains/mapBankToProviderBank/bankProviderMappings.types";
+import { NewToken, Token } from "../../domains/tokens/tokens.types";
+import { NewRoleInput, Role } from "../../domains/roles/roles.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -124,31 +128,49 @@ declare module "knex/types/tables" {
       Partial<Omit<User, "id">>
     >;
 
+    tokens: Knex.CompositeTableType<
+      Token,
+      NewToken,
+      Partial<Omit<Token, "id">>
+    >;
+
     companies: Knex.CompositeTableType<
       Company,
       NewCompany,
       Partial<Omit<Company, "id">>
     >;
 
-    accounting_firms: Knex.CompositeTableType<
+    accounting_firms_meta: Knex.CompositeTableType<
       AccFirm,
       NewAccFirm,
       Partial<Omit<AccFirm, "id">>
     >;
 
-    users_companies_roles: Knex.CompositeTableType<
+    user_company_roles: Knex.CompositeTableType<
       UserCompanyRole,
       NewUserCompanyRole,
       Partial<Omit<UserCompanyRole, "id">>
     >;
 
-    coa: Knex.CompositeTableType<Coa, NewCoa, Partial<Omit<Coa, "id">>>;
+    client_firm_assignments: Knex.CompositeTableType<
+      ClientFirmAssignments,
+      NewClientFirmAssignments,
+      Partial<Omit<ClientFirmAssignments, "id">>
+    >;
+
+    firm_user_client_assignments: Knex.CompositeTableType<
+      Fuca,
+      NewFuca,
+      Partial<Omit<Fuca, "id">>
+    >;
 
     roles_permissions: Knex.CompositeTableType<
       RolePermission,
       RolePermission,
       Partial<RolePermission>
     >;
+
+    coa: Knex.CompositeTableType<Coa, NewCoa, Partial<Omit<Coa, "id">>>;
 
     banks: Knex.CompositeTableType<Bank, NewBank, Partial<Omit<Bank, "id">>>;
 

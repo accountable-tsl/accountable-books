@@ -19,7 +19,7 @@ import {
 } from "../../shared/utils/formatting.utils";
 import { createCoa } from "../chartOfAccounts/coa.model";
 import { coaSource } from "../chartOfAccounts/coa.types";
-import { hasAccessToCompany } from "../usersCompaniesRoles/usersCompaniesRoles.model";
+import { hasAccessToCompany } from "../userRoles/userRoles.model";
 import type { Knex } from "knex";
 
 const bankRespFields = [

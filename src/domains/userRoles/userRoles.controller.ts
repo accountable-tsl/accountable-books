@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { AuthRequest } from "../../features/auth/auth.types";
-import { grantAccessToCompany } from "./usersCompaniesRoles.model";
+import { grantAccessToCompany } from "./userRoles.model";
 import { errorResponse } from "../../shared/utils/response.utils";
 
 export async function grantAccessToCompanyController(

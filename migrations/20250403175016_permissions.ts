@@ -67,7 +67,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await createUpdateTimestampTrigger(knex, tableName);
   await preventUpdateOrDelete(knex, tableName);
-  await seedPermissions(knex);
+  // await seedPermissions(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

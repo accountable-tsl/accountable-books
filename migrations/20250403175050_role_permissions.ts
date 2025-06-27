@@ -1,12 +1,11 @@
 import type { Knex } from "knex";
 import { preventUpdateOrDelete } from "../src/utils/db";
 import { NODE_ENV } from "../src/config/env";
-import { RoleName } from "../src/core/types/db.types";
 
-const tableName = "roles_permissions";
+const tableName = "role_permissions";
 
 // Role-permission mappings
-const rolePermissions: Record<Exclude<RoleName, "super_admin">, string[]> = {
+const rolePermissions: Record<Exclude<string, "super_admin">, string[]> = {
   support: [
     "users:invite",
     "reports:view",
@@ -182,7 +181,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await preventUpdateOrDelete(knex, tableName);
 
-  await seedRolePermissions(knex);
+  // await seedRolePermissions(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

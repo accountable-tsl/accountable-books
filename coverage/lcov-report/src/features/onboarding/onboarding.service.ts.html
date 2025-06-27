@@ -748,7 +748,7 @@ export const onboardingClientDirect = <span class="fstat-no" title="function not
 <span class="cstat-no" title="statement not covered" >      const [role] = await trx("roles").where({ name: "client" }).select("*");</span>
 <span class="cstat-no" title="statement not covered" >      if (!role) throw new Error("Client role not found");</span>
 <span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >      await trx("users_companies_roles").insert({</span>
+<span class="cstat-no" title="statement not covered" >      await trx("user_company_roles").insert({</span>
 <span class="cstat-no" title="statement not covered" >        user_id: user.data.id,</span>
 <span class="cstat-no" title="statement not covered" >        company_id: company.data.id,</span>
 <span class="cstat-no" title="statement not covered" >        role_id: role.id,</span>
@@ -860,7 +860,7 @@ export const onboardingAccountingFirm = <span class="fstat-no" title="function n
 <span class="cstat-no" title="statement not covered" >        created_by_id: user.data.id,</span>
 <span class="cstat-no" title="statement not covered" >        legal_name: companyInput.legal_name,</span>
 <span class="cstat-no" title="statement not covered" >        display_name: firmCompanyDisplayName,</span>
-<span class="cstat-no" title="statement not covered" >        type: "accounting_firms",</span>
+<span class="cstat-no" title="statement not covered" >        type: "accounting_firms_meta",</span>
 <span class="cstat-no" title="statement not covered" >      });</span>
 <span class="cstat-no" title="statement not covered" >      if (!company.success) {</span>
 <span class="cstat-no" title="statement not covered" >        throw new Error(`Company creation failed: ${company.error}`);</span>
@@ -912,7 +912,7 @@ export const onboardingAccountingFirm = <span class="fstat-no" title="function n
 <span class="cstat-no" title="statement not covered" >      // Assign admin role</span>
 <span class="cstat-no" title="statement not covered" >      const [role] = await trx("roles").where({ name: "admin" }).select("id");</span>
 <span class="cstat-no" title="statement not covered" >      if (!role) throw new Error("Admin role not found");</span>
-<span class="cstat-no" title="statement not covered" >      await trx("users_companies_roles").insert({</span>
+<span class="cstat-no" title="statement not covered" >      await trx("user_company_roles").insert({</span>
 <span class="cstat-no" title="statement not covered" >        user_id: user.data.id,</span>
 <span class="cstat-no" title="statement not covered" >        company_id: company.data.id,</span>
 <span class="cstat-no" title="statement not covered" >        role_id: role.id,</span>

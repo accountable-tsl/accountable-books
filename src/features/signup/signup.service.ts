@@ -106,9 +106,8 @@ export const registerNewAccount = async (
 
       //   await sendWelcomeEmail(user.email, user.firstname, verifyUrl); // Build this out later
       const url = buildEmailServiceUrl("verify-email", {
+        userId: user.id,
         token: user.verificationToken,
-        slug: company.slug,
-        email: user.email,
       });
       const sendVerEmail = await sendVerificationEmail({
         to: user.email,
@@ -165,7 +164,7 @@ const createUserAndCompany = async (
     );
   }
 
-  const platformFirm = await trx("accounting_firms as af")
+  const platformFirm = await trx("accounting_firms_meta as af")
     .join("companies as c", "af.company_id", "c.id")
     .where("c.is_platform", true)
     .first<{ company_id: string; slug: string }>();
@@ -197,7 +196,7 @@ const createUserAndCompany = async (
   if (!role) throw new AppError(`${roleName} role not found`);
   const roleId = role.id;
 
-  await trx("users_companies_roles").insert({
+  await trx("user_company_roles").insert({
     user_id: userResponse.data.id,
     company_id: companyResponse.data.id,
     role_id: roleId,
@@ -245,7 +244,7 @@ const setupAccountingFirm = async (
     .update({ assigned_firm_id: firmResponse.data.id });
 
   // Assign the company to the firm
-  await trx("firms_companies").where("company_id", companyId).update({
+  await trx("client_firm_assignments").where("company_id", companyId).update({
     accounting_firm_id: firmResponse.data.id,
   });
 

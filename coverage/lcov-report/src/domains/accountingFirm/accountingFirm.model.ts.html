@@ -183,7 +183,7 @@ import {
 &nbsp;
 export const resolveFirm = <span class="fstat-no" title="function not covered" >async (trx: Knex.Transaction, firmId?: string) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  if (firmId) {</span>
-<span class="cstat-no" title="statement not covered" >    const [verifyFirm] = await trx("accounting_firms")</span>
+<span class="cstat-no" title="statement not covered" >    const [verifyFirm] = await trx("accounting_firms_meta")</span>
 <span class="cstat-no" title="statement not covered" >      .where("id", firmId)</span>
 <span class="cstat-no" title="statement not covered" >      .select("id");</span>
 <span class="cstat-no" title="statement not covered" ></span>
@@ -192,7 +192,7 @@ export const resolveFirm = <span class="fstat-no" title="function not covered" >
 <span class="cstat-no" title="statement not covered" >    }</span>
 <span class="cstat-no" title="statement not covered" >  }</span>
 <span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  const platformFirm = await trx("accounting_firms")</span>
+<span class="cstat-no" title="statement not covered" >  const platformFirm = await trx("accounting_firms_meta")</span>
 <span class="cstat-no" title="statement not covered" >    .where("is_platform_firm", true)</span>
 <span class="cstat-no" title="statement not covered" >    .select("id");</span>
 <span class="cstat-no" title="statement not covered" ></span>
@@ -214,7 +214,7 @@ export const createAccountingFirm = <span class="fstat-no" title="function not c
 <span class="cstat-no" title="statement not covered" >  const { data } = validatedInput;</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    const [newFirm] = await knexTrx("accounting_firms")</span>
+<span class="cstat-no" title="statement not covered" >    const [newFirm] = await knexTrx("accounting_firms_meta")</span>
 <span class="cstat-no" title="statement not covered" >      .insert({</span>
 <span class="cstat-no" title="statement not covered" >        ...data,</span>
 <span class="cstat-no" title="statement not covered" >        display_name: data.display_name || data.legal_name,</span>

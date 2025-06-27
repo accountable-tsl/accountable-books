@@ -96,11 +96,8 @@ export async function up(knex: Knex): Promise<void> {
     table.specificType("reporting_framework", "reporting_framework").nullable();
     table.string("registration_number").nullable();
     table.string("tax_id").nullable();
-    table
-      .specificType("onboarding_status", "onboarding_status")
-      .defaultTo("not_started")
-      .notNullable();
-    table.boolean("is_onboarding_complete").defaultTo(false);
+    table.jsonb("onboarding_state").nullable();
+    table.timestamp("onboarding_completed_at", { useTz: true }).nullable();
     table.boolean("is_demo_company").defaultTo(false);
     table.boolean("is_platform").defaultTo(false);
 
@@ -140,6 +137,7 @@ export async function up(knex: Knex): Promise<void> {
   await createUpdateTimestampTrigger(knex, tableName);
   await createPlatformCompany(knex);
 
+  // Update last_active_company_id column in users table
   await knex.schema.alterTable("users", (table) => {
     table
       .foreign("last_active_company_id")

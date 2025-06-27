@@ -154,14 +154,14 @@ const onboardingBase = z.object({
 &nbsp;
 export const onboardingDirectClient = onboardingBase.extend({
   company: onboardingBase.shape.company.extend({
-    type: companyType.exclude(["accounting_firms"]),
+    type: companyType.exclude(["accounting_firms_meta"]),
   }),
 });
 export type OnboardingDirectClient = z.infer&lt;typeof onboardingDirectClient&gt;;
 &nbsp;
 export const onboardingAccFirm = onboardingBase.extend({
   company: onboardingBase.shape.company.extend({
-    type: companyType.extract(["accounting_firms"]),
+    type: companyType.extract(["accounting_firms_meta"]),
   }),
   firm: newAccFirmInput,
 });

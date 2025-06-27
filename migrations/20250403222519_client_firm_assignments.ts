@@ -5,9 +5,7 @@ import {
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
 import { createPlatformCompany } from "./20250403194332_companies";
-import { createPlatformFirm } from "./20250403194335_accounting_firms";
-
-const tableName = "firms_companies";
+import { createPlatformFirm } from "./20250403194335_accounting_firms_meta";
 
 // This table maps which business is assigned to which accounting firm. Think of it like:
 // Business A is being managed by Accounting Firm X.
@@ -22,8 +20,8 @@ const insertPlatformFirmCompany = async (knex: Knex) => {
 
   const exists = await knex(tableName)
     .where({
-      company_id: platformCompany.id,
-      accounting_firm_id: platformAccountingFirm.id,
+      client_company_id: platformCompany.id,
+      accounting_firm_company_id: platformAccountingFirm.id,
     })
     .first();
 
@@ -33,8 +31,10 @@ const insertPlatformFirmCompany = async (knex: Knex) => {
   }
 
   await knex(tableName).insert({
-    company_id: platformCompany.id,
-    accounting_firm_id: platformAccountingFirm.id,
+    client_company_id: platformCompany.id,
+    accounting_firm_company_id: platformAccountingFirm.id,
+    updated_by_id: platformCompany.created_by_id,
+    created_by_id: platformCompany.created_by_id,
   });
 
   await knex("companies")
@@ -44,28 +44,45 @@ const insertPlatformFirmCompany = async (knex: Knex) => {
   console.log("Linked platform company to platform accounting firm.");
 };
 
+const tableName = "client_firm_assignments";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
 
     table
-      .uuid("company_id")
+      .uuid("client_company_id")
       .notNullable()
       .references("id")
       .inTable("companies")
       .onDelete("CASCADE");
 
     table
-      .uuid("accounting_firm_id")
+      .uuid("accounting_firm_company_id")
       .notNullable()
       .references("company_id")
-      .inTable("accounting_firms")
+      .inTable("accounting_firms_meta")
       .onDelete("CASCADE");
+
+    table
+      .uuid("updated_by_id")
+      .nullable()
+      .references("id")
+      .inTable("users")
+      .onDelete("SET NULL");
+
+    table
+      .uuid("created_by_id")
+      .notNullable()
+      .references("id")
+      .inTable("users")
+      .onDelete("RESTRICT");
 
     addStandardColumns(table);
 
-    table.unique(["company_id"]);
-    table.index(["accounting_firm_id"], "firm_company_firm_idx");
+    table.unique(["client_company_id"]);
+
+    table.index(["accounting_firm_company_id"]);
+    table.index(["client_company_id", "accounting_firm_company_id"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
