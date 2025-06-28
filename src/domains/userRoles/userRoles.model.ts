@@ -55,7 +55,8 @@ const getUserCompanyRoleAssignments = async (
         "r.id as roleId",
         "r.key as roleKey",
         "r.name as roleName",
-        "r.scope as roleScope"
+        "r.scope as roleScope",
+        "c.onboarding_state as onboardingState"
       );
 
     // Query 2: Get roles via firm-client assignments
@@ -94,7 +95,8 @@ const getUserCompanyRoleAssignments = async (
         "r.id as roleId",
         "r.key as roleKey",
         "r.name as roleName",
-        "r.scope as roleScope"
+        "r.scope as roleScope",
+        "c.onboarding_state as onboardingState"
       );
 
     // Combine both direct roles and firm-assigned roles
@@ -108,7 +110,7 @@ const getUserCompanyRoleAssignments = async (
       return errorResponse("User is not assigned to any company");
     }
 
-    const result: UserRoleResponse[] = allRoles.map((r) => ({
+    const result: UserCompanyRoleAssignmentRes[] = allRoles.map((r) => ({
       userId: r.userId,
       companyId: r.companyId,
       firmSlug: r.firmSlug,
@@ -116,6 +118,7 @@ const getUserCompanyRoleAssignments = async (
       roleKey: r.roleKey as RoleKey,
       roleName: r.roleName,
       roleScope: r.roleScope as RoleScope,
+      onboardingState: r.onboardingState,
     }));
 
     return successResponse("Successfully fetched user roles", result);
@@ -156,12 +159,13 @@ export const getAccessibleCompaniesForUser = async ({
       rolesResponse.success && rolesResponse.data ? rolesResponse.data : [];
 
     const mappedUserCompanies: AccessibleCompanies[] = userRoles.map((r) => ({
-      isDemoCompany: false,
+      id: r.companyId,
       hasExplicitAccess: true,
-      companyId: r.companyId,
-      firmSlug: r.firmSlug,
+      isDemoCompany: false,
+      assignedFirmSlug: r.firmSlug,
       roleKey: r.roleKey,
       roleScope: r.roleScope,
+      onboardingState: r.onboardingState,
     }));
 
     const knownCompanyIds = userRoles.map((r) => r.companyId);
@@ -175,14 +179,17 @@ export const getAccessibleCompaniesForUser = async ({
       .where("is_demo_company", true)
       .whereNotIn("c.short_code", knownCompanyIds);
 
-    const mappedDemoCompanies = demoCompanies.map((c) => ({
-      isDemoCompany: true,
-      hasExplicitAccess: false,
-      companyId: c.companyId,
-      firmSlug: c.firmSlug,
-      roleKey: null,
-      roleScope: null,
-    })) as AccessibleCompanies[];
+    const mappedDemoCompanies: AccessibleCompanies[] = demoCompanies.map(
+      (c) => ({
+        id: c.companyId,
+        hasExplicitAccess: false,
+        isDemoCompany: true,
+        assignedFirmSlug: c.firmSlug,
+        roleKey: null,
+        roleScope: null,
+        onboardingState: null,
+      })
+    );
 
     const platformRoleHierarchy = [
       roleKey.enum.super_admin,
@@ -271,7 +278,83 @@ export const hasAccessToCompany = async ({
   return { hasAccess, roleKey, roleScope, accessReason };
 };
 
+export const getCompanyOwner = async ({
+  companyId,
+  trx,
+}: {
+  companyId: string;
+  trx?: Knex.Transaction;
+}): Promise<
+  ApiResponse<{
+    userId: string;
+    firstname: string;
+    lastname?: string;
+    email: string;
+    roleKey: RoleKey;
+    roleScope?: RoleScope;
+  } | null>
+> => {
+  const knex = trx || knexClient;
+  const companyUUID = getCompanyUUID(companyId);
+  const ownerRoleKeys: RoleKey[] = ["firm_owner", "client_owner"];
+  try {
+    const result = await knex("user_company_roles as ucr")
+      .join("roles as r", "ucr.role_id", "r.id")
+      .join("users as u", "ucr.user_id", "u.id")
+      .where("ucr.company_id", companyUUID)
+      .andWhere("ucr.is_deleted", false)
+      .whereIn("r.key", ownerRoleKeys)
+      .select(
+        "ucr.user_id as userId",
+        "ucr.company_id as companyId",
+        "u.firstname as firstname",
+        "u.lastname as lastname",
+        "u.email as email",
+        "r.key as roleKey",
+        "r.scope as roleScope"
+      )
+      .first();
 
+    if (!result) {
+      return successResponse("No company owner found", null);
+    }
+
+    return successResponse("Company owner retrieved", {
+      userId: result.userId,
+      firstname: result.firstname,
+      lastname: result.lastname,
+      email: result.email,
+      roleKey: result.roleKey,
+      roleScope: result.roleScope,
+    });
+  } catch (error) {
+    return errorResponse("An unexpected error occurred", error);
+  }
+};
+
+export const isUserCompanyOwner = async ({
+  userId,
+  companyId,
+  trx,
+}: {
+  userId: string;
+  companyId: string;
+  trx?: Knex.Transaction;
+}): Promise<boolean> => {
+  const knex = trx || knexClient;
+
+  const ownerRoleKeys: RoleKey[] = ["firm_owner", "client_owner"];
+
+  const result = await knex("user_company_roles as ucr")
+    .join("roles as r", "ucr.role_id", "r.id")
+    .where("ucr.user_id", userId)
+    .andWhere("ucr.company_id", companyId)
+    .andWhere("ucr.is_deleted", false)
+    .whereIn("r.key", ownerRoleKeys)
+    .first();
+
+  return !!result;
+};
 
 export const grantDirectAccess = async ({
   knex,

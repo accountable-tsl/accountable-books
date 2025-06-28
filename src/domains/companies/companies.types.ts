@@ -2,6 +2,7 @@ import { z } from "zod";
 import { dbBaseFields } from "../../core/types/core";
 import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
 import { firmType } from "../accountingFirms/firms.types";
+import { companyOnboardingState } from "../../features/onboarding/onboarding.types";
 
 export const companyType = z.enum([
   "business",
@@ -43,7 +44,7 @@ export const newCompanyInput = z.object({
   tax_id: z.string().max(256).nullish(),
   is_demo_company: z.boolean().default(false).optional(),
   slug: z.string().max(50).optional(),
-  // onboarding_status: onboardingStatus.default("not_started").optional(),
+  onboarding_state: companyOnboardingState,
 });
 
 export const newCompany = newCompanyInput

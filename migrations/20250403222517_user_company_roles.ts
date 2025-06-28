@@ -62,7 +62,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table
       .uuid("updated_by_id")
-      .notNullable()
+      .nullable()
       .references("id")
       .inTable("users")
       .onDelete("SET NULL");

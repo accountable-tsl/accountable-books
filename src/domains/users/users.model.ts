@@ -14,6 +14,7 @@ import {
 import dayjs from "dayjs";
 import { knexClient } from "../../../knexClient";
 import { addNewToken } from "../tokens/tokens.model";
+import { createInitialUserOnboardingState } from "../../features/onboarding/onboarding.utils";
 
 export async function createUserDirect(
   knexTrx: Knex.Transaction,
@@ -40,12 +41,14 @@ export async function createUserDirect(
       hashPassword(password),
     ]);
 
-    const hashedVerificationToken = await hashToken(verificationToken);
+    const onboardingState = createInitialUserOnboardingState();
+
     const [user] = await knexTrx("users")
       .insert({
         ...rest,
         email,
         password: hashedPassword,
+        onboarding_state: onboardingState,
       })
       .returning(["id", "firstname", "lastname", "email"]);
 
@@ -55,6 +58,7 @@ export async function createUserDirect(
       );
     }
 
+    const hashedVerificationToken = await hashToken(verificationToken);
     await addNewToken(
       {
         user_id: user.id,

@@ -14,15 +14,11 @@ import {
   TokenExpiration,
 } from "./auth.types";
 import { Request, Response } from "express";
-import { generateRandomToken } from "../../shared/utils/crypto.utils";
-import {
-  getCompaniesByIds,
-  getSingleCompany,
-} from "../../domains/companies/companies.model";
-import { getCompanyRolesForUser } from "../../domains/userRoles/userRoles.model";
 import { knexClient } from "../../../knexClient";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { ApiResponse } from "../../core/types/api.types";
+import { getAccessibleCompaniesForUser } from "../../domains/userRoles/userRoles.model";
+import { getOnboardingState } from "../onboarding/onboarding.service";
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throw new AppError("JWT secrets must be defined in .env");
@@ -107,55 +103,57 @@ export async function buildAuthContext(
   ApiResponse<{ user: AuthUserContext; activeCompany: AuthCompanyContext }>
 > {
   try {
-    const { sub, email, firstname, lastname, status, currentCompanyId } =
-      decoded;
+    const {
+      sub,
+      email,
+      firstname,
+      lastname,
+      emailVerifiedAt,
+      onboardingState,
+      currentCompanyId,
+    } = decoded;
     if (!sub) return errorResponse("Invalid token payload, missing user ID");
+    // Sub is user ID
+    const userAccessProfileResponse = await getAccessibleCompaniesForUser({
+      userId: sub,
+    });
+    if (!userAccessProfileResponse.success || !userAccessProfileResponse.data)
+      return errorResponse(userAccessProfileResponse.message);
 
-    const rolesResult = await getCompanyRolesForUser(sub);
-    if (!rolesResult.success || !rolesResult.data)
-      return errorResponse(rolesResult.message);
-
-    const roles = rolesResult.data;
-    const accessibleCompanyIds = roles.map((r) => r.companyId);
-
-    // Build companies array
-    const companiesResult = await getCompaniesByIds(accessibleCompanyIds);
-    if (!companiesResult.success || !companiesResult.data) {
-      return errorResponse(
-        companiesResult.message,
-        companiesResult.data || companiesResult.error
-      );
-    }
-
-    const companies: AuthCompanyContext[] = companiesResult.data
-      .map((c) => {
-        if (!c || !c.assignedFirmSlug) {
-          return null;
-        }
-
-        return {
-          id: c.id,
-          type: c.companyType,
-          assignedFirmSlug: c.assignedFirmSlug,
-          name: c.legalName,
-          onboardingStatus: c.onboardingStatus,
-          role: roles.find((r) => r.companyId === c.id)?.roleName || "",
-        };
-      })
-      .filter((c): c is AuthCompanyContext => c !== null);
+    const userAccessProfile = userAccessProfileResponse.data;
+    const accessibleCompanies = userAccessProfile.accessibleCompanies;
+    const accessibleCompaniesIds = userAccessProfile.accessibleCompanies.map(
+      (c) => c.id
+    );
 
     // Determine valid current company
     let activeCompanyId = currentCompanyId;
-    if (!activeCompanyId || !accessibleCompanyIds.includes(activeCompanyId)) {
-      activeCompanyId = roles[0].companyId;
-
-      const activeCompanyUUID = await getCompanyUUID(activeCompanyId);
+    if (!activeCompanyId || !accessibleCompaniesIds.includes(activeCompanyId)) {
+      activeCompanyId = accessibleCompaniesIds[0];
 
       // Update last_active_company_id
+      const activeCompanyUUID = await getCompanyUUID(activeCompanyId);
       await knexClient("users")
         .where("id", sub)
         .update("last_active_company_id", activeCompanyUUID);
     }
+
+    const activeCompany = accessibleCompanies.find(
+      (c) => c.id === activeCompanyId
+    );
+    if (!activeCompany) {
+      return errorResponse("Active company not found");
+    }
+
+    const onboardingStatus = await getOnboardingState({
+      user: {
+        id: sub,
+        emailVerifiedAt,
+        onboardingState,
+        isPlatformUser: userAccessProfile.isPlatformUser,
+      },
+      company: activeCompany,
+    });
 
     // Build user context
     const user: AuthUserContext = {
@@ -163,18 +161,19 @@ export async function buildAuthContext(
       email,
       firstname,
       lastname,
-      status,
+
+      ...(userAccessProfile.isPlatformUser && userAccessProfile.platformUserKey
+        ? {
+            isPlatformUser: userAccessProfile.isPlatformUser,
+            platformUserKey: userAccessProfile.platformUserKey,
+          }
+        : {}),
+
       currentCompanyId: activeCompanyId,
-      companies,
+      currentCompany: { ...activeCompany, onboarding: onboardingStatus },
+      companies: accessibleCompanies,
       // permissions: to be handled later (to be added to companies)
     };
-
-    // Build company context (this is mostly for easy access on req.company)
-    const company = companies.find((c) => c.id === activeCompanyId);
-    if (!company) {
-      return errorResponse("Active company not found");
-    }
-    const activeCompany: AuthCompanyContext = company;
 
     return successResponse("Auth context built successfully", {
       user,

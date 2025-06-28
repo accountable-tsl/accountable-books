@@ -30,19 +30,34 @@ import {
   generateAuthTokens,
 } from "../../features/auth/auth.utils";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
-import { RoleName } from "../../core/types/db.types";
 import { updateFirm } from "../accountingFirms/firms.model";
 import { AuthUserContext } from "../../features/auth/auth.types";
-import {
-  grantAccessToCompany,
-  hasAccessToCompany,
-} from "../userRoles/userRoles.model";
+import { hasAccessToCompany } from "../userRoles/userRoles.model";
 import { redis } from "../../lib/redis";
+import { createInitialCompanyOnboardingState } from "../../features/onboarding/onboarding.utils";
+
+/**
+ * Creates a new company in the database.
+ *
+ * This function validates the given company input, ensuring that all required fields are present
+ * and correctly formatted. It checks that the user attempting to create the company exists and
+ * assigns the company to a firm if not already assigned. The function generates a unique short code
+ * for the company if not provided, initializes the onboarding state, and inserts the company data
+ * into the database. It also handles assigning the company to a firm and returns a success or error
+ * response based on the operation outcome.
+ *
+ * @param {Knex.Transaction} knexTrx - The transaction object for database operations.
+ * @param {NewCompanyInput} input - The input data for the company to be created.
+ * @returns {Promise<ApiResponse>} A promise that resolves to an ApiResponse with the result of the
+ * company creation operation.
+ * @throws {AppError} Throws an error if the user is unauthorized, if a short code cannot be
+ * generated, if the company cannot be created, or if the company cannot be assigned to a firm.
+ */
 
 export const createCompany = async (
   knexTrx: Knex.Transaction,
   input: NewCompanyInput
-): Promise<ApiResponse> => {
+): Promise<ApiResponse<any>> => {
   const snakeInput = camelToSnake(input);
   const validateInput = newCompanyInput.safeParse(snakeInput);
 
@@ -75,11 +90,10 @@ export const createCompany = async (
         .where("c.is_platform", true)
         .select("af.company_id as id");
 
-      if (!firm.id) {
+      firmId = firm.id;
+      if (!firmId) {
         throw new AppError("Company must be assigned to a firm");
       }
-
-      firmId = firm.id;
     }
 
     let short_code: string;
@@ -96,6 +110,8 @@ export const createCompany = async (
     if (!short_code) {
       throw new AppError("Unable to generate short code", input, true);
     }
+
+    const initialOnboardingState = createInitialCompanyOnboardingState();
 
     const [company] = await knexTrx("companies")
       .insert({
@@ -119,6 +135,7 @@ export const createCompany = async (
           validateInput.data.type === "accounting_firm"
             ? "Professional Services - Accounting Firm"
             : null,
+        onboarding_state: initialOnboardingState,
       })
       .returning("*");
 
@@ -127,8 +144,10 @@ export const createCompany = async (
     }
 
     const firmAssignment = await knexTrx("client_firm_assignments").insert({
-      company_id: company.id,
-      accounting_firm_id: firmId,
+      client_company_id: company.id,
+      accounting_firm_company_id: firmId,
+      created_by_id: userExists.id,
+      updated_by_id: userExists.id,
     });
 
     const companyData = newCompany.safeParse(company);
@@ -261,7 +280,7 @@ const companyFields = [
 
   "companies.reporting_framework as reportingFramework",
   "companies.accounting_basis as accountingBasis",
-  "companies.onboarding_status as onboardingStatus",
+  "companies.onboarding_state as onboardingState",
   "companies.is_demo_company as isDemoCompany",
 
   "companies.reporting_currency_id as reportingCurrencyId",
@@ -277,6 +296,20 @@ const companyFields = [
   "firm_meta.logo_url as assignedFirmLogo",
   "firm_meta.logo_key as assignedFirmLogoKey",
 ];
+
+/**
+ * Retrieves one or more companies based on the given identifiers or filters.
+ *
+ * @param options - Options for fetching companies.
+ * @param options.identifiers - List of company identifiers (short codes or UUIDs).
+ * @param options.filters - Filters to apply to the query.
+ * @param options.filters.companyType - List of company types to filter by.
+ * @param options.filters.country - Filter by country code (2-character ISO code) or country ID.
+ * @param options.filters.assignedFirm - Filter by assigned firm identifier (short code or UUID).
+ * @param options.filters.isDemoCompany - Filter by whether the company is a demo company.
+ *
+ * @returns An ApiResponse containing the retrieved companies.
+ */
 export const fetchCompanies = async ({
   identifiers,
   filters,
@@ -299,7 +332,7 @@ export const fetchCompanies = async ({
         "companies as firm_meta",
         "accounting_firms_meta.company_id",
         "firm_meta.id"
-      );
+      ); // Get actual firm details from companies table (since firms are also companies)
 
     if (identifiers?.length) {
       const companyIds = [];
@@ -355,7 +388,7 @@ export const fetchCompanies = async ({
         }
       }
 
-      if (typeof filters.isDemoCompany === "boolean") {
+      if (typeof filters?.isDemoCompany !== "undefined") {
         query.where("companies.is_demo_company", filters.isDemoCompany);
       } else {
         query.where("companies.is_demo_company", false); // Exclude demo companies by default
@@ -366,7 +399,7 @@ export const fetchCompanies = async ({
 
     if (!result || (Array.isArray(result) && result.length === 0)) {
       return errorResponse(
-        `Error retrieving ${identifiers?.length === 1 ? "company" : "companies"}`
+        `No ${identifiers?.length === 1 ? "company matches" : "companies match"} the provided input`
       );
     }
 

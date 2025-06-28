@@ -1,11 +1,17 @@
 import { Request } from "express";
 import { JwtPayload } from "jsonwebtoken";
-import { UserCompanyRole } from "../../domains/userRoles/userRoles.types";
 import {
-  CompanyType,
-  OnboardingStatus,
-} from "../../domains/companies/companies.types";
+  AccessibleCompanies,
+  AccessibleCompaniesResponse,
+  UserCompanyRole,
+} from "../../domains/userRoles/userRoles.types";
+import { CompanyType } from "../../domains/companies/companies.types";
 import { Verify } from "crypto";
+import { RoleKey, RoleScope } from "../../domains/roles/roles.types";
+import {
+  OnboardingStateResult,
+  UserOnboardingState,
+} from "../onboarding/onboarding.types";
 
 export interface TokenConfig {
   secret: string;
@@ -27,31 +33,29 @@ export interface DecodedToken {
   email: string;
   firstname: string;
   lastname?: string;
-  status: string;
+  emailVerifiedAt: Date | null;
+  onboardingState: UserOnboardingState;
   currentCompanyId?: string;
-  [key: string]: any;
 }
 
-export interface AuthUserContext {
+export type AuthUserContext = {
   id: string;
   email: string;
   firstname: string;
   lastname?: string;
-  status: string;
-  companies: AuthCompanyContext[];
-  currentCompanyId: string;
-  permissions?: any;
-  // assignedFirmSlug?: string;
-}
 
-export interface AuthCompanyContext {
-  id: string;
-  assignedFirmSlug: string;
-  name: string;
-  type: CompanyType;
-  role: string;
-  onboardingStatus: OnboardingStatus;
-}
+  isPlatformUser?: boolean;
+  platformUserKey?: RoleKey;
+
+  currentCompanyId: string;
+  currentCompany: AuthCompanyContextWithOnboarding;
+  companies: AuthCompanyContext[];
+};
+
+export type AuthCompanyContext = AccessibleCompanies;
+export type AuthCompanyContextWithOnboarding = AuthCompanyContext & {
+  onboarding: OnboardingStateResult;
+};
 
 export interface AuthRequest extends Request {
   user?: AuthUserContext;

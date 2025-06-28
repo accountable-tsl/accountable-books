@@ -32,7 +32,31 @@ import {
   NewUserInputCamel,
   user,
 } from "../../domains/users/users.types";
+import { grantDirectAccess } from "../../domains/userRoles/userRoles.model";
+import { RoleKey } from "../../domains/roles/roles.types";
 
+/**
+ * Registers a new user and company.
+ *
+ * @param knex - Knex instance
+ * @param input - Object with user and company data
+ * @returns ApiResponse
+ *
+ * This function will register a new user and company, and assign the company to the user.
+ * If the company type is an accounting firm, it will also create an accounting_firm entity.
+ * If the company type is not an accounting firm, it will not create an accounting_firm entity.
+ * After the user and company are created, it will also assign a chart of accounts to the company.
+ * If the company type is an accounting firm, it will load the default chart of accounts for the company.
+ * If the company type is not an accounting firm, it will not load the default chart of accounts.
+ * The function will also track events for the signup.
+ *
+ * If the input is invalid, the function will throw an error.
+ * If the user or company creation fails, the function will throw an error.
+ * If the accounting_firm creation fails, the function will throw an error.
+ * If the chart of accounts assignment fails, the function will throw an error.
+ *
+ * @throws AppError
+ */
 export const registerNewAccount = async (
   knex: Knex,
   input: { user: NewUserInputCamel; company: NewCompanyInputCamel }
@@ -46,7 +70,6 @@ export const registerNewAccount = async (
   const snakeInput = camelToSnake(input);
 
   const validateInput = newSignup.safeParse(snakeInput);
-
   if (!validateInput.success) {
     return errorResponse("Invalid input", validateInput.error.flatten());
   }
@@ -189,18 +212,20 @@ const createUserAndCompany = async (
   }
 
   // Assign role
-  const roleName = companyInput.type === "accounting_firm" ? "admin" : "client";
-  const role = await trx("roles")
-    .where("name", roleName)
-    .first<{ id: string }>();
-  if (!role) throw new AppError(`${roleName} role not found`);
-  const roleId = role.id;
+  const roleKey: RoleKey =
+    companyInput.type === "accounting_firm" ? "firm_owner" : "client_owner";
 
-  await trx("user_company_roles").insert({
-    user_id: userResponse.data.id,
-    company_id: companyResponse.data.id,
-    role_id: roleId,
+  const assignRole = await grantDirectAccess({
+    knex: trx,
+    userId: userResponse.data.id,
+    companyId: companyResponse.data.id,
+    roleKey,
+    grantedBy: userResponse.data.id,
   });
+
+  if (!assignRole.success) {
+    throw new AppError(`Role assignment failed: ${assignRole.message}`);
+  }
 
   return {
     user: userResponse.data as CreateUserDirectResponse,
@@ -245,7 +270,7 @@ const setupAccountingFirm = async (
 
   // Assign the company to the firm
   await trx("client_firm_assignments").where("company_id", companyId).update({
-    accounting_firm_id: firmResponse.data.id,
+    accounting_firm_company_id: firmResponse.data.id,
   });
 
   return firmResponse.data;

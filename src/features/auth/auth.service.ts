@@ -28,6 +28,7 @@ import {
 import dayjs from "dayjs";
 import { buildEmailServiceUrl } from "../communications/email/email.utils";
 import { sendVerificationEmail } from "../communications/email/email.service";
+import { UserOnboardingState } from "../onboarding/onboarding.types";
 
 export async function loginService(
   email: string,
@@ -70,7 +71,8 @@ export async function loginService(
       email: user.email,
       firstname: user.firstname,
       ...(user.lastname && { lastname: user.lastname }),
-      status: user?.status || "",
+      emailVerifiedAt: user.email_verified_at || null,
+      onboardingState: user.onboarding_state as UserOnboardingState,
       currentCompanyId: user.last_active_company_id || undefined, // Let buildAuthContext finalize company
     };
 
@@ -140,7 +142,8 @@ export async function refreshTokenService(
       email: decoded.email,
       firstname: decoded.firstname,
       lastname: decoded.lastname,
-      status: decoded.status,
+      emailVerifiedAt: decoded.emailVerifiedAt,
+      onboardingState: decoded.onboardingState,
     });
 
     // Rotate refreshToken in Redis set
