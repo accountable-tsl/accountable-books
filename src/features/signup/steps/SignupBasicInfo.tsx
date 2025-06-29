@@ -54,11 +54,13 @@ export const SignupBasicInfo = forwardRef<
         const isValid = await checkEmail(email);
         console.log(isValid);
         if (isValid) clearErrors("email");
+        if (!isValid)
+          return { isValid, error: "This email has already been registered" };
         return { isValid, error: null };
       } catch (error: any) {
         return {
-          isValid: false,
-          error: "This email has already been registered",
+          isValid: true,
+          error: "We're having trouble checking this email",
         };
       }
     }
@@ -99,6 +101,7 @@ export const SignupBasicInfo = forwardRef<
             onChange: (e) => updateUserField("firstname", e.target.value),
           })}
           aria-describedby={errors.firstname ? "firstname-error" : undefined}
+          placeholder="Jane"
         />
       </FormField>
 
@@ -115,6 +118,7 @@ export const SignupBasicInfo = forwardRef<
               onChange: (e) => updateUserField("lastname", e.target.value),
             })}
             aria-describedby={errors.lastname ? "lastname-error" : undefined}
+            placeholder="Doe"
           />
         </FormField>
 
@@ -179,6 +183,7 @@ export const SignupBasicInfo = forwardRef<
             onChange: (e) => updateUserField("password", e.target.value),
           })}
           aria-describedby={errors.password ? "password-error" : undefined}
+          placeholder="••••••••••••"
         />
         {password && (
           <PasswordStrengthMeter

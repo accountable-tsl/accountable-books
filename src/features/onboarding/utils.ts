@@ -92,3 +92,18 @@ export function mergeInitialData(
   const base = getDefaultCompanyData();
   return { ...base, ...dbData, ...saved } as CompanyData; // precedence: saved > db > defaults
 }
+
+export type VerifyEmailSessionStatus =
+  | "loggedOut"
+  | "loggedInSameUser"
+  | "loggedInDifferentUser";
+
+export function getVerifyEmailSessionStatus(
+  userEmail: string | null,
+  verifiedEmail: string | null,
+  isLoggedIn: boolean
+): VerifyEmailSessionStatus {
+  if (!isLoggedIn) return "loggedOut";
+  if (userEmail === verifiedEmail) return "loggedInSameUser";
+  return "loggedInDifferentUser";
+}

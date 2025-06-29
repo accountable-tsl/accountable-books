@@ -37,9 +37,14 @@ export interface MakeRouteParams<T extends string> {
 export type RouteLike = ReturnType<typeof makeRoute>;
 
 export interface BuildCanonicalUrlOptions {
-  user: AuthUserContext;
+  user: {
+    currentCompanyId: string;
+    companies: Array<{ id: string; assignedFirmSlug: string }>;
+  }; // User Auth Context
+  routeKey: RouteKey; // Key of the route in routes.ts
   subpath?: string;
   origin?: string; // Optional override for testing
+  routeArgs?: string[]; // If the route expects additional args
 }
 
 export type RouteMeta = {

@@ -169,6 +169,7 @@ export default function Login() {
                             errors.password ? "password-error" : undefined
                           }
                           required
+                          placeholder="************"
                         />
                         <Button
                           type="button"

@@ -27,8 +27,8 @@ export default function AppLayout({
     firmSlug: slug,
     isLoggedIn,
   } = useAuth();
+
   const { loading: sessionLoading } = useSessionLoader();
-  useCanonicalUrlEnforcer();
 
   const {
     data: companyDetails,
@@ -38,11 +38,12 @@ export default function AppLayout({
 
   const company = companyDetails?.data;
 
-  const { isSwitching } = useCompanySwitch();
-  const params = useParams();
-  const routeCompanyId = params.companyId;
+  // const { isSwitching } = useCompanySwitch();
+  // const params = useParams();
+  // const routeCompanyId = params.companyId;
 
   const { sidebarCollapsed } = pageStore();
+  useCanonicalUrlEnforcer();
   useUpdatePageInfo();
   usePageMeta();
 
@@ -65,11 +66,15 @@ export default function AppLayout({
   // }, [user, companyId, slug]);
   // if (user && user.)
 
+  // App layout is for protected routes
+
+  // If we are loading the session or company details, show a loader
   if (sessionLoading || companyDetailsLoading) {
     return <CenteredLoader fullscreen />;
   }
 
-  if (!isLoggedIn && !sessionLoading) {
+  // We've loaded the session and confirm the user is not logged in, redirect to login
+  if (!isLoggedIn && !sessionLoading ) {
     return <Navigate to={routes.login.staticPath} replace />;
   }
 
@@ -84,14 +89,13 @@ export default function AppLayout({
     return <ErrorPage type="default" />;
   }
 
-  console.log({
-    sessionLoading,
-    companyDetailsLoading,
-    companyDetailsError,
-    isLoggedIn,
-    user,
-    slug,
-  });
+  // console.log({
+  //   companyDetailsLoading,
+  //   companyDetailsError,
+  //   isLoggedIn,
+  //   user,
+  //   slug,
+  // });
 
   // if (routeCompanyId && routeCompanyId !== companyId && !isSwitching) {
   //   return (

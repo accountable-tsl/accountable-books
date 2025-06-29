@@ -1,9 +1,13 @@
 import { useAuth } from "@/features/auth/hooks";
-import { useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
-import { enforceCanonicalUrl, isPublicRoute } from "@/shared/routes/utils";
+import { useEffect, useMemo, useRef } from "react";
+import { matchPath, useLocation } from "react-router-dom";
+import {
+  buildCanonicalUrl,
+  enforceCanonicalUrl,
+  isPublicRoute,
+} from "@/shared/routes/utils";
 import { routes } from "@/shared/routes/routes";
-import Dashboard from "@/features/dashboard/Dashboard";
+import { RouteKey } from "@/shared/routes/types";
 export function useRoutePath<T extends Record<string, any>>(
   route: { buildPath: (params?: T) => string },
   params?: T
@@ -19,18 +23,59 @@ export function useRoutePath<T extends Record<string, any>>(
 }
 
 /**
- * Hook that enforces canonical URL on route changes.
+ * Hook to enforce canonical URL redirection for logged-in users.
+ * Matches the current pathname to a routeKey and redirects if needed.
  * Should be called at app or layout level
  */
-
 export function useCanonicalUrlEnforcer(): void {
   const location = useLocation();
   const { user } = useAuth();
+  const hasRedirectedRef = useRef(false);
+
+  function enforceIfNeeded() {
+    if (!user || hasRedirectedRef.current) return;
+
+    const matchedRouteEntry = Object.entries(routes).find(([_, config]) => {
+      const pattern = config.staticPath;
+      return matchPath({ path: pattern, end: true }, location.pathname);
+    });
+
+    if (!matchedRouteEntry) return;
+
+    const [routeKey, routeConfig] = matchedRouteEntry;
+
+    // Extract dynamic segments using regex
+    const match = matchPath(
+      { path: routeConfig.staticPath, end: true },
+      location.pathname
+    );
+
+    const routeParams = match?.params ?? {};
+
+    // Remove companyId — already passed via user.currentCompanyId
+    const routeArgs = Object.entries(routeParams)
+      .filter(([key]) => key !== "companyId")
+      .map(([, val]) => val ?? "");
+
+    const canonicalUrl = buildCanonicalUrl({
+      user,
+      routeKey: routeKey as RouteKey,
+      routeArgs,
+    });
+    const canonical = new URL(canonicalUrl);
+
+    const needsRedirect =
+      window.location.hostname !== canonical.hostname ||
+      window.location.pathname !== canonical.pathname;
+
+    if (needsRedirect) {
+      hasRedirectedRef.current = true;
+      enforceCanonicalUrl(user, routeKey as RouteKey, routeArgs);
+    }
+  }
 
   useEffect(() => {
-    if (user) {
-      enforceCanonicalUrl(user);
-    }
+    enforceIfNeeded();
   }, [location.pathname, user]);
 }
 

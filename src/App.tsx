@@ -31,12 +31,9 @@ import { routes } from "@/shared/routes/routes";
 import { VerifyEmail } from "@/features/onboarding/steps/VerifyEmail";
 import { useSessionLoader } from "@/features/auth/hooks";
 import { CenteredLoader } from "./components/CenteredLoader";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useEffect } from "react";
+import { queryClient } from "@/lib/queryClient";
 
 function App() {
-  const queryClient = new QueryClient();
-
   return (
     <ThemeProvider>
       <PopupProvider>
@@ -44,11 +41,7 @@ function App() {
           <BrowserRouter
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
-            {/* <AppWithSession /> */}
             <AnimatedRoutes />
-            {/* {import.meta.env.DEV && (
-              <ReactQueryDevtools initialIsOpen={false} />
-            )} */}
           </BrowserRouter>
         </QueryClientProvider>
       </PopupProvider>

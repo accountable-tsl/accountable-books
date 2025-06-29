@@ -1,6 +1,10 @@
 import { AuthUserContext } from "@/features/auth/types";
-import { routes } from "./routes-old";
-import { BuildCanonicalUrlOptions, RouteLike } from "./types";
+import {
+  BuildCanonicalUrlOptions,
+  RouteKey,
+  RouteLike,
+} from "@/shared/routes/types";
+import { routes } from "@/shared/routes/routes";
 
 function flattenRoutes(obj: Record<string, unknown>): RouteLike[] {
   const flat: RouteLike[] = [];
@@ -49,37 +53,66 @@ export function memoize<Args extends any[], Return>(
 }
 
 /**
- * Builds the canonical URL for the given user and optional subpath.
+ * Builds the canonical URL for a given user and route.
  *
- * The generated URL will include:
- *   - The correct firm subdomain (in production)
- *   - The user's current companyId in the path
- *   - The provided subpath (appended after /companyId)
+ * This URL includes:
+ * - The correct subdomain based on the user's assigned firm slug (in production)
+ * - The current company ID injected into the path
+ * - The route defined by the provided `routeKey`, plus optional `routeArgs`
  *
- * Example result:
- *   https://firmSlug.getaccountable.com/companyId/subpath
+ * Example (production):
+ *   https://firmSlug.getaccountable.com/companyId/dashboard
  *
- * @param user - The authenticated user context (source of truth for companyId + firmSlug)
- * @param subpath - The optional subpath (e.g. '/dashboard', '/invoices'). Do not include companyId here.
- * @param origin - Optional override for origin (for testing / special cases)
+ * Example (development):
+ *   http://localhost:5173/companyId/dashboard
  *
- * @returns The full canonical URL as a string
+ * Notes:
+ * - The `routeKey` must exist in your central `routes` config.
+ * - The route function must accept `companyId` as its first argument.
+ * - `routeArgs` (if any) follow after `companyId`.
+ * - If `fullPath` is an empty string, no trailing slash is added.
+ *
+ * @param user - The authenticated user (must contain `currentCompanyId` and a matching entry in `user.companies`)
+ * @param routeKey - A key from the central `routes` object (e.g. 'home', 'dashboard')
+ * @param routeArgs - Optional extra arguments passed to the route's `.path()` function after the company ID
+ * @param origin - Optional override for base origin (defaults to subdomain logic in prod or current window origin in dev)
+ * @returns The full canonical URL string
+ * @throws If no matching company is found or the route key is invalid
  */
-
 export function buildCanonicalUrl({
   user,
-  subpath: path = "",
+  routeKey,
+  routeArgs = [],
   origin,
 }: BuildCanonicalUrlOptions): string {
   const currentCompanyId = user.currentCompanyId;
   const company = user.companies.find((c) => c.id === currentCompanyId);
 
-  if (!company) {
-    throw new Error("Current company not found in user data");
-  }
+  if (!company) throw new Error("Current company not found in user data");
 
   const firmSlug = company.assignedFirmSlug;
-  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const routeConfig = routes[routeKey];
+  if (!routeConfig)
+    throw new Error(`Route key "${routeKey}" not found in routes`);
+
+  const pathFn = routeConfig.path;
+
+  const fullPath = (() => {
+    if (typeof pathFn !== "function") {
+      throw new Error(`Invalid path function for routeKey "${routeKey}"`);
+    }
+
+    switch (pathFn.length) {
+      case 0:
+        return pathFn();
+      case 1:
+        return pathFn(currentCompanyId);
+      default:
+        return pathFn(currentCompanyId, ...routeArgs);
+    }
+  })();
+  const normalizedPath =
+    fullPath === "" ? "" : fullPath.startsWith("/") ? fullPath : `/${fullPath}`;
 
   const baseOrigin =
     origin ||
@@ -87,44 +120,43 @@ export function buildCanonicalUrl({
       ? `https://${firmSlug}.getaccountable.com`
       : `${window.location.protocol}//${window.location.hostname}:${window.location.port}`);
 
-  return `${baseOrigin}/${currentCompanyId}${cleanPath}`;
+  return `${baseOrigin}${normalizedPath}`;
 }
 
 /**
- * Enforces that the user is on the correct canonical URL.
- * Redirects to the canonical URL if the current URL does not match.
+ * Enforces that the current browser URL matches the canonical URL
+ * for the authenticated user's current company and page.
  *
- * @param user Authenticated user context (source of truth)
+ * If the host or pathname does not match, performs a full page redirect
+ * to the canonical URL. This ensures consistency across firm subdomains.
+ *
+ * @param user - The authenticated user context (source of companyId and firmSlug)
+ * @param routeKey - The key of the route from your central `routes` object
+ * @param routeArgs - Optional arguments passed to the route's path function (after companyId)
  */
-
-export function enforceCanonicalUrl(user: AuthUserContext) {
+export function enforceCanonicalUrl(
+  user: AuthUserContext,
+  routeKey: RouteKey,
+  routeArgs: string[] = []
+) {
   const currentHost = window.location.hostname;
   const currentPath = window.location.pathname;
 
-  // Remove the companyId from currentPath for path comparison (if present)
-  const strippedPath = currentPath
-    .replace(`/${user.currentCompanyId}`, "")
-    .replace(/\/+$/, "");
-
-  // Build the canonical URL for this user and path
+  // Build the canonical URL for the user and route
   const canonicalUrl = buildCanonicalUrl({
     user,
-    path: strippedPath,
+    routeKey,
+    routeArgs,
   });
 
   const canonical = new URL(canonicalUrl);
 
-  // Check subdomain/host mismatch
-  // const subdomainMismatch =
-  //   import.meta.env.PROD && currentHost !== canonical.hostname;
-  // removing import.meta.env.PROD for now to test on .lvh.me
   const subdomainMismatch = currentHost !== canonical.hostname;
-
   const pathMismatch = currentPath !== canonical.pathname;
 
   if (subdomainMismatch || pathMismatch) {
     window.location.replace(canonical.href);
   }
 
-  // If everything matches, do nothing (good URL)
+  // If everything matches, do nothing (good URL, no redirect needed)
 }

@@ -6,6 +6,7 @@ import { LogoutOptions } from "./types";
 import { useCallback, useEffect, useState } from "react";
 import { isPublicRoute } from "@/shared/routes/utils";
 import { useLocation, useNavigate } from "react-router-dom";
+import { queryClient } from "@/lib/queryClient";
 
 export const clearSessionFn = () => {
   authStore.getState().clearAuth();
@@ -14,6 +15,7 @@ export const clearSessionFn = () => {
   if (theme) {
     localStorage.setItem("theme", theme);
   }
+  queryClient.clear();
 };
 
 export const useAuth = () => {
@@ -128,6 +130,7 @@ export const useSessionLoader = () => {
 
   const [loading, setLoading] = useState(true); // Start with true to prevent flickering
   const isPublic = isPublicRoute(location.pathname);
+  console.log("useSessionLoader", { isPublic, pathname: location.pathname });
 
   const loadSession = useCallback(async () => {
     // Skip if user is already authenticated

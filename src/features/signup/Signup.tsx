@@ -29,9 +29,13 @@ import { submitSignup } from "./signupService";
 import { PuffLoader } from "react-spinners";
 import { XIcon } from "lucide-react";
 import { AuthHeader } from "@/components/AuthHeader";
+import { handleLogin } from "../auth/api";
+import { useAuth } from "../auth/hooks";
+import { buildCanonicalUrl } from "@/shared/routes/utils";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
+  const { setAuth } = useAuth();
   const prefillEmail = searchParams.get("email") || "";
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -120,6 +124,7 @@ export default function Signup() {
       setCurrentStep(currentStep + 1);
     }
 
+    // Handle Submission
     if (currentStep === steps.length) {
       const isValid = await companyInfoRef.current?.validate();
       if (!isValid) {
@@ -138,11 +143,30 @@ export default function Signup() {
         if (signup.success) {
           setTimeout(() => {
             setSubmitStatus("success");
-            toast.success("Signup successful");
+            toast.success("Signup successful", { duration: 6000 });
             setError("");
           }, 1000);
 
           // Log the user in
+          const login = await handleLogin({
+            email: basicInfo.email,
+            password: basicInfo.password,
+          });
+          const { user, csrfToken } = login.data || {};
+          if (!login.success || !user || !csrfToken || !user.currentCompany) {
+            toast.error("Please login to continue");
+            return;
+          }
+
+          setAuth(user, csrfToken);
+          const currentCompany = user.currentCompany;
+          if (!currentCompany.onboarding.canAccessApp) {
+            const canonicalUrl = buildCanonicalUrl({
+              user,
+              routeKey: "onboarding",
+            });
+            window.location.replace(canonicalUrl);
+          }
 
           setTimeout(() => {
             window.location.href = "/onboarding";
@@ -158,7 +182,9 @@ export default function Signup() {
         setTimeout(() => {
           setSubmitStatus("error");
           setError("Something went wrong. Please try again.");
-          toast.error("Something went wrong. Please try again.");
+          toast.error("Something went wrong. Please try again.", {
+            duration: 5000,
+          });
         }, 1000);
       } finally {
         setIsSubmitting(false);

@@ -1,6 +1,6 @@
-import { CompanyType, OnboardingStatus } from "@/domains/company/types";
-import { zEmail } from "@/shared/types/core";
 import { z } from "zod";
+import { zEmail } from "@/shared/types/core";
+import { CompanyOnboardingState } from "@/features/onboarding/types";
 
 export const loginForm = z.object({
   email: zEmail,
@@ -39,17 +39,41 @@ export interface AuthUserContext {
   email: string;
   firstname: string;
   lastname?: string;
-  status: string;
-  companies: AuthCompanyContext[];
+
+  isPlatformUser?: boolean;
+  platformUserKey?: RoleKey;
+
   currentCompanyId: string;
-  // permissions?: any;
+  currentCompany: CurrentCompanyContext;
+  companies: AuthCompanyContext[];
 }
 
 export interface AuthCompanyContext {
   id: string;
   assignedFirmSlug: string;
-  name: string;
-  type: CompanyType;
-  role: string;
-  onboardingStatus: OnboardingStatus;
+  hasExplicitAccess: boolean;
+  roleKey: RoleKey | null;
+  roleScope: RoleScope | null;
+  isDemoCompany: boolean;
 }
+
+export type CurrentCompanyContext = AuthCompanyContext & {
+  onboarding: CompanyOnboardingState;
+};
+
+export const roleKey = z.enum([
+  "super_admin",
+  "support_admin",
+  "support_agent",
+  "firm_owner",
+  "firm_admin",
+  "accountant",
+  "staff_accountant",
+  "client_owner",
+  "client_admin",
+  "client_user",
+]);
+export type RoleKey = z.infer<typeof roleKey>;
+
+export const roleScope = z.enum(["platform", "firm", "company"]);
+export type RoleScope = z.infer<typeof roleScope>;
