@@ -7,6 +7,7 @@ import {
   SnakeToCamelCaseObject,
 } from "../../shared/utils/formatting.utils";
 import { CompanyOnboardingState } from "../../features/onboarding/onboarding.types";
+import { CompanyType } from "../companies/companies.types";
 
 export const userCompanyRoleBase = z.object({
   user_id: z.string().uuid(),
@@ -37,6 +38,7 @@ export type UserCompanyRoleAssignmentRes = {
   roleKey: RoleKey;
   roleName: string;
   roleScope: RoleScope;
+  companyType: CompanyType;
   // onboardingState: CompanyOnboardingState;
 };
 
@@ -61,6 +63,7 @@ export type GrantAccessResponse = {
 export type AccessibleCompanies = {
   id: string;
   assignedFirmSlug: string;
+  companyType: CompanyType;
   hasExplicitAccess: boolean;
   roleKey: RoleKey | null;
   roleScope: RoleScope | null;

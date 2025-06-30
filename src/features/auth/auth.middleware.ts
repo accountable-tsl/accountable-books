@@ -14,7 +14,7 @@ export const verifyAccessToken = async (
   next: NextFunction
 ) => {
   const token = req.cookies?.accessToken;
-  if (!token) return res.status(401).json(errorResponse("Unauthorized"));
+  if (!token) return res.status(401).json(errorResponse("Unauthorized", "Token not found"));
 
   try {
     // Verify the JWT and extract the decoded payload
@@ -25,7 +25,7 @@ export const verifyAccessToken = async (
 
     // Ensure the decoded payload includes a valid user ID
     if (!decoded.sub)
-      return res.status(403).json(errorResponse("Invalid token payload"));
+      return res.status(403).json(errorResponse("Invalid token payload", "User ID not found in token"));
 
     const result = await buildAuthContext(decoded);
     if (!result.success || !result.data) {

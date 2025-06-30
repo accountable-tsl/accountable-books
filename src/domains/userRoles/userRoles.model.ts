@@ -57,6 +57,7 @@ const getUserCompanyRoleAssignments = async (
         "ucr.user_id as userId",
         "c.short_code as companyId",
         "af.slug as firmSlug",
+        "c.type as companyType",
         "r.id as roleId",
         "r.key as roleKey",
         "r.name as roleName",
@@ -96,6 +97,7 @@ const getUserCompanyRoleAssignments = async (
       .select(
         "fuca.firm_staff_user_id as userId",
         "c.short_code as companyId",
+        "c.type as companyType",
         "af.slug as firmSlug",
         "r.id as roleId",
         "r.key as roleKey",
@@ -124,6 +126,7 @@ const getUserCompanyRoleAssignments = async (
       roleName: r.roleName,
       roleScope: r.roleScope as RoleScope,
       onboardingState: r.onboardingState,
+      companyType: r.companyType,
     }));
 
     return successResponse("Successfully fetched user roles", result);
@@ -168,9 +171,9 @@ export const getAccessibleCompaniesForUser = async ({
       hasExplicitAccess: true,
       isDemoCompany: false,
       assignedFirmSlug: r.firmSlug,
+      companyType: r.companyType,
       roleKey: r.roleKey,
       roleScope: r.roleScope,
-      // onboardingState: r.onboardingState,
     }));
 
     const knownCompanyIds = userRoles.map((r) => r.companyId);
@@ -179,6 +182,7 @@ export const getAccessibleCompaniesForUser = async ({
       .select(
         "c.display_name as companyName",
         "c.short_code as companyId",
+        "c.type as companyType",
         "af.slug as firmSlug"
       )
       .where("is_demo_company", true)
@@ -192,7 +196,7 @@ export const getAccessibleCompaniesForUser = async ({
         assignedFirmSlug: c.firmSlug,
         roleKey: null,
         roleScope: null,
-        // onboardingState: null,
+        companyType: c.companyType,
       })
     );
 
@@ -263,7 +267,7 @@ export const hasAccessToCompany = async ({
   const companyId = await getCompanyShortCode(companyIdentifier); // for backend only
 
   const { isPlatformUser, platformUserKey, accessibleCompanies } = userContext;
-  const company = accessibleCompanies.find((c) => c.companyId === companyId);
+  const company = accessibleCompanies.find((c) => c.id === companyId);
 
   const hasAccess = !!company || !!isPlatformUser;
 
