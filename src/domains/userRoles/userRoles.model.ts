@@ -9,7 +9,12 @@ import {
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
-import { getRoleId, roles } from "../roles/roles.model";
+import {
+  getRoleId,
+  isRolesLoaded,
+  loadRoles,
+  roles,
+} from "../roles/roles.model";
 import {
   AccessibleCompanies,
   AccessibleCompaniesResponse,
@@ -165,7 +170,7 @@ export const getAccessibleCompaniesForUser = async ({
       assignedFirmSlug: r.firmSlug,
       roleKey: r.roleKey,
       roleScope: r.roleScope,
-      onboardingState: r.onboardingState,
+      // onboardingState: r.onboardingState,
     }));
 
     const knownCompanyIds = userRoles.map((r) => r.companyId);
@@ -187,7 +192,7 @@ export const getAccessibleCompaniesForUser = async ({
         assignedFirmSlug: c.firmSlug,
         roleKey: null,
         roleScope: null,
-        onboardingState: null,
+        // onboardingState: null,
       })
     );
 
@@ -344,11 +349,12 @@ export const isUserCompanyOwner = async ({
   const knex = trx || knexClient;
 
   const ownerRoleKeys: RoleKey[] = ["firm_owner", "client_owner"];
+  const companyUUID = await getCompanyUUID(companyId);
 
   const result = await knex("user_company_roles as ucr")
     .join("roles as r", "ucr.role_id", "r.id")
     .where("ucr.user_id", userId)
-    .andWhere("ucr.company_id", companyId)
+    .andWhere("ucr.company_id", companyUUID)
     .andWhere("ucr.is_deleted", false)
     .whereIn("r.key", ownerRoleKeys)
     .first();
@@ -357,21 +363,27 @@ export const isUserCompanyOwner = async ({
 };
 
 export const grantDirectAccess = async ({
-  knex,
+  trx,
   userId,
   companyId: inputedCompanyId,
   roleKey,
   grantedBy,
 }: GrantDirectAccess): Promise<ApiResponse<GrantAccessResponse>> => {
+  const knex = trx || knexClient;
   try {
-    const companyId = await getCompanyUUID(inputedCompanyId);
+    const companyId = await getCompanyUUID(inputedCompanyId, trx);
     if (!companyId) return errorResponse("Company not found");
 
     const userExists = await knex("users").where("id", userId).first();
     if (!userExists) return errorResponse("User not found");
 
-    const roleId = getRoleId(roleKey);
-    if (!roleId) return errorResponse(`Role '${roleKey}' not found`);
+    let roleId;
+    roleId = await getRoleId(roleKey);
+    if (!roleId) {
+      const role = await knex("roles").where("key", roleKey).first();
+      if (!role) return errorResponse(`Role '${roleKey}' not found`);
+      roleId = String(role.id);
+    }
 
     // Check if user already has a role at this company
     const existingRole = await knex("user_company_roles")
@@ -429,15 +441,16 @@ export const grantDirectAccess = async ({
 };
 
 export const grantAccessToFirmClient = async ({
-  knex,
+  trx,
   firmId,
   clientCompanyId,
   userId,
   grantedBy,
   roleKey,
 }: GrantAccessToFirmClient): Promise<ApiResponse<GrantAccessResponse>> => {
+  const knex = trx || knexClient;
   try {
-    const companyId = await getCompanyUUID(clientCompanyId);
+    const companyId = await getCompanyUUID(clientCompanyId, trx);
     if (!companyId) return errorResponse("Company not found");
 
     const userExists = await knex("users").where("id", userId).first();

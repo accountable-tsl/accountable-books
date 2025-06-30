@@ -44,7 +44,7 @@ export type InviteEmailPayload = TokenBasedEmailPayload & {
   invitedByOrg: { name: string };
 };
 
-type VerifyEmailParams = {
+type VerifyEmailInput = {
   token: string;
   userId: string;
 };
@@ -54,10 +54,10 @@ type ResetPasswordParams = {
   email: string;
 };
 
-type AcceptInviteParams = VerifyEmailParams;
+type AcceptInviteParams = VerifyEmailInput;
 
 export type UrlParamMap = {
-  "verify-email": VerifyEmailParams;
+  "verify-email": VerifyEmailInput;
   "reset-password": ResetPasswordParams;
   "accept-invite": AcceptInviteParams;
 };

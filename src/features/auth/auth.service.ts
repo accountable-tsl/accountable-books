@@ -4,8 +4,8 @@ import {
   AuthCompanyContext,
   AuthUserContext,
   DecodedToken,
-  ResendVerificationEmailParams,
-  VerifyEmailParams,
+  ResendVerificationEmailInput,
+  VerifyEmailInput,
 } from "./auth.types";
 import { knexClient } from "../../../knexClient";
 import {
@@ -21,14 +21,12 @@ import {
 } from "../../shared/utils/crypto.utils";
 import { ApiResponse } from "../../core/types/api.types";
 import { redis } from "../../lib/redis";
-import {
-  getCompanyShortCode,
-  getCompanyUUID,
-} from "../../shared/utils/random.utils";
 import dayjs from "dayjs";
 import { buildEmailServiceUrl } from "../communications/email/email.utils";
 import { sendVerificationEmail } from "../communications/email/email.service";
 import { UserOnboardingState } from "../onboarding/onboarding.types";
+import { addNewToken, getUserToken } from "../../domains/tokens/tokens.model";
+import { markUserOnboardingStepComplete } from "../onboarding/onboarding.utils";
 
 export async function loginService(
   email: string,
@@ -165,15 +163,14 @@ export async function refreshTokenService(
   }
 }
 
-export async function verifyEmailService(params: VerifyEmailParams): Promise<
+export async function verifyEmailService(input: VerifyEmailInput): Promise<
   ApiResponse<{
     emailVerified: boolean;
     status: "verified" | "invalid_or_expired" | "error";
-    slug?: string | null;
     email: string | null;
   }>
 > {
-  const { token, userId } = params;
+  const { token, userId } = input;
 
   if (!token || !userId)
     return errorResponse("Missing required parameters", {
@@ -184,73 +181,109 @@ export async function verifyEmailService(params: VerifyEmailParams): Promise<
 
   try {
     const result = knexClient.transaction(async (trx) => {
-      // Get user information
+      // Is email already verified?
       const user = await trx("users")
-        .select("id", "email", "email_verification_token_hash")
-        .where("id", userId)
-        .whereNotNull("email_verification_token_hash")
-        .andWhere("email_verified_at", null)
-        .andWhere("email_verification_expiry", ">", new Date())
+        .where({ id: userId, is_deleted: false })
+        .select("id", "email", "email_verified_at", "onboarding_state")
         .first();
 
-      if (!user || !user.email_verification_token_hash || !user.email) {
+      const {
+        email_verified_at: initialEmailVerifiedAt,
+        onboarding_state: initialOnboardingState,
+        email: userEmail,
+      } = user || {};
+      if (!user || !userEmail) {
+        return errorResponse("User not found", {
+          emailVerified: false,
+          status: "error",
+          email: null,
+        });
+      }
+
+      if (initialEmailVerifiedAt) {
+        return successResponse("Email already verified", {
+          emailVerified: true,
+          status: "verified",
+          email: userEmail,
+        });
+      }
+
+      const tokenHashRes = await getUserToken({
+        userId: user.id,
+        tokenType: "email_verification",
+      });
+
+      const { id: tokenId, token_hash: tokenHash } = tokenHashRes.data || {};
+
+      if (!tokenHashRes.success || !tokenHash) {
         return errorResponse("Invalid or expired token", {
           emailVerified: false,
           status: "invalid_or_expired",
-          email: user?.email || null,
+          email: null,
         });
       }
 
       // Compare token received with the hashed one in the database
-      const verifyToken = await compareToken(
+      const verifyToken = await compareToken({
         token,
-        user.email_verification_token_hash
-      );
+        hash: tokenHash,
+      });
 
       if (!verifyToken)
         return errorResponse("Invalid or expired token", {
           emailVerified: false,
           status: "invalid_or_expired",
-          email: user?.email || null,
+          email: null,
         });
 
+      let newOnboardingState;
+      if (initialOnboardingState) {
+        newOnboardingState = markUserOnboardingStepComplete(
+          initialOnboardingState,
+          "email_verified"
+        );
+      }
       // Verified token, update user
-      await trx("users").where({ id: user.id }).update({
-        email_verified: true,
-        email_verified_at: new Date(),
-        email_verification_token_hash: null,
-        email_verification_expiry: null,
+      await trx("users")
+        .where({ id: userId })
+        .update({
+          email_verified_at: new Date(),
+          ...(newOnboardingState
+            ? { onboarding_state: newOnboardingState }
+            : {}),
+        });
+
+      await trx("tokens").where({ id: tokenId }).delete();
+
+      return successResponse("Email verified", {
+        emailVerified: true,
+        status: "verified",
+        email: userEmail,
       });
     });
 
-    const slugs = await knexClient("user_company_roles as ucr")
-      .select(["af.slug as slug", "c.created_by_id as creatorId"])
-      .join("companies as c", "ucr.company_id", "c.id")
-      .join("accounting_firms_meta as af", "c.assigned_firm_id", "af.id")
-      .where("ucr.user_id", user.id);
+    // const slugs = await knexClient("user_company_roles as ucr")
+    //   .select(["af.slug as slug", "c.created_by_id as creatorId"])
+    //   .join("companies as c", "ucr.company_id", "c.id")
+    //   .join("accounting_firms_meta as af", "c.assigned_firm_id", "af.id")
+    //   .where("ucr.user_id", user.id);
 
     // We prefer to return a slug for the company the user *created* (if any),
     // since this is likely their primary or most important company.
     // If the user didn't create any companies, we fallback to any valid company slug.
 
-    let slugToReturn: string | null = null;
-    if (slugs.length > 0) {
-      const createdCompany = slugs.find((s) => s.creatorId === user.id);
-      if (createdCompany) {
-        slugToReturn = createdCompany.slug;
-      } else {
-        slugToReturn = slugs[0].slug;
-      }
-    }
+    // let slugToReturn: string | null = null;
+    // if (slugs.length > 0) {
+    //   const createdCompany = slugs.find((s) => s.creatorId === user.id);
+    //   if (createdCompany) {
+    //     slugToReturn = createdCompany.slug;
+    //   } else {
+    //     slugToReturn = slugs[0].slug;
+    //   }
+    // }
 
-    return successResponse("Email verified successfully", {
-      emailVerified: true,
-      status: "verified",
-      slug: slugToReturn,
-      email: user?.email || null,
-    });
+    return result;
   } catch (error: any) {
-    console.log(error);
     return errorResponse("Failed to verify email", {
       emailVerified: false,
       status: "error",
@@ -258,59 +291,11 @@ export async function verifyEmailService(params: VerifyEmailParams): Promise<
     });
   }
 }
-export async function verifyEmailServiceOld(
-  params: VerifyEmailParams
-): Promise<ApiResponse> {
-  if (!params.token) return errorResponse("Missing token");
-  const { token } = params;
-
-  try {
-    const user = await knexClient("users")
-      .select("id", "email_verification_token_hash")
-      .where((qb) => {
-        if ("userId" in params) {
-          qb.where("id", params.userId);
-        } else {
-          qb.where("email", params.email);
-        }
-      })
-      .whereNotNull("email_verification_token_hash")
-      .andWhere("email_verified_at", null)
-      .andWhere("email_verification_expiry", ">", new Date())
-      .first();
-
-    if (!user || !user.email_verification_token_hash) {
-      return errorResponse("Invalid or expired token");
-    }
-
-    const verifyToken = await compareToken(
-      token,
-      user?.email_verification_token_hash
-    );
-
-    if (!user || !verifyToken) return errorResponse("Invalid or expired token");
-
-    const updatedUser = await knexClient("users")
-      .returning(["id", "email", "email_verified"])
-      .where({ id: user.id })
-      .update({
-        email_verified: true,
-        email_verified_at: new Date(),
-        email_verification_token_hash: null,
-        email_verification_expiry: null,
-      });
-
-    return successResponse("Email verified successfully", updatedUser);
-  } catch (error) {
-    console.log(error);
-    return errorResponse("Failed to verify email");
-  }
-}
 
 export async function resendVerificationEmailService(
-  params: ResendVerificationEmailParams
+  input: ResendVerificationEmailInput
 ): Promise<ApiResponse> {
-  if (!params.userId) {
+  if (!input.userId) {
     return errorResponse("Missing required parameters");
   }
 
@@ -320,37 +305,37 @@ export async function resendVerificationEmailService(
       .select(
         "id",
         "email",
-        "email_verified",
-        "email_verification_expiry",
-        "email_verification_token_hash",
+        "firstname",
         "email_verified_at",
-        "firstname"
+        "onboarding_state"
       )
-      .where({ id: params.userId })
+      .where({ id: input.userId })
       .first();
 
     if (!user) {
       return errorResponse("User not found");
     }
 
-    if (user.email_verified && user.email_verified_at) {
+    if (user && user.email_verified_at) {
       return errorResponse("Email already verified");
     }
 
     const token = generateRandomToken();
     const hashedToken = await hashToken(token);
+    const expiry = dayjs().add(24, "hours").toDate();
 
-    await knexClient("users")
-      .where({ id: user.id })
-      .update({
-        email_verification_token_hash: hashedToken,
-        email_verification_expiry: dayjs().add(24, "hours").toDate(), // 24 hours
-      });
+    const tokenRes = await addNewToken({
+      user_id: user.id,
+      token_type: "email_verification",
+      token_hash: hashedToken,
+      expires_at: expiry,
+    });
 
     const url = buildEmailServiceUrl("verify-email", {
       userId: user.id,
       token,
     });
+
     const sendEmail = await sendVerificationEmail({
       to: user.email,
       name: user.firstname,

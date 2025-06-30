@@ -1,5 +1,12 @@
 import type { Knex } from "knex";
-import { newToken, NewToken } from "./tokens.types";
+import {
+  AddNewTokenResponse,
+  FetchTokenResponse,
+  GetInvitedUserTokenInput,
+  GetTokenInput,
+  newToken,
+  NewToken,
+} from "./tokens.types";
 import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import {
@@ -10,7 +17,7 @@ import {
 export async function addNewToken(
   input: NewToken,
   trx?: Knex.Transaction
-): Promise<ApiResponse> {
+): Promise<ApiResponse<AddNewTokenResponse>> {
   const knex = trx || knexClient;
 
   const validInput = newToken.safeParse(input);
@@ -64,5 +71,103 @@ export async function addNewToken(
     );
   } catch (error) {
     return errorResponse("Failed to save token", error);
+  }
+}
+
+export async function getUserToken({
+  userId,
+  email,
+  companyId,
+  tokenType,
+  includeExpired = false,
+  includeEmailAddress = false,
+  trx,
+}: GetTokenInput & { trx?: Knex.Transaction }): Promise<
+  ApiResponse<FetchTokenResponse>
+> {
+  const knex = trx || knexClient;
+
+  // Validation
+  if (!tokenType) return errorResponse("Token type is required");
+  if (!userId && !email && !companyId) {
+    return errorResponse("Must provide userId, userEmail, or companyId");
+  }
+  if (userId && email) {
+    return errorResponse("Cannot specify both userId and userEmail");
+  }
+
+  try {
+    let query = knex("tokens")
+      .where({ token_type: tokenType })
+      .orderBy("created_at", "desc");
+
+    if (!includeExpired) query.andWhere("expires_at", ">", knex.fn.now());
+
+    // Handle email joins
+    if (includeEmailAddress || email) {
+      query
+        .leftJoin("users", "tokens.user_id", "users.id")
+        .select("tokens.*", "users.email");
+
+      if (email) {
+        query.andWhere("users.email", email);
+      }
+    } else {
+      query.select("tokens.*");
+    }
+
+    const token = await query.first();
+    return successResponse("Token retrieved", token || null);
+  } catch (error) {
+    return errorResponse("Error fetching token", error);
+  }
+}
+
+export async function getTokenForInvitedUser({
+  invitationId,
+  email,
+  tokenType,
+  includeExpired = false,
+  trx,
+}: GetInvitedUserTokenInput & {
+  trx?: Knex.Transaction;
+}): Promise<ApiResponse<FetchTokenResponse>> {
+  const knex = trx || knexClient;
+
+  // Validation
+  if (!tokenType) return errorResponse("Token type is required");
+  if (!invitationId) return errorResponse("Invitation ID is required");
+
+  try {
+    let query = knex("tokens")
+      .where({
+        token_type: tokenType,
+        invitation_id: invitationId,
+      })
+      .orderBy("created_at", "desc");
+
+    if (!includeExpired) {
+      query.andWhere("expires_at", ">", knex.fn.now());
+    }
+
+    // Always include email for invitation tokens
+    query
+      .leftJoin(
+        "user_invitations",
+        "tokens.invitation_id",
+        "user_invitations.id"
+      )
+      .select("tokens.*", "user_invitations.email");
+
+    // Filter by email if provided
+    if (email) {
+      query.andWhere("user_invitations.email", email);
+    }
+
+    const token = await query.first();
+    return successResponse("Invitation token retrieved", token || null);
+  } catch (error) {
+    console.error("Error fetching invitation token:", error);
+    return errorResponse("Failed to retrieve invitation token");
   }
 }

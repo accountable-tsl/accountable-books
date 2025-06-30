@@ -15,7 +15,7 @@
     "migrate:staging": "npm run knex -- migrate:latest --env staging --knexfile knexfile.ts",
     "migrate:prod": "npm run knex -- migrate:latest --env production --knexfile knexfile.ts",
     "seed:demo": "tsx seeds/demo/index.ts",
-    "seed:others": "NODE_ENV=local tsx seeds/ephemeral/index.ts",
+    "seed:others": "NODE_ENV=local tsx seeds/test/index.ts",
     "migrate:rollback": "npm run knex -- migrate:rollback --step=1 --env local --knexfile knexfile.ts",
     "migrate:rollback:docker": "npm run knex -- migrate:rollback --step=1 --env docker --knexfile knexfile.ts",
     "migrate:rollback:all": "npm run knex -- migrate:rollback --all --env local --knexfile knexfile.ts",

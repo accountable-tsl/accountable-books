@@ -32,7 +32,7 @@ const seedRoles = async function seed(knex: Knex): Promise<void> {
 
     // Bulk insert
     await knex.transaction(async (trx) => {
-      await trx(tableName).insert(seedData).onConflict("name").ignore();
+      await trx(tableName).insert(seedData).onConflict("key").merge();
     });
 
     if (isDev) {

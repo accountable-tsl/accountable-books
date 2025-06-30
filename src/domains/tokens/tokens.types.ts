@@ -16,6 +16,7 @@ export const baseToken = z.object({
   expires_at: z.date(),
   consumed_at: z.date().nullish(),
   updated_at: z.date().nullish(),
+  created_at: z.date().nullish(),
 });
 
 export const newToken = baseToken.refine(
@@ -31,3 +32,25 @@ export const token = baseToken.extend({
   created_at: z.date(),
 });
 export type Token = z.infer<typeof token>;
+
+export type GetTokenInput = {
+  tokenType: TokenType;
+  userId?: string;
+  companyId?: string;
+  email?: string;
+  includeExpired?: boolean;
+  includeEmailAddress?: boolean;
+};
+
+export type GetInvitedUserTokenInput = {
+  invitationId: string;
+  email?: string;
+  tokenType: TokenType;
+  includeExpired?: boolean;
+};
+
+export type FetchTokenResponse = Token & {
+  email?: string;
+};
+
+export type AddNewTokenResponse = Omit<Token, "token_hash">;

@@ -1,7 +1,12 @@
 import type { Knex } from "knex";
 import { ApiResponse } from "../../core/types/api.types";
 import { snakeToCamel } from "../../shared/utils/formatting.utils";
-import { NewUserDirect, newUserDirect, UserResponseCamel } from "./users.types";
+import {
+  CreateUserResponse,
+  NewUserDirect,
+  newUserDirect,
+  UserResponseCamel,
+} from "./users.types";
 import {
   errorResponse,
   successResponse,
@@ -19,7 +24,7 @@ import { createInitialUserOnboardingState } from "../../features/onboarding/onbo
 export async function createUserDirect(
   knexTrx: Knex.Transaction,
   input: NewUserDirect
-): Promise<ApiResponse> {
+): Promise<ApiResponse<CreateUserResponse>> {
   const validateInput = newUserDirect.safeParse(input);
   if (!validateInput.success) {
     return errorResponse("Invalid input", validateInput.error.format());
@@ -50,7 +55,7 @@ export async function createUserDirect(
         password: hashedPassword,
         onboarding_state: onboardingState,
       })
-      .returning(["id", "firstname", "lastname", "email"]);
+      .returning(["id", "firstname", "lastname", "email", "onboarding_state"]);
 
     if (!user) {
       return errorResponse(
@@ -69,10 +74,16 @@ export async function createUserDirect(
       knexTrx
     );
 
-    return successResponse(
-      "Account created successfully",
-      snakeToCamel({ ...user, verificationToken })
-    );
+    const resp: CreateUserResponse = {
+      id: user.id,
+      email: user.email,
+      firstname: user.firstname,
+      lastname: user?.lastname,
+      onboardingState: user.onboarding_state || onboardingState,
+      verificationToken,
+    };
+
+    return successResponse("Account created successfully", resp);
   } catch (error) {
     return errorResponse(
       "We couldn't create your account. Please try again.",

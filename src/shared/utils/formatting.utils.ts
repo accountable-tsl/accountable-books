@@ -33,12 +33,12 @@ export function camelToSnake<T>(input: T): T {
  * Useful for converting DB results to frontend-friendly format.
  */
 
-export function snakeToCamel<T>(input: T): T {
+export function snakeToCamel<T>(input: T): SnakeToCamelCaseObject<T> {
   if (!input || typeof input !== "object" || input instanceof Date)
-    return input;
+    return input as any;
 
   if (Array.isArray(input)) {
-    return input.map(snakeToCamel) as T;
+    return input.map(snakeToCamel) as any;
   }
 
   return Object.entries(input).reduce(
@@ -49,7 +49,7 @@ export function snakeToCamel<T>(input: T): T {
       return acc;
     },
     {} as Record<string, any>
-  ) as T;
+  ) as any;
 }
 
 /**

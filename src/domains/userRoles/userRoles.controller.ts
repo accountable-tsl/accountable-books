@@ -1,28 +1,33 @@
 import { Response } from "express";
 import { AuthRequest } from "../../features/auth/auth.types";
-import { grantAccessToCompany } from "./userRoles.model";
+import { grantDirectAccess } from "./userRoles.model";
 import { errorResponse } from "../../shared/utils/response.utils";
+import { roleKey as roleKeyEnum } from "../roles/roles.types";
 
 export async function grantAccessToCompanyController(
   req: AuthRequest,
   res: Response
 ) {
-  const userId = req.user?.id;
-  const companyId = req.body.id || req.params.companyId;
-  const receivedRoleName = req.body.roleName;
+  const { userId, companyId, roleKey } = req.body;
+  const grantedBy = req.user?.id;
 
-  console.log({ userId, companyId, receivedRoleName });
-
-  // only handle demo_user for now
-  const roleName = receivedRoleName || "demo_user";
-  if (!userId || !roleName || !companyId)
+  if (
+    !grantedBy ||
+    !userId ||
+    !roleKey ||
+    !roleKeyEnum.options.includes(roleKey) ||
+    !companyId ||
+    !grantedBy
+  ) {
     return res.status(400).json(errorResponse("Missing required fields"));
+  }
 
   try {
-    const result = await grantAccessToCompany({
+    const result = await grantDirectAccess({
       userId,
-      roleName,
+      roleKey,
       companyId,
+      grantedBy,
     });
 
     console.log(result);

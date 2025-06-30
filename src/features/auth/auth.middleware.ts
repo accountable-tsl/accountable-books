@@ -28,12 +28,12 @@ export const verifyAccessToken = async (
       return res.status(403).json(errorResponse("Invalid token payload"));
 
     const result = await buildAuthContext(decoded);
-    if (!result.success) {
+    if (!result.success || !result.data) {
       return res.status(403).json(result.error);
     }
 
-    req.user = result.user;
-    req.company = result.company;
+    req.user = result.data.user;
+    req.company = result.data.activeCompany;
 
     // Attach user ID and company roles to the request object
 
@@ -142,48 +142,48 @@ export const requireAuth = async (
   }
 };
 
-export const requirePermission = (permission: string) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user) return res.status(401).json(errorResponse("Unauthorized"));
+// export const requirePermission = (permission: string) => {
+//   return async (req: AuthRequest, res: Response, next: NextFunction) => {
+//     if (!req.user) return res.status(401).json(errorResponse("Unauthorized"));
 
-    const currentCompanyId = req.user.currentCompanyId || req.params.companyId;
-    if (!currentCompanyId) {
-      return res.status(400).json(errorResponse("Company ID not provided"));
-    }
+//     const currentCompanyId = req.user.currentCompanyId || req.params.companyId;
+//     if (!currentCompanyId) {
+//       return res.status(400).json(errorResponse("Company ID not provided"));
+//     }
 
-    const role = req.user.companyRoles?.find(
-      (r) => r.companyId === currentCompanyId
-    );
-    if (!role) {
-      return res
-        .status(403)
-        .json(errorResponse("Not authorized for this company"));
-    }
+//     const role = req.user.companyRoles?.find(
+//       (r) => r.companyId === currentCompanyId
+//     );
+//     if (!role) {
+//       return res
+//         .status(403)
+//         .json(errorResponse("Not authorized for this company"));
+//     }
 
-    // Redis Cache
-    const cacheKey = `permissions:${role.roleId}`;
-    const cached = await redis.get(cacheKey);
-    let permissions: string[];
+//     // Redis Cache
+//     const cacheKey = `permissions:${role.roleId}`;
+//     const cached = await redis.get(cacheKey);
+//     let permissions: string[];
 
-    if (cached) {
-      permissions = JSON.parse(cached);
-    } else {
-      const result = await getPermissionsForRole(role.roleId);
-      if (!result.success)
-        return res.status(403).json(errorResponse("No permissions found"));
+//     if (cached) {
+//       permissions = JSON.parse(cached);
+//     } else {
+//       const result = await getPermissionsForRole(role.roleId);
+//       if (!result.success)
+//         return res.status(403).json(errorResponse("No permissions found"));
 
-      permissions = result.data.map(
-        (p: { permission: string }) => p.permission
-      );
+//       permissions = result.data.map(
+//         (p: { permission: string }) => p.permission
+//       );
 
-      await redis.setex(cacheKey, 3600, JSON.stringify(permissions)); // Cache for 1hr
-    }
+//       await redis.setex(cacheKey, 3600, JSON.stringify(permissions)); // Cache for 1hr
+//     }
 
-    if (!permissions.includes(permission)) {
-      return res.status(403).json(errorResponse("Forbidden"));
-    }
+//     if (!permissions.includes(permission)) {
+//       return res.status(403).json(errorResponse("Forbidden"));
+//     }
 
-    req.user.permissions = permissions.map((p) => ({ permission: p }));
-    next();
-  };
-};
+//     req.user.permissions = permissions.map((p) => ({ permission: p }));
+//     next();
+//   };
+// };

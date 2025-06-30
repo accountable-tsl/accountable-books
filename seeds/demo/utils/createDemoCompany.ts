@@ -2,10 +2,10 @@ import { faker } from "@faker-js/faker";
 import {
   CompanyType,
   NewCompanyInputCamel,
-} from "../../src/domains/companies/companies.types";
-import { NewUserInputCamel } from "../../src/domains/users/users.types";
-import { knexClient } from "../../knexClient";
-import { registerNewAccount } from "../../src/features/signup/signup.service";
+} from "../../../src/domains/companies/companies.types";
+import { NewUserInputCamel } from "../../../src/domains/users/users.types";
+import { knexClient } from "../../../knexClient";
+import { registerNewAccount } from "../../../src/features/signup/signup.service";
 
 const generateDemoSignupInput = (input: {
   companyType: CompanyType;

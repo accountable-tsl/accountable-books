@@ -26,7 +26,6 @@ const providerCountryMappings: BpcInputCamel[] = [
   ...buildProviderCountryMappings("stripe", STRIPE_COUNTRIES),
 ];
 
-
 const seedBankFeedProviders = async function seed(knex: Knex): Promise<void> {
   const adminUserId = adminUser.id;
   if (!adminUserId) throw new Error("adminUserId is required");
@@ -52,7 +51,9 @@ const seedBankFeedProviders = async function seed(knex: Knex): Promise<void> {
     knex,
   });
   if (!mappingsResult.success) throw new Error(mappingsResult.message);
-  console.log(`Created bank feed provider-country mappings: ${mappingsResult.data?.length ?? 0}`);
+  console.log(
+    `Created bank feed provider-country mappings: ${mappingsResult.data?.length ?? 0}`
+  );
 };
 
 const tableName = "bank_feed_provider_countries";

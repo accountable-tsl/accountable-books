@@ -168,7 +168,7 @@ export async function createNewBankAccount(input: {
   const { data: inputData, userId, companyId } = input;
   if (!companyId) return errorResponse("Company ID is required");
   try {
-    const companyUUID = await getCompanyUUID(companyId);
+    const companyUUID = await getCompanyUUID(companyId, input.trx);
     if (!companyUUID) {
       return errorResponse("Invalid company ID");
     }

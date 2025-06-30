@@ -12,8 +12,13 @@ export const hashPassword = async (password: string) =>
 export const comparePassword = async (input: string, hash: string) =>
   bcrypt.compare(input, hash);
 
-export const compareToken = async (input: string, hash: string) =>
-  bcrypt.compare(input, hash);
+export const compareToken = async ({
+  token,
+  hash,
+}: {
+  token: string;
+  hash: string;
+}) => bcrypt.compare(token, hash);
 
 // Define a safe Base58 alphabet (avoiding ambiguous characters).
 const SAFE_BASE58 =
@@ -42,4 +47,18 @@ export default function generateSecureShortCode(length = 8): string {
   }
 
   return code;
+}
+
+export function shortCodelooksWeird(
+  code: string,
+  maxRunLength?: number
+): boolean {
+  if (!maxRunLength) maxRunLength = Math.floor(code.length / 2);
+
+  // Check for long runs of same character type
+  return (
+    new RegExp(`\\d{${maxRunLength},}`).test(code) || // 4+ consecutive digits
+    new RegExp(`[A-Z]{${maxRunLength},}`).test(code) || // 4+ consecutive uppercase
+    new RegExp(`[a-z]{${maxRunLength},}`).test(code)
+  ); // 4+ consecutive lowercase
 }

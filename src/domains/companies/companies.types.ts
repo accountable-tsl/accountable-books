@@ -16,6 +16,7 @@ export const accountingBasis = z.enum([
 ]);
 
 export const newCompanyInput = z.object({
+  id: z.string().uuid().optional(),
   legal_name: z.string().max(256),
   country_id: z.string().uuid(),
   type: companyType,

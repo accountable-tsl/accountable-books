@@ -1,16 +1,16 @@
 import { faker } from "@faker-js/faker";
-import { knexClient } from "../../knexClient";
-import { createNewBankAccount } from "../../src/domains/bankAccounts/bankAccounts.model";
+import { knexClient } from "../../../knexClient";
+import { createNewBankAccount } from "../../../src/domains/bankAccounts/bankAccounts.model";
 import {
   bankAccountType,
   NewBankAccountInput,
-} from "../../src/domains/bankAccounts/bankAccounts.types";
-import { getCompanies } from "../../src/domains/companies/companies.model";
-import { CompanyType } from "../../src/domains/companies/companies.types";
+} from "../../../src/domains/bankAccounts/bankAccounts.types";
+import { getCompanies } from "../../../src/domains/companies/companies.model";
+import { CompanyType } from "../../../src/domains/companies/companies.types";
 import {
   CoaSource,
   coaSource,
-} from "../../src/domains/chartOfAccounts/coa.types";
+} from "../../../src/domains/chartOfAccounts/coa.types";
 import {
   banksInSystem,
   countriesInSystem,

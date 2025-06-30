@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "../auth/auth.types";
 import { ErrorCode, errorResponse } from "../../shared/utils/response.utils";
-import { updateOnboardingStatus } from "./onboarding.service";
+// import { updateOnboardingStatus } from "./onboarding.service";
 
 export async function updateOnboardingStatusController(
   req: AuthRequest,

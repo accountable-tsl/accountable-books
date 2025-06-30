@@ -1,4 +1,9 @@
 import type { Knex } from "knex";
+import { seedAdminUser } from "./20250403184441_users";
+import { createPlatformCompany } from "./20250403194332_companies";
+import { createPlatformFirm } from "./20250403194335_accounting_firms_meta";
+import { insertPlatformFirmCompany } from "./20250403222519_client_firm_assignments";
+import { assignAdminRole } from "./20250403222517_user_company_roles";
 
 const tableName = "tokens";
 export async function up(knex: Knex): Promise<void> {
@@ -54,14 +59,20 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(`
   CREATE UNIQUE INDEX unique_active_token_per_user_per_type
   ON tokens (token_type, user_id)
-  WHERE user_id IS NOT NULL AND consumed_at IS NULL AND expires_at > now()
+  WHERE user_id IS NOT NULL AND consumed_at IS NULL
 `);
 
   await knex.raw(`
   CREATE UNIQUE INDEX unique_active_token_per_invitation_per_type
   ON tokens (token_type, invitation_id)
-  WHERE invitation_id IS NOT NULL AND consumed_at IS NULL AND expires_at > now()
+  WHERE invitation_id IS NOT NULL AND consumed_at IS NULL
 `);
+
+  await seedAdminUser(knex);
+  await createPlatformCompany(knex);
+  await createPlatformFirm(knex);
+  await assignAdminRole(knex);
+  await insertPlatformFirmCompany(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

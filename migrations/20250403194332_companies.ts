@@ -135,7 +135,7 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await createPlatformCompany(knex);
+  // await createPlatformCompany(knex);
 
   // Update last_active_company_id column in users table
   await knex.schema.alterTable("users", (table) => {

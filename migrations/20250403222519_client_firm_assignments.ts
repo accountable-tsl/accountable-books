@@ -10,7 +10,7 @@ import { createPlatformFirm } from "./20250403194335_accounting_firms_meta";
 // This table maps which business is assigned to which accounting firm. Think of it like:
 // Business A is being managed by Accounting Firm X.
 // Only one firm per business is allowed, but a firm can manage many businesses.
-const insertPlatformFirmCompany = async (knex: Knex) => {
+export const insertPlatformFirmCompany = async (knex: Knex) => {
   const platformCompany = await createPlatformCompany(knex);
   const platformAccountingFirm = await createPlatformFirm(knex);
 
@@ -86,7 +86,7 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await insertPlatformFirmCompany(knex);
+  // await insertPlatformFirmCompany(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

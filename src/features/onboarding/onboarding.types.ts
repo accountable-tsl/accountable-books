@@ -4,8 +4,6 @@ import {
   onboardingStepKeys,
   userOnboardingStepKeys,
 } from "./onboarding.utils";
-import { any } from "jest-mock-extended";
-import { RoleKey } from "../../domains/roles/roles.types";
 
 // STEP KEYS
 export type UserOnboardingStepKey =
@@ -35,7 +33,7 @@ export const userOnboardingState = z
     }),
     completed_at: z
       .object({
-        email_verified: z.date().nullish(),
+        email_verified: z.date().optional(),
         // profile_completed: z.date().nullish(),
       })
       .optional(),
@@ -62,24 +60,18 @@ export const companyOnboardingState = z
     metadata: z.null().nullish(),
   })
   .nullish();
-// export type CompanyOnboardingState = {
-//   steps: CompanyOnboardingSteps;
-//   completed_at?: CompanyOnboardingStepsCompletedAt;
-//   metadata?: null;
-// } | null;
+
 export type CompanyOnboardingState = z.infer<
   typeof companyOnboardingState
 > | null;
 
 export type OnboardingUserObj = {
   id: string;
-  emailVerifiedAt: Date;
-  onboardingState: UserOnboardingState;
+  emailVerifiedAt: Date | null;
   isPlatformUser?: boolean;
 };
 export type OnboardingCompanyObj = {
   id: string;
-  onboardingState: CompanyOnboardingState;
   isDemoCompany?: boolean;
   isPlatformCompany?: boolean;
 };

@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { dbBaseFields, zDate, zEmail } from "../../core/types/core";
 import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
-import { userOnboardingState } from "../../features/onboarding/onboarding.types";
+import {
+  UserOnboardingState,
+  userOnboardingState,
+} from "../../features/onboarding/onboarding.types";
 
 // user
 export const newUser = z.object({
@@ -21,7 +24,7 @@ export const newUser = z.object({
   last_active_company_id: z.string().uuid().nullish(),
   onboarding_state: userOnboardingState,
 
-  // is_demo_user: z.boolean().default(false).optional(),
+  is_demo_user: z.boolean().default(false).optional(),
 });
 
 export const newUserDirect = newUser.extend({
@@ -38,9 +41,18 @@ export type User = z.infer<typeof user>;
 
 export type NewUserInputCamel = SnakeToCamelCaseObject<NewUserInput>;
 export type UserRecord = z.infer<typeof user> & {
-  password?: string; // Only present for local auth
+  password?: string;
 };
 
 export type UserResponseCamel = Omit<SnakeToCamelCaseObject<User>, "password">;
 
 export type UserInfo = Omit<NewUserInput, "password"> & { id: string };
+
+export type CreateUserResponse = {
+  id: string;
+  email: string;
+  firstname: string;
+  lastname?: string | null;
+  onboardingState: UserOnboardingState;
+  verificationToken: string;
+};

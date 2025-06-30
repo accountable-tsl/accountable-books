@@ -34,7 +34,7 @@ const getAdminUserConfig = (): NewUserDirect => {
 };
 export const adminUser = getAdminUserConfig();
 
-const seedAdminUser = async (knex: Knex) => {
+export const seedAdminUser = async (knex: Knex) => {
   const { password, email, firstname } = adminUser;
 
   if (!password || !email || !firstname) {
@@ -81,13 +81,13 @@ export async function up(knex: Knex): Promise<void> {
     // .references("id")
     // .inTable("companies"); // Added foreign key after migrating companies talbe
 
-    // table.boolean("is_demo_user").defaultTo(false);
+    table.boolean("is_demo_user").defaultTo(false);
 
     addStandardColumns(table);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await seedAdminUser(knex);
+  // await seedAdminUser(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

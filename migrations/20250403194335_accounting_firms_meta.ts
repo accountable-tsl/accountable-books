@@ -80,7 +80,7 @@ export async function up(knex: Knex): Promise<void> {
   }
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await createPlatformFirm(knex);
+  // await createPlatformFirm(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

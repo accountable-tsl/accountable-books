@@ -192,7 +192,7 @@ export const updateFirm = async (
       );
     }
 
-    const companyUUID = await getCompanyUUID(id);
+    const companyUUID = await getCompanyUUID(id, trx);
     if (!companyUUID) {
       throw new Error("Invalid company ID");
     }
@@ -203,15 +203,21 @@ export const updateFirm = async (
     ]);
 
     if (!firm) {
-      return errorResponse("Firm not found", null, ErrorCode.NOT_FOUND);
+      return errorResponse("Firm not found", null, {
+        code: ErrorCode.NOT_FOUND,
+      });
     }
 
     if (!company) {
-      return errorResponse("Company not found", null, ErrorCode.NOT_FOUND);
+      return errorResponse("Company not found", null, {
+        code: ErrorCode.NOT_FOUND,
+      });
     }
 
     if (company.is_platform) {
-      return errorResponse("Cannot update", null, ErrorCode.FORBIDDEN);
+      return errorResponse("Cannot update", null, {
+        code: ErrorCode.FORBIDDEN,
+      });
     }
 
     const validatedData = newAccFirm.partial().safeParse(data);

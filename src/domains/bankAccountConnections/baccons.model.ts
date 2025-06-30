@@ -52,7 +52,7 @@ export const handleMonoConnection = async ({
     });
   }
 
-  const companyId = await getCompanyUUID(providedCompanyId);
+  const companyId = await getCompanyUUID(providedCompanyId, providedTrx);
   if (!companyId) {
     if (providedTrx) await providedTrx.rollback();
     return errorResponse("Unauthorized");

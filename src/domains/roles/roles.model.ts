@@ -39,10 +39,14 @@ export const loadRoles = async () => {
 
 export const isRolesLoaded = () => rolesLoaded;
 
-export function getRoleId(key: RoleKey): string {
+export async function getRoleId(key: RoleKey): Promise<string> {
+  const allRolesLoaded = isRolesLoaded();
+  if (!allRolesLoaded) await loadRoles();
+
   if (!rolesLoaded) {
     throw new AppError("Roles not loaded yet! Call loadRoles() at startup.");
   }
+
   return roles[key].id;
 }
 

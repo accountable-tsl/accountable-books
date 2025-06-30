@@ -109,7 +109,6 @@ export async function buildAuthContext(
       firstname,
       lastname,
       emailVerifiedAt,
-      onboardingState,
       currentCompanyId,
     } = decoded;
     if (!sub) return errorResponse("Invalid token payload, missing user ID");
@@ -149,7 +148,6 @@ export async function buildAuthContext(
       user: {
         id: sub,
         emailVerifiedAt,
-        onboardingState,
         isPlatformUser: userAccessProfile.isPlatformUser,
       },
       company: activeCompany,

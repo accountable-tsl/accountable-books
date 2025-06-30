@@ -1,5 +1,5 @@
 import express from "express";
-import { allCurrencies } from "./currency.controller";
+import { allCurrencies } from "./currencies.controller";
 
 const router = express.Router({ mergeParams: true });
 

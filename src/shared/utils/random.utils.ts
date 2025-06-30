@@ -1,16 +1,21 @@
+import type { Knex } from "knex";
 import { getCompanyIdentifiers } from "../../domains/companies/companies.utils";
 
 export const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-export const getCompanyUUID = async (identifier: string): Promise<string> => {
-  const { id } = await getCompanyIdentifiers(identifier);
+export const getCompanyUUID = async (
+  identifier: string,
+  trx?: Knex.Transaction
+): Promise<string> => {
+  const { id } = await getCompanyIdentifiers(identifier, trx);
   return id;
 };
 
 export const getCompanyShortCode = async (
-  identifier: string
+  identifier: string,
+  trx?: Knex.Transaction
 ): Promise<string> => {
-  const { short_code } = await getCompanyIdentifiers(identifier);
+  const { short_code } = await getCompanyIdentifiers(identifier, trx);
   return short_code;
 };
 

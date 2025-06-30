@@ -48,7 +48,7 @@ export const createCoa = async ({
   }
 
   // Get actual company UUID
-  const companyUUID = await getCompanyUUID(companyId);
+  const companyUUID = await getCompanyUUID(companyId, trx);
   if (!companyUUID) {
     return errorResponse("Invalid company ID");
   }

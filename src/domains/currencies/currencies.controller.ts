@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getAllCurrencies } from "./currency.model";
+import { getAllCurrencies } from "./currencies.model";
 import { errorResponse } from "../../shared/utils/response.utils";
 
 export async function allCurrencies(req: Request, res: Response) {

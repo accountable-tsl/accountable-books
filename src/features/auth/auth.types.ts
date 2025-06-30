@@ -62,9 +62,9 @@ export interface AuthRequest extends Request {
   company?: AuthCompanyContext;
 }
 
-export type VerifyEmailParams = {
+export type VerifyEmailInput = {
   token: string;
   userId: string;
 };
 
-export type ResendVerificationEmailParams = VerifyEmailParams;
+export type ResendVerificationEmailInput = VerifyEmailInput;

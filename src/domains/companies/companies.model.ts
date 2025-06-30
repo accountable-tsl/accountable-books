@@ -5,6 +5,7 @@ import {
   FetchCompaniesOptions,
   fieldToColumnMap,
   GetCompanyResponse,
+  NewCompany,
   newCompany,
   newCompanyInput,
   NewCompanyInput,
@@ -23,7 +24,9 @@ import {
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
-import generateSecureShortCode from "../../shared/utils/crypto.utils";
+import generateSecureShortCode, {
+  shortCodelooksWeird,
+} from "../../shared/utils/crypto.utils";
 import { knexClient } from "../../../knexClient";
 import {
   buildAuthContext,
@@ -57,7 +60,7 @@ import { createInitialCompanyOnboardingState } from "../../features/onboarding/o
 export const createCompany = async (
   knexTrx: Knex.Transaction,
   input: NewCompanyInput
-): Promise<ApiResponse<any>> => {
+): Promise<ApiResponse<NewCompany>> => {
   const snakeInput = camelToSnake(input);
   const validateInput = newCompanyInput.safeParse(snakeInput);
 
@@ -103,12 +106,28 @@ export const createCompany = async (
 
     do {
       short_code = input.short_code || generateSecureShortCode();
-      exists = await knexTrx("companies").where({ short_code }).first();
+
+      // If no input.short_code, check if generated code looks weird
+      if (!input.short_code && shortCodelooksWeird(short_code)) {
+        attempts++;
+        continue; // Skip the database check, just generate another
+      }
+
+      exists = !!(await knexTrx("companies").where({ short_code }).first());
       attempts++;
+
+      // If we provided a specific short_code and it exists, fail immediately
+      if (input.short_code && exists) {
+        throw new AppError("Provided short code already exists", input, true);
+      }
     } while (exists && attempts < maxAttempts);
 
-    if (!short_code) {
-      throw new AppError("Unable to generate short code", input, true);
+    if (exists) {
+      throw new AppError(
+        `Unable to generate unique short code after ${maxAttempts} attempts`,
+        input,
+        true
+      );
     }
 
     const initialOnboardingState = createInitialCompanyOnboardingState();
@@ -455,7 +474,7 @@ export const updateCompany = async (
   const db = knex || knexClient;
 
   try {
-    const companyId = await getCompanyUUID(identifier);
+    const companyId = await getCompanyUUID(identifier, knex);
     if (!companyId) {
       return errorResponse(
         `Invalid company identifier: ${identifier}`,

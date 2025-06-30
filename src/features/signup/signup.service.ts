@@ -21,19 +21,25 @@ import { buildEmailServiceUrl } from "../communications/email/email.utils";
 import { sendVerificationEmail } from "../communications/email/email.service";
 import {
   CompanyType,
-  NewCompany,
   NewCompanyInput,
   NewCompanyInputCamel,
 } from "../../domains/companies/companies.types";
 import { newAccFirm } from "../../domains/accountingFirms/firms.types";
-import { CreateUserDirectResponse, newSignup } from "./signup.types";
 import {
+  CreateUserDirectResponse,
+  NewCompanyRes,
+  NewCompanyResCamel,
+  newSignup,
+} from "./signup.types";
+import {
+  CreateUserResponse,
   NewUserDirect,
   NewUserInputCamel,
   user,
 } from "../../domains/users/users.types";
 import { grantDirectAccess } from "../../domains/userRoles/userRoles.model";
 import { RoleKey } from "../../domains/roles/roles.types";
+import { knexClient } from "../../../knexClient";
 
 /**
  * Registers a new user and company.
@@ -58,9 +64,11 @@ import { RoleKey } from "../../domains/roles/roles.types";
  * @throws AppError
  */
 export const registerNewAccount = async (
-  knex: Knex,
+  trx: Knex.Transaction,
   input: { user: NewUserInputCamel; company: NewCompanyInputCamel }
-): Promise<ApiResponse> => {
+): Promise<
+  ApiResponse<{ user: CreateUserDirectResponse; company: NewCompanyResCamel }>
+> => {
   // Check that company type exists
   if (!input || !input.company.type) {
     return errorResponse("Invalid input or missing company type");
@@ -74,6 +82,7 @@ export const registerNewAccount = async (
     return errorResponse("Invalid input", validateInput.error.flatten());
   }
 
+  const knex = trx || knexClient;
   // Destructure and retrieve user and company input
   // For firms, we use company data to create firm as well to ease onboarding
   const { user: userInput, company: companyInput } = validateInput.data;
@@ -82,9 +91,9 @@ export const registerNewAccount = async (
   // Once user is created, company is created & assigned to firm,
   // This function should return successful, even if everything else fails
   try {
-    const result = await knex.transaction(async (trx) => {
+    const res = async () => {
       const { user, company } = await createUserAndCompany(
-        trx,
+        knex,
         userInput,
         companyInput
       );
@@ -92,20 +101,20 @@ export const registerNewAccount = async (
       let firm;
       // For an accounting firm, create accounting_firm
       if (companyInput.type === "accounting_firm") {
-        firm = await setupAccountingFirm(trx, {
+        firm = await setupAccountingFirm(knex, {
           companyId: company.id,
           firmData: companyInput,
         });
       }
 
-      await attachChartOfAccounts(trx, {
+      await attachChartOfAccounts(knex, {
         companyId: company.id,
         reportingCurrencyId: company.reporting_currency_id,
         userId: user.id,
         loadCoaTemplate: companyInput.load_coa_template || true,
       });
 
-      const { count } = await trx("companies")
+      const { count } = await knex("companies")
         .where("created_by_id", user.id)
         .count<{ count: string }>("id");
 
@@ -114,43 +123,45 @@ export const registerNewAccount = async (
         company: { ...company, totalCompaniesByUser: parseInt(count, 10) },
         firm,
       };
-    });
-    const { user, company, firm } = result;
-    const { verificationToken, ...userData } = user;
+    };
+
+    const result = await res();
+    const { user, company: companyRes, firm } = result;
 
     try {
       trackSignupEvents(
         user.id,
         user.email,
-        companyInput.type,
-        company.id,
+        companyRes.type,
+        companyRes.id,
         firm?.id
       );
 
       //   await sendWelcomeEmail(user.email, user.firstname, verifyUrl); // Build this out later
-      const url = buildEmailServiceUrl("verify-email", {
-        userId: user.id,
-        token: user.verificationToken,
-      });
-      const sendVerEmail = await sendVerificationEmail({
-        to: user.email,
-        name: user.firstname,
-        url,
-      });
-      if (!sendVerEmail) {
-        errorResponse("Unable to send verification email");
+      if (!companyRes.is_demo_company) {
+        const url = buildEmailServiceUrl("verify-email", {
+          userId: user.id,
+          token: user.verificationToken,
+        });
+        const sendVerEmail = await sendVerificationEmail({
+          to: user.email,
+          name: user.firstname,
+          url,
+        });
+        if (!sendVerEmail) {
+          errorResponse("Unable to send verification email");
+        }
       }
     } catch (error) {
       errorResponse("Post-signup event failed", error);
     }
 
-    return successResponse(
-      "User has been registered successfully",
-      snakeToCamel({
-        user: userData,
-        company,
-      })
-    );
+    const coy = snakeToCamel(companyRes) as NewCompanyResCamel;
+
+    return successResponse("User has been registered successfully", {
+      user,
+      company: coy,
+    });
   } catch (error) {
     Sentry.captureException(error, {
       user: {
@@ -177,7 +188,7 @@ const createUserAndCompany = async (
   trx: Knex.Transaction,
   userInput: NewUserDirect,
   companyInput: NewCompanyInput
-) => {
+): Promise<{ user: CreateUserResponse; company: NewCompanyRes }> => {
   // Create user
   const userResponse = await createUserDirect(trx, userInput);
   if (!userResponse.success || !userResponse.data?.id) {
@@ -207,32 +218,32 @@ const createUserAndCompany = async (
     assigned_firm_id: platformFirmId,
   });
 
-  if (!companyResponse.success) {
+  if (!companyResponse.success || !companyResponse.data?.id) {
     throw new AppError(`Company creation failed: ${companyResponse.error}`);
   }
 
   // Assign role
   const roleKey: RoleKey =
     companyInput.type === "accounting_firm" ? "firm_owner" : "client_owner";
-
   const assignRole = await grantDirectAccess({
-    knex: trx,
+    trx,
     userId: userResponse.data.id,
     companyId: companyResponse.data.id,
     roleKey,
     grantedBy: userResponse.data.id,
   });
-
   if (!assignRole.success) {
     throw new AppError(`Role assignment failed: ${assignRole.message}`);
   }
 
+  const coy: NewCompanyRes = {
+    id: companyResponse.data.id,
+    ...companyResponse.data,
+    slug: platformFirmSlug,
+  };
   return {
-    user: userResponse.data as CreateUserDirectResponse,
-    company: {
-      ...companyResponse.data,
-      slug: platformFirmSlug,
-    } as NewCompany & { id: string; slug: string },
+    user: userResponse.data,
+    company: coy,
   };
 };
 
@@ -269,9 +280,11 @@ const setupAccountingFirm = async (
     .update({ assigned_firm_id: firmResponse.data.id });
 
   // Assign the company to the firm
-  await trx("client_firm_assignments").where("company_id", companyId).update({
-    accounting_firm_company_id: firmResponse.data.id,
-  });
+  await trx("client_firm_assignments")
+    .where("client_company_id", companyId)
+    .update({
+      accounting_firm_company_id: firmResponse.data.id,
+    });
 
   return firmResponse.data;
 };

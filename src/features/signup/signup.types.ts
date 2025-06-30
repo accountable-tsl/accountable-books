@@ -1,10 +1,12 @@
 import { z } from "zod";
-import { newUserDirect, UserStatus } from "../../domains/users/users.types";
+import { newUserDirect } from "../../domains/users/users.types";
 import {
   companyType,
+  NewCompany,
   newCompanyInput,
 } from "../../domains/companies/companies.types";
 import { newAccFirmInput } from "../../domains/accountingFirms/firms.types";
+import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
 
 export const newSignup = z.object({
   user: newUserDirect,
@@ -30,7 +32,8 @@ export type CreateUserDirectResponse = {
   firstname: string;
   lastname: string | null;
   email: string;
-  status: UserStatus;
-  verificationToken: string; // Non-null for initial response
   emailVerified?: boolean; // Added for clarity
 };
+
+export type NewCompanyRes = NewCompany & { id: string; slug: string };
+export type NewCompanyResCamel = SnakeToCamelCaseObject<NewCompanyRes>;

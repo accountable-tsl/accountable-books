@@ -5,12 +5,14 @@ import {
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
 import { createPlatformCompany } from "./20250403194332_companies";
+import { getRoleId, loadRoles } from "../src/domains/roles/roles.model";
 
-const assignAdminRole = async (knex: Knex) => {
+export const assignAdminRole = async (knex: Knex) => {
   const platformCompany = await createPlatformCompany(knex);
 
-  const role = await knex("roles").where({ name: "admin" }).first();
-  if (!role) {
+  const role = await knex("roles").where("key", "super_admin").first();
+  const roleId = role?.id;
+  if (!roleId) {
     throw new Error("Admin role not found");
   }
 
@@ -18,7 +20,7 @@ const assignAdminRole = async (knex: Knex) => {
     .where({
       user_id: platformCompany.created_by_id,
       company_id: platformCompany.id,
-      role_id: role.id,
+      role_id: roleId,
     })
     .first();
 
@@ -30,7 +32,7 @@ const assignAdminRole = async (knex: Knex) => {
   await knex(tableName).insert({
     user_id: platformCompany.created_by_id,
     company_id: platformCompany.id,
-    role_id: role.id,
+    role_id: roleId,
     created_by_id: platformCompany.created_by_id,
   });
   console.log("Assigned admin role to platform company creator.");
@@ -80,7 +82,7 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await assignAdminRole(knex);
+  // await assignAdminRole(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

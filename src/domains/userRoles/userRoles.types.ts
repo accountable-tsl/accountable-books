@@ -37,12 +37,12 @@ export type UserCompanyRoleAssignmentRes = {
   roleKey: RoleKey;
   roleName: string;
   roleScope: RoleScope;
-  onboardingState: CompanyOnboardingState;
+  // onboardingState: CompanyOnboardingState;
 };
 
 // GRANT ACCESS TO COMPANY
 export type GrantDirectAccess = {
-  knex: Knex.Transaction;
+  trx?: Knex.Transaction;
   userId: string;
   companyId: string;
   roleKey: RoleKey;
@@ -65,7 +65,7 @@ export type AccessibleCompanies = {
   roleKey: RoleKey | null;
   roleScope: RoleScope | null;
   isDemoCompany: boolean;
-  onboardingState: CompanyOnboardingState;
+  // onboardingState: CompanyOnboardingState;
 };
 
 export type AccessibleCompaniesResponse = {
