@@ -441,7 +441,7 @@ export const CompanyInfo = () => {
   }, [watch, getValues, companyId]);
 
   if (isLoading || !initialData) {
-    return <CenteredLoader />;
+    return <CenteredLoader fullscreen />;
   }
 
   if (!companyId || !companyType || !isLoggedIn) {

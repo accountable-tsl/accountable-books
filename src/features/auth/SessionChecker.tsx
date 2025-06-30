@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { isPublicRoute } from "@/shared/routes/utils";
 import { sessionStore } from "@/features/auth/store";
 import { onboardingStatus } from "@/domains/company/types";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import { isDemoCompany } from "@/domains/company/utils";
 // import { useCompanySwitch } from "@/features/switchCompany/hooks";
 

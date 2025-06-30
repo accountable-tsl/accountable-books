@@ -1,7 +1,7 @@
 import { companyStore } from "@/domains/company/store";
 import { fetchSession, handleLogout } from "@/features/auth/api";
 import { authStore, sessionStore } from "@/features/auth/store";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import { LogoutOptions } from "./types";
 import { useCallback, useEffect, useState } from "react";
 import { isPublicRoute } from "@/shared/routes/utils";
@@ -130,7 +130,6 @@ export const useSessionLoader = () => {
 
   const [loading, setLoading] = useState(true); // Start with true to prevent flickering
   const isPublic = isPublicRoute(location.pathname);
-  console.log("useSessionLoader", { isPublic, pathname: location.pathname });
 
   const loadSession = useCallback(async () => {
     // Skip if user is already authenticated

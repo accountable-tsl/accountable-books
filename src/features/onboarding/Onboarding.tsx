@@ -17,24 +17,52 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VerifyEmail } from "./steps/VerifyEmail";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isStepAllowed, stepMap } from "./utils";
+import { isStepAllowed, onboardingStepToSlug, stepMap } from "./utils";
 import { CompanyInfo } from "@/features/onboarding/steps/CompanyInfo";
 import { BankAccount } from "@/features/onboarding/steps/BankAccount";
 import { Miscellaneous } from "@/features/onboarding/steps/Miscellaneous";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { matchPath, useNavigate, useParams } from "react-router-dom";
 import {
   OnboardingSideBarProps,
+  OnboardingStepKey,
   onboardingSteps,
   OnboardingSteps,
 } from "@/features/onboarding/types";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { onboardingStatus, OnboardingStatus } from "@/domains/company/types";
 import { getCompanyDetails } from "@/domains/company/api";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import { useCompanySwitch } from "../switchCompany/hooks";
 import { DEMO_COMPANIES_IDS } from "@/domains/company/constants";
+import ErrorPage from "@/components/ErrorPage";
 
+export const onboardingStepComponentMap: Record<
+  OnboardingStepKey,
+  JSX.Element
+> = {
+  email_verified: <VerifyEmail />,
+  company_details_confirmed: <CompanyInfo />,
+  first_bank_account_added: <BankAccount />,
+};
+
+export function OnboardingStepPage() {
+  const { step } = useParams<{ step: string }>();
+
+  // Find the matching key by comparing step parameters
+  const stepKey = Object.entries(onboardingStepToSlug).find(([key, route]) => {
+    const match = matchPath(routes.onboarding.step.staticPath, route);
+    return match?.params.step === step;
+  })?.[0] as keyof typeof onboardingStepToSlug | undefined;
+
+  if (!step || !stepKey) {
+    return <ErrorPage type="default" />;
+  }
+
+  const StepComponent = onboardingStepComponentMap[stepKey];
+
+  return StepComponent ?? <ErrorPage type="default" />;
+}
 export function OnboardingForm({
   step: overrideStep,
 }: {

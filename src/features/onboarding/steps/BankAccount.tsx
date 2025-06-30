@@ -14,7 +14,7 @@ import { OnboardingStatus } from "@/domains/company/types";
 export const BankAccount = ({
   onBankAccountComplete,
 }: {
-  onBankAccountComplete: (status: OnboardingStatus) => void;
+  onBankAccountComplete?: (status: OnboardingStatus) => void;
 }) => {
   const { user } = useAuth();
   const { companyId, companyType } = useCompany();

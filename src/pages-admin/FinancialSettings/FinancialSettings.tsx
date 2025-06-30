@@ -7,7 +7,7 @@ import { BeatLoader } from "react-spinners";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import AccountingSetup from "../../components/AccountingSetup/AccountingSetup";
 import { useCompany } from "@/domains/company/store";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 
 import "./FinancialSettings.scss";

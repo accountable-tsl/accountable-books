@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthHeader } from "./AuthHeader";
 import { useAuth } from "@/features/auth/hooks";
 import { cn } from "@/lib/utils";
+import { routes } from "@/shared/routes/routes";
 
 type ErrorType = "404" | "403" | "default";
 // | "500"
@@ -55,12 +56,16 @@ export default function ErrorPage({
   showHeader = true,
   className = "",
 }: ErrorPageProps) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, currentCompanyId } = useAuth();
   const navigate = useNavigate();
   const config =
     errorConfigs[type as keyof typeof errorConfigs] || errorConfigs.default;
   const displayTitle = title || config.title;
   const displayMessage = message || config.message;
+
+  const routeLink = isLoggedIn
+    ? routes.general.dashboard.build({ companyId: currentCompanyId || "" })
+    : routes.auth.login.staticPath;
 
   return (
     <div
@@ -91,7 +96,7 @@ export default function ErrorPage({
           <p className="text-lg">{displayMessage}</p>
           {showHomeLink && (
             <div
-              onClick={() => navigate("/", { replace: true })}
+              onClick={() => navigate(routeLink, { replace: true })}
               className="text-blue-600 hover:underline"
             >
               Go back home

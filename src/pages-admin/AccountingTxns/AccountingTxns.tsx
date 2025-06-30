@@ -3,7 +3,7 @@ import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./AccountingTxns.scss";
 import { useCompany } from "@/domains/company/store";
 import { useEffect, useMemo, useState } from "react";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import MultiSelectDropdown from "../../components/MultiSelectDropdown/MultiSelectDropdown";
 import {
   AccountingTxnFilters,

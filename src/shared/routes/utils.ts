@@ -1,10 +1,123 @@
 import { AuthUserContext } from "@/features/auth/types";
-import {
-  BuildCanonicalUrlOptions,
-  RouteKey,
-  RouteLike,
-} from "@/shared/routes/types";
+import { BuildCanonicalUrlOptions, ExtractPathParams, FlattenedRouteKey, HasCompanyId, OmitCompanyId, RouteLike, RouteMeta } from "@/shared/routes/types";
 import { routes } from "@/shared/routes/routes";
+import { matchPath } from "react-router-dom";
+
+
+/**
+ * Replace route params in a template string with the actual values.
+ * Throws if any param is missing.
+ * @param template The template string, e.g. `/users/:userId`
+ * @param params The object containing the values for the route params, e.g. `{ userId: '123' }`
+ * @returns The path with the params replaced, e.g. `/users/123`
+ */
+function buildPath<Path extends string>(
+  template: Path,
+  params: ExtractPathParams<Path>
+): string {
+  return template.replace(/:([a-zA-Z0-9_]+)/g, (_, key) => {
+    const value = params[key as keyof typeof params];
+    if (!value) throw new Error(`Missing value for route param: ${key}`);
+    return encodeURIComponent(String(value));
+  });
+}
+
+/**
+ * Create a route object with a `staticPath` and a `build` method.
+ *
+ * The `build` method takes an object with route params and returns the
+ * path with the params replaced.
+ *
+ * The `staticPath` is the path template, e.g. `/users/:userId`.
+ *
+ * The `meta` property is an optional object with metadata for the route,
+ * e.g. a label for the route.
+ *
+ * @example
+ * const userRoute = route('/users/:userId');
+ * const path = userRoute.build({ userId: '123' }); // '/users/123'
+ */
+export function route<
+  TPath extends string,
+  TMeta extends RouteMeta = RouteMeta
+>(template: TPath, meta?: TMeta) {
+  return {
+    staticPath: template,
+    build: (params: ExtractPathParams<TPath>) => buildPath(template, params),
+    meta: meta ?? {},
+  };
+}
+
+
+/**
+ * Given a routes object, create a new object with the same keys, but:
+ * - For each leaf route (with `.build()` function), if the route expects
+ *   a `:companyId` param in its path, the wrapped function expects all
+ *   other params except `companyId`, and `companyId` is injected automatically
+ *   from context.
+ * - For each nested route group, recurse the same logic.
+ * - For static routes (no params expected), the function takes no arguments.
+ * @param routes The input routes object
+ * @param companyId The companyId to inject for routes that expect it
+ * @returns A new object with the same keys as `routes`, but with
+ *   the modified functions as described above.
+ */
+export function createTenantRoutes<T extends Record<string, any>>(
+  routes: T,
+  companyId: string
+) {
+  // We create a new object with the same keys as the input routes.
+  // The mapped type below defines the return type recursively,
+  // distinguishing between leaf routes (with `.build()` functions)
+  // and nested route namespaces.
+  const tenantRoutes = {} as {
+    [K in keyof T]: T[K] extends {
+      staticPath: infer P extends string;
+      build: (params: any) => string;
+    }
+      ? HasCompanyId<P> extends true
+        ? // If the route expects `:companyId` param in its path,
+          // the wrapped function expects all other params except `companyId`,
+          // and companyId is injected automatically from context.
+          (params: OmitCompanyId<ExtractPathParams<P>>) => string
+        : // Otherwise, no params expected (static route), function takes no arguments.
+          () => string
+      : // For nested route groups, recurse the same logic
+      T[K] extends Record<string, any>
+      ? ReturnType<typeof createTenantRoutes<T[K]>>
+      : never;
+  };
+
+  // Iterate over each key in the routes object
+  for (const key in routes) {
+    const routeOrNamespace = routes[key];
+
+    if ("staticPath" in routeOrNamespace && "build" in routeOrNamespace) {
+      // Leaf route detected: an object with `.staticPath` and `.build`
+
+      if (routeOrNamespace.staticPath.includes(":companyId")) {
+        // Route expects companyId param, so we wrap `.build`
+        tenantRoutes[key] = ((params: any) => {
+          if (!companyId) throw new Error("companyId not found in context");
+          // Inject companyId automatically, merge with other params,
+          // and call original build function
+          return routeOrNamespace.build({ companyId, ...params });
+        }) as any; // Type assertion to satisfy TS (already covered by mapped type)
+      } else {
+        // Static route: no params expected
+        tenantRoutes[key] = (() => routeOrNamespace.build({})) as any;
+      }
+    } else {
+      // Nested route group: recurse to create nested tenantRoutes object
+      tenantRoutes[key] = createTenantRoutes(
+        routeOrNamespace,
+        companyId
+      ) as any;
+    }
+  }
+
+  return tenantRoutes;
+}
 
 function flattenRoutes(obj: Record<string, unknown>): RouteLike[] {
   const flat: RouteLike[] = [];
@@ -25,11 +138,13 @@ function flattenRoutes(obj: Record<string, unknown>): RouteLike[] {
   return flat;
 }
 
-export function isPublicRoute(path: string): boolean {
-  const flattened = flattenRoutes(routes);
+const flattenedPublicRoutes = flattenRoutes(routes).filter(
+  (r) => r.meta?.public
+);
 
-  return flattened.some(
-    (route) => route.meta?.public && path.startsWith(route.staticPath)
+export function isPublicRoute(path: string): boolean {
+  return flattenedPublicRoutes.some((route) =>
+    matchPath({ path: route.staticPath, end: true }, path)
   );
 }
 
@@ -52,93 +167,115 @@ export function memoize<Args extends any[], Return>(
   };
 }
 
+// The core route type created by `route()`
+export type RouteEntry = ReturnType<typeof route>;
+
+export type RouteKey = keyof typeof routes;
+
+export function flatRoutesForCanonicalUrls(
+  obj: Record<string, any>,
+  prefix = ""
+): Record<string, RouteEntry> {
+  const flat: Record<string, RouteEntry> = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+
+    if (
+      value &&
+      typeof value === "object" &&
+      "build" in value &&
+      "staticPath" in value
+    ) {
+      flat[path] = value as RouteEntry;
+    } else if (value && typeof value === "object") {
+      Object.assign(flat, flatRoutesForCanonicalUrls(value, path));
+    }
+  }
+
+  return flat;
+}
+
+export const flatRoutes = flatRoutesForCanonicalUrls(routes);
+
+
+
 /**
- * Builds the canonical URL for a given user and route.
+ * Builds a full canonical URL for a given route and user context.
  *
- * This URL includes:
- * - The correct subdomain based on the user's assigned firm slug (in production)
- * - The current company ID injected into the path
- * - The route defined by the provided `routeKey`, plus optional `routeArgs`
+ * Automatically injects `companyId` if the route requires it, and constructs
+ * a type-safe URL using the user's assigned firm subdomain in production,
+ * or the current browser origin in development.
  *
- * Example (production):
- *   https://firmSlug.getaccountable.com/companyId/dashboard
+ * @example
+ * buildCanonicalUrl({
+ *   user,
+ *   routeKey: "dashboard.report",
+ *   routeParams: { reportId: "abc123" },
+ * });
+ * // https://firmSlug.getaccountable.com/companyId/report/abc123
  *
- * Example (development):
- *   http://localhost:5173/companyId/dashboard
- *
- * Notes:
- * - The `routeKey` must exist in your central `routes` config.
- * - The route function must accept `companyId` as its first argument.
- * - `routeArgs` (if any) follow after `companyId`.
- * - If `fullPath` is an empty string, no trailing slash is added.
- *
- * @param user - The authenticated user (must contain `currentCompanyId` and a matching entry in `user.companies`)
- * @param routeKey - A key from the central `routes` object (e.g. 'home', 'dashboard')
- * @param routeArgs - Optional extra arguments passed to the route's `.path()` function after the company ID
- * @param origin - Optional override for base origin (defaults to subdomain logic in prod or current window origin in dev)
- * @returns The full canonical URL string
- * @throws If no matching company is found or the route key is invalid
+ * @template K - A valid route key from the flattened routes map
+ * @param options - Includes the user context, route key, params (excluding companyId), and optional origin override
+ * @returns The full URL string
+ * @throws If the company is not found or the route is invalid
  */
-export function buildCanonicalUrl({
+export function buildCanonicalUrl<K extends FlattenedRouteKey>({
   user,
   routeKey,
-  routeArgs = [],
+  routeParams,
   origin,
-}: BuildCanonicalUrlOptions): string {
-  const currentCompanyId = user.currentCompanyId;
-  const company = user.companies.find((c) => c.id === currentCompanyId);
+}: BuildCanonicalUrlOptions<K>): string {
+  const route = flatRoutes[routeKey];
+  if (!route) {
+    const availableKeys = Object.keys(flatRoutes).join(", ");
+    throw new Error(
+      `Route key "${routeKey}" not found. Available keys: ${availableKeys}`
+    );
+  }
 
+  const { currentCompanyId, companies } = user;
+  const company = companies.find((c) => c.id === currentCompanyId);
   if (!company) throw new Error("Current company not found in user data");
 
   const firmSlug = company.assignedFirmSlug;
-  const routeConfig = routes[routeKey];
-  if (!routeConfig)
-    throw new Error(`Route key "${routeKey}" not found in routes`);
 
-  const pathFn = routeConfig.path;
+  const needsCompanyId = route.staticPath.includes(":companyId");
 
-  const fullPath = (() => {
-    if (typeof pathFn !== "function") {
-      throw new Error(`Invalid path function for routeKey "${routeKey}"`);
-    }
+  const params = needsCompanyId
+    ? { companyId: currentCompanyId, ...(routeParams as object) }
+    : routeParams;
 
-    switch (pathFn.length) {
-      case 0:
-        return pathFn();
-      case 1:
-        return pathFn(currentCompanyId);
-      default:
-        return pathFn(currentCompanyId, ...routeArgs);
-    }
-  })();
+  const fullPath = route.build(params as any);
+
   const normalizedPath =
     fullPath === "" ? "" : fullPath.startsWith("/") ? fullPath : `/${fullPath}`;
 
-  const baseOrigin =
+  const resolvedOrigin =
     origin ||
     (import.meta.env.PROD
       ? `https://${firmSlug}.getaccountable.com`
       : `${window.location.protocol}//${window.location.hostname}:${window.location.port}`);
 
-  return `${baseOrigin}${normalizedPath}`;
+  return `${resolvedOrigin}${normalizedPath}`;
 }
 
 /**
- * Enforces that the current browser URL matches the canonical URL
- * for the authenticated user's current company and page.
+ * Redirects to the canonical URL if the current URL does not match.
+ * Ensures the user is always on the correct firm subdomain and path.
  *
- * If the host or pathname does not match, performs a full page redirect
- * to the canonical URL. This ensures consistency across firm subdomains.
- *
- * @param user - The authenticated user context (source of companyId and firmSlug)
- * @param routeKey - The key of the route from your central `routes` object
- * @param routeArgs - Optional arguments passed to the route's path function (after companyId)
+ * @template K - A valid route key from flattened routes
+ * @param user - The authenticated user (with currentCompanyId and companies)
+ * @param routeKey - The route key (e.g., "dashboard.report")
+ * @param routeParams - Params for the route, excluding companyId
  */
-export function enforceCanonicalUrl(
+export function enforceCanonicalUrl<K extends FlattenedRouteKey>(
   user: AuthUserContext,
-  routeKey: RouteKey,
-  routeArgs: string[] = []
-) {
+  routeKey: K,
+  routeParams: OmitCompanyId<
+    ExtractPathParams<(typeof flatRoutes)[K]["staticPath"]>
+  >
+): void {
   const currentHost = window.location.hostname;
   const currentPath = window.location.pathname;
 
@@ -146,7 +283,7 @@ export function enforceCanonicalUrl(
   const canonicalUrl = buildCanonicalUrl({
     user,
     routeKey,
-    routeArgs,
+    routeParams,
   });
 
   const canonical = new URL(canonicalUrl);

@@ -1,9 +1,14 @@
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import "./styles/App.scss";
 // import SideBarProvider, { useSideBarContext } from "./contexts/SideBarContext";
 import Home from "./pages-users/Home/Home";
 import COA from "./pages-admin/COA/COA";
-import { staticRoutes } from "./utils/routes";
 import FinancialSettings from "./pages-admin/FinancialSettings/FinancialSettings";
 import UploadBS from "./pages-admin/UploadBS/UploadBS";
 import { PopupProvider, usePopup } from "./contexts/PopupContext";
@@ -21,17 +26,21 @@ import Welcome from "./features/onboarding/Welcome";
 import Login from "./features/auth/Login";
 import Dashboard from "./features/dashboard/Dashboard";
 import DashboardRedirect from "./components/DashboardRedirect";
-import { routes as tenantRoutes } from "./shared/routes/routes-old";
+import { routes as tenantRoutes } from "./shared/routes/routes";
 import ErrorPage from "./components/ErrorPage";
 // import { SessionChecker } from "./features/auth/SessionChecker";
 import OnboardingLayout from "./layouts/OnboardingLayout";
-import { OnboardingForm } from "@/features/onboarding/Onboarding";
+import {
+  OnboardingForm,
+  OnboardingStepPage,
+} from "@/features/onboarding/Onboarding";
 import { Toaster } from "@/components/ui/sonner";
 import { routes } from "@/shared/routes/routes";
 import { VerifyEmail } from "@/features/onboarding/steps/VerifyEmail";
 import { useSessionLoader } from "@/features/auth/hooks";
 import { CenteredLoader } from "./components/CenteredLoader";
 import { queryClient } from "@/lib/queryClient";
+import OnboardingRouter from "@/features/onboarding/OnboardingRouter";
 
 function App() {
   return (
@@ -79,27 +88,26 @@ function AnimatedRoutes() {
       <Toaster />
       <Routes location={location} key={location.pathname}>
         {/* PUBLIC */}
-        <Route path={routes.signup.staticPath} element={<Signup />} />
-        <Route path={routes.login.staticPath} element={<Login />} />
-        <Route path={routes.welcome.staticPath} element={<Welcome />} />
+        <Route path={routes.auth.signup.staticPath} element={<Signup />} />
+        <Route path={routes.auth.login.staticPath} element={<Login />} />
+        <Route
+          path={routes.onboarding.welcome.staticPath}
+          element={<Welcome />}
+        />
 
         {/* ONBOARDING */}
         <Route element={<OnboardingLayout />}>
           <Route
-            path={routes.verifyEmail.staticPath}
+            path={routes.onboarding.verifyEmail.staticPath}
             element={<VerifyEmail />}
           />
           <Route
-            path={tenantRoutes.onboarding.index.staticPath}
-            element={<OnboardingForm />}
+            path={routes.onboarding.router.staticPath}
+            element={<OnboardingRouter />}
           />
           <Route
-            path={tenantRoutes.onboarding.step.staticPath}
-            element={<OnboardingForm />}
-          />
-          <Route
-            path={tenantRoutes.onboarding.verifyEmail.staticPath}
-            element={<OnboardingForm step="verifyEmail" />}
+            path={routes.onboarding.step.staticPath}
+            element={<OnboardingStepPage />}
           />
         </Route>
 
@@ -120,16 +128,36 @@ function AnimatedRoutes() {
           }
         >
           <Route index element={<DashboardRedirect />} />
-          <Route path={routes.home.staticPath} element={<Dashboard />} />
-          <Route path={routes.homeAlias.staticPath} element={<Dashboard />} />
+          <Route
+            path={routes.general.dashboard.staticPath}
+            element={<Dashboard />}
+          />
+          <Route
+            path={routes.general.dashboardAlias.staticPath}
+            element={
+              <Navigate to={routes.general.dashboard.staticPath} replace />
+            }
+          />
+          <Route
+            path={routes.general.home.staticPath}
+            element={
+              <Navigate to={routes.general.dashboard.staticPath} replace />
+            }
+          />
+          <Route
+            path={routes.general.homeAlias.staticPath}
+            element={
+              <Navigate to={routes.general.dashboard.staticPath} replace />
+            }
+          />
           {/* <Route
             path={tenantRoutes.dashboard.staticPath}
             element={<Dashboard />}
           /> */}
-          <Route
+          {/* <Route
             path={tenantRoutes.accounting.index.staticPath}
             element={<UploadBS />}
-          />
+          /> */}
           {/* <Route path=":companyId" element={<Home />} /> */}
           {/* <Route path={staticRoutes.companies.root} element={<Home />} />
           <Route path={staticRoutes.accounting.root} element={<Workspace />} /> */}

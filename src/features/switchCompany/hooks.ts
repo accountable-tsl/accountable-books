@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { SwitchCompanyOpts } from "@/features/switchCompany/types";
 import { useCompany } from "@/domains/company/store";
 import { useRef, useState } from "react";
-import { buildTenantUrl, routes } from "@/shared/routes/routes-old";
+import { buildTenantUrl, routes } from "@/shared/routes/routes";
 import { toast } from "sonner";
 import { useAuth } from "../auth/hooks";
 import { switchCompanyApi } from "./api";

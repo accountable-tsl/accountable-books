@@ -1,4 +1,5 @@
 import { CompanyData } from "@/domains/company/types";
+import { RouteKey } from "@/shared/routes/types";
 import { LucideIcon } from "lucide-react";
 import { z } from "zod";
 
@@ -181,20 +182,35 @@ export type OnboardingStepConfig = {
   }) => boolean;
 };
 
-export type OnboardingStateResult = {
+export type OnboardingStep = {
+  key: OnboardingStepKey;
+  label: string;
+  complete: boolean;
+  blocked: boolean;
+  optional: boolean;
+  scope: "user" | "company";
+  orderIndex?: number;
+};
+export type OnboardingState = {
   isCompanyOwner: boolean;
   canAccessApp: boolean;
   userStepsComplete: boolean;
   nextStepToComplete: OnboardingStepKey | null;
-  steps: {
-    key: OnboardingStepKey;
-    label: string;
-    complete: boolean;
-    blocked: boolean;
-    optional: boolean;
-    scope: "user" | "company";
-    orderIndex?: number;
-  }[];
+  steps: OnboardingStep[];
 };
 
-export type CompanyOnboardingState = OnboardingStateResult;
+export type OnboardingResolution =
+  | {
+      type: "redirect";
+      path: any;
+      steps: OnboardingStep[];
+    }
+  | {
+      type: "blocked";
+      reason: "notCompanyOwner" | "unknownError";
+      steps: OnboardingStep[];
+    }
+  | {
+      type: "accessGranted";
+      steps: OnboardingStep[];
+    };

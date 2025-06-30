@@ -22,24 +22,25 @@ import ErrorPage from "@/components/ErrorPage";
 import { useTenantRoutes } from "@/shared/routes/hooks";
 import { set } from "lodash";
 import { getVerifyEmailSessionStatus } from "../utils";
+import { TriangleAlert } from "lucide-react";
 
 export const VerifyEmail = ({
   onStatusChange,
+  className,
+  successText = "Continue Onboarding",
+  stateOverride,
 }: {
   onStatusChange?: (status: OnboardingStatus) => void;
+  className?: string;
+  successText?: string;
+  stateOverride?: string;
 }) => {
   // Hooks, Context
-  const {
-    user,
-    isLoggedIn,
-    logout,
-    currentCompanyId,
-    currentCompany: company,
-  } = useAuth();
+  const { user, isLoggedIn, logout, currentCompany: company } = useAuth();
   const { loading: sessionLoading } = useSessionLoader();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { login: loginRoute } = useTenantRoutes();
+  const router = useTenantRoutes();
 
   // State
   const [verifyEmailResponse, setVerifyEmailResponse] =
@@ -52,41 +53,11 @@ export const VerifyEmail = ({
   const [hasTriggeredVerification, setHasTriggeredVerification] =
     useState(false);
 
-  const [emailVerifiedStatus, setEmailVerifiedStatus] =
-    useState<boolean>(false);
-  const onboardingStatus = company?.onboardingStatus;
-  const [retryExhausted, setRetryExhausted] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Computed
+  // Retrieved from url
   const userIdFromUrl = params.get("userId");
   const verificationToken = params.get("token");
-
-  const isUserLoggedIn = !sessionLoading && isLoggedIn;
-
-  // let isEmailVerified: boolean = false;
-  // let verificationStatus: "verified" | "invalid_or_expired" | "error" | null =
-  //   null;
-  // let firmSlug: string | null = null;
-  // let emailToVerify: string | null = null;
-
-  // const urlStatus = params.get("status"); // Get status from URL: success | failed | null
-  // const verifiedEmail = params.get("email"); // Get email from URL
-  // const userEmail = verifiedEmail || user?.email || "";
-
-  // const emailMismatcha =
-  //   isLoggedIn && verifiedEmail && user?.email !== verifiedEmail;
-
-  // const showInitialPrompt =
-  //   !onboardingStatus || onboardingStatus === "not_started";
-
-  // const showVerified = useMemo(
-  //   () => onboardingStatus === "email_verified" || urlStatus === "success",
-  //   [onboardingStatus, urlStatus]
-  // );
-  // const showFailed = useMemo(() => urlStatus === "failed", [urlStatus]);
-  // const loadingStatus = isLoggedIn && onboardingStatus === undefined;
 
   // Functions
   const verifyEmailFn = async () => {
@@ -124,16 +95,20 @@ export const VerifyEmail = ({
       setIsLoading(false);
     }
   };
-  const handleTryAgain = () => {
-    setRetryExhausted(false);
-    setRetryCount(0);
-  };
 
   const handleResendEmail = async () => {
     if (!user?.id) {
       toast.error("User not found. Please log in again.");
       return;
     }
+    // TODO:
+    /**
+     * Handle differently depending on whether user is logged in or not
+     * Logged in, different email, receive email param
+     * Logged in, same email, send to user.email
+     * Finally, setHasTriggeredVerification to false
+     *
+     */
 
     try {
       const res = await resendVerificationEmail({
@@ -145,7 +120,7 @@ export const VerifyEmail = ({
         toast.error(res.message);
       } else {
         toast.success(res.message);
-        handleTryAgain();
+        // handleTryAgain();
       }
     } catch (error) {
       toast.error("An unexpected error occurred");
@@ -181,14 +156,14 @@ export const VerifyEmail = ({
     }
   };
 
-  // useEffect(() => {
-  //   if (sessionLoading) return;
+  useEffect(() => {
+    if (sessionLoading) return;
 
-  //   // Trigger verification on mount for logged-out users
-  //   if (!isLoggedIn) {
-  //     setHasTriggeredVerification(true);
-  //   }
-  // }, [isLoggedIn, sessionLoading]);
+    // Trigger verification on mount for logged-out users or those that reach here by clicking the link
+    if (!isLoggedIn || userIdFromUrl) {
+      setHasTriggeredVerification(true);
+    }
+  }, [isLoggedIn, sessionLoading]);
 
   useEffect(() => {
     if (!hasTriggeredVerification) return;
@@ -196,11 +171,6 @@ export const VerifyEmail = ({
 
     verifyEmailFn();
   }, [userIdFromUrl, verificationToken, hasTriggeredVerification]);
-
-  // useEffect(() => {
-  //   if (!company?.id) return;
-  //   // setOnboardingStatus(company.onboardingStatus);
-  // }, [company]);
 
   if (isLoading || sessionLoading) {
     return (
@@ -212,17 +182,17 @@ export const VerifyEmail = ({
     );
   }
 
-  // if (!userIdFromUrl || !verificationToken) {
-  //   return <ErrorPage />;
-  // }
-  // const { emailVerified, status, email } = verifyEmailResponse;
-
   const { emailVerified, status, email } = verifyEmailResponse;
   const loggedOut = !isLoggedIn;
   const loggedInSameUser = user?.email === email;
   const loggedInDifferentUser = isLoggedIn && email && user?.email !== email;
 
+  const verificationSuccessful = emailVerified && status === "verified";
+  const verificationFailed =
+    (!emailVerified && status === "error") || status === "invalid_or_expired";
+
   const verifiedEmail = email || "";
+  const userEmail = user?.email || "";
 
   const initialPage = (
     <>
@@ -237,94 +207,102 @@ export const VerifyEmail = ({
       </div>
 
       <div className="w-40">
-        <img
-          src={icon}
-          alt="verify email icon"
-          // className={cn(retryExhausted ? "grayscale" : "")}
-        />
+        <img src={icon} alt="verify email icon" />
       </div>
 
       <div className="text-center text-sm md:text-base">
-        {/* {retryExhausted ? (
-          <div>Still not verified after multiple attempts.</div>
-        ) : ( */}
         <div>
           We've sent a verification link to
           <span className="text-blue-500 px-1">
-            {verifiedEmail || user?.email || "your email"}.
+            {verifiedEmail || userEmail || "your email"}.
           </span>
-          Click it to verify your account and continue setup. <br />
-          Can't find it? Check your spam folder or click 'Resend' below.
+          Click it to verify your account and continue setup. Can't find it?
+          Check your spam folder or click 'Resend' below.
         </div>
-        {/* )} */}
       </div>
 
       <div
         className={cn(
-          "flex gap-4 mb-16 md:mb-0 md:mt-16",
-          retryExhausted ? "md:mt-8" : ""
+          "flex flex-col-reverse md:flex-row gap-4 mb-8 mt-8 md:mb-0 md:mt-16"
         )}
       >
-        {
-          <>
-            {retryExhausted ? (
-              <Button variant="outline" onClick={handleTryAgain}>
-                Try Again
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={handleResendEmail}>
-                Resend Email
-              </Button>
-            )}
-          </>
-        }
-        {!isLoggedIn && (
-          <>
-            <Link
-              to={
-                userEmail
-                  ? `${loginRoute()}?email=${encodeURIComponent(userEmail)}`
-                  : loginRoute()
-              }
-              className="text-blue-600 underline mt-4 block"
-            >
-              Log in to continue onboarding
-            </Link>
-          </>
-        )}
+        <Button
+          variant="link"
+          onClick={handleResendEmail}
+          className="text-blue-500/70 hover:text-blue-500"
+        >
+          Resend Email
+        </Button>
+        <Button onClick={() => setHasTriggeredVerification(true)}>
+          I've clicked the link
+        </Button>
       </div>
     </>
   );
 
-  let verifyEmailContent;
-
-  const success = emailVerified && status === "verified";
-  const failed =
-    (!emailVerified && status === "error") || status === "invalid_or_expired";
-
-  if (!hasTriggeredVerification) verifyEmailContent = initialPage;
-
-  const verifiedSuccessfully = (
+  const loggedInAndVerificationFailed = (
     <>
-      <h2 className="text-xl font-bold mb-2">✅ Email Verified</h2>
-      <p className="mb-4">Your email has been verified successfully.</p>
-      {isLoggedIn ? (
-        <Button onClick={handleContinue}>Continue Onboarding</Button>
-      ) : (
-        <Link
-          to={`${loginRoute()}?email=${encodeURIComponent(email || "")}`}
-          className="text-blue-600 underline mt-4 block"
-        >
-          Log in to continue onboarding
-        </Link>
-      )}
+      <div className="flex flex-col items-center">
+        <p className="font-medium text-lg">Verify your email</p>
+        <p className="text-sm text-muted-foreground text-center">
+          <span className="hidden md:inline">
+            Your financial data needs to be kept secure and confidential.
+          </span>
+          <span className="block">Let's verify that it's you</span>
+        </p>
+      </div>
+
+      <div className="w-40 h-40 flex items-center justify-center">
+        <TriangleAlert strokeWidth={1} className="w-25 h-25 text-destructive" />
+      </div>
+
+      <div className="text-center text-sm md:text-base">
+        <span>
+          {loggedInSameUser ? (
+            <>
+              We tried to verify{" "}
+              <span className="text-blue-500">
+                {verifiedEmail || userEmail || "your email"}
+              </span>
+              , but it seems there was an issue.
+            </>
+          ) : (
+            <>
+              You are logged in as{" "}
+              <span className="text-blue-500">{userEmail}</span> but tried to
+              verify <span>{verifiedEmail || "a different email"}</span>. There
+              was an issue verifying this email.
+            </>
+          )}
+        </span>
+        <br />
+        <span className="text-muted-foreground">
+          Click 'Resend' below to send a new verification link to{" "}
+          <span className="text-blue-500">
+            {verifiedEmail || "this second email"}
+          </span>
+          .
+        </span>
+      </div>
+
+      <div
+        className={cn(
+          "flex flex-col-reverse md:flex-row gap-4 mb-8 mt-8 md:mb-0 md:mt-16"
+        )}
+      >
+        <Button variant="default" onClick={handleResendEmail}>
+          Resend Email
+        </Button>
+      </div>
     </>
   );
 
-  const verificationFailed = (
+  const loggedOutAndVerificationFailed = (
     <>
       <h2 className="text-xl font-bold mb-2">❌ Verification Failed</h2>
-      <p>This verification is invalid or has expired.</p>
+      <p className="text-center">
+        This verification link is invalid or has expired.
+      </p>
       <Link
         to={`${loginRoute()}?email=${encodeURIComponent(email || "")}`}
         className="text-blue-500 underline mt-4 block"
@@ -334,126 +312,74 @@ export const VerifyEmail = ({
     </>
   );
 
-  const LoggedInAndEmailMismatch = (
+  const verifiedSuccessfully = (
     <>
       <h2 className="text-xl font-bold mb-2">✅ Email Verified</h2>
 
-      <p>
-        You verified <b className="text-blue-500">{verifiedEmail}</b> but are
-        logged in as <b>{user?.email}</b>.
-      </p>
-      <button
-        onClick={() =>
-          logout({
-            redirectTo: login(),
-            query: { email: email || "" },
-          })
-        }
-        className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
-      >
-        Log out and log in
-      </button>
+      {loggedInDifferentUser ? (
+        <p>
+          You verified <b className="text-blue-500">{verifiedEmail}</b> but are
+          logged in as <b>{user?.email}</b>.
+        </p>
+      ) : (
+        <p className="mb-4">Your email has been verified successfully.</p>
+      )}
+
+      {loggedOut ? (
+        <Link
+          to={`${loginRoute()}?email=${encodeURIComponent(
+            verifiedEmail || ""
+          )}`}
+          className="text-blue-600 underline mt-4 block"
+        >
+          Log in to continue onboarding
+        </Link>
+      ) : loggedInDifferentUser ? (
+        <Button
+          variant="secondary"
+          onClick={() =>
+            logout({
+              redirectTo: loginRoute(),
+              query: { email: verifiedEmail },
+            })
+          }
+        >
+          Log out and log in
+        </Button>
+      ) : (
+        <Button onClick={handleContinue}>{successText}</Button>
+      )}
     </>
   );
 
-  // if (!isUserLoggedIn) {
-  //   if (success) return verifiedSuccessfully;
-  //   if (failed) return verificationFailed;
-  // }
+  const fallbackContent = (
+    <>
+      <h2 className="text-xl font-bold mb-2">⚠️ Unexpected State</h2>
+      <p>Something doesn't look right. Please log in to continue.</p>
+      <Link to={loginRoute()} className="text-blue-600 underline mt-4 block">
+        Log in {!loggedOut ? "again" : ""}
+      </Link>
+    </>
+  );
 
-  // if (isUserLoggedIn) {
-  //   if (showInitialPrompat) return initialPage;
-  //   if (success) {
-  //     if (emailMismatch) return LoggedInAndEmailMismatch;
-  //     return verifiedSuccessfully;
-  //   }
-  // }
+  let verifyEmailContent;
+  if (!hasTriggeredVerification) verifyEmailContent = initialPage;
+  if (loggedOut && verificationFailed)
+    verifyEmailContent = loggedOutAndVerificationFailed;
+  if (!loggedOut && verificationFailed)
+    verifyEmailContent = loggedInAndVerificationFailed;
+  if (verificationSuccessful) verifyEmailContent = verifiedSuccessfully;
+  if (!verifyEmailContent) verifyEmailContent = fallbackContent; // Fallback
+
   return (
-    <div className="flex flex-col items-center p-8 md:p-16 gap-4 w-full flex-1 justify-center max-h-[45rem] max-w-5xl mx-auto">
+    <div
+      className={cn(
+        "flex flex-col gap-4 items-center p-8 md:p-16 max-w-3xl mx-auto w-full",
+        "flex-1 max-h-[45rem] h-[45rem] md:h-full justify-center",
+        className
+      )}
+    >
       {verifyEmailContent}
-      <div className="hidden">
-        {/* {emailVerifiedStatus && !emailMismatch ? (
-          verifiedSuccessfully
-        ) : showInitialPrompt ? (
-          <>
-            <div className="flex flex-col items-center">
-              <p className="font-medium text-lg">Verify your email</p>
-              <p className="text-sm text-muted-foreground text-center">
-                <span className="hidden md:inline">
-                  Your financial data needs to be kept secure and confidential.
-                </span>
-                <span className="block">Let's verify that it's you</span>
-              </p>
-            </div>
-
-            <div className="w-40">
-              <img
-                src={icon}
-                alt="verify email icon"
-                className={cn(retryExhausted ? "grayscale" : "")}
-              />
-            </div>
-
-            <div className="text-center text-sm md:text-base">
-              {retryExhausted ? (
-                <div>Still not verified after multiple attempts.</div>
-              ) : (
-                <div>
-                  We've sent a verification link to{" "}
-                  <span className="text-blue-500">{userEmail}</span>. Click it
-                  to verify your account and continue setup. Can't find it?
-                  Check your spam folder or click 'Resend' below.
-                </div>
-              )}
-            </div>
-
-            <div
-              className={cn(
-                "flex gap-4 mb-16 md:mb-0 md:mt-16",
-                retryExhausted ? "md:mt-8" : ""
-              )}
-            >
-              {isLoggedIn && !emailMismatch && (
-                <>
-                  {retryExhausted ? (
-                    <Button variant="outline" onClick={handleTryAgain}>
-                      Try Again
-                    </Button>
-                  ) : (
-                    <Button variant="outline" onClick={handleResendEmail}>
-                      Resend Email
-                    </Button>
-                  )}
-                </>
-              )}
-              {!isLoggedIn && (
-                <>
-                  <Link
-                    to={
-                      userEmail
-                        ? `${
-                            routes.login.staticPath
-                          }?email=${encodeURIComponent(userEmail)}`
-                        : routes.login.staticPath
-                    }
-                    className="text-blue-600 underline mt-4 block"
-                  >
-                    Log in to continue onboarding
-                  </Link>
-                </>
-              )}
-            </div>
-          </>
-        ) : (
-          <div>
-            <h2 className="text-xl font-bold mb-2">⚠️ Unexpected State</h2>
-            <p>Something doesn't look right. Please log in to continue.</p>
-            <Link to="/login" className="text-blue-600 underline mt-4 block">
-              Log in
-            </Link>
-          </div>
-        )} */}
-      </div>
     </div>
   );
 };

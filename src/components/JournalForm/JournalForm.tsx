@@ -29,7 +29,7 @@ import numeral from "numeral";
 import { postJournal } from "../../services/JournalServices";
 import { usePopup } from "../../contexts/PopupContext";
 import JournalFormPopup from "./JournalFormPopup";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import { useNavigate } from "react-router-dom";
 import { sumAmounts } from "./journalFormUtils";
 

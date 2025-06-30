@@ -5,13 +5,19 @@ import {
   MailCheckIcon,
   SettingsIcon,
 } from "lucide-react";
-import { OnboardingSideBarSteps, OnboardingSteps } from "./types";
+import {
+  OnboardingSideBarSteps,
+  OnboardingStepKey,
+  OnboardingSteps,
+} from "./types";
 import {
   CompanyData,
   CompanyType,
   OnboardingStatus,
 } from "@/domains/company/types";
 import { getDefaultCompanyData } from "@/domains/company/utils";
+import { RouteKey } from "@/shared/routes/types";
+import { routes } from "@/shared/routes/routes";
 
 export const stepMap: Record<OnboardingStatus, OnboardingSteps> = {
   not_started: "verifyEmail",
@@ -93,17 +99,14 @@ export function mergeInitialData(
   return { ...base, ...dbData, ...saved } as CompanyData; // precedence: saved > db > defaults
 }
 
-export type VerifyEmailSessionStatus =
-  | "loggedOut"
-  | "loggedInSameUser"
-  | "loggedInDifferentUser";
 
-export function getVerifyEmailSessionStatus(
-  userEmail: string | null,
-  verifiedEmail: string | null,
-  isLoggedIn: boolean
-): VerifyEmailSessionStatus {
-  if (!isLoggedIn) return "loggedOut";
-  if (userEmail === verifiedEmail) return "loggedInSameUser";
-  return "loggedInDifferentUser";
-}
+export const onboardingStepToSlug = {
+  email_verified: routes.onboarding.verifyEmail.staticPath,
+  company_details_confirmed: routes.onboarding.step.build({
+    step: "company-details",
+  }),
+  first_bank_account_added: routes.onboarding.step.build({
+    step: "add-bank-account",
+  }),
+} as const;
+export type OnboardingSlug = (typeof onboardingStepToSlug)[OnboardingStepKey];

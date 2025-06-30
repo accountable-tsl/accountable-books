@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { routes as oldRoutes } from "../routes/routes-old";
+import { routes as oldRoutes } from "../routes/routes";
 import { useEffect } from "react";
 import { companyStore } from "@/domains/company/store";
 import { RouteMeta } from "../routes/types";

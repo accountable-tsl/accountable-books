@@ -3,11 +3,17 @@ import { useEffect, useMemo, useRef } from "react";
 import { matchPath, useLocation } from "react-router-dom";
 import {
   buildCanonicalUrl,
+  createTenantRoutes,
   enforceCanonicalUrl,
+  flatRoutes,
   isPublicRoute,
 } from "@/shared/routes/utils";
 import { routes } from "@/shared/routes/routes";
-import { RouteKey } from "@/shared/routes/types";
+import {
+  ExtractPathParams,
+  FlattenedRouteKey,
+  OmitCompanyId,
+} from "@/shared/routes/types";
 export function useRoutePath<T extends Record<string, any>>(
   route: { buildPath: (params?: T) => string },
   params?: T
@@ -35,42 +41,31 @@ export function useCanonicalUrlEnforcer(): void {
   function enforceIfNeeded() {
     if (!user || hasRedirectedRef.current) return;
 
-    const matchedRouteEntry = Object.entries(routes).find(([_, config]) => {
-      const pattern = config.staticPath;
-      return matchPath({ path: pattern, end: true }, location.pathname);
-    });
+    // Loop through flatRoutes to find a match, recall (dot-separated keys e.g "auth.login")
+    for (const [routeKey, route] of Object.entries(flatRoutes)) {
+      const match = matchPath(
+        { path: route.staticPath, end: true },
+        location.pathname
+      );
 
-    if (!matchedRouteEntry) return;
+      if (!match) continue; // No match for this route
 
-    const [routeKey, routeConfig] = matchedRouteEntry;
+      // Extract all dynamic segments from the URL (e.g. { companyId: 'abc123', reportId: 'xyz' })
+      const fullParams = match.params ?? {};
 
-    // Extract dynamic segments using regex
-    const match = matchPath(
-      { path: routeConfig.staticPath, end: true },
-      location.pathname
-    );
+      // Remove companyId since the routing engine will inject it automatically from user context
+      const { companyId, ...rest } = fullParams;
 
-    const routeParams = match?.params ?? {};
+      enforceCanonicalUrl(
+        user,
+        routeKey as FlattenedRouteKey,
+        rest as OmitCompanyId<
+          ExtractPathParams<(typeof flatRoutes)[typeof routeKey]["staticPath"]>
+        >
+      );
 
-    // Remove companyId — already passed via user.currentCompanyId
-    const routeArgs = Object.entries(routeParams)
-      .filter(([key]) => key !== "companyId")
-      .map(([, val]) => val ?? "");
-
-    const canonicalUrl = buildCanonicalUrl({
-      user,
-      routeKey: routeKey as RouteKey,
-      routeArgs,
-    });
-    const canonical = new URL(canonicalUrl);
-
-    const needsRedirect =
-      window.location.hostname !== canonical.hostname ||
-      window.location.pathname !== canonical.pathname;
-
-    if (needsRedirect) {
       hasRedirectedRef.current = true;
-      enforceCanonicalUrl(user, routeKey as RouteKey, routeArgs);
+      break;
     }
   }
 
@@ -79,30 +74,18 @@ export function useCanonicalUrlEnforcer(): void {
   }, [location.pathname, user]);
 }
 
-export const useTenantRoutes = () => {
+export function useTenantRoutes() {
   const { user } = useAuth();
-  const location = useLocation();
-  if (!user && !isPublicRoute(location.pathname)) {
-    throw new Error("No user context");
+
+  const companyId = user?.currentCompanyId;
+  if (!companyId) {
+    throw new Error("No currentCompanyId found in user context");
   }
-  const companyId = user?.currentCompanyId || "";
-  return {
-    home: () => routes.home.path(companyId),
-    homeAlias: () => routes.homeAlias.path(companyId),
-    dashboard: () => routes.homeAlias.path(companyId),
 
-    login: () => routes.login.path(),
-    logout: () => routes.logout.path(),
-    signup: () => routes.signup.path(),
-    forgotPassword: () => routes.forgotPassword.path(),
+  const tenantRouter = useMemo(
+    () => createTenantRoutes(routes, companyId),
+    [companyId]
+  );
 
-    onboarding: () => routes.onboarding.path(),
-    verifyEmail: () => routes.verifyEmail.path(),
-    welcome: () => routes.welcome.path(companyId),
-
-    catEngine: () => routes.catEngine.path(companyId),
-
-    // invoiceDetail: (invoiceId: string) =>
-    //   tenantRoutes.invoiceDetail.path(companyId, invoiceId),
-  };
-};
+  return tenantRouter;
+}

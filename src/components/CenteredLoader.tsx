@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { BeatLoader, PuffLoader } from "react-spinners";
+import {  PuffLoader } from "react-spinners";
 import { AuthHeader } from "./AuthHeader";
+import ErrorPage from "./ErrorPage";
 
 export function CenteredLoader({
   delay = 0,
@@ -11,6 +12,7 @@ export function CenteredLoader({
   loader,
   message,
   showAuthHeader = false,
+  errorTimeout = 15000,
 }: {
   delay?: number;
   fullscreen?: boolean;
@@ -19,17 +21,30 @@ export function CenteredLoader({
   message?: string;
   messageClassName?: string;
   showAuthHeader?: boolean;
+  errorTimeout?: number; // Time in ms before showing error
 }) {
   const [visible, setVisible] = useState(delay === 0);
+  const [showError, setShowError] = useState(false);
 
   useEffect(() => {
-    if (delay === 0) return;
+    if (delay === 0) {
+      const errorTimeoutId = setTimeout(() => setShowError(true), errorTimeout);
+      return () => clearTimeout(errorTimeoutId);
+    }
 
-    const timeout = setTimeout(() => setVisible(true), delay);
-    return () => clearTimeout(timeout);
-  }, [delay]);
+    const showTimeout = setTimeout(() => setVisible(true), delay);
+    const errorTimeoutId = setTimeout(
+      () => setShowError(true),
+      delay + errorTimeout
+    );
+    return () => {
+      clearTimeout(showTimeout);
+      clearTimeout(errorTimeoutId);
+    };
+  }, [delay, errorTimeout]);
 
   if (!visible) return null;
+  if (showError) return <ErrorPage type="default" />;
 
   return (
     <>

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zEmail } from "@/shared/types/core";
-import { CompanyOnboardingState } from "@/features/onboarding/types";
+import { OnboardingState } from "@/features/onboarding/types";
 
 export const loginForm = z.object({
   email: zEmail,
@@ -58,7 +58,7 @@ export interface AuthCompanyContext {
 }
 
 export type CurrentCompanyContext = AuthCompanyContext & {
-  onboarding: CompanyOnboardingState;
+  onboarding: OnboardingState;
 };
 
 export const roleKey = z.enum([

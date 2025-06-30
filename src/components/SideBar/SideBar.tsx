@@ -31,7 +31,7 @@ import {
 import { NavMain } from "../NavMain";
 import { NavUser } from "../NavUser";
 import { NavSecondary } from "../NavSecondary";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import { useAuth } from "@/features/auth/hooks";
 import { useCompany } from "@/domains/company/store";
 import React, { useMemo } from "react";

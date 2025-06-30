@@ -1,5 +1,5 @@
 import { isPublicRoute } from "@/shared/routes/utils";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import { getCookie } from "@/utils/utils";
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import { authStore } from "@/features/auth/store";

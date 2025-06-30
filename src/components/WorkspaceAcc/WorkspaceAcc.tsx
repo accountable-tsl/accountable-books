@@ -15,7 +15,7 @@ import Decimal from "decimal.js";
 import { formatAccountText, timeAgo } from "../../utils/utils";
 import numeral from "numeral";
 import { Link } from "react-router-dom";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 
 interface AccountingWorkspaceProps {
   companyId: string;

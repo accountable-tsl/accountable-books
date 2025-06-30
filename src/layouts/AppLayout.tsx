@@ -7,7 +7,7 @@ import { useCompanyDetails } from "@/domains/company/hooks";
 import { useAuth, useSessionLoader } from "@/features/auth/hooks";
 import { useCompanySwitch } from "@/features/switchCompany/hooks";
 import { useCanonicalUrlEnforcer } from "@/shared/routes/hooks";
-import { routes } from "@/shared/routes/routes-old";
+import { routes } from "@/shared/routes/routes";
 import {
   pageStore,
   usePageMeta,
@@ -74,7 +74,7 @@ export default function AppLayout({
   }
 
   // We've loaded the session and confirm the user is not logged in, redirect to login
-  if (!isLoggedIn && !sessionLoading ) {
+  if (!isLoggedIn && !sessionLoading) {
     return <Navigate to={routes.login.staticPath} replace />;
   }
 
