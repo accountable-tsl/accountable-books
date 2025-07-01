@@ -18,7 +18,7 @@ import {
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
 import { useCountries } from "@/shared/hooks/useCountries";
 import { useCurrencies } from "@/shared/hooks/useCurrencies";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField } from "@/components/FormField";
 import { TOOLTIP } from "../signupConstants";
@@ -29,8 +29,8 @@ import { TooltipHelper } from "@/components/TooltipHelper";
 import DOMPurify from "dompurify";
 import { COMPANY_SIZE, COMPANY_TYPES } from "@/domains/company/constants";
 import { validateSlug } from "@/domains/firms/utils";
-import { useFirmSlugs } from "@/domains/firms/hooks";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
+import { useSlugCheck } from "@/domains/firms/hooks";
 
 export interface SignupCompanyInfoHandle {
   validate: () => Promise<boolean>;
@@ -75,8 +75,7 @@ export const SignupCompanyInfo = forwardRef<
     formState: { errors },
     setValue,
     trigger,
-    setError,
-    clearErrors,
+    control,
   } = useForm<NewCompany>({
     resolver: zodResolver(newCompany),
     defaultValues,
@@ -87,10 +86,12 @@ export const SignupCompanyInfo = forwardRef<
   const showOptionalFieldsButton =
     viewOptionalFields || isDescriptonTouched || description.length > 0;
 
-  const rawSlug = watch("slug");
-  const debouncedSlug = useDebouncedValue(rawSlug?.trim().toLowerCase(), 300);
-  const { data: firmSlugData, isLoading: isFirmSlugsLoading } = useFirmSlugs();
-  const allFirmSlugs = firmSlugData?.data;
+  const slug = watch("slug");
+  // const { data: slugCheckData, isFetching } = useSlugCheck(slug || "");
+
+  // const debouncedSlug = useDebouncedValue(rawSlug?.trim().toLowerCase(), 300);
+  // const { data: firmSlugData, isLoading: isFirmSlugsLoading } = useFirmSlugs();
+  // const allFirmSlugs = firmSlugData?.data;
 
   useImperativeHandle(ref, () => ({
     validate: async () => await trigger(),
@@ -120,19 +121,35 @@ export const SignupCompanyInfo = forwardRef<
     }
   }, [companyData.reportingCurrencyId]);
 
-  useEffect(() => {
-    const debounced = debouncedSlug?.trim().toLowerCase();
-    if (!debounced || isFirmSlugsLoading) return;
+  // useEffect(() => {
+  //   if (!slug || slug.trim().length < 3) return;
 
-    const takenSlugs = new Set(allFirmSlugs ?? []); // FIX: firmSlugs is string[]
-    const result = validateSlug(debounced, false, takenSlugs);
+  //   const result = validateSlug(slug);
+  //   console.log(result);
 
-    if (!result.isValid && result.error) {
-      setError("slug", { type: "manual", message: result.error });
-    } else {
-      clearErrors("slug");
-    }
-  }, [debouncedSlug, allFirmSlugs, setError, clearErrors]);
+  //   if (!result.isValid && result.error) {
+  //     setError("slug", { type: "manual", message: result.error });
+  //   } else {
+  //     clearErrors("slug");
+  //   }
+
+  //   console.log("slugcheck@companyinfo", slugCheckData);
+  //   if (isFetching || !slugCheckData) return;
+  //   const { success, message, data } = slugCheckData;
+  //   if (!success || !data?.isAvailable) {
+  //     if (!data?.isAvailable) {
+  //       setError("slug", { type: "manual", message: message || "Slug taken" });
+  //       return;
+  //     }
+
+  //     setError("slug", {
+  //       type: "manual",
+  //       message: message || "This slug is not available",
+  //     });
+  //     return;
+  //   }
+  //   clearErrors("slug");
+  // }, [setError, clearErrors]);
 
   return (
     <div>
@@ -238,24 +255,42 @@ export const SignupCompanyInfo = forwardRef<
             )}
           >
             {isFirm ? (
-              <FormField
-                id="slug"
-                label="Firm slug"
-                error={errors.slug?.message}
-                helpTooltip={TOOLTIP.firmSlug}
-                tooltipStyle="text-center"
-                required
-                errorTooltip
-                errorTooltipStyle="text-center"
-              >
-                <Input
-                  id="slug"
-                  {...register("slug")}
-                  onChange={(e) => handleChange("slug", e.target.value)}
-                  aria-describedby={errors.slug ? "slug-error" : undefined}
-                  placeholder="e.g kpmg, abc-and-co"
-                />
-              </FormField>
+              <Controller
+                name="slug"
+                control={control}
+                // rules={{ required: "Slug is required" }}
+                render={({ field, fieldState }) => {
+                  const slugCheck = useSlugCheck(field?.value || "");
+
+                  // Combine RHF errors with slug validation errors
+                  const error = slugCheck.isChecking
+                    ? "Checking availability..."
+                    : fieldState.error?.message || slugCheck.getError();
+
+                  return (
+                    <FormField
+                      id="slug"
+                      label="Firm slug"
+                      error={error || ""}
+                      helpTooltip={TOOLTIP.firmSlug}
+                      tooltipStyle="text-center"
+                      required
+                      errorTooltip
+                      errorTooltipStyle="text-center"
+                    >
+                      <Input
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          handleChange("slug", e.target.value);
+                        }}
+                        aria-describedby={error ? "slug-error" : undefined}
+                        placeholder="e.g kpmg, abc-and-co"
+                      />
+                    </FormField>
+                  );
+                }}
+              />
             ) : (
               /* Industry */
               <FormField

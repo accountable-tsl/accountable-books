@@ -1,31 +1,50 @@
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { checkSlug, fetchFirmSlugs, updateSlugFn } from "@/domains/firms/api";
+import { checkSlug, updateSlugFn } from "@/domains/firms/api";
 import { queryClient } from "@/lib/queryClient";
-import { invalidateFirmCaches } from "./utils";
+import { invalidateFirmCaches, validateSlug } from "@/domains/firms/utils";
+import { useCallback } from "react";
 
-export const useSlugCheck = (slug: string, companyId: string) => {
+export const useSlugCheck = (slug: string) => {
   const debouncedSlug = useDebouncedValue(slug.trim().toLowerCase(), 400);
-  const isValid = debouncedSlug.length >= 3;
+  const validation = validateSlug(debouncedSlug);
+  const shouldCheck = validation.isValid && debouncedSlug.length > 0;
 
-  return useQuery({
-    queryKey: ["firm-slug-check", debouncedSlug, companyId],
-    queryFn: () => checkSlug(debouncedSlug, companyId),
-    enabled: isValid && !!companyId,
+  const query = useQuery({
+    queryKey: ["firm-slug-check", debouncedSlug],
+    queryFn: () => checkSlug(debouncedSlug),
+    enabled: shouldCheck,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 30, // 30 minutes
-    refetchOnWindowFocus: false, // prevent rechecks on tab switch
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status >= 400 && error?.response?.status < 500) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
-};
 
-export const useFirmSlugs = () => {
-  return useQuery({
-    queryKey: ["firm-slugs"],
-    queryFn: fetchFirmSlugs,
-    staleTime: 1000 * 60 * 60, // 1 hour
-    gcTime: 1000 * 60 * 60 * 6, // 6 hours
-    refetchOnWindowFocus: false,
-  });
+  return {
+    ...query,
+    validation,
+    isChecking: query.isFetching && validation.isValid,
+    getError: useCallback(() => {
+      // Client-side validation errors first
+      if (!validation.isValid) return validation.error;
+
+      // API errors
+      if (query.error) return "Unable to check availability";
+
+      // Availability check
+      if (query.data && !query.data.data?.isAvailable) {
+        return "This slug is already taken";
+      }
+
+      return null;
+    }, [validation, query.error, query.data]),
+    isValid: validation.isValid && query.data?.data?.isAvailable === true,
+    isEmpty: !debouncedSlug,
+  };
 };
 
 export const useUpdateFirmSlug = () => {

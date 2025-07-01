@@ -8,8 +8,7 @@ export const isValidSlug = (slug: string): boolean => {
 
 export const validateSlug = (
   value: string | null | undefined,
-  isSlugRequired?: boolean,
-  takenSlugs?: Set<string>
+  isSlugRequired?: boolean
 ): { isValid: boolean; error?: string } => {
   // Skip if not required and empty
   if (!isSlugRequired && !value) return { isValid: true };
@@ -47,13 +46,8 @@ export const validateSlug = (
   if (!isValidSlug(trimmed)) {
     return {
       isValid: false,
-      error:
-        "Invalid slug: Use 3-15 lowercase letters and hyphens (not at ends)",
+      error: "Invalid slug format",
     };
-  }
-
-  if (takenSlugs && takenSlugs.has(trimmed)) {
-    return { isValid: false, error: "That slug is already taken" };
   }
 
   return { isValid: true };
@@ -65,11 +59,8 @@ const isReservedSlug = (slug: string): boolean => {
     .replace(/[_\s]+/g, "-")
     .trim();
 
+  console.log(normalized);
   if (normalizedReservedSlugs.has(normalized)) return true;
-
-  for (const word of normalizedReservedSlugs) {
-    if (normalized.includes(word)) return true;
-  }
 
   return false;
 };

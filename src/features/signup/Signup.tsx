@@ -29,7 +29,6 @@ import { submitSignup } from "./signupService";
 import { PuffLoader } from "react-spinners";
 import { XIcon } from "lucide-react";
 import { AuthHeader } from "@/components/AuthHeader";
-import { handleLogin } from "../auth/api";
 import { useAuth } from "../auth/hooks";
 import { buildCanonicalUrl } from "@/shared/routes/utils";
 import { routes } from "@/shared/routes/routes";
@@ -86,11 +85,20 @@ export default function Signup() {
     const validEmail = zEmail.safeParse(email);
     if (!validEmail.success)
       throw new Error("Please enter a valid email address");
-    const response = await checkEmail({ email, purpose: "signup" });
-    if (!response?.success) {
-      throw new Error("This email has already been registered");
+
+    try {
+      const response = await checkEmail({ email, purpose: "signup" });
+      if (!response?.success) {
+        throw new Error(
+          response.message || "This email has already been registered"
+        );
+      }
+      return true;
+    } catch (err: any) {
+      const backendError =
+        err?.response?.data?.message || err.message || "Something went wrong";
+      throw new Error(backendError);
     }
-    return true;
   };
 
   const handleBack = () => {
@@ -148,8 +156,8 @@ export default function Signup() {
           toast.success("Signup successful");
           setError("");
 
-          // Wait for 4 seconds so user sees toast/UI
-          await new Promise((resolve) => setTimeout(resolve, 4000));
+          // Wait for 2 seconds so user sees toast/UI
+          // await new Promise((resolve) => setTimeout(resolve, 2000));
 
           const loginResult = await performLoginFlow({
             email: basicInfo.email,
@@ -177,7 +185,9 @@ export default function Signup() {
           }
 
           if (loginSuccess && canAccessApp) {
-            navigate(dashboardUrl, { replace: true });
+            window.location.replace(dashboardUrl);
+          } else {
+            navigate(routes.onboarding.router.staticPath, { replace: true });
           }
         } else {
           setTimeout(() => {

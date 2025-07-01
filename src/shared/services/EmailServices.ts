@@ -1,4 +1,4 @@
-import axios from "@/lib/axios";
+import api from "@/lib/axios";
 import { ApiResponse } from "@/shared/types/core";
 
 export type CheckEmailProps = {
@@ -10,7 +10,7 @@ export const checkEmail = async ({
   email,
   purpose = "signup",
 }: CheckEmailProps): Promise<ApiResponse<string | null>> => {
-  const res = await axios.post(`/api/email/check`, { email, purpose });
+  const res = await api.post(`/api/email/check`, { email, purpose });
 
   return res.data;
 };
