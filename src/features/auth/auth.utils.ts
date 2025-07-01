@@ -121,14 +121,17 @@ export async function buildAuthContext(
 
     const userAccessProfile = userAccessProfileResponse.data;
     const accessibleCompanies = userAccessProfile.accessibleCompanies;
-    const accessibleCompaniesIds = userAccessProfile.accessibleCompanies.map(
-      (c) => c.id
-    );
+    const accessibleCompaniesIdsExDemo = userAccessProfile.accessibleCompanies
+      .filter((c) => !c.isDemoCompany)
+      .map((c) => c.id);
 
     // Determine valid current company
     let activeCompanyId = currentCompanyId;
-    if (!activeCompanyId || !accessibleCompaniesIds.includes(activeCompanyId)) {
-      activeCompanyId = accessibleCompaniesIds[0];
+    if (
+      !activeCompanyId ||
+      !accessibleCompaniesIdsExDemo.includes(activeCompanyId)
+    ) {
+      activeCompanyId = accessibleCompaniesIdsExDemo[0];
 
       // Update last_active_company_id
       const activeCompanyUUID = await getCompanyUUID(activeCompanyId);

@@ -106,12 +106,12 @@ const getUserCompanyRoleAssignments = async (
         "c.onboarding_state as onboardingState"
       );
 
-    // Combine both direct roles and firm-assigned roles
-    // Using UNION ALL to get all roles (direct + via firm assignments)
-    const allRoles = await knex.union(
-      [directRoles, rolesViaFirmAssignments],
-      true // UNION ALL (allows duplicates, though unlikely in this case)
-    );
+    const [direct, viaFirm] = await Promise.all([
+      directRoles,
+      rolesViaFirmAssignments,
+    ]);
+
+    const allRoles = [...direct, ...viaFirm];
 
     if (!allRoles.length) {
       return errorResponse("User is not assigned to any company");

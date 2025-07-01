@@ -37,14 +37,13 @@ export const newCompanyInput = z.object({
   team_size: z.string().max(256).nullish(),
   revenue: z.string().max(256).nullish(),
   reporting_framework: reportingFramework.nullish(),
-  id: z.string().uuid().optional(),
   short_code: z.string().max(50).optional(),
   assigned_firm_id: z.string().uuid().optional(),
   load_coa_template: z.boolean().optional(),
   registration_number: z.string().max(256).nullish(),
   tax_id: z.string().max(256).nullish(),
   is_demo_company: z.boolean().default(false).optional(),
-  slug: z.string().max(50).optional(),
+  slug: z.string().max(20).optional(),
   onboarding_state: companyOnboardingState,
 });
 
@@ -210,7 +209,7 @@ export const updateCompanySchema = getCompanyResponse
     assignedFirmSlug: true,
   })
   .extend({
-    slug: z.string().max(50).optional(),
+    slug: z.string().max(20).optional(),
     firmType: firmType.optional(),
   })
   .partial();

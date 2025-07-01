@@ -35,7 +35,6 @@ import {
   CreateUserResponse,
   NewUserDirect,
   NewUserInputCamel,
-  user,
 } from "../../domains/users/users.types";
 import { grantDirectAccess } from "../../domains/userRoles/userRoles.model";
 import { RoleKey } from "../../domains/roles/roles.types";
@@ -82,86 +81,56 @@ export const registerNewAccount = async (
     return errorResponse("Invalid input", validateInput.error.flatten());
   }
 
-  const knex = trx || knexClient;
   // Destructure and retrieve user and company input
   // For firms, we use company data to create firm as well to ease onboarding
   const { user: userInput, company: companyInput } = validateInput.data;
 
   // Begin signup transaction
   // Once user is created, company is created & assigned to firm,
-  // This function should return successful, even if everything else fails
-  try {
-    const res = async () => {
-      const { user, company } = await createUserAndCompany(
-        knex,
-        userInput,
-        companyInput
-      );
+  // Once this fn is successful, return successful, even if everything else fails
+  const registerNewAccountFn = async (knex: Knex.Transaction) => {
+    const { user, company } = await createUserAndCompany(
+      knex,
+      userInput,
+      companyInput
+    );
 
-      let firm;
-      // For an accounting firm, create accounting_firm
-      if (companyInput.type === "accounting_firm") {
-        firm = await setupAccountingFirm(knex, {
-          companyId: company.id,
-          firmData: companyInput,
-        });
-      }
-
-      await attachChartOfAccounts(knex, {
+    let firm;
+    // For an accounting firm, create accounting_firm
+    if (companyInput.type === "accounting_firm") {
+      firm = await setupAccountingFirm(knex, {
         companyId: company.id,
-        reportingCurrencyId: company.reporting_currency_id,
-        userId: user.id,
-        loadCoaTemplate: companyInput.load_coa_template || true,
+        firmData: companyInput,
       });
-
-      const { count } = await knex("companies")
-        .where("created_by_id", user.id)
-        .count<{ count: string }>("id");
-
-      return {
-        user,
-        company: { ...company, totalCompaniesByUser: parseInt(count, 10) },
-        firm,
-      };
-    };
-
-    const result = await res();
-    const { user, company: companyRes, firm } = result;
-
-    try {
-      trackSignupEvents(
-        user.id,
-        user.email,
-        companyRes.type,
-        companyRes.id,
-        firm?.id
-      );
-
-      //   await sendWelcomeEmail(user.email, user.firstname, verifyUrl); // Build this out later
-      if (!companyRes.is_demo_company) {
-        const url = buildEmailServiceUrl("verify-email", {
-          userId: user.id,
-          token: user.verificationToken,
-        });
-        const sendVerEmail = await sendVerificationEmail({
-          to: user.email,
-          name: user.firstname,
-          url,
-        });
-        if (!sendVerEmail) {
-          errorResponse("Unable to send verification email");
-        }
-      }
-    } catch (error) {
-      errorResponse("Post-signup event failed", error);
     }
 
-    const coy = snakeToCamel(companyRes) as NewCompanyResCamel;
-
-    return successResponse("User has been registered successfully", {
-      user,
-      company: coy,
+    await attachChartOfAccounts(knex, {
+      companyId: company.id,
+      reportingCurrencyId: company.reporting_currency_id,
+      userId: user.id,
+      loadCoaTemplate: companyInput.load_coa_template || true,
     });
+
+    const { count } = await knex("companies")
+      .where("created_by_id", user.id)
+      .count<{ count: string }>("id");
+
+    return {
+      user,
+      company: { ...company, totalCompaniesByUser: parseInt(count, 10) },
+      firm,
+    };
+  };
+
+  let result;
+  try {
+    if (trx) {
+      result = await registerNewAccountFn(trx);
+    } else {
+      result = await knexClient.transaction((newTrx) =>
+        registerNewAccountFn(newTrx)
+      );
+    }
   } catch (error) {
     Sentry.captureException(error, {
       user: {
@@ -182,6 +151,69 @@ export const registerNewAccount = async (
       error
     );
   }
+
+  const warnings: string[] = [];
+
+  // Run side effects outside transaction, best effort
+  (async () => {
+    const { user, company: companyRes, firm } = result;
+
+    try {
+      await trackSignupEvents(
+        user.id,
+        user.email,
+        companyRes.type,
+        companyRes.id,
+        firm?.id
+      );
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: { flow: "postSignupEvents" },
+      });
+      warnings.push("Failed to track signup events");
+    }
+
+    if (!companyRes.is_demo_company) {
+      try {
+        const url = buildEmailServiceUrl("verify-email", {
+          userId: user.id,
+          token: user.verificationToken,
+        });
+
+        //   await sendWelcomeEmail(user.email, user.firstname, verifyUrl); // Build this out later
+        const sentVerEmail = await sendVerificationEmail({
+          to: user.email,
+          name: user.firstname,
+          url,
+        });
+
+        if (!sentVerEmail) {
+          warnings.push("Verification email was not sent");
+          errorResponse(
+            "Unable to send verification email on signup",
+            sentVerEmail,
+            {
+              report: true,
+            }
+          );
+        }
+      } catch (error) {
+        errorResponse("Unable to send verification email on signup", error, {
+          report: true,
+        });
+        Sentry.captureException(error, {
+          tags: { flow: "postSignupEvents" },
+        });
+        warnings.push("Failed to send verification email on signup");
+      }
+    }
+  })();
+
+  return successResponse("User has been registered successfully", {
+    user: result.user,
+    company: snakeToCamel(result.company) as NewCompanyResCamel,
+    warnings: warnings.length ? warnings : undefined,
+  });
 };
 
 const createUserAndCompany = async (
@@ -264,12 +296,12 @@ const setupAccountingFirm = async (
   });
 
   // Check if validation succeeded
-  if (!firmInput.success) {
+  if (!firmInput.success || !firmInput.data) {
     throw new AppError("Invalid input", firmInput.error.flatten());
   }
 
   // Create accounting firm
-  const firmResponse = await createAccountingFirm(trx, firmInput.data!);
+  const firmResponse = await createAccountingFirm(trx, firmInput.data);
   if (!firmResponse.success || !firmResponse.data?.id) {
     throw new AppError(`Firm creation failed: ${firmResponse.message}`);
   }

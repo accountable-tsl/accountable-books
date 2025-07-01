@@ -202,7 +202,7 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
 
       if (initialEmailVerifiedAt) {
         return successResponse("Email already verified", {
-          emailVerified: true,
+          emailVerified: false,
           status: "verified",
           email: userEmail,
         });

@@ -39,7 +39,7 @@ export type UserCompanyRoleAssignmentRes = {
   roleName: string;
   roleScope: RoleScope;
   companyType: CompanyType;
-  // onboardingState: CompanyOnboardingState;
+  onboardingState: CompanyOnboardingState;
 };
 
 // GRANT ACCESS TO COMPANY

@@ -1,7 +1,7 @@
 import { normalizedReservedSlugs } from "./firms.constants";
 
 export const isValidSlug = (slug: string): boolean => {
-  const slugRegex = /^(?=[a-z-]{3,20}$)[a-z]+-?[a-z]+$/;
+  const slugRegex = /^(?=[a-z-]{3,20}$)[a-z]+(-[a-z]+)*$/;
   return slugRegex.test(slug);
 };
 
