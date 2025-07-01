@@ -215,6 +215,7 @@ export const normalizedReservedSlugs = new Set(
     s
       .toLowerCase()
       .replace(/[_\s]+/g, "-")
+      .replace(/^-+|-+$/g, "")
       .trim()
   )
 );

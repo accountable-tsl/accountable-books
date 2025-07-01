@@ -12,3 +12,18 @@ export const checkSlug = async (
   );
   return response.data;
 };
+
+export const fetchFirmSlugs = async (): Promise<ApiResponse<string[]>> => {
+  const response = await api.get(`/api/accounting-firms/slugs`);
+  return response.data;
+};
+
+export const updateSlugFn = async ({
+  firmId,
+  slug,
+}: {
+  firmId: string;
+  slug: string;
+}): Promise<void> => {
+  await api.patch(`/api/accounting-firms/${firmId}/slug`, { slug });
+};

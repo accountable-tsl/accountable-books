@@ -29,7 +29,7 @@ export default function Welcome() {
         </div>
         <h2>Welcome to Accountable</h2>
         <p className="text-muted-foreground">
-          We're setting up your account...
+          We're completing your setup... ; You're all set, Temi🎉
         </p>
       </div>
     </div>

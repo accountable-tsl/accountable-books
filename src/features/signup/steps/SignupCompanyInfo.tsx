@@ -8,7 +8,13 @@ import {
 } from "@/components/ui/select";
 import { newCompany, NewCompany, NewUser } from "../signupTypes";
 import { useIndustries } from "@/shared/hooks/useIndustries";
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
 import { useCountries } from "@/shared/hooks/useCountries";
 import { useCurrencies } from "@/shared/hooks/useCurrencies";
@@ -22,6 +28,9 @@ import { cn } from "@/lib/utils";
 import { TooltipHelper } from "@/components/TooltipHelper";
 import DOMPurify from "dompurify";
 import { COMPANY_SIZE, COMPANY_TYPES } from "@/domains/company/constants";
+import { validateSlug } from "@/domains/firms/utils";
+import { useFirmSlugs } from "@/domains/firms/hooks";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 
 export interface SignupCompanyInfoHandle {
   validate: () => Promise<boolean>;
@@ -49,7 +58,6 @@ export const SignupCompanyInfo = forwardRef<
   } = useIndustries();
 
   const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
-
   const { data: countries, isLoading: isCountryLoading } = useCountries();
 
   const defaultValues = {
@@ -67,6 +75,8 @@ export const SignupCompanyInfo = forwardRef<
     formState: { errors },
     setValue,
     trigger,
+    setError,
+    clearErrors,
   } = useForm<NewCompany>({
     resolver: zodResolver(newCompany),
     defaultValues,
@@ -76,6 +86,11 @@ export const SignupCompanyInfo = forwardRef<
   const description = watch("description") || "";
   const showOptionalFieldsButton =
     viewOptionalFields || isDescriptonTouched || description.length > 0;
+
+  const rawSlug = watch("slug");
+  const debouncedSlug = useDebouncedValue(rawSlug?.trim().toLowerCase(), 300);
+  const { data: firmSlugData, isLoading: isFirmSlugsLoading } = useFirmSlugs();
+  const allFirmSlugs = firmSlugData?.data;
 
   useImperativeHandle(ref, () => ({
     validate: async () => await trigger(),
@@ -104,6 +119,20 @@ export const SignupCompanyInfo = forwardRef<
       });
     }
   }, [companyData.reportingCurrencyId]);
+
+  useEffect(() => {
+    const debounced = debouncedSlug?.trim().toLowerCase();
+    if (!debounced || isFirmSlugsLoading) return;
+
+    const takenSlugs = new Set(allFirmSlugs ?? []); // FIX: firmSlugs is string[]
+    const result = validateSlug(debounced, false, takenSlugs);
+
+    if (!result.isValid && result.error) {
+      setError("slug", { type: "manual", message: result.error });
+    } else {
+      clearErrors("slug");
+    }
+  }, [debouncedSlug, allFirmSlugs, setError, clearErrors]);
 
   return (
     <div>
@@ -208,31 +237,52 @@ export const SignupCompanyInfo = forwardRef<
               isFirm ? "grid md:grid-cols-2 gap-2" : ""
             )}
           >
-            {/* Industry */}
-            <FormField
-              id="industry"
-              label="Industry"
-              error={errors.industry?.message}
-              helpTooltip={TOOLTIP.industry || ""}
-              className="w-full"
-            >
-              <AutocompleteDropdown
+            {isFirm ? (
+              <FormField
+                id="slug"
+                label="Firm slug"
+                error={errors.slug?.message}
+                helpTooltip={TOOLTIP.firmSlug}
+                tooltipStyle="text-center"
+                required
+                errorTooltip
+                errorTooltipStyle="text-center"
+              >
+                <Input
+                  id="slug"
+                  {...register("slug")}
+                  onChange={(e) => handleChange("slug", e.target.value)}
+                  aria-describedby={errors.slug ? "slug-error" : undefined}
+                  placeholder="e.g kpmg, abc-and-co"
+                />
+              </FormField>
+            ) : (
+              /* Industry */
+              <FormField
                 id="industry"
-                items={
-                  isIndustriesLoading
-                    ? [{ value: "loading", label: "Loading..." }]
-                    : isIndustriesError
-                    ? [{ value: "error", label: "Error loading industries" }]
-                    : industries || []
-                }
-                mapItem={(item) => ({
-                  value: item.label,
-                  label: item.shortLabel,
-                })}
-                value={watch("industry") || ""}
-                onValueChange={(value) => handleChange("industry", value)}
-              />
-            </FormField>
+                label="Industry"
+                error={errors.industry?.message}
+                helpTooltip={TOOLTIP.industry || ""}
+                className="w-full"
+              >
+                <AutocompleteDropdown
+                  id="industry"
+                  items={
+                    isIndustriesLoading
+                      ? [{ value: "loading", label: "Loading..." }]
+                      : isIndustriesError
+                      ? [{ value: "error", label: "Error loading industries" }]
+                      : industries || []
+                  }
+                  mapItem={(item) => ({
+                    value: item.label,
+                    label: item.shortLabel,
+                  })}
+                  value={watch("industry") || ""}
+                  onValueChange={(value) => handleChange("industry", value)}
+                />
+              </FormField>
+            )}
 
             {/* Fiscal Period */}
             {isFirm && (

@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { CompanyType, Country, zEmail } from "@/shared/types/core";
 import { Button } from "@/components/ui/button";
 import { NewCompany, NewUser } from "./signupTypes";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCountries } from "@/shared/hooks/useCountries";
 import { getDefaultCurrencyCodeForCountry } from "@/constants/countryCurrencyMap";
 import { useCurrencies } from "@/shared/hooks/useCurrencies";
@@ -32,10 +32,13 @@ import { AuthHeader } from "@/components/AuthHeader";
 import { handleLogin } from "../auth/api";
 import { useAuth } from "../auth/hooks";
 import { buildCanonicalUrl } from "@/shared/routes/utils";
+import { routes } from "@/shared/routes/routes";
+import { performLoginFlow } from "../auth/utils";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
   const { setAuth } = useAuth();
+  const navigate = useNavigate();
   const prefillEmail = searchParams.get("email") || "";
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -141,36 +144,41 @@ export default function Signup() {
         });
 
         if (signup.success) {
-          setTimeout(() => {
-            setSubmitStatus("success");
-            toast.success("Signup successful", { duration: 6000 });
-            setError("");
-          }, 1000);
+          setSubmitStatus("success");
+          toast.success("Signup successful");
+          setError("");
 
-          // Log the user in
-          const login = await handleLogin({
+          // Wait for 4 seconds so user sees toast/UI
+          await new Promise((resolve) => setTimeout(resolve, 4000));
+
+          const loginResult = await performLoginFlow({
             email: basicInfo.email,
             password: basicInfo.password,
+            setAuth,
           });
-          const { user, csrfToken } = login.data || {};
-          if (!login.success || !user || !csrfToken || !user.currentCompany) {
-            toast.error("Please login to continue");
-            return;
-          }
 
-          setAuth(user, csrfToken);
-          const currentCompany = user.currentCompany;
-          if (!currentCompany.onboarding.canAccessApp) {
-            const canonicalUrl = buildCanonicalUrl({
-              user,
-              routeKey: "onboarding",
+          const {
+            success: loginSuccess,
+            canAccessApp,
+            data: loginResultData,
+          } = loginResult;
+
+          const dashboardUrl = buildCanonicalUrl({
+            user: loginResultData.user,
+            routeKey: "general.dashboard",
+            routeParams: {},
+          });
+
+          if (!loginResult.success) {
+            toast.info("Signup succeeded! Please login to continue.", {
+              duration: 6000,
             });
-            window.location.replace(canonicalUrl);
+            navigate(routes.auth.login.staticPath, { replace: true });
           }
 
-          setTimeout(() => {
-            window.location.href = "/onboarding";
-          }, 1500);
+          if (loginSuccess && canAccessApp) {
+            navigate(dashboardUrl, { replace: true });
+          }
         } else {
           setTimeout(() => {
             setSubmitStatus("error");

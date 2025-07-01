@@ -5,7 +5,6 @@ import { AppSidebar, AppSidebarProps } from "@/components/SideBar/Sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useCompanyDetails } from "@/domains/company/hooks";
 import { useAuth, useSessionLoader } from "@/features/auth/hooks";
-import { useCompanySwitch } from "@/features/switchCompany/hooks";
 import { useCanonicalUrlEnforcer } from "@/shared/routes/hooks";
 import { routes } from "@/shared/routes/routes";
 import {
@@ -13,8 +12,7 @@ import {
   usePageMeta,
   useUpdatePageInfo,
 } from "@/shared/stores/page";
-import { useEffect } from "react";
-import { Navigate, Outlet, useParams } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 
 interface AppLayoutProps extends AppSidebarProps {}
 export default function AppLayout({
@@ -22,8 +20,8 @@ export default function AppLayout({
 }: AppLayoutProps) {
   const {
     user,
-    companyType,
     currentCompanyId: companyId,
+    companyType: authCompanyType,
     firmSlug: slug,
     isLoggedIn,
   } = useAuth();
@@ -37,36 +35,12 @@ export default function AppLayout({
   } = useCompanyDetails(companyId || "");
 
   const company = companyDetails?.data;
-
-  // const { isSwitching } = useCompanySwitch();
-  // const params = useParams();
-  // const routeCompanyId = params.companyId;
+  const { companyType } = companyDetails?.data || {};
 
   const { sidebarCollapsed } = pageStore();
   useCanonicalUrlEnforcer();
   useUpdatePageInfo();
   usePageMeta();
-
-  // useEffect(() => {
-  //   console.log("App Layout: I'm hit", { slug, companyId, routeCompanyId });
-
-  //   if (
-  //     user &&
-  //     companyId &&
-  //     slug &&
-  //     !isSwitching &&
-  //     routeCompanyId !== companyId
-  //   ) {
-  //     const isCorrectSubdomain = window.location.hostname.startsWith(slug);
-  //     if (!isCorrectSubdomain) {
-  //       const url = routes.dashboard.buildUrl({ companyId });
-  //       if (url) window.location.href = url;
-  //     }
-  //   }
-  // }, [user, companyId, slug]);
-  // if (user && user.)
-
-  // App layout is for protected routes
 
   // If we are loading the session or company details, show a loader
   if (sessionLoading || companyDetailsLoading) {
@@ -75,16 +49,25 @@ export default function AppLayout({
 
   // We've loaded the session and confirm the user is not logged in, redirect to login
   if (!isLoggedIn && !sessionLoading) {
-    return <Navigate to={routes.login.staticPath} replace />;
+    return <Navigate to={routes.auth.login.staticPath} replace />;
   }
 
+  console.log({
+    company,
+    user,
+    companyId,
+    companyType,
+    slug,
+    companyDetailsError,
+  });
   if (
     !company ||
     !user ||
     !companyId ||
     !companyType ||
     !slug ||
-    companyDetailsError
+    companyDetailsError ||
+    authCompanyType !== companyType
   ) {
     return <ErrorPage type="default" />;
   }

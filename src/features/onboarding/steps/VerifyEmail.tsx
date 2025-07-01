@@ -40,7 +40,6 @@ export const VerifyEmail = ({
   const { loading: sessionLoading } = useSessionLoader();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const router = useTenantRoutes();
 
   // State
   const [verifyEmailResponse, setVerifyEmailResponse] =
@@ -304,7 +303,7 @@ export const VerifyEmail = ({
         This verification link is invalid or has expired.
       </p>
       <Link
-        to={`${loginRoute()}?email=${encodeURIComponent(email || "")}`}
+        to={`${routes.auth.login.staticPath}?email=${encodeURIComponent(email || "")}`}
         className="text-blue-500 underline mt-4 block"
       >
         Log in to request a new link
@@ -327,7 +326,7 @@ export const VerifyEmail = ({
 
       {loggedOut ? (
         <Link
-          to={`${loginRoute()}?email=${encodeURIComponent(
+          to={`${routes.auth.login.staticPath}?email=${encodeURIComponent(
             verifiedEmail || ""
           )}`}
           className="text-blue-600 underline mt-4 block"
@@ -339,7 +338,7 @@ export const VerifyEmail = ({
           variant="secondary"
           onClick={() =>
             logout({
-              redirectTo: loginRoute(),
+              redirectTo: routes.auth.login.staticPath,
               query: { email: verifiedEmail },
             })
           }
@@ -356,7 +355,7 @@ export const VerifyEmail = ({
     <>
       <h2 className="text-xl font-bold mb-2">⚠️ Unexpected State</h2>
       <p>Something doesn't look right. Please log in to continue.</p>
-      <Link to={loginRoute()} className="text-blue-600 underline mt-4 block">
+      <Link to={routes.auth.login.staticPath} className="text-blue-600 underline mt-4 block">
         Log in {!loggedOut ? "again" : ""}
       </Link>
     </>

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import {  PuffLoader } from "react-spinners";
+import { PuffLoader } from "react-spinners";
 import { AuthHeader } from "./AuthHeader";
 import ErrorPage from "./ErrorPage";
 
@@ -8,11 +8,13 @@ export function CenteredLoader({
   delay = 0,
   fullscreen = false,
   className,
-  messageClassName,
   loader,
   message,
+  messageClassName,
   showAuthHeader = false,
   errorTimeout = 15000,
+  onTimeout,
+  showErrorOnTimeout = false,
 }: {
   delay?: number;
   fullscreen?: boolean;
@@ -21,27 +23,35 @@ export function CenteredLoader({
   message?: string;
   messageClassName?: string;
   showAuthHeader?: boolean;
-  errorTimeout?: number; // Time in ms before showing error
+  errorTimeout?: number;
+  onTimeout?: () => void;
+  showErrorOnTimeout?: boolean;
 }) {
   const [visible, setVisible] = useState(delay === 0);
   const [showError, setShowError] = useState(false);
 
   useEffect(() => {
-    if (delay === 0) {
-      const errorTimeoutId = setTimeout(() => setShowError(true), errorTimeout);
-      return () => clearTimeout(errorTimeoutId);
+    let showTimeoutId: NodeJS.Timeout | undefined;
+    let errorTimeoutId: NodeJS.Timeout | undefined;
+
+    if (delay > 0) {
+      showTimeoutId = setTimeout(() => setVisible(true), delay);
+    } else {
+      setVisible(true);
     }
 
-    const showTimeout = setTimeout(() => setVisible(true), delay);
-    const errorTimeoutId = setTimeout(
-      () => setShowError(true),
-      delay + errorTimeout
-    );
+    if (errorTimeout != null) {
+      errorTimeoutId = setTimeout(() => {
+        if (showErrorOnTimeout) setShowError(true);
+        onTimeout?.();
+      }, delay + errorTimeout);
+    }
+
     return () => {
-      clearTimeout(showTimeout);
-      clearTimeout(errorTimeoutId);
+      if (showTimeoutId) clearTimeout(showTimeoutId);
+      if (errorTimeoutId) clearTimeout(errorTimeoutId);
     };
-  }, [delay, errorTimeout]);
+  }, [delay, errorTimeout, showErrorOnTimeout, onTimeout]);
 
   if (!visible) return null;
   if (showError) return <ErrorPage type="default" />;

@@ -14,26 +14,20 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { handleLogin } from "./api";
-import { ErrorCode } from "@/utils/utils";
 import { useCompany } from "@/domains/company/store";
 import { useAuth } from "./hooks";
 import { routes } from "@/shared/routes/routes";
 import { AuthHeader } from "@/components/AuthHeader";
-import { getUserDetails } from "@/domains/user/api";
 import { toast } from "sonner";
-import { buildCanonicalUrl } from "@/shared/routes/utils";
-import { useTenantRoutes } from "@/shared/routes/hooks";
+import { performLoginFlow } from "./utils";
 
 export default function Login() {
   // const { setUser, isLoggedIn, checkingSession, clearSession, logout } =
   //   useAuth();
-  const { setAuth, logout, isLoggedIn } = useAuth();
+  const { setAuth, logout, isLoggedIn, hasAppAccess } = useAuth();
   const { companyId, company } = useCompany();
-  const { dashboard } = useTenantRoutes();
   const [params] = useSearchParams();
 
-  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -51,47 +45,13 @@ export default function Login() {
   const onSubmit = async (data: LoginForm) => {
     try {
       setIsLoading(true);
-      const res = await handleLogin(data);
-
-      if (!res.success || !res.data) {
-        const message = res.message || "Email or password is incorrect";
-        if (res?.code === ErrorCode.INVALID_CREDENTIALS) {
-          setError("email", { type: "manual", message });
-          setError("password", { type: "manual", message });
-        }
-        toast.error(message);
-        return;
-      }
-
-      const { user, csrfToken } = res.data;
-      if (!user || !csrfToken) {
-        // Maybe do something here
-        return;
-      }
-      setAuth(user, csrfToken);
-
-      // Find company
-      const currentCompany = user.companies.find(
-        (company) => company.id === user.currentCompanyId
-      );
-
-      if (!currentCompany) {
-        await logout();
-        toast.error("Login failed");
-        return;
-      }
-
-      if (currentCompany.onboardingStatus !== "onboarding_complete") {
-        navigate(routes.onboarding.staticPath);
-        return;
-      }
-
-      const canonicalUrl = buildCanonicalUrl({
-        user,
-        subpath: "",
+      await performLoginFlow({
+        email: data.email,
+        password: data.password,
+        setError,
+        setAuth,
+        logout,
       });
-      toast.success("Login successful!");
-      window.location.replace(canonicalUrl);
     } catch (error) {
       console.error(error);
       await logout();
@@ -116,9 +76,9 @@ export default function Login() {
                 </span>{" "}
                 <Link
                   to={
-                    company.onboardingStatus !== "onboarding_complete"
-                      ? routes.onboarding.staticPath
-                      : dashboard()
+                    hasAppAccess
+                      ? routes.general.dashboard.build({ companyId })
+                      : routes.auth.login.staticPath
                   }
                   className="underline font-medium"
                 >
@@ -184,7 +144,7 @@ export default function Login() {
                         {/* </div> */}
                       </FormField>
                       <Link
-                        to={routes.forgotPassword.staticPath}
+                        to={routes.auth.forgotPassword.staticPath}
                         className="absolute -bottom-3.5 right-0 text-right text-sm underline-offset-4 hover:underline"
                       >
                         Forgot your password?
@@ -199,7 +159,7 @@ export default function Login() {
                   <div className="text-center text-sm">
                     Don't have an account?{" "}
                     <Link
-                      to={routes.signup.staticPath}
+                      to={routes.auth.signup.staticPath}
                       className="underline underline-offset-4"
                     >
                       Sign up

@@ -1,7 +1,3 @@
-import { CompanyType } from "@/domains/company/types";
-import { makeRoute } from "./routes-old";
-import { AuthUserContext } from "@/features/auth/types";
-import { routes } from "@/shared/routes/routes";
 import { flatRoutes } from "./utils";
 
 export type RouteMeta = {
@@ -31,7 +27,8 @@ export type OmitCompanyId<T> = T extends { companyId: any }
 
 export type RouteLike = {
   staticPath: string;
-  meta?: { public?: boolean };
+  build: () => string;
+  meta?: RouteMeta;
 };
 
 export type FlatRoutes = typeof flatRoutes;
@@ -47,15 +44,3 @@ export interface BuildCanonicalUrlOptions<K extends FlattenedRouteKey> {
   // what the route needs, excluding companyId
   origin?: string; // optional override
 }
-
-// export interface Tenant {
-//   slug: string;
-//   companyId: string;
-//   companyType: CompanyType;
-// }
-
-// export type RouteConfig = {
-//   path: (...args: any[]) => string; // dynamic path builder
-//   staticPath: string; // React Router path (e.g. "/:companyId/dashboard")
-//   meta?: RouteMeta;
-// };

@@ -13,4 +13,5 @@ export const TOOLTIP: Record<string, string> = {
   taxId:
     "Your business’s tax identification number, VAT ID or EIN - often used for invoicing and compliance",
   website: "Your official company website (if available)",
+  firmSlug: "The slug for your firm, e.g kpmg, abc-and-co",
 };

@@ -1,46 +1,43 @@
+import { matchPath, useLocation } from "react-router-dom";
+import { flatRoutes, matchRouteForPath } from "@/shared/routes/utils";
 import { useAuth } from "@/features/auth/hooks";
-import { useLocation } from "react-router-dom";
-import { routes } from "@/shared/routes/routes";
 
 export function useBreadcrumbs() {
   const location = useLocation();
   const { user } = useAuth();
-  if (!user) throw new Error("No user context");
   const companyId = user?.currentCompanyId;
+  const pathname = location.pathname;
 
-  const path = location.pathname; // e.g. "/abc123/invoices/9876"
+  const matchedEntry = Object.entries(flatRoutes).find(([_, route]) =>
+    matchPath({ path: route.staticPath, end: true }, pathname)
+  );
 
-  // Split path into segments // ["abc123", "invoices", "9876"]
-  const segments = path.split("/").filter(Boolean);
+  if (!matchedEntry) return [];
 
-  const breadcrumbs: { label: string; link: string }[] = [];
-  let pathSoFar = "";
+  const [matchedKey, matchedRoute] = matchedEntry;
 
-  /**  We loop through each segment...
-   * and build up /abc123, /abc123/invoices and /abc123/invoices/9876
-   * At each stage, we try to find a matching route
-   * */
-  for (let i = 0; i < segments.length; i++) {
-    pathSoFar += `/${segments[i]}`;
+  // Decompose route key hierarchy
+  const parts = matchedKey.split(".");
 
-    // Find route that matches this part
-    const matchedRoute = Object.values(routes).find((route) => {
-      const pattern = route.staticPath.replace(/:[^/]+/g, "[^/]+");
-      const regex = new RegExp(`^${pattern}$`);
-      return regex.test(pathSoFar);
-    });
+  const breadcrumbKeys = parts.reduce<string[]>((acc, _, index) => {
+    acc.push(parts.slice(0, index + 1).join("."));
+    return acc;
+  }, []);
 
-    if (
-      matchedRoute &&
-      matchedRoute.meta?.label &&
-      !matchedRoute.meta.hideInBreadcrumb
-    ) {
-      const label = matchedRoute.meta.label;
-      const link = matchedRoute.path ? matchedRoute.path(companyId) : pathSoFar;
+  const breadcrumbs = breadcrumbKeys
+    .map((key) => {
+      const route = flatRoutes[key];
+      if (!route || route.meta?.hideInBreadcrumb) return null;
 
-      breadcrumbs.push({ label, link });
-    }
-  }
+      const label = route.meta?.label;
+      const link = route.build
+        ? route.build({ companyId }) // assumes companyId is required
+        : "#"; // route.staticPath.replace(":companyId", companyId);
 
+      return { label, link };
+    })
+    .filter(Boolean) as { label: string; link: string }[];
+
+  console.log("Breadcrumbs", breadcrumbs);
   return breadcrumbs;
 }

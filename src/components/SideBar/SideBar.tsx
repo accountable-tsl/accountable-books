@@ -31,13 +31,14 @@ import {
 import { NavMain } from "../NavMain";
 import { NavUser } from "../NavUser";
 import { NavSecondary } from "../NavSecondary";
-import { routes } from "@/shared/routes/routes";
+// import { routes } from "@/shared/routes/routes";
 import { useAuth } from "@/features/auth/hooks";
 import { useCompany } from "@/domains/company/store";
 import React, { useMemo } from "react";
 import { SkeletonBlock } from "../SkeletonBlock";
 import { CompanyData, CompanyType } from "@/domains/company/types";
 import { AuthUserContext } from "@/features/auth/types";
+import { useTenantRoutes } from "@/shared/routes/hooks";
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   sidebarCollapsible?: "icon" | "offcanvas";
@@ -48,47 +49,36 @@ export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user?: AuthUserContext;
 }
 
-export const AppSidebar = React.memo(function AppSidebar({
+export const AppSidebar = ({
   sidebarCollapsible = "icon",
   user,
   company,
   companyId: _companyId,
   companyType: _companyType,
   ...props
-}: AppSidebarProps) {
+}: AppSidebarProps) => {
   // Side bar options, depending on page, I'd use collapsible or icon
   // e.g on categorization engine, we'd use collapsible but on dashboard, we'd use icon
+  const router = useTenantRoutes();
 
   const companyId = _companyId || company?.id;
   const companyType = _companyType || company?.companyType;
 
-  const navMain = useMemo(
-    () => (companyId && companyType ? getNavMain(companyId, companyType) : []),
-    [companyId, companyType]
-  );
+  const navMain =
+    companyId && companyType ? getNavMain(companyId, companyType) : [];
+  const navSecondary =
+    companyId && companyType ? getNavSecondary(companyId, companyType) : [];
 
-  const navSecondary = useMemo(
-    () =>
-      companyId && companyType ? getNavSecondary(companyId, companyType) : [],
-    [companyId, companyType]
-  );
+  const navUser = user
+    ? getNavUser({
+        name: user.firstname,
+        email: user.email,
+        avatar: "", // user.avatar or something later
+      })
+    : { name: "", email: "", avatar: "" };
 
-  const navUser = useMemo(
-    () =>
-      user
-        ? getNavUser({
-            name: user.firstname,
-            email: user.email,
-            avatar: "", // user.avatar or something later
-          })
-        : { name: "", email: "", avatar: "" },
-    [user?.firstname, user?.email] // Only depend on specific fields
-  );
-
-  const dashboardPath = useMemo(
-    () => (companyId ? routes.dashboard.buildPath({ companyId }) : "#"),
-    [companyId]
-  );
+  const dashboardPath = router.general.dashboard({});
+  console.log("Dashboard Path", dashboardPath);
 
   if (!companyId || !companyType || !company)
     return <SkeletonBlock className="max-w-5xl" />;
@@ -130,7 +120,7 @@ export const AppSidebar = React.memo(function AppSidebar({
       </SidebarFooter>
     </Sidebar>
   );
-});
+};
 export function MockSidebar(items: any[] = []) {
   return (
     <Sidebar>

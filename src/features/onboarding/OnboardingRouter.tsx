@@ -6,9 +6,7 @@ import { AuthUserContext } from "../auth/types";
 import {
   OnboardingResolution,
   OnboardingStep,
-  OnboardingStepKey,
 } from "./types";
-import { useTenantRoutes } from "@/shared/routes/hooks";
 import { onboardingStepToSlug } from "@/features/onboarding/utils";
 
 export default function OnboardingRouter() {

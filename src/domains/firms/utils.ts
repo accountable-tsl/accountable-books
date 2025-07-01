@@ -1,24 +1,21 @@
+import { QueryClient } from "@tanstack/react-query";
 import { normalizedReservedSlugs } from "./constants";
 
 export const isValidSlug = (slug: string): boolean => {
   const slugRegex = /^(?=[a-z-]{3,20}$)[a-z]+-?[a-z]+$/;
-  console.log(slugRegex.test(slug), slug);
   return slugRegex.test(slug);
 };
 
 export const validateSlug = (
   value: string | null | undefined,
-  isSlugRequired?: boolean
+  isSlugRequired?: boolean,
+  takenSlugs?: Set<string>
 ): { isValid: boolean; error?: string } => {
   // Skip if not required and empty
   if (!isSlugRequired && !value) return { isValid: true };
 
   // Required check
   if (!value) return { isValid: false, error: "Slug is required" };
-
-  if (isReservedSlug(value)) {
-    return { isValid: false, error: "That slug is reserved or unsafe" };
-  }
 
   // Trim whitespace and check if empty after trimming
   const trimmed = value.trim();
@@ -42,17 +39,24 @@ export const validateSlug = (
     return { isValid: false, error: "Must be all lowercase letters" };
   }
 
+  if (isReservedSlug(value)) {
+    return { isValid: false, error: "That slug is reserved or unsafe" };
+  }
+
   // Check for invalid characters (anything not alphanumeric or hyphen)
   if (!isValidSlug(trimmed)) {
-    console.log("Invalid slug format", isValidSlug(trimmed));
     return {
       isValid: false,
       error:
-        "Invalid slug: Use 3-20 lowercase letters and hyphens (not at ends)",
+        "Invalid slug: Use 3-15 lowercase letters and hyphens (not at ends)",
     };
   }
-  console.log("Slug is valid", trimmed);
-  return { isValid: true, error: undefined };
+
+  if (takenSlugs && takenSlugs.has(trimmed)) {
+    return { isValid: false, error: "That slug is already taken" };
+  }
+
+  return { isValid: true };
 };
 
 const isReservedSlug = (slug: string): boolean => {
@@ -68,4 +72,13 @@ const isReservedSlug = (slug: string): boolean => {
   }
 
   return false;
+};
+
+export const invalidateFirmCaches = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({ queryKey: ["firm-slugs"] });
+  queryClient.invalidateQueries({
+    predicate: (query) => {
+      return query.queryKey[0] === "firm";
+    },
+  });
 };

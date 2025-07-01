@@ -50,23 +50,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useAuth } from "@/features/auth/hooks";
+import { useAuth, useSessionLoader } from "@/features/auth/hooks";
 import { useSlugCheck } from "@/domains/firms/hooks";
 import { validateSlug } from "@/domains/firms/utils";
 import { updateCompanyOnboardingStatus } from "@/features/onboarding/api";
+import { useCompanyDetails } from "@/domains/company/hooks";
 
 export const CompanyInfo = () => {
-  const { company, companyId, companyType, setCompany } = useCompany();
-  const { isLoggedIn, user } = useAuth();
-  const {
-    data: industries,
-    isLoading: isIndustriesLoading,
-    isError: isIndustriesError,
-  } = useIndustries();
-  const { data: countries, isLoading: isCountryLoading } = useCountries();
-  const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
+  // Refs
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const isMobile = useIsMobile();
+  // State
   const [isLoading, setIsLoading] = useState(false);
   const [initialData, setInitialData] = useState<CompanyData | null>(null);
   const [showQuickSubmit, setShowQuickSubmit] = useState(false);
@@ -77,7 +71,26 @@ export const CompanyInfo = () => {
   > | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Hooks
+  const { isLoggedIn, user, currentCompanyId: companyId } = useAuth();
+  const { loading: sessionLoading } = useSessionLoader();
+  const {
+    data: industries,
+    isLoading: isIndustriesLoading,
+    isError: isIndustriesError,
+  } = useIndustries();
+  const { data: countries, isLoading: isCountryLoading } = useCountries();
+  const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
+  const { data: companyDetailsRes, isLoading: isCompanyDetailsLoading } =
+    useCompanyDetails(companyId || "");
+
+  const isMobile = useIsMobile();
+
+  // Derived / Computed Values
+  const company = companyDetailsRes?.data;
+  const { companyType } = companyDetailsRes?.data || {};
+
+  console.log({ company });
 
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -100,6 +113,7 @@ export const CompanyInfo = () => {
     defaultValues: getDefaultCompanyData(),
   });
 
+  // Functions
   const fetchCompanyDetails = async (
     companyId: string
   ): Promise<CompanyData | null> => {
@@ -342,8 +356,6 @@ export const CompanyInfo = () => {
         if (!success) {
           throw new Error(message || "Failed to update company details");
         }
-
-        setCompany(data as CompanyData);
       }
 
       localStorage.removeItem(`companyInfo_${companyId}`);
@@ -360,29 +372,35 @@ export const CompanyInfo = () => {
     }
   };
 
+  // useEffect(() => {
+  //   let isMounted = true;
+  //   async function load() {
+  //     if (!companyId) return;
+
+  //     const db = await fetchCompanyDetails(companyId);
+  //     const saved = JSON.parse(
+  //       localStorage.getItem(`companyInfo_${companyId}`) || "null"
+  //     ) as Partial<CompanyData> | null;
+
+  //     if (isMounted) setInitialData(mergeInitialData(db, saved));
+  //   }
+  //   load();
+  //   return () => {
+  //     isMounted = false;
+  //   };
+  // }, [companyId]);
+
+  // useEffect(() => {
+  //   if (initialData) {
+  //     reset(initialData, { keepDefaultValues: false, keepValues: false });
+  //   }
+  // }, [initialData, reset]);
+
   useEffect(() => {
-    let isMounted = true;
-    async function load() {
-      if (!companyId) return;
-
-      const db = await fetchCompanyDetails(companyId);
-      const saved = JSON.parse(
-        localStorage.getItem(`companyInfo_${companyId}`) || "null"
-      ) as Partial<CompanyData> | null;
-
-      if (isMounted) setInitialData(mergeInitialData(db, saved));
+    if (companyDetailsRes?.data) {
+      reset(companyDetailsRes.data);
     }
-    load();
-    return () => {
-      isMounted = false;
-    };
-  }, [companyId]);
-
-  useEffect(() => {
-    if (initialData) {
-      reset(initialData, { keepDefaultValues: false, keepValues: false });
-    }
-  }, [initialData, reset]);
+  }, [companyDetailsRes?.data, reset]);
 
   useEffect(() => {
     if (controlledInputError) {
@@ -440,18 +458,25 @@ export const CompanyInfo = () => {
     };
   }, [watch, getValues, companyId]);
 
-  if (isLoading || !initialData) {
+  if (!isLoggedIn) {
+    return <ErrorPage type="403" />;
+  }
+
+  if (isLoading || isCompanyDetailsLoading || sessionLoading) {
     return <CenteredLoader fullscreen />;
   }
 
-  if (!companyId || !companyType || !isLoggedIn) {
+  if (!companyDetailsRes?.data || !companyId) {
     return (
       <ErrorPage type="default" showHeader={false} className="min-h-0 h-full" />
     );
   }
 
   return (
-    <div className="p-4 md:p-6 flex-1 overflow-y-auto" ref={scrollContainerRef}>
+    <div
+      className="p-4 md:p-6 flex-1 overflow-y-auto relative"
+      ref={scrollContainerRef}
+    >
       <form className="space-y-8 ">
         <ImageUploader
           label="Company logo / icon"
@@ -494,6 +519,7 @@ export const CompanyInfo = () => {
             <FormField
               label="Display Name"
               helpTooltip="Name displayed in app"
+              tooltipStyle="w-full"
               required
             >
               <Input {...register("displayName", { required: true })} />
@@ -546,6 +572,7 @@ export const CompanyInfo = () => {
                   value: item.label,
                   label: item.shortLabel,
                 })}
+                placeholder="Select industry"
                 value={watch("industry") || ""}
                 onValueChange={(value) => handleChange("industry", value)}
               />
@@ -566,7 +593,7 @@ export const CompanyInfo = () => {
               />
             </FormField>
             <FormField label="Tax Identification Number">
-              <Input {...register("companyTaxId")} />
+              <Input {...register("companyTaxId")} placeholder="X1101234567" />
             </FormField>
           </div>
         </div>
@@ -576,7 +603,7 @@ export const CompanyInfo = () => {
             Location & Currency
           </h3>
           <FormField label="Address">
-            <Input {...register("address")} />
+            <Input {...register("address")} placeholder="123 Main Street" />
           </FormField>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
@@ -933,7 +960,7 @@ export const CompanyInfo = () => {
       </AlertDialog>
 
       {showQuickSubmit && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 md:translate-x-0 z-50 w-xs md:max-w-xs overflow-hidden rounded-md">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 md:translate-x-00 z-50 w-xs md:max-w-xs overflow-hidden rounded-md">
           <div className="animate-in slide-in-from-bottom-8 fade-in-0 duration-500 ease-out">
             <div className="relative bg-linear-to-r from-cyan-700 via-blue-500 to-indigo-600 z-50">
               {/* Animated background sparkles #00d3f2, #2b7fff #4f39f6*/}
@@ -970,3 +997,6 @@ export const CompanyInfo = () => {
     </div>
   );
 };
+
+CompanyInfo.displayName = "CompanyInfo";
+CompanyInfo.whyDidYouRender = true;

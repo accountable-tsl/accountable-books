@@ -1,8 +1,15 @@
 import { AuthUserContext } from "@/features/auth/types";
-import { BuildCanonicalUrlOptions, ExtractPathParams, FlattenedRouteKey, HasCompanyId, OmitCompanyId, RouteLike, RouteMeta } from "@/shared/routes/types";
+import {
+  BuildCanonicalUrlOptions,
+  ExtractPathParams,
+  FlattenedRouteKey,
+  HasCompanyId,
+  OmitCompanyId,
+  RouteLike,
+  RouteMeta,
+} from "@/shared/routes/types";
 import { routes } from "@/shared/routes/routes";
-import { matchPath } from "react-router-dom";
-
+import { matchPath, Route } from "react-router-dom";
 
 /**
  * Replace route params in a template string with the actual values.
@@ -37,17 +44,13 @@ function buildPath<Path extends string>(
  * const userRoute = route('/users/:userId');
  * const path = userRoute.build({ userId: '123' }); // '/users/123'
  */
-export function route<
-  TPath extends string,
-  TMeta extends RouteMeta = RouteMeta
->(template: TPath, meta?: TMeta) {
+export function route<TPath extends string>(template: TPath, meta?: RouteMeta) {
   return {
     staticPath: template,
     build: (params: ExtractPathParams<TPath>) => buildPath(template, params),
-    meta: meta ?? {},
+    meta: (meta ?? {}) as RouteMeta,
   };
 }
-
 
 /**
  * Given a routes object, create a new object with the same keys, but:
@@ -119,7 +122,7 @@ export function createTenantRoutes<T extends Record<string, any>>(
   return tenantRoutes;
 }
 
-function flattenRoutes(obj: Record<string, unknown>): RouteLike[] {
+export function flattenRoutes(obj: Record<string, unknown>): RouteLike[] {
   const flat: RouteLike[] = [];
 
   for (const value of Object.values(obj)) {
@@ -136,16 +139,6 @@ function flattenRoutes(obj: Record<string, unknown>): RouteLike[] {
   }
 
   return flat;
-}
-
-const flattenedPublicRoutes = flattenRoutes(routes).filter(
-  (r) => r.meta?.public
-);
-
-export function isPublicRoute(path: string): boolean {
-  return flattenedPublicRoutes.some((route) =>
-    matchPath({ path: route.staticPath, end: true }, path)
-  );
 }
 
 export function memoize<Args extends any[], Return>(
@@ -197,8 +190,6 @@ export function flatRoutesForCanonicalUrls(
 }
 
 export const flatRoutes = flatRoutesForCanonicalUrls(routes);
-
-
 
 /**
  * Builds a full canonical URL for a given route and user context.
@@ -296,4 +287,22 @@ export function enforceCanonicalUrl<K extends FlattenedRouteKey>(
   }
 
   // If everything matches, do nothing (good URL, no redirect needed)
+}
+
+const flattenedRoutes = flattenRoutes(routes);
+
+export function matchRouteForPath(path: string): RouteLike | undefined {
+  return flattenedRoutes.find((route) =>
+    matchPath({ path: route.staticPath, end: true }, path)
+  );
+}
+
+const flattenedPublicRoutes = flattenRoutes(routes).filter(
+  (r) => r.meta?.public
+);
+
+export function isPublicRoute(path: string): boolean {
+  return flattenedPublicRoutes.some((route) =>
+    matchPath({ path: route.staticPath, end: true }, path)
+  );
 }

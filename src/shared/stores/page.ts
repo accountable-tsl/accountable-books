@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { matchPath, useLocation } from "react-router-dom";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { routes as oldRoutes } from "../routes/routes";
@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { companyStore } from "@/domains/company/store";
 import { RouteMeta } from "../routes/types";
 import { routes } from "@/shared/routes/routes";
+import { flattenRoutes, matchRouteForPath } from "@/shared/routes/utils";
 
 export type BreadcrumbItem = {
   label: string;
@@ -54,23 +55,6 @@ function getDefaultPageName(): string {
     : "Home";
 }
 
-// Flatten routes object into a simple list for matching
-const flatRoutes: { path: string; meta: RouteMeta }[] = [];
-function flatten(obj: any) {
-  for (const key in obj) {
-    if (obj[key]?.staticPath && obj[key]?.meta?.label) {
-      flatRoutes.push({
-        path: obj[key].staticPath,
-        meta: obj[key].meta,
-      });
-    } else if (typeof obj[key] === "object") {
-      flatten(obj[key]);
-    }
-  }
-}
-
-flatten(routes);
-
 /**
  * Hook that watches the URL and updates the page store
  * with current page info (title, description, sidebar state, custom meta).
@@ -82,13 +66,7 @@ export function useUpdatePageInfo() {
   useEffect(() => {
     const path = location.pathname;
 
-    // Try to match the current URL against your routes
-    const matchedRoute = Object.values(routes).find((route) => {
-      // Convert the staticPath into a regex for matching
-      const pattern = route.staticPath.replace(/:[^/]+/g, "[^/]+");
-      const regex = new RegExp(`^${pattern}$`);
-      return regex.test(path);
-    });
+    const matchedRoute = matchRouteForPath(path);
 
     // Use the route firmsOnly to block access to firmOnly pages for non-firm users
 

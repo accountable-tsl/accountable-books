@@ -1,4 +1,3 @@
-import { companyStore } from "@/domains/company/store";
 import { fetchSession, handleLogout } from "@/features/auth/api";
 import { authStore, sessionStore } from "@/features/auth/store";
 import { routes } from "@/shared/routes/routes";
@@ -32,7 +31,7 @@ export const useAuth = () => {
     } finally {
       clearSessionFn();
       if (options?.redirectTo !== false) {
-        let target: string = routes.login.staticPath; //default fallback
+        let target: string = routes.auth.login.staticPath; //default fallback
 
         if (options?.redirectTo) {
           target = options.redirectTo;
@@ -49,9 +48,11 @@ export const useAuth = () => {
     }
   }, []);
 
-  const currentCompany = user?.companies.find(
-    (c) => c.id === user.currentCompanyId
-  );
+  const currentCompany = user?.currentCompany;
+
+  const hasAppAccess = currentCompany
+    ? currentCompany.onboarding.canAccessApp
+    : false;
 
   // const isLoggedIn = !!user && !checkingSession && sessionValid === true;
   // const user = authStore((s) => s.user);
@@ -102,10 +103,11 @@ export const useAuth = () => {
     logout,
 
     isLoggedIn,
+    hasAppAccess,
     currentCompany,
     currentCompanyId: user?.currentCompanyId,
     firmSlug: currentCompany?.assignedFirmSlug,
-    companyType: currentCompany?.type,
+    companyType: currentCompany?.companyType,
   };
 
   // return {
@@ -146,11 +148,12 @@ export const useSessionLoader = () => {
         setAuth(res.data.user, res.data.csrfToken);
       } else {
         clearSessionFn();
-        if (!isPublic) navigate(routes.login.staticPath, { replace: true });
+        if (!isPublic)
+          navigate(routes.auth.login.staticPath, { replace: true });
       }
     } catch (error) {
       clearSessionFn();
-      if (!isPublic) navigate(routes.login.staticPath, { replace: true });
+      if (!isPublic) navigate(routes.auth.login.staticPath, { replace: true });
     } finally {
       setLoading(false);
     }
