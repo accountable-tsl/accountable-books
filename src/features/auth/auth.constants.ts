@@ -12,4 +12,5 @@ export const publicPaths = [
   "/api/logos/delete",
   "/api/logos/signed-url",
   "/api/email/check",
+  "/api/accounting-firms/check-slug",
 ];

@@ -17,9 +17,5 @@ export const isReservedSlug = (slug: string): boolean => {
 
   if (normalizedReservedSlugs.has(normalized)) return true;
 
-  for (const word of normalizedReservedSlugs) {
-    if (normalized.includes(word)) return true;
-  }
-
   return false;
 };

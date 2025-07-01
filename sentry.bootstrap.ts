@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import { ENV, isDev } from "./src/config/env";
 
-const disableSentry = isDev;
+const disableSentry = !isDev;
 Sentry.init({
   dsn: disableSentry
     ? "disabled"
@@ -14,9 +14,9 @@ Sentry.init({
   profileLifecycle: "trace",
 });
 
-Sentry.startSpan(
-  {
-    name: "My Span",
-  },
-  () => {}
-);
+// Sentry.startSpan(
+//   {
+//     name: "My Span",
+//   },
+//   () => {}
+// );

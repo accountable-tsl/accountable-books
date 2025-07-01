@@ -1,9 +1,19 @@
 import express from "express";
-import { checkSlugController, getAllSlugs } from "./firms.controller";
+import {
+  checkSlugController,
+  checkSlugForCompanyController,
+  getCompanySlugController,
+} from "./firms.controller";
 
 const router = express.Router({ mergeParams: true });
 
+// /api/accounting-firms/check-slug?slug=example-slug
 router.get("/check-slug", checkSlugController);
-router.get("/slugs", getAllSlugs);
+
+// /api/accounting-firms/:companyId/slug
+router.get("/:companyId/slug", getCompanySlugController);
+
+// /api/accounting-firms/:companyId/slugs/check?slug=example-slug
+router.get("/:companyId/slugs/check", checkSlugForCompanyController);
 
 export default router;

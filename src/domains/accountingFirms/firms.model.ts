@@ -90,81 +90,43 @@ export const getSlugs = async (): Promise<ApiResponse<string[]>> => {
   }
 };
 
-export const checkSlug = async ({
-  slug,
-  companyId,
-}: {
-  slug: string;
-  companyId: string;
-}): Promise<ApiResponse<{ isAvailable: boolean; isCurrent?: boolean }>> => {
-  if (!slug || typeof slug !== "string") {
+const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours
+
+/**
+ * Check if a slug is available for use
+ * This is for signup/slug change flows
+ */
+export const checkSlugAvailability = async (
+  slug: string
+): Promise<ApiResponse<{ isAvailable: boolean }>> => {
+  if (!slug || typeof slug !== "string")
     return errorResponse("Missing or invalid slug");
-  }
 
-  if (!isValidSlug(slug)) {
-    return errorResponse(
-      "Invalid format. Slug must be 3-20 characters long, lowercase, and can contain hyphens."
-    );
-  }
-
-  const redisKey = firmSlugRedisKey(slug);
+  if (!isValidSlug(slug)) return errorResponse("Invalid slug format");
+  if (isReservedSlug(slug)) return errorResponse("Slug is reserved");
 
   try {
-    // Get actual company UUID
-    const companyUUID = await getCompanyUUID(companyId);
-    if (!companyUUID) {
-      return errorResponse("Invalid company ID");
-    }
+    // Only cache confirmed ownership, not availability
+    const redisKey = `slug:taken:${slug}`;
+    const isTaken = await redis.get(redisKey);
 
-    // Check Redis cache
-    const cachedCompanyId = await redis.get(redisKey);
+    if (isTaken)
+      return successResponse("Slug is already taken", { isAvailable: false });
 
-    // Slug is cached and belongs to this company
-    if (cachedCompanyId && cachedCompanyId === companyUUID) {
-      return successResponse("Current slug.", {
-        isAvailable: true,
-        isCurrent: true,
-      });
-    }
-
-    // Slug is taken by another company
-    if (cachedCompanyId) {
-      return successResponse("Slug has been taken", {
-        isAvailable: false,
-        isCurrent: false,
-      });
-    }
-
-    //  Slug not in cache, Check database
-    const exists = await knexClient("accounting_firms_meta")
+    // Check database
+    const existingSlug = await knexClient("accounting_firms_meta")
       .where({ slug })
       .first();
 
-    // Cache result
-    if (exists) {
-      await redis.set(
-        redisKey,
-        exists.company_id || "NULL",
-        "EX",
-        60 * 60 * 24 // Cache for 24 hours
-      );
-
-      const isCurrent = exists.company_id === companyUUID;
-      return successResponse(
-        isCurrent ? "Current slug." : "Slug has been taken",
-        {
-          isAvailable: isCurrent,
-          isCurrent,
-        }
-      );
+    if (existingSlug) {
+      // Cache that this slug is taken
+      await redis.set(redisKey, "true", "EX", CACHE_TTL_SECONDS);
+      return successResponse("Slug is already taken", { isAvailable: false });
     }
 
-    return successResponse("Slug is available", {
-      isAvailable: true,
-      isCurrent: false,
-    });
+    return successResponse("Slug is available", { isAvailable: true });
   } catch (error) {
-    return errorResponse("Error checking slug existence", error);
+    return errorResponse("Error checking slug availability", error);
   }
 };
 
@@ -245,4 +207,95 @@ export const updateFirm = async (
   } catch (error) {
     return errorResponse("Internal server error", error);
   }
+};
+
+/**
+ * Get the current slug for a company
+ * This handles the complex join logic
+ */
+export const getCompanySlug = async (
+  companyId: string
+): Promise<ApiResponse<{ slug: string | null }>> => {
+  if (!companyId) {
+    return errorResponse("Company ID is required");
+  }
+
+  try {
+    const companyUUID = await getCompanyUUID(companyId);
+    if (!companyUUID) {
+      return errorResponse("Invalid company ID");
+    }
+
+    // Check cache first
+    const cacheKey = `company:slug:${companyUUID}`;
+    const cachedSlug = await redis.get(cacheKey);
+
+    if (cachedSlug) {
+      return successResponse("Company slug retrieved", {
+        slug: cachedSlug === "NULL" ? null : cachedSlug,
+      });
+    }
+
+    // Query with proper joins
+    const result = await knexClient("companies")
+      .join(
+        "accounting_firms_meta",
+        "companies.assigned_firm_id",
+        "accounting_firms_meta.id"
+      )
+      .where("companies.id", companyUUID)
+      .select("accounting_firms_meta.slug")
+      .first();
+
+    const slug = result?.slug || null;
+
+    // Cache the result
+    await redis.set(cacheKey, slug || "NULL", "EX", CACHE_TTL_SECONDS);
+
+    return successResponse("Company slug retrieved", { slug });
+  } catch (error) {
+    return errorResponse("Error retrieving company slug", error);
+  }
+};
+
+/**
+ * Check if a slug is available AND if it's the company's current slug
+ * This combines both functions for the specific use case where you need both pieces of info
+ */
+export const checkSlugForCompany = async ({
+  slug,
+  companyId,
+}: {
+  slug: string;
+  companyId: string;
+}): Promise<ApiResponse<{ isAvailable: boolean; isCurrent: boolean }>> => {
+  // First check if slug is available
+  const availabilityCheck = await checkSlugAvailability(slug);
+  if (
+    !availabilityCheck.success &&
+    availabilityCheck.message !== "Slug is already taken"
+  ) {
+    // Return validation errors (invalid format, reserved, etc.)
+    return errorResponse(availabilityCheck.message || "Slug validation failed");
+  }
+
+  const isAvailable = availabilityCheck.data?.isAvailable ?? false;
+
+  // Then check if it's the company's current slug
+  const companySlugResult = await getCompanySlug(companyId);
+  if (!companySlugResult.success) {
+    return errorResponse(
+      companySlugResult.message || "Failed to get company slug"
+    );
+  }
+
+  const isCurrent = companySlugResult.data?.slug === slug;
+
+  // If slug is taken but it's this company's current slug, that's fine
+  const actuallyAvailable = isAvailable || isCurrent;
+
+  return successResponse("Slug check completed", {
+    isAvailable: actuallyAvailable,
+    isCurrent,
+  });
 };
