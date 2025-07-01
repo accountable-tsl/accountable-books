@@ -121,15 +121,15 @@ export const AppSidebar = ({
     </Sidebar>
   );
 };
-export function MockSidebar(items: any[] = []) {
+export function MockSidebar({ items = [] }: Partial<{ items: any[] }>) {
   return (
-    <Sidebar>
+    <Sidebar className="fixed left-0 top-0 h-full z-0 shadow-md">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Application</SidebarGroupLabel>
+          <SidebarGroupLabel>Onboarding Suite</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.length &&
+              {items.length > 0 &&
                 items.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>

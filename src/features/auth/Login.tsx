@@ -19,7 +19,7 @@ import { useAuth } from "./hooks";
 import { routes } from "@/shared/routes/routes";
 import { AuthHeader } from "@/components/AuthHeader";
 import { toast } from "sonner";
-import { performLoginFlow } from "./utils";
+import { loginAndRedirect } from "@/features/auth/utils";
 
 export default function Login() {
   // const { setUser, isLoggedIn, checkingSession, clearSession, logout } =
@@ -45,7 +45,7 @@ export default function Login() {
   const onSubmit = async (data: LoginForm) => {
     try {
       setIsLoading(true);
-      await performLoginFlow({
+      await loginAndRedirect({
         email: data.email,
         password: data.password,
         setError,

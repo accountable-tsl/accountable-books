@@ -3,10 +3,7 @@ import { useAuth, useSessionLoader } from "@/features/auth/hooks";
 import { routes } from "@/shared/routes/routes";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { AuthUserContext } from "../auth/types";
-import {
-  OnboardingResolution,
-  OnboardingStep,
-} from "./types";
+import { OnboardingResolution, OnboardingStep } from "./types";
 import { onboardingStepToSlug } from "@/features/onboarding/utils";
 
 export default function OnboardingRouter() {
@@ -46,6 +43,7 @@ export default function OnboardingRouter() {
   }
 
   const resolution = resolveOnboardingRoute(user);
+  console.log("resolution", resolution);
 
   switch (resolution.type) {
     case "accessGranted":

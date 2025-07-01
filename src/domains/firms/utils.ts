@@ -59,7 +59,6 @@ const isReservedSlug = (slug: string): boolean => {
     .replace(/[_\s]+/g, "-")
     .trim();
 
-  console.log(normalized);
   if (normalizedReservedSlugs.has(normalized)) return true;
 
   return false;

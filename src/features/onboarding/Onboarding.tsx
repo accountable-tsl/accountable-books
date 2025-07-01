@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCompany } from "@/domains/company/store";
-import { useAuth } from "../auth/hooks";
+import { useAuth, useSessionLoader } from "../auth/hooks";
 import { OnboardingSidebar } from "@/features/onboarding/shared/Sidebar";
 import { MockDashboard } from "../dashboard/MockDashboard";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { matchPath, useNavigate, useParams } from "react-router-dom";
 import {
   OnboardingSideBarProps,
+  OnboardingState,
   OnboardingStepKey,
   onboardingSteps,
   OnboardingSteps,
@@ -36,18 +37,26 @@ import { routes } from "@/shared/routes/routes";
 import { useCompanySwitch } from "../switchCompany/hooks";
 import { DEMO_COMPANIES_IDS } from "@/domains/company/constants";
 import ErrorPage from "@/components/ErrorPage";
+import { useCompanyDetails } from "@/domains/company/hooks";
 
-export const onboardingStepComponentMap: Record<
-  OnboardingStepKey,
-  JSX.Element
-> = {
-  email_verified: <VerifyEmail />,
-  company_details_confirmed: <CompanyInfo />,
-  first_bank_account_added: <BankAccount />,
+export const onboardingStepComponentMap: Record<OnboardingStepKey, React.FC> = {
+  email_verified: VerifyEmail,
+  company_details_confirmed: CompanyInfo,
+  first_bank_account_added: BankAccount,
 };
 
 export function OnboardingStepPage() {
+  const { isLoggedIn, currentCompanyId, user } = useAuth();
+  const { loading: sessionLoading } = useSessionLoader();
   const { step } = useParams<{ step: string }>();
+
+  const {
+    data: companyData,
+    isLoading: companyDataLoading,
+    error: companyDataError,
+  } = useCompanyDetails(currentCompanyId || "");
+
+  const company = companyData?.data;
 
   // Find the matching key by comparing step parameters
   const stepKey = Object.entries(onboardingStepToSlug).find(([key, route]) => {
@@ -55,13 +64,91 @@ export function OnboardingStepPage() {
     return match?.params.step === step;
   })?.[0] as keyof typeof onboardingStepToSlug | undefined;
 
-  if (!step || !stepKey) {
+  if (!stepKey || companyDataError) {
     return <ErrorPage type="default" />;
   }
 
-  const StepComponent = onboardingStepComponentMap[stepKey];
+  if (sessionLoading || companyDataLoading) {
+    return (
+      <CenteredLoader
+        fullscreen
+        message="Loading..."
+        showAuthHeader={!isLoggedIn}
+      />
+    );
+  }
 
-  return StepComponent ?? <ErrorPage type="default" />;
+  const StepComponent = onboardingStepComponentMap[stepKey];
+  if (!StepComponent) return <ErrorPage type="default" />;
+  if (!isLoggedIn) return <StepComponent />;
+
+  const onboardingState = user?.currentCompany?.onboarding;
+
+  // const onboardingSidebarProps: OnboardingSideBarProps = useMemo(() => {
+  //   if (!company) return null;
+
+  //   const stableCompany = {
+  //     id: company.id,
+  //     onboardingStatus: company.onboardingStatus,
+  //     legalName: company.legalName,
+  //     companyType: company.companyType,
+  //     assignedFirmLogo: company.assignedFirmLogo,
+  //     assignedFirmName: company.assignedFirmName,
+  //     displayName: company.displayName,
+  //     createdById: company.createdById,
+  //   };
+
+  //   return {
+  //     company: stableCompany,
+  //     currentStep: step as keyof typeof onboardingSteps,
+  //     isCreator,
+  //   };
+  // }, [
+  //   company?.id,
+  //   company?.onboardingStatus,
+  //   company?.legalName,
+  //   company?.displayName,
+  //   company?.companyType,
+  //   company?.assignedFirmLogo,
+  //   company?.assignedFirmName,
+  //   company?.createdById,
+  //   user?.id,
+  //   step,
+  //   isCreator,
+  // ]);
+
+  return (
+    <OnboardingStepWrapper onboarding={onboardingState}>
+      <StepComponent />
+    </OnboardingStepWrapper>
+  );
+}
+
+export function OnboardingStepWrapper({
+  children,
+  onboarding,
+}: {
+  children: React.ReactNode;
+  onboarding?: OnboardingState;
+}) {
+  return (
+    <div className="relative h-dvh w-screen overflow-hidden">
+      <MockDashboard>
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
+          <div className="w-5xl border bg-background rounded-sm">
+            <div>
+              {/* TODO: Add onboarding progress tracker or sidebar */}
+              {/* {sidebarProps && <OnboardingSidebar {...sidebarProps} />} */}
+              <div>
+                <OnboardingHeader />
+                <div className="max-w-3xl mx-auto">{children}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </MockDashboard>
+    </div>
+  );
 }
 export function OnboardingForm({
   step: overrideStep,
