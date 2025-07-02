@@ -221,3 +221,6 @@ export type OnboardingSidebarItem = {
   description: string;
   key: OnboardingSteps;
 };
+
+export type EnrichedOnboardingStep = OnboardingStep &
+  Omit<OnboardingSidebarItem, "key"> & { current: boolean };

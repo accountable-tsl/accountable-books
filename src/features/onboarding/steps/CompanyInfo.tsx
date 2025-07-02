@@ -473,10 +473,7 @@ export const CompanyInfo = () => {
   }
 
   return (
-    <div
-      className="p-4 md:p-6 flex-1 overflow-y-auto relative"
-      ref={scrollContainerRef}
-    >
+    <div className="p-4 md:p-6 flex-1 relative" ref={scrollContainerRef}>
       <form className="space-y-8 ">
         <ImageUploader
           label="Company logo / icon"
