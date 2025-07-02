@@ -63,7 +63,7 @@ export interface AuthRequest extends Request {
 }
 
 export type VerifyEmailInput = {
-  token: string;
+  token?: string;
   userId: string;
 };
 

@@ -3,6 +3,7 @@ import {
   CompanyOnboardingState,
   CompanyOnboardingStepKey,
   CompanyOnboardingSteps,
+  OnboardingState,
   OnboardingStepConfig,
   UserOnboardingState,
   UserOnboardingStepKey,
@@ -62,14 +63,17 @@ export const onboardingStepConfig: OnboardingStepConfig[] = [
   // Invite team
 ];
 
-export const createInitialCompanyOnboardingState =
-  (): CompanyOnboardingState => ({
-    steps: {
-      company_details_confirmed: false,
-      first_bank_account_added: false,
-    },
-    completed_at: {},
-  });
+export const createInitialCompanyOnboardingState = (
+  companyType: CompanyType
+): CompanyOnboardingState => ({
+  steps: {
+    ...(companyType !== "individual"
+      ? { company_details_confirmed: false }
+      : {}),
+    first_bank_account_added: false,
+  },
+  completed_at: {},
+});
 
 export const createInitialUserOnboardingState = (): UserOnboardingState => ({
   steps: {
@@ -123,28 +127,48 @@ export const markCompanyOnboardingStepComplete = (
   };
 };
 
-export const decideNextStatus = (
-  currentStatus: OnboardingStatus,
-  companyType: CompanyType,
-  isLoggedIn: boolean = false,
-  isInvited: boolean = false
-): OnboardingStatus => {
-  switch (currentStatus) {
-    case "not_started":
-      return "email_verified";
-
-    case "email_verified":
-      if (isInvited) return "onboarding_complete";
-      if (companyType === "individual") return "first_bank_account_needed";
-      return "company_vitals_needed";
-
-    case "company_vitals_needed":
-      return "first_bank_account_needed";
-
-    case "first_bank_account_needed":
-      return "onboarding_complete";
-
-    default:
-      return "onboarding_complete";
+export function markAllOnboardingStepsComplete<T extends OnboardingState>(
+  currentState: T,
+  options?: { preserveTimestamps?: boolean }
+): T {
+  if (!currentState || !currentState.steps) {
+    throw new Error("Please provide a valid onboarding state with steps");
   }
+
+  const now = new Date();
+  const preserveTimestamps = options?.preserveTimestamps ?? false;
+
+  const updatedSteps: Record<string, boolean> = {};
+  const updatedTimestamps: Record<string, Date | null | undefined> = {
+    ...(currentState.completed_at ?? {}),
+  };
+
+  for (const stepKey of Object.keys(currentState.steps)) {
+    updatedSteps[stepKey] = true;
+
+    if (!preserveTimestamps || !updatedTimestamps[stepKey]) {
+      updatedTimestamps[stepKey] = now;
+    }
+  }
+
+  return {
+    ...currentState,
+    steps: {
+      ...currentState.steps,
+      ...updatedSteps,
+    },
+    completed_at: updatedTimestamps,
+  };
+}
+
+export const createCompleteUserOnboardingState = () => {
+  const initial = createInitialUserOnboardingState();
+  return initial && markAllOnboardingStepsComplete(initial);
+};
+
+export const createCompleteCompanyOnboardingState = (
+  companyType: CompanyType
+) => {
+  const initial = createInitialCompanyOnboardingState(companyType);
+  return initial && markAllOnboardingStepsComplete(initial);
 };

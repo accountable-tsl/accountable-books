@@ -6,6 +6,10 @@ import {
 import { getCountry } from "../../../src/domains/countries/countries.utils";
 import { getCurrency } from "../../../src/domains/currencies/currencies.utils";
 import {
+  createCompleteCompanyOnboardingState,
+  createCompleteUserOnboardingState,
+} from "../../../src/features/onboarding/onboarding.utils";
+import {
   CreateDemoBase,
   CreateDemoInput,
   DemoSeedArgs,
@@ -32,6 +36,7 @@ function createDemoConfig({
       password: "StrongDemoPass!", // consistent across demo
       isDemoUser: true,
       emailVerifiedAt: new Date(),
+      onboardingState: createCompleteUserOnboardingState(),
     },
     company: {
       legalName: companyName,
@@ -43,6 +48,7 @@ function createDemoConfig({
       isDemoCompany: true,
       shortCode,
       ...(companyType === "accounting_firm" && slug ? { slug } : {}),
+      onboardingState: createCompleteCompanyOnboardingState(companyType),
     },
   };
 }

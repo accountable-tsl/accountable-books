@@ -108,7 +108,7 @@ export const createCompany = async (
       short_code = input.short_code || generateSecureShortCode();
 
       // If no input.short_code, check if generated code looks weird
-      if (!input.short_code && shortCodelooksWeird(short_code)) {
+      if (!input.short_code && shortCodelooksWeird(short_code, 4)) {
         attempts++;
         continue; // Skip the database check, just generate another
       }
@@ -130,7 +130,9 @@ export const createCompany = async (
       );
     }
 
-    const initialOnboardingState = createInitialCompanyOnboardingState();
+    const onboardingState =
+      validateInput.data.onboarding_state ||
+      createInitialCompanyOnboardingState(validateInput.data.type);
 
     const [company] = await knexTrx("companies")
       .insert({
@@ -154,7 +156,7 @@ export const createCompany = async (
           validateInput.data.type === "accounting_firm"
             ? "Professional Services - Accounting Firm"
             : null,
-        onboarding_state: initialOnboardingState,
+        onboarding_state: onboardingState,
       })
       .returning("*");
 

@@ -48,8 +48,8 @@ export type UserOnboardingState = {
 export const companyOnboardingState = z
   .object({
     steps: z.object({
-      company_details_confirmed: z.boolean(),
-      first_bank_account_added: z.boolean(),
+      company_details_confirmed: z.boolean().nullish(),
+      first_bank_account_added: z.boolean().nullish(),
     }),
     completed_at: z
       .object({
@@ -69,11 +69,13 @@ export type OnboardingUserObj = {
   id: string;
   emailVerifiedAt: Date | null;
   isPlatformUser?: boolean;
+  onboardingState?: UserOnboardingState;
 };
 export type OnboardingCompanyObj = {
   id: string;
   isDemoCompany?: boolean;
   isPlatformCompany?: boolean;
+  onboardingState?: CompanyOnboardingState;
 };
 
 export type OnboardingStepConfig = {
@@ -109,4 +111,11 @@ export type OnboardingStateResult = {
     scope: "user" | "company";
     orderIndex?: number;
   }[];
+};
+
+export type OnboardingState = {
+  steps: Record<string, boolean | null | undefined>;
+  completed_at?: Record<string, Date | null | undefined>;
+  metadata?: any;
+  // [key: string]: any;
 };

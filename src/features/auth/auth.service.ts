@@ -172,12 +172,14 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
 > {
   const { token, userId } = input;
 
-  if (!token || !userId)
+  if (!token && !userId) {
+    console.log("Missing required parameters");
     return errorResponse("Missing required parameters", {
       emailVerified: false,
       status: "error",
       email: null,
     });
+  }
 
   try {
     const result = knexClient.transaction(async (trx) => {
@@ -187,11 +189,14 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
         .select("id", "email", "email_verified_at", "onboarding_state")
         .first();
 
+        console.log("🚨 user:", user);
+
       const {
         email_verified_at: initialEmailVerifiedAt,
         onboarding_state: initialOnboardingState,
         email: userEmail,
       } = user || {};
+
       if (!user || !userEmail) {
         return errorResponse("User not found", {
           emailVerified: false,
@@ -202,7 +207,7 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
 
       if (initialEmailVerifiedAt) {
         return successResponse("Email already verified", {
-          emailVerified: false,
+          emailVerified: true,
           status: "verified",
           email: userEmail,
         });

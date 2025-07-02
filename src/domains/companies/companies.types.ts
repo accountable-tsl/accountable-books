@@ -104,7 +104,7 @@ export const getCompanyResponse = z.object({
 
   reportingFramework: reportingFramework.nullable(),
   accountingBasis: accountingBasis,
-  // onboardingStatus: onboardingStatus,
+  onboardingState: companyOnboardingState,
   isDemoCompany: z.boolean(),
 
   reportingCurrencyCode: z.string(),

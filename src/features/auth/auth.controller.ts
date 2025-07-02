@@ -141,7 +141,7 @@ export async function meController(req: AuthRequest, res: Response) {
 export async function verifyEmailController(req: Request, res: Response) {
   const { token, userId } = req.body;
 
-  if (!token || !userId) {
+  if (!token && !userId) {
     return res.status(400).json(
       errorResponse("Missing required parameters", {
         emailVerified: false,

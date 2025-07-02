@@ -7,6 +7,10 @@ import {
 import { createUserDirect } from "../src/domains/users/users.model";
 import { ENV, NODE_ENV } from "../src/config/env";
 import { NewUserDirect } from "../src/domains/users/users.types";
+import {
+  createInitialUserOnboardingState,
+  markAllOnboardingStepsComplete,
+} from "../src/features/onboarding/onboarding.utils";
 
 const tableName = "users";
 
@@ -32,7 +36,13 @@ const getAdminUserConfig = (): NewUserDirect => {
     email_verified_at: new Date(),
   };
 };
-export const adminUser = getAdminUserConfig();
+const currState = createInitialUserOnboardingState();
+const completeOnbState = currState && markAllOnboardingStepsComplete(currState);
+
+export const adminUser = {
+  ...getAdminUserConfig(),
+  onboarding_state: completeOnbState,
+};
 
 export const seedAdminUser = async (knex: Knex) => {
   const { password, email, firstname } = adminUser;

@@ -8,6 +8,14 @@ import { ENV, isProd, NODE_ENV } from "../src/config/env";
 import { adminUser } from "./20250403184441_users";
 import { verifyCompanyDependenciesExist } from "../src/domains/companies/companies.model";
 import { newCompany } from "../src/domains/companies/companies.types";
+import {
+  createInitialCompanyOnboardingState,
+  markAllOnboardingStepsComplete,
+} from "../src/features/onboarding/onboarding.utils";
+
+const currOnbState = createInitialCompanyOnboardingState("accounting_firm");
+const completeOnbState =
+  currOnbState && markAllOnboardingStepsComplete(currOnbState);
 
 export const buildPlatformCompany = (adminUserId: string) => ({
   id: ENV.PLATFORM_COMPANY_ID || "a494b675-fedd-455c-ab6d-00ffdff9a047",
@@ -27,6 +35,7 @@ export const buildPlatformCompany = (adminUserId: string) => ({
   reporting_framework: "ifrs",
   is_platform: true,
   accounting_basis: "modified_accrual_basis",
+  onboarding_state: completeOnbState,
 });
 
 export const createPlatformCompany = async (knex: Knex) => {
