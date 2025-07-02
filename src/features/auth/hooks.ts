@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { isPublicRoute } from "@/shared/routes/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 import { queryClient } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 
 export const clearSessionFn = () => {
   authStore.getState().clearAuth();
@@ -128,20 +129,24 @@ export const useAuth = () => {
 export const useSessionLoader = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isLoggedIn, setAuth } = useAuth();
+  const { setAuth } = useAuth();
+  const { data, isLoading, isError, refetch } = useSessionQuery();
+  const { data: authData, success, message } = data || {};
 
   const [loading, setLoading] = useState(true); // Start with true to prevent flickering
+
   const isPublic = isPublicRoute(location.pathname);
 
   const loadSession = useCallback(async () => {
     // Skip if user is already authenticated
-    if (user && isLoggedIn) {
-      setLoading(false);
-      return;
-    }
+    // if (user && isLoggedIn) {
+    //   setLoading(false);
+    //   return;
+    // }
+
+    setLoading(true);
 
     try {
-      setLoading(true);
       // Fetch session
       const res = await fetchSession();
       if (res.success && res.data) {
@@ -157,11 +162,29 @@ export const useSessionLoader = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, isLoggedIn, location.pathname, navigate, setAuth]);
+  }, [location.pathname, navigate, setAuth]);
 
   useEffect(() => {
-    loadSession();
-  }, [loadSession]);
+    if (authData?.user && authData?.csrfToken) {
+      setAuth(authData?.user, authData?.csrfToken);
+    }
 
-  return { loading };
+    if (isError && !isPublic) {
+      clearSessionFn();
+      navigate(routes.auth.login.staticPath, { replace: true });
+    }
+  }, [data, isError, setAuth, isPublic, navigate]);
+
+  return { loading: isLoading, refetch };
+};
+
+export const useSessionQuery = () => {
+  return useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: fetchSession, // returns { user, csrfToken }
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: true,
+    retry: 1,
+  });
 };

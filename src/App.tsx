@@ -6,39 +6,21 @@ import {
   useLocation,
 } from "react-router-dom";
 import "./styles/App.scss";
-// import SideBarProvider, { useSideBarContext } from "./contexts/SideBarContext";
-import Home from "./pages-users/Home/Home";
-import COA from "./pages-admin/COA/COA";
-import FinancialSettings from "./pages-admin/FinancialSettings/FinancialSettings";
-import UploadBS from "./pages-admin/UploadBS/UploadBS";
 import { PopupProvider, usePopup } from "./contexts/PopupContext";
 import Popup from "./components/Popup/Popup";
-import CategorisationEngine from "./pages-admin/CategorisationEngine/CategorisationEngine";
-import Workspace from "./pages-admin/Workspace/Workspace";
-import Journal from "./pages-admin/Journal/Journal";
-import AccountingTxns from "./pages-admin/AccountingTxns/AccountingTxns";
 import ThemeProvider from "./theme/themeProvider";
 import { AnimatePresence, motion } from "framer-motion";
 import Signup from "./features/signup/Signup";
 import AppLayout from "./layouts/AppLayout";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import Welcome from "./features/onboarding/Welcome";
 import Login from "./features/auth/Login";
 import Dashboard from "./features/dashboard/Dashboard";
-import DashboardRedirect from "./components/DashboardRedirect";
-import { routes as tenantRoutes } from "./shared/routes/routes";
 import ErrorPage from "./components/ErrorPage";
-// import { SessionChecker } from "./features/auth/SessionChecker";
 import OnboardingLayout from "./layouts/OnboardingLayout";
-import {
-  OnboardingForm,
-  OnboardingStepPage,
-} from "@/features/onboarding/Onboarding";
+import { OnboardingStepPage } from "@/features/onboarding/Onboarding";
 import { Toaster } from "@/components/ui/sonner";
 import { routes } from "@/shared/routes/routes";
-import { VerifyEmail } from "@/features/onboarding/steps/VerifyEmail";
-import { useSessionLoader } from "@/features/auth/hooks";
-import { CenteredLoader } from "./components/CenteredLoader";
 import { queryClient } from "@/lib/queryClient";
 import OnboardingRouter from "@/features/onboarding/OnboardingRouter";
 
@@ -153,38 +135,11 @@ function AnimatedRoutes() {
               <Navigate to={routes.general.dashboard.staticPath} replace />
             }
           />
-          {/* <Route
-            path={tenantRoutes.dashboard.staticPath}
-            element={<Dashboard />}
-          /> */}
-          {/* <Route
-            path={tenantRoutes.accounting.index.staticPath}
-            element={<UploadBS />}
-          /> */}
-          {/* <Route path=":companyId" element={<Home />} /> */}
-          {/* <Route path={staticRoutes.companies.root} element={<Home />} />
-          <Route path={staticRoutes.accounting.root} element={<Workspace />} /> */}
-          {/* 
-          <Route
-            path={staticRoutes.accounting.workspace.catEngine}
-            element={<CategorisationEngine />}
-          />
-          <Route
-            path={staticRoutes.accounting.workspace.journalPages}
-            element={<Journal />}
-          />
-          <Route path={staticRoutes.accounting.setup.root} element={<COA />} />
-          <Route path={staticRoutes.accounting.setup.coa} element={<COA />} />
-          <Route
-            path={staticRoutes.accounting.setup.finSettings}
-            element={<FinancialSettings />}
-          />
-          <Route path={staticRoutes.reports.coa} element={<AccountingTxns />} /> */}
-          {/* <Route path="*" element={<NotFound />} /> */}
 
           {/* CLIENT-SPECIFIC PAGES */}
 
           {/* FIRM-SPECIFIC PAGES */}
+          <Route path="*" element={<ErrorPage type="404" />} />
         </Route>
         <Route path="*" element={<ErrorPage />} />
       </Routes>

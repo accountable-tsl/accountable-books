@@ -14,6 +14,7 @@ import { OnboardingStatus } from "@/domains/company/types";
 import { cn } from "@/lib/utils";
 import { TriangleAlert } from "lucide-react";
 import { VerifyEmailFnResponse } from "@/features/onboarding/types";
+import { authStore } from "@/features/auth/store";
 
 export const VerifyEmail = ({
   className,
@@ -26,7 +27,7 @@ export const VerifyEmail = ({
 }) => {
   // Hooks, Context
   const { user, isLoggedIn, logout } = useAuth();
-  const { loading: sessionLoading } = useSessionLoader();
+  const { loading: sessionLoading, refetch } = useSessionLoader();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
@@ -74,7 +75,7 @@ export const VerifyEmail = ({
       }
 
       setVerifyEmailResponse(res.data);
-
+      await refetch();
       // No navigations here, let ui handle it
     } catch (error) {
       toast.error("Something went wrong.");
@@ -114,20 +115,36 @@ export const VerifyEmail = ({
     }
   }, [userIdFromUrl, user?.id]);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     // If logged in, redirect to onboarding otherwise redirect to login
     if (!isLoggedIn) {
       navigate(routes.auth.login.staticPath);
       return;
     }
+
+    await refetch();
     navigate(routes.onboarding.router.staticPath);
   };
+  const isEmailVerificationStepComplete =
+    isLoggedIn &&
+    user?.currentCompany.onboarding.steps.find(
+      (step) => step.key === "email_verified"
+    )?.complete;
+
+  const userFromStore = authStore.getState().user;
+
+  console.log({
+    isYouVer: isEmailVerificationStepComplete,
+    isLoggedIn,
+    onboarding: user?.currentCompany.onboarding.steps,
+    onboardin2: userFromStore?.currentCompany.onboarding.steps,
+  });
 
   useEffect(() => {
     if (sessionLoading) return;
 
     // Trigger verification on mount for logged-out users or those that reach here by clicking the link
-    if (!isLoggedIn || userIdFromUrl) {
+    if (!isLoggedIn || userIdFromUrl || isEmailVerificationStepComplete) {
       setHasTriggeredVerification(true);
     }
   }, [isLoggedIn, sessionLoading]);
@@ -153,7 +170,8 @@ export const VerifyEmail = ({
   const loggedOut = !isLoggedIn;
   const loggedInDifferentUser = isLoggedIn && email && user?.email !== email;
 
-  const verificationSuccessful = emailVerified && status === "verified";
+  const verificationSuccessful =
+    isEmailVerificationStepComplete || (emailVerified && status === "verified");
   const verificationFailed =
     (!emailVerified && status === "error") || status === "invalid_or_expired";
 
