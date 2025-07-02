@@ -173,7 +173,6 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
   const { token, userId } = input;
 
   if (!token && !userId) {
-    console.log("Missing required parameters");
     return errorResponse("Missing required parameters", {
       emailVerified: false,
       status: "error",
@@ -188,8 +187,6 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
         .where({ id: userId, is_deleted: false })
         .select("id", "email", "email_verified_at", "onboarding_state")
         .first();
-
-        console.log("🚨 user:", user);
 
       const {
         email_verified_at: initialEmailVerifiedAt,
@@ -220,7 +217,7 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
 
       const { id: tokenId, token_hash: tokenHash } = tokenHashRes.data || {};
 
-      if (!tokenHashRes.success || !tokenHash) {
+      if (!tokenHashRes.success || !tokenHash || !token) {
         return errorResponse("Invalid or expired token", {
           emailVerified: false,
           status: "invalid_or_expired",

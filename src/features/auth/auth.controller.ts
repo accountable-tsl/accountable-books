@@ -168,53 +168,23 @@ export async function verifyEmailController(req: Request, res: Response) {
     );
   }
 }
-async function verifyEmailControllerOld(req: Request, res: Response) {
-  const { token, email, slug } = req.query;
-
-  const appUrl = getAppUrl(String(slug));
-
-  if (!token || !email) {
-    return res.redirect(`${appUrl}/email-verified?status=failed`);
-  }
-
-  try {
-    const result = await verifyEmailService({
-      token: String(token),
-      email: String(email),
-      slug: String(slug),
-    });
-
-    return res.redirect(
-      `${appUrl}/email-verified?status=${result?.success ? "success" : "failed"}&email=${encodeURIComponent(String(email))}`
-    );
-  } catch (error) {
-    return res.redirect(
-      `${appUrl}/email-verified?status=failed&email=${encodeURIComponent(String(email))}`
-    );
-  }
-}
 
 export async function resendVerEmailController(
   req: AuthRequest,
   res: Response
 ) {
-  const email = req.body.email || req.query.email || req.user?.email;
-  const userId = req.body.userId || req.user?.id;
-  const slug = req.company?.assignedFirmSlug;
-
-  if (!email || !userId) {
+  const userId = String(req.body.userId);
+  if (!userId) {
     return res.status(400).json(errorResponse("User email or id is required"));
   }
 
-  if (email && typeof email !== "string") {
+  if (!userId && typeof !userId !== "string") {
     return res.status(400).json(errorResponse("Invalid email format"));
   }
 
   try {
     const result = await resendVerificationEmailService({
-      email: email.trim(),
-      slug: slug?.trim(),
-      userId: userId?.toString(),
+      userId,
     });
 
     if (!result.success) {
