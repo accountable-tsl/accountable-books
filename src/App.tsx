@@ -103,7 +103,7 @@ function AnimatedRoutes() {
           />
           <Route
             path={routes.onboarding.verifyEmail.staticPath}
-            element={<OnboardingStepPage />}
+            element={<OnboardingRouter />}
           />
           <Route
             path={routes.onboarding.step.staticPath}

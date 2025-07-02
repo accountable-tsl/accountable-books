@@ -12,12 +12,29 @@ import { MockDashboard } from "../dashboard/MockDashboard";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { Sheet } from "@/components/ui/sheet";
 import { OnboardingHeader } from "@/features/onboarding/shared/Header";
-import { HeadsetIcon, ScreenShareIcon } from "lucide-react";
+import {
+  ArrowUpCircleIcon,
+  Check,
+  HeadsetIcon,
+  MenuIcon,
+  ScreenShareIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VerifyEmail } from "./steps/VerifyEmail";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isStepAllowed, onboardingStepToSlug, stepMap } from "./utils";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  isStepAllowed,
+  onboardingStepsConfig,
+  onboardingStepToSlug,
+  stepMap,
+} from "./utils";
 import { CompanyInfo } from "@/features/onboarding/steps/CompanyInfo";
 import { BankAccount } from "@/features/onboarding/steps/BankAccount";
 import { Miscellaneous } from "@/features/onboarding/steps/Miscellaneous";
@@ -31,13 +48,25 @@ import {
   OnboardingSteps,
 } from "@/features/onboarding/types";
 import { CenteredLoader } from "@/components/CenteredLoader";
-import { onboardingStatus, OnboardingStatus } from "@/domains/company/types";
+import {
+  CompanyData,
+  onboardingStatus,
+  OnboardingStatus,
+} from "@/domains/company/types";
 import { getCompanyDetails } from "@/domains/company/api";
 import { routes } from "@/shared/routes/routes";
 import { useCompanySwitch } from "../switchCompany/hooks";
 import { DEMO_COMPANIES_IDS } from "@/domains/company/constants";
 import ErrorPage from "@/components/ErrorPage";
 import { useCompanyDetails } from "@/domains/company/hooks";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export const onboardingStepComponentMap: Record<OnboardingStepKey, React.FC> = {
   email_verified: VerifyEmail,
@@ -56,15 +85,13 @@ export function OnboardingStepPage() {
     error: companyDataError,
   } = useCompanyDetails(currentCompanyId || "");
 
-  const company = companyData?.data;
-
   // Find the matching key by comparing step parameters
   const stepKey = Object.entries(onboardingStepToSlug).find(([key, route]) => {
     const match = matchPath(routes.onboarding.step.staticPath, route);
     return match?.params.step === step;
   })?.[0] as keyof typeof onboardingStepToSlug | undefined;
 
-  if (!stepKey || companyDataError) {
+  if (!stepKey) {
     return <ErrorPage type="default" />;
   }
 
@@ -83,42 +110,14 @@ export function OnboardingStepPage() {
   if (!isLoggedIn) return <StepComponent />;
 
   const onboardingState = user?.currentCompany?.onboarding;
+  const company = companyData?.data;
 
-  // const onboardingSidebarProps: OnboardingSideBarProps = useMemo(() => {
-  //   if (!company) return null;
-
-  //   const stableCompany = {
-  //     id: company.id,
-  //     onboardingStatus: company.onboardingStatus,
-  //     legalName: company.legalName,
-  //     companyType: company.companyType,
-  //     assignedFirmLogo: company.assignedFirmLogo,
-  //     assignedFirmName: company.assignedFirmName,
-  //     displayName: company.displayName,
-  //     createdById: company.createdById,
-  //   };
-
-  //   return {
-  //     company: stableCompany,
-  //     currentStep: step as keyof typeof onboardingSteps,
-  //     isCreator,
-  //   };
-  // }, [
-  //   company?.id,
-  //   company?.onboardingStatus,
-  //   company?.legalName,
-  //   company?.displayName,
-  //   company?.companyType,
-  //   company?.assignedFirmLogo,
-  //   company?.assignedFirmName,
-  //   company?.createdById,
-  //   user?.id,
-  //   step,
-  //   isCreator,
-  // ]);
+  if (!onboardingState || companyDataError || !company) {
+    return <ErrorPage type="default" />;
+  }
 
   return (
-    <OnboardingStepWrapper onboarding={onboardingState}>
+    <OnboardingStepWrapper onboarding={onboardingState} company={company}>
       <StepComponent />
     </OnboardingStepWrapper>
   );
@@ -127,26 +126,85 @@ export function OnboardingStepPage() {
 export function OnboardingStepWrapper({
   children,
   onboarding,
+  company,
 }: {
   children: React.ReactNode;
-  onboarding?: OnboardingState;
+  onboarding: OnboardingState;
+  company: CompanyData;
 }) {
+  const isMobile = useIsMobile();
+  const nextStep = onboarding?.nextStepToComplete;
+  const isNextStepVerifyEmail = nextStep === "email_verified";
+
+  if (isMobile) {
+    return (
+      <Sheet>
+        <div className="flex flex-col h-dvh overflow-hidden">
+          <OnboardingSidebarN onboarding={onboarding} company={company} />
+          {children}
+        </div>
+      </Sheet>
+    );
+  }
+
+  return (
+    <div>
+      <MockDashboard />
+
+      <StableDialog>
+        <DialogHeader className="hidden">
+          <DialogTitle>Onboarding Form</DialogTitle>
+          <DialogDescription>
+            Multi step onboarding process to setup your company on the platform
+          </DialogDescription>
+        </DialogHeader>
+        <DialogContent className="flex [&>button]:hidden h-fit min-h-[75vh] max-h-[75vh] min-w-[85vw] max-w-[90vw] overflow-hidden p-0 gap-0">
+          <OnboardingSidebarN onboarding={onboarding} company={company} />
+
+          <div className="flex flex-col flex-1">
+            <OnboardingHeader />
+            {children}
+          </div>
+        </DialogContent>
+      </StableDialog>
+    </div>
+  );
+}
+export function OnboardingStepWrapperX({
+  children,
+  onboarding,
+  company,
+}: {
+  children: React.ReactNode;
+  onboarding: OnboardingState;
+  company: CompanyData;
+}) {
+  const isMobile = useIsMobile();
+  const nextStep = onboarding?.nextStepToComplete;
+  const isNextStepVerifyEmail = nextStep === "email_verified";
+
   return (
     <div className="relative h-dvh w-screen overflow-hidden">
-      <MockDashboard>
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
-          <div className="w-5xl border bg-background rounded-sm">
-            <div>
-              {/* TODO: Add onboarding progress tracker or sidebar */}
-              {/* {sidebarProps && <OnboardingSidebar {...sidebarProps} />} */}
-              <div>
-                <OnboardingHeader />
-                <div className="max-w-3xl mx-auto">{children}</div>
+      {isMobile ? (
+        children
+      ) : (
+        <MockDashboard>
+          <div className="absolute inset-0 z-10 flex items-start justify-center bg-black/70 overflow-y-auto py-12">
+            <div className="max-w-5xl w-full bg-background rounded-md border overflow-hidden">
+              <div className="grid grid-cols-[250px_1fr] min-h-full">
+                <OnboardingSidebarN onboarding={onboarding} company={company} />
+
+                <div>
+                  <OnboardingHeader />
+                  <div className="max-w-3xl mx-auto w-full px-4 py-6 overflow-y-auto">
+                    {children}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </MockDashboard>
+        </MockDashboard>
+      )}
     </div>
   );
 }
@@ -525,3 +583,276 @@ const OnboardingFormFooter = () => {
 };
 
 // OnboardingForm.whyDidYouRender = true;
+
+function OnboardingSidebarN({
+  onboarding,
+  company,
+}: {
+  onboarding: OnboardingState;
+  company: CompanyData;
+}) {
+  const isMobile = useIsMobile();
+  const nameParts = (company?.assignedFirmName ?? "").split(" ");
+  const initials =
+    nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0);
+
+  const onboardingSteps = onboarding.steps;
+  const currentStep = onboarding.nextStepToComplete;
+  const lastStep = onboardingSteps[onboardingSteps.length - 1].key;
+
+  // Return an array of steps that match the order in onboarding steps defined above using property orderIndex or keeping the original order if not defined
+  // Use the
+  const steps = onboardingSteps
+    .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
+    .map((step) => {
+      return {
+        ...onboardingStepsConfig[step.key],
+        ...step,
+        current: step.key === currentStep,
+      };
+    });
+
+  const currentStepObj = steps.find((step) => step.key === currentStep);
+  const currentIndex = steps.findIndex((step) => step.key === currentStep);
+
+  const renderedSteps = (
+    <div className={isMobile ? "" : "relative flex flex-col gap-6 pt-4"}>
+      <div className="absolute top-4 bottom-4 left-4 w-px bg-border z-0" />
+
+      {steps.map((step) => {
+        const { title, description, icon: Icon, current, complete } = step;
+        const isLastStep = step.key === lastStep;
+        return (
+          <div
+            key={step.key}
+            className="relative flex gap-2 items-center text-sm md:text-base"
+          >
+            <div
+              className={cn(
+                // "bg-background p-2 rounded-md outline relative flex h-8 w-8 shrink-0 items-center justify-center border",
+                "h-8 w-8 flex items-center justify-center shrink-0 border rounded-md bg-background",
+                current ? "border-foreground" : ""
+              )}
+            >
+              {complete ? (
+                <Check size={14} />
+              ) : (
+                <Icon
+                  color={`${current ? "currentColor" : "gray"}`}
+                  size={14}
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <div
+                className={cn(
+                  "truncate text-sm text-muted-foreground/50",
+                  current ? "text-card-foreground" : ""
+                  // current || completed ? "text-gray-900" : "text-gray-500"
+                )}
+              >
+                {title}
+              </div>
+              <div
+                className={cn(
+                  "text-muted-foreground/30 text-xs truncate",
+                  current ? "text-card-foreground/50" : "" // "truncate text-xs text-gray-500"
+                )}
+              >
+                {description}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="flex flex-col gap-4">
+        {/* TOP BAR */}
+        <div className="flex justify-between items-center border-b h-12">
+          <div className="flex items-center gap-2 p-4 md:h-12">
+            <div className="bg-muted rounded-full flex items-center justify-center h-6 w-6 overflow-hidden">
+              {company?.assignedFirmLogo ? (
+                <img
+                  src={company?.assignedFirmLogo}
+                  alt={`${company?.assignedFirmName} Logo`}
+                />
+              ) : (
+                <div className="p-1 text-sm">{initials}</div>
+                // <ArrowUpCircleIcon />
+              )}
+            </div>
+            <div className="truncate">{company?.assignedFirmName}</div>
+          </div>
+          <div className="justify-self-end md:hidden pr-2">
+            <ThemeToggle />
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-between border-r flex-1">
+          <div className="px-4 overflow-hidden">
+            {/* Mobile header with current step and menu button */}
+            <div className="md:hidden flex items-center justify-between p-3 rounded-md mb-4 bg-card shadow-sm">
+              <SheetTrigger
+                className="p-2 rounded-md outline bg-background"
+                aria-label="Toggle progress menu"
+              >
+                <MenuIcon className="w-5 h-5" />
+                <span className="sr-only">
+                  Toggle onboarding navigation menu
+                </span>
+              </SheetTrigger>
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-sm">
+                  {currentStepObj && (
+                    <currentStepObj.icon className="h-4 w-4" />
+                  )}
+                </div>
+                <span className="text-sm">{currentStepObj?.title}</span>
+                <span className="text-xs text-gray-500">
+                  Step {currentIndex + 1} of {steps.length}
+                </span>
+              </div>
+            </div>
+
+            {isMobile ? (
+              <SheetContent side="left" className="p-4">
+                <SheetHeader className="px-0">
+                  <SheetTitle>Onboarding Steps</SheetTitle>
+                  <SheetDescription className="hidden">
+                    Progress menu
+                  </SheetDescription>
+                </SheetHeader>
+                {renderedSteps}
+                <OnboardingFormFooter />
+              </SheetContent>
+            ) : (
+              renderedSteps
+            )}
+          </div>
+          {!isMobile && <OnboardingFormFooter />}
+        </div>
+      </div>
+    </>
+  );
+}
+function OnboardingSidebarX({
+  onboarding,
+  company,
+}: {
+  onboarding: OnboardingState;
+  company: CompanyData;
+}) {
+  const isMobile = useIsMobile();
+  const nameParts = (company?.assignedFirmName ?? "").split(" ");
+  const initials =
+    nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0);
+
+  const onboardingSteps = onboarding.steps;
+  const currentStep = onboarding.nextStepToComplete;
+  const lastStep = onboardingSteps[onboardingSteps.length - 1].key;
+
+  // Return an array of steps that match the order in onboarding steps defined above using property orderIndex or keeping the original order if not defined
+  // Use the
+  const steps = onboardingSteps
+    .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
+    .map((step) => {
+      return {
+        ...onboardingStepsConfig[step.key],
+        ...step,
+        current: step.key === currentStep,
+      };
+    });
+
+  const renderedSteps = (
+    <div className={isMobile ? "" : "relative flex flex-col gap-6 pt-4"}>
+      <div className="absolute top-4 bottom-4 left-4 w-px bg-border z-0" />
+
+      {steps.map((step) => {
+        const { title, description, icon: Icon, current, complete } = step;
+        const isLastStep = step.key === lastStep;
+        return (
+          <div
+            key={step.key}
+            className="relative flex gap-2 items-center text-sm md:text-base"
+          >
+            <div
+              className={cn(
+                // "bg-background p-2 rounded-md outline relative flex h-8 w-8 shrink-0 items-center justify-center border",
+                "h-8 w-8 flex items-center justify-center shrink-0 border rounded-md bg-background",
+                current ? "border-foreground" : ""
+              )}
+            >
+              {complete ? (
+                <Check size={14} />
+              ) : (
+                <Icon
+                  color={`${current ? "currentColor" : "gray"}`}
+                  size={14}
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <div
+                className={cn(
+                  "truncate text-sm text-muted-foreground/50",
+                  current ? "text-card-foreground" : ""
+                  // current || completed ? "text-gray-900" : "text-gray-500"
+                )}
+              >
+                {title}
+              </div>
+              <div
+                className={cn(
+                  "text-muted-foreground/30 text-xs truncate",
+                  current ? "text-card-foreground/50" : "" // "truncate text-xs text-gray-500"
+                )}
+              >
+                {description}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <>
+      {!isMobile && (
+        <div className="flex flex-col">
+          {/* TOP BAR */}
+          <div className="flex justify-between items-center border-b h-12">
+            <div className="flex items-center gap-2 p-4 md:h-12">
+              <div className="bg-muted rounded-full flex items-center justify-center h-6 w-6 overflow-hidden">
+                {company?.assignedFirmLogo ? (
+                  <img
+                    src={company?.assignedFirmLogo}
+                    alt={`${company?.assignedFirmName} Logo`}
+                  />
+                ) : (
+                  <div className="p-1 text-sm">{initials}</div>
+                  // <ArrowUpCircleIcon />
+                )}
+              </div>
+              <div className="truncate">{company?.assignedFirmName}</div>
+            </div>
+            <div className="justify-self-end md:hidden pr-2">
+              <ThemeToggle />
+            </div>
+          </div>
+
+          <div className="flex flex-col justify-between border-r flex-1">
+            <div className="px-4 overflow-hidden">{renderedSteps}</div>
+            {!isMobile && <OnboardingFormFooter />}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

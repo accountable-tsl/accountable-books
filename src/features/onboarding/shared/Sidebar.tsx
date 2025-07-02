@@ -1,7 +1,7 @@
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { VerticalStepper } from "@/components/VerticalStepper";
 import { ArrowUpCircleIcon } from "lucide-react";
-import { getSteps, onboardingSteps } from "@/features/onboarding/utils";
+import { getSteps } from "@/features/onboarding/utils";
 import { OnboardingSideBarProps } from "../types";
 import { useCompany } from "@/domains/company/store";
 
@@ -12,7 +12,7 @@ export function OnboardingSidebar({
   footer,
 }: OnboardingSideBarProps) {
   const { company } = useCompany();
-  const steps = getSteps(onboardingSteps, companyType, isCreator);
+  const steps = getSteps(onboardingSteps || [], companyType, isCreator);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center border-b h-12">

@@ -214,3 +214,10 @@ export type OnboardingResolution =
       type: "accessGranted";
       steps: OnboardingStep[];
     };
+
+export type OnboardingSidebarItem = {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  key: OnboardingSteps;
+};

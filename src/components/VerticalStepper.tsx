@@ -33,7 +33,7 @@ export function VerticalStepper({
   className,
   footer,
 }: {
-  steps: Step[];
+  steps: string[];
   currentStep?: string | number;
   onChange?: (newStep: string | number) => void;
   stepperOption?: number;

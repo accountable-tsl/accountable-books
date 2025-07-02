@@ -6,6 +6,7 @@ import {
   SettingsIcon,
 } from "lucide-react";
 import {
+  OnboardingSidebarItem,
   OnboardingSideBarSteps,
   OnboardingStepKey,
   OnboardingSteps,
@@ -16,7 +17,6 @@ import {
   OnboardingStatus,
 } from "@/domains/company/types";
 import { getDefaultCompanyData } from "@/domains/company/utils";
-import { RouteKey } from "@/shared/routes/types";
 import { routes } from "@/shared/routes/routes";
 
 export const stepMap: Record<OnboardingStatus, OnboardingSteps> = {
@@ -28,32 +28,6 @@ export const stepMap: Record<OnboardingStatus, OnboardingSteps> = {
 };
 
 // Define step configurations
-export const onboardingSteps: OnboardingSideBarSteps = {
-  verifyEmail: {
-    icon: MailCheckIcon,
-    key: "verifyEmail",
-    title: "Verify Email",
-    description: "Confirm your email address",
-  },
-  companyVitals: {
-    icon: Building2Icon,
-    key: "companyVitals",
-    title: "Company Vitals",
-    description: "Update or verify company details",
-  },
-  addBankAccount: {
-    icon: CreditCardIcon,
-    key: "addBankAccount",
-    title: "Add Bank Account",
-    description: "Link your bank account",
-  },
-  miscellaneous: {
-    icon: SettingsIcon,
-    key: "miscellaneous",
-    title: "Miscellaneous",
-    description: "Additional settings",
-  },
-};
 
 export const stepOrder: OnboardingSteps[] = [
   "verifyEmail",
@@ -99,7 +73,6 @@ export function mergeInitialData(
   return { ...base, ...dbData, ...saved } as CompanyData; // precedence: saved > db > defaults
 }
 
-
 export const onboardingStepToSlug = {
   email_verified: routes.onboarding.verifyEmail.staticPath,
   company_details_confirmed: routes.onboarding.step.build({
@@ -110,3 +83,33 @@ export const onboardingStepToSlug = {
   }),
 } as const;
 export type OnboardingSlug = (typeof onboardingStepToSlug)[OnboardingStepKey];
+
+export const onboardingStepsConfig: Record<
+  OnboardingStepKey,
+  OnboardingSidebarItem
+> = {
+  email_verified: {
+    icon: MailCheckIcon,
+    key: "verifyEmail",
+    title: "Verify Email",
+    description: "Confirm your email address",
+  },
+  company_details_confirmed: {
+    icon: Building2Icon,
+    key: "companyVitals",
+    title: "Company Vitals",
+    description: "Update/verify company details",
+  },
+  first_bank_account_added: {
+    icon: CreditCardIcon,
+    key: "addBankAccount",
+    title: "Add Bank Account",
+    description: "Link your bank account",
+  },
+  // miscellaneous: {
+  //   icon: SettingsIcon,
+  //   key: "miscellaneous",
+  //   title: "Miscellaneous",
+  //   description: "Additional settings",
+  // },
+};
