@@ -36,7 +36,9 @@ export const onboardingStepComponentMap: Record<OnboardingStepKey, React.FC> = {
 export function OnboardingStepPage() {
   const { isLoggedIn, currentCompanyId, user } = useAuth();
   const { loading: sessionLoading } = useSessionLoader();
-  const { step } = useParams<{ step: string }>();
+  const { step: stepParam } = useParams<{ step?: string }>();
+  const step =
+    stepParam === ":step" || stepParam === "step" ? undefined : stepParam;
 
   const {
     data: companyData,
@@ -94,6 +96,7 @@ export function OnboardingStepWrapper({
   const isMobile = useIsMobile();
   const nextStep = onboarding?.nextStepToComplete;
   const showSidebar = nextStep !== "email_verified";
+  const sidebarWidth = "250px";
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const onboardingSteps = onboarding.steps;
@@ -106,10 +109,10 @@ export function OnboardingStepWrapper({
       onboardingSteps
         .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
         .map((step) => {
-          const { key, ...configWithoutKey } = onboardingStepsConfig[step.key];
+          const config = onboardingStepsConfig[step.key];
 
           return {
-            ...configWithoutKey,
+            ...config,
             ...step,
             current: step.key === currentStep,
           };
@@ -168,19 +171,29 @@ export function OnboardingStepWrapper({
           )}
         >
           {/* Onboarding Box */}
-          <div className="w-full max-w-5xl h-[100vh] md:h-[90vh] bg-background rounded-md border overflow-hidden flex flex-col">
+          <div className="w-full max-w-5xl h-[100vh] md:h-fit md:min-h-[50vh] md:max-h-[90vh] bg-background rounded-md border overflow-hidden flex flex-col">
             {/* Sidebar (progress tracker) — only on desktop */}
 
             <OnboardingHeader
               firmName={company?.assignedFirmName ?? ""}
               logoUrl={company?.assignedFirmLogo ?? ""}
               className="sticky top-0 z-10 bg-background border-b"
+              sidebarWidth={sidebarWidth}
+              showSidebar={showSidebar}
             />
             <div
-              className={cn("flex overflow-hidden", isMobile ? "flex-col" : "")}
+              className={cn(
+                "flex overflow-hidden flex-1",
+                isMobile ? "flex-col" : ""
+              )}
             >
               {showSidebar && !isMobile && (
-                <div className="w-[250px] border-r flex">
+                <div
+                  className={cn(
+                    sidebarWidth ? `w-[${sidebarWidth}]` : "w-[250px]",
+                    "border-r flex"
+                  )}
+                >
                   <OnboardingSidebar steps={steps} />
                 </div>
               )}

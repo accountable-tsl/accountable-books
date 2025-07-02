@@ -55,6 +55,7 @@ export const baseCompanyData = z.object({
   countryId: z.string(),
   reportingCurrencyId: z.string(),
   createdById: z.string(),
+
   reportingCurrencyCode: z.string(),
   reportingCurrencyName: z.string(),
   assignedFirmId: z.string(),
@@ -62,8 +63,23 @@ export const baseCompanyData = z.object({
 });
 export type BaseCompanyData = z.infer<typeof baseCompanyData>;
 
+export const companyOnboardingState = z
+  .object({
+    steps: z.object({
+      company_details_confirmed: z.boolean(),
+      first_bank_account_added: z.boolean(),
+    }),
+    completed_at: z
+      .object({
+        company_details_confirmed: z.date().nullish(),
+        first_bank_account_added: z.date().nullish(),
+      })
+      .optional(),
+    metadata: z.null().nullish(),
+  })
+  .nullish();
+
 export const companyData = baseCompanyData.extend({
-  onboardingStatus: onboardingStatus,
   displayName: z.string().nullish(),
   address: z.string().nullish(),
   companyLogo: z.string().nullish(),
@@ -77,6 +93,8 @@ export const companyData = baseCompanyData.extend({
   companyTaxId: z.string().nullish(),
   reportingFramework: z.string().nullish(),
   accountingBasis: accountingBasis.nullish(),
+  onboardingState: companyOnboardingState,
+
   countryCode: z.string().nullish(),
   countryName: z.string().nullish(),
   countryPhoneCode: z.string().nullish(),

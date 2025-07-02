@@ -7,10 +7,14 @@ export const OnboardingHeader = ({
   firmName,
   logoUrl,
   className,
+  showSidebar,
+  sidebarWidth,
 }: {
   firmName?: string;
   className?: string;
   logoUrl?: string;
+  showSidebar?: boolean;
+  sidebarWidth?: string;
 }) => {
   const isMobile = useIsMobile();
   const nameParts = (firmName ?? "").split(" ");
@@ -25,7 +29,11 @@ export const OnboardingHeader = ({
           className
         )}
       >
-        <div className="md:w-[250px]">
+        <div
+          className={cn(
+            showSidebar && sidebarWidth ? `md:w-[${sidebarWidth}]` : ""
+          )}
+        >
           <div className="flex items-center gap-2 p-4 md:h-12">
             <div className="bg-muted rounded-full flex items-center justify-center h-6 w-6 overflow-hidden">
               {logoUrl ? (
@@ -37,7 +45,12 @@ export const OnboardingHeader = ({
             <div className="truncate text-muted-foreground">{firmName}</div>
           </div>
         </div>
-        <div className="relative flex-1 flex items-center justify between">
+        <div
+          className={cn(
+            "flex-1 flex items-center justify between",
+            showSidebar ? "relative" : ""
+          )}
+        >
           <div className="ml-auto mr-2">
             <ThemeToggle />
           </div>

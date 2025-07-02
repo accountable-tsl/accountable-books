@@ -52,14 +52,18 @@ export default function AppLayout({
     return <Navigate to={routes.auth.login.staticPath} replace />;
   }
 
+  const canAccessApp = user?.currentCompany.onboarding.canAccessApp;
+  if (!canAccessApp) {
+    return <Navigate to={routes.onboarding.router.staticPath} replace />;
+  }
+
   console.log({
-    company,
-    user,
-    companyId,
-    companyType,
-    slug,
-    companyDetailsError,
+    onboarding: user?.currentCompany.onboarding,
+    companiesFromAuth: user?.companies,
+    currentCompanyFromCompany: company,
+    currentCompanyFromAuth: user?.currentCompany,
   });
+
   if (
     !company ||
     !user ||
@@ -71,23 +75,6 @@ export default function AppLayout({
   ) {
     return <ErrorPage type="default" />;
   }
-
-  // console.log({
-  //   companyDetailsLoading,
-  //   companyDetailsError,
-  //   isLoggedIn,
-  //   user,
-  //   slug,
-  // });
-
-  // if (routeCompanyId && routeCompanyId !== companyId && !isSwitching) {
-  //   return (
-  //     <ErrorPage
-  //       type="404"
-  //       message="We couldn't find the page you were looking for"
-  //     />
-  //   );
-  // }
 
   return (
     <SidebarProvider defaultOpen={!sidebarCollapsed}>

@@ -14,18 +14,22 @@ import { Link, useSearchParams } from "react-router-dom";
 import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { useCompany } from "@/domains/company/store";
-import { useAuth } from "./hooks";
+import { useAuth, useSessionLoader } from "./hooks";
 import { routes } from "@/shared/routes/routes";
 import { AuthHeader } from "@/components/AuthHeader";
 import { toast } from "sonner";
 import { loginAndRedirect } from "@/features/auth/utils";
+import { CenteredLoader } from "@/components/CenteredLoader";
 
 export default function Login() {
-  // const { setUser, isLoggedIn, checkingSession, clearSession, logout } =
-  //   useAuth();
-  const { setAuth, logout, isLoggedIn, hasAppAccess } = useAuth();
-  const { companyId, company } = useCompany();
+  const {
+    setAuth,
+    logout,
+    isLoggedIn,
+    hasAppAccess,
+    currentCompanyId: companyId,
+  } = useAuth();
+  const { loading: sessionLoading } = useSessionLoader();
   const [params] = useSearchParams();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -61,7 +65,11 @@ export default function Login() {
     }
   };
 
-  const alreadyLoggedIn = isLoggedIn && companyId && company?.assignedFirmSlug;
+  if (isLoading || sessionLoading) {
+    return <CenteredLoader fullscreen />;
+  }
+
+  const alreadyLoggedIn = isLoggedIn && companyId;
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -78,7 +86,7 @@ export default function Login() {
                   to={
                     hasAppAccess
                       ? routes.general.dashboard.build({ companyId })
-                      : routes.auth.login.staticPath
+                      : routes.onboarding.router.staticPath
                   }
                   className="underline font-medium"
                 >

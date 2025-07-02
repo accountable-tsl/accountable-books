@@ -17,22 +17,22 @@ export type VerifyEmailProps = {
   email: string;
 };
 
-export const onboardingSteps = z.enum([
-  "verifyEmail",
-  "companyVitals",
-  "addBankAccount",
-  "miscellaneous",
-]);
-export type OnboardingSteps = z.infer<typeof onboardingSteps>;
+// export const onboardingSteps = z.enum([
+//   "verifyEmail",
+//   "companyVitals",
+//   "addBankAccount",
+//   "miscellaneous",
+// ]);
+// export type OnboardingSteps = z.infer<typeof onboardingSteps>;
 
-export type OnboardingSideBarSteps = {
-  [K in OnboardingSteps]: {
-    icon: LucideIcon;
-    title: string;
-    description: string;
-    key: OnboardingSteps;
-  };
-};
+// export type OnboardingSideBarSteps = {
+//   [K in OnboardingSteps]: {
+//     icon: LucideIcon;
+//     title: string;
+//     description: string;
+//     key: OnboardingSteps;
+//   };
+// };
 
 export type Contact = {
   phoneNumber: string;
@@ -40,33 +40,8 @@ export type Contact = {
   completeNumber: string;
 };
 
-export type ResendVerEmailService =
-  | {
-      userId: string;
-    }
-  | {
-      email: string;
-    }
-  | {
-      userId: string;
-      email: string;
-    };
-
-export type OnboardingSideBarProps = {
-  company: Pick<
-    CompanyData,
-    | "id"
-    | "onboardingStatus"
-    | "legalName"
-    | "displayName"
-    | "companyType"
-    | "assignedFirmLogo"
-    | "assignedFirmName"
-    | "createdById"
-  >;
-  currentStep: keyof typeof onboardingSteps;
-  isCreator: boolean;
-  footer?: string | React.ReactNode;
+export type ResendVerEmailService = {
+  userId: string;
 };
 
 export type VerifyEmailFnResponse = {
@@ -219,8 +194,7 @@ export type OnboardingSidebarItem = {
   icon: LucideIcon;
   title: string;
   description: string;
-  key: OnboardingSteps;
 };
 
 export type EnrichedOnboardingStep = OnboardingStep &
-  Omit<OnboardingSidebarItem, "key"> & { current: boolean };
+  OnboardingSidebarItem & { current: boolean };

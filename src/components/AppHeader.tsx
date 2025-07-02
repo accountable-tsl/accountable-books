@@ -59,7 +59,6 @@ export function AppHeader({ company }: AppHeaderProps) {
         <Breadcrumb>
           <BreadcrumbList>
             {breadcrumbs.map((item, index) => (
-              console.log("Breadcrumb Item", item),
               <React.Fragment key={`${item.label}-${index}`}>
                 <BreadcrumbItem className="hidden md:block">
                   {index === breadcrumbs.length - 1 ? (

@@ -78,7 +78,6 @@ export const AppSidebar = ({
     : { name: "", email: "", avatar: "" };
 
   const dashboardPath = router.general.dashboard({});
-  console.log("Dashboard Path", dashboardPath);
 
   if (!companyId || !companyType || !company)
     return <SkeletonBlock className="max-w-5xl" />;

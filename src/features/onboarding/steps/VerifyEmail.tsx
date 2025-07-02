@@ -2,33 +2,22 @@ import icon from "@/assets/images/email-file.gif";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, useSessionLoader } from "@/features/auth/hooks";
-import { useEffect, useMemo, useState } from "react";
-import { getUserDetails } from "@/domains/user/api";
+import { useCallback, useEffect, useState } from "react";
 import { routes } from "@/shared/routes/routes";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { toast } from "sonner";
 import {
   handleEmailVerification,
   resendVerificationEmail,
-  updateCompanyOnboardingStatus,
 } from "@/features/onboarding/api";
 import { OnboardingStatus } from "@/domains/company/types";
-import { useCompany } from "@/domains/company/store";
 import { cn } from "@/lib/utils";
-import { getCompanyDetails } from "@/domains/company/api";
-import { onboardingStatus as onbStatus } from "@/domains/company/types";
-import { VerifyEmailFnResponse } from "@/features/onboarding/types";
-import ErrorPage from "@/components/ErrorPage";
-import { useTenantRoutes } from "@/shared/routes/hooks";
-import { set } from "lodash";
-import { getVerifyEmailSessionStatus } from "../utils";
 import { TriangleAlert } from "lucide-react";
+import { VerifyEmailFnResponse } from "@/features/onboarding/types";
 
 export const VerifyEmail = ({
-  onStatusChange,
   className,
   successText = "Continue Onboarding",
-  stateOverride,
 }: {
   onStatusChange?: (status: OnboardingStatus) => void;
   className?: string;
@@ -36,7 +25,7 @@ export const VerifyEmail = ({
   stateOverride?: string;
 }) => {
   // Hooks, Context
-  const { user, isLoggedIn, logout, currentCompany: company } = useAuth();
+  const { user, isLoggedIn, logout } = useAuth();
   const { loading: sessionLoading } = useSessionLoader();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -59,15 +48,15 @@ export const VerifyEmail = ({
   const verificationToken = params.get("token");
 
   // Functions
-  const verifyEmailFn = async () => {
-    if (!verificationToken || !userIdFromUrl) return;
+  const verifyEmailFn = useCallback(async () => {
+    if (!isLoggedIn && (!verificationToken || !userIdFromUrl)) return;
 
     setIsLoading(true);
 
     try {
       const callVerifyEmailEndpoint = handleEmailVerification({
-        token: verificationToken,
-        userId: userIdFromUrl,
+        token: verificationToken || "",
+        userId: userIdFromUrl || user?.id || "",
       });
 
       toast.promise(callVerifyEmailEndpoint, {
@@ -93,11 +82,12 @@ export const VerifyEmail = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoggedIn, verificationToken, userIdFromUrl, user?.id]);
 
-  const handleResendEmail = async () => {
-    if (!user?.id) {
-      toast.error("User not found. Please log in again.");
+  const handleResendEmail = useCallback(async () => {
+    const userId = userIdFromUrl || user?.id || "";
+    if (!userId) {
+      toast.error("User not found. Please try again or contact support.");
       return;
     }
     // TODO:
@@ -111,48 +101,26 @@ export const VerifyEmail = ({
 
     try {
       const res = await resendVerificationEmail({
-        email: userEmail,
-        userId: user.id,
+        userId: userId,
       });
 
       if (!res.success) {
         toast.error(res.message);
       } else {
         toast.success(res.message);
-        // handleTryAgain();
       }
     } catch (error) {
       toast.error("An unexpected error occurred");
     }
-  };
+  }, [userIdFromUrl, user?.id]);
 
-  const handleContinue = async () => {
-    if (!user?.id || !company?.id) {
-      toast.error("User or company not found. Please log in again.");
+  const handleContinue = () => {
+    // If logged in, redirect to onboarding otherwise redirect to login
+    if (!isLoggedIn) {
+      navigate(routes.auth.login.staticPath);
       return;
     }
-    try {
-      // Update user onboarding status
-      const res = await updateCompanyOnboardingStatus({
-        userId: user.id,
-        companyId: company!.id,
-      });
-
-      if (!res.success || !res.data?.company.onboardingStatus) {
-        toast.error(res.message || "Failed to update onboarding status");
-        // throw new Error(res.message || "Failed to update onboarding status");
-        return;
-      }
-
-      const newStatus = res.data?.company.onboardingStatus;
-      setCompany(res.data.company);
-      onStatusChange?.(newStatus);
-      // setOnboardingStatus(newStatus);
-      toast.success("Email verified successfully!");
-      // navigate(routes.onboarding.index.staticPath);
-    } catch (error) {
-      toast.error("An unexpected error occurred");
-    }
+    navigate(routes.onboarding.router.staticPath);
   };
 
   useEffect(() => {
@@ -166,7 +134,7 @@ export const VerifyEmail = ({
 
   useEffect(() => {
     if (!hasTriggeredVerification) return;
-    if (!verificationToken || !userIdFromUrl) return;
+    if (!isLoggedIn && (!verificationToken || !userIdFromUrl)) return;
 
     verifyEmailFn();
   }, [userIdFromUrl, verificationToken, hasTriggeredVerification]);
@@ -183,7 +151,6 @@ export const VerifyEmail = ({
 
   const { emailVerified, status, email } = verifyEmailResponse;
   const loggedOut = !isLoggedIn;
-  const loggedInSameUser = user?.email === email;
   const loggedInDifferentUser = isLoggedIn && email && user?.email !== email;
 
   const verificationSuccessful = emailVerified && status === "verified";
@@ -257,20 +224,20 @@ export const VerifyEmail = ({
 
       <div className="text-center text-sm md:text-base">
         <span>
-          {loggedInSameUser ? (
+          {loggedInDifferentUser ? (
+            <>
+              You are logged in as{" "}
+              <span className="text-blue-500">{userEmail}</span> but tried to
+              verify <span>{verifiedEmail || "a different email"}</span>. There
+              was an issue verifying this email.
+            </>
+          ) : (
             <>
               We tried to verify{" "}
               <span className="text-blue-500">
                 {verifiedEmail || userEmail || "your email"}
               </span>
               , but it seems there was an issue.
-            </>
-          ) : (
-            <>
-              You are logged in as{" "}
-              <span className="text-blue-500">{userEmail}</span> but tried to
-              verify <span>{verifiedEmail || "a different email"}</span>. There
-              was an issue verifying this email.
             </>
           )}
         </span>
@@ -303,7 +270,9 @@ export const VerifyEmail = ({
         This verification link is invalid or has expired.
       </p>
       <Link
-        to={`${routes.auth.login.staticPath}?email=${encodeURIComponent(email || "")}`}
+        to={`${routes.auth.login.staticPath}?email=${encodeURIComponent(
+          email || ""
+        )}`}
         className="text-blue-500 underline mt-4 block"
       >
         Log in to request a new link
@@ -355,7 +324,10 @@ export const VerifyEmail = ({
     <>
       <h2 className="text-xl font-bold mb-2">⚠️ Unexpected State</h2>
       <p>Something doesn't look right. Please log in to continue.</p>
-      <Link to={routes.auth.login.staticPath} className="text-blue-600 underline mt-4 block">
+      <Link
+        to={routes.auth.login.staticPath}
+        className="text-blue-600 underline mt-4 block"
+      >
         Log in {!loggedOut ? "again" : ""}
       </Link>
     </>
@@ -374,7 +346,8 @@ export const VerifyEmail = ({
     <div
       className={cn(
         "flex flex-col gap-4 items-center p-8 md:p-16 max-w-3xl mx-auto w-full",
-        "flex-1 max-h-[45rem] h-[45rem] md:h-full justify-center",
+        "flex-1 justify-center md:h-full",
+        !isLoggedIn ? "max-h-[45rem] h-[45rem]" : "",
         className
       )}
     >

@@ -38,6 +38,5 @@ export function useBreadcrumbs() {
     })
     .filter(Boolean) as { label: string; link: string }[];
 
-  console.log("Breadcrumbs", breadcrumbs);
   return breadcrumbs;
 }

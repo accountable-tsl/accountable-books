@@ -22,7 +22,7 @@ export const resendVerificationEmail = async (data: ResendVerEmailService) => {
 };
 
 export const handleEmailVerification = async (data: {
-  token: string;
+  token?: string;
   userId: string;
 }): Promise<ApiResponse<VerifyEmailFnResponse>> => {
   try {

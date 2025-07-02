@@ -103,7 +103,7 @@ function AnimatedRoutes() {
           />
           <Route
             path={routes.onboarding.verifyEmail.staticPath}
-            element={<OnboardingRouter />}
+            element={<OnboardingStepPage />}
           />
           <Route
             path={routes.onboarding.step.staticPath}
@@ -127,7 +127,10 @@ function AnimatedRoutes() {
             </motion.div>
           }
         >
-          <Route index element={<DashboardRedirect />} />
+          <Route
+            index
+            element={<Navigate to={routes.onboarding.router.staticPath} />}
+          />
           <Route
             path={routes.general.dashboard.staticPath}
             element={<Dashboard />}

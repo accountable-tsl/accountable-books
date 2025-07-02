@@ -42,6 +42,10 @@ export default function OnboardingRouter() {
     return <Navigate to={routes.auth.login.staticPath} replace />;
   }
 
+  if (user?.currentCompany.onboarding.nextStepToComplete === "email_verified") {
+    return <Navigate to={routes.onboarding.verifyEmail.staticPath} replace />;
+  }
+  
   const resolution = resolveOnboardingRoute(user);
   console.log("resolution", resolution);
 
@@ -78,7 +82,7 @@ function BlockedOnboardingPage({
 }) {
   console.log(reason, steps);
 
-  return <></>;
+  return <>Blocked</>;
 }
 
 export function resolveOnboardingRoute(
