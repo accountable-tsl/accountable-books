@@ -110,8 +110,6 @@ export default function Signup() {
       : setCurrentStep(1);
   };
 
-  console.log({ companyDetails, basicInfo });
-
   const handleContinue = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
 
@@ -197,7 +195,7 @@ export default function Signup() {
           if (loginSuccess && canAccessApp) {
             window.location.replace(dashboardUrl);
           } else {
-            navigate(routes.onboarding.router.staticPath, { replace: true });
+            navigate(routes.onboarding.index.staticPath, { replace: true });
           }
         } else {
           setTimeout(() => {

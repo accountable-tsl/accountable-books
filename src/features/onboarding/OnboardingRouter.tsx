@@ -1,10 +1,11 @@
 import { CenteredLoader } from "@/components/CenteredLoader";
-import { useAuth, useSessionLoader } from "@/features/auth/hooks";
+import { useAuth } from "@/features/auth/hooks";
 import { routes } from "@/shared/routes/routes";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { AuthUserContext } from "../auth/types";
 import { OnboardingResolution, OnboardingStep } from "./types";
 import { onboardingStepToSlug } from "@/features/onboarding/utils";
+import { useSession } from "../auth/SessionProvider";
 
 export default function OnboardingRouter() {
   /**
@@ -14,7 +15,7 @@ export default function OnboardingRouter() {
    */
 
   const { user, isLoggedIn } = useAuth();
-  const { loading: sessionLoading } = useSessionLoader();
+  const { loading: sessionLoading } = useSession();
   const [params] = useSearchParams();
   const location = useLocation();
 
@@ -45,7 +46,7 @@ export default function OnboardingRouter() {
   if (user?.currentCompany.onboarding.nextStepToComplete === "email_verified") {
     return <Navigate to={routes.onboarding.verifyEmail.staticPath} replace />;
   }
-  
+
   const resolution = resolveOnboardingRoute(user);
   console.log("resolution", resolution);
 

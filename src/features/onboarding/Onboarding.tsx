@@ -1,14 +1,23 @@
-import { useAuth, useSessionLoader } from "../auth/hooks";
+import { useAuth } from "../auth/hooks";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { OnboardingHeader } from "@/features/onboarding/shared/Header";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VerifyEmail } from "./steps/VerifyEmail";
 
-import { onboardingStepsConfig, onboardingStepToSlug } from "./utils";
+import {
+  onboardingStepsConfig,
+  onboardingStepToSlug,
+  slugToOnboardingStepKey,
+} from "@/features/onboarding/utils";
 import { CompanyInfo } from "@/features/onboarding/steps/CompanyInfo";
 import { BankAccount } from "@/features/onboarding/steps/BankAccount";
-import { matchPath, useParams } from "react-router-dom";
+import {
+  Navigate,
+  useLocation,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   EnrichedOnboardingStep,
   OnboardingState,
@@ -26,19 +35,33 @@ import {
   MobileOnboardingSidebar,
   OnboardingSidebar,
 } from "@/features/onboarding/shared/Sidebar";
+import { useSession } from "@/features/auth/SessionProvider";
 
-export const onboardingStepComponentMap: Record<OnboardingStepKey, React.FC> = {
-  email_verified: VerifyEmail,
-  company_details_confirmed: CompanyInfo,
-  first_bank_account_added: BankAccount,
+const onboardingSteps: Record<
+  string,
+  { key: OnboardingStepKey; Component: React.FC }
+> = {
+  "verify-email": {
+    key: "email_verified",
+    Component: VerifyEmail,
+  },
+  "company-details": {
+    key: "company_details_confirmed",
+    Component: CompanyInfo,
+  },
+  "add-bank-account": {
+    key: "first_bank_account_added",
+    Component: BankAccount,
+  },
 };
 
 export function OnboardingStepPage() {
   const { isLoggedIn, currentCompanyId, user } = useAuth();
-  const { loading: sessionLoading } = useSessionLoader();
+  const { loading: sessionLoading } = useSession();
+
+  const [params] = useSearchParams();
+  const pathname = useLocation().pathname;
   const { step: stepParam } = useParams<{ step?: string }>();
-  const step =
-    stepParam === ":step" || stepParam === "step" ? undefined : stepParam;
 
   const {
     data: companyData,
@@ -46,15 +69,16 @@ export function OnboardingStepPage() {
     error: companyDataError,
   } = useCompanyDetails(currentCompanyId || "");
 
-  // Find the matching key by comparing step parameters
-  const stepKey = Object.entries(onboardingStepToSlug).find(([key, route]) => {
-    const match = matchPath(routes.onboarding.step.staticPath, route);
-    return match?.params.step === step;
-  })?.[0] as keyof typeof onboardingStepToSlug | undefined;
+  const isEmptyStepParam = stepParam === ":step" || stepParam === "step";
+  const step = isEmptyStepParam ? undefined : stepParam;
 
-  if (!stepKey) {
-    return <ErrorPage type="default" />;
-  }
+  const userIdFromUrl = params.get("userId");
+  const verificationToken = params.get("token");
+  const mightBeVerificationPath = pathname.includes("verify-email");
+
+  const hasTokenVerificationParams = !!verificationToken && !!userIdFromUrl;
+
+  const verifyEmailRoute = routes.onboarding.verifyEmail.staticPath;
 
   if (sessionLoading || companyDataLoading) {
     return (
@@ -66,16 +90,61 @@ export function OnboardingStepPage() {
     );
   }
 
-  const StepComponent = onboardingStepComponentMap[stepKey];
-  if (!StepComponent) return <ErrorPage type="default" />;
-  if (!isLoggedIn) return <StepComponent />;
+  if (!isLoggedIn || !user) {
+    // If user is not logged in & there are verification params or might be verification path, redirect to verify email
+    if (hasTokenVerificationParams || mightBeVerificationPath) {
+      return <Navigate to={verifyEmailRoute} replace />;
+    }
+    return <Navigate to={routes.auth.login.staticPath} replace />;
+  }
 
   const onboardingState = user?.currentCompany?.onboarding;
   const company = companyData?.data;
+  const nextStepToComplete = onboardingState?.nextStepToComplete;
 
   if (!onboardingState || companyDataError || !company) {
     return <ErrorPage type="default" />;
   }
+
+  if (onboardingState.nextStepToComplete === "email_verified") {
+    return <Navigate to={verifyEmailRoute} replace />;
+  }
+
+  // Find the matching key by comparing step parameters
+  const stepInfo = step ? onboardingSteps[step] : undefined;
+  const stepKey = stepInfo?.key;
+  const StepComponent = stepInfo?.Component;
+
+  if (!stepKey) {
+    return step ? (
+      <ErrorPage type="default" />
+    ) : (
+      <Navigate
+        to={
+          (nextStepToComplete && onboardingStepToSlug[nextStepToComplete]) ??
+          verifyEmailRoute
+        }
+        replace
+      />
+    );
+  }
+
+  const availableStepKeys = onboardingState.steps.map((s) => s.key);
+  if (!availableStepKeys.includes(stepKey)) {
+    const nextStepKey = onboardingState.nextStepToComplete;
+    return (
+      <Navigate
+        to={
+          nextStepKey
+            ? onboardingStepToSlug[nextStepKey] ?? verifyEmailRoute
+            : verifyEmailRoute
+        }
+        replace
+      />
+    );
+  }
+
+  if (!StepComponent) return <ErrorPage type="default" />;
 
   return (
     <OnboardingStepWrapper onboarding={onboardingState} company={company}>

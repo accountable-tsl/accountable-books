@@ -48,11 +48,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useAuth, useSessionLoader } from "@/features/auth/hooks";
+import { useAuth } from "@/features/auth/hooks";
 import { useSlugCheck } from "@/domains/firms/hooks";
 import { validateSlug } from "@/domains/firms/utils";
 import { updateCompanyOnboardingStatus } from "@/features/onboarding/api";
 import { useCompanyDetails } from "@/domains/company/hooks";
+import { useSession } from "@/features/auth/SessionProvider";
 
 export const CompanyInfo = () => {
   // Refs
@@ -71,7 +72,7 @@ export const CompanyInfo = () => {
 
   // Hooks
   const { isLoggedIn, user, currentCompanyId: companyId } = useAuth();
-  const { loading: sessionLoading } = useSessionLoader();
+  const { loading: sessionLoading } = useSession();
   const {
     data: industries,
     isLoading: isIndustriesLoading,
@@ -87,8 +88,6 @@ export const CompanyInfo = () => {
   // Derived / Computed Values
   const company = companyDetailsRes?.data;
   const { companyType } = companyDetailsRes?.data || {};
-
-  console.log({ company });
 
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -110,36 +109,6 @@ export const CompanyInfo = () => {
     mode: "onChange",
     defaultValues: getDefaultCompanyData(),
   });
-
-  // Functions
-  const fetchCompanyDetails = async (
-    companyId: string
-  ): Promise<CompanyData | null> => {
-    if (!companyId) {
-      toast.error("Company ID is missing");
-      setIsLoading(false);
-      return null;
-    }
-
-    setIsLoading(true);
-    try {
-      if (company && company?.companyLogo) {
-        return company;
-      } else {
-        const res = await getCompanyDetails(companyId);
-        if (res.success && res.data) {
-          return res.data;
-        }
-        toast.error(res.message || "Failed to fetch company details");
-        return null;
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to fetch company details");
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // const watchedSlug =
   //   companyType === "accounting_firm"
@@ -265,7 +234,7 @@ export const CompanyInfo = () => {
       if (company) {
         dbData = company;
       } else {
-        const res = await getCompanyDetails(companyId!);
+        const res = await getCompanyDetails(companyId || "");
         dbData = res.data;
       }
 
@@ -327,7 +296,6 @@ export const CompanyInfo = () => {
       // Get only changed fields
       const updates: Record<string, any> = getChangesOnly(dbData, formData);
       const { onboardingStatus, assignedFirmSlug, ...rest } = updates;
-      console.log(rest);
 
       let dataToUpdate: UpdateCompanyData = rest;
       if (companyType === "accounting_firm" && assignedFirmSlug) {

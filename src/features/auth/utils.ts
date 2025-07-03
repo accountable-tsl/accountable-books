@@ -85,7 +85,7 @@ export async function loginAndRedirect(params: LoginParams) {
     routeKey: "general.dashboard",
     routeParams: {},
   });
-  const onboardingUrl = routes.onboarding.router.staticPath;
+  const onboardingUrl = routes.onboarding.index.staticPath;
 
   if (result.canAccessApp && dashboardUrl) {
     window.location.replace(dashboardUrl);

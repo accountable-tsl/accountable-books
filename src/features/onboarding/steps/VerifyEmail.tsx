@@ -1,7 +1,7 @@
 import icon from "@/assets/images/email-file.gif";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth, useSessionLoader } from "@/features/auth/hooks";
+import { useAuth } from "@/features/auth/hooks";
 import { useCallback, useEffect, useState } from "react";
 import { routes } from "@/shared/routes/routes";
 import { CenteredLoader } from "@/components/CenteredLoader";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { TriangleAlert } from "lucide-react";
 import { VerifyEmailFnResponse } from "@/features/onboarding/types";
 import { authStore } from "@/features/auth/store";
+import { useSession } from "@/features/auth/SessionProvider";
 
 export const VerifyEmail = ({
   className,
@@ -27,7 +28,7 @@ export const VerifyEmail = ({
 }) => {
   // Hooks, Context
   const { user, isLoggedIn, logout } = useAuth();
-  const { loading: sessionLoading, refetch } = useSessionLoader();
+  const { loading: sessionLoading, refetch } = useSession();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
@@ -123,22 +124,13 @@ export const VerifyEmail = ({
     }
 
     await refetch();
-    navigate(routes.onboarding.router.staticPath);
+    navigate(routes.onboarding.index.staticPath);
   };
   const isEmailVerificationStepComplete =
     isLoggedIn &&
     user?.currentCompany.onboarding.steps.find(
       (step) => step.key === "email_verified"
     )?.complete;
-
-  const userFromStore = authStore.getState().user;
-
-  console.log({
-    isYouVer: isEmailVerificationStepComplete,
-    isLoggedIn,
-    onboarding: user?.currentCompany.onboarding.steps,
-    onboardin2: userFromStore?.currentCompany.onboarding.steps,
-  });
 
   useEffect(() => {
     if (sessionLoading) return;

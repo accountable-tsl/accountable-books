@@ -21,6 +21,12 @@ export const onboardingStepToSlug = {
 } as const;
 export type OnboardingSlug = (typeof onboardingStepToSlug)[OnboardingStepKey];
 
+export const slugToOnboardingStepKey: Record<string, OnboardingStepKey> = {
+  "verify-email": "email_verified",
+  "company-details": "company_details_confirmed",
+  "add-bank-account": "first_bank_account_added",
+};
+
 export const onboardingStepsConfig: Record<
   OnboardingStepKey,
   OnboardingSidebarItem

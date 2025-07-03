@@ -23,6 +23,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { routes } from "@/shared/routes/routes";
 import { queryClient } from "@/lib/queryClient";
 import OnboardingRouter from "@/features/onboarding/OnboardingRouter";
+import { SessionProvider } from "./features/auth/SessionProvider";
 
 function App() {
   return (
@@ -32,7 +33,9 @@ function App() {
           <BrowserRouter
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
-            <AnimatedRoutes />
+            <SessionProvider>
+              <AnimatedRoutes />
+            </SessionProvider>
           </BrowserRouter>
         </QueryClientProvider>
       </PopupProvider>
@@ -80,8 +83,8 @@ function AnimatedRoutes() {
         {/* ONBOARDING */}
         <Route element={<OnboardingLayout />}>
           <Route
-            path={routes.onboarding.router.staticPath}
-            element={<OnboardingRouter />}
+            path={routes.onboarding.index.staticPath}
+            element={<OnboardingStepPage />}
           />
           <Route
             path={routes.onboarding.verifyEmail.staticPath}
@@ -111,7 +114,7 @@ function AnimatedRoutes() {
         >
           <Route
             index
-            element={<Navigate to={routes.onboarding.router.staticPath} />}
+            element={<Navigate to={routes.onboarding.index.staticPath} />}
           />
           <Route
             path={routes.general.dashboard.staticPath}

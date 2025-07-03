@@ -4,7 +4,8 @@ import ErrorPage from "@/components/ErrorPage";
 import { AppSidebar, AppSidebarProps } from "@/components/SideBar/Sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useCompanyDetails } from "@/domains/company/hooks";
-import { useAuth, useSessionLoader } from "@/features/auth/hooks";
+import { useAuth } from "@/features/auth/hooks";
+import { useSession } from "@/features/auth/SessionProvider";
 import { useCanonicalUrlEnforcer } from "@/shared/routes/hooks";
 import { routes } from "@/shared/routes/routes";
 import {
@@ -26,7 +27,7 @@ export default function AppLayout({
     isLoggedIn,
   } = useAuth();
 
-  const { loading: sessionLoading } = useSessionLoader();
+  const { loading: sessionLoading } = useSession();
 
   const {
     data: companyDetails,
@@ -54,7 +55,7 @@ export default function AppLayout({
 
   const canAccessApp = user?.currentCompany.onboarding.canAccessApp;
   if (!canAccessApp) {
-    return <Navigate to={routes.onboarding.router.staticPath} replace />;
+    return <Navigate to={routes.onboarding.index.staticPath} replace />;
   }
 
   console.log({

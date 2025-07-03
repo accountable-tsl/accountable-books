@@ -14,12 +14,13 @@ import { Link, useSearchParams } from "react-router-dom";
 import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { useAuth, useSessionLoader } from "./hooks";
+import { useAuth } from "./hooks";
 import { routes } from "@/shared/routes/routes";
 import { AuthHeader } from "@/components/AuthHeader";
 import { toast } from "sonner";
 import { loginAndRedirect } from "@/features/auth/utils";
 import { CenteredLoader } from "@/components/CenteredLoader";
+import { useSession } from "./SessionProvider";
 
 export default function Login() {
   const {
@@ -29,7 +30,7 @@ export default function Login() {
     hasAppAccess,
     currentCompanyId: companyId,
   } = useAuth();
-  const { loading: sessionLoading } = useSessionLoader();
+  const { loading: sessionLoading } = useSession();
   const [params] = useSearchParams();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -86,7 +87,7 @@ export default function Login() {
                   to={
                     hasAppAccess
                       ? routes.general.dashboard.build({ companyId })
-                      : routes.onboarding.router.staticPath
+                      : routes.onboarding.index.staticPath
                   }
                   className="underline font-medium"
                 >

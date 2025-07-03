@@ -1,10 +1,8 @@
 import { fetchSession, handleLogout } from "@/features/auth/api";
-import { authStore, sessionStore } from "@/features/auth/store";
+import { authStore } from "@/features/auth/store";
 import { routes } from "@/shared/routes/routes";
 import { LogoutOptions } from "./types";
-import { useCallback, useEffect, useState } from "react";
-import { isPublicRoute } from "@/shared/routes/utils";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 
@@ -126,57 +124,38 @@ export const useAuth = () => {
   // };
 };
 
-export const useSessionLoader = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { setAuth } = useAuth();
-  const { data, isLoading, isError, refetch } = useSessionQuery();
-  const { data: authData, success, message } = data || {};
+// export const useSessionLoader = () => {
+//   const location = useLocation();
+//   const navigate = useNavigate();
+//   const { setAuth } = useAuth();
+//   const { data, isLoading, isError, refetch } = useSessionQuery();
+//   const { data: authData, success, message } = data || {};
 
-  const [loading, setLoading] = useState(true); // Start with true to prevent flickering
+//   const hasHandledSession = useRef(false);
 
-  const isPublic = isPublicRoute(location.pathname);
+//   console.log("A", authData?.user.currentCompany);
+//   let callCount = 0;
+//   console.log("🔁 useSessionLoader call", ++callCount);
 
-  const loadSession = useCallback(async () => {
-    // Skip if user is already authenticated
-    // if (user && isLoggedIn) {
-    //   setLoading(false);
-    //   return;
-    // }
+//   const isPublic = isPublicRoute(location.pathname);
 
-    setLoading(true);
+//   useEffect(() => {
+//     if (hasHandledSession.current) return;
 
-    try {
-      // Fetch session
-      const res = await fetchSession();
-      if (res.success && res.data) {
-        setAuth(res.data.user, res.data.csrfToken);
-      } else {
-        clearSessionFn();
-        if (!isPublic)
-          navigate(routes.auth.login.staticPath, { replace: true });
-      }
-    } catch (error) {
-      clearSessionFn();
-      if (!isPublic) navigate(routes.auth.login.staticPath, { replace: true });
-    } finally {
-      setLoading(false);
-    }
-  }, [location.pathname, navigate, setAuth]);
+//     if (authData?.user && authData?.csrfToken) {
+//       setAuth(authData?.user, authData?.csrfToken);
+//       hasHandledSession.current = true;
+//     }
 
-  useEffect(() => {
-    if (authData?.user && authData?.csrfToken) {
-      setAuth(authData?.user, authData?.csrfToken);
-    }
+//     if (isError && !isPublic) {
+//       clearSessionFn();
+//       navigate(routes.auth.login.staticPath, { replace: true });
+//       hasHandledSession.current = true;
+//     }
+//   }, [authData?.user, authData?.csrfToken, isPublic, navigate]);
 
-    if (isError && !isPublic) {
-      clearSessionFn();
-      navigate(routes.auth.login.staticPath, { replace: true });
-    }
-  }, [data, isError, setAuth, isPublic, navigate]);
-
-  return { loading: isLoading, refetch };
-};
+//   return { loading: isLoading, refetch };
+// };
 
 export const useSessionQuery = () => {
   return useQuery({
@@ -185,6 +164,6 @@ export const useSessionQuery = () => {
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: true,
-    retry: 1,
+    // retry: 1,
   });
 };
