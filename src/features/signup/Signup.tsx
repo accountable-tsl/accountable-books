@@ -34,6 +34,7 @@ import { buildCanonicalUrl } from "@/shared/routes/utils";
 import { routes } from "@/shared/routes/routes";
 import { performLoginFlow } from "../auth/utils";
 
+//TODO: Refactor whole signup flow later
 export default function Signup() {
   const [searchParams] = useSearchParams();
   const { setAuth } = useAuth();
@@ -108,6 +109,9 @@ export default function Signup() {
       ? setCurrentStep((prev) => prev - 1)
       : setCurrentStep(1);
   };
+
+  console.log({ companyDetails, basicInfo });
+
   const handleContinue = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
 
@@ -137,6 +141,12 @@ export default function Signup() {
 
     // Handle Submission
     if (currentStep === steps.length) {
+      if (!companyDetails.legalName) {
+        toast.error(
+          "Please fill company name or confirm default name set (if any)"
+        );
+        return;
+      }
       const isValid = await companyInfoRef.current?.validate();
       if (!isValid) {
         toast.error("Please fix the errors in your company details");
@@ -391,7 +401,10 @@ export default function Signup() {
                       </Button>
 
                       {selectedType && (
-                        <Button onClick={handleContinue}>
+                        <Button
+                          onClick={handleContinue}
+                          disabled={isSubmitting}
+                        >
                           {currentStep === steps.length ? "Submit" : "Continue"}
                         </Button>
                       )}

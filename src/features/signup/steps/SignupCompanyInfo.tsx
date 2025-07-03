@@ -13,6 +13,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
@@ -60,14 +61,18 @@ export const SignupCompanyInfo = forwardRef<
   const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
   const { data: countries, isLoading: isCountryLoading } = useCountries();
 
-  const defaultValues = {
-    ...companyData,
-    legalName: isIndividual
-      ? `${userData.firstname}'s Finances`.trim()
-      : companyData.legalName,
-    yearEndDay: companyData.yearEndDay || 31,
-    yearEndMonth: companyData.yearEndMonth || 12,
-  };
+  const defaultValues = useMemo(
+    () => ({
+      ...companyData,
+      legalName:
+        isIndividual && userData?.firstname
+          ? `${userData.firstname}'s Finances`.trim()
+          : companyData.legalName || "",
+      yearEndDay: companyData.yearEndDay || 31,
+      yearEndMonth: companyData.yearEndMonth || 12,
+    }),
+    [userData?.firstname, isIndividual, companyData]
+  );
 
   const {
     register,
@@ -78,15 +83,15 @@ export const SignupCompanyInfo = forwardRef<
     control,
   } = useForm<NewCompany>({
     resolver: zodResolver(newCompany),
-    defaultValues,
     mode: "onChange",
+    defaultValues,
   });
 
   const description = watch("description") || "";
   const showOptionalFieldsButton =
     viewOptionalFields || isDescriptonTouched || description.length > 0;
 
-  const slug = watch("slug");
+  // const slug = watch("slug");
   // const { data: slugCheckData, isFetching } = useSlugCheck(slug || "");
 
   // const debouncedSlug = useDebouncedValue(rawSlug?.trim().toLowerCase(), 300);
@@ -95,6 +100,8 @@ export const SignupCompanyInfo = forwardRef<
 
   useImperativeHandle(ref, () => ({
     validate: async () => await trigger(),
+    getData: () => watch(),
+    getFieldValue: (field: keyof NewCompany) => watch(field),
   }));
 
   const handleChange = (field: keyof NewCompany, value: string | number) => {
@@ -120,6 +127,35 @@ export const SignupCompanyInfo = forwardRef<
       });
     }
   }, [companyData.reportingCurrencyId]);
+
+  // useEffect(() => {
+  //   const timeoutId = setTimeout(() => {
+  //     Object.entries(formData).forEach(([key, value]) => {
+  //       if (value !== undefined && value !== "") {
+  //         updateCompanyField(key as keyof NewCompany, (value || "").toString());
+  //       }
+  //     });
+  //   }, 2000); // Small delay to batch updates
+
+  //   return () => clearTimeout(timeoutId);
+  // }, [formData]);
+
+  const formData = watch();
+  const prevFormDataRef = useRef<Record<string, any>>({});
+
+  useEffect(() => {
+    Object.entries(formData).forEach(([key, value]) => {
+      // Only update if this specific field actually changed
+      if (
+        prevFormDataRef.current[key] !== value &&
+        value !== undefined &&
+        value !== ""
+      ) {
+        updateCompanyField(key as keyof NewCompany, (value || "").toString());
+        prevFormDataRef.current[key] = value;
+      }
+    });
+  }, [formData]);
 
   // useEffect(() => {
   //   if (!slug || slug.trim().length < 3) return;
@@ -170,6 +206,7 @@ export const SignupCompanyInfo = forwardRef<
             id="legalName"
             {...register("legalName")}
             onChange={(e) => handleChange("legalName", e.target.value)}
+            required
             aria-describedby={errors.legalName ? "legalName-error" : undefined}
             placeholder={
               isIndividual
@@ -280,6 +317,10 @@ export const SignupCompanyInfo = forwardRef<
                     >
                       <Input
                         {...field}
+                        value={field.value ?? ""}
+                        required={
+                          companyData.type === "accounting_firm" ? true : false
+                        }
                         onChange={(e) => {
                           field.onChange(e.target.value);
                           handleChange("slug", e.target.value);

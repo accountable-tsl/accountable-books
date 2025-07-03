@@ -18,7 +18,6 @@ import {
   COMPANY_REVENUE_RANGE,
   COMPANY_SIZE,
 } from "@/domains/company/constants";
-import { useCompany } from "@/domains/company/store";
 import {
   companyData,
   CompanyData,
@@ -41,7 +40,6 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { debounce } from "lodash";
-import { mergeInitialData } from "../utils";
 import { getChangesOnly } from "@/shared/utils/comparisonUtils";
 import {
   AlertDialog,
@@ -143,15 +141,15 @@ export const CompanyInfo = () => {
     }
   };
 
-  const watchedSlug =
-    companyType === "accounting_firm"
-      ? watch("assignedFirmSlug")?.trim() || ""
-      : "";
-  const { data: slugCheck, isFetching } = useSlugCheck(watchedSlug, companyId!);
+  // const watchedSlug =
+  //   companyType === "accounting_firm"
+  //     ? watch("assignedFirmSlug")?.trim() || ""
+  //     : "";
+  // const { data: slugCheck, isFetching } = useSlugCheck(watchedSlug, companyId);
 
-  const isSlugTaken = slugCheck?.data?.isAvailable === false;
-  const isSlugOwned = slugCheck?.data?.isCurrent === true;
-  const slugTakenMessage = isSlugTaken ? slugCheck?.message : "";
+  // const isSlugTaken = slugCheck?.data?.isAvailable === false;
+  // const isSlugOwned = slugCheck?.data?.isCurrent === true;
+  // const slugTakenMessage = isSlugTaken ? slugCheck?.message : "";
 
   const handleUpload = async (file: File) => {
     if (!companyId) {
@@ -287,10 +285,10 @@ export const CompanyInfo = () => {
         );
       });
 
-      if (isAccountingFirm && slugTakenMessage) {
-        toast.error(slugTakenMessage);
-        return { success: false };
-      }
+      // if (isAccountingFirm && slugTakenMessage) {
+      //   toast.error(slugTakenMessage);
+      //   return { success: false };
+      // }
 
       if (missingRequired.length > 0) {
         toast.error(
@@ -827,30 +825,30 @@ export const CompanyInfo = () => {
                     helpTooltip="This is what your clients will use to identify you on the platform e.g kpmg.getaccountable.com, your slug will be kpmg. The shorter the better."
                     tooltipStyle="text-center"
                     required
-                    error={`${
-                      errors.assignedFirmSlug?.message || slugTakenMessage
-                    }`}
+                    // error={`${
+                    //   errors.assignedFirmSlug?.message || slugTakenMessage
+                    // }`}
                     errorTooltip
                     errorTooltipStyle="text-center"
                   >
                     <Input
                       placeholder="e.g. kpmg, afandco"
-                      {...register("assignedFirmSlug", {
-                        validate: async (value) => {
-                          const trimmedValue = value?.trim() ?? "";
-                          const { isValid, error } = validateSlug(trimmedValue);
-                          if (!isValid) {
-                            return error;
-                          }
-                          if (isFetching) return "Checking...";
+                      // {...register("assignedFirmSlug", {
+                      //   validate: async (value) => {
+                      //     const trimmedValue = value?.trim() ?? "";
+                      //     const { isValid, error } = validateSlug(trimmedValue);
+                      //     if (!isValid) {
+                      //       return error;
+                      //     }
+                      //     if (isFetching) return "Checking...";
 
-                          if (!isFetching && isSlugTaken) {
-                            return slugTakenMessage;
-                          }
+                      //     if (!isFetching && isSlugTaken) {
+                      //       return slugTakenMessage;
+                      //     }
 
-                          return true;
-                        },
-                      })}
+                      //     return true;
+                      //   },
+                      // })}
                     />
                   </FormField>
                   <FormField

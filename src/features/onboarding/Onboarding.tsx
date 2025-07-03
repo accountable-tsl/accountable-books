@@ -171,7 +171,7 @@ export function OnboardingStepWrapper({
           )}
         >
           {/* Onboarding Box */}
-          <div className="w-full max-w-5xl h-[100vh] md:h-fit md:min-h-[50vh] md:max-h-[90vh] bg-background rounded-md border overflow-hidden flex flex-col">
+          <div className="w-full max-w-5xl h-[100vh] md:h-fit md:min-h-[50vh] md:max-h-[85vh] bg-background rounded-md border overflow-hidden flex flex-col">
             {/* Sidebar (progress tracker) — only on desktop */}
 
             <OnboardingHeader
