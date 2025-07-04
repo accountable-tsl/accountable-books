@@ -1,15 +1,11 @@
 import { Building2Icon, CreditCardIcon, MailCheckIcon } from "lucide-react";
 import { OnboardingSidebarItem, OnboardingStepKey } from "./types";
 import { routes } from "@/shared/routes/routes";
-import { onboardingSteps } from "@/features/onboarding/Onboarding";
+import { VerifyEmail } from "./steps/VerifyEmail";
+import { CompanyInfo } from "./steps/CompanyInfo";
+import { BankAccount } from "./steps/BankAccount";
 
-// export function mergeInitialData(
-//   dbData: CompanyData | null,
-//   saved: Partial<CompanyData> | null
-// ): CompanyData {
-//   const base = getDefaultCompanyData();
-//   return { ...base, ...dbData, ...saved } as CompanyData; // precedence: saved > db > defaults
-// }
+
 export type OnboardingPathKey =
   | "verify-email"
   | "company-details"
@@ -54,3 +50,21 @@ export function getPathByStepKey(
     ([, value]) => value.key === stepKey
   )?.[0] as OnboardingPathKey | undefined;
 }
+
+export const onboardingSteps: Record<
+  OnboardingPathKey,
+  { key: OnboardingStepKey; Component: React.FC }
+> = {
+  "verify-email": {
+    key: "email_verified",
+    Component: VerifyEmail,
+  },
+  "company-details": {
+    key: "company_details_confirmed",
+    Component: CompanyInfo,
+  },
+  "add-bank-account": {
+    key: "first_bank_account_added",
+    Component: BankAccount,
+  },
+};

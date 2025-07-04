@@ -27,17 +27,23 @@ export const performLoginFlow = async ({
 }): Promise<{ success: boolean; data?: any; canAccessApp?: boolean }> => {
   try {
     const loginFn = handleLogin({ email, password });
-    displayToast &&
-      toast.promise(loginFn, {
-        loading: "Logging in...",
-        success: "Login successful!",
-        error: (error) => {
-          onError?.(error);
-          return error.message || "Login failed";
-        },
-      });
+    // displayToast &&
+    //   toast.promise(loginFn, {
+    //     loading: "Logging in...",
+    //     error: (error) => {
+    //       onError?.(error);
+    //       return error.message || "Login failed";
+    //     },
+    //   });
 
     const res = await loginFn;
+    // wait for 2 seconds, while waiting, show toast, logging in
+    await new Promise((resolve) => {
+      displayToast && toast.info("Logging in...");
+      setTimeout(resolve, 2000);
+    });
+
+    console.log({ res });
     if (!res.success || !res.data || !res.data.user || !res.data.csrfToken) {
       if (res?.code === "INVALID_CREDENTIALS") {
         const message = res.message || "Invalid email or password";
@@ -68,9 +74,9 @@ export const performLoginFlow = async ({
     const canAccessApp = currentCompany.onboarding?.canAccessApp ?? false;
 
     return { success: true, data: res.data, canAccessApp };
-  } catch (error) {
+  } catch (error: any) {
     await (logout?.() ?? clearSessionFn());
-    displayToast && toast.error("Login failed");
+    displayToast && toast.error(error?.message ?? "Login failed");
     onError?.(error);
     return { success: false };
   }
@@ -79,6 +85,7 @@ export const performLoginFlow = async ({
 type LoginParams = Parameters<typeof performLoginFlow>[0];
 export async function loginAndRedirect(params: LoginParams) {
   const result = await performLoginFlow(params);
+  console.log({ result });
   if (!result.success) return result;
 
   const dashboardUrl = buildCanonicalUrl({

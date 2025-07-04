@@ -73,7 +73,7 @@ api.interceptors.response.use(
     if (
       error.response?.status !== 401 ||
       !originalRequest ||
-      originalRequest.url?.includes("/auth/me")
+      originalRequest.url?.includes("/auth")
     ) {
       return Promise.reject(error);
     }

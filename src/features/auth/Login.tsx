@@ -23,13 +23,7 @@ import { useSession } from "@/features/auth/Session";
 import { authStore } from "./store";
 
 export default function Login() {
-  const {
-    logout,
-    isLoggedIn,
-    hasAppAccess,
-    companyId,
-    loading: sessionLoading,
-  } = useSession();
+  const { isLoggedIn, hasAppAccess, companyId } = useSession();
   const { setAuth } = authStore((s) => s);
   const [params] = useSearchParams();
 
@@ -40,11 +34,12 @@ export default function Login() {
 
   const {
     register,
-    formState: { errors },
+    formState: { errors, isSubmitting, isValid },
     handleSubmit,
     setError,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginForm),
+    mode: "onChange",
   });
 
   const onSubmit = async (data: LoginForm) => {
@@ -55,20 +50,14 @@ export default function Login() {
         password: data.password,
         setError,
         setAuth,
-        logout,
       });
     } catch (error) {
       console.error(error);
-      await logout();
       toast.error("An unexpected error occurred, please try again");
     } finally {
       setIsLoading(false);
     }
   };
-
-  if (isLoading || sessionLoading) {
-    return <CenteredLoader fullscreen />;
-  }
 
   const alreadyLoggedIn = isLoggedIn && companyId;
 
@@ -161,7 +150,11 @@ export default function Login() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-3 mt-2">
-                    <Button type="submit" className="w-full">
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isSubmitting || !isValid}
+                    >
                       {isLoading ? "Logging in..." : "Login"}{" "}
                     </Button>
                   </div>

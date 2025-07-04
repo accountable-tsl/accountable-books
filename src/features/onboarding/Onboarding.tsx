@@ -6,6 +6,7 @@ import { VerifyEmail } from "./steps/VerifyEmail";
 import {
   getPathByStepKey,
   OnboardingPathKey,
+  onboardingSteps,
   onboardingStepsConfig,
 } from "@/features/onboarding/utils";
 import { CompanyInfo } from "@/features/onboarding/steps/CompanyInfo";
@@ -28,24 +29,6 @@ import {
 } from "@/features/onboarding/shared/Sidebar";
 import { useSession } from "../auth/Session";
 import { routes } from "@/shared/routes/routes";
-
-export const onboardingSteps: Record<
-  OnboardingPathKey,
-  { key: OnboardingStepKey; Component: React.FC }
-> = {
-  "verify-email": {
-    key: "email_verified",
-    Component: VerifyEmail,
-  },
-  "company-details": {
-    key: "company_details_confirmed",
-    Component: CompanyInfo,
-  },
-  "add-bank-account": {
-    key: "first_bank_account_added",
-    Component: BankAccount,
-  },
-};
 
 export function OnboardingStepPage() {
   const {
