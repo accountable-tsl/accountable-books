@@ -1,13 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
 import { matchPath, useLocation } from "react-router-dom";
 import {
-  buildCanonicalUrl,
-  createTenantRoutes,
   enforceCanonicalUrl,
   flatRoutes,
-  isPublicRoute,
 } from "@/shared/routes/utils";
-import { routes } from "@/shared/routes/routes";
 import {
   ExtractPathParams,
   FlattenedRouteKey,

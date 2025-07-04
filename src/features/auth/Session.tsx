@@ -158,4 +158,3 @@ export const useSafeSession = () => {
   }
 };
 
-SessionProvider.whyDidYouRender = true;

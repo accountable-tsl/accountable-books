@@ -1,6 +1,7 @@
 import { Building2Icon, CreditCardIcon, MailCheckIcon } from "lucide-react";
 import { OnboardingSidebarItem, OnboardingStepKey } from "./types";
 import { routes } from "@/shared/routes/routes";
+import { onboardingSteps } from "@/features/onboarding/Onboarding";
 
 // export function mergeInitialData(
 //   dbData: CompanyData | null,
@@ -9,6 +10,10 @@ import { routes } from "@/shared/routes/routes";
 //   const base = getDefaultCompanyData();
 //   return { ...base, ...dbData, ...saved } as CompanyData; // precedence: saved > db > defaults
 // }
+export type OnboardingPathKey =
+  | "verify-email"
+  | "company-details"
+  | "add-bank-account";
 
 export const onboardingStepToSlug = {
   email_verified: routes.onboarding.verifyEmail.staticPath,
@@ -20,12 +25,6 @@ export const onboardingStepToSlug = {
   }),
 } as const;
 export type OnboardingSlug = (typeof onboardingStepToSlug)[OnboardingStepKey];
-
-export const slugToOnboardingStepKey: Record<string, OnboardingStepKey> = {
-  "verify-email": "email_verified",
-  "company-details": "company_details_confirmed",
-  "add-bank-account": "first_bank_account_added",
-};
 
 export const onboardingStepsConfig: Record<
   OnboardingStepKey,
@@ -47,3 +46,11 @@ export const onboardingStepsConfig: Record<
     description: "Link your bank account",
   },
 };
+
+export function getPathByStepKey(
+  stepKey: OnboardingStepKey
+): OnboardingPathKey | undefined {
+  return Object.entries(onboardingSteps).find(
+    ([, value]) => value.key === stepKey
+  )?.[0] as OnboardingPathKey | undefined;
+}

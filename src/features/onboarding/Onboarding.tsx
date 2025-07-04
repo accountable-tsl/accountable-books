@@ -3,10 +3,14 @@ import { OnboardingHeader } from "@/features/onboarding/shared/Header";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VerifyEmail } from "./steps/VerifyEmail";
-import { onboardingStepsConfig } from "@/features/onboarding/utils";
+import {
+  getPathByStepKey,
+  OnboardingPathKey,
+  onboardingStepsConfig,
+} from "@/features/onboarding/utils";
 import { CompanyInfo } from "@/features/onboarding/steps/CompanyInfo";
 import { BankAccount } from "@/features/onboarding/steps/BankAccount";
-import { useLocation, useParams } from "react-router-dom";
+import { Navigate, useLocation, useParams } from "react-router-dom";
 import {
   EnrichedOnboardingStep,
   OnboardingState,
@@ -23,9 +27,10 @@ import {
   OnboardingSidebar,
 } from "@/features/onboarding/shared/Sidebar";
 import { useSession } from "../auth/Session";
+import { routes } from "@/shared/routes/routes";
 
-const onboardingSteps: Record<
-  string,
+export const onboardingSteps: Record<
+  OnboardingPathKey,
   { key: OnboardingStepKey; Component: React.FC }
 > = {
   "verify-email": {
@@ -50,15 +55,17 @@ export function OnboardingStepPage() {
     onboarding: onboardingState,
   } = useSession();
 
+  console.log("onboardingState", onboardingState);
   const { step: stepParam } = useParams<{ step?: string }>();
   const pathname = useLocation().pathname;
 
-  const step =
+  const step = (
     stepParam && stepParam !== ":step" && stepParam !== "step"
       ? stepParam
-      : Object.keys(onboardingSteps).find((key) =>
-          pathname.endsWith(`/${key}`)
-        );
+      : Object.keys(onboardingSteps).find((key) => pathname.endsWith(`/${key}`))
+  ) as OnboardingPathKey | undefined;
+
+  // if(!onboardingState?.nextStepToComplete){}
 
   const stepInfo = step ? onboardingSteps[step] : undefined;
   const stepKey = stepInfo?.key;
@@ -68,7 +75,6 @@ export function OnboardingStepPage() {
   }
 
   if (sessionLoading) {
-    console.log("loading");
     return (
       <CenteredLoader
         fullscreen
@@ -82,8 +88,14 @@ export function OnboardingStepPage() {
   if (!StepComponent) return <ErrorPage type="default" />;
   if (!isLoggedIn) return <StepComponent />;
 
-  if (!onboardingState || !company) {
+  if (!onboardingState || !company || !onboardingState.nextStepToComplete) {
     return <ErrorPage type="default" />;
+  }
+
+  const expectedStep = getPathByStepKey(onboardingState.nextStepToComplete);
+
+  if (expectedStep && step !== expectedStep) {
+    return <Navigate to={routes.onboarding.index.staticPath} replace />;
   }
 
   return (
