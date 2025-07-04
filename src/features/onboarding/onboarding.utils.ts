@@ -41,7 +41,6 @@ export const onboardingStepConfig: OnboardingStepConfig[] = [
     label: "Confirm company details",
     scope: "company",
     restrictedTo: "company_owner",
-    dependsOn: ["email_verified"],
     orderIndex: 2,
     isComplete: ({ company }) =>
       company?.isDemoCompany ||
@@ -53,7 +52,6 @@ export const onboardingStepConfig: OnboardingStepConfig[] = [
     label: "Add a bank account",
     scope: "company",
     restrictedTo: "company_owner",
-    dependsOn: ["company_details_confirmed"],
     orderIndex: 3,
     isComplete: ({ company }) =>
       company?.isDemoCompany ||

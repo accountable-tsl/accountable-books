@@ -23,7 +23,7 @@ export type UserOnboardingStepsCompletedAt = Partial<
   Record<UserOnboardingStepKey, Date | null>
 >;
 export type CompanyOnboardingStepsCompletedAt = Partial<
-  Record<CompanyOnboardingStepKey, Date | null> 
+  Record<CompanyOnboardingStepKey, Date | null>
 >;
 
 export const userOnboardingState = z
@@ -85,8 +85,7 @@ export type OnboardingStepConfig = {
   scope: "user" | "company";
   restrictedTo?: "company_owner";
   optional?: boolean;
-  dependsOn?: OnboardingStepKey[];
-  orderIndex?: number;
+  orderIndex: number;
   isComplete: (args: {
     user: OnboardingUserObj;
     company: OnboardingCompanyObj | null;

@@ -35,8 +35,6 @@ export async function getOnboardingState({
     companyId: company?.id,
   });
 
-  console.log("user", user.onboardingState, "company", company.onboardingState);
-
   const isBypassed =
     user.isPlatformUser || company?.isDemoCompany || company?.isPlatformCompany;
   // Early exit for platform users and demo/platform companies
@@ -50,7 +48,7 @@ export async function getOnboardingState({
     };
   }
 
-  // Collect all explicitly assigned step keys from onboarding state
+  // Get assigned step keys from onboarding state
   const assignedUserStepKeys = Object.keys(user.onboardingState?.steps || {});
   const assignedCompanyStepKeys = Object.keys(
     company.onboardingState?.steps || {}
@@ -61,7 +59,7 @@ export async function getOnboardingState({
     ...assignedCompanyStepKeys,
   ]);
 
-  // Build a map of step metadata for assigned steps
+  // Pull metadata from config only for assigned steps and filter by role
   const assignedStepsWithMeta = onboardingStepConfig
     .filter((step) => assignedStepKeys.has(step.key)) // Only use assigned steps
     .filter((step) => step.restrictedTo !== "company_owner" || isCompanyOwner) // If the step is restricted to company owners, only use it if the user is a company owner
@@ -74,41 +72,36 @@ export async function getOnboardingState({
         complete,
         optional: !!step.optional,
         orderIndex: step.orderIndex ?? 999,
-        dependsOn: step.dependsOn ?? [],
       };
     });
 
-  // Compute which steps are blocked by incomplete dependencies
-  const stepStatusMap = new Map<string, { complete: boolean }>();
-  for (const step of assignedStepsWithMeta) {
-    stepStatusMap.set(step.key, { complete: step.complete });
-  }
-
-  const evaluatedSteps = assignedStepsWithMeta.map((step) => {
-    const blocked = step.dependsOn.some((depKey) => {
-      const dep = stepStatusMap.get(depKey);
-      return dep ? !dep.complete : false; // If dep is not assigned, do NOT block
-    });
-
-    return {
-      ...step,
-      blocked,
-    };
-  });
-
-  // ort steps in display order
-  const orderedSteps = evaluatedSteps.sort(
+  // Sort steps in display order
+  const orderedSteps = assignedStepsWithMeta.sort(
     (a, b) => a.orderIndex - b.orderIndex
   );
 
+  // Compute which steps are blocked
+  const evaluatedSteps = orderedSteps.map((currentStep, i, allSteps) => {
+    const isBlocked = allSteps
+      .slice(0, i)
+      .some((priorStep) => !priorStep.optional && !priorStep.complete);
+
+    return {
+      ...currentStep,
+      blocked: isBlocked,
+    };
+  });
+
   // Determine next step (first incomplete + unblocked)
-  const nextStep =
-    orderedSteps.find((s) => !s.complete && !s.blocked)?.key ?? null;
+  const nextStepToComplete =
+    evaluatedSteps.find((step) => !step.complete && !step.blocked)?.key ?? null;
 
-  // Determine if all assigned steps are complete (excluding optional)
-  const userStepsComplete = orderedSteps.every((s) => s.complete || s.optional);
+  // Are all required assigned steps complete?
+  const userStepsComplete = evaluatedSteps.every(
+    (step) => step.complete || step.optional
+  );
 
-  // Evaluate company-wide step completion independently (ignores assignment)
+  // Check company-wide onboarding steps (ignores assignment)
   const allCompanySteps = onboardingStepConfig.filter(
     (step) => step.scope === "company"
   );
@@ -116,24 +109,18 @@ export async function getOnboardingState({
     step.isComplete({ user, company })
   );
 
-  // Determine app access:
+  // Determine if user can access the company/app:
   // - Company owners: need to complete all their available required steps
   // - Company members: need their steps complete AND company onboarding complete
   const canAccessApp = isCompanyOwner
     ? userStepsComplete
     : userStepsComplete && companyStepsComplete;
 
-  console.log({
-    orderedSteps,
-    a: orderedSteps[1].dependsOn,
-    nextStep,
-  });
-
   return {
     isCompanyOwner,
     canAccessApp,
     userStepsComplete,
-    nextStepToComplete: nextStep,
-    steps: orderedSteps,
+    nextStepToComplete,
+    steps: evaluatedSteps,
   };
 }

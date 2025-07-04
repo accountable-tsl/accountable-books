@@ -123,7 +123,7 @@ export const conditionalCsrf = (
 };
 
 export const requireAuth = async (
-  req: AuthRequest,
+  req: Request & { user: any },
   res: Response,
   next: NextFunction
 ) => {
