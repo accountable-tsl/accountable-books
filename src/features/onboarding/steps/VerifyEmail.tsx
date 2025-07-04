@@ -1,7 +1,6 @@
 import icon from "@/assets/images/email-file.gif";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "@/features/auth/hooks";
 import { useCallback, useEffect, useState } from "react";
 import { routes } from "@/shared/routes/routes";
 import { CenteredLoader } from "@/components/CenteredLoader";
@@ -14,8 +13,7 @@ import { OnboardingStatus } from "@/domains/company/types";
 import { cn } from "@/lib/utils";
 import { TriangleAlert } from "lucide-react";
 import { VerifyEmailFnResponse } from "@/features/onboarding/types";
-import { authStore } from "@/features/auth/store";
-import { useSession } from "@/features/auth/SessionProvider";
+import { useSession } from "@/features/auth/Session";
 
 export const VerifyEmail = ({
   className,
@@ -27,8 +25,13 @@ export const VerifyEmail = ({
   stateOverride?: string;
 }) => {
   // Hooks, Context
-  const { user, isLoggedIn, logout } = useAuth();
-  const { loading: sessionLoading, refetch } = useSession();
+  const {
+    user,
+    isLoggedIn,
+    logout,
+    refetchSession,
+    loading: sessionLoading,
+  } = useSession();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
@@ -76,7 +79,7 @@ export const VerifyEmail = ({
       }
 
       setVerifyEmailResponse(res.data);
-      await refetch();
+      // await refetch();
       // No navigations here, let ui handle it
     } catch (error) {
       toast.error("Something went wrong.");
@@ -123,7 +126,7 @@ export const VerifyEmail = ({
       return;
     }
 
-    await refetch();
+    // await refetch();
     navigate(routes.onboarding.index.staticPath);
   };
   const isEmailVerificationStepComplete =
@@ -133,13 +136,13 @@ export const VerifyEmail = ({
     )?.complete;
 
   useEffect(() => {
-    if (sessionLoading) return;
+    if (isLoading || sessionLoading) return;
 
     // Trigger verification on mount for logged-out users or those that reach here by clicking the link
     if (!isLoggedIn || userIdFromUrl || isEmailVerificationStepComplete) {
       setHasTriggeredVerification(true);
     }
-  }, [isLoggedIn, sessionLoading]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!hasTriggeredVerification) return;
@@ -153,7 +156,7 @@ export const VerifyEmail = ({
       <CenteredLoader
         fullscreen
         message="Loading..."
-        showAuthHeader={!isLoggedIn}
+        showAuthHeader={isLoggedIn}
       />
     );
   }
@@ -344,7 +347,7 @@ export const VerifyEmail = ({
   );
 
   let verifyEmailContent;
-  if (!hasTriggeredVerification) verifyEmailContent = initialPage;
+  if (!hasTriggeredVerification && isLoggedIn) verifyEmailContent = initialPage;
   if (loggedOut && verificationFailed)
     verifyEmailContent = loggedOutAndVerificationFailed;
   if (!loggedOut && verificationFailed)

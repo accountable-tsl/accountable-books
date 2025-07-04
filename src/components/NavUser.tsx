@@ -21,7 +21,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useAuth } from "@/features/auth/hooks";
+import { useSession } from "@/features/auth/Session";
 
 export function NavUser({
   user,
@@ -32,7 +32,7 @@ export function NavUser({
     avatar: string;
   };
 }) {
-  const { logout } = useAuth();
+  const { logout } = useSession();
   const { isMobile } = useSidebar();
   const nameParts = user.name.split(" ");
   const initials =

@@ -1,10 +1,10 @@
 import { matchPath, useLocation } from "react-router-dom";
 import { flatRoutes, matchRouteForPath } from "@/shared/routes/utils";
-import { useAuth } from "@/features/auth/hooks";
+import { useSession } from "@/features/auth/Session";
 
 export function useBreadcrumbs() {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user } = useSession();
   const companyId = user?.currentCompanyId;
   const pathname = location.pathname;
 

@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { AuthHeader } from "./AuthHeader";
-import { useAuth } from "@/features/auth/hooks";
 import { cn } from "@/lib/utils";
 import { routes } from "@/shared/routes/routes";
+import { useSession } from "@/features/auth/Session";
 
 type ErrorType = "404" | "403" | "default";
 // | "500"
@@ -56,7 +56,7 @@ export default function ErrorPage({
   showHeader = true,
   className = "",
 }: ErrorPageProps) {
-  const { isLoggedIn, currentCompanyId } = useAuth();
+  const { isLoggedIn, companyId: currentCompanyId } = useSession();
   const navigate = useNavigate();
   const config =
     errorConfigs[type as keyof typeof errorConfigs] || errorConfigs.default;

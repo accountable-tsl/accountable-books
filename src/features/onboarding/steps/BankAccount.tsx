@@ -5,18 +5,18 @@ import { BankTransactionImporter } from "@/features/bankConnection/manualUpload/
 import { BankTransactionImportOptions } from "@/features/bankConnection/manualUpload/types";
 import { useState } from "react";
 import { updateCompanyOnboardingStatus } from "../api";
-import { useAuth } from "@/features/auth/hooks";
 import { useCompany } from "@/domains/company/store";
 import { toast } from "sonner";
 import { fetchSession } from "@/features/auth/api";
 import { OnboardingStatus } from "@/domains/company/types";
+import { useSession } from "@/features/auth/Session";
 
 export const BankAccount = ({
   onBankAccountComplete,
 }: {
   onBankAccountComplete?: (status: OnboardingStatus) => void;
 }) => {
-  const { user } = useAuth();
+  const { user } = useSession();
   const { companyId, companyType } = useCompany();
 
   const [activeTab, setActiveTab] = useState(() => {

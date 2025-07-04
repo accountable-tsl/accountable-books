@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { zEmail } from "@/shared/types/core";
 import { OnboardingState } from "@/features/onboarding/types";
-import { CompanyType } from "@/domains/company/types";
+import { CompanyData, CompanyType } from "@/domains/company/types";
+import { TenantRoutes } from "@/shared/routes/types";
 
 export const loginForm = z.object({
   email: zEmail,
@@ -79,3 +80,22 @@ export type RoleKey = z.infer<typeof roleKey>;
 
 export const roleScope = z.enum(["platform", "firm", "company"]);
 export type RoleScope = z.infer<typeof roleScope>;
+
+export type SessionContextType = {
+  loading: boolean;
+  isLoggedIn: boolean;
+  hasAppAccess: boolean;
+
+  user: AuthUserContext | null;
+  companyId: string | null;
+  onboarding: OnboardingState | null;
+
+  company?: CompanyData;
+  companyType?: CompanyType;
+
+  tenantRoutes?: TenantRoutes;
+
+  refetchSession: () => void;
+  refetchCompany: () => void;
+  logout: (options?: LogoutOptions) => Promise<boolean>;
+};

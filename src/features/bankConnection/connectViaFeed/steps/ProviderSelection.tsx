@@ -10,12 +10,8 @@ import { toTitleCase } from "@/shared/utils/formattingUtils";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { BankAccountWithMeta } from "@/domains/bankAccounts/types";
 import { useCompany } from "@/domains/company/store";
-import { useAuth } from "@/features/auth/hooks";
 import { getProviderData, ProviderWidgets } from "../utils";
-import {
-  handleBankAccountConnection,
-  handleMonoConnection,
-} from "../../widgets/api";
+import { useSession } from "@/features/auth/Session";
 
 interface ProviderSelectionProps {
   selectedCountry: Country;
@@ -43,7 +39,7 @@ export const ProviderSelection = React.memo(
     // Hooks
     const isMobile = useIsMobile();
     const { company } = useCompany();
-    const { user } = useAuth();
+    const { user } = useSession();
 
     // Computed
     const userData = useMemo(() => {

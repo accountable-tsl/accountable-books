@@ -29,15 +29,15 @@ import { submitSignup } from "./signupService";
 import { PuffLoader } from "react-spinners";
 import { XIcon } from "lucide-react";
 import { AuthHeader } from "@/components/AuthHeader";
-import { useAuth } from "../auth/hooks";
 import { buildCanonicalUrl } from "@/shared/routes/utils";
 import { routes } from "@/shared/routes/routes";
 import { performLoginFlow } from "../auth/utils";
+import { authStore } from "../auth/store";
 
 //TODO: Refactor whole signup flow later
 export default function Signup() {
   const [searchParams] = useSearchParams();
-  const { setAuth } = useAuth();
+  const {setAuth} = authStore((s) => s);
   const navigate = useNavigate();
   const prefillEmail = searchParams.get("email") || "";
 

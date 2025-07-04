@@ -10,20 +10,20 @@ import { PopupProvider, usePopup } from "./contexts/PopupContext";
 import Popup from "./components/Popup/Popup";
 import ThemeProvider from "./theme/themeProvider";
 import { AnimatePresence, motion } from "framer-motion";
-import Signup from "./features/signup/Signup";
-import AppLayout from "./layouts/AppLayout";
+import Signup from "@/features/signup/Signup";
+import AppLayout from "@/layouts/AppLayout";
 import { QueryClientProvider } from "@tanstack/react-query";
-import Welcome from "./features/onboarding/Welcome";
-import Login from "./features/auth/Login";
-import Dashboard from "./features/dashboard/Dashboard";
-import ErrorPage from "./components/ErrorPage";
-import OnboardingLayout from "./layouts/OnboardingLayout";
+import Welcome from "@/features/onboarding/Welcome";
+import Login from "@/features/auth/Login";
+import Dashboard from "@/features/dashboard/Dashboard";
+import ErrorPage from "@/components/ErrorPage";
+import OnboardingLayout from "@/layouts/OnboardingLayout";
 import { OnboardingStepPage } from "@/features/onboarding/Onboarding";
 import { Toaster } from "@/components/ui/sonner";
 import { routes } from "@/shared/routes/routes";
 import { queryClient } from "@/lib/queryClient";
-import OnboardingRouter from "@/features/onboarding/OnboardingRouter";
-import { SessionProvider } from "./features/auth/SessionProvider";
+import { OnboardingRouter } from "@/features/onboarding/OnboardingRouter";
+import { SessionProvider } from "./features/auth/Session";
 
 function App() {
   return (
@@ -84,7 +84,7 @@ function AnimatedRoutes() {
         <Route element={<OnboardingLayout />}>
           <Route
             path={routes.onboarding.index.staticPath}
-            element={<OnboardingStepPage />}
+            element={<OnboardingRouter />}
           />
           <Route
             path={routes.onboarding.verifyEmail.staticPath}

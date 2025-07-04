@@ -9,6 +9,7 @@ export const handleLogin = async (
 ): Promise<ApiResponse<{ user: AuthUserContext; csrfToken: string }>> => {
   try {
     const resp = await api.post("/auth/login", data);
+    console.log("actual api resp", resp.data.data);
     return resp.data as ApiResponse<{
       user: AuthUserContext;
       csrfToken: string;
@@ -38,20 +39,26 @@ export const handleLogout = async () => {
 export const fetchSession = async (): Promise<
   ApiResponse<{ user: AuthUserContext; csrfToken: string }>
 > => {
-  try {
-    const res = await api.get("/auth/me");
-    return res.data as ApiResponse<{
-      user: AuthUserContext;
-      csrfToken: string;
-    }>;
-  } catch (err: unknown) {
-    if (isAxiosError(err) && err.response?.data) {
-      return err.response.data;
-    }
-
-    return { success: false, message: "An unexpected error occurred" };
-  }
+  const res = await api.get("/auth/me");
+  return res.data;
 };
+// export const fetchSession = async (): Promise<
+//   ApiResponse<{ user: AuthUserContext; csrfToken: string }>
+// > => {
+//   try {
+//     const res = await api.get("/auth/me");
+//     return res.data as ApiResponse<{
+//       user: AuthUserContext;
+//       csrfToken: string;
+//     }>;
+//   } catch (err: unknown) {
+//     if (isAxiosError(err) && err.response?.data) {
+//       return err.response.data;
+//     }
+
+//     return { success: false, message: "An unexpected error occurred" };
+//   }
+// };
 
 export const refreshToken = async (): Promise<
   ApiResponse<{ csrfToken: string }>

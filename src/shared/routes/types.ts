@@ -1,4 +1,5 @@
-import { flatRoutes } from "./utils";
+import { routes } from "@/shared/routes/routes";
+import { createTenantRoutes, flatRoutes } from "@/shared/routes/utils";
 
 export type RouteMeta = {
   label?: string;
@@ -44,3 +45,5 @@ export interface BuildCanonicalUrlOptions<K extends FlattenedRouteKey> {
   // what the route needs, excluding companyId
   origin?: string; // optional override
 }
+
+export type TenantRoutes = ReturnType<typeof createTenantRoutes<typeof routes>>;

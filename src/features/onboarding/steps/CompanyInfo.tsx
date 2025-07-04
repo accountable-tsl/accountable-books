@@ -48,12 +48,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useAuth } from "@/features/auth/hooks";
 import { useSlugCheck } from "@/domains/firms/hooks";
 import { validateSlug } from "@/domains/firms/utils";
 import { updateCompanyOnboardingStatus } from "@/features/onboarding/api";
-import { useCompanyDetails } from "@/domains/company/hooks";
-import { useSession } from "@/features/auth/SessionProvider";
+import { useSession } from "@/features/auth/Session";
 
 export const CompanyInfo = () => {
   // Refs
@@ -71,8 +69,14 @@ export const CompanyInfo = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Hooks
-  const { isLoggedIn, user, currentCompanyId: companyId } = useAuth();
-  const { loading: sessionLoading } = useSession();
+  const {
+    loading: sessionLoading,
+    isLoggedIn,
+    user,
+    companyId,
+    company,
+    companyType,
+  } = useSession();
   const {
     data: industries,
     isLoading: isIndustriesLoading,
@@ -80,15 +84,12 @@ export const CompanyInfo = () => {
   } = useIndustries();
   const { data: countries, isLoading: isCountryLoading } = useCountries();
   const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
-  const { data: companyDetailsRes, isLoading: isCompanyDetailsLoading } =
-    useCompanyDetails(companyId || "");
+  // const { data: companyDetailsRes, isLoading: isCompanyDetailsLoading } =
+  //   useCompanyDetails(companyId || "");
 
   const isMobile = useIsMobile();
 
   // Derived / Computed Values
-  const company = companyDetailsRes?.data;
-  const { companyType } = companyDetailsRes?.data || {};
-
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const isAccountingFirm = companyType === "accounting_firm";
@@ -363,12 +364,6 @@ export const CompanyInfo = () => {
   // }, [initialData, reset]);
 
   useEffect(() => {
-    if (companyDetailsRes?.data) {
-      reset(companyDetailsRes.data);
-    }
-  }, [companyDetailsRes?.data, reset]);
-
-  useEffect(() => {
     if (controlledInputError) {
       const timeout = setTimeout(() => {
         setControlledInputError(null);
@@ -428,11 +423,11 @@ export const CompanyInfo = () => {
     return <ErrorPage type="403" />;
   }
 
-  if (isLoading || isCompanyDetailsLoading || sessionLoading) {
+  if (isLoading || sessionLoading) {
     return <CenteredLoader fullscreen />;
   }
 
-  if (!companyDetailsRes?.data || !companyId) {
+  if (!company || !companyId) {
     return (
       <ErrorPage type="default" showHeader={false} className="min-h-0 h-full" />
     );

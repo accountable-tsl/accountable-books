@@ -14,23 +14,23 @@ import { Link, useSearchParams } from "react-router-dom";
 import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { useAuth } from "./hooks";
 import { routes } from "@/shared/routes/routes";
 import { AuthHeader } from "@/components/AuthHeader";
 import { toast } from "sonner";
 import { loginAndRedirect } from "@/features/auth/utils";
 import { CenteredLoader } from "@/components/CenteredLoader";
-import { useSession } from "./SessionProvider";
+import { useSession } from "@/features/auth/Session";
+import { authStore } from "./store";
 
 export default function Login() {
   const {
-    setAuth,
     logout,
     isLoggedIn,
     hasAppAccess,
-    currentCompanyId: companyId,
-  } = useAuth();
-  const { loading: sessionLoading } = useSession();
+    companyId,
+    loading: sessionLoading,
+  } = useSession();
+  const { setAuth } = authStore((s) => s);
   const [params] = useSearchParams();
 
   const [showPassword, setShowPassword] = useState(false);

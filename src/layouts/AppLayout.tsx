@@ -3,9 +3,7 @@ import { CenteredLoader } from "@/components/CenteredLoader";
 import ErrorPage from "@/components/ErrorPage";
 import { AppSidebar, AppSidebarProps } from "@/components/SideBar/Sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useCompanyDetails } from "@/domains/company/hooks";
-import { useAuth } from "@/features/auth/hooks";
-import { useSession } from "@/features/auth/SessionProvider";
+import { useSession } from "@/features/auth/Session";
 import { useCanonicalUrlEnforcer } from "@/shared/routes/hooks";
 import { routes } from "@/shared/routes/routes";
 import {
@@ -19,24 +17,8 @@ interface AppLayoutProps extends AppSidebarProps {}
 export default function AppLayout({
   sidebarCollapsible = "icon",
 }: AppLayoutProps) {
-  const {
-    user,
-    currentCompanyId: companyId,
-    companyType: authCompanyType,
-    firmSlug: slug,
-    isLoggedIn,
-  } = useAuth();
-
-  const { loading: sessionLoading } = useSession();
-
-  const {
-    data: companyDetails,
-    isLoading: companyDetailsLoading,
-    isError: companyDetailsError,
-  } = useCompanyDetails(companyId || "");
-
-  const company = companyDetails?.data;
-  const { companyType } = companyDetails?.data || {};
+  const { user, isLoggedIn, company, companyId, companyType, loading } =
+    useSession();
 
   const { sidebarCollapsed } = pageStore();
   useCanonicalUrlEnforcer();
@@ -44,12 +26,12 @@ export default function AppLayout({
   usePageMeta();
 
   // If we are loading the session or company details, show a loader
-  if (sessionLoading || companyDetailsLoading) {
+  if (loading) {
     return <CenteredLoader fullscreen />;
   }
 
   // We've loaded the session and confirm the user is not logged in, redirect to login
-  if (!isLoggedIn && !sessionLoading) {
+  if (!isLoggedIn) {
     return <Navigate to={routes.auth.login.staticPath} replace />;
   }
 
@@ -58,21 +40,14 @@ export default function AppLayout({
     return <Navigate to={routes.onboarding.index.staticPath} replace />;
   }
 
-  console.log({
-    onboarding: user?.currentCompany.onboarding,
-    companiesFromAuth: user?.companies,
-    currentCompanyFromCompany: company,
-    currentCompanyFromAuth: user?.currentCompany,
-  });
-
   if (
     !company ||
     !user ||
     !companyId ||
-    !companyType ||
-    !slug ||
-    companyDetailsError ||
-    authCompanyType !== companyType
+    !companyType
+    //  || !slug
+    // companyDetailsError ||
+    // authCompanyType !== companyType
   ) {
     return <ErrorPage type="default" />;
   }

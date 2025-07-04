@@ -1,4 +1,3 @@
-import { useAuth } from "@/features/auth/hooks";
 import { useEffect, useMemo, useRef } from "react";
 import { matchPath, useLocation } from "react-router-dom";
 import {
@@ -14,6 +13,7 @@ import {
   FlattenedRouteKey,
   OmitCompanyId,
 } from "@/shared/routes/types";
+import { useSession } from "@/features/auth/Session";
 export function useRoutePath<T extends Record<string, any>>(
   route: { buildPath: (params?: T) => string },
   params?: T
@@ -35,7 +35,7 @@ export function useRoutePath<T extends Record<string, any>>(
  */
 export function useCanonicalUrlEnforcer(): void {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user } = useSession();
   const hasRedirectedRef = useRef(false);
 
   function enforceIfNeeded() {
@@ -72,20 +72,4 @@ export function useCanonicalUrlEnforcer(): void {
   useEffect(() => {
     enforceIfNeeded();
   }, [location.pathname, user]);
-}
-
-export function useTenantRoutes() {
-  const { user } = useAuth();
-
-  const companyId = user?.currentCompanyId;
-  if (!companyId) {
-    throw new Error("No currentCompanyId found in user context");
-  }
-
-  const tenantRouter = useMemo(
-    () => createTenantRoutes(routes, companyId),
-    [companyId]
-  );
-
-  return tenantRouter;
 }

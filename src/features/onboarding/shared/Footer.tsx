@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/features/auth/hooks";
+import { useSession } from "@/features/auth/Session";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { Headset, ScreenShareIcon } from "lucide-react";
 
 export function OnboardingFormFooter() {
   const isMobile = useIsMobile();
-  const { logout } = useAuth();
+  const { logout } = useSession();
 
   const handleLogout = async () => {
     await logout();

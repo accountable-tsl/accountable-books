@@ -2,8 +2,9 @@ import { handleLogin } from "@/features/auth/api";
 import { toast } from "sonner";
 import { authStore } from "./store";
 import { clearSessionFn } from "./hooks";
-import { buildCanonicalUrl } from "@/shared/routes/utils";
+import { buildCanonicalUrl, createTenantRoutes } from "@/shared/routes/utils";
 import { routes } from "@/shared/routes/routes";
+import { SessionContextType } from "./types";
 
 export const performLoginFlow = async ({
   email,
@@ -94,3 +95,22 @@ export async function loginAndRedirect(params: LoginParams) {
   }
   return result;
 }
+
+export const createDefaultSessionContext = (): SessionContextType => ({
+  loading: true,
+  isLoggedIn: false,
+  hasAppAccess: false,
+
+  user: null,
+  companyId: null,
+  onboarding: null,
+
+  company: undefined,
+  companyType: undefined,
+
+  tenantRoutes: createTenantRoutes(routes, ""),
+
+  refetchCompany: () => {},
+  refetchSession: () => {},
+  logout: async () => false,
+});

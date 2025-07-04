@@ -1,5 +1,5 @@
 import { NavMainItems } from "@/components/NavMain";
-import { useTenantRoutes } from "@/shared/routes/hooks";
+import { useSafeSession, useSession } from "@/features/auth/Session";
 import { CompanyType } from "@/shared/types/core";
 import {
   BriefcaseIcon,
@@ -17,7 +17,7 @@ export const getNavMain = (
   companyId: string,
   companyType: CompanyType
 ): NavMainItems[] => {
-  const routes = useTenantRoutes();
+  const routes = useSafeSession();
   return [
     {
       title: "Dashboard",
@@ -42,7 +42,7 @@ export const getNavMain = (
               },
               {
                 title: "Tax",
-                url:"#",
+                url: "#",
               },
             ],
           },
