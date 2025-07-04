@@ -169,7 +169,7 @@ export const newCompanyInput = z.object({
   legal_name: z.string().max(256),
   display_name: z.string().max(256).optional(),
   type: companyType,
-  year_end_day: z.number().optional(),
+  year_end_day: z.coerce.number().optional(),
   year_end_month: z.number().optional(),
   reporting_currency_id: z.string().uuid(),
   country_id: z.string().uuid(),
@@ -190,7 +190,7 @@ export const newCompanyInput = z.object({
 export const newCompany = newCompanyInput.extend({
   display_name: z.string().max(256), // legal_name
   short_code: z.string().max(50),
-  year_end_day: z.number(),
+  year_end_day: z.coerce.number(),
   year_end_month: z.number(),
   created_by_id: z.string().uuid(),
   assigned_firm_id: z.string().uuid(),

@@ -174,6 +174,7 @@ export const getAccessibleCompaniesForUser = async ({
       companyType: r.companyType,
       roleKey: r.roleKey,
       roleScope: r.roleScope,
+      onboardingState: r.onboardingState,
     }));
 
     const knownCompanyIds = userRoles.map((r) => r.companyId);
@@ -197,6 +198,7 @@ export const getAccessibleCompaniesForUser = async ({
         roleKey: null,
         roleScope: null,
         companyType: c.companyType,
+        onboardingState: null,
       })
     );
 

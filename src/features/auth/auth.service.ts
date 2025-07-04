@@ -76,6 +76,8 @@ export async function loginService(
 
     // Fetch extra user + company info for frontend (enriched context)
     const contextRes = await buildAuthContext(userData);
+    console.log("Login service hit", userData.onboardingState);
+
     if (!contextRes.success || !contextRes.data) {
       return errorResponse(
         contextRes.message || "Failed to build auth context"
@@ -202,6 +204,23 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
         });
       }
 
+      let newOnboardingState;
+      if (initialOnboardingState) {
+        newOnboardingState = markUserOnboardingStepComplete(
+          initialOnboardingState,
+          "email_verified"
+        );
+      }
+
+      if (
+        initialEmailVerifiedAt &&
+        !initialOnboardingState?.steps.email_verified
+      ) {
+        await trx("users")
+          .where({ id: userId })
+          .update({ onboarding_state: newOnboardingState });
+      }
+
       if (initialEmailVerifiedAt) {
         return successResponse("Email already verified", {
           emailVerified: true,
@@ -238,13 +257,6 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
           email: null,
         });
 
-      let newOnboardingState;
-      if (initialOnboardingState) {
-        newOnboardingState = markUserOnboardingStepComplete(
-          initialOnboardingState,
-          "email_verified"
-        );
-      }
       // Verified token, update user
       await trx("users")
         .where({ id: userId })
@@ -354,5 +366,53 @@ export async function resendVerificationEmailService(
     return successResponse("Verification email sent", user.email);
   } catch (error) {
     return errorResponse("Failed to resend verification email");
+  }
+}
+
+export async function meService(
+  userId: string
+): Promise<
+  ApiResponse<{ user: AuthUserContext; activeCompany: AuthCompanyContext }>
+> {
+  try {
+    const user = await knexClient("users")
+      .select("*")
+      .where({ id: userId })
+      .first();
+
+    if (!user) {
+      // If no user found, fail with invalid credentials error
+      return errorResponse("Invalid credentials", undefined, {
+        code: ErrorCode.INVALID_CREDENTIALS,
+      });
+    }
+
+    const userData: DecodedToken = {
+      sub: user.id,
+      email: user.email,
+      firstname: user.firstname,
+      ...(user.lastname && { lastname: user.lastname }),
+      emailVerifiedAt: user.email_verified_at || null,
+      onboardingState: user.onboarding_state as UserOnboardingState,
+      currentCompanyId: user.last_active_company_id || undefined, // Let buildAuthContext finalize company
+    };
+
+    const contextResponse = await buildAuthContext(userData);
+    console.log("Me service", userData.onboardingState);
+
+    if (!contextResponse.success || !contextResponse.data) {
+      return errorResponse(
+        contextResponse.message || "Failed to build auth context"
+      );
+    }
+
+    const { user: userContext, activeCompany } = contextResponse.data;
+
+    return successResponse("User retrieved successfully", {
+      user: userContext,
+      activeCompany,
+    });
+  } catch (error) {
+    return errorResponse("Something went wrong", error);
   }
 }

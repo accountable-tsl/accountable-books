@@ -110,7 +110,9 @@ export async function buildAuthContext(
       lastname,
       emailVerifiedAt,
       currentCompanyId,
+      onboardingState,
     } = decoded;
+
     if (!sub) return errorResponse("Invalid token payload, missing user ID");
     // Sub is user ID
     const userAccessProfileResponse = await getAccessibleCompaniesForUser({
@@ -152,6 +154,7 @@ export async function buildAuthContext(
         id: sub,
         emailVerifiedAt,
         isPlatformUser: userAccessProfile.isPlatformUser,
+        onboardingState,
       },
       company: activeCompany,
     });

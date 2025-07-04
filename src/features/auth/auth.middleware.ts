@@ -9,12 +9,15 @@ import { generateRandomToken } from "../../shared/utils/crypto.utils";
 import { publicPaths } from "./auth.constants";
 
 export const verifyAccessToken = async (
-  req: AuthRequest,
+  req: Request & { user: any },
   res: Response,
   next: NextFunction
 ) => {
   const token = req.cookies?.accessToken;
-  if (!token) return res.status(401).json(errorResponse("Unauthorized", "Token not found"));
+  if (!token)
+    return res
+      .status(401)
+      .json(errorResponse("Unauthorized", "Token not found"));
 
   try {
     // Verify the JWT and extract the decoded payload
@@ -25,15 +28,24 @@ export const verifyAccessToken = async (
 
     // Ensure the decoded payload includes a valid user ID
     if (!decoded.sub)
-      return res.status(403).json(errorResponse("Invalid token payload", "User ID not found in token"));
+      return res
+        .status(403)
+        .json(
+          errorResponse("Invalid token payload", "User ID not found in token")
+        );
 
-    const result = await buildAuthContext(decoded);
-    if (!result.success || !result.data) {
-      return res.status(403).json(result.error);
-    }
+    // const result = await buildAuthContext(decoded);
+    // if (!result.success || !result.data) {
+    //   return res.status(403).json(result.error);
+    // }
+    // console.log("Verify access token hit", decoded.onboardingState);
 
-    req.user = result.data.user;
-    req.company = result.data.activeCompany;
+    req.user = {
+      ...req.user,
+      id: decoded.sub,
+      email: decoded.email,
+    }; // req.user = result.data.user;
+    // req.company = result.data.activeCompany;
 
     // Attach user ID and company roles to the request object
 
@@ -55,11 +67,11 @@ function handleJwtError(err: unknown, res: Response) {
 }
 
 export const verifyRefreshToken = async (
-  req: AuthRequest,
+  req: Request & { user: any },
   res: Response,
   next: NextFunction
 ) => {
-  const refreshToken = req.cookies.refreshToken;
+  const refreshToken = req.cookies?.refreshToken;
   if (!refreshToken) {
     return res.status(401).json(errorResponse("No refresh token provided"));
   }
@@ -70,14 +82,11 @@ export const verifyRefreshToken = async (
       JWT_CONFIG.refreshToken.secret
     ) as DecodedToken;
 
-    const result = await buildAuthContext(decoded);
-    if (!result.success || !result.data) {
-      return res.status(403).json(errorResponse(result.message, result.error));
-    }
-    const { user, activeCompany } = result.data;
-
-    req.user = user;
-    req.company = activeCompany;
+    req.user = {
+      ...req.user,
+      id: decoded.sub,
+      email: decoded.email,
+    };
 
     next();
   } catch (error) {

@@ -63,8 +63,8 @@ import { knexClient } from "../../../knexClient";
  * @throws AppError
  */
 export const registerNewAccount = async (
-  trx: Knex.Transaction,
-  input: { user: NewUserInputCamel; company: NewCompanyInputCamel }
+  input: { user: NewUserInputCamel; company: NewCompanyInputCamel },
+  trx?: Knex.Transaction
 ): Promise<
   ApiResponse<{ user: CreateUserDirectResponse; company: NewCompanyResCamel }>
 > => {
@@ -111,13 +111,15 @@ export const registerNewAccount = async (
       loadCoaTemplate: companyInput.load_coa_template || true,
     });
 
-    const { count } = await knex("companies")
+    const [{ count }] = (await knex("companies")
       .where("created_by_id", user.id)
-      .count<{ count: string }>("id");
+      .count("id as count")) as { count: string }[];
+
+    const numericCount = parseInt(count, 10);
 
     return {
       user,
-      company: { ...company, totalCompaniesByUser: parseInt(count, 10) },
+      company: { ...company, totalCompaniesByUser: numericCount },
       firm,
     };
   };

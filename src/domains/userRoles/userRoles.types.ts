@@ -68,7 +68,7 @@ export type AccessibleCompanies = {
   roleKey: RoleKey | null;
   roleScope: RoleScope | null;
   isDemoCompany: boolean;
-  // onboardingState: CompanyOnboardingState;
+  onboardingState: CompanyOnboardingState;
 };
 
 export type AccessibleCompaniesResponse = {

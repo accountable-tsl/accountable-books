@@ -27,7 +27,7 @@ export async function seedDemo(config: DemoSeedConfig): Promise<void> {
     }
 
     // Create company and user
-    const signup = await registerNewAccount(trx, {
+    const signup = await registerNewAccount({
       user: config.user,
       company: config.company,
     });

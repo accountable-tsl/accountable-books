@@ -17,15 +17,15 @@ export const accountingBasis = z.enum([
 
 export const newCompanyInput = z.object({
   id: z.string().uuid().optional(),
-  legal_name: z.string().max(256),
+  legal_name: z.string().min(2).max(256),
   country_id: z.string().uuid(),
   type: companyType,
   reporting_currency_id: z.string().uuid(),
   accounting_basis: accountingBasis.optional(),
 
   display_name: z.string().max(256).optional(),
-  year_end_day: z.number().optional(),
-  year_end_month: z.number().optional(),
+  year_end_day: z.coerce.number().optional(),
+  year_end_month: z.coerce.number().optional(),
   created_by_id: z.string().uuid().optional(),
   last_updated_by_id: z.string().uuid().optional(),
   address: z.string().max(512).nullish(),
@@ -52,8 +52,8 @@ export const newCompany = newCompanyInput
     display_name: z.string().max(256), // legal_name
     accounting_basis: accountingBasis,
     short_code: z.string().max(50),
-    year_end_day: z.number(),
-    year_end_month: z.number(),
+    year_end_day: z.coerce.number(),
+    year_end_month: z.coerce.number(),
     created_by_id: z.string().uuid(),
     created_at: z.date().optional(),
     updated_at: z.date().optional(),

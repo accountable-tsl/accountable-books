@@ -137,6 +137,7 @@ export const createCompany = async (
     const [company] = await knexTrx("companies")
       .insert({
         ...validateInput.data,
+        legal_name: validateInput.data.legal_name,
         display_name:
           validateInput.data.display_name || validateInput.data.legal_name,
         short_code,
@@ -177,7 +178,10 @@ export const createCompany = async (
       throw new AppError("Unable to assign company to firm");
     }
 
-    return successResponse("Company created successfully", companyData.data);
+    return successResponse(
+      "Company created successfully",
+      companyData?.data ?? company
+    );
   } catch (error) {
     return errorResponse("Unable to create company", error);
   }

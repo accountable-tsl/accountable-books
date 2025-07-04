@@ -4,6 +4,7 @@ import {
   onboardingStepKeys,
   userOnboardingStepKeys,
 } from "./onboarding.utils";
+import { dateOrStringNullish } from "../../shared/utils/random.utils";
 
 // STEP KEYS
 export type UserOnboardingStepKey =
@@ -19,10 +20,10 @@ export type CompanyOnboardingSteps = Record<CompanyOnboardingStepKey, boolean>;
 
 // ONBOARDING STEPS COMPLETED AT
 export type UserOnboardingStepsCompletedAt = Partial<
-  Record<UserOnboardingStepKey, Date>
+  Record<UserOnboardingStepKey, Date | null>
 >;
 export type CompanyOnboardingStepsCompletedAt = Partial<
-  Record<CompanyOnboardingStepKey, Date>
+  Record<CompanyOnboardingStepKey, Date | null> 
 >;
 
 export const userOnboardingState = z
@@ -33,7 +34,7 @@ export const userOnboardingState = z
     }),
     completed_at: z
       .object({
-        email_verified: z.date().optional(),
+        email_verified: dateOrStringNullish,
         // profile_completed: z.date().nullish(),
       })
       .optional(),
@@ -53,8 +54,8 @@ export const companyOnboardingState = z
     }),
     completed_at: z
       .object({
-        company_details_confirmed: z.date().nullish(),
-        first_bank_account_added: z.date().nullish(),
+        company_details_confirmed: dateOrStringNullish,
+        first_bank_account_added: dateOrStringNullish,
       })
       .optional(),
     metadata: z.null().nullish(),
@@ -69,13 +70,13 @@ export type OnboardingUserObj = {
   id: string;
   emailVerifiedAt: Date | null;
   isPlatformUser?: boolean;
-  onboardingState?: UserOnboardingState;
+  onboardingState: UserOnboardingState;
 };
 export type OnboardingCompanyObj = {
   id: string;
   isDemoCompany?: boolean;
   isPlatformCompany?: boolean;
-  onboardingState?: CompanyOnboardingState;
+  onboardingState: CompanyOnboardingState;
 };
 
 export type OnboardingStepConfig = {

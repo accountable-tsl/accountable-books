@@ -30,17 +30,17 @@ export async function getOnboardingState({
   company: OnboardingCompanyObj;
 }): Promise<OnboardingStateResult> {
   // Determine if the current user is a company owner
-  // This affects which onboarding steps they can see and complete
   const isCompanyOwner = await isUserCompanyOwner({
     userId: user?.id,
     companyId: company?.id,
   });
 
-  if (
-    user.isPlatformUser ||
-    company?.isDemoCompany ||
-    company?.isPlatformCompany
-  ) {
+  console.log("user", user.onboardingState, "company", company.onboardingState);
+
+  const isBypassed =
+    user.isPlatformUser || company?.isDemoCompany || company?.isPlatformCompany;
+  // Early exit for platform users and demo/platform companies
+  if (isBypassed) {
     return {
       isCompanyOwner,
       canAccessApp: true,
@@ -50,66 +50,69 @@ export async function getOnboardingState({
     };
   }
 
-  // Filter onboarding steps to only include those available to this user
-  // Some steps are restricted to company owners only
-  const availableSteps = onboardingStepConfig.filter((step) => {
-    if (step.restrictedTo === "company_owner" && !isCompanyOwner) {
-      return false;
-    }
-    return step.isAvailable?.({ user, company, isCompanyOwner }) ?? true;
-  });
+  // Collect all explicitly assigned step keys from onboarding state
+  const assignedUserStepKeys = Object.keys(user.onboardingState?.steps || {});
+  const assignedCompanyStepKeys = Object.keys(
+    company.onboardingState?.steps || {}
+  );
 
-  // Pre-compute completion status for all steps
-  const stepStatusMap = new Map<
-    OnboardingStepKey,
-    { complete: boolean; step: OnboardingStepConfig }
-  >();
-  for (const step of availableSteps) {
-    const complete = step.isComplete({ user, company });
-    stepStatusMap.set(step.key, { complete, step });
-  }
+  const assignedStepKeys = new Set([
+    ...assignedUserStepKeys,
+    ...assignedCompanyStepKeys,
+  ]);
 
-  // Process each available step to determine its current status
-  const results = Array.from(stepStatusMap.entries())
-    .map(([key, { complete, step }]) => {
-      // A step is blocked if any of its dependencies are incomplete
-      // We only check dependencies that are also available to this user
-      const isBlocked = (step.dependsOn || []).some((depKey) => {
-        const dep = stepStatusMap.get(depKey);
-
-        // If dependency exists in available steps, check if it's complete
-        // If dependency doesn't exist (filtered out), consider it blocking
-        return dep ? !dep.complete : true;
-      });
-
+  // Build a map of step metadata for assigned steps
+  const assignedStepsWithMeta = onboardingStepConfig
+    .filter((step) => assignedStepKeys.has(step.key)) // Only use assigned steps
+    .filter((step) => step.restrictedTo !== "company_owner" || isCompanyOwner) // If the step is restricted to company owners, only use it if the user is a company owner
+    .map((step) => {
+      const complete = step.isComplete({ user, company });
       return {
-        key,
+        key: step.key,
         label: step.label,
         scope: step.scope,
         complete,
-        blocked: isBlocked,
         optional: !!step.optional,
         orderIndex: step.orderIndex ?? 999,
+        dependsOn: step.dependsOn ?? [],
       };
-    })
-    // Sort steps by their defined order to ensure consistent presentation
-    .sort((a, b) => a.orderIndex - b.orderIndex);
+    });
 
-  // Find the next step the user should complete
-  // This is the first incomplete, non-blocked step in order
-  const nextIncompleteStep = results.find(
-    (step) => !step.complete && !step.blocked
+  // Compute which steps are blocked by incomplete dependencies
+  const stepStatusMap = new Map<string, { complete: boolean }>();
+  for (const step of assignedStepsWithMeta) {
+    stepStatusMap.set(step.key, { complete: step.complete });
+  }
+
+  const evaluatedSteps = assignedStepsWithMeta.map((step) => {
+    const blocked = step.dependsOn.some((depKey) => {
+      const dep = stepStatusMap.get(depKey);
+      return dep ? !dep.complete : false; // If dep is not assigned, do NOT block
+    });
+
+    return {
+      ...step,
+      blocked,
+    };
+  });
+
+  // ort steps in display order
+  const orderedSteps = evaluatedSteps.sort(
+    (a, b) => a.orderIndex - b.orderIndex
   );
-  const nextStep = nextIncompleteStep ? nextIncompleteStep.key : null;
 
-  // Determine if all steps visible to this user is complete
-  const userStepsComplete = results.every((s) => s.complete || s.optional);
+  // Determine next step (first incomplete + unblocked)
+  const nextStep =
+    orderedSteps.find((s) => !s.complete && !s.blocked)?.key ?? null;
 
-  // Check if all company steps are complete (regardless of user role)
-  const companySteps = onboardingStepConfig.filter(
+  // Determine if all assigned steps are complete (excluding optional)
+  const userStepsComplete = orderedSteps.every((s) => s.complete || s.optional);
+
+  // Evaluate company-wide step completion independently (ignores assignment)
+  const allCompanySteps = onboardingStepConfig.filter(
     (step) => step.scope === "company"
   );
-  const companyStepsComplete = companySteps.every((step) =>
+  const companyStepsComplete = allCompanySteps.every((step) =>
     step.isComplete({ user, company })
   );
 
@@ -120,11 +123,17 @@ export async function getOnboardingState({
     ? userStepsComplete
     : userStepsComplete && companyStepsComplete;
 
+  console.log({
+    orderedSteps,
+    a: orderedSteps[1].dependsOn,
+    nextStep,
+  });
+
   return {
     isCompanyOwner,
     canAccessApp,
     userStepsComplete,
     nextStepToComplete: nextStep,
-    steps: results,
+    steps: orderedSteps,
   };
 }

@@ -19,7 +19,6 @@ export async function uploadObjectController(req: Request, res: Response) {
       return res.status(400).json(errorResponse("Object type required"));
     }
 
-
     const handler = objectTypeHandlers[objectType as ObjectType];
     if (!handler) {
       return res.status(400).json(errorResponse("Unsupported object type"));
@@ -42,7 +41,7 @@ export async function uploadObjectController(req: Request, res: Response) {
     }
 
     const parsedParams = {
-      ...req.body,
+      companyId: req.body.companyId,
       objectType,
       file: req.file.buffer,
       originalFilename: req.file.originalname,

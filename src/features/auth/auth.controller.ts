@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {
   loginService,
+  meService,
   refreshTokenService,
   resendVerificationEmailService,
   verifyEmailService,
@@ -17,7 +18,7 @@ import { user } from "../../domains/users/users.types";
 import { ENV, isProd } from "../../config/env";
 import { getAppUrl } from "../../shared/utils/string.utils";
 
-export async function loginController(req: Request, res: Response) {
+export async function loginController(req: AuthRequest, res: Response) {
   try {
     const { email, password } = req.body;
 
@@ -36,6 +37,9 @@ export async function loginController(req: Request, res: Response) {
     }
     const { accessToken, refreshToken, ...rest } = serviceRes.data;
     setAuthCookies(req, res, accessToken, refreshToken);
+
+    req.company = rest.activeCompany;
+    req.user = rest.user;
     const csrfToken = req.csrfToken();
 
     return res.json(
@@ -126,13 +130,34 @@ export async function logoutController(req: AuthRequest, res: Response) {
 }
 
 export async function meController(req: AuthRequest, res: Response) {
-  if (!req.user) {
+  if (!req.user?.id) {
+    console.log("WE broke here");
     return res.status(401).json(errorResponse("Not authenticated"));
   }
 
+  const context = await meService(req.user.id);
+
+  if (!context.success || !context.data) {
+    const status =
+      context?.code === ErrorCode.INVALID_CREDENTIALS
+        ? 401
+        : context?.code === ErrorCode.GENERIC
+          ? 500
+          : 403;
+    return res
+      .status(status)
+      .json(errorResponse(context.message, context.data || undefined));
+  }
+
+  const { user, activeCompany } = context.data;
+
+  // I want to attach company data to req.company but not return it in the response
+  req.company = activeCompany;
+  req.user = user;
+
   return res.status(200).json(
     successResponse("User retrieved successfully", {
-      user: req.user,
+      user: user,
       csrfToken: req.csrfToken(),
     })
   );
