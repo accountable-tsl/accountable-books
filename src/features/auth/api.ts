@@ -8,7 +8,6 @@ export const handleLogin = async (
 ): Promise<ApiResponse<{ user: AuthUserContext; csrfToken: string }>> => {
   try {
     const resp = await api.post("/auth/login", data);
-    console.log("actual api resp", resp.data.data);
 
     return resp.data as ApiResponse<{
       user: AuthUserContext;

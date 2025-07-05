@@ -5,10 +5,13 @@ import { queryClient } from "@/lib/queryClient";
 import { invalidateFirmCaches, validateSlug } from "@/domains/firms/utils";
 import { useCallback } from "react";
 
-export const useSlugCheck = (slug: string) => {
+export const useSlugCheck = (slug: string, currentSlug?: string) => {
   const debouncedSlug = useDebouncedValue(slug.trim().toLowerCase(), 400);
+  const isSameAsCurrent = currentSlug?.trim().toLowerCase() === debouncedSlug;
+
   const validation = validateSlug(debouncedSlug);
-  const shouldCheck = validation.isValid && debouncedSlug.length > 0;
+  const shouldCheck =
+    validation.isValid && debouncedSlug.length > 0 && !isSameAsCurrent;
 
   const query = useQuery({
     queryKey: ["firm-slug-check", debouncedSlug],
@@ -27,16 +30,20 @@ export const useSlugCheck = (slug: string) => {
   return {
     ...query,
     validation,
+    isSameAsCurrent,
     isChecking: query.isFetching && validation.isValid,
     getError: useCallback(() => {
       // Client-side validation errors first
       if (!validation.isValid) return validation.error;
+
+      if (isSameAsCurrent) return "Your current slug";
 
       // API errors
       if (query.error) return "Unable to check availability";
 
       // Availability check
       if (query.data && !query.data.data?.isAvailable) {
+        console.log(query.data);
         return "This slug is already taken";
       }
 

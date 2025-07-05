@@ -198,6 +198,7 @@ export const updateCompanyVitalsSchema = companyData
     assignedFirmIsPlatform: true,
     assignedFirmLogo: true,
     assignedFirmName: true,
+    onboardingState: true,
   })
   .extend({
     assignedFirmSlug: slugSchema.nullish(),

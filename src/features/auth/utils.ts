@@ -27,14 +27,6 @@ export const performLoginFlow = async ({
 }): Promise<{ success: boolean; data?: any; canAccessApp?: boolean }> => {
   try {
     const loginFn = handleLogin({ email, password });
-    // displayToast &&
-    //   toast.promise(loginFn, {
-    //     loading: "Logging in...",
-    //     error: (error) => {
-    //       onError?.(error);
-    //       return error.message || "Login failed";
-    //     },
-    //   });
 
     const res = await loginFn;
     // wait for 2 seconds, while waiting, show toast, logging in

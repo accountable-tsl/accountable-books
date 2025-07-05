@@ -39,6 +39,7 @@ export const FormField = ({
   errorTooltip,
   errorTooltipStyle,
   className = "",
+  errorClassName,
   ...rest
 }: FormFieldProps) => (
   <div className={cn("space-y-2 relative", className)} {...rest}>
@@ -54,6 +55,7 @@ export const FormField = ({
         error={error}
         errorTooltip={errorTooltip}
         errorTooltipStyle={errorTooltipStyle}
+        errorClassName={errorClassName}
       />
     )}
     {children}

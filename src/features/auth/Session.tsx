@@ -54,8 +54,8 @@ export const SessionProvider = ({
   }, [authData, user]);
 
   const isLoggedIn = !!user;
-  const companyId = user && user.currentCompanyId;
-  const onboarding = user?.currentCompany?.onboarding ?? null;
+  const companyId = user?.currentCompanyId;
+  const onboarding = user?.currentCompany?.onboarding;
   const hasAppAccess = onboarding?.canAccessApp || false;
 
   const {
@@ -157,4 +157,3 @@ export const useSafeSession = () => {
     return createDefaultSessionContext();
   }
 };
-

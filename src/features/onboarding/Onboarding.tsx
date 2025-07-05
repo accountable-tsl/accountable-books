@@ -38,7 +38,6 @@ export function OnboardingStepPage() {
     onboarding: onboardingState,
   } = useSession();
 
-  console.log("onboardingState", onboardingState);
   const { step: stepParam } = useParams<{ step?: string }>();
   const pathname = useLocation().pathname;
 
@@ -231,7 +230,7 @@ export function OnboardingStepWrapper({
               )}
 
               {/* Main content */}
-              <div className="flex-1 flex py-2 overflow-y-auto scrollbar-thin-2px">
+              <div className="flex-1 flex py-2 overflow-y-auto scrollbar-thin-2px relative">
                 {children}
               </div>
             </div>

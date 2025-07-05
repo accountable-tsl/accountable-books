@@ -22,8 +22,6 @@ export function OnboardingRouter() {
 
   const hasTokenVerificationParams = !!verificationToken && !!userIdFromUrl;
 
-  console.log(onboarding);
-
   if (loading) {
     return (
       <CenteredLoader

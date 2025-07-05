@@ -126,7 +126,7 @@ export const VerifyEmail = ({
       return;
     }
 
-    // await refetch();
+    refetchSession();
     navigate(routes.onboarding.index.staticPath);
   };
   const isEmailVerificationStepComplete =
@@ -257,9 +257,7 @@ export const VerifyEmail = ({
         <br />
         <span className="text-muted-foreground">
           Click 'Resend' below to send a new verification link to{" "}
-          <span className="text-blue-500">
-            {verifiedEmail || "this second email"}
-          </span>
+          <span className="text-blue-500">{verifiedEmail || "this email"}</span>
           .
         </span>
       </div>

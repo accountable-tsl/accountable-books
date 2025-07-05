@@ -87,8 +87,8 @@ export type SessionContextType = {
   hasAppAccess: boolean;
 
   user: AuthUserContext | null;
-  companyId: string | null;
-  onboarding: OnboardingState | null;
+  companyId?: string;
+  onboarding?: OnboardingState;
 
   company?: CompanyData;
   companyType?: CompanyType;
