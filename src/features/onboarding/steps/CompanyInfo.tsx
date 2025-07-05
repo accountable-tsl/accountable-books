@@ -38,9 +38,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import DOMPurify from "dompurify";
-import { debounce } from "lodash";
-import { getChangesOnly } from "@/shared/utils/comparisonUtils";
+import _, { debounce } from "lodash";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -51,6 +49,8 @@ import {
 import { useSlugCheck } from "@/domains/firms/hooks";
 import { useSession } from "@/features/auth/Session";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "react-router-dom";
+import { routes } from "@/shared/routes/routes";
 
 export const CompanyInfo = () => {
   // Refs
@@ -75,6 +75,7 @@ export const CompanyInfo = () => {
     companyId,
     company,
     companyType,
+    refetchSession,
   } = useSession();
   const {
     data: industries,
@@ -85,6 +86,7 @@ export const CompanyInfo = () => {
   const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
 
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   // Derived / Computed Values
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -201,10 +203,17 @@ export const CompanyInfo = () => {
   let quickSubmitExitCount = 0;
   const dismissQuickSubmit = () => {
     setIsManuallyDismissed(true);
+    quickSubmitExitCount += 1;
+
     if (quickSubmitExitCount <= 2) {
       const timeout = setTimeout(() => setIsManuallyDismissed(false), 10000);
       return () => clearTimeout(timeout);
     }
+  };
+
+  const normalize = (val: any) => {
+    if (val === undefined || val === null || val === "") return null;
+    return val;
   };
 
   const getDirtyFields = (): Partial<UpdateCompanyVitalsData> => {
@@ -213,14 +222,14 @@ export const CompanyInfo = () => {
 
     for (const key in formData) {
       const typedKey = key as keyof UpdateCompanyVitalsData;
-      const formValue = formData[typedKey];
-      const dbValue = company?.[typedKey];
+      const formValue = normalize(formData[typedKey]);
+      const dbValue = normalize(company?.[typedKey]);
 
       // if (JSON.stringify(formValue) !== JSON.stringify(dbValue)) {
       //   dirty[typedKey] = formValue as any;
       // }
-      if (formValue !== dbValue) {
-        dirty[typedKey] = formValue as any;
+      if (!_.isEqual(formValue, dbValue)) {
+        dirty[typedKey] = formValue;
       }
     }
 
@@ -259,7 +268,6 @@ export const CompanyInfo = () => {
 
   // Submit form to backend
   const handleSubmit = async () => {
-    console.log("Submitting company info...");
     if (!companyId) {
       toast.error(
         "We were unable to save your company details. Please try again."
@@ -273,23 +281,22 @@ export const CompanyInfo = () => {
       const dirty = getDirtyFields();
       if (Object.keys(dirty).length === 0) {
         toast.info("No changes detected. Proceeding to next step...");
-        return;
       }
 
       console.log("Submitting dirty fields:", dirty);
 
       const { success, message } = await updateCompanyDetails(companyId, dirty);
-
+      console.log(success, message);
       if (!success) {
         toast.error(message || "Failed to save company details");
         return;
       }
 
-      // SUCCESS - Clear localStorage backup and close confirmation
+      await refetchSession();
+
       localStorage.removeItem(FORM_KEY);
-      console.log("Form submitted successfully, cleared localStorage backup");
+      navigate(routes.onboarding.index.staticPath);
     } catch (error: any) {
-      console.error("Form submission error:", error);
       toast.error(error.message || "Failed to save company details");
       // Don't clear localStorage on error - preserve user's work
     } finally {
@@ -306,13 +313,11 @@ export const CompanyInfo = () => {
   // INITIALIZATION - Load form data and localStorage backup
   useEffect(() => {
     if (!companyId || !company || formInitialized) return;
-    console.log("Initializing form...");
 
     // Parse and validate company data, trim to only those that needs to be saved/displayed
     const companyDataTrimmed = updateCompanyVitalsSchema.safeParse(company);
     if (!companyDataTrimmed.success) {
       reset(company);
-      console.error("Invalid company data:", companyDataTrimmed.error);
       return;
     }
 
@@ -331,7 +336,6 @@ export const CompanyInfo = () => {
           duration: 1000,
         });
       } catch (error) {
-        console.error("Failed to parse company form draft", error);
         // If parsing fails, use clean database data
         reset(companyDataTrimmed.data);
       }
@@ -351,7 +355,6 @@ export const CompanyInfo = () => {
 
       if (Object.keys(dirty).length > 0) {
         localStorage.setItem(FORM_KEY, JSON.stringify(dirty));
-        console.log("Saved to localStorage:", dirty);
       }
     }, 500);
 
@@ -389,7 +392,6 @@ export const CompanyInfo = () => {
   // Handle scroll to track position
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
-    console.log(scrollContainer);
     if (!scrollContainer) return;
 
     const handleScroll = () => {
@@ -1016,4 +1018,3 @@ export const CompanyInfo = () => {
 };
 
 CompanyInfo.displayName = "CompanyInfo";
-CompanyInfo.whyDidYouRender = true;

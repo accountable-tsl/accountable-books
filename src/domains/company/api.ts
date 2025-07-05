@@ -1,6 +1,6 @@
 import api from "@/lib/axios";
 import { ApiResponse } from "@/shared/types/core";
-import { CompanyData } from "./types";
+import { CompanyData, UpdateCompanyVitalsData } from "./types";
 
 export const getCompanyDetails = async (
   companyId: string
@@ -11,9 +11,7 @@ export const getCompanyDetails = async (
 
 export const updateCompanyDetails = async (
   companyId: string,
-  data: Partial<
-    Omit<CompanyData, "id" | "onboardingStatus" | "companyType" | "createdById">
-  >
+  data: Partial<UpdateCompanyVitalsData>
 ): Promise<ApiResponse<CompanyData>> => {
   const response = await api.patch(`/api/companies/${companyId}`, data);
   console.log("Update Company Response:", response.data);

@@ -12,7 +12,8 @@ export function OnboardingRouter() {
    * If not onboarded, it redirects to the relevant step in the onboarding flow.
    */
 
-  const { user, isLoggedIn, loading, onboarding } = useSession();
+  const { user, isLoggedIn, loading, onboarding, refetchSession } =
+    useSession();
   const [params] = useSearchParams();
   const location = useLocation();
 
@@ -40,10 +41,13 @@ export function OnboardingRouter() {
     return <Navigate to={routes.auth.login.staticPath} replace />;
   }
 
+  refetchSession();
+
   if (onboarding?.canAccessApp) {
     return <Navigate to={routes.general.dashboard.staticPath} replace />;
   }
 
+  console.log(onboarding);
   if (!onboarding?.nextStepToComplete) {
     return <ErrorPage />;
   }
