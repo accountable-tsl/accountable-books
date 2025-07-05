@@ -11,10 +11,10 @@ import { Button } from "@/components/ui/button";
 import { ConnectBankAccountProps, ConnectionResponse } from "./types";
 import { cn } from "@/lib/utils";
 import { AccountLinked } from "./steps/AccountLinked";
-import { useCompany } from "@/domains/company/store";
 import { handleMonoConnection } from "../widgets/api";
 import { toast } from "sonner";
 import { sampleConnections } from "./constants";
+import { useSession } from "@/features/auth/Session";
 
 export default function ConnectBankAccount({
   onSuccess,
@@ -30,10 +30,10 @@ export default function ConnectBankAccount({
   const [connections, setConnections] = useState<ConnectionResponse[]>([]);
 
   // Hooks
+  const { company, refetchSession } = useSession();
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
   const { data: providersData, isLoading: isLoadingProviders } =
     useBankFeedProviders({});
-  const { company } = useCompany();
 
   const countries = countriesData?.data || [];
   const providers = providersData?.data || [];
@@ -79,6 +79,10 @@ export default function ConnectBankAccount({
 
   const handleWidgetSuccess = useCallback(
     async (code: string) => {
+      console.log({ code, selectedProvider, company });
+      // TODO: REMOVE <Quickly save code to local storage for now>
+      localStorage.setItem("codeMonX", code);
+
       if (!selectedProvider || !company) {
         toast.error("Failed to add bank account. Please try again.");
         setCurrentStep(1);
@@ -96,12 +100,15 @@ export default function ConnectBankAccount({
 
             console.log(res);
             if (!res.success || !res.data) {
-              toast.error(res.message || "Failed to add bank account,  please try again.");
+              toast.error(
+                res.message || "Failed to add bank account,  please try again."
+              );
               setCurrentStep(1);
               return;
             }
             setConnections(res.data?.connections || []);
             setCurrentStep(3);
+            await refetchSession();
             break;
 
           default:
@@ -186,6 +193,8 @@ export default function ConnectBankAccount({
     resetToCountrySelection,
     handleProviderSelect,
   ]);
+
+  // TODO: DANGLING CONNECTIONS YET TO MATCH TO BANK ACC
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full max-w-3xl mx-auto">
@@ -279,3 +288,4 @@ function UnsupportedCountry({ countryName, onBack }: UnsupportedCountryProps) {
     </div>
   );
 }
+

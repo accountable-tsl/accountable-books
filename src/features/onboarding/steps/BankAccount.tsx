@@ -24,7 +24,7 @@ export const BankAccount = ({
     return stored === "connect" || stored === "upload" ? stored : "connect";
   });
   const [bankConnectionOrUploadFailed, setBankConnectionOrUploadFailed] =
-    useState(true);
+    useState(false);
 
   const bankTxImporterOptions: BankTransactionImportOptions = {
     className: "p-0 pb-4 gap-3 max-w-3xl mx-auto w-full hidden lg:flex",
@@ -68,7 +68,7 @@ export const BankAccount = ({
       }
 
       await fetchSession();
-      onBankAccountComplete("onboarding_complete");
+      // onBankAccountComplete("onboarding_complete");
     } catch (err) {
       toast.error(
         "Something went wrong finalizing onboarding. Please try again or refresh."
@@ -78,14 +78,14 @@ export const BankAccount = ({
 
   if (bankConnectionOrUploadFailed) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="flex flex-col gap-4 items-center">
+      <div className="h-full flex-1 flex items-center justify-center">
+        <div className="flex flex-col gap-4 items-center justify-center">
           <p>Bank connection or upload failed. Please try again.</p>
           <div className="space-x-3">
             <Button
               variant="outline"
               onClick={handleDemoCompanyAccess}
-              // On click, navigate to demo company... we shouldn't block demo company at all
+              // TODO: On click, navigate to demo company... we shouldn't block demo company at all
             >
               I'll do it later
             </Button>

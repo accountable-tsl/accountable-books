@@ -20,9 +20,18 @@ import { matchPath, Route } from "react-router-dom";
  */
 function buildPath<Path extends string>(
   template: Path,
-  params: ExtractPathParams<Path>
+  params: ExtractPathParams<Path>,
+  options: { requiresCompanyId: boolean }
 ): string {
-  return template.replace(/:([a-zA-Z0-9_]+)/g, (_, key) => {
+  const { requiresCompanyId } = options ?? {};
+
+  let effectiveTemplate: string = template;
+  if (requiresCompanyId) {
+    const normalized = template.startsWith("/") ? template : `/${template}`;
+    effectiveTemplate = `/:companyId${normalized}`;
+  }
+
+  return effectiveTemplate.replace(/:([a-zA-Z0-9_]+)/g, (_, key) => {
     const value = params[key as keyof typeof params];
     if (!value) throw new Error(`Missing value for route param: ${key}`);
     return encodeURIComponent(String(value));
@@ -45,10 +54,22 @@ function buildPath<Path extends string>(
  * const path = userRoute.build({ userId: '123' }); // '/users/123'
  */
 export function route<TPath extends string>(template: TPath, meta?: RouteMeta) {
+  const cleanTemplate = template.startsWith("/") ? template : `/${template}`;
+  const defaultMeta = {
+    public: false,
+    requiresCompanyId: true,
+    ...meta, // overrides above defaults if defined
+  };
+
   return {
-    staticPath: template,
-    build: (params: ExtractPathParams<TPath>) => buildPath(template, params),
-    meta: (meta ?? {}) as RouteMeta,
+    staticPath: cleanTemplate,
+    relativePath: cleanTemplate.slice(1),
+    build: (params: ExtractPathParams<TPath>) =>
+      buildPath(cleanTemplate, params, {
+        requiresCompanyId: defaultMeta.requiresCompanyId,
+      }),
+
+    meta: defaultMeta,
   };
 }
 
@@ -98,7 +119,7 @@ export function createTenantRoutes<T extends Record<string, any>>(
     if ("staticPath" in routeOrNamespace && "build" in routeOrNamespace) {
       // Leaf route detected: an object with `.staticPath` and `.build`
 
-      if (routeOrNamespace.staticPath.includes(":companyId")) {
+      if (routeOrNamespace?.meta.requiresCompanyId) {
         // Route expects companyId param, so we wrap `.build`
         tenantRoutes[key] = ((params: any) => {
           if (!companyId) throw new Error("companyId not found in context");
@@ -231,7 +252,7 @@ export function buildCanonicalUrl<K extends FlattenedRouteKey>({
 
   const firmSlug = company.assignedFirmSlug;
 
-  const needsCompanyId = route.staticPath.includes(":companyId");
+  const needsCompanyId = route.meta.requiresCompanyId ?? true;
 
   const params = needsCompanyId
     ? { companyId: currentCompanyId, ...(routeParams as object) }
@@ -249,44 +270,6 @@ export function buildCanonicalUrl<K extends FlattenedRouteKey>({
       : `${window.location.protocol}//${window.location.hostname}:${window.location.port}`);
 
   return `${resolvedOrigin}${normalizedPath}`;
-}
-
-/**
- * Redirects to the canonical URL if the current URL does not match.
- * Ensures the user is always on the correct firm subdomain and path.
- *
- * @template K - A valid route key from flattened routes
- * @param user - The authenticated user (with currentCompanyId and companies)
- * @param routeKey - The route key (e.g., "dashboard.report")
- * @param routeParams - Params for the route, excluding companyId
- */
-export function enforceCanonicalUrl<K extends FlattenedRouteKey>(
-  user: AuthUserContext,
-  routeKey: K,
-  routeParams: OmitCompanyId<
-    ExtractPathParams<(typeof flatRoutes)[K]["staticPath"]>
-  >
-): void {
-  const currentHost = window.location.hostname;
-  const currentPath = window.location.pathname;
-
-  // Build the canonical URL for the user and route
-  const canonicalUrl = buildCanonicalUrl({
-    user,
-    routeKey,
-    routeParams,
-  });
-
-  const canonical = new URL(canonicalUrl);
-
-  const subdomainMismatch = currentHost !== canonical.hostname;
-  const pathMismatch = currentPath !== canonical.pathname;
-
-  if (subdomainMismatch || pathMismatch) {
-    window.location.replace(canonical.href);
-  }
-
-  // If everything matches, do nothing (good URL, no redirect needed)
 }
 
 const flattenedRoutes = flattenRoutes(routes);

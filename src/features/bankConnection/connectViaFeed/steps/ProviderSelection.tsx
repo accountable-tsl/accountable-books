@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { toTitleCase } from "@/shared/utils/formattingUtils";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { BankAccountWithMeta } from "@/domains/bankAccounts/types";
-import { useCompany } from "@/domains/company/store";
 import { getProviderData, ProviderWidgets } from "../utils";
 import { useSession } from "@/features/auth/Session";
+import { CenteredLoader } from "@/components/CenteredLoader";
 
 interface ProviderSelectionProps {
   selectedCountry: Country;
@@ -38,8 +38,7 @@ export const ProviderSelection = React.memo(
 
     // Hooks
     const isMobile = useIsMobile();
-    const { company } = useCompany();
-    const { user } = useSession();
+    const { user, company, loading } = useSession();
 
     // Computed
     const userData = useMemo(() => {
@@ -50,8 +49,6 @@ export const ProviderSelection = React.memo(
         ? getProviderData[selectedProvider.key]?.(user, company)
         : undefined;
     }, [selectedProvider, user, company]);
-
-    // console.trace({ selectedProvider, userData });
 
     const sortedProviders = useMemo(() => {
       return sortProviders(providers, {
@@ -67,7 +64,6 @@ export const ProviderSelection = React.memo(
     const handleProviderSelectInternal = useCallback(
       (provider: BankFeedProvider) => {
         if (provider.status !== "active") return;
-
         setSelectedProvider(provider);
         onProviderSelect(provider);
         setWidgetOpen(true);
@@ -196,6 +192,8 @@ export const ProviderSelection = React.memo(
         );
       });
     }, [sortedProviders, selectedProvider, handleProviderSelectInternal]);
+
+    if (loading) return <CenteredLoader />;
 
     return (
       <>

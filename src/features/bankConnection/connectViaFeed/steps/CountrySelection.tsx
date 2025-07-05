@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useCountries } from "@/shared/hooks/useCountries";
 import { Country } from "@/shared/types/core";
@@ -15,11 +14,13 @@ interface CountrySelectionProps {
   supportedCountries: Country[];
   onCountrySelect?: (country: Country) => void;
   onNext?: () => void;
+  onBack?: () => void;
 }
 export default function CountrySelection({
   supportedCountries,
   onCountrySelect,
   onNext,
+  onBack,
 }: CountrySelectionProps) {
   // States
   const [searchTerm, setSearchTerm] = useState("");
@@ -76,10 +77,14 @@ export default function CountrySelection({
 
   const handleCancel = () => {
     setSelectedCountry(null);
+    if (onBack) {
+      onBack?.();
+      return;
+    }
     if (window.history.length > 1) {
       navigate(-1);
     } else {
-      navigate(routes.catEngine.relativePath, { replace: true });
+      // navigate(routes.catEngine.relativePath, { replace: true });
     }
   };
 
@@ -208,11 +213,16 @@ export default function CountrySelection({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {popularCountries.map((country) => {
                   const isSupported = isCountrySupported(country);
+
                   return (
                     <div
                       key={country.code}
                       className={cn(
                         "cursor-pointer transition-all duration-200 border rounded-sm",
+                        // for now everyone is disabled except NG
+                        country.code !== "NG"
+                          ? "bg-gray-50 opacity-60 cursor-not-allowed dark:bg-gray-800 pointer-events-none"
+                          : "",
                         // If there's a valid country:
                         country
                           ? selectedCountry?.code === country.code
@@ -220,7 +230,7 @@ export default function CountrySelection({
                               "border-blue-600 ring-2 ring-blue-100 dark:ring-blue-900"
                             : // Normal
                               " hover:border-blue-300 hover:shadow-sm dark:hover:border-blue-500"
-                          : // Disabled
+                          : // Disabled...
                             "bg-gray-50 opacity-60 cursor-not-allowed dark:bg-gray-800"
                       )}
                       onClick={() =>
@@ -250,14 +260,18 @@ export default function CountrySelection({
         </div>
       </div>
 
-      <div className="flex-shrink-0 flex justify-end">
+      <div className="flex-shrink-0 flex justify-between">
         <Button variant="outline" onClick={handleCancel}>
           Cancel
         </Button>
         <Button
           onClick={handleNext}
-          disabled={!selectedCountry || isLoadingCountries}
-          className="px-6"
+          disabled={
+            !selectedCountry ||
+            isLoadingCountries ||
+            selectedCountry.code !== "NG"
+          } // TODO: Remove NG limit later
+          className="px-6 ml-auto"
         >
           Continue
         </Button>

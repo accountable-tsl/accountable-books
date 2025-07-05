@@ -2,9 +2,9 @@ import { handleLogin } from "@/features/auth/api";
 import { toast } from "sonner";
 import { authStore } from "./store";
 import { clearSessionFn } from "./hooks";
-import { buildCanonicalUrl, createTenantRoutes } from "@/shared/routes/utils";
+import { buildCanonicalUrl } from "@/shared/routes/utils";
 import { routes } from "@/shared/routes/routes";
-import { SessionContextType } from "./types";
+import { AuthUserContext, SessionContextType } from "./types";
 
 export const performLoginFlow = async ({
   email,
@@ -24,7 +24,14 @@ export const performLoginFlow = async ({
   onError?: (error: any) => void;
   setError?: (...args: any[]) => void;
   displayToast?: boolean;
-}): Promise<{ success: boolean; data?: any; canAccessApp?: boolean }> => {
+}): Promise<{
+  success: boolean;
+  data?: {
+    user: AuthUserContext;
+    csrfToken: string;
+  };
+  canAccessApp?: boolean;
+}> => {
   try {
     const loginFn = handleLogin({ email, password });
 
@@ -78,7 +85,7 @@ type LoginParams = Parameters<typeof performLoginFlow>[0];
 export async function loginAndRedirect(params: LoginParams) {
   const result = await performLoginFlow(params);
   console.log({ result });
-  if (!result.success) return result;
+  if (!result.success || !result.data) return result;
 
   const dashboardUrl = buildCanonicalUrl({
     user: result.data.user,
@@ -101,13 +108,11 @@ export const createDefaultSessionContext = (): SessionContextType => ({
   hasAppAccess: false,
 
   user: null,
-  companyId: null,
-  onboarding: null,
 
   company: undefined,
   companyType: undefined,
 
-  tenantRoutes: createTenantRoutes(routes, ""),
+  tenantRoutes: null,
 
   refetchCompany: () => {},
   refetchSession: () => {},

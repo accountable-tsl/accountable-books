@@ -23,7 +23,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { routes } from "@/shared/routes/routes";
 import { queryClient } from "@/lib/queryClient";
 import { OnboardingRouter } from "@/features/onboarding/OnboardingRouter";
-import { SessionProvider } from "./features/auth/Session";
+import { SessionProvider } from "@/features/auth/Session";
+import {
+  RequireAuth,
+  RequireOnboardingComplete,
+  RootRedirector,
+} from "./features/auth/Access";
 
 function App() {
   return (
@@ -34,7 +39,8 @@ function App() {
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
             <SessionProvider>
-              <AnimatedRoutes />
+              <Toaster />
+              <AppRoutes />
             </SessionProvider>
           </BrowserRouter>
         </QueryClientProvider>
@@ -58,94 +64,78 @@ export const PopupManager = () => {
     </>
   );
 };
-const pageVariants = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-};
-const pageTransition = { type: "tween", ease: "anticipate", duration: 0.4 };
+// const pageVariants = {
+//   initial: { opacity: 0, y: 10 },
+//   animate: { opacity: 1, y: 0 },
+//   exit: { opacity: 0, y: -10 },
+// };
+// const pageTransition = { type: "tween", ease: "anticipate", duration: 0.4 };
 
-function AnimatedRoutes() {
-  const location = useLocation();
-
+function AppRoutes() {
   return (
-    <AnimatePresence>
-      <Toaster />
-      <Routes location={location} key={location.pathname}>
-        {/* PUBLIC */}
-        <Route path={routes.auth.signup.staticPath} element={<Signup />} />
-        <Route path={routes.auth.login.staticPath} element={<Login />} />
+    <Routes>
+      <Route index element={<RootRedirector />} />
+      {/* PUBLIC */}
+      <Route path={routes.auth.signup.staticPath} element={<Signup />} />
+      <Route path={routes.auth.login.staticPath} element={<Login />} />
+
+      {/* VERIFY EMAIL PAGE */}
+      <Route
+        path={routes.onboarding.verifyEmail.staticPath}
+        element={<OnboardingStepPage />}
+      />
+
+      {/* PRIVATE ONBOARDING */}
+      <Route
+        path="onboarding"
+        element={
+          <RequireAuth>
+            <OnboardingLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<OnboardingRouter />} />
+
+        <Route path=":step" element={<OnboardingStepPage />} />
+      </Route>
+
+      {/* APP */}
+      <Route
+        path=":companyId"
+        element={
+          <RequireAuth>
+            <RequireOnboardingComplete>
+              <AppLayout />
+            </RequireOnboardingComplete>
+          </RequireAuth>
+        }
+      >
         <Route
-          path={routes.onboarding.welcome.staticPath}
+          index
+          element={
+            <Navigate to={routes.general.dashboard.relativePath} replace />
+          }
+        />
+        <Route
+          path={routes.general.welcome.relativePath}
           element={<Welcome />}
         />
-
-        {/* ONBOARDING */}
-        <Route element={<OnboardingLayout />}>
-          <Route
-            path={routes.onboarding.index.staticPath}
-            element={<OnboardingRouter />}
-          />
-          <Route
-            path={routes.onboarding.verifyEmail.staticPath}
-            element={<OnboardingStepPage />}
-          />
-          <Route
-            path={routes.onboarding.step.staticPath}
-            element={<OnboardingStepPage />}
-          />
-        </Route>
-
-        {/* PROTECTED */}
         <Route
-          path="/"
-          element={
-            <motion.div
-              key={location.pathname}
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={pageTransition}
-            >
-              <AppLayout />
-            </motion.div>
-          }
-        >
-          <Route
-            index
-            element={<Navigate to={routes.onboarding.index.staticPath} />}
-          />
-          <Route
-            path={routes.general.dashboard.staticPath}
-            element={<Dashboard />}
-          />
-          <Route
-            path={routes.general.dashboardAlias.staticPath}
-            element={
-              <Navigate to={routes.general.dashboard.staticPath} replace />
-            }
-          />
-          <Route
-            path={routes.general.home.staticPath}
-            element={
-              <Navigate to={routes.general.dashboard.staticPath} replace />
-            }
-          />
-          <Route
-            path={routes.general.homeAlias.staticPath}
-            element={
-              <Navigate to={routes.general.dashboard.staticPath} replace />
-            }
-          />
+          path={routes.general.dashboard.relativePath}
+          element={<Dashboard />}
+        />
+        <Route
+          path={routes.general.home.relativePath}
+          element={<Navigate to={routes.general.dashboard.relativePath} />}
+        />
 
-          {/* CLIENT-SPECIFIC PAGES */}
+        {/* CLIENT-SPECIFIC PAGES */}
 
-          {/* FIRM-SPECIFIC PAGES */}
-          <Route path="*" element={<ErrorPage type="404" />} />
-        </Route>
-        <Route path="*" element={<ErrorPage />} />
-      </Routes>
-    </AnimatePresence>
+        {/* FIRM-SPECIFIC PAGES */}
+        <Route path="*" element={<ErrorPage type="404" />} />
+      </Route>
+
+      <Route path="*" element={<ErrorPage type="404" />} />
+    </Routes>
   );
 }

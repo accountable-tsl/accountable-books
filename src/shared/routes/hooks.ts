@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
-import { matchPath, useLocation } from "react-router-dom";
-import {
-  enforceCanonicalUrl,
-  flatRoutes,
-} from "@/shared/routes/utils";
-import {
-  ExtractPathParams,
-  FlattenedRouteKey,
-  OmitCompanyId,
-} from "@/shared/routes/types";
+import { matchPath, useLocation, useNavigate } from "react-router-dom";
+import { buildCanonicalUrl, flatRoutes } from "@/shared/routes/utils";
 import { useSession } from "@/features/auth/Session";
+import { routes } from "@/shared/routes/routes";
 export function useRoutePath<T extends Record<string, any>>(
   route: { buildPath: (params?: T) => string },
   params?: T
@@ -31,11 +24,12 @@ export function useRoutePath<T extends Record<string, any>>(
  */
 export function useCanonicalUrlEnforcer(): void {
   const location = useLocation();
-  const { user } = useSession();
+  const navigate = useNavigate();
   const hasRedirectedRef = useRef(false);
+  const { user, loading } = useSession();
 
-  function enforceIfNeeded() {
-    if (!user || hasRedirectedRef.current) return;
+  useEffect(() => {
+    if (!user || loading || hasRedirectedRef.current) return;
 
     // Loop through flatRoutes to find a match, recall (dot-separated keys e.g "auth.login")
     for (const [routeKey, route] of Object.entries(flatRoutes)) {
@@ -47,25 +41,67 @@ export function useCanonicalUrlEnforcer(): void {
       if (!match) continue; // No match for this route
 
       // Extract all dynamic segments from the URL (e.g. { companyId: 'abc123', reportId: 'xyz' })
+      // -------------------------------
+      // Example: if URL is "/dashboard?tab=summary"
+      // match.params might return: {}
+      // if URL is "/companies/:companyId/reports/:reportId"
+      // match.params => { companyId: "123", reportId: "abc" }
+      // -------------------------------
       const fullParams = match.params ?? {};
 
-      // Remove companyId since the routing engine will inject it automatically from user context
-      const { companyId, ...rest } = fullParams;
+      // Don't pass companyId to builder — it's derived from user context
+      const { companyId, ...restParams } = fullParams;
 
-      enforceCanonicalUrl(
-        user,
-        routeKey as FlattenedRouteKey,
-        rest as OmitCompanyId<
-          ExtractPathParams<(typeof flatRoutes)[typeof routeKey]["staticPath"]>
-        >
-      );
+      let canonicalUrl: string | undefined;
 
-      hasRedirectedRef.current = true;
-      break;
+      try {
+        canonicalUrl = buildCanonicalUrl({
+          user,
+          routeKey, // e.g., "general.dashboard"
+          routeParams: restParams, // Params other than companyId
+        });
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to build canonical URL:", error);
+        }
+
+        // Redirect to login
+        navigate(routes.auth.login.staticPath, { replace: true });
+        return;
+      }
+
+      const canonical = new URL(canonicalUrl);
+
+      // -------- CURRENT URL --------
+      const currentHost = window.location.host; // e.g. "app.getaccountable.com"
+      const currentPath = location.pathname; // e.g. "/dashboard"
+      const currentSearch = location.search; // e.g. "?tab=summary"
+
+      // -------- CANONICAL URL (Expected) --------
+      const canonicalHost = canonical.host; // e.g. "firmslug.getaccountable.com"
+      const canonicalPath = canonical.pathname; // e.g. "/dashboard"
+
+      // -------- Determine mismatches --------
+      const domainMismatch = currentHost !== canonicalHost;
+      const pathMismatch = currentPath !== canonicalPath;
+
+      if (domainMismatch) {
+        hasRedirectedRef.current = true;
+
+        // Force full-page reload to correct domain
+        window.location.replace(canonical.href);
+        return;
+      }
+
+      if (pathMismatch) {
+        hasRedirectedRef.current = true;
+
+        // Client-side SPA navigation
+        navigate(canonical.pathname + currentSearch, { replace: true });
+        return;
+      }
+
+      return;
     }
-  }
-
-  useEffect(() => {
-    enforceIfNeeded();
-  }, [location.pathname, user]);
+  }, [location.pathname, location.search, user, loading, navigate]);
 }

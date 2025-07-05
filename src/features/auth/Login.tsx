@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
@@ -18,14 +18,15 @@ import { routes } from "@/shared/routes/routes";
 import { AuthHeader } from "@/components/AuthHeader";
 import { toast } from "sonner";
 import { loginAndRedirect } from "@/features/auth/utils";
-import { CenteredLoader } from "@/components/CenteredLoader";
 import { useSession } from "@/features/auth/Session";
 import { authStore } from "./store";
 
 export default function Login() {
-  const { isLoggedIn, hasAppAccess, companyId } = useSession();
+  const { isLoggedIn, hasAppAccess, companyId, tenantRoutes, loading } =
+    useSession();
   const { setAuth } = authStore((s) => s);
   const [params] = useSearchParams();
+  const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +60,7 @@ export default function Login() {
     }
   };
 
-  const alreadyLoggedIn = isLoggedIn && companyId;
+  const alreadyLoggedIn = isLoggedIn && companyId && tenantRoutes;
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -75,12 +76,13 @@ export default function Login() {
                 <Link
                   to={
                     hasAppAccess
-                      ? routes.general.dashboard.build({ companyId })
+                      ? tenantRoutes.general.dashboard()
                       : routes.onboarding.index.staticPath
                   }
+                  replace
                   className="underline font-medium"
                 >
-                  Go to dashboard
+                  {hasAppAccess ? "Go to dashboard" : "Continue onboarding"}
                 </Link>
               </div>
             )}

@@ -1,8 +1,20 @@
 import { route } from "@/shared/routes/utils";
 
 export const onboardingRoutes = {
-  index: route("/onboarding", { public: true, label: "Onboarding" }),
-  verifyEmail: route("/verify-email", { public: true, label: "Verify Email" }),
-  step: route("/onboarding/:step"),
-  welcome: route("/onboarding/welcome"),
+  index: route("/onboarding", {
+    label: "Onboarding",
+    public: false,
+    requiresCompanyId: false,
+  }),
+
+  verifyEmail: route("/verify-email", {
+    label: "Verify Email",
+    public: true,
+    requiresCompanyId: false,
+  }),
+
+  step: route("/onboarding/:step", {
+    public: false,
+    requiresCompanyId: false,
+  }),
 };

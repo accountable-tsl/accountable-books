@@ -10,6 +10,7 @@ export type RouteMeta = {
   firmsOnly?: boolean;
   public?: boolean;
   hideInBreadcrumb?: boolean;
+  requiresCompanyId?: boolean;
 };
 
 export type ExtractPathParams<Path extends string> =

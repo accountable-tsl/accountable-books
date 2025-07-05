@@ -37,6 +37,7 @@ import { SkeletonBlock } from "../SkeletonBlock";
 import { CompanyData, CompanyType } from "@/domains/company/types";
 import { AuthUserContext } from "@/features/auth/types";
 import { useSession } from "@/features/auth/Session";
+import { routes } from "@/shared/routes/routes";
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   sidebarCollapsible?: "icon" | "offcanvas";
@@ -57,7 +58,6 @@ export const AppSidebar = ({
 }: AppSidebarProps) => {
   // Side bar options, depending on page, I'd use collapsible or icon
   // e.g on categorization engine, we'd use collapsible but on dashboard, we'd use icon
-  const { tenantRoutes: router } = useSession();
 
   const companyId = _companyId || company?.id;
   const companyType = _companyType || company?.companyType;
@@ -75,7 +75,9 @@ export const AppSidebar = ({
       })
     : { name: "", email: "", avatar: "" };
 
-  const dashboardPath = router.general.dashboard.staticPath;
+  const dashboardPath = routes.general.dashboard.build({
+    companyId: companyId || "",
+  });
 
   if (!companyId || !companyType || !company)
     return <SkeletonBlock className="max-w-5xl" />;

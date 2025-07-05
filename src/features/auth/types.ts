@@ -93,7 +93,7 @@ export type SessionContextType = {
   company?: CompanyData;
   companyType?: CompanyType;
 
-  tenantRoutes?: TenantRoutes;
+  tenantRoutes: TenantRoutes | null;
 
   refetchSession: () => void;
   refetchCompany: () => void;

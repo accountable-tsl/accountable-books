@@ -37,7 +37,7 @@ import { authStore } from "../auth/store";
 //TODO: Refactor whole signup flow later
 export default function Signup() {
   const [searchParams] = useSearchParams();
-  const {setAuth} = authStore((s) => s);
+  const { setAuth } = authStore((s) => s);
   const navigate = useNavigate();
   const prefillEmail = searchParams.get("email") || "";
 
@@ -160,12 +160,7 @@ export default function Signup() {
         });
 
         if (signup.success) {
-          setSubmitStatus("success");
           toast.success("Signup successful");
-          setError("");
-
-          // Wait for 2 seconds so user sees toast/UI
-          // await new Promise((resolve) => setTimeout(resolve, 2000));
 
           const loginResult = await performLoginFlow({
             email: basicInfo.email,
@@ -173,19 +168,19 @@ export default function Signup() {
             setAuth,
           });
 
+          // Wait for 2 seconds
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          setSubmitStatus("success");
+          setError("");
+
           const {
             success: loginSuccess,
             canAccessApp,
             data: loginResultData,
           } = loginResult;
 
-          const dashboardUrl = buildCanonicalUrl({
-            user: loginResultData.user,
-            routeKey: "general.dashboard",
-            routeParams: {},
-          });
-
-          if (!loginResult.success) {
+          if (!loginSuccess || !loginResultData) {
             toast.info("Signup succeeded! Please login to continue.", {
               duration: 6000,
             });
@@ -193,7 +188,12 @@ export default function Signup() {
           }
 
           if (loginSuccess && canAccessApp) {
-            window.location.replace(dashboardUrl);
+            navigate(
+              routes.general.dashboard.build({
+                companyId: loginResultData?.user.currentCompanyId,
+              }),
+              { replace: true }
+            );
           } else {
             navigate(routes.onboarding.index.staticPath, { replace: true });
           }

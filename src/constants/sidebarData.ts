@@ -12,16 +12,16 @@ import {
   SearchIcon,
   SettingsIcon,
 } from "lucide-react";
+import { routes } from "@/shared/routes/routes";
 
 export const getNavMain = (
   companyId: string,
   companyType: CompanyType
 ): NavMainItems[] => {
-  const routes = useSafeSession();
   return [
     {
       title: "Dashboard",
-      url: routes.general.dashboard({}),
+      url: routes.general.dashboard.build({ companyId }),
       icon: LayoutDashboardIcon,
     },
     ...(companyType === "accounting_firm"

@@ -11,47 +11,25 @@ import {
   usePageMeta,
   useUpdatePageInfo,
 } from "@/shared/stores/page";
-import { Navigate, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 
 interface AppLayoutProps extends AppSidebarProps {}
 export default function AppLayout({
   sidebarCollapsible = "icon",
 }: AppLayoutProps) {
-  const { user, isLoggedIn, company, companyId, companyType, loading } =
-    useSession();
+  const { user, company, companyId, companyType } = useSession();
 
   const { sidebarCollapsed } = pageStore();
+
   useCanonicalUrlEnforcer();
   useUpdatePageInfo();
   usePageMeta();
 
-  // If we are loading the session or company details, show a loader
-  if (loading) {
-    return <CenteredLoader fullscreen />;
-  }
-
-  // We've loaded the session and confirm the user is not logged in, redirect to login
-  if (!isLoggedIn) {
-    return <Navigate to={routes.auth.login.staticPath} replace />;
-  }
-
-  const canAccessApp = user?.currentCompany.onboarding.canAccessApp;
-  if (!canAccessApp) {
-    return <Navigate to={routes.onboarding.index.staticPath} replace />;
-  }
-
-  if (
-    !company ||
-    !user ||
-    !companyId ||
-    !companyType
-    //  || !slug
-    // companyDetailsError ||
-    // authCompanyType !== companyType
-  ) {
+  if (!user || !company || !companyId || !companyType) {
     return <ErrorPage type="default" />;
   }
 
+  console.log(routes.general.dashboard.staticPath);
   return (
     <SidebarProvider defaultOpen={!sidebarCollapsed}>
       <AppSidebar

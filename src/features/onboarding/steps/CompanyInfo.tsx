@@ -286,7 +286,6 @@ export const CompanyInfo = () => {
       console.log("Submitting dirty fields:", dirty);
 
       const { success, message } = await updateCompanyDetails(companyId, dirty);
-      console.log(success, message);
       if (!success) {
         toast.error(message || "Failed to save company details");
         return;
