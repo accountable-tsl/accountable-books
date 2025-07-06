@@ -8,7 +8,7 @@ import {
 const router = express.Router({ mergeParams: true });
 
 // /api/accounting-firms/check-slug?slug=example-slug
-router.get("/check-slug", checkSlugController);
+router.get("/", checkSlugController);
 
 // /api/accounting-firms/:companyId/slug
 router.get("/:companyId/slug", getCompanySlugController);

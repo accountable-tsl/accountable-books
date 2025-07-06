@@ -76,7 +76,6 @@ export async function loginService(
 
     // Fetch extra user + company info for frontend (enriched context)
     const contextRes = await buildAuthContext(userData);
-    console.log("Login service hit", userData.onboardingState);
 
     if (!contextRes.success || !contextRes.data) {
       return errorResponse(
@@ -104,7 +103,7 @@ export async function loginService(
       activeCompany,
     });
   } catch (error) {
-    return errorResponse("An unexpected error occurred");
+    return errorResponse("An unexpected error occurred", error);
   }
 }
 
@@ -398,7 +397,6 @@ export async function meService(
     };
 
     const contextResponse = await buildAuthContext(userData);
-    console.log("Me service", userData.onboardingState);
 
     if (!contextResponse.success || !contextResponse.data) {
       return errorResponse(

@@ -38,6 +38,20 @@ export interface DecodedToken {
   currentCompanyId?: string;
 }
 
+export type BaseUserAuthContext = {
+  id: string;
+  email?: string;
+  firstname?: string;
+  lastname?: string;
+
+  isPlatformUser?: boolean;
+  platformUserKey?: RoleKey;
+
+  currentCompanyId?: string;
+  currentCompany?: AuthCompanyContextWithOnboarding;
+  companies?: AuthCompanyContext[];
+};
+
 export type AuthUserContext = {
   id: string;
   email: string;
@@ -56,6 +70,10 @@ export type AuthCompanyContext = AccessibleCompanies;
 export type AuthCompanyContextWithOnboarding = AuthCompanyContext & {
   onboarding: OnboardingStateResult;
 };
+
+export interface BaseAuthRequest extends Request {
+  user?: BaseUserAuthContext;
+}
 
 export interface AuthRequest extends Request {
   user?: AuthUserContext;

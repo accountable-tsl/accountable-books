@@ -37,7 +37,10 @@ import { updateFirm } from "../accountingFirms/firms.model";
 import { AuthUserContext } from "../../features/auth/auth.types";
 import { hasAccessToCompany } from "../userRoles/userRoles.model";
 import { redis } from "../../lib/redis";
-import { createInitialCompanyOnboardingState } from "../../features/onboarding/onboarding.utils";
+import {
+  createInitialCompanyOnboardingState,
+  markCompanyOnboardingStepComplete,
+} from "../../features/onboarding/onboarding.utils";
 
 /**
  * Creates a new company in the database.
@@ -155,7 +158,7 @@ export const createCompany = async (
         industry:
           validateInput.data.industry ||
           validateInput.data.type === "accounting_firm"
-            ? "Professional Services - Accounting Firm"
+            ? "professional_services"
             : null,
         onboarding_state: onboardingState,
       })
@@ -475,71 +478,50 @@ export const updateCompany = async (
   identifier: string,
   payload: UpdateCompanySchema,
   userId: string,
-  knex?: Knex.Transaction
+  trx?: Knex.Transaction
 ): Promise<ApiResponse<GetCompanyResponse>> => {
-  const db = knex || knexClient;
-
   try {
-    const companyId = await getCompanyUUID(identifier, knex);
-    if (!companyId) {
-      return errorResponse(
-        `Invalid company identifier: ${identifier}`,
-        undefined,
-        { code: ErrorCode.INVALID_CREDENTIALS }
-      );
+    const validInput = updateCompanySchema.safeParse(payload);
+    if (!validInput.success) {
+      return errorResponse(`Invalid input: ${validInput.error.message}`);
     }
 
-    const result = await db.transaction(async (trx) => {
-      // Implement later if needed
-      // Check user's role on this company
-      // const roleRecord = await trx("user_company_roles")
-      //   .where({ user_id: userId, company_id: companyId })
-      //   .where("user_company_roles.is_deleted", false)
-      //   .where("roles.is_deleted", false)
-      //   .join("roles", "user_company_roles.role_id", "roles.id")
-      //   .select("user_company_roles.role_id", "roles.name")
-      //   .first();
+    const dbUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (value === undefined) continue;
+      const column = fieldToColumnMap[key as keyof GetCompanyResponse];
+      if (column)
+        dbUpdates[column] =
+          value === null || (typeof value === "string" && value.trim() === "")
+            ? null
+            : value;
+    }
 
-      // if (!roleRecord) {
-      //   return errorResponse(
-      //     "You are not authorized to update this company",
-      //     undefined,
-      //     ErrorCode.UNAUTHORIZED
-      //   );
-      // }
-
-      // const allowedRoles: RoleName[] = ["super_admin", "admin", "client"];
-      // if (!allowedRoles.includes(roleRecord.name))
-      //   return errorResponse(
-      //     "You are not authorized to update company details",
-      //     undefined,
-      //     ErrorCode.FORBIDDEN
-      //   );
-
-      const validInput = updateCompanySchema.safeParse(payload);
-      if (!validInput.success) {
-        return errorResponse(`Invalid input: ${validInput.error.message}`);
+    const fn = async (knex: Knex.Transaction) => {
+      const companyId = await getCompanyUUID(identifier, knex);
+      if (!companyId) {
+        return errorResponse(
+          `Invalid company identifier: ${identifier}`,
+          undefined,
+          { code: ErrorCode.NOT_FOUND }
+        );
       }
 
-      const dbUpdates: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(payload)) {
-        if (value === undefined) continue;
-        const column = fieldToColumnMap[key as keyof GetCompanyResponse];
-        if (column)
-          dbUpdates[column] =
-            value === null || (typeof value === "string" && value.trim() === "")
-              ? null
-              : value;
-      }
+      const baseRequiredFields = [
+        "legal_name",
+        "display_name",
+        "short_code",
+        "type",
+        "year_end_day",
+        "year_end_month",
+        "country_id",
+        "reporting_currency_id",
+      ] as const;
 
-      if (Object.keys(dbUpdates).length === 0) {
-        return errorResponse("Nothing to update – no valid fields supplied");
-      }
-
-      const [updatedRow] = await trx("companies")
-        .where("id", companyId)
+      const [updatedRow] = await knex("companies")
         .update({ ...dbUpdates, last_updated_by_id: userId })
-        .returning("*");
+        .where("id", companyId)
+        .returning([...baseRequiredFields, "onboarding_state", "id"]);
 
       if (!updatedRow) {
         return errorResponse("Error updating company details");
@@ -549,28 +531,63 @@ export const updateCompany = async (
         updatedRow.type === "accounting_firm" &&
         (validInput.data.slug || validInput.data.firmType)
       ) {
-        await updateFirm(trx, updatedRow.id, {
+        await updateFirm(knex, companyId, {
           slug: validInput.data.slug,
           firm_type: validInput.data.firmType,
         });
       }
 
-      const refreshed = await getSingleCompany(companyId);
-      const refreshedData = Array.isArray(refreshed.data)
-        ? refreshed.data[0]
-        : refreshed.data;
+      // Query beyond this point should not break the transaction
 
-      if (!refreshedData) {
-        return errorResponse("Company not found after update", refreshed, {
-          report: true,
-        });
+      try {
+        const bankAccounts = await knex("bank_accounts")
+          .where("company_id", companyId)
+          .first();
+
+        // check if all the required field are filled from the db response
+        const missingBaseFields = baseRequiredFields.filter(
+          (field) => updatedRow[field as keyof typeof updatedRow] == null
+        );
+
+        let finalOnboardingObject;
+
+        if (missingBaseFields.length === 0) {
+          const currentOnbStatus = updatedRow.onboarding_state;
+          finalOnboardingObject = markCompanyOnboardingStepComplete(
+            currentOnbStatus,
+            "company_details_confirmed"
+          );
+        }
+
+        if (bankAccounts?.id) {
+          finalOnboardingObject = markCompanyOnboardingStepComplete(
+            finalOnboardingObject,
+            "first_bank_account_added"
+          );
+        }
+
+        if (finalOnboardingObject) {
+          await knex("companies")
+            .where("id", companyId)
+            .update({ onboarding_state: finalOnboardingObject });
+        }
+      } catch (error) {
+        errorResponse("Error updating onboarding state:", error);
       }
 
-      return successResponse(
-        "Successfully updated company details",
-        refreshedData
-      );
-    });
+      if (Object.keys(dbUpdates).length === 0) {
+        return successResponse(
+          "Nothing to update – no valid fields supplied",
+          null
+        );
+      }
+
+      return successResponse("Successfully updated company details", null);
+    };
+
+    const result = trx
+      ? await fn(trx)
+      : knexClient.transaction((newTrx) => fn(newTrx));
 
     return result;
   } catch (error) {

@@ -18,7 +18,7 @@ export const switchCompanyController = async (
   res: Response
 ) => {
   try {
-    const companyId = req.body.companyId;
+    const companyId = req.params.companyId || req.body.companyId;
     if (!req.user || !companyId) throw new AppError("Unauthorized");
 
     const switchResult = await switchCompany({
@@ -80,8 +80,8 @@ export const updateCompanyController = async (
   req: AuthRequest,
   res: Response
 ) => {
-  const companyId = req.body.companyId || req.company?.id;
-  const userId = req.body.userId || req.user?.id;
+  const companyId = req.params.companyId;
+  const userId = req.user?.id;
   const data = req.body;
   const {
     companyId: companyIdFromData,
@@ -93,13 +93,8 @@ export const updateCompanyController = async (
     return res.status(400).json(errorResponse("Bad Request"));
   }
 
-  if (!updateData || Object.keys(updateData).length === 0) {
-    return res.status(400).json(errorResponse("No data to update"));
-  }
-
   try {
     const result = await updateCompany(companyId, updateData, userId);
-
     if (!result.success) {
       const { error, ...rest } = result;
       return res.status(404).json(rest);

@@ -22,7 +22,8 @@ import { coaSource } from "../chartOfAccounts/coa.types";
 import { hasAccessToCompany } from "../userRoles/userRoles.model";
 import type { Knex } from "knex";
 
-const bankRespFields = [
+const bankResponseFields = [
+  // Bank Account Core Fields
   "ba.id as id",
   "ba.display_name as displayName",
   "ba.account_type as accountType",
@@ -32,27 +33,41 @@ const bankRespFields = [
   "ba.bank_id as bankId",
   "ba.company_id as companyId",
 
+  // Bank Details
   "b.display_name as bankName",
   "b.logo_url as bankLogo",
 
+  // Bank Account Currency
   "cur.name as currencyName",
   "cur.symbol as currencySymbol",
   "cur.code as currencyCode",
 
+  // Reporting Currency
   "rc.id as reportingCurrencyId",
   "rc.name as reportingCurrencyName",
   "rc.symbol as reportingCurrencySymbol",
   "rc.code as reportingCurrencyCode",
 
-  "c.reporting_currency_id",
-
+  // Chart of accounts
   "coa.name as coaName",
   "coa.code as coaCode",
+
+  // Account Type
   "at.label as coaTypeLabel",
   "at.key as coaTypeKey",
+
+  // Bank Connection Details (If any)
+  "bc.id as bankConnectionId",
+  "bc.status as bankConnectionStatus",
+  "bc.provider_bank_account_id as providerBankAccountId",
+  "p.provider_key as providerKey",
+  "p.name as providerName",
+  "p.logo_url as providerLogo",
+
 ];
-export const getCompanyBankAccountsWithMetadata = async (
-  companyId: string
+export const getBankAccountsWithDetails = async (
+  companyId: string,
+  trx?: Knex.Transaction
 ): Promise<ApiResponse<BankAccountWithMeta[]>> => {
   if (!companyId) return errorResponse("Company ID is required");
   try {
@@ -61,22 +76,25 @@ export const getCompanyBankAccountsWithMetadata = async (
       return errorResponse("Invalid company ID");
     }
 
-    const result = await knexClient("bank_accounts as ba")
-      .select(bankRespFields)
-      .where("ba.company_id", companyUUID)
-      .andWhere("ba.is_deleted", false)
-      .join("banks as b", "ba.bank_id", "b.id")
-      .join("currencies as cur", "ba.currency_id", "cur.id")
-      .join("companies as c", "ba.company_id", "c.id")
-      .join("currencies as rc", "c.reporting_currency_id", "rc.id")
-      .join("coa", "ba.coa_id", "coa.id")
-      .leftJoin("account_types as at", "coa.account_type_id", "at.id");
+    const query = async (knex: Knex | Knex.Transaction) =>
+      knex("bank_accounts as ba")
+        .select(bankResponseFields)
+        .where("ba.company_id", companyUUID)
+        .andWhere("ba.is_deleted", false)
+        .join("banks as b", "ba.bank_id", "b.id")
+        .join("currencies as cur", "ba.currency_id", "cur.id")
+        .join("companies as c", "ba.company_id", "c.id")
+        .join("currencies as rc", "c.reporting_currency_id", "rc.id")
+        .join("coa", "ba.coa_id", "coa.id")
+        .leftJoin("account_types as at", "coa.account_type_id", "at.id")
+        .leftJoin("bank_connections as bc", "ba.id", "bc.bank_account_id")
+        .leftJoin("providers as p", "bc.provider_id", "p.id");
 
-    if (!result || result.length === 0) {
-      return successResponse("No bank accounts found", []);
-    } else {
-      return successResponse("Bank accounts fetched successfully", result);
-    }
+    const result = trx ? await query(trx) : await knexClient.transaction(query);
+
+    return result?.length > 0
+      ? successResponse("Bank accounts fetched successfully", result)
+      : successResponse("No bank accounts found", []);
   } catch (error) {
     return errorResponse("Failed to fetch bank accounts", error);
   }
@@ -114,8 +132,10 @@ export async function getBankAccountsSnapshot(
     // TODO: Fetch balances from bank_transactions and ledger_entries
     // TODO: Fetch categorization stats per bank account
     // TODO: Combine and summarize into the final response
+    // TODO; Include last synced at or last transaction field or something
+    // TODO: GROUP BY BANK, ORDER BY BALANCE, BY REPORTING CURRENCY
 
-    const bankAccountRows = await getCompanyBankAccountsWithMetadata(companyId);
+    const bankAccountRows = await getBankAccountsWithDetails(companyId);
     if (!bankAccountRows.success) {
       return errorResponse("Failed to fetch bank accounts", bankAccountRows);
     }

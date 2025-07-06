@@ -84,6 +84,7 @@ async function startServer() {
     app.use("/api/currencies", currencyRoutes);
     app.use("/api/countries", countryRoutes);
     app.use("/api/email", emailRoutes);
+    app.use("/api/accounting-firms/check-slug", firmRoutes);
 
     app.use("/api", verifyRefreshToken);
 

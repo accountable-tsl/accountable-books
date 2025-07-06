@@ -3,7 +3,7 @@ import { AuthRequest } from "../../features/auth/auth.types";
 import { errorResponse } from "../../shared/utils/response.utils";
 import {
   createNewBankAccount,
-  getCompanyBankAccountsWithMetadata,
+  getBankAccountsWithDetails,
 } from "./bankAccounts.model";
 
 export async function createBankAccountController(
@@ -38,7 +38,7 @@ export async function getBankAccountsForCompany(
 ) {
   try {
     const companyId = req.company?.id || req.params.companyId;
-    const response = await getCompanyBankAccountsWithMetadata(companyId);
+    const response = await getBankAccountsWithDetails(companyId);
     return response.success
       ? res.status(200).json(response)
       : res.status(400).json(response);

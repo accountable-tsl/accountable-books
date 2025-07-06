@@ -23,6 +23,7 @@ export async function loginController(req: AuthRequest, res: Response) {
     const { email, password } = req.body;
 
     const serviceRes = await loginService(email, password);
+    console.log("serviceRes", serviceRes);
 
     if (!serviceRes.success || !serviceRes.data) {
       const status =

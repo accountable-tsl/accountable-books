@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { buildAuthContext, csrfProtection, JWT_CONFIG } from "./auth.utils";
 import jwt from "jsonwebtoken";
-import { AuthRequest, DecodedToken } from "./auth.types";
+import { AuthRequest, BaseAuthRequest, DecodedToken } from "./auth.types";
 import { errorResponse } from "../../shared/utils/response.utils";
 import { getPermissionsForRole } from "../../domains/permission/permission.model";
 import { redis } from "../../lib/redis";
@@ -9,7 +9,7 @@ import { generateRandomToken } from "../../shared/utils/crypto.utils";
 import { publicPaths } from "./auth.constants";
 
 export const verifyAccessToken = async (
-  req: Request & { user: any },
+  req: BaseAuthRequest,
   res: Response,
   next: NextFunction
 ) => {
@@ -34,20 +34,10 @@ export const verifyAccessToken = async (
           errorResponse("Invalid token payload", "User ID not found in token")
         );
 
-    // const result = await buildAuthContext(decoded);
-    // if (!result.success || !result.data) {
-    //   return res.status(403).json(result.error);
-    // }
-    // console.log("Verify access token hit", decoded.onboardingState);
-
     req.user = {
       ...req.user,
       id: decoded.sub,
-      email: decoded.email,
-    }; // req.user = result.data.user;
-    // req.company = result.data.activeCompany;
-
-    // Attach user ID and company roles to the request object
+    };
 
     // proceed
     next();
@@ -67,7 +57,7 @@ function handleJwtError(err: unknown, res: Response) {
 }
 
 export const verifyRefreshToken = async (
-  req: Request & { user: any },
+  req: BaseAuthRequest,
   res: Response,
   next: NextFunction
 ) => {
@@ -85,7 +75,6 @@ export const verifyRefreshToken = async (
     req.user = {
       ...req.user,
       id: decoded.sub,
-      email: decoded.email,
     };
 
     next();
@@ -111,7 +100,6 @@ export const conditionalCsrf = (
     if (err && isPublic) return next();
 
     if (err) {
-      console.log(err);
       console.warn("Blocked by CSRF middleware:", err.message);
       return res
         .status(403)
@@ -123,7 +111,7 @@ export const conditionalCsrf = (
 };
 
 export const requireAuth = async (
-  req: Request & { user: any },
+  req: BaseAuthRequest,
   res: Response,
   next: NextFunction
 ) => {

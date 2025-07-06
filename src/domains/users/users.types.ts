@@ -10,7 +10,7 @@ import {
 export const newUser = z.object({
   id: z.string().uuid().optional(),
   firstname: z.string().min(1).max(256),
-  lastname: z.string().min(1).max(256).nullish(),
+  lastname: z.string().trim().max(256).nullish(),
 
   email: zEmail(),
   password: z.string().min(8).nullable(),

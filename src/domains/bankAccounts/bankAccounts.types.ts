@@ -2,6 +2,7 @@ import { z } from "zod";
 import { dbBaseFields } from "../../core/types/core";
 import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
 import { coaSource } from "../chartOfAccounts/coa.types";
+import { bankAccountConnectionStatus } from "../bankAccountConnections/baccons.types";
 
 export const bankAccountType = z.enum([
   "other",
@@ -73,9 +74,16 @@ export const bankAccountWithMeta = z.object({
 
   coaId: z.string().uuid(),
   coaName: z.string(),
-  coaCode: z.string().optional(),
-  coaTypeKey: z.string().optional(),
-  coaTypeLabel: z.string().optional(),
+  coaCode: z.string().nullish(),
+  coaTypeKey: z.string().nullish(),
+  coaTypeLabel: z.string().nullish(),
+
+  bankConnectionId: z.string().nullish(),
+  bankConnectionStatus: bankAccountConnectionStatus.nullish(),
+  providerBankAccountId: z.string().nullish(),
+  providerKey: z.string().nullish(),
+  providerName: z.string().nullish(),
+  providerLogo: z.string().nullish(),
 });
 export type BankAccountWithMeta = z.infer<typeof bankAccountWithMeta>;
 

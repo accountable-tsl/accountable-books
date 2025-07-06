@@ -7,10 +7,7 @@ import {
 } from "../../shared/utils/response.utils";
 import axios from "axios";
 import { ENV } from "../../config/env";
-import {
-  bankRespFields,
-  createNewBankAccount,
-} from "../bankAccounts/bankAccounts.model";
+import { createNewBankAccount } from "../bankAccounts/bankAccounts.model";
 import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
 import {
@@ -29,7 +26,39 @@ import {
 } from "./baccons.types";
 import { computeMatchScoreAndReasons } from "./baccons.utils";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
+import { markCompanyOnboardingStepComplete } from "../../features/onboarding/onboarding.utils";
+import { getBankConnectionNeeds } from "./shared/prerequisites";
 
+type Args = {
+  code: string;
+  providerKey: string;
+  userId: string;
+  companyId: string;
+};
+
+export const handleBankConnection = async (args: Args) => {
+  const { code, providerKey, userId, companyId: providedCompanyId } = args;
+
+  const res = knexClient.transaction(async (trx) => {
+    const preRequisites = await getBankConnectionNeeds({
+      companyId: providedCompanyId,
+      trx,
+    });
+
+    const {
+      companyId,
+      updateOnboardingState,
+      hasUnmatchedAccounts,
+      unmatchedAccounts,
+    } = preRequisites;
+  });
+};
+// export const handleMonoConnection = async (args: HandlerArgs) => {
+//   const { code } = args;
+//   const secretKey = ENV.MONO_SECRET_KEY;
+
+//   const pre
+// };
 export const handleMonoConnection = async ({
   code,
   providerKey = "mono",
@@ -43,8 +72,6 @@ export const handleMonoConnection = async ({
   companyId: string;
   trx?: Knex.Transaction;
 }): Promise<ApiResponse<{ connections: ConnectionResponse[] }>> => {
-  const secretKey = ENV.MONO_SECRET_KEY;
-
   if (!secretKey) {
     if (providedTrx) await providedTrx.rollback();
     return errorResponse("Mono secret key is required", null, {
@@ -57,6 +84,14 @@ export const handleMonoConnection = async ({
     if (providedTrx) await providedTrx.rollback();
     return errorResponse("Unauthorized");
   }
+
+  const company = await knexClient("companies")
+    .where({ id: companyId })
+    .select("id", "onboarding_state")
+    .first();
+  const currentOnboardingStatus = company?.onboarding_state;
+  const onboardingStatusNeedsUpdate =
+    currentOnboardingStatus?.steps.first_bank_account_added !== true;
   // Remember to run relevant parts in a transaction whether passed in or not and make sure to not nest transactions
   let trx;
 
@@ -126,7 +161,6 @@ export const handleMonoConnection = async ({
       status: ["active", "pending"], // check pending status to avoid re-attempts during processing
       trx,
     });
-    console.log(alreadyConnected);
     if (alreadyConnected.connected && alreadyConnected.status === "active") {
       if (!providedTrx && trx) await trx.rollback();
       return successResponse("Bank account already connected via Mono.", {
@@ -162,6 +196,17 @@ export const handleMonoConnection = async ({
         newConnectionRes
       );
     }
+
+    if (onboardingStatusNeedsUpdate) {
+      const newOnbState = markCompanyOnboardingStepComplete(
+        currentOnboardingStatus,
+        "first_bank_account_added"
+      );
+      await trx("companies").where({ id: companyId }).update({
+        onboarding_state: newOnbState,
+      });
+    }
+    // const updateOnbStatus =
     const connectionId = newConnectionRes.data.id;
     /**
      * Steps 5-6: Smart Matching
@@ -176,6 +221,7 @@ export const handleMonoConnection = async ({
       trx,
     });
 
+    console.log({ matchResult });
     let finalBankAccountId: string | null = null;
     let connStatus: ConnectionStatus = "connected";
     let userActionRequired = false;
@@ -269,7 +315,6 @@ export const handleMonoConnection = async ({
      * Build suggestions for frontend display
      * Create response with all necessary data
      */
-    console.log("FinalBankAccountID", finalBankAccountId);
 
     const finalAccountDetails = await trx("bank_accounts as ba")
       .select([
@@ -282,7 +327,6 @@ export const handleMonoConnection = async ({
       .join("banks as b", "ba.bank_id", "b.id")
       .first();
 
-    console.log("finalAccDetails", finalAccountDetails);
     const connectionResponse: ConnectionResponse = {
       connectionDetails: {
         connectionId,
@@ -572,12 +616,12 @@ const findBankAccountMatches = async ({
       .whereNull("bacc.id") // Not connected to any provider
       .andWhere("ba.is_deleted", false);
 
-    if (unconnectedBankAccounts.length === 0) {
-      return {
-        fuzzyMatches: [],
-        unconnectedAccounts: [],
-      };
-    }
+    // if (unconnectedBankAccounts?.length === 0) {
+    //   return {
+    //     fuzzyMatches: [],
+    //     unconnectedAccounts: [],
+    //   };
+    // }
 
     const {
       currency: accountCurrencyCode,
@@ -614,6 +658,7 @@ const findBankAccountMatches = async ({
     const resolvedBank: { bank_id: string } | undefined = await bankQuery
       .select("bank_provider_mappings.bank_id")
       .first();
+    console.log({ resolvedBank });
     if (!resolvedBank) {
       return {
         fuzzyMatches: [],
@@ -628,7 +673,7 @@ const findBankAccountMatches = async ({
         .select("id", "code")
         .where("code", accountCurrencyCode.trim().toUpperCase())
         .first();
-
+    console.log({ resolvedCurrency });
     if (!resolvedCurrency) {
       return {
         fuzzyMatches: [],

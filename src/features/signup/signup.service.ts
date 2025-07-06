@@ -73,6 +73,7 @@ export const registerNewAccount = async (
     return errorResponse("Invalid input or missing company type");
   }
 
+  console.log(input.user);
   // Convert to snake case and validate
   const snakeInput = camelToSnake(input);
 
