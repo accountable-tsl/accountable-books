@@ -1,6 +1,9 @@
-import { companyType, zEmail } from "@/types/types";
+import { isValidSlug, validateSlug } from "@/domains/firms/utils";
+import { companyType, zEmail } from "@/shared/types/core";
 import { sanitizeInput, sanitizeOptionalInput } from "@/utils/utils";
 import { z } from "zod";
+
+const slugRegex = /^(?=[a-z-]{3,15}$)[a-z]+(-[a-z]+)*$/;
 
 export const passwordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -79,9 +82,10 @@ export const newCompany = z
     reportingFramework: z.string().max(256).nullish(),
     registrationNumber: z.string().max(256).nullish(),
     taxId: z.string().max(256).nullish(),
+    slug: z.string().min(3).max(15).nullish(),
   })
   .superRefine((data, ctx) => {
-    const { yearEndMonth, yearEndDay } = data;
+    const { yearEndMonth, yearEndDay, slug } = data;
     const thirtyDayMonths = [4, 6, 9, 11]; // Apr, Jun, Sep, Nov
 
     if (yearEndMonth === 2 && yearEndDay > 28) {
@@ -91,12 +95,24 @@ export const newCompany = z
         path: ["yearEndDay"],
       });
     }
+
     if (thirtyDayMonths.includes(yearEndMonth) && yearEndDay > 30) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "This month has only 30 days",
         path: ["yearEndDay"],
       });
+    }
+
+    if (slug != null) {
+      const result = validateSlug(slug, false);
+      if (!result.isValid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: result.error || "Invalid slug",
+          path: ["slug"],
+        });
+      }
     }
   });
 export type NewCompany = z.infer<typeof newCompany>;

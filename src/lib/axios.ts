@@ -1,96 +1,128 @@
 import { isPublicRoute } from "@/shared/routes/utils";
-import { routes } from "@/shared/routes/routes";
-import { getCookie } from "@/utils/utils";
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
+import { authStore } from "@/features/auth/store";
+import { refreshToken } from "@/features/auth/api";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,
   withCredentials: true,
 });
 
-// Auto-attach CSRF token for mutating requests
+// Auto-attach CSRF token to requests
 api.interceptors.request.use((config) => {
-  const csrfToken = getCookie("csrfToken");
-  if (
-    csrfToken &&
-    config.method &&
-    ["post", "put", "patch", "delete"].includes(config.method.toLowerCase())
-  ) {
+  const csrfToken = authStore.getState().csrfToken;
+
+  if (csrfToken) {
     config.headers["X-CSRF-Token"] = csrfToken;
   }
 
   return config;
 });
 
+/**
+ * When the access token expires (which is normal because it is short-lived for security),
+ * API calls will start returning a 401 Unauthorized error.
+ *
+ * Without handling this, the user will see failed actions or error messages,
+ * and the app may appear stuck, even though their session could still be recoverable
+ * using the refresh token.
+ *
+ * In a bit, they are redirected to login page, which is a frustating UX
+ *
+ * Instead of redirecting to login page,
+ * We can catch all these 401 errors
+ * and create a queue for these failed requests
+ *
+ * First, Attempt to refresh the access token silently using the refresh token (stored in a secure cookie).
+ * Then, we retry all the API calls that failed during this time
+ * If the refresh fails, we clear the queue and redirect to login (coz session is truly expired)
+ */
+
 // Response interceptor for silent refresh
+
 let isRefreshing = false;
-let failedQueue: {
+let failedQueue: Array<{
   resolve: (value?: any) => void;
   reject: (error: any) => void;
   config: AxiosRequestConfig;
-}[] = [];
+}> = [];
 
-const processQueue = (error: any) => {
-  failedQueue.forEach(({ reject, resolve, config }) => {
-    if (error) reject(error);
-    else resolve(api(config));
+/**
+ * Process queued requests: either retry them after refresh succeeds,
+ * or reject them if refresh fails.
+ */
+const processQueue = (error: any, tokenRefreshed: boolean) => {
+  failedQueue.forEach(({ resolve, reject, config }) => {
+    if (tokenRefreshed) {
+      // Retry the original request
+      resolve(api(config));
+    } else {
+      reject(error);
+    }
   });
   failedQueue = [];
 };
 
-interface RequestWithRetry extends AxiosRequestConfig {
-  _retry?: boolean;
-}
-
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    const original = error.config as RequestWithRetry;
 
+  async (error: AxiosError) => {
+    const originalRequest = error.config;
+
+    // If it's not a 401 error or we don't have the original request, just reject
     if (
-      error.response?.status === 401 &&
-      !original._retry &&
-      !original.url?.includes("/auth")
+      error.response?.status !== 401 ||
+      !originalRequest ||
+      originalRequest.url?.includes("/auth")
     ) {
-      original._retry = true;
-      if (isRefreshing) {
-        // queue this request
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject, config: original });
-        });
-      }
+      return Promise.reject(error);
+    }
 
-      isRefreshing = true;
-      // kick off one refresh call
+    // Prevent infinite loop by not retrying refresh or login endpoints
+    if (
+      originalRequest.url &&
+      isPublicRoute(originalRequest.url)
+      // || originalRequest.url?.includes("/auth")
+    ) {
+      return Promise.reject(error);
+    }
+
+    if (isRefreshing) {
+      // If refresh is already happening, queue the request
       return new Promise((resolve, reject) => {
-        api
-          .post("/auth/refresh", {}, { withCredentials: true })
-          .then(() => {
-            // cookies (accessToken, csrfToken) are reset by server
-            const csrf = getCookie("csrfToken");
-            if (csrf) {
-              // update header on the original request
-              original.headers!["X-CSRF-Token"] = csrf;
-            }
-            processQueue(null);
-            resolve(api(original));
-          })
-          .catch((err) => {
-            processQueue(err);
-            const path = window.location.pathname;
-            const shouldRedirect = !isPublicRoute(path);
-
-            if (shouldRedirect) {
-              window.location.href = routes.login.staticPath;
-            }
-            reject(err);
-          })
-          .finally(() => {
-            isRefreshing = false;
-          });
+        failedQueue.push({ resolve, reject, config: originalRequest });
       });
     }
-    return Promise.reject(error);
+
+    isRefreshing = true;
+
+    try {
+      // Attempt to refresh token... should ideally return new csrf
+      const refreshResp = await refreshToken();
+      if (!refreshResp.success || !refreshResp.data) {
+        throw new Error(refreshResp.message);
+      }
+
+      // Update csrf token if available
+      const { csrfToken: newCsrfToken } = refreshResp.data;
+      if (newCsrfToken) {
+        authStore.getState().setCsrf(newCsrfToken);
+      }
+
+      // Process queue: retry all failed requests
+      processQueue(null, true);
+      return api(originalRequest);
+    } catch (refreshErr) {
+      // Refresh failed: clean up and log out
+      processQueue(refreshErr, false);
+      authStore.getState().clearAuth();
+
+      // Let useSession handle redirect
+
+      return Promise.reject(refreshErr);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );
 

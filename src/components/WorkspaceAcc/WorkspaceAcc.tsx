@@ -8,14 +8,14 @@ import {
   faLink,
   faUpload,
 } from "@fortawesome/free-solid-svg-icons";
-import { BankAccounts, CompanyData } from "../../types/types";
+import { BankAccounts, CompanyData } from "../../shared/types/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getBankAccounts } from "../../services/BankAccountServices";
 import Decimal from "decimal.js";
 import { formatAccountText, timeAgo } from "../../utils/utils";
 import numeral from "numeral";
 import { Link } from "react-router-dom";
-import { routes } from "../../utils/routes";
+import { routes } from "@/shared/routes/routes";
 
 interface AccountingWorkspaceProps {
   companyId: string;

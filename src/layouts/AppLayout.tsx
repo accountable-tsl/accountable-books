@@ -1,63 +1,53 @@
 import { AppHeader } from "@/components/AppHeader";
+import { CenteredLoader } from "@/components/CenteredLoader";
 import ErrorPage from "@/components/ErrorPage";
 import { AppSidebar, AppSidebarProps } from "@/components/SideBar/Sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useCompany } from "@/domains/company/store";
-import { useAuth } from "@/features/auth/hooks";
+import { useSession } from "@/features/auth/Session";
+import { useCanonicalUrlEnforcer } from "@/shared/routes/hooks";
 import { routes } from "@/shared/routes/routes";
 import {
   pageStore,
   usePageMeta,
   useUpdatePageInfo,
 } from "@/shared/stores/page";
-import { useEffect } from "react";
-import { Navigate, Outlet } from "react-router-dom";
-import { HashLoader } from "react-spinners";
+import { Outlet } from "react-router-dom";
 
 interface AppLayoutProps extends AppSidebarProps {}
 export default function AppLayout({
   sidebarCollapsible = "icon",
 }: AppLayoutProps) {
-  const { user, checkingSession } = useAuth();
-  const { companyId, companyType, slug } = useCompany();
+  const { user, company, companyId, companyType } = useSession();
+
   const { sidebarCollapsed } = pageStore();
+
+  useCanonicalUrlEnforcer();
   useUpdatePageInfo();
   usePageMeta();
 
-  useEffect(() => {
-    if (user && companyId && slug) {
-      const isCorrectSubdomain = window.location.hostname.startsWith(slug);
-      if (!isCorrectSubdomain) {
-        const url = routes.dashboard.buildUrl({ companyId });
-        if (url) window.location.href = url;
-      }
-    }
-  }, [user, companyId, slug]);
-
-  if (checkingSession) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <HashLoader />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to={routes.login.staticPath} replace />;
-  }
-
-  if (!companyId || !companyType || !slug) {
+  if (!user || !company || !companyId || !companyType) {
     return <ErrorPage type="default" />;
   }
-  console.log("AppLayout rendered on:", window.location.pathname);
 
+  console.log(routes.general.dashboard.staticPath);
   return (
     <SidebarProvider defaultOpen={!sidebarCollapsed}>
-      <AppSidebar sidebarCollapsible={sidebarCollapsible} />
-      <SidebarInset>
-        <AppHeader />
-        <Outlet />
+      <AppSidebar
+        sidebarCollapsible={sidebarCollapsible}
+        user={user}
+        company={company}
+        companyId={companyId}
+        companyType={companyType}
+      />
+      <SidebarInset className="flex flex-col h-dvh overflow-hidden">
+        <AppHeader company={company} />
+
+        <div className="flex-1 min-h-0">
+          <Outlet />
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );
 }
+
+// AppLayout.whyDidYouRender = true;

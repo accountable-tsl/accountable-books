@@ -8,89 +8,59 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { handleLogin } from "./service";
-import { toast } from "sonner";
-import { ErrorCode } from "@/utils/utils";
-import { useCompany } from "@/domains/company/store";
-import { useAuth } from "./hooks";
 import { routes } from "@/shared/routes/routes";
 import { AuthHeader } from "@/components/AuthHeader";
+import { toast } from "sonner";
+import { loginAndRedirect } from "@/features/auth/utils";
+import { useSession } from "@/features/auth/Session";
+import { authStore } from "./store";
 
 export default function Login() {
-  const { setUser, isLoggedIn, checkingSession, user } = useAuth();
-  const { setCompany, companyId, company } = useCompany();
+  const { isLoggedIn, hasAppAccess, companyId, tenantRoutes, loading } =
+    useSession();
+  const { setAuth } = authStore((s) => s);
+  const [params] = useSearchParams();
   const navigate = useNavigate();
+
   const [showPassword, setShowPassword] = useState(false);
-  const [_isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const prefillEmail = params.get("email") ?? "";
 
   const {
     register,
-    formState: { errors },
+    formState: { errors, isSubmitting, isValid },
     handleSubmit,
     setError,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginForm),
+    mode: "onChange",
   });
 
   const onSubmit = async (data: LoginForm) => {
-    console.log("onSubmit triggered:", data);
     try {
       setIsLoading(true);
-      const res = await handleLogin(data);
-
-      if (!res.success) {
-        const message = res.message || "Email or password is incorrect";
-        if (res.code === ErrorCode.INVALID_CREDENTIALS) {
-          setError("email", { type: "manual", message });
-          setError("password", { type: "manual", message });
-        }
-        toast.error(message);
-        return;
-      }
-
-      const { user, company, slug, currentCompanyId } = res.data;
-
-      if (
-        !user ||
-        (!company.id && !currentCompanyId) ||
-        (!company.assignedFirmSlug && slug)
-      ) {
-        toast.error("Login failed");
-        return;
-      }
-
-      setUser(user);
-      setCompany(company);
-
-      if (
-        !company.assignedFirmSlug ||
-        (!company.id && !user.currentCompanyId) ||
-        !company.companyType
-      ) {
-        toast.error("Login failed");
-        return;
-      }
+      await loginAndRedirect({
+        email: data.email,
+        password: data.password,
+        setError,
+        setAuth,
+      });
     } catch (error) {
       console.error(error);
-      toast("An unexpected error occurred, please try again");
+      toast.error("An unexpected error occurred, please try again");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // useEffect(() => {
-  //   if (!checkingSession && companyId && company?.assignedFirmSlug) {
-  //     window.location.href = routes.dashboard.buildUrl({ companyId });
-  //   }
-  // }, [isLoggedIn, companyId, checkingSession, user, company, navigate]);
-  const alreadyLoggedIn =
-    !checkingSession && isLoggedIn && companyId && company?.assignedFirmSlug;
+  const alreadyLoggedIn = isLoggedIn && companyId && tenantRoutes;
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -104,10 +74,15 @@ export default function Login() {
                   You're already logged in.
                 </span>{" "}
                 <Link
-                  to={routes.dashboard.buildUrl({ companyId })}
+                  to={
+                    hasAppAccess
+                      ? tenantRoutes.general.dashboard()
+                      : routes.onboarding.index.staticPath
+                  }
+                  replace
                   className="underline font-medium"
                 >
-                  Go to dashboard
+                  {hasAppAccess ? "Go to dashboard" : "Continue onboarding"}
                 </Link>
               </div>
             )}
@@ -134,6 +109,7 @@ export default function Login() {
                       <Input
                         id="email"
                         type="email"
+                        defaultValue={prefillEmail}
                         {...register("email")}
                         placeholder="m@example.com"
                         required
@@ -153,6 +129,7 @@ export default function Login() {
                             errors.password ? "password-error" : undefined
                           }
                           required
+                          placeholder="************"
                         />
                         <Button
                           type="button"
@@ -167,7 +144,7 @@ export default function Login() {
                         {/* </div> */}
                       </FormField>
                       <Link
-                        to={routes.forgotPassword.staticPath}
+                        to={routes.auth.forgotPassword.staticPath}
                         className="absolute -bottom-3.5 right-0 text-right text-sm underline-offset-4 hover:underline"
                       >
                         Forgot your password?
@@ -175,14 +152,18 @@ export default function Login() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-3 mt-2">
-                    <Button type="submit" className="w-full">
-                      Login
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isSubmitting || !isValid}
+                    >
+                      {isLoading ? "Logging in..." : "Login"}{" "}
                     </Button>
                   </div>
                   <div className="text-center text-sm">
                     Don't have an account?{" "}
                     <Link
-                      to={routes.signup.staticPath}
+                      to={routes.auth.signup.staticPath}
                       className="underline underline-offset-4"
                     >
                       Sign up

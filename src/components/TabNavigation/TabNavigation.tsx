@@ -1,6 +1,6 @@
 import "./TabNavigation.scss";
 import { Link } from "react-router-dom";
-import { TabNavigationProps } from "../../types/types";
+import { TabNavigationProps } from "../../shared/types/core";
 
 const TabNavigation = <T extends string>({
   tabs,

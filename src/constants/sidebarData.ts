@@ -1,6 +1,6 @@
 import { NavMainItems } from "@/components/NavMain";
-import { routes } from "@/shared/routes/routes";
-import { CompanyType } from "@/types/types";
+import { useSafeSession, useSession } from "@/features/auth/Session";
+import { CompanyType } from "@/shared/types/core";
 import {
   BriefcaseIcon,
   CalculatorIcon,
@@ -12,6 +12,7 @@ import {
   SearchIcon,
   SettingsIcon,
 } from "lucide-react";
+import { routes } from "@/shared/routes/routes";
 
 export const getNavMain = (
   companyId: string,
@@ -20,30 +21,28 @@ export const getNavMain = (
   return [
     {
       title: "Dashboard",
-      url: routes.dashboard.buildUrl({ companyId }),
+      url: routes.general.dashboard.build({ companyId }),
       icon: LayoutDashboardIcon,
     },
     ...(companyType === "accounting_firm"
       ? [
           {
             title: "Accounting",
-            url: routes.accounting.index.buildUrl({ companyId }),
+            url: "#",
             icon: CalculatorIcon,
           },
           {
             title: "Workstation",
-            url: routes.accounting.workstation.index.buildUrl({ companyId }),
+            url: "#",
             icon: BriefcaseIcon,
             sub: [
               {
                 title: "Accounting",
-                url: routes.accounting.workstation.index.buildUrl({
-                  companyId,
-                }),
+                url: "#",
               },
               {
                 title: "Tax",
-                url: routes.tax.workstation.index.buildUrl({ companyId }),
+                url: "#",
               },
             ],
           },
@@ -51,17 +50,17 @@ export const getNavMain = (
       : []),
     {
       title: "Tax",
-      url: routes.tax.index.buildUrl({ companyId }),
+      url: "#",
       icon: ScaleIcon,
     },
     {
       title: "Messages",
-      url: routes.messages.buildUrl({ companyId }),
+      url: "#",
       icon: MessageSquareMoreIcon,
     },
     {
       title: "Reports",
-      url: routes.reports.index.buildUrl({ companyId }),
+      url: "#",
       icon: ClipboardListIcon,
     },
   ];

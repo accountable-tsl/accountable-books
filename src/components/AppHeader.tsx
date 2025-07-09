@@ -7,13 +7,14 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "./ui/breadcrumb";
+} from "@/components/ui/breadcrumb";
 import React from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { ChevronDownIcon } from "lucide-react";
-import { Link } from "react-router-dom";
-import { pageStore } from "@/shared/stores/page";
-import { useCompany } from "@/domains/company/store";
+import { cn } from "@/lib/utils";
+import { useCompanySwitch } from "@/features/switchCompany/hooks";
+import { useBreadcrumbs } from "@/shared/hooks/useBreadcrumbs";
+import { CompanyData } from "@/domains/company/types";
 
 type BreadcrumbItem = {
   label: string;
@@ -23,20 +24,32 @@ type BreadcrumbItem = {
 interface AppHeaderProps {
   currentPage?: string;
   breadcrumbs?: BreadcrumbItem[];
+  company: CompanyData;
 }
 
 // const defaultBreadcrumbs: BreadcrumbItem[] = [{ label: "Home", link: "/" }];
 
-export function AppHeader({}: // currentPage = "Home",
-// breadcrumbs = defaultBreadcrumbs,
-AppHeaderProps) {
-  const { company } = useCompany();
-  const { breadcrumbs } = pageStore();
+export function AppHeader({ company }: AppHeaderProps) {
+  const breadcrumbs = useBreadcrumbs();
+  const { handleExitDemo } = useCompanySwitch();
 
-  console.log("AppHeader breadcrumbs:", breadcrumbs);
+  const handleSwitch = async () => {
+    console.log("Switch");
+
+    // if is demo, handle exit demo, otherwise show dropdown
+    if (company?.isDemoCompany) {
+      await handleExitDemo();
+    }
+  };
 
   return (
-    <header className="group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear relative">
+    <header
+      className={cn(
+        "group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0",
+        "items-center gap-2 border-b transition-[width,height] ease-linear relative",
+        "flex-shrink-0 z-50"
+      )}
+    >
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2">
         <SidebarTrigger className="-ml-1" />
         <Separator
@@ -69,6 +82,9 @@ AppHeaderProps) {
         <div className="text-muted-foreground">
           You are signed into{" "}
           <strong>
+            <span className="text-destructive">
+              {company?.isDemoCompany ? "Demo Company → " : ""}
+            </span>
             {company?.displayName ||
               company?.legalName ||
               "No Company Selected"}
@@ -76,13 +92,13 @@ AppHeaderProps) {
           <span>{company?.countryFlag}</span>
         </div>
         {/* TODO: Handle company switching later */}
-        <Link
-          to="#"
-          className="flex items-center justify-center gap-1 text-blue-500"
+        <div
+          className="flex items-center justify-center gap-1 text-blue-500 hover:text-blue-500/80 cursor-pointer"
+          onClick={handleSwitch}
         >
           switch
           <ChevronDownIcon size={10} />
-        </Link>
+        </div>
       </div>
 
       <ThemeToggle />

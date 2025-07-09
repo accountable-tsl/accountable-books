@@ -1,4 +1,4 @@
-import { MultiSelectOption, MultiSelectOptionGroup } from "@/types/types";
+import { MultiSelectOption, MultiSelectOptionGroup } from "@/shared/types/core";
 
 export function groupOptionsBy<T extends Record<string, any>>(
   data: T[],

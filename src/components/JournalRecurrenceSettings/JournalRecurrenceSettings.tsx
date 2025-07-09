@@ -2,7 +2,10 @@ import "./JournalRecurrenceSettings.scss";
 import { DatePickerProps } from "antd";
 import { JournalDateField } from "../JournalForm/JournalForm";
 import { Dayjs } from "dayjs";
-import { JournalRecurrenceFrequency, JournalStatus } from "../../types/types";
+import {
+  JournalRecurrenceFrequency,
+  JournalStatus,
+} from "../../shared/types/core";
 import { toTitleCase } from "../../utils/utils";
 
 interface JournalRecurrenceSettingsProps extends DatePickerProps {

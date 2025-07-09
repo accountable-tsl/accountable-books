@@ -1,15 +1,6 @@
-import { CompanyType } from "@/domains/company/types";
-import { makeRoute } from "./routes";
+import { routes } from "@/shared/routes/routes";
+import { createTenantRoutes, flatRoutes } from "@/shared/routes/utils";
 
-// Extract parameters from staticPath (e.g., ":companyId" -> "companyId")
-export type ExtractParams<T extends string> =
-  T extends `${string}:${infer P}/${infer R}`
-    ? P | ExtractParams<R>
-    : T extends `${string}:${infer P}`
-    ? P
-    : never;
-
-// Metadata for UX and access control
 export type RouteMeta = {
   label?: string;
   description?: string;
@@ -18,26 +9,42 @@ export type RouteMeta = {
   sidebarCollapsed?: boolean;
   firmsOnly?: boolean;
   public?: boolean;
+  hideInBreadcrumb?: boolean;
+  requiresCompanyId?: boolean;
 };
 
-export interface Tenant {
-  slug: string;
-  companyId: string;
-  companyType: CompanyType;
-}
+export type ExtractPathParams<Path extends string> =
+  Path extends `${string}:${infer Param}/${infer Rest}`
+    ? { [k in Param]: string } & ExtractPathParams<`/${Rest}`>
+    : Path extends `${string}:${infer Param}`
+    ? { [k in Param]: string }
+    : {};
 
-// Restrict params to only those in staticPath, ensuring companyId is required
-export type ValidParams<T extends string> = {
-  [K in ExtractParams<T>]: K extends "companyId" ? string : string | undefined;
-} & { companyId: string };
+export type HasCompanyId<Path extends string> =
+  Path extends `${string}:companyId${string}` ? true : false; // Identify if a route expects companyId
 
-// Route definition
+export type OmitCompanyId<T> = T extends { companyId: any }
+  ? Omit<T, "companyId">
+  : T; // Extract route params except companyId
 
-export interface MakeRouteParams<T extends string> {
-  staticPath: T;
-  relativePath?: string;
-  dynamicPath?: (params: ValidParams<T>) => string;
+export type RouteLike = {
+  staticPath: string;
+  build: () => string;
   meta?: RouteMeta;
+};
+
+export type FlatRoutes = typeof flatRoutes;
+export type FlattenedRouteKey = keyof FlatRoutes;
+
+export interface BuildCanonicalUrlOptions<K extends FlattenedRouteKey> {
+  user: {
+    currentCompanyId: string;
+    companies: Array<{ id: string; assignedFirmSlug: string }>;
+  };
+  routeKey: K;
+  routeParams: OmitCompanyId<ExtractPathParams<FlatRoutes[K]["staticPath"]>>;
+  // what the route needs, excluding companyId
+  origin?: string; // optional override
 }
 
-export type RouteLike = ReturnType<typeof makeRoute>;
+export type TenantRoutes = ReturnType<typeof createTenantRoutes<typeof routes>>;

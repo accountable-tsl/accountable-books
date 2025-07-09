@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { AuthHeader } from "./AuthHeader";
-import { useAuth } from "@/features/auth/hooks";
+import { cn } from "@/lib/utils";
+import { routes } from "@/shared/routes/routes";
+import { useSession } from "@/features/auth/Session";
 
 type ErrorType = "404" | "403" | "default";
 // | "500"
@@ -51,22 +53,38 @@ export default function ErrorPage({
   showHomeLink = true,
   showSupport = true,
   supportEmail = "hello@accountable.global",
+  showHeader = true,
+  className = "",
 }: ErrorPageProps) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, companyId: currentCompanyId } = useSession();
   const navigate = useNavigate();
   const config =
     errorConfigs[type as keyof typeof errorConfigs] || errorConfigs.default;
   const displayTitle = title || config.title;
   const displayMessage = message || config.message;
 
+  const routeLink = isLoggedIn
+    ? routes.general.dashboard.build({ companyId: currentCompanyId || "" })
+    : routes.auth.login.staticPath;
+
   return (
-    <div className="flex flex-col min-h-screen justify-between">
-      <AuthHeader />
+    <div
+      className={cn("flex flex-col min-h-screen justify-between", className)}
+    >
+      {showHeader && <AuthHeader />}
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="text-center max-w-md space-y-4">
           <h1 className="text-4xl font-bold flex items-center justify-center gap-1">
-            {type}{" "}
-            {showIcon && <span className="h-5 w-5 text-sm">{config.icon}</span>}
+            {type === "default" ? (
+              <span>{config.icon}</span>
+            ) : (
+              <>
+                {type}{" "}
+                {showIcon && (
+                  <span className="h-5 w-5 text-sm">{config.icon}</span>
+                )}
+              </>
+            )}
           </h1>
 
           {showTitle && (
@@ -78,7 +96,7 @@ export default function ErrorPage({
           <p className="text-lg">{displayMessage}</p>
           {showHomeLink && (
             <div
-              onClick={() => navigate("/", { replace: true })}
+              onClick={() => navigate(routeLink, { replace: true })}
               className="text-blue-600 hover:underline"
             >
               Go back home

@@ -1,6 +1,5 @@
-import { CloudUpload, TableProperties } from "lucide-react";
+import { CircleCheck, CloudUpload, TableProperties, X } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
-import { routes } from "../../utils/routes";
 import "./UploadBS.scss";
 import { useCompany } from "@/domains/company/store";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -21,17 +20,19 @@ import {
   getValue,
   parseDateString,
 } from "../../utils/utils";
-import { getBankAccounts } from "../../services/BankAccountServices";
 import {
   BankAccount,
   BankAccounts,
   BankTransaction,
   BankTransactionBatch,
-} from "../../types/types";
+} from "../../shared/types/core";
 import { userId } from "../../utils/user";
 import { ColDef, ValueGetterParams } from "ag-grid-community";
-import { postBankTransactions } from "../../services/TransactionServices";
-import { useNavigate } from "react-router-dom";
+import { postBankTransactions } from "@/shared/services/TransactionServices";
+import { BankTransactionImporter } from "@/features/bankConnection/manualUpload/BankTransactionImporter";
+import { toast } from "sonner";
+import ConnectBankAccount from "@/features/bankConnection/connectViaFeed/ConnectBankAccount";
+import { getBankAccountsForCompany } from "@/domains/bankAccounts/api";
 
 /**
  * Configuration & Constants
@@ -131,8 +132,6 @@ const defaultColDef = {
 export default function UploadBS() {
   const { companyId } = useCompany();
 
-  const navigate = useNavigate();
-
   // Step and State Management
   // currStep: 1 => Upload Screen, 2 => Review Screen
   const [currStep, setCurrStep] = useState<number>(1);
@@ -157,12 +156,12 @@ export default function UploadBS() {
     {
       text: "Accounting",
       icon: TableProperties,
-      link: routes.accounting.root(companyId),
+      // link: routes.accounting.root(companyId),
     },
     {
       text: "Upload Bank Statement",
       icon: CloudUpload,
-      link: routes.accounting.workspace.uploadBank(companyId),
+      // link: routes.accounting.workspace.uploadBank(companyId),
     },
   ];
 
@@ -179,12 +178,15 @@ export default function UploadBS() {
    */
 
   const fetchBankAccounts = async (companyId: string) => {
-    const response = await getBankAccounts(companyId);
-    if (response.success) {
-      setBankAccounts(response.data.bankAccounts);
-    } else {
-      console.error("Failed to fetch bank accounts:", response);
-      setError("Failed to fetch bank accounts. Please try again later.");
+    try {
+      const res = await getBankAccountsForCompany(companyId);
+
+      if (!res.success) {
+        toast.error(res.message || "Failed to fetch bank accounts");
+      }
+      setBankAccounts(res.data);
+    } catch (error) {
+      toast.error("Failed to fetch bank accounts");
     }
   };
 
@@ -312,7 +314,7 @@ export default function UploadBS() {
           setSelectedBankAccount(null);
           setUploadSuccessful("Unknown");
           // setCurrStep(1);
-          navigate(routes.accounting.workspace.catEngine(companyId));
+          // navigate(routes.accounting.workspace.catEngine(companyId));
         }, 1500);
       } else {
         console.error("Transaction upload failed:", result);
@@ -357,237 +359,245 @@ export default function UploadBS() {
   }
 
   return (
-    <div className="uploadbs">
-      <Breadcrumb items={breadcrumbs} />
+    <>
+      <div className="uploadbs hidden">
+        <Breadcrumb items={breadcrumbs} />
 
-      <div className="uploadbs-body">
-        <div
-          className={`uploadbs-container ${
-            currStep === 2 ? "uploadbs-container__2" : ""
-          }`}
-        >
-          <div className="uploadbs-header">
-            <FontAwesomeIcon icon={faX} className="uploadbs-cancel" />
-            <div className="uploadbs-progress">
-              <div
-                className={`uploadbs-progress__upload ${
-                  currStep === 2 ? "uploadbs-progress__upload-done" : ""
-                }`}
-              >
-                <FontAwesomeIcon
-                  icon={faCircleCheck}
-                  className={`uploadbs-progress__icon ${
-                    currStep === 2 ? "uploadbs-progress__icon-done" : ""
-                  }`}
-                />
-                Upload
-              </div>
-              <hr className="uploadbs-line" />
-              <div className="uploadbs-progress__review">
-                <FontAwesomeIcon
-                  icon={faCircleCheck}
-                  className="uploadbs-progress__icon"
-                />
-                Review
-              </div>
-            </div>
-          </div>
+        <div className="rounded-md flex justify-center grow items-start">
           <div
-            className={`uploadbs-wrap1 ${
-              currStep === 2 && uploadSuccessful === null
-                ? "uploadbs-wrap2"
-                : ""
+            className={`uploadbs-container ${
+              currStep === 2 ? "uploadbs-container__2" : ""
             }`}
           >
+            <div className="flex flex-col gap-8">
+              <X className="text-destructive self-end" />
+              <div className="flex justify-between items-center gap-2 w-7/12 self-center">
+                <div
+                  className={`uploadbs-progress__upload ${
+                    currStep === 2 ? "text-muted-foreground" : ""
+                  }`}
+                >
+                  <CircleCheck
+                    className={`pr-1 ${
+                      currStep === 2 ? "text-muted-foreground" : ""
+                    }`}
+                  />
+                  Upload
+                </div>
+                <hr className="uploadbs-line" />
+                <div className="uploadbs-progress__review">
+                  <CircleCheck className="pr-1" />
+                  Review
+                </div>
+              </div>
+            </div>
             <div
               className={`uploadbs-wrap1 ${
                 currStep === 2 && uploadSuccessful === null
-                  ? "uploadbs-wrap__loader"
+                  ? "uploadbs-wrap2"
                   : ""
               }`}
             >
-              {currStep === 2 && uploadSuccessful === null && <MoonLoader />}
-            </div>
-            <div className="uploadbs-descr">
-              <div className="uploadbs-descr__title">
-                {currStep === 1
-                  ? "Fill out this CSV template, Save and Upload"
-                  : null}
-                {currStep === 2 ? "Review and Complete Import" : null}
+              <div
+                className={`uploadbs-wrap1 ${
+                  currStep === 2 && uploadSuccessful === null
+                    ? "uploadbs-wrap__loader"
+                    : ""
+                }`}
+              >
+                {currStep === 2 && uploadSuccessful === null && <MoonLoader />}
               </div>
-              <div className="uploadbs-descr__link">
-                <span>
-                  {currStep === 1 ? "Download Accountable CSV Template" : null}
-                </span>
-                <span>
-                  {currStep === 2
-                    ? "Get help with importing bank transactions"
+              <div className="uploadbs-descr">
+                <div className="uploadbs-descr__title">
+                  {currStep === 1
+                    ? "Fill out this CSV template, Save and Upload"
                     : null}
-                </span>
-                <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
-              </div>
-              <div className="uploadbs-descr__note">
-                {currStep === 1
-                  ? "Currently, we only accept bank statements in this CSV format."
-                  : null}
-                {currStep === 2
-                  ? "Please make sure to review your transactions for accuracy."
-                  : null}
-              </div>
-            </div>
-            <form action="" className="uploadbs-form">
-              {currStep === 1 && (
-                <div className="uploadbs-input">
-                  <div className="uploadbs-input__grid uploadbs-input__header">
-                    <div className="uploadbs-input__item">Select Bank</div>
-                    <div className="uploadbs-input__item">Upload CSV</div>
-                    <div className="uploadbs-input__item">Currency</div>
-                  </div>
-                  <div
-                    className={`uploadbs-input__grid uploadbs-input__body ${
-                      selectedBankAccount?.id && bankData.length !== 0
-                        ? "uploadbs-input__body--2"
-                        : ""
-                    }`}
-                  >
-                    <div className="uploadbs-input__grid--item">
-                      <select
-                        name="selectBankAccount"
-                        id="selectBankAccount"
-                        className="uploadbs-input__select"
-                        onChange={handleBankAccountChange}
-                        value={selectedBankAccount?.id}
-                      >
-                        <option value="">--Select Bank--</option>
-                        {bankAccounts.map((bankAccount) => (
-                          <option key={bankAccount.id} value={bankAccount.id}>
-                            {bankAccount.displayName} (
-                            {bankAccount.bankAccountNo})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="uploadbs-input__grid--item">
-                      <input
-                        id="uploadBankStatement"
-                        type="file"
-                        className="uploadbs-input__upload"
-                        accept=".csv"
-                        onChange={handleFile}
-                      />
-                    </div>
-                    <div className="uploadbs-input__grid--item">
-                      <span className="uploadbs-input__currency">
-                        {selectedBankAccount?.currency?.code}
-                      </span>
-                    </div>
-                  </div>
-                  {isLoading && <BeatLoader color="#ffcc99" />}
+                  {currStep === 2 ? "Review and Complete Import" : null}
                 </div>
-              )}
-              {currStep === 2 && (
-                <div className="uploadbs-rvw">
-                  <div className="uploadbs-rvw__header">
-                    Import Summary
-                    <hr />
-                  </div>
-                  <div className="uploadbs-rvw__body">
-                    <div className="uploadbs-rvw__summary">
-                      <div className="uploadbs-rvw__item">
-                        <span className="uploadbs-rvw__item--header1">
-                          Money In
-                        </span>
-                        <span className="uploadbs-rvw__item--value1 uploadbs-rvw__valid">
-                          +{numeral(totalMoneyIn).format("0,0.00")}
-                        </span>
-                      </div>
-                      <div className="uploadbs-rvw__item">
-                        <span className="uploadbs-rvw__item--header2">
-                          Money Out
-                        </span>
-                        <span className="uploadbs-rvw__item--value2 uploadbs-rvw__invalid">
-                          -{numeral(totalMoneyOut).format("0,0.00")}
-                        </span>
-                      </div>
-                      <div className="uploadbs-rvw__item">
-                        <span className="uploadbs-rvw__item--header3">
-                          {bankData.length} Lines
-                        </span>
-                        <span className="uploadbs-rvw__item--value3">
-                          <span className="uploadbs-rvw__valid">
-                            {bankData.length} Valid{" "}
-                          </span>{" "}
-                          |{" "}
-                          <span className="uploadbs-rvw__invalid">
-                            0 Invalid
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                    {/* <div className="uploadbs-rvw__table"> */}
-                    <div className="ag-theme-quartz uploadbs-rvw__table">
-                      <AgGridReact
-                        rowData={bankData}
-                        columnDefs={columnDefs}
-                        defaultColDef={defaultColDef}
-                        headerHeight={30}
-                        animateRows={true}
-                        rowHeight={30}
-                      />
-                    </div>
-                    {/* </div> */}
-                  </div>
+                <div className="uploadbs-descr__link">
+                  <span>
+                    {currStep === 1
+                      ? "Download Accountable CSV Template"
+                      : null}
+                  </span>
+                  <span>
+                    {currStep === 2
+                      ? "Get help with importing bank transactions"
+                      : null}
+                  </span>
+                  <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
                 </div>
-              )}
-              <div className="uploadbs-button">
+                <div className="uploadbs-descr__note">
+                  {currStep === 1
+                    ? "Currently, we only accept bank statements in this CSV format."
+                    : null}
+                  {currStep === 2
+                    ? "Please make sure to review your transactions for accuracy."
+                    : null}
+                </div>
+              </div>
+              <form action="" className="uploadbs-form">
                 {currStep === 1 && (
-                  <Button
-                    text="Continue"
-                    variant="outlined"
-                    customClass={
-                      !selectedBankAccount?.id || bankData.length === 0
-                        ? "uploadbs-button__disabled"
-                        : "uploadbs-button__continue"
-                    }
-                    onClick={() => {
-                      setCurrStep(2);
-                    }}
-                  />
-                )}
-                {currStep === 2 && (
-                  <>
+                  <div className="uploadbs-input">
+                    <div className="grid-cols-[1fr_2fr_0.4fr] gap-2 items-center uploadbs-input__header">
+                      <div className="uploadbs-input__item">Select Bank</div>
+                      <div className="uploadbs-input__item">Upload CSV</div>
+                      <div className="uploadbs-input__item">Currency</div>
+                    </div>
                     <div
-                      className={`uploadbs-status ${
-                        uploadSuccessful ? "uploadbs-status__success" : ""
+                      className={`grid-cols-[1fr_2fr_0.4fr] gap-2 items-center uploadbs-input__body ${
+                        selectedBankAccount?.id && bankData.length !== 0
+                          ? "uploadbs-input__body--2"
+                          : ""
                       }`}
                     >
-                      {uploadSuccessful === null && ""}
-                      {uploadSuccessful === false && "Import Error"}
-                      {uploadSuccessful === true && "Import Successful"}
+                      <div className="h-full flex items-center p-[0 0.5rem 0]">
+                        <select
+                          name="selectBankAccount"
+                          id="selectBankAccount"
+                          className="uploadbs-input__select"
+                          onChange={handleBankAccountChange}
+                          value={selectedBankAccount?.id}
+                        >
+                          <option value="">--Select Bank--</option>
+                          {bankAccounts &&
+                            bankAccounts.map((bankAccount) => (
+                              <option
+                                key={bankAccount.id}
+                                value={bankAccount.id}
+                              >
+                                {bankAccount.displayName} (
+                                {bankAccount.bankAccountNo})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                      <div className="h-full flex items-center p-[0 0.5rem 0]">
+                        <input
+                          id="uploadBankStatement"
+                          type="file"
+                          className="uploadbs-input__upload"
+                          accept=".csv"
+                          onChange={handleFile}
+                        />
+                      </div>
+                      <div className="h-full flex items-center p-[0 0.5rem 0]">
+                        <span className="uploadbs-input__currency">
+                          {selectedBankAccount?.currency?.code}
+                        </span>
+                      </div>
                     </div>
+                    {isLoading && <BeatLoader color="#ffcc99" />}
+                  </div>
+                )}
+                {currStep === 2 && (
+                  <div className="uploadbs-rvw">
+                    <div className="uploadbs-rvw__header">
+                      Import Summary
+                      <hr />
+                    </div>
+                    <div className="uploadbs-rvw__body">
+                      <div className="uploadbs-rvw__summary">
+                        <div className="uploadbs-rvw__item">
+                          <span className="uploadbs-rvw__item--header1">
+                            Money In
+                          </span>
+                          <span className="uploadbs-rvw__item--value1 uploadbs-rvw__valid">
+                            +{numeral(totalMoneyIn).format("0,0.00")}
+                          </span>
+                        </div>
+                        <div className="uploadbs-rvw__item">
+                          <span className="uploadbs-rvw__item--header2">
+                            Money Out
+                          </span>
+                          <span className="uploadbs-rvw__item--value2 uploadbs-rvw__invalid">
+                            -{numeral(totalMoneyOut).format("0,0.00")}
+                          </span>
+                        </div>
+                        <div className="uploadbs-rvw__item">
+                          <span className="uploadbs-rvw__item--header3">
+                            {bankData.length} Lines
+                          </span>
+                          <span className="uploadbs-rvw__item--value3">
+                            <span className="uploadbs-rvw__valid">
+                              {bankData.length} Valid{" "}
+                            </span>{" "}
+                            |{" "}
+                            <span className="uploadbs-rvw__invalid">
+                              0 Invalid
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                      {/* <div className="uploadbs-rvw__table"> */}
+                      <div className="ag-theme-quartz uploadbs-rvw__table">
+                        <AgGridReact
+                          rowData={bankData}
+                          columnDefs={columnDefs}
+                          defaultColDef={defaultColDef}
+                          headerHeight={30}
+                          animateRows={true}
+                          rowHeight={30}
+                        />
+                      </div>
+                      {/* </div> */}
+                    </div>
+                  </div>
+                )}
+                <div className="uploadbs-button">
+                  {currStep === 1 && (
                     <Button
-                      text="Back"
+                      text="Continue"
                       variant="outlined"
-                      customClass="uploadbs-button__continue"
+                      customClass={
+                        !selectedBankAccount?.id || bankData.length === 0
+                          ? "uploadbs-button__disabled"
+                          : "uploadbs-button__continue"
+                      }
                       onClick={() => {
-                        setCurrStep(1);
-                        setBankData([]);
+                        setCurrStep(2);
                       }}
                     />
-                    <Button
-                      text="Complete Import"
-                      customClass={`uploadbs-button__continue ${
-                        bankData.length === 0 ? "uploadbs-button__disabled" : ""
-                      }`}
-                      onClick={handleUpload}
-                    />
-                  </>
-                )}
-              </div>
-            </form>
+                  )}
+                  {currStep === 2 && (
+                    <>
+                      <div
+                        className={`uploadbs-status ${
+                          uploadSuccessful ? "uploadbs-status__success" : ""
+                        }`}
+                      >
+                        {uploadSuccessful === null && ""}
+                        {uploadSuccessful === false && "Import Error"}
+                        {uploadSuccessful === true && "Import Successful"}
+                      </div>
+                      <Button
+                        text="Back"
+                        variant="outlined"
+                        customClass="uploadbs-button__continue"
+                        onClick={() => {
+                          setCurrStep(1);
+                          setBankData([]);
+                        }}
+                      />
+                      <Button
+                        text="Complete Import"
+                        customClass={`uploadbs-button__continue ${
+                          bankData.length === 0
+                            ? "uploadbs-button__disabled"
+                            : ""
+                        }`}
+                        onClick={handleUpload}
+                      />
+                    </>
+                  )}
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      {/* <BankTransactionImporter /> */}
+      <ConnectBankAccount />
+    </>
   );
 }

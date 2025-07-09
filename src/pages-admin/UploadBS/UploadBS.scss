@@ -90,7 +90,7 @@
     @apply w-full;
 
     &__header {
-      color: rgba($color: $text, $alpha: 0.3);
+      // color: rgba($color: $text, $alpha: 0.3);
       font-size: 0.75rem;
     }
 
@@ -130,7 +130,7 @@
   }
 
   &-form {
-    display: contents;
+    @apply contents
   }
 
   &-rvw {

@@ -7,11 +7,12 @@ export const companyStore = create<CompanyStore>()(
   persist(
     (set) => ({
       companyId: null,
-      companyType: null,
+      companyType: undefined,
       slug: null,
       company: null,
       isLoading: false,
       error: null,
+      onboardingStatus: null,
 
       // Set the active company and fetch its data
       fetchCompany: async (companyId) => {
@@ -25,6 +26,7 @@ export const companyStore = create<CompanyStore>()(
               companyId: res.data.id,
               companyType: res.data.companyType,
               slug: res.data.assignedFirmSlug || null,
+              onboardingStatus: res.data.onboardingStatus || null,
               isLoading: false,
               error: null,
             });
@@ -36,16 +38,34 @@ export const companyStore = create<CompanyStore>()(
         }
       },
 
-      setCompany: (company) => {
-        set({
-          company,
-          companyId: company.id,
-          companyType: company.companyType,
-          slug: company.assignedFirmSlug,
-          isLoading: false,
-          error: null,
-        });
-      },
+      setCompany: (companyOrUpdater) =>
+        set((state) => {
+          const company =
+            typeof companyOrUpdater === "function"
+              ? companyOrUpdater(state.company)
+              : companyOrUpdater;
+
+          if (!company) return state; // ignore null
+
+          return {
+            ...state,
+            company,
+            companyId: company.id,
+            companyType: company.companyType,
+            slug: company.assignedFirmSlug ?? null,
+            onboardingStatus: company.onboardingStatus ?? null,
+            isLoading: false,
+            error: null,
+          };
+        }),
+
+      setOnboardingStatus: (status) =>
+        set((state) => ({
+          onboardingStatus: status,
+          company: state.company
+            ? { ...state.company, onboardingStatus: status }
+            : state.company,
+        })),
 
       // Clear out company state (e.g. on logout)
       clearCompany: () => {
@@ -55,13 +75,18 @@ export const companyStore = create<CompanyStore>()(
           company: null,
           isLoading: false,
           error: null,
+          onboardingStatus: null,
         });
       },
     }),
     {
       name: "company-store",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ companyId: state.companyId, slug: state.slug }),
+      partialize: (state) => ({
+        companyId: state.companyId,
+        slug: state.slug,
+        onboardingStatus: state.onboardingStatus,
+      }),
     }
   )
 );
@@ -75,6 +100,7 @@ export const useCompany = () => {
     isLoading,
     error,
     setCompany,
+    setOnboardingStatus,
     fetchCompany,
     clearCompany,
   } = companyStore((s) => s);
@@ -87,6 +113,7 @@ export const useCompany = () => {
     isLoading,
     error,
     setCompany,
+    setOnboardingStatus,
     fetchCompany,
     clearCompany,
   };

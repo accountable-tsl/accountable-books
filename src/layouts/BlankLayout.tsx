@@ -1,11 +1,9 @@
 import { Outlet } from "react-router-dom";
-import { Toaster } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 
 export default function BlankLayout() {
   return (
     <>
-      <Toaster />
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}

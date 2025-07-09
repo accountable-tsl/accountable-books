@@ -5,7 +5,7 @@ import {
   MoreVerticalIcon,
   UserCircleIcon,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,14 +14,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "./ui/sidebar";
-import { useAuth } from "@/features/auth/hooks";
+} from "@/components/ui/sidebar";
+import { useSession } from "@/features/auth/Session";
 
 export function NavUser({
   user,
@@ -32,7 +32,7 @@ export function NavUser({
     avatar: string;
   };
 }) {
-  const { logout } = useAuth();
+  const { logout } = useSession();
   const { isMobile } = useSidebar();
   const nameParts = user.name.split(" ");
   const initials =

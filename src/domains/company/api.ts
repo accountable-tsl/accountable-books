@@ -1,11 +1,34 @@
 import api from "@/lib/axios";
-import { ServerResponseFormat } from "@/types/types";
-import { CompanyData } from "./types";
+import { ApiResponse } from "@/shared/types/core";
+import { CompanyData, UpdateCompanyVitalsData } from "./types";
 
 export const getCompanyDetails = async (
   companyId: string
-): Promise<ServerResponseFormat<CompanyData>> => {
+): Promise<ApiResponse<CompanyData>> => {
   const response = await api.get(`/api/companies/${companyId}`);
-  console.log(response);
+  return response.data;
+};
+
+export const updateCompanyDetails = async (
+  companyId: string,
+  data: Partial<UpdateCompanyVitalsData>
+): Promise<ApiResponse<CompanyData>> => {
+  const response = await api.patch(`/api/companies/${companyId}`, data);
+  return response.data;
+};
+
+export const checkSlugExists = async (
+  slug: string
+): Promise<ApiResponse<{ exists: boolean }>> => {
+  if (!slug) {
+    return {
+      success: false,
+      message: "Slug not provided",
+      data: { exists: false },
+    };
+  }
+  const response = await api.get<ApiResponse<{ exists: boolean }>>(
+    `/api/accounting-firms/check-slug?slug=${encodeURIComponent(slug)}`
+  );
   return response.data;
 };

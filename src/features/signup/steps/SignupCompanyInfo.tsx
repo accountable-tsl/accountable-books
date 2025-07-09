@@ -7,20 +7,31 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { newCompany, NewCompany, NewUser } from "../signupTypes";
-import { useIndustries } from "@/hooks/useIndustries";
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
-import { AutocompleteDropdown } from "@/components/AutocompleteDropdown/AutocompleteDropdown";
-import { useCountries } from "@/hooks/useCountries";
-import { useCurrencies } from "@/hooks/useCurrencies";
-import { useForm } from "react-hook-form";
+import { useIndustries } from "@/shared/hooks/useIndustries";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
+import { useCountries } from "@/shared/hooks/useCountries";
+import { useCurrencies } from "@/shared/hooks/useCurrencies";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField } from "@/components/FormField";
-import { COMPANY_SIZE, COMPANY_TYPES, TOOLTIP } from "../signupConstants";
+import { TOOLTIP } from "../signupConstants";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TooltipHelper } from "@/components/TooltipHelper";
 import DOMPurify from "dompurify";
+import { COMPANY_SIZE, COMPANY_TYPES } from "@/domains/company/constants";
+import { validateSlug } from "@/domains/firms/utils";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
+import { useSlugCheck } from "@/domains/firms/hooks";
 
 export interface SignupCompanyInfoHandle {
   validate: () => Promise<boolean>;
@@ -48,17 +59,20 @@ export const SignupCompanyInfo = forwardRef<
   } = useIndustries();
 
   const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
-
   const { data: countries, isLoading: isCountryLoading } = useCountries();
 
-  const defaultValues = {
-    ...companyData,
-    legalName: isIndividual
-      ? `${userData.firstname}'s Finances`.trim()
-      : companyData.legalName,
-    yearEndDay: companyData.yearEndDay || 31,
-    yearEndMonth: companyData.yearEndMonth || 12,
-  };
+  const defaultValues = useMemo(
+    () => ({
+      ...companyData,
+      legalName:
+        isIndividual && userData?.firstname
+          ? `${userData.firstname}'s Finances`.trim()
+          : companyData.legalName || "",
+      yearEndDay: companyData.yearEndDay || 31,
+      yearEndMonth: companyData.yearEndMonth || 12,
+    }),
+    [userData?.firstname, isIndividual, companyData]
+  );
 
   const {
     register,
@@ -66,18 +80,28 @@ export const SignupCompanyInfo = forwardRef<
     formState: { errors },
     setValue,
     trigger,
+    control,
   } = useForm<NewCompany>({
     resolver: zodResolver(newCompany),
-    defaultValues,
     mode: "onChange",
+    defaultValues,
   });
 
   const description = watch("description") || "";
   const showOptionalFieldsButton =
     viewOptionalFields || isDescriptonTouched || description.length > 0;
 
+  // const slug = watch("slug");
+  // const { data: slugCheckData, isFetching } = useSlugCheck(slug || "");
+
+  // const debouncedSlug = useDebouncedValue(rawSlug?.trim().toLowerCase(), 300);
+  // const { data: firmSlugData, isLoading: isFirmSlugsLoading } = useFirmSlugs();
+  // const allFirmSlugs = firmSlugData?.data;
+
   useImperativeHandle(ref, () => ({
     validate: async () => await trigger(),
+    getData: () => watch(),
+    getFieldValue: (field: keyof NewCompany) => watch(field),
   }));
 
   const handleChange = (field: keyof NewCompany, value: string | number) => {
@@ -104,8 +128,65 @@ export const SignupCompanyInfo = forwardRef<
     }
   }, [companyData.reportingCurrencyId]);
 
-  console.log("companydata", companyData);
-  console.log("errors", errors);
+  // useEffect(() => {
+  //   const timeoutId = setTimeout(() => {
+  //     Object.entries(formData).forEach(([key, value]) => {
+  //       if (value !== undefined && value !== "") {
+  //         updateCompanyField(key as keyof NewCompany, (value || "").toString());
+  //       }
+  //     });
+  //   }, 2000); // Small delay to batch updates
+
+  //   return () => clearTimeout(timeoutId);
+  // }, [formData]);
+
+  const formData = watch();
+  const prevFormDataRef = useRef<Record<string, any>>({});
+
+  useEffect(() => {
+    Object.entries(formData).forEach(([key, value]) => {
+      // Only update if this specific field actually changed
+      if (
+        prevFormDataRef.current[key] !== value &&
+        value !== undefined &&
+        value !== ""
+      ) {
+        updateCompanyField(key as keyof NewCompany, (value || "").toString());
+        prevFormDataRef.current[key] = value;
+      }
+    });
+  }, [formData]);
+
+  // useEffect(() => {
+  //   if (!slug || slug.trim().length < 3) return;
+
+  //   const result = validateSlug(slug);
+  //   console.log(result);
+
+  //   if (!result.isValid && result.error) {
+  //     setError("slug", { type: "manual", message: result.error });
+  //   } else {
+  //     clearErrors("slug");
+  //   }
+
+  //   console.log("slugcheck@companyinfo", slugCheckData);
+  //   if (isFetching || !slugCheckData) return;
+  //   const { success, message, data } = slugCheckData;
+  //   if (!success || !data?.isAvailable) {
+  //     if (!data?.isAvailable) {
+  //       setError("slug", { type: "manual", message: message || "Slug taken" });
+  //       return;
+  //     }
+
+  //     setError("slug", {
+  //       type: "manual",
+  //       message: message || "This slug is not available",
+  //     });
+  //     return;
+  //   }
+  //   clearErrors("slug");
+  // }, [setError, clearErrors]);
+
   return (
     <div>
       <div className="flex flex-col gap-4">
@@ -125,6 +206,7 @@ export const SignupCompanyInfo = forwardRef<
             id="legalName"
             {...register("legalName")}
             onChange={(e) => handleChange("legalName", e.target.value)}
+            required
             aria-describedby={errors.legalName ? "legalName-error" : undefined}
             placeholder={
               isIndividual
@@ -159,7 +241,7 @@ export const SignupCompanyInfo = forwardRef<
                 label: `${item.flag} ${item.name}`,
               })}
               value={watch("countryId") || ""}
-              onChange={(value) => handleChange("countryId", value)}
+              onValueChange={(value) => handleChange("countryId", value)}
               placeholder="Select country"
               aria-describedby={
                 errors.countryId ? "countryId-error" : undefined
@@ -189,7 +271,9 @@ export const SignupCompanyInfo = forwardRef<
                 label: `${item.name} (${item.symbol})`,
               })}
               value={watch("reportingCurrencyId")}
-              onChange={(value) => handleChange("reportingCurrencyId", value)}
+              onValueChange={(value) =>
+                handleChange("reportingCurrencyId", value)
+              }
               placeholder="Select currency"
               aria-describedby={
                 errors.reportingCurrencyId
@@ -207,31 +291,74 @@ export const SignupCompanyInfo = forwardRef<
               isFirm ? "grid md:grid-cols-2 gap-2" : ""
             )}
           >
-            {/* Industry */}
-            <FormField
-              id="industry"
-              label="Industry"
-              error={errors.industry?.message}
-              helpTooltip={TOOLTIP.industry || ""}
-              className="w-full"
-            >
-              <AutocompleteDropdown
-                id="industry"
-                items={
-                  isIndustriesLoading
-                    ? [{ value: "loading", label: "Loading..." }]
-                    : isIndustriesError
-                    ? [{ value: "error", label: "Error loading countries" }]
-                    : industries || []
-                }
-                mapItem={(item) => ({
-                  value: item.label,
-                  label: item.shortLabel,
-                })}
-                value={watch("industry") || ""}
-                onChange={(value) => handleChange("industry", value)}
+            {isFirm ? (
+              <Controller
+                name="slug"
+                control={control}
+                // rules={{ required: "Slug is required" }}
+                render={({ field, fieldState }) => {
+                  const slugCheck = useSlugCheck(field?.value || "");
+
+                  // Combine RHF errors with slug validation errors
+                  const error = slugCheck.isChecking
+                    ? "Checking availability..."
+                    : fieldState.error?.message || slugCheck.getError();
+
+                  return (
+                    <FormField
+                      id="slug"
+                      label="Firm slug"
+                      error={error || ""}
+                      helpTooltip={TOOLTIP.firmSlug}
+                      tooltipStyle="text-center"
+                      required
+                      errorTooltip
+                      errorTooltipStyle="text-center"
+                    >
+                      <Input
+                        {...field}
+                        value={field.value ?? ""}
+                        required={
+                          companyData.type === "accounting_firm" ? true : false
+                        }
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          handleChange("slug", e.target.value);
+                        }}
+                        aria-describedby={error ? "slug-error" : undefined}
+                        placeholder="e.g kpmg, abc-and-co"
+                      />
+                    </FormField>
+                  );
+                }}
               />
-            </FormField>
+            ) : (
+              /* Industry */
+              <FormField
+                id="industry"
+                label="Industry"
+                error={errors.industry?.message}
+                helpTooltip={TOOLTIP.industry || ""}
+                className="w-full"
+              >
+                <AutocompleteDropdown
+                  id="industry"
+                  items={
+                    isIndustriesLoading
+                      ? [{ value: "loading", label: "Loading..." }]
+                      : isIndustriesError
+                      ? [{ value: "error", label: "Error loading industries" }]
+                      : industries || []
+                  }
+                  mapItem={(item) => ({
+                    value: item.label,
+                    label: item.shortLabel,
+                  })}
+                  value={watch("industry") || ""}
+                  onValueChange={(value) => handleChange("industry", value)}
+                />
+              </FormField>
+            )}
 
             {/* Fiscal Period */}
             {isFirm && (

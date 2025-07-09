@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { AccountTxnTableProps } from "../../types/types";
+import { AccountTxnTableProps } from "../../shared/types/core";
 import numeral from "numeral";
 import Decimal from "decimal.js";
 

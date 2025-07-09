@@ -250,7 +250,7 @@ const countryToCurrencyCodeMap = {
   ZW: "USD",
 };
 
-export const getDefaultCurrencyForCountry = (
+export const getDefaultCurrencyCodeForCountry = (
   countryCode: string,
   fallback = "USD"
 ): string => {

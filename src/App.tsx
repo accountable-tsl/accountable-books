@@ -1,33 +1,37 @@
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import "./styles/App.scss";
-// import SideBarProvider, { useSideBarContext } from "./contexts/SideBarContext";
-import Home from "./pages-users/Home/Home";
-import COA from "./pages-admin/COA/COA";
-import { staticRoutes } from "./utils/routes";
-import FinancialSettings from "./pages-admin/FinancialSettings/FinancialSettings";
-import UploadBS from "./pages-admin/UploadBS/UploadBS";
 import { PopupProvider, usePopup } from "./contexts/PopupContext";
 import Popup from "./components/Popup/Popup";
-import CategorisationEngine from "./pages-admin/CategorisationEngine/CategorisationEngine";
-import Workspace from "./pages-admin/Workspace/Workspace";
-import Journal from "./pages-admin/Journal/Journal";
-import AccountingTxns from "./pages-admin/AccountingTxns/AccountingTxns";
 import ThemeProvider from "./theme/themeProvider";
 import { AnimatePresence, motion } from "framer-motion";
-import Signup from "./features/signup/Signup";
-import AppLayout from "./layouts/AppLayout";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import Welcome from "./features/onboarding/Welcome";
-import Login from "./features/auth/Login";
-import Dashboard from "./features/dashboard/Dashboard";
-import DashboardRedirect from "./components/DashboardRedirect";
-import { routes } from "./shared/routes/routes";
-import ErrorPage from "./components/ErrorPage";
-import { SessionChecker } from "./components/SessionChecker";
+import Signup from "@/features/signup/Signup";
+import AppLayout from "@/layouts/AppLayout";
+import { QueryClientProvider } from "@tanstack/react-query";
+import Welcome from "@/features/onboarding/Welcome";
+import Login from "@/features/auth/Login";
+import Dashboard from "@/features/dashboard/Dashboard";
+import ErrorPage from "@/components/ErrorPage";
+import OnboardingLayout from "@/layouts/OnboardingLayout";
+import { OnboardingStepPage } from "@/features/onboarding/Onboarding";
+import { Toaster } from "@/components/ui/sonner";
+import { routes } from "@/shared/routes/routes";
+import { queryClient } from "@/lib/queryClient";
+import { OnboardingRouter } from "@/features/onboarding/OnboardingRouter";
+import { SessionProvider } from "@/features/auth/Session";
+import {
+  RequireAuth,
+  RequireOnboardingComplete,
+  RootRedirector,
+} from "./features/auth/Access";
+import BlankLayout from "./layouts/BlankLayout";
 
 function App() {
-  const queryClient = new QueryClient();
-
   return (
     <ThemeProvider>
       <PopupProvider>
@@ -35,8 +39,10 @@ function App() {
           <BrowserRouter
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
-            <SessionChecker />
-            <AnimatedRoutes />
+            <SessionProvider>
+              <Toaster />
+              <AppRoutes />
+            </SessionProvider>
           </BrowserRouter>
         </QueryClientProvider>
       </PopupProvider>
@@ -59,78 +65,81 @@ export const PopupManager = () => {
     </>
   );
 };
-const pageVariants = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-};
-const pageTransition = { type: "tween", ease: "anticipate", duration: 0.4 };
+// const pageVariants = {
+//   initial: { opacity: 0, y: 10 },
+//   animate: { opacity: 1, y: 0 },
+//   exit: { opacity: 0, y: -10 },
+// };
+// const pageTransition = { type: "tween", ease: "anticipate", duration: 0.4 };
 
-function AnimatedRoutes() {
-  const location = useLocation();
-
+function AppRoutes() {
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        {/* PUBLIC */}
+    <Routes>
+      <Route index element={<RootRedirector />} />
+      {/* PUBLIC */}
+      <Route path={routes.auth.signup.staticPath} element={<Signup />} />
+      <Route path={routes.auth.login.staticPath} element={<Login />} />
 
-        <Route path={routes.signup.staticPath} element={<Signup />} />
-        <Route path={routes.login.staticPath} element={<Login />} />
+      {/* VERIFY EMAIL PAGE */}
+      <Route
+        path={routes.onboarding.verifyEmail.staticPath}
+        element={<OnboardingStepPage />}
+      />
+
+      {/* PRIVATE ONBOARDING */}
+      <Route
+        path="onboarding"
+        element={
+          // <RequireAuth>
+          <OnboardingLayout />
+          // </RequireAuth>
+        }
+      >
+        <Route index element={<OnboardingRouter />} />
+
+        <Route path=":step" element={<OnboardingStepPage />} />
+      </Route>
+
+      {/* APP */}
+      <Route
+        path=":companyId"
+        element={
+          <RequireAuth>
+            <RequireOnboardingComplete>
+              <BlankLayout />
+            </RequireOnboardingComplete>
+          </RequireAuth>
+        }
+      >
         <Route
-          path={routes.onboarding.welcome.staticPath}
+          path={routes.general.welcome.relativePath}
           element={<Welcome />}
         />
 
-        {/* PROTECTED */}
-        <Route
-          path="/"
-          element={
-            <motion.div
-              key={location.pathname}
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={pageTransition}
-            >
-              <AppLayout />
-            </motion.div>
-          }
-        >
-          <Route index element={<DashboardRedirect />} />
-          <Route path={routes.dashboard.staticPath} element={<Dashboard />} />
-          <Route path=":companyId" element={<Home />} />
-          <Route path={staticRoutes.companies.root} element={<Home />} />
-          <Route path={staticRoutes.accounting.root} element={<Workspace />} />
+        <Route element={<AppLayout />}>
           <Route
-            path={staticRoutes.accounting.workspace.uploadBank}
-            element={<UploadBS />}
+            index
+            element={
+              <Navigate to={routes.general.dashboard.relativePath} replace />
+            }
           />
           <Route
-            path={staticRoutes.accounting.workspace.catEngine}
-            element={<CategorisationEngine />}
+            path={routes.general.dashboard.relativePath}
+            element={<Dashboard />}
           />
           <Route
-            path={staticRoutes.accounting.workspace.journalPages}
-            element={<Journal />}
+            path={routes.general.home.relativePath}
+            element={<Navigate to={routes.general.dashboard.relativePath} />}
           />
-          <Route path={staticRoutes.accounting.setup.root} element={<COA />} />
-          <Route path={staticRoutes.accounting.setup.coa} element={<COA />} />
-          <Route
-            path={staticRoutes.accounting.setup.finSettings}
-            element={<FinancialSettings />}
-          />
-          <Route path={staticRoutes.reports.coa} element={<AccountingTxns />} />
-          {/* <Route path="*" element={<NotFound />} /> */}
         </Route>
 
         {/* CLIENT-SPECIFIC PAGES */}
-        <Route></Route>
 
         {/* FIRM-SPECIFIC PAGES */}
+        <Route path="*" element={<ErrorPage type="404" />} />
+      </Route>
 
-        <Route path="*" element={<ErrorPage />} />
-      </Routes>
-    </AnimatePresence>
+      <Route path="*" element={<ErrorPage type="404" />} />
+    </Routes>
   );
 }

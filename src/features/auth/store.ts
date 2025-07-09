@@ -1,31 +1,39 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { AuthStore, SessionStore } from "./types";
+import { AuthState, SessionStore } from "./types";
 
-export const authStore = create<AuthStore>()(
+export const authStore = create<AuthState>()((set) => ({
+  user: null,
+  csrfToken: null,
+
+  setUser: (user) => set({ user }),
+  setCsrf: (csrfToken) => set({ csrfToken }),
+
+  setAuth: (user, csrfToken) => set({ user, csrfToken }),
+  clearAuth: () => set({ user: null, csrfToken: null }),
+
+  // isSessionValid: false,
+}));
+
+export const sessionStore = create<SessionStore>()(
   persist(
     (set) => ({
-      user: null,
-      setUser: (user) => set({ user }),
+      checkingSession: false,
+      sessionValid: null, // null (not checked), true (valid), false (invalid)
+      failedAttempts: 0, // Track failed attempts
+      setCheckingSession: (checking) => set({ checkingSession: checking }),
+      setSessionValid: (valid) => set({ sessionValid: valid }),
+      incrementFailedAttempts: () =>
+        set((state) => ({ failedAttempts: state.failedAttempts + 1 })),
+      resetFailedAttempts: () => set({ failedAttempts: 0 }),
     }),
     {
-      name: "user-store",
+      name: "session-store",
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
-        user: s.user
-          ? {
-              id: s.user.id,
-              email: s.user.email,
-              firstname: s.user.firstname,
-              lastname: s.user.lastname,
-            }
-          : null,
+        sessionValid: s.sessionValid,
+        failedAttempts: s.failedAttempts,
       }),
     }
   )
 );
-
-export const sessionStore = create<SessionStore>((set) => ({
-  checkingSession: true, // true initially
-  setCheckingSession: (value) => set({ checkingSession: value }),
-}));

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import { useCompany } from "@/domains/company/store";
-import { routes } from "../../utils/routes";
+import { routes } from "@/shared/routes/routes";
 import { DatePicker, Select, SelectProps, Space } from "antd";
 import "./CategorisationEngine.scss";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -27,7 +27,7 @@ import {
   Coa,
   CompanyData,
   TransactionKey,
-} from "../../types/types";
+} from "../../shared/types/core";
 import { formatDate, formatNumericValue } from "../../utils/utils";
 import Decimal from "decimal.js";
 import { getBankAccounts } from "../../services/BankAccountServices";

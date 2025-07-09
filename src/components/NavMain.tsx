@@ -9,12 +9,12 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   useSidebar,
-} from "./ui/sidebar";
+} from "@/components/ui/sidebar";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "./ui/collapsible";
+} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
+import { Link } from "react-router-dom";
 
 export interface NavBaseItems {
   title: string;
@@ -49,9 +50,11 @@ export function NavMain({ items }: { items: NavMainItems[] }) {
             if (!item.sub)
               return (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton tooltip={item.title}>
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
+                  <SidebarMenuButton asChild tooltip={item.title}>
+                    <Link to={item.url} className="contents">
+                      {item.icon && <item.icon />}
+                      <span>{item.title}</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
@@ -72,10 +75,13 @@ export function NavMain({ items }: { items: NavMainItems[] }) {
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       {item.sub?.map((subItem) => (
-                        <DropdownMenuItem key={subItem.title}>
-                          <a href={subItem.url}>
+                        <DropdownMenuItem
+                          key={subItem.title}
+                          className="cursor-pointer"
+                        >
+                          <Link to={subItem.url}>
                             <span>{subItem.title}</span>
-                          </a>
+                          </Link>
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuGroup>
@@ -103,9 +109,9 @@ export function NavMain({ items }: { items: NavMainItems[] }) {
                       {item.sub?.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
                           <SidebarMenuSubButton asChild>
-                            <a href={subItem.url}>
+                            <Link to={subItem.url}>
                               <span>{subItem.title}</span>
-                            </a>
+                            </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ))}

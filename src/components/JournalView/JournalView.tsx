@@ -5,7 +5,7 @@ import {
   JournalBatchData,
   JournalGridData,
   JournalStatus,
-} from "../../types/types";
+} from "../../shared/types/core";
 import "./JournalView.scss";
 import { BeatLoader } from "react-spinners";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -33,7 +33,7 @@ import { DatePickerProps } from "antd";
 import dayjs from "dayjs";
 import JournalFormPopup from "../JournalForm/JournalFormPopup";
 import { usePopup } from "../../contexts/PopupContext";
-import { routes } from "../../utils/routes";
+import { routes } from "@/shared/routes/routes";
 import { sumAmounts } from "../JournalForm/journalFormUtils";
 
 export default function JournalView({

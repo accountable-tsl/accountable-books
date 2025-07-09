@@ -2,7 +2,7 @@ import DOMPurify from "dompurify";
 import { format, parse, isValid } from "date-fns";
 import Decimal from "decimal.js";
 import numeral from "numeral";
-import { ScreenSize } from "../types/types";
+import { ScreenSize } from "../shared/types/core";
 import React from "react";
 import dayjs from "dayjs";
 import Papa, { ParseResult } from "papaparse";

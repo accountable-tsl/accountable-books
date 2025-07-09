@@ -3,14 +3,14 @@ import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
 import "./AccountingTxns.scss";
 import { useCompany } from "@/domains/company/store";
 import { useEffect, useMemo, useState } from "react";
-import { routes } from "../../utils/routes";
+import { routes } from "@/shared/routes/routes";
 import MultiSelectDropdown from "../../components/MultiSelectDropdown/MultiSelectDropdown";
 import {
   AccountingTxnFilters,
   Coa,
   MultiSelectOption,
   MultiSelectOptionGroup,
-} from "../../types/types";
+} from "../../shared/types/core";
 import { fetchCoa } from "../../services/CoaServices";
 import { DatePicker } from "antd";
 import { RangePickerProps } from "antd/es/date-picker";

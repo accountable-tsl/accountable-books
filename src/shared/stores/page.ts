@@ -1,41 +1,50 @@
-import { useLocation } from "react-router-dom";
+import { matchPath, useLocation } from "react-router-dom";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { routes } from "../routes/routes";
+import { routes as oldRoutes } from "../routes/routes";
 import { useEffect } from "react";
 import { companyStore } from "@/domains/company/store";
 import { RouteMeta } from "../routes/types";
+import { routes } from "@/shared/routes/routes";
+import { flattenRoutes, matchRouteForPath } from "@/shared/routes/utils";
 
 export type BreadcrumbItem = {
   label: string;
   link?: string;
 };
 
-interface PageStore extends RouteMeta {
+interface PageStore {
   currentPage: string;
-  breadcrumbs: BreadcrumbItem[];
-  accessDenied?: boolean;
+  description?: string;
   customMeta?: Record<string, any>;
-  setPageInfo: (
-    currentPage: string,
-    breadcrumbs?: BreadcrumbItem[],
-    options?: Partial<
-      Omit<PageStore, "currentPage" | "breadcrumbs" | "setPageInfo">
-    >
-  ) => void;
+  accessDenied?: boolean;
+  sidebarCollapsed?: boolean;
+
+  setPageInfo: (options: Partial<Omit<PageStore, "setPageInfo">>) => void;
+  clearPageInfo: () => void;
 }
 
 export const pageStore = create<PageStore>()(
   immer((set) => ({
-    currentPage: getDefaultPageName(),
-    breadcrumbs: [],
+    currentPage: "",
+    description: "",
+    customMeta: {},
+    accessDenied: false,
+    sidebarCollapsed: false,
 
-    setPageInfo: (currentPage, breadcrumbs = [], options = {}) =>
+    setPageInfo: (options) =>
       set((state) => {
-        state.currentPage = currentPage || getDefaultPageName();
-        state.breadcrumbs = breadcrumbs.length ? breadcrumbs.slice(0, 3) : [];
         Object.assign(state, options);
       }),
+
+    clearPageInfo: () =>
+      set(() => ({
+        currentPage: "",
+        description: "",
+        customMeta: {},
+        accessDenied: false,
+        sidebarCollapsed: false,
+      })),
   }))
 );
 
@@ -46,85 +55,36 @@ function getDefaultPageName(): string {
     : "Home";
 }
 
-// Flatten routes object into a simple list for matching
-const flatRoutes: { path: string; meta: RouteMeta }[] = [];
-function flatten(obj: any) {
-  for (const key in obj) {
-    if (obj[key]?.staticPath && obj[key]?.meta?.label) {
-      flatRoutes.push({
-        path: obj[key].staticPath,
-        meta: obj[key].meta,
-      });
-    } else if (typeof obj[key] === "object") {
-      flatten(obj[key]);
-    }
-  }
-}
-
-flatten(routes);
+/**
+ * Hook that watches the URL and updates the page store
+ * with current page info (title, description, sidebar state, custom meta).
+ */
 
 export function useUpdatePageInfo() {
   const location = useLocation();
-  const setPageInfo = pageStore((state) => state.setPageInfo);
 
   useEffect(() => {
     const path = location.pathname;
-    const parts = path.split("/").filter(Boolean);
-    const pathWithoutCompanyId =
-      parts.length > 1 ? "/" + parts.slice(1).join("/") : "/";
 
-    const match = flatRoutes.find((r) => {
-      const routeWithoutCompanyId = r.path.replace("/:companyId", "");
-      return (
-        pathWithoutCompanyId === routeWithoutCompanyId ||
-        pathWithoutCompanyId.startsWith(routeWithoutCompanyId + "/")
-      );
-    });
+    const matchedRoute = matchRouteForPath(path);
 
-    const { companyId } = companyStore.getState();
-    const dashboardPath = companyId
-      ? routes.dashboard.buildPath({ companyId })
-      : "/";
+    // Use the route firmsOnly to block access to firmOnly pages for non-firm users
 
-    if (match) {
-      const meta = match.meta;
-
-      const isDashboardPage =
-        match.path === routes.dashboard.staticPath ||
-        location.pathname === dashboardPath;
-
-      console.log(isDashboardPage);
-
-      const breadcrumbs: BreadcrumbItem[] = [];
-
-      if (!isDashboardPage) {
-        breadcrumbs.push({
-          label: "Home",
-          link: companyId ? routes.dashboard.buildPath({ companyId }) : "/",
-        });
-      }
-
-      if (meta.label && meta.label.toLowerCase() !== "home") {
-        breadcrumbs.push({
-          label: meta.label,
-          link: location.pathname,
-        });
-      }
-
-      setPageInfo(meta.label || "accountable", breadcrumbs, {
-        description: meta.description,
-        pageIcon: meta.pageIcon,
-        accessDenied: meta.role ? false : undefined,
-        sidebarCollapsed: meta.sidebarCollapsed ?? false,
-        customMeta: {
-          role: meta.role,
-          firmsOnly: meta.firmsOnly,
-        },
+    if (matchedRoute) {
+      const meta = matchedRoute.meta;
+      pageStore.getState().setPageInfo({
+        currentPage: meta?.label || "",
+        description: meta?.description || "",
+        sidebarCollapsed: meta?.sidebarCollapsed || false,
       });
     } else {
-      setPageInfo("Page Not Found", [{ label: "Home", link: "/" }]);
+      pageStore.getState().setPageInfo({
+        currentPage: "",
+        description: "",
+        sidebarCollapsed: false,
+      });
     }
-  }, [location.pathname, setPageInfo]);
+  }, [location.pathname]);
 }
 
 export function usePageMeta(suffix = "Accountable") {

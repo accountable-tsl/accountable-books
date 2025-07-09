@@ -7,19 +7,19 @@ import {
 } from "@/components/ui/card";
 import { StepProgress } from "@/components/StepProgress/StepProgress";
 import { useEffect, useRef, useState } from "react";
-import { CompanyType, CountryList, zEmail } from "@/types/types";
+import { CompanyType, Country, zEmail } from "@/shared/types/core";
 import { Button } from "@/components/ui/button";
 import { NewCompany, NewUser } from "./signupTypes";
-import { useSearchParams } from "react-router-dom";
-import { useCountries } from "@/hooks/useCountries";
-import { getDefaultCurrencyForCountry } from "@/constants/countryCurrencyMap";
-import { useCurrencies } from "@/hooks/useCurrencies";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useCountries } from "@/shared/hooks/useCountries";
+import { getDefaultCurrencyCodeForCountry } from "@/constants/countryCurrencyMap";
+import { useCurrencies } from "@/shared/hooks/useCurrencies";
 import { SignupSelector } from "./steps/SignupSelector";
 import {
   SignupBasicInfo,
   SignupBasicInfoHandle,
 } from "./steps/SignupBasicInfo";
-import { useCheckEmail } from "@/hooks/useCheckEmail";
+import { useCheckEmail } from "@/shared/hooks/useCheckEmail";
 import {
   SignupCompanyInfo,
   SignupCompanyInfoHandle,
@@ -28,11 +28,17 @@ import { toast } from "sonner";
 import { submitSignup } from "./signupService";
 import { PuffLoader } from "react-spinners";
 import { XIcon } from "lucide-react";
-import { Toaster } from "@/components/ui/sonner";
 import { AuthHeader } from "@/components/AuthHeader";
+import { buildCanonicalUrl } from "@/shared/routes/utils";
+import { routes } from "@/shared/routes/routes";
+import { performLoginFlow } from "../auth/utils";
+import { authStore } from "../auth/store";
 
+//TODO: Refactor whole signup flow later
 export default function Signup() {
   const [searchParams] = useSearchParams();
+  const { setAuth } = authStore((s) => s);
+  const navigate = useNavigate();
   const prefillEmail = searchParams.get("email") || "";
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -80,11 +86,20 @@ export default function Signup() {
     const validEmail = zEmail.safeParse(email);
     if (!validEmail.success)
       throw new Error("Please enter a valid email address");
-    const response = await checkEmail({ email, purpose: "signup" });
-    if (!response?.success) {
-      throw new Error("This email has already been registered");
+
+    try {
+      const response = await checkEmail({ email, purpose: "signup" });
+      if (!response?.success) {
+        throw new Error(
+          response.message || "This email has already been registered"
+        );
+      }
+      return true;
+    } catch (err: any) {
+      const backendError =
+        err?.response?.data?.message || err.message || "Something went wrong";
+      throw new Error(backendError);
     }
-    return true;
   };
 
   const handleBack = () => {
@@ -94,6 +109,7 @@ export default function Signup() {
       ? setCurrentStep((prev) => prev - 1)
       : setCurrentStep(1);
   };
+
   const handleContinue = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
 
@@ -121,7 +137,14 @@ export default function Signup() {
       setCurrentStep(currentStep + 1);
     }
 
+    // Handle Submission
     if (currentStep === steps.length) {
+      if (!companyDetails.legalName) {
+        toast.error(
+          "Please fill company name or confirm default name set (if any)"
+        );
+        return;
+      }
       const isValid = await companyInfoRef.current?.validate();
       if (!isValid) {
         toast.error("Please fix the errors in your company details");
@@ -137,15 +160,43 @@ export default function Signup() {
         });
 
         if (signup.success) {
-          setTimeout(() => {
-            setSubmitStatus("success");
-            toast.success("Signup successful");
-            setError("");
-          }, 1000);
+          toast.success("Signup successful");
 
-          setTimeout(() => {
-            window.location.href = "/";
-          }, 1500);
+          const loginResult = await performLoginFlow({
+            email: basicInfo.email,
+            password: basicInfo.password,
+            setAuth,
+          });
+
+          // Wait for 2 seconds
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          setSubmitStatus("success");
+          setError("");
+
+          const {
+            success: loginSuccess,
+            canAccessApp,
+            data: loginResultData,
+          } = loginResult;
+
+          if (!loginSuccess || !loginResultData) {
+            toast.info("Signup succeeded! Please login to continue.", {
+              duration: 6000,
+            });
+            navigate(routes.auth.login.staticPath, { replace: true });
+          }
+
+          if (loginSuccess && canAccessApp) {
+            navigate(
+              routes.general.dashboard.build({
+                companyId: loginResultData?.user.currentCompanyId,
+              }),
+              { replace: true }
+            );
+          } else {
+            navigate(routes.onboarding.index.staticPath, { replace: true });
+          }
         } else {
           setTimeout(() => {
             setSubmitStatus("error");
@@ -157,7 +208,9 @@ export default function Signup() {
         setTimeout(() => {
           setSubmitStatus("error");
           setError("Something went wrong. Please try again.");
-          toast.error("Something went wrong. Please try again.");
+          toast.error("Something went wrong. Please try again.", {
+            duration: 5000,
+          });
         }, 1000);
       } finally {
         setIsSubmitting(false);
@@ -168,8 +221,6 @@ export default function Signup() {
     }
   };
 
-  console.log("companyDetails", companyDetails);
-  console.log("basicInfo", basicInfo);
   const handleSelect = (category: CompanyType) => {
     if (!category) return;
     if (currentStep === 1) {
@@ -192,7 +243,7 @@ export default function Signup() {
     setBasicInfo((prev) => ({ ...prev, [key]: value }));
   };
 
-  const getCountryFromLocale = (): CountryList | undefined => {
+  const getCountryFromLocale = (): Country | undefined => {
     const locale = navigator.language;
     const countryCode = locale.split("-")[1];
     const userCountry =
@@ -206,7 +257,7 @@ export default function Signup() {
       : "";
     const userCountry = ctry || getCountryFromLocale();
     const curr = userCountry
-      ? getDefaultCurrencyForCountry(userCountry?.code)
+      ? getDefaultCurrencyCodeForCountry(userCountry?.code)
       : "";
 
     return curr;
@@ -279,7 +330,6 @@ export default function Signup() {
   }, [country?.data, companyDetails.countryId]);
 
   useEffect(() => {
-    console.log(userHasSelectedCurrency.current);
     // Only run when currency list is ready and a country is selected
     if (
       !currencies?.data ||
@@ -349,7 +399,10 @@ export default function Signup() {
                       </Button>
 
                       {selectedType && (
-                        <Button onClick={handleContinue}>
+                        <Button
+                          onClick={handleContinue}
+                          disabled={isSubmitting}
+                        >
                           {currentStep === steps.length ? "Submit" : "Continue"}
                         </Button>
                       )}
@@ -384,7 +437,6 @@ export default function Signup() {
           </div>
         </div>
       </div>
-      <Toaster />
     </div>
   );
 }

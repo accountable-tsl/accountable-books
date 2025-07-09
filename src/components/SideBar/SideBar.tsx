@@ -31,56 +31,67 @@ import {
 import { NavMain } from "../NavMain";
 import { NavUser } from "../NavUser";
 import { NavSecondary } from "../NavSecondary";
+// import { routes } from "@/shared/routes/routes";
+import React from "react";
+import { SkeletonBlock } from "../SkeletonBlock";
+import { CompanyData, CompanyType } from "@/domains/company/types";
+import { AuthUserContext } from "@/features/auth/types";
+import { useSession } from "@/features/auth/Session";
 import { routes } from "@/shared/routes/routes";
-import { useAuth } from "@/features/auth/hooks";
-import { useCompany } from "@/domains/company/store";
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   sidebarCollapsible?: "icon" | "offcanvas";
   defaultCollapsed?: boolean;
+  companyId?: string;
+  companyType?: CompanyType;
+  company?: CompanyData;
+  user?: AuthUserContext;
 }
 
-export function AppSidebar({
+export const AppSidebar = ({
   sidebarCollapsible = "icon",
+  user,
+  company,
+  companyId: _companyId,
+  companyType: _companyType,
   ...props
-}: AppSidebarProps) {
+}: AppSidebarProps) => {
   // Side bar options, depending on page, I'd use collapsible or icon
   // e.g on categorization engine, we'd use collapsible but on dashboard, we'd use icon
-  const { companyId, companyType, company } = useCompany();
-  const { user } = useAuth();
-  console.log(
-    "company",
-    company,
-    "user",
-    user,
-    "companyId",
-    companyId,
-    "companyType",
-    companyType
-  );
 
-  if (!companyId || !companyType) return "#";
-  const navMain = getNavMain(companyId, companyType);
-  const navSecondary = getNavSecondary(companyId, companyType);
-  const navUser = getNavUser({
-    name: user.firstname,
-    email: user.email,
-    avatar: user.avatar || "",
+  const companyId = _companyId || company?.id;
+  const companyType = _companyType || company?.companyType;
+
+  const navMain =
+    companyId && companyType ? getNavMain(companyId, companyType) : [];
+  const navSecondary =
+    companyId && companyType ? getNavSecondary(companyId, companyType) : [];
+
+  const navUser = user
+    ? getNavUser({
+        name: user.firstname,
+        email: user.email,
+        avatar: "", // user.avatar or something later
+      })
+    : { name: "", email: "", avatar: "" };
+
+  const dashboardPath = routes.general.dashboard.build({
+    companyId: companyId || "",
   });
+
+  if (!companyId || !companyType || !company)
+    return <SkeletonBlock className="max-w-5xl" />;
 
   return (
     <Sidebar collapsible={sidebarCollapsible} {...props}>
-      <SidebarHeader>
+      <SidebarHeader className="h-12 md:border-b">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link
-                to={routes.dashboard.staticPath}
-                className="flex items-center gap-2"
-              >
+              <Link to={dashboardPath} className="flex items-center gap-2">
                 <div className="flex items-center justify-center h-5 w-5 overflow-hidden">
                   {company?.assignedFirmLogo ? (
                     <img
@@ -91,7 +102,7 @@ export function AppSidebar({
                     <ArrowUpCircleIcon />
                   )}
                 </div>
-                <span className="truncate text-base font-semibold">
+                <span className="truncate text-sm font-medium">
                   {company?.assignedFirmName}
                 </span>
               </Link>
@@ -108,30 +119,30 @@ export function AppSidebar({
       </SidebarFooter>
     </Sidebar>
   );
+};
+export function MockSidebar({ items = [] }: Partial<{ items: any[] }>) {
+  return (
+    <Sidebar className="fixed left-0 top-0 h-full z-0 shadow-md">
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Onboarding Suite</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.length > 0 &&
+                items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <a href={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
 }
-
-// export function OnboardingSidebar() {
-//   return (
-//     <Sidebar>
-//       <SidebarContent>
-//         <SidebarGroup>
-//           <SidebarGroupLabel>Application</SidebarGroupLabel>
-//           <SidebarGroupContent>
-//             <SidebarMenu>
-//               {items.map((item) => (
-//                 <SidebarMenuItem key={item.title}>
-//                   <SidebarMenuButton asChild>
-//                     <a href={item.url}>
-//                       <item.icon />
-//                       <span>{item.title}</span>
-//                     </a>
-//                   </SidebarMenuButton>
-//                 </SidebarMenuItem>
-//               ))}
-//             </SidebarMenu>
-//           </SidebarGroupContent>
-//         </SidebarGroup>
-//       </SidebarContent>
-//     </Sidebar>
-//   );
-// }
