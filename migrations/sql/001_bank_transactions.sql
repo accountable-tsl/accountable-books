@@ -46,7 +46,7 @@ BEGIN
         END IF;
     ELSE
         CREATE TABLE bank_transactions (
-            id                      UUID NOT NULL,
+            id                      UUID NOT NULL DEFAULT gen_random_uuid(),
             date                    DATE NOT NULL,
             payee                   TEXT,
             reference               TEXT,
@@ -60,6 +60,7 @@ BEGIN
             bank_account_id         UUID NOT NULL,
             bank_transaction_batch_id  UUID,
             ledger_transaction_id   UUID,
+            external_id             TEXT,
             created_by_id           UUID NOT NULL,
             updated_by_id           UUID,
             created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),

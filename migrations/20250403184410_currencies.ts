@@ -8,7 +8,7 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from "../src/utils/db";
-import { currencyWithId, NewCurrencyWithId } from "../src/core/types/db.type";
+import { currencyWithId, NewCurrencyWithId } from "../src/core/types/db.types";
 import { NODE_ENV } from "../src/config/env";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -63,7 +63,7 @@ export async function seedCurrencies(knex: Knex): Promise<void> {
         await trx(tableName).insert(seedData).onConflict("code").ignore();
       });
     }
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${seedData.length} currencies`);
     }
   } catch (error) {

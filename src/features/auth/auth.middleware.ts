@@ -1,28 +1,24 @@
 import { NextFunction, Request, Response } from "express";
-import { JWT_CONFIG } from "./auth.utils";
-import jwt, { JwtPayload } from "jsonwebtoken";
-import { AuthRequest, DecodedToken } from "./auth.types";
-import { User } from "../../domains/user/user.types";
-import { getCompanyRolesForUser } from "../../domains/userCompanyRole/userCompanyRole.model";
-import { permission } from "process";
-
-// export interface AuthRequest extends Request {
-//   user?: User;
-// }
+import { buildAuthContext, csrfProtection, JWT_CONFIG } from "./auth.utils";
+import jwt from "jsonwebtoken";
+import { AuthRequest, BaseAuthRequest, DecodedToken } from "./auth.types";
+import { errorResponse } from "../../shared/utils/response.utils";
+import { getPermissionsForRole } from "../../domains/permission/permission.model";
+import { redis } from "../../lib/redis";
+import { generateRandomToken } from "../../shared/utils/crypto.utils";
+import { publicPaths } from "./auth.constants";
 
 export const verifyAccessToken = async (
-  req: AuthRequest,
+  req: BaseAuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-  // Extract the access token from cookies
-  const token = req.cookies.accessToken as string | undefined;
+  const token = req.cookies?.accessToken;
+  if (!token)
+    return res
+      .status(401)
+      .json(errorResponse("Unauthorized", "Token not found"));
 
-  if (!token) {
-    return res.status(401).json({ success: false, message: "Unauthorized" });
-  }
-
-  // Verify token
   try {
     // Verify the JWT and extract the decoded payload
     const decoded = jwt.verify(
@@ -31,18 +27,17 @@ export const verifyAccessToken = async (
     ) as DecodedToken;
 
     // Ensure the decoded payload includes a valid user ID
-    if (!decoded.sub) {
+    if (!decoded.sub)
       return res
         .status(403)
-        .json({ success: false, message: "Invalid token payload" });
-    }
+        .json(
+          errorResponse("Invalid token payload", "User ID not found in token")
+        );
 
-    // Fetch all roles the user has across companies
-    const userRoles = await getCompanyRolesForUser(decoded.sub);
-    if (!userRoles.success) return res.status(403).json(userRoles.message);
-
-    // Attach user ID and company roles to the request object
-    req.user = { id: decoded.sub, roles: userRoles.data };
+    req.user = {
+      ...req.user,
+      id: decoded.sub,
+    };
 
     // proceed
     next();
@@ -53,24 +48,140 @@ export const verifyAccessToken = async (
 
 function handleJwtError(err: unknown, res: Response) {
   if (err instanceof jwt.TokenExpiredError) {
-    return res.status(401).json({ error: "Token expired" });
+    return res.status(401).json(errorResponse("Token expired", err.message));
   }
   if (err instanceof jwt.JsonWebTokenError) {
-    return res.status(403).json({ error: "Invalid token" });
+    return res.status(403).json(errorResponse("Invalid token", err.message));
   }
-  res.status(500).json({ error: "Authentication failed" });
+  res.status(500).json(errorResponse("Authentication failed", err));
 }
 
-export const requirePermission = (permission: string) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const companyId = req.params.company_id || req.body.company_id;
+export const verifyRefreshToken = async (
+  req: BaseAuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken) {
+    return res.status(401).json(errorResponse("No refresh token provided"));
+  }
 
-    const userRole = req.user?.roles?.find((r) => r.company_id === companyId);
+  try {
+    const decoded = jwt.verify(
+      refreshToken,
+      JWT_CONFIG.refreshToken.secret
+    ) as DecodedToken;
 
-    if (!userRole) {
-      return res.status(403).json({ message: "No role for this company" });
+    req.user = {
+      ...req.user,
+      id: decoded.sub,
+    };
+
+    next();
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res
+        .status(401)
+        .json(errorResponse("Refresh token expired", error));
+    }
+    return res.status(403).json(errorResponse("Invalid refresh token", error));
+  }
+};
+
+export const conditionalCsrf = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  csrfProtection(req, res, (err) => {
+    const isPublic = publicPaths.some((p) => req.originalUrl.includes(p));
+
+    // Ignore CSRF errors on public routes
+    if (err && isPublic) return next();
+
+    if (err) {
+      console.warn(
+        "Blocked by CSRF middleware (Invalid CSRF token):",
+        err.message
+      );
+      return res.status(403).json({ error: "A security breach was detected" });
     }
 
-    const permissions = await getPermissionsForRole(userRole.role_id);
-  };
+    return next();
+  });
 };
+
+export const requireAuth = async (
+  req: BaseAuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (publicPaths.some((p) => req.originalUrl.includes(p))) {
+    return next();
+  }
+
+  const token = req.cookies?.accessToken;
+  if (!token) {
+    if (req.accepts("html")) {
+      return res.redirect("/login");
+    } else {
+      return res.status(401).json(errorResponse("Unauthorized"));
+    }
+  }
+
+  try {
+    await verifyAccessToken(req, res, next);
+  } catch (error) {
+    if (req.accepts("html")) {
+      return res.redirect("/login");
+    } else {
+      return res.status(401).json(errorResponse("Unauthorized"));
+    }
+  }
+};
+
+// export const requirePermission = (permission: string) => {
+//   return async (req: AuthRequest, res: Response, next: NextFunction) => {
+//     if (!req.user) return res.status(401).json(errorResponse("Unauthorized"));
+
+//     const currentCompanyId = req.user.currentCompanyId || req.params.companyId;
+//     if (!currentCompanyId) {
+//       return res.status(400).json(errorResponse("Company ID not provided"));
+//     }
+
+//     const role = req.user.companyRoles?.find(
+//       (r) => r.companyId === currentCompanyId
+//     );
+//     if (!role) {
+//       return res
+//         .status(403)
+//         .json(errorResponse("Not authorized for this company"));
+//     }
+
+//     // Redis Cache
+//     const cacheKey = `permissions:${role.roleId}`;
+//     const cached = await redis.get(cacheKey);
+//     let permissions: string[];
+
+//     if (cached) {
+//       permissions = JSON.parse(cached);
+//     } else {
+//       const result = await getPermissionsForRole(role.roleId);
+//       if (!result.success)
+//         return res.status(403).json(errorResponse("No permissions found"));
+
+//       permissions = result.data.map(
+//         (p: { permission: string }) => p.permission
+//       );
+
+//       await redis.setex(cacheKey, 3600, JSON.stringify(permissions)); // Cache for 1hr
+//     }
+
+//     if (!permissions.includes(permission)) {
+//       return res.status(403).json(errorResponse("Forbidden"));
+//     }
+
+//     req.user.permissions = permissions.map((p) => ({ permission: p }));
+//     next();
+//   };
+// };

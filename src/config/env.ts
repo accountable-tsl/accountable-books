@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { nodeEnv, NodeEnv } from "../core/validation/schemas";
+import { nodeEnv, NodeEnv } from "../core/types/core";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +19,7 @@ export const NODE_ENV: NodeEnv = nodeEnv.parse(process.env.NODE_ENV || "local");
 const envFileMap: Record<NodeEnv, string> = {
   test: ".env.test",
   local: ".env.local",
-  "docker.dev": ".env.docker.dev",
+  docker: ".env.docker",
   staging: ".env.docker.staging",
   production: ".env.production",
 };
@@ -37,7 +37,7 @@ const determineEnvKey = (): NodeEnv => {
   }
 
   // Fallback
-  return "docker.dev";
+  return "docker";
 };
 
 export const envKey: NodeEnv = determineEnvKey();
@@ -53,7 +53,8 @@ dotenv.config({
   path: path.resolve(__dirname, `../../${envFile || ".env.local"}`),
 });
 
-console.log(`🌱 Loaded environment from: ${envFile}`);
+// console.log(`🌱 Loaded environment from: ${envFile}`);
 
 export const ENV = process.env;
-export const isProduction = NODE_ENV === "production";
+export const isProd = NODE_ENV === "production" || NODE_ENV === "staging";
+export const isDev = NODE_ENV === "local" || NODE_ENV === "docker";

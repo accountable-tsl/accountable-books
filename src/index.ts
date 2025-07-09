@@ -3,67 +3,122 @@ import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import express, { NextFunction, Request, Response } from "express";
 import "dotenv/config";
 import cors from "cors";
-// import usersRoute from "./controllers/usersController";
-// import companiesRoutes from "./routes/companiesRoutes";
-// import coaRoutes from "./routes/coaRoutes";
-// import bankRoutes from "./routes/bankRoutes";
-// import bankAccountRoutes from "./routes/bankAccountRoutes";
-// import currenciesRoutes from "./routes/currenciesRoutes";
-// import bankTransactionRoutes from "./routes/bankTransactionRoutes";
-// import exRateRoutes from "./routes/exRateRoutes";
-// import transactionRoutes from "./routes/transactionRoutes";
-// import accountTransactionRoutes from "./routes/accountTransactionRoutes";
-// import journalRoutes from "./routes/journalRoutes";
-// import reportingRoutes from "./routes/reportingRoutes";
-import currencyRoutes from "./domains/currency/currency.routes";
-import countryRoutes from "./domains/country/country.routes";
+import currencyRoutes from "./domains/currencies/currencies.routes";
+import countryRoutes from "./domains/countries/countries.routes";
 import emailRoutes from "./domains/email/email.routes";
-import onboarding from "./features/signup/signup.routes";
+import onboardingRoutes from "./features/onboarding/onboarding.routes";
+import signupRoutes from "./features/signup/signup.routes";
+import usersRoutes from "./domains/users/users.routes";
+import authRoutes from "./features/auth/auth.routes";
+import companiesRoutes from "./domains/companies/companies.routes";
+import objectRoutes from "./domains/objects/objects.routes";
+import firmRoutes from "./domains/accountingFirms/firms.routes";
+import bankRoutes from "./domains/banks/banks.routes";
+import bankAccountsRoutes from "./domains/bankAccounts/bankAccounts.routes";
+import bankTransactionRoutes from "./domains/bankTransactions/bankTransactions.routes";
+import bankFeedProvidersRoutes from "./domains/bankFeedProviders/bankFeedProviders.routes";
+import bankAccountConnectionsRoutes from "./domains/bankAccountConnections/baccons.routes";
+import usersCompaniesRolesRoutes from "./domains/userRoles/userRoles.routes";
 import { swaggerUi, specs } from "../swagger";
-import { basicAuth } from "./middlewares/basicAuth.middleware";
 import { serverAdapter } from "./routes/bullboard.routes";
-import { ENV } from "./config/env";
+import { basicAuth } from "./core/middlewares/basicAuth.middleware";
+import { ENV, NODE_ENV } from "./config/env";
+import { loadRoles } from "./domains/roles/roles.model";
+import cookieParser from "cookie-parser";
+import {
+  conditionalCsrf,
+  verifyRefreshToken,
+} from "./features/auth/auth.middleware";
 
-const NODE_ENV = process.env.NODE_ENV || "development";
-
-const PORT = process.env.PORT || 8080;
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost";
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const PORT = ENV.PORT!;
+export const BACKEND_URL = ENV.BACKEND_URL!;
+export const FRONTEND_URL = ENV.FRONTEND_URL!;
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 
-// app.use(cors({ origin: FRONTEND_URL }));
-app.use(cors({ origin: "*" }));
-app.use(express.static("./public"));
+const originalError = console.error;
+console.error = (...args: unknown[]) => {
+  originalError(...args);
 
-const bullboardUser = process.env.BULLBOARD_USER || "admin";
-const bullboardPass = process.env.BULLBOARD_PASSWORD || "secret";
+  for (const arg of args) {
+    if (arg instanceof Error && arg.stack) {
+      originalError("Stack Trace:", arg.stack);
+      return;
+    }
+  }
 
-// app.use("/api/:companyId/coa", coaRoutes);
-// app.use("/api/companies/", companiesRoutes);
-// app.use("/api", exRateRoutes);
-// app.use("/api/banks", bankRoutes);
-// app.use("/api/:companyId/bank-accounts/transactions", bankTransactionRoutes);
-// app.use("/api/:companyId/bank-accounts", bankAccountRoutes);
-// app.use("/api/:companyId/transactions", transactionRoutes);
-// app.use("/api/:companyId/account-transactions", accountTransactionRoutes);
-// app.use("/api/:companyId/journals", journalRoutes);
-// app.use("/api/:companyId/reports", reportingRoutes);
-app.use("/api", onboarding);
-app.use("/api/currencies", currencyRoutes);
-app.use("/api/countries", countryRoutes);
-app.use("/api/email", emailRoutes);
+  // fallback if no Error instance is found
+  const fallbackStack = new Error().stack;
+  if (fallbackStack) originalError("Generated Stack Trace:", fallbackStack);
+};
 
-app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
-app.use("/admin/queues", serverAdapter.getRouter());
-// app.use("api/users", userRoutes);
+const allowedOrigins = [
+  FRONTEND_URL,
+  /^https?:\/\/[\w-]+\.localhost(:\d+)?$/,
+  "http://localhost:5173",
+  "localhost:5173",
+  "http://lvh.me:5173",
+  /\.lvh\.me(:5173)?$/,
+  new RegExp(
+    `^https?:\/\/[\w-]+\.${FRONTEND_URL.replace(/^https?:\/\//, "").replace(/\./g, "\\.")}$`
+  ),
+];
+async function startServer() {
+  try {
+    // Load critical stuff first
+    await loadRoles();
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
+    app.use(cors({ origin: allowedOrigins, credentials: true }));
+    app.use(express.static("./public"));
 
-Sentry.setupExpressErrorHandler(app);
+    app.use(conditionalCsrf);
 
-app.listen(Number(PORT), "0.0.0.0", () => {
-  console.log(`Server is running in ${NODE_ENV} on ${BACKEND_URL}:${PORT}`);
-  console.log(`Bull Board available at ${BACKEND_URL}:${PORT}/admin/queues`);
-});
+    const bullboardUser = process.env.BULLBOARD_USER || "admin";
+    const bullboardPass = process.env.BULLBOARD_PASSWORD || "secret";
+
+    // Mount routes AFTER successful load
+    app.use("/api", signupRoutes);
+    app.use("/auth", authRoutes);
+    app.use("/api/currencies", currencyRoutes);
+    app.use("/api/countries", countryRoutes);
+    app.use("/api/email", emailRoutes);
+    app.use("/api/accounting-firms/check-slug", firmRoutes);
+
+    app.use("/api", verifyRefreshToken);
+
+    app.use("/api/onboarding", onboardingRoutes);
+    app.use("/api/companies", companiesRoutes);
+    app.use("/api/users", usersRoutes);
+    app.use("/api", objectRoutes);
+    app.use("/api/accounting-firms", firmRoutes);
+
+    app.use("/api/banks", bankRoutes);
+    app.use("/api/:companyId/bank-accounts", bankAccountsRoutes);
+    app.use(
+      "/api/:companyId/bank-accounts/transactions",
+      bankTransactionRoutes
+    );
+    app.use("/api/bank-feed-providers", bankFeedProvidersRoutes);
+    app.use("/api/:companyId/bank-connections", bankAccountConnectionsRoutes);
+    app.use("/api/:companyId", usersCompaniesRolesRoutes);
+
+    app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
+    app.use("/admin/queues", serverAdapter.getRouter());
+
+    app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
+
+    Sentry.setupExpressErrorHandler(app);
+    const listeningOn = `api.${ENV.BASE_DOMAIN!}`; //
+    app.listen(Number(PORT), listeningOn, () => {
+      console.log(`Server is running in ${NODE_ENV} on ${BACKEND_URL}`);
+      console.log(`Bull Board available at ${BACKEND_URL}/admin/queues`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+startServer();

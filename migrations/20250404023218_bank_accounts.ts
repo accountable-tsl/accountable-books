@@ -10,8 +10,12 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
     table.string("display_name").notNullable();
-    table.specificType("account_type", "bank_account_type").notNullable();
+    table.string("account_name").nullable();
+    table.specificType("account_type", "bank_account_type").nullable();
     table.string("account_number").notNullable();
+    table
+      .specificType("business_or_personal", "business_or_personal_account")
+      .nullable();
 
     table
       .uuid("bank_id")
@@ -48,10 +52,17 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("users")
       .onDelete("RESTRICT");
 
+    table
+      .uuid("updated_by_id")
+      .nullable()
+      .references("id")
+      .inTable("users")
+      .onDelete("SET NULL");
+
     addStandardColumns(table);
 
     table.index(["company_id", "bank_id"], "bank_account_company_bank_index");
-    table.unique(["company_id", "account_number", "bank_id"]);
+    // table.unique(["company_id", "account_number", "bank_id"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

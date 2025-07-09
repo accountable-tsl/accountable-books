@@ -5,7 +5,7 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from "../src/utils/db";
-import { NewFinancialStatementInput } from "../src/core/types/db.type";
+import { NewFinancialStatementInput } from "../src/core/types/db.types";
 import { financialStatementIds } from "./data/ids";
 import { NODE_ENV } from "../src/config/env";
 
@@ -43,7 +43,7 @@ const seedFs = async function seed(knex: Knex): Promise<void> {
       .onConflict("key")
       .ignore();
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(
         `Seeded ${defaultFinancialStatements.length} financial statements`
       );

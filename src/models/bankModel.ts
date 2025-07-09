@@ -1,58 +1,8 @@
 import { PrismaClient } from "@prisma/client";
+import { ENV } from "../config/env";
 
 const prisma = new PrismaClient();
 
-export async function getAllBanks() {
-  try {
-    const allBanks = await prisma.bank.findMany({
-      select: {
-        id: true,
-        name: true,
-        bankLogo: true,
-        country: { select: { id: true, code: true, name: true } },
-      },
-    });
-
-    const result = allBanks.map((bank: any) => ({
-      bankId: bank.id,
-      bankName: bank.name,
-      bankLogo: bank.bankLogo,
-      countryId: bank.country?.id,
-      countryCode: bank.country?.code,
-      countryName: bank.country?.name,
-    }));
-
-    return {
-      success: true,
-      message: "Successfully retrieved all banks",
-      data: result,
-    };
-  } catch (error: any) {
-    console.error(error);
-    return {
-      success: false,
-      message: "An unexpected error occured",
-    };
-  }
-}
-
-export async function getSingleBank(id: number) {
-  try {
-    const singleBank = await prisma.bank.findFirst({ where: { id } });
-    if (singleBank) {
-      return {
-        success: true,
-        message: "Successfully retrieved bank",
-        data: singleBank,
-      };
-    } else {
-      return { success: false, message: "Bank not found" };
-    }
-  } catch (error: any) {
-    console.error("Error getting bank", error);
-    return { success: false, message: "Internal server error" };
-  }
-}
 
 interface CreateBank {
   name: string;
@@ -60,7 +10,7 @@ interface CreateBank {
   countryId: number;
 }
 
-const baseUrl = `${process.env.BACKEND_URL}:${process.env.PORT}`;
+const baseUrl = ENV.BACKEND_URL;
 const defaultBankLogo = `${baseUrl}/bank-default.png`;
 
 export async function createNewBank(data: CreateBank) {

@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import { errorResponse } from "../../shared/utils/response.utils";
 import { checkEmail } from "./email.model";
-import knex from "../../../knexClient";
+import { knexClient } from "../../../knexClient";
 
 export async function checkEmailController(req: Request, res: Response) {
   try {
     const { email, purpose } = req.body;
-    const result = await checkEmail(knex,email, purpose);
+    const result = await checkEmail(knexClient, email, purpose);
 
     if (result.success) {
       return res.status(200).json(result);

@@ -9,7 +9,7 @@ import {
   preventUpdateOrDelete,
 } from "../src/utils/db";
 import { NODE_ENV } from "../src/config/env";
-import { NewPermissionInput } from "../src/core/types/db.type";
+import { NewPermissionInput } from "../src/core/types/db.types";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,7 +37,7 @@ const seedPermissions = async function seed(knex: Knex): Promise<void> {
         .ignore();
     });
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${seedData.length} permissions from ${filePath}`);
     }
   } catch (error) {
@@ -67,7 +67,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await createUpdateTimestampTrigger(knex, tableName);
   await preventUpdateOrDelete(knex, tableName);
-  await seedPermissions(knex);
+  // await seedPermissions(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

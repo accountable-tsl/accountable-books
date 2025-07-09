@@ -81,6 +81,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("users")
       .onDelete("RESTRICT");
 
+    table
+      .uuid("updated_by_id")
+      .references("id")
+      .inTable("users")
+      .onDelete("SET NULL");
+
     addStandardColumns(table);
 
     table.index(["company_id", "is_deleted"], "coa_company_deleted_idx");
@@ -90,6 +96,9 @@ export async function up(knex: Knex): Promise<void> {
     table.unique(["name", "code", "company_id"], {
       indexName: "coa_name_code_company_unique",
     });
+
+    table.unique(["name","account_type_id", "company_id"]);
+    table.unique(["code", "company_id"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

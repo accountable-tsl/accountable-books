@@ -634,7 +634,7 @@
   {
     "id": "6ff3b6f6-1de1-4c4b-b4e2-7bdaf16d7263",
     "code": "GB",
-    "name": "United Kingdom",
+    "name": "United Kingdom (UK)",
     "phone_code": "+44",
     "flag": "🇬🇧",
     "continent": "Europe"
@@ -1874,7 +1874,7 @@
   {
     "id": "5a60ff99-bd7e-400e-84a6-ebb131789322",
     "code": "US",
-    "name": "United States",
+    "name": "United States (US)",
     "phone_code": "+1",
     "flag": "🇺🇸",
     "continent": "North America"

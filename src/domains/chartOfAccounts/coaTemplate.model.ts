@@ -11,7 +11,7 @@ import {
   errorResponse,
   successResponse,
 } from "../../shared/utils/response.utils";
-import { Company } from "../company/company.types";
+import { Company } from "../companies/companies.types";
 import { selectBestCoaTemplate } from "./coaTemplateSelector.service";
 import { createDefaultAccounts } from "./coa.model";
 import { CoaSource, NewCoa } from "./coa.types";

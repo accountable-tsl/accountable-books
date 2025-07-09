@@ -1,4 +1,4 @@
-export const accountTypeIds = {
+export const accountTypeIds: { [key: string]: string } = {
   nca_land: "645e5c04-7638-49ed-aabd-6bce8b089a17",
   nca_ppe: "9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e",
   nca_ppe_contra: "276ef71c-10b1-44d2-a6ce-23752b047949",

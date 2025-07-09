@@ -1,16 +1,16 @@
 import type { Knex } from "knex";
-import knexInstance from "../../knexClient";
+import { knexClient } from "../../knexClient";
 
 export function addStandardColumns(table: Knex.CreateTableBuilder) {
   table
     .timestamp("created_at", { useTz: true })
     .notNullable()
-    .defaultTo(knexInstance.fn.now());
+    .defaultTo(knexClient.fn.now());
 
   table
     .timestamp("updated_at", { useTz: true })
     .notNullable()
-    .defaultTo(knexInstance.fn.now());
+    .defaultTo(knexClient.fn.now());
 
   table.boolean("is_deleted").notNullable().defaultTo(false);
   table.timestamp("deleted_at", { useTz: true }).nullable();

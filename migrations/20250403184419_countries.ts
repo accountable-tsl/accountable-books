@@ -8,7 +8,7 @@ import {
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
-import { newCountry, NewCountryInput } from "../src/core/types/db.type";
+import { newCountry, NewCountryInput } from "../src/core/types/db.types";
 import { randomUUID } from "crypto";
 import { NODE_ENV } from "../src/config/env";
 
@@ -67,7 +67,7 @@ const seedCountries = async function seed(knex: Knex): Promise<void> {
       });
     }
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${seedData.length} countries`);
     }
   } catch (error) {

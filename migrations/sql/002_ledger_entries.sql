@@ -47,7 +47,7 @@ BEGIN
         END IF;
     ELSE
         CREATE TABLE ledger_entries (
-        id                      UUID NOT NULL,
+        id                      UUID NOT NULL DEFAULT gen_random_uuid(),
         ledger_transaction_id   UUID NOT NULL,
         fs_date                 DATE NOT NULL,
         coa_id                  UUID NOT NULL,

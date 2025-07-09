@@ -5,7 +5,7 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from "../src/utils/db";
-import { AccountTypeWithRequiredReportCode } from "../src/core/types/db.type";
+import { AccountTypeWithRequiredReportCode } from "../src/core/types/db.types";
 import { accountElementIds } from "./data/ids";
 import { NODE_ENV } from "../src/config/env";
 
@@ -565,7 +565,7 @@ const seedAccountTypes = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
     await trx(tableName).insert(defaultAccountTypes).onConflict().ignore();
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker.dev") {
+    if (NODE_ENV === "local" || NODE_ENV === "docker") {
       console.log(`Seeded ${defaultAccountTypes.length} account types`);
     }
   });

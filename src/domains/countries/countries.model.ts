@@ -1,0 +1,89 @@
+import { knexClient } from "../../../knexClient";
+import { ApiResponse } from "../../core/types/api.types";
+import { redis } from "../../lib/redis";
+import { snakeToCamel } from "../../shared/utils/formatting.utils";
+import {
+  errorResponse,
+  successResponse,
+} from "../../shared/utils/response.utils";
+import { generateCacheKey } from "../../shared/utils/string.utils";
+import { CountryRes, GetCountriesOptions } from "./countries.types";
+
+
+
+const countriesCacheKey = generateCacheKey("countries", "all");
+const CACHE_TTL = 60 * 60 * 24; // 24 hours
+
+export async function getCountries({
+  skipCache = false,
+}: GetCountriesOptions = {}): Promise<ApiResponse<CountryRes[]>> {
+  try {
+    if (!skipCache) {
+      const cachedCountries = await redis.get(countriesCacheKey);
+
+      if (cachedCountries) {
+        return successResponse(
+          "Countries fetched from cache",
+          JSON.parse(cachedCountries)
+        );
+      }
+    }
+    const countries = await knexClient("countries")
+      .select(
+        "id",
+        "code",
+        "name",
+        "phone_code as phoneCode",
+        "flag",
+        "continent"
+      )
+      .where("is_deleted", false)
+      .orderBy("name", "asc");
+
+    await redis.set(
+      countriesCacheKey,
+      JSON.stringify(countries),
+      "EX",
+      CACHE_TTL
+    );
+
+    return successResponse(
+      `${countries.length} countries fetched successfully`,
+      countries
+    );
+  } catch (error) {
+    return errorResponse("Error fetching country list", error);
+  }
+}
+
+export async function getCountryByCode(code: string) {
+  if (!code || typeof code !== "string" || code.trim().length === 0) {
+    return errorResponse("Valid country code is required");
+  }
+
+  const normalizedCode = code.trim().toUpperCase();
+  // Validate code format (ISO 2-letter codes)
+  if (!/^[A-Z]{2}$/.test(normalizedCode)) {
+    return errorResponse("Country code must be 2 letters");
+  }
+
+  try {
+    // Get all countries (leverages cache from getCountries)
+    const allCountriesRes = await getCountries();
+    if (!allCountriesRes.success || !allCountriesRes.data) {
+      return errorResponse("Failed to fetch countries");
+    }
+
+    const country = allCountriesRes.data.find(
+      (c: CountryRes) => c.code.toUpperCase() === normalizedCode
+    );
+
+    if (!country) {
+      return successResponse("Country not found", null);
+    }
+
+    return successResponse("Country fetched successfully", country);
+  } catch (error) {
+    return errorResponse("Error fetching country", error);
+  }
+}

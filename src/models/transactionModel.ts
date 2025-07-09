@@ -19,7 +19,7 @@ import {
 import { BankTransactionWhereInput } from "../types/bank";
 import { Knex } from "knex";
 
-import knexInstance from "../knexClient";
+import { knexClient } from "../knexClient";
 import { randomUUID } from "crypto";
 
 const prisma = new PrismaClient();

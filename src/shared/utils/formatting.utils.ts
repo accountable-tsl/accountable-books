@@ -5,6 +5,8 @@
  * Useful for preparing objects before inserting into snake_case databases.
  */
 
+import { z } from "zod";
+
 export function camelToSnake<T>(input: T): T {
   if (!input || typeof input !== "object" || input instanceof Date)
     return input;
@@ -31,12 +33,12 @@ export function camelToSnake<T>(input: T): T {
  * Useful for converting DB results to frontend-friendly format.
  */
 
-export function snakeToCamel<T>(input: T): T {
+export function snakeToCamel<T>(input: T): SnakeToCamelCaseObject<T> {
   if (!input || typeof input !== "object" || input instanceof Date)
-    return input;
+    return input as any;
 
   if (Array.isArray(input)) {
-    return input.map(snakeToCamel) as T;
+    return input.map(snakeToCamel) as any;
   }
 
   return Object.entries(input).reduce(
@@ -47,7 +49,7 @@ export function snakeToCamel<T>(input: T): T {
       return acc;
     },
     {} as Record<string, any>
-  ) as T;
+  ) as any;
 }
 
 /**
@@ -81,4 +83,48 @@ export function toCamelCase(str: string): string {
     .toLowerCase()
     .replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase())
     .replace(/^([A-Z])/, (_, char) => char.toLowerCase());
+}
+
+export function isValidUUID(uuid: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    uuid
+  );
+}
+export function getIdentifierType(id: string): "uuid" | "shortCode" {
+  if (!id || typeof id !== "string" || id.length > 40) {
+    throw new Error("Invalid company identifier");
+  }
+
+  // Regex to check if it's a valid UUID (v1, v2, v3, v4, v5)
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+  return isUUID ? "uuid" : "shortCode";
+}
+
+export type SnakeToCamelCase<S extends string> =
+  S extends `${infer T}_${infer U}`
+    ? `${Lowercase<T>}${Capitalize<SnakeToCamelCase<U>>}`
+    : S;
+
+export type SnakeToCamelCaseObject<T> = {
+  [K in keyof T as K extends string
+    ? SnakeToCamelCase<K>
+    : K]: T[K] extends object ? SnakeToCamelCaseObject<T[K]> : T[K];
+};
+
+/**
+ * Creates a Zod schema that preprocesses input by converting camelCase
+ * keys to snake_case before validation.
+ *
+ * This is useful for ensuring that input objects have keys in the expected
+ * snake_case format when interfacing with systems or databases that use
+ * snake_case naming conventions.
+ *
+ * @param snakeSchema - The Zod schema to apply after preprocessing.
+ * @returns A Zod schema with preprocessing to convert camelCase keys to snake_case.
+ */
+
+export function createCamelCaseSchema<T extends z.ZodTypeAny>(snakeSchema: T) {
+  return z.preprocess(camelToSnake, snakeSchema);
 }

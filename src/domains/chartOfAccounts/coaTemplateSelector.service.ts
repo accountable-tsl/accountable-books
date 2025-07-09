@@ -7,9 +7,9 @@ import {
   IndustryKeywordConfig,
   SelectBestCoa,
 } from "./coaTemplate.type";
-import { CompanyType } from "../company/company.types";
+import { CompanyType } from "../companies/companies.types";
 import { splitIntoWords } from "../../shared/utils/string.utils";
-import _ from "lodash";
+import { escapeRegExp } from "../../shared/utils/random.utils";
 export const selectBestCoaTemplate = async (
   knex: Knex,
   input: SelectBestCoa
@@ -33,7 +33,6 @@ export const selectBestCoaTemplate = async (
   const companyType: CoaTemplateCompanyType = typeMap[company.type];
   if (!Object.keys(typeMap).includes(company.type))
     throw new Error(`Invalid company type: ${company.type}`);
-  console.log(`Starting template matching for ${companyType} company`);
 
   // 1. Template Collection
   let templates = Array.isArray(inputTemplates)
@@ -41,8 +40,6 @@ export const selectBestCoaTemplate = async (
     : [];
 
   if (!templates.length) {
-    console.log(`Fetching templates from DB for ${companyType}`);
-
     templates = await knex("coa_templates")
       .where("is_active", true)
       .andWhere("template_name", "like", `${companyType}:%`)
@@ -53,7 +50,6 @@ export const selectBestCoaTemplate = async (
   const validTemplates = templates.filter(
     (t) => coaTemplateName.safeParse(t).success
   );
-  console.log(`Valid templates found: ${validTemplates.length}`);
 
   if (!validTemplates.length) {
     throw new Error(
@@ -63,7 +59,6 @@ export const selectBestCoaTemplate = async (
     );
   }
   if (validTemplates.length === 1) {
-    console.log(`Single valid template found: ${validTemplates[0]}`);
     return {
       template: validTemplates[0],
       log: "Single valid template found, not scored",
@@ -76,7 +71,6 @@ export const selectBestCoaTemplate = async (
     ? splitIntoWords(additional_info).join(" ")
     : "";
   const searchText = `${cleanIndustry} ${additionalInfo}`.trim().toLowerCase();
-  console.log(`Search text for matching: "${searchText}"`);
 
   // 4. Scoring Engine
   const scores = validTemplates.map((template) => {
@@ -114,7 +108,7 @@ export const selectBestCoaTemplate = async (
       }
     });
     secondary.forEach((keyword) => {
-      const safeKeyword = _.escapeRegExp(keyword);
+      const safeKeyword = escapeRegExp(keyword);
       if (new RegExp(`\\b${safeKeyword}\\b`).test(searchText)) {
         industryScore += SCORE.INDUSTRY_SECONDARY;
         scoringLog.push(`+${SCORE.INDUSTRY_SECONDARY} (secondary: ${keyword})`);
@@ -130,7 +124,7 @@ export const selectBestCoaTemplate = async (
       }
     });
     aliasSecondary.forEach((keyword) => {
-      const safeKeyword = _.escapeRegExp(keyword);
+      const safeKeyword = escapeRegExp(keyword);
       if (new RegExp(`\\b${safeKeyword}\\b`).test(searchText)) {
         industryScore += SCORE.INDUSTRY_ALIAS_SECONDARY;
         scoringLog.push(
@@ -182,7 +176,6 @@ export const selectBestCoaTemplate = async (
     score += versionScore;
     scoringLog.push(`+${versionScore} (version)`);
 
-    console.log(`Scoring ${template}: ${score}\n  ${scoringLog.join("\n  ")}`);
     return { template, score };
   });
 
@@ -193,9 +186,6 @@ export const selectBestCoaTemplate = async (
   const [best] = [...viableScores].sort((a, b) => b.score - a.score);
 
   if (best) {
-    console.log(
-      `Best template selected: ${best.template} (score: ${best.score})`
-    );
     return {
       template: best.template,
       score: best.score,
@@ -212,7 +202,6 @@ export const selectBestCoaTemplate = async (
   // 6. Fallback Mechanism
   const defaultTemplate = DEFAULT_TEMPLATES[companyType];
   const defaultNoCode = defaultTemplate.replace(":code:", ":nocode:");
-  console.log(`No positive scores, attempting default: ${defaultTemplate}`);
 
   // Try code first, then nocode
   if (companyType !== "ind") {

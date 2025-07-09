@@ -4,9 +4,13 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
-import { createUserDirect } from "../src/domains/user/user.model";
+import { createUserDirect } from "../src/domains/users/users.model";
 import { ENV, NODE_ENV } from "../src/config/env";
-import { NewUserDirect } from "../src/domains/user/user.types";
+import { NewUserDirect } from "../src/domains/users/users.types";
+import {
+  createInitialUserOnboardingState,
+  markAllOnboardingStepsComplete,
+} from "../src/features/onboarding/onboarding.utils";
 
 const tableName = "users";
 
@@ -18,8 +22,7 @@ const getAdminUserConfig = (): NewUserDirect => {
       lastname: ENV.ADMIN_LASTNAME,
       email: ENV.ADMIN_EMAIL!,
       password: ENV.ADMIN_PASSWORD!,
-      status: "active",
-      email_verified: true,
+      email_verified_at: new Date(),
     };
   }
 
@@ -30,13 +33,18 @@ const getAdminUserConfig = (): NewUserDirect => {
     lastname: ENV.TEST_ADMIN_LASTNAME,
     email: ENV.TEST_ADMIN_EMAIL!,
     password: ENV.TEST_ADMIN_PASSWORD!,
-    status: "active",
-    email_verified: true,
+    email_verified_at: new Date(),
   };
 };
-export const adminUser = getAdminUserConfig();
+const currState = createInitialUserOnboardingState();
+const completeOnbState = currState && markAllOnboardingStepsComplete(currState);
 
-const seedAdminUser = async (knex: Knex) => {
+export const adminUser = {
+  ...getAdminUserConfig(),
+  onboarding_state: completeOnbState,
+};
+
+export const seedAdminUser = async (knex: Knex) => {
   const { password, email, firstname } = adminUser;
 
   if (!password || !email || !firstname) {
@@ -73,47 +81,23 @@ export async function up(knex: Knex): Promise<void> {
     table.string("password", 256).nullable();
     table.string("phone_number", 20).nullable();
     table.string("avatar_url").nullable();
-    table.specificType("status", "user_status").notNullable();
+    table.string("avatar_key").nullable();
 
-    table.specificType("invite_status", "user_invite_status").nullable();
-
-    table.boolean("email_verified").defaultTo(false).notNullable();
-    table.string("email_verification_token_hash", 256).nullable();
-    table.timestamp("email_verification_expiry", { useTz: true }).nullable();
     table.timestamp("email_verified_at", { useTz: true }).nullable();
+    table.jsonb("onboarding_state").nullable();
+    table.timestamp("onboarding_completed_at", { useTz: true }).nullable();
 
-    table.string("invite_token_hash", 256).nullable();
-    table
-      .uuid("invited_by_id")
-      .nullable()
-      .references("id")
-      .inTable("users")
-      .onDelete("SET NULL");
-    table.timestamp("invited_at", { useTz: true }).nullable();
-    table.timestamp("invite_expiry", { useTz: true }).nullable();
+    table.uuid("last_active_company_id").nullable();
+    // .references("id")
+    // .inTable("companies"); // Added foreign key after migrating companies talbe
 
-    table
-      .uuid("last_active_company_id")
-      .nullable()
-      // .references("id")
-      // .inTable("companies");
-    table.timestamp("last_login_at", { useTz: true }).nullable();
-    table.integer("failed_login_attempts").defaultTo(0).notNullable();
-    table.timestamp("last_failed_login_at", { useTz: true }).nullable();
-
-    table.string("auth_provider").defaultTo("local"); // 'local', 'google', 'apple', etc.
-    table.string("provider_user_id").nullable();
-
-    table.boolean("mfa_enabled").defaultTo(false);
-    table.string("mfa_secret").nullable();
+    table.boolean("is_demo_user").defaultTo(false);
 
     addStandardColumns(table);
-
-    table.index(["email", "status"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await seedAdminUser(knex);
+  // await seedAdminUser(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {
