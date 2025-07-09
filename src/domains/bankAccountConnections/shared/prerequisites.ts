@@ -3,12 +3,14 @@ import { getCompanyUUID } from "../../../shared/utils/random.utils";
 import { knexClient } from "../../../../knexClient";
 import { getBankAccountsWithDetails } from "../../bankAccounts/bankAccounts.model";
 import { BankAccountWithMeta } from "../../bankAccounts/bankAccounts.types";
+import { CompanyOnboardingState } from "../../../features/onboarding/onboarding.types";
 
 type BankConnectionNeedsAssessment = {
   companyId: string; // resolved UUID
   updateOnboardingState: boolean;
   hasUnmatchedAccounts: boolean;
   unmatchedAccounts?: BankAccountWithMeta[];
+  currentOnboardingState?: CompanyOnboardingState;
 };
 
 // This function checks retrieves actual companyID
@@ -59,6 +61,7 @@ export const getBankConnectionNeeds = async ({
   return {
     companyId: companyUUID,
     updateOnboardingState,
+    currentOnboardingState: company?.onboarding_state,
     hasUnmatchedAccounts,
     unmatchedAccounts,
   };

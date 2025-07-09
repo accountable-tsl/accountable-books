@@ -12,7 +12,7 @@ import {
   successResponse,
 } from "../../shared/utils/response.utils";
 import { AuthRequest } from "./auth.types";
-import { setAuthCookies } from "./auth.utils";
+import { generateCsrfToken, setAuthCookies } from "./auth.utils";
 import { redis } from "../../lib/redis";
 import { user } from "../../domains/users/users.types";
 import { ENV, isProd } from "../../config/env";
@@ -23,7 +23,6 @@ export async function loginController(req: AuthRequest, res: Response) {
     const { email, password } = req.body;
 
     const serviceRes = await loginService(email, password);
-    console.log("serviceRes", serviceRes);
 
     if (!serviceRes.success || !serviceRes.data) {
       const status =
@@ -41,7 +40,7 @@ export async function loginController(req: AuthRequest, res: Response) {
 
     req.company = rest.activeCompany;
     req.user = rest.user;
-    const csrfToken = req.csrfToken();
+    const csrfToken = generateCsrfToken(req, res);
 
     return res.json(
       successResponse("User logged in successfully", {
@@ -80,7 +79,7 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
     const { accessToken, refreshToken: newRefreshToken } = result.data;
 
     setAuthCookies(req, res, accessToken, newRefreshToken);
-    const csrfToken = req.csrfToken();
+    const csrfToken = generateCsrfToken(req, res);
 
     return res.json(successResponse("Tokens refreshed", { csrfToken }));
   } catch (error) {
@@ -132,7 +131,6 @@ export async function logoutController(req: AuthRequest, res: Response) {
 
 export async function meController(req: AuthRequest, res: Response) {
   if (!req.user?.id) {
-    console.log("WE broke here");
     return res.status(401).json(errorResponse("Not authenticated"));
   }
 
@@ -159,7 +157,7 @@ export async function meController(req: AuthRequest, res: Response) {
   return res.status(200).json(
     successResponse("User retrieved successfully", {
       user: user,
-      csrfToken: req.csrfToken(),
+      csrfToken: generateCsrfToken(req, res),
     })
   );
 }

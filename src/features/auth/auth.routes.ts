@@ -9,7 +9,7 @@ import {
 } from "./auth.controller";
 import { verifyRefreshToken } from "./auth.middleware";
 import { authLimiter } from "../../core/middlewares/rateLimiter.middleware";
-import { csrfProtection } from "./auth.utils";
+import { csrfProtection, generateCsrfToken } from "./auth.utils";
 const router = express.Router({ mergeParams: true });
 
 // router.post("/login", authLimiter, loginController);
@@ -25,7 +25,7 @@ router.post(
 );
 
 router.get("/csrf-token", csrfProtection, (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
+  res.json({ csrfToken: generateCsrfToken(req, res) });
 });
 
 export default router;

@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import csurf from "csurf";
 import { ENV, isDev, isProd } from "../../config/env";
 import {
   AppError,
@@ -8,6 +7,7 @@ import {
 } from "../../shared/utils/response.utils";
 import {
   AuthCompanyContext,
+  AuthRequest,
   AuthUserContext,
   DecodedToken,
   TokenConfig,
@@ -19,6 +19,7 @@ import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { ApiResponse } from "../../core/types/api.types";
 import { getAccessibleCompaniesForUser } from "../../domains/userRoles/userRoles.model";
 import { getOnboardingState } from "../onboarding/onboarding.service";
+import { doubleCsrf } from "csrf-csrf";
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throw new AppError("JWT secrets must be defined in .env");
@@ -60,6 +61,9 @@ export const generateAuthTokens = (payload: DecodedToken) => {
   }
 };
 
+if (!ENV.CSRF_SECRET || !ENV.COOKIE_DOMAIN)
+  throw new Error("CSRF secret must be defined");
+
 const cookieDomain = ENV.COOKIE_DOMAIN;
 
 export const setAuthCookies = (
@@ -87,14 +91,36 @@ export const setAuthCookies = (
   });
 };
 
-export const csrfProtection = csurf({
-  cookie: {
+// export const csrfProtection = csurf({
+//   cookie: {
+//     httpOnly: true,
+//     secure: isProd,
+//     sameSite: isDev ? "lax" : "strict",
+//     domain: cookieDomain,
+//     path: "/",
+//   },
+// });
+
+export const {
+  doubleCsrfProtection: csrfProtection, // The main middleware for protecting routes
+  invalidCsrfTokenError, // For convenient error checking
+  generateCsrfToken, // Function to generate and provide the token to the client
+} = doubleCsrf({
+  getSecret: () => ENV.CSRF_SECRET!,
+  cookieName: isProd ? "__Host-csrf" : "csrf-token",
+  getSessionIdentifier: (req: AuthRequest) => {
+    // Extract user ID from JWT or auth header if available
+    const userId = req.user?.id || "anonymous";
+    return userId;
+  },
+  cookieOptions: {
     httpOnly: true,
     secure: isProd,
     sameSite: isDev ? "lax" : "strict",
     domain: cookieDomain,
     path: "/",
   },
+  getCsrfTokenFromRequest: (req) => req.headers["x-csrf-token"] as string,
 });
 
 export async function buildAuthContext(

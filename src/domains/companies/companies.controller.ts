@@ -32,12 +32,11 @@ export const switchCompanyController = async (
 
     const { accessToken, refreshToken, user, company } = switchResult.data;
 
-    const csrfToken = setAuthCookies(req, res, accessToken, refreshToken);
+    setAuthCookies(req, res, accessToken, refreshToken);
     return res.json(
       successResponse("Company switched successfully", {
         user,
         company,
-        csrfToken,
       })
     );
   } catch (error) {

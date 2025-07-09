@@ -56,6 +56,7 @@ export type UpdateBankAccountConnection = SnakeToCamelCaseObject<
 export type CreateNewBankAccountConnection = {
   userId: string;
   data: BankAccountConnectionInput;
+  checkExisting?: boolean;
   trx?: Knex.Transaction;
 };
 
@@ -145,7 +146,7 @@ export type ConnectionResponse = {
 
     providerBankAccountId: string;
 
-    bankAccountId: string;
+    bankAccountId?: string;
   };
 
   accountDetails?: {
@@ -155,5 +156,33 @@ export type ConnectionResponse = {
     accountNumber: string;
   };
 
-  suggestedBankAccountMatches: BankAccountMatch[];
+  suggestedBankAccountMatches?: BankAccountMatch[];
+
+  connection: {
+    id: string;
+    provider: {
+      id: string;
+      key: string;
+      name: string;
+      bankAccountId: string;
+      providerBankAccountId: string;
+    };
+    status: ConnectionStatus;
+    userActionRequired: boolean;
+  };
+
+  account: {
+    matched: boolean;
+    matchType: "exact" | "fuzzy" | "created" | "unmatched";
+    bankAccountId: string | null;
+    displayName: string;
+    accountNumber: string;
+    bankName: string;
+    matchConfidence?: "strong" | "weak";
+  };
+
+  suggestions?: {
+    message: string;
+    candidates: BankAccountMatch[];
+  };
 };

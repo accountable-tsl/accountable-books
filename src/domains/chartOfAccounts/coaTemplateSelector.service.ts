@@ -9,7 +9,7 @@ import {
 } from "./coaTemplate.type";
 import { CompanyType } from "../companies/companies.types";
 import { splitIntoWords } from "../../shared/utils/string.utils";
-import _ from "lodash";
+import { escapeRegExp } from "../../shared/utils/random.utils";
 export const selectBestCoaTemplate = async (
   knex: Knex,
   input: SelectBestCoa
@@ -108,7 +108,7 @@ export const selectBestCoaTemplate = async (
       }
     });
     secondary.forEach((keyword) => {
-      const safeKeyword = _.escapeRegExp(keyword);
+      const safeKeyword = escapeRegExp(keyword);
       if (new RegExp(`\\b${safeKeyword}\\b`).test(searchText)) {
         industryScore += SCORE.INDUSTRY_SECONDARY;
         scoringLog.push(`+${SCORE.INDUSTRY_SECONDARY} (secondary: ${keyword})`);
@@ -124,7 +124,7 @@ export const selectBestCoaTemplate = async (
       }
     });
     aliasSecondary.forEach((keyword) => {
-      const safeKeyword = _.escapeRegExp(keyword);
+      const safeKeyword = escapeRegExp(keyword);
       if (new RegExp(`\\b${safeKeyword}\\b`).test(searchText)) {
         industryScore += SCORE.INDUSTRY_ALIAS_SECONDARY;
         scoringLog.push(

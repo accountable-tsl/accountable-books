@@ -45,3 +45,8 @@ export const dateOrString = dateFromStringOrDate;
 export const dateOrStringOptional = dateFromStringOrDate.optional();
 export const dateOrStringNullable = dateFromStringOrDate.nullable();
 export const dateOrStringNullish = dateFromStringOrDate.nullish();
+
+
+export function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

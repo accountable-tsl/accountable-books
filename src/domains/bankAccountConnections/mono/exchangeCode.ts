@@ -35,6 +35,11 @@ export const exchangeMonoCode = async ({
 
     return { permanentMonoId: accountId };
   } catch (error: any) {
-    throw new Error(error);
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Mono API request failed (${status}): ${message}`);
+    }
+    throw error instanceof Error ? error : new Error("Unknown Mono API error");
   }
 };

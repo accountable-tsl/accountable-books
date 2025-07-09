@@ -62,7 +62,7 @@ export async function up(knex: Knex): Promise<void> {
     addStandardColumns(table);
 
     table.index(["company_id", "bank_id"], "bank_account_company_bank_index");
-    table.unique(["company_id", "account_number", "bank_id"]);
+    // table.unique(["company_id", "account_number", "bank_id"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

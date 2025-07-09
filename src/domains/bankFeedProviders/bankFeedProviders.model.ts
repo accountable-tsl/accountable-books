@@ -252,11 +252,18 @@ export async function getBankFeedProviders({
   providerIds,
   providerKeys,
   useCache = true,
+  trx,
 }: {
   providerIds?: string | string[];
   providerKeys?: string | string[];
   useCache?: boolean;
+  trx?: Knex.Transaction;
 }): Promise<ApiResponse<BankFeedProviderWithCountries[]>> {
+  if (trx && useCache) {
+    console.warn("Cache disabled when using transactions");
+    useCache = false;
+  }
+
   try {
     // Normalize inputs to arrays
     const idsArray = providerIds
@@ -289,7 +296,8 @@ export async function getBankFeedProviders({
       }
     }
 
-    const results = (await knexClient("bank_feed_providers as p")
+    const queryBuilder = (trx || knexClient)("bank_feed_providers as p");
+    const results = (await queryBuilder
       .where("p.is_deleted", false)
       .whereNot("p.status", "deprecated")
       .leftJoin(
