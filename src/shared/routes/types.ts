@@ -33,9 +33,6 @@ export type RouteLike = {
   meta?: RouteMeta;
 };
 
-export type FlatRoutes = typeof flatRoutes;
-export type FlattenedRouteKey = keyof FlatRoutes;
-
 export interface BuildCanonicalUrlOptions<K extends FlattenedRouteKey> {
   user: {
     currentCompanyId: string;
@@ -48,3 +45,18 @@ export interface BuildCanonicalUrlOptions<K extends FlattenedRouteKey> {
 }
 
 export type TenantRoutes = ReturnType<typeof createTenantRoutes<typeof routes>>;
+
+export type FlatRoutes = typeof flatRoutes;
+export type FlattenedRouteKey = keyof FlatRoutes;
+export type RouteEntry = FlatRoutes[keyof FlatRoutes];
+export type RouteKey = keyof FlatRoutes;
+
+export interface RouteMatch {
+  key: RouteKey;
+  route: RouteEntry;
+}
+
+export interface RouteIndex {
+  directRoutes: Map<string, RouteMatch>;
+  companyRoutes: Map<string, RouteMatch>;
+}

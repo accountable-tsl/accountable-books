@@ -30,6 +30,8 @@ import {
   RootRedirector,
 } from "./features/auth/Access";
 import BlankLayout from "./layouts/BlankLayout";
+import { ChartOfAccounts } from "./features/chart-of-accounts/ChartOfAccounts";
+import { AccountingWorkspaceSetup } from "./features/accounting-setup/AccountingSetup";
 
 function App() {
   return (
@@ -131,11 +133,15 @@ function AppRoutes() {
             path={routes.general.home.relativePath}
             element={<Navigate to={routes.general.dashboard.relativePath} />}
           />
+
+          {/* CLIENT-SPECIFIC PAGES */}
+
+          {/* FIRM-SPECIFIC PAGES */}
+          <Route
+            path={routes.accounting.setup.relativePath}
+            element={<AccountingWorkspaceSetup />}
+          />
         </Route>
-
-        {/* CLIENT-SPECIFIC PAGES */}
-
-        {/* FIRM-SPECIFIC PAGES */}
         <Route path="*" element={<ErrorPage type="404" />} />
       </Route>
 

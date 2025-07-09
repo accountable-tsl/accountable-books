@@ -5,7 +5,11 @@ import { AuthCompanyContext, UserContext } from "@/features/auth/types";
 export const switchCompanyApi = async (data: {
   newCompanyId: string;
 }): Promise<
-  ApiResponse<{ user: UserContext; company: AuthCompanyContext, csrfToken: string}>
+  ApiResponse<{
+    user: UserContext;
+    company: AuthCompanyContext;
+    csrfToken: string;
+  }>
 > => {
   const res = await api.post(`/api/companies/switch`, {
     companyId: data.newCompanyId,

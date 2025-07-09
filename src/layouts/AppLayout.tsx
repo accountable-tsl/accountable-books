@@ -29,7 +29,6 @@ export default function AppLayout({
     return <ErrorPage type="default" />;
   }
 
-  console.log(routes.general.dashboard.staticPath);
   return (
     <SidebarProvider defaultOpen={!sidebarCollapsed}>
       <AppSidebar

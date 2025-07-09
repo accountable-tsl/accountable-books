@@ -1,12 +1,8 @@
-import { matchPath, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { routes as oldRoutes } from "../routes/routes";
 import { useEffect } from "react";
-import { companyStore } from "@/domains/company/store";
-import { RouteMeta } from "../routes/types";
-import { routes } from "@/shared/routes/routes";
-import { flattenRoutes, matchRouteForPath } from "@/shared/routes/utils";
+import { findMatchingRouteSmart, routeIndex } from "@/shared/routes/utils";
 
 export type BreadcrumbItem = {
   label: string;
@@ -65,13 +61,11 @@ export function useUpdatePageInfo() {
 
   useEffect(() => {
     const path = location.pathname;
+    const matchedEntry = findMatchingRouteSmart(routeIndex, path);
 
-    const matchedRoute = matchRouteForPath(path);
+    if (matchedEntry) {
+      const meta = matchedEntry.route.meta;
 
-    // Use the route firmsOnly to block access to firmOnly pages for non-firm users
-
-    if (matchedRoute) {
-      const meta = matchedRoute.meta;
       pageStore.getState().setPageInfo({
         currentPage: meta?.label || "",
         description: meta?.description || "",
