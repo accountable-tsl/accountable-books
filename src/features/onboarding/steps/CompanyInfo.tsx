@@ -283,7 +283,6 @@ export const CompanyInfo = () => {
         toast.info("No changes detected. Proceeding to next step...");
       }
 
-      console.log("Submitting dirty fields:", dirty);
 
       const { success, message } = await updateCompanyDetails(companyId, dirty);
       if (!success) {
@@ -541,7 +540,7 @@ export const CompanyInfo = () => {
                         : industries || []
                     }
                     mapItem={(item) => ({
-                      value: item.label,
+                      value: item.code,
                       label: item.shortLabel,
                     })}
                     placeholder="Select industry"

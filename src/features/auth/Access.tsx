@@ -6,7 +6,7 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 
 export function RootRedirector() {
-  const {  loading, companyId, hasAppAccess } = useSession();
+  const { loading, companyId, hasAppAccess } = useSession();
   // Public page, do nothing
   if (isPublicRoute(window.location.pathname)) {
     return null;

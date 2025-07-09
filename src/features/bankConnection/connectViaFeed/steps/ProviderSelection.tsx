@@ -61,7 +61,7 @@ export const ProviderSelection = React.memo(
       });
     }, [providers]);
 
-    const handleProviderSelectInternal = useCallback(
+    const handleInternalProviderSelection = useCallback(
       (provider: BankFeedProvider) => {
         if (provider.status !== "active") return;
         setSelectedProvider(provider);
@@ -124,7 +124,7 @@ export const ProviderSelection = React.memo(
                 ? "border-muted-foreground/50 opacity-50 cursor-not-allowed"
                 : "border-muted-foreground/50 hover:border-muted-foreground"
             )}
-            onClick={() => handleProviderSelectInternal(provider)}
+            onClick={() => handleInternalProviderSelection(provider)}
           >
             <div className="flex flex-col gap-2">
               <div className="flex items-start justify-between">
@@ -191,7 +191,7 @@ export const ProviderSelection = React.memo(
           </div>
         );
       });
-    }, [sortedProviders, selectedProvider, handleProviderSelectInternal]);
+    }, [sortedProviders, selectedProvider, handleInternalProviderSelection]);
 
     if (loading) return <CenteredLoader />;
 

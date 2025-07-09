@@ -7,13 +7,11 @@ import { ProviderSelection } from "./steps/ProviderSelection";
 import { BankFeedProvider } from "@/domains/bankFeedProviders/types";
 import { useBankFeedProviders } from "@/domains/bankFeedProviders/hooks";
 import { UnsupportedCountryProps } from "@/features/bankConnection/shared/types";
-import { Button } from "@/components/ui/button";
 import { ConnectBankAccountProps, ConnectionResponse } from "./types";
 import { cn } from "@/lib/utils";
 import { AccountLinked } from "./steps/AccountLinked";
 import { handleMonoConnection } from "../widgets/api";
 import { toast } from "sonner";
-import { sampleConnections } from "./constants";
 import { useSession } from "@/features/auth/Session";
 
 export default function ConnectBankAccount({
@@ -28,9 +26,10 @@ export default function ConnectBankAccount({
   const [showUnsupported, setShowUnsupported] = useState(false);
   // const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
   const [connections, setConnections] = useState<ConnectionResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Hooks
-  const { company, refetchSession } = useSession();
+  const { companyId, refetchSession } = useSession();
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
   const { data: providersData, isLoading: isLoadingProviders } =
     useBankFeedProviders({});
@@ -79,49 +78,68 @@ export default function ConnectBankAccount({
 
   const handleWidgetSuccess = useCallback(
     async (code: string) => {
-      console.log({ code, selectedProvider, company });
-      // TODO: REMOVE <Quickly save code to local storage for now>
-      localStorage.setItem("codeMonX", code);
-
-      if (!selectedProvider || !company) {
+      if (!selectedProvider || !companyId || !code) {
         toast.error("Failed to add bank account. Please try again.");
         setCurrentStep(1);
         return;
       }
-      try {
-        switch (selectedProvider.key) {
+
+      const storageKey = "tempBankConnectPayload";
+      const payload = {
+        providerKey: selectedProvider.key,
+        companyId,
+        code,
+        timeStamp: Date.now(),
+      };
+      // TODO: TO REMOVE <Quickly save code to local storage for now>
+      localStorage.setItem(storageKey, JSON.stringify(payload));
+
+      const attemptRequest = async () => {
+        switch (payload.providerKey) {
           case "mono":
-            const res = await handleMonoConnection({
-              companyId: company.id,
-              data: {
-                code,
-              },
+            return await handleMonoConnection({
+              companyId: payload.companyId,
+              data: { code: payload.code },
             });
-
-            console.log(res);
-            if (!res.success || !res.data) {
-              toast.error(
-                res.message || "Failed to add bank account,  please try again."
-              );
-              setCurrentStep(1);
-              return;
-            }
-            setConnections(res.data?.connections || []);
-            setCurrentStep(3);
-            await refetchSession();
-            break;
-
           default:
-            break;
+            throw new Error("Unsupported provider");
+          // Should we be throwing here? Won't it break the app
         }
-      } catch (error: any) {
-        const { response, message } = error;
-        toast.error(
-          response.data?.message || message || "Failed to add bank account"
-        );
+      };
+
+      try {
+        setIsLoading(true);
+
+        let result;
+
+        result = await attemptRequest();
+
+        if (!result.success || !result.data) {
+          await new Promise((res) => setTimeout(res, 1000));
+          result = await attemptRequest();
+        }
+
+        if (!result.success || !result.data) {
+          throw new Error(
+            result.message || "Failed to add bank account, please try again."
+          );
+        }
+
+        setConnections(result.data.connections || []);
+        setCurrentStep(3);
+      } catch (err: any) {
+        const fallbackMsg =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to add bank account";
+        toast.error(fallbackMsg);
+        setCurrentStep(1);
+      } finally {
+        localStorage.removeItem(storageKey);
+        setIsLoading(false);
       }
     },
-    [selectedProvider, company]
+    [selectedProvider, companyId]
   );
 
   const nextStep = useCallback(() => {
@@ -288,4 +306,3 @@ function UnsupportedCountry({ countryName, onBack }: UnsupportedCountryProps) {
     </div>
   );
 }
-

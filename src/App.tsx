@@ -29,6 +29,7 @@ import {
   RequireOnboardingComplete,
   RootRedirector,
 } from "./features/auth/Access";
+import BlankLayout from "./layouts/BlankLayout";
 
 function App() {
   return (
@@ -89,9 +90,9 @@ function AppRoutes() {
       <Route
         path="onboarding"
         element={
-          <RequireAuth>
-            <OnboardingLayout />
-          </RequireAuth>
+          // <RequireAuth>
+          <OnboardingLayout />
+          // </RequireAuth>
         }
       >
         <Route index element={<OnboardingRouter />} />
@@ -105,29 +106,32 @@ function AppRoutes() {
         element={
           <RequireAuth>
             <RequireOnboardingComplete>
-              <AppLayout />
+              <BlankLayout />
             </RequireOnboardingComplete>
           </RequireAuth>
         }
       >
         <Route
-          index
-          element={
-            <Navigate to={routes.general.dashboard.relativePath} replace />
-          }
-        />
-        <Route
           path={routes.general.welcome.relativePath}
           element={<Welcome />}
         />
-        <Route
-          path={routes.general.dashboard.relativePath}
-          element={<Dashboard />}
-        />
-        <Route
-          path={routes.general.home.relativePath}
-          element={<Navigate to={routes.general.dashboard.relativePath} />}
-        />
+
+        <Route element={<AppLayout />}>
+          <Route
+            index
+            element={
+              <Navigate to={routes.general.dashboard.relativePath} replace />
+            }
+          />
+          <Route
+            path={routes.general.dashboard.relativePath}
+            element={<Dashboard />}
+          />
+          <Route
+            path={routes.general.home.relativePath}
+            element={<Navigate to={routes.general.dashboard.relativePath} />}
+          />
+        </Route>
 
         {/* CLIENT-SPECIFIC PAGES */}
 

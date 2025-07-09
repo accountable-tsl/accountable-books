@@ -2,20 +2,16 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { OnboardingHeader } from "@/features/onboarding/shared/Header";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { VerifyEmail } from "./steps/VerifyEmail";
 import {
   getPathByStepKey,
   OnboardingPathKey,
   onboardingSteps,
   onboardingStepsConfig,
 } from "@/features/onboarding/utils";
-import { CompanyInfo } from "@/features/onboarding/steps/CompanyInfo";
-import { BankAccount } from "@/features/onboarding/steps/BankAccount";
 import { Navigate, useLocation, useParams } from "react-router-dom";
 import {
   EnrichedOnboardingStep,
   OnboardingState,
-  OnboardingStepKey,
 } from "@/features/onboarding/types";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { CompanyData } from "@/domains/company/types";

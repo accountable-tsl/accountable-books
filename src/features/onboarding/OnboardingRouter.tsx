@@ -49,7 +49,7 @@ export function OnboardingRouter() {
   }
 
   const nextStepPath = getPathByStepKey(onboarding.nextStepToComplete);
-  
+
   if (!nextStepPath) {
     return <ErrorPage />;
   }

@@ -14,7 +14,6 @@ export const updateCompanyDetails = async (
   data: Partial<UpdateCompanyVitalsData>
 ): Promise<ApiResponse<CompanyData>> => {
   const response = await api.patch(`/api/companies/${companyId}`, data);
-  console.log("Update Company Response:", response.data);
   return response.data;
 };
 

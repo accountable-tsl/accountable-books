@@ -3,21 +3,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ConnectBankAccount from "@/features/bankConnection/connectViaFeed/ConnectBankAccount";
 import { BankTransactionImporter } from "@/features/bankConnection/manualUpload/BankTransactionImporter";
 import { BankTransactionImportOptions } from "@/features/bankConnection/manualUpload/types";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { updateCompanyOnboardingStatus } from "../api";
 import { useCompany } from "@/domains/company/store";
 import { toast } from "sonner";
 import { fetchSession } from "@/features/auth/api";
 import { OnboardingStatus } from "@/domains/company/types";
 import { useSession } from "@/features/auth/Session";
+import { useNavigate } from "react-router-dom";
 
 export const BankAccount = ({
   onBankAccountComplete,
 }: {
   onBankAccountComplete?: (status: OnboardingStatus) => void;
 }) => {
-  const { user } = useSession();
+  const { tenantRoutes } = useSession();
   const { companyId, companyType } = useCompany();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState(() => {
     const stored = localStorage.getItem("bankAccountActiveTab");
@@ -48,33 +50,13 @@ export const BankAccount = ({
     }
   };
 
-  const handleUploadSuccess = async (response: any) => {
-    console.log("Upload success", response);
-    if (response && !response.success) {
-      setBankConnectionOrUploadFailed(true);
-      return;
-    }
+  const navigateToDashboard = useCallback(() => {
+    navigate(tenantRoutes?.general.welcome() || "/", { replace: true });
+  }, [navigate, tenantRoutes]);
 
-    try {
-      // Update company onboarding status to complete
-      const res = await updateCompanyOnboardingStatus({
-        userId: user?.id || "",
-        companyId: companyId || "",
-      });
-
-      if (!res.success) {
-        toast.error(res.message || "Failed to finalize onboarding");
-        return;
-      }
-
-      await fetchSession();
-      // onBankAccountComplete("onboarding_complete");
-    } catch (err) {
-      toast.error(
-        "Something went wrong finalizing onboarding. Please try again or refresh."
-      );
-    }
-  };
+  // const handleUploadSuccess = async (response: any) => {
+  //   navigate(tenantRoutes?.general.welcome() || "/");
+  // };
 
   if (bankConnectionOrUploadFailed) {
     return (
@@ -99,38 +81,48 @@ export const BankAccount = ({
   }
 
   return (
-    <Tabs
-      value={activeTab}
-      onValueChange={handleTabChange}
-      className="h-full mx-auto w-full p-4 overflow-hidden"
-    >
-      <TabsList className="grid grid-cols-2 bg-transparent border flex-shrink-0 max-w-3xl w-full mx-auto">
-        <TabsTrigger value="connect">Connect Bank Account</TabsTrigger>
-        <TabsTrigger value="upload">Manually Add Bank Account</TabsTrigger>
-      </TabsList>
+    <>
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="h-full mx-auto w-full p-4 overflow-hidden relative"
+      >
+        <TabsList className="grid grid-cols-2 bg-transparent border flex-shrink-0 max-w-3xl w-full mx-auto">
+          <TabsTrigger value="connect">Connect Bank Account</TabsTrigger>
+          <TabsTrigger value="upload">Manually Add Bank Account</TabsTrigger>
+        </TabsList>
 
-      <div className="flex-1 min-h-0 overflow-auto scrollbar-thin-2px">
-        {activeTab === "connect" && (
-          <TabsContent value="connect">
-            <ConnectBankAccount
-              options={connectBankOptions}
-              onSuccess={handleUploadSuccess}
-            />
-          </TabsContent>
-        )}
+        <div className="flex-1 min-h-0 overflow-auto scrollbar-thin-2px">
+          {activeTab === "connect" && (
+            <TabsContent value="connect">
+              <ConnectBankAccount
+                options={connectBankOptions}
+                onSuccess={navigateToDashboard}
+              />
+            </TabsContent>
+          )}
 
-        {activeTab === "upload" && (
-          <TabsContent value="upload" className="flex-1 min-h-0">
-            <BankTransactionImporter
-              options={bankTxImporterOptions}
-              onImportSuccess={handleUploadSuccess}
-            />
-            <div className="flex items-center justify-center text-center h-full lg:hidden p-8">
-              To access this page, please view on a larger screen or device
-            </div>
-          </TabsContent>
-        )}
-      </div>
-    </Tabs>
+          {activeTab === "upload" && (
+            <TabsContent value="upload" className="flex-1 min-h-0">
+              <BankTransactionImporter
+                options={bankTxImporterOptions}
+                onImportSuccess={navigateToDashboard}
+              />
+              <div className="flex items-center justify-center text-center h-full lg:hidden p-8">
+                To access this page, please view on a larger screen or device
+              </div>
+            </TabsContent>
+          )}
+        </div>
+        <div
+          className="absolute bottom-0 left-1/2 transform -translate-x-1/2"
+          onClick={navigateToDashboard}
+        >
+          <span className="text-md hover:underline cursor-pointer">
+            Skip for now
+          </span>
+        </div>
+      </Tabs>
+    </>
   );
 };

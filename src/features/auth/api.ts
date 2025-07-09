@@ -2,6 +2,7 @@ import { AuthUserContext, LoginForm } from "./types";
 import api from "@/lib/axios";
 import { isAxiosError } from "axios";
 import { ApiResponse } from "@/shared/types/core";
+import { authStore } from "./store";
 
 export const handleLogin = async (
   data: LoginForm
@@ -41,6 +42,11 @@ export const fetchSession = async (): Promise<
   ApiResponse<{ user: AuthUserContext; csrfToken: string }>
 > => {
   const res = await api.get("/auth/me");
+
+  console.log("fetchSession", res.data);
+  res.data.success &&
+    authStore.getState().setAuth(res.data.data.user, res.data.data.csrfToken);
+
   return res.data;
 };
 // export const fetchSession = async (): Promise<
