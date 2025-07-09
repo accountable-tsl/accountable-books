@@ -108,11 +108,8 @@ export const {
 } = doubleCsrf({
   getSecret: () => ENV.CSRF_SECRET!,
   cookieName: isProd ? "__Host-csrf" : "csrf-token",
-  getSessionIdentifier: (req: AuthRequest) => {
-    // Extract user ID from JWT or auth header if available
-    const userId = req.user?.id || "anonymous";
-    return userId;
-  },
+  getSessionIdentifier: () => "anonymous_stateless_identifier",
+
   cookieOptions: {
     httpOnly: true,
     secure: isProd,
@@ -122,6 +119,17 @@ export const {
   },
   getCsrfTokenFromRequest: (req) => req.headers["x-csrf-token"] as string,
 });
+
+export const clearCsrfCookie = (res: Response) => {
+  const cookieNameToClear = isProd ? "__Host-csrf" : "csrf-token";
+  res.clearCookie(cookieNameToClear, {
+    domain: cookieDomain,
+    path: "/",
+    secure: isProd,
+    httpOnly: true,
+    sameSite: isDev ? "lax" : "strict",
+  });
+};
 
 export async function buildAuthContext(
   decoded: DecodedToken

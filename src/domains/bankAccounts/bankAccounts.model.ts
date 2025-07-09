@@ -19,8 +19,12 @@ import {
 } from "../../shared/utils/formatting.utils";
 import { createCoa } from "../chartOfAccounts/coa.model";
 import { coaSource } from "../chartOfAccounts/coa.types";
-import { hasAccessToCompany } from "../userRoles/userRoles.model";
+import {
+  getAccessibleCompaniesForUser,
+  hasAccessToCompany,
+} from "../userRoles/userRoles.model";
 import type { Knex } from "knex";
+import { AccessibleCompaniesResponse } from "../userRoles/userRoles.types";
 
 const bankResponseFields = [
   // Bank Account Core Fields
@@ -57,13 +61,12 @@ const bankResponseFields = [
   "at.key as coaTypeKey",
 
   // Bank Connection Details (If any)
-  "bc.id as bankConnectionId",
-  "bc.status as bankConnectionStatus",
-  "bc.provider_bank_account_id as providerBankAccountId",
-  "p.provider_key as providerKey",
+  "bac.id as bankConnectionId",
+  "bac.status as bankConnectionStatus",
+  "bac.provider_bank_account_id as providerBankAccountId",
+  "p.key as providerKey",
   "p.name as providerName",
   "p.logo_url as providerLogo",
-
 ];
 export const getBankAccountsWithDetails = async (
   companyId: string,
@@ -87,8 +90,12 @@ export const getBankAccountsWithDetails = async (
         .join("currencies as rc", "c.reporting_currency_id", "rc.id")
         .join("coa", "ba.coa_id", "coa.id")
         .leftJoin("account_types as at", "coa.account_type_id", "at.id")
-        .leftJoin("bank_connections as bc", "ba.id", "bc.bank_account_id")
-        .leftJoin("providers as p", "bc.provider_id", "p.id");
+        .leftJoin(
+          "bank_account_connections as bac",
+          "ba.id",
+          "bac.bank_account_id"
+        )
+        .leftJoin("bank_feed_providers as p", "bac.provider_id", "p.id");
 
     const result = trx ? await query(trx) : await knexClient.transaction(query);
 
@@ -182,6 +189,7 @@ export async function createNewBankAccount(input: {
   companyId: string;
   userId: string;
   data: NewBankAccountInput;
+  userContext?: AccessibleCompaniesResponse;
   trx?: Knex.Transaction;
 }): Promise<ApiResponse<BankAccountWithMeta>> {
   const knexInstance = input.trx || knexClient;
@@ -205,17 +213,25 @@ export async function createNewBankAccount(input: {
 
     const { data } = validatedInput;
 
-    // Check that user has access to company or is super admin
-    const hasAccess = await hasAccessToCompany({
-      userId,
-      companyId: companyUUID,
-    });
+    // let userContext: AccessibleCompaniesResponse;
+    // if (input.userContext) {
+    //   userContext = input.userContext;
+    // } else {
+    //   const accessibleCoys = await getAccessibleCompaniesForUser({ userId });
+    //   if (!accessibleCoys.success || !accessibleCoys.data)
+    //     return errorResponse("Failed to fetch accessible companies for user");
+    //   userContext = accessibleCoys.data;
+    // }
 
-    if (!hasAccess.success || !hasAccess.data?.hasAccess) {
-      return errorResponse(
-        hasAccess.message || "You do not have access to this company"
-      );
-    }
+    // // Check that user has access to company or is super admin
+    // const hasAccess = await hasAccessToCompany({
+    //   userContext: userContext,
+    //   companyId,
+    // });
+
+    // if (!hasAccess.hasAccess) {
+    //   return errorResponse("You do not have access to this company");
+    // }
 
     // Check if bank and currency ids are valid
     const [bank, currency] = await Promise.all([
@@ -310,14 +326,20 @@ export async function createNewBankAccount(input: {
       }
 
       const [newBankAccountDetails] = await tx("bank_accounts as ba")
-        .select(bankRespFields)
+        .select(bankResponseFields)
         .where("ba.id", newBankAccount.id)
         .join("banks as b", "ba.bank_id", "b.id")
         .join("currencies as cur", "ba.currency_id", "cur.id")
         .join("companies as c", "ba.company_id", "c.id")
         .join("currencies as rc", "c.reporting_currency_id", "rc.id")
         .join("coa", "ba.coa_id", "coa.id")
-        .leftJoin("account_types as at", "coa.account_type_id", "at.id");
+        .leftJoin("account_types as at", "coa.account_type_id", "at.id")
+        .leftJoin(
+          "bank_account_connections as bac",
+          "ba.id",
+          "bac.bank_account_id"
+        )
+        .leftJoin("bank_feed_providers as p", "bac.provider_id", "p.id");
 
       return successResponse(
         "Bank account created successfully",

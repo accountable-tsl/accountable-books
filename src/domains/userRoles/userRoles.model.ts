@@ -268,9 +268,13 @@ export const hasAccessToCompany = async ({
 }> => {
   const companyId = await getCompanyShortCode(companyIdentifier); // for backend only
 
-  const { isPlatformUser, platformUserKey, accessibleCompanies } = userContext;
-  const company = accessibleCompanies.find((c) => c.id === companyId);
+  const {
+    isPlatformUser = false,
+    platformUserKey,
+    accessibleCompanies = [],
+  } = userContext ?? {};
 
+  const company = accessibleCompanies.find((c) => c.id === companyId);
   const hasAccess = !!company || !!isPlatformUser;
 
   const roleKey =

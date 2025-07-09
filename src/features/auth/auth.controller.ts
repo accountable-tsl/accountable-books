@@ -12,7 +12,11 @@ import {
   successResponse,
 } from "../../shared/utils/response.utils";
 import { AuthRequest } from "./auth.types";
-import { generateCsrfToken, setAuthCookies } from "./auth.utils";
+import {
+  clearCsrfCookie,
+  generateCsrfToken,
+  setAuthCookies,
+} from "./auth.utils";
 import { redis } from "../../lib/redis";
 import { user } from "../../domains/users/users.types";
 import { ENV, isProd } from "../../config/env";
@@ -85,7 +89,7 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
   } catch (error) {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
-    res.clearCookie("csrfToken");
+    clearCsrfCookie(res);
 
     return res.status(401).json({
       code: "REFRESH_FAILED",
@@ -118,13 +122,7 @@ export async function logoutController(req: AuthRequest, res: Response) {
     secure: isProd,
     sameSite: "strict",
   });
-  res.clearCookie("csrfToken", {
-    domain: cookieDomain,
-    path: "/",
-    httpOnly: false,
-    secure: isProd,
-    sameSite: "strict",
-  });
+  clearCsrfCookie(res);
 
   return res.status(200).json(successResponse("Logged out successfully", null));
 }

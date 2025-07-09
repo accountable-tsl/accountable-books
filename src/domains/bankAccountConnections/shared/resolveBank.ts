@@ -17,14 +17,20 @@ export async function resolveBankFromMonoDetails({
 }): Promise<{ bankId: string }> {
   const knex = trx || knexClient;
 
-  const bankMapping = await knex("bank_provider_mappings")
+  const query = knex("bank_provider_mappings")
     .where({ provider_id: providerId })
-    .andWhereRaw("LOWER(raw_provider_data->>'name') LIKE LOWER(?)", [
+    .andWhereRaw("LOWER(raw_provider_data->>'institution') LIKE LOWER(?)", [
       `%${institutionName}%`,
     ])
-    .andWhereRaw("raw_provider_data->>'bank_code' = ?", [bankCode])
-    .andWhereRaw("data->>'type' = ?", [institutionType])
-    .first();
+    .andWhereRaw("raw_provider_data->>'type' = ?", [institutionType]);
+
+  if (bankCode == null) {
+    query.andWhereRaw("raw_provider_data->>'bank_code' IS NULL");
+  } else {
+    query.andWhereRaw("raw_provider_data->>'bank_code' = ?", [bankCode]);
+  }
+
+  const bankMapping = await query.first();
 
   if (!bankMapping?.bank_id) {
     throw new AppError("Bank resolution failed", {

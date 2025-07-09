@@ -63,15 +63,6 @@ export const createCoa = async ({
     return errorResponse("Unable to retrieve reporting currency");
   }
 
-  // Check that user has access to company
-  const hasAccess = await hasAccessToCompany({
-    userId,
-    companyId: companyUUID,
-  });
-  if (!hasAccess.success || !hasAccess.data?.hasAccess) {
-    return errorResponse(hasAccess.message || "Unauthorized");
-  }
-
   const typeIds = new Set<string>();
   const typeKeys = new Set<string>();
   const typeLabels = new Set<string>();

@@ -53,6 +53,7 @@ export const onboardingStepConfig: OnboardingStepConfig[] = [
     scope: "company",
     restrictedTo: "company_owner",
     orderIndex: 3,
+    optional: true,
     isComplete: ({ company }) =>
       company?.isDemoCompany ||
       company?.isPlatformCompany ||
