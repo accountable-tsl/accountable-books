@@ -53,12 +53,7 @@ export const AccountingWorkspaceSetup = () => {
         onValueChange={setActiveTab}
         className="gap-0 flex-1"
       >
-        <TabsList
-          className={cn(
-            "flex w-full grid-cols-4 rounded-md rounded-b-none bg-background p-0",
-            ""
-          )}
-        >
+        <TabsList className="flex w-full grid-cols-4 rounded-md rounded-b-none bg-background p-0">
           {tabsConfig.map(({ value, icon: Icon, label }) => (
             <TabsTrigger
               key={value}
