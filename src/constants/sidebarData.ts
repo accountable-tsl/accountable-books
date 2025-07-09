@@ -32,13 +32,13 @@ export const getNavMain = (
             icon: CalculatorIcon,
           },
           {
-            title: "Workstation",
+            title: "Workspace",
             url: "#",
             icon: BriefcaseIcon,
             sub: [
               {
                 title: "Accounting",
-                url: "#",
+                url: routes.accounting.setup.relativePath,
               },
               {
                 title: "Tax",

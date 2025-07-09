@@ -105,3 +105,26 @@ export function AppHeader({ company }: AppHeaderProps) {
     </header>
   );
 }
+
+export function BodyHead({
+  title,
+  description,
+  className,
+  titleClass,
+  descriptionClass,
+}: {
+  title?: string;
+  description?: string;
+  className?: string;
+  titleClass?: string;
+  descriptionClass?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col", className)}>
+      <h2 className={cn("font-medium tracking-tight", titleClass)}>{title}</h2>
+      <p className={cn("text-muted-foreground text-sm", descriptionClass)}>
+        {description}
+      </p>
+    </div>
+  );
+}

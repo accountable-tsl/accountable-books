@@ -44,20 +44,18 @@ export const bankTransactionImporterfields: SpreadsheetImporterField[] = [
     required: true,
     possibleFields: fieldMatchers.amount,
     align: "right",
-    width:"8.5rem",
+    width: "8.5rem",
     className: "truncate max-w-[10rem]",
     render: (value, _row, _rowIdx, currency) => {
       const amt = new Decimal(value);
       return (
-       
-          <FormattedAmount
-            amount={value}
-            currency={currency}
-            showSymbol
-            className="flex w-full truncate overflow-hidden"
-            valueClassName={`${amt.lt(0) ? "text-red-500" : ""} flex-1`}
-          />
-
+        <FormattedAmount
+          amount={value}
+          currency={currency}
+          showSymbol
+          className="flex w-full truncate overflow-hidden"
+          valueClassName={`${amt.lt(0) ? "text-red-500" : ""} flex-1`}
+        />
       );
     },
   },

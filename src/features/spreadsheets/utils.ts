@@ -280,6 +280,7 @@ export const parseSpreadsheetFile = (options: ParseCsvOptions) => {
       return parseCsvFile(options);
 
     // TODO: Add support for other spreadsheet types
+    // TODO: Maybe switch to exceljs instead of sheetjs
     // case "xlsx":
     // case "xls":
     //   return parseWithSheetJS(file, options);

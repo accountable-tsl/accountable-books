@@ -283,7 +283,6 @@ export const CompanyInfo = () => {
         toast.info("No changes detected. Proceeding to next step...");
       }
 
-
       const { success, message } = await updateCompanyDetails(companyId, dirty);
       if (!success) {
         toast.error(message || "Failed to save company details");

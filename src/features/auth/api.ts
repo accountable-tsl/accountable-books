@@ -42,8 +42,6 @@ export const fetchSession = async (): Promise<
   ApiResponse<{ user: AuthUserContext; csrfToken: string }>
 > => {
   const res = await api.get("/auth/me");
-
-  console.log("fetchSession", res.data);
   res.data.success &&
     authStore.getState().setAuth(res.data.data.user, res.data.data.csrfToken);
 

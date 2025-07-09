@@ -2,10 +2,13 @@ import { AuthUserContext } from "@/features/auth/types";
 import {
   BuildCanonicalUrlOptions,
   ExtractPathParams,
+  FlatRoutes,
   FlattenedRouteKey,
   HasCompanyId,
   OmitCompanyId,
+  RouteIndex,
   RouteLike,
+  RouteMatch,
   RouteMeta,
 } from "@/shared/routes/types";
 import { routes } from "@/shared/routes/routes";
@@ -212,6 +215,8 @@ export function flatRoutesForCanonicalUrls(
 
 export const flatRoutes = flatRoutesForCanonicalUrls(routes);
 
+export const routeIndex = buildSmartIndex(flatRoutes);
+
 /**
  * Builds a full canonical URL for a given route and user context.
  *
@@ -272,7 +277,7 @@ export function buildCanonicalUrl<K extends FlattenedRouteKey>({
   return `${resolvedOrigin}${normalizedPath}`;
 }
 
-const flattenedRoutes = flattenRoutes(routes);
+export const flattenedRoutes = flattenRoutes(routes);
 
 export function matchRouteForPath(path: string): RouteLike | undefined {
   return flattenedRoutes.find((route) =>
@@ -288,4 +293,46 @@ export function isPublicRoute(path: string): boolean {
   return flattenedPublicRoutes.some((route) =>
     matchPath({ path: route.staticPath, end: true }, path)
   );
+}
+
+function buildSmartIndex(flatRoutes: FlatRoutes): RouteIndex {
+  const directRoutes = new Map(); // For routes without company ID
+  const companyRoutes = new Map(); // For routes with company ID (indexed by suffix)
+
+  Object.entries(flatRoutes).forEach(([key, route]) => {
+    const { staticPath, meta } = route;
+
+    if (meta?.requiresCompanyId) {
+      companyRoutes.set(staticPath, { key, route });
+    } else {
+      directRoutes.set(staticPath, { key, route });
+    }
+  });
+
+  return { directRoutes, companyRoutes };
+}
+
+export function findMatchingRouteSmart(
+  index: RouteIndex,
+  pathname: string
+): RouteMatch | null {
+  const { directRoutes, companyRoutes } = index;
+
+  // Try direct match first
+  const directMatch = directRoutes.get(pathname);
+  if (directMatch) {
+    return directMatch;
+  }
+
+  // Try company route match
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length > 1) {
+    const suffixPath = "/" + segments.slice(1).join("/");
+    const companyMatch = companyRoutes.get(suffixPath);
+    if (companyMatch) {
+      return companyMatch;
+    }
+  }
+
+  return null;
 }

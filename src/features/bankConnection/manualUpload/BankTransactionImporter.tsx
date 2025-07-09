@@ -554,9 +554,9 @@ export const BankTransactionImporter = ({
                     <div className="border-b font-semibold text-lg">
                       Import Summary
                     </div>
-                    <div 
-                    // className="grid grid-cols-1 sm:grid-cols-2 lg:[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-3 inset-shadow-sm pt-4"
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[auto_1fr_1fr_1fr] gap-3 inset-shadow-sm pt-4"
+                    <div
+                      // className="grid grid-cols-1 sm:grid-cols-2 lg:[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-3 inset-shadow-sm pt-4"
+                      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[auto_1fr_1fr_1fr] gap-3 inset-shadow-sm pt-4"
                     >
                       <Card className="p-0 rounded-lg shadow-none">
                         <CardContent className="p-4 overflow-hidden">
