@@ -19,6 +19,7 @@ import bankTransactionRoutes from "./domains/bankTransactions/bankTransactions.r
 import bankFeedProvidersRoutes from "./domains/bankFeedProviders/bankFeedProviders.routes";
 import bankAccountConnectionsRoutes from "./domains/bankAccountConnections/baccons.routes";
 import usersCompaniesRolesRoutes from "./domains/userRoles/userRoles.routes";
+import coaRoutes from "./domains/chartOfAccounts/coa.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";
@@ -103,6 +104,8 @@ async function startServer() {
     app.use("/api/bank-feed-providers", bankFeedProvidersRoutes);
     app.use("/api/:companyId/bank-connections", bankAccountConnectionsRoutes);
     app.use("/api/:companyId", usersCompaniesRolesRoutes);
+
+    app.use("/api/:companyId/coa", coaRoutes);
 
     app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
     app.use("/admin/queues", serverAdapter.getRouter());
