@@ -230,7 +230,7 @@ export const fetchCompanyCoa = async ({
           "coa.name as name",
           "coa.description as description",
           "coa.is_active as isActive",
-          "coa.is_locked as isLocked",
+          "coa.locked as isLocked",
           "coa.is_deleted as isDeleted",
           "coa.source as source",
 
