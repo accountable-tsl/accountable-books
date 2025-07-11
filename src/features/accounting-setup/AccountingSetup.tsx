@@ -60,8 +60,8 @@ export const AccountingWorkspaceSetup = () => {
               value={value}
               className={cn(
                 "flex flex-1 items-center gap-2 text-muted-foreground rounded-none bg-background h-full rounded-t font-light hover:text-foreground",
-                "data-[state=active]:shadow-none data-[state=active]:text-foreground data-[state=active]:font-medium -mb-[2px]",
-                "border-b-border data-[state=active]:border-border data-[state=active]:border-b-background"
+                "data-[state=active]:shadow-none data-[state=active]:text-foreground data-[state=active]:font-medium -mb-[2px] opacity-50",
+                "border-b-border data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:opacity-100"
               )}
             >
               <Icon className="h-4 w-4" />

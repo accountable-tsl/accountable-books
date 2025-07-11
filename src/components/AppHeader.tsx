@@ -79,7 +79,7 @@ export function AppHeader({ company }: AppHeaderProps) {
       </div>
 
       <div className="text-center text-[0.65rem] rounded absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 flex flex-col">
-        <div className="text-muted-foreground">
+        <div className="text-muted-foreground whitespace-nowrap truncate">
           You are signed into{" "}
           <strong>
             <span className="text-destructive">
