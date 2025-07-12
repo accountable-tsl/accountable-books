@@ -3,8 +3,6 @@ import * as React from "react";
 
 import {
   Table,
-  TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -12,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DataTableBody, MemoizedDataTableBody } from "./data-table-body";
 import { DataTableResizer } from "@/components/data-table/data-table-resizer";
+import { DataTableHeader } from "@/components/data-table/data-table-header";
 
 export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData>; // TanStack table instance — provides all table state + render info
@@ -47,7 +46,7 @@ export function DataTable<TData>({
    * and pass the column sizes down as CSS variables to the <table> element.
    */
   const columnSizeVars = React.useMemo(() => {
-    const headers = table.getFlatHeaders();
+    const headers = table?.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
       const header = headers[i]!;
@@ -83,9 +82,7 @@ export function DataTable<TData>({
           {/* Render table header rows (supports multi-header groups) */}
           <TableHeader className="bg-background sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow
-                key={headerGroup.id}
-              >
+              <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
@@ -111,6 +108,7 @@ export function DataTable<TData>({
               </TableRow>
             ))}
           </TableHeader>
+          {/* <DataTableHeader table={table} /> */}
 
           {/* Render table body (rows and cells) */}
           {table.getState().columnSizingInfo.isResizingColumn ? (
@@ -129,3 +127,4 @@ export function DataTable<TData>({
     </div>
   );
 }
+ 

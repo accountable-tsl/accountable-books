@@ -9,7 +9,7 @@ export interface UseDataTableProps<T> {
    * If not provided, resizing is disabled by default.
    */
   columnResize?: {
-    mode: "onChange" | "onEnd";
     enabled: boolean;
+    mode?: "onChange" | "onEnd";
   };
 }

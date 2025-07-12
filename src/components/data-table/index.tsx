@@ -6,7 +6,14 @@ import coaData from "./fake/coa.json";
 
 export function Table() {
   const accounts = coaData as Account[];
-  const { table } = useDataTable<Account>(accounts, accountColumns);
+  const { table } = useDataTable<Account>({
+    data: accounts,
+    columns: accountColumns,
+    columnResize: {
+      enabled: true,
+      mode: "onChange",
+    },
+  });
 
   return (
     <div>
