@@ -1,5 +1,4 @@
-import path from "path";
-import { Account, generateCompanyAccounts } from "./seed";
+import { generateCompanyAccounts } from "./seed";
 import fs from "fs";
 
 export const data = [
@@ -9,5 +8,5 @@ export const data = [
 ];
 
 // Save to file
-fs.writeFileSync("coa-data.json", JSON.stringify(data, null, 2));
-console.log("✅ Generated 1500 accounts in coa-data.json");
+// fs.writeFileSync("coa-data.json", JSON.stringify(data, null, 2));
+// console.log("✅ Generated 1500 accounts in coa-data.json");
