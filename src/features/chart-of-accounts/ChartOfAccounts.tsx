@@ -68,7 +68,6 @@ export const ChartOfAccounts: React.FC = () => {
     columns,
     enableVirtualization: true,
   });
-  console.log(table);
   if (isLoadingAccounts || sessionLoading) return <CenteredLoader />;
   if (!accounts) return null;
 

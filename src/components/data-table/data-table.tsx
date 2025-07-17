@@ -1,11 +1,11 @@
 import { type Table as TanstackTable } from "@tanstack/react-table";
 import * as React from "react";
 
-import { Table } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { DataTableBody, MemoizedDataTableBody } from "./data-table-body";
 import { DataTableHeader } from "@/components/data-table/data-table-header";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Table } from "../CustomTable";
 
 export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData>; // TanStack table instance — provides all table state + render info
@@ -95,24 +95,24 @@ export function DataTable<TData>({
           tableWrapperClassName
         )}
       > */}
-        <Table
-          className={cn("min-w-full relative")}
-          style={{
-            ...columnSizeVars,
-            // width: table.getTotalSize(),
-            width: "100%",
-            // ...(enableVirtual ? { height: rowVirtualizer.getTotalSize() } : {}),
-          }}
-        >
-          <DataTableHeader table={table} />
+      <Table
+        className={cn("min-w-full relative")}
+        style={{
+          ...columnSizeVars,
+          // width: table.getTotalSize(),
+          width: "100%",
+          // ...(enableVirtual ? { height: rowVirtualizer.getTotalSize() } : {}),
+        }}
+      >
+        <DataTableHeader table={table} />
 
-          <BodyComponent
-            table={table}
-            rows={rows}
-            virtualizationEnabled={enableVirtual}
-            rowVirtualizer={rowVirtualizer}
-          />
-        </Table>
+        <BodyComponent
+          table={table}
+          rows={rows}
+          virtualizationEnabled={enableVirtual}
+          rowVirtualizer={rowVirtualizer}
+        />
+      </Table>
       {/* </div> */}
       <div className="flex flex-col gap-2.5">
         {/* <DataTablePagination table={table} type={paginationStyle}/> */}

@@ -1,6 +1,6 @@
 import React from "react";
 import { DataTableProps } from "@/components/data-table/data-table";
-import { TableHeader, TableRow, TableHead } from "@/components/ui/table";
+import { TableHeader, TableRow, TableCell } from "@/components/CustomTable";
 import { flexRender } from "@tanstack/react-table";
 import { DataTableResizer } from "@/components/data-table/data-table-resizer";
 
@@ -8,12 +8,13 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
   return (
     <TableHeader className="bg-background sticky top-0 z-10">
       {table.getHeaderGroups().map((headerGroup) => (
-        <TableRow key={headerGroup.id}>
+        <TableRow key={headerGroup.id} variant="header">
           {headerGroup.headers.map((header) => (
-            <TableHead
+            <TableCell
               key={header.id}
-              colSpan={header.colSpan}
-              scope="col"
+              variant="header"
+              // colSpan={header.colSpan}
+              // scope="col"
               className="relative truncate select-none"
               style={{ width: `calc(var(--header-${header?.id}-size))` }}
               data-column-resizing={
@@ -29,7 +30,7 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
               {header.column.getCanResize() && (
                 <DataTableResizer header={header} />
               )}
-            </TableHead>
+            </TableCell>
           ))}
         </TableRow>
       ))}
