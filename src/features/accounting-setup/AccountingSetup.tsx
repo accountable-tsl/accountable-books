@@ -51,7 +51,7 @@ export const AccountingWorkspaceSetup = () => {
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="gap-0 flex-1"
+        className="gap-0 flex-1 h-full min-h-0"
       >
         <TabsList className="flex w-full grid-cols-4 rounded-md rounded-b-none bg-background p-0">
           {tabsConfig.map(({ value, icon: Icon, label }) => (
@@ -75,7 +75,7 @@ export const AccountingWorkspaceSetup = () => {
           <TabsContent
             key={value}
             value={value}
-            className="flex-1 border border-t-0"
+            className="flex-1 flex flex-col min-h-0 border border-t-0"
           >
             {content}
           </TabsContent>

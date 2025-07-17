@@ -78,25 +78,29 @@ export function DataTable<TData>({
     : DataTableBody;
 
   return (
-    <div className={cn("flex w-full flex-col gap-2.5", className)} {...props}>
+    <div
+      className={cn("flex flex-col w-full h-full min-h-0 gap-2.5", className)}
+      {...props}
+    >
       {/* Top-level children (e.g., filters, pagination controls, etc.) */}
       {children}
 
       {/* Main table container */}
-      <div
+      {/* <div
         ref={tableContainerRef}
         aria-label="Data table"
         className={cn(
           "rounded-md border table-container",
-          "relative overflow-y-auto max-h-[500px] scrollbar-thin-2px",
+          "relative flex-grow min-h-0",
           tableWrapperClassName
         )}
-      >
+      > */}
         <Table
           className={cn("min-w-full relative")}
           style={{
             ...columnSizeVars,
-            width: table.getTotalSize(),
+            // width: table.getTotalSize(),
+            width: "100%",
             // ...(enableVirtual ? { height: rowVirtualizer.getTotalSize() } : {}),
           }}
         >
@@ -109,7 +113,7 @@ export function DataTable<TData>({
             rowVirtualizer={rowVirtualizer}
           />
         </Table>
-      </div>
+      {/* </div> */}
       <div className="flex flex-col gap-2.5">
         {/* <DataTablePagination table={table} type={paginationStyle}/> */}
         {actionBar &&

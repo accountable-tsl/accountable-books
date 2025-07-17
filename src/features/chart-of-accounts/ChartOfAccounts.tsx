@@ -46,54 +46,6 @@ export const ChartOfAccounts: React.FC = () => {
   const [isAddCoaDialogOpen, setIsAddCoaDialogOpen] = useState(false);
   const [isBankAccountDialogOpen, setIsBankAccountDialogOpen] = useState(false);
 
-  //   const [accounts, setAccounts] = useState([
-  //     {
-  //       id: "1",
-  //       name: "Cash",
-  //       code: "1000",
-  //       type: "Asset",
-  //       status: "Active",
-  //       description: "Cash on hand and in bank",
-  //       hasTransactions: true,
-  //     },
-  //     {
-  //       id: "2",
-  //       name: "Accounts Receivable",
-  //       code: "1200",
-  //       type: "Asset",
-  //       status: "Active",
-  //       description: "Money owed by customers",
-  //       isLocked: true,
-  //       hasTransactions: true,
-  //     },
-  //     {
-  //       id: "3",
-  //       name: "Office Supplies",
-  //       code: "1500",
-  //       type: "Asset",
-  //       status: "Active",
-  //       description: "Office supplies inventory",
-  //     },
-  //     {
-  //       id: "4",
-  //       name: "Accounts Payable",
-  //       code: "2000",
-  //       type: "Liability",
-  //       status: "Active",
-  //       description: "Money owed to suppliers",
-  //       isLocked: true,
-  //       hasTransactions: true,
-  //     },
-  //     {
-  //       id: "5",
-  //       name: "Sales Revenue",
-  //       code: "4000",
-  //       type: "Revenue",
-  //       status: "Active",
-  //       description: "Revenue from sales",
-  //       hasTransactions: true,
-  //     },
-  //   ]);
   const columns = useMemo(() => coaTableColumns, []);
   const accountElements = [
     { label: "All", value: "all" },
@@ -109,16 +61,6 @@ export const ChartOfAccounts: React.FC = () => {
     { label: "Active", value: "active" },
     { label: "Inactive", value: "inactive" },
     { label: "Archived", value: "archived" },
-  ];
-
-  const tableColumns = [
-    { label: "Code", className: "font-semibold" },
-    { label: "Account Name", className: "font-semibold" },
-    { label: "Account Type", className: "font-semibold" },
-    { label: "Element", className: "font-semibold" },
-    { label: "Status", className: "font-semibold" },
-    { label: "Description", className: "hidden lg:table-cell font-semibold" },
-    { label: "Actions", className: "text-right font-semibold pr-4" },
   ];
 
   const { table } = useDataTable({
@@ -144,7 +86,7 @@ export const ChartOfAccounts: React.FC = () => {
     selectableAccountsCount > 0;
 
   return (
-    <div className="p-3 overflow-clip flex flex-col gap-4 h-full">
+    <div className="p-3 overflow-clip flex flex-col gap-4 h-full min-h-0">
       <div
         className={cn(
           "flex items-center justify-between min-w-0 max-w-full mt-1",
@@ -262,57 +204,10 @@ export const ChartOfAccounts: React.FC = () => {
       )}
 
       {/* Accounts Table */}
-      <div className="border rounded-lg flex-1 min-h-0">
-        {/* <Table>
-          <TableHeader className="bg-muted/30">
-            <TableRow className="hover:bg-transparent border-border/50">
-              <TableHead className="w-12 pl-4">
-                <Checkbox
-                  checked={isAllSelectableSelected}
-                  onCheckedChange={handleSelectAll}
-                  disabled={selectableAccountsCount === 0}
-                />
-              </TableHead>
-              {tableColumns.map((column, index) => (
-                <TableHead key={index} className={column.className}>
-                  {column.label}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAccounts.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={tableColumns.length}
-                  className="text-center py-12 text-muted-foreground"
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <Search className="h-8 w-8 text-muted-foreground/50" />
-                    <p className="text-lg font-medium">No accounts found</p>
-                    <p className="text-sm">
-                      Try adjusting your search or filters
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredAccounts.map((account, index) => (
-                <TableRow
-                  key={account.id}
-                  className={`group hover:bg-muted/30 ${
-                    index % 2 === 0 ? "bg-background" : "bg-muted/10"
-                  }`}
-                >
-
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table> */}
+      {/* <div className="border rounded-lg flex-1 min-h-0 h-full"> */}
         {/* <OldDataTable columns={columns} data={accounts} /> */}
         <DataTable table={table} />
-      </div>
+      {/* </div> */}
 
       <AddBankAccountDialog
         open={isBankAccountDialogOpen}
