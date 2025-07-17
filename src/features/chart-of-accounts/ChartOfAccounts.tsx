@@ -1,4 +1,4 @@
-import { DataTable } from "@/components/DataTable";
+import { DataTable as OldDataTable } from "@/components/DataTable";
 import { SimpleSelect } from "@/components/SimpleSelect";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,6 +25,8 @@ import { coaTableColumns } from "@/features/chart-of-accounts/columns";
 import { useChartOfAccountsQuery } from "./hooks";
 import { useSession } from "@/features/auth/Session";
 import { CenteredLoader } from "@/components/CenteredLoader";
+import { DataTable } from "@/components/data-table/data-table";
+import { useDataTable } from "@/components/data-table/hooks";
 
 export const ChartOfAccounts: React.FC = () => {
   const isMobile = useIsMobile();
@@ -119,10 +121,14 @@ export const ChartOfAccounts: React.FC = () => {
     { label: "Actions", className: "text-right font-semibold pr-4" },
   ];
 
+  const { table } = useDataTable({
+    data: accounts || [],
+    columns,
+    enableVirtualization: true,
+  });
+  console.log(table);
   if (isLoadingAccounts || sessionLoading) return <CenteredLoader />;
   if (!accounts) return null;
-
-  console.log(accounts);
 
   const filteredAccounts = accounts.filter((account) => {
     return true;
@@ -304,7 +310,8 @@ export const ChartOfAccounts: React.FC = () => {
             )}
           </TableBody>
         </Table> */}
-        <DataTable columns={columns} data={accounts} />
+        {/* <OldDataTable columns={columns} data={accounts} /> */}
+        <DataTable table={table} />
       </div>
 
       <AddBankAccountDialog
@@ -314,3 +321,5 @@ export const ChartOfAccounts: React.FC = () => {
     </div>
   );
 };
+
+ChartOfAccounts.whyDidYouRender = true;

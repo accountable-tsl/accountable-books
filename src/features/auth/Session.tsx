@@ -24,6 +24,7 @@ export const SessionProvider = ({
   const navigate = useNavigate();
   const user = authStore((s) => s.user);
   const setAuth = authStore((s) => s.setAuth);
+  const clearAuth = authStore((s) => s.clearAuth);
 
   const {
     data,
@@ -42,9 +43,21 @@ export const SessionProvider = ({
       setAuth(authData.user, authData.csrfToken);
     }
 
-    if ((!success || isError) && !isPublic) {
-      clearSessionFn();
-      navigate(routes.auth.login.staticPath, { replace: true });
+    if ((isError || !success) && !isLoadingSession && !isPublic) {
+      const wasAuthenticated =
+        localStorage.getItem("wasAuthenticated") === "true";
+
+      (async () => {
+        try {
+          wasAuthenticated ? clearSessionFn("expired") : clearSessionFn();
+          await handleLogout();
+        } catch (error) {
+          console.error("Error during logout", error);
+        } finally {
+          clearAuth();
+          navigate(routes.auth.login.staticPath, { replace: true });
+        }
+      })();
     }
   }, [data, isError, isPublic, navigate, setAuth]);
 
@@ -83,7 +96,7 @@ export const SessionProvider = ({
     } catch (error) {
       console.error("Logout failed, forcing client clear anyway", error);
     } finally {
-      clearSessionFn();
+      clearSessionFn("manual");
       if (options?.redirectTo !== false) {
         let target: string = routes.auth.login.staticPath; //default fallback
 

@@ -27,6 +27,7 @@ export const coaTableColumns: ColumnDef<CoaResponse>[] = [
     ),
     enableSorting: false,
     enableHiding: false,
+    enableResizing: false,
   },
 
   {
@@ -42,6 +43,7 @@ export const coaTableColumns: ColumnDef<CoaResponse>[] = [
         </div>
       );
     },
+    enableResizing: false,
   },
   {
     id: "Account Name",
@@ -61,6 +63,7 @@ export const coaTableColumns: ColumnDef<CoaResponse>[] = [
         </div>
       );
     },
+    enableResizing: true,
   },
   {
     id: "Account Element",
