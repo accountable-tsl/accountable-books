@@ -1,22 +1,23 @@
-import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
+import { type Table as TanstackTable } from "@tanstack/react-table";
 import * as React from "react";
 
-import {
-  Table,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { DataTableBody, MemoizedDataTableBody } from "./data-table-body";
-import { DataTableResizer } from "@/components/data-table/data-table-resizer";
 import { DataTableHeader } from "@/components/data-table/data-table-header";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData>; // TanStack table instance — provides all table state + render info
   actionBar?: React.ReactNode; // Optional UI element shown if there are selected rows
   debugTable?: boolean; // Optional debug flag
   tableWrapperClassName?: string; // Optional table container class
+
+  virtualization?: {
+    enabled: boolean;
+    estimatedRowHeight?: number;
+    overscan?: number;
+  };
 }
 
 /**
@@ -35,6 +36,8 @@ export function DataTable<TData>({
   className,
   debugTable,
   tableWrapperClassName,
+  virtualization,
+
   ...props
 }: DataTableProps<TData>) {
   const tableContainerRef = React.useRef<HTMLTableElement>(null);
@@ -56,6 +59,24 @@ export function DataTable<TData>({
     return colSizes;
   }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
+  const rows = React.useMemo(
+    () => table.getRowModel().rows,
+    [table.getRowModel().rows]
+  );
+
+  const enableVirtual = virtualization?.enabled ?? false;
+  const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 48;
+
+  const rowVirtualizer = useVirtualizer<HTMLTableElement, Element>({
+    count: rows.length,
+    estimateSize: () => estimatedRowHeight,
+    getScrollElement: () => tableContainerRef.current,
+  });
+
+  const BodyComponent = table.getState().columnSizingInfo.isResizingColumn
+    ? MemoizedDataTableBody
+    : DataTableBody;
+
   return (
     <div className={cn("flex w-full flex-col gap-2.5", className)} {...props}>
       {/* Top-level children (e.g., filters, pagination controls, etc.) */}
@@ -67,8 +88,7 @@ export function DataTable<TData>({
         aria-label="Data table"
         className={cn(
           "rounded-md border table-container",
-          "relative overflow-y-auto max-h-[500px]",
-          //   "overflow-y-auto max-h-[500px] scrollbar-thin-2px",
+          "relative overflow-y-auto max-h-[500px] scrollbar-thin-2px",
           tableWrapperClassName
         )}
       >
@@ -77,45 +97,17 @@ export function DataTable<TData>({
           style={{
             ...columnSizeVars,
             width: table.getTotalSize(),
+            // ...(enableVirtual ? { height: rowVirtualizer.getTotalSize() } : {}),
           }}
         >
-          {/* Render table header rows (supports multi-header groups) */}
-          <TableHeader className="bg-background sticky top-0 z-10">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    colSpan={header.colSpan}
-                    scope="col"
-                    className="relative truncate select-none"
-                    style={{ width: `calc(var(--header-${header?.id}-size))` }}
-                    data-column-resizing={
-                      header.column.getIsResizing() ? "true" : undefined
-                    }
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                    {header.column.getCanResize() && (
-                      <DataTableResizer header={header} />
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          {/* <DataTableHeader table={table} /> */}
+          <DataTableHeader table={table} />
 
-          {/* Render table body (rows and cells) */}
-          {table.getState().columnSizingInfo.isResizingColumn ? (
-            <MemoizedDataTableBody table={table} />
-          ) : (
-            <DataTableBody table={table} />
-          )}
+          <BodyComponent
+            table={table}
+            rows={rows}
+            virtualizationEnabled={enableVirtual}
+            rowVirtualizer={rowVirtualizer}
+          />
         </Table>
       </div>
       <div className="flex flex-col gap-2.5">
@@ -127,4 +119,3 @@ export function DataTable<TData>({
     </div>
   );
 }
- 

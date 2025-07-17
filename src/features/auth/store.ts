@@ -9,7 +9,10 @@ export const authStore = create<AuthState>()((set) => ({
   setUser: (user) => set({ user }),
   setCsrf: (csrfToken) => set({ csrfToken }),
 
-  setAuth: (user, csrfToken) => set({ user, csrfToken }),
+  setAuth: (user, csrfToken) => {
+    localStorage.setItem("wasAuthenticated", "true");
+    set({ user, csrfToken });
+  },
   clearAuth: () => set({ user: null, csrfToken: null }),
 
   // isSessionValid: false,

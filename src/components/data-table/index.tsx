@@ -17,7 +17,7 @@ export function Table() {
 
   return (
     <div>
-      <DataTable table={table} />
+      <DataTable table={table} virtualization={{ enabled: true }} />
     </div>
   );
 }

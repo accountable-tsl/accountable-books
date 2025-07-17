@@ -13,6 +13,7 @@ export function useDataTable<T>({
   data,
   columns,
   columnResize,
+  enableVirtualization = false,
 }: UseDataTableProps<T>) {
   /**
    * Important: TanStack requires a stable data reference.
@@ -33,5 +34,5 @@ export function useDataTable<T>({
     debugTable: false,
   });
 
-  return { table };
+  return { table, enableVirtualization };
 }

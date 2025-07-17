@@ -121,7 +121,11 @@ export const ChartOfAccounts: React.FC = () => {
     { label: "Actions", className: "text-right font-semibold pr-4" },
   ];
 
-  const { table } = useDataTable({ data: accounts || [], columns });
+  const { table } = useDataTable({
+    data: accounts || [],
+    columns,
+    enableVirtualization: true,
+  });
   console.log(table);
   if (isLoadingAccounts || sessionLoading) return <CenteredLoader />;
   if (!accounts) return null;

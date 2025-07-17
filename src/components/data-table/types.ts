@@ -12,4 +12,10 @@ export interface UseDataTableProps<T> {
     enabled: boolean;
     mode?: "onChange" | "onEnd";
   };
+
+  /**
+   * If true, enables virtualization for large datasets.
+   * Assumes rows are uniform in height for best performance.
+   */
+  enableVirtualization?: boolean;
 }
