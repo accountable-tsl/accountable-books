@@ -66,7 +66,7 @@ export const ChartOfAccounts: React.FC = () => {
   const { table } = useDataTable({
     data: accounts || [],
     columns,
-    enableVirtualization: true,
+    // enableVirtualization: true,
   });
   if (isLoadingAccounts || sessionLoading) return <CenteredLoader />;
   if (!accounts) return null;
@@ -204,8 +204,8 @@ export const ChartOfAccounts: React.FC = () => {
 
       {/* Accounts Table */}
       {/* <div className="border rounded-lg flex-1 min-h-0 h-full"> */}
-        {/* <OldDataTable columns={columns} data={accounts} /> */}
-        <DataTable table={table} />
+      {/* <OldDataTable columns={columns} data={accounts} /> */}
+      <DataTable table={table} virtualization={{ enabled: true }} />
       {/* </div> */}
 
       <AddBankAccountDialog

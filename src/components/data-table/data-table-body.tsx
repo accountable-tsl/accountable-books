@@ -1,88 +1,99 @@
 import React from "react";
 import { DataTableProps } from "@/components/data-table/data-table";
 import { TableBody, TableRow, TableCell } from "@/components/CustomTable";
-import { flexRender, Row } from "@tanstack/react-table";
+import { flexRender } from "@tanstack/react-table";
 import { getColumnStyle } from "./utils/column-sizing";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface DataTableBodyProps<TData> {
   table: DataTableProps<TData>["table"];
-  rows: Row<TData>[];
   virtualization?: DataTableProps<TData>["virtualization"];
-  rowVirtualizer?: any; // ReturnType<typeof useVirtualizer>;
 }
 export function DataTableBody<TData>({
   table,
-  rows,
-  rowVirtualizer,
+  virtualization,
 }: DataTableBodyProps<TData>) {
-  const virtualItems = rowVirtualizer?.getVirtualItems();
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  const renderRow = (row: any, index?: number) => (
-    <TableRow
-      key={row.id}
-      data-index={index}
-      data-state={row.getIsSelected() ? "selected" : ""}
-    >
-      {row.getVisibleCells().map((cell: any) => {
-        const hasCheckbox =
-          cell.getValue() === "checkbox" || cell.column.id === "select";
-
-        const columnDef = table
-          ._getColumnDefs()
-          .find((c) => c.id === cell.column.id);
-        const explicitSize = !!columnDef?.size;
-
-        const colStyle = getColumnStyle({ column: cell, explicitSize });
-
-        return (
-          <TableCell
-            key={cell.id}
-            // style={hasCheckbox ? {} : colStyle}
-            style={colStyle}
-            className=""
-          >
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            {/* Can also use cell.renderValue<any>(). Renders the value for a cell the same as getValue, but will return the renderFallbackValue if no value is found. */}
-          </TableCell>
-        );
-      })}
-    </TableRow>
+  const rows = React.useMemo(
+    () => table.getRowModel().rows,
+    [table.getRowModel().rows]
   );
 
-  if (rowVirtualizer.options?.enabled === true && rowVirtualizer) {
+  const enableVirtual = virtualization?.enabled ?? false;
+  const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 48;
+
+  const virtualizer = useVirtualizer<HTMLDivElement, Element>({
+    count: rows.length,
+    estimateSize: () => estimatedRowHeight,
+    getScrollElement: () => scrollRef.current,
+    enabled: enableVirtual,
+    overscan: 5, // Render 5 items above and below the visible area for smoother scrolling
+  });
+
+  const virtualItems = scrollRef.current ? virtualizer.getVirtualItems() : [];
+  console.log(virtualizer, virtualItems);
+
+  const renderRow = (row: any) => {
     return (
-      <TableBody className="overflow-y-auto">
-        {/* Top spacer */}
-        {virtualItems.length > 0 && (
-          <TableRow style={{ height: `${virtualItems[0].start}px` }}>
-            <TableCell
-              // colSpan={table.getAllColumns().length}
-              style={{ padding: 0, border: "none", background: "transparent" }}
-            />
-          </TableRow>
-        )}
+      <TableRow
+        key={row?.id}
+        data-index={row?.index}
+        ref={(node) => {
+          if (node && enableVirtual) {
+            virtualizer.measureElement(node);
+          }
+        }}
+        data-state={row.getIsSelected() ? "selected" : ""}
+      >
+        {row.getVisibleCells().map((cell: any) => {
+          const hasCheckbox =
+            cell.getValue() === "checkbox" || cell.column.id === "select";
 
-        {/* Virtualized rows */}
-        {virtualItems.map((virtualRow: any) =>
-          renderRow(rows[virtualRow.index], virtualRow.index)
-        )}
+          const columnDef = table
+            ._getColumnDefs()
+            .find((c) => c.id === cell.column.id);
+          const explicitSize = !!columnDef?.size;
 
-        {/* Bottom spacer */}
-        {virtualItems.length > 0 && (
-          <TableRow
-            style={{
-              height: `${
-                rowVirtualizer.getTotalSize() -
-                virtualItems[virtualItems.length - 1].end
-              }px`,
-            }}
-          >
+          const colStyle = getColumnStyle({ column: cell, explicitSize });
+
+          return (
             <TableCell
-              // colSpan={table.getAllColumns().length}
-              style={{ padding: 0, border: "none", background: "transparent" }}
-            />
-          </TableRow>
-        )}
+              key={cell.id}
+              // style={hasCheckbox ? {} : colStyle}
+              style={colStyle}
+              className=""
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              {/* Can also use cell.renderValue<any>(). Renders the value for a cell the same as getValue, but will return the renderFallbackValue if no value is found. */}
+            </TableCell>
+          );
+        })}
+      </TableRow>
+    );
+  };
+
+  if (enableVirtual && virtualizer) {
+    return (
+      <TableBody ref={scrollRef}>
+        <div
+          style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+        >
+          {virtualItems.map((virtualRow) => (
+            <div
+              key={virtualRow.key}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              {renderRow(rows[virtualRow.index])}
+            </div>
+          ))}
+        </div>
       </TableBody>
     );
   }
@@ -90,37 +101,7 @@ export function DataTableBody<TData>({
   return (
     <TableBody>
       {rows?.length ? (
-        rows.map((row) =>
-          // <TableRow
-          //   key={row.id}
-          //   data-state={row.getIsSelected() ? "selected" : ""}
-          // >
-          //   {row.getVisibleCells().map((cell) => {
-          //     const hasCheckbox =
-          //       cell.getValue() === "checkbox" || cell.column.id === "select";
-
-          //     const columnDef = table
-          //       ._getColumnDefs()
-          //       .find((c) => c.id === cell.column.id);
-          //     const explicitSize = !!columnDef?.size;
-
-          //     const colStyle = getColumnStyle({ column: cell, explicitSize });
-
-          //     return (
-          //       <TableCell
-          //         key={cell.id}
-          //         // style={hasCheckbox ? {} : colStyle}
-          //         style={colStyle}
-          //         className=""
-          //       >
-          //         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          //         {/* Can also use cell.renderValue<any>(). Renders the value for a cell the same as getValue, but will return the renderFallbackValue if no value is found. */}
-          //       </TableCell>
-          //     );
-          //   })}
-          // </TableRow>
-          renderRow(row)
-        )
+        rows.map((row) => renderRow(row))
       ) : (
         <TableRow>
           <TableCell className="h-24 text-center">No results.</TableCell>

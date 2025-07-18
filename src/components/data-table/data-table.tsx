@@ -39,7 +39,7 @@ export function DataTable<TData>({
 
   ...props
 }: DataTableProps<TData>) {
-  const tableContainerRef = React.useRef<HTMLTableElement>(null);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   /**
    * Instead of calling `column.getSize()` on every render for every header
@@ -58,27 +58,9 @@ export function DataTable<TData>({
     return colSizes;
   }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
-  const rows = React.useMemo(
-    () => table.getRowModel().rows,
-    [table.getRowModel().rows]
-  );
-
-  const enableVirtual = virtualization?.enabled ?? false;
-  const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 48;
-
-  const virtualizer = useVirtualizer<HTMLTableElement, Element>({
-    count: rows.length,
-    estimateSize: () => estimatedRowHeight,
-    getScrollElement: () => tableContainerRef.current,
-    enabled: enableVirtual,
-  });
-
   const BodyComponent = table.getState().columnSizingInfo.isResizingColumn
     ? MemoizedDataTableBody
     : DataTableBody;
-
-
-
 
   return (
     <div
@@ -99,7 +81,7 @@ export function DataTable<TData>({
       >
         <DataTableHeader table={table} />
 
-        <BodyComponent table={table} rows={rows} rowVirtualizer={virtualizer} />
+        <BodyComponent table={table} virtualization={virtualization} />
       </Table>
       <div className="flex flex-col gap-2.5">
         {/* <DataTablePagination table={table} type={paginationStyle}/> */}

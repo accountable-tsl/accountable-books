@@ -44,7 +44,7 @@ const TableBody = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
         role="rowgroup"
         data-slot="table-body"
         className={cn(
-          "[&>div[data-slot=table-row]:last-child]:border-0 overflow-y-auto scrollbar-thin-2px",
+          "[&>div[data-slot=table-row]:last-child]:border-0 relative overflow-y-auto h-full scrollbar-thin-2px",
           className
         )}
         {...props}
