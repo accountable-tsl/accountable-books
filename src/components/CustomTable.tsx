@@ -8,7 +8,10 @@ const Table = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
         ref={ref}
         data-slot="table"
         role="table"
-        className={cn("flex flex-col w-full caption-bottom text-sm", className)}
+        className={cn(
+          "flex flex-col w-full caption-bottom text-sm relative min-h-0",
+          className
+        )}
         {...props}
       />
     );
@@ -25,7 +28,7 @@ const TableHeader = React.forwardRef<
       role="rowgroup"
       data-slot="table-header"
       className={cn(
-        "[&_[data-slot=table-row]]:border-b flex flex-col",
+        "[&_[data-slot=table-row]]:border-b flex flex-col flex-shrink-0",
         className
       )}
       {...props}
@@ -41,7 +44,7 @@ const TableBody = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
         role="rowgroup"
         data-slot="table-body"
         className={cn(
-          "flex flex-col [&>div[data-slot=table-row]:last-child]:border-0",
+          "[&>div[data-slot=table-row]:last-child]:border-0 overflow-y-auto scrollbar-thin-2px",
           className
         )}
         {...props}
@@ -79,9 +82,9 @@ const TableRow = React.forwardRef<
       data-slot="table-row"
       data-variant={variant}
       className={cn(
-        "flex flex-nowrap w-full items-center border-b transition-all ",
+        "flex flex-nowrap border-collapse w-full items-center border-b transition-all relative",
         variant === "header"
-          ? "min-h-10 bg-muted/40 data-[state=selected]:bg-muted"
+          ? "min-h-10 h-10 bg-muted/40 data-[state=selected]:bg-muted"
           : "hover:bg-muted/50 data-[state=selected]:bg-muted",
         className
       )}
@@ -91,11 +94,18 @@ const TableRow = React.forwardRef<
 });
 
 const baseCellClassNames =
-  "flex-1 truncate [&:first-child:has([data-slot=checkbox])]:flex-none [&:first-child:has([data-slot=checkbox])]:border-r-0 [&:first-child_[data-slot=checkbox]]:translate-y-[2px]";
+  "block truncate min-w-0 relative flex-shrink-0" +
+  " [&:first-child:has([data-slot=checkbox])]:flex-none" +
+  " [&:first-child:has([data-slot=checkbox])]:text-clip" +
+  " [&:first-child:has([data-slot=checkbox])]:border-r-0" +
+  " [&:first-child_[data-slot=checkbox]]:translate-y-[2px]";
 
 const TableCell = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> & { variant?: "header" | "body" }
+  React.ComponentProps<"div"> & {
+    variant?: "header" | "body";
+    width?: string | number;
+  }
 >(({ className, variant = "body", ...props }, ref) => {
   return (
     <div
@@ -108,6 +118,11 @@ const TableCell = React.forwardRef<
         variant === "header" ? "border-r last:border-r-0 px-2" : "p-2",
         className
       )}
+      // style={{
+      //   width: width,
+      //   flexBasis: width,
+      //   ...style,
+      // }}
       {...props}
     />
   );

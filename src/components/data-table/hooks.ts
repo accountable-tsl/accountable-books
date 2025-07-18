@@ -27,11 +27,15 @@ export function useDataTable<T>({
     getCoreRowModel: getCoreRowModel(),
 
     // Column resizing is opt-in and configurable
-    enableColumnResizing: columnResize?.enabled ?? false,
-    columnResizeMode: columnResize?.mode ?? "onChange",
+    enableColumnResizing: columnResize?.enabled ?? true,
+    columnResizeMode: columnResize?.mode ?? "onChange" ,
 
     // Default: no sorting, filtering, pagination yet
     debugTable: false,
+
+    defaultColumn: {
+      minSize: 75,
+    },
   });
 
   return { table, enableVirtualization };

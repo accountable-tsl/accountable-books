@@ -28,10 +28,13 @@ export const coaTableColumns: ColumnDef<CoaResponse>[] = [
     enableSorting: false,
     enableHiding: false,
     enableResizing: false,
+    size: 32,
+    minSize: 32,
+    maxSize: 32,
   },
 
   {
-    id: "Code",
+    id: "code",
     accessorKey: "code",
     header: ({ column }) => {
       return (
@@ -43,15 +46,18 @@ export const coaTableColumns: ColumnDef<CoaResponse>[] = [
         </div>
       );
     },
+    size: 50,
     enableResizing: false,
   },
   {
-    id: "Account Name",
+    id: "account_name",
     accessorKey: "name",
     header: "Account Name",
+    enableResizing: true,
+    minSize: 200,
   },
   {
-    id: "Account Type",
+    id: "account_type",
     accessorKey: "accountTypeLabel",
     header: ({ column }) => {
       return (
@@ -66,33 +72,37 @@ export const coaTableColumns: ColumnDef<CoaResponse>[] = [
     enableResizing: true,
   },
   {
-    id: "Account Element",
+    id: "account_element",
     accessorKey: "accountElementLabel",
     header: "Element",
   },
   {
-    id: "Status",
+    id: "status",
     accessorKey: "isActive",
-    header: "Status",
+    header: () => {
+      return <div className="text-center">Status</div>;
+    },
     cell: (props) => {
       const active =
         props.getValue() === "true" || props.getValue() === true
           ? "Active"
           : "Inactive";
       return (
-        <Badge
-          className={cn(
-            "rounded-lg",
-            active === "Inactive" ? "opacity-50" : ""
-          )}
-        >
-          {active}
-        </Badge>
+        <div className="flex items-center justify-center">
+          <Badge
+            className={cn(
+              "rounded-lg",
+              active === "Inactive" ? "opacity-50" : ""
+            )}
+          >
+            {active}
+          </Badge>
+        </div>
       );
     },
+    size: 85,
+    minSize: 85,
+    maxSize: 85,
   },
-  {
-    accessorKey: "description",
-    header: "Description",
-  },
+  { id: "description", accessorKey: "description", header: "Description" },
 ];

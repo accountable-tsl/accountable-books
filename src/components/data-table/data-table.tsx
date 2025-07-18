@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { DataTableBody, MemoizedDataTableBody } from "./data-table-body";
 import { DataTableHeader } from "@/components/data-table/data-table-header";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Table } from "../CustomTable";
+import { Table } from "@/components/CustomTable";
 
 export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData>; // TanStack table instance — provides all table state + render info
@@ -16,7 +16,6 @@ export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   virtualization?: {
     enabled: boolean;
     estimatedRowHeight?: number;
-    overscan?: number;
   };
 }
 
@@ -67,15 +66,19 @@ export function DataTable<TData>({
   const enableVirtual = virtualization?.enabled ?? false;
   const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 48;
 
-  const rowVirtualizer = useVirtualizer<HTMLTableElement, Element>({
+  const virtualizer = useVirtualizer<HTMLTableElement, Element>({
     count: rows.length,
     estimateSize: () => estimatedRowHeight,
     getScrollElement: () => tableContainerRef.current,
+    enabled: enableVirtual,
   });
 
   const BodyComponent = table.getState().columnSizingInfo.isResizingColumn
     ? MemoizedDataTableBody
     : DataTableBody;
+
+
+
 
   return (
     <div
@@ -85,35 +88,19 @@ export function DataTable<TData>({
       {/* Top-level children (e.g., filters, pagination controls, etc.) */}
       {children}
 
-      {/* Main table container */}
-      {/* <div
-        ref={tableContainerRef}
-        aria-label="Data table"
-        className={cn(
-          "rounded-md border table-container",
-          "relative flex-grow min-h-0",
-          tableWrapperClassName
-        )}
-      > */}
+      {/* Main table */}
       <Table
-        className={cn("min-w-full relative")}
+        className={cn("min-w-full rounded-md overflow-clip border")}
         style={{
           ...columnSizeVars,
           // width: table.getTotalSize(),
           width: "100%",
-          // ...(enableVirtual ? { height: rowVirtualizer.getTotalSize() } : {}),
         }}
       >
         <DataTableHeader table={table} />
 
-        <BodyComponent
-          table={table}
-          rows={rows}
-          virtualizationEnabled={enableVirtual}
-          rowVirtualizer={rowVirtualizer}
-        />
+        <BodyComponent table={table} rows={rows} rowVirtualizer={virtualizer} />
       </Table>
-      {/* </div> */}
       <div className="flex flex-col gap-2.5">
         {/* <DataTablePagination table={table} type={paginationStyle}/> */}
         {actionBar &&
