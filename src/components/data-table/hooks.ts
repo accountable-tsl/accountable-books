@@ -4,13 +4,16 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
+  RowSelectionState,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   PaginationOptions,
+  RowSelectionOptions,
   SortingOptions,
   UseDataTableProps,
 } from "@/components/data-table/types";
+import { createSelectionColumn } from "./utils/select-column";
 
 /**
  * Initializes a TanStack Table instance with memoized data.
@@ -20,28 +23,25 @@ import {
  * - Sorting: Sorting is disabled for virtualized tables because sorting only the visible rows breaks user expectations.
  *   To support sorting, you must sort the entire dataset before passing it to the table/virtualizer.
  */
-export function useDataTable<T>({
-  data,
-  columns,
-  columnResize,
+export function useDataTable<TData>({
   customOptions,
-}: UseDataTableProps<T>) {
+  columnResize,
+  ...tableOptions
+}: UseDataTableProps<TData>) {
+  const { virtualization: virt, pagination: pg } = customOptions || {};
   // Virtualization options
   const virtualization = {
-    enabled: false,
-    estimatedRowHeight: 35,
-    overscan: 5,
-    ...customOptions?.virtualization,
+    enabled: virt?.enabled ?? false,
+    estimatedRowHeight: virt?.estimatedRowHeight ?? 35,
+    overscan: virt?.overscan ?? 5,
   };
 
   // If virtualization is enabled, force pagination and sorting off
   const pagination: PaginationOptions = {
-    enabled: virtualization.enabled
-      ? false
-      : customOptions?.pagination?.enabled ?? false,
-    style: customOptions?.pagination?.style ?? "standard",
-    initialPageSize: customOptions?.pagination?.initialPageSize ?? 10,
-    pageSizeOptions: customOptions?.pagination?.pageSizeOptions,
+    enabled: virtualization.enabled ? false : pg?.enabled ?? false,
+    style: pg?.style ?? "standard",
+    initialPageSize: pg?.initialPageSize ?? 10,
+    pageSizeOptions: pg?.pageSizeOptions,
   };
 
   const sorting: SortingOptions = {
@@ -54,12 +54,44 @@ export function useDataTable<T>({
    * Important: TanStack requires a stable data reference.
    * Otherwise, internal row model caching breaks and can cause re-renders or bugs.
    */
-  const stableData = useMemo(() => data, [data]);
+  const stableData = useMemo(() => tableOptions.data, [tableOptions.data]);
 
+  const [internalRowSelection, setInternalRowSelection] =
+    useState<RowSelectionState>({});
+
+  const getRowSelectionOptions = (): RowSelectionOptions => {
+    const rs = customOptions?.rowSelection;
+    const isEnabled = rs?.enabled ?? true;
+    return {
+      enabled: isEnabled,
+      enableMultiRowSelection: rs?.enableMultiRowSelection ?? true,
+      rowSelectionState: rs?.rowSelectionState ?? internalRowSelection,
+      setRowSelectionState: rs?.setRowSelectionState ?? setInternalRowSelection,
+      addCheckboxes: rs?.addCheckboxes ?? isEnabled,
+    };
+  };
+  const rowSelection = getRowSelectionOptions();
+
+  const checkBoxColumn = createSelectionColumn();
+
+  const columns = rowSelection.addCheckboxes
+    ? [checkBoxColumn, ...tableOptions.columns]
+    : tableOptions.columns;
+
+  console.log(columns);
   const reactTable = useReactTable({
+    ...tableOptions,
     data: stableData,
-    columns,
+    columns: columns,
     getCoreRowModel: getCoreRowModel(),
+    enableRowSelection: rowSelection.enabled,
+    enableMultiRowSelection: rowSelection.enableMultiRowSelection,
+
+    state: {
+      ...tableOptions?.state,
+      rowSelection: rowSelection.rowSelectionState,
+    },
+    onRowSelectionChange: rowSelection.setRowSelectionState,
 
     // Column resizing is opt-in and configurable
     enableColumnResizing: columnResize?.enabled ?? true,
@@ -79,8 +111,10 @@ export function useDataTable<T>({
         getPaginationRowModel: getPaginationRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         initialState: {
+          ...tableOptions.initialState,
           pagination: {
-            pageSize: pagination?.initialPageSize ?? 10,
+            ...tableOptions.initialState?.pagination,
+            pageSize: pagination.initialPageSize,
           },
         },
       }),

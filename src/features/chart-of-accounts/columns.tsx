@@ -1,51 +1,42 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { CoaResponse } from "@/features/chart-of-accounts/types";
-import { ArrowUpDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export const coaTableColumns: ColumnDef<CoaResponse>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    enableResizing: false,
-    size: 32,
-    minSize: 32,
-    maxSize: 32,
-  },
+  // {
+  //   id: "select",
+  //   header: ({ table }) => (
+  //     <Checkbox
+  //       checked={
+  //         table.getIsAllPageRowsSelected() ||
+  //         (table.getIsSomePageRowsSelected() && "indeterminate")
+  //       }
+  //       onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+  //       aria-label="Select all"
+  //     />
+  //   ),
+  //   cell: ({ row }) => (
+  //     <Checkbox
+  //       checked={row.getIsSelected()}
+  //       onCheckedChange={(value) => row.toggleSelected(!!value)}
+  //       aria-label="Select row"
+  //     />
+  //   ),
+  //   enableSorting: false,
+  //   enableHiding: false,
+  //   enableResizing: false,
+  //   size: 32,
+  //   minSize: 32,
+  //   maxSize: 32,
+  // },
 
   {
     id: "code",
     accessorKey: "code",
-    header: ({ column }) => {
-      return (
-        <div
-          className="flex items-center"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Code <ArrowUpDown className="ml-2 h-3 w-3" />
-        </div>
-      );
-    },
+    header: "Code",
+    enableSorting: true,
     size: 50,
     enableResizing: false,
   },
@@ -59,16 +50,8 @@ export const coaTableColumns: ColumnDef<CoaResponse>[] = [
   {
     id: "account_type",
     accessorKey: "accountTypeLabel",
-    header: ({ column }) => {
-      return (
-        <div
-          className="flex items-center"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Account Type <ArrowUpDown className="ml-2 h-3 w-3" />
-        </div>
-      );
-    },
+    header: "Account Type",
+    enableSorting: true,
     enableResizing: true,
   },
   {

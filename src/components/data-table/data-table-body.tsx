@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { DataTableProps } from "@/components/data-table/types";
 import { TableBody, TableRow, TableCell } from "@/components/CustomTable";
 import { flexRender } from "@tanstack/react-table";

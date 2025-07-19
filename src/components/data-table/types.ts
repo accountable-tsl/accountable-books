@@ -1,5 +1,10 @@
-import { ColumnDef } from "@tanstack/react-table";
+import {
+  ColumnDef,
+  RowSelectionState,
+  useReactTable,
+} from "@tanstack/react-table";
 import { type Table as TanstackTable } from "@tanstack/react-table";
+import { TableOptions } from "@tanstack/react-table";
 
 export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData> & { customOptions?: DataTableExtras }; // TanStack table instance — provides all table state + render info
@@ -17,10 +22,21 @@ export interface SortingOptions {
   enabled: boolean;
 }
 
-export interface UseDataTableProps<T> {
-  data: T[];
-  columns: ColumnDef<T, any>[];
+export interface RowSelectionOptions {
+  enabled?: boolean;
+  addCheckboxes?: boolean;
+  enableMultiRowSelection?: boolean;
+  rowSelectionState?: RowSelectionState;
+  setRowSelectionState?: React.Dispatch<
+    React.SetStateAction<RowSelectionState>
+  >;
+}
 
+export interface UseDataTableProps<TData>
+  extends Omit<
+    TableOptions<TData>,
+    "getCoreRowModel" | "enableRowSelection" | "enableMultiRowSelection"
+  > {
   /**
    * Optional configuration for column resizing.
    * If not provided, resizing is disabled by default.
@@ -29,7 +45,6 @@ export interface UseDataTableProps<T> {
     enabled: boolean;
     mode?: "onChange" | "onEnd";
   };
-
   customOptions?: DataTableExtras;
 }
 
@@ -52,6 +67,8 @@ export interface DataTableExtras {
    * Sorting configuration options.
    */
   sorting?: SortingOptions;
+
+  rowSelection?: RowSelectionOptions;
 
   customClassNames?: {
     wrapper?: string;
