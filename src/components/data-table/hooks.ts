@@ -1,8 +1,4 @@
-import {
-  ColumnDef,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { UseDataTableProps } from "@/components/data-table/types";
 
@@ -13,22 +9,24 @@ export function useDataTable<T>({
   data,
   columns,
   columnResize,
-  enableVirtualization = false,
-}: UseDataTableProps<T>) {
+  customOptions,
+}: // enableVirtualization = false,
+// customClassNames = {},
+UseDataTableProps<T>) {
   /**
    * Important: TanStack requires a stable data reference.
    * Otherwise, internal row model caching breaks and can cause re-renders or bugs.
    */
   const stableData = useMemo(() => data, [data]);
 
-  const table = useReactTable({
+  const reactTable = useReactTable({
     data: stableData,
     columns,
     getCoreRowModel: getCoreRowModel(),
 
     // Column resizing is opt-in and configurable
     enableColumnResizing: columnResize?.enabled ?? true,
-    columnResizeMode: columnResize?.mode ?? "onChange" ,
+    columnResizeMode: columnResize?.mode ?? "onChange",
 
     // Default: no sorting, filtering, pagination yet
     debugTable: false,
@@ -36,7 +34,14 @@ export function useDataTable<T>({
     defaultColumn: {
       minSize: 75,
     },
+
+    // virtualization
   });
 
-  return { table, enableVirtualization };
+  const table = {
+    ...reactTable,
+    customOptions,
+  };
+
+  return { table };
 }

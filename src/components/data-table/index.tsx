@@ -6,14 +6,13 @@ import coaData from "./fake/coa.json";
 
 export function Table() {
   const accounts = coaData as Account[];
+
+  const tableOptions = { enableVirtualization: true };
   const { table } = useDataTable<Account>({
     data: accounts,
     columns: accountColumns,
-    columnResize: {
-      enabled: true,
-      mode: "onChange",
-    },
+    customOptions: tableOptions,
   });
 
-  return <DataTable table={table} virtualization={{ enabled: true }} />;
+  return <DataTable table={table} />;
 }

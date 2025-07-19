@@ -205,7 +205,7 @@ export const ChartOfAccounts: React.FC = () => {
       {/* Accounts Table */}
       {/* <div className="border rounded-lg flex-1 min-h-0 h-full"> */}
       {/* <OldDataTable columns={columns} data={accounts} /> */}
-      <DataTable table={table} virtualization={{ enabled: true }} />
+      <DataTable table={table} />
       {/* </div> */}
 
       <AddBankAccountDialog

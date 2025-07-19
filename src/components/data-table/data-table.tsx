@@ -1,23 +1,10 @@
-import { type Table as TanstackTable } from "@tanstack/react-table";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 import { DataTableBody, MemoizedDataTableBody } from "./data-table-body";
 import { DataTableHeader } from "@/components/data-table/data-table-header";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { Table } from "@/components/CustomTable";
-
-export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
-  table: TanstackTable<TData>; // TanStack table instance — provides all table state + render info
-  actionBar?: React.ReactNode; // Optional UI element shown if there are selected rows
-  debugTable?: boolean; // Optional debug flag
-  tableWrapperClassName?: string; // Optional table container class
-
-  virtualization?: {
-    enabled: boolean;
-    estimatedRowHeight?: number;
-  };
-}
+import { DataTableProps } from "@/components/data-table/types";
 
 /**
  * Generic, flexible data table wrapper built with TanStack Table v8.
@@ -32,14 +19,10 @@ export function DataTable<TData>({
   table,
   actionBar,
   children,
-  className,
-  debugTable,
-  tableWrapperClassName,
-  virtualization,
-
   ...props
 }: DataTableProps<TData>) {
-  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const { customClassNames } = table.customOptions || {};
+  const { wrapper, table: tableClass } = customClassNames || {};
 
   /**
    * Instead of calling `column.getSize()` on every render for every header
@@ -64,7 +47,10 @@ export function DataTable<TData>({
 
   return (
     <div
-      className={cn("flex flex-col w-full h-full min-h-0 gap-2.5", className)}
+      className={cn(
+        "flex flex-col w-full h-full min-h-0 gap-2.5",
+        wrapper || ""
+      )}
       {...props}
     >
       {/* Top-level children (e.g., filters, pagination controls, etc.) */}
@@ -72,7 +58,10 @@ export function DataTable<TData>({
 
       {/* Main table */}
       <Table
-        className={cn("min-w-full rounded-md overflow-clip border")}
+        className={cn(
+          "min-w-full rounded-md overflow-clip border",
+          tableClass || ""
+        )}
         style={{
           ...columnSizeVars,
           // width: table.getTotalSize(),
@@ -81,7 +70,7 @@ export function DataTable<TData>({
       >
         <DataTableHeader table={table} />
 
-        <BodyComponent table={table} virtualization={virtualization} />
+        <BodyComponent table={table} />
       </Table>
       <div className="flex flex-col gap-2.5">
         {/* <DataTablePagination table={table} type={paginationStyle}/> */}

@@ -1,5 +1,5 @@
 import React from "react";
-import { DataTableProps } from "@/components/data-table/data-table";
+import { DataTableProps } from "@/components/data-table/types";
 import { TableBody, TableRow, TableCell } from "@/components/CustomTable";
 import { flexRender } from "@tanstack/react-table";
 import { getColumnStyle } from "./utils/column-sizing";
@@ -7,21 +7,19 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface DataTableBodyProps<TData> {
   table: DataTableProps<TData>["table"];
-  virtualization?: DataTableProps<TData>["virtualization"];
 }
-export function DataTableBody<TData>({
-  table,
-  virtualization,
-}: DataTableBodyProps<TData>) {
+export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const { enableVirtualization, customClassNames } = table.customOptions || {};
+  const { tableBody, tableBodyCell, tableBodyRow } = customClassNames || {};
 
   const rows = React.useMemo(
     () => table.getRowModel().rows,
     [table.getRowModel().rows]
   );
 
-  const enableVirtual = virtualization?.enabled ?? false;
-  const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 48;
+  const enableVirtual = enableVirtualization ?? false;
+  const estimatedRowHeight = 48;
 
   const virtualizer = useVirtualizer<HTMLDivElement, Element>({
     count: rows.length,
@@ -32,7 +30,6 @@ export function DataTableBody<TData>({
   });
 
   const virtualItems = scrollRef.current ? virtualizer.getVirtualItems() : [];
-  console.log(virtualizer, virtualItems);
 
   const renderRow = (row: any) => {
     return (
@@ -45,6 +42,7 @@ export function DataTableBody<TData>({
           }
         }}
         data-state={row.getIsSelected() ? "selected" : ""}
+        className={tableBodyRow}
       >
         {row.getVisibleCells().map((cell: any) => {
           const hasCheckbox =
@@ -62,7 +60,7 @@ export function DataTableBody<TData>({
               key={cell.id}
               // style={hasCheckbox ? {} : colStyle}
               style={colStyle}
-              className=""
+              className={tableBodyCell}
             >
               {flexRender(cell.column.columnDef.cell, cell.getContext())}
               {/* Can also use cell.renderValue<any>(). Renders the value for a cell the same as getValue, but will return the renderFallbackValue if no value is found. */}
@@ -75,7 +73,7 @@ export function DataTableBody<TData>({
 
   if (enableVirtual && virtualizer) {
     return (
-      <TableBody ref={scrollRef}>
+      <TableBody ref={scrollRef} className={tableBody}>
         <div
           style={{ height: virtualizer.getTotalSize(), position: "relative" }}
         >
@@ -99,11 +97,11 @@ export function DataTableBody<TData>({
   }
 
   return (
-    <TableBody>
+    <TableBody className={tableBody}>
       {rows?.length ? (
         rows.map((row) => renderRow(row))
       ) : (
-        <TableRow>
+        <TableRow className={tableBodyRow}>
           <TableCell className="h-24 text-center">No results.</TableCell>
         </TableRow>
       )}
