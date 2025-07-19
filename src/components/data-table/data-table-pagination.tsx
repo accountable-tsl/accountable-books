@@ -1,4 +1,3 @@
-import { Table } from "@tanstack/react-table";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,36 +13,65 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DataTableProps } from "@/components/data-table/types";
+import { getPageSizeOptions } from "@/components/data-table/utils/pagination-utils";
 
 interface DataTablePaginationProps<TData> {
-  table: Table<TData>;
+  table: DataTableProps<TData>["table"];
 }
 
 export function DataTablePagination<TData>({
   table,
 }: DataTablePaginationProps<TData>) {
+  const pagination = table?.customOptions?.pagination;
+  const totalFilteredRows = table.getFilteredRowModel().rows.length;
+
+  const pageSizeOptions = getPageSizeOptions({
+    options: pagination,
+    totalRows: totalFilteredRows,
+    allowShowAll: true,
+  });
+
+  const currentPageSize = table.getState().pagination.pageSize;
+
+  // Determine the display value for the current page size
+  const getDisplayValue = (pageSize: number) => {
+    return pageSize === totalFilteredRows ? "All" : pageSize.toString();
+  };
+
+  // Get the current value for the select (either number or "all")
+  const getCurrentValue = () => {
+    return currentPageSize === totalFilteredRows
+      ? "all"
+      : currentPageSize.toString();
+  };
+
   return (
     <div className="flex items-center justify-between px-2">
       <div className="text-muted-foreground flex-1 text-sm">
-        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
+        {table.getFilteredSelectedRowModel().rows.length} of {totalFilteredRows}
+        {(totalFilteredRows > 1 ? " rows" : "row") + " selected."}
       </div>
       <div className="flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">
           <p className="text-sm font-medium">Rows per page</p>
           <Select
-            value={`${table.getState().pagination.pageSize}`}
+            value={getCurrentValue()}
             onValueChange={(value) => {
-              table.setPageSize(Number(value));
+              if (value === "all") {
+                table.setPageSize(totalFilteredRows);
+              } else {
+                table.setPageSize(Number(value));
+              }
             }}
           >
             <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
+              <SelectValue placeholder={getDisplayValue(currentPageSize)} />
             </SelectTrigger>
             <SelectContent side="top">
-              {[10, 20, 25, 30, 40, 50].map((pageSize) => (
+              {pageSizeOptions.map((pageSize) => (
                 <SelectItem key={pageSize} value={`${pageSize}`}>
-                  {pageSize}
+                  {pageSize === "all" ? "All" : pageSize}
                 </SelectItem>
               ))}
             </SelectContent>

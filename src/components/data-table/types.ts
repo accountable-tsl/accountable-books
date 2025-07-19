@@ -6,6 +6,13 @@ export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   actionBar?: React.ReactNode; // Optional UI element shown if there are selected rows
 }
 
+export interface PaginationOptions {
+  enabled: boolean;
+  initialPageSize?: number;
+  style?: "standard" | "infinite";
+  pageSizeOptions?: number[];
+}
+
 export interface UseDataTableProps<T> {
   data: T[];
   columns: ColumnDef<T, any>[];
@@ -28,6 +35,11 @@ export interface DataTableExtras {
    * Assumes rows are uniform in height for best performance.
    */
   enableVirtualization?: boolean;
+
+  /**
+   * Pagination configuration options.
+   */
+  pagination?: PaginationOptions;
 
   customClassNames?: {
     wrapper?: string;

@@ -5,6 +5,7 @@ import { DataTableBody, MemoizedDataTableBody } from "./data-table-body";
 import { DataTableHeader } from "@/components/data-table/data-table-header";
 import { Table } from "@/components/CustomTable";
 import { DataTableProps } from "@/components/data-table/types";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 
 /**
  * Generic, flexible data table wrapper built with TanStack Table v8.
@@ -21,7 +22,7 @@ export function DataTable<TData>({
   children,
   ...props
 }: DataTableProps<TData>) {
-  const { customClassNames } = table.customOptions || {};
+  const { customClassNames, pagination } = table.customOptions || {};
   const { wrapper, table: tableClass } = customClassNames || {};
 
   /**
@@ -44,6 +45,8 @@ export function DataTable<TData>({
   const BodyComponent = table.getState().columnSizingInfo.isResizingColumn
     ? MemoizedDataTableBody
     : DataTableBody;
+
+  console.log(pagination);
 
   return (
     <div
@@ -72,7 +75,11 @@ export function DataTable<TData>({
         <BodyComponent table={table} />
       </Table>
       <div className="flex flex-col gap-2.5">
-        {/* <DataTablePagination table={table} type={paginationStyle}/> */}
+        {/* Conditional pagination rendering */}
+        {pagination?.enabled && pagination.style === "standard" && (
+          <DataTablePagination table={table} />
+        )}
+        {/* TODO: Add support for 'infinite' pagination style */}
         {actionBar &&
           table.getFilteredSelectedRowModel().rows.length > 0 &&
           actionBar}

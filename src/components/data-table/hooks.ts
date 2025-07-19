@@ -1,6 +1,14 @@
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { useMemo } from "react";
-import { UseDataTableProps } from "@/components/data-table/types";
+import {
+  PaginationOptions,
+  UseDataTableProps,
+} from "@/components/data-table/types";
 
 /**
  * Initializes a TanStack Table instance with memoized data.
@@ -10,9 +18,14 @@ export function useDataTable<T>({
   columns,
   columnResize,
   customOptions,
-}: // enableVirtualization = false,
-// customClassNames = {},
-UseDataTableProps<T>) {
+}: UseDataTableProps<T>) {
+  const pagination: PaginationOptions = {
+    enabled: false,
+    style: "standard",
+    initialPageSize: 10,
+    ...customOptions?.pagination,
+  };
+
   /**
    * Important: TanStack requires a stable data reference.
    * Otherwise, internal row model caching breaks and can cause re-renders or bugs.
@@ -28,6 +41,18 @@ UseDataTableProps<T>) {
     enableColumnResizing: columnResize?.enabled ?? true,
     columnResizeMode: columnResize?.mode ?? "onChange",
 
+    // Pagination is opt-in and configurable
+    ...(pagination?.enabled &&
+      pagination?.style !== "infinite" && {
+        getPaginationRowModel: getPaginationRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        initialState: {
+          pagination: {
+            pageSize: pagination?.initialPageSize ?? 10,
+          },
+        },
+      }),
+
     // Default: no sorting, filtering, pagination yet
     debugTable: false,
 
@@ -38,7 +63,7 @@ UseDataTableProps<T>) {
 
   const table = {
     ...reactTable,
-    customOptions,
+    customOptions: { ...customOptions, pagination },
   };
 
   return { table };
