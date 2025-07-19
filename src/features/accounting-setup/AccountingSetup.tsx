@@ -46,12 +46,13 @@ export const AccountingWorkspaceSetup = () => {
         title="Accounting Setup"
         titleClass="hidden"
         description="Configure your workspace accounting settings"
+        descriptionClass="text-background"
       />
 
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="gap-0 flex-1"
+        className="gap-0 flex-1 h-full min-h-0"
       >
         <TabsList className="flex w-full grid-cols-4 rounded-md rounded-b-none bg-background p-0">
           {tabsConfig.map(({ value, icon: Icon, label }) => (
@@ -60,8 +61,8 @@ export const AccountingWorkspaceSetup = () => {
               value={value}
               className={cn(
                 "flex flex-1 items-center gap-2 text-muted-foreground rounded-none bg-background h-full rounded-t font-light hover:text-foreground",
-                "data-[state=active]:shadow-none data-[state=active]:text-foreground data-[state=active]:font-medium -mb-[2px]",
-                "border-b-border data-[state=active]:border-border data-[state=active]:border-b-background"
+                "data-[state=active]:shadow-none data-[state=active]:text-foreground data-[state=active]:font-medium -mb-[2px] opacity-50",
+                "border-b-border data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:opacity-100"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -75,7 +76,7 @@ export const AccountingWorkspaceSetup = () => {
           <TabsContent
             key={value}
             value={value}
-            className="flex-1 border border-t-0"
+            className="flex-1 flex flex-col min-h-0 border border-t-0"
           >
             {content}
           </TabsContent>

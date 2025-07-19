@@ -3,13 +3,24 @@ import { authStore } from "@/features/auth/store";
 import { queryClient } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 
-export const clearSessionFn = () => {
+export const clearSessionFn = (
+  logoutReason?: "expired" | "manual" | "forced"
+) => {
+  console.log("I was hit", "logoutReason", logoutReason);
   authStore.getState().clearAuth();
+
   const theme = localStorage.getItem("theme");
+
   localStorage.clear();
+
   if (theme) {
     localStorage.setItem("theme", theme);
   }
+
+  if (logoutReason) {
+    localStorage.setItem("logoutReason", logoutReason);
+  }
+
   queryClient.clear();
 };
 

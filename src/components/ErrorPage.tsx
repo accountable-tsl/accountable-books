@@ -97,7 +97,7 @@ export default function ErrorPage({
           {showHomeLink && (
             <div
               onClick={() => navigate(routeLink, { replace: true })}
-              className="text-blue-600 hover:underline"
+              className="text-blue-600 hover:underline cursor-pointer"
             >
               Go back home
             </div>

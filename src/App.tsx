@@ -32,6 +32,7 @@ import {
 import BlankLayout from "./layouts/BlankLayout";
 import { ChartOfAccounts } from "./features/chart-of-accounts/ChartOfAccounts";
 import { AccountingWorkspaceSetup } from "./features/accounting-setup/AccountingSetup";
+import { Table } from "./components/data-table";
 
 function App() {
   return (
@@ -119,6 +120,7 @@ function AppRoutes() {
         />
 
         <Route element={<AppLayout />}>
+          <Route path="table" element={<Table />} />
           <Route
             index
             element={

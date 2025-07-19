@@ -27,8 +27,6 @@ export const handleLogin = async (
 
 export const handleLogout = async () => {
   await api.post("/auth/logout").catch(() => {});
-  // authStore.getState().clearAuth();
-  // window.location.replace("/login");
 };
 
 /**
@@ -41,11 +39,23 @@ export const handleLogout = async () => {
 export const fetchSession = async (): Promise<
   ApiResponse<{ user: AuthUserContext; csrfToken: string }>
 > => {
-  const res = await api.get("/auth/me");
-  res.data.success &&
-    authStore.getState().setAuth(res.data.data.user, res.data.data.csrfToken);
+  try {
+    const res = await api.get("/auth/me");
+    if (!res.data.success) throw new Error("Session invalid or expired");
 
-  return res.data;
+    res.data.success &&
+      authStore.getState().setAuth(res.data.data.user, res.data.data.csrfToken);
+
+    return res.data;
+  } catch (err: any) {
+    if (err.response?.status === 401) {
+      const wasAuthenticated =
+        localStorage.getItem("wasAuthenticated") === "true";
+      wasAuthenticated && localStorage.setItem("logoutReason", "expired");
+      throw new Error("Unauthorized"); // triggers useQuery failure state
+    }
+    throw err;
+  }
 };
 // export const fetchSession = async (): Promise<
 //   ApiResponse<{ user: AuthUserContext; csrfToken: string }>

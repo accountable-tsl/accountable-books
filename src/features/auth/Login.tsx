@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { loginForm, LoginForm } from "./types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
@@ -26,7 +26,6 @@ export default function Login() {
     useSession();
   const { setAuth } = authStore((s) => s);
   const [params] = useSearchParams();
-  const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +59,9 @@ export default function Login() {
     }
   };
 
-  const alreadyLoggedIn = isLoggedIn && companyId && tenantRoutes;
+  const alreadyLoggedIn = !loading && isLoggedIn && companyId && tenantRoutes;
+  const logoutReason = localStorage.getItem("logoutReason");
+
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -68,6 +69,13 @@ export default function Login() {
       <div className="flex flex-1 w-full items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-sm">
           <div className="flex flex-col gap-6">
+            {logoutReason === "expired" && !alreadyLoggedIn && (
+              <div className="text-center rounded-lg border border-organge-300 bg-orange-100 p-2 md:p-3 text-xs text-orange-800 shadow-sm">
+                <span className="block md:inline">
+                  We logged you out to secure your account. Please login again
+                </span>
+              </div>
+            )}
             {alreadyLoggedIn && (
               <div className="text-center rounded-lg border border-green-300 bg-green-50 p-2 md:p-3  text-sm text-green-800 shadow-sm">
                 <span className="block md:inline">

@@ -1,6 +1,6 @@
 import { getDefaultCurrencyCodeForCountry } from "@/constants/countryCurrencyMap";
 import { CompanyData } from "@/domains/company/types";
-import { Country, CurrencyList } from "@/shared/types/core";
+import { ApiResponse, Country, CurrencyList } from "@/shared/types/core";
 
 export const getUserLocale = () => {
   return navigator.language || navigator.languages?.[0] || "en-US";
@@ -68,3 +68,10 @@ export const getDefaultCountryAndCurrency = ({
 
 export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
+
+export function assertApiSuccess<T>(res: ApiResponse<T>): T {
+  if (!res.success || res.data === undefined) {
+    throw new Error(res.message || "Unexpected API error");
+  }
+  return res.data;
+}

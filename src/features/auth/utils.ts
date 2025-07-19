@@ -34,6 +34,7 @@ export const performLoginFlow = async ({
 }> => {
   try {
     const loginFn = handleLogin({ email, password });
+    localStorage.removeItem("logoutReason");
 
     const res = await loginFn;
     // wait for 2 seconds, while waiting, show toast, logging in
@@ -42,7 +43,6 @@ export const performLoginFlow = async ({
       setTimeout(resolve, 2000);
     });
 
-    console.log({ res });
     if (!res.success || !res.data || !res.data.user || !res.data.csrfToken) {
       if (res?.code === "INVALID_CREDENTIALS") {
         const message = res.message || "Invalid email or password";
@@ -84,7 +84,6 @@ export const performLoginFlow = async ({
 type LoginParams = Parameters<typeof performLoginFlow>[0];
 export async function loginAndRedirect(params: LoginParams) {
   const result = await performLoginFlow(params);
-  console.log({ result });
   if (!result.success || !result.data) return result;
 
   const dashboardUrl = buildCanonicalUrl({
