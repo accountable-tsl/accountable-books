@@ -12,7 +12,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.string("description", 512).nullable();
     table.specificType("side", "debit_credit").notNullable();
-    table.decimal("amount", 20, 10).notNullable();
+    table.decimal("amount", 32, 10).notNullable();
 
     table
       .uuid("journal_batch_id")

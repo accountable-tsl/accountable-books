@@ -88,7 +88,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("currencies")
       .onDelete("RESTRICT");
 
-    table.decimal("rate", 20, 10).notNullable();
+    table.decimal("rate", 32, 10).notNullable();
 
     addStandardColumns(table);
 

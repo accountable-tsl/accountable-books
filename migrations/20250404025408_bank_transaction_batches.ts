@@ -16,8 +16,8 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp("start_date", { useTz: true }).notNullable();
     table.timestamp("end_date", { useTz: true }).notNullable();
 
-    table.decimal("balance_before", 20, 10).notNullable();
-    table.decimal("balance_after", 20, 10).notNullable();
+    table.decimal("balance_before", 32, 10).notNullable();
+    table.decimal("balance_after", 32, 10).notNullable();
 
     table.specificType("source", "bank_transaction_source").notNullable();
 

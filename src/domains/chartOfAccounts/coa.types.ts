@@ -43,7 +43,6 @@ export type FetchCoaInput = {
   code?: string;
   active?: boolean;
   accountTypeKey?: string;
-  sortBy?: "code" | "name";
   trx?: Knex.Transaction;
 };
 

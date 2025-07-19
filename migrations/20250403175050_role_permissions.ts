@@ -121,7 +121,7 @@ const seedRolePermissions = async function seed(knex: Knex): Promise<void> {
     // Build roles_permissions entries
     const entries = Object.entries(rolePermissions).flatMap(
       ([roleName, permKeys]) => {
-        const roleId = roleMap.get(roleName as RoleName);
+        const roleId = roleMap.get(roleName);
         if (!roleId) {
           console.error(`Role '${roleName}' not found in roleMap`);
           throw new Error(`Invalid role name: '${roleName}'`);

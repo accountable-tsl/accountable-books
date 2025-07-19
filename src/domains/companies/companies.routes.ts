@@ -23,12 +23,12 @@ router.post(
   switchCompanyController
 );
 
-router.get(
-  "/",
-  verifyAccessToken,
-  // requirePermission("companies:view"),
-  getCompaniesController
-);
+// router.get(
+//   "/",
+//   verifyAccessToken,
+//   // requirePermission("companies:view"),
+//   getCompaniesController
+// );
 
 router.get(
   "/:companyId",

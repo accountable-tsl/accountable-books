@@ -6,7 +6,6 @@ import { fetchCompanyCoa } from "./coa.model";
 export const getCoaController = async (req: AuthRequest, res: Response) => {
   const { companyId: companyIdFromQuery, id, code, active, key } = req.query;
   const companyId = companyIdFromQuery || req.params.companyId;
-
   if (!companyId || typeof companyId !== "string") {
     return res.status(400).json(errorResponse("Missing or invalid companyId"));
   }
