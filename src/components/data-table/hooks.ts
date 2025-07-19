@@ -34,8 +34,6 @@ UseDataTableProps<T>) {
     defaultColumn: {
       minSize: 75,
     },
-
-    // virtualization
   });
 
   const table = {

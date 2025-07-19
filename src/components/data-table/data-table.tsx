@@ -64,7 +64,6 @@ export function DataTable<TData>({
         )}
         style={{
           ...columnSizeVars,
-          // width: table.getTotalSize(),
           width: "100%",
         }}
       >
