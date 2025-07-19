@@ -27,3 +27,6 @@ dist-ssr
 .env.staging
 .env.production
 .env*
+cursor
+.cursor
+.cursor/*

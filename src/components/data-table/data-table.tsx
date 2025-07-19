@@ -1,24 +1,11 @@
-import { type Table as TanstackTable } from "@tanstack/react-table";
 import * as React from "react";
 
-import { Table } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { DataTableBody, MemoizedDataTableBody } from "./data-table-body";
 import { DataTableHeader } from "@/components/data-table/data-table-header";
-import { useVirtualizer } from "@tanstack/react-virtual";
-
-export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
-  table: TanstackTable<TData>; // TanStack table instance — provides all table state + render info
-  actionBar?: React.ReactNode; // Optional UI element shown if there are selected rows
-  debugTable?: boolean; // Optional debug flag
-  tableWrapperClassName?: string; // Optional table container class
-
-  virtualization?: {
-    enabled: boolean;
-    estimatedRowHeight?: number;
-    overscan?: number;
-  };
-}
+import { Table } from "@/components/CustomTable";
+import { DataTableProps } from "@/components/data-table/types";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 
 /**
  * Generic, flexible data table wrapper built with TanStack Table v8.
@@ -33,14 +20,10 @@ export function DataTable<TData>({
   table,
   actionBar,
   children,
-  className,
-  debugTable,
-  tableWrapperClassName,
-  virtualization,
-
   ...props
 }: DataTableProps<TData>) {
-  const tableContainerRef = React.useRef<HTMLTableElement>(null);
+  const { customClassNames, pagination } = table.customOptions || {};
+  const { wrapper, table: tableClass } = customClassNames || {};
 
   /**
    * Instead of calling `column.getSize()` on every render for every header
@@ -59,63 +42,42 @@ export function DataTable<TData>({
     return colSizes;
   }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
-  const rows = React.useMemo(
-    () => table.getRowModel().rows,
-    [table.getRowModel().rows]
-  );
-
-  const enableVirtual = virtualization?.enabled ?? false;
-  const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 48;
-
-  const rowVirtualizer = useVirtualizer<HTMLTableElement, Element>({
-    count: rows.length,
-    estimateSize: () => estimatedRowHeight,
-    getScrollElement: () => tableContainerRef.current,
-  });
-
   const BodyComponent = table.getState().columnSizingInfo.isResizingColumn
     ? MemoizedDataTableBody
     : DataTableBody;
 
   return (
     <div
-      className={cn("flex flex-col w-full h-full min-h-0 gap-2.5", className)}
+      className={cn(
+        "flex flex-col w-full h-full min-h-0 gap-2.5",
+        wrapper || ""
+      )}
       {...props}
     >
       {/* Top-level children (e.g., filters, pagination controls, etc.) */}
       {children}
 
-      {/* Main table container */}
-      {/* <div
-        ref={tableContainerRef}
-        aria-label="Data table"
+      {/* Main table */}
+      <Table
         className={cn(
-          "rounded-md border table-container",
-          "relative flex-grow min-h-0",
-          tableWrapperClassName
+          "min-w-full rounded-md overflow-clip border",
+          tableClass || ""
         )}
-      > */}
-        <Table
-          className={cn("min-w-full relative")}
-          style={{
-            ...columnSizeVars,
-            // width: table.getTotalSize(),
-            width: "100%",
-            // ...(enableVirtual ? { height: rowVirtualizer.getTotalSize() } : {}),
-          }}
-        >
-          <DataTableHeader table={table} />
+        style={{
+          ...columnSizeVars,
+          width: "100%",
+        }}
+      >
+        <DataTableHeader table={table} />
 
-          <BodyComponent
-            table={table}
-            rows={rows}
-            virtualizationEnabled={enableVirtual}
-            rowVirtualizer={rowVirtualizer}
-          />
-        </Table>
-      {/* </div> */}
+        <BodyComponent table={table} />
+      </Table>
       <div className="flex flex-col gap-2.5">
-        {/* <DataTablePagination table={table} type={paginationStyle}/> */}
+        {/* Conditional pagination rendering */}
+        {pagination?.enabled && pagination.style === "standard" && (
+          <DataTablePagination table={table} />
+        )}
+        {/* TODO: Add support for 'infinite' pagination style */}
         {actionBar &&
           table.getFilteredSelectedRowModel().rows.length > 0 &&
           actionBar}

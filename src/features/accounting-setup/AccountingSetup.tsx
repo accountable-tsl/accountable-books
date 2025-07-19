@@ -46,6 +46,7 @@ export const AccountingWorkspaceSetup = () => {
         title="Accounting Setup"
         titleClass="hidden"
         description="Configure your workspace accounting settings"
+        descriptionClass="text-background"
       />
 
       <Tabs

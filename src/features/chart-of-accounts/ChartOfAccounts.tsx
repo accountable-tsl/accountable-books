@@ -1,16 +1,7 @@
-import { DataTable as OldDataTable } from "@/components/DataTable";
 import { SimpleSelect } from "@/components/SimpleSelect";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
 import {
   Tooltip,
   TooltipContent,
@@ -27,6 +18,7 @@ import { useSession } from "@/features/auth/Session";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/hooks";
+import { DataTableExtras } from "@/components/data-table/types";
 
 export const ChartOfAccounts: React.FC = () => {
   const isMobile = useIsMobile();
@@ -63,12 +55,18 @@ export const ChartOfAccounts: React.FC = () => {
     { label: "Archived", value: "archived" },
   ];
 
+  const customOptions: DataTableExtras = {
+    pagination: {
+      enabled: true,
+      initialPageSize: 15,
+    },
+  };
+
   const { table } = useDataTable({
     data: accounts || [],
     columns,
-    enableVirtualization: true,
+    customOptions,
   });
-  console.log(table);
   if (isLoadingAccounts || sessionLoading) return <CenteredLoader />;
   if (!accounts) return null;
 
@@ -204,10 +202,7 @@ export const ChartOfAccounts: React.FC = () => {
       )}
 
       {/* Accounts Table */}
-      {/* <div className="border rounded-lg flex-1 min-h-0 h-full"> */}
-        {/* <OldDataTable columns={columns} data={accounts} /> */}
-        <DataTable table={table} />
-      {/* </div> */}
+      <DataTable table={table} />
 
       <AddBankAccountDialog
         open={isBankAccountDialogOpen}

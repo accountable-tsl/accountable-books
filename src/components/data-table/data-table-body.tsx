@@ -1,112 +1,126 @@
 import React from "react";
-import { DataTableProps } from "@/components/data-table/data-table";
-import { TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { flexRender, Row } from "@tanstack/react-table";
+import { DataTableProps } from "@/components/data-table/types";
+import { TableBody, TableRow, TableCell } from "@/components/CustomTable";
+import { flexRender } from "@tanstack/react-table";
+import { getColumnStyle } from "./utils/column-sizing";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface DataTableBodyProps<TData> {
   table: DataTableProps<TData>["table"];
-  rows: Row<TData>[];
-  virtualization?: DataTableProps<TData>["virtualization"];
-  virtualizationEnabled?: boolean;
-  rowVirtualizer?: any; // ReturnType<typeof useVirtualizer>;
 }
-export function DataTableBody<TData>({
-  table,
-  rows,
-  virtualizationEnabled,
-  rowVirtualizer,
-}: DataTableBodyProps<TData>) {
-  const virtualItems = rowVirtualizer.getVirtualItems();
+export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const { virtualization, customClassNames } = table.customOptions || {};
+  const { tableBody, tableBodyCell, tableBodyRow } = customClassNames || {};
 
-  if (virtualizationEnabled && virtualItems) {
+  const rows = React.useMemo(
+    () => table.getRowModel().rows,
+    [table.getRowModel().rows]
+  );
+
+  const enableVirtual = virtualization?.enabled ?? false;
+  const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 35;
+  const overscan = virtualization?.overscan ?? 5;
+
+  const virtualizer = useVirtualizer<HTMLDivElement, Element>({
+    count: rows.length,
+    estimateSize: () => estimatedRowHeight,
+    getScrollElement: () => scrollRef.current,
+    enabled: enableVirtual,
+    overscan,
+  });
+
+  // // Reset virtualizer and scroll to top when sorting changes
+  // useEffect(() => {
+  //   if (enableVirtual) {
+  //     virtualizer.scrollToIndex(0);
+  //     virtualizer.measure();
+  //     // Debug: log measured sizes
+  //     if (process.env.NODE_ENV !== "production") {
+  //       // @ts-ignore
+  //       const measurements = virtualizer?.measurementsCache;
+  //       // eslint-disable-next-line no-console
+  //       console.log("[Virtualizer] Measurements after sort:", measurements);
+  //     }
+  //   }
+  // }, [table.getState().sorting, virtualizer, enableVirtual]);
+
+  const virtualItems = scrollRef.current ? virtualizer.getVirtualItems() : [];
+
+  const renderRow = (row: any) => {
+    // Use stable row key based on original data rather than sorted position
+    const stableRowKey = row.original?.id || row.id;
     return (
-      <TableBody className="overflow-y-auto max-h-[500px]">
-        {/* Top spacer */}
-        {virtualItems.length > 0 && (
-          <TableRow style={{ height: `${virtualItems[0].start}px` }}>
-            <TableCell
-              colSpan={table.getAllColumns().length}
-              style={{ padding: 0, border: "none", background: "transparent" }}
-            />
-          </TableRow>
-        )}
+      <TableRow
+        key={stableRowKey}
+        data-index={stableRowKey}
+        ref={(node) => {
+          if (node && enableVirtual) {
+            virtualizer.measureElement(node);
+          }
+        }}
+        data-state={row.getIsSelected() ? "selected" : ""}
+        className={tableBodyRow}
+      >
+        {row.getVisibleCells().map((cell: any) => {
+          const hasCheckbox =
+            cell.getValue() === "checkbox" || cell.column.id === "select";
 
-        {/* Virtualized rows */}
-        {virtualItems.map((virtualRow: any) => {
-          const row = rows[virtualRow.index];
+          const columnDef = table
+            ._getColumnDefs()
+            .find((c) => c.id === cell.column.id);
+          const explicitSize = !!columnDef?.size;
+
+          const colStyle = getColumnStyle({ column: cell, explicitSize });
 
           return (
-            <TableRow
-              data-index={virtualRow.index}
-              ref={(node) => rowVirtualizer.measureElement(node)}
-              key={row.id}
-              className="table-row justify-between"
+            <TableCell
+              key={cell.id}
+              // style={hasCheckbox ? {} : colStyle}
+              style={colStyle}
+              className={tableBodyCell}
             >
-              {row.getVisibleCells().map((cell) => (
-                <TableCell
-                  key={cell.id}
-                  className="min-w-fit"
-                  style={{
-                    width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                    // display: "flex",
-                  }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  {/* Can also use cell.renderValue<any>(). Renders the value for a cell the same as getValue, but will return the renderFallbackValue if no value is found. */}
-                </TableCell>
-              ))}
-            </TableRow>
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              {/* Can also use cell.renderValue<any>(). Renders the value for a cell the same as getValue, but will return the renderFallbackValue if no value is found. */}
+            </TableCell>
           );
         })}
+      </TableRow>
+    );
+  };
 
-        {/* Bottom spacer */}
-        {virtualItems.length > 0 && (
-          <TableRow
-            style={{
-              height: `${
-                rowVirtualizer.getTotalSize() -
-                virtualItems[virtualItems.length - 1].end
-              }px`,
-            }}
-          >
-            <TableCell
-              colSpan={table.getAllColumns().length}
-              style={{ padding: 0, border: "none", background: "transparent" }}
-            />
-          </TableRow>
-        )}
+  if (enableVirtual && virtualizer) {
+    return (
+      <TableBody ref={scrollRef} className={tableBody}>
+        <div
+          style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+        >
+          {virtualItems.map((virtualRow) => (
+            <div
+              key={virtualRow.key}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              {renderRow(rows[virtualRow.index])}
+            </div>
+          ))}
+        </div>
       </TableBody>
     );
   }
+
   return (
-    <TableBody>
+    <TableBody className={tableBody}>
       {rows?.length ? (
-        rows.map((row) => (
-          <TableRow
-            key={row.id}
-            data-state={row.getIsSelected() ? "selected" : ""}
-          >
-            {row.getVisibleCells().map((cell) => (
-              <TableCell
-                key={cell.id}
-                style={{
-                  width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                {/* Can also use cell.renderValue<any>(). Renders the value for a cell the same as getValue, but will return the renderFallbackValue if no value is found. */}
-              </TableCell>
-            ))}
-          </TableRow>
-        ))
+        rows.map((row) => renderRow(row))
       ) : (
-        <TableRow>
-          <TableCell
-            colSpan={table.getAllColumns().length}
-            className="h-24 text-center"
-          >
-            No results.
-          </TableCell>
+        <TableRow className={tableBodyRow}>
+          <TableCell className="h-24 text-center">No results.</TableCell>
         </TableRow>
       )}
     </TableBody>

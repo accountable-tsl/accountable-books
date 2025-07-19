@@ -7,13 +7,12 @@ export const useChartOfAccountsQuery = (params: FetchCoaInput) => {
 
   return useQuery<CoaResponse[], Error>({
     queryKey: ["coa", companyId, params],
-    queryFn: () => {
+    queryFn: async () => {
       if (!companyId) throw new Error("Company ID is required");
-      return fetchChartOfAccounts(params).then((res) => {
-        if (!res.success || res.data === undefined)
-          throw new Error(res.message || "Unexpected error");
-        return res.data;
-      });
+      const res = await fetchChartOfAccounts(params);
+      if (!res.success || res.data === undefined)
+        throw new Error(res.message || "Unexpected error");
+      return res.data;
     },
     staleTime: 1000 * 60 * 60, // 1 hour
     gcTime: 1000 * 60 * 60 * 6, // 6 hours

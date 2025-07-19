@@ -11,7 +11,7 @@ export function DataTableResizer({ header }: { header: any }) {
       onMouseDown={header.getResizeHandler()}
       onTouchStart={header.getResizeHandler()}
       className={cn(
-        "absolute right-0 top-0 flex h-full w-4 cursor-col-resize select-none touch-none items-center justify-center",
+        "absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 flex h-full w-4 cursor-col-resize select-none touch-none items-center justify-center",
         "opacity-0 group-hover/th:opacity-100 z-20",
         isResizing && "opacity-100"
       )}
