@@ -39,7 +39,7 @@ const seedBanks = async function seed(knex: Knex): Promise<void> {
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.string("key").notNullable();
     table.string("display_name").notNullable();
     table.string("official_name").nullable();

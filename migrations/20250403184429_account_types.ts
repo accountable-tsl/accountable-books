@@ -573,7 +573,7 @@ const seedAccountTypes = async function seed(knex: Knex): Promise<void> {
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.string("key", 64).unique().notNullable();
     table.string("label", 256).notNullable();
     table.string("description", 512).nullable();

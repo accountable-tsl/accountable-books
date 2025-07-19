@@ -6,7 +6,7 @@ export async function up(knex: Knex): Promise<void> {
     // TODO: When handling this, remember to create background job
     // TODO: via BullMQ or cron to mark invitations as expired where status is pending and expires_at is in the past
     // TODO: Also make sure invite expiry from here is what is inserted into tokens table so we don't have lags
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.string("email", 254).unique().notNullable();
     table
       .uuid("invited_by")

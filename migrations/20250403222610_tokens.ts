@@ -9,7 +9,7 @@ const tableName = "tokens";
 export async function up(knex: Knex): Promise<void> {
   // TODO: Background job to delete old expired tokens
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
 
     table.specificType("token_type", "token_type").notNullable();
     table.string("token_hash").notNullable();

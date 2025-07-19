@@ -46,7 +46,7 @@ const seedRoles = async function seed(knex: Knex): Promise<void> {
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.string("key").unique().notNullable();
     table.string("name", 50).notNullable();
     table.specificType("scope", "role_scope").notNullable();

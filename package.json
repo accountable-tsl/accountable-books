@@ -69,7 +69,10 @@
     "mixpanel": "^0.18.1",
     "multer": "^2.0.1",
     "nodemailer": "^6.10.0",
+<<<<<<< HEAD
     "pg": "^8.16.3",
+=======
+>>>>>>> develop
     "rate-limit-redis": "^4.2.0",
     "redis": "^4.7.0",
     "swagger-jsdoc": "^6.2.8",
