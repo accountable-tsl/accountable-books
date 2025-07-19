@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { DataTableProps } from "@/components/data-table/types";
 import { TableBody, TableRow, TableCell } from "@/components/CustomTable";
 import { flexRender } from "@tanstack/react-table";
@@ -10,7 +10,7 @@ interface DataTableBodyProps<TData> {
 }
 export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
-  const { enableVirtualization, customClassNames } = table.customOptions || {};
+  const { virtualization, customClassNames } = table.customOptions || {};
   const { tableBody, tableBodyCell, tableBodyRow } = customClassNames || {};
 
   const rows = React.useMemo(
@@ -18,24 +18,42 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
     [table.getRowModel().rows]
   );
 
-  const enableVirtual = enableVirtualization ?? false;
-  const estimatedRowHeight = 48;
+  const enableVirtual = virtualization?.enabled ?? false;
+  const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 35;
+  const overscan = virtualization?.overscan ?? 5;
 
   const virtualizer = useVirtualizer<HTMLDivElement, Element>({
     count: rows.length,
     estimateSize: () => estimatedRowHeight,
     getScrollElement: () => scrollRef.current,
     enabled: enableVirtual,
-    overscan: 5, // Render 5 items above and below the visible area for smoother scrolling
+    overscan,
   });
+
+  // // Reset virtualizer and scroll to top when sorting changes
+  // useEffect(() => {
+  //   if (enableVirtual) {
+  //     virtualizer.scrollToIndex(0);
+  //     virtualizer.measure();
+  //     // Debug: log measured sizes
+  //     if (process.env.NODE_ENV !== "production") {
+  //       // @ts-ignore
+  //       const measurements = virtualizer?.measurementsCache;
+  //       // eslint-disable-next-line no-console
+  //       console.log("[Virtualizer] Measurements after sort:", measurements);
+  //     }
+  //   }
+  // }, [table.getState().sorting, virtualizer, enableVirtual]);
 
   const virtualItems = scrollRef.current ? virtualizer.getVirtualItems() : [];
 
   const renderRow = (row: any) => {
+    // Use stable row key based on original data rather than sorted position
+    const stableRowKey = row.original?.id || row.id;
     return (
       <TableRow
-        key={row?.id}
-        data-index={row?.index}
+        key={stableRowKey}
+        data-index={stableRowKey}
         ref={(node) => {
           if (node && enableVirtual) {
             virtualizer.measureElement(node);

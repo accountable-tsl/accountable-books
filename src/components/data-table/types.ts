@@ -13,6 +13,10 @@ export interface PaginationOptions {
   pageSizeOptions?: number[];
 }
 
+export interface SortingOptions {
+  enabled: boolean;
+}
+
 export interface UseDataTableProps<T> {
   data: T[];
   columns: ColumnDef<T, any>[];
@@ -31,15 +35,23 @@ export interface UseDataTableProps<T> {
 
 export interface DataTableExtras {
   /**
-   * If true, enables virtualization for large datasets.
-   * Assumes rows are uniform in height for best performance.
+   * Virtualization configuration options.
    */
-  enableVirtualization?: boolean;
+  virtualization?: {
+    enabled: boolean;
+    estimatedRowHeight?: number;
+    overscan?: number;
+  };
 
   /**
    * Pagination configuration options.
    */
   pagination?: PaginationOptions;
+
+  /**
+   * Sorting configuration options.
+   */
+  sorting?: SortingOptions;
 
   customClassNames?: {
     wrapper?: string;

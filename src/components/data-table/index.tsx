@@ -7,7 +7,11 @@ import coaData from "./fake/coa.json";
 export function Table() {
   const accounts = coaData as Account[];
 
-  const tableOptions = { enableVirtualization: true };
+  const tableOptions = {
+    virtualization: {
+      enabled: true,
+    },
+  };
   const { table } = useDataTable<Account>({
     data: accounts,
     columns: accountColumns,

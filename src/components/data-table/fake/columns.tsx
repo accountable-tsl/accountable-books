@@ -9,10 +9,12 @@ export const accountColumns: ColumnDef<Account>[] = [
   {
     accessorKey: "accountName",
     header: "Name",
+    enableSorting: true,
   },
   {
     accessorKey: "accountType",
     header: "Type",
+    enableSorting: true,
   },
   {
     accessorKey: "currency",

@@ -46,8 +46,6 @@ export function DataTable<TData>({
     ? MemoizedDataTableBody
     : DataTableBody;
 
-  console.log(pagination);
-
   return (
     <div
       className={cn(
