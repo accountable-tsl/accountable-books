@@ -48,7 +48,7 @@ const seedPermissions = async function seed(knex: Knex): Promise<void> {
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.string("key", 256).notNullable(); //e.g, "view_users", "categorize_transactions"
     table.string("action", 256).notNullable(); //The verb or operation	view, edit, create, delete, categorise
     table.string("resource", 256).notNullable(); // The thing being accessed	users, transactions, companies, reports

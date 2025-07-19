@@ -8,7 +8,7 @@ import {
 const tableName = "ledger_transactions";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.timestamp("date", { useTz: true }).notNullable();
     table.specificType("source", "transaction_source").notNullable();
     table.string("description", 512).nullable();

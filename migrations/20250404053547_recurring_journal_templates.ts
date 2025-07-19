@@ -8,7 +8,7 @@ import {
 const tableName = "recurring_journal_templates";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.string("description", 512).notNullable();
     table.string("note", 1000).nullable();
     table

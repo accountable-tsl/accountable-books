@@ -45,7 +45,7 @@ const addCoaToPlatformCompany = async (knex: Knex) => {
 };
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.string("code", 256).nullable();
     table.string("name", 256).notNullable();
     table.string("description", 512).nullable();
@@ -97,7 +97,7 @@ export async function up(knex: Knex): Promise<void> {
       indexName: "coa_name_code_company_unique",
     });
 
-    table.unique(["name","account_type_id", "company_id"]);
+    table.unique(["name", "account_type_id", "company_id"]);
     table.unique(["code", "company_id"]);
   });
 

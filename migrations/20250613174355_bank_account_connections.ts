@@ -3,7 +3,7 @@ import type { Knex } from "knex";
 const tableName = "bank_account_connections";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
 
     table.string("provider_bank_account_id").notNullable(); // The account id from the provider
 

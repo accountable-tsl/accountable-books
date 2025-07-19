@@ -9,7 +9,7 @@ const tableName = "journal_batches";
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
 
     table.integer("sequence_number").nullable(); //Raw sequence numnber (increment per company when creating journal. KISS)
     table.timestamp("date", { useTz: true }).notNullable();

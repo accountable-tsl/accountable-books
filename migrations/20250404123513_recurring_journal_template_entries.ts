@@ -4,7 +4,7 @@ const tableName = "recurring_journal_template_entries";
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.string("description", 512).notNullable();
     table.decimal("amount", 20, 10).notNullable();
     table.specificType("transaction_side", "debit_credit").notNullable();

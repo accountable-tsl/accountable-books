@@ -86,7 +86,7 @@ export const createPlatformCompany = async (knex: Knex) => {
 const tableName = "companies";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
     table.string("legal_name", 256).notNullable();
     table.string("display_name", 256).nullable();
     table.string("short_code", 50).unique().notNullable();
