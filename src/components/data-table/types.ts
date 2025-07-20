@@ -1,14 +1,94 @@
 import {
-  ColumnDef,
+  ColumnSort,
+  Row,
+  RowData,
   RowSelectionState,
-  useReactTable,
 } from "@tanstack/react-table";
 import { type Table as TanstackTable } from "@tanstack/react-table";
 import { TableOptions } from "@tanstack/react-table";
+import {
+  DataTableConfig,
+  FilterItemSchema,
+} from "@/components/data-table/utils/config";
 
+declare module "@tanstack/react-table" {
+  // @ts-ignore
+  interface ColumnMeta<TData extends RowData, TValue> {
+    label?: string;
+    placeholder?: string;
+    variant?: FilterVariant;
+    options?: Option[];
+    range?: [number, number];
+    unit?: string;
+    icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+    separateFilter?: boolean;
+  }
+}
+
+export type CustomTable<T> = TanstackTable<T> & {
+  customOptions?: DataTableExtras;
+};
+// Props for Data table Component
 export interface DataTableProps<TData> extends React.ComponentProps<"div"> {
-  table: TanstackTable<TData> & { customOptions?: DataTableExtras }; // TanStack table instance — provides all table state + render info
+  table: CustomTable<TData>; // TanStack table instance — provides all table state + render info
   actionBar?: React.ReactNode; // Optional UI element shown if there are selected rows
+}
+
+// Props for useDataTable (Hook)
+export interface UseDataTableProps<TData>
+  extends Omit<
+    TableOptions<TData>,
+    "getCoreRowModel" | "enableRowSelection" | "enableMultiRowSelection"
+  > {
+  /**
+   * Optional configuration for column resizing.
+   * If not provided, resizing is disabled by default.
+   */
+  columnResize?: {
+    enabled: boolean;
+    mode?: "onChange" | "onEnd";
+  };
+  customOptions?: DataTableExtras;
+}
+
+// Custom I/O for data table
+export interface DataTableExtras {
+  /**
+   * Virtualization configuration options.
+   */
+  virtualization?: {
+    enabled: boolean;
+    estimatedRowHeight?: number;
+    overscan?: number;
+  };
+
+  /**
+   * Pagination configuration options.
+   */
+  pagination?: PaginationOptions;
+
+  /**
+   * Sorting configuration options.
+   */
+  sorting?: SortingOptions;
+
+  rowSelection?: RowSelectionOptions;
+
+  /**
+   * Global search configuration options.
+   */
+  globalSearch?: GlobalSearch;
+
+  customClassNames?: {
+    wrapper?: string;
+    table?: string;
+    tableHeader?: string;
+    tableHeaderRow?: string;
+    tableHeaderCell?: string;
+    tableBody?: string;
+    tableBodyRow?: string;
+    tableBodyCell?: string;
+  };
 }
 
 export interface PaginationOptions {
@@ -32,52 +112,34 @@ export interface RowSelectionOptions {
   >;
 }
 
-export interface UseDataTableProps<TData>
-  extends Omit<
-    TableOptions<TData>,
-    "getCoreRowModel" | "enableRowSelection" | "enableMultiRowSelection"
-  > {
-  /**
-   * Optional configuration for column resizing.
-   * If not provided, resizing is disabled by default.
-   */
-  columnResize?: {
-    enabled: boolean;
-    mode?: "onChange" | "onEnd";
-  };
-  customOptions?: DataTableExtras;
+export interface GlobalSearch {
+  enabled: boolean;
+  type?: "table-wide" | "multi-column";
+  placeholder?: string;
+  className?: string;
+  allowIndividualFilters?: boolean;
 }
 
-export interface DataTableExtras {
-  /**
-   * Virtualization configuration options.
-   */
-  virtualization?: {
-    enabled: boolean;
-    estimatedRowHeight?: number;
-    overscan?: number;
-  };
+export interface Option {
+  label: string;
+  value: string;
+  count?: number;
+  icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+}
 
-  /**
-   * Pagination configuration options.
-   */
-  pagination?: PaginationOptions;
+export type FilterOperator = DataTableConfig["operators"][number];
+export type FilterVariant = DataTableConfig["filterVariants"][number];
+export type JoinOperator = DataTableConfig["joinOperators"][number];
 
-  /**
-   * Sorting configuration options.
-   */
-  sorting?: SortingOptions;
+export interface ExtendedColumnSort<TData> extends Omit<ColumnSort, "id"> {
+  id: Extract<keyof TData, string>;
+}
 
-  rowSelection?: RowSelectionOptions;
+export interface ExtendedColumnFilter<TData> extends FilterItemSchema {
+  id: Extract<keyof TData, string>;
+}
 
-  customClassNames?: {
-    wrapper?: string;
-    table?: string;
-    tableHeader?: string;
-    tableHeaderRow?: string;
-    tableHeaderCell?: string;
-    tableBody?: string;
-    tableBodyRow?: string;
-    tableBodyCell?: string;
-  };
+export interface DataTableRowAction<TData> {
+  row: Row<TData>;
+  variant: "update" | "delete";
 }

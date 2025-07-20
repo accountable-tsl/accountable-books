@@ -120,7 +120,9 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
         rows.map((row) => renderRow(row))
       ) : (
         <TableRow className={tableBodyRow}>
-          <TableCell className="h-24 text-center">No results.</TableCell>
+          <TableCell className="min-h-24 w-full flex items-center justify-center">
+            No results.
+          </TableCell>
         </TableRow>
       )}
     </TableBody>

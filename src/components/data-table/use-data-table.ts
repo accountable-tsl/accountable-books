@@ -5,9 +5,11 @@ import {
   getSortedRowModel,
   useReactTable,
   RowSelectionState,
+  ColumnFiltersState,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import {
+  GlobalSearch,
   PaginationOptions,
   RowSelectionOptions,
   SortingOptions,
@@ -28,7 +30,11 @@ export function useDataTable<TData>({
   columnResize,
   ...tableOptions
 }: UseDataTableProps<TData>) {
-  const { virtualization: virt, pagination: pg } = customOptions || {};
+  const {
+    virtualization: virt,
+    pagination: pg,
+    globalSearch: gs,
+  } = customOptions || {};
   // Virtualization options
   const virtualization = {
     enabled: virt?.enabled ?? false,
@@ -50,6 +56,13 @@ export function useDataTable<TData>({
       : customOptions?.sorting?.enabled ?? true,
   };
 
+  const globalSearch: GlobalSearch = {
+    enabled: gs?.enabled ?? false,
+    type: gs?.type ?? "table-wide",
+    placeholder: gs?.placeholder ?? "Search...",
+    allowIndividualFilters:
+      gs?.allowIndividualFilters ?? (gs?.enabled ? false : true),
+  };
   /**
    * Important: TanStack requires a stable data reference.
    * Otherwise, internal row model caching breaks and can cause re-renders or bugs.
@@ -58,10 +71,11 @@ export function useDataTable<TData>({
 
   const [internalRowSelection, setInternalRowSelection] =
     useState<RowSelectionState>({});
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   const getRowSelectionOptions = (): RowSelectionOptions => {
     const rs = customOptions?.rowSelection;
-    const isEnabled = rs?.enabled ?? true;
+    const isEnabled = rs?.enabled ?? false;
     return {
       enabled: isEnabled,
       enableMultiRowSelection: rs?.enableMultiRowSelection ?? true,
@@ -72,13 +86,12 @@ export function useDataTable<TData>({
   };
   const rowSelection = getRowSelectionOptions();
 
-  const checkBoxColumn = createSelectionColumn();
+  const checkBoxColumn = createSelectionColumn<TData>();
 
   const columns = rowSelection.addCheckboxes
     ? [checkBoxColumn, ...tableOptions.columns]
     : tableOptions.columns;
 
-  console.log(columns);
   const reactTable = useReactTable({
     ...tableOptions,
     data: stableData,
@@ -90,12 +103,18 @@ export function useDataTable<TData>({
     state: {
       ...tableOptions?.state,
       rowSelection: rowSelection.rowSelectionState,
+      columnFilters,
     },
     onRowSelectionChange: rowSelection.setRowSelectionState,
 
     // Column resizing is opt-in and configurable
     enableColumnResizing: columnResize?.enabled ?? true,
     columnResizeMode: columnResize?.mode ?? "onChange",
+
+    // Filtering is always enabled when columns have filter metadata
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnFiltersChange: setColumnFilters,
+    enableColumnFilters: true,
 
     // Sorting is opt-in and configurable
     // Disabled for virtualized tables. To support, sort the full dataset before passing to the table.
@@ -109,7 +128,6 @@ export function useDataTable<TData>({
     ...(pagination?.enabled &&
       pagination?.style !== "infinite" && {
         getPaginationRowModel: getPaginationRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
         initialState: {
           ...tableOptions.initialState,
           pagination: {
@@ -119,18 +137,25 @@ export function useDataTable<TData>({
         },
       }),
 
-    // Default: no sorting, filtering, pagination yet
     debugTable: false,
 
     defaultColumn: {
+      ...tableOptions.defaultColumn,
       minSize: 75,
       enableSorting: false,
+      enableColumnFilter: false,
     },
   });
 
   const table = {
     ...reactTable,
-    customOptions: { ...customOptions, pagination, sorting, virtualization },
+    customOptions: {
+      ...customOptions,
+      pagination,
+      sorting,
+      virtualization,
+      globalSearch,
+    },
   };
 
   return { table };

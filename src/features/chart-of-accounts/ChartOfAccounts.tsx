@@ -12,13 +12,14 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { Filter, Plus, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { coaTableColumns } from "@/features/chart-of-accounts/columns";
 import { useChartOfAccountsQuery } from "./hooks";
 import { useSession } from "@/features/auth/Session";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { DataTable } from "@/components/data-table/data-table";
-import { useDataTable } from "@/components/data-table/hooks";
 import { DataTableExtras } from "@/components/data-table/types";
+import { useDataTable } from "@/components/data-table/use-data-table";
+import { getCoaTableColumns } from "./coa-columns";
+import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 
 export const ChartOfAccounts: React.FC = () => {
   const isMobile = useIsMobile();
@@ -38,7 +39,7 @@ export const ChartOfAccounts: React.FC = () => {
   const [isAddCoaDialogOpen, setIsAddCoaDialogOpen] = useState(false);
   const [isBankAccountDialogOpen, setIsBankAccountDialogOpen] = useState(false);
 
-  const columns = useMemo(() => coaTableColumns, []);
+  const columns = useMemo(() => getCoaTableColumns(), []);
   const accountElements = [
     { label: "All", value: "all" },
     { label: "Assets", value: "assets" },
@@ -59,6 +60,13 @@ export const ChartOfAccounts: React.FC = () => {
     pagination: {
       enabled: true,
       initialPageSize: 15,
+    },
+    rowSelection: {
+      enabled: true,
+    },
+    globalSearch: {
+      enabled: true,
+      type: "table-wide",
     },
   };
 
@@ -141,13 +149,13 @@ export const ChartOfAccounts: React.FC = () => {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 md:opacity-60">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          {/* <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by name or code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
-          />
+          /> */}
         </div>
         <div className="flex gap-2">
           <SimpleSelect
@@ -202,7 +210,9 @@ export const ChartOfAccounts: React.FC = () => {
       )}
 
       {/* Accounts Table */}
-      <DataTable table={table} />
+      <DataTable table={table}>
+        <DataTableToolbar table={table} />
+      </DataTable>
 
       <AddBankAccountDialog
         open={isBankAccountDialogOpen}

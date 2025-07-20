@@ -3,13 +3,11 @@ import {
   Navigate,
   Route,
   Routes,
-  useLocation,
 } from "react-router-dom";
 import "./styles/App.scss";
 import { PopupProvider, usePopup } from "./contexts/PopupContext";
 import Popup from "./components/Popup/Popup";
 import ThemeProvider from "./theme/themeProvider";
-import { AnimatePresence, motion } from "framer-motion";
 import Signup from "@/features/signup/Signup";
 import AppLayout from "@/layouts/AppLayout";
 import { QueryClientProvider } from "@tanstack/react-query";

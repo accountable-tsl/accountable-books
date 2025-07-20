@@ -1,9 +1,10 @@
 import { DataTable } from "./data-table";
-import { accountColumns } from "./fake/columns";
+import { getAccountColumns } from "./fake/columns";
 import { Account } from "./fake/seed";
-import { useDataTable } from "./hooks";
+import { useDataTable } from "./use-data-table";
 import coaData from "./fake/coa.json";
-import { DataTableExtras } from "./types";
+import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
+import { DataTableExtras } from "@/components/data-table/types";
 
 export function Table() {
   const accounts = coaData as Account[];
@@ -18,9 +19,15 @@ export function Table() {
   };
   const { table } = useDataTable<Account>({
     data: accounts,
-    columns: accountColumns,
+    columns: getAccountColumns(),
     customOptions: tableOptions,
   });
 
-  return <DataTable table={table} />;
+  return (
+    <DataTable table={table}>
+      <DataTableToolbar table={table}>
+        {/* <DataTableSortList table={table} align="end" /> */}
+      </DataTableToolbar>
+    </DataTable>
+  );
 }

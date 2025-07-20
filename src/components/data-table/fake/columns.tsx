@@ -1,27 +1,44 @@
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Account } from "./seed";
+import { Text } from "lucide-react";
 
-export const accountColumns: ColumnDef<Account>[] = [
-  {
-    accessorKey: "accountCode",
-    header: "Code",
-  },
-  {
-    accessorKey: "accountName",
-    header: "Name",
-    enableSorting: true,
-  },
-  {
-    accessorKey: "accountType",
-    header: "Type",
-    enableSorting: true,
-  },
-  {
-    accessorKey: "currency",
-    header: "Currency",
-  },
-  {
-    accessorKey: "currentBalance",
-    header: "Balance",
-  },
-];
+export function getAccountColumns(): ColumnDef<Account>[] {
+  return [
+    {
+      accessorKey: "accountCode",
+      header: "Code",
+      meta: {
+        label: "Code",
+        placeholder: "Search code",
+        variant: "text",
+        icon: Text,
+      },
+      enableColumnFilter: true,
+    },
+    {
+      accessorKey: "accountName",
+      header: "Name",
+      enableSorting: true,
+      meta: {
+        label: "Account Name",
+        placeholder: "Search account name",
+        variant: "text",
+        icon: Text,
+      },
+      enableColumnFilter: true,
+    },
+    {
+      accessorKey: "accountType",
+      header: "Type",
+      enableSorting: true,
+    },
+    {
+      accessorKey: "currency",
+      header: "Currency",
+    },
+    {
+      accessorKey: "currentBalance",
+      header: "Balance",
+    },
+  ];
+}
