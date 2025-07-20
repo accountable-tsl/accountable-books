@@ -12,7 +12,7 @@ import {
   SearchIcon,
   X,
 } from "lucide-react";
-import { formatPhoneNumber } from "@/shared/utils/formattingUtils";
+import { formatPhoneNumber } from "@/shared/utils/formatting-utils";
 
 interface PhoneData {
   //   countryId: string;

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useCountries } from "@/shared/hooks/useCountries";
 import { Country } from "@/shared/types/core";
-import { getCountryFromLocale } from "@/shared/utils/randomUtils";
+import { getCountryFromLocale } from "@/shared/utils/random-utils";
 import { CheckCircle, Globe, MapPin, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";

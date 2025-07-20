@@ -89,6 +89,8 @@ export interface DataTableExtras {
     tableBodyRow?: string;
     tableBodyCell?: string;
   };
+
+  stableData: any[];
 }
 
 export interface PaginationOptions {

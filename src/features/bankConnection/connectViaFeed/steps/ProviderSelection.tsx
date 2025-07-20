@@ -6,7 +6,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { sortProviders } from "@/features/bankConnection/shared/utils";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { toTitleCase } from "@/shared/utils/formattingUtils";
+import { toTitleCase } from "@/shared/utils/formatting-utils";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { BankAccountWithMeta } from "@/domains/bankAccounts/types";
 import { getProviderData, ProviderWidgets } from "../utils";

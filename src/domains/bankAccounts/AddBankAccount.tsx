@@ -4,7 +4,7 @@ import { AutocompleteDropdown } from "../../components/AutocompleteDropdown";
 import { useCurrencies } from "@/shared/hooks/useCurrencies";
 import { useCountries } from "@/shared/hooks/useCountries";
 import ErrorPage from "../../components/ErrorPage";
-import { getDefaultCountryAndCurrency } from "@/shared/utils/randomUtils";
+import { getDefaultCountryAndCurrency } from "@/shared/utils/random-utils";
 import { companyType, Country } from "@/shared/types/core";
 import { useCompany } from "@/domains/company/store";
 import { Controller, useForm } from "react-hook-form";
@@ -17,7 +17,7 @@ import {
 } from "@/domains/bankAccounts/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
-import { toTitleCase } from "@/shared/utils/formattingUtils";
+import { toTitleCase } from "@/shared/utils/formatting-utils";
 import { Button } from "@/components/ui/button";
 import {
   Select,

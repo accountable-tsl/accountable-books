@@ -1,5 +1,5 @@
 import { Column, Row } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { DataTableSliderFilter } from "@/components/data-table/filter-components/slider";
@@ -9,17 +9,33 @@ import { DataTableViewOptions } from "@/components/data-table/filter-components/
 import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
 import { CustomTable } from "@/components/data-table/types";
+import { DataTableExport } from "@/components/data-table/data-export";
 
-interface DataTableToolbarProps<TData> extends React.ComponentProps<"div"> {
+export interface DataTableToolbarProps<TData>
+  extends React.HTMLAttributes<HTMLDivElement> {
   table: CustomTable<TData>;
+  children?: React.ReactNode;
   showViewOptions?: boolean;
+  config?: DataTableToolbarConfig;
 }
+
+const DEFAULT_CONFIG: DataTableToolbarConfig = {
+  layout: {
+    left: [
+      { type: "search", position: 1, show: true },
+      { type: "filters", position: 2, show: true },
+      { type: "reset", position: 3, show: true },
+    ],
+    right: [{ type: "viewOptions", position: 1, show: true }],
+  },
+};
 
 export function DataTableToolbar<TData>({
   table,
   children,
   showViewOptions = true,
   className,
+  config,
   ...props
 }: DataTableToolbarProps<TData>) {
   const [globalSearchValue, setGlobalSearchValue] = useState<string>("");
@@ -89,6 +105,17 @@ export function DataTableToolbar<TData>({
     table.setGlobalFilter(undefined);
   }, [table]);
 
+  // Merge user config with defaults
+  const resolvedConfig = useMemo(() => mergeConfigs(config), [config]);
+
+  const renderToolbarItem = useCallback((item: ToolbarItem, index: number) => {
+    const key = item.key || `${item.type}-${index}`;
+
+    switch (item.type) {
+      case "search":
+    }
+  }, []);
+
   return (
     <div
       role="toolbar"
@@ -135,6 +162,20 @@ export function DataTableToolbar<TData>({
 
       <div className="flex items-center gap-2">
         {children}
+
+        {/* TODO: Treat later */}
+        {/* <DataTableExport
+          table={table as any}
+          data={allItems}
+          selectedData={selectedItems}
+          getSelectedItems={getSelectedItems}
+          entityName={entityName}
+          columnMapping={columnMapping}
+          columnWidths={columnWidths}
+          headers={headers}
+          transformFunction={transformFunction}
+          size={config.size}
+        /> */}
         {showViewOptions && <DataTableViewOptions table={table} />}
       </div>
     </div>
@@ -296,4 +337,117 @@ function categorizeColumns<TData>(columns: Column<TData>[]) {
   });
 
   return { groupedText, individualText, other };
+}
+
+// Types for the flexible toolbar configuration
+export type ToolbarItemType =
+  | "search"
+  | "filters"
+  | "reset"
+  | "viewOptions"
+  | "custom";
+
+export type ToolbarSection = "left" | "center" | "right";
+
+export interface ToolbarItem {
+  type: ToolbarItemType;
+  position: number;
+  component?: React.ComponentType<any>;
+  props?: Record<string, any>;
+  key?: string; // For handling duplicates
+  show?: boolean | (() => boolean); // Conditional rendering
+  mobile?: {
+    position?: number;
+    section?: ToolbarSection;
+    hide?: boolean;
+  };
+}
+
+export interface ToolbarSectionConfig {
+  left?: ToolbarItem[];
+  center?: ToolbarItem[];
+  right?: ToolbarItem[];
+}
+
+export interface DataTableToolbarConfig {
+  layout: ToolbarSectionConfig;
+  // Global overrides for default behavior
+  defaults?: {
+    showSearch?: boolean;
+    showFilters?: boolean;
+    showReset?: boolean;
+    showViewOptions?: boolean;
+  };
+}
+
+// Helper function to resolve and sort items in a section
+function resolveToolbarItems(items: ToolbarItem[] = []): ToolbarItem[] {
+  return items
+    .filter((item) => {
+      const shouldShow =
+        typeof item.show === "function" ? item.show() : item.show !== false;
+      return shouldShow;
+    })
+    .sort((a, b) => a.position - b.position)
+    .map((item, index, arr) => {
+      // Handle position conflicts by auto-incrementing
+      const conflictingItems = arr.filter((i) => i.position === item.position);
+      if (conflictingItems.length > 1) {
+        const conflictIndex = conflictingItems.indexOf(item);
+        return { ...item, position: item.position + conflictIndex };
+      }
+      return item;
+    })
+    .sort((a, b) => a.position - b.position);
+}
+
+// Helper to merge user config with defaults
+function mergeConfigs(
+  userConfig?: DataTableToolbarConfig
+): DataTableToolbarConfig {
+  if (!userConfig) return DEFAULT_CONFIG;
+
+  const merged = { ...DEFAULT_CONFIG };
+
+  // Merge each section
+  Object.keys(userConfig.layout).forEach((section) => {
+    const sectionKey = section as keyof ToolbarSectionConfig;
+    const userItems = userConfig.layout[sectionKey] || [];
+    const defaultItems = DEFAULT_CONFIG.layout[sectionKey] || [];
+
+    // Create a map of default items by type for easy lookup
+    const defaultItemMap = new Map(
+      defaultItems.map((item) => [item.type, item])
+    );
+
+    // Start with user-defined items
+    const mergedItems = [...userItems];
+
+    // Add default items that weren't overridden
+    defaultItems.forEach((defaultItem) => {
+      const isOverridden = userItems.some(
+        (userItem) => userItem.type === defaultItem.type && !userItem.key
+      );
+
+      if (!isOverridden) {
+        // Check if defaults are disabled
+        const isDisabled =
+          userConfig.defaults &&
+          userConfig.defaults[
+            `show${
+              defaultItem.type.charAt(0).toUpperCase() +
+              defaultItem.type.slice(1)
+            }` as keyof typeof userConfig.defaults
+          ] === false;
+
+        if (!isDisabled) {
+          mergedItems.push(defaultItem);
+        }
+      }
+    });
+
+    merged.layout[sectionKey] = mergedItems;
+  });
+
+  return merged;
 }

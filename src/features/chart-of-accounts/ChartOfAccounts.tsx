@@ -68,6 +68,9 @@ export const ChartOfAccounts: React.FC = () => {
       enabled: true,
       type: "table-wide",
     },
+    customClassNames:{
+      table: "flex-1"
+    }
   };
 
   const { table } = useDataTable({

@@ -155,6 +155,7 @@ export function useDataTable<TData>({
       sorting,
       virtualization,
       globalSearch,
+      stableData,
     },
   };
 

@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import { addNewBankTransactions } from "@/features/bankConnection/shared/api";
 import { useCompany } from "@/domains/company/store";
-import { maskDigits, parseDateString } from "@/shared/utils/formattingUtils";
+import { maskDigits, parseDateString } from "@/shared/utils/formatting-utils";
 import { AddBankAccountDialog } from "@/domains/bankAccounts/AddBankAccountDialog";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { FormattedAmount } from "@/components/FormattedAmount";

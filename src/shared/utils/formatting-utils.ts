@@ -1,6 +1,6 @@
 import { Country } from "@/shared/types/core";
 import Decimal from "decimal.js";
-import { getUserLocale } from "./randomUtils";
+import { getUserLocale } from "./random-utils";
 import { format, parse, isValid } from "date-fns";
 
 const possibleDateFormats: string[] = [

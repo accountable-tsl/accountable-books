@@ -1,4 +1,4 @@
-import { getUserLocale } from "@/shared/utils/randomUtils";
+import { getUserLocale } from "@/shared/utils/random-utils";
 import Decimal from "decimal.js";
 
 /**

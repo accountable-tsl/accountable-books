@@ -4,7 +4,7 @@ import { BadgeAlert, Check, TriangleAlert, Waypoints } from "lucide-react";
 import React, { useState } from "react";
 import { ConnectionResponse } from "../types";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { maskDigits } from "@/shared/utils/formattingUtils";
+import { maskDigits } from "@/shared/utils/formatting-utils";
 import {
   Select,
   SelectContent,

@@ -8,7 +8,7 @@ import {
 } from "react";
 import { Button } from "../../components/ui/button";
 import { Loader2, Upload, X } from "lucide-react";
-import { extractPath } from "@/shared/utils/formattingUtils";
+import { extractPath } from "@/shared/utils/formatting-utils";
 import { ImageUploaderProps, ImageUploaderRef } from "./types";
 import { matchesType } from "./utils";
 import { cn } from "@/lib/utils";
