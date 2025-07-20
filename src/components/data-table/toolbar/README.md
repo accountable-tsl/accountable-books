@@ -20,9 +20,23 @@ import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 
 ## ⚙️ Configuration
 
-Customize the toolbar layout and features with the `config` prop:
+Use the `config` prop to customize the toolbar layout:
 
 ```tsx
+const config: DataTableToolbarConfig = {
+  layout: {
+    left: [...],
+    center: [...],
+    right: [...]
+  }
+};
+
+<DataTableToolbar table={table} config={config} />
+```
+
+```tsx
+Config Format
+
 const config = {
   layout: {
     left: [
@@ -48,21 +62,34 @@ const config = {
 
 ## 🧩 Toolbar Items
 
-Each item in a section is a `ToolbarItem`:
+Each item in a section is a `ToolbarItem` and has the following structure:
 
 ```tsx
 interface ToolbarItem {
-  type: 'search' | 'filters' | 'reset' | 'viewOptions' | 'custom';
+  type: "search" | "filters" | "reset" | "viewOptions" | "custom";
+
+  /* The item's position within the section */
   position: number;
-  component?: React.ComponentType<any>; // For 'custom' type
-  props?: Record<string, any>;          // Props for custom component
-  key?: string;                        // Unique if duplicating types
-  show?: boolean | () => boolean;      // Conditional rendering
+
+  /* Required for 'custom' type */
+  component?: React.Component;
+
+  /* Props passed to the component */
+  props?: Record<string, any>;
+
+  /* Unique identifier, helps with duplicates */
+  key?: string;
+
+  /* Conditional rendering */
+  show?: boolean | () => boolean;
+
+  /* Mobile-specific overrides */
   mobile?: {
     position?: number;
     section?: 'left' | 'center' | 'right';
     hide?: boolean;
   };
+
 }
 ```
 
@@ -77,6 +104,24 @@ interface ToolbarItem {
 ---
 
 ## 🛠️ Common Examples
+
+### Adding custom components
+
+```tsx
+const config = {
+  layout: {
+    left: [
+      // Add custom button at position 3, pushes reset to position 4
+      {
+        type: "custom",
+        position: 3,
+        component: MyCustomButton,
+        props: { variant: "outline", onClick: handleCustomAction },
+      },
+    ],
+  },
+};
+```
 
 ### Add a Custom Button
 
@@ -97,12 +142,19 @@ const config = {
 };
 ```
 
-### Move Items Between Sections
+### Moving Components Between Sections
 
 ```tsx
 const config = {
   layout: {
-    right: [{ type: "reset", position: 2, key: "reset-right" }],
+    right: [
+      // Add reset button to right section as second item
+      {
+        type: "reset",
+        position: 2,
+        key: "reset-right", // Unique key to avoid conflicts
+      },
+    ],
   },
 };
 ```
@@ -134,7 +186,7 @@ const config = {
         type: "custom",
         position: 2,
         component: AdminButton,
-        show: () => user.isAdmin,
+        show: () => user.isAdmin, //Only show for admins
       },
     ],
   },
@@ -148,6 +200,8 @@ const config = {
   layout: {
     left: [{ type: "search", position: 1 }], // Only search
   },
+
+  // OR use explicit disable
   defaults: {
     showFilters: false,
     showReset: false,

@@ -95,39 +95,71 @@ export function mergeConfigs(
   userConfig?: DataTableToolbarConfig
 ): DataTableToolbarConfig {
   if (!userConfig) return DEFAULT_CONFIG;
-  const merged = { ...DEFAULT_CONFIG };
-  // Merge each section
-  Object.keys(userConfig.layout).forEach((section) => {
-    const sectionKey = section as keyof ToolbarSectionConfig;
-    const userItems = userConfig.layout[sectionKey] || [];
-    const defaultItems = DEFAULT_CONFIG.layout[sectionKey] || [];
-    // // Create a map of default items by type for easy lookup
-    // const defaultItemMap = new Map(
-    //   defaultItems.map((item) => [item.type, item])
-    // );
-    // Start with user-defined items
-    const mergedItems = [...userItems];
-    // Add default items that weren't overridden
-    defaultItems.forEach((defaultItem) => {
-      const isOverridden = userItems.some(
-        (userItem) => userItem.type === defaultItem.type && !userItem.key
-      );
-      if (!isOverridden) {
-        // Check if defaults are disabled
-        const isDisabled =
-          userConfig.defaults &&
-          userConfig.defaults[
-            `show${
-              defaultItem.type.charAt(0).toUpperCase() +
-              defaultItem.type.slice(1)
-            }` as keyof typeof userConfig.defaults
-          ] === false;
-        if (!isDisabled) {
-          mergedItems.push(defaultItem);
-        }
-      }
-    });
-    merged.layout[sectionKey] = mergedItems;
-  });
-  return merged;
+  const a = DEFAULT_CONFIG;
+  const b = userConfig;
+  return {
+    layout: {
+      left: mergeSection(a.layout.left, b.layout.left),
+      center: mergeSection(a.layout.center, b.layout.center),
+      right: mergeSection(a.layout.right, b.layout.right),
+    },
+    defaults: {
+      ...a.defaults,
+      ...b.defaults, // b overrides a
+    },
+  };
+}
+
+function mergeSection(
+  a: ToolbarItem[] = [],
+  b: ToolbarItem[] = []
+): ToolbarItem[] {
+  const result: ToolbarItem[] = [];
+
+  const byPosition = new Map<number, ToolbarItem>();
+
+  // Add all items from a into map by position
+  for (const item of a) {
+    byPosition.set(item.position, item);
+  }
+
+  // Add all items from b, replacing any in a at same position
+  for (const item of b) {
+    byPosition.set(item.position, item);
+  }
+
+  // Now, to resolve conflicts and preserve shifting:
+  const maxPosition = Math.max(
+    ...[
+      ...byPosition.keys(),
+      ...a.map((i) => i.position),
+      ...b.map((i) => i.position),
+    ],
+    0
+  );
+
+  const filled: Set<number> = new Set();
+  const temp: ToolbarItem[] = [];
+
+  // Insert items from b first, respecting their positions
+  for (const item of b) {
+    const { position } = item;
+    temp[position] = item;
+    filled.add(position);
+  }
+
+  // Now insert a's items, but skip if position is already filled, and shift forward if needed
+  for (const item of a) {
+    let pos = item.position;
+    while (filled.has(pos)) pos++;
+    temp[pos] = item;
+    filled.add(pos);
+  }
+
+  // Build final array in order
+  for (let i = 0; i <= temp.length; i++) {
+    if (temp[i]) result.push(temp[i]);
+  }
+
+  return result;
 }

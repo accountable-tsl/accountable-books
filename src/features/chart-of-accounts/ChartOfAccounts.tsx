@@ -20,6 +20,8 @@ import { DataTableExtras } from "@/components/data-table/types";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { getCoaTableColumns } from "./coa-columns";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
+import { DataTableToolbarConfig } from "@/components/data-table/toolbar";
+import { AddAccountSelection } from "./add-account";
 
 export const ChartOfAccounts: React.FC = () => {
   const isMobile = useIsMobile();
@@ -68,9 +70,9 @@ export const ChartOfAccounts: React.FC = () => {
       enabled: true,
       type: "table-wide",
     },
-    customClassNames:{
-      table: "flex-1"
-    }
+    customClassNames: {
+      table: "flex-1",
+    },
   };
 
   const { table } = useDataTable({
@@ -78,6 +80,23 @@ export const ChartOfAccounts: React.FC = () => {
     columns,
     customOptions,
   });
+
+  const toolbarConfig = useMemo(
+    (): DataTableToolbarConfig => ({
+      layout: {
+        right: [
+          {
+            type: "custom",
+            position: 1,
+            component: AddAccountSelection,
+            key: "add-account",
+          },
+        ],
+      },
+    }),
+    []
+  );
+
   if (isLoadingAccounts || sessionLoading) return <CenteredLoader />;
   if (!accounts) return null;
 
@@ -214,7 +233,7 @@ export const ChartOfAccounts: React.FC = () => {
 
       {/* Accounts Table */}
       <DataTable table={table}>
-        <DataTableToolbar table={table} />
+        <DataTableToolbar table={table} config={toolbarConfig} />
       </DataTable>
 
       <AddBankAccountDialog

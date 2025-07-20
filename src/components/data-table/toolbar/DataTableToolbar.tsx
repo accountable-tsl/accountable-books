@@ -4,15 +4,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
 import { DataTableViewOptions } from "@/components/data-table/filter-components/view-options";
-import { CustomTable } from "@/components/data-table/types";
-import { DataTableExport } from "@/components/data-table/data-export";
 import {
   createMultiColumnFilter,
   generateSearchPlaceholder,
   categorizeColumns,
   resolveToolbarItems,
   mergeConfigs,
-} from "./utils";
+} from "@/components/data-table/toolbar/utils";
 import type { DataTableToolbarProps, ToolbarItem } from "./types";
 import { DataTableToolbarFilter } from "./DataTableToolbarFilter";
 
@@ -90,9 +88,29 @@ export function DataTableToolbar<TData>({
   // Merge user config with defaults
   const resolvedConfig = useMemo(() => mergeConfigs(config), [config]);
 
-  const renderToolbarItem = useCallback(
-    (item: ToolbarItem, index: number) => {
-      const key = item.key || `${item.type}-${index}`;
+  // Deep memoization of resolved items to prevent component re-mounting
+  const toolbarSections = useMemo(
+    () => ({
+      left: resolveToolbarItems(resolvedConfig.layout.left),
+      center: resolveToolbarItems(resolvedConfig.layout.center),
+      right: resolveToolbarItems(resolvedConfig.layout.right),
+    }),
+    [
+      JSON.stringify(resolvedConfig.layout.left),
+      JSON.stringify(resolvedConfig.layout.center),
+      JSON.stringify(resolvedConfig.layout.right),
+    ]
+  );
+
+  // Memoized component renderers for each toolbar item type
+  const renderedItems = useMemo(() => {
+    const renderItem = (
+      item: ToolbarItem,
+      sectionKey: string,
+      index: number
+    ) => {
+      const key = item.key || `${sectionKey}-${item.type}-${index}`;
+
       switch (item.type) {
         case "search":
           const searchComponents = [
@@ -168,28 +186,41 @@ export function DataTableToolbar<TData>({
         default:
           return null;
       }
-    },
-    [
-      globalSearchEnabled,
-      groupedTextColumns,
-      globalSearchPlaceholder,
-      globalSearchValue,
-      handleGlobalSearchChange,
-      globalSearchClassName,
-      allowIndividualFilters,
-      individualTextColumns,
-      otherColumns,
-      isFiltered,
-      handleReset,
-      showViewOptions,
-      table,
-    ]
-  );
+    };
+
+    return {
+      left: toolbarSections.left
+        .map((item, index) => renderItem(item, "left", index))
+        .filter(Boolean),
+      center: toolbarSections.center
+        .map((item, index) => renderItem(item, "center", index))
+        .filter(Boolean),
+      right: toolbarSections.right
+        .map((item, index) => renderItem(item, "right", index))
+        .filter(Boolean),
+    };
+  }, [
+    globalSearchEnabled,
+    groupedTextColumns,
+    globalSearchPlaceholder,
+    globalSearchValue,
+    handleGlobalSearchChange,
+    globalSearchClassName,
+    allowIndividualFilters,
+    individualTextColumns,
+    otherColumns,
+    isFiltered,
+    handleReset,
+    showViewOptions,
+    table,
+  ]);
 
   // Resolve items for each section
-  const leftItems = resolveToolbarItems(resolvedConfig.layout.left);
-  const centerItems = resolveToolbarItems(resolvedConfig.layout.center);
-  const rightItems = resolveToolbarItems(resolvedConfig.layout.right);
+  const {
+    left: leftItems,
+    center: centerItems,
+    right: rightItems,
+  } = renderedItems;
 
   return (
     <div
@@ -209,7 +240,7 @@ export function DataTableToolbar<TData>({
           classNames?.leftSection || ""
         )}
       >
-        {leftItems.map(renderToolbarItem)}
+        {leftItems}
       </div>
       {/* Center section */}
       {centerItems.length > 0 && (
@@ -219,7 +250,7 @@ export function DataTableToolbar<TData>({
             classNames?.centerSection || ""
           )}
         >
-          {centerItems.map(renderToolbarItem)}
+          {centerItems}
         </div>
       )}
       {/* Right section */}
@@ -229,7 +260,7 @@ export function DataTableToolbar<TData>({
           classNames?.rightSection || ""
         )}
       >
-        {rightItems.map(renderToolbarItem)}
+        {rightItems}
         {children}
       </div>
     </div>

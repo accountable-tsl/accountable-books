@@ -90,7 +90,7 @@ export interface DataTableExtras {
     tableBodyCell?: string;
   };
 
-  stableData: any[];
+  stableData?: any[];
 }
 
 export interface PaginationOptions {
