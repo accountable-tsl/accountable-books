@@ -19,7 +19,6 @@ export function DataTableToolbar<TData>({
   children,
   showViewOptions = true,
   className,
-  classNames,
   config,
   ...props
 }: DataTableToolbarProps<TData>) {
@@ -32,6 +31,8 @@ export function DataTableToolbar<TData>({
     placeholder: customPlaceholder,
     allowIndividualFilters,
   } = globalSearchConfig || {};
+
+  const classNames = config?.classNames || {};
 
   const isFiltered =
     table.getState().columnFilters.length > 0 || table.getState().globalFilter;
@@ -47,22 +48,31 @@ export function DataTableToolbar<TData>({
     otherColumns,
     globalSearchPlaceholder,
   } = useMemo(() => {
-    const { groupedText, individualText, other } =
-      categorizeColumns(filterableColumns);
-    const labels = groupedText.map(
-      (column) => column.columnDef.meta?.label || column.id
-    );
-    const placeholder =
-      customPlaceholder ||
-      (globalSearchType === "multi-column"
-        ? generateSearchPlaceholder(labels)
-        : "Search...");
-    return {
-      groupedTextColumns: groupedText,
-      individualTextColumns: individualText,
-      otherColumns: other,
-      globalSearchPlaceholder: placeholder,
-    };
+    try {
+      const { groupedText, individualText, other } =
+        categorizeColumns(filterableColumns);
+      const labels = groupedText.map(
+        (column) => column.columnDef.meta?.label || column.id
+      );
+      const placeholder =
+        customPlaceholder ||
+        (globalSearchType === "multi-column"
+          ? generateSearchPlaceholder(labels)
+          : "Search...");
+      return {
+        groupedTextColumns: groupedText,
+        individualTextColumns: individualText,
+        otherColumns: other,
+        globalSearchPlaceholder: placeholder,
+      };
+    } catch (error) {
+      return {
+        groupedTextColumns: [],
+        individualTextColumns: filterableColumns,
+        otherColumns: [],
+        globalSearchPlaceholder: "Search...",
+      };
+    }
   }, [filterableColumns, customPlaceholder]);
 
   const handleGlobalSearchChange = useCallback(
@@ -72,8 +82,11 @@ export function DataTableToolbar<TData>({
         globalSearchType === "table-wide"
           ? table.getAllColumns() // Search ALL columns for table-wide
           : groupedTextColumns; // Search only grouped text columns for multi-column
+
       const columnIds = colsToSearch.map((col) => col.id);
-      table.options.globalFilterFn = createMultiColumnFilter(columnIds);
+      const globalSearchColFn = table?.customOptions?.setGlobalSearchColumns;
+      if (globalSearchColFn) globalSearchColFn(columnIds);
+
       table.setGlobalFilter(value || undefined);
     },
     [table, groupedTextColumns, globalSearchType]
@@ -95,11 +108,7 @@ export function DataTableToolbar<TData>({
       center: resolveToolbarItems(resolvedConfig.layout.center),
       right: resolveToolbarItems(resolvedConfig.layout.right),
     }),
-    [
-      JSON.stringify(resolvedConfig.layout.left),
-      JSON.stringify(resolvedConfig.layout.center),
-      JSON.stringify(resolvedConfig.layout.right),
-    ]
+    [resolvedConfig.layout]
   );
 
   // Memoized component renderers for each toolbar item type
@@ -236,14 +245,15 @@ export function DataTableToolbar<TData>({
       {/* Left section */}
       <div
         className={cn(
-          "flex flex-1 flex-wrap items-center gap-2",
+          "flex flex-wrap items-center gap-2",
           classNames?.leftSection || ""
         )}
       >
         {leftItems}
       </div>
+
       {/* Center section */}
-      {centerItems.length > 0 && (
+      {centerItems.length > 0 && centerItems && (
         <div
           className={cn(
             "flex items-center gap-2",
@@ -253,6 +263,7 @@ export function DataTableToolbar<TData>({
           {centerItems}
         </div>
       )}
+
       {/* Right section */}
       <div
         className={cn(

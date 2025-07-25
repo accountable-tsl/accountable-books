@@ -1,4 +1,4 @@
-import { coaSource } from "@/features/chart-of-accounts/types";
+import { coaSource } from "@/features/coa/types";
 import { z } from "zod";
 
 export interface BankAccount {

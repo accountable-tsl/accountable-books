@@ -2,7 +2,7 @@
 import type React from "react";
 import type { CustomTable } from "@/components/data-table/types";
 
-export interface classNames {
+export interface ToolbarClassNames {
   toolbar?: string;
   leftSection?: string;
   centerSection?: string;
@@ -15,7 +15,6 @@ export interface DataTableToolbarProps<TData>
   children?: React.ReactNode;
   showViewOptions?: boolean;
   config?: DataTableToolbarConfig;
-  classNames?: classNames;
 }
 
 export type ToolbarItemType =
@@ -27,11 +26,11 @@ export type ToolbarItemType =
 
 export type ToolbarSection = "left" | "center" | "right";
 
-export interface ToolbarItem {
+export interface ToolbarItem<Props = any> {
   type: ToolbarItemType;
   position: number;
-  component?: React.ComponentType<any>;
-  props?: Record<string, any>;
+  component?: React.ComponentType<Props>;
+  props?: Props;
   key?: string; // For handling duplicates
   show?: boolean | (() => boolean); // Conditional rendering
   mobile?: {
@@ -49,6 +48,7 @@ export interface ToolbarSectionConfig {
 
 export interface DataTableToolbarConfig {
   layout: ToolbarSectionConfig;
+
   // Global overrides for default behavior
   defaults?: {
     showSearch?: boolean;
@@ -56,4 +56,6 @@ export interface DataTableToolbarConfig {
     showReset?: boolean;
     showViewOptions?: boolean;
   };
+
+  classNames?: ToolbarClassNames;
 }

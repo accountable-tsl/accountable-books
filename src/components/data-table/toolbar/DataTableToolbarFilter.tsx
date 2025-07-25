@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import type { Column } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";

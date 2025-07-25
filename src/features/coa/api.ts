@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { CoaResponse, FetchCoaInput } from "@/features/chart-of-accounts/types";
+import { CoaResponse, FetchCoaInput } from "@/features/coa/types";
 import { ApiResponse } from "@/shared/types/core";
 
 export const fetchChartOfAccounts = async (

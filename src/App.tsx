@@ -1,9 +1,4 @@
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-} from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "./styles/App.scss";
 import { PopupProvider, usePopup } from "./contexts/PopupContext";
 import Popup from "./components/Popup/Popup";
@@ -28,7 +23,7 @@ import {
   RootRedirector,
 } from "./features/auth/Access";
 import BlankLayout from "./layouts/BlankLayout";
-import { ChartOfAccounts } from "./features/chart-of-accounts/ChartOfAccounts";
+import { ChartOfAccounts } from "./features/coa/coa";
 import { AccountingWorkspaceSetup } from "./features/accounting-setup/AccountingSetup";
 import { Table } from "./components/data-table";
 

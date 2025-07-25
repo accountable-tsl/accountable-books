@@ -1,5 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { CoaResponse } from "@/features/chart-of-accounts/types";
+import { CoaResponse } from "@/features/coa/types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Text } from "lucide-react";
@@ -59,36 +59,46 @@ export function getCoaTableColumns(): ColumnDef<CoaResponse>[] {
       header: "Element",
       meta: {
         label: "Element",
+        hidden: false,
       },
     },
     {
+      accessorFn: (row) => {
+        if (row.isDeleted) return "Archived";
+        return row.isActive ? "Active" : "Inactive";
+      },
       id: "status",
-      accessorKey: "isActive",
       header: () => {
         return <div className="text-center">Status</div>;
-      },
-      cell: (props) => {
-        const active =
-          props.getValue() === "true" || props.getValue() === true
-            ? "Active"
-            : "Inactive";
-        return (
-          <div className="flex items-center justify-center">
-            <Badge
-              className={cn(
-                "rounded-lg",
-                active === "Inactive" ? "opacity-50" : ""
-              )}
-            >
-              {active}
-            </Badge>
-          </div>
-        );
       },
       size: 85,
       minSize: 85,
       maxSize: 85,
+      enableColumnFilter: true,
+      meta: {
+        label: "Status",
+        variant: "multiSelect",
+        options: [
+          { label: "Active", value: "Active" },
+          { label: "Inactive", value: "Inactive" },
+          { label: "Archived", value: "Archived" },
+        ],
+      },
     },
     { id: "description", accessorKey: "description", header: "Description" },
+    {
+      id: "parent_account_element",
+      accessorKey: "parentAccountElementKey",
+      header: "Parent Element",
+      enableColumnFilter: true,
+      filterFn: (row, columnId, filterValue) => {
+        if (!filterValue || filterValue === "all") return true;
+        return row.getValue(columnId) === filterValue;
+      },
+      meta: {
+        hidden: true,
+      },
+      maxSize: 100,
+    },
   ];
 }

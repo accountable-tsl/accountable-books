@@ -43,8 +43,32 @@ export type CoaResponse = {
   gaapFsLabel: string;
   ifrsFsLabel: string;
 
-  isLocked: boolean;
   isActive: boolean;
+  isArchived: boolean;
   isDeleted: boolean;
+  isLocked: boolean;
   hasTransactions: boolean;
+  canDelete: boolean;
+};
+
+export type QuickFilterOptions = {
+  label: string;
+  value: string;
+  count?: number;
+};
+
+// Action Bar
+export type ActionSummary = {
+  total: number;
+  locked: number;
+  archived: number;
+  deleted: number;
+  undeletable: number;
+};
+
+export type AnalyzeSelectionResponse = {
+  canDelete: boolean;
+  canArchive: boolean;
+  canExport: boolean;
+  summary: ActionSummary;
 };

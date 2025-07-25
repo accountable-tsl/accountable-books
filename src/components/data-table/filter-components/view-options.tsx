@@ -29,6 +29,7 @@ export function DataTableViewOptions<TData>({
     () =>
       table
         .getAllColumns()
+        .filter((col) => col.columnDef.meta?.hidden !== true)
         .filter(
           (column) =>
             typeof column.accessorFn !== "undefined" && column.getCanHide()

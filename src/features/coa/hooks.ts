@@ -1,6 +1,6 @@
-import { CoaResponse, FetchCoaInput } from "@/features/chart-of-accounts/types";
+import { CoaResponse, FetchCoaInput } from "@/features/coa/types";
 import { useQuery } from "@tanstack/react-query";
-import { fetchChartOfAccounts } from "@/features/chart-of-accounts/api";
+import { fetchChartOfAccounts } from "@/features/coa/api";
 
 export const useChartOfAccountsQuery = (params: FetchCoaInput) => {
   const companyId = params?.companyId;

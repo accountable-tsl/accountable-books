@@ -135,7 +135,6 @@ export function DataTableFacetedFilter<TData, TValue>({
             <CommandGroup className="max-h-[18.75rem] overflow-y-auto overflow-x-hidden">
               {options.map((option) => {
                 const isSelected = selectedValues.has(option.value);
-
                 return (
                   <CommandItem
                     key={option.value}
