@@ -87,7 +87,8 @@ export function DataTableActionBar<TData>({
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.2, ease: "easeInOut" }}
           className={cn(
-            "absolute inset-x-0 bottom-6 z-50 mx-auto flex w-fit flex-wrap items-center justify-center gap-2 rounded-md border bg-background p-2 text-foreground shadow-sm",
+            "flex w-fit items-center justify-center gap-2 rounded-md border bg-background p-2 shadow-sm",
+            "absolute z-50 transform left-1/2 -translate-x-1/2",
             className
           )}
           {...props}

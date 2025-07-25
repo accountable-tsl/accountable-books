@@ -90,12 +90,15 @@ export const ChartOfAccounts: React.FC = () => {
             type: "custom",
             position: 1,
             component: () => (
-              <QuickFilter
-                isMobile={isMobile}
-                accountElementFilter={accountElementFilter}
-                setAccountElementFilter={setAccountElementFilter}
-                options={elementOptions}
-              />
+              <div className="flex-1 relative pb-4">
+                <QuickFilter
+                  isMobile={isMobile}
+                  accountElementFilter={accountElementFilter}
+                  setAccountElementFilter={setAccountElementFilter}
+                  options={elementOptions}
+                />
+                <CoaActionBar table={table} className="-bottom-1/2 border-0 " />
+              </div>
             ),
           },
         ],
@@ -187,19 +190,21 @@ export const ChartOfAccounts: React.FC = () => {
   }
 
   return (
-    <div className="p-3 overflow-clip flex flex-col gap-4 h-full min-h-0">
+    <div className="p-3 overflow-clip h-full min-h-0">
       {/* <div className="text-sm">
         Manage your account structure and classifications
       </div> */}
 
       {/* Accounts Table */}
-      <DataTable table={table} actionBar={<CoaActionBar table={table} />}>
-        <>
-          <DataTableToolbar table={table} config={toolbarConfig} />
-          {/* Bulk Actions
-           * If any accounts are selected, and the selection is within the current filter, show the bulk actions
-           */}
-
+      <DataTable
+        table={table}
+        actionBar={<CoaActionBar table={table} className="bottom-12" />}
+      >
+        <DataTableToolbar table={table} config={toolbarConfig} />
+        {/* Bulk Actions
+         * If any accounts are selected, and the selection is within the current filter, show the bulk actions
+         */}
+        {/* 
           {!isMobile && y.length > 0 && (
             <div className="flex justify-between items-center px-4 py-1 border rounded-md bg-muted/30 overflow-clip gap-4">
               <div className="flex items-center divide-x text-sm min-w-0">
@@ -232,8 +237,7 @@ export const ChartOfAccounts: React.FC = () => {
                 </Button>
               </div>
             </div>
-          )}
-        </>
+          )} */}
       </DataTable>
     </div>
   );

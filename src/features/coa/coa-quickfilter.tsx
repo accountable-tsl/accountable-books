@@ -37,7 +37,7 @@ export const QuickFilter: React.FC<QuickFilterProps> = ({
     val.toLowerCase() === accountElementFilter.toLowerCase();
 
   return (
-    <>
+    <div className="flex-1 flex items-center">
       <hr className="grow" />
       <div className="hidden xl:flex items-center justify-between gap-1 rounded-md bg-secondary h-[32px] max-h-8 w-[340px] overflow-clip border border-background-secondary">
         {accountElements.map((tab) => (
@@ -59,6 +59,6 @@ export const QuickFilter: React.FC<QuickFilterProps> = ({
         ))}
       </div>
       <hr className="grow" />
-    </>
+    </div>
   );
 };
