@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { DataTableBody, MemoizedDataTableBody } from "./data-table-body";
 import { DataTableHeader } from "@/components/data-table/data-table-header";
 import { Table } from "@/components/CustomTable";
-import { DataTableProps } from "@/components/data-table/types";
+import { DataTableProps } from "@/components/data-table/types/data-table";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 
 /**

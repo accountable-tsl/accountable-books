@@ -1,10 +1,10 @@
-import { DataTable } from "./data-table";
-import { getAccountColumns } from "./fake/columns";
-import { Account } from "./fake/seed";
-import { useDataTable } from "./use-data-table";
-import coaData from "./fake/coa.json";
+import { DataTable } from "@/components/data-table/data-table";
+import { getAccountColumns } from "@/components/data-table/fake/columns";
+import { Account } from "@/components/data-table/fake/seed";
+import { useDataTable } from "@/components/data-table/use-data-table";
+import coaData from "@/components/data-table/fake/coa.json";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
-import { DataTableExtras } from "@/components/data-table/types";
+import { DataTableExtras } from "@/components/data-table/types/data-table";
 
 export function Table() {
   const accounts = coaData as Account[];
@@ -21,13 +21,12 @@ export function Table() {
     data: accounts,
     columns: getAccountColumns(),
     customOptions: tableOptions,
+    enableSorting: true,
   });
 
   return (
     <DataTable table={table}>
-      <DataTableToolbar table={table}>
-        {/* <DataTableSortList table={table} align="end" /> */}
-      </DataTableToolbar>
+      <DataTableToolbar table={table} />
     </DataTable>
   );
 }

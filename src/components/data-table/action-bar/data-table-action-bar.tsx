@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { CustomTable } from "@/components/data-table/types";
+import { CustomTable } from "@/components/data-table/types/data-table";
 
 interface DataTableActionBarProps<TData>
   extends React.ComponentProps<typeof motion.div> {

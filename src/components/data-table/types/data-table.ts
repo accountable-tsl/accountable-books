@@ -11,6 +11,10 @@ import {
   FilterItemSchema,
 } from "@/components/data-table/utils/config";
 import { Dispatch, SetStateAction } from "react";
+import {
+  ResolvedRowClick,
+  RowClickBehavior,
+} from "@/components/data-table/types/row-click";
 
 // --- Module Augmentation (No Change Here) ---
 /**
@@ -67,7 +71,7 @@ export interface GlobalSearch {
 
 export interface Option {
   label: string;
-  value: string ;
+  value: string;
   count?: number;
   icon?: React.FC<React.SVGProps<SVGSVGElement>>;
 }
@@ -77,7 +81,8 @@ export interface Option {
  * Defines the custom configuration options that can be provided as input
  * to the `useDataTable` hook. This excludes internally managed state/utilities.
  */
-export interface DataTableInputOptions {
+
+export interface BaseDataTableOptions<TData> {
   virtualization?: {
     enabled: boolean;
     estimatedRowHeight?: number;
@@ -98,11 +103,15 @@ export interface DataTableInputOptions {
     tableBodyCell?: string;
   };
 }
+export type DataTableInputOptions<TData = any> = BaseDataTableOptions<TData> & {
+  rowClick?: RowClickBehavior<TData>;
+};
 
-export interface DataTableExtras extends DataTableInputOptions {
+export type DataTableExtras<TData = any> = BaseDataTableOptions<TData> & {
   stableData?: any[];
   setGlobalSearchColumns?: Dispatch<SetStateAction<string[]>>;
-}
+  rowClick?: ResolvedRowClick<TData>;
+};
 
 // --- UseDataTable Props (Hook Input) ---
 /**
@@ -130,8 +139,8 @@ export interface UseDataTableProps<TData>
   customOptions?: DataTableInputOptions;
 }
 
-export type CustomTable<T> = TanstackTable<T> & {
-  customOptions?: DataTableExtras;
+export type CustomTable<TData> = TanstackTable<TData> & {
+  customOptions?: DataTableExtras<TData>;
 };
 
 export type UseDataTableReturn<TData> = {

@@ -1,20 +1,14 @@
-import { SimpleSelect } from "@/components/SimpleSelect";
 import { Button } from "@/components/ui/button";
-
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
-import { Filter, Plus, Search, X } from "lucide-react";
+import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useChartOfAccountsQuery } from "./hooks";
 import { useSession } from "@/features/auth/Session";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableExtras } from "@/components/data-table/types";
+import {
+  DataTableExtras,
+  DataTableInputOptions,
+} from "@/components/data-table/types/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { getCoaTableColumns } from "./coa-columns";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
@@ -23,6 +17,9 @@ import { AddAccountSelection } from "@/features/coa/coa-add-account";
 import { QuickFilter } from "@/features/coa/coa-quickfilter";
 import { getAccountElementOptions } from "@/features/coa/utils";
 import { CoaActionBar } from "./coa-action-bar";
+import { SmallScreenMessage } from "@/components/SmallScreenMessage";
+import { CoaViewer } from "@/features/coa/coa-viewer";
+import { CoaResponse } from "@/features/coa/types";
 
 export const ChartOfAccounts: React.FC = () => {
   const isMobile = useIsMobile();
@@ -36,12 +33,11 @@ export const ChartOfAccounts: React.FC = () => {
   });
 
   const [accountElementFilter, setAccountElementFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("active");
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
   const columns = useMemo(() => getCoaTableColumns(), []);
 
-  const customOptions: DataTableExtras = {
+  const customOptions: DataTableInputOptions<CoaResponse> = {
     pagination: {
       enabled: true,
       initialPageSize: 15,
@@ -55,6 +51,11 @@ export const ChartOfAccounts: React.FC = () => {
     },
     customClassNames: {
       table: "flex-1",
+    },
+    rowClick: {
+      mode: "view",
+      wrapper: "sheet",
+      render: (props) => <CoaViewer {...props} />,
     },
   };
 
@@ -90,14 +91,15 @@ export const ChartOfAccounts: React.FC = () => {
             type: "custom",
             position: 1,
             component: () => (
-              <div className="flex-1 relative pb-4">
+              <div className="flex-1 relative">
                 <QuickFilter
                   isMobile={isMobile}
                   accountElementFilter={accountElementFilter}
                   setAccountElementFilter={setAccountElementFilter}
                   options={elementOptions}
                 />
-                <CoaActionBar table={table} className="-bottom-1/2 border-0 " />
+
+                {/* <CoaActionBar table={table} className="-bottom-1/2 border-0 " /> */}
               </div>
             ),
           },
@@ -138,16 +140,6 @@ export const ChartOfAccounts: React.FC = () => {
     setSelectedAccounts([]);
   }, [selectedAccounts]);
 
-  // const selectableAccountsCount = accounts.filter(
-  //   (acc) => !acc.isLocked
-  // ).length;
-  // const isAllSelectableSelected =
-  //   selectedAccounts.length === selectableAccountsCount &&
-  //   selectableAccountsCount > 0;
-
-  const y = table.getSelectedRowModel().rows.map((row) => row.original);
-  console.log(y);
-
   useEffect(() => {
     if (!parentElementColumn) return;
 
@@ -175,25 +167,27 @@ export const ChartOfAccounts: React.FC = () => {
     );
   }
 
+  // Mobile
+  if (isMobile) {
+    return <SmallScreenMessage />;
+  }
+
   // No data state
   if (!accounts || accounts.length === 0) {
     return (
-      <div className="p-3 flex items-center justify-center h-full">
-        <div className="text-center">
-          <p className="text-muted-foreground mb-4">No accounts found</p>
-          {/* <Button onClick={() => setIsAddCoaDialogOpen(true)}>
-            Add your first account
-          </Button> */}
-        </div>
+      <div className="p-3 flex flex-col items-center justify-center h-full">
+        <p className="text-muted-foreground mb-4">No accounts found</p>
+        <AddAccountSelection />
       </div>
     );
   }
 
+  // TODO: Perhaps add a column for balances in the future
   return (
-    <div className="p-3 overflow-clip h-full min-h-0">
-      {/* <div className="text-sm">
-        Manage your account structure and classifications
-      </div> */}
+    <div className="p-3 overflow-clip h-full min-h-0 flex flex-col">
+      <div className="text-sm pb-2">
+        {/* Manage your account structure and classifications */}
+      </div>
 
       {/* Accounts Table */}
       <DataTable
@@ -201,43 +195,6 @@ export const ChartOfAccounts: React.FC = () => {
         actionBar={<CoaActionBar table={table} className="bottom-12" />}
       >
         <DataTableToolbar table={table} config={toolbarConfig} />
-        {/* Bulk Actions
-         * If any accounts are selected, and the selection is within the current filter, show the bulk actions
-         */}
-        {/* 
-          {!isMobile && y.length > 0 && (
-            <div className="flex justify-between items-center px-4 py-1 border rounded-md bg-muted/30 overflow-clip gap-4">
-              <div className="flex items-center divide-x text-sm min-w-0">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="pr-2 truncate">10 accounts selected</div>
-                  </TooltipTrigger>
-                  <TooltipContent>10 accounts selected</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="pl-2 truncate">1 unused, 4 archived</div>
-                  </TooltipTrigger>
-                  <TooltipContent>1 unused, 4 archived</TooltipContent>
-                </Tooltip>
-              </div>
-              <div className="flex gap-2 flex-shrink-0">
-                <Button variant="outline" size="sm">
-                  Archive
-                </Button>
-                <Button variant="destructive" size="sm">
-                  Delete
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedAccounts([])}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )} */}
       </DataTable>
     </div>
   );

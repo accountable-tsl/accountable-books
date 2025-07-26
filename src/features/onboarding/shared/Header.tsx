@@ -1,7 +1,7 @@
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OnboardingCallback } from "./Callback";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-media-query";
 
 export const OnboardingHeader = ({
   firmName,

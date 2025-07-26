@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/features/auth/Session";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { Headset, ScreenShareIcon } from "lucide-react";
 
 export function OnboardingFormFooter() {

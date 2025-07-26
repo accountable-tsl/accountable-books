@@ -5,7 +5,7 @@ import { useCompanyBankAccounts } from "@/domains/bankAccounts/hooks";
 import { useCompany } from "@/domains/company/store";
 import { BankAccountWithMeta } from "@/domains/bankAccounts/types";
 import { maskDigits } from "@/shared/utils/formatting-utils";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { Plus } from "lucide-react";
 import { AddBankAccountDialog } from "@/domains/bankAccounts/AddBankAccountDialog";
 import { CenteredLoader } from "@/components/CenteredLoader";

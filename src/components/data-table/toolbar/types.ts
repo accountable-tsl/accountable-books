@@ -1,6 +1,6 @@
 // Toolbar-specific type definitions
 import type React from "react";
-import type { CustomTable } from "@/components/data-table/types";
+import type { CustomTable } from "@/components/data-table/types/data-table";
 
 export interface ToolbarClassNames {
   toolbar?: string;

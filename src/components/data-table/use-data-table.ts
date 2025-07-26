@@ -9,18 +9,23 @@ import {
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFacetedMinMaxValues,
+  Row,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  DataTableExtras,
   GlobalSearch,
   PaginationOptions,
   RowSelectionOptions,
   SortingOptions,
   UseDataTableProps,
   UseDataTableReturn,
-} from "@/components/data-table/types";
+} from "@/components/data-table/types/data-table";
 import { createSelectionColumn } from "./utils/select-column";
 import { createMultiColumnFilter } from "@/components/data-table/toolbar";
+import { RowClickBehavior } from "./types/row-click";
+import { isInternalUrl } from "./utils/table";
+import { useNavigate } from "react-router-dom";
 
 /**
  * Initializes a TanStack Table instance with memoized data.
@@ -35,10 +40,12 @@ export function useDataTable<TData>({
   columnResize,
   ...tableOptions
 }: UseDataTableProps<TData>): UseDataTableReturn<TData> {
+  const navigate = useNavigate();
   const {
     virtualization: virt,
     pagination: pg,
     globalSearch: gs,
+    rowClick: rc,
   } = customOptions || {};
   // Virtualization options
   const virtualization = {
@@ -56,9 +63,7 @@ export function useDataTable<TData>({
   };
 
   const sorting: SortingOptions = {
-    enabled: virtualization.enabled
-      ? false
-      : customOptions?.sorting?.enabled ?? true,
+    enabled: customOptions?.sorting?.enabled ?? true,
   };
 
   const globalSearch: GlobalSearch = {
@@ -68,6 +73,13 @@ export function useDataTable<TData>({
     allowIndividualFilters:
       gs?.allowIndividualFilters ?? (gs?.enabled ? false : true),
   };
+
+  const rowClickBehavior: RowClickBehavior<TData> | undefined = rc
+    ? {
+        ...rc,
+        ...(rc?.mode === "view" && !rc?.wrapper ? { wrapper: "sheet" } : {}),
+      }
+    : undefined;
 
   /**
    * Important: TanStack requires a stable data reference.
@@ -134,11 +146,43 @@ export function useDataTable<TData>({
     initialColumnVisibility
   );
 
+  const [viewedRow, setViewedRow] = useState<Row<TData> | null>(null);
+  const handleRowClick = useCallback(
+    (row: Row<TData>) => {
+      const rcb = rowClickBehavior;
+      if (!rcb) return;
+
+      switch (rcb.mode) {
+        case "view":
+          setViewedRow(row);
+          break;
+        case "redirect":
+          const url = rcb.onClick(row);
+
+          if (url) {
+            const isInternal = isInternalUrl(url);
+            if (isInternal) {
+              navigate(url);
+            }
+            window.location.href = url;
+          }
+          break;
+        case "custom":
+          rcb.onClick(row);
+          break;
+      }
+    },
+    [rowClickBehavior]
+  );
+
+  const closeRowView = useCallback(() => setViewedRow(null), []);
+
   const columnVisibility =
     controlledColumnVisibility ?? internalColumnVisibility;
   const setColumnVisibility =
     controlledSetColumnVisibility ?? setInternalColumnVisibility;
 
+  // @ts-ignore
   const reactTable = useReactTable({
     ...tableOptions,
     data: stableData,
@@ -206,17 +250,27 @@ export function useDataTable<TData>({
     },
   });
 
+  const options: DataTableExtras = {
+    ...customOptions,
+    pagination,
+    sorting,
+    virtualization,
+    globalSearch,
+    stableData,
+    setGlobalSearchColumns: setGlobalSearchColumnIds,
+    rowClick: rowClickBehavior
+      ? {
+          ...rowClickBehavior,
+          viewedRow,
+          closeRowView,
+          handleRowClick,
+        }
+      : undefined,
+  };
+
   const table = {
     ...reactTable,
-    customOptions: {
-      ...customOptions,
-      pagination,
-      sorting,
-      virtualization,
-      globalSearch,
-      stableData,
-      setGlobalSearchColumns: setGlobalSearchColumnIds,
-    },
+    customOptions: options,
   };
 
   return { table };

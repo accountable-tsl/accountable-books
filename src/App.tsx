@@ -23,9 +23,8 @@ import {
   RootRedirector,
 } from "./features/auth/Access";
 import BlankLayout from "./layouts/BlankLayout";
-import { ChartOfAccounts } from "./features/coa/coa";
 import { AccountingWorkspaceSetup } from "./features/accounting-setup/AccountingSetup";
-import { Table } from "./components/data-table";
+import { Table } from "@/components/data-table/fake";
 
 function App() {
   return (

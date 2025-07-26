@@ -14,7 +14,7 @@ interface FormFieldProps extends HTMLAttributes<HTMLDivElement> {
   helpTooltip?: string;
   iconSize?: number;
   tooltipStyle?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   errorTooltip?: boolean;
   errorTooltipStyle?: string;
 

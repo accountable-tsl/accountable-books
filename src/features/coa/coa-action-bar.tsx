@@ -3,7 +3,7 @@ import {
   DataTableActionBarAction,
   DataTableActionBarSelection,
 } from "@/components/data-table/action-bar/data-table-action-bar";
-import { CustomTable } from "@/components/data-table/types";
+import { CustomTable } from "@/components/data-table/data-table";
 import { Separator } from "@/components/ui/separator";
 import { CoaResponse } from "@/features/coa/types";
 import { analyzeSelectedAccounts } from "@/features/coa/utils";
