@@ -1,4 +1,4 @@
-import { debitCredit } from "@/shared/types/core";
+import { DebitCredit, debitCredit } from "@/shared/types/core";
 import z from "zod";
 
 export const accountType = z.object({
@@ -21,6 +21,11 @@ export const accountElement = z.object({
 });
 export type AccountElement = z.infer<typeof accountElement>;
 
+export const parentAccountElement = accountElement.extend({
+  parentElementKey: z.null().optional(),
+});
+export type ParentAccountElement = z.infer<typeof parentAccountElement>;
+
 export const financialStatement = z.object({
   key: z.string(),
   defaultLabel: z.string(),
@@ -29,8 +34,34 @@ export const financialStatement = z.object({
 });
 export type FinancialStatement = z.infer<typeof financialStatement>;
 
-export type AccountClassificationMetadata = {
+export type AccountMeta = {
   accountTypes: AccountType[];
+  enrichedAccountTypes: EnrichedAccountType[];
   accountElements: AccountElement[];
+  parentAccountElements: ParentAccountElement[];
   financialStatements: FinancialStatement[];
 };
+
+export interface EnrichedAccountType {
+  key: string;
+  label: string;
+
+  elementKey: string;
+  elementLabel: string;
+
+  parentElementKey: string;
+  parentElementLabel: string;
+
+  defaultSide: DebitCredit;
+
+  financialStatementKey: string;
+  financialStatementLabel: string;
+
+  reportCode: string | null;
+  elementReportCode: string | null;
+  parentElementReportCode: string | null;
+
+  _rawElement?: AccountElement;
+  _rawParent?: ParentAccountElement;
+  _rawFinancialStatement?: FinancialStatement;
+}

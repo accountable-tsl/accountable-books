@@ -3,35 +3,42 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CoaResponse } from "@/features/coa/types";
+import {
+  CoaResponse,
+  editCoaRequest,
+  EditCoaRequest,
+} from "@/features/coa/types";
 // import { updateAccountInput, UpdateAccountInput, CoaResponse } from "./types";
 // import { useUpdateAccountMutation } from "./hooks";
-import { toast } from "sonner";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Archive,
+  ArrowLeft,
   Binary,
   Box,
   CheckCircle2,
   Coins,
-  DollarSign,
-  FileText,
   Group,
-  Info,
   Lock,
   Trash2,
-  Unlock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ac } from "node_modules/@faker-js/faker/dist/airline-CLphikKp";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { useEditCoa } from "@/features/coa/hooks";
+import { getChangedFields } from "./utils";
+import { FormField } from "@/components/FormField";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
+import { useAccountMeta } from "@/domains/account-classification/hooks";
+import { CenteredLoader } from "@/components/CenteredLoader";
 
 interface CoaViewerProps {
   row?: Row<CoaResponse> | undefined;
   companyId: string;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 export const CoaViewer: React.FC<CoaViewerProps> = ({
@@ -41,38 +48,49 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
 }) => {
   const [editMode, setEditMode] = useState(false);
 
+  const is1024 = useMediaQuery("(max-width: 1024px)");
+  const editCoaMutation = useEditCoa();
+  //   const archiveCoaMutation = useArchiveCoa();
+  //   const unarchiveCoaMutation = useUnarchiveCoa();
+  //   const deleteCoaMutation = useDeleteCoa();
+
+  const { data, isLoading } = useAccountMeta();
+  const accountTypes = data?.enrichedAccountTypes || [];
+
   if (!row) {
     return (
-      <Card className="w-full max-w-lg mx-auto">
-        <div>
-          <p>No account selected</p>
-        </div>
-      </Card>
+      <div className="w-full mx-auto">
+        <p>No account selected</p>
+      </div>
     );
   }
 
   const account = row.original;
 
-  const is1024 = useMediaQuery("(max-width: 1024px)");
+  const defaultAccountValues = {
+    id: account.id,
+    name: account.name,
+    description: account.description || "",
+    code: account.code || "",
+    accountTypeKey: account.accountTypeKey,
+  };
+
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, dirtyFields, isDirty },
     reset,
-  } = useForm<any>({
-    // resolver: zodResolver(updateAccountInput),
-    defaultValues: account.isLocked
-      ? { name: account.name }
-      : {
-          name: account.name,
-          description: account.description || "",
-          code: account.code || "",
-          type: account.accountTypeId,
-          currency: account.accountCurrencyId,
-          is_active: account.isActive,
-          is_locked: account.isLocked,
-        },
+    control,
+  } = useForm<EditCoaRequest>({
+    resolver: zodResolver(editCoaRequest),
+    defaultValues: defaultAccountValues,
   });
+
+  const currentAccountTypeKey = useWatch({ control, name: "accountTypeKey" });
+
+  const currentAccountTypeInfo = useMemo(() => {
+    return accountTypes.find((type) => type.key === currentAccountTypeKey);
+  }, [currentAccountTypeKey, accountTypes]);
 
   // const updateMutation = useUpdateAccountMutation(companyId);
 
@@ -94,20 +112,32 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
   //   }
   // };
 
-  const handleEdit = () => {
-    setEditMode(true);
-    reset({
-      name: account.name,
-      description: account.description || "",
-      code: account.code || "",
-      type: account.accountTypeId,
-      currency: account.accountCurrencyId,
-      is_active: account.isActive,
-      is_locked: account.isLocked,
+  const onEditToggle = () => {
+    setEditMode(!editMode);
+    reset(defaultAccountValues);
+  };
+  const handleEditSubmit = (data: EditCoaRequest) => {
+    const changedFields = getChangedFields(data, dirtyFields);
+    const updates = { ...changedFields, id: data.id || account.id };
+    editCoaMutation.mutate({
+      companyId,
+      data: updates,
     });
   };
 
-  const wrapper = "w-full max-w-2xl mx-auto min-h-0 overflow-y-auto scrollbar-thin-2px";
+  const handleArchive = () => {
+    // setEditMode(true);
+    // reset({
+    //   name: account.name,
+    //   description: account.description || "",
+    //   code: account.code || "",
+    //   type: account.accountTypeKey,
+    //   //   type: account.accountTypeId,
+    // });
+  };
+
+  const wrapper =
+    "w-full max-w-2xl mx-auto min-h-0 overflow-y-auto scrollbar-thin-2px";
   const titleSection =
     "flex justify-between items-center border-b pl-4 pr-6 py-4";
   const sectionClass = "p-4 space-y-2";
@@ -121,10 +151,15 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
     account.accountTypeKey.toLowerCase() !== "ca_bank" &&
     account.canDelete &&
     !account.hasTransactions;
+
   const canArchive =
     account.accountTypeKey.toLowerCase() !== "ca_bank" &&
     !account.isArchived &&
     !account.isLocked;
+
+  if (isLoading) {
+    return <CenteredLoader />;
+  }
 
   if (editMode) {
     return (
@@ -132,21 +167,144 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
         <div className={titleSection}>
           <div>Account Details</div>
 
-          <Button variant="secondary" onClick={onClose} size="sm">
-            Cancel
+          <Button variant="ghost" onClick={() => setEditMode(false)} size="sm">
+            <ArrowLeft /> Back
           </Button>
         </div>
 
-        <form>
+        <form onSubmit={handleSubmit(handleEditSubmit)}>
           {/* Basic Info */}
           <div className={sectionClass}>
             <h3 className={sectionTitleClass}>Basic Info</h3>
-            <div className={sectionGridClass}>
-              <div className="min-w-0">
-                <div className={itemTitleClass}>Account Name</div>
-                <input {...register("name")} />
-              </div>
+            <div className={cn(sectionGridClass, "grid-cols-1")}>
+              <FormField
+                id="code"
+                label="Account Code"
+                error={errors.code?.message}
+                labelClassName={cn(itemTitleClass)}
+              >
+                <Input
+                  {...register("code")}
+                  placeholder="Code"
+                  aria-describedby="account-code-input"
+                />
+              </FormField>
+              <FormField
+                id="name"
+                label="Account Name"
+                error={errors.name?.message}
+                labelClassName={cn(itemTitleClass)}
+              >
+                <Input
+                  {...register("name")}
+                  placeholder="Account Name"
+                  aria-describedby="account-name-input"
+                />
+              </FormField>
+              <FormField
+                id="description"
+                label="Description"
+                error={errors.description?.message}
+                labelClassName={cn(itemTitleClass)}
+              >
+                <Textarea
+                  {...register("description")}
+                  placeholder="This account is for..."
+                  aria-describedby="name-error"
+                  autoCorrect="on"
+                  className="max-h-32"
+                />
+              </FormField>
             </div>
+          </div>
+
+          {canArchive && (
+            <>
+              <Separator className={is1024 ? "my-2" : "my-4"} />
+              <div className={sectionClass}>
+                <h3 className={sectionTitleClass}>Classification</h3>
+                <div className={cn(sectionGridClass, "grid-cols-[2fr_1fr]")}>
+                  <Controller
+                    name="accountTypeKey"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                      <div className="col-span-2">
+                        <FormField
+                          id="accountTypeKey"
+                          label="Account Type"
+                          labelClassName={itemTitleClass}
+                          error={fieldState.error?.message || ""}
+                        >
+                          <AutocompleteDropdown
+                            id="accountTypeKey"
+                            items={accountTypes}
+                            mapItem={(item) => ({
+                              value: item.key,
+                              label: item.label,
+                            })}
+                            placeholder="Select account type..."
+                            aria-describedby={
+                              errors.accountTypeKey
+                                ? "accountTypeKey-error"
+                                : undefined
+                            }
+                            onValueChange={field.onChange}
+                            value={field.value || ""}
+                            groupBy={"parentElementLabel"}
+                          />
+                        </FormField>
+                        {dirtyFields.hasOwnProperty("accountTypeKey") && (
+                          <div className="text-sm mt-2 py-2 px-4 bg-red-100 text-red-600 rounded">
+                            <strong>Warning:</strong> Changing your account type
+                            will affect all your postings and might not be
+                            reversible!
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  />
+
+                  <FormField
+                    id="accountElement"
+                    label="Account Element"
+                    labelClassName={cn(itemTitleClass)}
+                  >
+                    <Input
+                      disabled
+                      value={
+                        currentAccountTypeInfo?.elementLabel ||
+                        account.accountElementLabel
+                      }
+                    />
+                  </FormField>
+
+                  <FormField
+                    id="parentAccountElement"
+                    label="Parent Account Element"
+                    labelClassName={cn(itemTitleClass, "text-background")}
+                  >
+                    <Input
+                      disabled
+                      value={
+                        currentAccountTypeInfo?.parentElementLabel ||
+                        account.parentAccountElementLabel
+                      }
+                    />
+                  </FormField>
+                </div>
+              </div>
+            </>
+          )}
+
+          <Separator className={is1024 ? "my-2" : "my-4"} />
+
+          <div className={cn(sectionClass, "flex")}>
+            <Button onClick={onClose} variant={"secondary"} className="">
+              Cancel
+            </Button>
+            <Button disabled={isSubmitting || !isDirty} className="ml-auto">
+              Update Account
+            </Button>
           </div>
         </form>
       </div>
@@ -161,7 +319,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
           <div className="flex gap-2">
             {account.isArchived ? (
               <Button
-                // onClick={handleEdit}
+                // onClick={handleUnarchive}
                 // disabled={account.isLocked}
                 size="sm"
               >
@@ -169,7 +327,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
               </Button>
             ) : (
               <Button
-                onClick={handleEdit}
+                onClick={onEditToggle}
                 disabled={account.isLocked}
                 size="sm"
               >

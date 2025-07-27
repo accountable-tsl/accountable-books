@@ -56,6 +56,7 @@ export const FormField = ({
         errorTooltip={errorTooltip}
         errorTooltipStyle={errorTooltipStyle}
         errorClassName={errorClassName}
+        {...rest}
       />
     )}
     {children}

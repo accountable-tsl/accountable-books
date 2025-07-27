@@ -20,6 +20,7 @@ import { CoaActionBar } from "./coa-action-bar";
 import { SmallScreenMessage } from "@/components/SmallScreenMessage";
 import { CoaViewer } from "@/features/coa/coa-viewer";
 import { CoaResponse } from "@/features/coa/types";
+import ErrorPage from "@/components/ErrorPage";
 
 export const ChartOfAccounts: React.FC = () => {
   const isMobile = useIsMobile();
@@ -55,7 +56,8 @@ export const ChartOfAccounts: React.FC = () => {
     rowClick: {
       mode: "view",
       wrapper: "sheet",
-      render: (props) => <CoaViewer {...props} />,
+      render: (props) =>
+        companyId ? <CoaViewer companyId={companyId} {...props} /> : <></>,
     },
   };
 
@@ -165,6 +167,10 @@ export const ChartOfAccounts: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  if (!companyId) {
+    return <ErrorPage type="default" />;
   }
 
   // Mobile

@@ -3,6 +3,7 @@ import {
   ActionSummary,
   AnalyzeSelectionResponse,
   CoaResponse,
+  EditCoaRequest,
   QuickFilterOptions,
 } from "@/features/coa/types";
 
@@ -94,3 +95,15 @@ export function analyzeSelectedAccounts(
     summary,
   };
 }
+
+export const getChangedFields = <T extends Record<string, any>>(
+  formData: T,
+  dirtyFields: Partial<Record<keyof T, boolean>>
+): Partial<T> => {
+  return Object.keys(dirtyFields).reduce((acc, key) => {
+    if (dirtyFields[key as keyof T]) {
+      acc[key as keyof T] = formData[key as keyof T];
+    }
+    return acc;
+  }, {} as Partial<T>);
+};

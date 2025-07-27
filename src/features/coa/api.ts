@@ -1,5 +1,10 @@
 import api from "@/lib/axios";
-import { CoaResponse, FetchCoaInput } from "@/features/coa/types";
+import {
+  CoaResponse,
+  CoaUpdateResponse,
+  EditCoaRequest,
+  FetchCoaInput,
+} from "@/features/coa/types";
 import { ApiResponse } from "@/shared/types/core";
 // import { UpdateAccountInput, UpdateAccountResponse } from "./types";
 
@@ -21,31 +26,43 @@ export const fetchChartOfAccounts = async (
   return res.data;
 };
 
-// export async function updateAccount({
-//   accountId,
-//   companyId,
-//   data,
-// }: {
-//   accountId: string;
-//   companyId: string;
-//   data: UpdateAccountInput;
-// }): Promise<UpdateAccountResponse> {
-//   try {
-//     const response = await api.patch(
-//       `/api/companies/${companyId}/coa/${accountId}`,
-//       data
-//     );
-//     return {
-//       success: true,
-//       data: response.data,
-//     };
-//   } catch (error: any) {
-//     return {
-//       success: false,
-//       message:
-//         error?.response?.data?.message ||
-//         error.message ||
-//         "Failed to update account.",
-//     };
-//   }
-// }
+// Edit a single COA record
+export const editCoa = async (
+  companyId: string,
+  data: EditCoaRequest
+): Promise<ApiResponse<CoaUpdateResponse>> => {
+  const response = await api.patch(`/api/${companyId}/coa/edit`, data);
+  return response.data;
+};
+
+// Bulk archive COA records
+export const archiveCoa = async (
+  companyId: string,
+  accountIds: string[]
+): Promise<ApiResponse<CoaUpdateResponse>> => {
+  const response = await api.patch(`/api/${companyId}/coa/archive`, accountIds);
+  return response.data;
+};
+
+// Bulk unarchive COA records
+export const unarchiveCoa = async (
+  companyId: string,
+  accountIds: string[]
+): Promise<ApiResponse<CoaUpdateResponse>> => {
+  const response = await api.patch(
+    `/api/${companyId}/coa/unarchive`,
+    accountIds
+  );
+  return response.data;
+};
+
+// Bulk delete COA records
+export const deleteCoa = async (
+  companyId: string,
+  accountIds: string[]
+): Promise<ApiResponse<CoaUpdateResponse>> => {
+  const response = await api.delete(`/api/${companyId}/coa`, {
+    data: accountIds,
+  });
+  return response.data;
+};

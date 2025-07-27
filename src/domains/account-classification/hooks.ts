@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { getAccountClassificationMetadata } from "@/domains/account-classification/api";
+import { getAccountMeta } from "@/domains/account-classification/api";
 
-export const useAccountClassificationMetadata = () => {
+export const useAccountMeta = () => {
   return useQuery({
     queryKey: ["accountClassificationMetadata"],
-    queryFn: getAccountClassificationMetadata,
-    staleTime: 1000 * 60 * 60 * 24, // 24 hours
-    gcTime: 1000 * 60 * 60 * 24 * 7, // 7 days
+    queryFn: getAccountMeta,
+    // staleTime: 1000 * 60 * 60 * 24, // 24 hours
+    // gcTime: 1000 * 60 * 60 * 24 * 7, // 7 days
   });
 };
 

@@ -73,38 +73,17 @@ export type AnalyzeSelectionResponse = {
   summary: ActionSummary;
 };
 
-/**
- * Account update
- * Bulk delete allowed
- * Bulk archive allowed
- * Bulk edit not allowed
- */
+export const editCoaRequest = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  code: z.string().nullish(),
+  description: z.string().nullish(),
+  accountTypeKey: z.string().optional(),
+});
+export type EditCoaRequest = z.infer<typeof editCoaRequest> 
 
-export const updateCOASchema = z.discriminatedUnion("action", [
-  z.object({
-    action: z.literal("delete"),
-    ids: z.array(z.string().uuid()).min(1),
-  }),
-  z.object({
-    action: z.literal("archive"),
-    ids: z.array(z.string().uuid()).min(1),
-  }),
-  z.object({
-    action: z.literal("edit"),
-    id: z.string().uuid(),
-    data: z.object({
-      code: z.string().min(1).optional(),
-      name: z.string().min(1).optional(),
-      description: z.string().optional(),
-      accountTypeId: z.string().uuid().optional(),
-    }),
-  }),
-]);
 
-export type UpdateCOAInput = z.infer<typeof updateCOASchema>;
-
-// export type UpdateAccountResponse = {
-//   success: boolean;
-//   message?: string;
-//   data?: CoaResponse;
-// };
+export interface CoaUpdateResponse {
+  updatedAccounts: Array<{ id: string; name?: string }>;
+  errors: Array<{ id: string; error: string }>;
+}
