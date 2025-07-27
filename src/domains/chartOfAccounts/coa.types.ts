@@ -60,19 +60,19 @@ export type CoaResponse = {
 
   reportCode?: string;
 
-  accountElementId: string;
+  // accountElementId: string;
   accountElementKey: string;
   accountElementLabel: string;
 
-  parentAccountElementId?: string;
+  // parentAccountElementId?: string;
   parentAccountElementKey?: string;
   parentAccountElementLabel?: string;
 
-  accountCurrencyId: string;
+  // accountCurrencyId: string;
   accountCurrencyCode: string;
   accountCurrencySymbol: string;
 
-  reportingCurrencyId: string;
+  // reportingCurrencyId: string;
   reportingCurrencyCode: string;
   reportingCurrencySymbol: string;
 

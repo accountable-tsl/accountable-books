@@ -20,6 +20,7 @@ import bankFeedProvidersRoutes from "./domains/bankFeedProviders/bankFeedProvide
 import bankAccountConnectionsRoutes from "./domains/bankAccountConnections/baccons.routes";
 import usersCompaniesRolesRoutes from "./domains/userRoles/userRoles.routes";
 import coaRoutes from "./domains/chartOfAccounts/coa.routes";
+import accountRoutes from "./domains/account/account.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";
@@ -86,6 +87,7 @@ async function startServer() {
     app.use("/api/countries", countryRoutes);
     app.use("/api/email", emailRoutes);
     app.use("/api/accounting-firms/check-slug", firmRoutes);
+    app.use("/api/accounts/classification/metadata", accountRoutes);
 
     app.use("/api", verifyRefreshToken);
 

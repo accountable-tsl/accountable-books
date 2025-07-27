@@ -234,24 +234,24 @@ export const fetchCompanyCoa = async ({
           "coa.is_deleted as isDeleted",
           "coa.source as source",
 
-          "at.id as accountTypeId",
+          // "at.id as accountTypeId",
           "at.key as accountTypeKey",
           "at.label as accountTypeLabel",
           "at.report_code as reportCode",
 
-          "ae.id as accountElementId",
+          // "ae.id as accountElementId",
           "ae.key as accountElementKey",
           "ae.label as accountElementLabel",
 
-          "pae.id as parentAccountElementId",
+          // "pae.id as parentAccountElementId",
           "pae.key as parentAccountElementKey",
           "pae.label as parentAccountElementLabel",
 
-          "cur.id as accountCurrencyId",
+          // "cur.id as accountCurrencyId",
           "cur.code as accountCurrencyCode",
           "cur.symbol as accountCurrencySymbol",
 
-          "rc.id as reportingCurrencyId",
+          // "rc.id as reportingCurrencyId",
           "rc.code as reportingCurrencyCode",
           "rc.symbol as reportingCurrencySymbol",
 
