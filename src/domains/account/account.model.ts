@@ -13,6 +13,9 @@ import {
 } from "./account.types";
 import { generateCacheKey } from "../../shared/utils/string.utils";
 import { redis } from "../../lib/redis";
+import {
+  invalidateCoaInMemoryCache,
+} from "./account.registry";
 
 // TODO: Invalidate cache on mutations
 const CACHE_KEY = generateCacheKey("accountClassificationMeta", "v1");
@@ -20,14 +23,19 @@ const CACHE_TTL = 60 * 60 * 12; // 12 hours
 
 export async function invalidateAccountClassificationCache(): Promise<void> {
   await redis.del(CACHE_KEY);
+  invalidateCoaInMemoryCache();
 }
 
-export async function getAccountClassificationMeta(
-  trx?: Knex.Transaction
-): Promise<ApiResponse<AccountClassificationMetadata>> {
+export async function getAccountClassificationMeta({
+  trx,
+  includeIds,
+}: {
+  includeIds?: boolean;
+  trx?: Knex.Transaction;
+} = {}): Promise<ApiResponse<AccountClassificationMetadata>> {
   try {
     const cached = await redis.get(CACHE_KEY);
-    if (cached) {
+    if (cached && !includeIds) {
       const result = JSON.parse(cached) as AccountClassificationMetadata;
       return successResponse(
         "Account classification metadata retrieved from cache",
@@ -53,6 +61,7 @@ export async function getAccountClassificationMeta(
       const accountTypes: AccountTypeDTO[] = rawAccountTypes.map(
         (r) =>
           ({
+            ...(includeIds ? { id: r.id } : {}),
             key: r.key,
             label: r.label,
             description: r.description,
@@ -83,6 +92,7 @@ export async function getAccountClassificationMeta(
       const accountElements: AccountElementDTO[] = rawElements.map(
         (r) =>
           ({
+            ...(includeIds ? { id: r.id } : {}),
             key: r.key,
             label: r.label,
             description: r.description,
@@ -104,6 +114,7 @@ export async function getAccountClassificationMeta(
       const financialStatements: FinancialStatementDTO[] = rawFS.map(
         (r) =>
           ({
+            ...(includeIds ? { id: r.id } : {}),
             key: r.key,
             defaultLabel: r.label,
             usGaapLabel: r.usGaapLabel,
@@ -120,7 +131,8 @@ export async function getAccountClassificationMeta(
 
     const result = trx ? await query(trx) : await knexClient.transaction(query);
 
-    await redis.set(CACHE_KEY, JSON.stringify(result), "EX", CACHE_TTL);
+    !includeIds &&
+      (await redis.set(CACHE_KEY, JSON.stringify(result), "EX", CACHE_TTL));
 
     return successResponse(
       "Account classification metadata successfully retrieved",

@@ -2,6 +2,7 @@ import z from "zod";
 import { debitCredit, DebitCredit } from "../../core/types/core";
 
 export const accountTypeDto = z.object({
+  id: z.string().optional(),
   key: z.string(),
   label: z.string(),
   description: z.string().nullable(),
@@ -11,6 +12,7 @@ export const accountTypeDto = z.object({
 export type AccountTypeDTO = z.infer<typeof accountTypeDto>;
 
 export const accountElementDto = z.object({
+  id: z.string().optional(),
   key: z.string(),
   label: z.string(),
   description: z.string().nullable(),
@@ -22,6 +24,7 @@ export const accountElementDto = z.object({
 export type AccountElementDTO = z.infer<typeof accountElementDto>;
 
 export const financialStatementDto = z.object({
+  id: z.string().optional(),
   key: z.string(),
   defaultLabel: z.string(),
   usGaapLabel: z.string().nullable(),

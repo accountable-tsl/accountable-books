@@ -1,12 +1,21 @@
 import type { Knex } from "knex";
 import {
+  Coa,
   CoaResponse,
+  coaUpdateInput,
+  CoaUpdateInput,
+  CoaUpdateOptions,
   FetchCoaInput,
   newCoa,
   NewCoa,
   newCoaInput,
   NewCoaInput,
   NewCoaInputCamel,
+  ResolvedCoaUpdateInput,
+  SimpleCoaRecord,
+  updateCoaAction,
+  UpdateCoaAction,
+  UpdateCoaResponse,
 } from "./coa.types";
 import { ApiResponse } from "../../core/types/api.types";
 import {
@@ -23,8 +32,19 @@ import {
 import { knexClient } from "../../../knexClient";
 import { generateCacheKey } from "../../shared/utils/string.utils";
 import { redis } from "../../lib/redis";
+import { getAccountTypeByKey } from "../account/account.registry";
 
 // TODO: Invalidate coa cache on mutations
+const coaCacheTTL = 60 * 60 * 2;
+function coaCacheKey(companyUUID: string) {
+  return generateCacheKey("coa:v1", companyUUID);
+}
+
+async function invalidateCoaCache(companyId: string) {
+  const cacheKey = generateCacheKey("coa:v1", companyId);
+  await redis.del(cacheKey);
+}
+
 export const createCoa = async ({
   companyId,
   userId,
@@ -338,12 +358,372 @@ export const fetchCompanyCoa = async ({
   }
 };
 
-const coaCacheTTL = 60 * 60 * 2;
-function coaCacheKey(companyId: string) {
-  return generateCacheKey("coa:v1", companyId);
+/**
+ * --------------------
+ * Update chart of accounts
+ * --------------------
+ */
+export const editCoa = async ({
+  updates,
+  companyId,
+  userId,
+  trx,
+}: {
+  updates: CoaUpdateInput[];
+  companyId: string;
+  userId: string;
+  trx?: Knex.Transaction;
+}) => {
+  return updateChartOfAccounts({
+    updates,
+    options: {
+      companyId,
+      updatedById: userId,
+      operation: updateCoaAction.enum.edit,
+    },
+    trx,
+  });
+};
+
+export const archiveCoa = async ({
+  accountIds,
+  companyId,
+  userId,
+  trx,
+}: {
+  accountIds: string[];
+  companyId: string;
+  userId: string;
+  trx?: Knex.Transaction;
+}) => {
+  const updates = accountIds.map(
+    (id) =>
+      ({
+        id,
+        isActive: false,
+      }) satisfies CoaUpdateInput
+  );
+
+  return updateChartOfAccounts({
+    updates,
+    options: {
+      companyId,
+      updatedById: userId,
+      operation: updateCoaAction.enum.archive,
+    },
+    trx,
+  });
+};
+
+export const unarchiveCoa = async ({
+  accountIds,
+  companyId,
+  userId,
+  trx,
+}: {
+  accountIds: string[];
+  companyId: string;
+  userId: string;
+  trx?: Knex.Transaction;
+}) => {
+  const updates = accountIds.map(
+    (id) =>
+      ({
+        id,
+        isActive: true,
+      }) satisfies CoaUpdateInput
+  );
+
+  return updateChartOfAccounts({
+    updates,
+    options: {
+      companyId,
+      updatedById: userId,
+      operation: updateCoaAction.enum.unarchive,
+    },
+    trx,
+  });
+};
+
+export const deleteCoa = async ({
+  accountIds,
+  companyId,
+  userId,
+  trx,
+}: {
+  accountIds: string[];
+  companyId: string;
+  userId: string;
+  trx?: Knex.Transaction;
+}) => {
+  const updates = accountIds.map(
+    (id) =>
+      ({
+        id,
+        isDeleted: true,
+      }) satisfies CoaUpdateInput
+  );
+
+  return updateChartOfAccounts({
+    updates,
+    options: {
+      companyId,
+      updatedById: userId,
+      operation: updateCoaAction.enum.delete,
+    },
+    trx,
+  });
+};
+/**
+ * Update chart of accounts
+ * Bulk delete is permitted
+ * Bulk archive is permitted
+ * Bulk unarchive is permitted
+ * Bulk data edit is not permitted
+ * Locked accounts cannot be archived or deleted
+ * For now, coa for bank accounts cannot be archived or deleted (identified by account type key 'ca_bank')
+ * Account type cannot be changed for locked accounts, and coa for bank accounts
+ * Only editable fields are code, name, description, account type (conditionally)...
+ * and is_active, is_deleted, for archiving and deleting as permitted by the above constraints...
+ * and updated_by_id, updated_at, deleted_at for logging
+ *
+ * Update across companies is not permitted, so companyId is required
+ * Remember to invalidate cache
+ */
+
+const updateChartOfAccounts = async ({
+  updates,
+  options,
+  trx,
+}: {
+  updates: CoaUpdateInput[];
+  options: CoaUpdateOptions;
+  trx?: Knex.Transaction;
+}): Promise<ApiResponse<UpdateCoaResponse>> => {
+  const { companyId, updatedById, operation } = options;
+  // Get actual company UUID
+  const companyUUID = await getCompanyUUID(companyId, trx);
+  if (!companyUUID) {
+    return errorResponse("Invalid company ID");
+  }
+
+  const cacheKey = coaCacheKey(companyUUID);
+
+  // Validate input
+  const validatedInput = coaUpdateInput.array().safeParse(updates);
+  if (!validatedInput.success) {
+    return errorResponse(
+      "Invalid input provided",
+      validatedInput.error.flatten()
+    );
+  }
+
+  if (validatedInput.data.length === 0) {
+    return errorResponse("No data provided for updating chart of accounts");
+  }
+
+  // Extract IDs for batch query
+  const coaIds = validatedInput.data.map((item) => item.id);
+  const results: UpdateCoaResponse = {
+    updatedAccounts: [],
+    errors: [],
+  };
+
+  const executeWithTransaction = async (
+    trx: Knex.Transaction
+  ): Promise<UpdateCoaResponse> => {
+    // Fetch existing COA records with account type information
+    const existingCoaRecords = await trx("coa")
+      .select([
+        "coa.id",
+        "coa.name",
+        "coa.code",
+        "coa.description",
+        "coa.is_active as isActive",
+        "coa.locked as isLocked",
+        "coa.is_deleted as isDeleted",
+        "coa.account_type_id as accountTypeId",
+        "at.key as accountTypeKey",
+        "at.label as accountTypeLabel",
+      ])
+      .join("account_types as at", "coa.account_type_id", "at.id")
+      .whereIn("coa.id", coaIds)
+      .andWhere("coa.company_id", companyUUID);
+
+    if (existingCoaRecords.length !== coaIds.length) {
+      throw new Error(
+        "One or more COA records not found or do not belong to this company"
+      );
+    }
+
+    // Create lookup map for efficiency
+    const accountMap = new Map<string, SimpleCoaRecord>();
+    existingCoaRecords.forEach((acc) => accountMap.set(acc.id, acc));
+
+    // Validate and process each update
+    const validUpdates: Array<CoaUpdateInput> = [];
+    for (const item of validatedInput.data) {
+      const existing = accountMap.get(item.id);
+
+      if (!existing) {
+        results.errors.push({
+          id: item.id,
+          error: "Account not found or not in specified company",
+        });
+        continue;
+      }
+
+      const newAccountType = item.accountTypeKey
+        ? await getAccountTypeByKey(item.accountTypeKey)
+        : undefined;
+
+      const { accountTypeKey, ...rest } = item;
+      const resolvedItem: ResolvedCoaUpdateInput = {
+        ...rest,
+        // ...(operation === "archive" ? { isActive: false } : {}),
+        // ...(operation === "unarchive" ? { isActive: true } : {}),
+        // ...(operation === "delete" ? { isDeleted: true } : {}),
+        ...(accountTypeKey && newAccountType
+          ? { accountTypeId: newAccountType.id }
+          : {}),
+      };
+
+      const validation = validateUpdateRules({
+        update: resolvedItem,
+        existing,
+        operation,
+      });
+
+      if (!validation.isValid) {
+        results.errors.push({ id: item.id, error: validation.error });
+        continue;
+      }
+
+      validUpdates.push(item);
+    }
+
+    // Perform bulk update if there are valid updates
+    if (validUpdates.length > 0) {
+      await performBulkUpdate({ validUpdates, updatedById, operation, trx });
+
+      results.updatedAccounts = validUpdates.map((u) => ({
+        id: u.id,
+        name: u.name,
+      }));
+
+      // Invalidate cache after successful update
+      await invalidateCoaCache(cacheKey);
+    }
+
+    return results;
+  };
+
+  try {
+    const result = trx
+      ? await executeWithTransaction(trx)
+      : await knexClient.transaction(executeWithTransaction);
+
+    return successResponse("Chart of accounts updated successfully", result);
+  } catch (error) {
+    return errorResponse("Failed to update chart of accounts", error);
+  }
+};
+
+function validateUpdateRules({
+  update,
+  existing,
+  operation,
+}: {
+  update: CoaUpdateInput;
+  existing: SimpleCoaRecord;
+  operation: UpdateCoaAction;
+}): {
+  isValid: boolean;
+  error: string;
+} {
+  // Check if account is locked for archive/delete operations
+  if (
+    existing.isLocked &&
+    (operation === "archive" || operation === "delete")
+  ) {
+    return {
+      isValid: false,
+      error: "Locked accounts cannot be archived or deleted",
+    };
+  }
+
+  // Check if bank account for archive/delete operations
+  if (
+    existing.accountTypeKey === "ca_bank" &&
+    (operation === "archive" || operation === "delete")
+  ) {
+    return {
+      isValid: false,
+      error: "Bank accounts cannot be archived or deleted",
+    };
+  }
+
+  // Check account type change restrictions
+  const newAccountTypeKey = update?.accountTypeKey;
+  const oldAccountTypeKey = existing?.accountTypeKey;
+
+  if (newAccountTypeKey && newAccountTypeKey !== oldAccountTypeKey) {
+    if (existing.isLocked) {
+      return {
+        isValid: false,
+        error: "Account type cannot be changed for locked accounts",
+      };
+    }
+    if (oldAccountTypeKey === "ca_bank") {
+      return {
+        isValid: false,
+        error: "Account type cannot be changed for bank accounts",
+      };
+    }
+  }
+
+  return { isValid: true, error: "" };
 }
 
-async function invalidateCoaCache(companyId: string) {
-  const cacheKey = generateCacheKey("coa:v1", companyId);
-  await redis.del(cacheKey);
+async function performBulkUpdate({
+  validUpdates,
+  updatedById,
+  operation,
+  trx,
+}: {
+  validUpdates: Array<ResolvedCoaUpdateInput>;
+  updatedById: string;
+  operation: UpdateCoaAction;
+  trx?: Knex.Transaction;
+}): Promise<void> {
+  const now = new Date();
+
+  const executeUpdate = async (tx: Knex.Transaction) => {
+    for (const u of validUpdates) {
+      const updateData: Partial<Coa> = {
+        updated_by_id: updatedById,
+        updated_at: now,
+      };
+
+      if (u?.code) updateData.code = u.code;
+      if (u?.name) updateData.name = u.name;
+      if (u?.description) updateData.description = u.description;
+      if (u.accountTypeId) updateData.account_type_id = u.accountTypeId;
+      if (u.isActive) updateData.is_active = u.isActive;
+      if (u.isDeleted !== undefined) {
+        updateData.is_deleted = u.isDeleted;
+        if (u.isDeleted) {
+          updateData.deleted_at = now;
+        }
+      }
+
+      await tx("coa").where({ id: u.id }).update(updateData);
+    }
+  };
+
+  if (trx) {
+    await executeUpdate(trx);
+  } else {
+    await knexClient.transaction(executeUpdate);
+  }
 }

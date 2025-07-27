@@ -31,6 +31,7 @@ import {
   conditionalCsrf,
   verifyRefreshToken,
 } from "./features/auth/auth.middleware";
+import { loadAccountMeta } from "./domains/account/account.registry";
 
 const PORT = ENV.PORT!;
 export const BACKEND_URL = ENV.BACKEND_URL!;
@@ -71,6 +72,7 @@ async function startServer() {
   try {
     // Load critical stuff first
     await loadRoles();
+    await loadAccountMeta();
 
     app.use(cors({ origin: allowedOrigins, credentials: true }));
     app.use(express.static("./public"));

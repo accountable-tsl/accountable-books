@@ -46,6 +46,61 @@ export type FetchCoaInput = {
   trx?: Knex.Transaction;
 };
 
+// Update COA schemas and types - separate schemas for each action
+export const updateCoaAction = z.enum([
+  "delete",
+  "archive",
+  "unarchive",
+  "edit",
+]);
+export type UpdateCoaAction = z.infer<typeof updateCoaAction>;
+
+export const coaUpdateInput = z.object({
+  id: z.string(),
+
+  // Fields for edit action
+  code: z.string().max(256).nullish().optional(),
+  name: z.string().max(256).optional(),
+  description: z.string().max(512).nullish().optional(),
+  accountTypeKey: z.string().uuid().optional(),
+  isActive: z.boolean().optional(),
+  isDeleted: z.boolean().optional(),
+});
+export type CoaUpdateInput = z.infer<typeof coaUpdateInput>;
+
+export const resolvedCoaUpdateInput = coaUpdateInput
+  .omit({ accountTypeKey: true })
+  .extend({
+    id: z.string().uuid(),
+    accountTypeId: z.string().uuid().optional(),
+  });
+export type ResolvedCoaUpdateInput = z.infer<typeof resolvedCoaUpdateInput>;
+
+export const coaUpdateOptions = z.object({
+  companyId: z.string(),
+  updatedById: z.string(),
+  operation: updateCoaAction,
+});
+export type CoaUpdateOptions = z.infer<typeof coaUpdateOptions>;
+
+export type SimpleCoaRecord = {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+  isActive: boolean;
+  isLocked: boolean;
+  isDeleted: boolean;
+
+  accountTypeId: string;
+  accountTypeKey: string;
+};
+
+export type UpdateCoaResponse = {
+  updatedAccounts: Array<{ id: string; name?: string }>;
+  errors: Array<{ id: string; error: string }>;
+};
+
 export type CoaResponse = {
   id: string;
   code?: string;
