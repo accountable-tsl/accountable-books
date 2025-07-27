@@ -18,25 +18,25 @@ export type CoaResponse = {
   source?: CoaSource;
   defaultSide: string;
 
-  accountTypeId: string;
+  // accountTypeId: string;
   accountTypeKey: string;
   accountTypeLabel: string;
 
   reportCode?: string;
 
-  accountElementId: string;
+  // accountElementId: string;
   accountElementKey: string;
   accountElementLabel: string;
 
-  parentAccountElementId?: string;
+  // parentAccountElementId?: string;
   parentAccountElementKey?: string;
   parentAccountElementLabel?: string;
 
-  accountCurrencyId: string;
+  // accountCurrencyId: string;
   accountCurrencyCode: string;
   accountCurrencySymbol: string;
 
-  reportingCurrencyId: string;
+  // reportingCurrencyId: string;
   reportingCurrencyCode: string;
   reportingCurrencySymbol: string;
 
@@ -72,3 +72,39 @@ export type AnalyzeSelectionResponse = {
   canExport: boolean;
   summary: ActionSummary;
 };
+
+/**
+ * Account update
+ * Bulk delete allowed
+ * Bulk archive allowed
+ * Bulk edit not allowed
+ */
+
+export const updateCOASchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("delete"),
+    ids: z.array(z.string().uuid()).min(1),
+  }),
+  z.object({
+    action: z.literal("archive"),
+    ids: z.array(z.string().uuid()).min(1),
+  }),
+  z.object({
+    action: z.literal("edit"),
+    id: z.string().uuid(),
+    data: z.object({
+      code: z.string().min(1).optional(),
+      name: z.string().min(1).optional(),
+      description: z.string().optional(),
+      accountTypeId: z.string().uuid().optional(),
+    }),
+  }),
+]);
+
+export type UpdateCOAInput = z.infer<typeof updateCOASchema>;
+
+// export type UpdateAccountResponse = {
+//   success: boolean;
+//   message?: string;
+//   data?: CoaResponse;
+// };

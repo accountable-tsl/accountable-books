@@ -1,6 +1,8 @@
 import { CoaResponse, FetchCoaInput } from "@/features/coa/types";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { fetchChartOfAccounts } from "@/features/coa/api";
+// import { updateAccount } from "./api";
+// import { UpdateAccountInput, UpdateAccountResponse } from "./types";
 
 export const useChartOfAccountsQuery = (params: FetchCoaInput) => {
   const companyId = params?.companyId;
@@ -20,5 +22,23 @@ export const useChartOfAccountsQuery = (params: FetchCoaInput) => {
     refetchOnWindowFocus: false,
   });
 };
+
+// export function useUpdateAccountMutation(companyId: string) {
+//   const queryClient = useQueryClient();
+//   return useMutation({
+//     mutationFn: async ({
+//       accountId,
+//       data,
+//     }: {
+//       accountId: string;
+//       data: UpdateAccountInput;
+//     }) => {
+//       return updateAccount({ accountId, companyId, data });
+//     },
+//     onSuccess: () => {
+//       queryClient.invalidateQueries(["chartOfAccounts", companyId]);
+//     },
+//   });
+// }
 
 // TODO: Remember to invalidate on mutations

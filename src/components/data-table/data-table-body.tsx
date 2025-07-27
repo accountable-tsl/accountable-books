@@ -68,7 +68,6 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
       : undefined;
 
   function onRowClick(e: React.MouseEvent, row: Row<TData>) {
-    console.log("I was hit", rowClick);
     if (!rowClick) return;
 
     if (!e.defaultPrevented && !isClickInsideExcludedElement(e)) {
