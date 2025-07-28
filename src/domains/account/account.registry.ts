@@ -143,7 +143,7 @@ export async function getFinancialStatementById(
   return accountMetaCache!.financialStatementsById.get(id.toString());
 }
 
-export async function getFullAccountClassificationMetadata(): Promise<AccountMetaCache> {
+export async function getFullAccountMeta(): Promise<AccountMetaCache> {
   await ensureAccountMetaLoaded();
   return accountMetaCache!;
 }

@@ -46,7 +46,14 @@ export const dateOrStringOptional = dateFromStringOrDate.optional();
 export const dateOrStringNullable = dateFromStringOrDate.nullable();
 export const dateOrStringNullish = dateFromStringOrDate.nullish();
 
-
 export function escapeRegExp(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
 }

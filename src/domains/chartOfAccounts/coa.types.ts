@@ -13,17 +13,17 @@ export const newCoaInput = z.object({
   code: z.string().max(256).nullish(),
   description: z.string().max(512).nullish(),
   locked: z.boolean().default(false).nullish(),
-  source: coaSource.nullish(),
+  source: coaSource.default("user").nullish(),
 
-  account_type_key: z.string().max(256).nullish(),
-  account_type_label: z.string().uuid().nullish(),
+  account_type_key: z.string().max(256),
+  // account_type_label: z.string().uuid().nullish(),
 
-  account_type_id: z.string().uuid().optional(),
-  company_id: z.string().uuid().optional(),
-  created_by_id: z.string().uuid().optional(),
+  // account_type_id: z.string().uuid().optional(),
+  // company_id: z.string().uuid().optional(),
+  // created_by_id: z.string().uuid().optional(),
 });
 
-export const newCoa = newCoaInput.extend({
+export const newCoa = newCoaInput.omit({ account_type_key: true }).extend({
   account_type_id: z.string().uuid(),
   currency_id: z.string().uuid(),
   company_id: z.string().uuid(),

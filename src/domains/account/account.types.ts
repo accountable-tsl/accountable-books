@@ -23,6 +23,11 @@ export const accountElementDto = z.object({
 });
 export type AccountElementDTO = z.infer<typeof accountElementDto>;
 
+export const parentAccountElementDto = accountElementDto.extend({
+  parentElementKey: z.null().optional(),
+});
+export type ParentAccountElementDTO = z.infer<typeof parentAccountElementDto>;
+
 export const financialStatementDto = z.object({
   id: z.string().optional(),
   key: z.string(),
@@ -34,6 +39,32 @@ export type FinancialStatementDTO = z.infer<typeof financialStatementDto>;
 
 export type AccountClassificationMetadata = {
   accountTypes: AccountTypeDTO[];
+  enrichedAccountTypes: EnrichedAccountType[];
   accountElements: AccountElementDTO[];
+  parentAccountElements: ParentAccountElementDTO[];
   financialStatements: FinancialStatementDTO[];
 };
+
+export interface EnrichedAccountType {
+  key: string;
+  label: string;
+
+  elementKey: string;
+  elementLabel: string;
+
+  parentElementKey: string;
+  parentElementLabel: string;
+
+  defaultSide: DebitCredit;
+
+  financialStatementKey: string;
+  financialStatementLabel: string;
+
+  reportCode: string | null;
+  elementReportCode: string | null;
+  parentElementReportCode: string | null;
+
+  _rawElement?: AccountElementDTO;
+  _rawParent?: ParentAccountElementDTO;
+  _rawFinancialStatement?: FinancialStatementDTO;
+}
