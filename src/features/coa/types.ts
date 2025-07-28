@@ -44,7 +44,6 @@ export type CoaResponse = {
   ifrsFsLabel: string;
 
   isActive: boolean;
-  isArchived: boolean;
   isDeleted: boolean;
   isLocked: boolean;
   hasTransactions: boolean;

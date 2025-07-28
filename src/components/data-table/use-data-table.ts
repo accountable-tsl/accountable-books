@@ -28,12 +28,9 @@ import { isInternalUrl } from "./utils/table";
 import { useNavigate } from "react-router-dom";
 
 /**
- * Initializes a TanStack Table instance with memoized data.
- *
- * NOTE: When virtualization is enabled, pagination and sorting are disabled.
- * - Pagination: Virtualized tables should not use paginated data, as the virtualizer expects the full dataset.
- * - Sorting: Sorting is disabled for virtualized tables because sorting only the visible rows breaks user expectations.
- *   To support sorting, you must sort the entire dataset before passing it to the table/virtualizer.
+ * TODO: Initializing column filters at table start
+ * TODO: and toggling reset button on start
+ * e.g Show only active coa accounts by default and don't show reset button at start because of that filter
  */
 export function useDataTable<TData>({
   customOptions,
@@ -81,6 +78,10 @@ export function useDataTable<TData>({
       }
     : undefined;
 
+  const uniqueRowIdentifierKey = customOptions?.uniqueRowIdentifierKey ?? "id";
+  const uniqueRowId = (row: Row<TData>) =>
+    (row.original as any)[uniqueRowIdentifierKey];
+
   /**
    * Important: TanStack requires a stable data reference.
    * Otherwise, internal row model caching breaks and can cause re-renders or bugs.
@@ -89,7 +90,16 @@ export function useDataTable<TData>({
 
   const [internalRowSelection, setInternalRowSelection] =
     useState<RowSelectionState>({});
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  // const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [internalColumnFilters, setInternalColumnFilters] =
+    useState<ColumnFiltersState>([]);
+
+  const controlledColumnFilters = tableOptions.state?.columnFilters;
+  const controlledSetColumnFilters = tableOptions.onColumnFiltersChange;
+
+  const columnFilters = controlledColumnFilters ?? internalColumnFilters;
+  const setColumnFilters =
+    controlledSetColumnFilters ?? setInternalColumnFilters;
 
   // State for global search column configuration
   const [globalSearchColumnIds, setGlobalSearchColumnIds] = useState<string[]>(
@@ -146,7 +156,8 @@ export function useDataTable<TData>({
     initialColumnVisibility
   );
 
-  const [viewedRow, setViewedRow] = useState<Row<TData> | null>(null);
+  const [viewedRowId, setViewedRowId] = useState<string | null>(null);
+
   const handleRowClick = useCallback(
     (row: Row<TData>) => {
       const rcb = rowClickBehavior;
@@ -154,7 +165,7 @@ export function useDataTable<TData>({
 
       switch (rcb.mode) {
         case "view":
-          setViewedRow(row);
+          setViewedRowId(uniqueRowId(row));
           break;
         case "redirect":
           const url = rcb.onClick(row);
@@ -175,7 +186,7 @@ export function useDataTable<TData>({
     [rowClickBehavior]
   );
 
-  const closeRowView = useCallback(() => setViewedRow(null), []);
+  const closeRowView = useCallback(() => setViewedRowId(null), []);
 
   const columnVisibility =
     controlledColumnVisibility ?? internalColumnVisibility;
@@ -247,8 +258,18 @@ export function useDataTable<TData>({
       minSize: 75,
       enableSorting: false,
       enableColumnFilter: false,
+      filterFn: "weakEquals",
     },
   });
+
+  const viewedRow = useMemo(() => {
+    if (!viewedRowId) return null;
+    return (
+      reactTable
+        .getRowModel()
+        .rows.find((row) => uniqueRowId(row) === viewedRowId) || null
+    );
+  }, [viewedRowId, stableData]);
 
   const options: DataTableExtras = {
     ...customOptions,

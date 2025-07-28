@@ -3,11 +3,10 @@ import {
   ActionSummary,
   AnalyzeSelectionResponse,
   CoaResponse,
-  EditCoaRequest,
   QuickFilterOptions,
 } from "@/features/coa/types";
 
-export const parentAccountElements = [
+export const hardcodedParentAccountElements = [
   { label: "All", value: "all" },
   { label: "Assets", value: "assets" },
   { label: "Liabilities", value: "liabilities" },
@@ -28,18 +27,30 @@ export function getAccountElementOptions(
     | { getFacetedUniqueValues: () => Map<string, number> }
     | undefined
 ): QuickFilterOptions[] {
-  if (!parentElementColumn) return parentAccountElements;
+  if (!parentElementColumn) return hardcodedParentAccountElements;
 
   const faceted = parentElementColumn.getFacetedUniqueValues();
   const rawEntries = Array.from(faceted.entries());
 
   const totalCount = rawEntries.reduce((acc, [, count]) => acc + count, 0);
 
-  const dynamicOptions = rawEntries.map(([key, count]) => ({
-    value: key,
-    label: toTitleCase(key),
-    count,
-  }));
+  // const dynamicOptions = rawEntries.map(([key, count]) => ({
+  //   value: key,
+  //   label: toTitleCase(key),
+  //   count,
+  // }));
+
+  const dynamicOptions = hardcodedParentAccountElements
+    .filter((i) => i.value !== "all")
+    .map((item) => {
+      const count = rawEntries.find((entry) => entry[0] === item.value)?.[1];
+      return {
+        ...item,
+        value: item.value,
+        label: toTitleCase(item.label),
+        count: count ?? 0,
+      };
+    });
 
   const allOption = {
     value: "all",
@@ -75,7 +86,7 @@ export function analyzeSelectedAccounts(
 
   for (const acc of accounts) {
     if (acc.isLocked) summary.locked++;
-    if (acc.isArchived) summary.archived++;
+    if (!acc.isActive) summary.archived++;
     if (acc.isDeleted) summary.deleted++;
     if (!acc.canDelete || acc.hasTransactions) summary.undeletable++;
   }

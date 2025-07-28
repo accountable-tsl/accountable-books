@@ -64,10 +64,10 @@ export function getCoaTableColumns(): ColumnDef<CoaResponse>[] {
     },
     {
       accessorFn: (row) => {
-        if (row.isDeleted) return "Archived";
-        return row.isActive ? "Active" : "Inactive";
+        return row.isActive ? "active" : "inactive";
       },
       id: "status",
+      accessorKey: "status",
       header: () => {
         return <div className="text-center">Status</div>;
       },
@@ -77,12 +77,27 @@ export function getCoaTableColumns(): ColumnDef<CoaResponse>[] {
       enableColumnFilter: true,
       meta: {
         label: "Status",
-        variant: "multiSelect",
+        variant: "select",
         options: [
-          { label: "Active", value: "Active" },
-          { label: "Inactive", value: "Inactive" },
-          { label: "Archived", value: "Archived" },
+          { label: "Active", value: "active" },
+          { label: "Inactive", value: "inactive" },
         ],
+      },
+      cell: (props) => {
+        const active = props.getValue() === "inactive" ? "Inactive" : "Active";
+
+        return (
+          <div className="flex items-center justify-center">
+            <Badge
+              className={cn(
+                "rounded-lg",
+                active === "Inactive" ? "opacity-50" : ""
+              )}
+            >
+              {active}
+            </Badge>
+          </div>
+        );
       },
     },
     { id: "description", accessorKey: "description", header: "Description" },

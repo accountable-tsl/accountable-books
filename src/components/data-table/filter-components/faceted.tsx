@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { Option } from "@/components/data-table/data-table";
+import { Option } from "@/components/data-table/types/data-table";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -38,9 +38,16 @@ export function DataTableFacetedFilter<TData, TValue>({
   const [open, setOpen] = React.useState(false);
 
   const columnFilterValue = column?.getFilterValue();
-  const selectedValues = new Set(
-    Array.isArray(columnFilterValue) ? columnFilterValue : []
-  );
+
+  // const selectedValues = new Set(
+  //   Array.isArray(columnFilterValue) ? columnFilterValue : []
+  // );
+  const selectedValues = React.useMemo(() => {
+    if (columnFilterValue == null) return new Set();
+    return new Set(
+      Array.isArray(columnFilterValue) ? columnFilterValue : [columnFilterValue]
+    );
+  }, [columnFilterValue]);
 
   const onItemSelect = React.useCallback(
     (option: Option, isSelected: boolean) => {

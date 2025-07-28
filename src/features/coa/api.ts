@@ -40,7 +40,8 @@ export const archiveCoa = async (
   companyId: string,
   accountIds: string[]
 ): Promise<ApiResponse<CoaUpdateResponse>> => {
-  const response = await api.patch(`/api/${companyId}/coa/archive`, accountIds);
+  const data = accountIds.map((id) => ({ id }));
+  const response = await api.patch(`/api/${companyId}/coa/archive`, data);
   return response.data;
 };
 
@@ -49,10 +50,9 @@ export const unarchiveCoa = async (
   companyId: string,
   accountIds: string[]
 ): Promise<ApiResponse<CoaUpdateResponse>> => {
-  const response = await api.patch(
-    `/api/${companyId}/coa/unarchive`,
-    accountIds
-  );
+  const data = accountIds.map((id) => ({ id }));
+
+  const response = await api.patch(`/api/${companyId}/coa/unarchive`, data);
   return response.data;
 };
 
@@ -61,8 +61,10 @@ export const deleteCoa = async (
   companyId: string,
   accountIds: string[]
 ): Promise<ApiResponse<CoaUpdateResponse>> => {
+  const data = accountIds.map((id) => ({ id }));
+
   const response = await api.delete(`/api/${companyId}/coa`, {
-    data: accountIds,
+    data,
   });
   return response.data;
 };

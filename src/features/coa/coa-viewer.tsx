@@ -1,5 +1,4 @@
 import { Row } from "@tanstack/react-table";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -10,9 +9,7 @@ import {
   editCoaRequest,
   EditCoaRequest,
 } from "@/features/coa/types";
-// import { updateAccountInput, UpdateAccountInput, CoaResponse } from "./types";
-// import { useUpdateAccountMutation } from "./hooks";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Archive,
   ArrowLeft,
@@ -21,12 +18,18 @@ import {
   CheckCircle2,
   Coins,
   Group,
+  Info,
   Lock,
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
-import { useEditCoa } from "@/features/coa/hooks";
+import {
+  useArchiveCoa,
+  useDeleteCoa,
+  useEditCoa,
+  useUnarchiveCoa,
+} from "@/features/coa/hooks";
 import { getChangedFields } from "./utils";
 import { FormField } from "@/components/FormField";
 import { Input } from "@/components/ui/input";
@@ -34,6 +37,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
 import { useAccountMeta } from "@/domains/account-classification/hooks";
 import { CenteredLoader } from "@/components/CenteredLoader";
+
+// Constants
+const STYLES = {
+  wrapper:
+    "w-full max-w-2xl mx-auto min-h-0 overflow-y-auto scrollbar-thin-2px",
+  titleSection: "flex justify-between items-center border-b pl-4 pr-6 py-4",
+  sectionClass: "p-4 space-y-2",
+  sectionTitleClass:
+    "text-[10px] font-medium text-muted-foreground tracking-wider uppercase",
+  sectionGridClass: "grid grid-cols-2 gap-x-4 gap-y-6 w-full",
+  itemTitleClass: "text-xs text-muted-foreground pb-[2px] truncate",
+} as const;
+
+const ACCOUNT_TYPE_BLACKLIST = ["ca_bank"] as const;
+type BlacklistedType = (typeof ACCOUNT_TYPE_BLACKLIST)[number];
 
 interface CoaViewerProps {
   row?: Row<CoaResponse> | undefined;
@@ -47,13 +65,15 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
   onClose,
 }) => {
   const [editMode, setEditMode] = useState(false);
-
   const is1024 = useMediaQuery("(max-width: 1024px)");
-  const editCoaMutation = useEditCoa();
-  //   const archiveCoaMutation = useArchiveCoa();
-  //   const unarchiveCoaMutation = useUnarchiveCoa();
-  //   const deleteCoaMutation = useDeleteCoa();
 
+  // Mutations
+  const editCoaMutation = useEditCoa();
+  const archiveCoaMutation = useArchiveCoa();
+  const unarchiveCoaMutation = useUnarchiveCoa();
+  const deleteCoaMutation = useDeleteCoa();
+
+  // Data
   const { data, isLoading } = useAccountMeta();
   const accountTypes = data?.enrichedAccountTypes || [];
 
@@ -67,14 +87,40 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
 
   const account = row.original;
 
-  const defaultAccountValues = {
-    id: account.id,
-    name: account.name,
-    description: account.description || "",
-    code: account.code || "",
-    accountTypeKey: account.accountTypeKey,
-  };
+  // Memoized Values
+  const defaultAccountValues = useMemo(
+    () => ({
+      id: account.id,
+      name: account.name,
+      description: account.description || "",
+      code: account.code || "",
+      accountTypeKey: account.accountTypeKey,
+    }),
+    [account]
+  );
 
+  const canDelete = useMemo(
+    () =>
+      !account.isLocked &&
+      !ACCOUNT_TYPE_BLACKLIST.includes(
+        account.accountTypeKey.toLowerCase() as BlacklistedType
+      ) &&
+      account.canDelete &&
+      !account.hasTransactions,
+    [account]
+  );
+
+  const canArchive = useMemo(
+    () =>
+      !ACCOUNT_TYPE_BLACKLIST.includes(
+        account.accountTypeKey.toLowerCase() as BlacklistedType
+      ) &&
+      !account.isLocked &&
+      account.isActive,
+    [account]
+  );
+
+  // Form setup
   const {
     register,
     handleSubmit,
@@ -92,74 +138,52 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
     return accountTypes.find((type) => type.key === currentAccountTypeKey);
   }, [currentAccountTypeKey, accountTypes]);
 
-  // const updateMutation = useUpdateAccountMutation(companyId);
-
-  // const onSubmit = async (data: UpdateAccountInput) => {
-  //   try {
-  //     const res = await updateMutation.mutateAsync({
-  //       accountId: account.id,
-  //       data,
-  //     });
-  //     if (res.success) {
-  //       toast.success("Account updated successfully");
-  //       setEditMode(false);
-  //       onClose();
-  //     } else {
-  //       toast.error(res.message || "Failed to update account");
-  //     }
-  //   } catch (err: any) {
-  //     toast.error(err?.message || "Failed to update account");
-  //   }
-  // };
-
-  const onEditToggle = () => {
+  // Event handlers
+  const onEditToggle = useCallback(() => {
     setEditMode(!editMode);
     reset(defaultAccountValues);
-  };
-  const handleEditSubmit = (data: EditCoaRequest) => {
-    const changedFields = getChangedFields(data, dirtyFields);
-    const updates = { ...changedFields, id: data.id || account.id };
-    editCoaMutation.mutate({
-      companyId,
-      data: updates,
-    });
-  };
+  }, [editMode, reset, defaultAccountValues]);
 
-  const handleArchive = () => {
-    // setEditMode(true);
-    // reset({
-    //   name: account.name,
-    //   description: account.description || "",
-    //   code: account.code || "",
-    //   type: account.accountTypeKey,
-    //   //   type: account.accountTypeId,
-    // });
-  };
+  const handleEditSubmit = useCallback(
+    (data: EditCoaRequest) => {
+      const changedFields = getChangedFields(data, dirtyFields);
+      const updates = { ...changedFields, id: data.id || account.id };
 
-  const wrapper =
-    "w-full max-w-2xl mx-auto min-h-0 overflow-y-auto scrollbar-thin-2px";
-  const titleSection =
-    "flex justify-between items-center border-b pl-4 pr-6 py-4";
-  const sectionClass = "p-4 space-y-2";
-  const sectionTitleClass =
-    "text-[10px] font-medium text-muted-foreground tracking-wider uppercase";
-  const sectionGridClass = "grid grid-cols-2 gap-x-4 gap-y-6 w-full";
-  const itemTitleClass = "text-xs text-muted-foreground pb-[2px] truncate";
+      editCoaMutation.mutate(
+        { companyId, data: updates },
+        { onSuccess: onClose }
+      );
+    },
+    [dirtyFields, account.id, editCoaMutation, companyId, onClose]
+  );
 
-  const canDelete =
-    !account.isLocked &&
-    account.accountTypeKey.toLowerCase() !== "ca_bank" &&
-    account.canDelete &&
-    !account.hasTransactions;
+  const handleArchive = useCallback(() => {
+    archiveCoaMutation.mutate({ companyId, accountIds: [account.id] });
+  }, [archiveCoaMutation, companyId, account.id]);
 
-  const canArchive =
-    account.accountTypeKey.toLowerCase() !== "ca_bank" &&
-    !account.isArchived &&
-    !account.isLocked;
+  const restoreArchived = useCallback(() => {
+    unarchiveCoaMutation.mutate({ companyId, accountIds: [account.id] });
+  }, [unarchiveCoaMutation, companyId, account.id]);
+
+  const handleDelete = useCallback(() => {
+    deleteCoaMutation.mutate(
+      { companyId, accountIds: [account.id] },
+      { onSuccess: onClose }
+    );
+  }, [deleteCoaMutation, companyId, account.id, onClose]);
 
   if (isLoading) {
     return <CenteredLoader />;
   }
+
+  const {
+    wrapper,
+    titleSection,
+    sectionClass,
+    sectionTitleClass,
+    sectionGridClass,
+    itemTitleClass,
+  } = STYLES;
 
   if (editMode) {
     return (
@@ -313,16 +337,12 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
 
   if (!editMode) {
     return (
-      <div className={wrapper}>
+      <div className={cn(wrapper)}>
         <div className={titleSection}>
           <div>Account Details</div>
           <div className="flex gap-2">
-            {account.isArchived ? (
-              <Button
-                // onClick={handleUnarchive}
-                // disabled={account.isLocked}
-                size="sm"
-              >
+            {!account.isActive ? (
+              <Button onClick={restoreArchived} size="sm">
                 Restore
               </Button>
             ) : (
@@ -340,7 +360,18 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
           </div>
         </div>
 
-        <div className={cn("py-6 text-sm", is1024 ? "py-4" : "")}>
+        {!account.isActive && (
+          <div className="text-yellow-600 text-sm flex items-center gap-1 pt-4 px-4">
+            <Info className="w-4 h-4" /> This account is archived or inactive
+          </div>
+        )}
+        <div
+          className={cn(
+            "py-6 text-sm",
+            is1024 ? "py-4" : "",
+            !account.isActive ? "opacity-50 pt-2" : ""
+          )}
+        >
           {/* Basic Info */}
           <div className={sectionClass}>
             <h3 className={sectionTitleClass}>Basic Info</h3>
@@ -446,15 +477,15 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
                 </Badge>
               )}
 
-              {account.isLocked && (
-                <Badge variant="destructive">
-                  <Lock className="w-4 h-4 mr-1" /> Locked
+              {!account.isActive && (
+                <Badge variant="outline">
+                  <Archive className="w-4 h-4 mr-1" /> Archived
                 </Badge>
               )}
 
-              {account.isArchived && (
-                <Badge variant="outline">
-                  <Archive className="w-4 h-4 mr-1" /> Archived
+              {account.isLocked && (
+                <Badge variant="destructive">
+                  <Lock className="w-4 h-4 mr-1" /> Locked
                 </Badge>
               )}
             </div>
@@ -474,6 +505,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
                     <Button
                       className="flex items-center gap-1"
                       variant="outline"
+                      onClick={handleArchive}
                     >
                       <Archive className="w-4 h-4" />
                       <span className="">Archive</span>
@@ -483,6 +515,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
                     <Button
                       className="flex items-center gap-1"
                       variant="destructive"
+                      onClick={handleDelete}
                     >
                       <Trash2 className="w-4 h-4" />
                       <span className="">Delete Account</span>

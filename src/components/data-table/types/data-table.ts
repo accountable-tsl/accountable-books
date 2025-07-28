@@ -105,6 +105,7 @@ export interface BaseDataTableOptions<TData> {
 }
 export type DataTableInputOptions<TData = any> = BaseDataTableOptions<TData> & {
   rowClick?: RowClickBehavior<TData>;
+  uniqueRowIdentifierKey?: string;
 };
 
 export type DataTableExtras<TData = any> = BaseDataTableOptions<TData> & {

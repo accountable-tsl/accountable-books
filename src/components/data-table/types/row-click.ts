@@ -42,6 +42,7 @@ export type RowClickBehavior<TData> =
 
 interface RowClickExtras<TData> {
   viewedRow?: Row<TData> | null;
+  // viewedRowId?: string | null;
   closeRowView?: () => void;
   handleRowClick?: (row: Row<TData>) => void;
 }
