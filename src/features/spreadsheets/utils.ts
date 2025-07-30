@@ -495,3 +495,43 @@ export const getDisplayFields = ({
     );
   });
 };
+
+type FieldValidationError = {
+  field: string;
+  message: string;
+};
+
+type RowValidationResult = {
+  isValid: boolean;
+  errors: FieldValidationError[];
+};
+
+export function validateRow(
+  row: Record<string, any>,
+  fields: SpreadsheetImporterField[]
+): RowValidationResult {
+  const errors: FieldValidationError[] = [];
+
+  for (const field of fields) {
+    const key = field.value;
+
+    if (
+      field.required &&
+      (row[key] === null ||
+        row[key] === undefined ||
+        row[key]?.toString().trim() === "")
+    ) {
+      errors.push({
+        field: key,
+        message: `${field.label} is required.`,
+      });
+    }
+
+    // You can add more validation rules per field here (e.g., regex, enum, number checks)
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}

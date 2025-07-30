@@ -1,12 +1,15 @@
 import React from "react";
-import { DataTableProps } from "@/components/data-table/types";
+import { CustomTable } from "@/components/data-table/types/data-table";
 import { TableBody, TableRow, TableCell } from "@/components/CustomTable";
-import { flexRender } from "@tanstack/react-table";
+import { Cell, flexRender, Row } from "@tanstack/react-table";
 import { getColumnStyle } from "./utils/column-sizing";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { isClickInsideExcludedElement } from "@/components/data-table/utils/table";
+import { RowViewer } from "@/components/data-table/row-view/row-viewer";
+import { RowViewerProps } from "@/components/data-table/types/row-click";
 
 interface DataTableBodyProps<TData> {
-  table: DataTableProps<TData>["table"];
+  table: CustomTable<TData>;
 }
 export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -19,7 +22,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   );
 
   const enableVirtual = virtualization?.enabled ?? false;
-  const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 35;
+  const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 60;
   const overscan = virtualization?.overscan ?? 5;
 
   const virtualizer = useVirtualizer<HTMLDivElement, Element>({
@@ -45,11 +48,36 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   //   }
   // }, [table.getState().sorting, virtualizer, enableVirtual]);
 
-  const virtualItems = scrollRef.current ? virtualizer.getVirtualItems() : [];
+  const virtualItems =
+    enableVirtual && scrollRef.current ? virtualizer.getVirtualItems() : [];
 
-  const renderRow = (row: any) => {
+  const rowClick = table.customOptions?.rowClick;
+  const rowClickEnabled = !!rowClick || false;
+  const viewedRow = rowClick?.viewedRow;
+  const shouldShowViewer = rowClick?.mode === "view" && !!viewedRow;
+
+  const rowViewerInfo: RowViewerProps<TData> | undefined =
+    rowClick?.mode === "view" && viewedRow
+      ? {
+          mode: "view",
+          wrapper: rowClick?.wrapper || "sheet",
+          render: rowClick.render,
+          viewedRow,
+          closeRowView: rowClick.closeRowView,
+        }
+      : undefined;
+
+  function onRowClick(e: React.MouseEvent, row: Row<TData>) {
+    if (!rowClick) return;
+
+    if (!e.defaultPrevented && !isClickInsideExcludedElement(e)) {
+      rowClick.handleRowClick?.(row);
+    }
+  }
+
+  const renderRow = (row: Row<TData>) => {
     // Use stable row key based on original data rather than sorted position
-    const stableRowKey = row.original?.id || row.id;
+    const stableRowKey = row.id;
     return (
       <TableRow
         key={stableRowKey}
@@ -61,8 +89,10 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
         }}
         data-state={row.getIsSelected() ? "selected" : ""}
         className={tableBodyRow}
+        onClick={(e) => onRowClick(e, row)}
+        style={{ cursor: rowClickEnabled ? "pointer" : "default" }}
       >
-        {row.getVisibleCells().map((cell: any) => {
+        {row.getVisibleCells().map((cell: Cell<TData, unknown>) => {
           const hasCheckbox =
             cell.getValue() === "checkbox" || cell.column.id === "select";
 
@@ -115,15 +145,23 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   }
 
   return (
-    <TableBody className={tableBody}>
-      {rows?.length ? (
-        rows.map((row) => renderRow(row))
-      ) : (
-        <TableRow className={tableBodyRow}>
-          <TableCell className="h-24 text-center">No results.</TableCell>
-        </TableRow>
+    <>
+      <TableBody className={tableBody}>
+        {rows?.length ? (
+          rows.map((row) => renderRow(row))
+        ) : (
+          <TableRow className={tableBodyRow}>
+            <TableCell className="min-h-24 w-full flex items-center justify-center">
+              No results.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+
+      {shouldShowViewer && rowViewerInfo && (
+        <RowViewer rowViewerInfo={rowViewerInfo} />
       )}
-    </TableBody>
+    </>
   );
 }
 

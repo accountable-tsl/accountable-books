@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataTableProps } from "@/components/data-table/types";
+import { DataTableProps } from "@/components/data-table/types/data-table";
 import { getPageSizeOptions } from "@/components/data-table/utils/pagination-utils";
 import { useCallback, useMemo } from "react";
 
@@ -88,8 +88,7 @@ export function DataTablePagination<TData>({
           </Select>
         </div>
         <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-          Page {table.getState().pagination.pageIndex + 1} of{" "}
-          {pageCount}
+          Page {table.getState().pagination.pageIndex + 1} of {pageCount}
         </div>
         <div className="flex items-center space-x-2">
           <Button

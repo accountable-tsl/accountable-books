@@ -1,4 +1,4 @@
-import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { OnboardingHeader } from "@/features/onboarding/shared/Header";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";

@@ -24,7 +24,13 @@ export function useMediaQuery(query: string) {
 
     media.addEventListener("change", listener);
     return () => media.removeEventListener("change", listener);
-  }, [query, matches]);
+  }, [query]);
 
   return matches;
+}
+
+const MOBILE_BREAKPOINT = 768;
+
+export function useIsMobile() {
+  return useMediaQuery(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
 }

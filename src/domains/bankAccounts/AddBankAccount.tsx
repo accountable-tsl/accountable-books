@@ -4,7 +4,7 @@ import { AutocompleteDropdown } from "../../components/AutocompleteDropdown";
 import { useCurrencies } from "@/shared/hooks/useCurrencies";
 import { useCountries } from "@/shared/hooks/useCountries";
 import ErrorPage from "../../components/ErrorPage";
-import { getDefaultCountryAndCurrency } from "@/shared/utils/randomUtils";
+import { getDefaultCountryAndCurrency } from "@/shared/utils/random-utils";
 import { companyType, Country } from "@/shared/types/core";
 import { useCompany } from "@/domains/company/store";
 import { Controller, useForm } from "react-hook-form";
@@ -17,7 +17,7 @@ import {
 } from "@/domains/bankAccounts/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
-import { toTitleCase } from "@/shared/utils/formattingUtils";
+import { toTitleCase } from "@/shared/utils/formatting-utils";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -153,7 +153,7 @@ export default function AddBankAccount({
 
   if (createdAccount) {
     return (
-      <div className="flex flex-col gap-4 p-4 max-w-md justify-between">
+      <div className="flex flex-col gap-4 p-4 max-w-md justify-between mx-auto">
         <div className="text-green-600 flex flex-col items-center justify-center">
           <CircleCheck size={50} />
           <span className="text-lg font-semibold">🎉 Bank Account Added!</span>
@@ -190,7 +190,7 @@ export default function AddBankAccount({
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 max-w-md">
+    <div className="flex flex-col gap-4 py-4 max-w-md mx-auto w-full">
       <div className="text-lg font-semibold">Add Bank Account</div>
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
         <div className="flex w-full gap-2">

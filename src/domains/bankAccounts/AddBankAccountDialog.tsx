@@ -1,15 +1,17 @@
-import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { AddBankAccountDialogProps } from "./types";
 import AddBankAccount from "@/domains/bankAccounts/AddBankAccount";
 import {
   Drawer,
   DrawerContent,
+  DrawerDescription,
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -28,9 +30,15 @@ export function AddBankAccountDialog({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent>
+        <DrawerContent
+          overlayClassName={overlayClassName}
+          className="sm:max-w-md max-w-md"
+        >
           <DrawerHeader className={showHeader ? "" : "sr-only"}>
             <DrawerTitle>Add Bank Account</DrawerTitle>
+            <DrawerDescription className="text-muted-foreground text-sm">
+              Add a new bank account
+            </DrawerDescription>
           </DrawerHeader>
           <AddBankAccount onSuccess={handleSuccess} onCancel={onCancel} />
         </DrawerContent>
@@ -43,6 +51,9 @@ export function AddBankAccountDialog({
       <DialogContent overlayClassName={overlayClassName}>
         <DialogHeader className={showHeader ? "" : "sr-only"}>
           <DialogTitle>Add Bank Account</DialogTitle>
+          <DialogDescription className="text-muted-foreground text-sm">
+            Add a new bank account
+          </DialogDescription>
         </DialogHeader>
         <AddBankAccount onSuccess={handleSuccess} onCancel={onCancel} />
       </DialogContent>

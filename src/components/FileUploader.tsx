@@ -245,7 +245,7 @@ export function FileUploader(props: FileUploaderProps) {
   return (
     <div
       className={cn(
-        "relative flex flex-col h-full gap-6 justify-center",
+        "relative flex flex-col h-full gap-6 justify-center min-w-0",
         className ?? ""
       )}
     >
@@ -315,35 +315,40 @@ export function FileUploader(props: FileUploaderProps) {
         )}
       </Dropzone>
       {showFileCard && files?.length ? (
-        <ScrollArea className="h-fit w-full">
-          <div
-            className={cn("flex flex-col gap-4", fileCardContainerClassName)}
-          >
-            {files?.map((file, index) =>
-              customFileCard ? (
-                <React.Fragment key={`${file.name}-${file.size}-${index}`}>
-                  {customFileCard(
-                    file,
-                    index,
-                    () => onRemove(index),
-                    progresses?.[file.name]
-                  )}
-                </React.Fragment>
-              ) : (
-                <FileCard
-                  key={`${file.name}-${file.size}-${index}`}
-                  file={file}
-                  onRemove={() => onRemove(index)}
-                  progress={progresses?.[file.name]}
-                  className={fileCardClassName}
-                  contentClassName={fileCardContentClassName}
-                >
-                  {props.fileCardExtra?.(file, index)}
-                </FileCard>
-              )
-            )}
-          </div>
-        </ScrollArea>
+        <div
+          className={cn(
+            "flex flex-col gap-4 min-w-0 min-h-0 h-full w-full border border-t-0 rounded-b-md",
+            "overflow-y-auto",
+            fileCardContainerClassName
+          )}
+        >
+          {files?.map((file, index) =>
+            customFileCard ? (
+              <React.Fragment key={`${file.name}-${file.size}-${index}`}>
+                {customFileCard(
+                  file,
+                  index,
+                  () => onRemove(index),
+                  progresses?.[file.name]
+                )}
+              </React.Fragment>
+            ) : (
+              <FileCard
+                key={`${file.name}-${file.size}-${index}`}
+                file={file}
+                onRemove={() => onRemove(index)}
+                progress={progresses?.[file.name]}
+                className={fileCardClassName}
+                contentClassName={cn(
+                  fileCardContentClassName,
+                  "min-w-0 w-full"
+                )}
+              >
+                {props.fileCardExtra?.(file, index)}
+              </FileCard>
+            )
+          )}
+        </div>
       ) : null}
       {footer}
     </div>
@@ -393,8 +398,10 @@ function FileCard({
     };
   }, [file]);
   return (
-    <Card className={cn("rounded-md py-4", className ?? "")}>
-      <CardContent className={cn("relative px-4", contentClassName ?? "")}>
+    <div className={cn("rounded-md py-4", className ?? "")}>
+      <div
+        className={cn("relative px-4 min-w-0 w-full", contentClassName ?? "")}
+      >
         <div className="relative flex items-center gap-2.5">
           <div className="flex flex-1 gap-2.5">
             {isFileWithPreview(file) ? <FilePreview file={file} /> : null}
@@ -440,8 +447,8 @@ function FileCard({
             {children}
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

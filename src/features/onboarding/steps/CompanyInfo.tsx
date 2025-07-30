@@ -30,7 +30,7 @@ import {
 import { deleteObject, uploadObject } from "@/domains/objects/api";
 import { ImageUploader } from "@/domains/objects/ImageUploader";
 import { TOOLTIP } from "@/features/signup/signupConstants";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { useCountries } from "@/shared/hooks/useCountries";
 import { useCurrencies } from "@/shared/hooks/useCurrencies";
 import { useIndustries } from "@/shared/hooks/useIndustries";

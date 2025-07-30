@@ -1,15 +1,8 @@
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-} from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "./styles/App.scss";
 import { PopupProvider, usePopup } from "./contexts/PopupContext";
 import Popup from "./components/Popup/Popup";
 import ThemeProvider from "./theme/themeProvider";
-import { AnimatePresence, motion } from "framer-motion";
 import Signup from "@/features/signup/Signup";
 import AppLayout from "@/layouts/AppLayout";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -30,9 +23,8 @@ import {
   RootRedirector,
 } from "./features/auth/Access";
 import BlankLayout from "./layouts/BlankLayout";
-import { ChartOfAccounts } from "./features/chart-of-accounts/ChartOfAccounts";
 import { AccountingWorkspaceSetup } from "./features/accounting-setup/AccountingSetup";
-import { Table } from "./components/data-table";
+import { Table } from "@/components/data-table/fake";
 
 function App() {
   return (
