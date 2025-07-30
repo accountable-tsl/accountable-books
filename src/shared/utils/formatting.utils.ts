@@ -128,3 +128,85 @@ export type SnakeToCamelCaseObject<T> = {
 export function createCamelCaseSchema<T extends z.ZodTypeAny>(snakeSchema: T) {
   return z.preprocess(camelToSnake, snakeSchema);
 }
+
+function isPlainObject(value: unknown): value is Record<string, any> {
+  return Object.prototype.toString.call(value) === "[object Object]";
+}
+
+interface FilterOptions {
+  deep?: boolean;
+  filterUndefined?: boolean;
+  filterEmptyStrings?: boolean;
+}
+
+/**
+ * Filters out null values from an object
+ * @param obj - The object to filter
+ * @param options - Configuration options
+ * @param options.deep - Whether to recursively filter nested objects (default: true)
+ * @param options.filterUndefined - Whether to also filter undefined values (default: false)
+ * @param options.filterEmptyStrings - Whether to also filter empty strings (default: false)
+ * @returns New object with filtered values removed
+ */
+function filterNulls<T>(obj: T, options: FilterOptions = {}): T {
+  const {
+    deep = true,
+    filterUndefined = false,
+    filterEmptyStrings = false,
+  } = options;
+
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj
+      .filter((item) => {
+        if (item === null) return false;
+        if (filterUndefined && item === undefined) return false;
+        if (filterEmptyStrings && item === "") return false;
+        return true;
+      })
+      .map((item) =>
+        deep && isPlainObject(item) ? filterNulls(item, options) : item
+      ) as T;
+  }
+
+  // Handle objects
+  if (isPlainObject(obj)) {
+    const result: any = {};
+
+    for (const key of Object.keys(obj)) {
+      const value = (obj as any)[key];
+
+      if (value === null) continue;
+      if (filterUndefined && value === undefined) continue;
+      if (filterEmptyStrings && value === "") continue;
+
+      // Recursively filter nested objects/arrays if deep option is true
+      if (deep && (Array.isArray(value) || isPlainObject(value))) {
+        result[key] = filterNulls(value, options);
+      } else {
+        result[key] = value;
+      }
+    }
+
+    return result;
+  }
+
+  // Return primitive values as-is
+  return obj;
+}
+
+// Convenience functions for common use cases
+export const removeNulls = <T>(obj: T): T => filterNulls(obj);
+
+export const removeNullsShallow = <T>(obj: T): T =>
+  filterNulls(obj, { deep: false });
+
+export const removeNullsAndUndefined = <T>(obj: T): T =>
+  filterNulls(obj, { filterUndefined: true });
+
+export const removeAllEmpty = <T>(obj: T): T =>
+  filterNulls(obj, { filterUndefined: true, filterEmptyStrings: true });

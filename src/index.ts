@@ -19,6 +19,8 @@ import bankTransactionRoutes from "./domains/bankTransactions/bankTransactions.r
 import bankFeedProvidersRoutes from "./domains/bankFeedProviders/bankFeedProviders.routes";
 import bankAccountConnectionsRoutes from "./domains/bankAccountConnections/baccons.routes";
 import usersCompaniesRolesRoutes from "./domains/userRoles/userRoles.routes";
+import coaRoutes from "./domains/chartOfAccounts/coa.routes";
+import accountRoutes from "./domains/account/account.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";
@@ -29,6 +31,7 @@ import {
   conditionalCsrf,
   verifyRefreshToken,
 } from "./features/auth/auth.middleware";
+import { loadAccountMeta } from "./domains/account/account.registry";
 
 const PORT = ENV.PORT!;
 export const BACKEND_URL = ENV.BACKEND_URL!;
@@ -69,6 +72,7 @@ async function startServer() {
   try {
     // Load critical stuff first
     await loadRoles();
+    await loadAccountMeta();
 
     app.use(cors({ origin: allowedOrigins, credentials: true }));
     app.use(express.static("./public"));
@@ -85,6 +89,7 @@ async function startServer() {
     app.use("/api/countries", countryRoutes);
     app.use("/api/email", emailRoutes);
     app.use("/api/accounting-firms/check-slug", firmRoutes);
+    app.use("/api/accounts/classification/metadata", accountRoutes);
 
     app.use("/api", verifyRefreshToken);
 
@@ -103,6 +108,8 @@ async function startServer() {
     app.use("/api/bank-feed-providers", bankFeedProvidersRoutes);
     app.use("/api/:companyId/bank-connections", bankAccountConnectionsRoutes);
     app.use("/api/:companyId", usersCompaniesRolesRoutes);
+
+    app.use("/api/:companyId/coa", coaRoutes);
 
     app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
     app.use("/admin/queues", serverAdapter.getRouter());
