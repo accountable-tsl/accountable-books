@@ -8,7 +8,6 @@ import { Contacts } from "@/features/contacts/Contacts";
 import { FinancialSettings } from "@/features/financial-settings/FinancialSettings";
 import { Projects } from "@/features/projects/Projects";
 import { cn } from "@/lib/utils";
-import { AddNewCoa } from "../coa/coa-add-new";
 
 const tabsConfig = [
   {
@@ -21,8 +20,7 @@ const tabsConfig = [
     value: "financial-settings",
     icon: Settings,
     label: { sm: "Financial Settings", xs: "Settings" },
-    // content: <FinancialSettings />,
-    content: <AddNewCoa />,
+    content: <FinancialSettings />,
   },
   {
     value: "contacts",
@@ -39,7 +37,6 @@ const tabsConfig = [
 ];
 
 export const AccountingWorkspaceSetup = () => {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(
     localStorage.getItem("accSetupTab") || "chart-of-accounts"
   );

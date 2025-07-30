@@ -37,8 +37,6 @@ import { Success } from "@/components/Success";
 import { cn } from "@/lib/utils";
 import { CoaImportCsv } from "./coa-import-csv";
 
-const TOOLTIPS = {};
-
 export function AddNewCoa({
   onSuccess,
   onCancel,
@@ -166,7 +164,7 @@ export function AddNewCoa({
     onCancel?.();
     setPage("form");
     reset();
-  }, [onCancel, reset]);
+  }, [onCancel, reset, setPage]);
 
   const mapItem = useCallback(
     (item: any) => ({
@@ -276,6 +274,7 @@ export function AddNewCoa({
                 "absolute bottom-12 left-1/2 transform -translate-x-1/2",
                 "text-sm text-muted-foreground cursor-pointer hover:underline hover:text-foreground/80"
               )}
+              onClick={() => setPage("import")}
             >
               Import CSV
             </div>
@@ -307,7 +306,7 @@ export function AddNewCoa({
               companyId={companyId}
               accountTypeByKey={accountTypeByKey}
               onSubmit={onSubmit}
-              onClose={onCancel}
+              onClose={onCancelClick}
             />
           </div>
         )}
