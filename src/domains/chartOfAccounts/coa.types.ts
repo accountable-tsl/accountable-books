@@ -10,17 +10,12 @@ export type CoaSource = z.infer<typeof coaSource>;
 export const newCoaInput = z.object({
   name: z.string().max(256),
   is_active: z.boolean().default(true).optional(),
-  code: z.string().max(256).nullish(),
+  code: z.string().nullish(),
   description: z.string().max(512).nullish(),
   locked: z.boolean().default(false).nullish(),
   source: coaSource.default("user").nullish(),
 
   account_type_key: z.string().max(256),
-  // account_type_label: z.string().uuid().nullish(),
-
-  // account_type_id: z.string().uuid().optional(),
-  // company_id: z.string().uuid().optional(),
-  // created_by_id: z.string().uuid().optional(),
 });
 
 export const newCoa = newCoaInput.omit({ account_type_key: true }).extend({
@@ -39,11 +34,12 @@ export type Coa = z.infer<typeof coa>;
 
 export type FetchCoaInput = {
   companyId: string;
-  id?: string;
-  code?: string;
+  ids?: string[];
+  codes?: string[];
   active?: boolean;
-  accountTypeKey?: string;
+  accountTypeKeys?: string[];
   trx?: Knex.Transaction;
+  includeDeleted?: boolean;
 };
 
 // Update COA schemas and types - separate schemas for each action

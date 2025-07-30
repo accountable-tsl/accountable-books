@@ -9,7 +9,6 @@ import {
   newCoa,
   NewCoa,
   newCoaInput,
-  NewCoaInput,
   NewCoaInputCamel,
   ResolvedCoaUpdateInput,
   SimpleCoaRecord,
@@ -60,7 +59,7 @@ async function invalidateCoaCache({ companyUUID }: { companyUUID: string }) {
  * @returns
  */
 
-const createNewCoa = async ({
+export const createCoa = async ({
   data,
   userId,
   companyId,
@@ -72,9 +71,10 @@ const createNewCoa = async ({
   trx?: Knex.Transaction;
 }) => {
   // Validate input
-  const validate = newCoaInput.array().safeParse(data);
+  const snakeData = camelToSnake(data);
+  const validate = newCoaInput.array().safeParse(snakeData);
   if (!validate.success)
-    return errorResponse("Invalid input", validate.error.flatten());
+    return errorResponse(`Invalid input`, validate.error?.message);
   const coaRecords = validate.data;
 
   const query = async (tx: Knex.Transaction) => {
@@ -87,7 +87,6 @@ const createNewCoa = async ({
     )
       .select("id", "reporting_currency_id as reportingCurrencyId")
       .where("short_code", companyId)
-      .orWhere("id", companyId)
       .first();
 
     if (!company || !company.id || !company.reportingCurrencyId) {
@@ -119,22 +118,22 @@ const createNewCoa = async ({
 
       recordsToInsert.push({
         name: record.name,
-        code: record.code,
         locked: record.locked,
         source: record.source,
-        description: record.description,
         created_by_id: userId,
         updated_by_id: userId,
         company_id: companyUUID,
         currency_id: reportingCurrencyId,
         account_type_id: type.id,
+        ...(record.code ? { code: record.code } : {}),
+        ...(record.description ? { description: record.description } : {}),
       });
     }
 
-    if (errors.length) {
+    if (errors.length)
       return errorResponse("Failed to create chart of accounts", errors);
-    }
 
+    // Invalidate coa cache
     await invalidateCoaCache({ companyUUID });
 
     // Batch and insert
@@ -147,145 +146,15 @@ const createNewCoa = async ({
     }
 
     return successResponse(
-      `Successfully created ${totalInserted} chart of accounts`,
-      null
+      `Successfully created ${totalInserted} account${
+        totalInserted > 1 ? "s" : ""
+      }`,
+      totalInserted
     );
   };
 
   try {
     return trx ? await query(trx) : await knexClient.transaction(query);
-  } catch (error) {
-    return errorResponse("Failed to create chart of accounts", error);
-  }
-};
-
-export const createCoa = async ({
-  companyId,
-  userId,
-  input,
-  trx,
-}: {
-  companyId: string;
-  userId: string;
-  input: NewCoaInputCamel[];
-  trx?: Knex.Transaction;
-}): Promise<ApiResponse> => {
-  const knexInstance = trx || knexClient;
-  // Validate input
-  const snakeCasedInput = camelToSnake(input);
-  const validatedInput = newCoaInput.array().safeParse(snakeCasedInput);
-
-  if (!validatedInput.success) {
-    return errorResponse(
-      "Invalid input provided",
-      validatedInput.error.flatten()
-    );
-  }
-
-  if (validatedInput.data.length === 0) {
-    return errorResponse("No data provided");
-  }
-
-  // Get actual company UUID
-  const companyUUID = await getCompanyUUID(companyId, trx);
-  if (!companyUUID) {
-    return errorResponse("Invalid company ID");
-  }
-
-  // Get company reporting currency which serves as account currency
-  const company = await knexClient("companies")
-    .select("reporting_currency_id")
-    .where("id", companyUUID)
-    .first();
-
-  if (!company || !company.reporting_currency_id) {
-    return errorResponse("Unable to retrieve reporting currency");
-  }
-
-  const typeIds = new Set<string>();
-  const typeKeys = new Set<string>();
-  const typeLabels = new Set<string>();
-
-  for (const item of validatedInput.data) {
-    if (item.account_type_id) typeIds.add(item.account_type_id);
-    if (item.account_type_key) typeKeys.add(item.account_type_key);
-    if (item.account_type_label) typeLabels.add(item.account_type_label);
-  }
-
-  // Build query dynamically to avoid empty whereIn arrays
-  let rawTypes: { id: string; key: string; label: string }[] = [];
-
-  if (typeIds.size > 0 || typeKeys.size > 0 || typeLabels.size > 0) {
-    rawTypes = await knexInstance("account_types")
-      .select("id", "key", "label")
-      .where((builder) => {
-        if (typeIds.size > 0) {
-          builder.whereIn("id", Array.from(typeIds));
-        }
-        if (typeKeys.size > 0) {
-          builder.orWhereIn("key", Array.from(typeKeys));
-        }
-        if (typeLabels.size > 0) {
-          builder.orWhereIn("label", Array.from(typeLabels));
-        }
-      });
-  }
-
-  const typeMap = new Map<string, string>();
-  for (const t of rawTypes) {
-    if (t.id) typeMap.set(t.id, t.id);
-    if (t.key) typeMap.set(t.key, t.id);
-    if (t.label) typeMap.set(t.label, t.id);
-  }
-
-  const toInsert: NewCoa[] = [];
-
-  for (const coa of validatedInput.data) {
-    let resolvedTypeId =
-      typeMap.get(coa.account_type_id || "") ||
-      typeMap.get(coa.account_type_key || "") ||
-      typeMap.get(coa.account_type_label || "");
-
-    if (!resolvedTypeId) {
-      return errorResponse(`Invalid or unknown account type for "${coa.name}"`);
-    }
-
-    const {
-      account_type_key,
-      account_type_label,
-      account_type_id,
-      ...validCoaFields
-    } = coa;
-
-    toInsert.push({
-      ...validCoaFields,
-      account_type_id: resolvedTypeId,
-      currency_id: company?.reporting_currency_id,
-      company_id: companyUUID,
-      created_by_id: userId,
-      updated_by_id: userId,
-    });
-  }
-
-  const executeWithTransaction = async (tx: Knex.Transaction) => {
-    const inserted = await tx("coa").insert(toInsert).returning("*");
-    return inserted;
-  };
-  try {
-    const insertedRecords = trx
-      ? await executeWithTransaction(trx)
-      : await knexInstance.transaction(executeWithTransaction);
-
-    if (!insertedRecords || insertedRecords.length === 0) {
-      return errorResponse("Failed to insert any chart of accounts records");
-    }
-
-    // Invalidate coa cache
-    await invalidateCoaCache({ companyUUID });
-    return successResponse(
-      "Chart of accounts created successfully",
-      insertedRecords
-    );
   } catch (error) {
     return errorResponse("Failed to create chart of accounts", error);
   }
@@ -347,17 +216,22 @@ export const createDefaultAccounts = async (
 
 export const fetchCompanyCoa = async ({
   companyId: receivedCompanyId,
-  id,
-  code,
+  ids: accountIds,
+  codes: accountCodes,
   active,
-  accountTypeKey,
+  accountTypeKeys: keys,
+  includeDeleted = false,
   trx,
 }: FetchCoaInput): Promise<ApiResponse<CoaResponse>> => {
   if (!receivedCompanyId) return errorResponse("Company ID is required");
 
-  const coaQuery = async (trx: Knex | Knex.Transaction, companyId: string) => {
+  const ids = accountIds || [];
+  const codes = accountCodes || [];
+  const accountTypeKeys = keys || [];
+
+  const coaQuery = async (tx: Knex.Transaction, companyId: string) => {
     return (
-      trx("coa")
+      tx("coa")
         .select([
           "coa.id as id",
           "coa.code as code",
@@ -393,16 +267,18 @@ export const fetchCompanyCoa = async ({
           "fs.ifrs_label as ifrsFsLabel",
 
           "c.reporting_framework as reportingFramework",
-          trx.raw(
+          tx.raw(
             `(EXISTS (SELECT 1 FROM ledger_entries WHERE coa_id = coa.id)) as "hasTransactions"`
           ),
         ])
         .where("coa.company_id", companyId)
         .modify((qb) => {
-          if (id) qb.where("coa.id", id);
-          if (code) qb.where("coa.code", code);
+          if (ids?.length) qb.whereIn("coa.id", ids);
+          if (codes?.length) qb.whereIn("coa.code", codes);
           if (active !== undefined) qb.where("coa.is_active", active);
-          if (accountTypeKey) qb.where("at.key", accountTypeKey);
+          if (accountTypeKeys?.length) qb.where("at.key", accountTypeKeys);
+          if (includeDeleted === false)
+            qb.where("coa.is_deleted", includeDeleted);
         })
         .join("account_types as at", "coa.account_type_id", "at.id")
         .join("account_elements as ae", "at.account_element_id", "ae.id")
@@ -432,7 +308,7 @@ export const fetchCompanyCoa = async ({
     canDelete: !coa.isLocked && !coa.hasTransactions && !coa.isDeleted,
   });
 
-  const query = async (trx: Knex | Knex.Transaction, companyId: string) => {
+  const query = async (trx: Knex.Transaction, companyId: string) => {
     const coa = await coaQuery(trx, companyId);
     return coa.map(enhanceCoa);
   };
@@ -441,11 +317,15 @@ export const fetchCompanyCoa = async ({
     const companyUUID = await getCompanyUUID(receivedCompanyId);
     if (!companyUUID) return errorResponse("Invalid company identifier");
 
-    const isUnfiltered =
-      !id && !code && active === undefined && !accountTypeKey;
+    const hasFilters =
+      ids.length > 0 ||
+      codes.length > 0 ||
+      active !== undefined ||
+      accountTypeKeys.length > 0;
+
     const cacheKey = generateCoaCacheKey({ companyUUID });
 
-    if (isUnfiltered) {
+    if (!hasFilters) {
       const cached = await redis.get(cacheKey);
 
       if (cached) {
@@ -466,7 +346,7 @@ export const fetchCompanyCoa = async ({
       : await knexClient.transaction((trx) => query(trx, companyUUID));
 
     const result = removeNullsShallow(res);
-    if (isUnfiltered && result.length > 0) {
+    if (!hasFilters && includeDeleted && result.length > 0) {
       await redis.set(cacheKey, JSON.stringify(result), "EX", coaCacheTTL);
     }
 
@@ -649,10 +529,11 @@ const updateChartOfAccounts = async ({
   };
 
   const executeWithTransaction = async (
-    trx: Knex.Transaction
+    tx: Knex.Transaction
   ): Promise<UpdateCoaResponse> => {
     // Fetch existing COA records with account type information
-    const existingCoaRecords = await trx("coa")
+    // Fetch existing COA records with account type information
+    const existingCoaRecords = await tx("coa")
       .select([
         "coa.id",
         "coa.name",
@@ -830,11 +711,15 @@ async function performBulkUpdate({
       if (u.isDeleted !== undefined) {
         updateData.is_deleted = u.isDeleted;
         if (u.isDeleted) {
+          updateData.is_active = false;
           updateData.deleted_at = now;
         }
       }
-
-      await tx("coa").where({ id: u.id }).update(updateData);
+      if (operation === "delete") {
+        await tx("coa").where({ id: u.id }).delete();
+      } else {
+        await tx("coa").where({ id: u.id }).update(updateData);
+      }
     }
   };
 

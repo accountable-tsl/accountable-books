@@ -3,6 +3,7 @@ import { AuthRequest } from "../../features/auth/auth.types";
 import { errorResponse } from "../../shared/utils/response.utils";
 import {
   archiveCoa,
+  createCoa,
   deleteCoa,
   editCoa,
   fetchCompanyCoa,
@@ -10,8 +11,34 @@ import {
 } from "./coa.model";
 import { CoaUpdateInput, coaUpdateInput } from "./coa.types";
 
+export const createCoaController = async (req: AuthRequest, res: Response) => {
+  try {
+    const companyId = req.params.companyId;
+    const userId = req.user?.id;
+    const data = Array.isArray(req.body) ? req.body : [req.body];
+
+    if (!companyId || !userId) {
+      return res.status(400).json(errorResponse("Unauthorized"));
+    }
+
+    const response = await createCoa({ companyId, userId, data });
+    return response.success
+      ? res.status(200).json(response)
+      : res.status(400).json(response);
+  } catch (error) {
+    return res.status(500).json(errorResponse("An unexpected error occurred"));
+  }
+};
+
 export const getCoaController = async (req: AuthRequest, res: Response) => {
-  const { companyId: companyIdFromQuery, id, code, active, key } = req.query;
+  const {
+    companyId: companyIdFromQuery,
+    id,
+    code,
+    active,
+    key,
+    includeDeleted,
+  } = req.query;
   const companyId = companyIdFromQuery || req.params.companyId;
   if (!companyId || typeof companyId !== "string") {
     return res.status(400).json(errorResponse("Missing or invalid companyId"));
@@ -29,6 +56,9 @@ export const getCoaController = async (req: AuthRequest, res: Response) => {
           }
         : {}),
       ...(key ? { accountTypeKey: String(key) } : {}),
+      ...(includeDeleted
+        ? { includeDeleted: includeDeleted === "true" ? true : false }
+        : {}),
     });
 
     return result.success

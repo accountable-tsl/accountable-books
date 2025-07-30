@@ -1,6 +1,7 @@
 import express from "express";
 import {
   archiveCoaController,
+  createCoaController,
   deleteCoaController,
   editCoaController,
   getCoaController,
@@ -10,6 +11,8 @@ import {
 const router = express.Router({ mergeParams: true });
 
 router.get("/", getCoaController);
+
+router.post("/", createCoaController);
 
 router.patch("/edit", editCoaController);
 router.patch("/archive", archiveCoaController);
