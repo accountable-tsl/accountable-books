@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useChartOfAccountsQuery } from "./hooks";
+import { useChartOfAccountsQuery } from "@/features/coa/hooks";
 import { useSession } from "@/features/auth/Session";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { DataTable } from "@/components/data-table/data-table";
@@ -13,10 +13,10 @@ import { useDataTable } from "@/components/data-table/use-data-table";
 import { getCoaTableColumns } from "./coa-columns";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { DataTableToolbarConfig } from "@/components/data-table/toolbar";
-import { AddAccountSelection } from "@/features/coa/coa-add-account";
+import { AddAccountSelection } from "@/features/coa/coa-add-selection";
 import { QuickFilter } from "@/features/coa/coa-quickfilter";
 import { getAccountElementOptions } from "@/features/coa/utils";
-import { CoaActionBar } from "./coa-action-bar";
+import { CoaActionBar } from "@/features/coa/coa-action-bar";
 import { SmallScreenMessage } from "@/components/SmallScreenMessage";
 import { CoaViewer } from "@/features/coa/coa-viewer";
 import { CoaResponse } from "@/features/coa/types";
@@ -26,17 +26,21 @@ export const ChartOfAccounts: React.FC = () => {
   const isMobile = useIsMobile();
   const { companyId, loading: sessionLoading } = useSession();
   const {
-    data: accounts,
+    data: coaAccounts,
     isLoading: isLoadingAccounts,
     isError,
   } = useChartOfAccountsQuery({
-    companyId: companyId || "",
+    companyId: companyId!,
+    includeDeleted: false,
   });
 
   const [accountElementFilter, setAccountElementFilter] = useState("all");
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
   const columns = useMemo(() => getCoaTableColumns(), []);
+  const accounts = useMemo(
+    () => coaAccounts?.filter((coa) => !coa.isDeleted) || [],
+    [coaAccounts]
+  );
 
   const customOptions: DataTableInputOptions<CoaResponse> = {
     pagination: {
@@ -114,34 +118,6 @@ export const ChartOfAccounts: React.FC = () => {
     [elementOptions, accountElementFilter, isMobile, setAccountElementFilter]
   );
 
-  // Handle bulk selection
-  const handleSelectAll = useCallback(
-    (checked: boolean) => {
-      if (checked && accounts) {
-        const selectableIds = accounts
-          .filter((acc) => !acc.isLocked)
-          .map((acc) => acc.id);
-        setSelectedAccounts(selectableIds);
-      } else {
-        setSelectedAccounts([]);
-      }
-    },
-    [accounts]
-  );
-
-  // Handle bulk actions
-  const handleBulkArchive = useCallback(() => {
-    // TODO: Implement bulk archive functionality
-    console.log("Archiving accounts:", selectedAccounts);
-    setSelectedAccounts([]);
-  }, [selectedAccounts]);
-
-  const handleBulkDelete = useCallback(() => {
-    // TODO: Implement bulk delete functionality
-    console.log("Deleting accounts:", selectedAccounts);
-    setSelectedAccounts([]);
-  }, [selectedAccounts]);
-
   useEffect(() => {
     if (!parentElementColumn) return;
 
@@ -198,7 +174,13 @@ export const ChartOfAccounts: React.FC = () => {
       {/* Accounts Table */}
       <DataTable
         table={table}
-        actionBar={<CoaActionBar table={table} className="bottom-12" />}
+        actionBar={
+          <CoaActionBar
+            table={table}
+            className="bottom-12"
+            companyId={companyId}
+          />
+        }
       >
         <DataTableToolbar table={table} config={toolbarConfig} />
       </DataTable>

@@ -11,7 +11,8 @@ export function getCoaTableColumns(): ColumnDef<CoaResponse>[] {
       accessorKey: "code",
       header: "Code",
       cell: (props) => {
-        return <div>{String(props.getValue())}</div>;
+        const code = props.getValue();
+        return <div>{code ? String(code) : ""}</div>;
       },
       enableSorting: true,
       size: 50,

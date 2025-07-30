@@ -8,6 +8,7 @@ import { Contacts } from "@/features/contacts/Contacts";
 import { FinancialSettings } from "@/features/financial-settings/FinancialSettings";
 import { Projects } from "@/features/projects/Projects";
 import { cn } from "@/lib/utils";
+import { AddNewCoa } from "../coa/coa-add-new";
 
 const tabsConfig = [
   {
@@ -20,7 +21,8 @@ const tabsConfig = [
     value: "financial-settings",
     icon: Settings,
     label: { sm: "Financial Settings", xs: "Settings" },
-    content: <FinancialSettings />,
+    // content: <FinancialSettings />,
+    content: <AddNewCoa />,
   },
   {
     value: "contacts",
@@ -38,7 +40,15 @@ const tabsConfig = [
 
 export const AccountingWorkspaceSetup = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("chart-of-accounts");
+  const [activeTab, setActiveTab] = useState(
+    localStorage.getItem("accSetupTab") || "chart-of-accounts"
+  );
+
+  // Save active tab to local storage
+  const handleActiveTabChange = (tab: string) => {
+    setActiveTab(tab);
+    localStorage.setItem("accSetupTab", tab);
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-2 space-y-2 h-full flex flex-col">
@@ -51,7 +61,7 @@ export const AccountingWorkspaceSetup = () => {
 
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleActiveTabChange}
         className="gap-0 flex-1 h-full min-h-0"
       >
         <TabsList className="flex w-full grid-cols-4 rounded-md rounded-b-none bg-background p-0">

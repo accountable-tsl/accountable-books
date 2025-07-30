@@ -1,26 +1,32 @@
 import {
   CoaResponse,
   CoaUpdateResponse,
+  CreateCoa,
+  createCoaSchema,
   EditCoaRequest,
   FetchCoaInput,
 } from "@/features/coa/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   archiveCoa,
+  createCoa,
   deleteCoa,
   editCoa,
   fetchChartOfAccounts,
   unarchiveCoa,
 } from "@/features/coa/api";
 import { toast } from "sonner";
+import { useMemo } from "react";
+
+type MUTATING_ACTION = "create" | "update" | "delete" | "archive" | "unarchive";
 
 const CACHE_TIMES = {
-  STALE_TIME: 1000 * 60 * 60 * 0, // 1 hour
-  GC_TIME: 1000 * 60 * 60 * 6 * 0, // 6 hours
+  STALE_TIME: 1000 * 60 * 60 * 1, // 1 hour
+  GC_TIME: 1000 * 60 * 60 * 6, // 6 hours
 } as const;
 
 const handleMutationSuccess = (
-  response: { data?: CoaUpdateResponse },
+  response: { data?: CoaUpdateResponse | null },
   action: string,
   companyId: string,
   queryClient: ReturnType<typeof useQueryClient>
@@ -47,14 +53,14 @@ const handleMutationSuccess = (
 
 const handleMutationError = (action: string, error: unknown) => {
   toast.error(`Failed to ${action.toLowerCase()} accounts`);
-  console.error(`${action} COA error:`, error);
 };
 
 export const useChartOfAccountsQuery = (params: FetchCoaInput) => {
   const companyId = params?.companyId;
+  const includeDeleted = params?.includeDeleted ?? false;
 
   return useQuery<CoaResponse[], Error>({
-    queryKey: ["coa", companyId],
+    queryKey: ["coa", companyId, { includeDeleted }],
     queryFn: async () => {
       if (!companyId) throw new Error("Company ID is required");
       const res = await fetchChartOfAccounts(params);
@@ -62,10 +68,76 @@ export const useChartOfAccountsQuery = (params: FetchCoaInput) => {
         throw new Error(res.message || "Unexpected error");
       return res.data;
     },
-    staleTime: CACHE_TIMES.STALE_TIME,
-    gcTime: CACHE_TIMES.GC_TIME,
+    staleTime: includeDeleted ? 0 : CACHE_TIMES.STALE_TIME,
+    gcTime: includeDeleted ? 0 : CACHE_TIMES.GC_TIME,
     enabled: !!companyId,
-    refetchOnWindowFocus: false,
+  });
+};
+
+export const useCompanyCoa = (companyId: string, includeDeleted = true) => {
+  const { data, isLoading, isError } = useChartOfAccountsQuery({
+    companyId,
+    includeDeleted,
+  });
+
+  const coaCodes = useMemo(
+    () => new Set(data?.map((coa) => coa.code) || []),
+    [data]
+  );
+  const coaNames = useMemo(
+    () => new Set(data?.map((coa) => coa.name) || []),
+    [data]
+  );
+
+  // Lowercased sets for comparison only
+  const lowerCoaCodes = useMemo(
+    () => new Set(data?.map((coa) => coa.code?.toLowerCase()) || []),
+    [data]
+  );
+  const lowerCoaNames = useMemo(
+    () => new Set(data?.map((coa) => coa.name?.toLowerCase()) || []),
+    [data]
+  );
+
+  return {
+    isDuplicateCode: (code: string) => lowerCoaCodes.has(code.toLowerCase()),
+    isDuplicateName: (name: string) => lowerCoaNames.has(name.toLowerCase()),
+
+    coaCodes,
+    coaNames,
+    isLoading,
+    isError,
+  };
+};
+
+export const useCreateCoa = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      data: receivedData,
+    }: {
+      companyId: string;
+      data: CreateCoa[];
+    }) => {
+      const data = createCoaSchema.array().parse(receivedData);
+      return createCoa(companyId, data);
+    },
+    onSuccess: (response, variables) => {
+      // Invalidate cache
+      queryClient.invalidateQueries({
+        queryKey: ["coa", variables.companyId],
+        exact: false,
+      });
+
+      const { success, message } = response;
+      console.log(message);
+      if (success) {
+        toast.success(message || "Account created successfully");
+      }
+    },
+    onError: (error) => handleMutationError("create", error),
   });
 };
 

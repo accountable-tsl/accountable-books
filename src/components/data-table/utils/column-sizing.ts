@@ -91,13 +91,16 @@ export const getColumnStyle = ({
   column,
   explicitSize = false,
 }: {
-  column: any;
+  column?: any;
   explicitSize?: boolean;
 }) => {
-  
   return {
     flex: explicitSize ? 0 : 1,
-    width: `calc(var(--col-${column.column.id}-size) * 1px)`,
-    flexBasis: `calc(var(--col-${column.column.id}-size))`,
+    ...(column
+      ? { width: `calc(var(--col-${column.column.id}-size) * 1px)` }
+      : {}),
+    ...(column
+      ? { flexBasis: `calc(var(--col-${column.column.id}-size))` }
+      : {}),
   };
 };

@@ -9,6 +9,7 @@ export type FetchCoaInput = {
   accountCode?: string;
   active?: boolean;
   accountTypeKey?: string;
+  includeDeleted?: boolean;
 };
 export type CoaResponse = {
   id: string;
@@ -79,10 +80,19 @@ export const editCoaRequest = z.object({
   description: z.string().nullish(),
   accountTypeKey: z.string().optional(),
 });
-export type EditCoaRequest = z.infer<typeof editCoaRequest> 
-
+export type EditCoaRequest = z.infer<typeof editCoaRequest>;
 
 export interface CoaUpdateResponse {
   updatedAccounts: Array<{ id: string; name?: string }>;
   errors: Array<{ id: string; error: string }>;
 }
+
+export const createCoaSchema = z.object({
+  name: z.string().min(1).max(256),
+  isActive: z.boolean().default(true).optional(),
+  code: z.string().max(256).nullish(),
+  description: z.string().max(512).nullish(),
+  accountTypeKey: z.string().min(1, "Account Type is required"),
+});
+
+export type CreateCoa = z.infer<typeof createCoaSchema>;

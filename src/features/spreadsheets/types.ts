@@ -123,6 +123,8 @@ export type SpreadsheetImporterProps = {
    */
   buttonClassName?: string;
 
+  wrapperClassName?: string;
+
   /** */
   hasHeader?: boolean;
 
@@ -135,6 +137,8 @@ export type SpreadsheetImporterProps = {
   showCustomFileCard?: boolean;
 
   showAllFields?: boolean;
+
+  showUnexpectedColumnsWarning?: boolean;
 } & ValidateHeadersOptions;
 
 export interface ParsedCsvResult {
@@ -178,6 +182,7 @@ export type FileCardExtraProps = {
   parsedResult?: ParsedCsvResult;
   showAllFields?: boolean;
   renderOptions?: any;
+  showUnexpectedColumnsWarning?: boolean;
 };
 
 export type ValidateHeadersOptions = {

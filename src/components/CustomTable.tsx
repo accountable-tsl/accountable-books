@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { getColumnStyle } from "./data-table/utils/column-sizing";
 
 const Table = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
   ({ className, ...props }, ref) => {
@@ -100,6 +101,8 @@ const baseCellClassNames =
   " [&:first-child:has([data-slot=checkbox])]:border-r-0" +
   " [&:first-child_[data-slot=checkbox]]:translate-y-[2px]";
 
+const colStyle = getColumnStyle({});
+
 const TableCell = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -113,6 +116,7 @@ const TableCell = React.forwardRef<
       role={variant === "header" ? "columnheader" : "cell"}
       data-slot={variant === "header" ? "table-header-cell" : "table-cell"}
       data-variant={variant}
+      style={colStyle}
       className={cn(
         baseCellClassNames,
         variant === "header" ? "border-r last:border-r-0 px-2" : "p-2",

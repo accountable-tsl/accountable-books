@@ -37,6 +37,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
 import { useAccountMeta } from "@/domains/account-classification/hooks";
 import { CenteredLoader } from "@/components/CenteredLoader";
+import {
+  ACCOUNT_TYPE_BLACKLIST,
+  BlacklistedType,
+} from "@/features/coa/constants";
 
 // Constants
 const STYLES = {
@@ -50,8 +54,6 @@ const STYLES = {
   itemTitleClass: "text-xs text-muted-foreground pb-[2px] truncate",
 } as const;
 
-const ACCOUNT_TYPE_BLACKLIST = ["ca_bank"] as const;
-type BlacklistedType = (typeof ACCOUNT_TYPE_BLACKLIST)[number];
 
 interface CoaViewerProps {
   row?: Row<CoaResponse> | undefined;
@@ -130,6 +132,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
   } = useForm<EditCoaRequest>({
     resolver: zodResolver(editCoaRequest),
     defaultValues: defaultAccountValues,
+    mode: "onChange",
   });
 
   const currentAccountTypeKey = useWatch({ control, name: "accountTypeKey" });

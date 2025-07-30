@@ -73,6 +73,7 @@ export function getAccountElementOptions(
   return [allOption, ...dynamicOptions];
 }
 
+
 export function analyzeSelectedAccounts(
   accounts: CoaResponse[]
 ): AnalyzeSelectionResponse {

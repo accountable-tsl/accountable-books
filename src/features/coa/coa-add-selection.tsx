@@ -9,6 +9,7 @@ import {
 import { Plus, ChevronDown } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { AddBankAccountDialog } from "@/domains/bankAccounts/AddBankAccountDialog";
+import { AddNewCoaDialog } from "@/features/coa/coa-add-new";
 
 export function AddAccountSelection() {
   const [isAddCoaDialogOpen, setIsAddCoaDialogOpen] = useState(false);
@@ -50,6 +51,13 @@ export function AddAccountSelection() {
         <AddBankAccountDialog
           open={isBankAccountDialogOpen}
           onOpenChange={setIsBankAccountDialogOpen}
+        />
+      </>
+
+      <>
+        <AddNewCoaDialog
+          open={isAddCoaDialogOpen}
+          onOpenChange={setIsAddCoaDialogOpen}
         />
       </>
     </div>
