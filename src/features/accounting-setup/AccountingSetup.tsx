@@ -17,12 +17,6 @@ const tabsConfig = [
     content: <ChartOfAccounts />,
   },
   {
-    value: "financial-settings",
-    icon: Settings,
-    label: { sm: "Financial Settings", xs: "Settings" },
-    content: <FinancialSettings />,
-  },
-  {
     value: "contacts",
     icon: Users,
     label: { sm: "Contacts" },
@@ -33,6 +27,12 @@ const tabsConfig = [
     icon: FolderOpen,
     label: { sm: "Projects" },
     content: <Projects />,
+  },
+  {
+    value: "financial-settings",
+    icon: Settings,
+    label: { sm: "Financial Settings", xs: "Settings" },
+    content: <FinancialSettings />,
   },
 ];
 
@@ -69,7 +69,8 @@ export const AccountingWorkspaceSetup = () => {
               className={cn(
                 "flex flex-1 items-center gap-2 text-muted-foreground rounded-none bg-background h-full rounded-t font-light hover:text-foreground",
                 "data-[state=active]:shadow-none data-[state=active]:text-foreground data-[state=active]:font-medium -mb-[2px] opacity-50",
-                "border-b-border data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:opacity-100"
+                "border-b-border data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:opacity-100",
+                "data-[state=active]:dark:bg-background data-[state=active]:dark:border-b-0"
               )}
             >
               <Icon className="h-4 w-4" />
