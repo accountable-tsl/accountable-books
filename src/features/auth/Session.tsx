@@ -3,13 +3,12 @@ import { clearSessionFn, useSessionQuery } from "@/features/auth/hooks";
 import { authStore } from "@/features/auth/store";
 import { routes } from "@/shared/routes/routes";
 import { useEffect } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { createTenantRoutes, isPublicRoute } from "@/shared/routes/utils";
 import { LogoutOptions, SessionContextType } from "@/features/auth/types";
 import { useCompanyDetails } from "@/domains/company/hooks";
 import { handleLogout } from "./api";
 import { createDefaultSessionContext } from "@/features/auth/utils";
-import { CenteredLoader } from "@/components/CenteredLoader";
 
 const SessionContext = createContext<SessionContextType>(
   createDefaultSessionContext()
