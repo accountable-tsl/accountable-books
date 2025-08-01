@@ -9,15 +9,15 @@ const tableName = "contacts";
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
-    table.string("name").notNullable();
-    table.string("code").nullable();
-    table.string("description", 512).nullable();
-    table.string("primary_email", 256).nullable();
-    table.string("secondary_email", 256).nullable();
-    table.string("phone", 50).nullable();
-    table.string("address").nullable();
-    table.string("website").nullable();
-    table.string("business_registration_number").nullable();
+    table.string("display_name", 256).notNullable();
+    table.string("normalized_name", 256).notNullable();
+    table.string("email", 256).nullable();
+    table.string("address", 512).nullable();
+    table
+      .specificType("status", "contact_status")
+      .nullable()
+      .defaultTo("active");
+    table.string("notes").nullable();
 
     table
       .uuid("company_id")
@@ -42,7 +42,7 @@ export async function up(knex: Knex): Promise<void> {
 
     addStandardColumns(table);
 
-    table.unique(["company_id", "name"]);
+    table.unique(["company_id", "normalized_name"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

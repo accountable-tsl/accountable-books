@@ -1,5 +1,6 @@
 import { knexClient } from "../../knexClient";
 import { CompanyType } from "../../src/domains/companies/companies.types";
+import { addNewContacts } from "../../src/domains/contacts/contacts.model";
 import { registerNewAccount } from "../../src/features/signup/signup.service";
 import { demoSeedConfig } from "./data/config";
 import { DemoSeedConfig } from "./data/types";
@@ -33,9 +34,17 @@ export async function seedDemo(config: DemoSeedConfig): Promise<void> {
     });
     if (!signup.success || !signup.data) throw new Error(signup.message);
     const { user, company } = signup.data;
-  });
 
-  // Add bank account(s)
+    // Add bank account(s)
+
+    // Add contacts
+    const contacts = await addNewContacts({
+      input: config.contacts,
+      companyId: company.id,
+      userId: user.id,
+      trx,
+    });
+  });
 }
 
 /** Seed all demos (serially by default, or in parallel with the flag). */

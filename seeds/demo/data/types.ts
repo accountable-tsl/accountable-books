@@ -2,6 +2,7 @@ import {
   CompanyType,
   NewCompanyInputCamel,
 } from "../../../src/domains/companies/companies.types";
+import { ContactInput } from "../../../src/domains/contacts/contact.types";
 import { CountryRes } from "../../../src/domains/countries/countries.types";
 import { CurrencyRes } from "../../../src/domains/currencies/currencies.types";
 import { NewUserInputCamel } from "../../../src/domains/users/users.types";
@@ -28,4 +29,5 @@ export type DemoSeedArgs = {
 export type DemoSeedConfig = {
   user: NewUserInputCamel;
   company: NewCompanyInputCamel;
+  contacts: ContactInput[];
 };
