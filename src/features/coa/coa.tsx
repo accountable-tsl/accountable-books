@@ -1,14 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/shared/hooks/use-media-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useChartOfAccountsQuery } from "@/features/coa/hooks";
 import { useSession } from "@/features/auth/Session";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import { DataTable } from "@/components/data-table/data-table";
-import {
-  DataTableExtras,
-  DataTableInputOptions,
-} from "@/components/data-table/types/data-table";
+import { DataTableInputOptions } from "@/components/data-table/types/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { getCoaTableColumns } from "./coa-columns";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
@@ -104,8 +101,6 @@ export const ChartOfAccounts: React.FC = () => {
                   setAccountElementFilter={setAccountElementFilter}
                   options={elementOptions}
                 />
-
-                {/* <CoaActionBar table={table} className="-bottom-1/2 border-0 " /> */}
               </div>
             ),
           },
