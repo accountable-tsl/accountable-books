@@ -65,6 +65,7 @@ import {
 } from "../../domains/mapBankToProviderBank/bankProviderMappings.types";
 import { NewToken, Token } from "../../domains/tokens/tokens.types";
 import { NewRoleInput, Role } from "../../domains/roles/roles.types";
+import { Contact, NewContact } from "../../domains/contacts/contact.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -214,6 +215,12 @@ declare module "knex/types/tables" {
       BankAccountConnection,
       NewBankAccountConnection,
       Partial<Omit<BankAccountConnection, "id">>
+    >;
+
+    contacts: Knex.CompositeTableType<
+      Contact,
+      NewContact,
+      Partial<Omit<Contact, "id">>
     >;
   }
 }

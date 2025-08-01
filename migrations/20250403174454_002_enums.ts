@@ -21,14 +21,7 @@ export async function up(knex: Knex): Promise<void> {
       "individual",
     ])
   );
-  // await knex.raw(
-  //   createEnumIfNotExists("user_status", [
-  //     "active",
-  //     "inactive",
-  //     "disabled",
-  //     "invited",
-  //   ])
-  // );
+
   await knex.raw(
     createEnumIfNotExists("user_invitation_status", [
       "pending",
@@ -126,16 +119,6 @@ export async function up(knex: Knex): Promise<void> {
     ])
   );
 
-  // await knex.raw(
-  //   createEnumIfNotExists("onboarding_status", [
-  //     "not_started",
-  //     "email_verified",
-  //     "company_vitals_needed",
-  //     "first_bank_account_needed",
-  //     "onboarding_complete",
-  //   ])
-  // );
-
   await knex.raw(
     createEnumIfNotExists("bank_local_code_type", [
       "sort_code",
@@ -184,6 +167,10 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists("role_scope", ["platform", "firm", "company"])
   );
+
+  await knex.raw(
+    createEnumIfNotExists("contact_status", ["active", "inactive"])
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {
@@ -193,7 +180,6 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP TYPE IF EXISTS bank_account_connection_status`);
   await knex.raw(`DROP TYPE IF EXISTS bank_feed_provider_status`);
   await knex.raw(`DROP TYPE IF EXISTS bank_local_code_type`);
-  // await knex.raw(`DROP TYPE IF EXISTS onboarding_status`);
   await knex.raw(`DROP TYPE IF EXISTS accounting_basis`);
   await knex.raw(`DROP TYPE IF EXISTS project_status`);
   await knex.raw(`DROP TYPE IF EXISTS contact_type`);
@@ -210,6 +196,5 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP TYPE IF EXISTS reporting_framework`);
   await knex.raw(`DROP TYPE IF EXISTS fs_key`);
   await knex.raw(`DROP TYPE IF EXISTS user_invitation_status`);
-  // await knex.raw(`DROP TYPE IF EXISTS user_status`);
   await knex.raw(`DROP TYPE IF EXISTS company_type`);
 }

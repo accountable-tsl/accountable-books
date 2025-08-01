@@ -9,6 +9,7 @@ import {
   createCompleteCompanyOnboardingState,
   createCompleteUserOnboardingState,
 } from "../../../src/features/onboarding/onboarding.utils";
+import { generateDemoContactsForCompany } from "../utils/demoContacts";
 import {
   CreateDemoBase,
   CreateDemoInput,
@@ -27,6 +28,10 @@ function createDemoConfig({
   args,
 }: CreateDemoInput): DemoSeedConfig {
   const { reportingCurrency, homeCountry } = args;
+  const contacts = generateDemoContactsForCompany({
+    companyType: companyType,
+    countryCode: homeCountry.code,
+  });
 
   return {
     user: {
@@ -50,6 +55,7 @@ function createDemoConfig({
       ...(companyType === "accounting_firm" && slug ? { slug } : {}),
       onboardingState: createCompleteCompanyOnboardingState(companyType),
     },
+    contacts,
   };
 }
 

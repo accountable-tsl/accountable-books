@@ -8,7 +8,6 @@ import {
 import { checkCompanyId } from "../../core/middlewares/companies.middleware";
 import { csrfProtection } from "../../features/auth/auth.utils";
 import {
-  requirePermission,
   verifyAccessToken,
 } from "../../features/auth/auth.middleware";
 import { basicLimiter } from "../../core/middlewares/rateLimiter.middleware";
