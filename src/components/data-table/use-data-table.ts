@@ -67,8 +67,7 @@ export function useDataTable<TData>({
     enabled: gs?.enabled ?? false,
     type: gs?.type ?? "table-wide",
     placeholder: gs?.placeholder ?? "Search...",
-    allowIndividualFilters:
-      gs?.allowIndividualFilters ?? (gs?.enabled ? false : true),
+    allowIndividualFilters: gs?.allowIndividualFilters ?? true,
   };
 
   const rowClickBehavior: RowClickBehavior<TData> | undefined = rc
@@ -257,8 +256,14 @@ export function useDataTable<TData>({
       ...tableOptions.defaultColumn,
       minSize: 75,
       enableSorting: false,
-      enableColumnFilter: false,
+      enableColumnFilter: gs?.enabled ?? false,
       filterFn: "weakEquals",
+      meta: {
+        ...(tableOptions.defaultColumn?.meta ?? {}),
+        variant:
+          tableOptions.defaultColumn?.meta?.variant ??
+          (gs?.enabled ? "text" : undefined),
+      },
     },
   });
 

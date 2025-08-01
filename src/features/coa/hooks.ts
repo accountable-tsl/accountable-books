@@ -51,7 +51,7 @@ const handleMutationSuccess = (
   }
 };
 
-const handleMutationError = (action: string, error: unknown) => {
+const handleMutationError = (action: string, _error: unknown) => {
   toast.error(`Failed to ${action.toLowerCase()} accounts`);
 };
 
@@ -132,7 +132,6 @@ export const useCreateCoa = () => {
       });
 
       const { success, message } = response;
-      console.log(message);
       if (success) {
         toast.success(message || "Account created successfully");
       }

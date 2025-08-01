@@ -2,12 +2,11 @@ import { BodyHead } from "@/components/AppHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, FolderOpen, Settings, Users } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ChartOfAccounts } from "@/features/coa/coa";
-import { Contacts } from "@/features/contacts/Contacts";
 import { FinancialSettings } from "@/features/financial-settings/FinancialSettings";
 import { Projects } from "@/features/projects/Projects";
 import { cn } from "@/lib/utils";
+import { Contacts } from "@/features/contacts/Contacts";
 
 const tabsConfig = [
   {

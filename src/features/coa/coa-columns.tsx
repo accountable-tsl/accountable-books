@@ -37,7 +37,6 @@ export function getCoaTableColumns(): ColumnDef<CoaResponse>[] {
         variant: "text",
         placeholder: "Search account name...",
         icon: Text,
-        separateFilter: true,
       },
     },
     {
