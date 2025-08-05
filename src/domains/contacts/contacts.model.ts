@@ -8,6 +8,8 @@ import {
   ContactInput,
   contactInputSchema,
   ContactResponse,
+  getContactsParams,
+  GetContactsParams,
   UpdateContact,
   updateContactSchema,
 } from "./contact.types";
@@ -86,37 +88,113 @@ export async function addNewContacts({
   }
 }
 
-export async function getContacts({
-  companyId,
-  trx,
-}: {
-  companyId: string;
-  trx?: Knex.Transaction;
-}): Promise<ApiResponse<ContactResponse[]>> {
-  if (!companyId) return errorResponse("Company ID is required");
+export async function getContacts(
+  input: GetContactsParams
+): Promise<ApiResponse<ContactResponse>> {
+  // Input validation
+  const parseInput = getContactsParams.safeParse(input);
+  if (!parseInput.success) {
+    return errorResponse("Invalid request parameters", parseInput.error.errors);
+  }
+
+  const { companyId, page, limit, search, status, sortBy, sortOrder, trx } =
+    parseInput.data;
 
   const query = async (tx: Knex.Transaction) => {
     const companyUUID = await getCompanyUUID(companyId, tx);
+    if (!companyUUID) {
+      return errorResponse("Company not found");
+    }
 
-    return tx("contacts")
+    let baseQuery = tx("contacts as c")
+      .where("c.company_id", companyUUID)
+      .andWhere("c.is_deleted", false);
+
+    if (status) {
+      baseQuery = baseQuery.andWhere("c.status", status);
+    }
+
+    let sanitizedSearch: string | undefined;
+    let normalizedSearch: string | undefined;
+
+    if (search?.trim()) {
+      sanitizedSearch = search.trim().replace(/[%_]/g, "\\$&");
+      normalizedSearch = sanitizedSearch.toLowerCase();
+
+      baseQuery = baseQuery.andWhere(function () {
+        this.where("c.normalized_name", normalizedSearch)
+
+          .orWhereRaw("c.display_name % ?", [sanitizedSearch])
+          .orWhereRaw("COALESCE(c.email, '') % ?", [sanitizedSearch])
+          .orWhereRaw("COALESCE(c.address, '') % ?", [sanitizedSearch])
+          .orWhereRaw("COALESCE(c.notes, '') % ?", [sanitizedSearch]);
+      });
+    }
+
+    // Get total count for pagination
+    const countResult = await baseQuery.clone().count("* as count").first();
+    const total = Number(countResult?.count ?? 0);
+
+    // Calculate pagination
+    const offset = Math.max(0, (page - 1) * limit);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    // Validate page bounds
+    if (page > totalPages) {
+      return errorResponse(
+        `Page ${page} exceeds maximum pages (${totalPages})`
+      );
+    }
+
+    const contacts = await baseQuery
       .select([
-        "id",
-        "display_name as displayName",
-        "address",
-        "email",
-        "status",
-        "notes",
+        "c.id",
+        "c.display_name as displayName",
+        "c.address",
+        "c.email",
+        "c.status",
+        "c.notes",
+        "c.created_at as createdAt",
+        "c.updated_at as updatedAt",
+        ...(search && sanitizedSearch
+          ? [tx.raw("similarity(c.display_name, ?) as rank", [sanitizedSearch])]
+          : []),
       ])
-      .where({ company_id: companyUUID });
+      .orderBy(search ? "rank" : `c.${sortBy}`, search ? "desc" : sortOrder)
+      .limit(limit)
+      .offset(offset);
+
+    const pagination = {
+      currentPage: page,
+      pageSize: limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
+
+    if (total === 0 && page === 1) {
+      return successResponse("No contacts found", {
+        contacts: [],
+        pagination: {
+          ...pagination,
+          hasNext: false,
+          hasPrev: false,
+        },
+      });
+    }
+
+    return successResponse("Contacts fetched successfully", {
+      contacts,
+      pagination,
+    });
   };
+
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
-
-    return result.length === 0
-      ? successResponse("No contacts found", null)
-      : successResponse("Contact(s) fetched successfully", result);
+    return result;
   } catch (error: any) {
-    return errorResponse(`Failed to fetch contacts: ${error.message}`, error);
+    return errorResponse(`Failed to fetch contacts`, error);
   }
 }
 

@@ -1,6 +1,6 @@
 import type { Knex } from "knex";
 
-const REQUIRED_EXTENSIONS = ["pg_cron", "pgcrypto", "pg_uuidv7"];
+const REQUIRED_EXTENSIONS = ["pg_cron", "pgcrypto", "pg_uuidv7", "pg_trgm"];
 
 export async function up(knex: Knex): Promise<void> {
   // Attempt to create all required extensions

@@ -1,9 +1,11 @@
 import { knexClient } from "../../knexClient";
 import { CompanyType } from "../../src/domains/companies/companies.types";
 import { addNewContacts } from "../../src/domains/contacts/contacts.model";
+import { addNewProjects } from "../../src/domains/projects/projects.model ";
 import { registerNewAccount } from "../../src/features/signup/signup.service";
 import { demoSeedConfig } from "./data/config";
 import { DemoSeedConfig } from "./data/types";
+import { generateDemoProjectsForCompany } from "./utils/004_genDemoProjects";
 
 /** Seed one demo scenario. */
 export async function seedDemo(config: DemoSeedConfig): Promise<void> {
@@ -38,12 +40,32 @@ export async function seedDemo(config: DemoSeedConfig): Promise<void> {
     // Add bank account(s)
 
     // Add contacts
-    const contacts = await addNewContacts({
+    const addContacts = await addNewContacts({
       input: config.contacts,
       companyId: company.id,
       userId: user.id,
-      trx,
     });
+    if (!addContacts.success || !addContacts.data) {
+      throw new Error(addContacts.message);
+    }
+    const contacts = addContacts.data;
+    const contactIds = new Set(contacts.map((c) => c.id));
+
+    // Add projects
+    let projects: Array<{ id: string; name: string }>; // projects
+    const projectsData = config.genProjects(Array.from(contactIds));
+    if (config.company?.type !== "individual") {
+      console.log("Indiv. project data", projectsData);
+      const addProjects = await addNewProjects({
+        input: projectsData,
+        companyId: company.id,
+        userId: user.id,
+      });
+      if (!addProjects.success || !addProjects.data)
+        throw new Error(addProjects.message);
+
+      projects = addProjects.data;
+    }
   });
 }
 

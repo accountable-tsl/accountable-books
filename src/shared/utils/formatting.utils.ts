@@ -210,3 +210,7 @@ export const removeNullsAndUndefined = <T>(obj: T): T =>
 
 export const removeAllEmpty = <T>(obj: T): T =>
   filterNulls(obj, { filterUndefined: true, filterEmptyStrings: true });
+
+export function toArray(value: string | string[]): string[] {
+  return Array.isArray(value) ? value : value.split(",");
+}

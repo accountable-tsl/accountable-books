@@ -66,6 +66,7 @@ import {
 import { NewToken, Token } from "../../domains/tokens/tokens.types";
 import { NewRoleInput, Role } from "../../domains/roles/roles.types";
 import { Contact, NewContact } from "../../domains/contacts/contact.types";
+import { NewProject, Project } from "../../domains/projects/projects.types";
 
 declare module "knex/types/tables" {
   interface Tables {
@@ -221,6 +222,12 @@ declare module "knex/types/tables" {
       Contact,
       NewContact,
       Partial<Omit<Contact, "id">>
+    >;
+
+    projects: Knex.CompositeTableType<
+      Project,
+      NewProject,
+      Partial<Omit<Project, "id">>
     >;
   }
 }

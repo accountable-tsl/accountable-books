@@ -4,6 +4,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
+import { createTrgmIndexes, dropTrgmIndexes } from "./utils/trgmIndexes";
 
 const tableName = "contacts";
 export async function up(knex: Knex): Promise<void> {
@@ -43,12 +44,27 @@ export async function up(knex: Knex): Promise<void> {
     addStandardColumns(table);
 
     table.unique(["company_id", "normalized_name"]);
+    table.index(["company_id", "display_name"]);
+    table.index(["company_id", "status"]);
+    table.index(["company_id", "created_at"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
+  await createTrgmIndexes(knex, tableName, [
+    "display_name",
+    "email",
+    "address",
+    "notes",
+  ]);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await dropTrgmIndexes(knex, tableName, [
+    "display_name",
+    "email",
+    "address",
+    "notes",
+  ]);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

@@ -1,10 +1,11 @@
 import z from "zod";
 import {
   createCamelCaseSchema,
-  snakeToCamel,
   SnakeToCamelCaseObject,
 } from "../../shared/utils/formatting.utils";
 import { dbStandardFields } from "../../core/types/core";
+import type { Knex } from "knex";
+import { Pagination } from "../../shared/types/random";
 
 export const contactStatus = z.enum(["active", "inactive"]);
 export type ContactStatus = z.infer<typeof contactStatus>;
@@ -43,10 +44,32 @@ export type UpdateContact = SnakeToCamelCaseObject<
 >;
 
 export type ContactResponse = {
-  id: string;
-  displayName: string;
-  email?: string;
-  address?: string;
-  status: ContactStatus;
-  notes?: string;
+  contacts: Array<{
+    id: string;
+    displayName: string;
+    email?: string;
+    address?: string;
+    status: ContactStatus;
+    notes?: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
+  pagination: Pagination;
+};
+
+export const getContactsParams = z.object({
+  companyId: z.string().nonempty(),
+  page: z.number().int().min(1).default(1),
+  limit: z.number().int().min(1).max(100).default(30),
+  search: z.string().optional(),
+  status: contactStatus.optional(),
+  sortBy: z
+    .enum(["display_name", "email", "created_at", "updated_at"])
+    .default("display_name"),
+  sortOrder: z.enum(["asc", "desc"]).default("asc"),
+  trx: z.any().optional(),
+});
+
+export type GetContactsParams = z.infer<typeof getContactsParams> & {
+  trx?: Knex.Transaction;
 };
