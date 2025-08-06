@@ -17,11 +17,17 @@ import { AddContactDialog } from "@/features/contacts/contacts-add";
 
 export const Contacts = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(30);
 
   const { companyId, loading } = useSession();
-  const { data, isLoading, isError } = useContacts(companyId || "");
+  const { data, isLoading, isError } = useContacts({
+    companyId: companyId || "",
+    page,
+    limit,
+  });
 
-  const contacts = useMemo(() => data?.data, [data]);
+  const contacts = useMemo(() => data?.data?.contacts, [data]);
   const columns = useMemo(() => getContactColumns(), []);
   const tableOptions: DataTableInputOptions<ContactResponse[]> = useMemo(() => {
     return {

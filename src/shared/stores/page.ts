@@ -15,6 +15,7 @@ interface PageStore {
   customMeta?: Record<string, any>;
   accessDenied?: boolean;
   sidebarCollapsed?: boolean;
+  setSidebarCollapsed?: (collapsed: boolean) => void;
 
   setPageInfo: (options: Partial<Omit<PageStore, "setPageInfo">>) => void;
   clearPageInfo: () => void;
@@ -26,7 +27,12 @@ export const pageStore = create<PageStore>()(
     description: "",
     customMeta: {},
     accessDenied: false,
-    sidebarCollapsed: false,
+    sidebarCollapsed: undefined,
+
+    setSidebarCollapsed: (collapsed) =>
+      set((state) => {
+        state.sidebarCollapsed = collapsed;
+      }),
 
     setPageInfo: (options) =>
       set((state) => {

@@ -5,7 +5,6 @@ import { AppSidebar, AppSidebarProps } from "@/components/SideBar/Sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useSession } from "@/features/auth/Session";
 import { useCanonicalUrlEnforcer } from "@/shared/routes/hooks";
-import { routes } from "@/shared/routes/routes";
 import {
   pageStore,
   usePageMeta,
@@ -17,13 +16,16 @@ interface AppLayoutProps extends AppSidebarProps {}
 export default function AppLayout({
   sidebarCollapsible = "icon",
 }: AppLayoutProps) {
-  const { user, company, companyId, companyType } = useSession();
-
-  const { sidebarCollapsed } = pageStore();
+  const { user, company, companyId, companyType, loading } = useSession();
 
   useCanonicalUrlEnforcer();
   useUpdatePageInfo();
   usePageMeta();
+  const { sidebarCollapsed } = pageStore();
+
+  if (loading || sidebarCollapsed === undefined) {
+    return <CenteredLoader />;
+  }
 
   if (!user || !company || !companyId || !companyType) {
     return <ErrorPage type="default" />;

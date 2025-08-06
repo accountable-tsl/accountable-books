@@ -2,15 +2,17 @@ import { Country } from "@/shared/types/core";
 import Decimal from "decimal.js";
 import { getUserLocale } from "./random-utils";
 import { format, parse, isValid } from "date-fns";
+import z from "zod";
 
-const possibleDateFormats: string[] = [
+const DEFAULT_DATE_FORMAT = "dd MMM yyyy";
+const possibleDateFormats = z.enum([
   "dd-MMM-yyyy",
   "dd MMM yyyy",
   "dd/MM/yyyy",
   "MM/dd/yyyy",
   "yyyy-MM-dd",
-  // more formats can be added as needed
-];
+]);
+type PossibleDateFormats = z.infer<typeof possibleDateFormats>;
 
 /**
  * Attempts to parse a date string using multiple formats.
@@ -18,7 +20,7 @@ const possibleDateFormats: string[] = [
  * @returns A Date object if parsing is successful; otherwise, null.
  */
 export const parseDateString = (dateString: string | Date): Date | null => {
-  for (const formatString of possibleDateFormats) {
+  for (const formatString of possibleDateFormats.options) {
     const parsedDate = parse(String(dateString), formatString, new Date());
     if (isValid(parsedDate)) {
       return parsedDate;
@@ -37,10 +39,30 @@ export const parseDateString = (dateString: string | Date): Date | null => {
  */
 export const formatDate = (
   date: Date,
-  formatString: string = "dd MMM yyyy"
+  formatString: string = DEFAULT_DATE_FORMAT
 ): string => {
   return format(date, formatString);
 };
+
+export function safeFormatDate({
+  date,
+  formatString = DEFAULT_DATE_FORMAT,
+}: {
+  date: Date | string | undefined;
+  formatString?: PossibleDateFormats;
+}) {
+  if (!date) return "";
+
+  const parsedDate = parseDateString(date);
+  if (!parsedDate) return "";
+
+  try {
+    return format(parsedDate, formatString);
+  } catch (e) {
+    console.warn(`Invalid format string: "${formatString}"`, e);
+    return format(parsedDate, DEFAULT_DATE_FORMAT);
+  }
+}
 
 /**
  * Retrieves the value from an object using the first matching key from a list of possible keys.

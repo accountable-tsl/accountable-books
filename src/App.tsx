@@ -25,6 +25,7 @@ import {
 import BlankLayout from "./layouts/BlankLayout";
 import { AccountingWorkspaceSetup } from "./features/accounting-setup/AccountingSetup";
 import { Table } from "@/components/data-table/fake";
+import { AccountingWorkspace } from "@/features/accounting-ws/acc-ws";
 
 function App() {
   return (
@@ -125,12 +126,16 @@ function AppRoutes() {
           />
           <Route
             path={routes.general.home.relativePath}
-            element={<Navigate to={routes.general.dashboard.relativePath} />}
+            element={<Dashboard />}
           />
 
           {/* CLIENT-SPECIFIC PAGES */}
 
           {/* FIRM-SPECIFIC PAGES */}
+          <Route
+            path={routes.accounting.index.relativePath}
+            element={<AccountingWorkspace />}
+          />
           <Route
             path={routes.accounting.setup.relativePath}
             element={<AccountingWorkspaceSetup />}
