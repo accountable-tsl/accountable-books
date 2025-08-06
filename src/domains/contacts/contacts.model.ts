@@ -15,6 +15,10 @@ import {
 } from "./contact.types";
 import { knexClient } from "../../../knexClient";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
+import {
+  createHybridSearch,
+  defineSearchableColumns,
+} from "../../shared/utils/search.utils";
 
 const normalizeName = (name: string) => name.trim().toLowerCase();
 
@@ -97,8 +101,35 @@ export async function getContacts(
     return errorResponse("Invalid request parameters", parseInput.error.errors);
   }
 
-  const { companyId, page, limit, search, status, sortBy, sortOrder, trx } =
-    parseInput.data;
+  const {
+    companyId,
+    ids,
+    displayNames,
+    page,
+    limit,
+    search,
+    status,
+    sortBy,
+    sortOrder,
+    trx,
+  } = parseInput.data;
+
+  const searchableColumns = defineSearchableColumns("c", [
+    { column: "display_name", name: "displayName", weight: 2.0 },
+    { column: "email", weight: 1.5 },
+    { column: "address" },
+    { column: "notes", weight: 0.8 },
+  ]);
+
+  const { applySearchFilter, rankFields, rankOrder } = createHybridSearch({
+    search,
+    searchableColumns,
+    trx,
+    options: {
+      minSimilarityThreshold: 0.25,
+      fuzzyMinLength: 2,
+    },
+  });
 
   const query = async (tx: Knex.Transaction) => {
     const companyUUID = await getCompanyUUID(companyId, tx);
@@ -110,26 +141,20 @@ export async function getContacts(
       .where("c.company_id", companyUUID)
       .andWhere("c.is_deleted", false);
 
+    if (ids?.length) {
+      baseQuery = baseQuery.whereIn("c.id", ids);
+    }
+
+    if (displayNames?.length) {
+      baseQuery = baseQuery.whereIn("c.display_name", displayNames);
+    }
+
     if (status) {
       baseQuery = baseQuery.andWhere("c.status", status);
     }
 
-    let sanitizedSearch: string | undefined;
-    let normalizedSearch: string | undefined;
-
-    if (search?.trim()) {
-      sanitizedSearch = search.trim().replace(/[%_]/g, "\\$&");
-      normalizedSearch = sanitizedSearch.toLowerCase();
-
-      baseQuery = baseQuery.andWhere(function () {
-        this.where("c.normalized_name", normalizedSearch)
-
-          .orWhereRaw("c.display_name % ?", [sanitizedSearch])
-          .orWhereRaw("COALESCE(c.email, '') % ?", [sanitizedSearch])
-          .orWhereRaw("COALESCE(c.address, '') % ?", [sanitizedSearch])
-          .orWhereRaw("COALESCE(c.notes, '') % ?", [sanitizedSearch]);
-      });
-    }
+    // Apply search
+    if (search?.trim()) baseQuery = applySearchFilter(baseQuery);
 
     // Get total count for pagination
     const countResult = await baseQuery.clone().count("* as count").first();
@@ -146,23 +171,27 @@ export async function getContacts(
       );
     }
 
+    const defaultSortCol = "c.display_name";
+    const resolvedSortBy = sortBy ? `c.${sortBy}` : defaultSortCol;
+
+    const selectFields = [
+      "c.id",
+      "c.display_name as displayName",
+      "c.address",
+      "c.email",
+      "c.status",
+      "c.notes",
+      "c.created_at as createdAt",
+      "c.updated_at as updatedAt",
+      ...rankFields,
+    ];
+
     const contacts = await baseQuery
-      .select([
-        "c.id",
-        "c.display_name as displayName",
-        "c.address",
-        "c.email",
-        "c.status",
-        "c.notes",
-        "c.created_at as createdAt",
-        "c.updated_at as updatedAt",
-        ...(search && sanitizedSearch
-          ? [tx.raw("similarity(c.display_name, ?) as rank", [sanitizedSearch])]
-          : []),
-      ])
-      .orderBy(search ? "rank" : `c.${sortBy}`, search ? "desc" : sortOrder)
+      .select(selectFields)
+      .orderBy(...(rankOrder ?? [resolvedSortBy, sortOrder ?? "asc"]))
       .limit(limit)
       .offset(offset);
+
 
     const pagination = {
       currentPage: page,

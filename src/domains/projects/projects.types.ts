@@ -73,6 +73,9 @@ export const getProjectsParams = z.object({
   search: z.string().optional(),
   page: z.number().int().min(1).optional(),
   limit: z.number().int().min(1).max(100).default(30).optional(),
+  searchFields: z
+    .array(z.enum(["name", "code", "description", "contactName"]))
+    .optional(),
   sortBy: z.enum(sortFields).optional(),
   sortOrder: sortOrderEnum.optional(),
   trx: z.any().optional(),

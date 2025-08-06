@@ -16,6 +16,10 @@ import {
 import { getCompanyUUID } from "../../shared/utils/random.utils";
 import { knexClient } from "../../../knexClient";
 import { ApiResponse } from "../../core/types/api.types";
+import {
+  createHybridSearch,
+  defineSearchableColumns,
+} from "../../shared/utils/search.utils";
 
 export async function getProjects(
   input: GetProjectsParams
@@ -38,11 +42,29 @@ export async function getProjects(
     trx,
   } = parseInput.data;
 
+  const searchableColumns = defineSearchableColumns("p", [
+    { column: "name", weight: 2.0 },
+    { column: "code", weight: 1.5 },
+    { column: "description" },
+    { column: "display_name", table: "c", name: "contactName", weight: 1.2 },
+  ]);
+
+  const { applySearchFilter, rankFields, rankOrder } = createHybridSearch({
+    search,
+    searchableColumns,
+    trx,
+    options: {
+      minSimilarityThreshold: 0.25,
+      fuzzyMinLength: 2,
+    },
+  });
+
   const query = async (tx: Knex.Transaction) => {
     const companyUUID = await getCompanyUUID(companyId, tx);
     if (!companyUUID) return errorResponse("Company not found");
 
     let baseQuery = tx("projects as p")
+      .leftJoin("contacts as c", "p.contact_id", "c.id")
       .where("p.company_id", companyUUID)
       .andWhere("p.is_deleted", false);
 
@@ -58,18 +80,7 @@ export async function getProjects(
       baseQuery = baseQuery.whereIn("p.contact_id", contactIds);
     }
 
-    let sanitizedSearch: string | undefined;
-
-    if (search?.trim()) {
-      sanitizedSearch = search.trim().replace(/[%_]/g, "\\$&");
-
-      baseQuery = baseQuery.andWhere(function () {
-        this.whereRaw("p.name % ?", [sanitizedSearch])
-          .orWhereRaw("COALESCE(p.code, '') % ?", [sanitizedSearch])
-          .orWhereRaw("COALESCE(p.description, '') % ?", [sanitizedSearch])
-          .orWhereRaw("COALESCE(c.display_name, '') % ?", [sanitizedSearch]);
-      });
-    }
+    if (search?.trim()) baseQuery = applySearchFilter(baseQuery);
 
     const countResult = await baseQuery.clone().count("* as count").first();
     const total = Number(countResult?.count ?? 0);
@@ -77,34 +88,33 @@ export async function getProjects(
     const offset = Math.max(0, (page - 1) * limit);
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
-    const orderByField = sortBy ?? "created_at";
-    const sortFieldQualified = search ? "rank" : `p.${orderByField}`;
-    const sortDirection = search ? "desc" : sortOrder;
-
     if (page > totalPages) {
       return errorResponse(
         `Page ${page} exceeds maximum pages (${totalPages})`
       );
     }
 
+    const selectFields: (string | Knex.Raw)[] = [
+      "p.id",
+      "p.name",
+      "p.code",
+      "p.description",
+      "p.status",
+      "p.contact_id as contactId",
+      "c.display_name as contactName",
+      "p.start_date as startDate",
+      "p.end_date as endDate",
+      "p.created_at as createdAt",
+      ...rankFields,
+    ];
+    const orderByField = sortBy ?? "created_at";
+    const sortFieldQualified = search ? "rank" : `p.${orderByField}`;
+    const sortDirection = search ? "desc" : sortOrder;
+
+    const orderClause = rankOrder ?? [sortFieldQualified, sortDirection];
     const projects = await baseQuery
-      .select([
-        "p.id",
-        "p.name",
-        "p.code",
-        "p.description",
-        "p.status",
-        "p.contact_id as contactId",
-        "c.display_name as contactName",
-        "p.start_date as startDate",
-        "p.end_date as endDate",
-        "p.created_at as createdAt",
-        ...(search && sanitizedSearch
-          ? [tx.raw("similarity(p.name, ?) as rank", [sanitizedSearch])]
-          : []),
-      ])
-      .leftJoin("contacts as c", "p.contact_id", "c.id")
-      .orderBy(sortFieldQualified, sortDirection)
+      .select(selectFields)
+      .orderBy(...orderClause)
       .limit(limit)
       .offset(offset);
 
@@ -201,8 +211,6 @@ export async function addNewProjects({
       created_by_id: userId,
       updated_by_id: userId,
     }));
-
-    console.log(projects);
 
     const inserted = await tx("projects")
       .insert(projects)

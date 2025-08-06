@@ -1,13 +1,13 @@
 import express from "express";
 import {
   addContactsController,
-  fetchContactsController,
+  getContactsController,
   updateContactsController,
 } from "./contacts.controller";
 
 const router = express.Router({ mergeParams: true });
 
-router.get("/", fetchContactsController);
+router.post("/query", getContactsController);
 router.post("/", addContactsController);
 router.patch("/", updateContactsController);
 

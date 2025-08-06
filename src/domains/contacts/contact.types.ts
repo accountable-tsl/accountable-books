@@ -59,9 +59,12 @@ export type ContactResponse = {
 
 export const getContactsParams = z.object({
   companyId: z.string().nonempty(),
+  ids: z.array(z.string().uuid()).optional(),
+  displayNames: z.array(z.string()).optional(),
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(100).default(30),
   search: z.string().optional(),
+  searchFields: z.array(z.enum(["displayName", "email", "notes"])).optional(),
   status: contactStatus.optional(),
   sortBy: z
     .enum(["display_name", "email", "created_at", "updated_at"])
