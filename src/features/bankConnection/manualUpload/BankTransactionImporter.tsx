@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { addNewBankTransactions } from "@/features/bankConnection/shared/api";
 import { useCompany } from "@/domains/company/store";
 import { maskDigits, parseDateString } from "@/shared/utils/formatting-utils";
-import { AddBankAccountDialog } from "@/domains/bankAccounts/AddBankAccountDialog";
+import { AddBankAccountDialog } from "@/domains/bank-accounts/bank-accounts-add-dialog";
 import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { FormattedAmount } from "@/components/FormattedAmount";
 import { SpreadsheetImporter } from "@/features/spreadsheets/SpreadsheetImporter";
@@ -37,8 +37,8 @@ import { CenteredLoader } from "@/components/CenteredLoader";
 import { PuffLoader } from "react-spinners";
 import { Success } from "@/components/Success";
 import { Failed } from "@/components/Failed";
-import { BankAccountWithMeta } from "@/domains/bankAccounts/types";
-import { getBankAccountsForCompany } from "@/domains/bankAccounts/api";
+import { BankAccountWithMeta } from "@/domains/bank-accounts/types";
+import { getBankAccountsForCompany } from "@/domains/bank-accounts/bank-accounts-api";
 
 export const BankTransactionImporter = ({
   onImportSuccess,

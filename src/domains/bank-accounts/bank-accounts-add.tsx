@@ -6,7 +6,6 @@ import { useCountries } from "@/shared/hooks/useCountries";
 import ErrorPage from "../../components/ErrorPage";
 import { getDefaultCountryAndCurrency } from "@/shared/utils/random-utils";
 import { companyType, Country } from "@/shared/types/core";
-import { useCompany } from "@/domains/company/store";
 import { Controller, useForm } from "react-hook-form";
 import {
   AddBankAccountProps,
@@ -14,7 +13,7 @@ import {
   BankAccountWithMeta,
   NewBankAccountInput,
   newBankAccountInput,
-} from "@/domains/bankAccounts/types";
+} from "@/domains/bank-accounts/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { toTitleCase } from "@/shared/utils/formatting-utils";
@@ -32,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { SkeletonBlock } from "@/components/SkeletonBlock";
 import { CircleCheck } from "lucide-react";
 import { createNewBankAccount } from "@/features/bankConnection/shared/api";
+import { useSession } from "@/features/auth/Session";
 
 export default function AddBankAccount({
   onSuccess,
@@ -49,7 +49,7 @@ export default function AddBankAccount({
     useCurrencies();
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
   const { data: bankData } = useBanks("countryId", selectedCountry?.id);
-  const { company } = useCompany();
+  const { companyId, company, loading } = useSession();
 
   // Computed
   const currencies = currenciesData?.data ?? [];
@@ -84,6 +84,7 @@ export default function AddBankAccount({
 
   // Form submission handler
   const onSubmit = async (data: NewBankAccountInput) => {
+    console.log(data);
     try {
       // Submit data to your backend API here
       // Example: await api.addBankAccount(data);
@@ -139,7 +140,7 @@ export default function AddBankAccount({
     }
   }, [company, countries, currencies, hasUserInteracted, setValue]);
 
-  if (isLoadingCurrencies || isLoadingCountries) {
+  if (loading || isLoadingCurrencies || isLoadingCountries) {
     return (
       <div className="flex flex-col gap-4 p-4 max-w-md">
         <SkeletonBlock height="400px" />

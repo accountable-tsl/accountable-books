@@ -1,6 +1,6 @@
 import api from "@/lib/axios";
 import { ApiResponse } from "@/shared/types/core";
-import { BankAccountWithMeta } from "@/domains/bankAccounts/types";
+import { BankAccountWithMeta } from "@/domains/bank-accounts/types";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 

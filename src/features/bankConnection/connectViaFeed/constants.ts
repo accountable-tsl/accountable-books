@@ -2,7 +2,7 @@
 import {
   bankAccountType,
   BankAccountWithMeta,
-} from "@/domains/bankAccounts/types";
+} from "@/domains/bank-accounts/types";
 import { ConnectionResponse } from "./types";
 
 const generateId = () =>

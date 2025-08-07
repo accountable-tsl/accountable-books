@@ -25,12 +25,28 @@ export function AccountingWorkspace() {
   const isMobile = useIsMobile();
   const is1440 = useMediaQuery("(min-width: 1440px)");
 
+  if (isMobile) {
+    return <SmallScreenMessage />;
+  }
+
+  if (loading) {
+    return <CenteredLoader />;
+  }
+
+  if (!tenantRoutes) {
+    return <ErrorPage type="default" />;
+  }
+
   const quickActionData: ActionCardProps[] = [
     {
       icon: <Building2 className="w-6 h-6 text-muted-foreground" />,
       title: "Bank Transactions",
       actions: [
-        { label: "Upload", icon: <Upload className="w-4 h-4" /> },
+        {
+          label: "Upload",
+          icon: <Upload className="w-4 h-4" />,
+          onClick: () => navigate(tenantRoutes.accounting.uploadBankTxn()),
+        },
         { label: "Connect", icon: <Link className="w-4 h-4" /> },
       ],
     },
@@ -52,18 +68,6 @@ export function AccountingWorkspace() {
       //   classNames: { actionsBox: "grid-cols-1" },
     },
   ];
-
-  if (isMobile) {
-    return <SmallScreenMessage />;
-  }
-
-  if (loading) {
-    return <CenteredLoader />;
-  }
-
-  if (!tenantRoutes) {
-    return <ErrorPage type="default" />;
-  }
 
   return (
     <div className="flex min-w-0 w-full min-h-0 h-full gap-4 p-4 divide-x">

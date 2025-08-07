@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { toTitleCase } from "@/shared/utils/formatting-utils";
 import { useIsMobile } from "@/shared/hooks/use-media-query";
-import { BankAccountWithMeta } from "@/domains/bankAccounts/types";
+import { BankAccountWithMeta } from "@/domains/bank-accounts/types";
 import { getProviderData, ProviderWidgets } from "../utils";
 import { useSession } from "@/features/auth/Session";
 import { CenteredLoader } from "@/components/CenteredLoader";

@@ -1,13 +1,13 @@
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
 import { FormField } from "@/components/FormField";
 import { useMemo, useState } from "react";
-import { useCompanyBankAccounts } from "@/domains/bankAccounts/hooks";
+import { useCompanyBankAccounts } from "@/domains/bank-accounts/hooks";
 import { useCompany } from "@/domains/company/store";
-import { BankAccountWithMeta } from "@/domains/bankAccounts/types";
+import { BankAccountWithMeta } from "@/domains/bank-accounts/types";
 import { maskDigits } from "@/shared/utils/formatting-utils";
 import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { Plus } from "lucide-react";
-import { AddBankAccountDialog } from "@/domains/bankAccounts/AddBankAccountDialog";
+import { AddBankAccountDialog } from "@/domains/bank-accounts/bank-accounts-add-dialog";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import ErrorPage from "@/components/ErrorPage";
 import { cn } from "@/lib/utils";

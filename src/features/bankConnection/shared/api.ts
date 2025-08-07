@@ -1,7 +1,7 @@
 import {
   BankAccountWithMeta,
   NewBankAccountInput,
-} from "@/domains/bankAccounts/types";
+} from "@/domains/bank-accounts/types";
 import {
   AddBankTransactionsResponse,
   BankTransactionBatchInput,

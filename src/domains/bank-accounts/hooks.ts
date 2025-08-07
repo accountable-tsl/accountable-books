@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getBankAccountsForCompany } from "@/domains/bankAccounts/api";
+import { getBankAccountsForCompany } from "@/domains/bank-accounts/bank-accounts-api";
 
 // use query to fetch bank accounts
 export const useCompanyBankAccounts = (companyId: string) => {
