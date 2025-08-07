@@ -22,6 +22,7 @@ import usersCompaniesRolesRoutes from "./domains/userRoles/userRoles.routes";
 import coaRoutes from "./domains/chartOfAccounts/coa.routes";
 import accountRoutes from "./domains/account/account.routes";
 import contactsRoutes from "./domains/contacts/contacts.routes";
+import projectsRoutes from "./domains/projects/projects.routes";
 import { swaggerUi, specs } from "../swagger";
 import { serverAdapter } from "./routes/bullboard.routes";
 import { basicAuth } from "./core/middlewares/basicAuth.middleware";
@@ -112,6 +113,7 @@ async function startServer() {
 
     app.use("/api/:companyId/coa", coaRoutes);
     app.use("/api/:companyId/contacts", contactsRoutes);
+    app.use("/api/:companyId/projects", projectsRoutes);
 
     app.use("/admin/queues", basicAuth(bullboardUser, bullboardPass));
     app.use("/admin/queues", serverAdapter.getRouter());

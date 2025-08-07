@@ -25,6 +25,7 @@ import {
 } from "../userRoles/userRoles.model";
 import type { Knex } from "knex";
 import { AccessibleCompaniesResponse } from "../userRoles/userRoles.types";
+import { getAccountTypeByKey } from "../account/account.registry";
 
 const bankResponseFields = [
   // Bank Account Core Fields
@@ -264,11 +265,16 @@ export async function createNewBankAccount(input: {
       );
     }
 
+    const accountTypeKey = "ca_bank";
+    const accountType = await getAccountTypeByKey(accountTypeKey);
+    if (!accountType || !accountType.id)
+      return errorResponse("Failed to fetch account type for bank account");
+
     // Create chart of account (aka ledger) for the bank account
     const coaInput = {
       code: data.account_code,
       name: data.display_name,
-      account_type_key: "ca_bank",
+      accountTypeId: accountType.id,
       source: data.source || coaSource.enum.user,
     };
 
@@ -280,6 +286,7 @@ export async function createNewBankAccount(input: {
       })
       .first();
 
+    console.log(existingCoa);
     if (existingCoa) {
       return errorResponse(
         `A chart of account with the name "${coaInput.name}" ${coaInput.code ? `and code "${coaInput.code}"` : ""} already exists in this company`,
@@ -289,19 +296,28 @@ export async function createNewBankAccount(input: {
     }
 
     const executeWithTransaction = async (tx: Knex.Transaction) => {
-      const coa = await createCoa({
-        companyId: companyUUID,
-        userId,
-        input: [coaInput],
-        trx: tx,
-      });
+      // const coa = await createCoa({
+      //   companyId,
+      //   userId,
+      //   data: [coaInput],
+      //   trx: tx,
+      // });
 
-      if (!coa.success) {
-        return coa;
-      }
+      const [coa] = await tx("coa")
+        .insert({
+          company_id: companyUUID,
+          name: coaInput.name,
+          code: coaInput.code,
+          account_type_id: coaInput.accountTypeId,
+          source: coaInput.source,
+          created_by_id: userId,
+          updated_by_id: userId,
+          currency_id: currency.id,
+        })
+        .returning("*");
 
-      const coaId = coa.data?.[0]?.id;
-      if (!coaId) {
+      if (!coa || !coa.id) {
+        tx.rollback();
         return errorResponse("Failed to create coa for bank");
       }
 
@@ -315,7 +331,7 @@ export async function createNewBankAccount(input: {
           bank_id: data.bank_id,
           currency_id: data.currency_id,
           company_id: companyUUID,
-          coa_id: coaId,
+          coa_id: coa.id,
           created_by_id: userId,
           updated_by_id: userId,
         })

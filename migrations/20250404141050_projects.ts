@@ -4,6 +4,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from "../src/utils/db";
+import { createTrgmIndexes, dropTrgmIndexes } from "./utils/trgmIndexes";
 
 const tableName = "projects";
 export async function up(knex: Knex): Promise<void> {
@@ -16,6 +17,10 @@ export async function up(knex: Knex): Promise<void> {
       .specificType("status", "project_status")
       .defaultTo("in_draft")
       .notNullable();
+
+    table.timestamp("start_date", { useTz: true }).nullable();
+    table.timestamp("end_date", { useTz: true }).nullable();
+
     table
       .uuid("contact_id")
       .nullable()
@@ -47,14 +52,23 @@ export async function up(knex: Knex): Promise<void> {
     addStandardColumns(table);
 
     table.unique(["company_id", "name"]);
-    table.unique(["company_id", "code"]);
     table.index(["company_id", "status"], "project_company_status_idx");
+    table.index(["company_id", "created_at"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
+
+  await knex.raw(`
+  CREATE UNIQUE INDEX IF NOT EXISTS ${tableName}_code_company_idx
+  ON ${tableName}(company_id, code)
+  WHERE code IS NOT NULL
+`);
+
+  await createTrgmIndexes(knex, tableName, ["name", "code", "description"]);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await dropTrgmIndexes(knex, tableName, ["name", "code", "description"]);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

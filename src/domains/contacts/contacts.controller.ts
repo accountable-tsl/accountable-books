@@ -3,19 +3,18 @@ import { AuthRequest } from "../../features/auth/auth.types";
 import { errorResponse } from "../../shared/utils/response.utils";
 import { addNewContacts, getContacts, updateContacts } from "./contacts.model";
 
-export async function fetchContactsController(req: AuthRequest, res: Response) {
+export async function getContactsController(req: AuthRequest, res: Response) {
   try {
     const userId = String(req.user?.id);
     const companyId = String(req.params.companyId);
-    const { ids, displayNames } = req.body || {};
+    const filters = req.body || {};
 
     if (!userId || !companyId)
       return res.status(400).json(errorResponse("Bad Request"));
 
     const result = await getContacts({
       companyId,
-      ...(ids && { ids }),
-      ...(displayNames && { displayNames }),
+      ...filters,
     });
 
     result.success

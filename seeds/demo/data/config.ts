@@ -5,11 +5,13 @@ import {
 } from "../../../src/domains/companies/companies.types";
 import { getCountry } from "../../../src/domains/countries/countries.utils";
 import { getCurrency } from "../../../src/domains/currencies/currencies.utils";
+import { NewProjectInput } from "../../../src/domains/projects/projects.types";
 import {
   createCompleteCompanyOnboardingState,
   createCompleteUserOnboardingState,
 } from "../../../src/features/onboarding/onboarding.utils";
-import { generateDemoContactsForCompany } from "../utils/demoContacts";
+import { generateDemoContactsForCompany } from "../utils/003_genDemoContacts";
+import { generateDemoProjectsForCompany } from "../utils/004_genDemoProjects";
 import {
   CreateDemoBase,
   CreateDemoInput,
@@ -33,6 +35,13 @@ function createDemoConfig({
     countryCode: homeCountry.code,
   });
 
+  const genProjects = (contactIds: string[]): NewProjectInput[] =>
+    generateDemoProjectsForCompany({
+      companyType: companyType,
+      countryCode: homeCountry.code,
+      contactIds,
+    });
+
   return {
     user: {
       firstname,
@@ -55,7 +64,9 @@ function createDemoConfig({
       ...(companyType === "accounting_firm" && slug ? { slug } : {}),
       onboardingState: createCompleteCompanyOnboardingState(companyType),
     },
+
     contacts,
+    genProjects,
   };
 }
 

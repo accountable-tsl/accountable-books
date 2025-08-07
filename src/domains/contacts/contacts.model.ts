@@ -8,11 +8,17 @@ import {
   ContactInput,
   contactInputSchema,
   ContactResponse,
+  getContactsParams,
+  GetContactsParams,
   UpdateContact,
   updateContactSchema,
 } from "./contact.types";
 import { knexClient } from "../../../knexClient";
 import { getCompanyUUID } from "../../shared/utils/random.utils";
+import {
+  createHybridSearch,
+  defineSearchableColumns,
+} from "../../shared/utils/search.utils";
 
 const normalizeName = (name: string) => name.trim().toLowerCase();
 
@@ -86,37 +92,138 @@ export async function addNewContacts({
   }
 }
 
-export async function getContacts({
-  companyId,
-  trx,
-}: {
-  companyId: string;
-  trx?: Knex.Transaction;
-}): Promise<ApiResponse<ContactResponse[]>> {
-  if (!companyId) return errorResponse("Company ID is required");
+export async function getContacts(
+  input: GetContactsParams
+): Promise<ApiResponse<ContactResponse>> {
+  // Input validation
+  const parseInput = getContactsParams.safeParse(input);
+  if (!parseInput.success) {
+    return errorResponse("Invalid request parameters", parseInput.error.errors);
+  }
+
+  const {
+    companyId,
+    ids,
+    displayNames,
+    page,
+    limit,
+    search,
+    status,
+    sortBy,
+    sortOrder,
+    trx,
+  } = parseInput.data;
+
+  const searchableColumns = defineSearchableColumns("c", [
+    { column: "display_name", name: "displayName", weight: 2.0 },
+    { column: "email", weight: 1.5 },
+    { column: "address" },
+    { column: "notes", weight: 0.8 },
+  ]);
+
+  const { applySearchFilter, rankFields, rankOrder } = createHybridSearch({
+    search,
+    searchableColumns,
+    trx,
+    options: {
+      minSimilarityThreshold: 0.25,
+      fuzzyMinLength: 2,
+    },
+  });
 
   const query = async (tx: Knex.Transaction) => {
     const companyUUID = await getCompanyUUID(companyId, tx);
+    if (!companyUUID) {
+      return errorResponse("Company not found");
+    }
 
-    return tx("contacts")
-      .select([
-        "id",
-        "display_name as displayName",
-        "address",
-        "email",
-        "status",
-        "notes",
-      ])
-      .where({ company_id: companyUUID });
+    let baseQuery = tx("contacts as c")
+      .where("c.company_id", companyUUID)
+      .andWhere("c.is_deleted", false);
+
+    if (ids?.length) {
+      baseQuery = baseQuery.whereIn("c.id", ids);
+    }
+
+    if (displayNames?.length) {
+      baseQuery = baseQuery.whereIn("c.display_name", displayNames);
+    }
+
+    if (status) {
+      baseQuery = baseQuery.andWhere("c.status", status);
+    }
+
+    // Apply search
+    if (search?.trim()) baseQuery = applySearchFilter(baseQuery);
+
+    // Get total count for pagination
+    const countResult = await baseQuery.clone().count("* as count").first();
+    const total = Number(countResult?.count ?? 0);
+
+    // Calculate pagination
+    const offset = Math.max(0, (page - 1) * limit);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    // Validate page bounds
+    if (page > totalPages) {
+      return errorResponse(
+        `Page ${page} exceeds maximum pages (${totalPages})`
+      );
+    }
+
+    const defaultSortCol = "c.display_name";
+    const resolvedSortBy = sortBy ? `c.${sortBy}` : defaultSortCol;
+
+    const selectFields = [
+      "c.id",
+      "c.display_name as displayName",
+      "c.address",
+      "c.email",
+      "c.status",
+      "c.notes",
+      "c.created_at as createdAt",
+      "c.updated_at as updatedAt",
+      ...rankFields,
+    ];
+
+    const contacts = await baseQuery
+      .select(selectFields)
+      .orderBy(...(rankOrder ?? [resolvedSortBy, sortOrder ?? "asc"]))
+      .limit(limit)
+      .offset(offset);
+
+
+    const pagination = {
+      currentPage: page,
+      pageSize: limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
+
+    if (total === 0 && page === 1) {
+      return successResponse("No contacts found", {
+        contacts: [],
+        pagination: {
+          ...pagination,
+          hasNext: false,
+          hasPrev: false,
+        },
+      });
+    }
+
+    return successResponse("Contacts fetched successfully", {
+      contacts,
+      pagination,
+    });
   };
+
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
-
-    return result.length === 0
-      ? successResponse("No contacts found", null)
-      : successResponse("Contact(s) fetched successfully", result);
+    return result;
   } catch (error: any) {
-    return errorResponse(`Failed to fetch contacts: ${error.message}`, error);
+    return errorResponse(`Failed to fetch contacts`, error);
   }
 }
 

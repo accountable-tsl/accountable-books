@@ -134,7 +134,7 @@ export const createCoa = async ({
       return errorResponse("Failed to create chart of accounts", errors);
 
     // Invalidate coa cache
-    await invalidateCoaCache({ companyUUID });
+    // await invalidateCoaCache({ companyUUID });
 
     // Batch and insert
     const batchedRecords = chunkArray(recordsToInsert, 500); // Split into chunks of 500
@@ -154,7 +154,12 @@ export const createCoa = async ({
   };
 
   try {
-    return trx ? await query(trx) : await knexClient.transaction(query);
+    const result = trx ? await query(trx) : await knexClient.transaction(query);
+    if (result.success) {
+      await invalidateCoaCache({ companyUUID: result.data.companyUUID });
+    }
+
+    return result;
   } catch (error) {
     return errorResponse("Failed to create chart of accounts", error);
   }

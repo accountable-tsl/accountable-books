@@ -106,9 +106,10 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists("project_status", [
       "in_draft",
-      "active",
+      "in_progress",
       "on_hold",
       "completed",
+      "cancelled",
     ])
   );
 
