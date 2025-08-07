@@ -61,6 +61,7 @@ export function route<TPath extends string>(template: TPath, meta?: RouteMeta) {
   const defaultMeta = {
     public: false,
     requiresCompanyId: true,
+    sidebarCollapsed: false,
     ...meta, // overrides above defaults if defined
   };
 

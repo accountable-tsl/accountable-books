@@ -1,11 +1,16 @@
 import api from "@/lib/axios";
 import { ApiResponse } from "@/shared/types/core";
-import { Contacts, NewContact } from "@/features/contacts/contacts-types";
+import {
+  ContactResponse,
+  GetContactsParams,
+  NewContact,
+} from "@/features/contacts/contacts-types";
 
 export async function fetchContacts(
-  companyId: string
-): Promise<ApiResponse<Contacts[]>> {
-  const res = await api.get(`/api/${companyId}/contacts`);
+  input: GetContactsParams
+): Promise<ApiResponse<ContactResponse>> {
+  const { companyId, ...filters } = input;
+  const res = await api.post(`/api/${companyId}/contacts/query`, filters);
   return res.data;
 }
 

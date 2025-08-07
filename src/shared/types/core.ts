@@ -120,17 +120,6 @@ export interface Currency {
   bankAccounts?: BankAccount[];
 }
 
-export interface Country {
-  id?: string;
-  code?: string;
-  name?: string;
-  phoneCode?: string;
-  flag?: string | null;
-  continent?: string | null;
-  company?: Company[];
-  banks?: Bank[];
-}
-
 export interface FinancialStatement {
   id?: string;
   statementKey?: string;
@@ -499,3 +488,12 @@ export interface AccountTxnTableProps {
   showCurrency: boolean;
   showSourceAmounts: boolean;
 }
+
+export type Pagination = {
+  currentPage: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+};

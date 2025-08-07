@@ -1,5 +1,4 @@
 import { Check, ChevronsUpDown } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -16,7 +15,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { VariantProps } from "class-variance-authority";
-import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import {
   Drawer,
@@ -25,6 +31,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "./ui/drawer";
+import { BeatLoader } from "react-spinners";
 
 type Item =
   | string
@@ -79,6 +86,14 @@ interface AutocompleteDropdownProps
   groupLabel?: string | ((item: any) => string);
   groups?: GroupedItems[];
   ungroupedLabel?: string; // default: "Other"
+
+  // Async and infinite scroll
+  async?: boolean;
+  onSearchChange?: (query: string) => void;
+  onLoadMore?: () => void;
+  isLoading?: boolean; // Loading state for async fetches
+  hasMore?: boolean;
+  debounceTimeout?: number; //in ms
 }
 
 // Helper function to get nested property value using dot notation
@@ -121,6 +136,18 @@ const normalizeItem = (
     : { value: `fallback-${Math.random()}`, label: item?.label || "Unknown" };
 };
 
+const mergeRefs = <T,>(...refs: React.Ref<T>[]) => {
+  return (node: T) => {
+    refs.forEach((ref) => {
+      if (typeof ref === "function") {
+        ref(node);
+      } else if (ref) {
+        (ref as React.MutableRefObject<T>).current = node;
+      }
+    });
+  };
+};
+
 /**
  * A reusable dropdown with autocomplete search, supporting strings or objects.
  * Switches to Drawer on mobile (≤768px) and Popover on desktop.
@@ -158,11 +185,19 @@ export const AutocompleteDropdown = forwardRef<
     groups = [],
     ungroupedLabel = "Other",
 
+    async: asyncMode = false,
+    onSearchChange,
+    onLoadMore,
+    isLoading = false,
+    hasMore = false,
+    debounceTimeout = 300,
+
     ...rest
   } = props;
   const [open, setOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState(value);
   const [searchQuery, setSearchQuery] = useState("");
+  const lastItemObserver = useRef<IntersectionObserver | null>(null);
 
   const isMobile = useMediaQuery("(max-width: 768px)");
   const selectedItemRef = useCallback((node: HTMLDivElement | null) => {
@@ -174,6 +209,26 @@ export const AutocompleteDropdown = forwardRef<
     }
     // On unmount: React will pass null, nothing else needed
   }, []);
+
+  const lastItemRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (lastItemObserver.current) lastItemObserver.current.disconnect();
+
+      if (!node || !hasMore || isLoading) return;
+
+      lastItemObserver.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            onLoadMore?.();
+          }
+        },
+        { threshold: 0.1 }
+      );
+
+      lastItemObserver.current.observe(node);
+    },
+    [hasMore, isLoading, onLoadMore]
+  );
 
   const handleSelect = (searchValue: string) => {
     const currentValue = searchValue.split("|_|")[0].trim() || "";
@@ -197,6 +252,31 @@ export const AutocompleteDropdown = forwardRef<
   useEffect(() => {
     setSelectedValue(value);
   }, [value]);
+
+  // Reset state when closing dropdown
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery("");
+      if (asyncMode && onSearchChange) {
+        onSearchChange(""); // Reset async search
+      }
+    } else if (asyncMode && onSearchChange) {
+      // Trigger initial search when opening
+      onSearchChange("");
+    }
+  }, [open, asyncMode, onSearchChange]);
+
+  // Debounced search handler
+  useEffect(() => {
+    if (!asyncMode || !onSearchChange) return;
+    // if (searchQuery === "") return;
+
+    const handler = setTimeout(() => {
+      onSearchChange(searchQuery);
+    }, debounceTimeout);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery, debounceTimeout, asyncMode, onSearchChange]);
 
   // Normalize and filter items to ensure valid values
   const normalizedItems = useMemo(
@@ -307,30 +387,48 @@ export const AutocompleteDropdown = forwardRef<
 
   // Filter items based on search query
   const filteredData = useMemo(() => {
+    // In async mode, use all items (server handles filtering)
+    if (asyncMode) {
+      return useGrouping ? groupedData : normalizedItems;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return useGrouping ? groupedData : normalizedItems;
+
     if (!useGrouping) {
-      if (!searchQuery.trim()) return normalizedItems;
       return normalizedItems.filter(
         (item) =>
-          item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.value.toLowerCase().includes(searchQuery.toLowerCase())
+          item.label.toLowerCase().includes(query) ||
+          item.value.toLowerCase().includes(query)
       );
     }
 
     // Grouped filtering
-    if (!searchQuery.trim()) return groupedData;
     return (
       groupedData
         ?.map((group) => ({
           ...group,
           items: group.items.filter(
             (item) =>
-              item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              item.value.toLowerCase().includes(searchQuery.toLowerCase())
+              item.label.toLowerCase().includes(query) ||
+              item.value.toLowerCase().includes(query)
           ),
         }))
         .filter((group) => group.items.length > 0) || []
     );
-  }, [normalizedItems, groupedData, searchQuery, useGrouping]);
+  }, [normalizedItems, groupedData, searchQuery, useGrouping, asyncMode]);
+
+  // Calculate total items for last item detection
+  const totalItems = useMemo(() => {
+    if (!filteredData) return 0;
+    if (!useGrouping) return (filteredData as NormalizedItem[]).length;
+    return (
+      (filteredData as GroupedItems[])?.reduce(
+        (total, group) => total + group.items.length,
+        0
+      ) || 0
+    );
+  }, [filteredData, useGrouping]);
 
   // Determine what to show based on grouping mode
   const hasRegularItems = useGrouping
@@ -358,71 +456,96 @@ export const AutocompleteDropdown = forwardRef<
         value={searchQuery}
         onValueChange={setSearchQuery}
       />
-      <CommandList>
+      <CommandList aria-busy={isLoading}>
         <CommandGroup>
-          {showEmptyState && (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              {emptyStateMessage}
-            </div>
-          )}
-          {showNoResults && (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              {noResultsMessage}
-            </div>
-          )}
+          {!useGrouping && (
+            <>
+              {(filteredData as NormalizedItem[]).map((item, index, arr) => {
+                const isSelected = selectedValue === item.value;
+                const isLastItem = index === totalItems - 1;
+                let itemRef: React.Ref<HTMLDivElement> | undefined;
 
-          {!useGrouping &&
-            (filteredData as NormalizedItem[]).map((item) => {
-              const isSelected = selectedValue === item.value;
+                if (isSelected) itemRef = selectedItemRef;
+                if (isLastItem && hasMore)
+                  itemRef = mergeRefs(itemRef || null, lastItemRef);
 
-              return (
-                <CommandItem
-                  key={item.value}
-                  ref={isSelected ? selectedItemRef : undefined}
-                  value={`${item.value} |_| ${item.label}`}
-                  onSelect={handleSelect}
-                >
-                  {item.label}
-                  <Check
-                    className={cn(
-                      "ml-auto",
-                      isSelected ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                </CommandItem>
-              );
-            })}
+                return (
+                  <CommandItem
+                    key={item.value}
+                    ref={itemRef}
+                    value={`${item.value} |_| ${item.label}`}
+                    onSelect={handleSelect}
+                  >
+                    {item.label}
+                    <Check
+                      className={cn(
+                        "ml-auto",
+                        isSelected ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                );
+              })}
+              {hasMore && isLoading && (
+                <div className="py-3 text-center text-sm text-muted-foreground">
+                  <BeatLoader />
+                </div>
+              )}
+            </>
+          )}
 
           {/* Grouped filtered items */}
           {useGrouping &&
-            (filteredData as GroupedItems[])?.map((group) => (
-              <div key={group.id}>
-                <div className="px-2 pt-2 text-sm font-semibold text-muted-foreground">
-                  {group.label}
-                </div>
-                <CommandSeparator className="my-1" />
-                {group.items.map((item: NormalizedItem) => {
-                  const isSelected = selectedValue === item.value;
+            (() => {
+              let itemCounter = 0;
 
-                  return (
-                    <CommandItem
-                      key={item.value}
-                      ref={isSelected ? selectedItemRef : undefined}
-                      value={`${item.value} |_| ${item.label}`}
-                      onSelect={handleSelect}
-                    >
-                      {item.label}
-                      <Check
-                        className={cn(
-                          "ml-auto h-4 w-4",
-                          isSelected ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                    </CommandItem>
-                  );
-                })}
-              </div>
-            ))}
+              return (filteredData as GroupedItems[]).map(
+                (group, groupIndex, allGroups) => (
+                  <div key={group.id}>
+                    <div className="px-2 pt-2 text-sm font-semibold text-muted-foreground">
+                      {group.label}
+                    </div>
+                    <CommandSeparator className="my-1" />
+
+                    {group.items.map((item) => {
+                      itemCounter++;
+                      const isSelected = selectedValue === item.value;
+                      const isAbsoluteLast = itemCounter === totalItems;
+                      let itemRef: React.Ref<HTMLDivElement> | undefined;
+
+                      if (isSelected) itemRef = selectedItemRef;
+                      if (isAbsoluteLast && hasMore)
+                        itemRef = mergeRefs(itemRef || null, lastItemRef);
+
+                      return (
+                        <CommandItem
+                          key={item.value}
+                          ref={itemRef}
+                          value={`${item.value} |_| ${item.label}`}
+                          onSelect={handleSelect}
+                        >
+                          {item.label}
+                          <Check
+                            className={cn(
+                              "ml-auto h-4 w-4",
+                              isSelected ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                        </CommandItem>
+                      );
+                    })}
+
+                    {groupIndex === allGroups.length - 1 &&
+                      hasMore &&
+                      isLoading && (
+                        <div className="py-3 text-center text-sm text-muted-foreground">
+                          <BeatLoader />
+                        </div>
+                      )}
+                  </div>
+                )
+              );
+            })()}
 
           {(hasSearchResults || showEmptyState || showNoResults) &&
             showActionItems && <CommandSeparator className="my-1" />}
@@ -442,6 +565,17 @@ export const AutocompleteDropdown = forwardRef<
                 {action.label}
               </CommandItem>
             ))}
+
+          {showEmptyState && (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              {emptyStateMessage}
+            </div>
+          )}
+          {showNoResults && (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              {noResultsMessage}
+            </div>
+          )}
         </CommandGroup>
       </CommandList>
     </Command>

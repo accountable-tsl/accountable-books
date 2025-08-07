@@ -4,9 +4,9 @@ import { Calculator, FolderOpen, Settings, Users } from "lucide-react";
 import { useState } from "react";
 import { ChartOfAccounts } from "@/features/coa/coa";
 import { FinancialSettings } from "@/features/financial-settings/FinancialSettings";
-import { Projects } from "@/features/projects/Projects";
+import { Projects } from "@/features/projects/projects";
 import { cn } from "@/lib/utils";
-import { Contacts } from "@/features/contacts/Contacts";
+import { Contacts } from "@/features/contacts/contacts";
 
 const tabsConfig = [
   {

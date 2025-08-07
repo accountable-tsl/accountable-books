@@ -3,29 +3,53 @@ import {
   fetchContacts,
 } from "@/features/contacts/contacts-api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { newContact, NewContact } from "@/features/contacts/contacts-types";
+import {
+  GetContactsParams,
+  newContact,
+  NewContact,
+} from "@/features/contacts/contacts-types";
 import { toast } from "sonner";
 
 const CACHE_TIMES = {
-  STALE: 1000 * 60 * 30, // 30mins
-  GC: 1000 * 60 * 60 * 3, // 3 hours
+  STALE: 1000 * 60 * 15, // 15 mins
+  GC: 1000 * 60 * 60 * 1, // 1 hours
 };
 
-const CACHE_KEY = (companyId: string) => ["contacts", companyId];
+const getContactsCacheKey = (input: GetContactsParams) => {
+  const { companyId, ...rest } = input;
 
-export function useContacts(companyId: string) {
+  const normalized = Object.fromEntries(
+    Object.entries(rest).map(([key, value]) => {
+      if (Array.isArray(value)) {
+        return [key, [...value].sort()]; // sort copy of array
+      }
+      return [key, value];
+    })
+  );
+
+  return ["contacts", input.companyId, normalized];
+};
+
+const invalidateContactsCache = (companyId: string) => {
+  const queryClient = useQueryClient();
+  queryClient.invalidateQueries({
+    queryKey: ["contacts", companyId],
+    exact: false,
+  });
+};
+
+export function useContacts(input: GetContactsParams) {
+  const { companyId, limit, page } = input;
   return useQuery({
-    queryKey: CACHE_KEY(companyId),
-    queryFn: () => fetchContacts(companyId),
-    enabled: !!companyId,
+    queryKey: getContactsCacheKey(input),
+    queryFn: () => fetchContacts(input),
+    enabled: !!companyId && !!limit && !!page,
     staleTime: CACHE_TIMES.STALE,
     gcTime: CACHE_TIMES.GC,
   });
 }
 
 export const useCreateContacts = () => {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({
       companyId,
@@ -39,10 +63,7 @@ export const useCreateContacts = () => {
     },
 
     onSuccess: (response, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: CACHE_KEY(variables.companyId),
-        exact: false,
-      });
+      invalidateContactsCache(variables.companyId);
 
       const { success, message } = response;
       if (success) {
