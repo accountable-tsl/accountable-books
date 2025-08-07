@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 export const clearSessionFn = (
   logoutReason?: "expired" | "manual" | "forced"
 ) => {
-  console.log("I was hit", "logoutReason", logoutReason);
   authStore.getState().clearAuth();
 
   const theme = localStorage.getItem("theme");

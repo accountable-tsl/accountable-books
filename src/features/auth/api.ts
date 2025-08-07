@@ -15,9 +15,7 @@ export const handleLogin = async (
       csrfToken: string;
     }>;
   } catch (err: any) {
-    console.log("caught error in login", err);
     if (isAxiosError(err) && err.response?.data) {
-      console.log("err.response.data", err.response.data);
       return err.response.data;
     }
 
