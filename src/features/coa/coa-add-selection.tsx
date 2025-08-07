@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Plus, ChevronDown } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { AddBankAccountDialog } from "@/domains/bankAccounts/AddBankAccountDialog";
+import { AddBankAccountDialog } from "@/domains/bank-accounts/bank-accounts-add-dialog";
 import { AddNewCoaDialog } from "@/features/coa/coa-add-new";
 
 export function AddAccountSelection() {

@@ -32,7 +32,7 @@ import { postBankTransactions } from "@/shared/services/TransactionServices";
 import { BankTransactionImporter } from "@/features/bankConnection/manualUpload/BankTransactionImporter";
 import { toast } from "sonner";
 import ConnectBankAccount from "@/features/bankConnection/connectViaFeed/ConnectBankAccount";
-import { getBankAccountsForCompany } from "@/domains/bankAccounts/api";
+import { getBankAccountsForCompany } from "@/domains/bank-accounts/bank-accounts-api";
 
 /**
  * Configuration & Constants

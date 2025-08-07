@@ -26,6 +26,7 @@ import BlankLayout from "./layouts/BlankLayout";
 import { AccountingWorkspaceSetup } from "./features/accounting-setup/AccountingSetup";
 import { Table } from "@/components/data-table/fake";
 import { AccountingWorkspace } from "@/features/accounting-ws/acc-ws";
+import { AddBankTransaction } from "./features/bank-transactions/bank-tx-add";
 
 function App() {
   return (
@@ -136,9 +137,15 @@ function AppRoutes() {
             path={routes.accounting.index.relativePath}
             element={<AccountingWorkspace />}
           />
+
           <Route
             path={routes.accounting.setup.relativePath}
             element={<AccountingWorkspaceSetup />}
+          />
+
+          <Route
+            path={routes.accounting.uploadBankTxn.relativePath}
+            element={<AddBankTransaction />}
           />
         </Route>
         <Route path="*" element={<ErrorPage type="404" />} />

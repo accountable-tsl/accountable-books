@@ -1,6 +1,6 @@
 import { useIsMobile } from "@/shared/hooks/use-media-query";
 import { AddBankAccountDialogProps } from "./types";
-import AddBankAccount from "@/domains/bankAccounts/AddBankAccount";
+import AddBankAccount from "@/domains/bank-accounts/bank-accounts-add";
 import {
   Drawer,
   DrawerContent,
