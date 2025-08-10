@@ -27,7 +27,7 @@ import type { Knex } from "knex";
 import { AccessibleCompaniesResponse } from "../userRoles/userRoles.types";
 import { getAccountTypeByKey } from "../account/account.registry";
 
-const bankResponseFields = [
+const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields
   "ba.id as id",
   "ba.display_name as displayName",
@@ -74,32 +74,32 @@ export const getBankAccountsWithDetails = async (
   trx?: Knex.Transaction
 ): Promise<ApiResponse<BankAccountWithMeta[]>> => {
   if (!companyId) return errorResponse("Company ID is required");
+  const executor = trx || knexClient;
+
   try {
     const companyUUID = await getCompanyUUID(companyId);
     if (!companyUUID) {
       return errorResponse("Invalid company ID");
     }
 
-    const query = async (knex: Knex | Knex.Transaction) =>
-      knex("bank_accounts as ba")
-        .select(bankResponseFields)
-        .where("ba.company_id", companyUUID)
-        .andWhere("ba.is_deleted", false)
-        .join("banks as b", "ba.bank_id", "b.id")
-        .join("currencies as cur", "ba.currency_id", "cur.id")
-        .join("companies as c", "ba.company_id", "c.id")
-        .join("currencies as rc", "c.reporting_currency_id", "rc.id")
-        .join("coa", "ba.coa_id", "coa.id")
-        .leftJoin("account_types as at", "coa.account_type_id", "at.id")
-        .leftJoin(
-          "bank_account_connections as bac",
-          "ba.id",
-          "bac.bank_account_id"
-        )
-        .leftJoin("bank_feed_providers as p", "bac.provider_id", "p.id");
+    const query = executor("bank_accounts as ba")
+      .select(BANK_ACCOUNT_FIELDS)
+      .where("ba.company_id", companyUUID)
+      .andWhere("ba.is_deleted", false)
+      .join("banks as b", "ba.bank_id", "b.id")
+      .join("currencies as cur", "ba.currency_id", "cur.id")
+      .join("companies as c", "ba.company_id", "c.id")
+      .join("currencies as rc", "c.reporting_currency_id", "rc.id")
+      .join("coa", "ba.coa_id", "coa.id")
+      .leftJoin("account_types as at", "coa.account_type_id", "at.id")
+      .leftJoin(
+        "bank_account_connections as bac",
+        "ba.id",
+        "bac.bank_account_id"
+      )
+      .leftJoin("bank_feed_providers as p", "bac.provider_id", "p.id");
 
-    const result = trx ? await query(trx) : await knexClient.transaction(query);
-
+    const result = await query;
     return result?.length > 0
       ? successResponse("Bank accounts fetched successfully", result)
       : successResponse("No bank accounts found", []);
@@ -342,7 +342,7 @@ export async function createNewBankAccount(input: {
       }
 
       const [newBankAccountDetails] = await tx("bank_accounts as ba")
-        .select(bankResponseFields)
+        .select(BANK_ACCOUNT_FIELDS)
         .where("ba.id", newBankAccount.id)
         .join("banks as b", "ba.bank_id", "b.id")
         .join("currencies as cur", "ba.currency_id", "cur.id")

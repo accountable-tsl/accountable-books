@@ -17,6 +17,7 @@ export async function handleTransactionImport(req: AuthRequest, res: Response) {
       data: req.body,
       userId,
     });
+
     return response.success
       ? res.status(200).json(response)
       : res.status(400).json(response);

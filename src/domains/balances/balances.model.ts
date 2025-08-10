@@ -261,7 +261,6 @@ export async function getBankAccountBalances(
         };
       }
 
-      console.log(groupedTx);
       const group = groupedTx[bankId];
       group.nativeBalance = group.nativeBalance + amount;
 

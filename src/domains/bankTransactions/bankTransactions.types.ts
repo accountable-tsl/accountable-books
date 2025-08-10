@@ -29,6 +29,7 @@ export const bankTransactionInput = z.object({
   payee: z.string().nullish(),
   reference: z.string().nullish(),
   additional_comments: z.string().nullish(),
+  raw_data: z.any().nullish(),
   //   id: z.string().uuid().optional(),
 });
 export type BankTransactionInput = z.infer<typeof bankTransactionInput>;
@@ -45,7 +46,7 @@ export const newBankTransaction = bankTransactionInput.extend({
   system_exchange_rate: z.number(),
   categorization_status: categorizationStatus.default("uncategorized"),
   bank_transaction_batch_id: z.string().uuid().nullish(),
-
+  external_id: z.string().regex(/^[a-f0-9]{64}$/i),
   ledger_transaction_id: z.string().uuid().nullish(),
   created_by_id: z.string().uuid(),
   updated_by_id: z.string().uuid().nullish(),
@@ -62,6 +63,9 @@ export const bankTransactionBatchInput = z.object({
   source: bankTransactionSource,
   bank_account_id: z.string().uuid(),
   bank_transactions: z.array(bankTransactionInputCamel),
+  fingerprint: z.string(),
+  source_metadata: z.any().nullish(),
+  import_row_count: z.number().nullish(),
   created_by_id: z.string().uuid().optional(),
   updated_by_id: z.string().uuid().optional(),
 });

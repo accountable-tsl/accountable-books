@@ -20,6 +20,32 @@ import { determineExchangeRate } from "../exchangeRates/exchangeRates.utils";
 import { categorizationStatus, debitCredit } from "../../core/types/core";
 import { snakeToCamel } from "../../shared/utils/formatting.utils";
 import { buildBankTransactionQuery } from "./bankTransactions.utils";
+import crypto from "crypto";
+import dayjs from "dayjs";
+
+function generateExternalId(input: {
+  date: Date;
+  amount: number;
+  payee: string;
+  description: string;
+  bankAccountId: string;
+}): string {
+  const { date, amount, payee, description, bankAccountId } = input;
+  const formattedDate = dayjs(date).format("YYYY-MM-DD");
+  const amountHash = Number(amount).toFixed(4);
+  const payeeNorm = (payee || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const descNorm = (description || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return crypto
+    .createHash("sha256")
+    .update(
+      `${formattedDate}|${amountHash}|${payeeNorm}|${descNorm}|${bankAccountId}`
+    )
+    .digest("hex");
+}
 
 export async function addNewBankTransactions({
   userId,
@@ -45,6 +71,10 @@ export async function addNewBankTransactions({
     }
 
     const batch = validateInput.data;
+    if (!batch.fingerprint) {
+      return errorResponse("Fingerprint is required for deduplication");
+    }
+
     const result = await knexClient.transaction(async (trx) => {
       // Fetch the relevant bank account, join companies for reportingCurrencyId. Also acts to verify bank account exists
       const bankAccount = await trx("bank_accounts as ba")
@@ -122,16 +152,24 @@ export async function addNewBankTransactions({
             }
             exr = Number(exchangeRate);
           }
+          const external_id = generateExternalId({
+            date: txn.date,
+            amount: txn.amount,
+            payee: txn.payee || "",
+            description: txn.description || "",
+            bankAccountId: bankAccountId,
+          });
 
           const txForDb = {
             ...txn,
+            external_id,
             amount: txnAmount,
             absolute_amount: Math.abs(txnAmount),
             system_exchange_rate: exr,
             transaction_side:
               txnAmount < 0 ? debitCredit.enum.credit : debitCredit.enum.debit,
             categorization_status: categorizationStatus.enum.uncategorized,
-            bank_transaction_batch_id: undefined, // to be set after batch insert
+            bank_transaction_batch_id: undefined, // to be set after batch inser
             created_by_id: userId,
             updated_by_id: userId,
           };
@@ -148,15 +186,19 @@ export async function addNewBankTransactions({
 
       // Confirm balance after
       const balanceAfter = balanceBeforeObj.nativeBalance + batchTotal;
+
+      let balanceWarning = null;
       if (Math.abs(balanceAfter - currentRunningBalance) > 0.0001) {
-        return errorResponse("Arithmetic error: balance mismatch", {
+        balanceWarning = {
+          message: "Balance calculation mismatch detected",
           calculatedBalance: balanceAfter.toString(),
           runningBalance: currentRunningBalance.toString(),
-        });
+        };
+        console.warn("Balance mismatch in batch import:", balanceWarning);
       }
 
       // Insert bank transaction batch
-      const [thisBatch] = await trx("bank_transaction_batches")
+      const batchInsertResult = await trx("bank_transaction_batches")
         .insert({
           bank_account_id: bankAccountId,
           import_date: new Date(),
@@ -165,9 +207,14 @@ export async function addNewBankTransactions({
           source: batch.source,
           balance_before: balanceBeforeObj.nativeBalance,
           balance_after: balanceAfter,
+          import_row_count: preparedTransactions.length,
+          fingerprint: batch.fingerprint,
+          source_metadata: batch.source_metadata || null,
           created_by_id: userId,
           updated_by_id: userId,
         })
+        .onConflict(["bank_account_id", "fingerprint"])
+        .ignore()
         .returning([
           "id",
           "start_date",
@@ -177,21 +224,70 @@ export async function addNewBankTransactions({
           "source",
         ]);
 
+      if (!batchInsertResult.length) {
+        // Check if batch already exists
+        const existingBatch = await trx("bank_transaction_batches")
+          .select([
+            "id",
+            "start_date",
+            "end_date",
+            "balance_before",
+            "balance_after",
+            "source",
+          ])
+          .where("bank_account_id", bankAccountId)
+          .andWhere("fingerprint", batch.fingerprint)
+          .first();
+
+        if (!existingBatch) {
+          return errorResponse("An unknown error occurred");
+        }
+
+        const countResult = await trx("bank_transactions")
+          .where({ bank_transaction_batch_id: existingBatch.id })
+          .count<{ count: string }>("* as count")
+          .first();
+
+        const count = countResult ? countResult.count : "0";
+
+        return errorResponse("This batch was previously imported", {
+          batch: snakeToCamel(existingBatch),
+          transactionsCount: Number(count),
+          inserted: 0,
+          skippedDuplicates: Number(count),
+          balanceAfter: existingBatch?.balance_after,
+          note: "This batch was previously imported",
+        });
+      }
+
+      const thisBatch = batchInsertResult[0];
+
       // Insert prepared transactions with batch id
-      await trx("bank_transactions").insert(
-        preparedTransactions.map((txn) => ({
-          ...txn,
-          bank_transaction_batch_id: thisBatch.id,
-        }))
-      );
+      const insertedTxns = await trx("bank_transactions")
+        .insert(
+          preparedTransactions.map((txn) => ({
+            ...txn,
+            bank_transaction_batch_id: thisBatch.id,
+          }))
+        )
+        .onConflict(["bank_account_id", "external_id", "date"])
+        .ignore()
+        .returning("id");
+
+      const inserted = insertedTxns.length;
+      const skippedDuplicates = preparedTransactions.length - inserted;
+
       // Return balance sorted by date and created_at if not already sorted
       //   ----
       // Return result
       return successResponse("Transactions imported successfully", {
         batch: snakeToCamel(thisBatch),
         transactionsCount: preparedTransactions.length,
+        inserted,
+        skippedDuplicates,
         batchTotal,
         balanceAfter,
+        balanceWarning,
       });
     });
 

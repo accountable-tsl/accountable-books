@@ -60,14 +60,16 @@ BEGIN
             bank_account_id         UUID NOT NULL,
             bank_transaction_batch_id  UUID,
             ledger_transaction_id   UUID,
-            external_id             TEXT,
+            external_id             TEXT NOT NULL,
+            raw_data                JSONB,
             created_by_id           UUID NOT NULL,
             updated_by_id           UUID,
             created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
             updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
             is_deleted              BOOLEAN NOT NULL DEFAULT false,
             deleted_at              TIMESTAMPTZ,
-            CONSTRAINT bank_transactions_pkey PRIMARY KEY (id, date)
+            CONSTRAINT bank_transactions_pkey PRIMARY KEY (id, date),
+            CONSTRAINT bank_transactions_account_external_id_date_unique UNIQUE (bank_account_id, external_id, date)
         ) PARTITION BY RANGE (date);
     END IF;
 END $$;
@@ -88,6 +90,7 @@ CREATE INDEX IF NOT EXISTS bank_transaction_categorization_status_idx ON bank_tr
 CREATE INDEX IF NOT EXISTS bank_transaction_batch_id_idx ON bank_transactions (bank_transaction_batch_id);
 CREATE INDEX IF NOT EXISTS bank_transaction_id_date_idx ON bank_transactions (id, date);
 CREATE INDEX IF NOT EXISTS bank_transaction_ledger_transaction_id_idx ON bank_transactions (ledger_transaction_id);
+CREATE INDEX IF NOT EXISTS bank_transaction_account_external_id_date_idx ON bank_transactions (bank_account_id, external_id, date);
 
 CREATE OR REPLACE FUNCTION create_bank_transactions_partitions()
 RETURNS void AS $$

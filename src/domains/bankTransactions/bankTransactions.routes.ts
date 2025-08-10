@@ -5,6 +5,6 @@ import { handleTransactionImport } from "./bankTransactions.controller";
 const router = express.Router({ mergeParams: true });
 
 // router.get("/all", checkCompanyId, retrieveBankTransactions);
-router.post("/import", checkCompanyId, handleTransactionImport);
+router.post("/import", handleTransactionImport);
 
 export default router;
