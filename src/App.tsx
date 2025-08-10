@@ -27,6 +27,7 @@ import { AccountingWorkspaceSetup } from "./features/accounting-setup/Accounting
 import { Table } from "@/components/data-table/fake";
 import { AccountingWorkspace } from "@/features/accounting-ws/acc-ws";
 import { AddBankTransaction } from "./features/bank-transactions/bank-tx-add";
+import { CatEngine } from "@/features/cat-engine/cat-engine";
 
 function App() {
   return (
@@ -146,6 +147,11 @@ function AppRoutes() {
           <Route
             path={routes.accounting.uploadBankTxn.relativePath}
             element={<AddBankTransaction />}
+          />
+
+          <Route
+            path={routes.accounting.catEngine.relativePath}
+            element={<CatEngine />}
           />
         </Route>
         <Route path="*" element={<ErrorPage type="404" />} />

@@ -79,6 +79,11 @@ export function getValue(item: any, possibleKeys: string[]): any {
   return null;
 }
 
+export type DateRangeResult = {
+  earliestDate: Date | null;
+  latestDate: Date | null;
+};
+
 /**
  * Finds the earliest and latest dates in an array of objects based on a specific date key
  * @param data Array of objects containing date strings.

@@ -57,6 +57,7 @@ export const SpreadsheetImporter = ({
   showAllFields = false,
   wrapperClassName = "",
   showUnexpectedColumnsWarning = true,
+  fileCardClassName,
   ...props
 }: SpreadsheetImporterProps) => {
   const [files, setFiles] = useState<File[]>([]);
@@ -305,7 +306,10 @@ export const SpreadsheetImporter = ({
       onValueChange={setFiles}
       onUpload={onServerUpload ? handleServerUpload : undefined}
       fileCardExtra={getFileCardExtra}
-      fileCardClassName="border-0 rounded-none border-t border-foreground/20"
+      fileCardClassName={cn(
+        "border-0 rounded-none border-t border-foreground/20",
+        fileCardClassName
+      )}
       className={wrapperClassName}
       {...props}
     />

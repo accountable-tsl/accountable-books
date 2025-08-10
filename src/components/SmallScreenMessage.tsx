@@ -31,7 +31,7 @@ export function SmallScreenMessage({
 }: SmallScreenMessageProps) {
   return (
     <div className="flex items-center justify-center min-h-0 h-full">
-      <div className="flex flex-col items-center gap-1 p-4 max-w-md m-4 rounded-md shadow-md">
+      <div className="flex flex-col items-center gap-1 p-4 max-w-md m-4 rounded-md">
         <div className="flex flex-col items-center">
           {showIcon && icon}
           <h1 className="text-lg text-center font-semibold">{title}</h1>

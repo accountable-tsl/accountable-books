@@ -139,6 +139,10 @@ export type SpreadsheetImporterProps = {
   showAllFields?: boolean;
 
   showUnexpectedColumnsWarning?: boolean;
+
+  fileCardClassName?: string;
+  fileCardContentClassName?: string;
+  fileCardContainerClassName?: string;
 } & ValidateHeadersOptions;
 
 export interface ParsedCsvResult {

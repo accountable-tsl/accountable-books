@@ -39,6 +39,7 @@ import { Success } from "@/components/Success";
 import { Failed } from "@/components/Failed";
 import { BankAccountWithMeta } from "@/domains/bank-accounts/types";
 import { getBankAccountsForCompany } from "@/domains/bank-accounts/bank-accounts-api";
+import { useSession } from "@/features/auth/Session";
 
 export const BankTransactionImporter = ({
   onImportSuccess,
@@ -68,7 +69,7 @@ export const BankTransactionImporter = ({
   );
 
   // Hooks
-  const { companyId } = useCompany();
+  const { companyId } = useSession();
   const isMobile = useIsMobile();
   const isFirstRender = useRef(true);
   const prevParsedKeys = useRef<string[]>([]);
