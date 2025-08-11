@@ -28,6 +28,7 @@ import { Table } from "@/components/data-table/fake";
 import { AccountingWorkspace } from "@/features/accounting-ws/acc-ws";
 import { AddBankTransaction } from "./features/bank-transactions/bank-tx-add";
 import { CatEngine } from "@/features/cat-engine/cat-engine";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 function App() {
   return (
@@ -38,8 +39,10 @@ function App() {
             future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
           >
             <SessionProvider>
-              <Toaster />
-              <AppRoutes />
+              <TooltipProvider>
+                <Toaster />
+                <AppRoutes />
+              </TooltipProvider>
             </SessionProvider>
           </BrowserRouter>
         </QueryClientProvider>

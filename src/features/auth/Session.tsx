@@ -150,6 +150,7 @@ export const SessionProvider = ({
       logout,
     ]
   );
+
   return (
     <SessionContext.Provider value={contextValue}>
       {children}

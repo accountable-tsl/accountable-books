@@ -9,7 +9,7 @@ import {
 
 interface ToggleButtonProps {
   active: boolean;
-  onClick: () => void;
+  onClick?: () => void;
   icon: React.ReactNode;
   activeClasses?: string;
   inactiveClasses?: string;
@@ -46,26 +46,24 @@ export function ToggleButton({
 
   // Return button wrapped with tooltip
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div
-            className={cn(
-              "cursor-pointer hover:bg-background p-0.5 rounded text-muted-foreground border border-muted",
-              "flex items-center justify-center",
-              active
-                ? activeClasses || "bg-background text-foreground border-border"
-                : inactiveClasses || "opacity-50"
-            )}
-            onClick={onClick}
-          >
-            {icon}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{tooltip}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className={cn(
+            "cursor-pointer hover:bg-background p-0.5 rounded text-muted-foreground border border-muted",
+            "flex items-center justify-center",
+            active
+              ? activeClasses || "bg-background text-foreground border-border"
+              : inactiveClasses || "opacity-50"
+          )}
+          onClick={onClick}
+        >
+          {icon}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }

@@ -14,7 +14,8 @@ interface DataTableBodyProps<TData> {
 export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const { virtualization, customClassNames } = table.customOptions || {};
-  const { tableBody, tableBodyCell, tableBodyRow } = customClassNames || {};
+  const { tableBody, tableBodyCell, tableBodyRow, emptyTableRow } =
+    customClassNames || {};
 
   const rows = React.useMemo(
     () => table.getRowModel().rows,
@@ -150,7 +151,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
         {rows?.length ? (
           rows.map((row) => renderRow(row))
         ) : (
-          <TableRow className={tableBodyRow}>
+          <TableRow className={emptyTableRow}>
             <TableCell className="min-h-24 w-full flex items-center justify-center">
               No results.
             </TableCell>

@@ -101,6 +101,7 @@ export interface BaseDataTableOptions<TData> {
     tableBody?: string;
     tableBodyRow?: string;
     tableBodyCell?: string;
+    emptyTableRow?: string;
   };
 }
 export type DataTableInputOptions<TData = any> = BaseDataTableOptions<TData> & {

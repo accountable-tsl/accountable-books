@@ -22,7 +22,7 @@ import { useSession } from "@/features/auth/Session";
 import { authStore } from "./store";
 
 export default function Login() {
-  const { isLoggedIn, hasAppAccess, companyId, tenantRoutes, loading } =
+  const { isLoggedIn, hasAppAccess, company, companyId, tenantRoutes, loading } =
     useSession();
   const { setAuth } = authStore((s) => s);
   const [params] = useSearchParams();
@@ -59,9 +59,8 @@ export default function Login() {
     }
   };
 
-  const alreadyLoggedIn = !loading && isLoggedIn && companyId && tenantRoutes;
+  const alreadyLoggedIn = !loading && isLoggedIn && companyId && company && tenantRoutes;
   const logoutReason = localStorage.getItem("logoutReason");
-
 
   return (
     <div className="flex min-h-svh flex-col">

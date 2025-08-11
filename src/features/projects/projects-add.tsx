@@ -26,7 +26,7 @@ import { useSession } from "@/features/auth/Session";
 import { useCreateProjects } from "@/features/projects/projects-hooks";
 import { SimpleSelect } from "@/components/SimpleSelect";
 import { projectStatusOptions } from "./projects-constants";
-import { DatePicker } from "@/components/calendar/date-picker";
+import { DatePicker } from "@/components/date-picker/date-picker";
 import { CenteredLoader } from "@/components/CenteredLoader";
 import ErrorPage from "@/components/ErrorPage";
 import { AddContactDialog } from "../contacts/contacts-add";
