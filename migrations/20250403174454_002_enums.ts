@@ -59,8 +59,8 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists("categorization_status", [
       "uncategorized",
-      "categorized",
-      "auto_categorized",
+      "suggested",
+      "approved",
     ])
   );
   await knex.raw(
