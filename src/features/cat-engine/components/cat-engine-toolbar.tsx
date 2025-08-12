@@ -1,10 +1,4 @@
-import {
-  PanelLeftOpen,
-  TableProperties,
-  Rows3,
-  Menu,
-  Expand,
-} from "lucide-react";
+import { TableProperties, Rows3, Menu, Focus } from "lucide-react";
 import { ToggleButton } from "@/features/cat-engine/components/toggle-button";
 
 export function LeftCatEngineToolbar({
@@ -53,25 +47,28 @@ export function RightCatEngineToolbar({
           onClick={() => setRowHeight("min")}
           icon={<Menu strokeWidth={1} className="w-4 h-4" />}
           tooltip="Compact Row Height"
+          ariaLabel="Set compact row height"
         />
         <ToggleButton
           active={rowHeight === "mid"}
           onClick={() => setRowHeight("mid")}
           icon={<Menu strokeWidth={2.5} className="w-4 h-4" />}
           tooltip="Medium Row Height"
+          ariaLabel="Set medium row height"
         />
         <ToggleButton
           active={rowHeight === "max"}
           onClick={() => setRowHeight("max")}
           icon={<Menu strokeWidth={4} className="w-4 h-4" />}
           tooltip="Large Row Height"
+          ariaLabel="Set large row height"
         />
         <div className="text-muted-foreground">|</div>
         <ToggleButton
           active={isFullScreen}
           onClick={() => setIsFullScreen(!isFullScreen)}
-          icon={<Expand className="w-4 h-4" />}
-          tooltip="View Full Screen"
+          icon={<Focus className="w-4 h-4" />}
+          tooltip="Focus"
         />
       </div>
     </div>

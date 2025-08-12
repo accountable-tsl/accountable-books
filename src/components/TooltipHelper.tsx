@@ -13,6 +13,7 @@ type HelpTooltipProps = {
   iconSize?: number;
   contentStyle?: string;
   ariaLabel?: string;
+  triggerWrapperClassName?: string;
 };
 
 export const TooltipHelper = ({
@@ -22,11 +23,12 @@ export const TooltipHelper = ({
   iconSize = 12,
   contentStyle = "",
   ariaLabel = "",
+  triggerWrapperClassName = "flex items-center",
 }: HelpTooltipProps) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild aria-label={ariaLabel}>
-        <div className="flex items-center">
+        <div className={triggerWrapperClassName}>
           {trigger && typeof trigger !== "string" ? (
             trigger
           ) : (

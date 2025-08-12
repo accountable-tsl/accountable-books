@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { DataTable } from "@/components/data-table/data-table";
 import { getCatEngineColumns } from "@/features/cat-engine/config/table-columns";
@@ -13,45 +13,61 @@ import {
   LeftCatEngineToolbar,
   RightCatEngineToolbar,
 } from "@/features/cat-engine/components/cat-engine-toolbar";
-import { useIsMobile } from "@/shared/hooks/use-media-query";
+import { useIsMobile, useMediaQuery } from "@/shared/hooks/use-media-query";
 import { SmallScreenMessage } from "@/components/SmallScreenMessage";
 import { DataTableInputOptions } from "@/components/data-table/types/data-table";
 import { Badge } from "@/components/ui/badge";
 import { CatEngineAdvFilter } from "@/features/cat-engine/components/cat-engine-adv-filter";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/date-picker/date-range-picker";
+import { CatEngineTxnView } from "./components/cat-engine-txn-view";
+import { endOfMonth, getDate, startOfMonth, subMonths } from "date-fns";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 
-const accordionItems = [
+export const accordionItems = [
   {
     id: "high-confidence",
     title: "High Confidence",
-    className: "text-green-600",
-    tableClassName: "border-green-300 dark:border-green-950",
-    tableHeaderClassName: "bg-green-50 dark:bg-green-950",
+    textClass: "text-emerald-700 dark:text-emerald-400",
+    borderClass: "border-emerald-300 dark:border-emerald-900",
+    backgroundClass: "bg-emerald-50 dark:bg-emerald-950",
   },
   {
     id: "medium-confidence",
     title: "Medium Confidence",
-    className: "text-yellow-500",
-    tableClassName: "border-yellow-300 dark:border-yellow-950/50",
-    tableHeaderClassName: "bg-yellow-100 dark:bg-yellow-950",
+    textClass: "text-amber-700 dark:text-amber-400",
+    borderClass: "border-amber-300 dark:border-amber-900/60",
+    backgroundClass: "bg-amber-50 dark:bg-amber-950",
   },
   {
     id: "low-confidence",
     title: "Low Confidence",
-    className: "text-red-600",
-    tableClassName: "border-red-300 dark:border-red-950",
-    tableHeaderClassName:
-      "bg-red-50 text-red-600 dark:bg-red-950 dark:text-white/70",
+    textClass: "text-rose-700 dark:text-rose-400",
+    borderClass: "border-rose-300 dark:border-rose-900",
+    backgroundClass: "bg-rose-50 dark:bg-rose-950",
   },
   {
     id: "reviewed",
     title: "Reviewed & Posted",
-    className: "text-blue-600",
-    tableClassName: "border-blue-300 dark:border-blue-950",
-    tableHeaderClassName: "bg-blue-100 dark:bg-blue-950",
+    textClass: "text-sky-700 dark:text-sky-400",
+    borderClass: "border-sky-300 dark:border-sky-900",
+    backgroundClass: "bg-sky-50 dark:bg-sky-950",
   },
 ];
+
+function getInitialDateRange() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const day = now.getDate();
+  const startMonth = day < 10 ? month - 1 : month;
+  const startDate = new Date(year, startMonth, 1);
+  return { from: startDate, to: now } as { from: Date; to?: Date };
+}
 
 export function CatEngine() {
   const [view, setView] = useState<"table" | "group">("table");
@@ -60,17 +76,24 @@ export function CatEngine() {
   const [openAccordionItem, setOpenAccordionItem] = useState<string>(
     accordionItems[0].id
   );
-  const [dateRange, setDateRange] = useState<{
-    from: Date;
-    to?: Date;
-  }>({
-    from: new Date(), // start of the curr month if less than 10 days, else start of the prev month
-    to: new Date(),
-  });
+  const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>(
+    getInitialDateRange()
+  );
 
-  const isMobile = useIsMobile();
+  const is1024 = useMediaQuery("(min-width: 1024px)");
   const columns = useMemo(() => getCatEngineColumns(), []);
   const emptyData = useMemo(() => [], []);
+
+  // const estimatedRowHeight = useMemo(() => {
+  //   switch (rowHeight) {
+  //     case "min":
+  //       return 28;
+  //     case "max":
+  //       return 48;
+  //     default:
+  //       return 36;
+  //   }
+  // }, [rowHeight]);
 
   const customOptions: DataTableInputOptions<any> = useMemo(() => {
     return {
@@ -82,19 +105,19 @@ export function CatEngine() {
         table: `flex-1 h-full ${
           view === "group"
             ? accordionItems.find((item) => item.id === openAccordionItem)
-                ?.tableClassName
+                ?.borderClass
             : ""
         }`,
         tableHeader: `sticky top-0 z-10 ${
           view === "group"
             ? accordionItems.find((item) => item.id === openAccordionItem)
-                ?.tableHeaderClassName
+                ?.backgroundClass
             : ""
         }`,
         emptyTableRow: "h-full",
       },
     };
-  }, [view, openAccordionItem]);
+  }, [view, openAccordionItem, rowHeight]);
   const { table } = useDataTable({
     columns,
     data: emptyData,
@@ -113,7 +136,7 @@ export function CatEngine() {
     });
   }, [openAccordionItem]);
 
-  if (isMobile) return <SmallScreenMessage />;
+  if (!is1024) return <SmallScreenMessage />;
 
   console.log(dateRange);
   return (
@@ -123,7 +146,11 @@ export function CatEngine() {
           <CatEngineAdvFilter />
           <LeftCatEngineToolbar view={view} setView={setView} />
           <div className="h-full">
-            <Input placeholder="Search..." className="w-60 h-full" />
+            <Input
+              placeholder="Search..."
+              aria-label="Search transactions"
+              className="w-60 h-full"
+            />
           </div>
         </div>
 
@@ -143,62 +170,68 @@ export function CatEngine() {
           />
         </div>
       </div>
-
-      {view === "table" && <DataTable table={table} />}
-
-      {view === "group" && (
-        <Accordion
-          type="single"
-          collapsible
-          defaultValue={accordionItems[0].id}
-          className="flex flex-col min-h-0 flex-1"
-          value={openAccordionItem}
-          onValueChange={handleAccordionItemChange}
-        >
-          {reorderedAccordionItems.map((item) => (
-            <AccordionItem
-              value={item.id}
-              className="flex flex-col [[data-state=open]]:min-h-0 [[data-state=open]]:h-full"
+      <ResizablePanelGroup direction="horizontal" className="gap-2">
+        <ResizablePanel className="min-h-0 h-full flex flex-col gap-4 min-w-0 flex-1">
+          {view === "table" && <DataTable table={table} />}
+          {view === "group" && (
+            <Accordion
+              type="single"
+              collapsible
+              defaultValue={accordionItems[0].id}
+              className="flex flex-col min-h-0 flex-1"
+              value={openAccordionItem}
+              onValueChange={handleAccordionItemChange}
             >
-              <AccordionTrigger
-                className={cn("p-0 py-1 px-2 hover:no-underline")}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "hover:underline",
-                      item.id === openAccordionItem
-                        ? item.className
-                        : "text-muted-foreground font-light"
-                    )}
+              {reorderedAccordionItems.map((item) => (
+                <AccordionItem
+                  value={item.id}
+                  className="flex flex-col [[data-state=open]]:min-h-0 [[data-state=open]]:h-full"
+                >
+                  <AccordionTrigger
+                    className={cn("p-0 py-1 px-2 hover:no-underline")}
                   >
-                    {item.title}
-                  </span>
-                  <Badge
-                    variant={
-                      item.id === openAccordionItem ? "default" : "outline"
-                    }
-                    className={cn(
-                      "text-xs",
-                      item.id === openAccordionItem
-                        ? "text-primary-foreground"
-                        : "text-muted-foreground"
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "hover:underline",
+                          item.id === openAccordionItem
+                            ? item.textClass
+                            : "text-muted-foreground font-light"
+                        )}
+                      >
+                        {item.title}
+                      </span>
+                      <Badge
+                        variant={
+                          item.id === openAccordionItem ? "default" : "outline"
+                        }
+                        className={cn(
+                          "text-xs",
+                          item.id === openAccordionItem
+                            ? "text-primary-foreground"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        100
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent
+                    className="h-full min-h-0 flex flex-col"
+                    wrapperClassName="h-full min-h-0 flex flex-col"
                   >
-                    100
-                  </Badge>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent
-                className="h-full min-h-0 flex flex-col"
-                wrapperClassName="h-full min-h-0 flex flex-col"
-              >
-                <DataTable table={table} />
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      )}
+                    <DataTable table={table} />
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
+        </ResizablePanel>
+        <ResizableHandle withHandle className="bg-background" />
+        <ResizablePanel className="w-sm max-w-md">
+          <CatEngineTxnView />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

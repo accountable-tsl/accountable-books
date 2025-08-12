@@ -3,7 +3,6 @@ import React from "react";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -15,6 +14,7 @@ interface ToggleButtonProps {
   inactiveClasses?: string;
   tooltip?: string;
   tooltipDisabled?: boolean;
+  ariaLabel?: string;
 }
 
 export function ToggleButton({
@@ -25,39 +25,41 @@ export function ToggleButton({
   inactiveClasses,
   tooltip,
   tooltipDisabled = false,
+  ariaLabel,
 }: ToggleButtonProps) {
-  // If tooltip is disabled or no tooltip content provided, return button without tooltip
+  const commonProps = {
+    "aria-pressed": active,
+    "aria-label": ariaLabel || tooltip || undefined,
+    role: "button",
+    tabIndex: 0,
+    onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick?.();
+      }
+    },
+  } as const;
+
+  const classes = cn(
+    "cursor-pointer hover:bg-background p-0.5 rounded text-muted-foreground border border-muted",
+    "flex items-center justify-center",
+    active
+      ? activeClasses || "bg-background text-foreground border-border"
+      : inactiveClasses || "opacity-50"
+  );
+
   if (tooltipDisabled || !tooltip) {
     return (
-      <div
-        className={cn(
-          "cursor-pointer hover:bg-background p-0.5 rounded text-muted-foreground border border-muted",
-          "flex items-center justify-center",
-          active
-            ? activeClasses || "bg-background text-foreground border-border"
-            : inactiveClasses || "opacity-50"
-        )}
-        onClick={onClick}
-      >
+      <div className={classes} onClick={onClick} {...commonProps}>
         {icon}
       </div>
     );
   }
 
-  // Return button wrapped with tooltip
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div
-          className={cn(
-            "cursor-pointer hover:bg-background p-0.5 rounded text-muted-foreground border border-muted",
-            "flex items-center justify-center",
-            active
-              ? activeClasses || "bg-background text-foreground border-border"
-              : inactiveClasses || "opacity-50"
-          )}
-          onClick={onClick}
-        >
+        <div className={classes} onClick={onClick} {...commonProps}>
           {icon}
         </div>
       </TooltipTrigger>
