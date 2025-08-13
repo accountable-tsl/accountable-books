@@ -1,0 +1,49 @@
+# Node
+node_modules
+*.log
+logs
+npm-debug.log*
+pnpm-debug.log*
+
+# pnpm
+.pnpm-store
+
+# Turbo
+.turbo
+
+# Build
+dist
+build
+.vite
+.next
+out
+*.tsbuildinfo
+
+# Env
+.env
+.env.*
+!.env.example
+
+
+# Python
+.venv
+*.pyc
+__pycache__
+
+
+# System
+.DS_Store
+Thumbs.db
+
+
+# IDE
+.cursor*
+.cursorrules
+.vscode
+
+# Hosting
+.vercel
+.netlify
+
+coverage
+reports
