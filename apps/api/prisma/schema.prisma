@@ -1,0 +1,733 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id          String    @id @default(uuid())
+  name        String    @unique //accountant, admin, client
+  description String?
+  users       User[]    @relation(name: "userRole")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+
+  @@index([id])
+  @@index([name])
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model User {
+  id                            String                 @id @default(uuid())
+  firstname                     String
+  lastname                      String?
+  email                         String                 @unique
+  password                      String
+  phoneNumber                   String?
+  status                        UserStatus             @default(ACTIVE)
+  roleId                        String //to be Removed
+  role                          Role                   @relation(name: "userRole", fields: [roleId], references: [id])
+  profileImage                  String?
+  companies                     UserCompany[]          @relation(name: "userCompanies")
+  createdCompanies              Company[]              @relation("companyCreator")
+  JournalBatchPostedBy          JournalBatch[]         @relation("journalPostedBy")
+  JournalBatchCreatedBy         JournalBatch[]         @relation("journalBatchCreatedBy")
+  JournalBatchUpdatedBy         JournalBatch[]         @relation("journalUpdatedBy")
+  bankTransactionBatchesCreated BankTransactionBatch[] @relation("createdByUser")
+  bankTransactionBatchesUpdated BankTransactionBatch[] @relation("updatedByUser")
+  bankTransactionCreated        BankTransaction[]      @relation(name: "bankTransactionCreatedBy") @ignore
+  bankTransactionUpdated        BankTransaction[]      @relation(name: "bankTransactionUpdatedBy") @ignore
+  ledgerTransactionCreated      LedgerTransaction[]    @relation(name: "ledgerTransactionCreatedBy")
+  ledgerTransactionUpdated      LedgerTransaction[]    @relation(name: "ledgerTransactionUpdatedBy")
+  LedgerEntry                   LedgerEntry[]          @relation(name: "ledgerEntryUpdatedBy") @ignore
+  journalEntryReversed          JournalBatch[]         @relation(name: "JournalBatchReversedBy")
+  createdAt                     DateTime               @default(now())
+  updatedAt                     DateTime               @updatedAt
+  deletedAt                     DateTime?
+  isDeleted                     Boolean                @default(false)
+
+  @@index([email, status])
+}
+
+model Company {
+  id                       String                     @id @default(uuid())
+  name                     String
+  shortCode                String                     @unique
+  website                  String?
+  industry                 String?
+  teamSize                 String?
+  revenue                  String?
+  countryId                String
+  country                  Country                    @relation(name: "companyCountry", fields: [countryId], references: [id])
+  reportingCurrencyId      String
+  reportingCurrency        Currency                   @relation(name: "companyCurrency", fields: [reportingCurrencyId], references: [id])
+  yearEndDay               Int
+  yearEndMonth             Int
+  createdById              String
+  createdBy                User                       @relation(name: "companyCreator", fields: [createdById], references: [id])
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  currentAccountingPeriod  CurrentAccountingPeriod?   @relation("CompanyCurrentAccountingPeriod")
+  users                    UserCompany[]              @relation("companyUsers")
+  coa                      Coa[]                      @relation("companyCoa")
+  bankAccounts             BankAccount[]              @relation("companyBankAccounts")
+  contacts                 Contact[]                  @relation(name: "companyContacts")
+  projects                 Project[]                  @relation(name: "companyProjects")
+  ledgerTransactions       LedgerTransaction[]        @relation(name: "companyLedgerTransactions")
+  journalBatches           JournalBatch[]             @relation(name: "companyJournals")
+  recurringJournalTemplate RecurringJournalTemplate[] @relation(name: "companyRecurringJournals")
+  deletedAt                DateTime?
+  isDeleted                Boolean                    @default(false)
+
+  @@index([name])
+  @@index([shortCode])
+  @@index([countryId])
+}
+
+enum UserCompanyRole {
+  ADMIN
+  BOOKKEEPER
+  VIEWER
+}
+
+model UserCompany {
+  userId    String
+  companyId String
+  role      UserCompanyRole
+  joinedAt  DateTime        @default(now())
+  user      User            @relation("userCompanies", fields: [userId], references: [id])
+  company   Company         @relation(name: "companyUsers", fields: [companyId], references: [id])
+
+  @@id([userId, companyId])
+  @@index([userId, companyId])
+}
+
+model Currency {
+  id                        String         @id @default(uuid())
+  code                      String         @unique
+  name                      String         @unique
+  symbol                    String
+  companies                 Company[]      @relation("companyCurrency")
+  coa                       Coa[]          @relation("coaCurrency")
+  bankAccounts              BankAccount[]  @relation("bankAccountCurrency")
+  exchangeRateBase          ExchangeRate[] @relation("fromCurrency")
+  exchangeRateTarget        ExchangeRate[] @relation("toCurrency")
+  LedgerTransactionCurrency LedgerEntry[]  @relation(name: "ledgerTransactionCurrency") @ignore
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+  isDeleted                 Boolean        @default(false)
+  deletedAt                 DateTime?
+
+  @@index([code])
+}
+
+model Country {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  name      String
+  phoneCode String
+  flag      String?
+  continent String?
+  company   Company[] @relation("companyCountry")
+  banks     Bank[]    @relation("bankCountry")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+}
+
+enum FsKey {
+  BALANCE_SHEET
+  INCOME_STATEMENT
+}
+
+model FinancialStatement {
+  id             String           @id @default(uuid())
+  statementKey   FsKey            @unique
+  usGaapLabel    String
+  ifrsLabel      String
+  defaultLabel   String
+  accountElement AccountElement[] @relation("fsElement")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  isDeleted      Boolean          @default(false)
+  deletedAt      DateTime?
+}
+
+enum DebitCredit {
+  DEBIT
+  CREDIT
+}
+
+model AccountElement {
+  id                   String             @id @default(uuid())
+  elementName          String
+  defaultSide          DebitCredit
+  parentId             String?
+  parent               AccountElement?    @relation("parentChildRelation", fields: [parentId], references: [id]) // Self-relation
+  children             AccountElement[]   @relation("parentChildRelation") // To define the reverse relation
+  financialStatementId String
+  financialStatement   FinancialStatement @relation(name: "fsElement", fields: [financialStatementId], references: [id])
+  description          String?
+  accountType          AccountType[]      @relation("typeElement")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  isDeleted            Boolean            @default(false)
+  deletedAt            DateTime?
+}
+
+model AccountType {
+  id               String         @id @default(uuid())
+  typeName         String         @unique @db.VarChar(255)
+  accountElementId String
+  accountElement   AccountElement @relation(name: "typeElement", fields: [accountElementId], references: [id])
+  description      String?        @db.VarChar(255)
+  coa              Coa[]          @relation("coaAccountType")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  isDeleted        Boolean        @default(false)
+  deletedAt        DateTime?
+}
+
+model Coa {
+  id             String                 @id @default(uuid())
+  fsKey          FsKey
+  accountCode    String?
+  accountName    String
+  description    String?
+  accountTypeId  String
+  accountType    AccountType            @relation(name: "coaAccountType", fields: [accountTypeId], references: [id])
+  defaultSide    DebitCredit
+  currencyId     String
+  currency       Currency               @relation(name: "coaCurrency", fields: [currencyId], references: [id])
+  companyId      String
+  company        Company                @relation(name: "companyCoa", fields: [companyId], references: [id])
+  isActive       Boolean                @default(true)
+  liveCoaBalance LiveCoaAccountBalance? @relation("LiveCoaAccountBalance")
+  bankAccountId  String?                @unique
+  bankAccount    BankAccount?           @relation(name: "bankCoaAccount")
+  ledgerEntries  LedgerEntry[]          @relation("coaLedgerEntries") @ignore
+  journalEntries JournalEntry[]         @relation("journalEntries")
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  isDeleted      Boolean                @default(false)
+  deletedAt      DateTime?
+
+  @@unique([accountName, companyId])
+  @@unique([accountCode, companyId])
+  @@index([companyId])
+  @@index([companyId, isDeleted])
+}
+
+model CoaTemplate {
+  id            String      @id @default(uuid())
+  templateName  String
+  accountCode   String
+  accountName   String
+  accountTypeId String
+  defaultSide   DebitCredit
+  fsKey         String?
+  description   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?
+  isDeleted     Boolean     @default(false)
+}
+
+enum BankTransactionSource {
+  FILE_IMPORT
+  BANK_FEED
+  MANUAL_ENTRY
+}
+
+enum BankAccountType {
+  OTHER
+  CREDIT_CARD
+  DEBIT_CARD
+  SAVINGS
+  CHECKINGS_CURRENT
+  UTILITY
+}
+
+model Bank {
+  id           String        @id @default(uuid())
+  name         String
+  bankLogo     String?
+  countryId    String
+  country      Country       @relation(name: "bankCountry", fields: [countryId], references: [id])
+  bankAccounts BankAccount[] @relation("bankStatements")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  isDeleted    Boolean       @default(false)
+  deletedAt    DateTime?
+}
+
+model BankAccount {
+  id                       String                  @id @default(uuid())
+  bankId                   String
+  bank                     Bank                    @relation(name: "bankStatements", fields: [bankId], references: [id])
+  displayName              String
+  bankAccountType          BankAccountType
+  bankAccountNo            String
+  bankBalance              Decimal                 @default(0)
+  lastReconciled           DateTime?
+  currencyId               String
+  currency                 Currency                @relation(name: "bankAccountCurrency", fields: [currencyId], references: [id])
+  companyId                String
+  company                  Company                 @relation(name: "companyBankAccounts", fields: [companyId], references: [id])
+  coaId                    String                  @unique
+  accountInCoa             Coa                     @relation("bankCoaAccount", fields: [coaId], references: [id])
+  transactionBatches       BankTransactionBatch[]  @relation("transactionBatches")
+  transactions             BankTransaction[]       @relation("transactionBankAccount") @ignore
+  liveAccountBalance       LiveBankAccountBalance? @relation(name: "bankAccountLiveBalance")
+  ledgerBalance            LiveBankLedgerBalance?  @relation("BankLedgerBalance")
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  isDeleted                Boolean                 @default(false)
+  deletedAt                DateTime?
+  liveBankAccountBalanceId String?
+
+  @@unique([companyId, bankAccountNo, bankId])
+  @@index([companyId])
+  @@index([currencyId])
+}
+
+model BankTransactionBatch {
+  id               String                @id @default(uuid())
+  importedDate     DateTime              @default(now())
+  startDate        DateTime
+  endDate          DateTime
+  balanceBefore    Decimal
+  balanceAfter     Decimal
+  source           BankTransactionSource
+  bankAccountId    String
+  bankAccount      BankAccount           @relation(name: "transactionBatches", fields: [bankAccountId], references: [id])
+  bankTransactions BankTransaction[]     @relation("batchTransactions") @ignore
+  createdById      String
+  updatedById      String?
+  createdBy        User?                 @relation("createdByUser", fields: [createdById], references: [id])
+  updatedBy        User?                 @relation("updatedByUser", fields: [updatedById], references: [id])
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  isDeleted        Boolean               @default(false)
+  deletedAt        DateTime?
+
+  @@index([bankAccountId])
+  @@index([startDate, endDate])
+}
+
+enum CategorisationStatus {
+  UNCATEGORISED
+  AUTO_CATEGORISED
+  CATEGORISED
+}
+
+model BankTransaction {
+  id                     String                @default(uuid())
+  date                   DateTime
+  payee                  String?
+  reference              String?
+  description            String?
+  additionalComments     String?
+  transactionSide        DebitCredit?
+  amount                 Decimal
+  absoluteAmount         Decimal               @default(0)
+  systemExchangeRate     Decimal
+  categorisationStatus   CategorisationStatus  @default(UNCATEGORISED)
+  bankAccountId          String
+  bankAccount            BankAccount           @relation(name: "transactionBankAccount", fields: [bankAccountId], references: [id])
+  bankTransactionBatchId String?
+  bankTransactionBatch   BankTransactionBatch? @relation(name: "batchTransactions", fields: [bankTransactionBatchId], references: [id])
+  ledgerTransactionId    String?
+  ledgerTransaction      LedgerTransaction?    @relation(name: "ledgerBankTxMatch")
+  createdById            String
+  createdBy              User                  @relation(name: "bankTransactionCreatedBy", fields: [createdById], references: [id])
+  updatedById            String?
+  updatedBy              User?                 @relation(name: "bankTransactionUpdatedBy", fields: [updatedById], references: [id])
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  isDeleted              Boolean               @default(false)
+  deletedAt              DateTime?
+
+  @@id([id, date])
+  @@unique([id, date])
+  @@index([id, date])
+  @@index([date])
+  @@index([bankTransactionBatchId])
+  @@index([ledgerTransactionId])
+  @@map("BankTransaction")
+  @@ignore
+}
+
+enum TransactionSource {
+  BANK
+  MANUAL_JOURNAL
+  SYSTEM
+}
+
+model LedgerTransaction {
+  id                  String            @id @default(uuid())
+  date                DateTime
+  contactId           String?
+  contact             Contact?          @relation(name: "contactLedgerTransactions", fields: [contactId], references: [id])
+  description         String?
+  source              TransactionSource
+  reference           String?
+  bankTransactionId   String?
+  bankTransactionDate DateTime?
+  bankTransaction     BankTransaction?  @relation(name: "ledgerBankTxMatch", fields: [bankTransactionId, bankTransactionDate], references: [id, date]) @ignore
+  companyId           String
+  company             Company           @relation(name: "companyLedgerTransactions", fields: [companyId], references: [id])
+  notes               String?
+  ledgerEntries       LedgerEntry[]     @relation(name: "ledgerEntries") @ignore
+  journalBatch        JournalBatch?     @relation(name: "journalLedgerTransactions")
+  createdById         String
+  createdBy           User              @relation(name: "ledgerTransactionCreatedBy", fields: [createdById], references: [id])
+  updatedById         String?
+  updatedBy           User?             @relation(name: "ledgerTransactionUpdatedBy", fields: [updatedById], references: [id])
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  isDeleted           Boolean           @default(false)
+  deletedAt           DateTime?
+
+  @@unique([bankTransactionId, bankTransactionDate])
+  @@index([date])
+  @@index([source])
+  @@index([contactId])
+  @@index([companyId])
+  @@index([bankTransactionId])
+}
+
+model LedgerEntry {
+  id                   String               @default(uuid())
+  ledgerTransactionId  String
+  ledgerTransaction    LedgerTransaction    @relation(name: "ledgerEntries", fields: [ledgerTransactionId], references: [id])
+  fsDate               DateTime //Financial Statement Date
+  coaId                String
+  coa                  Coa                  @relation(name: "coaLedgerEntries", fields: [coaId], references: [id])
+  transactionSide      DebitCredit
+  sourceCurrencyId     String
+  sourceCurrency       Currency             @relation(name: "ledgerTransactionCurrency", fields: [sourceCurrencyId], references: [id])
+  sourceAmount         Decimal
+  absoluteSourceAmount Decimal
+  systemExchangeRate   Decimal
+  customExchangeRate   Decimal
+  amount               Decimal
+  absoluteAmount       Decimal
+  categorisationStatus CategorisationStatus @default(AUTO_CATEGORISED)
+  description          String?
+  projectId            String?
+  project              Project?             @relation(name: "projectTransactions", fields: [projectId], references: [id])
+  journalEntry         JournalEntry?        @relation(name: "journalLedgerEntries")
+  updatedById          String?
+  updatedBy            User?                @relation(name: "ledgerEntryUpdatedBy", fields: [updatedById], references: [id])
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  deletedAt            DateTime?
+  isDeleted            Boolean              @default(false)
+
+  @@id([id, fsDate])
+  @@unique([id, fsDate])
+  @@index([fsDate])
+  @@index([coaId, fsDate])
+  @@index([coaId, isDeleted])
+  @@index([ledgerTransactionId])
+  @@index([categorisationStatus])
+  @@map("LedgerEntry")
+  @@ignore
+}
+
+//Journals
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+  VOIDED
+}
+
+enum JournalReversalReason {
+  AUTO_REVERSAL
+  VOIDED
+}
+
+model JournalBatch {
+  id                      String                    @id @default(uuid())
+  sequenceNumber          Int? //Raw sequence numnber (increment per company when creating journal. KISS)
+  date                    DateTime
+  description             String
+  note                    String?
+  status                  JournalStatus
+  generatedFromTemplateId String?
+  generatedFromTemplate   RecurringJournalTemplate? @relation(name: "GeneratedFromTemplate", fields: [generatedFromTemplateId], references: [id])
+  journalTransactions     JournalEntry[]            @relation("journalTransactions")
+  ledgerTransactionId     String?                   @unique
+  ledgerTransactions      LedgerTransaction?        @relation("journalLedgerTransactions", fields: [ledgerTransactionId], references: [id])
+  postedAt                DateTime?
+  postedById              String?
+  postedBy                User?                     @relation(name: "journalPostedBy", fields: [postedById], references: [id])
+  updatedById             String?
+  updatedBy               User?                     @relation(name: "journalUpdatedBy", fields: [updatedById], references: [id])
+  companyId               String
+  company                 Company                   @relation(name: "companyJournals", fields: [companyId], references: [id])
+  autoReversalDate        DateTime?
+  reversedJournalId       String?
+  reversedJournal         JournalBatch?             @relation(name: "JournalReversals", fields: [reversedJournalId], references: [id])
+  reversingJournals       JournalBatch[]            @relation("JournalReversals")
+  reversedById            String?
+  reversedBy              User?                     @relation(name: "JournalBatchReversedBy", fields: [reversedById], references: [id])
+  reversedAt              DateTime?
+  reversalReason          JournalReversalReason?
+  createdById             String
+  CreatedBy               User?                     @relation(name: "journalBatchCreatedBy", fields: [createdById], references: [id])
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  isDeleted               Boolean                   @default(false)
+  deletedAt               DateTime?
+
+  @@unique([companyId, sequenceNumber])
+  @@index([status, companyId])
+}
+
+model JournalEntry {
+  id                String        @id @default(uuid())
+  description       String?
+  side              DebitCredit
+  amount            Decimal
+  journalBatchId    String
+  journalBatch      JournalBatch? @relation(name: "journalTransactions", fields: [journalBatchId], references: [id])
+  coaAccountId      String
+  coaAccount        Coa           @relation(name: "journalEntries", fields: [coaAccountId], references: [id])
+  ledgerEntryId     String?
+  ledgerEntryfsDate DateTime?
+  ledgerEntry       LedgerEntry?  @relation(name: "journalLedgerEntries", fields: [ledgerEntryId, ledgerEntryfsDate], references: [id, fsDate]) @ignore
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  isDeleted         Boolean       @default(false)
+
+  @@unique([ledgerEntryId, ledgerEntryfsDate])
+  @@index([journalBatchId])
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum RecurringJournalStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+
+model RecurringJournalTemplate {
+  id                      String                          @id @default(uuid())
+  description             String
+  note                    String?
+  status                  RecurringJournalStatus
+  companyId               String
+  company                 Company                         @relation(name: "companyRecurringJournals", fields: [companyId], references: [id])
+  frequency               RecurrenceFrequency
+  startDate               DateTime
+  endDate                 DateTime?
+  nextRunDate             DateTime?
+  placeholderVars         Json?
+  journalEntries          RecurringJournalTemplateEntry[]
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
+  deletedAt               DateTime?
+  isDeleted               Boolean                         @default(false)
+  generatedJournalBatches JournalBatch[]                  @relation("GeneratedFromTemplate")
+
+  @@index([frequency, nextRunDate])
+}
+
+model RecurringJournalTemplateEntry {
+  id                        String                   @id @default(uuid())
+  description               String
+  amount                    Decimal
+  side                      DebitCredit
+  coaAccountId              String
+  placeholderDescriptionVar String?
+  templateId                String
+  template                  RecurringJournalTemplate @relation(fields: [templateId], references: [id])
+}
+
+model ExchangeRate {
+  id             String    @id @default(uuid())
+  date           DateTime
+  fromCurrencyId String
+  fromCurrency   Currency  @relation("fromCurrency", fields: [fromCurrencyId], references: [id])
+  toCurrencyId   String
+  toCurrency     Currency  @relation("toCurrency", fields: [toCurrencyId], references: [id])
+  rate           Decimal
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  isDeleted      Boolean   @default(false)
+
+  @@unique([fromCurrencyId, toCurrencyId, date])
+}
+
+enum ContactType {
+  SUPPLIER
+  CUSTOMER
+  EMPLOYEE
+}
+
+model Contact {
+  id             String              @id @default(uuid())
+  contactCode    String? //User defined code to identify contact
+  name           String //Person or business name
+  description    String?
+  primaryEmail   String?
+  secondaryEmail String?
+  address        String?
+  website        String?
+  businessRegNo  String?
+  contactType    ContactType?
+  companyId      String
+  company        Company             @relation(name: "companyContacts", fields: [companyId], references: [id])
+  transactions   LedgerTransaction[] @relation(name: "contactLedgerTransactions")
+  projects       Project[]           @relation(name: "ProjectContact")
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  deletedAt      DateTime?
+  isDeleted      Boolean             @default(false)
+
+  @@unique([name, companyId])
+}
+
+enum ProjectStatus {
+  IN_DRAFT
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
+model Project {
+  id           String         @id @default(uuid())
+  code         String? //User defined code to identify project
+  name         String //Project name
+  description  String?
+  status       ProjectStatus? @default(IN_DRAFT)
+  contactId    String?
+  contact      Contact?       @relation(name: "ProjectContact", fields: [contactId], references: [id])
+  companyId    String
+  company      Company        @relation(name: "companyProjects", fields: [companyId], references: [id])
+  transactions LedgerEntry[]  @relation(name: "projectTransactions") @ignore
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+  isDeleted    Boolean        @default(false)
+
+  @@unique([code, companyId])
+  @@unique([name, companyId])
+}
+
+// For real-time bank account balances. Separate because bank accounts are independent
+// No need for companyId or company, deduced from bankAccount
+model LiveBankAccountBalance {
+  id            String      @id @default(uuid())
+  bankAccountId String
+  bankAccount   BankAccount @relation("bankAccountLiveBalance", fields: [bankAccountId], references: [id])
+  nativeBalance Decimal
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([bankAccountId])
+}
+
+// For real-time Bank COA balances - Separate because we track source amount
+// For BankAccount.accountinCoa.AccountType.typeName === "Bank", Get currency from BankAccount
+model LiveBankLedgerBalance {
+  id               String      @id @default(uuid())
+  bankAccountId    String
+  bankAccount      BankAccount @relation("BankLedgerBalance", fields: [bankAccountId], references: [id])
+  nativeBalance    Decimal
+  reportingBalance Decimal
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([bankAccountId])
+}
+
+// For real-time COA balances account type !== bank, or we could add them
+// Everything here is in reporting currency. Get FS Type & CurrentAccountingPeriod from Coa
+// Coa.fsKey , Coa.company.currentaccountingperiod.(periodStart or periodEnd)
+model LiveCoaAccountBalance {
+  id          String   @id @default(uuid())
+  coaId       String
+  coa         Coa      @relation("LiveCoaAccountBalance", fields: [coaId], references: [id])
+  liveBalance Decimal
+  updatedAt   DateTime @updatedAt
+
+  @@unique([coaId])
+  @@index([coaId])
+}
+
+enum SnapshotPeriodType {
+  MONTH
+  QUARTER
+  ANNUAL
+}
+
+model PLBalanceSnapshot {
+  id             String             @id @default(uuid())
+  coaId          String
+  periodStart    DateTime
+  periodEnd      DateTime
+  periodType     SnapshotPeriodType
+  openingBalance Decimal // P&L always starts from zero, but useful for mid-period views
+  totalMovement  Decimal // Sum of transactions in this period
+  closingBalance Decimal // Final net balance for the period
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([coaId, periodStart, periodEnd])
+  @@index([periodStart])
+  @@index([coaId, periodEnd])
+  @@index([coaId, periodStart, periodEnd])
+}
+
+model BalanceSheetSnapshot {
+  id                String   @id @default(uuid())
+  coaId             String
+  snapshotDate      DateTime
+  cumulativeBalance Decimal
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([coaId, snapshotDate])
+  @@index([coaId, snapshotDate])
+}
+
+//Typically 1 year except for commencement and cessation (or change in periods which MVP won't cater for)
+model CurrentAccountingPeriod {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation("CompanyCurrentAccountingPeriod", fields: [companyId], references: [id])
+  periodStart DateTime
+  periodEnd   DateTime
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId])
+  @@index([companyId])
+}

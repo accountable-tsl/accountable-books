@@ -1,0 +1,1062 @@
+{
+    "startDate": "2025-01-01",
+    "endDate": "2025-02-05",
+    "accounts": [
+      {
+        "accountId": "669d754d-5093-4c88-97c4-91de8e1838e5",
+        "accountType": "CURRLIAB",
+        "accountCode": "880004",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Deferred Revenue - Group and Corporate Courses",
+        "balance": {
+          "value": 15639906.93,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 15639906.93,
+        "accountMovement": {
+          "debits": 501964.29,
+          "credits": 0,
+          "movement": {
+            "value": 501964.29,
+            "entryType": "DEBIT"
+          },
+          "signedMovement": -501964.29
+        }
+      },
+      {
+        "accountId": "6d97219e-4e1c-4235-801b-0bf0b9d0a080",
+        "accountType": "CURRLIAB",
+        "accountCode": "880005",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Deferred Revenue - Private Tuitions",
+        "balance": {
+          "value": 1116628.53,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 1116628.53,
+        "accountMovement": {
+          "debits": 235892.86,
+          "credits": 0,
+          "movement": {
+            "value": 235892.86,
+            "entryType": "DEBIT"
+          },
+          "signedMovement": -235892.86
+        }
+      },
+      {
+        "accountId": "d0f3c6ec-db2a-4e8f-890b-20d2588dd3fd",
+        "accountType": "FIXED",
+        "accountCode": "701102",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Accumulated Depreciation - Building",
+        "balance": {
+          "value": 658825,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": -658825
+      },
+      {
+        "accountId": "edcad078-d81d-4b59-b391-d865a1adbff2",
+        "accountType": "FIXED",
+        "accountCode": "701005",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Furniture & Fittings",
+        "balance": {
+          "value": 45861474,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 45861474
+      },
+      {
+        "accountId": "4a2003ce-f0f9-4252-b0c5-0d065e5473a6",
+        "accountType": "CURRLIAB",
+        "accountCode": "811004",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Employee Pension Payable",
+        "balance": {
+          "value": 2428245.09,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": -2428245.09
+      },
+      {
+        "accountId": "69d655b5-eb56-4c18-a188-5ae84f5b46f8",
+        "accountType": "EQUITY",
+        "accountCode": "901002",
+        "accountClass": "EQUITY",
+        "status": "ACTIVE",
+        "reportingCode": "EQU.RET",
+        "accountName": "Retained Earnings",
+        "balance": {
+          "value": 997289289.94,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 997289289.94
+      },
+      {
+        "accountId": "cbc48a40-fa0c-4aa4-ac4e-4ec366dddd3b",
+        "accountType": "FIXED",
+        "accountCode": "701008",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Books for Mediatheque",
+        "balance": {
+          "value": 133000,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 133000
+      },
+      {
+        "accountId": "f7d41e4e-df64-43ad-b63f-f7c98ca618a7",
+        "accountType": "CURRENT",
+        "accountCode": "751007",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Other Prepayments",
+        "balance": {
+          "value": 4682068.61,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 4682068.61
+      },
+      {
+        "accountId": "27d19794-ca0e-4bc5-b212-38ac8f2794be",
+        "accountType": "REVENUE",
+        "accountCode": "401005",
+        "accountClass": "REVENUE",
+        "status": "ACTIVE",
+        "reportingCode": "REV",
+        "accountName": "Income - Yearly registration fees (course)",
+        "balance": {
+          "value": 1063749.35,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 1063749.35,
+        "accountMovement": {
+          "debits": 0,
+          "credits": 1063749.35,
+          "movement": {
+            "value": 1063749.35,
+            "entryType": "CREDIT"
+          },
+          "signedMovement": 1063749.35
+        }
+      },
+      {
+        "accountId": "b3df2911-1df6-411a-b636-84950cc4e3c6",
+        "accountType": "CURRENT",
+        "accountCode": "13304705",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Accounts Receivable (13304705)",
+        "balance": {
+          "value": 1141291.68,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 1141291.68
+      },
+      {
+        "accountId": "cfd71363-899c-4a5f-9952-ef7cb028fd72",
+        "accountType": "CURRLIAB",
+        "accountCode": "880008",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Deferred Revenue - Registration and Memberships",
+        "balance": {
+          "value": 6016678.96,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 6016678.96,
+        "accountMovement": {
+          "debits": 1063749.35,
+          "credits": 0,
+          "movement": {
+            "value": 1063749.35,
+            "entryType": "DEBIT"
+          },
+          "signedMovement": -1063749.35
+        }
+      },
+      {
+        "accountId": "8c74321c-817a-4e9d-adb0-1b1f49114c4b",
+        "accountType": "FIXED",
+        "accountCode": "701007",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Office Equipment",
+        "balance": {
+          "value": 16685289.83,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 16685289.83
+      },
+      {
+        "accountId": "592f4943-7a5c-47b1-a589-ebd3500d05b3",
+        "accountType": "CURRLIAB",
+        "accountCode": "851004",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "WHT Payable",
+        "balance": {
+          "value": 6431964.94,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": -6431964.94
+      },
+      {
+        "accountId": "061e1282-029e-48e9-b201-24e2c02d59dd",
+        "accountType": "CURRENT",
+        "accountCode": "741102",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "AF Petty Cash - Ikoyi",
+        "balance": {
+          "value": 1770403.25,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 1770403.25
+      },
+      {
+        "accountId": "05c8ff89-000b-4437-a7f0-c1daf0738ad1",
+        "accountType": "CURRLIAB",
+        "accountCode": "811005",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Employer Pension Payable",
+        "balance": {
+          "value": 283325,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": -283325
+      },
+      {
+        "accountId": "3737268d-a3a0-4dd5-bf91-359872274e2b",
+        "accountType": "CURRLIAB",
+        "accountCode": "821004",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Accruals - Others",
+        "balance": {
+          "value": 17992370.25,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 17992370.25
+      },
+      {
+        "accountId": "9dbfafaf-20db-4d4f-8915-69d5c6b50183",
+        "accountType": "NONCURRENT",
+        "accountCode": "701202",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Accumulated Amortization - Computer Software",
+        "balance": {
+          "value": 474733,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": -474733
+      },
+      {
+        "accountId": "ac424ca3-5d41-4702-9ab2-c943eaaa5c70",
+        "accountType": "CURRLIAB",
+        "accountCode": "880003",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Deferred Revenue - Exams",
+        "balance": {
+          "value": 1269868.87,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 1269868.87
+      },
+      {
+        "accountId": "394debe5-193e-4e20-8c16-692b7b88ac3f",
+        "accountType": "CURRLIAB",
+        "accountCode": "851003S",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA.CUR.TAX.VAT",
+        "accountName": "Sales Tax",
+        "balance": {
+          "value": 984200.8,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": -984200.8
+      },
+      {
+        "accountId": "eb145aa7-3df9-43eb-a9e4-b24e77aafd66",
+        "accountType": "FIXED",
+        "accountCode": "701106",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Accumulated Depreciation - Computer Equipment",
+        "balance": {
+          "value": 32426555.8,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": -32426555.8
+      },
+      {
+        "accountId": "094d70d0-cf3a-4ac5-9a31-2f1edf016d35",
+        "accountType": "REVENUE",
+        "accountCode": "401002",
+        "accountClass": "REVENUE",
+        "status": "ACTIVE",
+        "reportingCode": "REV",
+        "accountName": "Income - Corporate",
+        "balance": {
+          "value": 362500,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 362500,
+        "accountMovement": {
+          "debits": 0,
+          "credits": 362500,
+          "movement": {
+            "value": 362500,
+            "entryType": "CREDIT"
+          },
+          "signedMovement": 362500
+        }
+      },
+      {
+        "accountId": "e610eaeb-89f4-4910-8260-56d1a000eb4a",
+        "accountType": "CURRLIAB",
+        "accountCode": "880010",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Discount Allowed Deferred",
+        "balance": {
+          "value": 31499.99,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": -31499.99
+      },
+      {
+        "accountId": "527a7229-76b9-4b80-b640-7a1dce191340",
+        "accountType": "REVENUE",
+        "accountCode": "401003",
+        "accountClass": "REVENUE",
+        "status": "ACTIVE",
+        "reportingCode": "REV",
+        "accountName": "Income - Private tuitions",
+        "balance": {
+          "value": 235892.86,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 235892.86,
+        "accountMovement": {
+          "debits": 0,
+          "credits": 235892.86,
+          "movement": {
+            "value": 235892.86,
+            "entryType": "CREDIT"
+          },
+          "signedMovement": 235892.86
+        }
+      },
+      {
+        "accountId": "df1527b4-f2a7-4a4f-8b22-362104cbfbd5",
+        "accountType": "CURRENT",
+        "accountCode": "751001",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Staff Loan",
+        "balance": {
+          "value": 1328900.44,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 1328900.44
+      },
+      {
+        "accountId": "d600d159-b054-4dc7-b9d1-ece0be996da7",
+        "accountType": "CURRENT",
+        "accountCode": "751009",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Loan and Loans receivable",
+        "balance": {
+          "value": 500000000,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 500000000
+      },
+      {
+        "accountId": "b35992e5-ed9c-4e78-ac9c-0ba1bcf2bd2a",
+        "accountType": "CURRLIAB",
+        "accountCode": "880202",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Amounts held in trust - Egis Conseil",
+        "balance": {
+          "value": 16136304.93,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 16136304.93
+      },
+      {
+        "accountId": "03a7f515-5154-490a-8215-78340e36c826",
+        "accountType": "CURRLIAB",
+        "accountCode": "880002",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Deferred Revenue - Courses",
+        "balance": {
+          "value": 1622830.08,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 1622830.08
+      },
+      {
+        "accountId": "6f512b7e-0f5a-4b09-b68f-c5982580fd3f",
+        "accountType": "EQUITY",
+        "accountCode": "25639756",
+        "accountClass": "EQUITY",
+        "status": "ACTIVE",
+        "reportingCode": "EQU",
+        "accountName": "opening Balances and VAT Adjustments",
+        "balance": {
+          "value": 3262984.45,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 3262984.45
+      },
+      {
+        "accountId": "069f7d86-7afe-4161-8d6d-7bda227b8058",
+        "accountType": "REVENUE",
+        "accountCode": "401001",
+        "accountClass": "REVENUE",
+        "status": "ACTIVE",
+        "reportingCode": "REV",
+        "accountName": "Income - Group courses",
+        "balance": {
+          "value": 139464.29,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 139464.29,
+        "accountMovement": {
+          "debits": 0,
+          "credits": 139464.29,
+          "movement": {
+            "value": 139464.29,
+            "entryType": "CREDIT"
+          },
+          "signedMovement": 139464.29
+        }
+      },
+      {
+        "accountId": "25f91986-92aa-4472-9c29-bd5f69fc1e8d",
+        "accountType": "FIXED",
+        "accountCode": "701107",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Accumulated Depreciation - Office Equipment",
+        "balance": {
+          "value": 1946573.09,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": -1946573.09
+      },
+      {
+        "accountId": "f177345f-b4dc-4aef-bc7b-f4fb1d66f917",
+        "accountType": "NONCURRENT",
+        "accountCode": "701201",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Computer Software",
+        "balance": {
+          "value": 1726972.17,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 1726972.17
+      },
+      {
+        "accountId": "8f1a5b55-e272-49c0-ba3d-ea1cd224ee31",
+        "accountType": "CURRLIAB",
+        "accountCode": "821002",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Accruals - Audit Fees",
+        "balance": {
+          "value": 2000000,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 2000000
+      },
+      {
+        "accountId": "69f69645-2c6c-4aa9-804a-aee68a41e6f0",
+        "accountType": "CURRLIAB",
+        "accountCode": "811009",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Salaries payable",
+        "balance": {
+          "value": 19863257.37,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": -19863257.37
+      },
+      {
+        "accountId": "9245c776-8f83-4d5d-8995-ba889f73dee9",
+        "accountType": "EQUITY",
+        "accountCode": "25664731",
+        "accountClass": "EQUITY",
+        "status": "ACTIVE",
+        "reportingCode": "EQU",
+        "accountName": "Share Capital",
+        "balance": {
+          "value": 13389929,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 13389929
+      },
+      {
+        "accountId": "13c078b6-9362-4186-8e72-ad74eb7cc4f8",
+        "accountType": "CURRENT",
+        "accountCode": "741103",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "EXP",
+        "accountName": "Short-term investments",
+        "balance": {
+          "value": 250000000,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": -250000000
+      },
+      {
+        "accountId": "0a6fa960-6153-4001-825a-6860479bdf15",
+        "accountType": "CURRLIAB",
+        "accountCode": "881099",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "AEC Invoice-Payment Reconciliation",
+        "balance": {
+          "value": 968222.36,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": -968222.36
+      },
+      {
+        "accountId": "ebc62945-c399-4674-be5c-1fefc66032ef",
+        "accountType": "FIXED",
+        "accountCode": "701006",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Computer Equipment",
+        "balance": {
+          "value": 59209331.39,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 59209331.39
+      },
+      {
+        "accountId": "c59d365f-0c00-45e7-8b6c-be7ea597bd19",
+        "accountType": "CURRLIAB",
+        "accountCode": "811003",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "PAYE Payable",
+        "balance": {
+          "value": 2531720.36,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": -2531720.36
+      },
+      {
+        "accountId": "95eaddb1-28c7-42a4-9060-0203d88808ef",
+        "accountType": "CURRENT",
+        "accountCode": "731003",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Interest Receivable",
+        "balance": {
+          "value": 3670.24,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": -3670.24
+      },
+      {
+        "accountId": "4f32036b-ea9a-4617-8dfe-c0a9e4450566",
+        "accountType": "EQUITY",
+        "accountCode": "-13",
+        "accountClass": "EQUITY",
+        "status": "ACTIVE",
+        "reportingCode": "EQU",
+        "accountName": "Opening Balance and VAT Adjustments",
+        "balance": {
+          "value": 199818,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 199818
+      },
+      {
+        "accountId": "19e2017e-120e-4489-8d26-4573bfb8671f",
+        "accountType": "FIXED",
+        "accountCode": "701010",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Building Improvements",
+        "balance": {
+          "value": 72478421.82,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 72478421.82
+      },
+      {
+        "accountId": "8c9b6715-891b-4699-9361-c3eea6767de5",
+        "accountType": "FIXED",
+        "accountCode": "701003",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Plant and Machinery",
+        "balance": {
+          "value": 57773440,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 57773440
+      },
+      {
+        "accountId": "fd0629e3-357c-49db-a227-701ee609219e",
+        "accountType": "FIXED",
+        "accountCode": "701104",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Accumulated Depreciation - Motor Vehicle",
+        "balance": {
+          "value": 2677824.65,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": -2677824.65
+      },
+      {
+        "accountId": "807d8133-25f1-47de-b2c9-fdb83f944896",
+        "accountType": "FIXED",
+        "accountCode": "701105",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Accumulated Depreciation - Furniture & Fittings",
+        "balance": {
+          "value": 27556812.58,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": -27556812.58
+      },
+      {
+        "accountId": "445d9f09-8ed7-4885-ade1-87a0b6a250be",
+        "accountType": "CURRLIAB",
+        "accountCode": "880201",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Amounts held in trust - lnstitut Français Du Nigeria",
+        "balance": {
+          "value": 51866649.54,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 51866649.54
+      },
+      {
+        "accountId": "5253b1e7-bb93-4dfb-a5cd-f50ba1269fd5",
+        "accountType": "CURRENT",
+        "accountCode": "26018110",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Accounts Receivable (26018110)",
+        "balance": {
+          "value": 4914045.98,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 4914045.98
+      },
+      {
+        "accountId": "61a10821-f426-4b2b-b899-38f4bc86f3b2",
+        "accountType": "CURRENT",
+        "accountCode": "751006",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Prepaid HMO Premium",
+        "balance": {
+          "value": 1889799,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 1889799
+      },
+      {
+        "accountId": "e33c6d66-2992-487f-bebe-fb070b7e4cff",
+        "accountType": "FIXED",
+        "accountCode": "701110",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Accumulated Amortization - DCP (cultural equipment)",
+        "balance": {
+          "value": 3863129,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": -3863129
+      },
+      {
+        "accountId": "ddeff0a1-f5e9-4514-bc79-b2ba168b4996",
+        "accountType": "FIXED",
+        "accountCode": "611034",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "DCP (Cultural equipment)",
+        "balance": {
+          "value": 19647645.82,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 19647645.82
+      },
+      {
+        "accountId": "9b2f963d-afa9-4ad8-8e20-f805383718fe",
+        "accountType": "FIXED",
+        "accountCode": "701004",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Motor Vehicle",
+        "balance": {
+          "value": 6223237.81,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 6223237.81
+      },
+      {
+        "accountId": "c78abcb2-babc-4880-92ef-d2f07fb9c8cb",
+        "accountType": "CURRENT",
+        "accountCode": "741101a",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "AF Petty Cash - Ikeja",
+        "balance": {
+          "value": 2508560.29,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 2508560.29
+      },
+      {
+        "accountId": "b8223046-1478-457a-87f5-bbb314a0bbc0",
+        "accountType": "CURRLIAB",
+        "accountCode": "880006",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA",
+        "accountName": "Deferred Revenue - Textbooks",
+        "balance": {
+          "value": 8035885.16,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 8035885.16
+      },
+      {
+        "accountId": "136363b0-a17e-43a7-b99a-b2a92bff0e75",
+        "accountType": "CURRLIAB",
+        "accountCode": "860",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA.CUR",
+        "accountName": "Rounding",
+        "balance": {
+          "value": 67286.4,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 67286.4
+      },
+      {
+        "accountId": "b06f9ca8-78d5-409c-b458-22e41f9e53c3",
+        "accountType": "CURRLIAB",
+        "accountCode": "811001",
+        "accountClass": "LIABILITY",
+        "status": "ACTIVE",
+        "reportingCode": "LIA.CUR.PAY.TRA",
+        "accountName": "Accounts Payable",
+        "balance": {
+          "value": 103989303.37,
+          "entryType": "CREDIT"
+        },
+        "signedBalance": 103989303.37,
+        "accountMovement": {
+          "debits": 2612104.72,
+          "credits": 0,
+          "movement": {
+            "value": 2612104.72,
+            "entryType": "DEBIT"
+          },
+          "signedMovement": -2612104.72
+        }
+      },
+      {
+        "accountId": "df86805b-7644-4f90-aff1-ed861b169b13",
+        "accountType": "CURRENT",
+        "accountCode": "731001-",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS.CUR.REC.TRA",
+        "accountName": "Accounts Receivable",
+        "balance": {
+          "value": 384133819.53,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 384133819.53,
+        "accountMovement": {
+          "debits": 0,
+          "credits": 7911827.55,
+          "movement": {
+            "value": 7911827.55,
+            "entryType": "CREDIT"
+          },
+          "signedMovement": -7911827.55
+        }
+      },
+      {
+        "accountId": "24322147-c4a2-493b-b24f-70a826e1bd3b",
+        "accountType": "BANK",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Paystack Account",
+        "balance": {
+          "value": 181800,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 181800
+      },
+      {
+        "accountId": "895f9040-53a6-4297-b583-82d2f86852a0",
+        "accountType": "BANK",
+        "accountCode": "10002",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "AF Network Coordination Operation [NGN xx7253]",
+        "balance": {
+          "value": 6103208.67,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 6103208.67
+      },
+      {
+        "accountId": "8a0e967b-bbe0-45fe-90be-868c274342fe",
+        "accountType": "BANK",
+        "accountCode": "10201",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "AF Network Co EUR xx1595",
+        "balance": {
+          "value": 665074.29,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 665074.29,
+        "accountMovement": {
+          "debits": 0,
+          "credits": 17285.23,
+          "movement": {
+            "value": 17285.23,
+            "entryType": "CREDIT"
+          },
+          "signedMovement": -17285.23
+        }
+      },
+      {
+        "accountId": "e1092f4e-4938-4cbb-9039-9d2bd8583077",
+        "accountType": "BANK",
+        "accountCode": "10003",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "AF Utility Card Account [NGN xx0282]",
+        "balance": {
+          "value": 1067349.84,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 1067349.84
+      },
+      {
+        "accountId": "bd88bfd3-0def-484a-a7ff-b00a61ba2eb4",
+        "accountType": "BANK",
+        "accountCode": "10202",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Access Bank EUR xx7429",
+        "balance": {
+          "value": 1856941.64,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 1856941.64,
+        "accountMovement": {
+          "debits": 0,
+          "credits": 48261.78,
+          "movement": {
+            "value": 48261.78,
+            "entryType": "CREDIT"
+          },
+          "signedMovement": -48261.78
+        }
+      },
+      {
+        "accountId": "466d381b-3578-4ccb-93ce-b24f4d4a6371",
+        "accountType": "BANK",
+        "accountClass": "ASSET",
+        "status": "ARCHIVED",
+        "reportingCode": "ASS",
+        "accountName": "Petty Cash Ikoyi 12202131",
+        "balance": {
+          "value": 160068,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 160068
+      },
+      {
+        "accountId": "6c5477ac-a5f7-43d8-a0e6-e544b8bbf221",
+        "accountType": "BANK",
+        "accountCode": "10004",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "Access Bank NGN xx5743",
+        "balance": {
+          "value": 215456902.67,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 215456902.67
+      },
+      {
+        "accountId": "f09ed858-21c5-4d22-843a-ef354f256748",
+        "accountType": "BANK",
+        "accountCode": "10101",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "AF Access USD xx2542",
+        "balance": {
+          "value": 3713940.13,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 3713940.13,
+        "accountMovement": {
+          "debits": 0,
+          "credits": 116681.19,
+          "movement": {
+            "value": 116681.19,
+            "entryType": "CREDIT"
+          },
+          "signedMovement": -116681.19
+        }
+      },
+      {
+        "accountId": "40d6813d-cd67-4758-a602-fef8c4e1590a",
+        "accountType": "BANK",
+        "accountClass": "ASSET",
+        "status": "ACTIVE",
+        "reportingCode": "ASS",
+        "accountName": "BRED Alliance Francaise Lagos",
+        "balance": {
+          "value": 108176588.64,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 108176588.64,
+        "accountMovement": {
+          "debits": 0,
+          "credits": 2811501.84,
+          "movement": {
+            "value": 2811501.84,
+            "entryType": "CREDIT"
+          },
+          "signedMovement": -2811501.84
+        }
+      },
+      {
+        "accountId": "121f9849-ab73-4ba5-830b-ad8ba35cd840",
+        "accountType": "EXPENSE",
+        "accountCode": "497",
+        "accountClass": "EXPENSE",
+        "status": "ACTIVE",
+        "reportingCode": "EXP.FOR",
+        "accountName": "Bank Revaluations",
+        "balance": {
+          "value": 2993730.03,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 2993730.03,
+        "accountMovement": {
+          "debits": 2993730.05,
+          "credits": 0,
+          "movement": {
+            "value": 2993730.05,
+            "entryType": "DEBIT"
+          },
+          "signedMovement": 2993730.05
+        }
+      },
+      {
+        "accountId": "96aad484-1505-4808-a986-75df5547b426",
+        "accountType": "EXPENSE",
+        "accountCode": "498",
+        "accountClass": "EXPENSE",
+        "status": "ACTIVE",
+        "reportingCode": "EXP.FOR.UGL",
+        "accountName": "Unrealised Currency Gains",
+        "balance": {
+          "value": 5299722.83,
+          "entryType": "DEBIT"
+        },
+        "signedBalance": 5299722.83,
+        "accountMovement": {
+          "debits": 5299722.83,
+          "credits": 0,
+          "movement": {
+            "value": 5299722.83,
+            "entryType": "DEBIT"
+          },
+          "signedMovement": 5299722.83
+        }
+      }
+    ]
+  }
