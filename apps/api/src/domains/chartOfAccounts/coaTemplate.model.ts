@@ -1,24 +1,24 @@
 import type { Knex } from "knex";
 import {
   loadCoaTemplate,
-  LoadCoaTemplateInput,
+  type LoadCoaTemplateInput,
   newCoaTemplate,
-  NewCoaTemplateInput,
-  SelectBestCoa,
-} from "./coaTemplate.type";
-import { ApiResponse } from "../../core/types/api.types";
+  type NewCoaTemplateInput,
+  type SelectBestCoa,
+} from "./coaTemplate.type.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
 import {
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { Company } from "../companies/companies.types";
-import { selectBestCoaTemplate } from "./coaTemplateSelector.service";
-import { createDefaultAccounts } from "./coa.model";
-import { CoaSource, NewCoa } from "./coa.types";
+} from "../../shared/utils/response.utils.js";
+import { type Company } from "../companies/companies.types.js";
+import { selectBestCoaTemplate } from "./coaTemplateSelector.service.js";
+import { createDefaultAccounts } from "./coa.model.js";
+import { type NewCoa } from "./coa.types.js";
 
 export const addNewCoaTemplates = async (
   knex: Knex,
-  input: NewCoaTemplateInput[]
+  input: NewCoaTemplateInput[],
 ): Promise<ApiResponse> => {
   const validatedInput = newCoaTemplate
     .array()
@@ -27,7 +27,7 @@ export const addNewCoaTemplates = async (
   if (!validatedInput.success) {
     return errorResponse(
       "Invalid input provided",
-      validatedInput.error.flatten()
+      validatedInput.error.flatten(),
     );
   }
 
@@ -45,7 +45,7 @@ export const addNewCoaTemplates = async (
 
     return successResponse(
       `coa template(s) with ${insertedRecords.length} records entered successfully`,
-      insertedRecords
+      insertedRecords,
     );
   } catch (error) {
     return errorResponse("Error inserting coa template(s)", error);
@@ -54,7 +54,7 @@ export const addNewCoaTemplates = async (
 
 export const loadCoaTemplateForCompany = async (
   knex: Knex,
-  input: LoadCoaTemplateInput
+  input: LoadCoaTemplateInput,
 ): Promise<ApiResponse> => {
   // Validate Input
   const validatedInput = loadCoaTemplate.safeParse(input);
@@ -74,7 +74,7 @@ export const loadCoaTemplateForCompany = async (
         "industry",
         "website",
         "reporting_framework",
-        "reporting_currency_id"
+        "reporting_currency_id",
       );
 
     if (!company || !company.type || !company.reporting_currency_id)
@@ -109,12 +109,12 @@ export const loadCoaTemplateForCompany = async (
         knex,
         companyId,
         input.created_by_id,
-        company.reporting_currency_id
+        company.reporting_currency_id,
       );
 
       return successResponse(
         `No valid template found. Default accounts created for ${company.display_name}`,
-        null
+        null,
       );
     }
 
@@ -138,7 +138,7 @@ export const loadCoaTemplateForCompany = async (
 
       return successResponse(
         `Coa template with ${validTemplate.length} lines inserted for ${company.display_name}`,
-        chosenTemplate
+        chosenTemplate,
       );
     });
   } catch (error) {

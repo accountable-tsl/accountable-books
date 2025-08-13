@@ -1,11 +1,15 @@
-import { knexClient } from "../../../knexClient";
-import { AppError } from "../../shared/utils/response.utils";
-import { RoleInfo, roleKey, RoleKey } from "./roles.types";
+import { knexClient } from "../../db/knexClient.js";
+import { AppError } from "../../shared/utils/response.utils.js";
+import {
+  type RoleInfo,
+  roleKey,
+  type RoleKey,
+} from "./roles.types.js";
 
 let rolesLoaded = false;
 
 export const roles: Record<RoleKey, RoleInfo> = Object.fromEntries(
-  roleKey.options.map((key) => [key, { id: "", name: "", description: "" }])
+  roleKey.options.map((key) => [key, { id: "", name: "", description: "" }]),
 ) as Record<RoleKey, RoleInfo>;
 
 export const loadRoles = async () => {

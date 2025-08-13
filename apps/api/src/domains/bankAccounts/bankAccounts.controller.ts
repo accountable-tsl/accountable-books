@@ -1,14 +1,14 @@
-import { Response } from "express";
-import { AuthRequest } from "../../features/auth/auth.types";
-import { errorResponse } from "../../shared/utils/response.utils";
+import type { Response } from "express";
+import type { AuthRequest } from "../../features/auth/auth.types.js";
+import { errorResponse } from "../../shared/utils/response.utils.js";
 import {
   createNewBankAccount,
   getBankAccountsWithDetails,
-} from "./bankAccounts.model";
+} from "./bankAccounts.model.js";
 
 export async function createBankAccountController(
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) {
   try {
     const companyId =
@@ -34,7 +34,7 @@ export async function createBankAccountController(
 
 export async function getBankAccountsForCompany(
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) {
   try {
     const companyId = req.company?.id || req.params.companyId;

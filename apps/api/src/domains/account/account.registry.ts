@@ -1,10 +1,10 @@
-import { getAccountClassificationMeta } from "./account.model";
+import { getAccountClassificationMeta } from "./account.model.js";
 import {
-  AccountClassificationMetadata,
-  AccountElementDTO,
-  AccountTypeDTO,
-  FinancialStatementDTO,
-} from "./account.types";
+  type AccountClassificationMetadata,
+  type AccountElementDTO,
+  type AccountTypeDTO,
+  type FinancialStatementDTO,
+} from "./account.types.js";
 
 interface AccountMetaCache extends AccountClassificationMetadata {
   accountTypesByKey: Map<string, AccountTypeDTO>;

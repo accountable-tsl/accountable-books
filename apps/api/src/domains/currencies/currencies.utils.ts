@@ -1,4 +1,4 @@
-import { getCurrencyByCode } from "./currencies.model";
+import { getCurrencyByCode } from "./currencies.model.js";
 
 export async function getCurrency(currencyCode: string) {
   const result = await getCurrencyByCode(currencyCode);

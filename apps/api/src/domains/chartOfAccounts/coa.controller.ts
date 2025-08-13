@@ -1,6 +1,6 @@
-import { Response } from "express";
-import { AuthRequest } from "../../features/auth/auth.types";
-import { errorResponse } from "../../shared/utils/response.utils";
+import { type Response } from "express";
+import type { AuthRequest } from "../../features/auth/auth.types.js";
+import { errorResponse } from "../../shared/utils/response.utils.js";
 import {
   archiveCoa,
   createCoa,
@@ -8,8 +8,8 @@ import {
   editCoa,
   fetchCompanyCoa,
   unarchiveCoa,
-} from "./coa.model";
-import { CoaUpdateInput, coaUpdateInput } from "./coa.types";
+} from "./coa.model.js";
+import { type CoaUpdateInput, coaUpdateInput } from "./coa.types.js";
 
 export const createCoaController = async (req: AuthRequest, res: Response) => {
   try {
@@ -140,7 +140,7 @@ export const archiveCoaController = async (req: AuthRequest, res: Response) => {
 // Bulk unarchive COA records
 export const unarchiveCoaController = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   const obj = coaUpdatePreChecks(req, res);
   if (typeof obj === "string") {

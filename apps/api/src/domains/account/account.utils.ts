@@ -1,5 +1,5 @@
-import { isDev } from "../../config/env";
-import { AccountClassificationMetadata } from "./account.types";
+import { isDev } from "../../config/env.js";
+import { type AccountClassificationMetadata, type EnrichedAccountType } from "./account.types.js";
 
 const flattenAccountTypes = (data: AccountClassificationMetadata) => {
   const {

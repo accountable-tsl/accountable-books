@@ -1,6 +1,9 @@
-import { ENV } from "../../../config/env";
-import { UrlParamMap, UrlParams, UrlType } from "./email.types";
-
+import { ENV } from "../../../config/env.js";
+import {
+  type UrlParamMap,
+  type UrlParams,
+  type UrlType,
+} from "./email.types.js";
 const routePaths: Record<UrlType, string> = {
   "verify-email": "verify-email",
   "reset-password": "reset-password",
@@ -9,7 +12,7 @@ const routePaths: Record<UrlType, string> = {
 
 export const buildEmailServiceUrl = <T extends UrlType>(
   type: T,
-  params: UrlParamMap[T]
+  params: UrlParamMap[T],
 ): string => {
   const baseUrl = ENV.FRONTEND_URL?.trim().replace(/\/+$/, ""); // remove trailing slashes
   if (!baseUrl) throw new Error("BASE_URL is not set");

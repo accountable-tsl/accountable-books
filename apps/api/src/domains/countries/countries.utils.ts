@@ -1,4 +1,4 @@
-import { getCountryByCode } from "./countries.model";
+import { getCountryByCode } from "./countries.model.js";
 
 export async function getCountry(countryCode: string) {
   const result = await getCountryByCode(countryCode);

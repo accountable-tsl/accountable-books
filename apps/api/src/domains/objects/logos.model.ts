@@ -7,15 +7,15 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { ENV } from "../../config/env";
+import { ENV } from "../../config/env.js";
 import {
   AppError,
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { ApiResponse } from "../../core/types/api.types";
+} from "../../shared/utils/response.utils.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
 import { createHash, randomUUID } from "crypto";
-import { LogoUploadParams } from "./objects.types";
+import { type LogoUploadParams } from "./objects.types.js";
 import axios from "axios";
 
 if (!ENV.B2_LOGOS_KEY_ID || !ENV.B2_LOGOS_APPLICATION_KEY) {
@@ -24,7 +24,7 @@ if (!ENV.B2_LOGOS_KEY_ID || !ENV.B2_LOGOS_APPLICATION_KEY) {
 
 async function authorizeAccount() {
   const encoded = Buffer.from(
-    `${ENV.B2_LOGOS_KEY_ID}:${ENV.B2_LOGOS_APPLICATION_KEY}`
+    `${ENV.B2_LOGOS_KEY_ID}:${ENV.B2_LOGOS_APPLICATION_KEY}`,
   ).toString("base64");
 
   const response = await axios.get(
@@ -33,7 +33,7 @@ async function authorizeAccount() {
       headers: {
         Authorization: `Basic ${encoded}`,
       },
-    }
+    },
   );
 
   return response.data;
@@ -49,7 +49,7 @@ async function getUploadUrl(apiUrl: string, authToken: string) {
       headers: {
         Authorization: authToken,
       },
-    }
+    },
   );
 
   return response.data;
@@ -57,14 +57,14 @@ async function getUploadUrl(apiUrl: string, authToken: string) {
 
 export async function uploadLogo({
   file,
-  filename: originalFilename,
+  originalFilename,
   mimeType,
   companyId,
 }: LogoUploadParams): Promise<ApiResponse<string>> {
   const { authorizationToken, apiUrl } = await authorizeAccount();
   const { uploadUrl, authorizationToken: uploadToken } = await getUploadUrl(
     apiUrl,
-    authorizationToken
+    authorizationToken,
   );
 
   const sha1 = createHash("sha1").update(file).digest("hex");
@@ -89,7 +89,7 @@ export async function uploadLogo({
 }
 
 export async function getSignedLogoUrl(
-  key: string
+  key: string,
 ): Promise<ApiResponse<string>> {
   try {
     const { authorizationToken, apiUrl } = await authorizeAccount();
@@ -104,7 +104,7 @@ export async function getSignedLogoUrl(
         headers: {
           Authorization: authorizationToken,
         },
-      }
+      },
     );
 
     const bucketName = ENV.B2_LOGOS_BUCKET_NAME || "accountable-logos";
@@ -113,7 +113,7 @@ export async function getSignedLogoUrl(
   } catch (error: any) {
     return errorResponse(
       "Failed to generate signed URL",
-      error.message || error.toString()
+      error.message || error.toString(),
     );
   }
 }
@@ -132,7 +132,7 @@ export async function removeLogo(key: string): Promise<ApiResponse<void>> {
         headers: {
           Authorization: authorizationToken,
         },
-      }
+      },
     );
 
     const file = fileInfo.data.files.find((f: any) => f.fileName === key);
@@ -150,14 +150,14 @@ export async function removeLogo(key: string): Promise<ApiResponse<void>> {
         headers: {
           Authorization: authorizationToken,
         },
-      }
+      },
     );
 
     return successResponse("Logo deleted successfully", null);
   } catch (error: any) {
     return errorResponse(
       "Failed to delete logo",
-      error.message || error.toString()
+      error.message || error.toString(),
     );
   }
 }

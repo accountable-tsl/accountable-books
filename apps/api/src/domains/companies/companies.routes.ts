@@ -1,17 +1,11 @@
-import express, { RequestHandler } from "express";
+import express from "express";
 import {
-  getCompaniesController,
   getCompanyController,
   switchCompanyController,
   updateCompanyController,
-} from "./companies.controller";
-import { checkCompanyId } from "../../core/middlewares/companies.middleware";
-import { csrfProtection } from "../../features/auth/auth.utils";
-import {
-  verifyAccessToken,
-} from "../../features/auth/auth.middleware";
-import { basicLimiter } from "../../core/middlewares/rateLimiter.middleware";
-import { isDev } from "../../config/env";
+} from "./companies.controller.js";
+import { verifyAccessToken } from "../../features/auth/auth.middleware.js";
+import { checkCompanyId } from "../../core/middlewares/companies.middleware.js";
 
 const router = express.Router({ mergeParams: true });
 
@@ -19,7 +13,7 @@ router.post(
   "/switch",
   verifyAccessToken,
   checkCompanyId,
-  switchCompanyController
+  switchCompanyController,
 );
 
 // router.get(
@@ -33,7 +27,7 @@ router.get(
   "/:companyId",
   verifyAccessToken,
   checkCompanyId,
-  getCompanyController
+  getCompanyController,
 );
 
 router.patch("/:companyId", checkCompanyId, updateCompanyController);

@@ -1,9 +1,9 @@
 import express from "express";
-import { createMulter, multerErrorHandler } from "./objects.utils";
+import { createMulter } from "./objects.utils.js";
 import {
   deleteObjectController,
   uploadObjectController,
-} from "./objects.controller";
+} from "./objects.controller.js";
 
 const router = express.Router({ mergeParams: true });
 const upload = createMulter();
@@ -11,7 +11,7 @@ const upload = createMulter();
 router.post(
   "/:objectType/upload",
   upload.single("file"),
-  uploadObjectController
+  uploadObjectController,
 );
 
 router.delete("/:objectType/delete", deleteObjectController);

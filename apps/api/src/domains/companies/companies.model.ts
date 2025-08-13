@@ -1,46 +1,45 @@
 import type { Knex } from "knex";
 import {
-  CompanyFilters,
   companyType,
-  FetchCompaniesOptions,
+  type FetchCompaniesOptions,
   fieldToColumnMap,
-  GetCompanyResponse,
-  NewCompany,
+  type GetCompanyResponse,
+  type NewCompany,
   newCompany,
   newCompanyInput,
-  NewCompanyInput,
-  UpdateCompanySchema,
+  type NewCompanyInput,
+  type UpdateCompanySchema,
   updateCompanySchema,
-} from "./companies.types";
-import { ApiResponse } from "../../core/types/api.types";
+} from "./companies.types.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
 import {
   camelToSnake,
   isValidUUID,
   snakeToCamel,
-} from "../../shared/utils/formatting.utils";
+} from "../../shared/utils/formatting.utils.js";
 import {
   AppError,
   ErrorCode,
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
+} from "../../shared/utils/response.utils.js";
 import generateSecureShortCode, {
   shortCodelooksWeird,
-} from "../../shared/utils/crypto.utils";
-import { knexClient } from "../../../knexClient";
+} from "../../shared/utils/crypto.utils.js";
+import { knexClient } from "../../db/knexClient.js";
 import {
   buildAuthContext,
   generateAuthTokens,
-} from "../../features/auth/auth.utils";
-import { getCompanyUUID } from "../../shared/utils/random.utils";
-import { updateFirm } from "../accountingFirms/firms.model";
-import { AuthUserContext } from "../../features/auth/auth.types";
-import { hasAccessToCompany } from "../userRoles/userRoles.model";
-import { redis } from "../../lib/redis";
+} from "../../features/auth/auth.utils.js";
+import { getCompanyUUID } from "../../shared/utils/random.utils.js";
+import { updateFirm } from "../accountingFirms/firms.model.js";
+import { type AuthUserContext } from "../../features/auth/auth.types.js";
+import { hasAccessToCompany } from "../userRoles/userRoles.model.js";
+import { redis } from "../../lib/redis.js";
 import {
   createInitialCompanyOnboardingState,
   markCompanyOnboardingStepComplete,
-} from "../../features/onboarding/onboarding.utils";
+} from "../../features/onboarding/onboarding.utils.js";
 
 /**
  * Creates a new company in the database.
@@ -62,7 +61,7 @@ import {
 
 export const createCompany = async (
   knexTrx: Knex.Transaction,
-  input: NewCompanyInput
+  input: NewCompanyInput,
 ): Promise<ApiResponse<NewCompany>> => {
   const snakeInput = camelToSnake(input);
   const validateInput = newCompanyInput.safeParse(snakeInput);
@@ -85,7 +84,7 @@ export const createCompany = async (
       throw new AppError(
         "Unauthorized",
         `Non existent user trying to create company ${input.legal_name} with userId: ${input.created_by_id}`,
-        true
+        true,
       );
     }
 
@@ -129,7 +128,7 @@ export const createCompany = async (
       throw new AppError(
         `Unable to generate unique short code after ${maxAttempts} attempts`,
         input,
-        true
+        true,
       );
     }
 
@@ -183,7 +182,7 @@ export const createCompany = async (
 
     return successResponse(
       "Company created successfully",
-      companyData?.data ?? company
+      companyData?.data ?? company,
     );
   } catch (error) {
     return errorResponse("Unable to create company", error);
@@ -192,7 +191,7 @@ export const createCompany = async (
 
 export const verifyCompanyDependenciesExist = async (
   knex: Knex,
-  input: { reportingCurrencyId: string; countryId: string }
+  input: { reportingCurrencyId: string; countryId: string },
 ) => {
   const [currency, country] = await Promise.all([
     knex("currencies").where({ id: input.reportingCurrencyId }).first(),
@@ -205,7 +204,7 @@ export const verifyCompanyDependenciesExist = async (
 };
 
 export const switchCompany = async (
-  { user, newCompanyId }: { user: AuthUserContext; newCompanyId: string } // The company they wish to switch to
+  { user, newCompanyId }: { user: AuthUserContext; newCompanyId: string }, // The company they wish to switch to
 ): Promise<ApiResponse<any>> => {
   try {
     const companyUUID = await getCompanyUUID(newCompanyId);
@@ -222,57 +221,57 @@ export const switchCompany = async (
     console.log(company);
 
     // Grant demo access if needed
-    if (company.is_demo_company) {
-      const accessGranted = await grantAccessToCompany({
-        companyId: companyUUID,
-        userId: user.id,
-        roleName: "demo_user",
-      });
+    // if (company.is_demo_company) {
+    //   const accessGranted = await grantAccessToCompany({
+    //     companyId: companyUUID,
+    //     userId: user.id,
+    //     roleName: "demo_user",
+    //   });
 
-      console.log({ accessGranted });
-    }
+    //   console.log({ accessGranted });
+    // }
 
     // Confirm access
-    const accessCheck = await hasAccessToCompany({
-      userId: user.id,
-      companyId: companyUUID,
-    });
+    // const accessCheck = await hasAccessToCompany({
+    //   userId: user.id,
+    //   companyId: companyUUID,
+    // });
 
-    console.log({ accessCheck });
-    if (!accessCheck.data?.hasAccess) {
-      return errorResponse("You do not have access to this company");
-    }
+    // console.log({ accessCheck });
+    // if (!accessCheck.data?.hasAccess) {
+    //   return errorResponse("You do not have access to this company");
+    // }
 
-    // Update user's last active company
-    if (!company.is_demo_company) {
-      await knexClient("users")
-        .where("id", user.id)
-        .update("last_active_company_id", companyUUID);
-    }
+    // // Update user's last active company
+    // if (!company.is_demo_company) {
+    //   await knexClient("users")
+    //     .where("id", user.id)
+    //     .update("last_active_company_id", companyUUID);
+    // }
 
-    const userData = {
-      sub: user.id,
-      email: user.email,
-      firstname: user.firstname,
-      lastname: user.lastname,
-      status: user.status,
-      currentCompanyId: companyUUID,
-    };
-    console.log(userData);
-    // Generate new tokens reflecting the new active company
-    const { accessToken, refreshToken } = generateAuthTokens(userData);
+    // const userData = {
+    //   sub: user.id,
+    //   email: user.email,
+    //   firstname: user.firstname,
+    //   lastname: user.lastname,
+    //   status: user.status,
+    //   currentCompanyId: companyUUID,
+    // };
+    // console.log(userData);
+    // // Generate new tokens reflecting the new active company
+    // const { accessToken, refreshToken } = generateAuthTokens(userData);
 
-    // Store refresh token in Redis
-    await redis.sadd(`refreshTokens:${user.id}`, refreshToken);
-    await redis.expire(`refreshTokens:${user.id}`, 604800); // 7 days
+    // // Store refresh token in Redis
+    // await redis.sadd(`refreshTokens:${user.id}`, refreshToken);
+    // await redis.expire(`refreshTokens:${user.id}`, 604800); // 7 days
 
-    const authContext = await buildAuthContext(userData);
+    // const authContext = await buildAuthContext(userData);
 
     return successResponse("Company switched successfully", {
-      accessToken,
-      refreshToken,
-      user: authContext.user,
-      company: authContext.company,
+      // accessToken,
+      // refreshToken,
+      // user: authContext.user,
+      // company: authContext.company,
     });
   } catch (error) {
     return errorResponse("Something went wrong", error);
@@ -349,17 +348,17 @@ export const fetchCompanies = async ({
       .leftJoin(
         "currencies",
         "companies.reporting_currency_id",
-        "currencies.id"
+        "currencies.id",
       )
       .leftJoin(
         "accounting_firms_meta",
         "companies.assigned_firm_id",
-        "accounting_firms_meta.company_id"
+        "accounting_firms_meta.company_id",
       )
       .leftJoin(
         "companies as firm_meta",
         "accounting_firms_meta.company_id",
-        "firm_meta.id"
+        "firm_meta.id",
       ); // Get actual firm details from companies table (since firms are also companies)
 
     if (identifiers?.length) {
@@ -371,7 +370,7 @@ export const fetchCompanies = async ({
           return errorResponse(
             `Invalid company identifier: ${identifier}`,
             undefined,
-            { code: ErrorCode.INVALID_CREDENTIALS }
+            { code: ErrorCode.INVALID_CREDENTIALS },
           );
         }
 
@@ -385,13 +384,13 @@ export const fetchCompanies = async ({
       if (filters.companyType?.length) {
         if (
           filters.companyType.every((type) =>
-            companyType.options.includes(type)
+            companyType.options.includes(type),
           )
         ) {
           query.whereIn("companies.type", filters.companyType);
         } else {
           return errorResponse(
-            `Invalid company type(s): ${filters.companyType}`
+            `Invalid company type(s): ${filters.companyType}`,
           );
         }
       }
@@ -411,7 +410,7 @@ export const fetchCompanies = async ({
           query.where("accounting_firms_meta.slug", filters.assignedFirm);
         } else {
           return errorResponse(
-            `Invalid assigned firm identifier: ${filters.assignedFirm}`
+            `Invalid assigned firm identifier: ${filters.assignedFirm}`,
           );
         }
       }
@@ -427,7 +426,7 @@ export const fetchCompanies = async ({
 
     if (!result || (Array.isArray(result) && result.length === 0)) {
       return errorResponse(
-        `No ${identifiers?.length === 1 ? "company matches" : "companies match"} the provided input`
+        `No ${identifiers?.length === 1 ? "company matches" : "companies match"} the provided input`,
       );
     }
 
@@ -439,7 +438,7 @@ export const fetchCompanies = async ({
         : filters
           ? `Successfully retrieved filtered companies`
           : `Successfully retrieved all companies`,
-      data
+      data,
     );
   } catch (error: any) {
     return errorResponse("An unexpected error occured", error?.message);
@@ -450,7 +449,7 @@ export const getCompanies = (options?: FetchCompaniesOptions) =>
   fetchCompanies(options ?? {});
 
 export const getCompaniesByIds = async (
-  ids: string[]
+  ids: string[],
 ): Promise<ApiResponse<GetCompanyResponse[]>> => {
   if (!ids || ids.length === 0) {
     return errorResponse("No company identifiers provided", null);
@@ -460,7 +459,7 @@ export const getCompaniesByIds = async (
 };
 
 export const getSingleCompany = async (
-  id: string
+  id: string,
 ): Promise<ApiResponse<GetCompanyResponse>> => {
   const res = await fetchCompanies({ identifiers: [id] });
 
@@ -470,7 +469,7 @@ export const getSingleCompany = async (
 
   return successResponse<GetCompanyResponse>(
     "Successfully retrieved company",
-    res.data[0]
+    res.data[0],
   );
 };
 
@@ -478,7 +477,7 @@ export const updateCompany = async (
   identifier: string,
   payload: UpdateCompanySchema,
   userId: string,
-  trx?: Knex.Transaction
+  trx?: Knex.Transaction,
 ): Promise<ApiResponse<GetCompanyResponse>> => {
   try {
     const validInput = updateCompanySchema.safeParse(payload);
@@ -503,7 +502,7 @@ export const updateCompany = async (
         return errorResponse(
           `Invalid company identifier: ${identifier}`,
           undefined,
-          { code: ErrorCode.NOT_FOUND }
+          { code: ErrorCode.NOT_FOUND },
         );
       }
 
@@ -546,7 +545,7 @@ export const updateCompany = async (
 
         // check if all the required field are filled from the db response
         const missingBaseFields = baseRequiredFields.filter(
-          (field) => updatedRow[field as keyof typeof updatedRow] == null
+          (field) => updatedRow[field as keyof typeof updatedRow] == null,
         );
 
         let finalOnboardingObject;
@@ -555,14 +554,14 @@ export const updateCompany = async (
           const currentOnbStatus = updatedRow.onboarding_state;
           finalOnboardingObject = markCompanyOnboardingStepComplete(
             currentOnbStatus,
-            "company_details_confirmed"
+            "company_details_confirmed",
           );
         }
 
         if (bankAccounts?.id) {
           finalOnboardingObject = markCompanyOnboardingStepComplete(
             finalOnboardingObject,
-            "first_bank_account_added"
+            "first_bank_account_added",
           );
         }
 
@@ -578,7 +577,7 @@ export const updateCompany = async (
       if (Object.keys(dbUpdates).length === 0) {
         return successResponse(
           "Nothing to update – no valid fields supplied",
-          null
+          null,
         );
       }
 

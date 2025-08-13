@@ -1,10 +1,10 @@
-import { z } from "zod";
-import { dbBaseFields, zDate, zEmail } from "../../core/types/core";
-import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
+import { z } from 'zod';
+import { dbBaseFields, zDate, zEmail } from '../../core/types/core.js';
+import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 import {
-  UserOnboardingState,
+  type UserOnboardingState,
   userOnboardingState,
-} from "../../features/onboarding/onboarding.types";
+} from '../../features/onboarding/onboarding.types.js';
 
 // user
 export const newUser = z.object({
@@ -44,9 +44,9 @@ export type UserRecord = z.infer<typeof user> & {
   password?: string;
 };
 
-export type UserResponseCamel = Omit<SnakeToCamelCaseObject<User>, "password">;
+export type UserResponseCamel = Omit<SnakeToCamelCaseObject<User>, 'password'>;
 
-export type UserInfo = Omit<NewUserInput, "password"> & { id: string };
+export type UserInfo = Omit<NewUserInput, 'password'> & { id: string };
 
 export type CreateUserResponse = {
   id: string;

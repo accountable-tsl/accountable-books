@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { fetchExchangeRate } from "./exchangeRates.model";
+import { fetchExchangeRate } from "./exchangeRates.model.js";
 
 export async function determineExchangeRate(
   date: Date | string,

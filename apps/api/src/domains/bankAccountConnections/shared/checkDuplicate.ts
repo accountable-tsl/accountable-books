@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { BankAccountConnectionStatus } from "../baccons.types";
+import { type BankAccountConnectionStatus } from "../baccons.types.js";
 
 export const checkForDuplicate = async ({
   providerId,

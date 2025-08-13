@@ -1,19 +1,16 @@
-import { Response } from "express";
-import { AuthRequest } from "../../features/auth/auth.types";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { getBankFeedProviders } from "./bankFeedProviders.model";
+import { type Response } from 'express';
+import type { AuthRequest } from '../../features/auth/auth.types.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { getBankFeedProviders } from './bankFeedProviders.model.js';
 
-export async function getBankFeedProvidersController(
-  req: AuthRequest,
-  res: Response
-) {
+export async function getBankFeedProvidersController(req: AuthRequest, res: Response) {
   try {
     const providerIds = req.query.providerIds
-      ? String(req.query.providerIds).split(",").filter(Boolean)
+      ? String(req.query.providerIds).split(',').filter(Boolean)
       : undefined;
 
     const providerKeys = req.query.providerKeys
-      ? String(req.query.providerKeys).split(",").filter(Boolean)
+      ? String(req.query.providerKeys).split(',').filter(Boolean)
       : undefined;
 
     const response = await getBankFeedProviders({
@@ -21,10 +18,8 @@ export async function getBankFeedProvidersController(
       providerKeys,
     });
 
-    return response.success
-      ? res.status(200).json(response)
-      : res.status(400).json(response);
+    return response.success ? res.status(200).json(response) : res.status(400).json(response);
   } catch (error) {
-    return res.status(500).json(errorResponse("An unexpected error occurred"));
+    return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }

@@ -1,369 +1,497 @@
--- Create required extensions
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
+CREATE TABLE public.ledger_entries (
+    id                      UUID NOT NULL DEFAULT uuid_generate_v7(),
+    ledger_transaction_id   UUID NOT NULL,
+    fs_date                 DATE NOT NULL,
+    coa_id                  UUID NOT NULL,
+    source_currency_id      UUID NOT NULL,
+    source_amount           NUMERIC(32, 10) NOT NULL,
+    absolute_source_amount  NUMERIC(32, 10) GENERATED ALWAYS AS (abs(source_amount)) STORED,
+    system_exchange_rate    NUMERIC(32, 10) NOT NULL,
+    custom_exchange_rate    NUMERIC(32, 10) NOT NULL,
+    amount                  NUMERIC(32, 10) GENERATED ALWAYS AS ((source_amount * custom_exchange_rate)::NUMERIC(32, 10)) STORED,
+    absolute_amount         NUMERIC(32, 10) GENERATED ALWAYS AS ((abs(source_amount * custom_exchange_rate))::NUMERIC(32, 10)) STORED,
+    transaction_side        debit_credit GENERATED ALWAYS AS (
+        CASE
+            WHEN source_amount > 0 THEN 'debit'::debit_credit
+            WHEN source_amount < 0 THEN 'credit'::debit_credit
+            ELSE NULL::debit_credit
+        END
+    ) STORED,
+    categorization_status   categorization_status NOT NULL DEFAULT 'suggested',
+    description             TEXT,
+    project_id              UUID,
+    updated_by_id           UUID,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ,
+    is_deleted              BOOLEAN NOT NULL DEFAULT false,
+    search_text             TEXT GENERATED ALWAYS AS (
+        trim(both ' ' from lower(coalesce(description, '')))
+    ) STORED,
+    CONSTRAINT ledger_entries_nonzero_amount_chk CHECK (amount <> 0),
+    CONSTRAINT ledger_entries_exchange_rates_positive CHECK (system_exchange_rate > 0 AND custom_exchange_rate > 0),
+    CONSTRAINT ledger_entries_delete_consistency CHECK (
+        (is_deleted = false AND deleted_at IS NULL) OR
+        (is_deleted = true AND deleted_at IS NOT NULL)
+    ),
+    CONSTRAINT ledger_entries_pkey PRIMARY KEY (id, fs_date)
+) PARTITION BY RANGE (fs_date);
 
--- Enum - debitcredit and categorization_status should already exist
--- Otherwise, break
-DO $$ BEGIN
-  ALTER TYPE categorization_status ADD VALUE IF NOT EXISTS 'suggested';
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- Partitioned indexes on the parent (partitioned and later attached on leaves)
+CREATE INDEX IF NOT EXISTS le_live_status_date_idx
+  ON ledger_entries (is_deleted, categorization_status, fs_date DESC)
+  INCLUDE (amount, description);
 
+CREATE INDEX IF NOT EXISTS le_live_coa_date_idx
+  ON ledger_entries (is_deleted, coa_id, fs_date DESC)
+  INCLUDE (amount, description);
 
--- Partitioning for LedgerEntry: if the table exists but isn’t partitioned, convert it;
--- otherwise, create the table if missing.
-DO $$
+CREATE INDEX IF NOT EXISTS gin_le_search_live_trgm_idx
+  ON ledger_entries
+  USING GIN ((CASE WHEN is_deleted=false THEN search_text END) gin_trgm_ops);
+
+-- Optional general indexes
+CREATE INDEX IF NOT EXISTS ledger_entries_fs_date_idx ON ledger_entries (fs_date);
+CREATE INDEX IF NOT EXISTS ledger_entries_ledger_transaction_id_idx ON ledger_entries (ledger_transaction_id);
+CREATE INDEX IF NOT EXISTS ledger_entries_coa_id_is_deleted_idx ON ledger_entries (coa_id, is_deleted);
+
+-- Helper function to safely attach partition index
+CREATE OR REPLACE FUNCTION safe_attach_partition_index(parent_idx text, child_idx text)
+RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  -- Check if the child index exists and is not already attached
+  IF EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE c.relname = child_idx
+    AND n.nspname = 'public'
+    AND c.relkind = 'i'
+    AND NOT EXISTS (
+      SELECT 1 FROM pg_inherits i
+      JOIN pg_class pc ON i.inhparent = pc.oid
+      WHERE i.inhrelid = c.oid AND pc.relname = parent_idx
+    )
+  ) THEN
+    BEGIN
+      EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', parent_idx, child_idx);
+      RETURN true;
+    EXCEPTION 
+      WHEN duplicate_object THEN 
+        RAISE NOTICE 'Index % is already attached to %', child_idx, parent_idx;
+        RETURN false;
+      WHEN undefined_object THEN 
+        RAISE NOTICE 'Parent index % or child index % does not exist', parent_idx, child_idx;
+        RETURN false;
+      WHEN OTHERS THEN
+        RAISE NOTICE 'Failed to attach % to %: %', child_idx, parent_idx, SQLERRM;
+        RETURN false;
+    END;
+  END IF;
+  RETURN false;
+END$$;
+
+-- Helpers to create & ATTACH indexes on leaf partitions
+CREATE OR REPLACE FUNCTION ensure_le_leaf_indexes_for_year(y int)
+RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
-    table_exists BOOLEAN;
-    is_partitioned BOOLEAN;
+  leaf text := format('public.ledger_entries_%s_default', y);
+
+  idx_live_status text := format('le_live_status_date_%s_def_idx', y);
+  idx_live_coa    text := format('le_live_coa_date_%s_def_idx', y);
+  idx_search      text := format('gin_le_search_live_trgm_%s_def_idx', y);
+
+  idx_fs_date     text := format('ledger_entries_fs_date_%s_def_idx', y);
+  idx_ledger_txn  text := format('ledger_entries_ledger_txn_%s_def_idx', y);
+  idx_coa_del     text := format('ledger_entries_coa_del_%s_def_idx', y);
 BEGIN
-    SELECT EXISTS (
-        SELECT FROM information_schema.tables
-        WHERE table_name = 'ledger_entries' 
-    ) INTO table_exists;
+  -- Only proceed if the partition table exists
+  IF to_regclass(leaf) IS NULL THEN
+    RAISE NOTICE 'Partition table % does not exist, skipping index creation', leaf;
+    RETURN;
+  END IF;
 
-    IF table_exists THEN
-        SELECT EXISTS (
-            SELECT 1 FROM pg_class
-            WHERE oid = 'public.ledger_entries'::regclass AND relkind = 'p'
-        ) INTO is_partitioned;
+  -- BTREEs that mirror the parent partitioned indexes
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, fs_date DESC) INCLUDE (amount, description)', idx_live_status, leaf);
+    PERFORM safe_attach_partition_index('le_live_status_date_idx', idx_live_status);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
+  END;
 
-        IF NOT is_partitioned THEN
-            BEGIN
-                EXECUTE 'ALTER TABLE ledger_entries RENAME TO ledger_entries_old';
-                EXECUTE 'CREATE TABLE ledger_entries (LIKE ledger_entries_old INCLUDING ALL) PARTITION BY RANGE (fs_date)';
-                EXECUTE 'CREATE TABLE IF NOT EXISTS ledger_entries_default PARTITION OF ledger_entries DEFAULT';
-                EXECUTE 'INSERT INTO ledger_entries SELECT * FROM ledger_entries_old';
-                EXECUTE 'DROP TABLE ledger_entries_old CASCADE';
-                LOCK TABLE ledger_entries IN SHARE UPDATE EXCLUSIVE MODE;
-            EXCEPTION WHEN others THEN
-                RAISE EXCEPTION 'ledger_entries partitioning migration failed: %', SQLERRM;
-            END;
-        END IF;
-    ELSE
-        CREATE TABLE ledger_entries (
-            id                      UUID NOT NULL DEFAULT uuid_generate_v7(),
-            ledger_transaction_id   UUID NOT NULL,
-            fs_date                 DATE NOT NULL,
-            coa_id                  UUID NOT NULL,
-            transaction_side        debit_credit NOT NULL,
-            source_currency_id      UUID NOT NULL,
-            source_amount           NUMERIC(32, 10) NOT NULL,
-            absolute_source_amount  NUMERIC(32, 10) NOT NULL,
-            system_exchange_rate    NUMERIC(32, 10) NOT NULL,
-            custom_exchange_rate    NUMERIC(32, 10) NOT NULL,
-            amount                  NUMERIC(32, 10) NOT NULL,
-            absolute_amount         NUMERIC(32, 10) NOT NULL,
-            categorization_status   categorization_status NOT NULL DEFAULT 'suggested',
-            description             TEXT,
-            project_id              UUID,
-            updated_by_id           UUID,
-            created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-            updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-            deleted_at              TIMESTAMPTZ,
-            is_deleted              BOOLEAN NOT NULL DEFAULT false,
-            CONSTRAINT ledger_entries_pkey PRIMARY KEY (id, fs_date),
-            CONSTRAINT ledger_entries_absolute_amount_check CHECK (absolute_amount = abs(amount)),
-            CONSTRAINT ledger_entries_absolute_source_amount_check CHECK (absolute_source_amount = abs(source_amount)),
-            CONSTRAINT ledger_entries_exchange_rates_positive CHECK (system_exchange_rate > 0 AND custom_exchange_rate > 0)
-        ) PARTITION BY RANGE (fs_date);
-    END IF;
-END $$;
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, coa_id, fs_date DESC) INCLUDE (amount, description)', idx_live_coa, leaf);
+    PERFORM safe_attach_partition_index('le_live_coa_date_idx', idx_live_coa);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_live_coa, SQLERRM;
+  END;
 
--- Create base partitions
-DO $$
-BEGIN
-    EXECUTE 'CREATE TABLE IF NOT EXISTS ledger_entries_before_2024 PARTITION OF ledger_entries
-             FOR VALUES FROM (''1970-01-01'') TO (''2024-01-01'')';
-    EXECUTE 'CREATE TABLE IF NOT EXISTS ledger_entries_2024 PARTITION OF ledger_entries
-             FOR VALUES FROM (''2024-01-01'') TO (''2025-01-01'')';
-    EXECUTE 'CREATE TABLE IF NOT EXISTS ledger_entries_default PARTITION OF ledger_entries DEFAULT';
-END $$;
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (fs_date)', idx_fs_date, leaf);
+    PERFORM safe_attach_partition_index('ledger_entries_fs_date_idx', idx_fs_date);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_fs_date, SQLERRM;
+  END;
 
--- Create partitioned indexes on parent table
-CREATE INDEX IF NOT EXISTS le_txid_idx ON ledger_entries (ledger_transaction_id);
-CREATE INDEX IF NOT EXISTS le_coa_del_idx ON ledger_entries (coa_id, is_deleted);
-CREATE INDEX IF NOT EXISTS le_status_idx ON ledger_entries (categorization_status);
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (ledger_transaction_id)', idx_ledger_txn, leaf);
+    PERFORM safe_attach_partition_index('ledger_entries_ledger_transaction_id_idx', idx_ledger_txn);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_ledger_txn, SQLERRM;
+  END;
 
--- Create and attach child indexes for existing partitions
-DO $$
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (coa_id, is_deleted)', idx_coa_del, leaf);
+    PERFORM safe_attach_partition_index('ledger_entries_coa_id_is_deleted_idx', idx_coa_del);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_coa_del, SQLERRM;
+  END;
+
+  -- GIN trigram (live-only) - must match parent exactly
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s USING GIN ((CASE WHEN is_deleted=false THEN search_text END) gin_trgm_ops)', idx_search, leaf);
+    PERFORM safe_attach_partition_index('gin_le_search_live_trgm_idx', idx_search);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_search, SQLERRM;
+  END;
+END$$;
+
+CREATE OR REPLACE FUNCTION ensure_le_leaf_indexes_before_2024()
+RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
-    part regclass;
-    base text;
-    idx text;
-    part_hash text;
+  leaf text := 'public.ledger_entries_before_2024';
+
+  idx_live_status text := 'le_live_status_date_before_2024_idx';
+  idx_live_coa    text := 'le_live_coa_date_before_2024_idx';
+  idx_search      text := 'gin_le_search_live_trgm_before_2024_idx';
+
+  idx_fs_date     text := 'ledger_entries_fs_date_before_2024_idx';
+  idx_ledger_txn  text := 'ledger_entries_ledger_txn_before_2024_idx';
+  idx_coa_del     text := 'ledger_entries_coa_del_before_2024_idx';
 BEGIN
-    FOR part IN
-        SELECT inhrelid::regclass
-        FROM pg_inherits
-        WHERE inhparent = 'public.ledger_entries'::regclass
-    LOOP
-        -- Create hash for partition name to avoid length issues
-        part_hash := substr(md5(part::text), 1, 8);
-        
-        -- ledger_transaction_id index
-        base := 'le_txid_idx';
-        idx := base || '_' || part_hash;
-        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (ledger_transaction_id)', idx, part);
-        BEGIN 
-            EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', base, idx); 
-        EXCEPTION WHEN duplicate_object THEN NULL; 
-        END;
+  -- Only proceed if the partition table exists
+  IF to_regclass(leaf) IS NULL THEN
+    RAISE NOTICE 'Partition table % does not exist, skipping index creation', leaf;
+    RETURN;
+  END IF;
 
-        -- coa_id_is_deleted index
-        base := 'le_coa_del_idx';
-        idx := base || '_' || part_hash;
-        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (coa_id, is_deleted)', idx, part);
-        BEGIN 
-            EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', base, idx); 
-        EXCEPTION WHEN duplicate_object THEN NULL; 
-        END;
+  -- Use the safe_attach_partition_index function for all indexes
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, fs_date DESC) INCLUDE (amount, description)', idx_live_status, leaf);
+    PERFORM safe_attach_partition_index('le_live_status_date_idx', idx_live_status);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
+  END;
 
-        -- categorization_status index
-        base := 'le_status_idx';
-        idx := base || '_' || part_hash;
-        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (categorization_status)', idx, part);
-        BEGIN 
-            EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', base, idx); 
-        EXCEPTION WHEN duplicate_object THEN NULL; 
-        END;
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, coa_id, fs_date DESC) INCLUDE (amount, description)', idx_live_coa, leaf);
+    PERFORM safe_attach_partition_index('le_live_coa_date_idx', idx_live_coa);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_live_coa, SQLERRM;
+  END;
 
-        -- coa_date_active partial index (no parent, standalone)
-        idx := 'le_coa_date_' || part_hash;
-        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (coa_id, fs_date) WHERE NOT is_deleted', idx, part);
-    END LOOP;
-END $$;
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (fs_date)', idx_fs_date, leaf);
+    PERFORM safe_attach_partition_index('ledger_entries_fs_date_idx', idx_fs_date);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_fs_date, SQLERRM;
+  END;
 
--- Function to create ledger entry partitions
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (ledger_transaction_id)', idx_ledger_txn, leaf);
+    PERFORM safe_attach_partition_index('ledger_entries_ledger_transaction_id_idx', idx_ledger_txn);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_ledger_txn, SQLERRM;
+  END;
+
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (coa_id, is_deleted)', idx_coa_del, leaf);
+    PERFORM safe_attach_partition_index('ledger_entries_coa_id_is_deleted_idx', idx_coa_del);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_coa_del, SQLERRM;
+  END;
+
+  BEGIN
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s USING GIN ((CASE WHEN is_deleted=false THEN search_text END) gin_trgm_ops)', idx_search, leaf);
+    PERFORM safe_attach_partition_index('gin_le_search_live_trgm_idx', idx_search);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Failed to create/attach index %: %', idx_search, SQLERRM;
+  END;
+END$$;
+
+-- Base partitions (historical + current year parent with year-default LEAF)
+CREATE TABLE IF NOT EXISTS ledger_entries_before_2024
+  PARTITION OF ledger_entries
+  FOR VALUES FROM ('1970-01-01') TO ('2024-01-01');
+
+-- Current year parent (sub-partitioned) + its year-default LEAF, so the year can accept rows now
+DO $$
+DECLARE y int := EXTRACT(YEAR FROM CURRENT_DATE);
+BEGIN
+  EXECUTE format($sql$
+    CREATE TABLE IF NOT EXISTS public.ledger_entries_%s
+    PARTITION OF ledger_entries
+    FOR VALUES FROM (%L) TO (%L)
+    PARTITION BY RANGE (fs_date)
+  $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
+
+  EXECUTE format($sql$
+    CREATE TABLE IF NOT EXISTS public.ledger_entries_%s_default
+    PARTITION OF public.ledger_entries_%s DEFAULT
+  $sql$, y, y);
+END$$;
+
+-- Global DEFAULT partition (safety net)
+CREATE TABLE IF NOT EXISTS ledger_entries_default
+  PARTITION OF ledger_entries DEFAULT;
+
+-- Ensure leaf indexes exist & are attached
+SELECT ensure_le_leaf_indexes_before_2024();
+SELECT ensure_le_leaf_indexes_for_year(EXTRACT(YEAR FROM CURRENT_DATE)::int);
+
+-- Monthly helper (dormant for now; used when you flip to monthly later)
+CREATE OR REPLACE FUNCTION ensure_ledger_month_partition(d date)
+RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+  y int := EXTRACT(YEAR FROM d);
+  start_date date := date_trunc('month', d)::date;
+  end_date   date := (start_date + INTERVAL '1 month')::date;
+BEGIN
+  IF y < 2024 THEN
+    RETURN;
+  END IF;
+
+  EXECUTE format($sql$
+    CREATE TABLE IF NOT EXISTS public.ledger_entries_%s
+    PARTITION OF ledger_entries
+    FOR VALUES FROM (%L) TO (%L)
+    PARTITION BY RANGE (fs_date)
+  $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
+
+  EXECUTE format($sql$
+    CREATE TABLE IF NOT EXISTS public.ledger_entries_%s_%s
+    PARTITION OF public.ledger_entries_%s
+    FOR VALUES FROM (%L) TO (%L)
+  $sql$, y, to_char(start_date,'MM'), y, start_date, end_date);
+END$$;
+
+-- Year parent + year-default LEAF creator (year-only mode)
+CREATE OR REPLACE FUNCTION ensure_ledger_year_partition(y int)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  IF y < 2024 THEN
+    RETURN;
+  END IF;
+
+  EXECUTE format($sql$
+    CREATE TABLE IF NOT EXISTS public.ledger_entries_%s
+    PARTITION OF ledger_entries
+    FOR VALUES FROM (%L) TO (%L)
+    PARTITION BY RANGE (fs_date)
+  $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
+
+  EXECUTE format($sql$
+    CREATE TABLE IF NOT EXISTS public.ledger_entries_%s_default
+    PARTITION OF public.ledger_entries_%s DEFAULT
+  $sql$, y, y);
+
+  PERFORM ensure_le_leaf_indexes_for_year(y);
+END$$;
+
+-- Create a rolling window of YEAR parents (no months)
 CREATE OR REPLACE FUNCTION create_ledger_entries_partitions()
-RETURNS void AS $$
-DECLARE 
-    current_year INT := EXTRACT(YEAR FROM NOW() AT TIME ZONE 'UTC');
-    transition_year INT := 2027;
-    month_offset INT;
-    start_date DATE;
-    end_date DATE;
-    yr INT;
-    part_name text;
-    base text;
-    idx text;
-    part_hash text;
+RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+  cy int := EXTRACT(YEAR FROM CURRENT_DATE);
+  y  int;
 BEGIN
-    IF current_year >= transition_year THEN
-        FOR month_offset IN 0..119 LOOP
-            start_date := date_trunc('month', CURRENT_DATE) + (month_offset || ' months')::interval;
-            end_date := start_date + INTERVAL '1 month';
-            part_name := 'ledger_entries_' || to_char(start_date, 'YYYY_MM');
-            part_hash := substr(md5(part_name), 1, 8);
-            
-            EXECUTE format(
-                'CREATE TABLE IF NOT EXISTS %I PARTITION OF ledger_entries
-                 FOR VALUES FROM (%L) TO (%L)',
-                part_name,
-                start_date,
-                end_date
-            );
-            
-            -- Create child indexes for the new partition
-            -- ledger_transaction_id index
-            base := 'le_txid_idx';
-            idx := base || '_' || part_hash;
-            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (ledger_transaction_id)', idx, part_name);
-            BEGIN 
-                EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', base, idx); 
-            EXCEPTION WHEN duplicate_object THEN NULL; 
-            END;
+  FOR y IN (cy-2) .. (cy+2) LOOP
+    PERFORM ensure_ledger_year_partition(y);
+  END LOOP;
+END$$;
 
-            -- coa_id_is_deleted index
-            base := 'le_coa_del_idx';
-            idx := base || '_' || part_hash;
-            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (coa_id, is_deleted)', idx, part_name);
-            BEGIN 
-                EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', base, idx); 
-            EXCEPTION WHEN duplicate_object THEN NULL; 
-            END;
+-- Before-insert trigger (year-only ensure; no months yet)
+CREATE OR REPLACE FUNCTION le_ensure_partition_before_insert()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+DECLARE
+  y int := EXTRACT(YEAR FROM NEW.fs_date);
+  rel_year text := format('public.ledger_entries_%s', y);
+BEGIN
+  IF y < 2024 THEN
+    RETURN NEW;
+  END IF;
 
-            -- categorization_status index
-            base := 'le_status_idx';
-            idx := base || '_' || part_hash;
-            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (categorization_status)', idx, part_name);
-            BEGIN 
-                EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', base, idx); 
-            EXCEPTION WHEN duplicate_object THEN NULL; 
-            END;
-
-            -- coa_date_active partial index (no parent, standalone)
-            idx := 'le_coa_date_' || part_hash;
-            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (coa_id, fs_date) WHERE NOT is_deleted', idx, part_name);
-        END LOOP;
-    ELSE
-        FOR yr IN current_year..2029 LOOP
-            part_name := 'ledger_entries_' || yr;
-            part_hash := substr(md5(part_name), 1, 8);
-            
-            EXECUTE format(
-                'CREATE TABLE IF NOT EXISTS %I PARTITION OF ledger_entries
-                 FOR VALUES FROM (%L) TO (%L)',
-                part_name,
-                format('%s-01-01', yr),
-                format('%s-01-01', yr + 1)
-            );
-            
-            -- Create child indexes for the new partition
-            -- ledger_transaction_id index
-            base := 'le_txid_idx';
-            idx := base || '_' || part_hash;
-            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (ledger_transaction_id)', idx, part_name);
-            BEGIN 
-                EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', base, idx); 
-            EXCEPTION WHEN duplicate_object THEN NULL; 
-            END;
-
-            -- coa_id_is_deleted index
-            base := 'le_coa_del_idx';
-            idx := base || '_' || part_hash;
-            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (coa_id, is_deleted)', idx, part_name);
-            BEGIN 
-                EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', base, idx); 
-            EXCEPTION WHEN duplicate_object THEN NULL; 
-            END;
-
-            -- categorization_status index
-            base := 'le_status_idx';
-            idx := base || '_' || part_hash;
-            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (categorization_status)', idx, part_name);
-            BEGIN 
-                EXECUTE format('ALTER INDEX %I ATTACH PARTITION %I', base, idx); 
-            EXCEPTION WHEN duplicate_object THEN NULL; 
-            END;
-
-            -- coa_date_active partial index (no parent, standalone)
-            idx := 'le_coa_date_' || part_hash;
-            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I (coa_id, fs_date) WHERE NOT is_deleted', idx, part_name);
-        END LOOP;
+  IF to_regclass(rel_year) IS NULL THEN
+    IF pg_try_advisory_lock(43, y) THEN
+      PERFORM ensure_ledger_year_partition(y);
+      PERFORM pg_advisory_unlock(43, y);
     END IF;
-END;
-$$ LANGUAGE plpgsql;
+  END IF;
 
+  RETURN NEW;
+END$$;
 
--- Function to update timestamp on changes
-CREATE OR REPLACE FUNCTION touch_ledger_entries_updated_at()
+DROP TRIGGER IF EXISTS le_ensure_partition_before_insert ON ledger_entries;
+CREATE TRIGGER le_ensure_partition_before_insert
+  BEFORE INSERT ON ledger_entries
+  FOR EACH ROW EXECUTE FUNCTION le_ensure_partition_before_insert();
+
+-- Drain GLOBAL DEFAULT into correct YEAR leaves (explicit column list; exclude generated cols)
+CREATE OR REPLACE FUNCTION drain_ledger_entries_default()
+RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+  min_y int;
+  max_y int;
+  y int;
+BEGIN
+  SELECT MIN(EXTRACT(YEAR FROM fs_date))::int, MAX(EXTRACT(YEAR FROM fs_date))::int
+  INTO min_y, max_y
+  FROM ledger_entries_default;
+
+  IF min_y IS NULL THEN
+    RETURN;
+  END IF;
+
+  FOR y IN min_y .. max_y LOOP
+    IF y >= 2024 THEN
+      PERFORM ensure_ledger_year_partition(y);
+    END IF;
+
+    WITH moved AS (
+      INSERT INTO ledger_entries (
+        id, ledger_transaction_id, fs_date, coa_id, source_currency_id,
+        source_amount, system_exchange_rate, custom_exchange_rate,
+        categorization_status, description, project_id, updated_by_id,
+        created_at, updated_at, deleted_at, is_deleted
+      )
+      SELECT
+        id, ledger_transaction_id, fs_date, coa_id, source_currency_id,
+        source_amount, system_exchange_rate, custom_exchange_rate,
+        categorization_status, description, project_id, updated_by_id,
+        created_at, updated_at, deleted_at, is_deleted
+      FROM ledger_entries_default
+      WHERE fs_date >= make_date(y,1,1) AND fs_date < make_date(y+1,1,1)
+      ON CONFLICT DO NOTHING
+      RETURNING id, fs_date
+    )
+    DELETE FROM ledger_entries_default d
+    USING moved m
+    WHERE d.id = m.id AND d.fs_date = m.fs_date;
+  END LOOP;
+END$$;
+
+-- Cron scheduler (year-only maintenance)
+CREATE OR REPLACE FUNCTION schedule_ledger_entries_partition_cron()
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'le_ensure_and_drain') THEN
+    PERFORM cron.unschedule('le_ensure_and_drain');
+  END IF;
+
+  PERFORM cron.schedule(
+    'le_ensure_and_drain',
+    '15 0 * * *',
+    $cmd$SELECT create_ledger_entries_partitions();
+      SELECT drain_ledger_entries_default();$cmd$
+  );
+END$$;
+
+-- Call once to (re)schedule
+SELECT schedule_ledger_entries_partition_cron();
+
+-- Update/Delete guards
+CREATE OR REPLACE FUNCTION guard_ledger_entries_update()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at := now();
+  NEW.updated_at := now();
+
+  IF (NEW.is_deleted IS DISTINCT FROM OLD.is_deleted)
+     OR (NEW.deleted_at IS DISTINCT FROM OLD.deleted_at)
+     OR (NEW.updated_by_id IS DISTINCT FROM OLD.updated_by_id)
+     OR (NEW.categorization_status IS DISTINCT FROM OLD.categorization_status)
+     OR (NEW.description IS DISTINCT FROM OLD.description)
+     OR (NEW.project_id IS DISTINCT FROM OLD.project_id)
+  THEN
     RETURN NEW;
+  END IF;
+
+  IF ROW(NEW.*) IS DISTINCT FROM ROW(OLD.*) THEN
+    RAISE EXCEPTION 'Ledger entries are immutable. Only is_deleted, deleted_at, updated_by_id, categorization_status, description, project_id may change.';
+  END IF;
+
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to prevent hard deletes
 CREATE OR REPLACE FUNCTION prevent_ledger_entries_delete()
 RETURNS TRIGGER AS $$
 BEGIN
-    RAISE EXCEPTION 'Hard deletes are not allowed; use is_deleted';
+  RAISE EXCEPTION 'Ledger entries are immutable';
 END;
 $$ LANGUAGE plpgsql;
 
--- Create triggers
-DROP TRIGGER IF EXISTS touch_ledger_entries_updated_at ON ledger_entries;
-CREATE TRIGGER touch_ledger_entries_updated_at
-    BEFORE UPDATE ON ledger_entries
-    FOR EACH ROW EXECUTE FUNCTION touch_ledger_entries_updated_at();
+DROP TRIGGER IF EXISTS guard_ledger_entries_update ON ledger_entries;
+CREATE TRIGGER guard_ledger_entries_update
+  BEFORE UPDATE ON ledger_entries
+  FOR EACH ROW EXECUTE FUNCTION guard_ledger_entries_update();
 
 DROP TRIGGER IF EXISTS prevent_ledger_entries_delete ON ledger_entries;
 CREATE TRIGGER prevent_ledger_entries_delete
-    BEFORE DELETE ON ledger_entries
-    FOR EACH ROW EXECUTE FUNCTION prevent_ledger_entries_delete();
+  BEFORE DELETE ON ledger_entries
+  FOR EACH ROW EXECUTE FUNCTION prevent_ledger_entries_delete();
 
--- Function to schedule partition creation cron jobs
-CREATE OR REPLACE FUNCTION schedule_ledger_entries_partition_cron() 
-RETURNS void AS $$
-BEGIN
-    -- Unschedule existing partition jobs if they exist
-    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'create_ledger_entries_partitions') THEN
-        PERFORM cron.unschedule('create_ledger_entries_partitions');
-    END IF;
-    
-    -- Run immediately if it's 2025
-    IF EXTRACT(YEAR FROM CURRENT_DATE) = 2025 THEN
-        PERFORM create_ledger_entries_partitions();
-    END IF;
-
-    -- Schedule new partition jobs based on the current date
-    PERFORM cron.schedule(
-        'create_ledger_entries_partitions',
-        CASE 
-            WHEN CURRENT_DATE < '2027-03-01' THEN '0 0 1 12 *' 
-            ELSE '0 0 1 */3 *'
-        END,
-        'SELECT create_ledger_entries_partitions();'
-    );
-END;
-$$ LANGUAGE plpgsql;
-
--- Schedule the partition creation cron job
-SELECT schedule_ledger_entries_partition_cron();
-
--- Add foreign key constraints
+-- Foreign keys
 DO $$
 BEGIN
-    BEGIN
-        ALTER TABLE ledger_entries
-            ADD CONSTRAINT fk_ledger_entry_transaction
-            FOREIGN KEY (ledger_transaction_id) REFERENCES ledger_transactions (id)
-            ON DELETE RESTRICT;
-    EXCEPTION WHEN duplicate_object THEN 
-        RAISE NOTICE 'Foreign key fk_ledger_entry_transaction already exists, skipping';
-    END;
+  BEGIN
+    ALTER TABLE ledger_entries
+      ADD CONSTRAINT fk_ledger_entry_transaction
+      FOREIGN KEY (ledger_transaction_id) REFERENCES ledger_transactions (id)
+      ON DELETE RESTRICT;
+  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_entry_transaction exists, skipping';
+  END;
 
-    BEGIN
-        ALTER TABLE ledger_entries
-            ADD CONSTRAINT fk_ledger_entry_coa
-            FOREIGN KEY (coa_id) REFERENCES coa (id)
-            ON DELETE RESTRICT;
-    EXCEPTION WHEN duplicate_object THEN 
-        RAISE NOTICE 'Foreign key fk_ledger_entry_coa already exists, skipping';
-    END;
+  BEGIN
+    ALTER TABLE ledger_entries
+      ADD CONSTRAINT fk_ledger_entry_coa
+      FOREIGN KEY (coa_id) REFERENCES coa (id)
+      ON DELETE RESTRICT;
+  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_entry_coa exists, skipping';
+  END;
 
-    BEGIN
-        ALTER TABLE ledger_entries
-            ADD CONSTRAINT fk_ledger_entry_currency
-            FOREIGN KEY (source_currency_id) REFERENCES currencies (id)
-            ON DELETE RESTRICT;
-    EXCEPTION WHEN duplicate_object THEN 
-        RAISE NOTICE 'Foreign key fk_ledger_entry_currency already exists, skipping';
-    END;
+  BEGIN
+    ALTER TABLE ledger_entries
+      ADD CONSTRAINT fk_ledger_entry_currency
+      FOREIGN KEY (source_currency_id) REFERENCES currencies (id)
+      ON DELETE RESTRICT;
+  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_entry_currency exists, skipping';
+  END;
 
-    BEGIN
-        ALTER TABLE ledger_entries
-            ADD CONSTRAINT fk_ledger_entry_project
-            FOREIGN KEY (project_id) REFERENCES projects (id)
-            ON DELETE SET NULL;
-    EXCEPTION WHEN duplicate_object THEN 
-        RAISE NOTICE 'Foreign key fk_ledger_entry_project already exists, skipping';
-    END;
+  BEGIN
+    ALTER TABLE ledger_entries
+      ADD CONSTRAINT fk_ledger_entry_project
+      FOREIGN KEY (project_id) REFERENCES projects (id)
+      ON DELETE SET NULL;
+  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_entry_project exists, skipping';
+  END;
 
-    BEGIN
-        ALTER TABLE ledger_entries
-            ADD CONSTRAINT fk_ledger_entry_updated_by
-            FOREIGN KEY (updated_by_id) REFERENCES "users" (id)
-            ON DELETE SET NULL;
-    EXCEPTION WHEN duplicate_object THEN 
-        RAISE NOTICE 'Foreign key fk_ledger_entry_updated_by already exists, skipping';
-    END;
-END $$;
+  BEGIN
+    ALTER TABLE ledger_entries
+      ADD CONSTRAINT fk_ledger_entry_updated_by
+      FOREIGN KEY (updated_by_id) REFERENCES "users" (id)
+      ON DELETE SET NULL;
+  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_entry_updated_by exists, skipping';
+  END;
+END$$;
 
--- Add composite foreign key from journal_entries to ledger_entries
+-- Composite FK from journal_entries → ledger_entries (id, fs_date)
 DO $$
 BEGIN
-    BEGIN
-        ALTER TABLE journal_entries
-            ADD CONSTRAINT fk_journal_entry_ledger_entry
-            FOREIGN KEY (ledger_entry_id, ledger_entry_fs_date)
-            REFERENCES ledger_entries (id, fs_date)
-            ON DELETE SET NULL;
-    EXCEPTION WHEN duplicate_object THEN 
-        RAISE NOTICE 'Foreign key fk_journal_entry_ledger_entry already exists, skipping';
-    END;
-END $$;
-
-
+  BEGIN
+    ALTER TABLE journal_entries
+      ADD CONSTRAINT fk_journal_entry_ledger_entry
+      FOREIGN KEY (ledger_entry_id, ledger_entry_fs_date)
+      REFERENCES ledger_entries (id, fs_date)
+      ON DELETE SET NULL;
+  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_journal_entry_ledger_entry exists, skipping';
+  END;
+END$$;

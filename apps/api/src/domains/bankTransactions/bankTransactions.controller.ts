@@ -1,7 +1,7 @@
-import { Response } from "express";
-import { AuthRequest } from "../../features/auth/auth.types";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { addNewBankTransactions } from "./bankTransactions.model";
+import { type Response } from 'express';
+import type { AuthRequest } from '../../features/auth/auth.types.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { addNewBankTransactions } from './bankTransactions.model.js';
 
 export async function handleTransactionImport(req: AuthRequest, res: Response) {
   const companyId = String(req.company?.id || req.params.companyId);

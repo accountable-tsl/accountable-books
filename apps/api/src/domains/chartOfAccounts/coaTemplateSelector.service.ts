@@ -1,18 +1,18 @@
 import type { Knex } from "knex";
 import {
-  CoaTemplateCompanyType,
-  CoaTemplateIndustry,
+  type CoaTemplateCompanyType,
+  type CoaTemplateIndustry,
   coaTemplateName,
-  CoaTemplateNameParts,
-  IndustryKeywordConfig,
-  SelectBestCoa,
-} from "./coaTemplate.type";
-import { CompanyType } from "../companies/companies.types";
-import { splitIntoWords } from "../../shared/utils/string.utils";
-import { escapeRegExp } from "../../shared/utils/random.utils";
+  type CoaTemplateNameParts,
+  type IndustryKeywordConfig,
+  type SelectBestCoa,
+} from "./coaTemplate.type.js";
+import { type CompanyType } from "../companies/companies.types.js";
+import { splitIntoWords } from "../../shared/utils/string.utils.js";
+import { escapeRegExp } from "../../shared/utils/random.utils.js";
 export const selectBestCoaTemplate = async (
   knex: Knex,
-  input: SelectBestCoa
+  input: SelectBestCoa,
 ): Promise<{ template: string; score?: number; log?: string }> => {
   const {
     company,
@@ -48,14 +48,14 @@ export const selectBestCoaTemplate = async (
 
   // 2. Validation Layer
   const validTemplates = templates.filter(
-    (t) => coaTemplateName.safeParse(t).success
+    (t) => coaTemplateName.safeParse(t).success,
   );
 
   if (!validTemplates.length) {
     throw new Error(
       templates.length
         ? `No valid templates for ${companyType} after validation`
-        : `No active templates found for ${companyType}`
+        : `No active templates found for ${companyType}`,
     );
   }
   if (validTemplates.length === 1) {
@@ -97,7 +97,7 @@ export const selectBestCoaTemplate = async (
     if (expectedIndustry !== "none" && t_industry !== expectedIndustry) {
       industryScore -= SCORE.INDUSTRY_MISMATCH_PENALTY;
       scoringLog.push(
-        `-200 (industry mismatch: expected ${expectedIndustry}, got ${t_industry})`
+        `-200 (industry mismatch: expected ${expectedIndustry}, got ${t_industry})`,
       );
     }
 
@@ -119,7 +119,7 @@ export const selectBestCoaTemplate = async (
       if (searchText.includes(phrase)) {
         industryScore += SCORE.INDUSTRY_ALIAS_PRIMARY;
         scoringLog.push(
-          `+${SCORE.INDUSTRY_ALIAS_PRIMARY} (alias primary: ${phrase})`
+          `+${SCORE.INDUSTRY_ALIAS_PRIMARY} (alias primary: ${phrase})`,
         );
       }
     });
@@ -128,7 +128,7 @@ export const selectBestCoaTemplate = async (
       if (new RegExp(`\\b${safeKeyword}\\b`).test(searchText)) {
         industryScore += SCORE.INDUSTRY_ALIAS_SECONDARY;
         scoringLog.push(
-          `+${SCORE.INDUSTRY_ALIAS_SECONDARY} (alias secondary: ${keyword})`
+          `+${SCORE.INDUSTRY_ALIAS_SECONDARY} (alias secondary: ${keyword})`,
         );
       }
     });
@@ -181,7 +181,7 @@ export const selectBestCoaTemplate = async (
 
   // 5. Result Determination
   const viableScores = scores.filter(
-    ({ score }) => score > SCORE.MIN_THRESHOLD
+    ({ score }) => score > SCORE.MIN_THRESHOLD,
   );
   const [best] = [...viableScores].sort((a, b) => b.score - a.score);
 
@@ -233,7 +233,7 @@ export const selectBestCoaTemplate = async (
 
   throw new Error(
     `No suitable template found for ${companyType}. ` +
-      `Defaults (${defaultTemplate}, ${defaultNoCode}) missing. Valid templates: [${validTemplates.join(", ")}]`
+      `Defaults (${defaultTemplate}, ${defaultNoCode}) missing. Valid templates: [${validTemplates.join(", ")}]`,
   );
 };
 
@@ -446,7 +446,7 @@ export function getKeywords(industry: CoaTemplateIndustry) {
         acc.secondary.push(...aliasConfig.secondary);
         return acc;
       },
-      { primary: [] as string[], secondary: [] as string[] }
+      { primary: [] as string[], secondary: [] as string[] },
     );
 
   return {

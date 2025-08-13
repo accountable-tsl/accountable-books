@@ -6,10 +6,10 @@ import {
   refreshTokenController,
   resendVerEmailController,
   verifyEmailController,
-} from "./auth.controller";
-import { verifyRefreshToken } from "./auth.middleware";
-import { authLimiter } from "../../core/middlewares/rateLimiter.middleware";
-import { csrfProtection, generateCsrfToken } from "./auth.utils";
+} from "./auth.controller.js";
+import { verifyRefreshToken } from "./auth.middleware.js";
+import { authLimiter } from "../../core/middlewares/rateLimiter.middleware.js";
+import { csrfProtection, generateCsrfToken } from "./auth.utils.js";
 const router = express.Router({ mergeParams: true });
 
 // router.post("/login", authLimiter, loginController);
@@ -21,7 +21,7 @@ router.post("/verify-email", verifyEmailController);
 router.post(
   "/resend-verification",
   verifyRefreshToken,
-  resendVerEmailController
+  resendVerEmailController,
 );
 
 router.get("/csrf-token", csrfProtection, (req, res) => {

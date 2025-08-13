@@ -1,7 +1,0 @@
-.env
-.env*
-node_modules/
-prisma/migrations/
-dist/
-# Sentry Config File
-.sentryclirc

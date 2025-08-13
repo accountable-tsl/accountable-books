@@ -1,9 +1,9 @@
-import Slack from "@slack/bolt";
-import { ENV } from "../../../config/env";
-import { userCallbackRequestBlock } from "./slackTemplates";
-import { SlackMessageInput } from "./slack.types";
-import { errorResponse } from "../../../shared/utils/response.utils";
-import { KnownBlock } from "@slack/types";
+import Slack from '@slack/bolt';
+import { ENV } from '../../../config/env.js';
+import { userCallbackRequestBlock } from './slackTemplates.js';
+import type { SlackMessageInput } from './slack.types.js';
+import { errorResponse } from '../../../shared/utils/response.utils.js';
+import type { KnownBlock } from '@slack/types';
 
 const slackApp = new Slack.App({
   token: ENV.SLACK_BOT_TOKEN,
@@ -28,19 +28,17 @@ await sendSlackMessage({
 });
 */
 
-export async function sendSlackMessage(
-  input: SlackMessageInput
-): Promise<void> {
-  const channel = input.channel || ENV.SLACK_CHANNEL || "sandbox";
+export async function sendSlackMessage(input: SlackMessageInput): Promise<void> {
+  const channel = input.channel || ENV.SLACK_CHANNEL || 'sandbox';
 
-  let text = "New Slack notification";
+  let text = 'New Slack notification';
   let blocks: KnownBlock[] | undefined;
 
-  if ("text" in input) {
+  if ('text' in input) {
     text = input.text;
-  } else if ("block" in input) {
+  } else if ('block' in input) {
     switch (input.block.type) {
-      case "userCallback":
+      case 'userCallback':
         blocks = userCallbackRequestBlock(input.block.params);
         break;
     }
@@ -53,7 +51,7 @@ export async function sendSlackMessage(
       text,
       blocks,
     });
-  } catch (err) {
-    errorResponse("Slack message failed", err);
+  } catch (err: any) {
+    errorResponse('Slack message failed', err);
   }
 }

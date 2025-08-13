@@ -2,25 +2,25 @@ import type { Knex } from "knex";
 import {
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { ENV } from "../../config/env";
-import { knexClient } from "../../../knexClient";
-import { ApiResponse } from "../../core/types/api.types";
+} from "../../shared/utils/response.utils.js";
+import { ENV } from "../../config/env.js";
+import { knexClient } from "../../db/knexClient.js";
+import { type ApiResponse } from "../../core/types/api.types.js";
 import {
   bankAccountConnectionInputCamel,
-  ConnectionResponse,
-  CreateNewBankAccountConnection,
-} from "./baccons.types";
-import { getBankConnectionNeeds } from "./shared/prerequisites";
-import { exchangeMonoCode } from "./mono/exchangeCode";
-import { getMonoAccountDetails } from "./mono/getAccountDetails";
-import { getProvider } from "./shared/getProvider";
-import { checkForDuplicate } from "./shared/checkDuplicate";
-import { updateBankAccountOnboardingState } from "./shared/updateOnboarding";
-import { createBankAccount } from "./shared/createBankAccount";
-import { resolveBankFromMonoDetails } from "./shared/resolveBank";
-import { resolveCurrency } from "./shared/resolveCurrency";
-import { matchEngine } from "./shared/smartMatching";
+  type ConnectionResponse,
+  type CreateNewBankAccountConnection,
+} from "./baccons.types.js";
+import { getBankConnectionNeeds } from "./shared/prerequisites.js";
+import { exchangeMonoCode } from "./mono/exchangeCode.js";
+import { getMonoAccountDetails } from "./mono/getAccountDetails.js";
+import { getProvider } from "./shared/getProvider.js";
+import { checkForDuplicate } from "./shared/checkDuplicate.js";
+import { updateBankAccountOnboardingState } from "./shared/updateOnboarding.js";
+import { createBankAccount } from "./shared/createBankAccount.js";
+import { resolveBankFromMonoDetails } from "./shared/resolveBank.js";
+import { resolveCurrency } from "./shared/resolveCurrency.js";
+import { matchEngine } from "./shared/smartMatching.js";
 
 type Args = {
   code: string;
@@ -102,7 +102,7 @@ export const handleMonoConnection = async ({
       } catch (error) {
         return errorResponse(
           "Failed to connect to bank account. Please try again.",
-          error
+          error,
         );
       }
 
@@ -125,7 +125,7 @@ export const handleMonoConnection = async ({
         if (updateOnboardingState && currentOnboardingState) {
           await updateBankAccountOnboardingState(
             currentOnboardingState,
-            companyId
+            companyId,
           );
         }
 
@@ -194,7 +194,7 @@ export const handleMonoConnection = async ({
 
         await updateBankAccountOnboardingState(
           currentOnboardingState,
-          companyId
+          companyId,
         );
 
         // TODO: create formatConnectionResponse function and use here
@@ -222,7 +222,7 @@ export const handleMonoConnection = async ({
                 },
               },
             ],
-          }
+          },
         );
       }
 
@@ -253,7 +253,7 @@ export const handleMonoConnection = async ({
         });
         await updateBankAccountOnboardingState(
           currentOnboardingState,
-          companyId
+          companyId,
         );
         return successResponse("Bank account successfully connected", {
           connections: [

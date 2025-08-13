@@ -2,7 +2,7 @@ import express from "express";
 import {
   addNewProjectsController,
   getProjectsController,
-} from "./projects.controller";
+} from "./projects.controller.js";
 
 const router = express.Router({ mergeParams: true });
 

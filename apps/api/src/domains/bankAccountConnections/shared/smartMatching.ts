@@ -1,7 +1,7 @@
 import type { Knex } from "knex";
-import { MonoAccountDetails } from "../baccons.types";
-import { BankAccountWithMeta } from "../../bankAccounts/bankAccounts.types";
-import { calculateStringSimilarity } from "../../../shared/utils/string.utils";
+import { type MonoAccountDetails } from "../baccons.types.js";
+import { type BankAccountWithMeta } from "../../bankAccounts/bankAccounts.types.js";
+import { calculateStringSimilarity } from "../../../shared/utils/string.utils.js";
 
 /**
  * --------------------------------------------------------------------------------------------------------------------------

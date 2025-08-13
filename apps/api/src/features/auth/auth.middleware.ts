@@ -1,17 +1,21 @@
-import { NextFunction, Request, Response } from "express";
-import { buildAuthContext, csrfProtection, JWT_CONFIG } from "./auth.utils";
+import { type NextFunction, type Response } from "express";
+import {
+  csrfProtection,
+  JWT_CONFIG,
+} from "./auth.utils.js";
 import jwt from "jsonwebtoken";
-import { AuthRequest, BaseAuthRequest, DecodedToken } from "./auth.types";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { getPermissionsForRole } from "../../domains/permission/permission.model";
-import { redis } from "../../lib/redis";
-import { generateRandomToken } from "../../shared/utils/crypto.utils";
-import { publicPaths } from "./auth.constants";
+import {
+  type AuthRequest,
+  type BaseAuthRequest,
+  type DecodedToken,
+} from "./auth.types.js";
+import { errorResponse } from "../../shared/utils/response.utils.js";
+import { publicPaths } from "./auth.constants.js";
 
 export const verifyAccessToken = async (
   req: BaseAuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const token = req.cookies?.accessToken;
   if (!token)
@@ -23,7 +27,7 @@ export const verifyAccessToken = async (
     // Verify the JWT and extract the decoded payload
     const decoded = jwt.verify(
       token,
-      JWT_CONFIG.accessToken.secret
+      JWT_CONFIG.accessToken.secret,
     ) as DecodedToken;
 
     // Ensure the decoded payload includes a valid user ID
@@ -31,7 +35,7 @@ export const verifyAccessToken = async (
       return res
         .status(403)
         .json(
-          errorResponse("Invalid token payload", "User ID not found in token")
+          errorResponse("Invalid token payload", "User ID not found in token"),
         );
 
     req.user = {
@@ -59,7 +63,7 @@ function handleJwtError(err: unknown, res: Response) {
 export const verifyRefreshToken = async (
   req: BaseAuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const refreshToken = req.cookies?.refreshToken;
   if (!refreshToken) {
@@ -69,7 +73,7 @@ export const verifyRefreshToken = async (
   try {
     const decoded = jwt.verify(
       refreshToken,
-      JWT_CONFIG.refreshToken.secret
+      JWT_CONFIG.refreshToken.secret,
     ) as DecodedToken;
 
     req.user = {
@@ -91,7 +95,7 @@ export const verifyRefreshToken = async (
 export const conditionalCsrf = (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   csrfProtection(req, res, (err) => {
     const isPublic = publicPaths.some((p) => req.originalUrl.includes(p));
@@ -102,7 +106,7 @@ export const conditionalCsrf = (
     if (err) {
       console.warn(
         "Blocked by CSRF middleware (Invalid CSRF token):",
-        err.message
+        err.message,
       );
       return res.status(403).json({ error: "A security breach was detected" });
     }
@@ -114,7 +118,7 @@ export const conditionalCsrf = (
 export const requireAuth = async (
   req: BaseAuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   if (publicPaths.some((p) => req.originalUrl.includes(p))) {
     return next();

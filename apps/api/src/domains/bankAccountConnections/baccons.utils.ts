@@ -1,8 +1,11 @@
 import {
   calculateStringSimilarity,
   getLastNDigits,
-} from "../../shared/utils/string.utils";
-import { BankAccountMatch, MonoAccountDetails } from "./baccons.types";
+} from "../../shared/utils/string.utils.js";
+import {
+  type BankAccountMatch,
+  type MonoAccountDetails,
+} from "./baccons.types.js";
 
 /**
  * Calculate match score between existing bank account and provider (mono) account
@@ -65,7 +68,7 @@ export function computeMatchScoreAndReasons({
   if (bankAccount.bankId && providerAccount.resolvedBankId) {
     const similarity = calculateStringSimilarity(
       bankAccount.bankId.toLowerCase().trim(),
-      providerAccount.resolvedBankId.toLowerCase().trim()
+      providerAccount.resolvedBankId.toLowerCase().trim(),
     );
     score += WEIGHTS.bankId * similarity;
     if (similarity > 0.9) {
@@ -80,7 +83,7 @@ export function computeMatchScoreAndReasons({
   if (bankAccount.bankName && providerAccount.institution?.name) {
     const similarity = calculateStringSimilarity(
       bankAccount.bankName.toLowerCase().trim(),
-      providerAccount.institution.name.toLowerCase().trim()
+      providerAccount.institution.name.toLowerCase().trim(),
     );
     score += WEIGHTS.bankName * similarity;
     if (similarity > 0.9) {
@@ -95,7 +98,7 @@ export function computeMatchScoreAndReasons({
   if (bankAccount.accountName && providerAccount.name) {
     const similarity = calculateStringSimilarity(
       bankAccount.accountName.toLowerCase().trim(),
-      providerAccount.name.toLowerCase().trim()
+      providerAccount.name.toLowerCase().trim(),
     );
     score += WEIGHTS.accountName * similarity;
     if (similarity > 0.7) {

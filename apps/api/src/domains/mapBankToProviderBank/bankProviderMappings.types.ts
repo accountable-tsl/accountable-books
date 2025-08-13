@@ -1,9 +1,9 @@
 import { z } from "zod";
 import {
   createCamelCaseSchema,
-  SnakeToCamelCaseObject,
-} from "../../shared/utils/formatting.utils";
-import { dbBaseFields } from "../../core/types/core";
+  type SnakeToCamelCaseObject,
+} from "../../shared/utils/formatting.utils.js";
+import { dbBaseFields } from "../../core/types/core.js";
 import type { Knex } from "knex";
 
 const newBankProviderMappingInput = z.object({
@@ -19,7 +19,7 @@ export type NewBankProviderMappingInput = z.infer<
   typeof newBankProviderMappingInput
 >;
 export const newBankProviderMappingCamel = createCamelCaseSchema(
-  newBankProviderMappingInput
+  newBankProviderMappingInput,
 );
 export type NewBankProviderMappingInputCamel = SnakeToCamelCaseObject<
   z.infer<typeof newBankProviderMappingInput>

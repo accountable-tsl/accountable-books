@@ -1,5 +1,5 @@
 import mixpanel from "mixpanel";
-import { ENV } from "../config/env";
+import { ENV } from "../config/env.js";
 
 if (!ENV.MIXPANEL_TOKEN) {
   throw new Error("MIXPANEL_TOKEN must be set");

@@ -1,9 +1,8 @@
-import express from "express";
-import { checkCompanyId } from "../../core/middlewares/companies.middleware";
-import { getBankFeedProvidersController } from "./bankFeedProviders.controller";
+import express from 'express';
+import { getBankFeedProvidersController } from './bankFeedProviders.controller.js';
 
 const router = express.Router({ mergeParams: true });
 
-router.get("/", getBankFeedProvidersController);
+router.get('/', getBankFeedProvidersController);
 
 export default router;

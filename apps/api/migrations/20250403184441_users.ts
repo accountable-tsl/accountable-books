@@ -1,21 +1,21 @@
-import type { Knex } from "knex";
+import type { Knex } from 'knex';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from "../src/utils/db";
-import { createUserDirect } from "../src/domains/users/users.model";
-import { ENV, NODE_ENV } from "../src/config/env";
-import { NewUserDirect } from "../src/domains/users/users.types";
+} from './utils/timestamp';
+import { createUserDirect } from '../src/domains/users/users.model';
+import { ENV, NODE_ENV } from '../src/config/env';
+import { NewUserDirect } from '../src/domains/users/users.types';
 import {
   createInitialUserOnboardingState,
   markAllOnboardingStepsComplete,
-} from "../src/features/onboarding/onboarding.utils";
+} from '../src/features/onboarding/onboarding.utils';
 
-const tableName = "users";
+const tableName = 'users';
 
 const getAdminUserConfig = (): NewUserDirect => {
-  if (NODE_ENV === "production") {
+  if (NODE_ENV === 'production') {
     return {
       id: ENV.ADMIN_ID,
       firstname: ENV.ADMIN_FIRSTNAME!,
@@ -49,7 +49,7 @@ export const seedAdminUser = async (knex: Knex) => {
 
   if (!password || !email || !firstname) {
     throw new Error(
-      "Admin user configuration is incomplete. Required fields: password, email, firstname"
+      'Admin user configuration is incomplete. Required fields: password, email, firstname',
     );
   }
   return knex.transaction(async (trx) => {
@@ -73,25 +73,25 @@ export const seedAdminUser = async (knex: Knex) => {
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
-    table.string("firstname", 256).notNullable();
-    table.string("lastname", 256).nullable();
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+    table.string('firstname', 256).notNullable();
+    table.string('lastname', 256).nullable();
 
-    table.string("email", 254).unique().notNullable();
-    table.string("password", 256).nullable();
-    table.string("phone_number", 20).nullable();
-    table.string("avatar_url").nullable();
-    table.string("avatar_key").nullable();
+    table.string('email', 254).unique().notNullable();
+    table.string('password', 256).nullable();
+    table.string('phone_number', 20).nullable();
+    table.string('avatar_url').nullable();
+    table.string('avatar_key').nullable();
 
-    table.timestamp("email_verified_at", { useTz: true }).nullable();
-    table.jsonb("onboarding_state").nullable();
-    table.timestamp("onboarding_completed_at", { useTz: true }).nullable();
+    table.timestamp('email_verified_at', { useTz: true }).nullable();
+    table.jsonb('onboarding_state').nullable();
+    table.timestamp('onboarding_completed_at', { useTz: true }).nullable();
 
-    table.uuid("last_active_company_id").nullable();
+    table.uuid('last_active_company_id').nullable();
     // .references("id")
     // .inTable("companies"); // Added foreign key after migrating companies talbe
 
-    table.boolean("is_demo_user").defaultTo(false);
+    table.boolean('is_demo_user').defaultTo(false);
 
     addStandardColumns(table);
   });

@@ -1,6 +1,6 @@
 import { Queue } from "bullmq";
-import { redis } from "../../lib/redis";
-import { NODE_ENV } from "../../config/env";
+import { redis } from "../../lib/redis.js";
+import { NODE_ENV } from "../../config/env.js";
 
 const isProd = NODE_ENV === "production";
 

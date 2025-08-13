@@ -1,25 +1,25 @@
-import type { Knex } from "knex";
-import path from "path";
-import fs from "fs/promises";
-import { fileURLToPath } from "url";
+import type { Knex } from 'knex';
+import path from 'path';
+import fs from 'fs/promises';
+import { fileURLToPath } from 'url';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from "../src/utils/db";
-import { NODE_ENV } from "../src/config/env";
-import { NewPermissionInput } from "../src/core/types/db.types";
+} from './utils/timestamp';
+import { NODE_ENV } from '../src/config/env';
+import { NewPermissionInput } from '../src/core/types/db.types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const tableName = "permissions";
+const tableName = 'permissions';
 
 const seedPermissions = async function seed(knex: Knex): Promise<void> {
-  const filePath = path.join(__dirname, "data/permissions.json");
+  const filePath = path.join(__dirname, 'data/permissions.json');
 
   try {
-    const rawData = await fs.readFile(filePath, "utf-8");
+    const rawData = await fs.readFile(filePath, 'utf-8');
     const permissions: Array<NewPermissionInput> = JSON.parse(rawData);
 
     const seedData = permissions.map((p) => ({
@@ -31,13 +31,10 @@ const seedPermissions = async function seed(knex: Knex): Promise<void> {
     }));
 
     await knex.transaction(async (trx) => {
-      await trx(tableName)
-        .insert(seedData)
-        .onConflict(["action", "resource"])
-        .ignore();
+      await trx(tableName).insert(seedData).onConflict(['action', 'resource']).ignore();
     });
 
-    if (NODE_ENV === "local" || NODE_ENV === "docker") {
+    if (NODE_ENV === 'local' || NODE_ENV === 'docker') {
       console.log(`Seeded ${seedData.length} permissions from ${filePath}`);
     }
   } catch (error) {
@@ -48,21 +45,21 @@ const seedPermissions = async function seed(knex: Knex): Promise<void> {
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
-    table.string("key", 256).notNullable(); //e.g, "view_users", "categorize_transactions"
-    table.string("action", 256).notNullable(); //The verb or operation	view, edit, create, delete, categorise
-    table.string("resource", 256).notNullable(); // The thing being accessed	users, transactions, companies, reports
-    table.string("description", 512).nullable();
-    table.string("label", 256).notNullable();
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+    table.string('key', 256).notNullable(); //e.g, "view_users", "categorize_transactions"
+    table.string('action', 256).notNullable(); //The verb or operation	view, edit, create, delete, categorise
+    table.string('resource', 256).notNullable(); // The thing being accessed	users, transactions, companies, reports
+    table.string('description', 512).nullable();
+    table.string('label', 256).notNullable();
 
     addStandardColumns(table);
 
-    table.unique(["action", "resource"], {
-      indexName: "permission_action_resource_unique",
+    table.unique(['action', 'resource'], {
+      indexName: 'permission_action_resource_unique',
     });
-    table.unique(["key"], { indexName: "permission_key_unique" });
+    table.unique(['key'], { indexName: 'permission_key_unique' });
 
-    table.index(["action", "resource"], "permission_action_resource_idx");
+    table.index(['action', 'resource'], 'permission_action_resource_idx');
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

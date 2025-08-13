@@ -1,13 +1,13 @@
-import { knexClient } from "../../../knexClient";
-import { ApiResponse } from "../../core/types/api.types";
+import { knexClient } from "../../db/knexClient.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
 import {
   AppError,
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
+} from "../../shared/utils/response.utils.js";
 
 export async function getPermissionsForRole(
-  roleId: string
+  roleId: string,
 ): Promise<ApiResponse> {
   try {
     const results = await knexClient("roles_permissions")

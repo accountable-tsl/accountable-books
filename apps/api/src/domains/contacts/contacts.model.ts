@@ -1,24 +1,24 @@
 import type { Knex } from "knex";
-import { ApiResponse } from "../../core/types/api.types";
+import type { ApiResponse } from "../../core/types/api.types.js";
 import {
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
+} from "../../shared/utils/response.utils.js";
 import {
-  ContactInput,
+  type ContactInput,
   contactInputSchema,
-  ContactResponse,
+  type ContactResponse,
   getContactsParams,
-  GetContactsParams,
-  UpdateContact,
+  type GetContactsParams,
+  type UpdateContact,
   updateContactSchema,
-} from "./contact.types";
-import { knexClient } from "../../../knexClient";
-import { getCompanyUUID } from "../../shared/utils/random.utils";
+} from "./contact.types.js";
+import { knexClient } from "../../db/knexClient.js";
+import { getCompanyUUID } from "../../shared/utils/random.utils.js";
 import {
   createHybridSearch,
   defineSearchableColumns,
-} from "../../shared/utils/search.utils";
+} from "../../shared/utils/search.utils.js";
 
 const normalizeName = (name: string) => name.trim().toLowerCase();
 
@@ -46,7 +46,7 @@ export async function addNewContacts({
 
     // Normalize names to verify uniqueness
     const normalizedNames = validate.data.map((c) =>
-      normalizeName(c.display_name)
+      normalizeName(c.display_name),
     );
 
     const existingContacts = await tx("contacts")
@@ -57,7 +57,7 @@ export async function addNewContacts({
     if (existingContacts.length > 0) {
       const existingNames = existingContacts.map((c) => c.display_name);
       throw new Error(
-        `Contact(s) with these names already exist: ${existingNames.join(", ")}`
+        `Contact(s) with these names already exist: ${existingNames.join(", ")}`,
       );
     }
 
@@ -93,7 +93,7 @@ export async function addNewContacts({
 }
 
 export async function getContacts(
-  input: GetContactsParams
+  input: GetContactsParams,
 ): Promise<ApiResponse<ContactResponse>> {
   // Input validation
   const parseInput = getContactsParams.safeParse(input);
@@ -167,7 +167,7 @@ export async function getContacts(
     // Validate page bounds
     if (page > totalPages) {
       return errorResponse(
-        `Page ${page} exceeds maximum pages (${totalPages})`
+        `Page ${page} exceeds maximum pages (${totalPages})`,
       );
     }
 
@@ -191,7 +191,6 @@ export async function getContacts(
       .orderBy(...(rankOrder ?? [resolvedSortBy, sortOrder ?? "asc"]))
       .limit(limit)
       .offset(offset);
-
 
     const pagination = {
       currentPage: page,
@@ -255,10 +254,10 @@ export async function updateContacts({
 
     if (existingContacts.length !== contactIds.length) {
       const missingIds = contactIds.filter(
-        (id) => !existingContacts.some((c) => c.id === id)
+        (id) => !existingContacts.some((c) => c.id === id),
       );
       throw new Error(
-        `Contact(s) with these IDs do not exist: ${missingIds.join(", ")}`
+        `Contact(s) with these IDs do not exist: ${missingIds.join(", ")}`,
       );
     }
 
@@ -266,7 +265,7 @@ export async function updateContacts({
     const displayNamesToUpdate = validate.data
       .filter(
         (c) =>
-          typeof c.display_name === "string" && c.display_name.trim() !== ""
+          typeof c.display_name === "string" && c.display_name.trim() !== "",
       )
       .map((c) => c.display_name as string);
 
@@ -275,11 +274,11 @@ export async function updateContacts({
 
       // Check for duplicates within the batch itself
       const duplicatesInBatch = normalizedNamesToUpdate.filter(
-        (name, index, arr) => arr.indexOf(name) !== index
+        (name, index, arr) => arr.indexOf(name) !== index,
       );
       if (duplicatesInBatch.length > 0) {
         throw new Error(
-          `Duplicate names found in update batch: ${duplicatesInBatch.join(", ")}`
+          `Duplicate names found in update batch: ${duplicatesInBatch.join(", ")}`,
         );
       }
 
@@ -293,7 +292,7 @@ export async function updateContacts({
       if (duplicateContacts.length > 0) {
         const duplicateNames = duplicateContacts.map((c) => c.display_name);
         throw new Error(
-          `Contact(s) with these names already exist: ${duplicateNames.join(", ")}`
+          `Contact(s) with these names already exist: ${duplicateNames.join(", ")}`,
         );
       }
     }

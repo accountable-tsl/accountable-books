@@ -3,7 +3,7 @@ import {
   checkSlugController,
   checkSlugForCompanyController,
   getCompanySlugController,
-} from "./firms.controller";
+} from "./firms.controller.js";
 
 const router = express.Router({ mergeParams: true });
 

@@ -1,5 +1,5 @@
-import { Knex } from "knex";
-import { BankTransactionFilters } from "./bankTransactions.types";
+import type { Knex } from "knex";
+import { type BankTransactionFilters } from "./bankTransactions.types.js";
 
 const bankTransactionQuerySelect = [
   "bt.*",

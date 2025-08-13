@@ -6,7 +6,7 @@ import {
   editCoaController,
   getCoaController,
   unarchiveCoaController,
-} from "./coa.controller";
+} from "./coa.controller.js";
 
 const router = express.Router({ mergeParams: true });
 

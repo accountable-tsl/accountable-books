@@ -1,13 +1,10 @@
-import { Response } from "express";
-import { AuthRequest } from "../../features/auth/auth.types";
-import { grantDirectAccess } from "./userRoles.model";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { roleKey as roleKeyEnum } from "../roles/roles.types";
+import { type Response } from 'express';
+import { type AuthRequest } from '../../features/auth/auth.types.js';
+import { grantDirectAccess } from './userRoles.model.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { roleKey as roleKeyEnum } from '../roles/roles.types.js';
 
-export async function grantAccessToCompanyController(
-  req: AuthRequest,
-  res: Response
-) {
+export async function grantAccessToCompanyController(req: AuthRequest, res: Response) {
   const { userId, companyId, roleKey } = req.body;
   const grantedBy = req.user?.id;
 
@@ -19,7 +16,7 @@ export async function grantAccessToCompanyController(
     !companyId ||
     !grantedBy
   ) {
-    return res.status(400).json(errorResponse("Missing required fields"));
+    return res.status(400).json(errorResponse('Missing required fields'));
   }
 
   try {
@@ -30,10 +27,8 @@ export async function grantAccessToCompanyController(
       grantedBy,
     });
 
-    result.success
-      ? res.status(200).json(result)
-      : res.status(400).json(result);
+    result.success ? res.status(200).json(result) : res.status(400).json(result);
   } catch (error) {
-    return res.status(500).json(errorResponse("Internal server error"));
+    return res.status(500).json(errorResponse('Internal server error'));
   }
 }

@@ -1,9 +1,9 @@
-import { roleKey } from "../../domains/roles/roles.types";
+import { roleKey } from "../../domains/roles/roles.types.js";
 import {
   createCamelCaseSchema,
-  SnakeToCamelCaseObject,
-} from "../../shared/utils/formatting.utils";
-import { dbBaseFields, debitCredit } from "./core";
+  type SnakeToCamelCaseObject,
+} from "../../shared/utils/formatting.utils.js";
+import { dbBaseFields, debitCredit } from "./core.js";
 import { z } from "zod";
 
 // permission
@@ -90,7 +90,7 @@ export const newAccountElement = z.object({
     .string()
     .regex(
       /^(BS|IS)(\.[A-Z]{3}){1,2}$/,
-      "Report code must follow BS|IS.XXX or BS|IS.XXX.XXX format"
+      "Report code must follow BS|IS.XXX or BS|IS.XXX.XXX format",
     )
     .max(64)
     .nullish(),
@@ -118,7 +118,7 @@ export const newAccountType = z.object({
     .string()
     .regex(
       /^(BS|IS)(\.[A-Z]{3}){3,4}$/,
-      "Report code must follow BS|IS.XXX.XXX.XXX or BS|IS.XXX.XXX.XXX.XXX format"
+      "Report code must follow BS|IS.XXX.XXX.XXX or BS|IS.XXX.XXX.XXX.XXX format",
     )
     .max(64)
     .nullish(),
@@ -146,7 +146,7 @@ type CFISnake = SnakeToCamelCaseObject<CFI>;
 
 export type NewClientFirmAssignmentsInput = CFI | CFISnake;
 export const newClientFirmAssignmentsInput = createCamelCaseSchema(
-  newClientFirmAssignment
+  newClientFirmAssignment,
 );
 
 export const newClientFirmAssignments = newClientFirmAssignment.extend({

@@ -1,5 +1,5 @@
 import { ListBucketsCommand, S3Client } from "@aws-sdk/client-s3";
-import { ENV } from "../config/env";
+import { ENV } from "../config/env.js";
 
 const token = ENV.R2_TOKEN;
 const accessKeyId = ENV.R2_ACCESS_KEY_ID;

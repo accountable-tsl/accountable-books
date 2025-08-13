@@ -1,26 +1,26 @@
-import { Request, Response } from "express";
+import { type Request, type Response } from "express";
 import {
   loginService,
   meService,
   refreshTokenService,
   resendVerificationEmailService,
   verifyEmailService,
-} from "./auth.service";
+} from "./auth.service.js";
 import {
   ErrorCode,
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { AuthRequest } from "./auth.types";
+} from "../../shared/utils/response.utils.js";
+import { type AuthRequest } from "./auth.types.js";
 import {
   clearCsrfCookie,
   generateCsrfToken,
   setAuthCookies,
-} from "./auth.utils";
-import { redis } from "../../lib/redis";
-import { user } from "../../domains/users/users.types";
-import { ENV, isProd } from "../../config/env";
-import { getAppUrl } from "../../shared/utils/string.utils";
+} from "./auth.utils.js";
+import { redis } from "../../lib/redis.js";
+import { user } from "../../domains/users/users.types.js";
+import { ENV, isProd } from "../../config/env.js";
+import { getAppUrl } from "../../shared/utils/string.utils.js";
 
 export async function loginController(req: AuthRequest, res: Response) {
   try {
@@ -193,7 +193,7 @@ export async function verifyEmailController(req: Request, res: Response) {
 
 export async function resendVerEmailController(
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) {
   const userId = String(req.body.userId);
   if (!userId) {

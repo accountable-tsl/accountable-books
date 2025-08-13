@@ -1,8 +1,9 @@
-import { Request, Response } from "express";
-import { getAccountClassificationMeta } from "./account.model";
-import { errorResponse } from "../../shared/utils/response.utils";
+import { type Response } from "express";
+import { getAccountClassificationMeta } from "./account.model.js";
+import { errorResponse } from "../../shared/utils/response.utils.js";
+import type { AuthRequest } from "../../features/auth/auth.types.js";
 
-export async function accountMetaController(req: Request, res: Response) {
+export async function accountMetaController(req: AuthRequest, res: Response) {
   try {
     const result = await getAccountClassificationMeta();
     return res.status(result.success ? 200 : 400).json(result);

@@ -2,30 +2,27 @@ import {
   ErrorCode,
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { knexClient } from "../../../knexClient";
-import { ApiResponse } from "../../core/types/api.types";
+} from "../../shared/utils/response.utils.js";
+import { knexClient } from "../../db/knexClient.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
 import {
-  BankAccountWithMeta,
-  CompanyBankingSnapshot,
+  type BankAccountWithMeta,
+  type CompanyBankingSnapshot,
   newBankAccountInput,
-  NewBankAccountInput,
-} from "./bankAccounts.types";
+  type NewBankAccountInput,
+} from "./bankAccounts.types.js";
 // import Decimal from "decimal.js";
-import { getCompanyUUID } from "../../shared/utils/random.utils";
-import {
-  camelToSnake,
-  snakeToCamel,
-} from "../../shared/utils/formatting.utils";
-import { createCoa } from "../chartOfAccounts/coa.model";
-import { coaSource } from "../chartOfAccounts/coa.types";
+import { getCompanyUUID } from "../../shared/utils/random.utils.js";
+import { camelToSnake, snakeToCamel } from "../../shared/utils/formatting.utils.js";
+import { createCoa } from "../chartOfAccounts/coa.model.js";
+import { coaSource } from "../chartOfAccounts/coa.types.js";
 import {
   getAccessibleCompaniesForUser,
   hasAccessToCompany,
-} from "../userRoles/userRoles.model";
+} from "../userRoles/userRoles.model.js";
 import type { Knex } from "knex";
-import { AccessibleCompaniesResponse } from "../userRoles/userRoles.types";
-import { getAccountTypeByKey } from "../account/account.registry";
+import { type AccessibleCompaniesResponse } from "../userRoles/userRoles.types.js";
+import { getAccountTypeByKey } from "../account/account.registry.js";
 
 const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields
@@ -71,7 +68,7 @@ const BANK_ACCOUNT_FIELDS = [
 ];
 export const getBankAccountsWithDetails = async (
   companyId: string,
-  trx?: Knex.Transaction
+  trx?: Knex.Transaction,
 ): Promise<ApiResponse<BankAccountWithMeta[]>> => {
   if (!companyId) return errorResponse("Company ID is required");
   const executor = trx || knexClient;
@@ -95,7 +92,7 @@ export const getBankAccountsWithDetails = async (
       .leftJoin(
         "bank_account_connections as bac",
         "ba.id",
-        "bac.bank_account_id"
+        "bac.bank_account_id",
       )
       .leftJoin("bank_feed_providers as p", "bac.provider_id", "p.id");
 
@@ -126,7 +123,7 @@ export const getBankAccountsWithDetails = async (
  * @returns snapshot of banking health and categorization coverage
  */
 export async function getBankAccountsSnapshot(
-  companyId: string
+  companyId: string,
 ): Promise<ApiResponse<CompanyBankingSnapshot>> {
   if (!companyId) return errorResponse("Company ID is required");
 
@@ -203,12 +200,12 @@ export async function createNewBankAccount(input: {
     }
 
     const validatedInput = newBankAccountInput.safeParse(
-      camelToSnake(inputData)
+      camelToSnake(inputData),
     );
     if (!validatedInput.success) {
       return errorResponse(
         `Invalid input provided`,
-        validatedInput.error.flatten()
+        validatedInput.error.flatten(),
       );
     }
 
@@ -261,7 +258,7 @@ export async function createNewBankAccount(input: {
 
     if (existing) {
       return errorResponse(
-        "Bank account with same account number already exists"
+        "Bank account with same account number already exists",
       );
     }
 
@@ -291,7 +288,7 @@ export async function createNewBankAccount(input: {
       return errorResponse(
         `A chart of account with the name "${coaInput.name}" ${coaInput.code ? `and code "${coaInput.code}"` : ""} already exists in this company`,
         undefined,
-        { code: ErrorCode.CONFLICT }
+        { code: ErrorCode.CONFLICT },
       );
     }
 
@@ -353,13 +350,13 @@ export async function createNewBankAccount(input: {
         .leftJoin(
           "bank_account_connections as bac",
           "ba.id",
-          "bac.bank_account_id"
+          "bac.bank_account_id",
         )
         .leftJoin("bank_feed_providers as p", "bac.provider_id", "p.id");
 
       return successResponse(
         "Bank account created successfully",
-        snakeToCamel(newBankAccountDetails)
+        snakeToCamel(newBankAccountDetails),
       );
     };
 
@@ -371,7 +368,7 @@ export async function createNewBankAccount(input: {
   } catch (error) {
     return errorResponse(
       "An unexpected error occurred while creating the bank account",
-      error
+      error,
     );
   }
 }

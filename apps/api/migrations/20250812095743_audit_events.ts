@@ -1,57 +1,50 @@
-import type { Knex } from "knex";
+import type { Knex } from 'knex';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from "../src/utils/db";
+} from './utils/timestamp';
 
-const tableName = "audit_events";
+const tableName = 'audit_events';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+    table.enu('entity_type', ['batch', 'transaction', 'prediction', 'journal']).notNullable();
+    table.uuid('entity_id').notNullable();
     table
-      .enu("entity_type", ["batch", "transaction", "prediction", "journal"])
-      .notNullable();
-    table.uuid("entity_id").notNullable();
-    table
-      .enu("action", [
-        "create",
-        "update",
-        "delete",
-        "import",
-        "predict",
-        "post",
-        "edit",
-        "approve",
-        "reject",
+      .enu('action', [
+        'create',
+        'update',
+        'delete',
+        'import',
+        'predict',
+        'post',
+        'edit',
+        'approve',
+        'reject',
       ])
       .notNullable();
-    table.jsonb("payload").notNullable().defaultTo("{}");
+    table.jsonb('payload').notNullable().defaultTo('{}');
     table
-      .uuid("company_id")
+      .uuid('company_id')
       .notNullable()
-      .references("id")
-      .inTable("companies")
-      .onDelete("RESTRICT");
-    table
-      .uuid("user_id")
-      .nullable()
-      .references("id")
-      .inTable("users")
-      .onDelete("SET NULL");
+      .references('id')
+      .inTable('companies')
+      .onDelete('RESTRICT');
+    table.uuid('user_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
-    table.text("notes").nullable();
+    table.text('notes').nullable();
 
     addStandardColumns(table);
   });
 
   // Create indexes for common query patterns
   await knex.schema.alterTable(tableName, (table) => {
-    table.index(["company_id", "action"]);
-    table.index(["entity_type", "entity_id"]);
-    table.index(["user_id", "created_at"]);
-    table.index(["company_id", "created_at"]);
-    table.index(["action", "created_at"]);
+    table.index(['company_id', 'action']);
+    table.index(['entity_type', 'entity_id']);
+    table.index(['user_id', 'created_at']);
+    table.index(['company_id', 'created_at']);
+    table.index(['action', 'created_at']);
   });
 
   // Add compound lookup index with DESC ordering

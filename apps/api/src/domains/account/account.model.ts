@@ -1,20 +1,17 @@
-import type { Knex } from "knex";
-import { knexClient } from "../../../knexClient";
-import { ApiResponse } from "../../core/types/api.types";
+import type { Knex } from 'knex';
+import { knexClient } from '../../db/knexClient.js';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
 import {
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response.utils";
-import {
-  AccountClassificationMetadata,
-  AccountElementDTO,
-  AccountTypeDTO,
-  EnrichedAccountType,
-  FinancialStatementDTO,
-  ParentAccountElementDTO,
-} from "./account.types";
-import { redis } from "../../lib/redis";
-import { invalidateCoaInMemoryCache } from "./account.registry";
+  type AccountClassificationMetadata,
+  type AccountElementDTO,
+  type AccountTypeDTO,
+  type EnrichedAccountType,
+  type FinancialStatementDTO,
+  type ParentAccountElementDTO,
+} from './account.types.js';
+import { redis } from '../../lib/redis.js';
+import { invalidateCoaInMemoryCache } from './account.registry.js';
 
 // TODO: Invalidate cache on mutations
 // Temporarily disabled
@@ -52,12 +49,11 @@ export async function getAccountClassificationMeta({
     //   }
     // }
     const fetchData = async (knex: Knex | Knex.Transaction) => {
-      const [accountTypesData, accountElementsData, financialStatements] =
-        await Promise.all([
-          fetchAccountTypes(knex, includeIds),
-          fetchAccountElements(knex, includeIds),
-          fetchFinancialStatements(knex, includeIds),
-        ]);
+      const [accountTypesData, accountElementsData, financialStatements] = await Promise.all([
+        fetchAccountTypes(knex, includeIds),
+        fetchAccountElements(knex, includeIds),
+        fetchFinancialStatements(knex, includeIds),
+      ]);
 
       return {
         accountTypes: accountTypesData.accountTypes,
@@ -68,64 +64,52 @@ export async function getAccountClassificationMeta({
       };
     };
 
-    const result = trx
-      ? await fetchData(trx)
-      : await knexClient.transaction(fetchData);
+    const result = trx ? await fetchData(trx) : await knexClient.transaction(fetchData);
 
-    return successResponse(
-      "Account classification metadata successfully retrieved",
-      result
-    );
+    return successResponse('Account classification metadata successfully retrieved', result);
   } catch (error) {
-    return errorResponse(
-      "Failed to retrieve account classification metadata",
-      error
-    );
+    return errorResponse('Failed to retrieve account classification metadata', error);
   }
 }
 
 async function fetchAccountTypes(
   knex: Knex | Knex.Transaction,
-  includeIds: boolean
+  includeIds: boolean,
 ): Promise<{
   accountTypes: AccountTypeDTO[];
   enrichedAccountTypes: EnrichedAccountType[];
 }> {
-  const rows = await knex("account_types as at")
-    .innerJoin("account_elements as ae", "at.account_element_id", "ae.id")
-    .leftJoin("account_elements as pae", "ae.parent_id", "pae.id")
-    .innerJoin(
-      "financial_statements as fs",
-      "ae.financial_statement_id",
-      "fs.id"
-    )
+  const rows = await knex('account_types as at')
+    .innerJoin('account_elements as ae', 'at.account_element_id', 'ae.id')
+    .leftJoin('account_elements as pae', 'ae.parent_id', 'pae.id')
+    .innerJoin('financial_statements as fs', 'ae.financial_statement_id', 'fs.id')
     .select(
-      "at.id",
-      "at.key",
-      "at.label",
-      "at.description",
-      "at.report_code as reportCode",
+      'at.id',
+      'at.key',
+      'at.label',
+      'at.description',
+      'at.report_code as reportCode',
 
-      "ae.id as elementId",
-      "ae.key as elementKey",
-      "ae.description as elementDescription",
-      "ae.label as elementLabel",
-      "ae.default_side as defaultSide",
-      "ae.report_code as elementReportCode",
+      'ae.id as elementId',
+      'ae.key as elementKey',
+      'ae.description as elementDescription',
+      'ae.label as elementLabel',
+      'ae.default_side as defaultSide',
+      'ae.report_code as elementReportCode',
 
-      "pae.id as parentElementId",
-      "pae.key as parentElementKey",
-      "pae.description as parentElementDescription",
-      "pae.label as parentElementLabel",
-      "pae.report_code as parentElementReportCode",
+      'pae.id as parentElementId',
+      'pae.key as parentElementKey',
+      'pae.description as parentElementDescription',
+      'pae.label as parentElementLabel',
+      'pae.report_code as parentElementReportCode',
 
-      "fs.id as fsId",
-      "fs.key as fsKey",
-      "fs.default_label as fsLabel",
-      "fs.us_gaap_label as usGaapLabel",
-      "fs.ifrs_label as ifrsLabel"
+      'fs.id as fsId',
+      'fs.key as fsKey',
+      'fs.default_label as fsLabel',
+      'fs.us_gaap_label as usGaapLabel',
+      'fs.ifrs_label as ifrsLabel',
     )
-    .where("at.is_deleted", false);
+    .where('at.is_deleted', false);
 
   const accountTypes: AccountTypeDTO[] = rows.map(
     (r) =>
@@ -136,7 +120,7 @@ async function fetchAccountTypes(
         description: r.description,
         reportCode: r.reportCode,
         elementKey: r.elementKey,
-      }) satisfies AccountTypeDTO
+      }) satisfies AccountTypeDTO,
   );
 
   const enrichedAccountTypes: EnrichedAccountType[] = rows.map((r) => {
@@ -199,31 +183,27 @@ async function fetchAccountTypes(
 
 async function fetchAccountElements(
   knex: Knex | Knex.Transaction,
-  includeIds: boolean
+  includeIds: boolean,
 ): Promise<{
   accountElements: AccountElementDTO[];
   parentAccountElements: ParentAccountElementDTO[];
 }> {
-  const raw = await knex("account_elements as ae")
-    .leftJoin("account_elements as pae", "ae.parent_id", "pae.id")
-    .innerJoin(
-      "financial_statements as fs",
-      "ae.financial_statement_id",
-      "fs.id"
-    )
+  const raw = await knex('account_elements as ae')
+    .leftJoin('account_elements as pae', 'ae.parent_id', 'pae.id')
+    .innerJoin('financial_statements as fs', 'ae.financial_statement_id', 'fs.id')
     .select(
-      "ae.id as id",
-      "ae.key as key",
-      "ae.label as label",
-      "ae.description as description",
-      "ae.default_side as defaultSide",
-      "ae.report_code as reportCode",
-      "ae.parent_id as parentId",
+      'ae.id as id',
+      'ae.key as key',
+      'ae.label as label',
+      'ae.description as description',
+      'ae.default_side as defaultSide',
+      'ae.report_code as reportCode',
+      'ae.parent_id as parentId',
 
-      "pae.key as parentKey",
-      "fs.key as fsKey"
+      'pae.key as parentKey',
+      'fs.key as fsKey',
     )
-    .where("ae.is_deleted", false);
+    .where('ae.is_deleted', false);
 
   const accountElements: AccountElementDTO[] = raw
     .filter((r) => !!r.parentId)
@@ -238,7 +218,7 @@ async function fetchAccountElements(
           defaultSide: r.defaultSide,
           parentElementKey: r.parentKey,
           financialStatementKey: r.fsKey,
-        }) satisfies AccountElementDTO
+        }) satisfies AccountElementDTO,
     );
 
   const parentAccountElements: ParentAccountElementDTO[] = raw
@@ -254,7 +234,7 @@ async function fetchAccountElements(
           defaultSide: r.defaultSide,
           parentElementKey: null,
           financialStatementKey: r.fsKey,
-        }) satisfies ParentAccountElementDTO
+        }) satisfies ParentAccountElementDTO,
     );
 
   return { accountElements, parentAccountElements };
@@ -262,14 +242,14 @@ async function fetchAccountElements(
 
 async function fetchFinancialStatements(
   knex: Knex | Knex.Transaction,
-  includeIds: boolean
+  includeIds: boolean,
 ): Promise<FinancialStatementDTO[]> {
-  const rawFS = await knex("financial_statements as fs").select(
-    "fs.id as id",
-    "fs.key as key",
-    "fs.default_label as label",
-    "fs.us_gaap_label as usGaapLabel",
-    "fs.ifrs_label as ifrsLabel"
+  const rawFS = await knex('financial_statements as fs').select(
+    'fs.id as id',
+    'fs.key as key',
+    'fs.default_label as label',
+    'fs.us_gaap_label as usGaapLabel',
+    'fs.ifrs_label as ifrsLabel',
   );
 
   const financialStatements: FinancialStatementDTO[] = rawFS.map(
@@ -280,7 +260,7 @@ async function fetchFinancialStatements(
         defaultLabel: r.label,
         usGaapLabel: r.usGaapLabel,
         ifrsLabel: r.ifrsLabel,
-      }) satisfies FinancialStatementDTO
+      }) satisfies FinancialStatementDTO,
   );
 
   return financialStatements;

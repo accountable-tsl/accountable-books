@@ -1,7 +1,6 @@
-import { z } from "zod";
-import { dbBaseFields } from "../../core/types/core";
-import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
-import Decimal from "decimal.js";
+import { z } from 'zod';
+import { dbBaseFields } from '../../core/types/core.js';
+import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 // exchange_rate
 export const newExchangeRate = z.object({

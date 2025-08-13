@@ -1,19 +1,17 @@
-import Decimal from "decimal.js";
 import { z } from "zod";
 
 export const nodeEnv = z.enum([
-  "test",
   "local",
-  "docker",
   "staging",
   "production",
+  "test",
 ]);
 export type NodeEnv = z.infer<typeof nodeEnv>;
 
 //Custom decimal handler
-const decimalInput = z.union([z.string(), z.number(), z.instanceof(Decimal)]);
+const decimalInput = z.union([z.string(), z.number()]);
 
-export const decimalSchema = decimalInput.transform((val) => new Decimal(val));
+export const decimalSchema = decimalInput.transform((val) => Number(val));
 
 // Base
 export const dbStandardFields = z.object({

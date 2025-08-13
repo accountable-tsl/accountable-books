@@ -1,36 +1,32 @@
-import jwt from "jsonwebtoken";
-import { buildAuthContext, generateAuthTokens, JWT_CONFIG } from "./auth.utils";
+import jwt from 'jsonwebtoken';
+import { buildAuthContext, generateAuthTokens, JWT_CONFIG } from './auth.utils.js';
 import {
-  AuthCompanyContext,
-  AuthUserContext,
-  DecodedToken,
-  ResendVerificationEmailInput,
-  VerifyEmailInput,
-} from "./auth.types";
-import { knexClient } from "../../../knexClient";
-import {
-  ErrorCode,
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response.utils";
+  type AuthCompanyContext,
+  type AuthUserContext,
+  type DecodedToken,
+  type ResendVerificationEmailInput,
+  type VerifyEmailInput,
+} from './auth.types.js';
+import { knexClient } from '../../db/knexClient.js';
+import { ErrorCode, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
 import {
   comparePassword,
   compareToken,
   generateRandomToken,
   hashToken,
-} from "../../shared/utils/crypto.utils";
-import { ApiResponse } from "../../core/types/api.types";
-import { redis } from "../../lib/redis";
-import dayjs from "dayjs";
-import { buildEmailServiceUrl } from "../communications/email/email.utils";
-import { sendVerificationEmail } from "../communications/email/email.service";
-import { UserOnboardingState } from "../onboarding/onboarding.types";
-import { addNewToken, getUserToken } from "../../domains/tokens/tokens.model";
-import { markUserOnboardingStepComplete } from "../onboarding/onboarding.utils";
+} from '../../shared/utils/crypto.utils.js';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { redis } from '../../lib/redis.js';
+import dayjs from 'dayjs';
+import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
+import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
+import { type UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
+import { addNewToken, getUserToken } from '../../domains/tokens/tokens.model.js';
+import { markUserOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
 
 export async function loginService(
   email: string,
-  password: string
+  password: string,
 ): Promise<
   ApiResponse<{
     accessToken: string;
@@ -41,17 +37,17 @@ export async function loginService(
 > {
   try {
     // Look up user by email
-    const user = await knexClient("users").select("*").where({ email }).first();
+    const user = await knexClient('users').select('*').where({ email }).first();
     if (!user) {
       // If no user found, fail with invalid credentials error
-      return errorResponse("Email or password is incorrect", undefined, {
+      return errorResponse('Email or password is incorrect', undefined, {
         code: ErrorCode.INVALID_CREDENTIALS,
       });
     }
 
     if (!user.password) {
       // If user has no password set (e.g. invited but not registered), fail
-      return errorResponse("Password not set", undefined, {
+      return errorResponse('Password not set', undefined, {
         code: ErrorCode.INVALID_CREDENTIALS,
       });
     }
@@ -59,7 +55,7 @@ export async function loginService(
     // Check password matches hashed password in DB
     const isValidPassword = await comparePassword(password, user.password);
     if (!isValidPassword)
-      return errorResponse("Email or password is incorrect", undefined, {
+      return errorResponse('Email or password is incorrect', undefined, {
         code: ErrorCode.INVALID_CREDENTIALS,
       });
 
@@ -78,9 +74,7 @@ export async function loginService(
     const contextRes = await buildAuthContext(userData);
 
     if (!contextRes.success || !contextRes.data) {
-      return errorResponse(
-        contextRes.message || "Failed to build auth context"
-      );
+      return errorResponse(contextRes.message || 'Failed to build auth context');
     }
     const { user: userContext, activeCompany } = contextRes.data;
 
@@ -96,43 +90,37 @@ export async function loginService(
     await redis.sadd(`refreshTokens:${user.id}`, refreshToken);
     await redis.expire(`refreshTokens:${user.id}`, 604800); // 7 days
 
-    return successResponse("Login successful", {
+    return successResponse('Login successful', {
       accessToken,
       refreshToken,
       user: userContext,
       activeCompany,
     });
   } catch (error) {
-    return errorResponse("An unexpected error occurred", error);
+    return errorResponse('An unexpected error occurred', error);
   }
 }
 
 export async function refreshTokenService(
   refreshToken: string,
-  userId: string
+  userId: string,
 ): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
   const lockKey = `refreshLock:${userId}`;
-  const locked = await redis.set(lockKey, "1", "PX", 1000, "NX");
-  if (!locked) throw new Error("Refresh already in progress");
+  const locked = await redis.set(lockKey, '1', 'PX', 1000, 'NX');
+  if (!locked) throw new Error('Refresh already in progress');
 
   try {
-    const decoded = jwt.verify(
-      refreshToken,
-      JWT_CONFIG.refreshToken.secret
-    ) as DecodedToken;
+    const decoded = jwt.verify(refreshToken, JWT_CONFIG.refreshToken.secret) as DecodedToken;
 
     if (decoded.sub !== userId) {
-      return errorResponse("Invalid refresh token");
+      return errorResponse('Invalid refresh token');
     }
 
     // Check if refreshToken exists in Redis set
-    const isValidToken = await redis.sismember(
-      `refreshTokens:${userId}`,
-      refreshToken
-    );
+    const isValidToken = await redis.sismember(`refreshTokens:${userId}`, refreshToken);
 
     if (!isValidToken) {
-      return errorResponse("Refresh token revoked or invalid");
+      return errorResponse('Refresh token revoked or invalid');
     }
     // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateAuthTokens({
@@ -150,16 +138,16 @@ export async function refreshTokenService(
     await redis.sadd(`refreshTokens:${userId}`, newRefreshToken); // Add new
     await redis.expire(`refreshTokens:${userId}`, 604800); // Reset TTL
 
-    return successResponse("Tokens refreshed", {
+    return successResponse('Tokens refreshed', {
       accessToken,
       refreshToken: newRefreshToken,
     });
   } catch (error) {
-    console.error("refreshTokenService error:", error);
-    return errorResponse("Failed to refresh token");
+    console.error('refreshTokenService error:', error);
+    return errorResponse('Failed to refresh token');
   } finally {
-    await redis.del(lockKey).catch((err) => {
-      console.error("Failed to delete Redis lock:", err);
+    await redis.del(lockKey).catch((err: any) => {
+      console.error('Failed to delete Redis lock:', err);
     });
   }
 }
@@ -167,16 +155,16 @@ export async function refreshTokenService(
 export async function verifyEmailService(input: VerifyEmailInput): Promise<
   ApiResponse<{
     emailVerified: boolean;
-    status: "verified" | "invalid_or_expired" | "error";
+    status: 'verified' | 'invalid_or_expired' | 'error';
     email: string | null;
   }>
 > {
   const { token, userId } = input;
 
   if (!token && !userId) {
-    return errorResponse("Missing required parameters", {
+    return errorResponse('Missing required parameters', {
       emailVerified: false,
-      status: "error",
+      status: 'error',
       email: null,
     });
   }
@@ -184,9 +172,9 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
   try {
     const result = knexClient.transaction(async (trx) => {
       // Is email already verified?
-      const user = await trx("users")
+      const user = await trx('users')
         .where({ id: userId, is_deleted: false })
-        .select("id", "email", "email_verified_at", "onboarding_state")
+        .select('id', 'email', 'email_verified_at', 'onboarding_state')
         .first();
 
       const {
@@ -196,9 +184,9 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
       } = user || {};
 
       if (!user || !userEmail) {
-        return errorResponse("User not found", {
+        return errorResponse('User not found', {
           emailVerified: false,
-          status: "error",
+          status: 'error',
           email: null,
         });
       }
@@ -207,38 +195,33 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
       if (initialOnboardingState) {
         newOnboardingState = markUserOnboardingStepComplete(
           initialOnboardingState,
-          "email_verified"
+          'email_verified',
         );
       }
 
-      if (
-        initialEmailVerifiedAt &&
-        !initialOnboardingState?.steps.email_verified
-      ) {
-        await trx("users")
-          .where({ id: userId })
-          .update({ onboarding_state: newOnboardingState });
+      if (initialEmailVerifiedAt && !initialOnboardingState?.steps.email_verified) {
+        await trx('users').where({ id: userId }).update({ onboarding_state: newOnboardingState });
       }
 
       if (initialEmailVerifiedAt) {
-        return successResponse("Email already verified", {
+        return successResponse('Email already verified', {
           emailVerified: true,
-          status: "verified",
+          status: 'verified',
           email: userEmail,
         });
       }
 
       const tokenHashRes = await getUserToken({
         userId: user.id,
-        tokenType: "email_verification",
+        tokenType: 'email_verification',
       });
 
       const { id: tokenId, token_hash: tokenHash } = tokenHashRes.data || {};
 
       if (!tokenHashRes.success || !tokenHash || !token) {
-        return errorResponse("Invalid or expired token", {
+        return errorResponse('Invalid or expired token', {
           emailVerified: false,
-          status: "invalid_or_expired",
+          status: 'invalid_or_expired',
           email: null,
         });
       }
@@ -250,27 +233,25 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
       });
 
       if (!verifyToken)
-        return errorResponse("Invalid or expired token", {
+        return errorResponse('Invalid or expired token', {
           emailVerified: false,
-          status: "invalid_or_expired",
+          status: 'invalid_or_expired',
           email: null,
         });
 
       // Verified token, update user
-      await trx("users")
+      await trx('users')
         .where({ id: userId })
         .update({
           email_verified_at: new Date(),
-          ...(newOnboardingState
-            ? { onboarding_state: newOnboardingState }
-            : {}),
+          ...(newOnboardingState ? { onboarding_state: newOnboardingState } : {}),
         });
 
-      await trx("tokens").where({ id: tokenId }).delete();
+      await trx('tokens').where({ id: tokenId }).delete();
 
-      return successResponse("Email verified", {
+      return successResponse('Email verified', {
         emailVerified: true,
-        status: "verified",
+        status: 'verified',
         email: userEmail,
       });
     });
@@ -297,54 +278,48 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
 
     return result;
   } catch (error: any) {
-    return errorResponse("Failed to verify email", {
+    return errorResponse('Failed to verify email', {
       emailVerified: false,
-      status: "error",
+      status: 'error',
       email: null,
     });
   }
 }
 
 export async function resendVerificationEmailService(
-  input: ResendVerificationEmailInput
+  input: ResendVerificationEmailInput,
 ): Promise<ApiResponse> {
   if (!input.userId) {
-    return errorResponse("Missing required parameters");
+    return errorResponse('Missing required parameters');
   }
 
   try {
     // Get user details
-    const user = await knexClient("users")
-      .select(
-        "id",
-        "email",
-        "firstname",
-        "email_verified_at",
-        "onboarding_state"
-      )
+    const user = await knexClient('users')
+      .select('id', 'email', 'firstname', 'email_verified_at', 'onboarding_state')
       .where({ id: input.userId })
       .first();
 
     if (!user) {
-      return errorResponse("User not found");
+      return errorResponse('User not found');
     }
 
     if (user && user.email_verified_at) {
-      return errorResponse("Email already verified");
+      return errorResponse('Email already verified');
     }
 
     const token = generateRandomToken();
     const hashedToken = await hashToken(token);
-    const expiry = dayjs().add(24, "hours").toDate();
+    const expiry = dayjs().add(24, 'hours').toDate();
 
     const tokenRes = await addNewToken({
       user_id: user.id,
-      token_type: "email_verification",
+      token_type: 'email_verification',
       token_hash: hashedToken,
       expires_at: expiry,
     });
 
-    const url = buildEmailServiceUrl("verify-email", {
+    const url = buildEmailServiceUrl('verify-email', {
       userId: user.id,
       token,
     });
@@ -356,32 +331,27 @@ export async function resendVerificationEmailService(
     });
 
     if (!sendEmail) {
-      errorResponse("Unable to send verification email", sendEmail, {
+      errorResponse('Unable to send verification email', sendEmail, {
         code: ErrorCode.GENERIC,
         report: true,
       });
     }
 
-    return successResponse("Verification email sent", user.email);
+    return successResponse('Verification email sent', user.email);
   } catch (error) {
-    return errorResponse("Failed to resend verification email");
+    return errorResponse('Failed to resend verification email');
   }
 }
 
 export async function meService(
-  userId: string
-): Promise<
-  ApiResponse<{ user: AuthUserContext; activeCompany: AuthCompanyContext }>
-> {
+  userId: string,
+): Promise<ApiResponse<{ user: AuthUserContext; activeCompany: AuthCompanyContext }>> {
   try {
-    const user = await knexClient("users")
-      .select("*")
-      .where({ id: userId })
-      .first();
+    const user = await knexClient('users').select('*').where({ id: userId }).first();
 
     if (!user) {
       // If no user found, fail with invalid credentials error
-      return errorResponse("Invalid credentials", undefined, {
+      return errorResponse('Invalid credentials', undefined, {
         code: ErrorCode.INVALID_CREDENTIALS,
       });
     }
@@ -399,18 +369,16 @@ export async function meService(
     const contextResponse = await buildAuthContext(userData);
 
     if (!contextResponse.success || !contextResponse.data) {
-      return errorResponse(
-        contextResponse.message || "Failed to build auth context"
-      );
+      return errorResponse(contextResponse.message || 'Failed to build auth context');
     }
 
     const { user: userContext, activeCompany } = contextResponse.data;
 
-    return successResponse("User retrieved successfully", {
+    return successResponse('User retrieved successfully', {
       user: userContext,
       activeCompany,
     });
   } catch (error) {
-    return errorResponse("Something went wrong", error);
+    return errorResponse('Something went wrong', error);
   }
 }

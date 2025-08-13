@@ -1,18 +1,18 @@
-import type { Knex } from "knex";
-import path from "path";
-import fs from "fs/promises";
-import { fileURLToPath } from "url";
+import type { Knex } from 'knex';
+import path from 'path';
+import fs from 'fs/promises';
+import { fileURLToPath } from 'url';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from "../src/utils/db";
-import { NewRoleInput, roleScope } from "../src/domains/roles/roles.types";
-import { isDev } from "../src/config/env";
-import { ROLES } from "./data/roles";
+} from './utils/timestamp';
+import { NewRoleInput, roleScope } from '../src/domains/roles/roles.types';
+import { isDev } from '../src/config/env';
+import { ROLES } from './data/roles';
 
-const tableName = "roles";
+const tableName = 'roles';
 const { PLATFORM_ROLES, FIRM_ROLES, COMPANY_ROLES } = ROLES;
 
 const seedRoles = async function seed(knex: Knex): Promise<void> {
@@ -32,7 +32,7 @@ const seedRoles = async function seed(knex: Knex): Promise<void> {
 
     // Bulk insert
     await knex.transaction(async (trx) => {
-      await trx(tableName).insert(seedData).onConflict("key").merge();
+      await trx(tableName).insert(seedData).onConflict('key').merge();
     });
 
     if (isDev) {
@@ -46,11 +46,11 @@ const seedRoles = async function seed(knex: Knex): Promise<void> {
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
-    table.string("key").unique().notNullable();
-    table.string("name", 50).notNullable();
-    table.specificType("scope", "role_scope").notNullable();
-    table.string("description", 512).nullable();
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+    table.string('key').unique().notNullable();
+    table.string('name', 50).notNullable();
+    table.specificType('scope', 'role_scope').notNullable();
+    table.string('description', 512).nullable();
 
     addStandardColumns(table);
   });

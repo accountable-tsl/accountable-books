@@ -1,9 +1,9 @@
-import { z } from "zod";
-import { dbBaseFields } from "../../core/types/core";
-import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
-import type { Knex } from "knex";
+import { z } from 'zod';
+import { dbBaseFields } from '../../core/types/core.js';
+import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+import type { Knex } from 'knex';
 
-export const coaSource = z.enum(["user", "system", "template"]);
+export const coaSource = z.enum(['user', 'system', 'template']);
 export type CoaSource = z.infer<typeof coaSource>;
 
 // coa
@@ -13,7 +13,7 @@ export const newCoaInput = z.object({
   code: z.string().nullish(),
   description: z.string().max(512).nullish(),
   locked: z.boolean().default(false).nullish(),
-  source: coaSource.default("user").nullish(),
+  source: coaSource.default('user').nullish(),
 
   account_type_key: z.string().max(256),
 });
@@ -43,12 +43,7 @@ export type FetchCoaInput = {
 };
 
 // Update COA schemas and types - separate schemas for each action
-export const updateCoaAction = z.enum([
-  "delete",
-  "archive",
-  "unarchive",
-  "edit",
-]);
+export const updateCoaAction = z.enum(['delete', 'archive', 'unarchive', 'edit']);
 export type UpdateCoaAction = z.infer<typeof updateCoaAction>;
 
 export const coaUpdateInput = z.object({
@@ -64,12 +59,10 @@ export const coaUpdateInput = z.object({
 });
 export type CoaUpdateInput = z.infer<typeof coaUpdateInput>;
 
-export const resolvedCoaUpdateInput = coaUpdateInput
-  .omit({ accountTypeKey: true })
-  .extend({
-    id: z.string().uuid(),
-    accountTypeId: z.string().uuid().optional(),
-  });
+export const resolvedCoaUpdateInput = coaUpdateInput.omit({ accountTypeKey: true }).extend({
+  id: z.string().uuid(),
+  accountTypeId: z.string().uuid().optional(),
+});
 export type ResolvedCoaUpdateInput = z.infer<typeof resolvedCoaUpdateInput>;
 
 export const coaUpdateOptions = z.object({

@@ -1,6 +1,6 @@
 import express from "express";
-import { checkCompanyId } from "../../core/middlewares/companies.middleware";
-import { handleTransactionImport } from "./bankTransactions.controller";
+import { checkCompanyId } from "../../core/middlewares/companies.middleware.js";
+import { handleTransactionImport } from "./bankTransactions.controller.js";
 
 const router = express.Router({ mergeParams: true });
 

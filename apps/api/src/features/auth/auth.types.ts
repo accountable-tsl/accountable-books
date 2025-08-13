@@ -1,17 +1,11 @@
-import { Request } from "express";
-import { JwtPayload } from "jsonwebtoken";
+import { type Request } from "express";
+import { type JwtPayload } from "jsonwebtoken";
+import { type AccessibleCompanies } from "../../domains/userRoles/userRoles.types.js";
+import { type RoleKey } from "../../domains/roles/roles.types.js";
 import {
-  AccessibleCompanies,
-  AccessibleCompaniesResponse,
-  UserCompanyRole,
-} from "../../domains/userRoles/userRoles.types";
-import { CompanyType } from "../../domains/companies/companies.types";
-import { Verify } from "crypto";
-import { RoleKey, RoleScope } from "../../domains/roles/roles.types";
-import {
-  OnboardingStateResult,
-  UserOnboardingState,
-} from "../onboarding/onboarding.types";
+  type OnboardingStateResult,
+  type UserOnboardingState,
+} from "../../features/onboarding/onboarding.types.js";
 
 export interface TokenConfig {
   secret: string;

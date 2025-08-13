@@ -1,20 +1,20 @@
-import { knexClient } from "../../../knexClient";
+import { knexClient } from "../../db/knexClient.js";
 import {
   ErrorCode,
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { getCompanyUUID } from "../../shared/utils/random.utils";
-import { ApiResponse } from "../../core/types/api.types";
-import { fetchExchangeRate } from "../exchangeRates/exchangeRates.model";
-import { categorizationStatus } from "../../core/types/core";
+} from "../../shared/utils/response.utils.js";
+import { getCompanyUUID } from "../../shared/utils/random.utils.js";
+import { type ApiResponse } from "../../core/types/api.types.js";
+import { fetchExchangeRate } from "../exchangeRates/exchangeRates.model.js";
+import { categorizationStatus } from "../../core/types/core.js";
 import type { Knex } from "knex";
 import {
-  CoaBalance,
-  CoaBalanceOptions,
-  BankBalance,
-  GetBankAccountBalancesOptions,
-} from "./balances.types";
+  type CoaBalance,
+  type CoaBalanceOptions,
+  type BankBalance,
+  type GetBankAccountBalancesOptions,
+} from "./balances.types.js";
 
 /**
  * Fetches balances for one or more COA (Chart of Accounts) accounts owned by a company.
@@ -33,7 +33,7 @@ import {
  */
 export async function getCompanyCoaBalances(
   companyId: string,
-  options: CoaBalanceOptions = {}
+  options: CoaBalanceOptions = {},
 ): Promise<ApiResponse<Record<string, CoaBalance>>> {
   if (!companyId?.trim()) {
     return errorResponse("Company ID is required");
@@ -53,7 +53,7 @@ export async function getCompanyCoaBalances(
     excludeAccountTypeIdsOrKeys.length > 0
   ) {
     const hasOverlap = accountTypeIdsOrKeys.some((id) =>
-      excludeAccountTypeIdsOrKeys.includes(id)
+      excludeAccountTypeIdsOrKeys.includes(id),
     );
     if (hasOverlap) {
       return errorResponse("Cannot include and exclude the same account type");
@@ -81,7 +81,7 @@ export async function getCompanyCoaBalances(
       if (ownedCoaIds.length !== uniqueIds.length) {
         const missingIds = uniqueIds.filter((id) => !ownedCoaIds.includes(id));
         return errorResponse(
-          `Some COA accounts could not be validated: ${missingIds.join(", ")}`
+          `Some COA accounts could not be validated: ${missingIds.join(", ")}`,
         );
       }
 
@@ -140,7 +140,7 @@ export async function getCompanyCoaBalances(
       query.where(function () {
         this.whereIn("account_types.id", accountTypeIdsOrKeys).orWhereIn(
           "account_types.key",
-          accountTypeIdsOrKeys
+          accountTypeIdsOrKeys,
         );
       });
     }
@@ -150,7 +150,7 @@ export async function getCompanyCoaBalances(
       query.whereNot(function () {
         this.whereIn("account_types.id", excludeAccountTypeIdsOrKeys).orWhereIn(
           "account_types.key",
-          excludeAccountTypeIdsOrKeys
+          excludeAccountTypeIdsOrKeys,
         );
       });
     }
@@ -182,7 +182,7 @@ export async function getCompanyCoaBalances(
 }
 
 export async function getCompanyBankLedgerBalances(
-  companyId: string
+  companyId: string,
 ): Promise<ApiResponse<Record<string, CoaBalance>>> {
   return getCompanyCoaBalances(companyId, {
     accountTypeIdsOrKeys: ["ca_bank"],
@@ -205,7 +205,7 @@ export async function getCompanyBankLedgerBalances(
 export async function getBankAccountBalances(
   knex: Knex.Transaction,
   companyId: string,
-  options: GetBankAccountBalancesOptions = {}
+  options: GetBankAccountBalancesOptions = {},
 ): Promise<ApiResponse<Record<string, BankBalance>>> {
   if (!companyId) {
     return errorResponse("Company ID is required");
@@ -233,13 +233,13 @@ export async function getBankAccountBalances(
     if (bankAccountIds && bankAccountIds.length > 0) {
       transactionQuery = transactionQuery.whereIn(
         "bt.bank_account_id",
-        bankAccountIds
+        bankAccountIds,
       );
     }
 
     const transactions = await transactionQuery;
     const statusEnum = categorizationStatus.enum;
-    const { categorized, auto_categorized, uncategorized } = statusEnum;
+    const { reviewed, suggested, uncategorized } = statusEnum;
 
     // Aggregate balances and stats
     const groupedTx: Record<string, BankBalance> = {};
@@ -268,10 +268,10 @@ export async function getBankAccountBalances(
         group.transactionCount!++;
 
         switch (status) {
-          case categorized:
+          case reviewed:
             group.categorizedCount!++;
             break;
-          case auto_categorized:
+          case suggested:
             group.autoCategorizedCount!++;
             break;
           case uncategorized:
@@ -286,7 +286,7 @@ export async function getBankAccountBalances(
       .select(
         "ba.id as bankId",
         "ba.currency_id as currencyId",
-        "c.reporting_currency_id as reportingCurrencyId"
+        "c.reporting_currency_id as reportingCurrencyId",
       )
       .where("ba.is_deleted", false)
       .andWhere("ba.company_id", companyUUID)
@@ -334,7 +334,7 @@ export async function getBankAccountBalances(
               new Date(),
               currencyId,
               reportingCurrencyId,
-              knex
+              knex,
             );
 
             if (!rateRes.success || !rateRes.data) {
@@ -362,7 +362,7 @@ export async function getBankAccountBalances(
             errorResponse(
               "Exchange rate fetch failed",
               { cacheKey, err },
-              { code: ErrorCode.GENERIC, report: true }
+              { code: ErrorCode.GENERIC, report: true },
             );
           }
         }
@@ -383,13 +383,13 @@ export async function getBankAccountBalances(
 export async function convertAmountToReportingCurrency(
   amount: number,
   currencyId: string,
-  reportingCurrencyId: string
+  reportingCurrencyId: string,
 ): Promise<ApiResponse<number>> {
   try {
     const rate = await fetchExchangeRate(
       new Date(),
       currencyId,
-      reportingCurrencyId
+      reportingCurrencyId,
     );
 
     if (!rate.success || !rate.data) {

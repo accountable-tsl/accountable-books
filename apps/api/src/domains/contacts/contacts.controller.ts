@@ -1,7 +1,7 @@
-import { Response } from "express";
-import { AuthRequest } from "../../features/auth/auth.types";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { addNewContacts, getContacts, updateContacts } from "./contacts.model";
+import { type Response } from "express";
+import { type AuthRequest } from "../../features/auth/auth.types.js";
+import { errorResponse } from "../../shared/utils/response.utils.js";
+import { addNewContacts, getContacts, updateContacts } from "./contacts.model.js";
 
 export async function getContactsController(req: AuthRequest, res: Response) {
   try {
@@ -45,7 +45,7 @@ export async function addContactsController(req: AuthRequest, res: Response) {
 
 export async function updateContactsController(
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) {
   try {
     const userId = String(req.user?.id);

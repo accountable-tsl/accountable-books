@@ -1,24 +1,23 @@
 import jwt from "jsonwebtoken";
-import { ENV, isDev, isProd } from "../../config/env";
+import { ENV, isDev, isProd } from "../../config/env.js";
 import {
   AppError,
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
+} from "../../shared/utils/response.utils.js";
 import {
-  AuthCompanyContext,
-  AuthRequest,
-  AuthUserContext,
-  DecodedToken,
-  TokenConfig,
+  type AuthCompanyContext,
+  type AuthUserContext,
+  type DecodedToken,
+  type TokenConfig,
   TokenExpiration,
-} from "./auth.types";
-import { Request, Response } from "express";
-import { knexClient } from "../../../knexClient";
-import { getCompanyUUID } from "../../shared/utils/random.utils";
-import { ApiResponse } from "../../core/types/api.types";
-import { getAccessibleCompaniesForUser } from "../../domains/userRoles/userRoles.model";
-import { getOnboardingState } from "../onboarding/onboarding.service";
+} from "./auth.types.js";
+import { type Request, type Response } from "express";
+import { knexClient } from "../../db/knexClient.js";
+import { getCompanyUUID } from "../../shared/utils/random.utils.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
+import { getAccessibleCompaniesForUser } from "../../domains/userRoles/userRoles.model.js";
+import { getOnboardingState } from "../../features/onboarding/onboarding.service.js";
 import { doubleCsrf } from "csrf-csrf";
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
@@ -70,7 +69,7 @@ export const setAuthCookies = (
   req: Request,
   res: Response,
   accessToken: string,
-  refreshToken: string
+  refreshToken: string,
 ) => {
   res.cookie("accessToken", accessToken, {
     domain: cookieDomain,
@@ -132,7 +131,7 @@ export const clearCsrfCookie = (res: Response) => {
 };
 
 export async function buildAuthContext(
-  decoded: DecodedToken
+  decoded: DecodedToken,
 ): Promise<
   ApiResponse<{ user: AuthUserContext; activeCompany: AuthCompanyContext }>
 > {
@@ -177,7 +176,7 @@ export async function buildAuthContext(
     }
 
     const activeCompany = accessibleCompanies.find(
-      (c) => c.id === activeCompanyId
+      (c) => c.id === activeCompanyId,
     );
     if (!activeCompany) {
       return errorResponse("Active company not found");

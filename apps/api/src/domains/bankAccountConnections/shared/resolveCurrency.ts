@@ -1,6 +1,6 @@
 import type { Knex } from "knex";
-import { AppError } from "../../../shared/utils/response.utils";
-import { getCurrencyByCode } from "../../currencies/currencies.model";
+import { AppError } from "../../../shared/utils/response.utils.js";
+import { getCurrencyByCode } from "../../currencies/currencies.model.js";
 
 export async function resolveCurrency({
   currencyCode,

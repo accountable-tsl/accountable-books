@@ -1,11 +1,11 @@
-import { Response } from "express";
-import { AuthRequest } from "../../features/auth/auth.types";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { handleMonoConnection } from "./baccons.model";
+import { type Response } from "express";
+import type { AuthRequest } from "../../features/auth/auth.types.js";
+import { errorResponse } from "../../shared/utils/response.utils.js";
+import { handleMonoConnection } from "./baccons.model.js";
 
 export const addNewBankAccountConnection = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   const userId: string = (req.user?.id || "").trim().toString();
   const companyId: string = (req.params?.companyId || req.body.companyId)

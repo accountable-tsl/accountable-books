@@ -1,13 +1,13 @@
 
 
 import type { Knex } from "knex";
-import { MonoAccountDetails } from "../baccons.types";
-import { getCurrencyByCode } from "../../currencies/currencies.model";
-import { knexClient } from "../../../../knexClient";
-import { createNewBankAccount } from "../../bankAccounts/bankAccounts.model";
-import { AppError } from "../../../shared/utils/response.utils";
-import { resolveBankFromMonoDetails } from "./resolveBank";
-import { resolveCurrency } from "./resolveCurrency";
+import { type MonoAccountDetails } from "../baccons.types.js";
+import { getCurrencyByCode } from "../../currencies/currencies.model.js";
+import { knexClient } from "../../../db/knexClient.js";
+import { createNewBankAccount } from "../../bankAccounts/bankAccounts.model.js";
+import { AppError } from "../../../shared/utils/response.utils.js";
+import { resolveBankFromMonoDetails } from "./resolveBank.js";
+import { resolveCurrency } from "./resolveCurrency.js";
 
 export async function createBankAccount({
   userId,

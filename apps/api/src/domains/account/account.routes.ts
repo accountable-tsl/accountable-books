@@ -1,5 +1,5 @@
 import express from "express";
-import { accountMetaController } from "./account.controller";
+import { accountMetaController } from "./account.controller.js";
 
 const router = express.Router({ mergeParams: true });
 

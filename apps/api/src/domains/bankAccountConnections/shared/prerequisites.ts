@@ -1,9 +1,9 @@
 import type { Knex } from "knex";
-import { getCompanyUUID } from "../../../shared/utils/random.utils";
-import { knexClient } from "../../../../knexClient";
-import { getBankAccountsWithDetails } from "../../bankAccounts/bankAccounts.model";
-import { BankAccountWithMeta } from "../../bankAccounts/bankAccounts.types";
-import { CompanyOnboardingState } from "../../../features/onboarding/onboarding.types";
+import { getCompanyUUID } from "../../../shared/utils/random.utils.js";
+import { knexClient } from "../../../db/knexClient.js";
+import { getBankAccountsWithDetails } from "../../bankAccounts/bankAccounts.model.js";
+import { type BankAccountWithMeta } from "../../bankAccounts/bankAccounts.types.js";
+import { type CompanyOnboardingState } from "../../../features/onboarding/onboarding.types.js";
 
 type BankConnectionNeedsAssessment = {
   companyId: string; // resolved UUID

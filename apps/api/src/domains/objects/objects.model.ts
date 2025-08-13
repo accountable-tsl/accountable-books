@@ -3,19 +3,19 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
-import { r2Client } from "../../lib/r2Client";
-import { ObjectType } from "./objects.types";
-import { ApiResponse } from "../../core/types/api.types";
+import { r2Client } from "../../lib/r2Client.js";
+import { type ObjectType } from "./objects.types.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
 import {
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { objectTypeHandlers } from "./objects.utils";
+} from "../../shared/utils/response.utils.js";
+import { objectTypeHandlers } from "./objects.utils.js";
 
 export async function uploadObject(
   objectType: ObjectType,
   params: any,
-  client?: S3Client
+  client?: S3Client,
 ): Promise<ApiResponse> {
   const s3: S3Client = client ?? r2Client;
 
@@ -38,7 +38,7 @@ export async function uploadObject(
         Body: file,
         ContentType: mimeType,
         ContentDisposition: `inline; filename="${encodeURIComponent(key)}"`,
-      })
+      }),
     );
 
     const url = `${handler.domainUrl}/${key}`;
@@ -52,7 +52,7 @@ export async function uploadObject(
 export async function deleteObject(
   objectType: ObjectType,
   key: string,
-  client?: S3Client
+  client?: S3Client,
 ): Promise<ApiResponse> {
   const s3: S3Client = client ?? r2Client;
 
@@ -66,7 +66,7 @@ export async function deleteObject(
       new DeleteObjectCommand({
         Bucket: handler.bucket,
         Key: key,
-      })
+      }),
     );
 
     return successResponse("Object deleted", null);

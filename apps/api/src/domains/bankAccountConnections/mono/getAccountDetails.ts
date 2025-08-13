@@ -1,5 +1,8 @@
 import axios from "axios";
-import { MonoAccountDetails, MonoAccountResponse } from "../baccons.types";
+import {
+  type MonoAccountDetails,
+  type MonoAccountResponse,
+} from "../baccons.types.js";
 
 export const getMonoAccountDetails = async ({
   accountId,
@@ -21,13 +24,13 @@ export const getMonoAccountDetails = async ({
           "Content-Type": "application/json",
         },
         timeout: 10000,
-      }
+      },
     );
 
     // Validate response structure
     if (data.status !== "successful" || !data.data?.account) {
       throw new Error(
-        data.message || "Invalid response structure from Mono API"
+        data.message || "Invalid response structure from Mono API",
       );
     }
 

@@ -1,9 +1,10 @@
-import { Response } from "express";
-import { AuthRequest } from "../../features/auth/auth.types";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { addNewProjects, getProjects } from "./projects.model ";
-import { getProjectsParams } from "./projects.types";
-import { toArray } from "../../shared/utils/formatting.utils";
+import { type Response } from "express";
+import { type AuthRequest } from "../../features/auth/auth.types.js";
+import { errorResponse } from "../../shared/utils/response.utils.js";
+import {
+  addNewProjects,
+  getProjects,
+} from "./projects.model.js";
 
 export async function getProjectsController(req: AuthRequest, res: Response) {
   try {
@@ -26,7 +27,7 @@ export async function getProjectsController(req: AuthRequest, res: Response) {
 
 export async function addNewProjectsController(
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) {
   try {
     const userId = String(req.user?.id);

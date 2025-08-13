@@ -1,7 +1,7 @@
 import type { Knex } from "knex";
-import { knexClient } from "../../../knexClient";
-import { getIdentifierType } from "../../shared/utils/formatting.utils";
-import { AppError } from "../../shared/utils/response.utils";
+import { knexClient } from "../../db/knexClient.js";
+import { getIdentifierType } from "../../shared/utils/formatting.utils.js";
+import { AppError } from "../../shared/utils/response.utils.js";
 
 type CompanyIdentifierResult = {
   id: string;
@@ -10,7 +10,7 @@ type CompanyIdentifierResult = {
 
 export const getCompanyIdentifiers = async (
   identifier: string,
-  trx?: Knex.Transaction
+  trx?: Knex.Transaction,
 ): Promise<CompanyIdentifierResult> => {
   const trimmedId = identifier.trim();
   if (!trimmedId || trimmedId.length > 50)

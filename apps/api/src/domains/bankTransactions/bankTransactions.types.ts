@@ -1,22 +1,13 @@
-import { z } from "zod";
-import {
-  categorizationStatus,
-  dbBaseFields,
-  debitCredit,
-  zDate,
-} from "../../core/types/core";
+import { z } from 'zod';
+import { categorizationStatus, dbBaseFields, debitCredit, zDate } from '../../core/types/core.js';
 import {
   createCamelCaseSchema,
-  SnakeToCamelCaseObject,
-} from "../../shared/utils/formatting.utils";
-import Decimal from "decimal.js";
+  type SnakeToCamelCaseObject,
+} from '../../shared/utils/formatting.utils.js';
+import Decimal from 'decimal.js';
 
 // ENUMS
-export const bankTransactionSource = z.enum([
-  "file_import",
-  "bank_feed",
-  "manual_entry",
-]);
+export const bankTransactionSource = z.enum(['file_import', 'bank_feed', 'manual_entry']);
 export type BankTransactionSource = z.infer<typeof bankTransactionSource>;
 
 // BANK TRANSACTIONS
@@ -34,17 +25,14 @@ export const bankTransactionInput = z.object({
 });
 export type BankTransactionInput = z.infer<typeof bankTransactionInput>;
 
-export const bankTransactionInputCamel =
-  createCamelCaseSchema(bankTransactionInput);
-export type BankTransactionInputCamel = z.infer<
-  typeof bankTransactionInputCamel
->;
+export const bankTransactionInputCamel = createCamelCaseSchema(bankTransactionInput);
+export type BankTransactionInputCamel = z.infer<typeof bankTransactionInputCamel>;
 
 export const newBankTransaction = bankTransactionInput.extend({
   transaction_side: debitCredit,
   absolute_amount: z.number(),
   system_exchange_rate: z.number(),
-  categorization_status: categorizationStatus.default("uncategorized"),
+  categorization_status: categorizationStatus.default('uncategorized'),
   bank_transaction_batch_id: z.string().uuid().nullish(),
   external_id: z.string().regex(/^[a-f0-9]{64}$/i),
   ledger_transaction_id: z.string().uuid().nullish(),
@@ -69,15 +57,10 @@ export const bankTransactionBatchInput = z.object({
   created_by_id: z.string().uuid().optional(),
   updated_by_id: z.string().uuid().optional(),
 });
-export type BankTransactionBatchInput = z.infer<
-  typeof bankTransactionBatchInput
->;
+export type BankTransactionBatchInput = z.infer<typeof bankTransactionBatchInput>;
 
-export const bankTransactionBatchInputCamel = createCamelCaseSchema(
-  bankTransactionBatchInput
-);
-export type BankTransactionBatchInputCamel =
-  SnakeToCamelCaseObject<BankTransactionBatchInput>;
+export const bankTransactionBatchInputCamel = createCamelCaseSchema(bankTransactionBatchInput);
+export type BankTransactionBatchInputCamel = SnakeToCamelCaseObject<BankTransactionBatchInput>;
 
 export const newBankTransactionBatches = bankTransactionBatchInput
   .omit({ bank_transactions: true })
@@ -88,12 +71,9 @@ export const newBankTransactionBatches = bankTransactionBatchInput
     source: bankTransactionSource,
     created_by_id: z.string().uuid(),
   });
-export type NewBankTransactionBatches = z.infer<
-  typeof newBankTransactionBatches
->;
+export type NewBankTransactionBatches = z.infer<typeof newBankTransactionBatches>;
 
-export const bankTransactionBatches =
-  newBankTransactionBatches.merge(dbBaseFields);
+export const bankTransactionBatches = newBankTransactionBatches.merge(dbBaseFields);
 export type BankTransactionBatches = z.infer<typeof bankTransactionBatches>;
 
 // ADD NEW BANK TRANSACTIONS
@@ -108,8 +88,8 @@ export type AddBankTransactionsResponse = {
     balanceAfter: string;
   };
   transactionsCount: number;
-  batchTotal: Decimal | string;
-  balanceAfter: Decimal | string;
+  batchTotal: number | string;
+  balanceAfter: number | string;
 };
 
 // FETCH BANK TRANSACTIONS

@@ -1,6 +1,6 @@
 import express from "express";
-import { checkCompanyId } from "../../core/middlewares/companies.middleware";
-import { addNewBankAccountConnection } from "./baccons.controller";
+import { checkCompanyId } from "../../core/middlewares/companies.middleware.js";
+import { addNewBankAccountConnection } from "./baccons.controller.js";
 
 const router = express.Router({ mergeParams: true });
 

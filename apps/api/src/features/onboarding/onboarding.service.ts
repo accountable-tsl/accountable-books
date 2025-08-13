@@ -1,12 +1,10 @@
-import { isUserCompanyOwner } from "../../domains/userRoles/userRoles.model";
+import { isUserCompanyOwner } from '../../domains/userRoles/userRoles.model.js';
 import {
-  OnboardingCompanyObj,
-  OnboardingStateResult,
-  OnboardingStepConfig,
-  OnboardingStepKey,
-  OnboardingUserObj,
-} from "./onboarding.types";
-import { onboardingStepConfig } from "./onboarding.utils";
+  type OnboardingCompanyObj,
+  type OnboardingStateResult,
+  type OnboardingUserObj,
+} from './onboarding.types.js';
+import { onboardingStepConfig } from './onboarding.utils.js';
 
 /**
  * Gets the onboarding state for a user in a company
@@ -35,8 +33,7 @@ export async function getOnboardingState({
     companyId: company?.id,
   });
 
-  const isBypassed =
-    user.isPlatformUser || company?.isDemoCompany || company?.isPlatformCompany;
+  const isBypassed = user.isPlatformUser || company?.isDemoCompany || company?.isPlatformCompany;
   // Early exit for platform users and demo/platform companies
   if (isBypassed) {
     return {
@@ -50,19 +47,14 @@ export async function getOnboardingState({
 
   // Get assigned step keys from onboarding state
   const assignedUserStepKeys = Object.keys(user.onboardingState?.steps || {});
-  const assignedCompanyStepKeys = Object.keys(
-    company.onboardingState?.steps || {}
-  );
+  const assignedCompanyStepKeys = Object.keys(company.onboardingState?.steps || {});
 
-  const assignedStepKeys = new Set([
-    ...assignedUserStepKeys,
-    ...assignedCompanyStepKeys,
-  ]);
+  const assignedStepKeys = new Set([...assignedUserStepKeys, ...assignedCompanyStepKeys]);
 
   // Pull metadata from config only for assigned steps and filter by role
   const assignedStepsWithMeta = onboardingStepConfig
     .filter((step) => assignedStepKeys.has(step.key)) // Only use assigned steps
-    .filter((step) => step.restrictedTo !== "company_owner" || isCompanyOwner) // If the step is restricted to company owners, only use it if the user is a company owner
+    .filter((step) => step.restrictedTo !== 'company_owner' || isCompanyOwner) // If the step is restricted to company owners, only use it if the user is a company owner
     .map((step) => {
       const complete = step.isComplete({ user, company });
       return {
@@ -76,9 +68,7 @@ export async function getOnboardingState({
     });
 
   // Sort steps in display order
-  const orderedSteps = assignedStepsWithMeta.sort(
-    (a, b) => a.orderIndex - b.orderIndex
-  );
+  const orderedSteps = assignedStepsWithMeta.sort((a, b) => a.orderIndex - b.orderIndex);
 
   // Compute which steps are blocked
   const evaluatedSteps = orderedSteps.map((currentStep, i, allSteps) => {
@@ -97,17 +87,11 @@ export async function getOnboardingState({
     evaluatedSteps.find((step) => !step.complete && !step.blocked)?.key ?? null;
 
   // Are all required assigned steps complete?
-  const userStepsComplete = evaluatedSteps.every(
-    (step) => step.complete || step.optional
-  );
+  const userStepsComplete = evaluatedSteps.every((step) => step.complete || step.optional);
 
   // Check company-wide onboarding steps (ignores assignment)
-  const allCompanySteps = onboardingStepConfig.filter(
-    (step) => step.scope === "company"
-  );
-  const companyStepsComplete = allCompanySteps.every((step) =>
-    step.isComplete({ user, company })
-  );
+  const allCompanySteps = onboardingStepConfig.filter((step) => step.scope === 'company');
+  const companyStepsComplete = allCompanySteps.every((step) => step.isComplete({ user, company }));
 
   // Determine if user can access the company/app:
   // - Company owners: need to complete all their available required steps

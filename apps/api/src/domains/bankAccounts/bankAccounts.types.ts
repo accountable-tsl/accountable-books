@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { dbBaseFields } from "../../core/types/core";
-import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
-import { coaSource } from "../chartOfAccounts/coa.types";
-import { bankAccountConnectionStatus } from "../bankAccountConnections/baccons.types";
+import { dbBaseFields } from "../../core/types/core.js";
+import { type SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils.js";
+import { coaSource } from "../chartOfAccounts/coa.types.js";
+import { bankAccountConnectionStatus } from "../bankAccountConnections/baccons.types.js";
 
 export const bankAccountType = z.enum([
   "other",

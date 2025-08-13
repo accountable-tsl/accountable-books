@@ -1,6 +1,6 @@
-import { knexClient } from "../../../../knexClient";
-import { CompanyOnboardingState } from "../../../features/onboarding/onboarding.types";
-import { markCompanyOnboardingStepComplete } from "../../../features/onboarding/onboarding.utils";
+import { knexClient } from "../../../db/knexClient.js";
+import { type CompanyOnboardingState } from "../../../features/onboarding/onboarding.types.js";
+import { markCompanyOnboardingStepComplete } from "../../../features/onboarding/onboarding.utils.js";
 
 export const updateBankAccountOnboardingState = async (
   currentState: CompanyOnboardingState,

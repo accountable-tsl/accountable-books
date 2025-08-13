@@ -1,20 +1,12 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   createCamelCaseSchema,
-  SnakeToCamelCaseObject,
-} from "../../shared/utils/formatting.utils";
-import type { Knex } from "knex";
-import { BankAccount } from "../bankAccounts/bankAccounts.types";
+  type SnakeToCamelCaseObject,
+} from '../../shared/utils/formatting.utils.js';
+import type { Knex } from 'knex';
 
-export const bankAccountConnectionStatus = z.enum([
-  "active",
-  "revoked",
-  "pending",
-  "error",
-]);
-export type BankAccountConnectionStatus = z.infer<
-  typeof bankAccountConnectionStatus
->;
+export const bankAccountConnectionStatus = z.enum(['active', 'revoked', 'pending', 'error']);
+export type BankAccountConnectionStatus = z.infer<typeof bankAccountConnectionStatus>;
 
 export const bankAccountConnectionInput = z.object({
   provider_bank_account_id: z.string().min(1),
@@ -27,9 +19,7 @@ export const bankAccountConnectionInput = z.object({
   connected_at: z.date().optional(),
 });
 
-export const bankAccountConnectionInputCamel = createCamelCaseSchema(
-  bankAccountConnectionInput
-);
+export const bankAccountConnectionInputCamel = createCamelCaseSchema(bankAccountConnectionInput);
 export type BankAccountConnectionInput = SnakeToCamelCaseObject<
   z.infer<typeof bankAccountConnectionInput>
 >;
@@ -44,12 +34,8 @@ export const bankAccountConnection = newBankAccountConnection.extend({
 });
 export type BankAccountConnection = z.infer<typeof bankAccountConnection>;
 
-const updateBankAccConnection = bankAccountConnectionInput
-  .omit({ connected_at: true })
-  .partial();
-export const updateBankAccountConnectionCamel = createCamelCaseSchema(
-  updateBankAccConnection
-);
+const updateBankAccConnection = bankAccountConnectionInput.omit({ connected_at: true }).partial();
+export const updateBankAccountConnectionCamel = createCamelCaseSchema(updateBankAccConnection);
 export type UpdateBankAccountConnection = SnakeToCamelCaseObject<
   z.infer<typeof updateBankAccConnection>
 >;
@@ -90,13 +76,13 @@ export interface MonoAccountDetails {
 // }
 
 export interface MonoAccountErrorResponse {
-  status: "failed";
+  status: 'failed';
   message: string;
   data: null;
 }
 
 export interface MonoAccountSuccessResponse {
-  status: "successful";
+  status: 'successful';
   message: string;
   timestamp: string;
   data: {
@@ -105,12 +91,10 @@ export interface MonoAccountSuccessResponse {
   };
 }
 
-export type MonoAccountResponse =
-  | MonoAccountSuccessResponse
-  | MonoAccountErrorResponse;
+export type MonoAccountResponse = MonoAccountSuccessResponse | MonoAccountErrorResponse;
 
 export type ConnectionStatus = // For response only
-  "connected" | "needs_user_confirmation" | "new_account_created" | "error";
+  'connected' | 'needs_user_confirmation' | 'new_account_created' | 'error';
 
 export type BankAccountMatch = {
   bankAccountId: string | null;
@@ -173,12 +157,12 @@ export type ConnectionResponse = {
 
   account: {
     matched: boolean;
-    matchType: "exact" | "fuzzy" | "created" | "unmatched";
+    matchType: 'exact' | 'fuzzy' | 'created' | 'unmatched';
     bankAccountId: string | null;
     displayName: string;
     accountNumber: string;
     bankName: string;
-    matchConfidence?: "strong" | "weak";
+    matchConfidence?: 'strong' | 'weak';
   };
 
   suggestions?: {

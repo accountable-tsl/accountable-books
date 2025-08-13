@@ -1,12 +1,12 @@
-import { knexClient } from "../../../knexClient";
-import { ApiResponse } from "../../core/types/api.types";
-import { redis } from "../../lib/redis";
+import { knexClient } from "../../db/knexClient.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
+import { redis } from "../../lib/redis.js";
 import {
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { generateCacheKey } from "../../shared/utils/string.utils";
-import { CurrencyRes } from "./currencies.types";
+} from "../../shared/utils/response.utils.js";
+import { generateCacheKey } from "../../shared/utils/string.utils.js";
+import { type CurrencyRes } from "./currencies.types.js";
 
 const currenciesCacheKey = generateCacheKey("currencies", "all");
 const CACHE_TTL = 60 * 60 * 24; // 24 hours
@@ -19,7 +19,7 @@ export async function getAllCurrencies({
       if (cachedCurrencies) {
         return successResponse(
           "Currencies fetched from cache",
-          JSON.parse(cachedCurrencies)
+          JSON.parse(cachedCurrencies),
         );
       }
     }
@@ -34,12 +34,12 @@ export async function getAllCurrencies({
       currenciesCacheKey,
       JSON.stringify(currencies),
       "EX",
-      CACHE_TTL
+      CACHE_TTL,
     );
 
     return successResponse(
       `Successfully retrieved ${currencies.length} currencies`,
-      currencies
+      currencies,
     );
   } catch (error) {
     return errorResponse("Failed to fetch currencies", error);
@@ -47,7 +47,7 @@ export async function getAllCurrencies({
 }
 
 export async function getCurrencyByCode(
-  code: string
+  code: string,
 ): Promise<ApiResponse<CurrencyRes | null>> {
   try {
     // Input validation
@@ -70,7 +70,7 @@ export async function getCurrencyByCode(
     }
 
     const currency = allCurrenciesRes.data.find(
-      (c: CurrencyRes) => c.code.toUpperCase() === normalizedCode
+      (c: CurrencyRes) => c.code.toUpperCase() === normalizedCode,
     );
 
     if (!currency) {

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { Company } from "../companies/companies.types";
-import { dbBaseFields } from "../../core/types/core";
+import { type Company } from "../companies/companies.types.js";
+import { dbBaseFields } from "../../core/types/core.js";
 
 export const loadCoaTemplate = z.object({
   companyId: z.string().uuid(),

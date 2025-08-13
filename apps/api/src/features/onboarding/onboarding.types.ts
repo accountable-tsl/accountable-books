@@ -1,27 +1,24 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   companyOnboardingStepKeys,
   onboardingStepKeys,
   userOnboardingStepKeys,
-} from "./onboarding.utils";
-import { dateOrStringNullish } from "../../shared/utils/random.utils";
+} from './onboarding.constants.js';
+import { dateOrStringNullish } from '../../shared/utils/random.utils.js';
 
 // STEP KEYS
 export type UserOnboardingStepKey =
   (typeof userOnboardingStepKeys)[keyof typeof userOnboardingStepKeys];
 export type CompanyOnboardingStepKey =
   (typeof companyOnboardingStepKeys)[keyof typeof companyOnboardingStepKeys];
-export type OnboardingStepKey =
-  (typeof onboardingStepKeys)[keyof typeof onboardingStepKeys];
+export type OnboardingStepKey = (typeof onboardingStepKeys)[keyof typeof onboardingStepKeys];
 
 // ONBOARDING STEPS
 export type UserOnboardingSteps = Record<UserOnboardingStepKey, boolean>;
 export type CompanyOnboardingSteps = Record<CompanyOnboardingStepKey, boolean>;
 
 // ONBOARDING STEPS COMPLETED AT
-export type UserOnboardingStepsCompletedAt = Partial<
-  Record<UserOnboardingStepKey, Date | null>
->;
+export type UserOnboardingStepsCompletedAt = Partial<Record<UserOnboardingStepKey, Date | null>>;
 export type CompanyOnboardingStepsCompletedAt = Partial<
   Record<CompanyOnboardingStepKey, Date | null>
 >;
@@ -62,9 +59,7 @@ export const companyOnboardingState = z
   })
   .nullish();
 
-export type CompanyOnboardingState = z.infer<
-  typeof companyOnboardingState
-> | null;
+export type CompanyOnboardingState = z.infer<typeof companyOnboardingState> | null;
 
 export type OnboardingUserObj = {
   id: string;
@@ -82,14 +77,11 @@ export type OnboardingCompanyObj = {
 export type OnboardingStepConfig = {
   key: OnboardingStepKey;
   label: string;
-  scope: "user" | "company";
-  restrictedTo?: "company_owner";
+  scope: 'user' | 'company';
+  restrictedTo?: 'company_owner';
   optional?: boolean;
   orderIndex: number;
-  isComplete: (args: {
-    user: OnboardingUserObj;
-    company: OnboardingCompanyObj | null;
-  }) => boolean;
+  isComplete: (args: { user: OnboardingUserObj; company: OnboardingCompanyObj | null }) => boolean;
   isAvailable?: (args: {
     user: OnboardingUserObj;
     company: OnboardingCompanyObj;
@@ -108,7 +100,7 @@ export type OnboardingStateResult = {
     complete: boolean;
     blocked: boolean;
     optional: boolean;
-    scope: "user" | "company";
+    scope: 'user' | 'company';
     orderIndex?: number;
   }[];
 };

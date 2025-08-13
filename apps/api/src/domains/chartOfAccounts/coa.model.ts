@@ -1,39 +1,35 @@
 import type { Knex } from "knex";
 import {
-  Coa,
-  CoaResponse,
+  type Coa,
+  type CoaResponse,
   coaUpdateInput,
-  CoaUpdateInput,
-  CoaUpdateOptions,
-  FetchCoaInput,
+  type CoaUpdateInput,
+  type CoaUpdateOptions,
+  type FetchCoaInput,
   newCoa,
-  NewCoa,
+  type NewCoa,
   newCoaInput,
-  NewCoaInputCamel,
-  ResolvedCoaUpdateInput,
-  SimpleCoaRecord,
+  type NewCoaInputCamel,
+  type ResolvedCoaUpdateInput,
+  type SimpleCoaRecord,
   updateCoaAction,
-  UpdateCoaAction,
-  UpdateCoaResponse,
-} from "./coa.types";
-import { ApiResponse } from "../../core/types/api.types";
-import {
-  AppError,
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response.utils";
-import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from "./coa.constants";
-import { chunkArray, getCompanyUUID } from "../../shared/utils/random.utils";
+  type UpdateCoaAction,
+  type UpdateCoaResponse,
+} from "./coa.types.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
+import { AppError, errorResponse, successResponse } from "../../shared/utils/response.utils.js";
+import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from "./coa.constants.js";
+import { chunkArray, getCompanyUUID } from "../../shared/utils/random.utils.js";
 import {
   camelToSnake,
   removeNullsShallow,
-} from "../../shared/utils/formatting.utils";
-import { knexClient } from "../../../knexClient";
-import { redis } from "../../lib/redis";
+} from "../../shared/utils/formatting.utils.js";
+import { knexClient } from "../../db/knexClient.js";
+import { redis } from "../../lib/redis.js";
 import {
   getAccountTypeByKey,
   getFullAccountMeta,
-} from "../account/account.registry";
+} from "../account/account.registry.js";
 
 // TODO: Invalidate coa cache on mutations
 const coaCacheTTL = 60 * 60 * 2;
@@ -83,7 +79,7 @@ export const createCoa = async ({
 
     // Get company details
     const company: { id: string; reportingCurrencyId: string } = await tx(
-      "companies"
+      "companies",
     )
       .select("id", "reporting_currency_id as reportingCurrencyId")
       .where("short_code", companyId)
@@ -149,7 +145,7 @@ export const createCoa = async ({
       `Successfully created ${totalInserted} account${
         totalInserted > 1 ? "s" : ""
       }`,
-      totalInserted
+      totalInserted,
     );
   };
 
@@ -169,7 +165,7 @@ export const createDefaultAccounts = async (
   trx: Knex,
   companyId: string,
   userId: string,
-  currencyId: string
+  currencyId: string,
 ): Promise<ApiResponse> => {
   const defaultAccounts: NewCoa[] = mustHaveAccounts.map((acc) => {
     return {
@@ -191,11 +187,11 @@ export const createDefaultAccounts = async (
     .select("account_type_id");
 
   const existingAccountTypeIds = new Set(
-    existingLockedAccounts.map((acc) => acc.account_type_id)
+    existingLockedAccounts.map((acc) => acc.account_type_id),
   );
 
   const accountsToCreate = defaultAccounts.filter(
-    (acc) => !existingAccountTypeIds.has(acc.account_type_id)
+    (acc) => !existingAccountTypeIds.has(acc.account_type_id),
   );
 
   if (!accountsToCreate.length)
@@ -205,7 +201,7 @@ export const createDefaultAccounts = async (
   if (!validatedAccounts.success) {
     throw new AppError(
       "Failed to validate default accounts",
-      validatedAccounts.error.flatten()
+      validatedAccounts.error.flatten(),
     );
   }
   let inserted;
@@ -273,7 +269,7 @@ export const fetchCompanyCoa = async ({
 
           "c.reporting_framework as reportingFramework",
           tx.raw(
-            `(EXISTS (SELECT 1 FROM ledger_entries WHERE coa_id = coa.id)) as "hasTransactions"`
+            `(EXISTS (SELECT 1 FROM ledger_entries WHERE coa_id = coa.id)) as "hasTransactions"`,
           ),
         ])
         .where("coa.company_id", companyId)
@@ -294,7 +290,7 @@ export const fetchCompanyCoa = async ({
         .join(
           "financial_statements as fs",
           "ae.financial_statement_id",
-          "fs.id"
+          "fs.id",
         )
         // Sort by bank accounts first, then by account code for consistent ordering
         .orderByRaw(
@@ -303,7 +299,7 @@ export const fetchCompanyCoa = async ({
             "ELSE 0 END, " +
             "CASE WHEN at.key = 'ca_bank' THEN 0 ELSE 1 END, " +
             "at.key ASC, " +
-            "coa.code ASC"
+            "coa.code ASC",
         )
     );
   };
@@ -338,7 +334,7 @@ export const fetchCompanyCoa = async ({
           const parsedData = JSON.parse(cached);
           return successResponse(
             "Successfully retrieved chart of accounts",
-            parsedData
+            parsedData,
           );
         } catch (e) {
           console.warn("Failed to parse cached COA", { cacheKey, error: e });
@@ -404,7 +400,7 @@ export const archiveCoa = async ({
       ({
         id,
         isActive: false,
-      }) satisfies CoaUpdateInput
+      }) satisfies CoaUpdateInput,
   );
 
   return updateChartOfAccounts({
@@ -434,7 +430,7 @@ export const unarchiveCoa = async ({
       ({
         id,
         isActive: true,
-      }) satisfies CoaUpdateInput
+      }) satisfies CoaUpdateInput,
   );
 
   return updateChartOfAccounts({
@@ -464,7 +460,7 @@ export const deleteCoa = async ({
       ({
         id,
         isDeleted: true,
-      }) satisfies CoaUpdateInput
+      }) satisfies CoaUpdateInput,
   );
 
   return updateChartOfAccounts({
@@ -518,7 +514,7 @@ const updateChartOfAccounts = async ({
   if (!validatedInput.success) {
     return errorResponse(
       "Invalid input provided",
-      validatedInput.error.flatten()
+      validatedInput.error.flatten(),
     );
   }
 
@@ -534,7 +530,7 @@ const updateChartOfAccounts = async ({
   };
 
   const executeWithTransaction = async (
-    tx: Knex.Transaction
+    tx: Knex.Transaction,
   ): Promise<UpdateCoaResponse> => {
     // Fetch existing COA records with account type information
     // Fetch existing COA records with account type information
@@ -557,7 +553,7 @@ const updateChartOfAccounts = async ({
 
     if (existingCoaRecords.length !== coaIds.length) {
       throw new Error(
-        "One or more COA records not found or do not belong to this company"
+        "One or more COA records not found or do not belong to this company",
       );
     }
 

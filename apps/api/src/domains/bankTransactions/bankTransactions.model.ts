@@ -1,27 +1,23 @@
-import Decimal from "decimal.js";
-import { knexClient } from "../../../knexClient";
-import { ApiResponse } from "../../core/types/api.types";
-import { getCompanyUUID } from "../../shared/utils/random.utils";
+import { knexClient } from '../../db/knexClient.js';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import { getBankAccountBalances } from '../balances/balances.model.js';
 import {
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response.utils";
-import { getBankAccountBalances } from "../balances/balances.model";
-import {
-  AddBankTransactionsResponse,
+  type AddBankTransactionsResponse,
   bankTransactionBatchInputCamel,
-  BankTransactionBatchInputCamel,
-  BankTransactionFilters,
+  type BankTransactionBatchInputCamel,
+  type BankTransactionFilters,
   bankTransactionsFilters,
   newBankTransaction,
-  NewBankTransaction,
-} from "./bankTransactions.types";
-import { determineExchangeRate } from "../exchangeRates/exchangeRates.utils";
-import { categorizationStatus, debitCredit } from "../../core/types/core";
-import { snakeToCamel } from "../../shared/utils/formatting.utils";
-import { buildBankTransactionQuery } from "./bankTransactions.utils";
-import crypto from "crypto";
-import dayjs from "dayjs";
+  type NewBankTransaction,
+} from './bankTransactions.types.js';
+import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
+import { categorizationStatus, debitCredit } from '../../core/types/core.js';
+import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
+import { buildBankTransactionQuery } from './bankTransactions.utils.js';
+import crypto from 'crypto';
+import dayjs from 'dayjs';
 
 function generateExternalId(input: {
   date: Date;
@@ -31,20 +27,15 @@ function generateExternalId(input: {
   bankAccountId: string;
 }): string {
   const { date, amount, payee, description, bankAccountId } = input;
-  const formattedDate = dayjs(date).format("YYYY-MM-DD");
+  const formattedDate = dayjs(date).format('YYYY-MM-DD');
   const amountHash = Number(amount).toFixed(4);
-  const payeeNorm = (payee || "").toLowerCase().replace(/\s+/g, " ").trim();
-  const descNorm = (description || "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
+  const payeeNorm = (payee || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const descNorm = (description || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
   return crypto
-    .createHash("sha256")
-    .update(
-      `${formattedDate}|${amountHash}|${payeeNorm}|${descNorm}|${bankAccountId}`
-    )
-    .digest("hex");
+    .createHash('sha256')
+    .update(`${formattedDate}|${amountHash}|${payeeNorm}|${descNorm}|${bankAccountId}`)
+    .digest('hex');
 }
 
 export async function addNewBankTransactions({
@@ -59,41 +50,37 @@ export async function addNewBankTransactions({
   try {
     const validateInput = bankTransactionBatchInputCamel.safeParse(data);
     if (!validateInput.success) {
-      return errorResponse(
-        `Invalid input provided`,
-        validateInput.error.flatten()
-      );
+      return errorResponse(`Invalid input provided`, validateInput.error.flatten());
     }
 
     const companyUUID = await getCompanyUUID(companyId);
     if (!companyUUID) {
-      return errorResponse("Invalid company ID");
+      return errorResponse('Invalid company ID');
     }
 
     const batch = validateInput.data;
     if (!batch.fingerprint) {
-      return errorResponse("Fingerprint is required for deduplication");
+      return errorResponse('Fingerprint is required for deduplication');
     }
 
     const result = await knexClient.transaction(async (trx) => {
       // Fetch the relevant bank account, join companies for reportingCurrencyId. Also acts to verify bank account exists
-      const bankAccount = await trx("bank_accounts as ba")
+      const bankAccount = await trx('bank_accounts as ba')
         .select(
-          "ba.id as bankAccountId",
-          "ba.currency_id as bankCurrencyId",
-          "c.reporting_currency_id as reportingCurrencyId"
+          'ba.id as bankAccountId',
+          'ba.currency_id as bankCurrencyId',
+          'c.reporting_currency_id as reportingCurrencyId',
         )
-        .join("companies as c", "ba.company_id", "c.id")
+        .join('companies as c', 'ba.company_id', 'c.id')
         .where({
-          "ba.id": batch.bank_account_id,
-          "ba.company_id": companyUUID,
-          "ba.is_deleted": false,
+          'ba.id': batch.bank_account_id,
+          'ba.company_id': companyUUID,
+          'ba.is_deleted': false,
         })
         .first();
 
-      if (!bankAccount) return errorResponse("Bank account not found");
-      const { bankAccountId, bankCurrencyId, reportingCurrencyId } =
-        bankAccount;
+      if (!bankAccount) return errorResponse('Bank account not found');
+      const { bankAccountId, bankCurrencyId, reportingCurrencyId } = bankAccount;
 
       // Fetch existing transactions to calculate balanceBefore
       /**
@@ -103,25 +90,19 @@ export async function addNewBankTransactions({
        */
       //
 
-      const balanceBeforeResponse = await getBankAccountBalances(
-        trx,
-        companyUUID,
-        {
-          includeStats: true,
-          bankAccountIds: [bankAccountId],
-        }
-      );
+      const balanceBeforeResponse = await getBankAccountBalances(trx, companyUUID, {
+        includeStats: true,
+        bankAccountIds: [bankAccountId],
+      });
       if (!balanceBeforeResponse.success || !balanceBeforeResponse.data) {
-        return errorResponse(
-          "Failed to calculate balance before new transactions"
-        );
+        return errorResponse('Failed to calculate balance before new transactions');
       }
       const balanceBeforeObj = balanceBeforeResponse.data[bankAccountId];
 
       //   ----
       // Sort and Calculate or verify batch total
       const sortedTransactions = [...batch.bank_transactions].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
       );
 
       let currentRunningBalance = balanceBeforeObj.nativeBalance;
@@ -143,11 +124,11 @@ export async function addNewBankTransactions({
             const exchangeRate = await determineExchangeRate(
               txn.date,
               reportingCurrencyId,
-              bankCurrencyId
+              bankCurrencyId,
             );
             if (exchangeRate === null) {
               throw new Error(
-                `Exchange rate not available for ${txn.date}: ${reportingCurrencyId} to ${bankCurrencyId}`
+                `Exchange rate not available for ${txn.date}: ${reportingCurrencyId} to ${bankCurrencyId}`,
               );
             }
             exr = Number(exchangeRate);
@@ -155,8 +136,8 @@ export async function addNewBankTransactions({
           const external_id = generateExternalId({
             date: txn.date,
             amount: txn.amount,
-            payee: txn.payee || "",
-            description: txn.description || "",
+            payee: txn.payee || '',
+            description: txn.description || '',
             bankAccountId: bankAccountId,
           });
 
@@ -166,8 +147,7 @@ export async function addNewBankTransactions({
             amount: txnAmount,
             absolute_amount: Math.abs(txnAmount),
             system_exchange_rate: exr,
-            transaction_side:
-              txnAmount < 0 ? debitCredit.enum.credit : debitCredit.enum.debit,
+            transaction_side: txnAmount < 0 ? debitCredit.enum.credit : debitCredit.enum.debit,
             categorization_status: categorizationStatus.enum.uncategorized,
             bank_transaction_batch_id: undefined, // to be set after batch inser
             created_by_id: userId,
@@ -181,24 +161,28 @@ export async function addNewBankTransactions({
 
           // Compose prepared transaction
           return validateTx.data;
-        })
+        }),
       );
 
       // Confirm balance after
       const balanceAfter = balanceBeforeObj.nativeBalance + batchTotal;
 
-      let balanceWarning = null;
+      let balanceWarning: {
+        message: string;
+        calculatedBalance: string;
+        runningBalance: string;
+      } | null = null;
       if (Math.abs(balanceAfter - currentRunningBalance) > 0.0001) {
         balanceWarning = {
-          message: "Balance calculation mismatch detected",
+          message: 'Balance calculation mismatch detected',
           calculatedBalance: balanceAfter.toString(),
           runningBalance: currentRunningBalance.toString(),
         };
-        console.warn("Balance mismatch in batch import:", balanceWarning);
+        console.warn('Balance mismatch in batch import:', balanceWarning);
       }
 
       // Insert bank transaction batch
-      const batchInsertResult = await trx("bank_transaction_batches")
+      const batchInsertResult = await trx('bank_transaction_batches')
         .insert({
           bank_account_id: bankAccountId,
           import_date: new Date(),
@@ -213,66 +197,52 @@ export async function addNewBankTransactions({
           created_by_id: userId,
           updated_by_id: userId,
         })
-        .onConflict(["bank_account_id", "fingerprint"])
+        .onConflict(['bank_account_id', 'fingerprint'])
         .ignore()
-        .returning([
-          "id",
-          "start_date",
-          "end_date",
-          "balance_before",
-          "balance_after",
-          "source",
-        ]);
+        .returning(['id', 'start_date', 'end_date', 'balance_before', 'balance_after', 'source']);
 
       if (!batchInsertResult.length) {
         // Check if batch already exists
-        const existingBatch = await trx("bank_transaction_batches")
-          .select([
-            "id",
-            "start_date",
-            "end_date",
-            "balance_before",
-            "balance_after",
-            "source",
-          ])
-          .where("bank_account_id", bankAccountId)
-          .andWhere("fingerprint", batch.fingerprint)
+        const existingBatch = await trx('bank_transaction_batches')
+          .select(['id', 'start_date', 'end_date', 'balance_before', 'balance_after', 'source'])
+          .where('bank_account_id', bankAccountId)
+          .andWhere('fingerprint', batch.fingerprint)
           .first();
 
         if (!existingBatch) {
-          return errorResponse("An unknown error occurred");
+          return errorResponse('An unknown error occurred');
         }
 
-        const countResult = await trx("bank_transactions")
+        const countResult = await trx('bank_transactions')
           .where({ bank_transaction_batch_id: existingBatch.id })
-          .count<{ count: string }>("* as count")
+          .count<{ count: string }>('* as count')
           .first();
 
-        const count = countResult ? countResult.count : "0";
+        const count = countResult ? countResult.count : '0';
 
-        return errorResponse("This batch was previously imported", {
+        return errorResponse('This batch was previously imported', {
           batch: snakeToCamel(existingBatch),
           transactionsCount: Number(count),
           inserted: 0,
           skippedDuplicates: Number(count),
           balanceAfter: existingBatch?.balance_after,
-          note: "This batch was previously imported",
+          note: 'This batch was previously imported',
         });
       }
 
       const thisBatch = batchInsertResult[0];
 
       // Insert prepared transactions with batch id
-      const insertedTxns = await trx("bank_transactions")
+      const insertedTxns = await trx('bank_transactions')
         .insert(
           preparedTransactions.map((txn) => ({
             ...txn,
             bank_transaction_batch_id: thisBatch.id,
-          }))
+          })),
         )
-        .onConflict(["bank_account_id", "external_id", "date"])
+        .onConflict(['bank_account_id', 'external_id', 'date'])
         .ignore()
-        .returning("id");
+        .returning('id');
 
       const inserted = insertedTxns.length;
       const skippedDuplicates = preparedTransactions.length - inserted;
@@ -280,7 +250,7 @@ export async function addNewBankTransactions({
       // Return balance sorted by date and created_at if not already sorted
       //   ----
       // Return result
-      return successResponse("Transactions imported successfully", {
+      return successResponse('Transactions imported successfully', {
         batch: snakeToCamel(thisBatch),
         transactionsCount: preparedTransactions.length,
         inserted,
@@ -293,7 +263,7 @@ export async function addNewBankTransactions({
 
     return result;
   } catch (error) {
-    return errorResponse("Failed to import transactions", error);
+    return errorResponse('Failed to import transactions', error);
   }
 }
 
@@ -329,14 +299,11 @@ export async function addNewBankTransactions({
 //   }
 // }
 
-export async function getBankTransactions(
-  companyId: string,
-  filters: BankTransactionFilters
-) {
+export async function getBankTransactions(companyId: string, filters: BankTransactionFilters) {
   try {
     const companyUUID = await getCompanyUUID(companyId);
     if (!companyUUID) {
-      return errorResponse("Invalid company ID");
+      return errorResponse('Invalid company ID');
     }
 
     const validateFilters = bankTransactionsFilters.safeParse(filters);
@@ -356,23 +323,20 @@ export async function getBankTransactions(
     const countQuery = baseQuery
       .clone()
       .clearSelect()
-      .countDistinct("BankTransaction.id as total")
+      .countDistinct('BankTransaction.id as total')
       .first();
 
-    const [transactions, countResult] = await Promise.all([
-      transactionsQuery,
-      countQuery,
-    ]);
+    const [transactions, countResult] = await Promise.all([transactionsQuery, countQuery]);
 
     const total = countResult ? parseInt(String(countResult.total), 10) : 0;
 
-    return successResponse("Bank transactions retrieved successfully", {
+    return successResponse('Bank transactions retrieved successfully', {
       transactions,
       total,
       pageSize: validFilters?.pageSize || total,
       currentPage: validFilters?.currentPage || 1,
     });
   } catch (error) {
-    return errorResponse("Failed to get retrieve bank transactions", error);
+    return errorResponse('Failed to get retrieve bank transactions', error);
   }
 }

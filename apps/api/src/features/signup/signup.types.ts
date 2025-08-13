@@ -1,12 +1,7 @@
-import { z } from "zod";
-import { newUserDirect } from "../../domains/users/users.types";
-import {
-  companyType,
-  NewCompany,
-  newCompanyInput,
-} from "../../domains/companies/companies.types";
-import { newAccFirmInput } from "../../domains/accountingFirms/firms.types";
-import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
+import { z } from 'zod';
+import { newUserDirect } from '../../domains/users/users.types.js';
+import { type NewCompany, newCompanyInput } from '../../domains/companies/companies.types.js';
+import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 export const newSignup = z.object({
   user: newUserDirect,

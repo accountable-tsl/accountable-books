@@ -1,11 +1,11 @@
 import z from "zod";
 import {
   createCamelCaseSchema,
-  SnakeToCamelCaseObject,
-} from "../../shared/utils/formatting.utils";
-import { dbStandardFields } from "../../core/types/core";
+  type SnakeToCamelCaseObject,
+} from "../../shared/utils/formatting.utils.js";
+import { dbStandardFields } from "../../core/types/core.js";
 import type { Knex } from "knex";
-import { Pagination } from "../../shared/types/random";
+import { type Pagination } from "../../shared/types/random.js";
 
 export const contactStatus = z.enum(["active", "inactive"]);
 export type ContactStatus = z.infer<typeof contactStatus>;

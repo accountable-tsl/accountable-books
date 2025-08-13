@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { ApiResponse } from "../../core/types/api.types";
+import type { ApiResponse } from "../../core/types/api.types.js";
 import {
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
+} from "../../shared/utils/response.utils.js";
 import type { Knex } from "knex";
 
 const purposes = {
@@ -23,7 +23,7 @@ const purposes = {
 export async function checkEmail(
   knex: Knex,
   email?: string,
-  purpose?: keyof typeof purposes
+  purpose?: keyof typeof purposes,
 ): Promise<ApiResponse> {
   try {
     const isValidEmailFormat = z.string().email().safeParse(email);

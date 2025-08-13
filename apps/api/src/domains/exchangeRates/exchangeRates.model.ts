@@ -1,31 +1,19 @@
-import type { Knex } from "knex";
-import { ApiResponse } from "../../core/types/api.types";
-import {
-  ErrorCode,
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response.utils";
-import axios from "axios";
-import { knexClient } from "../../../knexClient";
-import {
-  ExchangeRateData,
-  ExchangeRateItem,
-  newExchangeRate,
-  NewExchangeRateInput,
-} from "./exchangeRate.types";
+import type { Knex } from 'knex';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { ErrorCode, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import axios from 'axios';
+import { knexClient } from '../../db/knexClient.js';
+import { type ExchangeRateItem, newExchangeRate } from './exchangeRate.types.js';
 
 export async function createNewExRates(
   data: ExchangeRateItem[],
   chunkSize: number = 100,
-  knex: Knex = knexClient
+  knex: Knex = knexClient,
 ) {
   const validatedData = newExchangeRate.array().safeParse(data);
 
   if (!validatedData.success) {
-    return errorResponse(
-      "Invalid input provided",
-      validatedData.error.flatten()
-    );
+    return errorResponse('Invalid input provided', validatedData.error.flatten());
   }
 
   try {
@@ -33,9 +21,9 @@ export async function createNewExRates(
       let totalInserted = 0;
 
       for (let i = 0; i < data.length; i += chunkSize) {
-        const insertResult = await trx("exchange_rates")
+        const insertResult = await trx('exchange_rates')
           .insert(data.slice(i, i + chunkSize))
-          .onConflict(["date", "from_currency_id", "to_currency_id"])
+          .onConflict(['date', 'from_currency_id', 'to_currency_id'])
           .ignore();
 
         totalInserted += insertResult.length || 0;
@@ -46,10 +34,10 @@ export async function createNewExRates(
 
     return successResponse(
       `${data.length} exchange rates processed. ${result} inserted, duplicates skipped.`,
-      result
+      result,
     );
   } catch (error) {
-    return errorResponse("Failed to create exchange rates");
+    return errorResponse('Failed to create exchange rates');
   }
 }
 
@@ -68,14 +56,14 @@ export async function fetchExchangeRate(
   date: Date,
   fromCurrencyId: string,
   toCurrencyId: string,
-  knex: Knex = knexClient
+  knex: Knex = knexClient,
 ): Promise<ApiResponse<ExchangeRateItem>> {
   // TODO: Cache in Redis to reduce API calls
   try {
     // 1. Early exit for identical currencies
     if (fromCurrencyId === toCurrencyId) {
-      return successResponse("Base and target currencies are identical", {
-        id: "SYNTHETIC",
+      return successResponse('Base and target currencies are identical', {
+        id: 'SYNTHETIC',
         date: new Date(date),
         fromCurrencyId,
         toCurrencyId,
@@ -85,19 +73,17 @@ export async function fetchExchangeRate(
 
     // 2. Validate currencies first to fail fast
     const [fromCurrency, toCurrency] = await Promise.all([
-      knex("currencies")
-        .where({ id: fromCurrencyId })
-        .select("code")
-        .first() as Promise<{ code: string } | undefined>,
+      knex('currencies').where({ id: fromCurrencyId }).select('code').first() as Promise<
+        { code: string } | undefined
+      >,
 
-      knex("currencies")
-        .where({ id: toCurrencyId })
-        .select("code")
-        .first() as Promise<{ code: string } | undefined>,
+      knex('currencies').where({ id: toCurrencyId }).select('code').first() as Promise<
+        { code: string } | undefined
+      >,
     ]);
 
     if (!fromCurrency?.code || !toCurrency?.code) {
-      return errorResponse("Invalid currency IDs", {
+      return errorResponse('Invalid currency IDs', {
         missingFrom: !fromCurrency?.code,
         missingTo: !toCurrency?.code,
       });
@@ -122,31 +108,27 @@ export async function fetchExchangeRate(
 
     // Check for existing rate within the search window
 
-    const dbRate = await knex("exchange_rates")
-      .select("id", "date", "rate", "from_currency_id", "to_currency_id")
+    const dbRate = await knex('exchange_rates')
+      .select('id', 'date', 'rate', 'from_currency_id', 'to_currency_id')
       .where({
         from_currency_id: fromCurrencyId,
         to_currency_id: toCurrencyId,
       })
-      .whereBetween("date", [lookbackStart, searchWindowEnd])
-      .orderBy("date", "desc")
+      .whereBetween('date', [lookbackStart, searchWindowEnd])
+      .orderBy('date', 'desc')
       .first();
 
     if (dbRate) {
       const isSameDay =
-        dbRate.date.toISOString().slice(0, 10) ===
-        searchDate.toISOString().slice(0, 10);
+        dbRate.date.toISOString().slice(0, 10) === searchDate.toISOString().slice(0, 10);
 
-      return successResponse(
-        isSameDay ? "Exact rate found" : "Closest available rate found",
-        {
-          id: dbRate.id,
-          date: dbRate.date,
-          rate: Number(dbRate.rate),
-          fromCurrencyId: dbRate.from_currency_id,
-          toCurrencyId: dbRate.to_currency_id,
-        }
-      );
+      return successResponse(isSameDay ? 'Exact rate found' : 'Closest available rate found', {
+        id: dbRate.id,
+        date: dbRate.date,
+        rate: Number(dbRate.rate),
+        fromCurrencyId: dbRate.from_currency_id,
+        toCurrencyId: dbRate.to_currency_id,
+      });
     }
 
     // If no rate found, fetch from external API
@@ -164,27 +146,24 @@ export async function fetchExchangeRate(
           return errorResponse(
             axios.isAxiosError(error)
               ? `API request failed after ${apiRetryAttempts + 1} attempts: ${error.code || error.message}`
-              : "Unknown API error after multiple attempts",
+              : 'Unknown API error after multiple attempts',
             axios.isAxiosError(error) ? error.toJSON() : error,
-            { code: ErrorCode.SERVICE_UNAVAILABLE, report: true }
+            { code: ErrorCode.SERVICE_UNAVAILABLE, report: true },
           );
         }
 
         // Wait before retry with exponential backoff
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.pow(2, attempt) * 1000)
-        );
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
       }
     }
 
     const apiData = apiResponse?.data;
 
     if (!apiData?.rates || !apiData.time_last_update_unix) {
-      return errorResponse(
-        "Invalid or incomplete Exchange Rates API response received",
-        apiData,
-        { code: ErrorCode.SERVICE_UNAVAILABLE, report: true }
-      );
+      return errorResponse('Invalid or incomplete Exchange Rates API response received', apiData, {
+        code: ErrorCode.SERVICE_UNAVAILABLE,
+        report: true,
+      });
     }
 
     const apiRate = apiData.rates[toCurrency.code];
@@ -192,7 +171,7 @@ export async function fetchExchangeRate(
       return errorResponse(
         `Exchange rate for ${fromCurrency.code} → ${toCurrency.code} not available from API`,
         { from: fromCurrency.code, to: toCurrency.code },
-        { code: ErrorCode.NOT_FOUND, report: true }
+        { code: ErrorCode.NOT_FOUND, report: true },
       );
     }
 
@@ -217,33 +196,31 @@ export async function fetchExchangeRate(
       let persistedRate;
 
       try {
-        const [inserted] = await knex("exchange_rates")
-          .insert(rateData)
-          .returning("id");
+        const [inserted] = await knex('exchange_rates').insert(rateData).returning('id');
 
         console.log({ inserted });
 
-        persistedRate = await knex("exchange_rates")
-          .select("id", "date", "rate", "from_currency_id", "to_currency_id")
-          .where("id", inserted.id)
+        persistedRate = await knex('exchange_rates')
+          .select('id', 'date', 'rate', 'from_currency_id', 'to_currency_id')
+          .where('id', inserted.id)
           .first();
       } catch (insertError: any) {
         // Handle duplicate key constraint violations
         const isDuplicateError =
-          insertError.code === "23505" || // PostgreSQL unique violation
-          insertError.code === "SQLITE_CONSTRAINT" || // SQLite constraint
+          insertError.code === '23505' || // PostgreSQL unique violation
+          insertError.code === 'SQLITE_CONSTRAINT' || // SQLite constraint
           insertError.errno === 1062 || // MySQL duplicate entry
-          insertError.message?.toLowerCase().includes("duplicate") ||
-          insertError.message?.toLowerCase().includes("unique");
+          insertError.message?.toLowerCase().includes('duplicate') ||
+          insertError.message?.toLowerCase().includes('unique');
 
         if (isDuplicateError) {
           console.warn(
-            `Exchange rate for ${fromCurrencyId} → ${toCurrencyId} on ${rateDate.toISOString()} already exists`
+            `Exchange rate for ${fromCurrencyId} → ${toCurrencyId} on ${rateDate.toISOString()} already exists`,
           );
 
           // Fetch the existing rate
-          persistedRate = await knex("exchange_rates")
-            .select("id", "date", "rate", "from_currency_id", "to_currency_id")
+          persistedRate = await knex('exchange_rates')
+            .select('id', 'date', 'rate', 'from_currency_id', 'to_currency_id')
             .where({
               from_currency_id: fromCurrencyId,
               to_currency_id: toCurrencyId,
@@ -252,7 +229,7 @@ export async function fetchExchangeRate(
             .first();
 
           if (persistedRate) {
-            return successResponse("Rate already existed in database", {
+            return successResponse('Rate already existed in database', {
               id: persistedRate.id,
               date: persistedRate.date,
               fromCurrencyId,
@@ -266,10 +243,10 @@ export async function fetchExchangeRate(
       }
 
       if (!persistedRate) {
-        throw new Error("Failed to retrieve persisted rate");
+        throw new Error('Failed to retrieve persisted rate');
       }
 
-      return successResponse("API rate successfully persisted to database", {
+      return successResponse('API rate successfully persisted to database', {
         id: persistedRate.id,
         date: persistedRate.date,
         fromCurrencyId: persistedRate.from_currency_id,
@@ -277,16 +254,13 @@ export async function fetchExchangeRate(
         rate: Number(persistedRate.rate),
       });
     } catch (dbError: any) {
-      return errorResponse("Failed to persist exchange rate to database", {
-        type: "database_error",
-        details: dbError.message || "Unknown database error",
+      return errorResponse('Failed to persist exchange rate to database', {
+        type: 'database_error',
+        details: dbError.message || 'Unknown database error',
         code: dbError.code,
       });
     }
   } catch (error: any) {
-    return errorResponse(
-      "An unexpected error occurred while fetching exchange rate",
-      error
-    );
+    return errorResponse('An unexpected error occurred while fetching exchange rate', error);
   }
 }

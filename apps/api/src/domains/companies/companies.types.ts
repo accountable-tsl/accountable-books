@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { dbBaseFields } from "../../core/types/core";
-import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
-import { firmType } from "../accountingFirms/firms.types";
-import { companyOnboardingState } from "../../features/onboarding/onboarding.types";
+import { dbBaseFields } from "../../core/types/core.js";
+import { type SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils.js";
+import { firmType } from "../accountingFirms/firms.types.js";
+import { companyOnboardingState } from "../../features/onboarding/onboarding.types.js";
 
 export const companyType = z.enum([
   "business",

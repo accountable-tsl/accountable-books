@@ -1,15 +1,14 @@
-import { NextFunction, Response } from "express";
-import { AuthRequest } from "../auth/auth.types";
-import { ErrorCode, errorResponse } from "../../shared/utils/response.utils";
-import { getSingleCompany } from "../../domains/companies/companies.model";
-import { redis } from "../../lib/redis";
-import { getUserDetails } from "../../domains/users/users.model";
-import { onboardingStatus } from "../../domains/companies/companies.types";
+import { type NextFunction, type Response } from 'express';
+import { type AuthRequest } from '../auth/auth.types.js';
+import { ErrorCode, errorResponse } from '../../shared/utils/response.utils.js';
+import { getSingleCompany } from '../../domains/companies/companies.model.js';
+import { redis } from '../../lib/redis.js';
+import { getUserDetails } from '../../domains/users/users.model.js';
 
 export const checkOnboardingStatus = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const userId = req.user?.id;
   const companyId = req.user?.currentCompanyId;
@@ -17,17 +16,15 @@ export const checkOnboardingStatus = async (
   if (!userId || !companyId) {
     return res
       .status(403)
-      .json(errorResponse("Unauthorized", undefined, ErrorCode.UNAUTHORIZED));
+      .json(errorResponse('Unauthorized', undefined, { code: ErrorCode.UNAUTHORIZED }));
   }
 
   const company = await getSingleCompany(companyId);
   if (!company || !company.success || !company.data) {
-    return res.status(404).json(errorResponse("Company not found"));
+    return res.status(404).json(errorResponse('Company not found'));
   }
 
-  const companyData = Array.isArray(company.data)
-    ? company.data[0]
-    : company.data;
+  const companyData = Array.isArray(company.data) ? company.data[0] : company.data;
 
   // If company is demo company, allow access
   if (companyData.isDemoCompany) {
@@ -43,20 +40,20 @@ export const checkOnboardingStatus = async (
     redis.get(companyCacheKey),
   ]);
 
-  const onboardingComplete = onboardingStatus.enum.onboarding_complete;
+  const onboardingComplete = '';
   let userComplete = cachedUserStatus === onboardingComplete;
-  let companyComplete = cachedCompanyStatus === "true";
+  let companyComplete = cachedCompanyStatus === 'true';
 
   if (!userComplete) {
     const user = await getUserDetails(userId);
     if (!user || !user.success) {
       return res
         .status(404)
-        .json(errorResponse("User not found", undefined, ErrorCode.NOT_FOUND));
+        .json(errorResponse('User not found', undefined, { code: ErrorCode.NOT_FOUND }));
     }
 
     if (companyData.onboardingStatus === onboardingComplete) {
-      await redis.set(userCacheKey, onboardingComplete, "EX", 7200); // 2 hour cache
+      await redis.set(userCacheKey, onboardingComplete, 'EX', 7200); // 2 hour cache
       userComplete = true;
     }
   }
@@ -65,7 +62,7 @@ export const checkOnboardingStatus = async (
   // Check if the current company they are trying to access has is_onboarding_complete set to true
   // if both are true, allow access (next())
   if (!companyComplete && companyData.onboardingStatus === onboardingComplete) {
-    await redis.set(companyCacheKey, "true", "EX", 21600); // 6 hour cache
+    await redis.set(companyCacheKey, 'true', 'EX', 21600); // 6 hour cache
     companyComplete = true;
   }
 
@@ -78,25 +75,17 @@ export const checkOnboardingStatus = async (
   //   Determine creator
   const isCreator = userId === companyData.createdById;
   if (isCreator) {
-    return res
-      .status(403)
-      .json(
-        errorResponse(
-          "Onboarding not complete",
-          undefined,
-          ErrorCode.ONBOARDING_INCOMPLETE
-        )
-      );
+    return res.status(403).json(
+      errorResponse('Onboarding not complete', undefined, {
+        code: ErrorCode.ONBOARDING_INCOMPLETE,
+      }),
+    );
   }
 
   // if user is not the creator, maybe just return success false and some code and let frontend ask them to contact whoever invited them to the company
-  return res
-    .status(403)
-    .json(
-      errorResponse(
-        "Company setup not complete. Contact creator",
-        undefined,
-        ErrorCode.ONBOARDING_INCOMPLETE
-      )
-    );
+  return res.status(403).json(
+    errorResponse('Company setup not complete. Contact creator', undefined, {
+      code: ErrorCode.ONBOARDING_INCOMPLETE,
+    }),
+  );
 };

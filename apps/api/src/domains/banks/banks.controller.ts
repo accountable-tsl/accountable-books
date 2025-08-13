@@ -1,7 +1,7 @@
-import { Response } from "express";
-import { AuthRequest } from "../../features/auth/auth.types";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { getAllBanks, getBankByCountry, getSingleBank } from "./banks.model";
+import { type Response } from "express";
+import type { AuthRequest } from '../../features/auth/auth.types.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { getAllBanks, getBankByCountry, getSingleBank } from './banks.model.js';
 
 export async function getAllBanksController(req: AuthRequest, res: Response) {
   try {
@@ -39,7 +39,7 @@ async function handleBankLookup(res: Response, keyOrId: string) {
 
 export async function getBankByCountryController(
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) {
   try {
     if (!req.user) {

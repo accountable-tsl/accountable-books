@@ -1,15 +1,11 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   createCamelCaseSchema,
-  SnakeToCamelCaseObject,
-} from "../../shared/utils/formatting.utils";
-import { dbBaseFields } from "../../core/types/core";
+  type SnakeToCamelCaseObject,
+} from '../../shared/utils/formatting.utils.js';
+import { dbBaseFields } from '../../core/types/core.js';
 
-export const bankFeedProviderStatus = z.enum([
-  "active",
-  "inactive",
-  "deprecated",
-]);
+export const bankFeedProviderStatus = z.enum(['active', 'inactive', 'deprecated']);
 export type BankFeedProviderStatus = z.infer<typeof bankFeedProviderStatus>;
 
 export const bankFeedProviderInput = z.object({
@@ -27,12 +23,9 @@ export const bankFeedProviderInput = z.object({
   updated_by_id: z.string().uuid().nullish(),
 });
 export type BankFeedProviderInput = z.infer<typeof bankFeedProviderInput>;
-export type BankFeedProviderInputCamel =
-  SnakeToCamelCaseObject<BankFeedProviderInput>;
+export type BankFeedProviderInputCamel = SnakeToCamelCaseObject<BankFeedProviderInput>;
 
-export const bankFeedProviderInputCamel = createCamelCaseSchema(
-  bankFeedProviderInput
-);
+export const bankFeedProviderInputCamel = createCamelCaseSchema(bankFeedProviderInput);
 
 export type NewBankFeedProvider = BankFeedProviderInput;
 export const bankFeedProvider = bankFeedProviderInput.merge(dbBaseFields);
@@ -54,27 +47,19 @@ export type BpcInputCamel = SnakeToCamelCaseObject<BpcInput>;
 
 export const bpcInputCamel = createCamelCaseSchema(bpcInput);
 
-export const newBankFeedProviderCountry = bpcInput
-  .omit({ country_id: true })
-  .extend({
-    country_id: z.string().uuid(),
-    created_by_id: z.string().uuid(),
-  });
+export const newBankFeedProviderCountry = bpcInput.omit({ country_id: true }).extend({
+  country_id: z.string().uuid(),
+  created_by_id: z.string().uuid(),
+});
 
-export type NewBankFeedProviderCountry = z.infer<
-  typeof newBankFeedProviderCountry
->;
+export type NewBankFeedProviderCountry = z.infer<typeof newBankFeedProviderCountry>;
 
-export const bankFeedProviderCountries = newBankFeedProviderCountry
-  .merge(dbBaseFields)
-  .omit({
-    country_code: true,
-    id: true,
-  });
+export const bankFeedProviderCountries = newBankFeedProviderCountry.merge(dbBaseFields).omit({
+  country_code: true,
+  id: true,
+});
 
-export type BankFeedProviderCountries = z.infer<
-  typeof bankFeedProviderCountries
->;
+export type BankFeedProviderCountries = z.infer<typeof bankFeedProviderCountries>;
 
 export type BankFeedProviderWithCountries = {
   id: string;

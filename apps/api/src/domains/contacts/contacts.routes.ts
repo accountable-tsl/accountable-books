@@ -3,7 +3,7 @@ import {
   addContactsController,
   getContactsController,
   updateContactsController,
-} from "./contacts.controller";
+} from "./contacts.controller.js";
 
 const router = express.Router({ mergeParams: true });
 

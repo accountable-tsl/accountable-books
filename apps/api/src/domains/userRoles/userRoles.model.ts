@@ -1,41 +1,30 @@
-import type { Knex } from "knex";
-import { knexClient } from "../../../knexClient";
-import { ApiResponse } from "../../core/types/api.types";
+import type { Knex } from 'knex';
+import { knexClient } from '../../db/knexClient.js';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { getCompanyShortCode, getCompanyUUID } from '../../shared/utils/random.utils.js';
+import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import { getRoleId, isRolesLoaded, loadRoles, roles } from '../roles/roles.model.js';
 import {
-  getCompanyShortCode,
-  getCompanyUUID,
-} from "../../shared/utils/random.utils";
+  type AccessibleCompanies,
+  type AccessibleCompaniesResponse,
+  type GrantAccessResponse,
+  type GrantAccessToFirmClient,
+  type GrantDirectAccess,
+  type UserCompanyRoleAssignmentRes,
+} from './userRoles.types.js';
 import {
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response.utils";
-import {
-  getRoleId,
-  isRolesLoaded,
-  loadRoles,
-  roles,
-} from "../roles/roles.model";
-import {
-  AccessibleCompanies,
-  AccessibleCompaniesResponse,
-  GrantAccessResponse,
-  GrantAccessToFirmClient,
-  GrantDirectAccess,
-  UserCompanyRoleAssignmentRes,
-} from "./userRoles.types";
-import {
-  RoleKey,
+  type RoleKey,
   roleKey,
-  RoleScope,
+  type RoleScope,
   roleScope as roleScopeEnum,
-} from "../roles/roles.types";
+} from '../roles/roles.types.js';
 
 const getUserCompanyRoleAssignments = async (
   userId: string,
-  trx?: Knex.Transaction
+  trx?: Knex.Transaction,
 ): Promise<ApiResponse<UserCompanyRoleAssignmentRes[]>> => {
   if (!userId?.trim()) {
-    return errorResponse("Please provide a valid user ID");
+    return errorResponse('Please provide a valid user ID');
   }
 
   const knex = trx || knexClient;
@@ -44,25 +33,21 @@ const getUserCompanyRoleAssignments = async (
     // Query 1: Get direct company roles
     // This fetches roles where the user is directly assigned to a company
     // (both accounting firms and client companies)
-    const directRoles = knex("user_company_roles as ucr")
-      .join("roles as r", "ucr.role_id", "r.id")
-      .join("companies as c", "ucr.company_id", "c.id")
-      .leftJoin(
-        "accounting_firms_meta as af",
-        "c.assigned_firm_id",
-        "af.company_id"
-      )
-      .where({ "ucr.user_id": userId, "ucr.is_deleted": false })
+    const directRoles = knex('user_company_roles as ucr')
+      .join('roles as r', 'ucr.role_id', 'r.id')
+      .join('companies as c', 'ucr.company_id', 'c.id')
+      .leftJoin('accounting_firms_meta as af', 'c.assigned_firm_id', 'af.company_id')
+      .where({ 'ucr.user_id': userId, 'ucr.is_deleted': false })
       .select(
-        "ucr.user_id as userId",
-        "c.short_code as companyId",
-        "af.slug as firmSlug",
-        "c.type as companyType",
-        "r.id as roleId",
-        "r.key as roleKey",
-        "r.name as roleName",
-        "r.scope as roleScope",
-        "c.onboarding_state as onboardingState"
+        'ucr.user_id as userId',
+        'c.short_code as companyId',
+        'af.slug as firmSlug',
+        'c.type as companyType',
+        'r.id as roleId',
+        'r.key as roleKey',
+        'r.name as roleName',
+        'r.scope as roleScope',
+        'c.onboarding_state as onboardingState',
       );
 
     // Query 2: Get roles via firm-client assignments
@@ -71,67 +56,58 @@ const getUserCompanyRoleAssignments = async (
     // 2. That firm is assigned to client companies (client_firm_assignments)
     // 3. The user is specifically assigned to work on those clients (firm_user_client_assignments)
     // Result: User gets their firm role applied to the assigned client companies
-    const rolesViaFirmAssignments = knex("firm_user_client_assignments as fuca")
-      .join("companies as c", "fuca.client_company_id", "c.id")
-      .join(
-        "client_firm_assignments as cfa",
-        "fuca.client_company_id",
-        "cfa.client_company_id"
-      )
-      .join("user_company_roles as ucr", function () {
+    const rolesViaFirmAssignments = knex('firm_user_client_assignments as fuca')
+      .join('companies as c', 'fuca.client_company_id', 'c.id')
+      .join('client_firm_assignments as cfa', 'fuca.client_company_id', 'cfa.client_company_id')
+      .join('user_company_roles as ucr', function () {
         // Critical join: ensure user's role is at the firm assigned to this client
-        this.on("ucr.user_id", "fuca.firm_staff_user_id") // User matches
-          .andOn("ucr.company_id", "cfa.accounting_firm_company_id"); // Role is at the assigned firm
+        this.on('ucr.user_id', 'fuca.firm_staff_user_id') // User matches
+          .andOn('ucr.company_id', 'cfa.accounting_firm_company_id'); // Role is at the assigned firm
       })
-      .leftJoin(
-        "accounting_firms_meta as af",
-        "c.assigned_firm_id",
-        "af.company_id"
-      )
-      .join("roles as r", "ucr.role_id", "r.id")
+      .leftJoin('accounting_firms_meta as af', 'c.assigned_firm_id', 'af.company_id')
+      .join('roles as r', 'ucr.role_id', 'r.id')
       .where({
-        "fuca.firm_staff_user_id": userId,
-        "fuca.is_deleted": false,
-        "ucr.is_deleted": false,
+        'fuca.firm_staff_user_id': userId,
+        'fuca.is_deleted': false,
+        'ucr.is_deleted': false,
       })
       .select(
-        "fuca.firm_staff_user_id as userId",
-        "c.short_code as companyId",
-        "c.type as companyType",
-        "af.slug as firmSlug",
-        "r.id as roleId",
-        "r.key as roleKey",
-        "r.name as roleName",
-        "r.scope as roleScope",
-        "c.onboarding_state as onboardingState"
+        'fuca.firm_staff_user_id as userId',
+        'c.short_code as companyId',
+        'c.type as companyType',
+        'af.slug as firmSlug',
+        'r.id as roleId',
+        'r.key as roleKey',
+        'r.name as roleName',
+        'r.scope as roleScope',
+        'c.onboarding_state as onboardingState',
       );
 
-    const [direct, viaFirm] = await Promise.all([
-      directRoles,
-      rolesViaFirmAssignments,
-    ]);
+    const [direct, viaFirm] = await Promise.all([directRoles, rolesViaFirmAssignments]);
 
     const allRoles = [...direct, ...viaFirm];
 
     if (!allRoles.length) {
-      return errorResponse("User is not assigned to any company");
+      return errorResponse('User is not assigned to any company');
     }
 
-    const result: UserCompanyRoleAssignmentRes[] = allRoles.map((r) => ({
-      userId: r.userId,
-      companyId: r.companyId,
-      firmSlug: r.firmSlug,
-      roleId: r.roleId,
-      roleKey: r.roleKey as RoleKey,
-      roleName: r.roleName,
-      roleScope: r.roleScope as RoleScope,
-      onboardingState: r.onboardingState,
-      companyType: r.companyType,
-    }));
+    const result: UserCompanyRoleAssignmentRes[] = allRoles.map(
+      (r: UserCompanyRoleAssignmentRes) => ({
+        userId: r.userId,
+        companyId: r.companyId,
+        firmSlug: r.firmSlug,
+        roleId: r.roleId,
+        roleKey: r.roleKey as RoleKey,
+        roleName: r.roleName,
+        roleScope: r.roleScope as RoleScope,
+        onboardingState: r.onboardingState,
+        companyType: r.companyType,
+      }),
+    );
 
-    return successResponse("Successfully fetched user roles", result);
+    return successResponse('Successfully fetched user roles', result);
   } catch (error) {
-    return errorResponse("Failed to fetch user roles", error);
+    return errorResponse('Failed to fetch user roles', error);
   }
 };
 
@@ -163,8 +139,7 @@ export const getAccessibleCompaniesForUser = async ({
   const knex = trx || knexClient;
   try {
     const rolesResponse = await getUserCompanyRoleAssignments(userId, trx);
-    const userRoles =
-      rolesResponse.success && rolesResponse.data ? rolesResponse.data : [];
+    const userRoles = rolesResponse.success && rolesResponse.data ? rolesResponse.data : [];
 
     const mappedUserCompanies: AccessibleCompanies[] = userRoles.map((r) => ({
       id: r.companyId,
@@ -178,29 +153,27 @@ export const getAccessibleCompaniesForUser = async ({
     }));
 
     const knownCompanyIds = userRoles.map((r) => r.companyId);
-    const demoCompanies = await knex("companies as c")
-      .join("accounting_firms_meta as af", "c.id", "af.company_id")
+    const demoCompanies = await knex('companies as c')
+      .join('accounting_firms_meta as af', 'c.id', 'af.company_id')
       .select(
-        "c.display_name as companyName",
-        "c.short_code as companyId",
-        "c.type as companyType",
-        "af.slug as firmSlug"
+        'c.display_name as companyName',
+        'c.short_code as companyId',
+        'c.type as companyType',
+        'af.slug as firmSlug',
       )
-      .where("is_demo_company", true)
-      .whereNotIn("c.short_code", knownCompanyIds);
+      .where('is_demo_company', true)
+      .whereNotIn('c.short_code', knownCompanyIds);
 
-    const mappedDemoCompanies: AccessibleCompanies[] = demoCompanies.map(
-      (c) => ({
-        id: c.companyId,
-        hasExplicitAccess: false,
-        isDemoCompany: true,
-        assignedFirmSlug: c.firmSlug,
-        roleKey: null,
-        roleScope: null,
-        companyType: c.companyType,
-        onboardingState: null,
-      })
-    );
+    const mappedDemoCompanies: AccessibleCompanies[] = demoCompanies.map((c) => ({
+      id: c.companyId,
+      hasExplicitAccess: false,
+      isDemoCompany: true,
+      assignedFirmSlug: c.firmSlug,
+      roleKey: null,
+      roleScope: null,
+      companyType: c.companyType,
+      onboardingState: null,
+    }));
 
     const platformRoleHierarchy = [
       roleKey.enum.super_admin,
@@ -209,7 +182,7 @@ export const getAccessibleCompaniesForUser = async ({
     ] as RoleKey[];
 
     const platformRoleAssignments = userRoles.filter(
-      (r) => r.roleScope === roleScopeEnum.enum.platform
+      (r) => r.roleScope === roleScopeEnum.enum.platform,
     );
 
     const highestPlatformKey =
@@ -217,16 +190,13 @@ export const getAccessibleCompaniesForUser = async ({
         .map((r) => r.roleKey)
         .find((roleKey) => platformRoleHierarchy.includes(roleKey)) || null;
 
-    const accessibleCompanies = [
-      ...mappedUserCompanies,
-      ...mappedDemoCompanies,
-    ];
+    const accessibleCompanies = [...mappedUserCompanies, ...mappedDemoCompanies];
 
     if (!accessibleCompanies.length && !highestPlatformKey) {
-      return errorResponse("User has no access to any company");
+      return errorResponse('User has no access to any company');
     }
 
-    return successResponse("User has access to these companies", {
+    return successResponse('User has access to these companies', {
       ...(highestPlatformKey
         ? {
             isPlatformUser: !!highestPlatformKey,
@@ -236,7 +206,7 @@ export const getAccessibleCompaniesForUser = async ({
       accessibleCompanies,
     });
   } catch (error) {
-    return errorResponse("Internal server error", error);
+    return errorResponse('Internal server error', error);
   }
 };
 
@@ -268,27 +238,21 @@ export const hasAccessToCompany = async ({
 }> => {
   const companyId = await getCompanyShortCode(companyIdentifier); // for backend only
 
-  const {
-    isPlatformUser = false,
-    platformUserKey,
-    accessibleCompanies = [],
-  } = userContext ?? {};
+  const { isPlatformUser = false, platformUserKey, accessibleCompanies = [] } = userContext ?? {};
 
   const company = accessibleCompanies.find((c) => c.id === companyId);
   const hasAccess = !!company || !!isPlatformUser;
 
-  const roleKey =
-    company?.roleKey || (isPlatformUser ? platformUserKey : null) || null;
-  const roleScope =
-    company?.roleScope || (isPlatformUser ? roleScopeEnum.enum.platform : null);
+  const roleKey = company?.roleKey || (isPlatformUser ? platformUserKey : null) || null;
+  const roleScope = company?.roleScope || (isPlatformUser ? roleScopeEnum.enum.platform : null);
 
   const accessReason = company
     ? company.isDemoCompany
-      ? "demo"
-      : "explicit"
+      ? 'demo'
+      : 'explicit'
     : isPlatformUser
-      ? "platform"
-      : "none";
+      ? 'platform'
+      : 'none';
 
   return { hasAccess, roleKey, roleScope, accessReason };
 };
@@ -311,30 +275,30 @@ export const getCompanyOwner = async ({
 > => {
   const knex = trx || knexClient;
   const companyUUID = getCompanyUUID(companyId);
-  const ownerRoleKeys: RoleKey[] = ["firm_owner", "client_owner"];
+  const ownerRoleKeys: RoleKey[] = ['firm_owner', 'client_owner'];
   try {
-    const result = await knex("user_company_roles as ucr")
-      .join("roles as r", "ucr.role_id", "r.id")
-      .join("users as u", "ucr.user_id", "u.id")
-      .where("ucr.company_id", companyUUID)
-      .andWhere("ucr.is_deleted", false)
-      .whereIn("r.key", ownerRoleKeys)
+    const result = await knex('user_company_roles as ucr')
+      .join('roles as r', 'ucr.role_id', 'r.id')
+      .join('users as u', 'ucr.user_id', 'u.id')
+      .where('ucr.company_id', companyUUID)
+      .andWhere('ucr.is_deleted', false)
+      .whereIn('r.key', ownerRoleKeys)
       .select(
-        "ucr.user_id as userId",
-        "ucr.company_id as companyId",
-        "u.firstname as firstname",
-        "u.lastname as lastname",
-        "u.email as email",
-        "r.key as roleKey",
-        "r.scope as roleScope"
+        'ucr.user_id as userId',
+        'ucr.company_id as companyId',
+        'u.firstname as firstname',
+        'u.lastname as lastname',
+        'u.email as email',
+        'r.key as roleKey',
+        'r.scope as roleScope',
       )
       .first();
 
     if (!result) {
-      return successResponse("No company owner found", null);
+      return successResponse('No company owner found', null);
     }
 
-    return successResponse("Company owner retrieved", {
+    return successResponse('Company owner retrieved', {
       userId: result.userId,
       firstname: result.firstname,
       lastname: result.lastname,
@@ -343,7 +307,7 @@ export const getCompanyOwner = async ({
       roleScope: result.roleScope,
     });
   } catch (error) {
-    return errorResponse("An unexpected error occurred", error);
+    return errorResponse('An unexpected error occurred', error);
   }
 };
 
@@ -358,15 +322,15 @@ export const isUserCompanyOwner = async ({
 }): Promise<boolean> => {
   const knex = trx || knexClient;
 
-  const ownerRoleKeys: RoleKey[] = ["firm_owner", "client_owner"];
+  const ownerRoleKeys: RoleKey[] = ['firm_owner', 'client_owner'];
   const companyUUID = await getCompanyUUID(companyId);
 
-  const result = await knex("user_company_roles as ucr")
-    .join("roles as r", "ucr.role_id", "r.id")
-    .where("ucr.user_id", userId)
-    .andWhere("ucr.company_id", companyUUID)
-    .andWhere("ucr.is_deleted", false)
-    .whereIn("r.key", ownerRoleKeys)
+  const result = await knex('user_company_roles as ucr')
+    .join('roles as r', 'ucr.role_id', 'r.id')
+    .where('ucr.user_id', userId)
+    .andWhere('ucr.company_id', companyUUID)
+    .andWhere('ucr.is_deleted', false)
+    .whereIn('r.key', ownerRoleKeys)
     .first();
 
   return !!result;
@@ -382,21 +346,21 @@ export const grantDirectAccess = async ({
   const knex = trx || knexClient;
   try {
     const companyId = await getCompanyUUID(inputedCompanyId, trx);
-    if (!companyId) return errorResponse("Company not found");
+    if (!companyId) return errorResponse('Company not found');
 
-    const userExists = await knex("users").where("id", userId).first();
-    if (!userExists) return errorResponse("User not found");
+    const userExists = await knex('users').where('id', userId).first();
+    if (!userExists) return errorResponse('User not found');
 
     let roleId;
     roleId = await getRoleId(roleKey);
     if (!roleId) {
-      const role = await knex("roles").where("key", roleKey).first();
+      const role = await knex('roles').where('key', roleKey).first();
       if (!role) return errorResponse(`Role '${roleKey}' not found`);
       roleId = String(role.id);
     }
 
     // Check if user already has a role at this company
-    const existingRole = await knex("user_company_roles")
+    const existingRole = await knex('user_company_roles')
       .where({
         user_id: userId,
         company_id: companyId,
@@ -410,13 +374,13 @@ export const grantDirectAccess = async ({
     if (existingRole) {
       // Check if the role is actually changing
       if (existingRole.role_id === roleId) {
-        return successResponse("User already has this role at the company", {
-          action: "no_change",
+        return successResponse('User already has this role at the company', {
+          action: 'no_change',
         });
       }
 
       // Update existing role
-      result = await knex("user_company_roles")
+      result = await knex('user_company_roles')
         .where({
           user_id: userId,
           company_id: companyId,
@@ -428,12 +392,12 @@ export const grantDirectAccess = async ({
           updated_at: timestamp,
         });
 
-      return successResponse("User role updated successfully", {
-        action: "updated",
+      return successResponse('User role updated successfully', {
+        action: 'updated',
       });
     } else {
       // Insert new role
-      result = await knex("user_company_roles").insert({
+      result = await knex('user_company_roles').insert({
         user_id: userId,
         company_id: companyId,
         role_id: roleId,
@@ -441,12 +405,12 @@ export const grantDirectAccess = async ({
         updated_by_id: grantedBy,
       });
 
-      return successResponse("User role granted successfully", {
-        action: "created",
+      return successResponse('User role granted successfully', {
+        action: 'created',
       });
     }
   } catch (error) {
-    return errorResponse("Failed to grant direct access", error);
+    return errorResponse('Failed to grant direct access', error);
   }
 };
 
@@ -461,76 +425,73 @@ export const grantAccessToFirmClient = async ({
   const knex = trx || knexClient;
   try {
     const companyId = await getCompanyUUID(clientCompanyId, trx);
-    if (!companyId) return errorResponse("Company not found");
+    if (!companyId) return errorResponse('Company not found');
 
-    const userExists = await knex("users").where("id", userId).first();
-    if (!userExists) return errorResponse("User not found");
+    const userExists = await knex('users').where('id', userId).first();
+    if (!userExists) return errorResponse('User not found');
 
     const roleId = getRoleId(roleKey);
     if (!roleId) return errorResponse(`Role '${roleKey}' not found`);
 
     // Check if the granter (grantedBy) is firm staff
-    const granterIsFirmStaff = await knex("user_company_roles as ucr")
+    const granterIsFirmStaff = await knex('user_company_roles as ucr')
       .where({
-        "ucr.user_id": grantedBy,
-        "ucr.company_id": firmId,
-        "ucr.is_deleted": false,
+        'ucr.user_id': grantedBy,
+        'ucr.company_id': firmId,
+        'ucr.is_deleted': false,
       })
       .first();
 
-    if (!granterIsFirmStaff)
-      return errorResponse("Granter is not a firm staff");
+    if (!granterIsFirmStaff) return errorResponse('Granter is not a firm staff');
 
     // Verify grantee (firm staff) is part of the firm
-    const granteeIsFirmStaff = await knex("user_company_roles as ucr")
+    const granteeIsFirmStaff = await knex('user_company_roles as ucr')
       .where({
-        "ucr.user_id": userId,
-        "ucr.company_id": firmId,
-        "ucr.is_deleted": false,
+        'ucr.user_id': userId,
+        'ucr.company_id': firmId,
+        'ucr.is_deleted': false,
       })
       .first();
 
-    if (!granteeIsFirmStaff)
-      return errorResponse("User to be granted is not a firm staff");
+    if (!granteeIsFirmStaff) return errorResponse('User to be granted is not a firm staff');
 
     // Verify the client company is assigned to this firm
-    const clientAssigned = await knex("client_firm_assignments as cfa")
+    const clientAssigned = await knex('client_firm_assignments as cfa')
       .where({
-        "cfa.client_company_id": companyId,
-        "cfa.accounting_firm_company_id": firmId,
-        "cfa.is_deleted": false,
+        'cfa.client_company_id': companyId,
+        'cfa.accounting_firm_company_id': firmId,
+        'cfa.is_deleted': false,
       })
       .first();
 
-    if (!clientAssigned)
-      return errorResponse("Client is not assigned to this firm");
+    if (!clientAssigned) return errorResponse('Client is not assigned to this firm');
 
     // Grant the role
-    const existingAccess = await knex("firm_user_client_assignments as fuca")
+    const existingAccess = await knex('firm_user_client_assignments as fuca')
       .where({
-        "fuca.firm_staff_user_id": userId,
-        "fuca.client_company_id": companyId,
-        "fuca.is_deleted": false,
+        'fuca.firm_staff_user_id': userId,
+        'fuca.client_company_id': companyId,
+        'fuca.is_deleted': false,
       })
       .first();
 
     if (existingAccess) {
-      return successResponse("User already has access to this client", {
-        action: "no_change",
+      return successResponse('User already has access to this client', {
+        action: 'no_change',
       });
     }
 
-    await knex("firm_user_client_assignments").insert({
+    await knex('firm_user_client_assignments').insert({
       firm_staff_user_id: userId,
       client_company_id: companyId,
       created_by_id: grantedBy,
       updated_by_id: grantedBy,
     });
 
-    return successResponse("Access granted successfully", {
-      action: "created",
+    return successResponse('Access granted successfully', {
+      action: 'created',
     });
   } catch (error) {
-    return errorResponse("Failed to grant firm client access", error);
+    return errorResponse('Failed to grant firm client access', error);
   }
 };

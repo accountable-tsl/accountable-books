@@ -1,4 +1,4 @@
-import { ENV, isProd } from "../../config/env";
+import { ENV, isProd } from "../../config/env.js";
 import crypto from "crypto";
 
 export const splitIntoWords = (input: string | string[]): string[] => {

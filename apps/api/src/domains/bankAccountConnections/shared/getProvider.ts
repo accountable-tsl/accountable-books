@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { getBankFeedProviders } from "../../bankFeedProviders/bankFeedProviders.model";
+import { getBankFeedProviders } from "../../bankFeedProviders/bankFeedProviders.model.js";
 
 export async function getProvider(providerKey: string, trx?: Knex.Transaction) {
   try {

@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
-import { getAllCurrencies } from "./currencies.model";
-import { errorResponse } from "../../shared/utils/response.utils";
+import { type Request, type Response } from "express";
+import { getAllCurrencies } from "./currencies.model.js";
+import { errorResponse } from "../../shared/utils/response.utils.js";
 
 export async function allCurrencies(req: Request, res: Response) {
   try {
@@ -8,7 +8,7 @@ export async function allCurrencies(req: Request, res: Response) {
 
     if (result.success) {
       res.status(200).json(result);
-    } else if (result.data.length === 0) {
+    } else if (result.data?.length === 0) {
       return res.status(404).json(result);
     } else {
       res.status(400).json(result);

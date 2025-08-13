@@ -1,41 +1,33 @@
-import type { Knex } from "knex";
+import type { Knex } from 'knex';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from "../src/utils/db";
+} from './utils/timestamp';
 
-const tableName = "bank_feed_providers";
+const tableName = 'bank_feed_providers';
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
-    table.string("key").notNullable().unique(); // e.g., 'mono', 'okra', 'plaid'
-    table.string("name").notNullable();
-    table.string("external_id");
-    table.text("description");
-    table.string("website");
-    table.string("logo_url");
-    table.string("logo_key");
-    table
-      .specificType("status", "bank_feed_provider_status")
-      .notNullable()
-      .defaultTo("active"); // active, inactive, deprecated
-    table.integer("priority").notNullable().defaultTo(1); // used for fallback logic
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+    table.string('key').notNullable().unique(); // e.g., 'mono', 'okra', 'plaid'
+    table.string('name').notNullable();
+    table.string('external_id');
+    table.text('description');
+    table.string('website');
+    table.string('logo_url');
+    table.string('logo_key');
+    table.specificType('status', 'bank_feed_provider_status').notNullable().defaultTo('active'); // active, inactive, deprecated
+    table.integer('priority').notNullable().defaultTo(1); // used for fallback logic
 
     table
-      .uuid("created_by_id")
+      .uuid('created_by_id')
       .notNullable()
-      .references("id")
-      .inTable("users")
-      .onDelete("RESTRICT");
+      .references('id')
+      .inTable('users')
+      .onDelete('RESTRICT');
 
-    table
-      .uuid("updated_by_id")
-      .nullable()
-      .references("id")
-      .inTable("users")
-      .onDelete("SET NULL");
+    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
     addStandardColumns(table);
   });

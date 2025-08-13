@@ -1,34 +1,19 @@
-import { CompanyType } from "../../domains/companies/companies.types";
-import {
+import { type CompanyType } from '../../domains/companies/companies.types.js';
+import type {
   CompanyOnboardingState,
   CompanyOnboardingStepKey,
-  CompanyOnboardingSteps,
   OnboardingState,
   OnboardingStepConfig,
   UserOnboardingState,
   UserOnboardingStepKey,
-} from "./onboarding.types";
+} from './onboarding.types.js';
 
-export const userOnboardingStepKeys = {
-  emailVerified: "email_verified",
-  // profileCompleted: "profile_completed",
-} as const;
-
-export const companyOnboardingStepKeys = {
-  companyDetailsConfirmed: "company_details_confirmed",
-  firstBankAccountAdded: "first_bank_account_added",
-} as const;
-
-export const onboardingStepKeys = {
-  ...userOnboardingStepKeys,
-  ...companyOnboardingStepKeys,
-} as const;
 
 export const onboardingStepConfig: OnboardingStepConfig[] = [
   {
-    key: "email_verified",
-    label: "Verify your email",
-    scope: "user",
+    key: 'email_verified',
+    label: 'Verify your email',
+    scope: 'user',
     optional: false,
     orderIndex: 1,
     isComplete: ({ user }) =>
@@ -37,10 +22,10 @@ export const onboardingStepConfig: OnboardingStepConfig[] = [
       user.onboardingState?.steps.email_verified === true,
   },
   {
-    key: "company_details_confirmed",
-    label: "Confirm company details",
-    scope: "company",
-    restrictedTo: "company_owner",
+    key: 'company_details_confirmed',
+    label: 'Confirm company details',
+    scope: 'company',
+    restrictedTo: 'company_owner',
     orderIndex: 2,
     isComplete: ({ company }) =>
       company?.isDemoCompany ||
@@ -48,10 +33,10 @@ export const onboardingStepConfig: OnboardingStepConfig[] = [
       !!company?.onboardingState?.steps.company_details_confirmed,
   },
   {
-    key: "first_bank_account_added",
-    label: "Add a bank account",
-    scope: "company",
-    restrictedTo: "company_owner",
+    key: 'first_bank_account_added',
+    label: 'Add a bank account',
+    scope: 'company',
+    restrictedTo: 'company_owner',
     orderIndex: 3,
     optional: true,
     isComplete: ({ company }) =>
@@ -63,12 +48,10 @@ export const onboardingStepConfig: OnboardingStepConfig[] = [
 ];
 
 export const createInitialCompanyOnboardingState = (
-  companyType: CompanyType
+  companyType: CompanyType,
 ): CompanyOnboardingState => ({
   steps: {
-    ...(companyType !== "individual"
-      ? { company_details_confirmed: false }
-      : {}),
+    ...(companyType !== 'individual' ? { company_details_confirmed: false } : {}),
     first_bank_account_added: false,
   },
   completed_at: {},
@@ -83,10 +66,9 @@ export const createInitialUserOnboardingState = (): UserOnboardingState => ({
 
 export const markUserOnboardingStepComplete = (
   currentState: UserOnboardingState,
-  step: UserOnboardingStepKey
+  step: UserOnboardingStepKey,
 ): UserOnboardingState => {
-  if (!currentState)
-    throw new Error("Please provide current user onboarding state");
+  if (!currentState) throw new Error('Please provide current user onboarding state');
 
   const now = new Date();
 
@@ -105,10 +87,10 @@ export const markUserOnboardingStepComplete = (
 
 export const markCompanyOnboardingStepComplete = (
   currentState: CompanyOnboardingState,
-  step: CompanyOnboardingStepKey
+  step: CompanyOnboardingStepKey,
 ): CompanyOnboardingState => {
   if (!currentState) {
-    throw new Error("Please provide current company onboarding state");
+    throw new Error('Please provide current company onboarding state');
   }
 
   const now = new Date();
@@ -128,10 +110,10 @@ export const markCompanyOnboardingStepComplete = (
 
 export function markAllOnboardingStepsComplete<T extends OnboardingState>(
   currentState: T,
-  options?: { preserveTimestamps?: boolean }
+  options?: { preserveTimestamps?: boolean },
 ): T {
   if (!currentState || !currentState.steps) {
-    throw new Error("Please provide a valid onboarding state with steps");
+    throw new Error('Please provide a valid onboarding state with steps');
   }
 
   const now = new Date();
@@ -165,9 +147,7 @@ export const createCompleteUserOnboardingState = () => {
   return initial && markAllOnboardingStepsComplete(initial);
 };
 
-export const createCompleteCompanyOnboardingState = (
-  companyType: CompanyType
-) => {
+export const createCompleteCompanyOnboardingState = (companyType: CompanyType) => {
   const initial = createInitialCompanyOnboardingState(companyType);
   return initial && markAllOnboardingStepsComplete(initial);
 };

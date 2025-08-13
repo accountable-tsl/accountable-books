@@ -1,10 +1,13 @@
-import { Request, Response } from "express";
+import { type Request, type Response } from "express";
 import {
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { getSignedLogoUrl, removeLogo, uploadLogo } from "./logos.model";
-import { randomUUID } from "crypto";
+} from "../../shared/utils/response.utils.js";
+import {
+  getSignedLogoUrl,
+  removeLogo,
+  uploadLogo,
+} from "./logos.model.js";
 
 export async function uploadLogoController(req: Request, res: Response) {
   try {
@@ -30,14 +33,14 @@ export async function uploadLogoController(req: Request, res: Response) {
       return res
         .status(400)
         .json(
-          errorResponse("Unsupported file type, upload PNG, JPEG, WEBP or SVG")
+          errorResponse("Unsupported file type, upload PNG, JPEG, WEBP or SVG"),
         );
     }
 
     const file = req.file.buffer;
     const uploadResult = await uploadLogo({
       file,
-      filename: req.file.originalname,
+      originalFilename: req.file.originalname,
       mimeType: req.file.mimetype,
       companyId,
     });
@@ -55,8 +58,8 @@ export async function uploadLogoController(req: Request, res: Response) {
         .status(500)
         .json(
           errorResponse(
-            signedUrlResult.message || "Failed to generate access URL"
-          )
+            signedUrlResult.message || "Failed to generate access URL",
+          ),
         );
     }
 
@@ -64,7 +67,7 @@ export async function uploadLogoController(req: Request, res: Response) {
       successResponse("Logo uploaded", {
         url: signedUrlResult.data,
         key: uploadResult.data,
-      })
+      }),
     );
   } catch (error: any) {
     console.error(error);
@@ -110,8 +113,8 @@ export async function signedLogoUrlController(req: Request, res: Response) {
         .status(500)
         .json(
           errorResponse(
-            signedUrlResult.message || "Failed to generate signed URL"
-          )
+            signedUrlResult.message || "Failed to generate signed URL",
+          ),
         );
     }
 

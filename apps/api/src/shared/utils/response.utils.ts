@@ -1,10 +1,10 @@
-import { isProd, NODE_ENV } from "../../config/env";
-import { ApiResponse } from "../../core/types/api.types";
-import * as Sentry from "@sentry/node";
+import { isProd, NODE_ENV } from '../../config/env.js';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import * as Sentry from '@sentry/node';
 
 export function successResponse<T>(
-  message = "Query successful",
-  data: T | T[] | Partial<T> | Record<any, any> | null
+  message = 'Query successful',
+  data: T | T[] | Partial<T> | Record<any, any> | null,
 ): ApiResponse {
   return {
     success: true,
@@ -14,7 +14,7 @@ export function successResponse<T>(
 }
 
 export function errorResponse<T = null>(
-  message: string = "Something went wrong",
+  message: string = 'Something went wrong',
   error?: unknown,
   options: {
     code?: ErrorCode;
@@ -22,7 +22,7 @@ export function errorResponse<T = null>(
   } = {
     code: ErrorCode.GENERIC,
     report: false,
-  }
+  },
 ): ApiResponse<T> {
   let parsedError: string | object | undefined = undefined;
   let finalMessage = message;
@@ -36,19 +36,16 @@ export function errorResponse<T = null>(
     shouldReport = error.shouldReport;
   } else if (error instanceof Error) {
     parsedError = error.message;
-  } else if (typeof error === "string") {
+  } else if (typeof error === 'string') {
     parsedError = error;
-  } else if (typeof error === "object") {
+  } else if (typeof error === 'object') {
     parsedError = error ?? undefined;
   }
 
   if (isProd && shouldReport) {
-    Sentry.captureException(
-      error instanceof Error ? error : new Error(finalMessage),
-      {
-        extra: { error: parsedError, code: finalCode },
-      }
-    );
+    Sentry.captureException(error instanceof Error ? error : new Error(finalMessage), {
+      extra: { error: parsedError, code: finalCode },
+    });
   }
 
   // if (!isProd) {
@@ -56,17 +53,17 @@ export function errorResponse<T = null>(
   // }
   if (!isProd) {
     if (error instanceof AppError) {
-      console.error("[AppError]", {
+      console.error('[AppError]', {
         message: error.message,
         code: error.code,
         details: error.details,
       });
     } else if (error instanceof Error) {
-      console.error("[Error]", error.message);
+      console.error('[Error]', error.message);
     } else if (error === undefined || error === null) {
-      console.error("[Error] Received undefined or null error");
+      console.error('[Error] Received undefined or null error');
     } else {
-      console.error("[Error]", error);
+      console.error('[Error]', error);
     }
   }
 
@@ -99,26 +96,26 @@ export function errorResponse<T = null>(
 
 export enum ErrorCode {
   // 1xx: Authentication & Authorization
-  INVALID_CREDENTIALS = "INVALID_CREDENTIALS",
-  NO_ROLES = "NO_ROLES",
-  UNAUTHORIZED = "UNAUTHORIZED", // No login or invalid session
-  FORBIDDEN = "FORBIDDEN", // Logged in but no permission
+  INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
+  NO_ROLES = 'NO_ROLES',
+  UNAUTHORIZED = 'UNAUTHORIZED', // No login or invalid session
+  FORBIDDEN = 'FORBIDDEN', // Logged in but no permission
 
   // 2xx: Validation & Input
-  INVALID_INPUT = "INVALID_INPUT",
-  CONFLICT = "CONFLICT", // e.g. duplicate short_code or email
+  INVALID_INPUT = 'INVALID_INPUT',
+  CONFLICT = 'CONFLICT', // e.g. duplicate short_code or email
 
   // 3xx: Not Found
-  NOT_FOUND = "NOT_FOUND", // resource "not found"
+  NOT_FOUND = 'NOT_FOUND', // resource "not found"
 
   // 4xx: Business Logic / Domain Rules
-  OPERATION_NOT_ALLOWED = "OPERATION_NOT_ALLOWED", // e.g. trying to delete demo company
-  ONBOARDING_INCOMPLETE = "ONBOARDING_INCOMPLETE", // e.g. user or company onboarding not complete
+  OPERATION_NOT_ALLOWED = 'OPERATION_NOT_ALLOWED', // e.g. trying to delete demo company
+  ONBOARDING_INCOMPLETE = 'ONBOARDING_INCOMPLETE', // e.g. user or company onboarding not complete
 
   // 5xx: System/Internal Errors
-  GENERIC = "GENERIC_ERROR",
-  DATABASE_ERROR = "DATABASE_ERROR",
-  SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE",
+  GENERIC = 'GENERIC_ERROR',
+  DATABASE_ERROR = 'DATABASE_ERROR',
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
 }
 
 export class AppError extends Error {
@@ -129,10 +126,10 @@ export class AppError extends Error {
     message: string,
     details?: any,
     report?: boolean,
-    code: ErrorCode = ErrorCode.GENERIC
+    code: ErrorCode = ErrorCode.GENERIC,
   ) {
     super(message);
-    this.name = "AppError";
+    this.name = 'AppError';
     this.code = code;
     this.details = details;
     this.shouldReport = report ?? false; // default: not reported

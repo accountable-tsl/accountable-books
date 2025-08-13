@@ -4,7 +4,7 @@ import {
   getBankByCountryController,
   getBankByIdController,
   getBankByKeyController,
-} from "./banks.controller";
+} from "./banks.controller.js";
 
 const router = express.Router({ mergeParams: true });
 

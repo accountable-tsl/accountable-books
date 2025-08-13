@@ -1,5 +1,5 @@
-import type { Knex } from "knex";
-import { knexClient } from "../../../knexClient";
+import type { Knex } from 'knex';
+import { knexClient } from '../../db/knexClient.js';
 
 type SearchableColumn = {
   name: string;
@@ -22,12 +22,12 @@ type SearchOptions = {
 
 export function defineSearchableColumns<T extends string>(
   defaultTable: string | null,
-  fields: SearchableColumnInput[]
+  fields: SearchableColumnInput[],
 ): SearchableColumn[] {
   return fields.map((f) => {
-    if (f.column.includes(".")) {
+    if (f.column.includes('.')) {
       throw new Error(
-        `Invalid column "${f.column}". Use { column: "name", table: "p" } instead of "p.name".`
+        `Invalid column "${f.column}". Use { column: "name", table: "p" } instead of "p.name".`,
       );
     }
 
@@ -82,15 +82,12 @@ export function createHybridSearch({
 
   const fields = searchFields?.length
     ? searchableColumns.filter(
-        (col) =>
-          searchFields.includes(col.name) || searchFields.includes(col.column)
+        (col) => searchFields.includes(col.name) || searchFields.includes(col.column),
       )
     : searchableColumns;
 
   if (fields.length === 0) {
-    throw new Error(
-      "No searchable columns matched the provided search fields."
-    );
+    throw new Error('No searchable columns matched the provided search fields.');
   }
 
   function applySearchFilter(qb: Knex.QueryBuilder): Knex.QueryBuilder {
@@ -101,10 +98,7 @@ export function createHybridSearch({
         const expr = buildSqlExpr(col);
 
         if (isFuzzy) {
-          this.orWhereRaw(`similarity(${expr}, ?) > ?`, [
-            normalized,
-            minSimilarityThreshold,
-          ]);
+          this.orWhereRaw(`similarity(${expr}, ?) > ?`, [normalized, minSimilarityThreshold]);
         }
 
         if (prefixMatch) {
@@ -128,27 +122,21 @@ export function createHybridSearch({
     const bindings = new Array(fields.length).fill(normalized);
 
     const expr = hasWeights
-      ? sims
-          .map((s, i) =>
-            weights[i] === 1 ? s : `(${s} * ${weights[i].toFixed(2)})`
-          )
-          .join(" + ")
-      : `GREATEST(${sims.join(", ")})`;
+      ? sims.map((s, i) => (weights[i] === 1 ? s : `(${s} * ${weights[i].toFixed(2)})`)).join(' + ')
+      : `GREATEST(${sims.join(', ')})`;
 
     return knex.raw(`${expr} as rank`, bindings);
   }
 
   function applyRankOrdering(qb: Knex.QueryBuilder): Knex.QueryBuilder {
     if (isFuzzy && useRank) {
-      return qb.orderBy("rank", "desc");
+      return qb.orderBy('rank', 'desc');
     }
     return qb;
   }
 
   const rankFields = rankBySimilarity ? [buildRankExpression()!] : [];
-  const rankOrder: [string, "asc" | "desc"] | null = rankBySimilarity
-    ? ["rank", "desc"]
-    : null;
+  const rankOrder: [string, 'asc' | 'desc'] | null = rankBySimilarity ? ['rank', 'desc'] : null;
 
   return {
     applySearchFilter,

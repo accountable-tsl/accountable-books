@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
-import { getCountries } from "./countries.model";
-import { errorResponse } from "../../shared/utils/response.utils";
+import { type Request, type Response } from 'express';
+import { getCountries } from './countries.model.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
 
 export async function getCountryList(req: Request, res: Response) {
   try {
@@ -12,8 +12,6 @@ export async function getCountryList(req: Request, res: Response) {
       return res.status(400).json(result);
     }
   } catch (error) {
-    return res
-      .status(500)
-      .json(errorResponse("An unexpected error occurred", error));
+    return res.status(500).json(errorResponse('An unexpected error occurred', error));
   }
 }

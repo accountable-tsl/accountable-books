@@ -1,15 +1,16 @@
-import { knexClient } from "../../../knexClient";
-import { ApiResponse } from "../../core/types/api.types";
-import { redis } from "../../lib/redis";
-import { snakeToCamel } from "../../shared/utils/formatting.utils";
+import { knexClient } from "../../db/knexClient.js";
+import type { ApiResponse } from "../../core/types/api.types.js";
+import { redis } from "../../lib/redis.js";
+import { snakeToCamel } from "../../shared/utils/formatting.utils.js";
 import {
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { generateCacheKey } from "../../shared/utils/string.utils";
-import { CountryRes, GetCountriesOptions } from "./countries.types";
-
-
+} from "../../shared/utils/response.utils.js";
+import { generateCacheKey } from "../../shared/utils/string.utils.js";
+import {
+  type CountryRes,
+  type GetCountriesOptions,
+} from "./countries.types.js";
 
 const countriesCacheKey = generateCacheKey("countries", "all");
 const CACHE_TTL = 60 * 60 * 24; // 24 hours
@@ -24,7 +25,7 @@ export async function getCountries({
       if (cachedCountries) {
         return successResponse(
           "Countries fetched from cache",
-          JSON.parse(cachedCountries)
+          JSON.parse(cachedCountries),
         );
       }
     }
@@ -35,7 +36,7 @@ export async function getCountries({
         "name",
         "phone_code as phoneCode",
         "flag",
-        "continent"
+        "continent",
       )
       .where("is_deleted", false)
       .orderBy("name", "asc");
@@ -44,12 +45,12 @@ export async function getCountries({
       countriesCacheKey,
       JSON.stringify(countries),
       "EX",
-      CACHE_TTL
+      CACHE_TTL,
     );
 
     return successResponse(
       `${countries.length} countries fetched successfully`,
-      countries
+      countries,
     );
   } catch (error) {
     return errorResponse("Error fetching country list", error);
@@ -75,7 +76,7 @@ export async function getCountryByCode(code: string) {
     }
 
     const country = allCountriesRes.data.find(
-      (c: CountryRes) => c.code.toUpperCase() === normalizedCode
+      (c: CountryRes) => c.code.toUpperCase() === normalizedCode,
     );
 
     if (!country) {

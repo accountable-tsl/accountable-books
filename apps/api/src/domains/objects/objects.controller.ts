@@ -1,11 +1,11 @@
-import { Request, Response } from "express";
+import { type Request, type Response } from "express";
 import {
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { deleteObject, uploadObject } from "./objects.model";
-import { objectTypeHandlers } from "./objects.utils";
-import { ObjectType, UploadRequestBody } from "./objects.types";
+} from "../../shared/utils/response.utils.js";
+import { deleteObject, uploadObject } from "./objects.model.js";
+import { objectTypeHandlers } from "./objects.utils.js";
+import { type ObjectType, type UploadRequestBody } from "./objects.types.js";
 export async function uploadObjectController(req: Request, res: Response) {
   try {
     if (!req.file) {
@@ -35,8 +35,8 @@ export async function uploadObjectController(req: Request, res: Response) {
         .status(400)
         .json(
           errorResponse(
-            `Unsupported file type. Allowed: ${handler.allowedMimeTypes.join(", ")}`
-          )
+            `Unsupported file type. Allowed: ${handler.allowedMimeTypes.join(", ")}`,
+          ),
         );
     }
 

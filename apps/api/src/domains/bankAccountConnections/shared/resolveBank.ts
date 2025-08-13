@@ -1,6 +1,6 @@
 import type { Knex } from "knex";
-import { knexClient } from "../../../../knexClient";
-import { AppError } from "../../../shared/utils/response.utils";
+import { knexClient } from "../../../db/knexClient.js";
+import { AppError } from "../../../shared/utils/response.utils.js";
 
 export async function resolveBankFromMonoDetails({
   providerId,

@@ -1,21 +1,21 @@
-import { Request, Response } from "express";
+import { type Request, type Response } from "express";
 import {
   AppError,
   errorResponse,
   successResponse,
-} from "../../shared/utils/response.utils";
-import { AuthRequest } from "../../features/auth/auth.types";
+} from "../../shared/utils/response.utils.js";
+import { type AuthRequest } from "../../features/auth/auth.types.js";
 import {
   getCompanies,
   getSingleCompany,
   switchCompany,
   updateCompany,
-} from "./companies.model";
-import { setAuthCookies } from "../../features/auth/auth.utils";
+} from "./companies.model.js";
+import { setAuthCookies } from "../../features/auth/auth.utils.js";
 
 export const switchCompanyController = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const companyId = req.params.companyId || req.body.companyId;
@@ -37,7 +37,7 @@ export const switchCompanyController = async (
       successResponse("Company switched successfully", {
         user,
         company,
-      })
+      }),
     );
   } catch (error) {
     res.status(500).json(errorResponse("Something went wrong"));
@@ -59,7 +59,7 @@ export const getCompaniesController = async (req: Request, res: Response) => {
       .json(errorResponse(error.message || "An unexpected error occurred"));
   }
 };
-export const getCompanyController = async (req: Request, res: Response) => {
+export const getCompanyController = async (req: AuthRequest, res: Response) => {
   try {
     const company = req.company;
 
@@ -77,7 +77,7 @@ export const getCompanyController = async (req: Request, res: Response) => {
 
 export const updateCompanyController = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ) => {
   const companyId = req.params.companyId;
   const userId = req.user?.id;

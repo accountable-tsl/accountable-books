@@ -1,10 +1,13 @@
 import multer from "multer";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { NextFunction, Request, Response } from "express";
-import { logoUploadParams, ObjectType } from "./objects.types";
-import { ENV } from "../../config/env";
+import { errorResponse } from "../../shared/utils/response.utils.js";
+import { type NextFunction, type Request, type Response } from "express";
+import {
+  logoUploadParams,
+  type ObjectType,
+} from "./objects.types.js";
+import { ENV } from "../../config/env.js";
 import { randomUUID } from "crypto";
-import { ZodSchema } from "zod";
+import { type ZodSchema } from "zod";
 
 export const imageFilter = (
   allowedTypes: string[] = [
@@ -12,12 +15,12 @@ export const imageFilter = (
     "image/jpeg",
     "image/webp",
     "image/svg+xml",
-  ]
+  ],
 ) => {
   return (
     req: Express.Request,
     file: Express.Multer.File,
-    cb: multer.FileFilterCallback
+    cb: multer.FileFilterCallback,
   ) => {
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
@@ -31,7 +34,7 @@ export const multerErrorHandler = (
   err: any,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {

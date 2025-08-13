@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { dbBaseFields } from "../../core/types/core";
-import { SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils";
+import { dbBaseFields } from "../../core/types/core.js";
+import { type SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils.js";
 
 export const bankLocalCodeType = z.enum([
   "sort_code",

@@ -1,7 +1,6 @@
-import { Request, Response } from "express";
-import { errorResponse } from "../../shared/utils/response.utils";
-import { knexClient } from "../../../knexClient";
-import { registerNewAccount } from "./signup.service";
+import { type Request, type Response } from 'express';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { registerNewAccount } from './signup.service.js';
 
 export const clientSignup = async (req: Request, res: Response) => {
   try {
@@ -11,7 +10,7 @@ export const clientSignup = async (req: Request, res: Response) => {
     } else {
       return res.status(400).json(newUser);
     }
-  } catch (error) {
-    res.status(500).json(errorResponse("An unexpected error occurred", error));
+  } catch (error: any) {
+    res.status(500).json(errorResponse('An unexpected error occurred', error));
   }
 };

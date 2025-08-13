@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dbBaseFields } from "../../core/types/core";
+import { dbBaseFields } from "../../core/types/core.js";
 
 // role
 export const roleKey = z.enum([

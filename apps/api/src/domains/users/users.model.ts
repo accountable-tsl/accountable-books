@@ -1,44 +1,37 @@
-import type { Knex } from "knex";
-import { ApiResponse } from "../../core/types/api.types";
-import { snakeToCamel } from "../../shared/utils/formatting.utils";
+import type { Knex } from 'knex';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
 import {
-  CreateUserResponse,
-  NewUserDirect,
+  type CreateUserResponse,
+  type NewUserDirect,
   newUserDirect,
-  UserResponseCamel,
-} from "./users.types";
-import {
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response.utils";
-import {
-  generateRandomToken,
-  hashPassword,
-  hashToken,
-} from "../../shared/utils/crypto.utils";
-import dayjs from "dayjs";
-import { knexClient } from "../../../knexClient";
-import { addNewToken } from "../tokens/tokens.model";
-import { createInitialUserOnboardingState } from "../../features/onboarding/onboarding.utils";
+  type UserResponseCamel,
+} from '../../domains/users/users.types.js';
+import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import { generateRandomToken, hashPassword, hashToken } from '../../shared/utils/crypto.utils.js';
+import dayjs from 'dayjs';
+  import { knexClient } from '../../db/knexClient.js';
+import { addNewToken } from '../tokens/tokens.model.js';
+import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
 
 export async function createUserDirect(
   knexTrx: Knex.Transaction,
-  input: NewUserDirect
+  input: NewUserDirect,
 ): Promise<ApiResponse<CreateUserResponse>> {
   const validateInput = newUserDirect.safeParse(input);
   if (!validateInput.success) {
-    return errorResponse("Invalid input", validateInput.error.format());
+    return errorResponse('Invalid input', validateInput.error.format());
   }
   const { email, password, ...rest } = validateInput.data;
+  if (!password) {
+    return errorResponse('Password is required');
+  }
 
   try {
-    const existingUser = await knexTrx("users")
-      .select("id")
-      .where({ email })
-      .first();
+    const existingUser = await knexTrx('users').select('id').where({ email }).first();
 
     if (existingUser) {
-      errorResponse("User with this email already exists");
+      return errorResponse('User with this email already exists');
     }
 
     const [verificationToken, hashedPassword] = await Promise.all([
@@ -48,19 +41,17 @@ export async function createUserDirect(
 
     const onboardingState = createInitialUserOnboardingState();
 
-    const [user] = await knexTrx("users")
+    const [user] = await knexTrx('users')
       .insert({
         ...rest,
         email,
         password: hashedPassword,
         onboarding_state: onboardingState,
       })
-      .returning(["id", "firstname", "lastname", "email", "onboarding_state"]);
+      .returning(['id', 'firstname', 'lastname', 'email', 'onboarding_state']);
 
     if (!user) {
-      return errorResponse(
-        "We couldn't create your account. Please try again."
-      );
+      return errorResponse("We couldn't create your account. Please try again.");
     }
 
     const hashedVerificationToken = await hashToken(verificationToken);
@@ -68,10 +59,10 @@ export async function createUserDirect(
       {
         user_id: user.id,
         token_hash: hashedVerificationToken,
-        expires_at: dayjs().add(24, "hours").toDate(),
-        token_type: "email_verification",
+        expires_at: dayjs().add(24, 'hours').toDate(),
+        token_type: 'email_verification',
       },
-      knexTrx
+      knexTrx,
     );
 
     const resp: CreateUserResponse = {
@@ -83,34 +74,26 @@ export async function createUserDirect(
       verificationToken,
     };
 
-    return successResponse("Account created successfully", resp);
+    return successResponse('Account created successfully', resp);
   } catch (error) {
-    return errorResponse(
-      "We couldn't create your account. Please try again.",
-      error
-    );
+    return errorResponse("We couldn't create your account. Please try again.", error);
   }
 }
 
-export async function getUserDetails(
-  userId: string
-): Promise<ApiResponse<UserResponseCamel>> {
+export async function getUserDetails(userId: string): Promise<ApiResponse<UserResponseCamel>> {
   try {
-    const user = await knexClient("users")
-      .select("*")
-      .where({ id: userId })
-      .first();
+    const user = await knexClient('users').select('*').where({ id: userId }).first();
 
     if (!user) {
-      return errorResponse("User not found");
+      return errorResponse('User not found');
     }
 
     const { password, ...rest } = user;
     const result = snakeToCamel(rest);
 
-    return successResponse("User details found", result);
+    return successResponse('User details found', result);
   } catch (error) {
-    return errorResponse("Error getting user details", error);
+    return errorResponse('Error getting user details', error);
   }
 }
 
