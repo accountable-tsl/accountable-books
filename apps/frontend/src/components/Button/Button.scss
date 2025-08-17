@@ -1,0 +1,227 @@
+@use "../../styles/partials/colors" as *;
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease;
+  gap: 0.5rem;
+
+  /* Disabled button */
+  &__disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* Solid variant styles */
+  &__solid {
+    &--primary {
+      background-color: $primary;
+      color: $soft-white;
+
+      &:hover {
+        background-color: rgba($primary, 0.1);
+      }
+
+      &:active {
+        background-color: rgba($primary, 0.1);
+      }
+    }
+
+    &--secondary {
+      background-color: $secondary;
+      color: $soft-white;
+
+      &:hover {
+        background-color: rgba($secondary, 0.1);
+      }
+
+      &:active {
+        background-color: rgba($secondary, 0.1);
+      }
+    }
+
+    &--success {
+      background-color: $success;
+      color: $soft-white;
+
+      &:hover {
+        background-color: rgba($success, 0.1);
+      }
+
+      &:active {
+        background-color: rgba($success, 0.1);
+      }
+    }
+
+    &--danger {
+      background-color: $danger;
+      color: $soft-white;
+
+      &:hover {
+        background-color: rgba($danger, 0.1);
+      }
+
+      &:active {
+        background-color: rgba($danger, 0.1);
+      }
+    }
+  }
+
+  /* Outlined variant styles */
+  &__outlined {
+    background-color: transparent;
+    border: 1px solid;
+
+    &--primary {
+      border-color: $primary;
+      color: $primary;
+
+      &:hover {
+        background-color: $primary;
+        color: $soft-white;
+      }
+
+      &:active {
+        background-color: rgba($primary, 0.1);
+        color: $soft-white;
+      }
+    }
+
+    &--secondary {
+      border-color: $secondary;
+      color: $secondary;
+
+      &:hover {
+        background-color: $secondary;
+        color: $soft-white;
+      }
+
+      &:active {
+        background-color: rgba($secondary, 0.1);
+        color: $soft-white;
+      }
+    }
+
+    &--success {
+      border-color: $success;
+      color: $success;
+
+      &:hover {
+        background-color: $success;
+        color: $soft-white;
+      }
+
+      &:active {
+        background-color: rgba($success, 0.1);
+        color: $soft-white;
+      }
+    }
+
+    &--danger {
+      border-color: $danger;
+      color: $danger;
+
+      &:hover {
+        background-color: $danger;
+        color: $soft-white;
+      }
+
+      &:active {
+        background-color: rgba($danger, 0.1);
+        color: $soft-white;
+      }
+    }
+  }
+
+  /* Text variant styles */
+  &__text {
+    background-color: transparent;
+    border: none;
+    color: inherit;
+
+    &--primary {
+      color: $primary;
+
+      &:hover {
+        // color: rgba($primary, 0.1);
+        text-decoration: underline;
+      }
+
+      &:active {
+        color: rgba($primary, 0.1);
+      }
+    }
+
+    &--secondary {
+      color: $secondary;
+
+      &:hover {
+        color: rgba($secondary, 0.1);
+        text-decoration: underline;
+      }
+
+      &:active {
+        color: rgba($secondary, 0.1);
+      }
+    }
+
+    &--success {
+      color: $success;
+
+      &:hover {
+        color: rgba($success, 0.1);
+        text-decoration: underline;
+      }
+
+      &:active {
+        color: rgba($success, 0.1);
+      }
+    }
+
+    &--danger {
+      color: $danger;
+
+      &:hover {
+        color: rgba($danger, 0.1);
+        text-decoration: underline;
+      }
+
+      &:active {
+        color: rgba($danger, 0.1);
+      }
+    }
+  }
+
+  /* Icon-only buttons (circular buttons) */
+  &__icon {
+    &-only {
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: transparent;
+
+      &:hover {
+        background-color: rgba($primary, 15%);
+      }
+    }
+
+    &-left {
+      background-color: transparent;
+    }
+
+    &-right {
+      background-color: transparent;
+    }
+  }
+}

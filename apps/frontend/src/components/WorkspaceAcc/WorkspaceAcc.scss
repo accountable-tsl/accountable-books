@@ -1,0 +1,377 @@
+@use "../../styles/partials/colors" as *;
+@use "../../styles/partials/mixins" as *;
+
+.wacc {
+  background-color: $white;
+  border-radius: 0.5rem;
+  border: 1px solid rgba($border, 0.5);
+  border-top-left-radius: 0;
+  height: 100%;
+
+  &-body {
+    display: flex;
+    width: 100%;
+    height: 100%;
+
+    &-left {
+      border-right: 1px solid rgba($neutral-gray, 0.5);
+      overflow: hidden;
+      min-width: 66%;
+      width: 75%;
+      max-width: 75%;
+      flex: 1;
+    }
+
+    &-right {
+      padding: 0 0.5rem;
+      width: 25%;
+
+      &__content {
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+
+        &--header {
+          padding: 1rem;
+          border-bottom: 1px solid rgba($neutral-gray, 0.5);
+        }
+
+        &--body {
+          height: 100%;
+          overflow-y: auto;
+          overflow-x: hidden;
+          display: flex;
+          flex-direction: column;
+          scrollbar-width: thin;
+          padding-bottom: 0.75rem;
+        }
+      }
+    }
+  }
+
+  &-grid {
+    display: flex;
+    gap: 1rem;
+    align-items: stretch;
+    padding: 1rem;
+    overflow: hidden;
+    justify-content: space-between;
+  }
+
+  &-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: 0.5rem;
+    box-shadow: rgba($neutral-gray, 0.25) 0px 3px 5px 2px;
+    background-color: $white;
+    overflow: hidden;
+    width: 33%;
+    max-height: 12rem;
+  }
+
+  &-qa {
+    border-radius: 0.25rem;
+
+    &__header {
+      padding: 0.75rem 1rem 0;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: rgba($color: $text, $alpha: 0.5);
+    }
+
+    &__top {
+      display: flex;
+      justify-content: space-between;
+      padding: 1rem;
+
+      &--icon {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 100rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba($color: $background-secondary, $alpha: 0.5);
+        color: rgba($color: $black, $alpha: 0.6);
+      }
+    }
+
+    &__bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba($neutral-gray, 0.5);
+    }
+
+    &__item {
+      flex: 1;
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      justify-content: space-between;
+      transition: background-color 0.3s ease;
+
+      &--center {
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      &--border {
+        border-left: 1px solid rgba($neutral-gray, 0.25);
+      }
+
+      &:hover {
+        cursor: pointer;
+        background-color: rgba($color: $background-secondary, $alpha: 0.5);
+      }
+    }
+  }
+
+  &-bank {
+    &-summary {
+      &__content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+        height: 100%;
+        justify-content: space-between;
+      }
+
+      &__item {
+        display: flex;
+        min-width: 5.25rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+
+      &__label {
+        font-size: 0.85rem;
+        color: rgba($color: $text, $alpha: 0.5);
+        white-space: nowrap;
+      }
+
+      &__value {
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    &-card {
+      &__item {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+      }
+
+      &__top {
+        border-bottom: 1px solid rgba($neutral-gray, 0.35);
+        padding: 0.5rem 1rem 0;
+      }
+
+      &__logo {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex: 0 0 auto;
+        // box-shadow: 0 0 1px currentColor;
+        border: 0.1px solid rgba($neutral-gray, 0.35);
+
+        &--img {
+          width: 2rem;
+          height: 2rem;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+      }
+
+      &__text {
+        border-left: 1px solid rgba($neutral-gray, 0.35);
+        padding-left: 0.25rem;
+        flex: 1 1 auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &__name {
+        display: flex;
+        align-items: center;
+        flex-wrap: nowrap;
+        overflow: hidden;
+
+        &--text {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        &--currency {
+          font-size: 0.6rem;
+          font-weight: 500;
+          text-decoration: underline dotted;
+          color: rgba($color: $text, $alpha: 0.75);
+          padding-left: 0.15rem;
+          flex: 0 0 auto;
+        }
+      }
+
+      &__bank {
+        font-size: 0.75rem;
+        color: rgba($color: $text, $alpha: 0.35);
+      }
+
+      &__mid,
+      &__bottom {
+        padding: 0.5rem 1rem;
+      }
+
+      &__balance,
+      &__status {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+
+        &-amount,
+        &-count {
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        &-label {
+          font-size: 0.75rem;
+          color: rgba($color: $text, $alpha: 0.5);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+
+      &__bottom {
+        padding-top: 0;
+      }
+    }
+  }
+
+  &-bankaccount {
+    &:not(:last-child) {
+      border-bottom: 1px solid rgba($neutral-gray, 0.5);
+      padding-bottom: 1rem;
+    }
+
+    &-head {
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      gap: 0.5rem;
+      padding: 1rem 0.5rem 0.25rem;
+
+      &__logo {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex: 0 0 auto;
+        border: 0.1px solid rgba($neutral-gray, 0.35);
+      }
+
+      &__content {
+        padding-left: 0.5rem;
+        border-left: 1px solid rgba($neutral-gray, 0.35);
+      }
+
+      &__title {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &__count {
+        font-size: 0.75rem;
+      }
+
+      &__label {
+        font-size: 0.75rem;
+        color: rgba($color: $text, $alpha: 0.5);
+      }
+    }
+
+    &-body {
+      padding: 0.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    &-item {
+      border-radius: 0.25rem;
+      background-color: rgba($color: $tertiary, $alpha: 0.1);
+      padding: 0.5rem 0.5rem;
+
+      &__bottom,
+      &__top {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      &__status,
+      &__name,
+      &__amount {
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+      }
+
+      &__status {
+        display: flex;
+        gap: 0.25rem;
+        font-size: 0.75rem;
+        color: rgba($color: $text, $alpha: 0.5);
+      }
+
+      &__top {
+        gap: 1.5rem;
+      }
+
+      &__name {
+        flex: 2;
+      }
+
+      &__amount {
+        flex: 1;
+        text-align: right;
+      }
+    }
+  }
+
+  &-nav {
+    &-card {
+      &__content {
+        padding: 2rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+
+        &:hover {
+          cursor: pointer;
+          background-color: rgba($color: $background-secondary, $alpha: 0.5);
+        }
+      }
+    }
+  }
+}

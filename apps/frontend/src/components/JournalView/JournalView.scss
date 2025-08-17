@@ -1,0 +1,85 @@
+@use "../../styles/partials/colors" as *;
+
+.jv {
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    &-c {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    &-btn {
+      border: 1px solid rgba($color: $border, $alpha: 1);
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.25rem;
+
+      &:hover {
+        background-color: rgba($color: $tertiary, $alpha: 0.1);
+      }
+
+      &-edit {
+        opacity: 0.5;
+        pointer-events: none;
+      }
+
+      &-del {
+        border-color: rgba($color: $error, $alpha: 0.5);
+        color: rgba($color: $error, $alpha: 1);
+
+        &:hover {
+          background-color: rgba($color: $error, $alpha: 0.1);
+        }
+      }
+    }
+
+    &-r {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+  }
+
+  &-status {
+    font-size: 0.85rem;
+  }
+
+  &-meta {
+    display: flex;
+    padding: 0.5rem 1rem;
+    justify-content: space-between;
+
+    &-group {
+      display: flex;
+      gap: 2rem;
+    }
+
+    &-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    &-label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: rgba($color: $text, $alpha: 0.75);
+    }
+  }
+
+  &-eg {
+    &-cell {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+    }
+
+    &__account,
+    &__description {
+      flex: 1.5;
+    }
+  }
+}

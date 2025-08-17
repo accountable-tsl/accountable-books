@@ -1,0 +1,114 @@
+@use "../../styles/partials/colors" as *;
+
+.entry-grid {
+  width: 100%;
+  background-color: transparent;
+  overflow: hidden;
+  font-size: 0.85rem;
+  //   & * {
+  //     outline: 1px solid red;
+  //   }
+
+  &-header {
+    background-color: rgba($tertiary, 0.1);
+  }
+
+  &-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    min-height: 1.75rem;
+    border-bottom: 1px solid rgba($neutral-gray, 0.65);
+    border-collapse: collapse;
+    width: 100%;
+    animation: row-fade-in 0.2s ease;
+    transition: all 0.3s ease;
+
+    &__header {
+      min-height: 2rem;
+      animation: none;
+    }
+  }
+
+  &-cell {
+    flex: 1;
+    align-items: center;
+    padding: 0 0.5rem;
+    border-right: 1px solid rgba($neutral-gray, 0.65);
+    position: relative;
+
+    &:last-child {
+      border-right: none;
+    }
+
+    &:focus-within .entry-grid-cell__placeholder {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    &__header {
+      display: flex;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+
+    &__delete {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      max-width: 2rem;
+
+      &-button {
+        display: flex;
+
+        &:hover {
+          color: $error;
+        }
+
+        & > svg {
+          width: 1rem;
+          height: 1rem;
+        }
+      }
+    }
+
+    &__text,
+    &__dropdown {
+      padding: 0;
+    }
+
+    &__input {
+      width: 100%;
+      height: 100%;
+      border: none;
+
+      &-text,
+      &-dropdown {
+        outline: none;
+        padding: 0 0.5rem !important;
+        border: 1px solid transparent;
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        white-space: nowrap;
+
+        &:focus-visible,
+        :focus {
+          outline: none;
+          border-color: rgba($highlight, 1);
+          box-shadow: inset 0 0 2px rgba($tertiary, 0.3);
+        }
+      }
+    }
+
+    &__placeholder {
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      position: absolute !important;
+      white-space: nowrap;
+      right: 0.5rem;
+      top: 25%;
+      z-index: 5;
+    }
+  }
+}

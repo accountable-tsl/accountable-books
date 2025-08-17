@@ -1,0 +1,203 @@
+@use "../../styles/partials/colors" as *;
+
+.coa {
+  padding: 0.75rem 1rem;
+  margin-bottom: 2rem;
+  height: 100%;
+
+  &-tab {
+    @apply flex;
+
+    &__item {
+      @apply px-3 py-2;
+      border: 1px solid $border;
+      border-right: 0;
+      background-color: $background-primary;
+      transition: all 0.5s ease;
+      transition: 200ms linear 50ms;
+      color: rgba($color: $text, $alpha: 0.6);
+      font-size: 0.86rem;
+      border-bottom: 0;
+
+      &:hover {
+        background-color: rgba($color: $neutral-gray, $alpha: 0.5);
+        color: rgba($color: $text, $alpha: 0.8);
+      }
+
+      &--projects {
+        pointer-events: none;
+      }
+
+      &--contacts {
+        pointer-events: none;
+      }
+    }
+
+    &__first {
+      border-top-left-radius: 0.5rem;
+    }
+
+    &__last {
+      border-right: 1px solid $border;
+      border-top-right-radius: 0.5rem;
+    }
+
+    &__active {
+      background-color: $white;
+      color: $primary;
+
+      &:hover {
+        background-color: $neutral-white;
+      }
+    }
+  }
+
+  &-filter {
+    @apply flex justify-between items-center text-sm;
+    padding: 1rem 0;
+
+    &__line {
+      @apply flex-grow;
+    }
+
+    &box {
+      @apply flex items-center gap-2 py-1 px-2;
+      background-color: rgba($color: $tertiary, $alpha: 0.1);
+      color: $primary;
+      border-radius: 0.25rem;
+
+      &__button {
+        @apply flex items-center gap-1;
+        border-radius: 0.25rem;
+        padding: 0.125rem 1rem;
+        color: rgba($color: $text, $alpha: 0.6);
+        font-size: 0.85rem;
+        transition: all 0.5s ease;
+
+        &--active {
+          background-color: $white;
+          color: $primary;
+        }
+
+        &:hover {
+          background-color: rgba($color: $neutral-white, $alpha: 0.6);
+          color: rgba($color: $text, $alpha: 0.75);
+        }
+      }
+    }
+  }
+
+  &-actions {
+    @apply flex justify-between items-center;
+    padding: 0 1rem 1rem;
+    padding-bottom: 1rem;
+
+    &__left {
+      @apply flex gap-4 items-center;
+
+      &-button {
+        @apply flex items-center gap-1 text-sm px-2 py-1;
+        background-color: rgba($color: $tertiary, $alpha: 0.05);
+        border-radius: 0.25rem;
+
+
+      }
+
+      &-delete {
+        color: $error;
+      }
+
+      &-archive {
+        color: $primary;
+      }
+
+      &-line {
+        border-right: 1px solid rgba($color: $text, $alpha: 0.3);
+        height: 1rem;
+      }
+
+      &-count {
+        color: rgba($color: $text, $alpha: 0.65);
+        font-size: 0.85rem;
+      }
+
+      &-comingsoon {
+        font-size: 0.85rem;
+        color: rgba($color: $muted-orange, $alpha: 0.3);
+        animation: slideInOut 4s ease forwards;
+
+        @keyframes slideInOut {
+          0% {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+          20% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          80% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+        }
+      }
+
+      &-disabled {
+        @apply opacity-50;
+      }
+    }
+
+    &__right {
+      @apply flex gap-3 items-center;
+
+      &-button {
+        font-size: 0.85rem !important;
+        padding: 0.25rem 0.5rem;
+        border: 0.5px solid $text;
+
+        &2 {
+          @apply opacity-50 pointer-events-none;
+        }
+      }
+    }
+  }
+
+  &-bottom {
+    background-color: $white;
+    border: 1px solid $border;
+    border-radius: 0.5rem;
+    border-top-left-radius: 0;
+    height: calc(100% - 188.032px);
+    padding-bottom: 2rem;
+
+    &__header {
+      @apply flex flex-col pt-2;
+    }
+  }
+
+  &-table {
+    --ag-background-color: #fdfdff !important;
+    --ag-icon-size: 0.65rem !important;
+    --ag-wrapper-border-radius: transparent !important;
+    --ag-wrapper-border: 0px transparent !important;
+    overflow-y: auto;
+    height: 100%;
+
+    &__link {
+      color: $link;
+    }
+
+    &__balance {
+      color: $link;
+      text-align: right;
+    }
+  }
+}
+
+.ag-root-wrapper {
+  border: 0px transparent !important;
+}

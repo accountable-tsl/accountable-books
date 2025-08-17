@@ -1,0 +1,90 @@
+@use "../../styles/partials/colors" as *;
+
+.finsettings {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0.75rem 1rem;
+
+  &-bottom {
+    @apply flex-grow border-r-8 flex justify-center py-8 pb-3;
+    background-color: $white;
+    border: 1px solid $border;
+    border-radius: 0.5rem;
+    border-top-left-radius: 0;
+  }
+
+  &-container {
+    @apply w-1/2 lg:w-2/5 p-8 lg:p-12 flex flex-col gap-8 self-start mt-4;
+    border-radius: 0.5rem;
+    border: 1px solid rgba($neutral-gray, 0.2);
+  }
+
+  &-item {
+    &__header {
+      &-curr {
+        color: $tertiary;
+      }
+
+      &-icon {
+        @apply pl-2;
+      }
+    }
+
+    &__desc {
+      color: rgba($color: $text, $alpha: 0.5);
+      font-size: 0.75rem;
+    }
+  }
+}
+
+.finsettings {
+  &-ye {
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    position: relative;
+
+    &__container {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      text-align: left;
+
+      &--month {
+        @apply grow;
+      }
+    }
+
+    &button {
+      @apply inline-flex w-full justify-between gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 opacity-50;
+    }
+
+    &month {
+      @apply grow;
+    }
+
+    &day {
+      @apply relative;
+    }
+
+    &items {
+      @apply absolute left-0 z-10 mt-9 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in overflow-auto max-h-48 w-full;
+
+      &__day {
+        @apply flex flex-col w-full text-center;
+      }
+    }
+
+    &item {
+      @apply block px-4 py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900;
+    }
+  }
+
+  &-dateinput {
+    border-radius: 0.25rem;
+    border: 1px solid $neutral-gray;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+  }
+}
