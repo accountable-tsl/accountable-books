@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/timestamp';
+} from './utils/db';
 
 const tableName = 'journal_entries';
 export async function up(knex: Knex): Promise<void> {

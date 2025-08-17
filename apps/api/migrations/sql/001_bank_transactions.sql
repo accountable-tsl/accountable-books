@@ -385,8 +385,8 @@ BEGIN
   );
 END$$;
 
--- Call once to (re)schedule
-SELECT schedule_bank_transactions_partition_cron();
+-- Call once to (re)schedule, cancelling for now because of pg_cron
+-- SELECT schedule_bank_transactions_partition_cron();
 
 -- Update/Delete guards
 CREATE OR REPLACE FUNCTION guard_bank_transactions_update()

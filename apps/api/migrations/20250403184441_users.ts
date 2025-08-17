@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/timestamp';
+} from './utils/db';
 import { createUserDirect } from '../src/domains/users/users.model';
 import { ENV, NODE_ENV } from '../src/config/env';
 import { NewUserDirect } from '../src/domains/users/users.types';

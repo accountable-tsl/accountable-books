@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/timestamp';
+} from './utils/db';
 import { createPlatformCompany } from './20250403194332_companies';
 import { getRoleId, loadRoles } from '../src/domains/roles/roles.model';
 

@@ -4,7 +4,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/timestamp';
+} from './utils/db';
 import { AccountTypeWithRequiredReportCode } from '../src/core/types/db.types';
 import { accountElementIds } from './data/ids';
 import { NODE_ENV } from '../src/config/env';

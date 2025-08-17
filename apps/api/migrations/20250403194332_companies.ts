@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/timestamp';
+} from './utils/db';
 import { ENV, isProd, NODE_ENV } from '../src/config/env';
 import { adminUser } from './20250403184441_users';
 import { verifyCompanyDependenciesExist } from '../src/domains/companies/companies.model';

@@ -1,14 +1,14 @@
-import type { Knex } from "knex";
+import type { Knex } from 'knex';
 
 const REQUIRED_EXTENSIONS = [
-  "pg_cron",
-  "pgcrypto",
-  "pg_uuidv7",
-  "pg_trgm",
-  "vector",
-  "pg_stat_statements",
-  "citext",
-  "unaccent",
+  'pg_cron',
+  'pgcrypto',
+  'pg_uuidv7',
+  'pg_trgm',
+  'vector',
+  'pg_stat_statements',
+  'citext',
+  'unaccent',
 ];
 
 export async function up(knex: Knex): Promise<void> {
@@ -19,17 +19,15 @@ export async function up(knex: Knex): Promise<void> {
 
   // Check if all required extensions were properly installed
   const installed = await knex
-    .select("extname")
-    .from("pg_extension")
-    .whereIn("extname", REQUIRED_EXTENSIONS);
+    .select('extname')
+    .from('pg_extension')
+    .whereIn('extname', REQUIRED_EXTENSIONS);
 
   const installedSet = new Set(installed.map((row) => row.extname));
   const missing = REQUIRED_EXTENSIONS.filter((ext) => !installedSet.has(ext));
 
   if (missing.length > 0) {
-    throw new Error(
-      `Missing required Postgres extensions: ${missing.join(", ")}`
-    );
+    throw new Error(`Missing required Postgres extensions: ${missing.join(', ')}`);
   }
 }
 

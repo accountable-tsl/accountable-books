@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import { knexClient } from '../../../knexClient';
+import { knexClient } from '../../src/db/knexClient.js';
 
 export function addStandardColumns(table: Knex.CreateTableBuilder) {
   table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knexClient.fn.now());

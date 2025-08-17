@@ -4,7 +4,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/timestamp';
+} from './utils/db';
 import path from 'path';
 import fs from 'fs';
 import csv from 'csv-parser';

@@ -7,7 +7,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/timestamp';
+} from './utils/db';
 import { NODE_ENV } from '../src/config/env';
 import { NewPermissionInput } from '../src/core/types/db.types';
 

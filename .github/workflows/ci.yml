@@ -1,0 +1,53 @@
+name: ci
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install deps (workspace)
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck API
+        run: pnpm --filter @accountable-books/api typecheck
+
+      - name: Lint API
+        run: pnpm --filter @accountable-books/api lint
+
+      - name: Test API
+        run: pnpm --filter @accountable-books/api test
+
+      - name: Build API
+        run: pnpm --filter @accountable-books/api build
+
+      # Optional: Sentry sourcemaps (enable once secrets exist)
+      # - name: Upload Sentry sourcemaps
+      #   env:
+      #     SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      #     SENTRY_ORG: your-org
+      #     SENTRY_PROJECT: node-express
+      #     SENTRY_RELEASE: ${{ github.sha }}
+      #   run: |
+      #     sentry-cli releases new "$SENTRY_RELEASE"
+      #     sentry-cli releases files "$SENTRY_RELEASE" upload-sourcemaps apps/api/dist --rewrite
+      #     sentry-cli releases finalize "$SENTRY_RELEASE"

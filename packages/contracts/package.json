@@ -1,0 +1,16 @@
+{
+  "name": "@accountable/contracts",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "codegen": "openapi-typescript openapi.yaml -o src/types.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "openapi-typescript": "latest",
+    "typescript": "workspace:*",
+    "eslint": "workspace:*"
+  }
+}

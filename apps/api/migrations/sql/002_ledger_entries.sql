@@ -395,8 +395,8 @@ BEGIN
   );
 END$$;
 
--- Call once to (re)schedule
-SELECT schedule_ledger_entries_partition_cron();
+-- Call once to (re)schedule, cancelling for now because of pg_cron
+-- SELECT schedule_ledger_entries_partition_cron();
 
 -- Update/Delete guards
 CREATE OR REPLACE FUNCTION guard_ledger_entries_update()

@@ -9,7 +9,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/timestamp';
+} from './utils/db';
 import { NewExchangeRateInput } from '../src/domains/exchangeRates/exchangeRate.types';
 
 const __filename = fileURLToPath(import.meta.url);

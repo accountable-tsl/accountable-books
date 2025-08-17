@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/timestamp';
+} from './utils/db';
 import { createPlatformCompany } from './20250403194332_companies';
 import { createPlatformFirm } from './20250403194335_accounting_firms_meta';
 

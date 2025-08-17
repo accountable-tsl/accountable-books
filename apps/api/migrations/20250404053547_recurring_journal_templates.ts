@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/timestamp';
+} from './utils/db';
 
 const tableName = 'recurring_journal_templates';
 export async function up(knex: Knex): Promise<void> {

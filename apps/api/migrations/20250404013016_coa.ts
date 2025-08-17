@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/timestamp';
+} from './utils/db';
 import { loadCoaTemplateForCompany } from '../src/domains/chartOfAccounts/coaTemplate.model';
 import { createPlatformCompany } from './20250403194332_companies';
 

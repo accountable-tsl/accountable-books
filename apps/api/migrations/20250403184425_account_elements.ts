@@ -4,7 +4,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/timestamp';
+} from './utils/db';
 import { AccountElementWithRequiredReportCode } from '../src/core/types/db.types';
 import { accountElementIds, financialStatementIds } from './data/ids';
 import { NODE_ENV } from '../src/config/env';

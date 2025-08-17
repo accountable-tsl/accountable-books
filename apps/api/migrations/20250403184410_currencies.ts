@@ -7,7 +7,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/timestamp';
+} from './utils/db';
 import { currencyWithId, NewCurrencyWithId } from '../src/core/types/db.types';
 import { NODE_ENV } from '../src/config/env';
 

@@ -7,7 +7,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/timestamp';
+} from './utils/db';
 import { NewRoleInput, roleScope } from '../src/domains/roles/roles.types';
 import { isDev } from '../src/config/env';
 import { ROLES } from './data/roles';

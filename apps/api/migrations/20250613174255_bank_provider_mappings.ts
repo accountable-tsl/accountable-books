@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/timestamp';
+} from './utils/db';
 import { syncMonoInstitutionsToMappingsNG } from '../src/domains/mapBankToProviderBank/bankProviderMappings.model';
 import { adminUser } from './20250403184441_users';
 

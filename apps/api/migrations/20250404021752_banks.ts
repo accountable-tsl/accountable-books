@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/timestamp';
+} from './utils/db';
 import { addNewBank } from '../src/domains/banks/banks.model';
 import bankData from './data/banks.json';
 import { adminUser } from './20250403184441_users';
