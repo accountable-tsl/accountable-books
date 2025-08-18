@@ -8,7 +8,7 @@ export async function handleTransactionImport(req: AuthRequest, res: Response) {
   const userId = String(req.user?.id || req.body.userId);
 
   if (!companyId || !userId) {
-    return res.status(400).json(errorResponse("Unauthorized"));
+    return res.status(400).json(errorResponse('Unauthorized'));
   }
 
   try {
@@ -18,10 +18,8 @@ export async function handleTransactionImport(req: AuthRequest, res: Response) {
       userId,
     });
 
-    return response.success
-      ? res.status(200).json(response)
-      : res.status(400).json(response);
+    return response.success ? res.status(200).json(response) : res.status(400).json(response);
   } catch (error) {
-    return res.status(500).json(errorResponse("An unexpected error occurred"));
+    return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }

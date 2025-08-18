@@ -1,6 +1,6 @@
-import { type Request, type Response } from "express";
-import { getAllCurrencies } from "./currencies.model.js";
-import { errorResponse } from "../../shared/utils/response.utils.js";
+import { type Request, type Response } from 'express';
+import { getAllCurrencies } from './currencies.model.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
 
 export async function allCurrencies(req: Request, res: Response) {
   try {
@@ -14,6 +14,6 @@ export async function allCurrencies(req: Request, res: Response) {
       res.status(400).json(result);
     }
   } catch (error) {
-    res.status(500).json(errorResponse("An unexpected error occurred", error));
+    res.status(500).json(errorResponse('An unexpected error occurred', error));
   }
 }

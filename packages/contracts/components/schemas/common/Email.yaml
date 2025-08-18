@@ -1,0 +1,6 @@
+type: string
+format: email
+transform:
+  - trim
+  - toLowerCase
+errorMessage: Please enter a valid email address

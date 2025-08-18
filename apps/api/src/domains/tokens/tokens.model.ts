@@ -90,7 +90,7 @@ export async function getUserToken({
   }
 
   try {
-    let query = knex('tokens').where({ token_type: tokenType }).orderBy('created_at', 'desc');
+    const query = knex('tokens').where({ token_type: tokenType }).orderBy('created_at', 'desc');
 
     if (!includeExpired) query.andWhere('expires_at', '>', knex.fn.now());
 
@@ -128,7 +128,7 @@ export async function getTokenForInvitedUser({
   if (!invitationId) return errorResponse('Invitation ID is required');
 
   try {
-    let query = knex('tokens')
+    const query = knex('tokens')
       .where({
         token_type: tokenType,
         invitation_id: invitationId,

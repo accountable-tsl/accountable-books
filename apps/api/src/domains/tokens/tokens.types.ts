@@ -1,10 +1,6 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-export const tokenType = z.enum([
-  "email_verification",
-  "user_invite",
-  "password_reset",
-]);
+export const tokenType = z.enum(['email_verification', 'user_invite', 'password_reset']);
 export type TokenType = z.infer<typeof tokenType>;
 
 export const baseToken = z.object({
@@ -19,12 +15,9 @@ export const baseToken = z.object({
   created_at: z.date().nullish(),
 });
 
-export const newToken = baseToken.refine(
-  (data) => data.user_id || data.invitation_id,
-  {
-    message: "Either user_id or invitation_id must be provided",
-  }
-);
+export const newToken = baseToken.refine((data) => data.user_id || data.invitation_id, {
+  message: 'Either user_id or invitation_id must be provided',
+});
 export type NewToken = z.infer<typeof newToken>;
 
 export const token = baseToken.extend({
@@ -53,4 +46,4 @@ export type FetchTokenResponse = Token & {
   email?: string;
 };
 
-export type AddNewTokenResponse = Omit<Token, "token_hash">;
+export type AddNewTokenResponse = Omit<Token, 'token_hash'>;

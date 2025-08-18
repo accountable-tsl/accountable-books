@@ -22,10 +22,10 @@ Accountable Books is the MVP of an AI-native accounting platform for accounting 
 ## Current State
 
 - ✅ Backend imported and running in monorepo
-- 🔄 Frontend migration in progress
+- 🔄 Frontend integrated and working
 - ⏳ Python ML engine to be added
 - 📁 Monorepo with Turborepo + pnpm workspaces
-- 🔗 Shared types via OpenAPI in `/packages/contracts`
+- 🔗 Shared types via OpenAPI in `/packages/api-types`, api contracts in `/packages/contracts`
 
 ## Non-Negotiables
 
@@ -58,7 +58,8 @@ apps/
 ├── web/ # React frontend
 └── ml-engine/ # Python ML service
 packages/
-├── contracts/ # OpenAPI specs & generated types
+├── contracts/ # OpenAPI specifications
+├── api-types/ # Generated TypeScript types
 ├── infra/ # Shared infra logic
 ├── ui/ # Shared components
 └── utils/ # Shared utilities

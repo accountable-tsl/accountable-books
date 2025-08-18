@@ -1,7 +1,7 @@
-import type { Knex } from "knex";
-import { type MonoAccountDetails } from "../baccons.types.js";
-import { type BankAccountWithMeta } from "../../bankAccounts/bankAccounts.types.js";
-import { calculateStringSimilarity } from "../../../shared/utils/string.utils.js";
+import type { Knex } from 'knex';
+import { type MonoAccountDetails } from '../baccons.types.js';
+import { type BankAccountWithMeta } from '../../bankAccounts/bankAccounts.types.js';
+import { calculateStringSimilarity } from '../../../shared/utils/string.utils.js';
 
 /**
  * --------------------------------------------------------------------------------------------------------------------------
@@ -26,12 +26,12 @@ export function normalizeAccount(data: {
   currencyCode?: string;
 }): NormalizedProviderAccount {
   return {
-    accountNumber: data.accountNumber?.replace(/\s+/g, "").trim() ?? "",
-    accountName: data.accountName?.toLowerCase().trim() ?? "",
-    bankId: data.bankId?.toLowerCase().trim() ?? "",
+    accountNumber: data.accountNumber?.replace(/\s+/g, '').trim() ?? '',
+    accountName: data.accountName?.toLowerCase().trim() ?? '',
+    bankId: data.bankId?.toLowerCase().trim() ?? '',
     bankName: normalizeBankName(data.bankName),
-    currencyId: data.currencyId?.toLowerCase().trim() ?? "",
-    currencyCode: data.currencyCode?.toUpperCase().trim() ?? "",
+    currencyId: data.currencyId?.toLowerCase().trim() ?? '',
+    currencyCode: data.currencyCode?.toUpperCase().trim() ?? '',
   };
 }
 
@@ -39,9 +39,9 @@ function normalizeBankName(name?: string): string {
   return (
     name
       ?.toLowerCase()
-      .replace(/\b(plc|bank|ltd|inc|corp)\b/g, "")
-      .replace(/[^a-z0-9]/g, "")
-      .trim() ?? ""
+      .replace(/\b(plc|bank|ltd|inc|corp)\b/g, '')
+      .replace(/[^a-z0-9]/g, '')
+      .trim() ?? ''
   );
 }
 
@@ -56,25 +56,24 @@ type MatchRule = {
   weight: number;
   apply: (
     sys: NormalizedProviderAccount,
-    provider: NormalizedProviderAccount
+    provider: NormalizedProviderAccount,
   ) => { score: number; reason?: string; matched: boolean };
 };
 
 // Match rules
 export const MATCH_RULES: MatchRule[] = [
   {
-    field: "accountNumber",
-    description: "Account number match",
+    field: 'accountNumber',
+    description: 'Account number match',
     weight: 0.4,
     apply: (sys, prov) => {
-      if (!sys.accountNumber || !prov.accountNumber)
-        return { score: 0, matched: false };
+      if (!sys.accountNumber || !prov.accountNumber) return { score: 0, matched: false };
 
       if (sys.accountNumber === prov.accountNumber)
         return {
           score: 1,
           matched: true,
-          reason: "Exact account number match",
+          reason: 'Exact account number match',
         };
 
       // Partial matching with strict criteria
@@ -86,7 +85,7 @@ export const MATCH_RULES: MatchRule[] = [
         const sysLast6 = sys.accountNumber.slice(-6);
         const provLast6 = prov.accountNumber.slice(-6);
         if (sysLast6 === provLast6) {
-          return { score: 0.8, matched: true, reason: "Last 6 digits match" };
+          return { score: 0.8, matched: true, reason: 'Last 6 digits match' };
         }
       }
 
@@ -100,24 +99,23 @@ export const MATCH_RULES: MatchRule[] = [
           return {
             score: 0.5,
             matched: true,
-            reason: "Account number substring match",
+            reason: 'Account number substring match',
           };
         }
       }
 
       if (sys.accountNumber.slice(-4) === prov.accountNumber.slice(-4))
-        return { score: 0.3, matched: true, reason: "Last 4 digits match" };
+        return { score: 0.3, matched: true, reason: 'Last 4 digits match' };
 
       return { score: 0, matched: false };
     },
   },
   {
-    field: "accountName",
-    description: "Account name similarity",
+    field: 'accountName',
+    description: 'Account name similarity',
     weight: 0.2,
     apply: (sys, prov) => {
-      if (!sys.accountName || !prov.accountName)
-        return { score: 0, matched: false };
+      if (!sys.accountName || !prov.accountName) return { score: 0, matched: false };
       const sim = calculateStringSimilarity(sys.accountName, prov.accountName);
       return sim > 0.8
         ? {
@@ -129,8 +127,8 @@ export const MATCH_RULES: MatchRule[] = [
     },
   },
   {
-    field: "bankName",
-    description: "Bank name similarity",
+    field: 'bankName',
+    description: 'Bank name similarity',
     weight: 0.1,
     apply: (sys, prov) => {
       if (!sys.bankName || !prov.bankName) return { score: 0, matched: false };
@@ -145,27 +143,23 @@ export const MATCH_RULES: MatchRule[] = [
     },
   },
   {
-    field: "currencyId",
-    description: "Currency ID match",
+    field: 'currencyId',
+    description: 'Currency ID match',
     weight: 0.25,
     apply: (sys, prov) => ({
       score: sys.currencyId === prov.currencyId ? 1 : 0,
       matched: sys.currencyId === prov.currencyId,
-      reason:
-        sys.currencyId === prov.currencyId ? "Currency ID match" : undefined,
+      reason: sys.currencyId === prov.currencyId ? 'Currency ID match' : undefined,
     }),
   },
   {
-    field: "currencyCode",
-    description: "Currency code match",
+    field: 'currencyCode',
+    description: 'Currency code match',
     weight: 0.05,
     apply: (sys, prov) => ({
       score: sys.currencyCode === prov.currencyCode ? 1 : 0,
       matched: sys.currencyCode === prov.currencyCode,
-      reason:
-        sys.currencyCode === prov.currencyCode
-          ? "Currency code match"
-          : undefined,
+      reason: sys.currencyCode === prov.currencyCode ? 'Currency code match' : undefined,
     }),
   },
 ];
@@ -180,7 +174,7 @@ export const MATCH_RULES: MatchRule[] = [
  */
 export function computeMatchResult(
   systemAccRaw: BankAccountWithMeta,
-  providerAccRaw: NormalizedProviderAccount
+  providerAccRaw: NormalizedProviderAccount,
 ): MatchResult {
   const sys = normalizeAccount(systemAccRaw);
   const prov = normalizeAccount(providerAccRaw);
@@ -219,11 +213,11 @@ export function computeMatchResult(
  */
 function classifyConfidence(
   score: number,
-  thresholds = { strong: 0.8, weak: 0.6 }
-): "strong" | "weak" | "none" {
-  if (score >= thresholds.strong) return "strong";
-  if (score >= thresholds.weak) return "weak";
-  return "none";
+  thresholds = { strong: 0.8, weak: 0.6 },
+): 'strong' | 'weak' | 'none' {
+  if (score >= thresholds.strong) return 'strong';
+  if (score >= thresholds.weak) return 'weak';
+  return 'none';
 }
 
 /**
@@ -257,8 +251,7 @@ export const matchEngine = ({
   };
 }): {
   exactMatch?: BankAccountWithMeta;
-  fuzzyMatches: (BankAccountWithMeta &
-    MatchResult & { matchStrength: string })[];
+  fuzzyMatches: (BankAccountWithMeta & MatchResult & { matchStrength: string })[];
   unmatched: BankAccountWithMeta[];
 } => {
   const providerNormalized = normalizeAccount({
@@ -275,7 +268,7 @@ export const matchEngine = ({
   // Exact Match First
   const exactMatch = accountsInSystem.find((acc) => {
     return (
-      acc.accountNumber?.replace(/\s+/g, "") === cleanProviderNumber &&
+      acc.accountNumber?.replace(/\s+/g, '') === cleanProviderNumber &&
       acc.bankId === providerNormalized.bankId &&
       acc.currencyId === providerNormalized.currencyId
     );
@@ -291,8 +284,7 @@ export const matchEngine = ({
 
   const candidates = accountsInSystem.filter(
     (acc) =>
-      acc.bankId === providerNormalized.bankId &&
-      acc.currencyId === providerNormalized.currencyId
+      acc.bankId === providerNormalized.bankId && acc.currencyId === providerNormalized.currencyId,
   );
 
   const fuzzyMatches = candidates

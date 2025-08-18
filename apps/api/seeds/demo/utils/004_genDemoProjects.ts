@@ -1,9 +1,6 @@
-import {
-  NewProjectInput,
-  projectStatus,
-} from "../../../src/domains/projects/projects.types";
-import { companyType as ct } from "../../../src/domains/companies/companies.types";
-import { faker } from "@faker-js/faker";
+import { NewProjectInput, projectStatus } from '../../../src/domains/projects/projects.types';
+import { companyType as ct } from '../../../src/domains/companies/companies.types';
+import { faker } from '@faker-js/faker';
 
 type GenerateDemoProjectsParams = {
   companyType: string;
@@ -31,62 +28,53 @@ export function generateDemoProjectsForCompany({
 function getFirmProjects(contactIds: string[]): NewProjectInput[] {
   return [
     {
-      name: "Q2 Bookkeeping - Top Clients",
-      code: "BK-Q2",
-      description: "Monthly bookkeeping and reporting for top-tier clients.",
-      status: "in_progress",
+      name: 'Q2 Bookkeeping - Top Clients',
+      code: 'BK-Q2',
+      description: 'Monthly bookkeeping and reporting for top-tier clients.',
+      status: 'in_progress',
       contactId: faker.helpers.arrayElement(contactIds),
-      startDate: new Date("2024-04-01"),
-      endDate: new Date("2024-06-30"),
+      startDate: new Date('2024-04-01'),
+      endDate: new Date('2024-06-30'),
     },
     {
-      name: "Tax Filing 2024",
-      code: "TX-24",
-      description: "Annual tax preparation and compliance project.",
-      status: "in_progress",
+      name: 'Tax Filing 2024',
+      code: 'TX-24',
+      description: 'Annual tax preparation and compliance project.',
+      status: 'in_progress',
       contactId: faker.helpers.arrayElement(contactIds),
-      startDate: new Date("2024-01-10"),
-      endDate: new Date("2024-04-30"),
+      startDate: new Date('2024-01-10'),
+      endDate: new Date('2024-04-30'),
     },
   ];
 }
 
-function getBusinessProjects(
-  contactIds: string[],
-  countryCode: string
-): NewProjectInput[] {
+function getBusinessProjects(contactIds: string[], countryCode: string): NewProjectInput[] {
   return [
     {
-      name: "E-commerce Site Redesign",
-      code: "ECOM-REDO",
-      description: "Overhaul of online store and UI/UX improvements.",
-      status: "in_progress",
+      name: 'E-commerce Site Redesign',
+      code: 'ECOM-REDO',
+      description: 'Overhaul of online store and UI/UX improvements.',
+      status: 'in_progress',
       contactId: faker.helpers.arrayElement(contactIds),
-      startDate: new Date("2024-03-01"),
-      endDate: new Date("2024-08-01"),
+      startDate: new Date('2024-03-01'),
+      endDate: new Date('2024-08-01'),
     },
     {
-      name:
-        countryCode === "NG"
-          ? "Lagos Mainland Store Launch"
-          : "Local Market Expansion",
-      code: "EXP-01",
+      name: countryCode === 'NG' ? 'Lagos Mainland Store Launch' : 'Local Market Expansion',
+      code: 'EXP-01',
       description:
-        countryCode === "NG"
-          ? "Opening new retail location in Lagos Mainland."
-          : "Expanding presence to new region.",
-      status: "on_hold",
+        countryCode === 'NG'
+          ? 'Opening new retail location in Lagos Mainland.'
+          : 'Expanding presence to new region.',
+      status: 'on_hold',
       contactId: faker.helpers.arrayElement(contactIds),
-      startDate: new Date("2024-02-15"),
-      endDate: new Date("2024-12-01"),
+      startDate: new Date('2024-02-15'),
+      endDate: new Date('2024-12-01'),
     },
   ];
 }
 
-function generateRandomProjects(
-  count: number,
-  contactIds: string[]
-): NewProjectInput[] {
+function generateRandomProjects(count: number, contactIds: string[]): NewProjectInput[] {
   return Array.from({ length: count }).map(() => {
     const startDate = faker.date.past({ years: 1 });
     const endDate = faker.date.future({ years: 1, refDate: startDate });

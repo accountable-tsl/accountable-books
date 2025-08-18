@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { type Company } from "../companies/companies.types.js";
-import { dbBaseFields } from "../../core/types/core.js";
+import { z } from 'zod';
+import { type Company } from '../companies/companies.types.js';
+import { dbBaseFields } from '../../core/types/core.js';
 
 export const loadCoaTemplate = z.object({
   companyId: z.string().uuid(),
@@ -17,19 +17,19 @@ export const coaTemplateSelection = z.object({
   additionalNotes: z.string().optional(),
 });
 export type CoaTemplateSelection = z.infer<typeof coaTemplateSelection>;
-export const coaTemplateCompanyTypes = ["ind", "biz", "acc"] as const;
+export const coaTemplateCompanyTypes = ['ind', 'biz', 'acc'] as const;
 export const coaTemplateIndustries = [
-  "none",
-  "prof",
-  "int_design",
-  "retail",
-  "saas",
-  "legal",
-  "manuf",
-  "tech",
+  'none',
+  'prof',
+  'int_design',
+  'retail',
+  'saas',
+  'legal',
+  'manuf',
+  'tech',
 ] as const;
-export const coaTemplateTypes = ["basic", "adv", "pro"] as const;
-export const coaTemplateCodes = ["code", "nocode", "none"] as const;
+export const coaTemplateTypes = ['basic', 'adv', 'pro'] as const;
+export const coaTemplateCodes = ['code', 'nocode', 'none'] as const;
 
 export const coaTemplateCompanyType = z.enum(coaTemplateCompanyTypes);
 export type CoaTemplateCompanyType = z.infer<typeof coaTemplateCompanyType>;
@@ -80,14 +80,14 @@ export const keywordSchema = z.object({
 
 // Dynamic regex
 const templateNameRegex = new RegExp(
-  `^(${coaTemplateCompanyTypes.join("|")}):(${coaTemplateIndustries.join("|")}):(${coaTemplateTypes.join("|")}):(${coaTemplateCodes.join("|")}):v[1-9]\\d*$`
+  `^(${coaTemplateCompanyTypes.join('|')}):(${coaTemplateIndustries.join('|')}):(${coaTemplateTypes.join('|')}):(${coaTemplateCodes.join('|')}):v[1-9]\\d*$`,
 );
 
 export const coaTemplateName = z
   .string()
   .transform((input, ctx) => {
-    const normalizedInput = input.replace(/::/g, ":none:");
-    const parts = normalizedInput.trim().toLowerCase().split(":");
+    const normalizedInput = input.replace(/::/g, ':none:');
+    const parts = normalizedInput.trim().toLowerCase().split(':');
     if (parts.length === 3) {
       if (
         !coaTemplateCompanyType.safeParse(parts[0]).success ||
@@ -96,7 +96,7 @@ export const coaTemplateName = z
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Invalid shorthand format",
+          message: 'Invalid shorthand format',
         });
         return z.NEVER;
       }
@@ -105,28 +105,20 @@ export const coaTemplateName = z
     if (parts.length !== 5) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Invalid segment count",
+        message: 'Invalid segment count',
       });
       return z.NEVER;
     }
     return normalizedInput;
   })
-  .pipe(
-    z
-      .string()
-      .regex(templateNameRegex, "Invalid template name format or values")
-  );
+  .pipe(z.string().regex(templateNameRegex, 'Invalid template name format or values'));
 
 export const newCoaTemplate = z.object({
   template_name: coaTemplateName,
-  name: z
-    .string()
-    .trim()
-    .min(1, "Name is required")
-    .max(256, "Max account name length exceeded"),
-  code: z.string().min(1, "Code is required").max(256).nullish(),
+  name: z.string().trim().min(1, 'Name is required').max(256, 'Max account name length exceeded'),
+  code: z.string().min(1, 'Code is required').max(256).nullish(),
   description: z.string().max(512).nullish(),
-  account_type_id: z.string().uuid("Account Type ID is required"),
+  account_type_id: z.string().uuid('Account Type ID is required'),
   is_active: z.boolean().default(true),
   locked: z.boolean().default(false),
 });

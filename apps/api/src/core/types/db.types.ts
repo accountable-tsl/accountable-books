@@ -1,10 +1,10 @@
-import { roleKey } from "../../domains/roles/roles.types.js";
+import { roleKey } from '../../domains/roles/roles.types.js';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
-} from "../../shared/utils/formatting.utils.js";
-import { dbBaseFields, debitCredit } from "./core.js";
-import { z } from "zod";
+} from '../../shared/utils/formatting.utils.js';
+import { dbBaseFields, debitCredit } from './core.js';
+import { z } from 'zod';
 
 // permission
 export const newPermissionInput = z.object({
@@ -63,7 +63,7 @@ export type NewCountryInput = z.infer<typeof newCountry>;
 export type Country = z.infer<typeof country>;
 
 // financial_statement
-export const fsKey = z.enum(["is", "bs", "cf"]);
+export const fsKey = z.enum(['is', 'bs', 'cf']);
 export const newFinancialStatement = z.object({
   key: fsKey,
   us_gaap_label: z.string().min(2).max(256),
@@ -90,7 +90,7 @@ export const newAccountElement = z.object({
     .string()
     .regex(
       /^(BS|IS)(\.[A-Z]{3}){1,2}$/,
-      "Report code must follow BS|IS.XXX or BS|IS.XXX.XXX format",
+      'Report code must follow BS|IS.XXX or BS|IS.XXX.XXX format',
     )
     .max(64)
     .nullish(),
@@ -118,7 +118,7 @@ export const newAccountType = z.object({
     .string()
     .regex(
       /^(BS|IS)(\.[A-Z]{3}){3,4}$/,
-      "Report code must follow BS|IS.XXX.XXX.XXX or BS|IS.XXX.XXX.XXX.XXX format",
+      'Report code must follow BS|IS.XXX.XXX.XXX or BS|IS.XXX.XXX.XXX.XXX format',
     )
     .max(64)
     .nullish(),
@@ -131,9 +131,7 @@ export const accountTypeWithRequiredReportCode = accountType.required({
 
 export type NewAccountTypeInput = z.infer<typeof newAccountType>;
 export type AccountType = z.infer<typeof accountType>;
-export type AccountTypeWithRequiredReportCode = z.infer<
-  typeof accountTypeWithRequiredReportCode
->;
+export type AccountTypeWithRequiredReportCode = z.infer<typeof accountTypeWithRequiredReportCode>;
 
 export const newClientFirmAssignment = z.object({
   client_company_id: z.string().uuid(),
@@ -145,17 +143,14 @@ type CFI = z.infer<typeof newClientFirmAssignment>;
 type CFISnake = SnakeToCamelCaseObject<CFI>;
 
 export type NewClientFirmAssignmentsInput = CFI | CFISnake;
-export const newClientFirmAssignmentsInput = createCamelCaseSchema(
-  newClientFirmAssignment,
-);
+export const newClientFirmAssignmentsInput = createCamelCaseSchema(newClientFirmAssignment);
 
 export const newClientFirmAssignments = newClientFirmAssignment.extend({
   created_by_id: z.string().uuid(),
 });
 export type NewClientFirmAssignments = z.infer<typeof newClientFirmAssignments>;
 
-export const clientFirmAssignments =
-  newClientFirmAssignments.merge(dbBaseFields);
+export const clientFirmAssignments = newClientFirmAssignments.merge(dbBaseFields);
 export type ClientFirmAssignments = z.infer<typeof clientFirmAssignments>;
 
 // firm_user_client_assignments (fuca)

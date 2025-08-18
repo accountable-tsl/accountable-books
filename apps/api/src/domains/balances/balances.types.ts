@@ -1,4 +1,3 @@
-
 export interface CoaBalance {
   accountName: string;
   reportingBalance: number;

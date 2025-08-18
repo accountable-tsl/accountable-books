@@ -49,3 +49,6 @@ coverage
 reports
 prisma*
 prisma/*
+packages/contracts/dist/
+CLAUDE.md
+CLAUDE.local.md

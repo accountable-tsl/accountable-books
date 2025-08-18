@@ -1,20 +1,20 @@
 export const bankAccountsDocs = {
-  "/bankAccounts": {
+  '/bankAccounts': {
     get: {
-      summary: "Retrieve all bank accounts for a company",
+      summary: 'Retrieve all bank accounts for a company',
       responses: {
         200: {
-          description: "A list of bank accounts",
+          description: 'A list of bank accounts',
           content: {
-            "application/json": {
+            'application/json': {
               schema: {
-                type: "object",
+                type: 'object',
                 properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
+                  success: { type: 'boolean' },
+                  message: { type: 'string' },
                   data: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/BankAccount" },
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/BankAccount' },
                   },
                 },
               },
@@ -22,68 +22,68 @@ export const bankAccountsDocs = {
           },
         },
         404: {
-          description: "No bank accounts found",
+          description: 'No bank accounts found',
         },
         500: {
-          description: "Internal server error",
+          description: 'Internal server error',
         },
       },
     },
     post: {
-      summary: "Create a new bank account",
+      summary: 'Create a new bank account',
       requestBody: {
         required: true,
         content: {
-          "application/json": {
+          'application/json': {
             schema: {
-              $ref: "#/components/schemas/BankAccountInput",
+              $ref: '#/components/schemas/BankAccountInput',
             },
           },
         },
       },
       responses: {
         201: {
-          description: "Bank account created successfully",
+          description: 'Bank account created successfully',
           content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/BankAccountResponse" },
+            'application/json': {
+              schema: { $ref: '#/components/schemas/BankAccountResponse' },
             },
           },
         },
         400: {
-          description: "Bad request (missing fields or invalid data)",
+          description: 'Bad request (missing fields or invalid data)',
         },
         500: {
-          description: "Internal server error",
+          description: 'Internal server error',
         },
       },
     },
   },
-  "/bankAccounts/{id}": {
+  '/bankAccounts/{id}': {
     get: {
-      summary: "Retrieve a single bank account by ID",
+      summary: 'Retrieve a single bank account by ID',
       parameters: [
         {
-          name: "id",
-          in: "path",
+          name: 'id',
+          in: 'path',
           required: true,
-          schema: { type: "string" },
+          schema: { type: 'string' },
         },
       ],
       responses: {
         200: {
-          description: "Details of a single bank account",
+          description: 'Details of a single bank account',
           content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/BankAccountResponse" },
+            'application/json': {
+              schema: { $ref: '#/components/schemas/BankAccountResponse' },
             },
           },
         },
         404: {
-          description: "Bank account not found",
+          description: 'Bank account not found',
         },
         500: {
-          description: "Internal server error",
+          description: 'Internal server error',
         },
       },
     },
@@ -92,42 +92,36 @@ export const bankAccountsDocs = {
 
 export const bankAccountSchemas = {
   BankAccount: {
-    type: "object",
+    type: 'object',
     properties: {
-      id: { type: "string" },
-      displayName: { type: "string" },
-      bankAccountType: { type: "string" },
-      bankAccountNo: { type: "string" },
-      bankBalance: { type: "number" },
-      lastReconciled: { type: "string", format: "date-time", nullable: true },
-      bankId: { type: "integer" },
-      currencyId: { type: "integer" },
-      companyId: { type: "integer" },
+      id: { type: 'string' },
+      displayName: { type: 'string' },
+      bankAccountType: { type: 'string' },
+      bankAccountNo: { type: 'string' },
+      bankBalance: { type: 'number' },
+      lastReconciled: { type: 'string', format: 'date-time', nullable: true },
+      bankId: { type: 'integer' },
+      currencyId: { type: 'integer' },
+      companyId: { type: 'integer' },
     },
   },
   BankAccountInput: {
-    type: "object",
-    required: [
-      "bankId",
-      "displayName",
-      "bankAccountType",
-      "bankAccountNo",
-      "currencyId",
-    ],
+    type: 'object',
+    required: ['bankId', 'displayName', 'bankAccountType', 'bankAccountNo', 'currencyId'],
     properties: {
-      bankId: { type: "integer" },
-      displayName: { type: "string" },
-      bankAccountType: { type: "string" },
-      bankAccountNo: { type: "string" },
-      currencyId: { type: "integer" },
+      bankId: { type: 'integer' },
+      displayName: { type: 'string' },
+      bankAccountType: { type: 'string' },
+      bankAccountNo: { type: 'string' },
+      currencyId: { type: 'integer' },
     },
   },
   BankAccountResponse: {
-    type: "object",
+    type: 'object',
     properties: {
-      success: { type: "boolean" },
-      message: { type: "string" },
-      data: { $ref: "#/components/schemas/BankAccount" },
+      success: { type: 'boolean' },
+      message: { type: 'string' },
+      data: { $ref: '#/components/schemas/BankAccount' },
     },
   },
 };

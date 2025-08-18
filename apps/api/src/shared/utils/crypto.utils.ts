@@ -1,28 +1,20 @@
-import crypto from "crypto";
-import bcrypt from "bcrypt";
+import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 
 export function generateRandomToken(length = 48): string {
-  return crypto.randomBytes(length).toString("hex");
+  return crypto.randomBytes(length).toString('hex');
 }
 
 export const hashToken = async (password: string) => bcrypt.hash(password, 12);
 
-export const hashPassword = async (password: string) =>
-  bcrypt.hash(password, 12);
-export const comparePassword = async (input: string, hash: string) =>
-  bcrypt.compare(input, hash);
+export const hashPassword = async (password: string) => bcrypt.hash(password, 12);
+export const comparePassword = async (input: string, hash: string) => bcrypt.compare(input, hash);
 
-export const compareToken = async ({
-  token,
-  hash,
-}: {
-  token: string;
-  hash: string;
-}) => bcrypt.compare(token, hash);
+export const compareToken = async ({ token, hash }: { token: string; hash: string }) =>
+  bcrypt.compare(token, hash);
 
 // Define a safe Base58 alphabet (avoiding ambiguous characters).
-const SAFE_BASE58 =
-  "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const SAFE_BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
 /**
  * Generates a secure random short code using the SAFE_BASE58 alphabet.
@@ -32,7 +24,7 @@ const SAFE_BASE58 =
  * @returns A secure, random short code.
  */
 export default function generateSecureShortCode(length = 8): string {
-  let code = "";
+  let code = '';
   const maxByte = 232; // 58 * 4 = 232 (avoids modulo bias)
 
   // Keep generating random bytes until we have the desired length.
@@ -49,10 +41,7 @@ export default function generateSecureShortCode(length = 8): string {
   return code;
 }
 
-export function shortCodelooksWeird(
-  code: string,
-  maxRunLength?: number
-): boolean {
+export function shortCodelooksWeird(code: string, maxRunLength?: number): boolean {
   if (!maxRunLength) maxRunLength = Math.floor(code.length / 2);
 
   // Check for long runs of same character type

@@ -1,4 +1,4 @@
-import type { Knex } from "knex";
+import type { Knex } from 'knex';
 import {
   type CoaTemplateCompanyType,
   type CoaTemplateIndustry,
@@ -6,29 +6,24 @@ import {
   type CoaTemplateNameParts,
   type IndustryKeywordConfig,
   type SelectBestCoa,
-} from "./coaTemplate.type.js";
-import { type CompanyType } from "../companies/companies.types.js";
-import { splitIntoWords } from "../../shared/utils/string.utils.js";
-import { escapeRegExp } from "../../shared/utils/random.utils.js";
+} from './coaTemplate.type.js';
+import { type CompanyType } from '../companies/companies.types.js';
+import { splitIntoWords } from '../../shared/utils/string.utils.js';
+import { escapeRegExp } from '../../shared/utils/random.utils.js';
 export const selectBestCoaTemplate = async (
   knex: Knex,
   input: SelectBestCoa,
 ): Promise<{ template: string; score?: number; log?: string }> => {
-  const {
-    company,
-    templates: inputTemplates,
-    use_code,
-    additional_info,
-  } = input;
+  const { company, templates: inputTemplates, use_code, additional_info } = input;
 
   if (!company.type) {
-    throw new Error("Company type is required");
+    throw new Error('Company type is required');
   }
 
   const typeMap: Record<CompanyType, CoaTemplateCompanyType> = {
-    individual: "ind",
-    business: "biz",
-    accounting_firm: "acc",
+    individual: 'ind',
+    business: 'biz',
+    accounting_firm: 'acc',
   };
   const companyType: CoaTemplateCompanyType = typeMap[company.type];
   if (!Object.keys(typeMap).includes(company.type))
@@ -40,16 +35,14 @@ export const selectBestCoaTemplate = async (
     : [];
 
   if (!templates.length) {
-    templates = await knex("coa_templates")
-      .where("is_active", true)
-      .andWhere("template_name", "like", `${companyType}:%`)
-      .pluck("template_name");
+    templates = await knex('coa_templates')
+      .where('is_active', true)
+      .andWhere('template_name', 'like', `${companyType}:%`)
+      .pluck('template_name');
   }
 
   // 2. Validation Layer
-  const validTemplates = templates.filter(
-    (t) => coaTemplateName.safeParse(t).success,
-  );
+  const validTemplates = templates.filter((t) => coaTemplateName.safeParse(t).success);
 
   if (!validTemplates.length) {
     throw new Error(
@@ -61,20 +54,18 @@ export const selectBestCoaTemplate = async (
   if (validTemplates.length === 1) {
     return {
       template: validTemplates[0],
-      log: "Single valid template found, not scored",
+      log: 'Single valid template found, not scored',
     };
   }
 
   // 3. Scoring Preparation
-  const cleanIndustry = company.industry?.toLowerCase().trim() || "";
-  const additionalInfo = additional_info
-    ? splitIntoWords(additional_info).join(" ")
-    : "";
+  const cleanIndustry = company.industry?.toLowerCase().trim() || '';
+  const additionalInfo = additional_info ? splitIntoWords(additional_info).join(' ') : '';
   const searchText = `${cleanIndustry} ${additionalInfo}`.trim().toLowerCase();
 
   // 4. Scoring Engine
   const scores = validTemplates.map((template) => {
-    const parts = template.split(":");
+    const parts = template.split(':');
     const [t_company_type, t_industry, t_template_type, t_code, t_version] =
       parts as CoaTemplateNameParts;
 
@@ -82,23 +73,19 @@ export const selectBestCoaTemplate = async (
     const scoringLog: string[] = [];
 
     // Industry Scoring
-    const { primary, secondary, aliasPrimary, aliasSecondary } =
-      getKeywords(t_industry);
+    const { primary, secondary, aliasPrimary, aliasSecondary } = getKeywords(t_industry);
     let industryScore = 0;
 
     // Map company industry to expected template industry
     const expectedIndustry =
-      company.industry &&
-      industryKeywords[company.industry.toLowerCase() as CoaTemplateIndustry]
+      company.industry && industryKeywords[company.industry.toLowerCase() as CoaTemplateIndustry]
         ? company.industry.toLowerCase()
-        : "none";
+        : 'none';
 
     // Apply mismatch penalty if template industry doesn't align with expected
-    if (expectedIndustry !== "none" && t_industry !== expectedIndustry) {
+    if (expectedIndustry !== 'none' && t_industry !== expectedIndustry) {
       industryScore -= SCORE.INDUSTRY_MISMATCH_PENALTY;
-      scoringLog.push(
-        `-200 (industry mismatch: expected ${expectedIndustry}, got ${t_industry})`,
-      );
+      scoringLog.push(`-200 (industry mismatch: expected ${expectedIndustry}, got ${t_industry})`);
     }
 
     primary.forEach((phrase) => {
@@ -118,25 +105,21 @@ export const selectBestCoaTemplate = async (
     aliasPrimary.forEach((phrase) => {
       if (searchText.includes(phrase)) {
         industryScore += SCORE.INDUSTRY_ALIAS_PRIMARY;
-        scoringLog.push(
-          `+${SCORE.INDUSTRY_ALIAS_PRIMARY} (alias primary: ${phrase})`,
-        );
+        scoringLog.push(`+${SCORE.INDUSTRY_ALIAS_PRIMARY} (alias primary: ${phrase})`);
       }
     });
     aliasSecondary.forEach((keyword) => {
       const safeKeyword = escapeRegExp(keyword);
       if (new RegExp(`\\b${safeKeyword}\\b`).test(searchText)) {
         industryScore += SCORE.INDUSTRY_ALIAS_SECONDARY;
-        scoringLog.push(
-          `+${SCORE.INDUSTRY_ALIAS_SECONDARY} (alias secondary: ${keyword})`,
-        );
+        scoringLog.push(`+${SCORE.INDUSTRY_ALIAS_SECONDARY} (alias secondary: ${keyword})`);
       }
     });
 
-    if (companyType === "ind" && t_industry === "none") {
+    if (companyType === 'ind' && t_industry === 'none') {
       industryScore = SCORE.INDUSTRY_PRIMARY;
       scoringLog.push(`+${SCORE.INDUSTRY_PRIMARY} (individual default)`);
-    } else if (!searchText && t_industry === "none") {
+    } else if (!searchText && t_industry === 'none') {
       industryScore = SCORE.ONE * 5;
       scoringLog.push(`+5 (empty search default)`);
     }
@@ -153,10 +136,8 @@ export const selectBestCoaTemplate = async (
     scoringLog.push(`+${templateScore} (template: ${t_template_type})`);
 
     // Code Matching
-    const effectiveUseCode = use_code ?? companyType !== "ind";
-    const codeMatch = effectiveUseCode
-      ? t_code === "code"
-      : ["nocode", "none"].includes(t_code);
+    const effectiveUseCode = use_code ?? companyType !== 'ind';
+    const codeMatch = effectiveUseCode ? t_code === 'code' : ['nocode', 'none'].includes(t_code);
 
     if (codeMatch) {
       score += SCORE.CODE_MATCH;
@@ -180,9 +161,7 @@ export const selectBestCoaTemplate = async (
   });
 
   // 5. Result Determination
-  const viableScores = scores.filter(
-    ({ score }) => score > SCORE.MIN_THRESHOLD,
-  );
+  const viableScores = scores.filter(({ score }) => score > SCORE.MIN_THRESHOLD);
   const [best] = [...viableScores].sort((a, b) => b.score - a.score);
 
   if (best) {
@@ -195,16 +174,16 @@ export const selectBestCoaTemplate = async (
         `Search Text: "${searchText}"`,
         ...scores.map((s) => `  ${s.template} → ${s.score}`),
         `✅ Selected: ${best.template} (score: ${best.score})`,
-      ].join("\n"),
+      ].join('\n'),
     };
   }
 
   // 6. Fallback Mechanism
   const defaultTemplate = DEFAULT_TEMPLATES[companyType];
-  const defaultNoCode = defaultTemplate.replace(":code:", ":nocode:");
+  const defaultNoCode = defaultTemplate.replace(':code:', ':nocode:');
 
   // Try code first, then nocode
-  if (companyType !== "ind") {
+  if (companyType !== 'ind') {
     const hasCodeVersion = validTemplates.includes(defaultTemplate);
     const hasNoCodeVersion = validTemplates.includes(defaultNoCode);
 
@@ -233,7 +212,7 @@ export const selectBestCoaTemplate = async (
 
   throw new Error(
     `No suitable template found for ${companyType}. ` +
-      `Defaults (${defaultTemplate}, ${defaultNoCode}) missing. Valid templates: [${validTemplates.join(", ")}]`,
+      `Defaults (${defaultTemplate}, ${defaultNoCode}) missing. Valid templates: [${validTemplates.join(', ')}]`,
   );
 };
 
@@ -260,163 +239,156 @@ const SCORE = {
 };
 
 const DEFAULT_TEMPLATES: Record<CoaTemplateCompanyType, string> = {
-  ind: "ind:none:basic:nocode:v1",
-  biz: "biz:none:basic:code:v1",
-  acc: "acc:prof:basic:code:v1",
+  ind: 'ind:none:basic:nocode:v1',
+  biz: 'biz:none:basic:code:v1',
+  acc: 'acc:prof:basic:code:v1',
 };
 
 // Keyword mappings for industry matching
 const industryKeywords: Record<CoaTemplateIndustry, IndustryKeywordConfig> = {
   saas: {
     primary: [
-      "saas",
-      "software as a service",
-      "cloud software",
-      "subscription software",
-      "recurring billing",
-      "hosted software",
-      "online platform",
-      "web app",
+      'saas',
+      'software as a service',
+      'cloud software',
+      'subscription software',
+      'recurring billing',
+      'hosted software',
+      'online platform',
+      'web app',
     ],
     secondary: [
-      "software",
-      "cloud",
-      "platform",
-      "subscription",
-      "digital",
-      "monthly plan",
-      "annual license",
-      "user seats",
-      "scalable",
-      "api",
+      'software',
+      'cloud',
+      'platform',
+      'subscription',
+      'digital',
+      'monthly plan',
+      'annual license',
+      'user seats',
+      'scalable',
+      'api',
     ],
-    aliases: ["tech"],
+    aliases: ['tech'],
   },
   tech: {
     primary: [
-      "technology",
-      "tech",
-      "it services",
-      "tech support",
-      "computer systems",
-      "software development",
-      "information technology",
-      "tech",
+      'technology',
+      'tech',
+      'it services',
+      'tech support',
+      'computer systems',
+      'software development',
+      'information technology',
+      'tech',
     ],
     secondary: [
-      "hardware",
-      "ai",
-      "machine learning",
-      "data",
-      "network",
-      "cybersecurity",
-      "servers",
+      'hardware',
+      'ai',
+      'machine learning',
+      'data',
+      'network',
+      'cybersecurity',
+      'servers',
     ],
-    aliases: ["saas"],
+    aliases: ['saas'],
   },
   int_design: {
     primary: [
-      "interior design",
-      "interior designer",
-      "home design",
-      "space planning",
-      "home decor",
+      'interior design',
+      'interior designer',
+      'home design',
+      'space planning',
+      'home decor',
     ],
     secondary: [
-      "decor",
-      "architecture",
-      "renovation",
-      "remodel",
-      "construction",
-      "design consultation",
-      "furniture",
-      "aesthetics",
-      "home improvement",
+      'decor',
+      'architecture',
+      'renovation',
+      'remodel',
+      'construction',
+      'design consultation',
+      'furniture',
+      'aesthetics',
+      'home improvement',
     ],
     aliases: [],
   },
   retail: {
-    primary: [
-      "retail",
-      "store",
-      "ecommerce",
-      "online store",
-      "brick and mortar",
-      "retail sales",
-    ],
+    primary: ['retail', 'store', 'ecommerce', 'online store', 'brick and mortar', 'retail sales'],
     secondary: [
-      "shop",
-      "merchandise",
-      "sales",
-      "inventory",
-      "point of sale",
-      "customer service",
-      "stock",
-      "checkout",
-      "product display",
+      'shop',
+      'merchandise',
+      'sales',
+      'inventory',
+      'point of sale',
+      'customer service',
+      'stock',
+      'checkout',
+      'product display',
     ],
     aliases: [],
   },
   prof: {
     primary: [
-      "professional services",
-      "consulting",
-      "freelance",
-      "business consulting",
-      "management consulting",
-      "advisory services",
+      'professional services',
+      'consulting',
+      'freelance',
+      'business consulting',
+      'management consulting',
+      'advisory services',
     ],
     secondary: [
-      "advisor",
-      "expert",
-      "specialist",
-      "strategy",
-      "coaching",
-      "training",
-      "project management",
-      "business services",
+      'advisor',
+      'expert',
+      'specialist',
+      'strategy',
+      'coaching',
+      'training',
+      'project management',
+      'business services',
     ],
-    aliases: ["legal"],
+    aliases: ['legal'],
   },
   legal: {
     primary: [
-      "legal",
-      "law firm",
-      "attorney",
-      "legal services",
-      "law practice",
-      "legal consulting",
+      'legal',
+      'law firm',
+      'attorney',
+      'legal services',
+      'law practice',
+      'legal consulting',
     ],
     secondary: [
-      "lawyer",
-      "litigation",
-      "compliance",
-      "contract",
-      "dispute",
-      "regulation",
-      "legal advice",
-      "court",
+      'lawyer',
+      'litigation',
+      'compliance',
+      'contract',
+      'dispute',
+      'regulation',
+      'legal advice',
+      'court',
     ],
-    aliases: ["prof"],
+    aliases: ['prof'],
   },
   manuf: {
     primary: [
-      "manufacturing",
-      "production",
-      "factory",
-      "industrial",
-      "fabrication",
-      "assembly line",
+      'manufacturing',
+      'production',
+      'factory',
+      'industrial',
+      'fabrication',
+      'assembly line',
     ],
     secondary: [
-      "assembly",
-      "supply chain",
-      "equipment",
-      "logistics",
-      "machinery",
-      "production line",
-      "quality control",
-      "warehousing",
+      'assembly',
+      'supply chain',
+      'equipment',
+      'logistics',
+      'machinery',
+      'production line',
+      'quality control',
+      'warehousing',
     ],
     aliases: [],
   },
@@ -452,9 +424,7 @@ export function getKeywords(industry: CoaTemplateIndustry) {
   return {
     primary: [...new Set(config.primary.map(normalizeKeyword))],
     secondary: [...new Set(config.secondary.map(normalizeKeyword))],
-    aliasPrimary: aliasKeywords
-      ? [...new Set(aliasKeywords.primary.map(normalizeKeyword))]
-      : [],
+    aliasPrimary: aliasKeywords ? [...new Set(aliasKeywords.primary.map(normalizeKeyword))] : [],
     aliasSecondary: aliasKeywords
       ? [...new Set(aliasKeywords.secondary.map(normalizeKeyword))]
       : [],
@@ -462,5 +432,5 @@ export function getKeywords(industry: CoaTemplateIndustry) {
 }
 
 function normalizeKeyword(keyword: string) {
-  return keyword.toLowerCase().trim().replace(/\s+/g, " ");
+  return keyword.toLowerCase().trim().replace(/\s+/g, ' ');
 }

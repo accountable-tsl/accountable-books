@@ -1,10 +1,10 @@
-import Decimal from "decimal.js";
-import { fetchExchangeRate } from "./exchangeRates.model.js";
+import Decimal from 'decimal.js';
+import { fetchExchangeRate } from './exchangeRates.model.js';
 
 export async function determineExchangeRate(
   date: Date | string,
   fromCurrencyId: string,
-  toCurrencyId: string
+  toCurrencyId: string,
 ): Promise<number | null> {
   try {
     if (fromCurrencyId === toCurrencyId) {
@@ -14,21 +14,21 @@ export async function determineExchangeRate(
     const exr = await fetchExchangeRate(
       new Date(date as string),
       fromCurrencyId as string,
-      toCurrencyId as string
+      toCurrencyId as string,
     );
 
     if (exr.success && exr.data?.rate) {
       return Number(exr.data.rate);
     } else {
       console.error(
-        `Failed to determine exchange rate for ${fromCurrencyId} to ${toCurrencyId} on ${new Date(date).toLocaleDateString()}`
+        `Failed to determine exchange rate for ${fromCurrencyId} to ${toCurrencyId} on ${new Date(date).toLocaleDateString()}`,
       );
       return null;
     }
   } catch (error) {
     console.error(
       `Error determining exchange rate for ${fromCurrencyId} to ${toCurrencyId} on ${date}:`,
-      error
+      error,
     );
     return null;
   }

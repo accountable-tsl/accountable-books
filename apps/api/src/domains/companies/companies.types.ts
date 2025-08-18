@@ -1,19 +1,12 @@
-import { z } from "zod";
-import { dbBaseFields } from "../../core/types/core.js";
-import { type SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils.js";
-import { firmType } from "../accountingFirms/firms.types.js";
-import { companyOnboardingState } from "../../features/onboarding/onboarding.types.js";
+import { z } from 'zod';
+import { dbBaseFields } from '../../core/types/core.js';
+import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+import { firmType } from '../accountingFirms/firms.types.js';
+import { companyOnboardingState } from '../../features/onboarding/onboarding.types.js';
 
-export const companyType = z.enum([
-  "business",
-  "individual",
-  "accounting_firm",
-]);
-export const reportingFramework = z.enum(["ifrs", "us_gaap"]);
-export const accountingBasis = z.enum([
-  "modified_cash_basis",
-  "modified_accrual_basis",
-]);
+export const companyType = z.enum(['business', 'individual', 'accounting_firm']);
+export const reportingFramework = z.enum(['ifrs', 'us_gaap']);
+export const accountingBasis = z.enum(['modified_cash_basis', 'modified_accrual_basis']);
 
 export const newCompanyInput = z.object({
   id: z.string().uuid().optional(),
@@ -164,37 +157,35 @@ export type GetCompanyResponse = {
   assignedFirmLogo: string | null;
 };
 
-export const fieldToColumnMap: Partial<
-  Record<keyof GetCompanyResponse, keyof NewCompany>
-> = {
-  legalName: "legal_name",
-  companyType: "type",
-  yearEndDay: "year_end_day",
-  yearEndMonth: "year_end_month",
-  countryId: "country_id",
-  reportingCurrencyId: "reporting_currency_id",
-  createdById: "created_by_id",
-  createdAt: "created_at",
+export const fieldToColumnMap: Partial<Record<keyof GetCompanyResponse, keyof NewCompany>> = {
+  legalName: 'legal_name',
+  companyType: 'type',
+  yearEndDay: 'year_end_day',
+  yearEndMonth: 'year_end_month',
+  countryId: 'country_id',
+  reportingCurrencyId: 'reporting_currency_id',
+  createdById: 'created_by_id',
+  createdAt: 'created_at',
 
-  displayName: "display_name",
-  address: "address",
-  companyLogo: "logo_url",
-  companyLogoKey: "logo_key",
-  description: "description",
-  website: "website",
-  industry: "industry",
-  companySize: "team_size",
-  revenue: "revenue",
-  companyRegistrationNumber: "registration_number",
-  companyTaxId: "tax_id",
-  isPlatform: "is_platform",
-  isDemoCompany: "is_demo_company",
+  displayName: 'display_name',
+  address: 'address',
+  companyLogo: 'logo_url',
+  companyLogoKey: 'logo_key',
+  description: 'description',
+  website: 'website',
+  industry: 'industry',
+  companySize: 'team_size',
+  revenue: 'revenue',
+  companyRegistrationNumber: 'registration_number',
+  companyTaxId: 'tax_id',
+  isPlatform: 'is_platform',
+  isDemoCompany: 'is_demo_company',
   // onboardingStatus: "onboarding_status",
 
-  reportingFramework: "reporting_framework",
-  accountingBasis: "accounting_basis",
+  reportingFramework: 'reporting_framework',
+  accountingBasis: 'accounting_basis',
 
-  assignedFirmId: "assigned_firm_id",
+  assignedFirmId: 'assigned_firm_id',
 };
 
 export const updateCompanySchema = getCompanyResponse
@@ -230,5 +221,5 @@ export interface FetchCompaniesOptions {
   page?: number;
   pageSize?: number;
   sortBy?: string;
-  sortOrder?: "asc" | "desc";
+  sortOrder?: 'asc' | 'desc';
 }

@@ -1,13 +1,11 @@
-
-
-import type { Knex } from "knex";
-import { type MonoAccountDetails } from "../baccons.types.js";
-import { getCurrencyByCode } from "../../currencies/currencies.model.js";
-import { knexClient } from "../../../db/knexClient.js";
-import { createNewBankAccount } from "../../bankAccounts/bankAccounts.model.js";
-import { AppError } from "../../../shared/utils/response.utils.js";
-import { resolveBankFromMonoDetails } from "./resolveBank.js";
-import { resolveCurrency } from "./resolveCurrency.js";
+import type { Knex } from 'knex';
+import { type MonoAccountDetails } from '../baccons.types.js';
+import { getCurrencyByCode } from '../../currencies/currencies.model.js';
+import { knexClient } from '../../../db/knexClient.js';
+import { createNewBankAccount } from '../../bankAccounts/bankAccounts.model.js';
+import { AppError } from '../../../shared/utils/response.utils.js';
+import { resolveBankFromMonoDetails } from './resolveBank.js';
+import { resolveCurrency } from './resolveCurrency.js';
 
 export async function createBankAccount({
   userId,
@@ -42,7 +40,7 @@ export async function createBankAccount({
     });
 
     if (!result.success) {
-      throw new Error(result.message || "Bank account creation failed");
+      throw new Error(result.message || 'Bank account creation failed');
     }
 
     return {
@@ -54,12 +52,9 @@ export async function createBankAccount({
   try {
     return trx ? await execute(trx) : await knexClient.transaction(execute);
   } catch (err: any) {
-    throw new AppError(
-      err instanceof Error ? err.message : "Bank account creation failed",
-      {
-        companyId,
-        accountName,
-      }
-    );
+    throw new AppError(err instanceof Error ? err.message : 'Bank account creation failed', {
+      companyId,
+      accountName,
+    });
   }
 }

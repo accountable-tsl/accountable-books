@@ -1,11 +1,13 @@
 .PHONY: help setup dev build test clean check
 .PHONY: db-up db-down db-restart db-migrate db-rollback db-seed db-logs db-shell
-.PHONY: api-dev api-build api-test docker-up docker-down docker-build docker-clean
+.PHONY: api-dev api-build api-test web-dev web-build web-test docker-up docker-down docker-build docker-clean
+.PHONY: validate-contracts bundle-contracts bundle-contracts-watch clean-bundled codegen contracts
 
 # Colors for output
 GREEN := \033[32m
 YELLOW := \033[33m
 BLUE := \033[34m
+RED := \033[31m
 RESET := \033[0m
 
 ##@ Development
@@ -14,14 +16,33 @@ help: ## Display this help
 
 setup: ## Setup complete development environment
 	@echo "$(GREEN)Setting up development environment...$(RESET)"
+	@echo "$(YELLOW)📋 Setting up environment files...$(RESET)"
+	@if [ ! -f apps/api/.env.local ]; then \
+		cp apps/api/.env.example apps/api/.env.local && \
+		echo "$(GREEN)✓ Created apps/api/.env.local$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠️ apps/api/.env.local already exists$(RESET)"; \
+	fi
+	@if [ ! -f apps/web/.env.local ]; then \
+		cp apps/web/.env.example apps/web/.env.local && \
+		echo "$(GREEN)✓ Created apps/web/.env.local$(RESET)"; \
+	else \
+		echo "$(YELLOW)⚠️ apps/web/.env.local already exists$(RESET)"; \
+	fi
+	@echo "$(YELLOW)📦 Installing dependencies...$(RESET)"
 	pnpm install
+	@echo "$(YELLOW)🐳 Starting database services...$(RESET)"
 	$(MAKE) db-up
-	@echo "$(YELLOW)Waiting for database to be ready...$(RESET)"
+	@echo "$(YELLOW)⏳ Waiting for database to be ready...$(RESET)"
 	@sleep 5
+	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
 	$(MAKE) db-migrate
-	@echo "$(GREEN)✅ Setup complete! Run 'make dev' to start developing$(RESET)"
+	@echo ""
+	@echo "$(GREEN)✅ Setup complete!$(RESET)"
+	@echo "$(GREEN)🚀 Run 'make dev' to start developing$(RESET)"
+	@echo "$(BLUE)📚 Check the README for more information$(RESET)"
 
-dev: db-up ## Start development environment
+dev: db-up contracts ## Start development environment
 	@echo "$(GREEN)Starting development environment...$(RESET)"
 	pnpm dev
 
@@ -46,7 +67,7 @@ db-rollback: ## Rollback last migration
 
 db-seed: ## Seed database with test data
 	@echo "$(GREEN)Seeding database...$(RESET)"
-	pnpm --filter @accountable-books/api seed:local
+	pnpm --filter @accountable-books/api seed:demo
 
 db-logs: ## Show database logs
 	docker-compose -f docker-compose.dev.yml logs -f db
@@ -64,6 +85,40 @@ api-build: ## Build API
 api-test: ## Run API tests
 	pnpm --filter @accountable-books/api test
 
+##@ Web App
+web-dev: ## Start web app in development mode
+	pnpm --filter @accountable-books/web dev
+
+web-build: ## Build web app
+	pnpm --filter @accountable-books/web build
+
+web-test: ## Run web app tests
+	pnpm --filter @accountable-books/web test
+
+##@ Contracts & Types
+validate-contracts: ## Validate OpenAPI contracts with Spectral
+	@echo "$(GREEN)Validating OpenAPI contracts...$(RESET)"
+	pnpm validate-contracts
+
+bundle-contracts: ## Bundle OpenAPI contracts with Redocly (dereferenced)
+	@echo "$(GREEN)Bundling OpenAPI contracts...$(RESET)"
+	pnpm bundle-contracts
+
+bundle-contracts-watch: ## Bundle OpenAPI contracts in watch mode
+	@echo "$(GREEN)Watching and bundling OpenAPI contracts...$(RESET)"
+	pnpm exec redocly bundle packages/contracts/openapi.yaml --output packages/contracts/dist/openapi-bundled.yaml --dereferenced --watch
+
+clean-bundled: ## Clean bundled contract files
+	@echo "$(YELLOW)Cleaning bundled contracts...$(RESET)"
+	rm -rf packages/contracts/dist
+
+codegen: ## Generate TypeScript types from OpenAPI
+	@echo "$(GREEN)Generating types from OpenAPI contracts...$(RESET)"
+	pnpm codegen
+
+contracts: validate-contracts bundle-contracts codegen ## Full contract workflow (validate + bundle + generate)
+	@echo "$(GREEN)✅ Contracts validated, bundled, and types generated$(RESET)"
+
 ##@ Build & Test
 build: ## Build all packages
 	@echo "$(GREEN)Building all packages...$(RESET)"
@@ -73,7 +128,7 @@ test: ## Run all tests
 	@echo "$(GREEN)Running tests...$(RESET)"
 	pnpm test
 
-check: ## Run all quality checks (lint, typecheck, format)
+check: contracts ## Run all quality checks (lint, typecheck, format)
 	@echo "$(GREEN)Running quality checks...$(RESET)"
 	pnpm lint
 	pnpm typecheck
@@ -102,9 +157,41 @@ docker-clean: ## Clean Docker (remove volumes, images, rebuild)
 clean: ## Clean all generated files and containers
 	@echo "$(YELLOW)Cleaning workspace...$(RESET)"
 	$(MAKE) docker-down
+	$(MAKE) clean-bundled
 	docker system prune -f
 	pnpm clean || true
 	@echo "$(GREEN)✅ Workspace cleaned$(RESET)"
+
+clean-all: ## Nuclear cleanup: remove all caches, coverage, node_modules, and reinstall
+	@echo "$(RED)Nuclear cleanup starting...$(RESET)"
+	@echo "$(YELLOW)Stopping Docker services...$(RESET)"
+	$(MAKE) docker-down || true
+	@echo "$(YELLOW)Removing all node_modules...$(RESET)"
+	rm -rf node_modules
+	rm -rf apps/*/node_modules
+	rm -rf packages/*/node_modules
+	@echo "$(YELLOW)Removing all coverage reports...$(RESET)"
+	rm -rf apps/*/coverage
+	rm -rf packages/*/coverage
+	rm -rf coverage
+	@echo "$(YELLOW)Removing all cache directories...$(RESET)"
+	rm -rf .turbo
+	rm -rf apps/*/.turbo
+	rm -rf packages/*/.turbo
+	rm -rf apps/*/dist
+	rm -rf packages/*/dist
+	rm -rf dist
+	@echo "$(YELLOW)Removing pnpm store cache...$(RESET)"
+	pnpm store prune || true
+	@echo "$(YELLOW)Cleaning bundled contracts...$(RESET)"
+	$(MAKE) clean-bundled
+	@echo "$(YELLOW)Cleaning Docker...$(RESET)"
+	docker system prune -f || true
+	@echo "$(GREEN)Installing dependencies...$(RESET)"
+	pnpm install
+	@echo "$(GREEN)Regenerating contracts and types...$(RESET)"
+	$(MAKE) contracts
+	@echo "$(GREEN)✅ Nuclear cleanup complete!$(RESET)"
 
 reset: clean setup ## Full reset: clean everything and setup fresh
 	@echo "$(GREEN)✅ Full reset complete$(RESET)"

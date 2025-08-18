@@ -1,23 +1,19 @@
-import { knexClient } from "../../db/knexClient.js";
-import { AppError } from "../../shared/utils/response.utils.js";
-import {
-  type RoleInfo,
-  roleKey,
-  type RoleKey,
-} from "./roles.types.js";
+import { knexClient } from '../../db/knexClient.js';
+import { AppError } from '../../shared/utils/response.utils.js';
+import { type RoleInfo, roleKey, type RoleKey } from './roles.types.js';
 
 let rolesLoaded = false;
 
 export const roles: Record<RoleKey, RoleInfo> = Object.fromEntries(
-  roleKey.options.map((key) => [key, { id: "", name: "", description: "" }]),
+  roleKey.options.map((key) => [key, { id: '', name: '', description: '' }]),
 ) as Record<RoleKey, RoleInfo>;
 
 export const loadRoles = async () => {
   if (rolesLoaded) return;
 
-  const result = await knexClient("roles")
-    .select("id", "key", "name", "description")
-    .where("is_deleted", false);
+  const result = await knexClient('roles')
+    .select('id', 'key', 'name', 'description')
+    .where('is_deleted', false);
 
   for (const role of result) {
     if (roleKey.options.includes(role.key)) {
@@ -48,7 +44,7 @@ export async function getRoleId(key: RoleKey): Promise<string> {
   if (!allRolesLoaded) await loadRoles();
 
   if (!rolesLoaded) {
-    throw new AppError("Roles not loaded yet! Call loadRoles() at startup.");
+    throw new AppError('Roles not loaded yet! Call loadRoles() at startup.');
   }
 
   return roles[key].id;
@@ -56,7 +52,7 @@ export async function getRoleId(key: RoleKey): Promise<string> {
 
 export function getRoleDetails(key: RoleKey): RoleInfo {
   if (!rolesLoaded) {
-    throw new AppError("Roles not loaded yet! Call loadRoles() at startup.");
+    throw new AppError('Roles not loaded yet! Call loadRoles() at startup.');
   }
   return roles[key];
 }

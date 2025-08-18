@@ -1,6 +1,6 @@
-import * as Sentry from "@sentry/node";
-import { nodeProfilingIntegration } from "@sentry/profiling-node";
-import { ENV, isDev } from "./config/env.js";
+import * as Sentry from '@sentry/node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import { ENV, isDev } from './config/env.js';
 
 export function initSentry() {
   Sentry.init({
@@ -10,7 +10,7 @@ export function initSentry() {
     integrations: [nodeProfilingIntegration()],
     tracesSampleRate: isDev ? 0 : 1.0,
     profileSessionSampleRate: isDev ? 0 : 1.0,
-    profileLifecycle: "trace",
+    profileLifecycle: 'trace',
   });
 
   return Sentry;

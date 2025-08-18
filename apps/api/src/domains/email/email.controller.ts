@@ -1,7 +1,7 @@
-import { type Request, type Response } from "express";
-import { errorResponse } from "../../shared/utils/response.utils.js";
-import { checkEmail } from "./email.model.js";
-import { knexClient } from "../../db/knexClient.js";
+import { type Request, type Response } from 'express';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { checkEmail } from './email.model.js';
+import { knexClient } from '../../db/knexClient.js';
 
 export async function checkEmailController(req: Request, res: Response) {
   try {
@@ -14,8 +14,6 @@ export async function checkEmailController(req: Request, res: Response) {
       return res.status(409).json(result);
     }
   } catch (error) {
-    return res
-      .status(500)
-      .json(errorResponse("An unexpected error occurred", error));
+    return res.status(500).json(errorResponse('An unexpected error occurred', error));
   }
 }

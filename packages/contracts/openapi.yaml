@@ -15,103 +15,28 @@ servers:
 
 paths:
   /health:
-    get:
-      summary: Health check
-      tags:
-        - Health
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                    example: true
-
+    $ref: './paths/health.yaml'
   /auth/login:
-    post:
-      summary: User login
-      tags:
-        - Authentication
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password]
-              properties:
-                email:
-                  type: string
-                  format: email
-                  example: 'user@example.com'
-                password:
-                  type: string
-                  format: password
-                  example: 'password123'
-      responses:
-        '200':
-          description: Login successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    type: object
-                    properties:
-                      accessToken:
-                        type: string
-                        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
-                      user:
-                        type: object
-                        properties:
-                          id:
-                            type: string
-                            example: '123e4567-e89b-12d3-a456-426614174000'
-                          email:
-                            type: string
-                            example: 'user@example.com'
-                          firstName:
-                            type: string
-                            example: 'John'
-                          lastName:
-                            type: string
-                            example: 'Doe'
-        '401':
-          description: Invalid credentials
-
+    $ref: './paths/auth.yaml#/login'
   /auth/logout:
-    post:
-      summary: User logout
-      tags:
-        - Authentication
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Logout successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
+    $ref: './paths/auth.yaml#/logout'
+  /auth/refresh:
+    $ref: './paths/auth.yaml#/refresh'
+  /auth/me:
+    $ref: './paths/auth.yaml#/me'
 
 components:
   securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: refreshToken
+      description: HTTP-only refresh token cookie
+    CsrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: CSRF protection token
 
 tags:
   - name: Health

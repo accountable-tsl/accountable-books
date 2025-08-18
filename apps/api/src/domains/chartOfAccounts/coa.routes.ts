@@ -1,4 +1,4 @@
-import express from "express";
+import express from 'express';
 import {
   archiveCoaController,
   createCoaController,
@@ -6,18 +6,18 @@ import {
   editCoaController,
   getCoaController,
   unarchiveCoaController,
-} from "./coa.controller.js";
+} from './coa.controller.js';
 
 const router = express.Router({ mergeParams: true });
 
-router.get("/", getCoaController);
+router.get('/', getCoaController);
 
-router.post("/", createCoaController);
+router.post('/', createCoaController);
 
-router.patch("/edit", editCoaController);
-router.patch("/archive", archiveCoaController);
-router.patch("/unarchive", unarchiveCoaController);
+router.patch('/edit', editCoaController);
+router.patch('/archive', archiveCoaController);
+router.patch('/unarchive', unarchiveCoaController);
 
-router.delete("/", deleteCoaController);
+router.delete('/', deleteCoaController);
 
 export default router;

@@ -2,8 +2,28 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "tasks": {
+    "validate-contracts": {
+      "outputs": []
+    },
+
+    "bundle": {
+      "dependsOn": ["validate-contracts"],
+      "inputs": [
+        "packages/contracts/openapi.yaml",
+        "packages/contracts/components/**",
+        "packages/contracts/paths/**"
+      ],
+      "outputs": ["dist/**"]
+    },
+
+    "bundle-contracts": {
+      "dependsOn": ["bundle"],
+      "outputs": []
+    },
+
     "codegen": {
-      "outputs": ["packages/contracts/src/types.ts"]
+      "dependsOn": ["bundle-contracts"],
+      "outputs": ["src/generated/**"]
     },
 
     "build": {
@@ -31,6 +51,10 @@
 
     "migrate": {
       "cache": false
+    },
+
+    "clean": {
+      "outputs": []
     }
   }
 }

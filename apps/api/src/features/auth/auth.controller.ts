@@ -1,26 +1,18 @@
-import { type Request, type Response } from "express";
+import { type Request, type Response } from 'express';
 import {
   loginService,
   meService,
   refreshTokenService,
   resendVerificationEmailService,
   verifyEmailService,
-} from "./auth.service.js";
-import {
-  ErrorCode,
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response.utils.js";
-import { type AuthRequest } from "./auth.types.js";
-import {
-  clearCsrfCookie,
-  generateCsrfToken,
-  setAuthCookies,
-} from "./auth.utils.js";
-import { redis } from "../../lib/redis.js";
-import { user } from "../../domains/users/users.types.js";
-import { ENV, isProd } from "../../config/env.js";
-import { getAppUrl } from "../../shared/utils/string.utils.js";
+} from './auth.service.js';
+import { ErrorCode, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import { type AuthRequest } from './auth.types.js';
+import { clearCsrfCookie, generateCsrfToken, setAuthCookies } from './auth.utils.js';
+import { redis } from '../../lib/redis.js';
+import { user } from '../../domains/users/users.types.js';
+import { ENV, isProd } from '../../config/env.js';
+import { getAppUrl } from '../../shared/utils/string.utils.js';
 
 export async function loginController(req: AuthRequest, res: Response) {
   try {
@@ -47,13 +39,13 @@ export async function loginController(req: AuthRequest, res: Response) {
     const csrfToken = generateCsrfToken(req, res);
 
     return res.json(
-      successResponse("User logged in successfully", {
+      successResponse('User logged in successfully', {
         user: rest.user,
         csrfToken,
-      })
+      }),
     );
   } catch (error) {
-    return res.status(500).json(errorResponse("Something went wrong", error));
+    return res.status(500).json(errorResponse('Something went wrong', error));
   }
 }
 
@@ -61,23 +53,21 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
-      return res.status(401).json(errorResponse("Refresh token missing"));
+      return res.status(401).json(errorResponse('Refresh token missing'));
     }
 
     const { id: userId } = req.user || {};
 
     if (!userId) {
-      return res.status(403).json(errorResponse("User not authenticated"));
+      return res.status(403).json(errorResponse('User not authenticated'));
     }
 
     const result = await refreshTokenService(refreshToken, userId);
 
     if (!result.success || !result.data) {
-      res.clearCookie("accessToken");
-      res.clearCookie("refreshToken");
-      return res
-        .status(403)
-        .json(errorResponse("Refresh token validation failed", result));
+      res.clearCookie('accessToken');
+      res.clearCookie('refreshToken');
+      return res.status(403).json(errorResponse('Refresh token validation failed', result));
     }
 
     const { accessToken, refreshToken: newRefreshToken } = result.data;
@@ -85,15 +75,15 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
     setAuthCookies(req, res, accessToken, newRefreshToken);
     const csrfToken = generateCsrfToken(req, res);
 
-    return res.json(successResponse("Tokens refreshed", { csrfToken }));
+    return res.json(successResponse('Tokens refreshed', { csrfToken }));
   } catch (error) {
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
     clearCsrfCookie(res);
 
     return res.status(401).json({
-      code: "REFRESH_FAILED",
-      message: "Session expired - please login again",
+      code: 'REFRESH_FAILED',
+      message: 'Session expired - please login again',
     });
   }
 }
@@ -108,28 +98,28 @@ export async function logoutController(req: AuthRequest, res: Response) {
   }
 
   const cookieDomain = ENV.COOKIE_DOMAIN;
-  res.clearCookie("accessToken", {
+  res.clearCookie('accessToken', {
     domain: cookieDomain,
-    path: "/",
+    path: '/',
     httpOnly: true,
     secure: isProd,
-    sameSite: "strict",
+    sameSite: 'strict',
   });
-  res.clearCookie("refreshToken", {
+  res.clearCookie('refreshToken', {
     domain: cookieDomain,
-    path: "/",
+    path: '/',
     httpOnly: true,
     secure: isProd,
-    sameSite: "strict",
+    sameSite: 'strict',
   });
   clearCsrfCookie(res);
 
-  return res.status(200).json(successResponse("Logged out successfully", null));
+  return res.status(200).json(successResponse('Logged out successfully', null));
 }
 
 export async function meController(req: AuthRequest, res: Response) {
   if (!req.user?.id) {
-    return res.status(401).json(errorResponse("Not authenticated"));
+    return res.status(401).json(errorResponse('Not authenticated'));
   }
 
   const context = await meService(req.user.id);
@@ -141,9 +131,7 @@ export async function meController(req: AuthRequest, res: Response) {
         : context?.code === ErrorCode.GENERIC
           ? 500
           : 403;
-    return res
-      .status(status)
-      .json(errorResponse(context.message, context.data || undefined));
+    return res.status(status).json(errorResponse(context.message, context.data || undefined));
   }
 
   const { user, activeCompany } = context.data;
@@ -153,10 +141,10 @@ export async function meController(req: AuthRequest, res: Response) {
   req.user = user;
 
   return res.status(200).json(
-    successResponse("User retrieved successfully", {
+    successResponse('User retrieved successfully', {
       user: user,
       csrfToken: generateCsrfToken(req, res),
-    })
+    }),
   );
 }
 
@@ -165,10 +153,10 @@ export async function verifyEmailController(req: Request, res: Response) {
 
   if (!token && !userId) {
     return res.status(400).json(
-      errorResponse("Missing required parameters", {
+      errorResponse('Missing required parameters', {
         emailVerified: false,
-        status: "error",
-      })
+        status: 'error',
+      }),
     );
   }
 
@@ -178,30 +166,25 @@ export async function verifyEmailController(req: Request, res: Response) {
       userId: String(userId),
     });
 
-    return result.success
-      ? res.status(200).json(result)
-      : res.status(400).json(result);
+    return result.success ? res.status(200).json(result) : res.status(400).json(result);
   } catch (error) {
     return res.status(500).json(
-      errorResponse("Something went wrong", {
+      errorResponse('Something went wrong', {
         emailVerified: false,
-        status: "error",
-      })
+        status: 'error',
+      }),
     );
   }
 }
 
-export async function resendVerEmailController(
-  req: AuthRequest,
-  res: Response,
-) {
+export async function resendVerEmailController(req: AuthRequest, res: Response) {
   const userId = String(req.body.userId);
   if (!userId) {
-    return res.status(400).json(errorResponse("User email or id is required"));
+    return res.status(400).json(errorResponse('User email or id is required'));
   }
 
-  if (!userId && typeof !userId !== "string") {
-    return res.status(400).json(errorResponse("Invalid email format"));
+  if (!userId && typeof !userId !== 'string') {
+    return res.status(400).json(errorResponse('Invalid email format'));
   }
 
   try {
@@ -210,12 +193,12 @@ export async function resendVerEmailController(
     });
 
     if (!result.success) {
-      const status = result.message === "User not found" ? 404 : 400;
+      const status = result.message === 'User not found' ? 404 : 400;
       return res.status(status).json(result);
     }
 
     return res.status(200).json(result);
   } catch (error) {
-    return res.status(500).json(errorResponse("Something went wrong"));
+    return res.status(500).json(errorResponse('Something went wrong'));
   }
 }

@@ -1,0 +1,92 @@
+@use '../../styles/partials/colors' as *;
+
+.toremove {
+  padding: 10rem;
+}
+
+.selectcoa {
+  @apply relative w-full min-w-32;
+  transition: all 0.1s ease-in-out;
+
+  &__select {
+    @apply relative flex items-center justify-between px-2 py-0.5 rounded-md cursor-pointer min-w-32	hover:border-gray-400 focus:outline-none;
+    font-size: 0.875rem;
+
+    &:hover {
+      border-color: $link;
+    }
+  }
+
+  &__placeholder {
+    @apply text-gray-400 italic overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+
+  &__value {
+    @apply flex-1 overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+
+  &__input {
+    @apply w-full px-2 py-0.5 text-sm outline-none border-none bg-transparent;
+    font-size: 0.85rem;
+  }
+
+  &__icon {
+    @apply transform transition-transform;
+    transition: all 0.2s ease;
+    color: rgba($color: $black, $alpha: 0.5);
+    font-size: 0.65rem;
+  }
+
+  &__dropdown {
+    @apply hidden min-w-32 w-full absolute overflow-hidden p-0 right-0 left-0 border text-left m-0 rounded-b-lg overflow-x-hidden overflow-y-auto;
+    top: 110%;
+    max-height: 22rem;
+    background-color: $white;
+    box-shadow: 0px 2px 8px -2px rgba($color: $black, $alpha: 0.15);
+    animation: slide-down 0.3s ease;
+    z-index: 100 !important;
+
+    &--open {
+      display: block;
+    }
+
+    &::-webkit-scrollbar {
+      width: 4px; // Scrollbar width
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: $neutral-gray;
+      border-radius: 3px;
+    }
+  }
+
+  &__option {
+    @apply block cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.625rem;
+    border-bottom: 0.5px dotted $neutral-white;
+    color: rgba($color: $black, $alpha: 0.6);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      color: rgba($color: $black, $alpha: 0.85);
+      background-color: rgba($color: $tertiary, $alpha: 0.05);
+    }
+
+    &--selected {
+      background-color: rgba($color: $tertiary, $alpha: 0.2);
+    }
+
+    &--highlighted {
+      color: $black;
+      background-color: rgba($color: $tertiary, $alpha: 0.05);
+    }
+  }
+
+  &__no-results {
+    @apply text-center py-2 text-sm text-gray-400;
+  }
+}

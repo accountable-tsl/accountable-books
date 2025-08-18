@@ -11,8 +11,8 @@ export type AlertBlockParams = {
 };
 
 export type SlackBlockTemplates =
-  | { type: "userCallback"; params: UserCallbackBlockParams }
-  | { type: "alert"; params: AlertBlockParams };
+  | { type: 'userCallback'; params: UserCallbackBlockParams }
+  | { type: 'alert'; params: AlertBlockParams };
 
 export type SlackMessageInput =
   | { channel?: string; text: string }

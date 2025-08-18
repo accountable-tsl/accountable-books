@@ -1,0 +1,30 @@
+extends: ['spectral:oas']
+rules:
+  oas3-schema: error
+  operation-tags: warn
+
+  # Names
+  schema-names-pascal-case:
+    description: 'Schema names must be PascalCase'
+    severity: warn
+    given: '$.components.schemas[*]~'
+    then:
+      function: pattern
+      functionOptions: { match: '^[A-Z][A-Za-z0-9]*$' }
+
+  property-names-camel-case:
+    description: 'Property names must be camelCase'
+    severity: warn
+    given: '$.components.schemas[*].properties[*]~'
+    then:
+      function: pattern
+      functionOptions: { match: '^[a-z][A-Za-z0-9]*$' }
+
+  # Paths kebab-case
+  path-segments-kebab-case:
+    description: 'Static path segments must be kebab-case; params `{likeThis}` allowed'
+    severity: warn
+    given: '$.paths[*]~'
+    then:
+      function: pattern
+      functionOptions: { match: "^(/([a-z0-9]+(?:-[a-z0-9]+)*|\\{[A-Za-z0-9_]+\\}))+/?$" }

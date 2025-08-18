@@ -1,16 +1,9 @@
-import { type NextFunction, type Response } from "express";
-import {
-  csrfProtection,
-  JWT_CONFIG,
-} from "./auth.utils.js";
-import jwt from "jsonwebtoken";
-import {
-  type AuthRequest,
-  type BaseAuthRequest,
-  type DecodedToken,
-} from "./auth.types.js";
-import { errorResponse } from "../../shared/utils/response.utils.js";
-import { publicPaths } from "./auth.constants.js";
+import { type NextFunction, type Response } from 'express';
+import { csrfProtection, JWT_CONFIG } from './auth.utils.js';
+import jwt from 'jsonwebtoken';
+import { type AuthRequest, type BaseAuthRequest, type DecodedToken } from './auth.types.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { publicPaths } from './auth.constants.js';
 
 export const verifyAccessToken = async (
   req: BaseAuthRequest,
@@ -18,25 +11,17 @@ export const verifyAccessToken = async (
   next: NextFunction,
 ) => {
   const token = req.cookies?.accessToken;
-  if (!token)
-    return res
-      .status(401)
-      .json(errorResponse("Unauthorized", "Token not found"));
+  if (!token) return res.status(401).json(errorResponse('Unauthorized', 'Token not found'));
 
   try {
     // Verify the JWT and extract the decoded payload
-    const decoded = jwt.verify(
-      token,
-      JWT_CONFIG.accessToken.secret,
-    ) as DecodedToken;
+    const decoded = jwt.verify(token, JWT_CONFIG.accessToken.secret) as DecodedToken;
 
     // Ensure the decoded payload includes a valid user ID
     if (!decoded.sub)
       return res
         .status(403)
-        .json(
-          errorResponse("Invalid token payload", "User ID not found in token"),
-        );
+        .json(errorResponse('Invalid token payload', 'User ID not found in token'));
 
     req.user = {
       ...req.user,
@@ -52,12 +37,12 @@ export const verifyAccessToken = async (
 
 function handleJwtError(err: unknown, res: Response) {
   if (err instanceof jwt.TokenExpiredError) {
-    return res.status(401).json(errorResponse("Token expired", err.message));
+    return res.status(401).json(errorResponse('Token expired', err.message));
   }
   if (err instanceof jwt.JsonWebTokenError) {
-    return res.status(403).json(errorResponse("Invalid token", err.message));
+    return res.status(403).json(errorResponse('Invalid token', err.message));
   }
-  res.status(500).json(errorResponse("Authentication failed", err));
+  res.status(500).json(errorResponse('Authentication failed', err));
 }
 
 export const verifyRefreshToken = async (
@@ -67,14 +52,11 @@ export const verifyRefreshToken = async (
 ) => {
   const refreshToken = req.cookies?.refreshToken;
   if (!refreshToken) {
-    return res.status(401).json(errorResponse("No refresh token provided"));
+    return res.status(401).json(errorResponse('No refresh token provided'));
   }
 
   try {
-    const decoded = jwt.verify(
-      refreshToken,
-      JWT_CONFIG.refreshToken.secret,
-    ) as DecodedToken;
+    const decoded = jwt.verify(refreshToken, JWT_CONFIG.refreshToken.secret) as DecodedToken;
 
     req.user = {
       ...req.user,
@@ -84,19 +66,13 @@ export const verifyRefreshToken = async (
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
-      return res
-        .status(401)
-        .json(errorResponse("Refresh token expired", error));
+      return res.status(401).json(errorResponse('Refresh token expired', error));
     }
-    return res.status(403).json(errorResponse("Invalid refresh token", error));
+    return res.status(403).json(errorResponse('Invalid refresh token', error));
   }
 };
 
-export const conditionalCsrf = (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const conditionalCsrf = (req: AuthRequest, res: Response, next: NextFunction) => {
   csrfProtection(req, res, (err) => {
     const isPublic = publicPaths.some((p) => req.originalUrl.includes(p));
 
@@ -104,42 +80,35 @@ export const conditionalCsrf = (
     if (err && isPublic) return next();
 
     if (err) {
-      console.warn(
-        "Blocked by CSRF middleware (Invalid CSRF token):",
-        err.message,
-      );
-      return res.status(403).json({ error: "A security breach was detected" });
+      console.warn('Blocked by CSRF middleware (Invalid CSRF token):', err.message);
+      return res.status(403).json({ error: 'A security breach was detected' });
     }
 
     return next();
   });
 };
 
-export const requireAuth = async (
-  req: BaseAuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const requireAuth = async (req: BaseAuthRequest, res: Response, next: NextFunction) => {
   if (publicPaths.some((p) => req.originalUrl.includes(p))) {
     return next();
   }
 
   const token = req.cookies?.accessToken;
   if (!token) {
-    if (req.accepts("html")) {
-      return res.redirect("/login");
+    if (req.accepts('html')) {
+      return res.redirect('/login');
     } else {
-      return res.status(401).json(errorResponse("Unauthorized"));
+      return res.status(401).json(errorResponse('Unauthorized'));
     }
   }
 
   try {
     await verifyAccessToken(req, res, next);
   } catch (error) {
-    if (req.accepts("html")) {
-      return res.redirect("/login");
+    if (req.accepts('html')) {
+      return res.redirect('/login');
     } else {
-      return res.status(401).json(errorResponse("Unauthorized"));
+      return res.status(401).json(errorResponse('Unauthorized'));
     }
   }
 };

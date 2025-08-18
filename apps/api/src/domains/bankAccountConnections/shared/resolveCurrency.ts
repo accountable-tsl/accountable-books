@@ -1,6 +1,6 @@
-import type { Knex } from "knex";
-import { AppError } from "../../../shared/utils/response.utils.js";
-import { getCurrencyByCode } from "../../currencies/currencies.model.js";
+import type { Knex } from 'knex';
+import { AppError } from '../../../shared/utils/response.utils.js';
+import { getCurrencyByCode } from '../../currencies/currencies.model.js';
 
 export async function resolveCurrency({
   currencyCode,
@@ -12,7 +12,7 @@ export async function resolveCurrency({
   const result = await getCurrencyByCode(currencyCode);
 
   if (!result.success || !result.data) {
-    throw new AppError("Currency resolution failed", {
+    throw new AppError('Currency resolution failed', {
       currencyCode,
     });
   }

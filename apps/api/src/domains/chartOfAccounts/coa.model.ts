@@ -1,4 +1,4 @@
-import type { Knex } from "knex";
+import type { Knex } from 'knex';
 import {
   type Coa,
   type CoaResponse,
@@ -15,27 +15,20 @@ import {
   updateCoaAction,
   type UpdateCoaAction,
   type UpdateCoaResponse,
-} from "./coa.types.js";
-import type { ApiResponse } from "../../core/types/api.types.js";
-import { AppError, errorResponse, successResponse } from "../../shared/utils/response.utils.js";
-import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from "./coa.constants.js";
-import { chunkArray, getCompanyUUID } from "../../shared/utils/random.utils.js";
-import {
-  camelToSnake,
-  removeNullsShallow,
-} from "../../shared/utils/formatting.utils.js";
-import { knexClient } from "../../db/knexClient.js";
-import { redis } from "../../lib/redis.js";
-import {
-  getAccountTypeByKey,
-  getFullAccountMeta,
-} from "../account/account.registry.js";
+} from './coa.types.js';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { AppError, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from './coa.constants.js';
+import { chunkArray, getCompanyUUID } from '../../shared/utils/random.utils.js';
+import { camelToSnake, removeNullsShallow } from '../../shared/utils/formatting.utils.js';
+import { knexClient } from '../../db/knexClient.js';
+import { redis } from '../../lib/redis.js';
+import { getAccountTypeByKey, getFullAccountMeta } from '../account/account.registry.js';
 
 // TODO: Invalidate coa cache on mutations
 const coaCacheTTL = 60 * 60 * 2;
 
-const generateCoaCacheKey = ({ companyUUID }: { companyUUID: string }) =>
-  `coa:v1:${companyUUID}`;
+const generateCoaCacheKey = ({ companyUUID }: { companyUUID: string }) => `coa:v1:${companyUUID}`;
 
 async function invalidateCoaCache({ companyUUID }: { companyUUID: string }) {
   const cacheKey = generateCoaCacheKey({ companyUUID });
@@ -69,8 +62,7 @@ export const createCoa = async ({
   // Validate input
   const snakeData = camelToSnake(data);
   const validate = newCoaInput.array().safeParse(snakeData);
-  if (!validate.success)
-    return errorResponse(`Invalid input`, validate.error?.message);
+  if (!validate.success) return errorResponse(`Invalid input`, validate.error?.message);
   const coaRecords = validate.data;
 
   const query = async (tx: Knex.Transaction) => {
@@ -78,15 +70,13 @@ export const createCoa = async ({
     const recordsToInsert: NewCoa[] = [];
 
     // Get company details
-    const company: { id: string; reportingCurrencyId: string } = await tx(
-      "companies",
-    )
-      .select("id", "reporting_currency_id as reportingCurrencyId")
-      .where("short_code", companyId)
+    const company: { id: string; reportingCurrencyId: string } = await tx('companies')
+      .select('id', 'reporting_currency_id as reportingCurrencyId')
+      .where('short_code', companyId)
       .first();
 
     if (!company || !company.id || !company.reportingCurrencyId) {
-      return errorResponse("Company not found");
+      return errorResponse('Company not found');
     }
 
     const { id: companyUUID, reportingCurrencyId } = company;
@@ -100,7 +90,7 @@ export const createCoa = async ({
       .map((record) => record.account_type_key);
 
     if (missingTypes.length > 0) {
-      return errorResponse("Invalid account types found", {
+      return errorResponse('Invalid account types found', {
         invalidTypes: [...new Set(missingTypes)],
       });
     }
@@ -126,8 +116,7 @@ export const createCoa = async ({
       });
     }
 
-    if (errors.length)
-      return errorResponse("Failed to create chart of accounts", errors);
+    if (errors.length) return errorResponse('Failed to create chart of accounts', errors);
 
     // Invalidate coa cache
     // await invalidateCoaCache({ companyUUID });
@@ -137,14 +126,12 @@ export const createCoa = async ({
     let totalInserted = 0;
 
     for (const batch of batchedRecords) {
-      const res = await tx("coa").insert(batch);
+      const res = await tx('coa').insert(batch);
       totalInserted += res.length;
     }
 
     return successResponse(
-      `Successfully created ${totalInserted} account${
-        totalInserted > 1 ? "s" : ""
-      }`,
+      `Successfully created ${totalInserted} account${totalInserted > 1 ? 's' : ''}`,
       totalInserted,
     );
   };
@@ -157,7 +144,7 @@ export const createCoa = async ({
 
     return result;
   } catch (error) {
-    return errorResponse("Failed to create chart of accounts", error);
+    return errorResponse('Failed to create chart of accounts', error);
   }
 };
 
@@ -174,45 +161,39 @@ export const createDefaultAccounts = async (
       created_by_id: userId,
       currency_id: currencyId,
       locked: true,
-      source: "template",
+      source: 'template',
     };
   });
 
-  const existingLockedAccounts = await trx("coa")
+  const existingLockedAccounts = await trx('coa')
     .where({
       company_id: companyId,
       locked: true,
     })
-    .whereIn("account_type_id", Object.values(DEFAULT_ACCOUNT_TYPE_IDS))
-    .select("account_type_id");
+    .whereIn('account_type_id', Object.values(DEFAULT_ACCOUNT_TYPE_IDS))
+    .select('account_type_id');
 
-  const existingAccountTypeIds = new Set(
-    existingLockedAccounts.map((acc) => acc.account_type_id),
-  );
+  const existingAccountTypeIds = new Set(existingLockedAccounts.map((acc) => acc.account_type_id));
 
   const accountsToCreate = defaultAccounts.filter(
     (acc) => !existingAccountTypeIds.has(acc.account_type_id),
   );
 
-  if (!accountsToCreate.length)
-    return successResponse("No accounts to create", null);
+  if (!accountsToCreate.length) return successResponse('No accounts to create', null);
 
   const validatedAccounts = newCoa.array().safeParse(accountsToCreate);
   if (!validatedAccounts.success) {
-    throw new AppError(
-      "Failed to validate default accounts",
-      validatedAccounts.error.flatten(),
-    );
+    throw new AppError('Failed to validate default accounts', validatedAccounts.error.flatten());
   }
   let inserted;
   if (validatedAccounts.success) {
-    inserted = await trx("coa").insert(validatedAccounts.data).returning("*");
+    inserted = await trx('coa').insert(validatedAccounts.data).returning('*');
   }
 
   if (!inserted || inserted.length === 0) {
-    return errorResponse("Failed to insert default chart of accounts records");
+    return errorResponse('Failed to insert default chart of accounts records');
   }
-  return successResponse("Must-have accounts successfully inserted", inserted);
+  return successResponse('Must-have accounts successfully inserted', inserted);
 };
 
 export const fetchCompanyCoa = async ({
@@ -224,7 +205,7 @@ export const fetchCompanyCoa = async ({
   includeDeleted = false,
   trx,
 }: FetchCoaInput): Promise<ApiResponse<CoaResponse>> => {
-  if (!receivedCompanyId) return errorResponse("Company ID is required");
+  if (!receivedCompanyId) return errorResponse('Company ID is required');
 
   const ids = accountIds || [];
   const codes = accountCodes || [];
@@ -232,74 +213,69 @@ export const fetchCompanyCoa = async ({
 
   const coaQuery = async (tx: Knex.Transaction, companyId: string) => {
     return (
-      tx("coa")
+      tx('coa')
         .select([
-          "coa.id as id",
-          "coa.code as code",
-          "coa.name as name",
-          "coa.description as description",
-          "coa.is_active as isActive",
-          "coa.locked as isLocked",
-          "coa.is_deleted as isDeleted",
-          "coa.source as source",
+          'coa.id as id',
+          'coa.code as code',
+          'coa.name as name',
+          'coa.description as description',
+          'coa.is_active as isActive',
+          'coa.locked as isLocked',
+          'coa.is_deleted as isDeleted',
+          'coa.source as source',
 
           // "at.id as accountTypeId",
-          "at.key as accountTypeKey",
-          "at.label as accountTypeLabel",
-          "at.report_code as reportCode",
+          'at.key as accountTypeKey',
+          'at.label as accountTypeLabel',
+          'at.report_code as reportCode',
 
           // "ae.id as accountElementId",
-          "ae.key as accountElementKey",
-          "ae.label as accountElementLabel",
+          'ae.key as accountElementKey',
+          'ae.label as accountElementLabel',
 
           // "pae.id as parentAccountElementId",
-          "pae.key as parentAccountElementKey",
-          "pae.label as parentAccountElementLabel",
+          'pae.key as parentAccountElementKey',
+          'pae.label as parentAccountElementLabel',
 
           // "cur.id as accountCurrencyId",
-          "cur.code as accountCurrencyCode",
-          "cur.symbol as accountCurrencySymbol",
+          'cur.code as accountCurrencyCode',
+          'cur.symbol as accountCurrencySymbol',
 
           // "rc.id as reportingCurrencyId",
-          "rc.code as reportingCurrencyCode",
-          "rc.symbol as reportingCurrencySymbol",
+          'rc.code as reportingCurrencyCode',
+          'rc.symbol as reportingCurrencySymbol',
 
-          "fs.us_gaap_label as gaapFsLabel",
-          "fs.ifrs_label as ifrsFsLabel",
+          'fs.us_gaap_label as gaapFsLabel',
+          'fs.ifrs_label as ifrsFsLabel',
 
-          "c.reporting_framework as reportingFramework",
+          'c.reporting_framework as reportingFramework',
           tx.raw(
             `(EXISTS (SELECT 1 FROM ledger_entries WHERE coa_id = coa.id)) as "hasTransactions"`,
           ),
         ])
-        .where("coa.company_id", companyId)
+        .where('coa.company_id', companyId)
         .modify((qb) => {
-          if (ids?.length) qb.whereIn("coa.id", ids);
-          if (codes?.length) qb.whereIn("coa.code", codes);
-          if (active !== undefined) qb.where("coa.is_active", active);
-          if (accountTypeKeys?.length) qb.where("at.key", accountTypeKeys);
-          if (includeDeleted === false)
-            qb.where("coa.is_deleted", includeDeleted);
+          if (ids?.length) qb.whereIn('coa.id', ids);
+          if (codes?.length) qb.whereIn('coa.code', codes);
+          if (active !== undefined) qb.where('coa.is_active', active);
+          if (accountTypeKeys?.length) qb.where('at.key', accountTypeKeys);
+          if (includeDeleted === false) qb.where('coa.is_deleted', includeDeleted);
         })
-        .join("account_types as at", "coa.account_type_id", "at.id")
-        .join("account_elements as ae", "at.account_element_id", "ae.id")
-        .leftJoin("account_elements as pae", "ae.parent_id", "pae.id")
-        .join("currencies as cur", "coa.currency_id", "cur.id")
-        .join("companies as c", "coa.company_id", "c.id")
-        .join("currencies as rc", "c.reporting_currency_id", "rc.id")
-        .join(
-          "financial_statements as fs",
-          "ae.financial_statement_id",
-          "fs.id",
-        )
+        .join('account_types as at', 'coa.account_type_id', 'at.id')
+        .join('account_elements as ae', 'at.account_element_id', 'ae.id')
+        .leftJoin('account_elements as pae', 'ae.parent_id', 'pae.id')
+        .join('currencies as cur', 'coa.currency_id', 'cur.id')
+        .join('companies as c', 'coa.company_id', 'c.id')
+        .join('currencies as rc', 'c.reporting_currency_id', 'rc.id')
+        .join('financial_statements as fs', 'ae.financial_statement_id', 'fs.id')
         // Sort by bank accounts first, then by account code for consistent ordering
         .orderByRaw(
-          "CASE WHEN coa.is_deleted = true THEN 2 " +
-            "WHEN coa.is_active = false THEN 1 " +
-            "ELSE 0 END, " +
+          'CASE WHEN coa.is_deleted = true THEN 2 ' +
+            'WHEN coa.is_active = false THEN 1 ' +
+            'ELSE 0 END, ' +
             "CASE WHEN at.key = 'ca_bank' THEN 0 ELSE 1 END, " +
-            "at.key ASC, " +
-            "coa.code ASC",
+            'at.key ASC, ' +
+            'coa.code ASC',
         )
     );
   };
@@ -316,13 +292,10 @@ export const fetchCompanyCoa = async ({
 
   try {
     const companyUUID = await getCompanyUUID(receivedCompanyId);
-    if (!companyUUID) return errorResponse("Invalid company identifier");
+    if (!companyUUID) return errorResponse('Invalid company identifier');
 
     const hasFilters =
-      ids.length > 0 ||
-      codes.length > 0 ||
-      active !== undefined ||
-      accountTypeKeys.length > 0;
+      ids.length > 0 || codes.length > 0 || active !== undefined || accountTypeKeys.length > 0;
 
     const cacheKey = generateCoaCacheKey({ companyUUID });
 
@@ -332,12 +305,9 @@ export const fetchCompanyCoa = async ({
       if (cached) {
         try {
           const parsedData = JSON.parse(cached);
-          return successResponse(
-            "Successfully retrieved chart of accounts",
-            parsedData,
-          );
+          return successResponse('Successfully retrieved chart of accounts', parsedData);
         } catch (e) {
-          console.warn("Failed to parse cached COA", { cacheKey, error: e });
+          console.warn('Failed to parse cached COA', { cacheKey, error: e });
         }
       }
     }
@@ -348,12 +318,12 @@ export const fetchCompanyCoa = async ({
 
     const result = removeNullsShallow(res);
     if (!hasFilters && includeDeleted && result.length > 0) {
-      await redis.set(cacheKey, JSON.stringify(result), "EX", coaCacheTTL);
+      await redis.set(cacheKey, JSON.stringify(result), 'EX', coaCacheTTL);
     }
 
-    return successResponse("Successfully retrieved chart of accounts", result);
+    return successResponse('Successfully retrieved chart of accounts', result);
   } catch (error) {
-    return errorResponse("Failed to retrieve chart of accounts", error);
+    return errorResponse('Failed to retrieve chart of accounts', error);
   }
 };
 
@@ -503,7 +473,7 @@ const updateChartOfAccounts = async ({
   // Get actual company UUID
   const companyUUID = await getCompanyUUID(companyId, trx);
   if (!companyUUID) {
-    return errorResponse("Invalid company ID");
+    return errorResponse('Invalid company ID');
   }
 
   const cacheKey = generateCoaCacheKey({ companyUUID });
@@ -512,14 +482,11 @@ const updateChartOfAccounts = async ({
   // Validate input
   const validatedInput = coaUpdateInput.array().safeParse(updates);
   if (!validatedInput.success) {
-    return errorResponse(
-      "Invalid input provided",
-      validatedInput.error.flatten(),
-    );
+    return errorResponse('Invalid input provided', validatedInput.error.flatten());
   }
 
   if (validatedInput.data.length === 0) {
-    return errorResponse("No data provided for updating chart of accounts");
+    return errorResponse('No data provided for updating chart of accounts');
   }
 
   // Extract IDs for batch query
@@ -529,32 +496,28 @@ const updateChartOfAccounts = async ({
     errors: [],
   };
 
-  const executeWithTransaction = async (
-    tx: Knex.Transaction,
-  ): Promise<UpdateCoaResponse> => {
+  const executeWithTransaction = async (tx: Knex.Transaction): Promise<UpdateCoaResponse> => {
     // Fetch existing COA records with account type information
     // Fetch existing COA records with account type information
-    const existingCoaRecords = await tx("coa")
+    const existingCoaRecords = await tx('coa')
       .select([
-        "coa.id",
-        "coa.name",
-        "coa.code",
-        "coa.description",
-        "coa.is_active as isActive",
-        "coa.locked as isLocked",
-        "coa.is_deleted as isDeleted",
-        "coa.account_type_id as accountTypeId",
-        "at.key as accountTypeKey",
-        "at.label as accountTypeLabel",
+        'coa.id',
+        'coa.name',
+        'coa.code',
+        'coa.description',
+        'coa.is_active as isActive',
+        'coa.locked as isLocked',
+        'coa.is_deleted as isDeleted',
+        'coa.account_type_id as accountTypeId',
+        'at.key as accountTypeKey',
+        'at.label as accountTypeLabel',
       ])
-      .join("account_types as at", "coa.account_type_id", "at.id")
-      .whereIn("coa.id", coaIds)
-      .andWhere("coa.company_id", companyUUID);
+      .join('account_types as at', 'coa.account_type_id', 'at.id')
+      .whereIn('coa.id', coaIds)
+      .andWhere('coa.company_id', companyUUID);
 
     if (existingCoaRecords.length !== coaIds.length) {
-      throw new Error(
-        "One or more COA records not found or do not belong to this company",
-      );
+      throw new Error('One or more COA records not found or do not belong to this company');
     }
 
     // Create lookup map for efficiency
@@ -569,7 +532,7 @@ const updateChartOfAccounts = async ({
       if (!existing) {
         results.errors.push({
           id: item.id,
-          error: "Account not found or not in specified company",
+          error: 'Account not found or not in specified company',
         });
         continue;
       }
@@ -581,9 +544,7 @@ const updateChartOfAccounts = async ({
       const { accountTypeKey, ...rest } = item;
       const resolvedItem: ResolvedCoaUpdateInput = {
         ...rest,
-        ...(accountTypeKey && newAccountType
-          ? { accountTypeId: newAccountType.id }
-          : {}),
+        ...(accountTypeKey && newAccountType ? { accountTypeId: newAccountType.id } : {}),
       };
 
       const validation = validateUpdateRules({
@@ -621,9 +582,9 @@ const updateChartOfAccounts = async ({
       ? await executeWithTransaction(trx)
       : await knexClient.transaction(executeWithTransaction);
 
-    return successResponse("Chart of accounts updated successfully", result);
+    return successResponse('Chart of accounts updated successfully', result);
   } catch (error) {
-    return errorResponse("Failed to update chart of accounts", error);
+    return errorResponse('Failed to update chart of accounts', error);
   }
 };
 
@@ -640,24 +601,21 @@ function validateUpdateRules({
   error: string;
 } {
   // Check if account is locked for archive/delete operations
-  if (
-    existing.isLocked &&
-    (operation === "archive" || operation === "delete")
-  ) {
+  if (existing.isLocked && (operation === 'archive' || operation === 'delete')) {
     return {
       isValid: false,
-      error: "Locked accounts cannot be archived or deleted",
+      error: 'Locked accounts cannot be archived or deleted',
     };
   }
 
   // Check if bank account for archive/delete operations
   if (
-    existing.accountTypeKey === "ca_bank" &&
-    (operation === "archive" || operation === "delete")
+    existing.accountTypeKey === 'ca_bank' &&
+    (operation === 'archive' || operation === 'delete')
   ) {
     return {
       isValid: false,
-      error: "Bank accounts cannot be archived or deleted",
+      error: 'Bank accounts cannot be archived or deleted',
     };
   }
 
@@ -669,18 +627,18 @@ function validateUpdateRules({
     if (existing.isLocked) {
       return {
         isValid: false,
-        error: "Account type cannot be changed for locked accounts",
+        error: 'Account type cannot be changed for locked accounts',
       };
     }
-    if (oldAccountTypeKey === "ca_bank") {
+    if (oldAccountTypeKey === 'ca_bank') {
       return {
         isValid: false,
-        error: "Account type cannot be changed for bank accounts",
+        error: 'Account type cannot be changed for bank accounts',
       };
     }
   }
 
-  return { isValid: true, error: "" };
+  return { isValid: true, error: '' };
 }
 
 async function performBulkUpdate({
@@ -706,8 +664,7 @@ async function performBulkUpdate({
       if (u?.code !== undefined) updateData.code = u.code;
       if (u.description !== undefined) updateData.description = u.description;
       if (u?.name !== undefined) updateData.name = u.name;
-      if (u.accountTypeId !== undefined)
-        updateData.account_type_id = u.accountTypeId;
+      if (u.accountTypeId !== undefined) updateData.account_type_id = u.accountTypeId;
       if (u.isActive !== undefined) updateData.is_active = u.isActive;
       if (u.isDeleted !== undefined) {
         updateData.is_deleted = u.isDeleted;
@@ -716,10 +673,10 @@ async function performBulkUpdate({
           updateData.deleted_at = now;
         }
       }
-      if (operation === "delete") {
-        await tx("coa").where({ id: u.id }).delete();
+      if (operation === 'delete') {
+        await tx('coa').where({ id: u.id }).delete();
       } else {
-        await tx("coa").where({ id: u.id }).update(updateData);
+        await tx('coa').where({ id: u.id }).update(updateData);
       }
     }
   };

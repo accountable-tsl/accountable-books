@@ -1,5 +1,5 @@
-import type { Knex } from "knex";
-import { getBankFeedProviders } from "../../bankFeedProviders/bankFeedProviders.model.js";
+import type { Knex } from 'knex';
+import { getBankFeedProviders } from '../../bankFeedProviders/bankFeedProviders.model.js';
 
 export async function getProvider(providerKey: string, trx?: Knex.Transaction) {
   try {
@@ -11,7 +11,7 @@ export async function getProvider(providerKey: string, trx?: Knex.Transaction) {
       throw new Error(`Provider '${providerKey}' not found`);
     }
     const provider = res.data[0];
-    if (provider.status !== "active") {
+    if (provider.status !== 'active') {
       throw new Error(`Provider '${providerKey}' is inactive`);
     }
 
@@ -19,8 +19,8 @@ export async function getProvider(providerKey: string, trx?: Knex.Transaction) {
   } catch (error) {
     throw new Error(
       `Failed to fetch provider '${providerKey}': ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
     );
   }
 }

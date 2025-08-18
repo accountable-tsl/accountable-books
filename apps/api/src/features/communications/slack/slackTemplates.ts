@@ -1,8 +1,5 @@
 import type { KnownBlock } from '@slack/types';
-import type {
-  AlertBlockParams,
-  UserCallbackBlockParams,
-} from './slack.types.js';
+import type { AlertBlockParams, UserCallbackBlockParams } from './slack.types.js';
 
 export function userCallbackRequestBlock({
   email,

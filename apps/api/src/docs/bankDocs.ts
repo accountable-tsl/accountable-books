@@ -1,20 +1,20 @@
 export const bankDocs = {
-  "/banks": {
+  '/banks': {
     get: {
-      summary: "Retrieve a list of banks",
+      summary: 'Retrieve a list of banks',
       responses: {
         200: {
-          description: "A list of banks",
+          description: 'A list of banks',
           content: {
-            "application/json": {
+            'application/json': {
               schema: {
-                type: "object",
+                type: 'object',
                 properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
+                  success: { type: 'boolean' },
+                  message: { type: 'string' },
                   data: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/Bank" },
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/Bank' },
                   },
                 },
               },
@@ -22,89 +22,89 @@ export const bankDocs = {
           },
         },
         404: {
-          description: "No banks found",
+          description: 'No banks found',
         },
       },
     },
     post: {
-      summary: "Create a new bank",
+      summary: 'Create a new bank',
       requestBody: {
         required: true,
         content: {
-          "application/json": {
+          'application/json': {
             schema: {
-              $ref: "#/components/schemas/BankInput",
+              $ref: '#/components/schemas/BankInput',
             },
           },
         },
       },
       responses: {
         201: {
-          description: "Bank created successfully",
+          description: 'Bank created successfully',
           content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/BankResponse" },
+            'application/json': {
+              schema: { $ref: '#/components/schemas/BankResponse' },
             },
           },
         },
         400: {
-          description: "Bad request (missing fields or invalid data)",
+          description: 'Bad request (missing fields or invalid data)',
         },
       },
     },
   },
-  "/banks/{id}": {
+  '/banks/{id}': {
     get: {
-      summary: "Get a single bank by ID",
+      summary: 'Get a single bank by ID',
       parameters: [
         {
-          name: "id",
-          in: "path",
+          name: 'id',
+          in: 'path',
           required: true,
-          schema: { type: "integer" },
+          schema: { type: 'integer' },
         },
       ],
       responses: {
         200: {
-          description: "Details of a single bank",
+          description: 'Details of a single bank',
           content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/BankResponse" },
+            'application/json': {
+              schema: { $ref: '#/components/schemas/BankResponse' },
             },
           },
         },
-        404: { description: "Bank not found" },
+        404: { description: 'Bank not found' },
       },
     },
     put: {
-      summary: "Update an existing bank",
+      summary: 'Update an existing bank',
       parameters: [
         {
-          name: "id",
-          in: "path",
+          name: 'id',
+          in: 'path',
           required: true,
-          schema: { type: "integer" },
+          schema: { type: 'integer' },
         },
       ],
       requestBody: {
         required: true,
         content: {
-          "application/json": {
-            schema: { $ref: "#/components/schemas/BankInput" },
+          'application/json': {
+            schema: { $ref: '#/components/schemas/BankInput' },
           },
         },
       },
       responses: {
         200: {
-          description: "Bank updated successfully",
+          description: 'Bank updated successfully',
           content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/BankResponse" },
+            'application/json': {
+              schema: { $ref: '#/components/schemas/BankResponse' },
             },
           },
         },
-        400: { description: "Bad request (missing fields or invalid data)" },
-        404: { description: "Bank not found" },
+        400: { description: 'Bad request (missing fields or invalid data)' },
+        404: { description: 'Bank not found' },
       },
     },
   },
@@ -112,29 +112,29 @@ export const bankDocs = {
 
 export const bankSchemas = {
   Bank: {
-    type: "object",
+    type: 'object',
     properties: {
-      id: { type: "integer" },
-      name: { type: "string" },
-      bankLogo: { type: "string", nullable: true },
-      countryId: { type: "integer" },
+      id: { type: 'integer' },
+      name: { type: 'string' },
+      bankLogo: { type: 'string', nullable: true },
+      countryId: { type: 'integer' },
     },
   },
   BankInput: {
-    type: "object",
-    required: ["name", "countryId"],
+    type: 'object',
+    required: ['name', 'countryId'],
     properties: {
-      name: { type: "string" },
-      bankLogo: { type: "string" },
-      countryId: { type: "integer" },
+      name: { type: 'string' },
+      bankLogo: { type: 'string' },
+      countryId: { type: 'integer' },
     },
   },
   BankResponse: {
-    type: "object",
+    type: 'object',
     properties: {
-      success: { type: "boolean" },
-      message: { type: "string" },
-      data: { $ref: "#/components/schemas/Bank" },
+      success: { type: 'boolean' },
+      message: { type: 'string' },
+      data: { $ref: '#/components/schemas/Bank' },
     },
   },
 };

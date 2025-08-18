@@ -1,7 +1,7 @@
-import type { Knex } from "knex";
-import { knexClient } from "../../db/knexClient.js";
-import { getIdentifierType } from "../../shared/utils/formatting.utils.js";
-import { AppError } from "../../shared/utils/response.utils.js";
+import type { Knex } from 'knex';
+import { knexClient } from '../../db/knexClient.js';
+import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
+import { AppError } from '../../shared/utils/response.utils.js';
 
 type CompanyIdentifierResult = {
   id: string;
@@ -13,20 +13,19 @@ export const getCompanyIdentifiers = async (
   trx?: Knex.Transaction,
 ): Promise<CompanyIdentifierResult> => {
   const trimmedId = identifier.trim();
-  if (!trimmedId || trimmedId.length > 50)
-    throw new AppError("Invalid company identifier");
+  if (!trimmedId || trimmedId.length > 50) throw new AppError('Invalid company identifier');
 
   const knex = trx || knexClient;
 
   const idType = getIdentifierType(trimmedId);
 
-  const company = await knex("companies")
-    .select("id", "short_code")
-    .where(idType === "uuid" ? { id: trimmedId } : { short_code: trimmedId })
+  const company = await knex('companies')
+    .select('id', 'short_code')
+    .where(idType === 'uuid' ? { id: trimmedId } : { short_code: trimmedId })
     .timeout(1000)
     .first();
 
-  if (!company) throw new AppError("Company not found");
+  if (!company) throw new AppError('Company not found');
 
   return { id: company.id, short_code: company.short_code };
 };

@@ -10,7 +10,7 @@ import {
 import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
 import { generateRandomToken, hashPassword, hashToken } from '../../shared/utils/crypto.utils.js';
 import dayjs from 'dayjs';
-  import { knexClient } from '../../db/knexClient.js';
+import { knexClient } from '../../db/knexClient.js';
 import { addNewToken } from '../tokens/tokens.model.js';
 import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
 

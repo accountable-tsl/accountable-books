@@ -1,11 +1,6 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-export const nodeEnv = z.enum([
-  "local",
-  "staging",
-  "production",
-  "test",
-]);
+export const nodeEnv = z.enum(['local', 'staging', 'production', 'test']);
 export type NodeEnv = z.infer<typeof nodeEnv>;
 
 //Custom decimal handler
@@ -22,16 +17,10 @@ export const dbStandardFields = z.object({
 });
 export type StandardFields = z.infer<typeof dbStandardFields>;
 
-export const dbBaseFields = z
-  .object({ id: z.string().uuid() })
-  .merge(dbStandardFields);
+export const dbBaseFields = z.object({ id: z.string().uuid() }).merge(dbStandardFields);
 
 export const zDate = z.preprocess((val) => {
-  if (
-    typeof val === "string" ||
-    typeof val === "number" ||
-    val instanceof Date
-  ) {
+  if (typeof val === 'string' || typeof val === 'number' || val instanceof Date) {
     const date = new Date(val);
     return isNaN(date.getTime()) ? undefined : date;
   }
@@ -44,12 +33,8 @@ export const zEmail = () =>
     .email()
     .transform((email) => email.trim().toLowerCase());
 
-export const debitCredit = z.enum(["debit", "credit"]);
+export const debitCredit = z.enum(['debit', 'credit']);
 export type DebitCredit = z.infer<typeof debitCredit>;
 
-export const categorizationStatus = z.enum([
-  "uncategorized",
-  "suggested",
-  "reviewed",
-]);
+export const categorizationStatus = z.enum(['uncategorized', 'suggested', 'reviewed']);
 export type CategorizationStatus = z.infer<typeof categorizationStatus>;

@@ -1,6 +1,6 @@
-import type { Knex } from "knex";
-import { knexClient } from "../../../db/knexClient.js";
-import { AppError } from "../../../shared/utils/response.utils.js";
+import type { Knex } from 'knex';
+import { knexClient } from '../../../db/knexClient.js';
+import { AppError } from '../../../shared/utils/response.utils.js';
 
 export async function resolveBankFromMonoDetails({
   providerId,
@@ -17,11 +17,9 @@ export async function resolveBankFromMonoDetails({
 }): Promise<{ bankId: string }> {
   const knex = trx || knexClient;
 
-  const query = knex("bank_provider_mappings")
+  const query = knex('bank_provider_mappings')
     .where({ provider_id: providerId })
-    .andWhereRaw("LOWER(raw_provider_data->>'institution') LIKE LOWER(?)", [
-      `%${institutionName}%`,
-    ])
+    .andWhereRaw("LOWER(raw_provider_data->>'institution') LIKE LOWER(?)", [`%${institutionName}%`])
     .andWhereRaw("raw_provider_data->>'type' = ?", [institutionType]);
 
   if (bankCode == null) {
@@ -33,7 +31,7 @@ export async function resolveBankFromMonoDetails({
   const bankMapping = await query.first();
 
   if (!bankMapping?.bank_id) {
-    throw new AppError("Bank resolution failed", {
+    throw new AppError('Bank resolution failed', {
       providerId,
       institutionName,
       bankCode,

@@ -1,0 +1,13 @@
+type: object
+required: [success, message]
+properties:
+  success:
+    type: boolean
+  message:
+    type: string
+  data:
+    $ref: './AuthContextData.yaml'
+  error:
+    type: object
+  code:
+    type: string

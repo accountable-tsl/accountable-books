@@ -1,24 +1,23 @@
-import { ENV, isProd } from "../../config/env.js";
-import crypto from "crypto";
+import { ENV, isProd } from '../../config/env.js';
+import crypto from 'crypto';
 
 export const splitIntoWords = (input: string | string[]): string[] => {
-  const text = Array.isArray(input) ? input.join(" ") : input;
+  const text = Array.isArray(input) ? input.join(' ') : input;
   const words = text
     .trim()
     .toLowerCase()
     .split(/\W+/)
-    .filter((word) => word !== "");
+    .filter((word) => word !== '');
 
   return words;
 };
 
 export function getAppUrl(firmSlug?: string): string {
-  const baseDomain =
-    ENV.BASE_DOMAIN || (isProd ? "getaccountable.com" : "lvh.me");
-  const frontendPort = ENV.FRONTEND_PORT || "5173";
-  const protocol = isProd ? "https" : "http";
-  const portSegment = !isProd && frontendPort ? `:${frontendPort}` : "";
-  const subdomain = firmSlug ? `${firmSlug}.` : "app.";
+  const baseDomain = ENV.BASE_DOMAIN || (isProd ? 'getaccountable.com' : 'lvh.me');
+  const frontendPort = ENV.FRONTEND_PORT || '5173';
+  const protocol = isProd ? 'https' : 'http';
+  const portSegment = !isProd && frontendPort ? `:${frontendPort}` : '';
+  const subdomain = firmSlug ? `${firmSlug}.` : 'app.';
 
   return `${protocol}://${subdomain}${baseDomain}${portSegment}`;
 }
@@ -42,11 +41,11 @@ type CacheKeyInput = string | number | Record<string, unknown>;
 export function normalizeInput(input: CacheKeyInput): string {
   // Handle arrays by normalizing each element
   if (Array.isArray(input)) {
-    return `[${input.map(normalizeInput).join(",")}]`;
+    return `[${input.map(normalizeInput).join(',')}]`;
   }
 
   // Handle objects by sorting keys for consistent JSON stringification
-  if (typeof input === "object" && input !== null) {
+  if (typeof input === 'object' && input !== null) {
     const sortedObj: Record<string, unknown> = {};
     Object.keys(input)
       .sort() // Sort keys to ensure consistent output
@@ -68,22 +67,19 @@ export function normalizeInput(input: CacheKeyInput): string {
  * @example
  * generateCacheKey('user', 123, { role: 'admin' }) // 'user:123:{"role":"admin"}'
  */
-export function generateCacheKey(
-  prefix: string,
-  ...args: CacheKeyInput[]
-): string {
+export function generateCacheKey(prefix: string, ...args: CacheKeyInput[]): string {
   // Validate prefix
   if (!prefix) {
-    throw new Error("Prefix is required for cache key");
+    throw new Error('Prefix is required for cache key');
   }
 
   // Normalize and join arguments with colons
-  const normalizedArgs = args.map(normalizeInput).join(":");
+  const normalizedArgs = args.map(normalizeInput).join(':');
   const keyString = `${prefix}:${normalizedArgs}`;
 
   // Shorten long keys (>256 chars) with MD5 hash to keep keys manageable
   if (keyString.length > 256) {
-    const hash = crypto.createHash("md5").update(keyString).digest("hex");
+    const hash = crypto.createHash('md5').update(keyString).digest('hex');
     return `${prefix}:${hash}`;
   }
 
@@ -117,7 +113,7 @@ export function calculateStringSimilarity(str1: string, str2: string): number {
       matrix[j][i] = Math.min(
         matrix[j][i - 1] + 1, // deletion
         matrix[j - 1][i] + 1, // insertion
-        matrix[j - 1][i - 1] + indicator // substitution
+        matrix[j - 1][i - 1] + indicator, // substitution
       );
     }
   }

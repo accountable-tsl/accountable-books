@@ -1,21 +1,14 @@
-import { faker } from "@faker-js/faker";
-import { knexClient } from "../../../knexClient";
-import { createNewBankAccount } from "../../../src/domains/bankAccounts/bankAccounts.model";
+import { faker } from '@faker-js/faker';
+import { knexClient } from '../../../knexClient';
+import { createNewBankAccount } from '../../../src/domains/bankAccounts/bankAccounts.model';
 import {
   bankAccountType,
   NewBankAccountInput,
-} from "../../../src/domains/bankAccounts/bankAccounts.types";
-import { getCompanies } from "../../../src/domains/companies/companies.model";
-import { CompanyType } from "../../../src/domains/companies/companies.types";
-import {
-  CoaSource,
-  coaSource,
-} from "../../../src/domains/chartOfAccounts/coa.types";
-import {
-  banksInSystem,
-  countriesInSystem,
-  currenciesInSystem,
-} from "../data/shared";
+} from '../../../src/domains/bankAccounts/bankAccounts.types';
+import { getCompanies } from '../../../src/domains/companies/companies.model';
+import { CompanyType } from '../../../src/domains/companies/companies.types';
+import { CoaSource, coaSource } from '../../../src/domains/chartOfAccounts/coa.types';
+import { banksInSystem, countriesInSystem, currenciesInSystem } from '../data/shared';
 
 export const seedBankAccounts = async (bankAccountCreationData: {
   companyType: CompanyType;
@@ -23,15 +16,10 @@ export const seedBankAccounts = async (bankAccountCreationData: {
   userId?: string;
   data?: NewBankAccountInput[];
 }) => {
-  const {
-    companyType,
-    company: companyInput,
-    userId: userIdInput,
-    data,
-  } = bankAccountCreationData;
+  const { companyType, company: companyInput, userId: userIdInput, data } = bankAccountCreationData;
 
   let company = companyInput;
-  let userId = userIdInput || "";
+  let userId = userIdInput || '';
 
   if (
     !companyInput ||
@@ -46,20 +34,14 @@ export const seedBankAccounts = async (bankAccountCreationData: {
       },
     });
 
-    if (
-      !demoCompanies.success ||
-      !demoCompanies.data ||
-      demoCompanies.data?.length === 0
-    ) {
-      throw new Error("No demo companies found");
+    if (!demoCompanies.success || !demoCompanies.data || demoCompanies.data?.length === 0) {
+      throw new Error('No demo companies found');
     }
 
-    const demoCompany = demoCompanies.data.find(
-      (company) => company.companyType === companyType
-    );
+    const demoCompany = demoCompanies.data.find((company) => company.companyType === companyType);
 
     if (!demoCompany) {
-      throw new Error("No demo company found");
+      throw new Error('No demo company found');
     }
     //  id = demoCompany.reportingCurrencyId
     company = demoCompany;
@@ -67,7 +49,7 @@ export const seedBankAccounts = async (bankAccountCreationData: {
   }
 
   if (!userId) {
-    throw new Error("No user id found");
+    throw new Error('No user id found');
   }
 
   const companyId = company.id;
@@ -84,7 +66,7 @@ export const seedBankAccounts = async (bankAccountCreationData: {
 
   // console.log(bankData);
   if (!bankData || bankData.length === 0) {
-    throw new Error("No bank account data to process");
+    throw new Error('No bank account data to process');
   }
 
   return await knexClient.transaction(async (trx) => {
@@ -102,12 +84,12 @@ export const seedBankAccounts = async (bankAccountCreationData: {
         }
 
         return result;
-      })
+      }),
     );
 
     return {
       success: true,
-      message: "Seed bank accounts created successfully",
+      message: 'Seed bank accounts created successfully',
       data: results,
     };
   });
@@ -134,79 +116,68 @@ export const generateDemoBankAccounts = ({
   if (!resolvedCountry) throw new Error(`Country not found: ${country}`);
 
   const namePool =
-    companyType === "individual"
+    companyType === 'individual'
       ? [
-          "Personal Account",
-          "Emergency Fund",
-          "Salary Account",
-          "Bills Account",
-          "Rent Account",
-          "Groceries",
-          "Travel Fund",
-          "Investment Account",
-          "Daily Spending",
+          'Personal Account',
+          'Emergency Fund',
+          'Salary Account',
+          'Bills Account',
+          'Rent Account',
+          'Groceries',
+          'Travel Fund',
+          'Investment Account',
+          'Daily Spending',
         ]
       : [
-          "Main Account",
-          "Operating Account",
-          "Reserve Fund",
-          "Online Sales",
-          "Marketing Budget",
-          "Salary Account",
-          "Tax Reserve",
-          "Fixed Deposit Account",
-          "Stripe Clearing",
-          "PayPal Balance",
-          "VAT Holding Account",
-          "Credit Card Repayment",
-          "Loan Disbursement Account",
-          "Amazon Payouts",
-          "Facebook Ads Wallet",
-          "Google Ads Wallet",
-          "Temporary Holding Account",
+          'Main Account',
+          'Operating Account',
+          'Reserve Fund',
+          'Online Sales',
+          'Marketing Budget',
+          'Salary Account',
+          'Tax Reserve',
+          'Fixed Deposit Account',
+          'Stripe Clearing',
+          'PayPal Balance',
+          'VAT Holding Account',
+          'Credit Card Repayment',
+          'Loan Disbursement Account',
+          'Amazon Payouts',
+          'Facebook Ads Wallet',
+          'Google Ads Wallet',
+          'Temporary Holding Account',
         ];
-  if (namePool.length < 5)
-    throw new Error("Name pool must have at least 5 entries");
+  if (namePool.length < 5) throw new Error('Name pool must have at least 5 entries');
 
   // Shuffle and pick 5 unique names
   const shuffledNames = faker.helpers.shuffle(namePool).slice(0, 5);
 
-  const ALLOWED_DEMO_COUNTRY_CODES = ["US", "NG", "GB", "FR", "DE"];
+  const ALLOWED_DEMO_COUNTRY_CODES = ['US', 'NG', 'GB', 'FR', 'DE'];
   // Filter all countries and banks to only allowed demo countries
   const allowedCountries = countriesInSystem.filter((c) =>
-    ALLOWED_DEMO_COUNTRY_CODES.includes(c.code)
+    ALLOWED_DEMO_COUNTRY_CODES.includes(c.code),
   );
   const allowedCountryIds = new Set(allowedCountries.map((c) => c.id));
 
   // Local banks in user's country
   // Only allowed local banks
-  const localBanks = banksInSystem.filter(
-    (b) => b.country === resolvedCountry.code
-  );
+  const localBanks = banksInSystem.filter((b) => b.country === resolvedCountry.code);
 
   if (localBanks.length === 0)
     throw new Error(`No banks found for country: ${resolvedCountry.name}`);
 
   // Other allowed countries (excluding the input one)
-  const otherCountries = allowedCountries.filter(
-    (c) => c.id !== resolvedCountry.id
-  );
-  if (otherCountries.length === 0)
-    throw new Error(`No other countries available`);
+  const otherCountries = allowedCountries.filter((c) => c.id !== resolvedCountry.id);
+  if (otherCountries.length === 0) throw new Error(`No other countries available`);
 
   // All other currencies
-  const otherCurrencies = allowedCurrencies.filter(
-    (c) => c.id !== resolvedCurrency.id
-  );
-  if (otherCurrencies.length === 0)
-    throw new Error(`No other currencies available`);
+  const otherCurrencies = allowedCurrencies.filter((c) => c.id !== resolvedCurrency.id);
+  if (otherCurrencies.length === 0) throw new Error(`No other currencies available`);
 
   // --- 1. Two local accounts in company reporting currency ---
   const localBank1 = faker.helpers.arrayElement(localBanks);
   const filteredLocalBanks =
-    localBanks.length > 1
-      ? localBanks.filter((b) => b.id !== localBank1.id)
-      : localBanks;
+    localBanks.length > 1 ? localBanks.filter((b) => b.id !== localBank1.id) : localBanks;
   const localBank2 = faker.helpers.arrayElement(filteredLocalBanks);
 
   const localAccounts: NewBankAccountInput[] = [
@@ -241,25 +212,20 @@ export const generateDemoBankAccounts = ({
 
   // All allowed banks
   const allowedBanksInSystem = banksInSystem.filter(
-    (b) =>
-      allowedCountryIds.has(b.country) ||
-      ALLOWED_DEMO_COUNTRY_CODES.includes(b.country)
+    (b) => allowedCountryIds.has(b.country) || ALLOWED_DEMO_COUNTRY_CODES.includes(b.country),
   );
-  if (allowedBanksInSystem.length === 0)
-    throw new Error(`No allowed banks in system`);
+  if (allowedBanksInSystem.length === 0) throw new Error(`No allowed banks in system`);
 
   // --- 3. One account in a different country (any currency) ---
   // When selecting random bank or foreign bank, use allowedBanksInSystem
   // For foreign account:
   const foreignCountry = faker.helpers.arrayElement(otherCountries);
   const foreignBanks = allowedBanksInSystem.filter(
-    (b) => b.country === foreignCountry.id || b.country === foreignCountry.code
+    (b) => b.country === foreignCountry.id || b.country === foreignCountry.code,
   );
 
   if (foreignBanks.length === 0)
-    throw new Error(
-      `No banks found for foreign country: ${foreignCountry.name}`
-    );
+    throw new Error(`No banks found for foreign country: ${foreignCountry.name}`);
   const foreignBank = faker.helpers.arrayElement(foreignBanks);
   const foreignCurrency = faker.helpers.arrayElement(allowedCurrencies);
 
@@ -285,27 +251,18 @@ export const generateDemoBankAccounts = ({
   };
 
   // --- Return all 5 accounts ---
-  return [
-    ...localAccounts,
-    localOtherCurrencyAccount,
-    foreignAccount,
-    randomAccount,
-  ];
+  return [...localAccounts, localOtherCurrencyAccount, foreignAccount, randomAccount];
 };
 
-const ALLOWED_DEMO_CURRENCY_CODES = ["NGN", "GHS", "USD", "GBP", "EUR"];
+const ALLOWED_DEMO_CURRENCY_CODES = ['NGN', 'GHS', 'USD', 'GBP', 'EUR'];
 const allowedCurrencies = currenciesInSystem.filter((c) =>
-  ALLOWED_DEMO_CURRENCY_CODES.includes(c.code)
+  ALLOWED_DEMO_CURRENCY_CODES.includes(c.code),
 );
 
 export function resolveCurrency(codeOrId: string) {
-  return allowedCurrencies.find(
-    (c) => c.id === codeOrId || c.code === codeOrId
-  );
+  return allowedCurrencies.find((c) => c.id === codeOrId || c.code === codeOrId);
 }
 
 export function resolveCountry(codeOrId: string) {
-  return countriesInSystem.find(
-    (c) => c.id === codeOrId || c.code === codeOrId
-  );
+  return countriesInSystem.find((c) => c.id === codeOrId || c.code === codeOrId);
 }

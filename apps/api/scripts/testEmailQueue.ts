@@ -1,14 +1,14 @@
-import { Queue } from "bullmq";
-import { redis } from "../src/lib/redis";
+import { Queue } from 'bullmq';
+import { redis } from '../src/lib/redis';
 
-const testQueue = new Queue("email", { connection: redis });
+const testQueue = new Queue('email', { connection: redis });
 
 (async () => {
-  await testQueue.add("send_verification_email", {
-    to: "test@example.com",
-    name: "Test User",
-    token: "fake-token-123",
+  await testQueue.add('send_verification_email', {
+    to: 'test@example.com',
+    name: 'Test User',
+    token: 'fake-token-123',
   });
 
-  console.log("📤 Job added to queue");
+  console.log('📤 Job added to queue');
 })();

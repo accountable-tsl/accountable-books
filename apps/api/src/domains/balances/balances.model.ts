@@ -1,20 +1,16 @@
-import { knexClient } from "../../db/knexClient.js";
-import {
-  ErrorCode,
-  errorResponse,
-  successResponse,
-} from "../../shared/utils/response.utils.js";
-import { getCompanyUUID } from "../../shared/utils/random.utils.js";
-import { type ApiResponse } from "../../core/types/api.types.js";
-import { fetchExchangeRate } from "../exchangeRates/exchangeRates.model.js";
-import { categorizationStatus } from "../../core/types/core.js";
-import type { Knex } from "knex";
+import { knexClient } from '../../db/knexClient.js';
+import { ErrorCode, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import { type ApiResponse } from '../../core/types/api.types.js';
+import { fetchExchangeRate } from '../exchangeRates/exchangeRates.model.js';
+import { categorizationStatus } from '../../core/types/core.js';
+import type { Knex } from 'knex';
 import {
   type CoaBalance,
   type CoaBalanceOptions,
   type BankBalance,
   type GetBankAccountBalancesOptions,
-} from "./balances.types.js";
+} from './balances.types.js';
 
 /**
  * Fetches balances for one or more COA (Chart of Accounts) accounts owned by a company.
@@ -36,7 +32,7 @@ export async function getCompanyCoaBalances(
   options: CoaBalanceOptions = {},
 ): Promise<ApiResponse<Record<string, CoaBalance>>> {
   if (!companyId?.trim()) {
-    return errorResponse("Company ID is required");
+    return errorResponse('Company ID is required');
   }
 
   const {
@@ -48,15 +44,10 @@ export async function getCompanyCoaBalances(
   } = options;
 
   // Validate conflicting filters
-  if (
-    accountTypeIdsOrKeys.length > 0 &&
-    excludeAccountTypeIdsOrKeys.length > 0
-  ) {
-    const hasOverlap = accountTypeIdsOrKeys.some((id) =>
-      excludeAccountTypeIdsOrKeys.includes(id),
-    );
+  if (accountTypeIdsOrKeys.length > 0 && excludeAccountTypeIdsOrKeys.length > 0) {
+    const hasOverlap = accountTypeIdsOrKeys.some((id) => excludeAccountTypeIdsOrKeys.includes(id));
     if (hasOverlap) {
-      return errorResponse("Cannot include and exclude the same account type");
+      return errorResponse('Cannot include and exclude the same account type');
     }
   }
 
@@ -64,7 +55,7 @@ export async function getCompanyCoaBalances(
     // Get the company's UUID
     const companyUUID = await getCompanyUUID(companyId);
     if (!companyUUID) {
-      return errorResponse("Invalid company ID");
+      return errorResponse('Invalid company ID');
     }
 
     // If specific COA IDs are provided, verify they belong to the company
@@ -73,16 +64,14 @@ export async function getCompanyCoaBalances(
     if (coaIds.length > 0) {
       const uniqueIds = [...new Set(coaIds)];
 
-      const ownedCoaIds = await knexClient("coa")
-        .whereIn("id", uniqueIds)
-        .andWhere("company_id", companyUUID)
-        .pluck("id");
+      const ownedCoaIds = await knexClient('coa')
+        .whereIn('id', uniqueIds)
+        .andWhere('company_id', companyUUID)
+        .pluck('id');
 
       if (ownedCoaIds.length !== uniqueIds.length) {
         const missingIds = uniqueIds.filter((id) => !ownedCoaIds.includes(id));
-        return errorResponse(
-          `Some COA accounts could not be validated: ${missingIds.join(", ")}`,
-        );
+        return errorResponse(`Some COA accounts could not be validated: ${missingIds.join(', ')}`);
       }
 
       // Replace input with validated ids
@@ -98,33 +87,33 @@ export async function getCompanyCoaBalances(
     // - For each account, returns:
     //   - The account ID (coa_id)
     //   - The sum of all amounts as "reporting balance"
-    const query = knexClient("ledger_entries as le")
-      .join("coa", "le.coa_id", "coa.id")
+    const query = knexClient('ledger_entries as le')
+      .join('coa', 'le.coa_id', 'coa.id')
       .where({
-        "le.is_deleted": false,
-        "le.company_id": companyUUID,
+        'le.is_deleted': false,
+        'le.company_id': companyUUID,
 
-        "coa.is_deleted": false,
-        "coa.company_id": companyUUID,
+        'coa.is_deleted': false,
+        'coa.company_id': companyUUID,
       })
-      .groupBy("le.coa_id")
-      .select("le.coa_id as coaId")
-      .max("coa.name as accountName") // Use MAX to get the name without grouping
-      .sum("le.amount as reportingBalance");
+      .groupBy('le.coa_id')
+      .select('le.coa_id as coaId')
+      .max('coa.name as accountName') // Use MAX to get the name without grouping
+      .sum('le.amount as reportingBalance');
 
     // Only if includeSourceAmount is true:
     if (includeSourceAmount) {
-      query.sum("le.source_amount as nativeBalance");
+      query.sum('le.source_amount as nativeBalance');
     }
 
     // Only if onlyActive is true and that is true by default:
     if (onlyActive) {
-      query.where("coa.is_active", true);
+      query.where('coa.is_active', true);
     }
 
     // Apply COA ID filter if provided
     if (validatedCoaIds?.length) {
-      query.whereIn("le.coa_id", validatedCoaIds);
+      query.whereIn('le.coa_id', validatedCoaIds);
     }
 
     // Join account types if needed for filtering
@@ -132,14 +121,14 @@ export async function getCompanyCoaBalances(
       accountTypeIdsOrKeys.length > 0 || excludeAccountTypeIdsOrKeys.length > 0;
 
     if (needsAccountTypeJoin) {
-      query.join("account_types", "coa.account_type_id", "account_types.id");
+      query.join('account_types', 'coa.account_type_id', 'account_types.id');
     }
 
     // Filter by account types (by name or ID)
     if (accountTypeIdsOrKeys.length > 0) {
       query.where(function () {
-        this.whereIn("account_types.id", accountTypeIdsOrKeys).orWhereIn(
-          "account_types.key",
+        this.whereIn('account_types.id', accountTypeIdsOrKeys).orWhereIn(
+          'account_types.key',
           accountTypeIdsOrKeys,
         );
       });
@@ -148,8 +137,8 @@ export async function getCompanyCoaBalances(
     // Exclude specific account types
     if (excludeAccountTypeIdsOrKeys.length > 0) {
       query.whereNot(function () {
-        this.whereIn("account_types.id", excludeAccountTypeIdsOrKeys).orWhereIn(
-          "account_types.key",
+        this.whereIn('account_types.id', excludeAccountTypeIdsOrKeys).orWhereIn(
+          'account_types.key',
           excludeAccountTypeIdsOrKeys,
         );
       });
@@ -162,22 +151,20 @@ export async function getCompanyCoaBalances(
     const balanceMap: Record<string, CoaBalance> = {};
     for (const result of results) {
       if (!result.coaId) {
-        console.warn("Query returned result without coaId:", result);
+        console.warn('Query returned result without coaId:', result);
         continue;
       }
 
       balanceMap[result.coaId] = {
-        accountName: result.accountName || "Unknown Account",
+        accountName: result.accountName || 'Unknown Account',
         reportingBalance: Number(result.reportingBalance) ?? 0,
-        nativeBalance: includeSourceAmount
-          ? Number(result.nativeBalance ?? 0)
-          : undefined,
+        nativeBalance: includeSourceAmount ? Number(result.nativeBalance ?? 0) : undefined,
       };
     }
 
-    return successResponse("COA balances fetched successfully", balanceMap);
+    return successResponse('COA balances fetched successfully', balanceMap);
   } catch (error) {
-    return errorResponse("Error fetching COA balances", error);
+    return errorResponse('Error fetching COA balances', error);
   }
 }
 
@@ -185,7 +172,7 @@ export async function getCompanyBankLedgerBalances(
   companyId: string,
 ): Promise<ApiResponse<Record<string, CoaBalance>>> {
   return getCompanyCoaBalances(companyId, {
-    accountTypeIdsOrKeys: ["ca_bank"],
+    accountTypeIdsOrKeys: ['ca_bank'],
     includeSourceAmount: true,
   });
 }
@@ -208,33 +195,30 @@ export async function getBankAccountBalances(
   options: GetBankAccountBalancesOptions = {},
 ): Promise<ApiResponse<Record<string, BankBalance>>> {
   if (!companyId) {
-    return errorResponse("Company ID is required");
+    return errorResponse('Company ID is required');
   }
 
   try {
     const companyUUID = await getCompanyUUID(companyId);
     if (!companyUUID) {
-      return errorResponse("Invalid company ID");
+      return errorResponse('Invalid company ID');
     }
 
     const { includeStats = false, bankAccountIds } = options;
 
     // Build base query with optional bank account ID filtering
-    let transactionQuery = knex("bank_transactions as bt")
-      .select("bt.bank_account_id", "bt.amount", "bt.categorization_status")
-      .join("bank_accounts as ba", "bt.bank_account_id", "ba.id")
+    let transactionQuery = knex('bank_transactions as bt')
+      .select('bt.bank_account_id', 'bt.amount', 'bt.categorization_status')
+      .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
       .where({
-        "bt.is_deleted": false,
-        "ba.is_deleted": false,
-        "ba.company_id": companyUUID,
+        'bt.is_deleted': false,
+        'ba.is_deleted': false,
+        'ba.company_id': companyUUID,
       });
 
     // Add bank account ID filtering if specified
     if (bankAccountIds && bankAccountIds.length > 0) {
-      transactionQuery = transactionQuery.whereIn(
-        "bt.bank_account_id",
-        bankAccountIds,
-      );
+      transactionQuery = transactionQuery.whereIn('bt.bank_account_id', bankAccountIds);
     }
 
     const transactions = await transactionQuery;
@@ -282,19 +266,19 @@ export async function getBankAccountBalances(
     }
 
     // Build bank accounts query with same filtering logic
-    let bankAccountsQuery = knex("bank_accounts as ba")
+    let bankAccountsQuery = knex('bank_accounts as ba')
       .select(
-        "ba.id as bankId",
-        "ba.currency_id as currencyId",
-        "c.reporting_currency_id as reportingCurrencyId",
+        'ba.id as bankId',
+        'ba.currency_id as currencyId',
+        'c.reporting_currency_id as reportingCurrencyId',
       )
-      .where("ba.is_deleted", false)
-      .andWhere("ba.company_id", companyUUID)
-      .join("companies as c", "ba.company_id", "c.id");
+      .where('ba.is_deleted', false)
+      .andWhere('ba.company_id', companyUUID)
+      .join('companies as c', 'ba.company_id', 'c.id');
 
     // Apply same filtering to bank accounts query
     if (bankAccountIds && bankAccountIds.length > 0) {
-      bankAccountsQuery = bankAccountsQuery.whereIn("ba.id", bankAccountIds);
+      bankAccountsQuery = bankAccountsQuery.whereIn('ba.id', bankAccountIds);
     }
 
     const bankAccounts = await bankAccountsQuery;
@@ -321,11 +305,7 @@ export async function getBankAccountBalances(
       let reportingBalance = group.nativeBalance;
 
       // Convert to reporting currency if necessary
-      if (
-        currencyId &&
-        reportingCurrencyId &&
-        currencyId !== reportingCurrencyId
-      ) {
+      if (currencyId && reportingCurrencyId && currencyId !== reportingCurrencyId) {
         const cacheKey = `${currencyId}-${reportingCurrencyId}`;
 
         if (!exchangeRateCache.has(cacheKey)) {
@@ -338,7 +318,7 @@ export async function getBankAccountBalances(
             );
 
             if (!rateRes.success || !rateRes.data) {
-              errorResponse("Exchange rate fetch failed", rateRes.error, {
+              errorResponse('Exchange rate fetch failed', rateRes.error, {
                 code: ErrorCode.GENERIC,
                 report: true,
               });
@@ -348,7 +328,7 @@ export async function getBankAccountBalances(
             const rate = data.rate;
 
             if (!rateRes.success || !rate) {
-              errorResponse("Exchange rate fetch failed", rateRes.error, {
+              errorResponse('Exchange rate fetch failed', rateRes.error, {
                 code: ErrorCode.GENERIC,
                 report: true,
               });
@@ -358,9 +338,9 @@ export async function getBankAccountBalances(
           } catch (err) {
             // Continue gracefully, fallback to native
             // TODO: Return here instead
-            console.warn("Exchange rate fetch failed", cacheKey, err);
+            console.warn('Exchange rate fetch failed', cacheKey, err);
             errorResponse(
-              "Exchange rate fetch failed",
+              'Exchange rate fetch failed',
               { cacheKey, err },
               { code: ErrorCode.GENERIC, report: true },
             );
@@ -374,9 +354,9 @@ export async function getBankAccountBalances(
       group.reportingBalance = reportingBalance;
     }
 
-    return successResponse("Bank balances fetched successfully", groupedTx);
+    return successResponse('Bank balances fetched successfully', groupedTx);
   } catch (error) {
-    return errorResponse("Failed to fetch bank account balances", error);
+    return errorResponse('Failed to fetch bank account balances', error);
   }
 }
 
@@ -386,19 +366,15 @@ export async function convertAmountToReportingCurrency(
   reportingCurrencyId: string,
 ): Promise<ApiResponse<number>> {
   try {
-    const rate = await fetchExchangeRate(
-      new Date(),
-      currencyId,
-      reportingCurrencyId,
-    );
+    const rate = await fetchExchangeRate(new Date(), currencyId, reportingCurrencyId);
 
     if (!rate.success || !rate.data) {
-      return errorResponse(rate.message || "Failed to fetch exchange rate");
+      return errorResponse(rate.message || 'Failed to fetch exchange rate');
     }
 
     const convertedAmount = Number(amount) * Number(rate.data.rate);
-    return successResponse("Amount converted successfully", convertedAmount);
+    return successResponse('Amount converted successfully', convertedAmount);
   } catch (error) {
-    return errorResponse("Failed to convert amount", error);
+    return errorResponse('Failed to convert amount', error);
   }
 }

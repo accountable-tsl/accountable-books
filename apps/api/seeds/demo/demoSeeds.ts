@@ -1,11 +1,11 @@
-import { knexClient } from "../../knexClient";
-import { CompanyType } from "../../src/domains/companies/companies.types";
-import { addNewContacts } from "../../src/domains/contacts/contacts.model";
-import { addNewProjects } from "../../src/domains/projects/projects.model ";
-import { registerNewAccount } from "../../src/features/signup/signup.service";
-import { demoSeedConfig } from "./data/config";
-import { DemoSeedConfig } from "./data/types";
-import { generateDemoProjectsForCompany } from "./utils/004_genDemoProjects";
+import { knexClient } from '../../knexClient';
+import { CompanyType } from '../../src/domains/companies/companies.types';
+import { addNewContacts } from '../../src/domains/contacts/contacts.model';
+import { addNewProjects } from '../../src/domains/projects/projects.model ';
+import { registerNewAccount } from '../../src/features/signup/signup.service';
+import { demoSeedConfig } from './data/config';
+import { DemoSeedConfig } from './data/types';
+import { generateDemoProjectsForCompany } from './utils/004_genDemoProjects';
 
 /** Seed one demo scenario. */
 export async function seedDemo(config: DemoSeedConfig): Promise<void> {
@@ -13,19 +13,15 @@ export async function seedDemo(config: DemoSeedConfig): Promise<void> {
 
   await knexClient.transaction(async (trx) => {
     // Check if company already exists
-    const existingCompany = await trx("companies")
-      .where("short_code", config.company.shortCode)
+    const existingCompany = await trx('companies')
+      .where('short_code', config.company.shortCode)
       .first();
 
     // Check if user already exists
-    const existingUser = await trx("users")
-      .where("email", config.user.email)
-      .first();
+    const existingUser = await trx('users').where('email', config.user.email).first();
 
     if (existingCompany || existingUser) {
-      console.log(
-        `Demo "${config.company.legalName}" already seeded. Skipping.`
-      );
+      console.log(`Demo "${config.company.legalName}" already seeded. Skipping.`);
       return;
     }
 
@@ -54,15 +50,14 @@ export async function seedDemo(config: DemoSeedConfig): Promise<void> {
     // Add projects
     let projects: Array<{ id: string; name: string }>; // projects
     const projectsData = config.genProjects(Array.from(contactIds));
-    if (config.company?.type !== "individual") {
-      console.log("Indiv. project data", projectsData);
+    if (config.company?.type !== 'individual') {
+      console.log('Indiv. project data', projectsData);
       const addProjects = await addNewProjects({
         input: projectsData,
         companyId: company.id,
         userId: user.id,
       });
-      if (!addProjects.success || !addProjects.data)
-        throw new Error(addProjects.message);
+      if (!addProjects.success || !addProjects.data) throw new Error(addProjects.message);
 
       projects = addProjects.data;
     }

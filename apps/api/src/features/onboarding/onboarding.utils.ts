@@ -8,7 +8,6 @@ import type {
   UserOnboardingStepKey,
 } from './onboarding.types.js';
 
-
 export const onboardingStepConfig: OnboardingStepConfig[] = [
   {
     key: 'email_verified',

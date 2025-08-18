@@ -1,21 +1,21 @@
-import { z } from "zod";
-import { dbBaseFields } from "../../core/types/core.js";
+import { z } from 'zod';
+import { dbBaseFields } from '../../core/types/core.js';
 
 // role
 export const roleKey = z.enum([
-  "super_admin",
-  "support_admin",
-  "support_agent",
-  "firm_owner",
-  "firm_admin",
-  "accountant",
-  "staff_accountant",
-  "client_owner",
-  "client_admin",
-  "client_user",
+  'super_admin',
+  'support_admin',
+  'support_agent',
+  'firm_owner',
+  'firm_admin',
+  'accountant',
+  'staff_accountant',
+  'client_owner',
+  'client_admin',
+  'client_user',
 ]);
 
-export const roleScope = z.enum(["platform", "firm", "company"]);
+export const roleScope = z.enum(['platform', 'firm', 'company']);
 export type RoleScope = z.infer<typeof roleScope>;
 
 export const newRole = z.object({

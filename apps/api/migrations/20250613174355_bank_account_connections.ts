@@ -1,48 +1,46 @@
-import type { Knex } from "knex";
+import type { Knex } from 'knex';
 
-const tableName = "bank_account_connections";
+const tableName = 'bank_account_connections';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid("id").primary().defaultTo(knex.raw("uuid_generate_v7()"));
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
 
-    table.string("provider_bank_account_id").notNullable(); // The account id from the provider
+    table.string('provider_bank_account_id').notNullable(); // The account id from the provider
 
-    table.string("provider_bank_account_secondary_id").nullable(); // The secondary id from the provider
+    table.string('provider_bank_account_secondary_id').nullable(); // The secondary id from the provider
 
     table
-      .uuid("bank_account_id") // The bank account this connection belongs to
+      .uuid('bank_account_id') // The bank account this connection belongs to
       .nullable()
-      .references("id")
-      .inTable("bank_accounts")
-      .onDelete("CASCADE");
+      .references('id')
+      .inTable('bank_accounts')
+      .onDelete('CASCADE');
 
     table
-      .uuid("provider_id") // The provider this connection belongs to
+      .uuid('provider_id') // The provider this connection belongs to
       .notNullable()
-      .references("id")
-      .inTable("bank_feed_providers")
-      .onDelete("CASCADE");
+      .references('id')
+      .inTable('bank_feed_providers')
+      .onDelete('CASCADE');
+
+    table.specificType('status', 'bank_account_connection_status').notNullable(); // active, revoked, pending, error
+
+    table.jsonb('raw_metadata'); // Connection speicific metadata
+
+    table.timestamp('last_sync_at').nullable(); // When data was last synced from provider
+    table.timestamp('connected_at').notNullable().defaultTo(knex.fn.now()); // When connection was established
 
     table
-      .specificType("status", "bank_account_connection_status")
-      .notNullable(); // active, revoked, pending, error
-
-    table.jsonb("raw_metadata"); // Connection speicific metadata
-
-    table.timestamp("last_sync_at").nullable(); // When data was last synced from provider
-    table.timestamp("connected_at").notNullable().defaultTo(knex.fn.now()); // When connection was established
-
-    table
-      .uuid("created_by_id")
+      .uuid('created_by_id')
       .notNullable()
-      .references("id")
-      .inTable("users")
-      .onDelete("RESTRICT");
+      .references('id')
+      .inTable('users')
+      .onDelete('RESTRICT');
 
-    table.unique(["provider_id", "provider_bank_account_id"]); // Prevent duplicate connections for same provider+account
-    table.index(["bank_account_id", "status"]);
-    table.index(["provider_id", "status"]);
-    table.index("last_sync_at", "idx_last_sync");
+    table.unique(['provider_id', 'provider_bank_account_id']); // Prevent duplicate connections for same provider+account
+    table.index(['bank_account_id', 'status']);
+    table.index(['provider_id', 'status']);
+    table.index('last_sync_at', 'idx_last_sync');
   });
 }
 

@@ -1,50 +1,50 @@
 export const coaDocs = {
-  "/coa": {
+  '/coa': {
     get: {
-      summary: "Retrieve the Chart of Accounts (COA) for a company",
+      summary: 'Retrieve the Chart of Accounts (COA) for a company',
       parameters: [
         {
-          name: "page",
-          in: "query",
+          name: 'page',
+          in: 'query',
           required: false,
-          schema: { type: "integer" },
-          description: "Page number for pagination",
+          schema: { type: 'integer' },
+          description: 'Page number for pagination',
         },
         {
-          name: "limit",
-          in: "query",
+          name: 'limit',
+          in: 'query',
           required: false,
-          schema: { type: "integer" },
-          description: "Number of results per page",
+          schema: { type: 'integer' },
+          description: 'Number of results per page',
         },
         {
-          name: "sortBy",
-          in: "query",
+          name: 'sortBy',
+          in: 'query',
           required: false,
-          schema: { type: "string" },
-          description: "Field to sort by (default: accountCode)",
+          schema: { type: 'string' },
+          description: 'Field to sort by (default: accountCode)',
         },
         {
-          name: "sortOrder",
-          in: "query",
+          name: 'sortOrder',
+          in: 'query',
           required: false,
-          schema: { type: "string", enum: ["asc", "desc"] },
-          description: "Sort order (asc or desc)",
+          schema: { type: 'string', enum: ['asc', 'desc'] },
+          description: 'Sort order (asc or desc)',
         },
       ],
       responses: {
         200: {
-          description: "A list of COA entries",
+          description: 'A list of COA entries',
           content: {
-            "application/json": {
+            'application/json': {
               schema: {
-                type: "object",
+                type: 'object',
                 properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
+                  success: { type: 'boolean' },
+                  message: { type: 'string' },
                   data: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/COA" },
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/COA' },
                   },
                 },
               },
@@ -52,179 +52,179 @@ export const coaDocs = {
           },
         },
         204: {
-          description: "No accounts found",
+          description: 'No accounts found',
         },
         500: {
-          description: "Internal server error",
+          description: 'Internal server error',
         },
       },
     },
     post: {
-      summary: "Create a new COA entry",
+      summary: 'Create a new COA entry',
       requestBody: {
         required: true,
         content: {
-          "application/json": {
-            schema: { $ref: "#/components/schemas/COAInput" },
+          'application/json': {
+            schema: { $ref: '#/components/schemas/COAInput' },
           },
         },
       },
       responses: {
         201: {
-          description: "COA entry created successfully",
+          description: 'COA entry created successfully',
           content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/COAResponse" },
+            'application/json': {
+              schema: { $ref: '#/components/schemas/COAResponse' },
             },
           },
         },
         400: {
-          description: "Bad request (missing fields or invalid data)",
+          description: 'Bad request (missing fields or invalid data)',
         },
         500: {
-          description: "Internal server error",
+          description: 'Internal server error',
         },
       },
     },
   },
-  "/coa/{id}": {
+  '/coa/{id}': {
     get: {
-      summary: "Retrieve a single COA entry by ID",
+      summary: 'Retrieve a single COA entry by ID',
       parameters: [
         {
-          name: "id",
-          in: "path",
+          name: 'id',
+          in: 'path',
           required: true,
-          schema: { type: "integer" },
-          description: "The ID of the COA entry",
+          schema: { type: 'integer' },
+          description: 'The ID of the COA entry',
         },
       ],
       responses: {
         200: {
-          description: "COA entry found",
+          description: 'COA entry found',
           content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/COAResponse" },
+            'application/json': {
+              schema: { $ref: '#/components/schemas/COAResponse' },
             },
           },
         },
         204: {
-          description: "COA entry not found",
+          description: 'COA entry not found',
         },
         500: {
-          description: "Internal server error",
+          description: 'Internal server error',
         },
       },
     },
     patch: {
-      summary: "Update a COA entry",
+      summary: 'Update a COA entry',
       parameters: [
         {
-          name: "id",
-          in: "path",
+          name: 'id',
+          in: 'path',
           required: true,
-          schema: { type: "integer" },
-          description: "The ID of the COA entry",
+          schema: { type: 'integer' },
+          description: 'The ID of the COA entry',
         },
       ],
       requestBody: {
         required: true,
         content: {
-          "application/json": {
-            schema: { $ref: "#/components/schemas/COAInput" },
+          'application/json': {
+            schema: { $ref: '#/components/schemas/COAInput' },
           },
         },
       },
       responses: {
         200: {
-          description: "COA entry updated successfully",
+          description: 'COA entry updated successfully',
           content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/COAResponse" },
+            'application/json': {
+              schema: { $ref: '#/components/schemas/COAResponse' },
             },
           },
         },
         400: {
-          description: "Bad request (missing fields or invalid data)",
+          description: 'Bad request (missing fields or invalid data)',
         },
         500: {
-          description: "Internal server error",
+          description: 'Internal server error',
         },
       },
     },
   },
-  "/coa/check-code": {
+  '/coa/check-code': {
     get: {
-      summary: "Check if an account code is available",
+      summary: 'Check if an account code is available',
       parameters: [
         {
-          name: "accountCode",
-          in: "query",
+          name: 'accountCode',
+          in: 'query',
           required: true,
-          schema: { type: "string" },
+          schema: { type: 'string' },
         },
       ],
       responses: {
         200: {
-          description: "Account code is available",
+          description: 'Account code is available',
           content: {
-            "application/json": {
+            'application/json': {
               schema: {
-                type: "object",
+                type: 'object',
                 properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
+                  success: { type: 'boolean' },
+                  message: { type: 'string' },
                 },
               },
             },
           },
         },
         400: {
-          description: "Bad request (missing or invalid account code)",
+          description: 'Bad request (missing or invalid account code)',
         },
         404: {
-          description: "Account code not found",
+          description: 'Account code not found',
         },
         500: {
-          description: "Internal server error",
+          description: 'Internal server error',
         },
       },
     },
   },
-  "/coa/check-name": {
+  '/coa/check-name': {
     get: {
-      summary: "Check if an account name is available",
+      summary: 'Check if an account name is available',
       parameters: [
         {
-          name: "accountName",
-          in: "query",
+          name: 'accountName',
+          in: 'query',
           required: true,
-          schema: { type: "string" },
+          schema: { type: 'string' },
         },
       ],
       responses: {
         200: {
-          description: "Account name is available",
+          description: 'Account name is available',
           content: {
-            "application/json": {
+            'application/json': {
               schema: {
-                type: "object",
+                type: 'object',
                 properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
+                  success: { type: 'boolean' },
+                  message: { type: 'string' },
                 },
               },
             },
           },
         },
         400: {
-          description: "Bad request (missing or invalid account name)",
+          description: 'Bad request (missing or invalid account name)',
         },
         404: {
-          description: "Account name not found",
+          description: 'Account name not found',
         },
         500: {
-          description: "Internal server error",
+          description: 'Internal server error',
         },
       },
     },
@@ -233,36 +233,36 @@ export const coaDocs = {
 
 export const coaSchemas = {
   COA: {
-    type: "object",
+    type: 'object',
     properties: {
-      id: { type: "integer" },
-      accountCode: { type: "string", nullable: true },
-      accountName: { type: "string" },
-      description: { type: "string", nullable: true },
-      accountTypeId: { type: "integer" },
-      defaultSide: { type: "string" },
-      currencyId: { type: "integer" },
-      companyId: { type: "integer" },
+      id: { type: 'integer' },
+      accountCode: { type: 'string', nullable: true },
+      accountName: { type: 'string' },
+      description: { type: 'string', nullable: true },
+      accountTypeId: { type: 'integer' },
+      defaultSide: { type: 'string' },
+      currencyId: { type: 'integer' },
+      companyId: { type: 'integer' },
     },
   },
   COAInput: {
-    type: "object",
-    required: ["accountName", "accountTypeId", "currencyId"],
+    type: 'object',
+    required: ['accountName', 'accountTypeId', 'currencyId'],
     properties: {
-      accountName: { type: "string" },
-      accountCode: { type: "string" },
-      description: { type: "string" },
-      accountTypeId: { type: "integer" },
-      defaultSide: { type: "string" },
-      currencyId: { type: "integer" },
+      accountName: { type: 'string' },
+      accountCode: { type: 'string' },
+      description: { type: 'string' },
+      accountTypeId: { type: 'integer' },
+      defaultSide: { type: 'string' },
+      currencyId: { type: 'integer' },
     },
   },
   COAResponse: {
-    type: "object",
+    type: 'object',
     properties: {
-      success: { type: "boolean" },
-      message: { type: "string" },
-      data: { $ref: "#/components/schemas/COA" },
+      success: { type: 'boolean' },
+      message: { type: 'string' },
+      data: { $ref: '#/components/schemas/COA' },
     },
   },
 };

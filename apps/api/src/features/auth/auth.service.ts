@@ -343,9 +343,12 @@ export async function resendVerificationEmailService(
   }
 }
 
-export async function meService(
-  userId: string,
-): Promise<ApiResponse<{ user: AuthUserContext; activeCompany: AuthCompanyContext }>> {
+export async function meService(userId: string): Promise<
+  ApiResponse<{
+    user: AuthUserContext;
+    activeCompany: AuthCompanyContext;
+  }>
+> {
   try {
     const user = await knexClient('users').select('*').where({ id: userId }).first();
 

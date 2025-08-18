@@ -1,13 +1,8 @@
-import { isDev } from "../../config/env.js";
-import { type AccountClassificationMetadata, type EnrichedAccountType } from "./account.types.js";
+import { isDev } from '../../config/env.js';
+import { type AccountClassificationMetadata, type EnrichedAccountType } from './account.types.js';
 
 const flattenAccountTypes = (data: AccountClassificationMetadata) => {
-  const {
-    accountTypes,
-    accountElements,
-    parentAccountElements,
-    financialStatements,
-  } = data;
+  const { accountTypes, accountElements, parentAccountElements, financialStatements } = data;
 
   const results: Array<EnrichedAccountType> = [];
   const orphaned: string[] = [];
@@ -21,14 +16,10 @@ const flattenAccountTypes = (data: AccountClassificationMetadata) => {
 
     console.log(accountElements);
     console.log(parentAccountElements);
-    const parent = parentAccountElements.find(
-      (p) => p.key === ae.parentElementKey
-    );
+    const parent = parentAccountElements.find((p) => p.key === ae.parentElementKey);
     console.log(parent);
 
-    const fs = financialStatements.find(
-      (f) => f.key === ae.financialStatementKey
-    );
+    const fs = financialStatements.find((f) => f.key === ae.financialStatementKey);
 
     if (!parent || !fs) {
       orphaned.push(at.key);
@@ -61,7 +52,7 @@ const flattenAccountTypes = (data: AccountClassificationMetadata) => {
   }
 
   if (isDev && orphaned.length > 0) {
-    console.warn("Account types with missing relationships:", orphaned);
+    console.warn('Account types with missing relationships:', orphaned);
   }
 
   return results;

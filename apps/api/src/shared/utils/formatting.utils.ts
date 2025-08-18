@@ -5,11 +5,10 @@
  * Useful for preparing objects before inserting into snake_case databases.
  */
 
-import { z } from "zod";
+import { z } from 'zod';
 
 export function camelToSnake<T>(input: T): T {
-  if (!input || typeof input !== "object" || input instanceof Date)
-    return input;
+  if (!input || typeof input !== 'object' || input instanceof Date) return input;
 
   if (Array.isArray(input)) {
     return input.map(camelToSnake) as T;
@@ -17,12 +16,12 @@ export function camelToSnake<T>(input: T): T {
 
   return Object.entries(input).reduce(
     (acc, [key, value]) => {
-      if (typeof key !== "string") return acc; // Skip non-string keys
+      if (typeof key !== 'string') return acc; // Skip non-string keys
       const snakeKey = toSnakeCase(key);
       acc[snakeKey] = camelToSnake(value);
       return acc;
     },
-    {} as Record<string, any>
+    {} as Record<string, any>,
   ) as T;
 }
 
@@ -34,8 +33,7 @@ export function camelToSnake<T>(input: T): T {
  */
 
 export function snakeToCamel<T>(input: T): SnakeToCamelCaseObject<T> {
-  if (!input || typeof input !== "object" || input instanceof Date)
-    return input as any;
+  if (!input || typeof input !== 'object' || input instanceof Date) return input as any;
 
   if (Array.isArray(input)) {
     return input.map(snakeToCamel) as any;
@@ -43,12 +41,12 @@ export function snakeToCamel<T>(input: T): SnakeToCamelCaseObject<T> {
 
   return Object.entries(input).reduce(
     (acc, [key, value]) => {
-      if (typeof key !== "string") return acc; // Skip non-string keys
-      const camelKey = key.includes("_") ? toCamelCase(key) : key;
+      if (typeof key !== 'string') return acc; // Skip non-string keys
+      const camelKey = key.includes('_') ? toCamelCase(key) : key;
       acc[camelKey] = snakeToCamel(value);
       return acc;
     },
-    {} as Record<string, any>
+    {} as Record<string, any>,
   ) as any;
 }
 
@@ -62,11 +60,11 @@ export function snakeToCamel<T>(input: T): SnakeToCamelCaseObject<T> {
 export function toSnakeCase(str: string): string {
   if (!str) return str;
   return str
-    .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // camelCase
-    .replace(/([A-Z]+)([A-Z][a-z0-9])/g, "$1_$2") // Acronyms (XMLParser)
-    .replace(/__+/g, "_") // Collapse multiple underscores
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2') // camelCase
+    .replace(/([A-Z]+)([A-Z][a-z0-9])/g, '$1_$2') // Acronyms (XMLParser)
+    .replace(/__+/g, '_') // Collapse multiple underscores
     .toLowerCase()
-    .replace(/^_+|_+$/g, ""); // Trim leading/trailing underscores
+    .replace(/^_+|_+$/g, ''); // Trim leading/trailing underscores
 }
 
 /**
@@ -78,39 +76,35 @@ export function toSnakeCase(str: string): string {
 export function toCamelCase(str: string): string {
   if (!str) return str;
   return str
-    .replace(/[_]+/g, "_") // Collapse underscores
-    .replace(/^_+|_+$/g, "") // Trim underscores
+    .replace(/[_]+/g, '_') // Collapse underscores
+    .replace(/^_+|_+$/g, '') // Trim underscores
     .toLowerCase()
     .replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase())
     .replace(/^([A-Z])/, (_, char) => char.toLowerCase());
 }
 
 export function isValidUUID(uuid: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    uuid
-  );
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
 }
-export function getIdentifierType(id: string): "uuid" | "shortCode" {
-  if (!id || typeof id !== "string" || id.length > 40) {
-    throw new Error("Invalid company identifier");
+export function getIdentifierType(id: string): 'uuid' | 'shortCode' {
+  if (!id || typeof id !== 'string' || id.length > 40) {
+    throw new Error('Invalid company identifier');
   }
 
   // Regex to check if it's a valid UUID (v1, v2, v3, v4, v5)
-  const isUUID =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-  return isUUID ? "uuid" : "shortCode";
+  return isUUID ? 'uuid' : 'shortCode';
 }
 
-export type SnakeToCamelCase<S extends string> =
-  S extends `${infer T}_${infer U}`
-    ? `${Lowercase<T>}${Capitalize<SnakeToCamelCase<U>>}`
-    : S;
+export type SnakeToCamelCase<S extends string> = S extends `${infer T}_${infer U}`
+  ? `${Lowercase<T>}${Capitalize<SnakeToCamelCase<U>>}`
+  : S;
 
 export type SnakeToCamelCaseObject<T> = {
-  [K in keyof T as K extends string
-    ? SnakeToCamelCase<K>
-    : K]: T[K] extends object ? SnakeToCamelCaseObject<T[K]> : T[K];
+  [K in keyof T as K extends string ? SnakeToCamelCase<K> : K]: T[K] extends object
+    ? SnakeToCamelCaseObject<T[K]>
+    : T[K];
 };
 
 /**
@@ -130,7 +124,7 @@ export function createCamelCaseSchema<T extends z.ZodTypeAny>(snakeSchema: T) {
 }
 
 function isPlainObject(value: unknown): value is Record<string, any> {
-  return Object.prototype.toString.call(value) === "[object Object]";
+  return Object.prototype.toString.call(value) === '[object Object]';
 }
 
 interface FilterOptions {
@@ -149,11 +143,7 @@ interface FilterOptions {
  * @returns New object with filtered values removed
  */
 function filterNulls<T>(obj: T, options: FilterOptions = {}): T {
-  const {
-    deep = true,
-    filterUndefined = false,
-    filterEmptyStrings = false,
-  } = options;
+  const { deep = true, filterUndefined = false, filterEmptyStrings = false } = options;
 
   if (obj === null || obj === undefined) {
     return obj;
@@ -165,12 +155,10 @@ function filterNulls<T>(obj: T, options: FilterOptions = {}): T {
       .filter((item) => {
         if (item === null) return false;
         if (filterUndefined && item === undefined) return false;
-        if (filterEmptyStrings && item === "") return false;
+        if (filterEmptyStrings && item === '') return false;
         return true;
       })
-      .map((item) =>
-        deep && isPlainObject(item) ? filterNulls(item, options) : item
-      ) as T;
+      .map((item) => (deep && isPlainObject(item) ? filterNulls(item, options) : item)) as T;
   }
 
   // Handle objects
@@ -182,7 +170,7 @@ function filterNulls<T>(obj: T, options: FilterOptions = {}): T {
 
       if (value === null) continue;
       if (filterUndefined && value === undefined) continue;
-      if (filterEmptyStrings && value === "") continue;
+      if (filterEmptyStrings && value === '') continue;
 
       // Recursively filter nested objects/arrays if deep option is true
       if (deep && (Array.isArray(value) || isPlainObject(value))) {
@@ -202,8 +190,7 @@ function filterNulls<T>(obj: T, options: FilterOptions = {}): T {
 // Convenience functions for common use cases
 export const removeNulls = <T>(obj: T): T => filterNulls(obj);
 
-export const removeNullsShallow = <T>(obj: T): T =>
-  filterNulls(obj, { deep: false });
+export const removeNullsShallow = <T>(obj: T): T => filterNulls(obj, { deep: false });
 
 export const removeNullsAndUndefined = <T>(obj: T): T =>
   filterNulls(obj, { filterUndefined: true });
@@ -212,5 +199,5 @@ export const removeAllEmpty = <T>(obj: T): T =>
   filterNulls(obj, { filterUndefined: true, filterEmptyStrings: true });
 
 export function toArray(value: string | string[]): string[] {
-  return Array.isArray(value) ? value : value.split(",");
+  return Array.isArray(value) ? value : value.split(',');
 }

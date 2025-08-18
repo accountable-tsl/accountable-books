@@ -1,0 +1,18 @@
+#!/bin/sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🚀 Running pre-push checks..."
+
+# Type checking
+echo "🔍 Type checking..."
+pnpm typecheck
+
+# Run tests
+echo "🧪 Running tests..."
+pnpm test
+
+# Build check
+echo "🏗️ Build check..."
+pnpm build
+
+echo "✅ Pre-push checks passed! Ready to push 🎉"

@@ -1,11 +1,9 @@
-import { type Request } from "express";
-import { type JwtPayload } from "jsonwebtoken";
-import { type AccessibleCompanies } from "../../domains/userRoles/userRoles.types.js";
-import { type RoleKey } from "../../domains/roles/roles.types.js";
-import {
-  type OnboardingStateResult,
-  type UserOnboardingState,
-} from "../../features/onboarding/onboarding.types.js";
+import { type Request } from 'express';
+import { type JwtPayload } from 'jsonwebtoken';
+import { type AccessibleCompanies } from '../../domains/userRoles/userRoles.types.js';
+import { type RoleKey } from '../../domains/roles/roles.types.js';
+import { type UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
+import { type SchemaTypes } from '@accountable-books/api-types';
 
 export interface TokenConfig {
   secret: string;
@@ -13,9 +11,9 @@ export interface TokenConfig {
 }
 
 export enum TokenExpiration {
-  Access = "15m",
-  Refresh = "7d",
-  Verification = "15m",
+  Access = '15m',
+  Refresh = '7d',
+  Verification = '15m',
 }
 
 export interface TokenPayload extends JwtPayload {
@@ -32,21 +30,7 @@ export interface DecodedToken {
   currentCompanyId?: string;
 }
 
-export type BaseUserAuthContext = {
-  id: string;
-  email?: string;
-  firstname?: string;
-  lastname?: string;
-
-  isPlatformUser?: boolean;
-  platformUserKey?: RoleKey;
-
-  currentCompanyId?: string;
-  currentCompany?: AuthCompanyContextWithOnboarding;
-  companies?: AuthCompanyContext[];
-};
-
-export type AuthUserContext = {
+export type OldAuthUserContext = {
   id: string;
   email: string;
   firstname: string;
@@ -56,17 +40,16 @@ export type AuthUserContext = {
   platformUserKey?: RoleKey;
 
   currentCompanyId: string;
-  currentCompany: AuthCompanyContextWithOnboarding;
+  currentCompany: AuthCompanyContext;
   companies: AuthCompanyContext[];
 };
+export type AuthUserContext = SchemaTypes.AuthUserContext;
 
-export type AuthCompanyContext = AccessibleCompanies;
-export type AuthCompanyContextWithOnboarding = AuthCompanyContext & {
-  onboarding: OnboardingStateResult;
-};
+export type OldAuthCompanyContext = AccessibleCompanies;
+export type AuthCompanyContext = SchemaTypes.AuthCompanyContext;
 
 export interface BaseAuthRequest extends Request {
-  user?: BaseUserAuthContext;
+  user?: Partial<AuthUserContext> & { id: string };
 }
 
 export interface AuthRequest extends Request {

@@ -1,10 +1,10 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
-} from "../../shared/utils/formatting.utils.js";
-import { dbBaseFields } from "../../core/types/core.js";
-import type { Knex } from "knex";
+} from '../../shared/utils/formatting.utils.js';
+import { dbBaseFields } from '../../core/types/core.js';
+import type { Knex } from 'knex';
 
 const newBankProviderMappingInput = z.object({
   provider_id: z.string().uuid(),
@@ -15,12 +15,8 @@ const newBankProviderMappingInput = z.object({
   provider_bank_name: z.string().nullish(),
   raw_provider_data: z.record(z.string(), z.any()).nullish(),
 });
-export type NewBankProviderMappingInput = z.infer<
-  typeof newBankProviderMappingInput
->;
-export const newBankProviderMappingCamel = createCamelCaseSchema(
-  newBankProviderMappingInput,
-);
+export type NewBankProviderMappingInput = z.infer<typeof newBankProviderMappingInput>;
+export const newBankProviderMappingCamel = createCamelCaseSchema(newBankProviderMappingInput);
 export type NewBankProviderMappingInputCamel = SnakeToCamelCaseObject<
   z.infer<typeof newBankProviderMappingInput>
 >;
@@ -58,7 +54,7 @@ export interface MonoInstitution {
 }
 
 export interface MonoBankCoverage {
-  status: "successful";
+  status: 'successful';
   message: string;
   timestamp: string;
   data: MonoInstitution[];

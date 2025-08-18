@@ -1,11 +1,8 @@
-import { faker } from "@faker-js/faker";
-import {
-  CompanyType,
-  NewCompanyInputCamel,
-} from "../../../src/domains/companies/companies.types";
-import { NewUserInputCamel } from "../../../src/domains/users/users.types";
-import { knexClient } from "../../../knexClient";
-import { registerNewAccount } from "../../../src/features/signup/signup.service";
+import { faker } from '@faker-js/faker';
+import { CompanyType, NewCompanyInputCamel } from '../../../src/domains/companies/companies.types';
+import { NewUserInputCamel } from '../../../src/domains/users/users.types';
+import { knexClient } from '../../../knexClient';
+import { registerNewAccount } from '../../../src/features/signup/signup.service';
 
 const generateDemoSignupInput = (input: {
   companyType: CompanyType;
@@ -35,13 +32,13 @@ const generateDemoSignupInput = (input: {
 
   const firstName = faker.person.firstName();
   const lastName = faker.person.lastName();
-  const slugs = ["firm", "zrxl", "beta", "alpha", "lambda"];
+  const slugs = ['firm', 'zrxl', 'beta', 'alpha', 'lambda'];
   return {
     user: {
       firstname: firstName,
       lastname: lastName,
-      email: `demo.${companyType === "accounting_firm" ? "firm" : companyType}@example.com`,
-      password: "StrongDemoPass!",
+      email: `demo.${companyType === 'accounting_firm' ? 'firm' : companyType}@example.com`,
+      password: 'StrongDemoPass!',
       avatarUrl: faker.image.avatar(),
       isDemoUser: true,
       ...(userId && { id: userId }),
@@ -49,11 +46,11 @@ const generateDemoSignupInput = (input: {
     company: {
       legalName: companyName || faker.company.name(),
       type: companyType,
-      countryId: countryId || "5a60ff99-bd7e-400e-84a6-ebb131789322", // US
-      reportingCurrencyId: currencyId || "f3a1b0b1-c658-4af8-b5d0-b93467829a4d", // USD
+      countryId: countryId || '5a60ff99-bd7e-400e-84a6-ebb131789322', // US
+      reportingCurrencyId: currencyId || 'f3a1b0b1-c658-4af8-b5d0-b93467829a4d', // USD
       ...(yearEndDay ? { yearEndDay } : {}),
       ...(yearEndMonth ? { yearEndMonth } : {}),
-      ...(companyType === "accounting_firm"
+      ...(companyType === 'accounting_firm'
         ? {
             slug: slugs[Math.floor(Math.random() * slugs.length)],
           }
@@ -100,15 +97,12 @@ export const createSeedCompanyAndUser = async (input: {
     shortCode,
   });
 
-  const existingUser = await knexClient("users")
-    .select("id")
-    .where({ email: user.email })
-    .first();
+  const existingUser = await knexClient('users').select('id').where({ email: user.email }).first();
 
   let existingCompany = null;
   if (companyName) {
-    existingCompany = await knexClient("companies")
-      .select("id")
+    existingCompany = await knexClient('companies')
+      .select('id')
       .where({ legal_name: companyName })
       .first();
   }
@@ -122,7 +116,7 @@ export const createSeedCompanyAndUser = async (input: {
 
   if (!result.success) {
     console.log(result);
-    console.error("❌ Failed to create demo user/company:", result.message);
+    console.error('❌ Failed to create demo user/company:', result.message);
     return null;
   }
 

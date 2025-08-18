@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export interface BaseEmailPayload {
   to: string;
@@ -28,11 +28,7 @@ export type TokenBasedEmailPayload = BaseEmailPayload & { name: string } & (
     | { token?: string; url: string }
   );
 
-export const urlType = z.enum([
-  "verify-email",
-  "reset-password",
-  "accept-invite",
-]);
+export const urlType = z.enum(['verify-email', 'reset-password', 'accept-invite']);
 export type UrlType = z.infer<typeof urlType>;
 
 export type UrlParams = {
@@ -57,7 +53,7 @@ type ResetPasswordParams = {
 type AcceptInviteParams = VerifyEmailInput;
 
 export type UrlParamMap = {
-  "verify-email": VerifyEmailInput;
-  "reset-password": ResetPasswordParams;
-  "accept-invite": AcceptInviteParams;
+  'verify-email': VerifyEmailInput;
+  'reset-password': ResetPasswordParams;
+  'accept-invite': AcceptInviteParams;
 };

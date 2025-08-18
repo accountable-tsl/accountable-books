@@ -1,16 +1,16 @@
 {
-  "name": "@accountable/contracts",
+  "name": "@accountable-books/contracts",
   "version": "1.0.0",
-  "type": "module",
   "private": true,
   "scripts": {
-    "codegen": "openapi-typescript openapi.yaml -o src/types.ts",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "bundle": "redocly bundle openapi.yaml -o dist/openapi-bundled.yaml --dereferenced",
+    "bundle-contracts": "pnpm run bundle"
   },
   "devDependencies": {
-    "openapi-typescript": "latest",
-    "typescript": "workspace:*",
-    "eslint": "workspace:*"
+    "@redocly/cli": "workspace:*"
+  },
+  "exports": {
+    "./openapi": "./openapi.yaml",
+    "./bundled": "./dist/openapi-bundled.yaml"
   }
 }

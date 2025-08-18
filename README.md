@@ -20,8 +20,8 @@ make help
 ## 🏗️ Architecture
 
 - **API**: Node.js/Express/Knex/TypeScript
-- **Web**: React/TypeScript/Vite *(coming soon)*
-- **ML Engine**: Python/FastAPI *(coming soon)*
+- **Web**: React/TypeScript/Vite
+- **ML Engine**: Python/FastAPI _(coming soon)_
 - **Database**: PostgreSQL with vector extensions
 - **Deployment**: Fly.io + Neon + Vercel + Cloudflare CDN
 
@@ -30,7 +30,7 @@ make help
 ```
 apps/
 ├── api/          # Node.js backend
-├── web/          # React frontend (planned)
+├── web/          # React frontend
 └── ml-engine/    # Python ML service (planned)
 
 packages/
@@ -47,15 +47,17 @@ infra/
 
 ### Core Commands
 
-| Command | Description |
-|---------|-------------|
-| `make setup` | Complete development environment setup |
-| `make dev` | Start development servers |
-| `make db-migrate` | Run database migrations |
-| `make db-shell` | Connect to database |
-| `make test` | Run all tests |
-| `make check` | Run linting, typechecking, formatting |
-| `make clean` | Clean all containers and generated files |
+| Command           | Description                               |
+| ----------------- | ----------------------------------------- |
+| `make setup`      | Complete development environment setup    |
+| `make dev`        | Start all development servers (API + Web) |
+| `make api-dev`    | Start API server only                     |
+| `make web-dev`    | Start web app only                        |
+| `make db-migrate` | Run database migrations                   |
+| `make db-shell`   | Connect to database                       |
+| `make test`       | Run all tests                             |
+| `make check`      | Run linting, typechecking, formatting     |
+| `make clean`      | Clean all containers and generated files  |
 
 ### Database Management
 
@@ -66,6 +68,14 @@ make db-rollback    # Rollback last migration
 make db-seed        # Seed with test data
 make db-logs        # View database logs
 make db-shell       # Connect to database shell
+```
+
+### Web App Development
+
+```bash
+make web-dev        # Start web app development server
+make web-build      # Build web app for production
+make web-test       # Run web app tests
 ```
 
 ### Package Scripts (via pnpm/turbo)
@@ -98,6 +108,7 @@ PostgreSQL 17.5 with custom extensions:
 ## 🚦 Getting Started
 
 1. **Clone and setup:**
+
    ```bash
    git clone <repo-url>
    cd accountable-books
@@ -105,19 +116,57 @@ PostgreSQL 17.5 with custom extensions:
    ```
 
 2. **Start developing:**
+
    ```bash
    make dev
    ```
 
 3. **Access services:**
-   - API: http://localhost:3000
+   - API: http://localhost:5000
+   - Web App: http://localhost:5173  
    - Database: localhost:5433
    - Redis: localhost:6380
+   - API Docs: http://localhost:5000/docs
+   - Bull Board: http://localhost:5000/admin/queues
+
+## 📚 Documentation
+
+- **[API Development Guide](apps/api/README.md)** - Backend development, database, testing
+- **[Web App Development Guide](apps/web/README.md)** - Frontend development, components, styling
+- **[Environment Variables](docs/ENVIRONMENT.md)** - Configuration guide for all environments
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+
+## 🔧 Environment Setup
+
+The `make setup` command automatically:
+- ✅ Creates `.env.local` files from `.env.example` templates
+- ✅ Installs all dependencies
+- ✅ Starts database services
+- ✅ Runs database migrations
+
+**Most configuration works out-of-the-box for local development.** 
+
+For production or custom setups, see the [Environment Variables Guide](docs/ENVIRONMENT.md).
+
+## 🚨 Troubleshooting
+
+**Having issues?** Check our [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for solutions to common problems:
+
+- Docker/Database connection issues
+- Port conflicts  
+- Node.js version problems
+- Permission errors
+- Build failures
+
+**Quick fix for most issues:**
+```bash
+make clean-all  # Nuclear reset - removes everything and reinstalls
+```
 
 ## 🏢 Non-Negotiables
 
 1. **Accuracy** - Financial data must be precise
-2. **Explainability** - AI decisions must be traceable  
+2. **Explainability** - AI decisions must be traceable
 3. **Auditability** - Complete audit trail required
 
 ## 📏 Development Principles
@@ -129,12 +178,67 @@ PostgreSQL 17.5 with custom extensions:
 - Feature-first folder structure
 - Add tests as necessary (no unnecessary tests)
 
+## 🔧 Development Workflow
+
+### Git Hooks (Automated Quality Checks)
+
+Git hooks are automatically configured to ensure code quality:
+
+**Pre-commit hooks** (run automatically on `git commit`):
+- ✅ **Lint & format** changed files (ESLint + Prettier)
+- ✅ **Validate OpenAPI contracts** if changed
+- ✅ **Bundle contracts** and add generated files to commit
+
+**Pre-push hooks** (run automatically on `git push`):
+- ✅ **Type checking** across all packages
+- ✅ **Run tests** to ensure nothing is broken
+- ✅ **Build verification** to catch build issues
+
+### Manual Quality Checks
+
+Run these commands manually when needed:
+
+```bash
+make check      # Full quality check (lint, typecheck, format)
+make test       # Run all tests  
+make build      # Build all packages
+make contracts  # Validate, bundle, and generate types from OpenAPI
+```
+
 ## 🤝 Contributing
 
-1. Follow the existing code style
-2. Run `make check` before committing
-3. Write clear commit messages
-4. Update docs when needed
+### Development Process
+
+1. **Clone and setup**:
+   ```bash
+   git clone <repo-url>
+   cd accountable-books  
+   make setup
+   ```
+
+2. **Create feature branch**:
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+
+3. **Develop with confidence**:
+   - Git hooks prevent broken commits/pushes
+   - Use `make dev` for development with hot reload
+   - Follow existing code patterns and conventions
+
+4. **Quality is enforced automatically**:
+   - Pre-commit: Linting, formatting, contract validation
+   - Pre-push: Tests, type checking, build verification
+   - No manual `make check` needed (but still available)
+
+### Code Standards
+
+- **Follow existing patterns** in the codebase
+- **TypeScript strict mode** - no `any` types
+- **Feature-first organization** - group related code together  
+- **Write tests** for new functionality
+- **Update documentation** for significant changes
+- **Clear commit messages** following conventional commits
 
 ## 📜 License
 

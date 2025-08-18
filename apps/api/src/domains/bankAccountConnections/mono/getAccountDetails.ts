@@ -1,8 +1,5 @@
-import axios from "axios";
-import {
-  type MonoAccountDetails,
-  type MonoAccountResponse,
-} from "../baccons.types.js";
+import axios from 'axios';
+import { type MonoAccountDetails, type MonoAccountResponse } from '../baccons.types.js';
 
 export const getMonoAccountDetails = async ({
   accountId,
@@ -19,19 +16,17 @@ export const getMonoAccountDetails = async ({
       `https://api.withmono.com/v2/accounts/${accountId}`,
       {
         headers: {
-          "mono-sec-key": secretKey,
-          accept: "application/json",
-          "Content-Type": "application/json",
+          'mono-sec-key': secretKey,
+          accept: 'application/json',
+          'Content-Type': 'application/json',
         },
         timeout: 10000,
       },
     );
 
     // Validate response structure
-    if (data.status !== "successful" || !data.data?.account) {
-      throw new Error(
-        data.message || "Invalid response structure from Mono API",
-      );
+    if (data.status !== 'successful' || !data.data?.account) {
+      throw new Error(data.message || 'Invalid response structure from Mono API');
     }
 
     const account = data.data.account;
@@ -56,6 +51,6 @@ export const getMonoAccountDetails = async ({
       const message = error.response?.data?.message || error.message;
       throw new Error(`Mono API request failed (${status}): ${message}`);
     }
-    throw error instanceof Error ? error : new Error("Unknown Mono API error");
+    throw error instanceof Error ? error : new Error('Unknown Mono API error');
   }
 };

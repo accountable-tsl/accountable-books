@@ -1,8 +1,8 @@
-import { ENV } from "../src/config/env";
-import pg from "pg";
+import { ENV } from '../src/config/env';
+import pg from 'pg';
 
 const client = new pg.Client({
-  host: ENV.DB_HOST || "localhost",
+  host: ENV.DB_HOST || 'localhost',
   port: Number(ENV.DB_PORT) || 5432,
   user: ENV.DB_USER,
   password: ENV.DB_PASSWORD,
@@ -10,7 +10,7 @@ const client = new pg.Client({
 });
 
 const run = async () => {
-  console.log("⚠️ Resetting database:", ENV.DB_NAME);
+  console.log('⚠️ Resetting database:', ENV.DB_NAME);
 
   await client.connect();
 
@@ -51,10 +51,10 @@ END $$;
 
   await client.end();
 
-  console.log("✅ Database reset complete.");
+  console.log('✅ Database reset complete.');
 };
 
 run().catch((err) => {
-  console.error("❌ Error resetting database:", err);
+  console.error('❌ Error resetting database:', err);
   process.exit(1);
 });

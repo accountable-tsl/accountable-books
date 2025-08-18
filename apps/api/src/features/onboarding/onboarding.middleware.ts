@@ -35,7 +35,7 @@ export const checkOnboardingStatus = async (
   const userCacheKey = `onboarding:user:${userId}`;
   const companyCacheKey = `onboarding:company:${companyId}`;
 
-  let [cachedUserStatus, cachedCompanyStatus] = await Promise.all([
+  const [cachedUserStatus, cachedCompanyStatus] = await Promise.all([
     redis.get(userCacheKey),
     redis.get(companyCacheKey),
   ]);

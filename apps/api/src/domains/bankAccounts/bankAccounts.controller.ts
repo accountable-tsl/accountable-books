@@ -1,22 +1,15 @@
-import type { Response } from "express";
-import type { AuthRequest } from "../../features/auth/auth.types.js";
-import { errorResponse } from "../../shared/utils/response.utils.js";
-import {
-  createNewBankAccount,
-  getBankAccountsWithDetails,
-} from "./bankAccounts.model.js";
+import type { Response } from 'express';
+import type { AuthRequest } from '../../features/auth/auth.types.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { createNewBankAccount, getBankAccountsWithDetails } from './bankAccounts.model.js';
 
-export async function createBankAccountController(
-  req: AuthRequest,
-  res: Response,
-) {
+export async function createBankAccountController(req: AuthRequest, res: Response) {
   try {
-    const companyId =
-      req.company?.id || req.params.companyId || req.body.companyId;
+    const companyId = req.company?.id || req.params.companyId || req.body.companyId;
     const userId = req.user?.id || req.body.userId;
 
     if (!companyId || !userId) {
-      return res.status(400).json(errorResponse("Unauthorized"));
+      return res.status(400).json(errorResponse('Unauthorized'));
     }
 
     const response = await createNewBankAccount({
@@ -24,25 +17,18 @@ export async function createBankAccountController(
       data: req.body,
       userId,
     });
-    return response.success
-      ? res.status(200).json(response)
-      : res.status(400).json(response);
+    return response.success ? res.status(200).json(response) : res.status(400).json(response);
   } catch (error) {
-    return res.status(500).json(errorResponse("An unexpected error occurred"));
+    return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }
 
-export async function getBankAccountsForCompany(
-  req: AuthRequest,
-  res: Response,
-) {
+export async function getBankAccountsForCompany(req: AuthRequest, res: Response) {
   try {
     const companyId = req.company?.id || req.params.companyId;
     const response = await getBankAccountsWithDetails(companyId);
-    return response.success
-      ? res.status(200).json(response)
-      : res.status(400).json(response);
+    return response.success ? res.status(200).json(response) : res.status(400).json(response);
   } catch (error) {
-    return res.status(500).json(errorResponse("An unexpected error occurred"));
+    return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }

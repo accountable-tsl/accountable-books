@@ -1,24 +1,24 @@
-import { z } from "zod";
-import { dbBaseFields } from "../../core/types/core.js";
-import { type SnakeToCamelCaseObject } from "../../shared/utils/formatting.utils.js";
-import { coaSource } from "../chartOfAccounts/coa.types.js";
-import { bankAccountConnectionStatus } from "../bankAccountConnections/baccons.types.js";
+import { z } from 'zod';
+import { dbBaseFields } from '../../core/types/core.js';
+import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+import { coaSource } from '../chartOfAccounts/coa.types.js';
+import { bankAccountConnectionStatus } from '../bankAccountConnections/baccons.types.js';
 
 export const bankAccountType = z.enum([
-  "other",
-  "credit_card",
-  "debit_card",
-  "savings",
-  "checkings_current",
-  "utility",
+  'other',
+  'credit_card',
+  'debit_card',
+  'savings',
+  'checkings_current',
+  'utility',
 ]);
 export type BankAccountType = z.infer<typeof bankAccountType>;
 
-export const businessOrPersonalAccount = z.enum(["business", "personal"]);
+export const businessOrPersonalAccount = z.enum(['business', 'personal']);
 
 export const newBankAccountInput = z.object({
   id: z.string().uuid().optional(),
-  display_name: z.string().min(1, "Display name is required"),
+  display_name: z.string().min(1, 'Display name is required'),
   account_name: z.string().nullish(),
   account_type: bankAccountType.nullish(),
   business_or_personal: businessOrPersonalAccount.nullish(),
@@ -32,9 +32,7 @@ export const newBankAccountInput = z.object({
   // coa_id: z.string().uuid(),
   // created_by_id: z.string().uuid(),
 });
-export type NewBankAccountInput = SnakeToCamelCaseObject<
-  z.infer<typeof newBankAccountInput>
->;
+export type NewBankAccountInput = SnakeToCamelCaseObject<z.infer<typeof newBankAccountInput>>;
 
 export const newBankAccount = newBankAccountInput.extend({
   company_id: z.string().uuid(),
@@ -96,9 +94,7 @@ export const bankAccountWithBalancesAndStats = bankAccountWithMeta.extend({
   autoCategorizedCount: z.number().min(0),
   uncategorizedCount: z.number().min(0),
 });
-export type BankAccountWithBalancesAndStats = z.infer<
-  typeof bankAccountWithBalancesAndStats
->;
+export type BankAccountWithBalancesAndStats = z.infer<typeof bankAccountWithBalancesAndStats>;
 
 export const bankAccountsMeta = z.object({
   totalAccounts: z.number().min(0),

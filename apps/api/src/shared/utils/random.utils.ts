@@ -1,12 +1,12 @@
-import type { Knex } from "knex";
-import { getCompanyIdentifiers } from "../../domains/companies/companies.utils.js";
-import { z } from "zod";
+import type { Knex } from 'knex';
+import { getCompanyIdentifiers } from '../../domains/companies/companies.utils.js';
+import { z } from 'zod';
 
 export const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export const getCompanyUUID = async (
   identifier: string,
-  trx?: Knex.Transaction
+  trx?: Knex.Transaction,
 ): Promise<string> => {
   const { id } = await getCompanyIdentifiers(identifier, trx);
   return id;
@@ -14,16 +14,13 @@ export const getCompanyUUID = async (
 
 export const getCompanyShortCode = async (
   identifier: string,
-  trx?: Knex.Transaction
+  trx?: Knex.Transaction,
 ): Promise<string> => {
   const { short_code } = await getCompanyIdentifiers(identifier, trx);
   return short_code;
 };
 
-export const retryAxios = async <T>(
-  fn: () => Promise<T>,
-  retries = 3
-): Promise<T> => {
+export const retryAxios = async <T>(fn: () => Promise<T>, retries = 3): Promise<T> => {
   try {
     return await fn();
   } catch (error) {
@@ -35,7 +32,7 @@ export const retryAxios = async <T>(
 
 export const dateFromStringOrDate = z.preprocess((arg) => {
   if (arg instanceof Date) return arg;
-  if (typeof arg === "string") {
+  if (typeof arg === 'string') {
     const parsed = new Date(arg);
     return isNaN(parsed.getTime()) ? undefined : parsed;
   }
@@ -47,7 +44,7 @@ export const dateOrStringNullable = dateFromStringOrDate.nullable();
 export const dateOrStringNullish = dateFromStringOrDate.nullish();
 
 export function escapeRegExp(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export function chunkArray<T>(array: T[], size: number): T[][] {
@@ -57,4 +54,3 @@ export function chunkArray<T>(array: T[], size: number): T[][] {
   }
   return chunks;
 }
-

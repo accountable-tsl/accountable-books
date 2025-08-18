@@ -1,9 +1,9 @@
-import type { Knex } from "knex";
-import { getCompanyUUID } from "../../../shared/utils/random.utils.js";
-import { knexClient } from "../../../db/knexClient.js";
-import { getBankAccountsWithDetails } from "../../bankAccounts/bankAccounts.model.js";
-import { type BankAccountWithMeta } from "../../bankAccounts/bankAccounts.types.js";
-import { type CompanyOnboardingState } from "../../../features/onboarding/onboarding.types.js";
+import type { Knex } from 'knex';
+import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
+import { knexClient } from '../../../db/knexClient.js';
+import { getBankAccountsWithDetails } from '../../bankAccounts/bankAccounts.model.js';
+import { type BankAccountWithMeta } from '../../bankAccounts/bankAccounts.types.js';
+import { type CompanyOnboardingState } from '../../../features/onboarding/onboarding.types.js';
 
 type BankConnectionNeedsAssessment = {
   companyId: string; // resolved UUID
@@ -35,28 +35,21 @@ export const getBankConnectionNeeds = async ({
   trx: Knex.Transaction;
 }): Promise<BankConnectionNeedsAssessment> => {
   const companyUUID = await getCompanyUUID(receivedCompanyId, trx);
-  if (!companyUUID) throw new Error("Invalid company identifier");
+  if (!companyUUID) throw new Error('Invalid company identifier');
 
-  const { data: bankAccounts } = await getBankAccountsWithDetails(
-    companyUUID,
-    trx
-  );
+  const { data: bankAccounts } = await getBankAccountsWithDetails(companyUUID, trx);
 
-  const company = await trx("companies")
-    .select("onboarding_state")
+  const company = await trx('companies')
+    .select('onboarding_state')
     .where({ id: companyUUID })
     .first();
 
   // Determine unmatched accounts
-  const hasUnmatchedAccounts =
-    bankAccounts?.some((account) => !account.bankConnectionId) ?? false;
+  const hasUnmatchedAccounts = bankAccounts?.some((account) => !account.bankConnectionId) ?? false;
 
-  const updateOnboardingState =
-    company?.onboarding_state?.steps.first_bank_account_added ?? true;
+  const updateOnboardingState = company?.onboarding_state?.steps.first_bank_account_added ?? true;
 
-  const unmatchedAccounts = bankAccounts?.filter(
-    (account) => !account.bankConnectionId
-  );
+  const unmatchedAccounts = bankAccounts?.filter((account) => !account.bankConnectionId);
 
   return {
     companyId: companyUUID,
