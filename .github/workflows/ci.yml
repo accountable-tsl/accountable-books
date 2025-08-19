@@ -89,6 +89,9 @@ jobs:
       - name: Format generated files
         run: pnpm run format packages/api-types/src/generated/
 
+      - name: Build api-types package
+        run: pnpm --filter @accountable-books/api-types build
+
       - name: Build ${{ matrix.package }}
         run: pnpm --filter @accountable-books/${{ matrix.package }} build
 
