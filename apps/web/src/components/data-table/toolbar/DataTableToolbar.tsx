@@ -5,12 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Search, X } from 'lucide-react';
 import { DataTableViewOptions } from '@/components/data-table/filter-components/view-options';
 import {
-  createMultiColumnFilter,
   generateSearchPlaceholder,
   categorizeColumns,
   resolveToolbarItems,
   mergeConfigs,
-} from '@/components/data-table/toolbar/utils';
+} from './utils';
 import type { DataTableToolbarProps, ToolbarItem } from './types';
 import { DataTableToolbarFilter } from './DataTableToolbarFilter';
 
@@ -107,7 +106,7 @@ export function DataTableToolbar<TData>({
       const key = item.key || `${sectionKey}-${item.type}-${index}`;
 
       switch (item.type) {
-        case 'search':
+        case 'search': {
           const searchComponents = [
             ...(globalSearchEnabled && groupedTextColumns.length > 0
               ? [
@@ -131,7 +130,8 @@ export function DataTableToolbar<TData>({
           return searchComponents.length > 0 ? (
             <React.Fragment key={key}>{searchComponents}</React.Fragment>
           ) : null;
-        case 'filters':
+        }
+        case 'filters': {
           const filterComponents = [
             ...otherColumns.map((column) => (
               <DataTableToolbarFilter key={`${key}-${column.id}`} column={column} />
@@ -140,7 +140,8 @@ export function DataTableToolbar<TData>({
           return filterComponents.length > 0 ? (
             <React.Fragment key={key}>{filterComponents}</React.Fragment>
           ) : null;
-        case 'reset':
+        }
+        case 'reset': {
           if (!isFiltered) return null;
           return (
             <Button
@@ -155,13 +156,16 @@ export function DataTableToolbar<TData>({
               Reset
             </Button>
           );
-        case 'viewOptions':
+        }
+        case 'viewOptions': {
           if (!showViewOptions) return null;
           return <DataTableViewOptions key={key} table={table} {...(item.props || {})} />;
-        case 'custom':
+        }
+        case 'custom': {
           if (!item.component) return null;
           const CustomComponent = item.component;
           return <CustomComponent key={key} table={table} {...(item.props || {})} />;
+        }
         default:
           return null;
       }

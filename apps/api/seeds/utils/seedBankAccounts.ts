@@ -7,12 +7,12 @@ import {
 } from '../../../src/domains/bankAccounts/bankAccounts.types';
 import { getCompanies } from '../../../src/domains/companies/companies.model';
 import { CompanyType } from '../../../src/domains/companies/companies.types';
-import { CoaSource, coaSource } from '../../../src/domains/chartOfAccounts/coa.types';
+import { coaSource } from '../../../src/domains/chartOfAccounts/coa.types';
 import { banksInSystem, countriesInSystem, currenciesInSystem } from '../data/shared';
 
 export const seedBankAccounts = async (bankAccountCreationData: {
   companyType: CompanyType;
-  company?: any;
+  company?: object;
   userId?: string;
   data?: NewBankAccountInput[];
 }) => {
@@ -69,7 +69,7 @@ export const seedBankAccounts = async (bankAccountCreationData: {
     throw new Error('No bank account data to process');
   }
 
-  return await knexClient.transaction(async (trx) => {
+  return await knexClient.transaction(async (_trx) => {
     const results = await Promise.all(
       bankData.map(async (bank) => {
         const result = await createNewBankAccount({

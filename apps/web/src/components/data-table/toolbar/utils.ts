@@ -1,10 +1,5 @@
 import type { Row, Column } from '@tanstack/react-table';
-import type {
-  ToolbarItem,
-  ToolbarItemType,
-  ToolbarSectionConfig,
-  DataTableToolbarConfig,
-} from './types';
+import type { ToolbarItem, DataTableToolbarConfig } from './types';
 import { DEFAULT_CONFIG } from './config';
 
 // Multi-column filter function
@@ -118,10 +113,10 @@ function mergeSection(a: ToolbarItem[] = [], b: ToolbarItem[] = []): ToolbarItem
   }
 
   // Now, to resolve conflicts and preserve shifting:
-  const maxPosition = Math.max(
-    ...[...byPosition.keys(), ...a.map((i) => i.position), ...b.map((i) => i.position)],
-    0,
-  );
+  // const maxPosition = Math.max(
+  //   ...[...byPosition.keys(), ...a.map((i) => i.position), ...b.map((i) => i.position)],
+  //   0,
+  // );
 
   const filled: Set<number> = new Set();
   const temp: ToolbarItem[] = [];

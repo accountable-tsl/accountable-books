@@ -1,4 +1,4 @@
-import type { DataTableToolbarConfig } from './types';
+import { type DataTableToolbarConfig } from './types';
 
 export const DEFAULT_CONFIG: DataTableToolbarConfig = {
   layout: {

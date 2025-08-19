@@ -1,47 +1,11 @@
 import type { Knex } from 'knex';
-import path from 'path';
-import fs from 'fs/promises';
-import { fileURLToPath } from 'url';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from './utils/db';
-import { NODE_ENV } from '../src/config/env';
-import { NewPermissionInput } from '../src/core/types/db.types';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const tableName = 'permissions';
-
-const seedPermissions = async function seed(knex: Knex): Promise<void> {
-  const filePath = path.join(__dirname, 'data/permissions.json');
-
-  try {
-    const rawData = await fs.readFile(filePath, 'utf-8');
-    const permissions: Array<NewPermissionInput> = JSON.parse(rawData);
-
-    const seedData = permissions.map((p) => ({
-      key: p.key,
-      action: p.action,
-      resource: p.resource,
-      label: p.label,
-      description: p.description,
-    }));
-
-    await knex.transaction(async (trx) => {
-      await trx(tableName).insert(seedData).onConflict(['action', 'resource']).ignore();
-    });
-
-    if (NODE_ENV === 'local' || NODE_ENV === 'docker') {
-      console.log(`Seeded ${seedData.length} permissions from ${filePath}`);
-    }
-  } catch (error) {
-    console.error(`Error seeding permissions from ${filePath}:`, error);
-    throw error;
-  }
-};
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {

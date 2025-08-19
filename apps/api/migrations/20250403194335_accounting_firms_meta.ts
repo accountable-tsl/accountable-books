@@ -7,7 +7,7 @@ import {
 import { createPlatformCompany } from './20250403194332_companies';
 import { AccFirmWithId, newAccFirm } from '../src/domains/accountingFirms/firms.types';
 
-export const buildPlatformAccountingFirm = (platformCompany: any) => ({
+export const buildPlatformAccountingFirm = (platformCompany: { id: string }) => ({
   company_id: platformCompany.id,
   slug: 'app',
 });

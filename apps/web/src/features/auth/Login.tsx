@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useSearchParams } from 'react-router-dom';
-import { loginForm, LoginForm } from './types';
+import { loginForm, type LoginForm } from './types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff } from 'lucide-react';
 import { routes } from '@/shared/routes/routes';
@@ -13,7 +13,7 @@ import { AuthHeader } from '@/components/AuthHeader';
 import { toast } from 'sonner';
 import { loginAndRedirect } from '@/features/auth/utils';
 import { useSession } from '@/features/auth/Session';
-import { authStore } from './store';
+import { authStore } from '@/features/auth/store';
 
 export default function Login() {
   const { isLoggedIn, hasAppAccess, company, companyId, tenantRoutes, loading } = useSession();

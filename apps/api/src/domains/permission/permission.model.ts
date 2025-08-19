@@ -12,7 +12,7 @@ export async function getPermissionsForRole(roleId: string): Promise<ApiResponse
     if (!results.length) throw new AppError('No permissions found for role');
 
     return successResponse('Permissions retrieved', results);
-  } catch (error) {
-    return errorResponse('Failed to fetch permissions');
+  } catch (error: unknown) {
+    return errorResponse('Failed to fetch permissions', error);
   }
 }

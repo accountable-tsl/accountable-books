@@ -1,4 +1,4 @@
-import { company, CompanyType, companyType } from '../../../src/domains/companies/companies.types';
+import { companyType } from '../../../src/domains/companies/companies.types';
 import { getCountry } from '../../../src/domains/countries/countries.utils';
 import { getCurrency } from '../../../src/domains/currencies/currencies.utils';
 import { NewProjectInput } from '../../../src/domains/projects/projects.types';
@@ -91,13 +91,7 @@ const demoIndividualInput: CreateDemoBase = {
 
 export const createDemoSeedConfig = async () => {
   const NGN = await getCurrency('NGN');
-  const USD = await getCurrency('USD');
-  const GHS = await getCurrency('GHS');
-  const GBP = await getCurrency('GBP');
-  const EUR = await getCurrency('EUR');
-
   const nigeria = await getCountry('NG');
-  const usa = await getCountry('US');
 
   const args: DemoSeedArgs = {
     reportingCurrency: NGN,

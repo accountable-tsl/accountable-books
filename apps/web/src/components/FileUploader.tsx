@@ -1,16 +1,13 @@
 import * as React from 'react';
 import Dropzone, { type DropzoneProps, type FileRejection } from 'react-dropzone';
 import { toast } from 'sonner';
-
 import { cn, formatBytes } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { FileTextIcon, UploadIcon, X } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useControllableState } from '@/shared/hooks/useControllableState';
 import { Image } from '@/components/ui/Image';
 import { getSpreadsheetRowCount, isSpreadsheetFile } from '@/features/spreadsheets/utils';
-import { Card, CardContent } from './ui/card';
 
 interface FileUploaderProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
@@ -226,7 +223,6 @@ export function FileUploader(props: FileUploaderProps) {
         }
       });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isDisabled = disabled || (files?.length ?? 0) >= maxFileCount;

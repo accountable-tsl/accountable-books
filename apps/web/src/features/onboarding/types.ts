@@ -1,6 +1,6 @@
 import { CompanyData } from '@/domains/company/types';
 import { RouteKey } from '@/shared/routes/types';
-import { LucideIcon } from 'lucide-react';
+import { type LucideIcon } from 'lucide-react';
 import { z } from 'zod';
 
 export const phoneNumberFormSchema = z.object({

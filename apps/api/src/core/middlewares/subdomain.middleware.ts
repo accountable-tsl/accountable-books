@@ -2,7 +2,12 @@ import { type NextFunction, type Response } from 'express';
 import { knexClient } from '../../db/knexClient.js';
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 
-export async function subdomain(req: AuthRequest, res: Response, next: NextFunction) {
+interface SubdomainRequest extends AuthRequest {
+  subdomain?: string;
+  firmId?: string;
+}
+
+export async function subdomain(req: SubdomainRequest, res: Response, next: NextFunction) {
   console.log('req.headers.host', req.headers);
   const hostname = (req.headers.host || '').split(':')[0];
   const subdomain = hostname.split('.')[0];
@@ -25,7 +30,7 @@ export async function subdomain(req: AuthRequest, res: Response, next: NextFunct
     return res.redirect(`https://www.${baseDomain}`);
   }
 
-  (req as any).subdomain = subdomain;
+  req.subdomain = subdomain;
   console.log('subdomain', subdomain);
   const firm = await knexClient('accounting_firms_meta')
     .where('slug', subdomain)
@@ -36,7 +41,7 @@ export async function subdomain(req: AuthRequest, res: Response, next: NextFunct
     return res.status(404).send('Firm not found');
   }
 
-  (req as any).firmId = firm.id;
+  req.firmId = firm.id;
 
   next();
 }

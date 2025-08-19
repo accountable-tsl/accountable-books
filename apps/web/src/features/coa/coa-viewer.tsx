@@ -249,7 +249,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
                             groupBy={'parentElementLabel'}
                           />
                         </FormField>
-                        {dirtyFields.hasOwnProperty('accountTypeKey') && (
+                        {Object.prototype.hasOwnProperty.call(dirtyFields, 'accountTypeKey') && (
                           <div className="text-sm mt-2 py-2 px-4 bg-red-100 text-red-600 rounded">
                             <strong>Warning:</strong> Changing your account type will affect all
                             your postings and might not be reversible!

@@ -138,11 +138,13 @@ export type ConnectionResponse = {
     bankName: string;
     accountName: string;
     accountNumber: string;
+
+    currency?: unknown;
   };
 
-  suggestedBankAccountMatches?: BankAccountMatch[];
+  suggestedBankAccountMatches?: (BankAccountMatch | any)[];
 
-  connection: {
+  connection?: {
     id: string;
     provider: {
       id: string;
@@ -155,7 +157,7 @@ export type ConnectionResponse = {
     userActionRequired: boolean;
   };
 
-  account: {
+  account?: {
     matched: boolean;
     matchType: 'exact' | 'fuzzy' | 'created' | 'unmatched';
     bankAccountId: string | null;

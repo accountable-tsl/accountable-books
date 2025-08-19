@@ -1,12 +1,12 @@
 import React from 'react';
-import { CustomTable } from '@/components/data-table/types/data-table';
+import type { CustomTable } from '@/components/data-table/types/data-table';
 import { TableBody, TableRow, TableCell } from '@/components/CustomTable';
-import { Cell, flexRender, Row } from '@tanstack/react-table';
+import { type Cell, flexRender, type Row } from '@tanstack/react-table';
 import { getColumnStyle } from './utils/column-sizing';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { isClickInsideExcludedElement } from '@/components/data-table/utils/table';
 import { RowViewer } from '@/components/data-table/row-view/row-viewer';
-import { RowViewerProps } from '@/components/data-table/types/row-click';
+import type { RowViewerProps } from '@/components/data-table/types/row-click';
 
 interface DataTableBodyProps<TData> {
   table: CustomTable<TData>;
@@ -89,7 +89,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
         style={{ cursor: rowClickEnabled ? 'pointer' : 'default' }}
       >
         {row.getVisibleCells().map((cell: Cell<TData, unknown>) => {
-          const hasCheckbox = cell.getValue() === 'checkbox' || cell.column.id === 'select';
+          // const hasCheckbox = cell.getValue() === 'checkbox' || cell.column.id === 'select';
 
           const columnDef = table._getColumnDefs().find((c) => c.id === cell.column.id);
           const explicitSize = !!columnDef?.size;

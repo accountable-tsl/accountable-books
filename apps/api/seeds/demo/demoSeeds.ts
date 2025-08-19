@@ -5,7 +5,6 @@ import { addNewProjects } from '../../src/domains/projects/projects.model ';
 import { registerNewAccount } from '../../src/features/signup/signup.service';
 import { demoSeedConfig } from './data/config';
 import { DemoSeedConfig } from './data/types';
-import { generateDemoProjectsForCompany } from './utils/004_genDemoProjects';
 
 /** Seed one demo scenario. */
 export async function seedDemo(config: DemoSeedConfig): Promise<void> {
@@ -48,7 +47,7 @@ export async function seedDemo(config: DemoSeedConfig): Promise<void> {
     const contactIds = new Set(contacts.map((c) => c.id));
 
     // Add projects
-    let projects: Array<{ id: string; name: string }>; // projects
+    // let _projects: Array<{ id: string; name: string }>; // projects (currently unused)
     const projectsData = config.genProjects(Array.from(contactIds));
     if (config.company?.type !== 'individual') {
       console.log('Indiv. project data', projectsData);
@@ -59,7 +58,8 @@ export async function seedDemo(config: DemoSeedConfig): Promise<void> {
       });
       if (!addProjects.success || !addProjects.data) throw new Error(addProjects.message);
 
-      projects = addProjects.data;
+      // Store projects data for potential future use
+      // _projects = addProjects.data;
     }
   });
 }

@@ -1,6 +1,5 @@
-import { NavMainItems } from '@/components/NavMain';
-import { useSafeSession, useSession } from '@/features/auth/Session';
-import { CompanyType } from '@/shared/types/core';
+import type { NavMainItems } from '@/components/NavMain';
+import type { CompanyType } from '@/shared/types/core';
 import {
   BriefcaseIcon,
   CalculatorIcon,
@@ -71,7 +70,7 @@ export const getNavUser = (user: { name: string; email: string; avatar: string }
   };
 };
 
-export const getNavSecondary = (companyId?: string, companyType?: CompanyType) => {
+export const getNavSecondary = () => {
   return [
     {
       title: 'Settings',

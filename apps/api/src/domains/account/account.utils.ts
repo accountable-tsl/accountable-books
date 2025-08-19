@@ -1,6 +1,8 @@
-import { isDev } from '../../config/env.js';
-import { type AccountClassificationMetadata, type EnrichedAccountType } from './account.types.js';
+// import { isDev } from '../../config/env.js';
+// import { type AccountClassificationMetadata, type EnrichedAccountType } from './account.types.js';
 
+// Currently unused utility function
+/*
 const flattenAccountTypes = (data: AccountClassificationMetadata) => {
   const { accountTypes, accountElements, parentAccountElements, financialStatements } = data;
 
@@ -57,3 +59,4 @@ const flattenAccountTypes = (data: AccountClassificationMetadata) => {
 
   return results;
 };
+*/

@@ -27,8 +27,8 @@ export async function grantAccessToCompanyController(req: AuthRequest, res: Resp
       grantedBy,
     });
 
-    result.success ? res.status(200).json(result) : res.status(400).json(result);
-  } catch (error) {
+    return result.success ? res.status(200).json(result) : res.status(400).json(result);
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('Internal server error'));
   }
 }

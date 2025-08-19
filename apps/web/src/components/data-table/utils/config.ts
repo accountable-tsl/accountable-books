@@ -109,12 +109,10 @@ export const dataTableConfig = {
 
 export type DataTableConfig = typeof dataTableConfig;
 
-const filterItemSchema = z.object({
-  id: z.string(),
-  value: z.union([z.string(), z.array(z.string())]),
-  variant: z.enum(dataTableConfig.filterVariants),
-  operator: z.enum(dataTableConfig.operators),
-  filterId: z.string(),
-});
-
-export type FilterItemSchema = z.infer<typeof filterItemSchema>;
+export type FilterItemSchema = {
+  id: string;
+  value: string | string[];
+  variant: (typeof dataTableConfig.filterVariants)[number];
+  operator: (typeof dataTableConfig.operators)[number];
+  filterId: string;
+};

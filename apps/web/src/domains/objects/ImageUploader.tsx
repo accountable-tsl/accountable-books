@@ -1,8 +1,15 @@
-import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import {
+  type ChangeEvent,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { Button } from '../../components/ui/button';
 import { Loader2, Upload, X } from 'lucide-react';
 import { extractPath } from '@/shared/utils/formatting-utils';
-import { ImageUploaderProps, ImageUploaderRef } from './types';
+import { type ImageUploaderProps, type ImageUploaderRef } from '@/domains/objects/types';
 import { matchesType } from './utils';
 import { cn } from '@/lib/utils';
 
@@ -116,7 +123,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
           if (onUploadComplete) onUploadComplete(result);
           return result;
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         const errorMsg = errorMessage(err?.message, 'Upload failed');
         setError(errorMsg);
         onError?.(errorMsg, 'upload');
@@ -143,7 +150,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
         setImage(null);
         setImageKey(null);
         onImageChange?.(null);
-      } catch (err: any) {
+      } catch (err: unknown) {
         const errorMsg = errorMessage(err?.message, 'Failed to remove image');
         setError(errorMsg);
         onError?.(errorMsg, 'remove');

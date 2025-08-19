@@ -2,12 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import type { Table } from '@tanstack/react-table';
 import { Loader, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import * as ReactDOM from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { CustomTable } from '@/components/data-table/types/data-table';
+import type { CustomTable } from '@/components/data-table/types/data-table';
 
 interface DataTableActionBarProps<TData> extends React.ComponentProps<typeof motion.div> {
   table: CustomTable<TData>;

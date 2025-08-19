@@ -24,7 +24,7 @@ import projectsRoutes from './domains/projects/projects.routes.js';
 import { swaggerUi, specs } from './docs/swagger.js';
 import { serverAdapter } from './lib/bullboard.js';
 import { basicAuth } from './core/middlewares/basicAuth.middleware.js';
-import { ENV, isDev, NODE_ENV } from './config/env.js';
+import { ENV, isDev } from './config/env.js';
 import { loadRoles } from './domains/roles/roles.model.js';
 import cookieParser from 'cookie-parser';
 import { conditionalCsrf, verifyRefreshToken } from './features/auth/auth.middleware.js';
@@ -72,7 +72,7 @@ const allowedOrigins = [
   'http://lvh.me:5173',
   /\.lvh\.me(:5173)?$/,
   new RegExp(
-    `^https?:\/\/[\w-]+\.${FRONTEND_URL.replace(/^https?:\/\//, '').replace(/\./g, '\\.')}$`,
+    `^https?://[\\w-]+\\.${FRONTEND_URL.replace(/^https?:\/\//, '').replace(/\\./g, '\\\\.')}$`,
   ),
 ];
 

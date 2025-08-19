@@ -11,7 +11,7 @@ export async function getAllBanksController(req: AuthRequest, res: Response) {
 
     const response = await getAllBanks();
     return response.success ? res.status(200).json(response) : res.status(400).json(response);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('Internal server error'));
   }
 }
@@ -50,7 +50,7 @@ export async function getBankByCountryController(req: AuthRequest, res: Response
 
     const response = await getBankByCountry(identifier);
     return response.success ? res.status(200).json(response) : res.status(400).json(response);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('Internal server error'));
   }
 }

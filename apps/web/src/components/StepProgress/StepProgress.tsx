@@ -5,7 +5,7 @@ interface StepProgressProps {
   totalSteps: number;
   steps: string[];
 }
-export function StepProgress({ currentStep, totalSteps, steps }: StepProgressProps) {
+export function StepProgress({ currentStep, totalSteps }: StepProgressProps) {
   const progress = Math.round(((currentStep - 1) / totalSteps) * 100);
   return (
     <div className="w-full">

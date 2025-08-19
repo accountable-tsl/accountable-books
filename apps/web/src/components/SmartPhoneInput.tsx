@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { useCountries } from '@/shared/hooks/useCountries';
-import { Country } from '@/shared/types/core';
+import type { Country } from '@/shared/types/core';
 import { AlertCircle, Check, ChevronDownIcon, ChevronUpIcon, SearchIcon, X } from 'lucide-react';
 import { formatPhoneNumber } from '@/shared/utils/formatting-utils';
 
@@ -251,7 +251,8 @@ export function SmartPhoneInput({
         phoneNumber = value.phoneNumber.replace(/\D/g, '');
       }
 
-      const newCountry = countries?.find((c) => c.code === countryCode)!;
+      const newCountry = countries?.find((c) => c.code === countryCode);
+      if (!newCountry) return;
       setSelectedCountry(newCountry);
       const formattedPhoneNumber = formatPhoneNumber(phoneNumber, newCountry);
       const completeNumber = `${newCountry?.phoneCode}${phoneNumber}`;

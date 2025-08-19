@@ -33,7 +33,7 @@ export const addNewBankAccountConnection = async (req: AuthRequest, res: Respons
     return connectionRes.success
       ? res.status(200).json(connectionRes)
       : res.status(400).json(connectionRes);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 };

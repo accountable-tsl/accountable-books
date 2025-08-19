@@ -1,5 +1,4 @@
-import { AuthUserContext } from '@/features/auth/types';
-import {
+import type {
   BuildCanonicalUrlOptions,
   ExtractPathParams,
   FlatRoutes,
@@ -12,7 +11,7 @@ import {
   RouteMeta,
 } from '@/shared/routes/types';
 import { routes } from '@/shared/routes/routes';
-import { matchPath, Route } from 'react-router-dom';
+import { matchPath } from 'react-router-dom';
 
 /**
  * Replace route params in a template string with the actual values.

@@ -58,6 +58,6 @@ export const useCreateContacts = () => {
       }
     },
 
-    onError: (error: any) => toast.error(`Failed to create contact`),
+    onError: (error: unknown) => toast.error(`Failed to create contact`),
   });
 };

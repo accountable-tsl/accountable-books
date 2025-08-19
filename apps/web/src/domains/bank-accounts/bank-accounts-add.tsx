@@ -44,7 +44,7 @@ export default function AddBankAccount({ onSuccess, onCancel }: AddBankAccountPr
   const { data: currenciesData, isLoading: isLoadingCurrencies } = useCurrencies();
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
   const { data: bankData } = useBanks('countryId', selectedCountry?.id);
-  const { companyId, company, loading } = useSession();
+  const { company, loading } = useSession();
 
   // Computed
   const currencies = currenciesData?.data ?? [];
@@ -107,7 +107,7 @@ export default function AddBankAccount({ onSuccess, onCancel }: AddBankAccountPr
       setCreatedAccount(res.data);
       toast.success('Bank account added successfully');
       reset();
-    } catch (error) {
+    } catch {
       toast.error('Failed to add bank account');
     }
   };

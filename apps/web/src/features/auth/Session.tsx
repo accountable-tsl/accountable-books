@@ -5,7 +5,7 @@ import { routes } from '@/shared/routes/routes';
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createTenantRoutes, isPublicRoute } from '@/shared/routes/utils';
-import { LogoutOptions, SessionContextType } from '@/features/auth/types';
+import type { LogoutOptions, SessionContextType } from '@/features/auth/types';
 import { useCompanyDetails } from '@/domains/company/hooks';
 import { handleLogout } from './api';
 import { createDefaultSessionContext } from '@/features/auth/utils';
@@ -34,9 +34,13 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     if ((isError || !success) && !isLoadingSession && !isPublic) {
       const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
 
-      (async () => {
+      void (async () => {
         try {
-          wasAuthenticated ? clearSessionFn('expired') : clearSessionFn();
+          if (wasAuthenticated) {
+            clearSessionFn('expired');
+          } else {
+            clearSessionFn();
+          }
           await handleLogout();
         } catch (error) {
           console.error('Error during logout', error);
@@ -95,9 +99,9 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         }
         window.location.replace(target);
       }
-
-      return true;
     }
+
+    return true;
   }, []);
 
   const contextValue: SessionContextType = useMemo(

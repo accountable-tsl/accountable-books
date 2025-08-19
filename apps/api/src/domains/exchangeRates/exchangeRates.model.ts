@@ -36,7 +36,7 @@ export async function createNewExRates(
       `${data.length} exchange rates processed. ${result} inserted, duplicates skipped.`,
       result,
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return errorResponse('Failed to create exchange rates');
   }
 }
@@ -253,14 +253,17 @@ export async function fetchExchangeRate(
         toCurrencyId: persistedRate.to_currency_id,
         rate: Number(persistedRate.rate),
       });
-    } catch (dbError: any) {
-      return errorResponse('Failed to persist exchange rate to database', {
-        type: 'database_error',
-        details: dbError.message || 'Unknown database error',
-        code: dbError.code,
-      });
+    } catch (dbError: unknown) {
+      if (dbError instanceof Error) {
+        return errorResponse('Failed to persist exchange rate to database', {
+          type: 'databaseerror: unknown',
+          details: dbError.message || 'Unknown database error',
+        });
+      } else {
+        return errorResponse('Failed to persist exchange rate to database', dbError);
+      }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return errorResponse('An unexpected error occurred while fetching exchange rate', error);
   }
 }

@@ -1,4 +1,3 @@
-import Decimal from 'decimal.js';
 import { fetchExchangeRate } from './exchangeRates.model.js';
 
 export async function determineExchangeRate(
@@ -25,7 +24,7 @@ export async function determineExchangeRate(
       );
       return null;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       `Error determining exchange rate for ${fromCurrencyId} to ${toCurrencyId} on ${date}:`,
       error,

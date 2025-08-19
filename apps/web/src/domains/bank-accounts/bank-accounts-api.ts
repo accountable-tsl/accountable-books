@@ -2,16 +2,6 @@ import api from '@/lib/axios';
 import { ApiResponse } from '@/shared/types/core';
 import { BankAccountWithMeta } from '@/domains/bank-accounts/types';
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL;
-
-type newBankAccountParams = {
-  bankId: string | number;
-  displayName: string;
-  bankAccountType: string;
-  bankAccountNo: string;
-  currencyId: string | number;
-};
-
 // export const createBankAccount = async (
 //   companyId: string,
 //   data: newBankAccountParams

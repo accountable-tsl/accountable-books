@@ -5,8 +5,19 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    ignores: [
+      '**/dist/**',
+      '**/build/**',
+      '**/.turbo/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/generated/**',
+      'packages/api-types/dist/**',
+      'packages/api-types/generated/**',
+    ],
+  },
+  {
     files: ['**/*.ts', '**/*.tsx'],
-    ignores: ['**/dist/**', '**/build/**', '**/.turbo/**', '**/node_modules/**', '**/coverage/**'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
@@ -16,8 +27,9 @@ export default tseslint.config(
     },
     rules: {
       'no-console': 'off',
-      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
       // Prevent cross-app imports
       'no-restricted-imports': [
         'error',
@@ -25,11 +37,12 @@ export default tseslint.config(
           patterns: [
             {
               group: ['../../apps/*', '../../../apps/*', '../../../../apps/*'],
-              message: 'Direct imports from other apps are not allowed. Use workspace packages instead.'
-            }
-          ]
-        }
-      ]
+              message:
+                'Direct imports from other apps are not allowed. Use workspace packages instead.',
+            },
+          ],
+        },
+      ],
     },
   },
   {

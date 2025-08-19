@@ -1,4 +1,4 @@
-import { MockSidebar } from '@/components/SideBar/Sidebar';
+import { MockSidebar } from '@/components/SideBar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 
 export function MockDashboard({ children }: { children?: React.ReactNode }) {

@@ -52,11 +52,11 @@ export async function createBankProviderMappings({
 export async function syncMonoInstitutionsToMappingsNG(
   systemUserId: string,
   knex: Knex = knexClient,
-): Promise<ApiResponse<null>> {
+): Promise<ApiResponse<{ created: number; updated: number; skipped: number }>> {
   const startTime = Date.now();
   let created = 0,
-    updated = 0,
-    skipped = 0;
+    updated = 0;
+  const skipped = 0;
 
   try {
     // Validate required configuration
@@ -234,7 +234,7 @@ export async function syncMonoInstitutionsToMappingsNG(
       `Successfully synced Mono institutions: ${created} created, ${updated} updated, ${skipped} skipped`,
       result,
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return errorResponse('Error syncing Mono institutions', error);
   }
 }

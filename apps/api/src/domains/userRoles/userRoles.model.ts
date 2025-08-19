@@ -3,7 +3,7 @@ import { knexClient } from '../../db/knexClient.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
 import { getCompanyShortCode, getCompanyUUID } from '../../shared/utils/random.utils.js';
 import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
-import { getRoleId, isRolesLoaded, loadRoles, roles } from '../roles/roles.model.js';
+import { getRoleId } from '../roles/roles.model.js';
 import {
   type AccessibleCompanies,
   type AccessibleCompaniesResponse,
@@ -375,7 +375,7 @@ export const grantDirectAccess = async ({
       // Check if the role is actually changing
       if (existingRole.role_id === roleId) {
         return successResponse('User already has this role at the company', {
-          action: 'no_change',
+          action: 'no change',
         });
       }
 
@@ -477,7 +477,7 @@ export const grantAccessToFirmClient = async ({
 
     if (existingAccess) {
       return successResponse('User already has access to this client', {
-        action: 'no_change',
+        action: 'no change',
       });
     }
 

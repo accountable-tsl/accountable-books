@@ -80,7 +80,7 @@ export default function Signup() {
         throw new Error(response.message || 'This email has already been registered');
       }
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       const backendError = err?.response?.data?.message || err.message || 'Something went wrong';
       throw new Error(backendError);
     }
@@ -89,7 +89,11 @@ export default function Signup() {
   const handleBack = () => {
     if (currentStep === 2) setSelectedType(null);
 
-    selectedType && currentStep > 1 ? setCurrentStep((prev) => prev - 1) : setCurrentStep(1);
+    if (selectedType && currentStep > 1) {
+      setCurrentStep((prev) => prev - 1);
+    } else {
+      setCurrentStep(1);
+    }
   };
 
   const handleContinue = async (e: React.MouseEvent<HTMLButtonElement>) => {

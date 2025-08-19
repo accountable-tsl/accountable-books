@@ -5,13 +5,13 @@ export interface ImageUploaderProps {
   onImageChange?: (file: File | null) => void;
   onUpload?: (
     file: File,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ) => Promise<{ url: string; key: string } | null>;
   onRemove?: (key: string) => Promise<void>;
   onError?: (error: string, context: 'upload' | 'remove') => void;
   validateFile?: (file: File) => string | null; // Custom validation
   onUploadComplete?: (result: { url: string; key?: string }) => void;
-  renderMetadata?: (metadata: Record<string, any>, maxSizeText: string) => JSX.Element;
+  renderMetadata?: (metadata: Record<string, unknown>, maxSizeText: string) => JSX.Element;
 
   className?: string;
   size?: number;
@@ -20,7 +20,7 @@ export interface ImageUploaderProps {
   showButtons?: boolean;
   label?: string;
   labelPosition?: 'top' | 'bottom';
-  metadata?: Record<string, any>; // Extra data for upload
+  metadata?: Record<string, unknown>; // Extra data for upload
   metadataToShow?: string[];
 }
 
@@ -50,7 +50,7 @@ export const objectTypes = ['logos', 'profile_picture'] as const;
 export type ObjectType = (typeof objectTypes)[number];
 
 export interface ObjectTypeConfig {
-  schema: z.ZodSchema<any>;
+  schema: z.ZodSchema<unknown>;
   uploadEndpoint: string;
   deleteEndpoint: string;
 }

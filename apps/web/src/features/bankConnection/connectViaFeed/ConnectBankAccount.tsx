@@ -114,7 +114,7 @@ export default function ConnectBankAccount({ onSuccess, options }: ConnectBankAc
 
         setConnections(result.data.connections || []);
         setCurrentStep(3);
-      } catch (err: any) {
+      } catch (err: unknown) {
         const fallbackMsg =
           err?.response?.data?.message || err?.message || 'Failed to add bank account';
         toast.error(fallbackMsg);

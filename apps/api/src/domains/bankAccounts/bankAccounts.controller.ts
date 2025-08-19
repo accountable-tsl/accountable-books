@@ -18,7 +18,7 @@ export async function createBankAccountController(req: AuthRequest, res: Respons
       userId,
     });
     return response.success ? res.status(200).json(response) : res.status(400).json(response);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }
@@ -28,7 +28,7 @@ export async function getBankAccountsForCompany(req: AuthRequest, res: Response)
     const companyId = req.company?.id || req.params.companyId;
     const response = await getBankAccountsWithDetails(companyId);
     return response.success ? res.status(200).json(response) : res.status(400).json(response);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }

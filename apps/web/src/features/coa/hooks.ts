@@ -51,7 +51,7 @@ const handleMutationSuccess = (
   }
 };
 
-const handleMutationError = (action: string, _error: unknown) => {
+const handleMutationError = (action: string, error: unknown) => {
   toast.error(`Failed to ${action.toLowerCase()} accounts`);
 };
 

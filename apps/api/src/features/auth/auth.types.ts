@@ -2,7 +2,10 @@ import { type Request } from 'express';
 import { type JwtPayload } from 'jsonwebtoken';
 import { type AccessibleCompanies } from '../../domains/userRoles/userRoles.types.js';
 import { type RoleKey } from '../../domains/roles/roles.types.js';
-import { type UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
+import {
+  type OnboardingStateResult,
+  type UserOnboardingState,
+} from '../../features/onboarding/onboarding.types.js';
 import { type SchemaTypes } from '@accountable-books/api-types';
 
 export interface TokenConfig {
@@ -13,7 +16,7 @@ export interface TokenConfig {
 export enum TokenExpiration {
   Access = '15m',
   Refresh = '7d',
-  Verification = '15m',
+  Verification = '14m',
 }
 
 export interface TokenPayload extends JwtPayload {
@@ -40,13 +43,19 @@ export type OldAuthUserContext = {
   platformUserKey?: RoleKey;
 
   currentCompanyId: string;
-  currentCompany: AuthCompanyContext;
+  currentCompany: AuthCompanyContextWithOnboarding;
   companies: AuthCompanyContext[];
 };
-export type AuthUserContext = SchemaTypes.AuthUserContext;
+export type AuthUserContext = SchemaTypes.AuthUserContext & {
+  currentCompany: AuthCompanyContextWithOnboarding;
+  companies: AuthCompanyContext[];
+};
 
 export type OldAuthCompanyContext = AccessibleCompanies;
 export type AuthCompanyContext = SchemaTypes.AuthCompanyContext;
+export type AuthCompanyContextWithOnboarding = AuthCompanyContext & {
+  onboarding: OnboardingStateResult;
+};
 
 export interface BaseAuthRequest extends Request {
   user?: Partial<AuthUserContext> & { id: string };

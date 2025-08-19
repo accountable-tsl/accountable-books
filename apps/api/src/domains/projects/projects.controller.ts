@@ -14,7 +14,7 @@ export async function getProjectsController(req: AuthRequest, res: Response) {
     const result = await getProjects({ companyId, ...filters });
 
     return result.success ? res.status(200).json(result) : res.status(400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }
@@ -29,7 +29,7 @@ export async function addNewProjectsController(req: AuthRequest, res: Response) 
 
     const result = await addNewProjects({ companyId, input: data, userId });
     return result.success ? res.status(200).json(result) : res.status(400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }

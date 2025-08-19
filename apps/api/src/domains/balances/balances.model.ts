@@ -157,7 +157,7 @@ export async function getCompanyCoaBalances(
 
       balanceMap[result.coaId] = {
         accountName: result.accountName || 'Unknown Account',
-        reportingBalance: Number(result.reportingBalance) ?? 0,
+        reportingBalance: Number(result.reportingBalance || 0),
         nativeBalance: includeSourceAmount ? Number(result.nativeBalance ?? 0) : undefined,
       };
     }

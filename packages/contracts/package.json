@@ -7,7 +7,7 @@
     "bundle-contracts": "pnpm run bundle"
   },
   "devDependencies": {
-    "@redocly/cli": "workspace:*"
+    "@redocly/cli": "^2.0.5"
   },
   "exports": {
     "./openapi": "./openapi.yaml",

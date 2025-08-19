@@ -70,7 +70,7 @@ export async function addBankFeedProviderCountries({
   input: BpcInputCamel[];
   userId: string;
   knex?: Knex;
-}): Promise<ApiResponse<[]>> {
+}): Promise<ApiResponse<any[]>> {
   // Validate input
   const safeInput = bpcInputCamel.array().safeParse(input);
   if (!safeInput.success) {

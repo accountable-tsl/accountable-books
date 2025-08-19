@@ -6,6 +6,7 @@ import { type ApiResponse } from '../../core/types/api.types.js';
 import {
   bankAccountConnectionInputCamel,
   type ConnectionResponse,
+  type ConnectionStatus,
   type CreateNewBankAccountConnection,
 } from './baccons.types.js';
 import { getBankConnectionNeeds } from './shared/prerequisites.js';
@@ -53,7 +54,7 @@ export const handleMonoConnection = async ({
   providerKey?: string;
   userId: string;
   companyId: string;
-}): Promise<ApiResponse<{ connections: ConnectionResponse[] }>> => {
+}): Promise<ApiResponse<{ connections: ConnectionResponse[] } | null>> => {
   if (!code?.trim()) {
     return errorResponse('Invalid authorization code');
   }
@@ -114,34 +115,38 @@ export const handleMonoConnection = async ({
         trx,
       });
 
-      if (exists) {
+      if (exists && existingConnection?.id && existingConnection?.bankAccountId) {
         if (updateOnboardingState && currentOnboardingState) {
           await updateBankAccountOnboardingState(currentOnboardingState, companyId);
         }
 
-        return successResponse('Bank account already connected', {
-          connections: [
-            {
-              userActionRequired: false,
-              connectionStatus: 'connected',
-              message: 'Bank account already connected',
-              connectionDetails: {
-                connectionId: existingConnection?.id,
-                providerId: provider.id,
-                providerName: provider.name,
-                providerKey: provider.key,
-                providerBankAccountId: permanentMonoId,
-                bankAccountId: existingConnection?.bankAccountId,
+        return successResponse<{ connections: ConnectionResponse[] }>(
+          'Bank account already connected',
+          {
+            connections: [
+              {
+                userActionRequired: false,
+                connectionStatus: 'connected' as ConnectionStatus,
+                message: 'Bank account already connected',
+                connectionDetails: {
+                  connectionId: existingConnection?.id,
+                  providerId: provider.id,
+                  providerName: provider.name,
+                  providerKey: provider.key,
+                  providerBankAccountId: permanentMonoId,
+                  bankAccountId: existingConnection?.bankAccountId,
+                },
+                accountDetails: {
+                  bankAccountId: existingConnection?.bankAccountId,
+                  accountNumber: account.account_number.toString(),
+                  accountName: account.name,
+                  bankName: account.institution.name,
+                  currency: account.currency,
+                },
               },
-              accountDetails: {
-                accountNumber: account.account_number.toString(),
-                accountName: account.name,
-                bankName: account.institution.name,
-                currency: account.currency,
-              },
-            },
-          ],
-        });
+            ],
+          },
+        );
       }
 
       // Map bank, retrieve currency id
@@ -173,6 +178,10 @@ export const handleMonoConnection = async ({
           trx,
         });
 
+        if (!newConnection.success || !newConnection.data) {
+          return errorResponse('Failed to connect to bank account. Please try again.');
+        }
+
         const newBankAccount = await createBankAccount({
           bankId,
           userId,
@@ -182,32 +191,40 @@ export const handleMonoConnection = async ({
           accountNumber: account.account_number.toString(),
         });
 
+        if (!newBankAccount.success || !newBankAccount.bankAccountId) {
+          return errorResponse('Failed to connect to bank account. Please try again.');
+        }
+
         await updateBankAccountOnboardingState(currentOnboardingState, companyId);
 
         // TODO: create formatConnectionResponse function and use here
-        return successResponse('Bank account successfully connected - New bank account created', {
-          connections: [
-            {
-              userActionRequired: false,
-              connectionStatus: 'connected',
-              message: 'Bank account successfully connected',
-              connectionDetails: {
-                connectionId: newConnection.data?.id,
-                providerId: provider.id,
-                providerName: provider.name,
-                providerKey: provider.key,
-                providerBankAccountId: permanentMonoId,
-                bankAccountId: newBankAccount.bankAccountId,
+        return successResponse<{ connections: ConnectionResponse[] }>(
+          'Bank account successfully connected - New bank account created',
+          {
+            connections: [
+              {
+                userActionRequired: false,
+                connectionStatus: 'connected' as ConnectionStatus,
+                message: 'Bank account successfully connected',
+                connectionDetails: {
+                  connectionId: newConnection.data?.id,
+                  providerId: provider.id,
+                  providerName: provider.name,
+                  providerKey: provider.key,
+                  providerBankAccountId: permanentMonoId,
+                  bankAccountId: newBankAccount.bankAccountId,
+                },
+                accountDetails: {
+                  bankAccountId: newBankAccount.bankAccountId,
+                  accountNumber: account.account_number.toString(),
+                  accountName: account.name,
+                  bankName: account.institution.name,
+                  currency: account.currency,
+                },
               },
-              accountDetails: {
-                accountNumber: account.account_number.toString(),
-                accountName: account.name,
-                bankName: account.institution.name,
-                currency: account.currency,
-              },
-            },
-          ],
-        });
+            ],
+          },
+        );
       }
 
       if (!unmatchedAccounts) return errorResponse('No accounts to connect to');
@@ -236,43 +253,50 @@ export const handleMonoConnection = async ({
           trx,
         });
         await updateBankAccountOnboardingState(currentOnboardingState, companyId);
-        return successResponse('Bank account successfully connected', {
-          connections: [
-            {
-              userActionRequired: false,
-              connectionStatus: 'connected',
-              message: 'Bank account successfully connected',
-              connectionDetails: {
-                providerId: provider.id,
-                providerName: provider.name,
-                providerKey: provider.key,
-                providerBankAccountId: permanentMonoId,
-                bankAccountId: matchResult.exactMatch.id,
+        return successResponse<{ connections: ConnectionResponse[] }>(
+          'Bank account successfully connected',
+          {
+            connections: [
+              {
+                userActionRequired: false,
+                connectionStatus: 'connected',
+                message: 'Bank account successfully connected',
+                connectionDetails: {
+                  connectionId: matchResult.exactMatch.id,
+                  providerId: provider.id,
+                  providerName: provider.name,
+                  providerKey: provider.key,
+                  providerBankAccountId: permanentMonoId,
+                  bankAccountId: matchResult.exactMatch.id,
+                },
+                accountDetails: {
+                  bankAccountId: matchResult.exactMatch.id,
+                  accountNumber: account.account_number.toString(),
+                  accountName: account.name,
+                  bankName: account.institution.name,
+                  currency: account.currency,
+                },
               },
-              accountDetails: {
-                accountNumber: account.account_number.toString(),
-                accountName: account.name,
-                bankName: account.institution.name,
-                currency: account.currency,
-              },
-            },
-          ],
-        });
+            ],
+          },
+        );
       }
 
-      return successResponse('Unable to match account', {
+      return successResponse<{ connections: ConnectionResponse[] }>('Unable to match account', {
         connections: [
           {
             userActionRequired: true,
-            connectionStatus: 'pending',
+            connectionStatus: 'pending' as ConnectionStatus,
             message: 'Connection successful but we are unable to match account',
             connectionDetails: {
+              connectionId: '',
               providerId: provider.id,
               providerName: provider.name,
               providerKey: provider.key,
               providerBankAccountId: permanentMonoId,
             },
             accountDetails: {
+              bankAccountId: '',
               accountNumber: account.account_number.toString(),
               accountName: account.name,
               bankName: account.institution.name,
@@ -333,7 +357,9 @@ export const addBankAccountConnection = async ({
   };
   try {
     const result = trx ? await execute(trx) : await knexClient.transaction(execute);
-
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Failed to create bank account connection');
+    }
     return result;
   } catch (error) {
     return errorResponse('Failed to create bank account connection', error);

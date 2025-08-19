@@ -32,7 +32,7 @@ const newContact = contactInput.extend({
 });
 export type NewContact = z.infer<typeof newContact>;
 
-const contact = newContact.merge(dbStandardFields);
+export const contact = newContact.merge(dbStandardFields);
 export type Contact = z.infer<typeof contact>;
 
 export const updateContact = contactInput.partial().extend({

@@ -89,7 +89,7 @@ export async function getUserDetails(userId: string): Promise<ApiResponse<UserRe
     }
 
     const { password, ...rest } = user;
-    const result = snakeToCamel(rest);
+    const result = snakeToCamel(rest) as UserResponseCamel;
 
     return successResponse('User details found', result);
   } catch (error) {
@@ -222,7 +222,7 @@ export async function getUserDetails(userId: string): Promise<ApiResponse<UserRe
 //   } catch (error) {
 //     return errorResponse(
 //       "Failed to process invitations. Please try again later.",
-//       { error: "system_error" }
+//       { error: "systemerror: unknown" }
 //     );
 //   }
 // }

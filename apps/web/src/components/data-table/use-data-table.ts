@@ -4,28 +4,29 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
-  RowSelectionState,
-  ColumnFiltersState,
+  type RowSelectionState,
+  type ColumnFiltersState,
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFacetedMinMaxValues,
-  Row,
+  type Row,
+  type FilterFnOption,
 } from '@tanstack/react-table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  DataTableExtras,
+import type {
   GlobalSearch,
   PaginationOptions,
   RowSelectionOptions,
   SortingOptions,
+  DataTableExtras,
   UseDataTableProps,
   UseDataTableReturn,
-} from '@/components/data-table/types/data-table';
-import { createSelectionColumn } from './utils/select-column';
-import { createMultiColumnFilter } from '@/components/data-table/toolbar';
-import { RowClickBehavior } from './types/row-click';
+} from './types/data-table';
+import { createSelectionColumn } from '@/components/data-table/utils/select-column';
+import type { RowClickBehavior } from './types/row-click';
 import { isInternalUrl } from './utils/table';
 import { useNavigate } from 'react-router-dom';
+import { createMultiColumnFilter } from './toolbar';
 
 /**
  * TODO: Initializing column filters at table start
@@ -78,7 +79,8 @@ export function useDataTable<TData>({
     : undefined;
 
   const uniqueRowIdentifierKey = customOptions?.uniqueRowIdentifierKey ?? 'id';
-  const uniqueRowId = (row: Row<TData>) => (row.original as any)[uniqueRowIdentifierKey];
+  const uniqueRowId = (row: Row<TData>) =>
+    (row.original as Record<string, unknown>)[uniqueRowIdentifierKey] as string;
 
   /**
    * Important: TanStack requires a stable data reference.
@@ -120,7 +122,7 @@ export function useDataTable<TData>({
       : tableOptions.columns;
   }, [rowSelection.addCheckboxes, tableOptions.columns]);
 
-  const globalFilterFn = useMemo(() => {
+  const globalFilterFn: FilterFnOption<TData> | undefined = useMemo(() => {
     if (!globalSearch.enabled || globalSearchColumnIds.length === 0) {
       return undefined;
     }
@@ -161,7 +163,7 @@ export function useDataTable<TData>({
         case 'view':
           setViewedRowId(uniqueRowId(row));
           break;
-        case 'redirect':
+        case 'redirect': {
           const url = rcb.onClick(row);
 
           if (url) {
@@ -172,6 +174,7 @@ export function useDataTable<TData>({
             window.location.href = url;
           }
           break;
+        }
         case 'custom':
           rcb.onClick(row);
           break;
@@ -185,7 +188,6 @@ export function useDataTable<TData>({
   const columnVisibility = controlledColumnVisibility ?? internalColumnVisibility;
   const setColumnVisibility = controlledSetColumnVisibility ?? setInternalColumnVisibility;
 
-  // @ts-ignore
   const reactTable = useReactTable({
     ...tableOptions,
     data: stableData,
@@ -263,7 +265,7 @@ export function useDataTable<TData>({
     return reactTable.getRowModel().rows.find((row) => uniqueRowId(row) === viewedRowId) || null;
   }, [viewedRowId, stableData]);
 
-  const options: DataTableExtras = {
+  const options: DataTableExtras<TData> = {
     ...customOptions,
     pagination,
     sorting,

@@ -12,20 +12,19 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { addNewBankTransactions } from '@/features/bankConnection/shared/api';
-import { useCompany } from '@/domains/company/store';
 import { maskDigits, parseDateString } from '@/shared/utils/formatting-utils';
 import { AddBankAccountDialog } from '@/domains/bank-accounts/bank-accounts-add-dialog';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { FormattedAmount } from '@/components/FormattedAmount';
 import { SpreadsheetImporter } from '@/features/spreadsheets/SpreadsheetImporter';
 import {
-  BankTransactionBatchInput,
-  BankTransactionImporterProps,
+  type BankTransactionBatchInput,
+  type BankTransactionImporterProps,
   bankTransactionInput,
   bankTransactionSource,
-  FileTransaction,
+  type FileTransaction,
 } from '@/features/bankConnection/manualUpload/types';
-import { ParsedCsvResult } from '../../spreadsheets/types';
+import { type ParsedCsvResult } from '../../spreadsheets/types';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils';
@@ -37,7 +36,7 @@ import { CenteredLoader } from '@/components/CenteredLoader';
 import { PuffLoader } from 'react-spinners';
 import { Success } from '@/components/Success';
 import { Failed } from '@/components/Failed';
-import { BankAccountWithMeta } from '@/domains/bank-accounts/types';
+import { type BankAccountWithMeta } from '@/domains/bank-accounts/types';
 import { getBankAccountsForCompany } from '@/domains/bank-accounts/bank-accounts-api';
 import { useSession } from '@/features/auth/Session';
 
@@ -54,7 +53,7 @@ export const BankTransactionImporter = ({
   const [fileTransactions, setFileTransactions] = useState<FileTransaction[] | null>(null);
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'success' | 'failed' | null>(null);
   const [selectedStep, setSelectedStep] = useState<'upload' | 'review'>('upload');
@@ -297,7 +296,9 @@ export const BankTransactionImporter = ({
   };
 
   const onNewBankAccount = (newAccount?: BankAccountWithMeta) => {
-    newAccount && setCompanyBankAccounts((prev) => (prev ? [...prev, newAccount] : [newAccount]));
+    if (newAccount) {
+      setCompanyBankAccounts((prev) => (prev ? [...prev, newAccount] : [newAccount]));
+    }
 
     setSelectedBankAccount(newAccount ?? null);
     setDialogOpen(false);

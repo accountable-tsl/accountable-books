@@ -39,7 +39,7 @@ export async function addNewContacts({
     // Normalize names to verify uniqueness
     const normalizedNames = validate.data.map((c) => normalizeName(c.display_name));
 
-    const existingContacts = await tx('contacts')
+    const existingContacts: { display_name: string }[] = await tx('contacts')
       .whereIn('normalized_name', normalizedNames)
       .andWhere('company_id', companyUUID)
       .select('display_name');

@@ -1,6 +1,6 @@
 import { Calculator, FolderOpen, Settings, Users } from 'lucide-react';
 
-const features = [
+export const features = [
   {
     icon: Calculator,
     title: 'Chart of Accounts',

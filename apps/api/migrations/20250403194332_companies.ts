@@ -4,7 +4,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db';
-import { ENV, isProd, NODE_ENV } from '../src/config/env';
+import { ENV, isProd } from '../src/config/env';
 import { adminUser } from './20250403184441_users';
 import { verifyCompanyDependenciesExist } from '../src/domains/companies/companies.model';
 import { newCompany } from '../src/domains/companies/companies.types';

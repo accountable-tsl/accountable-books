@@ -7,7 +7,7 @@ export const checkSlug = async (slug: string): Promise<ApiResponse<{ isAvailable
       `/api/accounting-firms/check-slug?slug=${encodeURIComponent(slug)}`,
     );
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error.response?.data) {
       return error.response.data;
     }

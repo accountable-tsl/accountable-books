@@ -1,11 +1,12 @@
 import type { Knex } from 'knex';
 import { preventUpdateOrDelete } from './utils/db';
-import { NODE_ENV } from '../src/config/env';
+// import { NODE_ENV as _NODE_ENV } from '../src/config/env';
 
 const tableName = 'role_permissions';
 
-// Role-permission mappings
-const rolePermissions: Record<Exclude<string, 'super_admin'>, string[]> = {
+// Role-permission mappings (currently unused)
+/*
+const _rolePermissions: Record<Exclude<string, 'super_admin'>, string[]> = {
   support: [
     'users:invite',
     'reports:view',
@@ -108,50 +109,7 @@ const rolePermissions: Record<Exclude<string, 'super_admin'>, string[]> = {
     'files:download',
   ],
 };
-
-const seedRolePermissions = async function seed(knex: Knex): Promise<void> {
-  try {
-    const roles = await knex('roles').select('id', 'name');
-    const permissions = await knex('permissions').select('id', 'key');
-
-    // Map role/permission IDs
-    const roleMap = new Map(roles.map((r) => [r.name, r.id]));
-    const permissionMap = new Map(permissions.map((p) => [p.key, p.id]));
-
-    // Build roles_permissions entries
-    const entries = Object.entries(rolePermissions).flatMap(([roleName, permKeys]) => {
-      const roleId = roleMap.get(roleName);
-      if (!roleId) {
-        console.error(`Role '${roleName}' not found in roleMap`);
-        throw new Error(`Invalid role name: '${roleName}'`);
-      }
-
-      return permKeys.map((key) => {
-        const permissionId = permissionMap.get(key);
-        if (!permissionId) {
-          console.error(`Permission key '${key}' not found in permissionMap`);
-          throw new Error(`Permission ${key} not found`);
-        }
-        return {
-          role_id: roleId,
-          permission_id: permissionId,
-        };
-      });
-    });
-
-    // Insert with transaction
-    await knex.transaction(async (trx) => {
-      await trx(tableName).insert(entries).onConflict(['role_id', 'permission_id']).ignore();
-    });
-
-    if (NODE_ENV === 'local' || NODE_ENV === 'docker') {
-      console.log(`Seeded ${entries.length} roles_permissions entries`);
-    }
-  } catch (error) {
-    console.error('Error seeding roles_permissions:', error);
-    throw error;
-  }
-};
+*/
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {

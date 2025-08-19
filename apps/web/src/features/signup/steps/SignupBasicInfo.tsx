@@ -55,7 +55,7 @@ export const SignupBasicInfo = forwardRef<
         if (isValid) clearErrors('email');
         if (!isValid) return { isValid, error: 'This email has already been registered' };
         return { isValid, error: null };
-      } catch (error: any) {
+      } catch (error: unknown) {
         return {
           isValid: true,
           error: error?.message || "We're having trouble checking this email",

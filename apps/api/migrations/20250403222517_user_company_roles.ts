@@ -5,7 +5,6 @@ import {
   dropUpdateTimestampTrigger,
 } from './utils/db';
 import { createPlatformCompany } from './20250403194332_companies';
-import { getRoleId, loadRoles } from '../src/domains/roles/roles.model';
 
 export const assignAdminRole = async (knex: Knex) => {
   const platformCompany = await createPlatformCompany(knex);

@@ -33,23 +33,19 @@ export const JWT_CONFIG = {
 };
 
 export const generateAuthTokens = (payload: DecodedToken) => {
-  try {
-    if (!payload.sub || !JWT_CONFIG.accessToken.secret || !JWT_CONFIG.refreshToken.secret) {
-      throw new Error('Invalid payload or missing JWT secrets');
-    }
-
-    const accessToken = jwt.sign(payload, JWT_CONFIG.accessToken.secret, {
-      expiresIn: TokenExpiration.Access,
-    });
-
-    const refreshToken = jwt.sign(payload, JWT_CONFIG.refreshToken.secret, {
-      expiresIn: TokenExpiration.Refresh,
-    });
-
-    return { accessToken, refreshToken };
-  } catch (error) {
-    throw error;
+  if (!payload.sub || !JWT_CONFIG.accessToken.secret || !JWT_CONFIG.refreshToken.secret) {
+    throw new Error('Invalid payload or missing JWT secrets');
   }
+
+  const accessToken = jwt.sign(payload, JWT_CONFIG.accessToken.secret, {
+    expiresIn: TokenExpiration.Access,
+  });
+
+  const refreshToken = jwt.sign(payload, JWT_CONFIG.refreshToken.secret, {
+    expiresIn: TokenExpiration.Refresh,
+  });
+
+  return { accessToken, refreshToken };
 };
 
 if (!ENV.CSRF_SECRET || !ENV.COOKIE_DOMAIN) throw new Error('CSRF secret must be defined');

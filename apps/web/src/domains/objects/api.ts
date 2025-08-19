@@ -1,7 +1,7 @@
 import api from '@/lib/axios';
-import { ObjectType, UploadParams } from './types';
-import { buildFormData, objectTypeConfigs } from './utils';
-import { ApiResponse } from '@/shared/types/core';
+import { type ObjectType, type UploadParams } from '@/domains/objects/types';
+import { buildFormData, objectTypeConfigs } from '@/domains/objects/utils';
+import type { ApiResponse } from '@/shared/types/core';
 
 export const fetchLogoUrl = async (key: string) => {
   try {
@@ -11,7 +11,7 @@ export const fetchLogoUrl = async (key: string) => {
       return data;
     }
     throw new Error('Signed URL failed');
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Signed URL error:', err);
     return null;
   }
@@ -54,7 +54,7 @@ export async function uploadObject<T extends UploadParams>(
       };
     }
     return { success: false, message: message || 'Upload failed' };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       success: false,
       message: err.message || 'Failed to upload file',
@@ -86,7 +86,7 @@ export async function deleteObject(
       return { success: true, message, data: null };
     }
     return { success: false, message: message || 'Failed to remove file' };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       success: false,
       message: err.message || 'Failed to remove file',

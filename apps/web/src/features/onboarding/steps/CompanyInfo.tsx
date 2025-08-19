@@ -281,7 +281,7 @@ export const CompanyInfo = () => {
 
       localStorage.removeItem(FORM_KEY);
       navigate(routes.onboarding.index.staticPath);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.message || 'Failed to save company details');
       // Don't clear localStorage on error - preserve user's work
     } finally {

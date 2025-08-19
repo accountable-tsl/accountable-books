@@ -1,4 +1,5 @@
-import { Row } from '@tanstack/react-table';
+import { type Row } from '@tanstack/react-table';
+import React from 'react';
 
 // export type RowViewOptions<TData> = {
 //   enabled?: boolean;

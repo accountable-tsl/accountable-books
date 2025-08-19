@@ -1,5 +1,5 @@
 import { isPublicRoute } from '@/shared/routes/utils';
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { type AxiosError, type AxiosRequestConfig } from 'axios';
 import { authStore } from '@/features/auth/store';
 import { refreshToken } from '@/features/auth/api';
 
@@ -43,7 +43,7 @@ api.interceptors.request.use((config) => {
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value?: any) => void;
-  reject: (error: any) => void;
+  reject: (error: unknown) => void;
   config: AxiosRequestConfig;
 }> = [];
 
@@ -51,7 +51,7 @@ let failedQueue: Array<{
  * Process queued requests: either retry them after refresh succeeds,
  * or reject them if refresh fails.
  */
-const processQueue = (error: any, tokenRefreshed: boolean) => {
+const processQueue = (error: unknown, tokenRefreshed: boolean) => {
   failedQueue.forEach(({ resolve, reject, config }) => {
     if (tokenRefreshed) {
       // Retry the original request

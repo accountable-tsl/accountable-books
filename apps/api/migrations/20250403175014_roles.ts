@@ -1,7 +1,4 @@
 import type { Knex } from 'knex';
-import path from 'path';
-import fs from 'fs/promises';
-import { fileURLToPath } from 'url';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,

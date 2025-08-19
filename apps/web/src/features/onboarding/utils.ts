@@ -1,11 +1,16 @@
-import { Building2Icon, CreditCardIcon, MailCheckIcon } from 'lucide-react';
+import { Building2Icon, CreditCardIcon, MailCheckIcon, Settings } from 'lucide-react';
 import { OnboardingSidebarItem, OnboardingStepKey } from './types';
 import { routes } from '@/shared/routes/routes';
 import { VerifyEmail } from './steps/VerifyEmail';
 import { CompanyInfo } from './steps/CompanyInfo';
 import { BankAccount } from './steps/BankAccount';
+import { Miscellaneous } from './steps/Miscellaneous';
 
-export type OnboardingPathKey = 'verify-email' | 'company-details' | 'add-bank-account';
+export type OnboardingPathKey =
+  | 'verify-email'
+  | 'company-details'
+  | 'add-bank-account'
+  | 'miscellaneous';
 
 export const onboardingStepToSlug = {
   email_verified: routes.onboarding.verifyEmail.staticPath,
@@ -14,6 +19,9 @@ export const onboardingStepToSlug = {
   }),
   first_bank_account_added: routes.onboarding.step.build({
     step: 'add-bank-account',
+  }),
+  miscellaneous_completed: routes.onboarding.step.build({
+    step: 'miscellaneous',
   }),
 } as const;
 export type OnboardingSlug = (typeof onboardingStepToSlug)[OnboardingStepKey];
@@ -33,6 +41,11 @@ export const onboardingStepsConfig: Record<OnboardingStepKey, OnboardingSidebarI
     icon: CreditCardIcon,
     title: 'Add Bank Account',
     description: 'Link your bank account',
+  },
+  miscellaneous_completed: {
+    icon: Settings,
+    title: 'Final Setup',
+    description: 'Complete optional configurations',
   },
 };
 
@@ -57,5 +70,9 @@ export const onboardingSteps: Record<
   'add-bank-account': {
     key: 'first_bank_account_added',
     Component: BankAccount,
+  },
+  miscellaneous: {
+    key: 'miscellaneous_completed',
+    Component: Miscellaneous,
   },
 };

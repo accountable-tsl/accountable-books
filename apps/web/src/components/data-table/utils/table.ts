@@ -20,7 +20,7 @@ export function isInternalUrl(url: string): boolean {
       const currentOrigin = window.location.origin;
       const targetUrl = new URL(url);
       return targetUrl.origin === currentOrigin;
-    } catch (e) {
+    } catch {
       return false;
     }
   }

@@ -5,7 +5,7 @@ import { toTitleCase, formatAccountText } from '@/shared/utils/formatting-utils'
 export function sanitizeInput(value: string): string {
   return value
     .normalize()
-    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .replace(/[\p{Cc}\p{Cf}]/gu, '')
     .replace(/\s/g, ' ')
     .trim();
 }

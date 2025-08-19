@@ -14,7 +14,7 @@ import { CenteredLoader } from '@/components/CenteredLoader';
 import { CompanyData } from '@/domains/company/types';
 import ErrorPage from '@/components/ErrorPage';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { MockSidebar } from '@/components/SideBar/Sidebar';
+import { MockSidebar } from '@/components/SideBar';
 import { useEffect, useMemo, useState } from 'react';
 import { MobileOnboardingSidebar, OnboardingSidebar } from '@/features/onboarding/shared/Sidebar';
 import { useSession } from '../auth/Session';

@@ -27,7 +27,7 @@ export const switchCompanyController = async (req: AuthRequest, res: Response) =
         company,
       }),
     );
-  } catch (error) {
+  } catch (error: unknown) {
     res.status(500).json(errorResponse('Something went wrong'));
   }
 };
@@ -54,7 +54,7 @@ export const getCompanyController = async (req: AuthRequest, res: Response) => {
     }
 
     return res.status(200).json(successResponse('Company retrieved successfully', company));
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse());
   }
 };
@@ -77,7 +77,7 @@ export const updateCompanyController = async (req: AuthRequest, res: Response) =
     }
 
     return res.status(200).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('Something went wrong'));
   }
 };

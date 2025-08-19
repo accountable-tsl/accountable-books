@@ -67,3 +67,5 @@ packages/
 ## Important Context
 
 We're migrating from separate repos, so integration work is ongoing. Focus on doing things right going forward rather than perfect consistency with legacy code.
+
+- use pnpm in this repo

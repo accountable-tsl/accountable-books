@@ -118,7 +118,7 @@ export function UploadBankTransactions() {
       } else {
         setUploadError(response.message || 'Failed to upload transactions');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setUploadError(error.message || 'Failed to upload transactions');
     } finally {
       setIsUploading(false);

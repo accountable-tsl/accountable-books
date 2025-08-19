@@ -1,12 +1,3 @@
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  ListBucketsCommand,
-  ListObjectsV2Command,
-  PutObjectCommand,
-  S3Client,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ENV } from '../../config/env.js';
 import { AppError, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
@@ -84,7 +75,7 @@ export async function uploadLogo({
 export async function getSignedLogoUrl(key: string): Promise<ApiResponse<string>> {
   try {
     const { authorizationToken, apiUrl } = await authorizeAccount();
-    const response = await axios.post(
+    await axios.post(
       `${apiUrl}/b2api/v2/b2_get_download_authorization`,
       {
         bucketId: ENV.B2_LOGOS_BUCKET_ID || 'e12e36dfef31f9c6906a0813',
@@ -101,8 +92,8 @@ export async function getSignedLogoUrl(key: string): Promise<ApiResponse<string>
     const bucketName = ENV.B2_LOGOS_BUCKET_NAME || 'accountable-logos';
     const url = `https://f002.backblazeb2.com/file/${bucketName}/${key}`;
     return successResponse('Logo URL generated', url);
-  } catch (error: any) {
-    return errorResponse('Failed to generate signed URL', error.message || error.toString());
+  } catch (error: unknown) {
+    return errorResponse('Failed to generate signed URL', error);
   }
 }
 
@@ -141,8 +132,8 @@ export async function removeLogo(key: string): Promise<ApiResponse<void>> {
       },
     );
 
-    return successResponse('Logo deleted successfully', null);
-  } catch (error: any) {
-    return errorResponse('Failed to delete logo', error.message || error.toString());
+    return successResponse('Logo deleted successfully', undefined);
+  } catch (error: unknown) {
+    return errorResponse('Failed to delete logo', error);
   }
 }

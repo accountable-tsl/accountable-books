@@ -5,8 +5,7 @@ import { getSingleCompany } from '../../domains/companies/companies.model.js';
 import { getAccessibleCompaniesForUser } from '../../domains/userRoles/userRoles.model.js';
 
 export const checkCompanyId = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  let companyId: string;
-  companyId = req.params.companyId || req.body.companyId || req.query.companyId;
+  const companyId: string = req.params.companyId || req.body.companyId || req.query.companyId;
 
   if (!companyId || typeof companyId !== 'string' || companyId.length > 40) {
     return res.status(400).json({ message: 'Invalid Company Identifier' });
@@ -32,7 +31,14 @@ export const checkCompanyId = async (req: AuthRequest, res: Response, next: Next
     req.company = accessibleCompany;
 
     next();
-  } catch (error: any) {
-    res.status(500).json(errorResponse('Error validating company', error.message));
+  } catch (error: unknown) {
+    res
+      .status(500)
+      .json(
+        errorResponse(
+          'Error validating company',
+          error instanceof Error ? error.message : 'Unknown error',
+        ),
+      );
   }
 };

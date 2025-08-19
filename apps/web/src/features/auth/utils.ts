@@ -4,7 +4,8 @@ import { authStore } from './store';
 import { clearSessionFn } from './hooks';
 import { buildCanonicalUrl } from '@/shared/routes/utils';
 import { routes } from '@/shared/routes/routes';
-import { AuthUserContext, SessionContextType } from './types';
+import type { AuthUserContext, SessionContextType } from './types';
+import { isAxiosError } from 'axios';
 
 export const performLoginFlow = async ({
   email,
@@ -21,7 +22,7 @@ export const performLoginFlow = async ({
   setAuth?: (user: any, csrfToken: string) => void;
   logout?: (options?: any) => Promise<any>;
   onSuccess?: (data: any) => void;
-  onError?: (error: any) => void;
+  onError?: (error: unknown) => void;
   setError?: (...args: any[]) => void;
   displayToast?: boolean;
 }): Promise<{
@@ -39,7 +40,7 @@ export const performLoginFlow = async ({
     const res = await loginFn;
     // wait for 2 seconds, while waiting, show toast, logging in
     await new Promise((resolve) => {
-      displayToast && toast.info('Logging in...');
+      if (displayToast) toast.info('Logging in...');
       setTimeout(resolve, 2000);
     });
 
@@ -51,7 +52,7 @@ export const performLoginFlow = async ({
       }
 
       await (logout?.() ?? clearSessionFn());
-      displayToast && toast.error(res.message || 'Login failed');
+      if (displayToast) toast.error(res.message || 'Login failed');
       return { success: false };
     }
 
@@ -65,7 +66,7 @@ export const performLoginFlow = async ({
     const currentCompany = user.currentCompany;
     if (!currentCompany || !currentCompany.onboarding) {
       await (logout?.() ?? clearSessionFn());
-      displayToast && toast.error('Login failed');
+      if (displayToast) toast.error('Login failed');
       return { success: false };
     }
 
@@ -73,10 +74,15 @@ export const performLoginFlow = async ({
     const canAccessApp = currentCompany.onboarding?.canAccessApp ?? false;
 
     return { success: true, data: res.data, canAccessApp };
-  } catch (error: any) {
-    await (logout?.() ?? clearSessionFn());
-    displayToast && toast.error(error?.message ?? 'Login failed');
-    onError?.(error);
+  } catch (error: unknown) {
+    if (isAxiosError(error) || error instanceof Error) {
+      await (logout?.() ?? clearSessionFn());
+      if (displayToast) toast.error(error?.message ?? 'Login failed');
+      onError?.(error);
+      return { success: false };
+    }
+
+    if (displayToast) toast.error('Login failed');
     return { success: false };
   }
 };

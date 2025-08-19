@@ -53,6 +53,6 @@ export const useCreateProjects = () => {
       }
     },
 
-    onError: (error: any) => toast.error(`Failed to create project`),
+    onError: (error: unknown) => toast.error(`Failed to create project`),
   });
 };

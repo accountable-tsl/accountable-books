@@ -1,10 +1,5 @@
 import { type Request, type Response } from 'express';
-import {
-  checkSlugAvailability,
-  checkSlugForCompany,
-  getCompanySlug,
-  getSlugs,
-} from './firms.model.js';
+import { checkSlugAvailability, checkSlugForCompany, getCompanySlug } from './firms.model.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 
 export const checkSlugController = async (req: Request, res: Response) => {
@@ -17,7 +12,7 @@ export const checkSlugController = async (req: Request, res: Response) => {
   try {
     const result = await checkSlugAvailability(slug);
     res.status(result.success ? 200 : 400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     res.status(500).json(errorResponse('Internal server error'));
   }
 };
@@ -31,7 +26,7 @@ export const getCompanySlugController = async (req: Request, res: Response) => {
     const result = await getCompanySlug(companyId);
 
     return res.status(result.success ? 200 : 400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('Internal server error'));
   }
 };
@@ -63,7 +58,7 @@ export const checkSlugForCompanyController = async (req: Request, res: Response)
 
     const statusCode = result.success ? 200 : 400;
     return res.status(statusCode).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('Internal server error'));
   }
 };

@@ -1,5 +1,4 @@
 import { generateCompanyAccounts } from './seed';
-import fs from 'fs';
 
 export const data = [
   ...generateCompanyAccounts('COMP01'),

@@ -1,3 +1,4 @@
+import type { BankTransactionSource } from '@/features/bank-transactions/manual-upload/types';
 import dayjs from 'dayjs';
 import Decimal from 'decimal.js';
 import z from 'zod';
@@ -180,7 +181,7 @@ export interface BankTransaction {
 export interface BankTransactionBatch {
   startDate: Date;
   endDate: Date;
-  source: 'FILE_IMPORT' | 'BANK_FEED' | 'MANUAL_ENTRY';
+  source: BankTransactionSource;
   bankAccountId: string;
   bankTransactions: BankTransaction[];
   createdById: string;

@@ -103,7 +103,7 @@ export function useCompanySwitch() {
     onError,
     onSuccess,
   }: {
-    onError?: (err: any) => void;
+    onError?: (err: unknown) => void;
     onSuccess?: () => void;
   } = {}) => {
     const { companyId, slug } = getOriginalCompany() || {};

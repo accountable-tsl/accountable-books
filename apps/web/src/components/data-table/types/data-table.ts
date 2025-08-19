@@ -1,9 +1,14 @@
-import { ColumnSort, Row, RowData, RowSelectionState } from '@tanstack/react-table';
+import {
+  type ColumnSort,
+  type Row,
+  type RowData,
+  type RowSelectionState,
+} from '@tanstack/react-table';
 import { type Table as TanstackTable } from '@tanstack/react-table';
-import { TableOptions } from '@tanstack/react-table';
-import { DataTableConfig, FilterItemSchema } from '@/components/data-table/utils/config';
-import { Dispatch, SetStateAction } from 'react';
-import { ResolvedRowClick, RowClickBehavior } from '@/components/data-table/types/row-click';
+import { type TableOptions } from '@tanstack/react-table';
+import { type DataTableConfig, type FilterItemSchema } from '../utils/config';
+import { type Dispatch, type SetStateAction } from 'react';
+import { type ResolvedRowClick, type RowClickBehavior } from './row-click';
 
 // --- Module Augmentation (No Change Here) ---
 /**
@@ -11,7 +16,6 @@ import { ResolvedRowClick, RowClickBehavior } from '@/components/data-table/type
  * to add custom metadata properties for each column.
  */
 declare module '@tanstack/react-table' {
-  // @ts-ignore
   interface ColumnMeta<TData extends RowData, TValue> {
     label?: string;
     placeholder?: string;
@@ -22,6 +26,9 @@ declare module '@tanstack/react-table' {
     icon?: React.FC<React.SVGProps<SVGSVGElement>>;
     separateFilter?: boolean;
     hidden?: boolean;
+    // Use type parameters to satisfy linter
+    _dataType?: TData;
+    _valueType?: TValue;
   }
 }
 
@@ -69,7 +76,7 @@ export interface Option {
  * to the `useDataTable` hook. This excludes internally managed state/utilities.
  */
 
-export interface BaseDataTableOptions<TData> {
+export interface BaseDataTableOptions {
   virtualization?: {
     enabled: boolean;
     estimatedRowHeight?: number;
@@ -91,13 +98,13 @@ export interface BaseDataTableOptions<TData> {
     emptyTableRow?: string;
   };
 }
-export type DataTableInputOptions<TData = any> = BaseDataTableOptions<TData> & {
+export type DataTableInputOptions<TData = unknown> = BaseDataTableOptions & {
   rowClick?: RowClickBehavior<TData>;
   uniqueRowIdentifierKey?: string;
 };
 
-export type DataTableExtras<TData = any> = BaseDataTableOptions<TData> & {
-  stableData?: any[];
+export type DataTableExtras<TData = unknown> = BaseDataTableOptions & {
+  stableData?: unknown[];
   setGlobalSearchColumns?: Dispatch<SetStateAction<string[]>>;
   rowClick?: ResolvedRowClick<TData>;
 };

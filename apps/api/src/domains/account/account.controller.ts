@@ -7,7 +7,7 @@ export async function accountMetaController(req: AuthRequest, res: Response) {
   try {
     const result = await getAccountClassificationMeta();
     return res.status(result.success ? 200 : 400).json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('Internal server error'));
   }
 }

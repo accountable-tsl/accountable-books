@@ -3,6 +3,7 @@ import { zEmail } from '@/shared/types/core';
 import { type CompanyData, type CompanyType } from '@/domains/company/types';
 import { type TenantRoutes } from '@/shared/routes/types';
 import { type SchemaTypes, zodSchemas } from '@accountable-books/api-types';
+import type { OnboardingState } from '@/features/onboarding/types';
 
 export const loginForm = z.object({
   email: zEmail,
@@ -50,7 +51,9 @@ export interface OldAuthUserContext {
   companies: AuthCompanyContext[];
 }
 
-export type AuthUserContext = SchemaTypes.AuthUserContext;
+export type AuthUserContext = SchemaTypes.AuthUserContext & {
+  currentCompany: CurrentCompanyContext;
+};
 
 export interface OldAuthCompanyContext {
   id: string;
@@ -63,7 +66,9 @@ export interface OldAuthCompanyContext {
 }
 export type AuthCompanyContext = SchemaTypes.AuthCompanyContext;
 
-export type CurrentCompanyContext = AuthCompanyContext;
+export type CurrentCompanyContext = AuthCompanyContext & {
+  onboarding: OnboardingState;
+};
 
 export const roleKey = zodSchemas.RoleKey;
 export type RoleKey = SchemaTypes.RoleKey;
@@ -93,6 +98,7 @@ export type SessionContextType = {
 
   user: AuthUserContext | null;
   companyId?: string;
+  onboarding?: OnboardingState;
 
   company?: CompanyData;
   companyType?: CompanyType;
