@@ -11,7 +11,7 @@ pnpm build
 
 # Run full test suite
 echo "🧪 Running full test suite..."
-pnpm test
+pnpm test -- --run
 
 # Validate API contracts
 echo "📋 Validating API contracts..."

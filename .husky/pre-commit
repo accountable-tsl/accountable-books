@@ -14,6 +14,6 @@ pnpm typecheck
 
 # Run tests only for affected packages
 echo "🧪 Running affected tests..."
-pnpm test --affected
+pnpm test --affected -- --run
 
 echo "✅ Pre-commit checks passed!"

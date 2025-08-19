@@ -83,11 +83,11 @@ jobs:
       - name: Generate types (required for builds)
         run: pnpm run codegen
 
-      - name: Test ${{ matrix.package }}
-        run: pnpm --filter @accountable-books/${{ matrix.package }} test
-
       - name: Build ${{ matrix.package }}
         run: pnpm --filter @accountable-books/${{ matrix.package }} build
+
+      - name: Test ${{ matrix.package }}
+        run: pnpm --filter @accountable-books/${{ matrix.package }} test -- --run
 
       # Optional: Sentry sourcemaps (enable once secrets exist)
       # - name: Upload Sentry sourcemaps

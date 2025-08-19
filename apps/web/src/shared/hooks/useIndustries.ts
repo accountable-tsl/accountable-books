@@ -1,4 +1,4 @@
-import { readCSV } from '@/utils/utils';
+import { readCSV } from '@/shared/utils/old-utils';
 import { useQuery } from '@tanstack/react-query';
 import csvUrl from '@/data/industries.csv?url';
 

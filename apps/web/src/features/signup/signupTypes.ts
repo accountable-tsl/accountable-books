@@ -1,6 +1,6 @@
 import { isValidSlug, validateSlug } from '@/domains/firms/utils';
 import { companyType, zEmail } from '@/shared/types/core';
-import { sanitizeInput, sanitizeOptionalInput } from '@/utils/utils';
+import { sanitizeInput, sanitizeOptionalInput } from '@/shared/utils/old-utils';
 import { z } from 'zod';
 
 const slugRegex = /^(?=[a-z-]{3,15}$)[a-z]+(-[a-z]+)*$/;
