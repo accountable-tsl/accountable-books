@@ -181,16 +181,20 @@ export async function createNewBankAccount(input: {
 }): Promise<ApiResponse<BankAccountWithMeta>> {
   const knexInstance = input.trx || knexClient;
   const { data: inputData, userId, companyId } = input;
-  if (!companyId) return errorResponse('Company ID is required');
+  if (!companyId)
+    return errorResponse('Company ID is required') as ApiResponse<BankAccountWithMeta>;
   try {
     const companyUUID = await getCompanyUUID(companyId, input.trx);
     if (!companyUUID) {
-      return errorResponse('Invalid company ID');
+      return errorResponse('Invalid company ID') as ApiResponse<BankAccountWithMeta>;
     }
 
     const validatedInput = newBankAccountInput.safeParse(camelToSnake(inputData));
     if (!validatedInput.success) {
-      return errorResponse(`Invalid input provided`, validatedInput.error.flatten());
+      return errorResponse(
+        `Invalid input provided`,
+        validatedInput.error.flatten(),
+      ) as ApiResponse<BankAccountWithMeta>;
     }
 
     const { data } = validatedInput;
@@ -224,7 +228,7 @@ export async function createNewBankAccount(input: {
     if (!bank)
       return errorResponse('The selected bank cannot be verified', undefined, {
         code: ErrorCode.NOT_FOUND,
-      });
+      }) as ApiResponse<BankAccountWithMeta>;
     if (!currency) return errorResponse('Invalid currency');
 
     // Check that bank account does not already exist
@@ -294,7 +298,7 @@ export async function createNewBankAccount(input: {
 
       if (!coa || !coa.id) {
         tx.rollback();
-        return errorResponse('Failed to create coa for bank');
+        return errorResponse('Failed to create coa for bank') as ApiResponse<BankAccountWithMeta>;
       }
 
       // Create new bank account
@@ -314,7 +318,9 @@ export async function createNewBankAccount(input: {
         .returning('*');
 
       if (!newBankAccount) {
-        return errorResponse('Failed to create bank account record');
+        return errorResponse(
+          'Failed to create bank account record',
+        ) as ApiResponse<BankAccountWithMeta>;
       }
 
       const [newBankAccountDetails] = await tx('bank_accounts as ba')
@@ -336,9 +342,11 @@ export async function createNewBankAccount(input: {
     };
 
     if (input.trx) {
-      return await executeWithTransaction(input.trx);
+      return (await executeWithTransaction(input.trx)) as ApiResponse<BankAccountWithMeta>;
     } else {
-      return await knexInstance.transaction(executeWithTransaction);
+      return (await knexInstance.transaction(
+        executeWithTransaction,
+      )) as ApiResponse<BankAccountWithMeta>;
     }
   } catch (error) {
     return errorResponse('An unexpected error occurred while creating the bank account', error);

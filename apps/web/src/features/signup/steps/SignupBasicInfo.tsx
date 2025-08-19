@@ -4,10 +4,11 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
 import { usePasswordRules } from '@/shared/hooks/usePasswordRules';
-import { newUser, NewUser } from '../signupTypes';
+import { newUser, type NewUser } from '../signupTypes';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FormField } from '@/components/FormField';
+import type { AxiosError } from 'axios';
 
 export interface SignupBasicInfoHandle {
   validate: () => Promise<boolean>;
@@ -58,7 +59,10 @@ export const SignupBasicInfo = forwardRef<
       } catch (error: unknown) {
         return {
           isValid: true,
-          error: error?.message || "We're having trouble checking this email",
+          error:
+            (error as AxiosError<{ message: string }>)?.response?.data?.message ||
+            (error as Error).message ||
+            "We're having trouble checking this email",
         };
       }
     }

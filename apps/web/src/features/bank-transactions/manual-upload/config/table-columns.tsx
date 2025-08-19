@@ -1,7 +1,7 @@
 import { FormattedAmount } from '@/components/FormattedAmount';
 import { cn } from '@/lib/utils';
-import { ColumnDef } from '@tanstack/react-table';
-import { ParsedBankTxn } from '@/features/bank-transactions/manual-upload/types';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { ParsedBankTxn } from '@/features/bank-transactions/manual-upload/types';
 
 export function getBankTxnFields(currencyCode: string): ColumnDef<ParsedBankTxn>[] {
   return [

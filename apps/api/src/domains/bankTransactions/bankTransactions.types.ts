@@ -87,9 +87,16 @@ export type AddBankTransactionsResponse = {
     balanceBefore: string;
     balanceAfter: string;
   };
+  inserted?: number;
+  skippedDuplicates?: number;
   transactionsCount: number;
   batchTotal: number | string;
   balanceAfter: number | string;
+  balanceWarning?: {
+    message: string;
+    calculatedBalance: string;
+    runningBalance: string;
+  };
 };
 
 // FETCH BANK TRANSACTIONS

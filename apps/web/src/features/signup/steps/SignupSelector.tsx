@@ -1,6 +1,6 @@
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { Card } from '@/components/ui/card';
-import { CompanyType } from '@/shared/types/core';
+import type { CompanyType } from '@/shared/types/core';
 import { TOOLTIP } from '../signupConstants';
 import { cn } from '@/lib/utils';
 import { COMPANY_TYPES } from '@/domains/company/constants';

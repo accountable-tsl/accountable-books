@@ -15,8 +15,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { updateCompanyDetails } from '@/domains/company/api';
 import { ACCOUNTING_BASIS, COMPANY_REVENUE_RANGE, COMPANY_SIZE } from '@/domains/company/constants';
 import {
-  CompanyData,
-  UpdateCompanyVitalsData,
+  type CompanyData,
+  type UpdateCompanyVitalsData,
   updateCompanyVitalsSchema,
 } from '@/domains/company/types';
 import { getCompanyTypeDisplay, getDefaultCompanyData } from '@/domains/company/utils';
@@ -282,7 +282,7 @@ export const CompanyInfo = () => {
       localStorage.removeItem(FORM_KEY);
       navigate(routes.onboarding.index.staticPath);
     } catch (error: unknown) {
-      toast.error(error.message || 'Failed to save company details');
+      toast.error((error as Error).message || 'Failed to save company details');
       // Don't clear localStorage on error - preserve user's work
     } finally {
       setIsLoading(false);

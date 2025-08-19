@@ -14,7 +14,7 @@ import { ChevronDownIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCompanySwitch } from '@/features/switchCompany/hooks';
 import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
-import { CompanyData } from '@/domains/company/types';
+import type { CompanyData } from '@/domains/company/types';
 
 type BreadcrumbItem = {
   label: string;

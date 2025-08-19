@@ -6,10 +6,10 @@ import { routes } from '@/shared/routes/routes';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { toast } from 'sonner';
 import { handleEmailVerification, resendVerificationEmail } from '@/features/onboarding/api';
-import { OnboardingStatus } from '@/domains/company/types';
+import type { OnboardingStatus } from '@/domains/company/types';
 import { cn } from '@/lib/utils';
 import { TriangleAlert } from 'lucide-react';
-import { VerifyEmailFnResponse } from '@/features/onboarding/types';
+import type { VerifyEmailFnResponse } from '@/features/onboarding/types';
 import { useSession } from '@/features/auth/Session';
 
 export const VerifyEmail = ({

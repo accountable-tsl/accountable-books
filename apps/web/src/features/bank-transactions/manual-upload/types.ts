@@ -1,5 +1,5 @@
 import { debitCredit } from '@/shared/types/core';
-import { DateRangeResult } from '@/shared/utils/formatting-utils';
+import { type DateRangeResult } from '@/shared/utils/formatting-utils';
 import z from 'zod';
 
 export const bankTransactionSource = z.enum(['file_import', 'bank_feed', 'manual_entry']);

@@ -170,7 +170,11 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
   }
 
   try {
-    const result = knexClient.transaction(async (trx) => {
+    const result: ApiResponse<{
+      emailVerified: boolean;
+      status: 'verified' | 'invalid_or_expired' | 'error';
+      email: string | null;
+    }> = await knexClient.transaction(async (trx) => {
       // Is email already verified?
       const user = await trx('users')
         .where({ id: userId, is_deleted: false })
@@ -204,7 +208,11 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
       }
 
       if (initialEmailVerifiedAt) {
-        return successResponse('Email already verified', {
+        return successResponse<{
+          emailVerified: boolean;
+          status: 'verified' | 'invalid_or_expired' | 'error';
+          email: string | null;
+        }>('Email already verified', {
           emailVerified: true,
           status: 'verified',
           email: userEmail,
@@ -249,7 +257,11 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
 
       await trx('tokens').where({ id: tokenId }).delete();
 
-      return successResponse('Email verified', {
+      return successResponse<{
+        emailVerified: boolean;
+        status: 'verified' | 'invalid_or_expired' | 'error';
+        email: string | null;
+      }>('Email verified', {
         emailVerified: true,
         status: 'verified',
         email: userEmail,

@@ -1,5 +1,5 @@
 import { ACCOUNTING_BASIS, COMPANY_TYPES, DEMO_COMPANIES_IDS } from './constants';
-import { CompanyData, CompanyType } from './types';
+import type { CompanyData, CompanyType } from './types';
 
 export const getCompanyTypeDisplay = (key: CompanyType) => {
   return COMPANY_TYPES.find((item) => item.key === key)?.type || key;

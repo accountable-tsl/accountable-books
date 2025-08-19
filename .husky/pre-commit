@@ -1,18 +1,19 @@
-#!/bin/sh
-. "$(dirname -- "$0")/_/husky.sh"
+#!/usr/bin/env sh
+set -eu
+export CI=1 TURBO_TELEMETRY_DISABLED=1 TURBO_TERM=plain
 
+# pre-commit
 echo "🔍 Running pre-commit checks..."
 
-# Run lint-staged for changed files
+# Run lint-staged for changed files (includes linting, formatting, contract validation)
 pnpm lint-staged
 
-# Validate and bundle contracts if they changed
-if git diff --cached --name-only | grep -E "packages/contracts/.*\.yaml$"; then
-  echo "📋 OpenAPI contracts changed, validating and bundling..."
-  pnpm validate-contracts
-  pnpm bundle-contracts
-  # Add any generated files to the commit
-  git add packages/contracts/dist/
-fi
+# Quick typecheck
+echo "🔍 Type checking..."
+pnpm typecheck
+
+# Run tests only for affected packages
+echo "🧪 Running affected tests..."
+pnpm test --affected
 
 echo "✅ Pre-commit checks passed!"

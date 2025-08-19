@@ -1,8 +1,8 @@
 import {
-  BankTransactionInsert,
-  ParsedBankTxn,
+  type BankTransactionInsert,
+  type ParsedBankTxn,
   rawRowSchema,
-  TransformResult,
+  type TransformResult,
 } from '@/features/bank-transactions/manual-upload/types';
 import { debitCredit } from '@/shared/types/core';
 import { findDateRange, parseDateString, safeFormatDate } from '@/shared/utils/formatting-utils';

@@ -1,9 +1,9 @@
 import {
   logoUploadParams,
-  ObjectType,
-  ObjectTypeConfig,
+  type ObjectType,
+  type ObjectTypeConfig,
   profilePictureUploadParams,
-  UploadParams,
+  type UploadParams,
 } from './types';
 
 export const matchesType = (fileType: string, acceptType: string) => {

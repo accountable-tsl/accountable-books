@@ -6,7 +6,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { newCompany, NewCompany, NewUser } from '../signupTypes';
+import { newCompany, type NewCompany, type NewUser } from '../signupTypes';
 import { useIndustries } from '@/shared/hooks/useIndustries';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
@@ -22,8 +22,6 @@ import { cn } from '@/lib/utils';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import DOMPurify from 'dompurify';
 import { COMPANY_SIZE, COMPANY_TYPES } from '@/domains/company/constants';
-import { validateSlug } from '@/domains/firms/utils';
-import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useSlugCheck } from '@/domains/firms/hooks';
 
 export interface SignupCompanyInfoHandle {

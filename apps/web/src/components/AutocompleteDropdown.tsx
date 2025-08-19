@@ -10,7 +10,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { VariantProps } from 'class-variance-authority';
+import type { VariantProps } from 'class-variance-authority';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger } from './ui/drawer';
@@ -426,7 +426,7 @@ export const AutocompleteDropdown = forwardRef<HTMLInputElement, AutocompleteDro
           <CommandGroup>
             {!useGrouping && (
               <>
-                {(filteredData as NormalizedItem[]).map((item, index, arr) => {
+                {(filteredData as NormalizedItem[]).map((item, index) => {
                   const isSelected = selectedValue === item.value;
                   const isLastItem = index === totalItems - 1;
                   let itemRef: React.Ref<HTMLDivElement> | undefined;

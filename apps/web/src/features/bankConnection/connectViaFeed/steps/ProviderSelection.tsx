@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { BankFeedProvider } from '@/domains/bankFeedProviders/types';
-import { Country } from '@/shared/types/core';
+import type { BankFeedProvider } from '@/domains/bankFeedProviders/types';
+import type { Country } from '@/shared/types/core';
 import { ArrowLeft, Building, Clock, NetworkIcon, Shield } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { sortProviders } from '@/features/bankConnection/shared/utils';
@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
-import { BankAccountWithMeta } from '@/domains/bank-accounts/types';
 import { getProviderData, ProviderWidgets } from '../utils';
 import { useSession } from '@/features/auth/Session';
 import { CenteredLoader } from '@/components/CenteredLoader';

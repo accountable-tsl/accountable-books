@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { DataTable } from '@/components/data-table/data-table';
 import { getCatEngineColumns } from '@/features/cat-engine/config/table-columns';
@@ -13,15 +13,14 @@ import {
   LeftCatEngineToolbar,
   RightCatEngineToolbar,
 } from '@/features/cat-engine/components/cat-engine-toolbar';
-import { useIsMobile, useMediaQuery } from '@/shared/hooks/use-media-query';
+import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
-import { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { Badge } from '@/components/ui/badge';
 import { CatEngineAdvFilter } from '@/features/cat-engine/components/cat-engine-adv-filter';
 import { Input } from '@/components/ui/input';
 import { DateRangePicker } from '@/components/date-picker/date-range-picker';
 import { CatEngineTxnView } from './components/cat-engine-txn-view';
-import { endOfMonth, getDate, startOfMonth, subMonths } from 'date-fns';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 
 export const accordionItems = [

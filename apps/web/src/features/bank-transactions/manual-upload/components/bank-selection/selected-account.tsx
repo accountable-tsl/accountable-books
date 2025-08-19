@@ -1,5 +1,4 @@
-import { FormattedAmount } from '@/components/FormattedAmount';
-import { BankAccountWithMeta } from '@/domains/bank-accounts/types';
+import type { BankAccountWithMeta } from '@/domains/bank-accounts/types';
 import { maskDigits } from '@/shared/utils/formatting-utils';
 import { Building } from 'lucide-react';
 

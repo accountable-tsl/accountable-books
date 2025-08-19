@@ -58,7 +58,7 @@ import { knexClient } from '../../db/knexClient.js';
 export const registerNewAccount = async (
   input: { user: NewUserInputCamel; company: NewCompanyInputCamel },
   trx?: Knex.Transaction,
-): Promise<ApiResponse<{ user: CreateUserDirectResponse; company: NewCompanyResCamel }>> => {
+): Promise<ApiResponse<{ user: CreateUserResponse; company: NewCompanyResCamel }>> => {
   // Check that company type exists
   if (!input || !input.company.type) {
     return errorResponse('Invalid input or missing company type');

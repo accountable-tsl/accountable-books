@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTrigger } from '@/components
 import { DialogDescription } from '@radix-ui/react-dialog';
 import { MousePointerClick } from 'lucide-react';
 import { useState } from 'react';
-import { Contact } from '@/features/onboarding/types';
+import type { Contact } from '@/features/onboarding/types';
 
 export const OnboardingCallback = () => {
   const [contact, setContact] = useState<Contact>({
@@ -12,7 +12,7 @@ export const OnboardingCallback = () => {
     countryCode: '',
     completeNumber: '',
   });
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, _setSubmitted] = useState(false);
 
   const handlePhoneChange = (value: {
     phoneNumber: string;

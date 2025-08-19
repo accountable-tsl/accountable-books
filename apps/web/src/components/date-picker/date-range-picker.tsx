@@ -3,7 +3,7 @@ import React, {
   useMemo,
   useCallback,
   forwardRef,
-  WheelEvent as ReactWheelEvent,
+  type WheelEvent as ReactWheelEvent,
   useEffect,
   useRef,
 } from 'react';
@@ -23,8 +23,8 @@ import {
   isValid,
 } from 'date-fns';
 import { toDate, formatInTimeZone } from 'date-fns-tz';
-import { DateRange } from 'react-day-picker';
-import { cva, VariantProps } from 'class-variance-authority';
+import type { DateRange } from 'react-day-picker';
+import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -291,7 +291,7 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
           return;
         }
 
-        if (part === 'to') {
+        if (part === 'to' && to) {
           const currentFrom = date.from ? startOfDayTZ(date.from, timeZone) : undefined;
           if (currentFrom && isAfter(currentFrom, to)) {
             setSelectedPreset(null);
@@ -337,7 +337,7 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
           return;
         }
 
-        if (part === 'to') {
+        if (part === 'to' && to) {
           const currentFrom = date.from ? startOfDayTZ(date.from, timeZone) : undefined;
           if (currentFrom && isAfter(currentFrom, to)) {
             setSelectedPreset(null);

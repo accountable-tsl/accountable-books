@@ -1,5 +1,3 @@
-import { CompanyData } from '@/domains/company/types';
-import { RouteKey } from '@/shared/routes/types';
 import { type LucideIcon } from 'lucide-react';
 import { z } from 'zod';
 

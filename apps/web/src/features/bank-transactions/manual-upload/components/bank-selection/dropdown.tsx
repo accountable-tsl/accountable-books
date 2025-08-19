@@ -1,7 +1,7 @@
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FormField } from '@/components/FormField';
 import { AddBankAccountDialog } from '@/domains/bank-accounts/bank-accounts-add-dialog';
-import { BankAccountWithMeta } from '@/domains/bank-accounts/types';
+import type { BankAccountWithMeta } from '@/domains/bank-accounts/types';
 import { maskDigits } from '@/shared/utils/formatting-utils';
 import { Plus } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';

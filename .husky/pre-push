@@ -1,18 +1,24 @@
-#!/bin/sh
-. "$(dirname -- "$0")/_/husky.sh"
+#!/usr/bin/env sh
+set -eu
+export CI=1 TURBO_TELEMETRY_DISABLED=1 TURBO_TERM=plain
 
+# pre-push
 echo "🚀 Running pre-push checks..."
 
-# Type checking
-echo "🔍 Type checking..."
-pnpm typecheck
-
-# Run tests
-echo "🧪 Running tests..."
-pnpm test
-
-# Build check
-echo "🏗️ Build check..."
+# Build all packages to ensure everything compiles
+echo "🏗️ Building all packages..."
 pnpm build
 
-echo "✅ Pre-push checks passed! Ready to push 🎉"
+# Run full test suite
+echo "🧪 Running full test suite..."
+pnpm test
+
+# Validate API contracts
+echo "📋 Validating API contracts..."
+pnpm validate-contracts:ci
+
+# Final typecheck across all packages
+echo "🔍 Final type check..."
+pnpm typecheck
+
+echo "✅ Pre-push checks passed! Ready to push 🚀"

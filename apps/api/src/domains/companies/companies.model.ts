@@ -402,7 +402,7 @@ export const fetchCompanies = async ({ identifiers, filters }: FetchCompaniesOpt
         : filters
           ? `Successfully retrieved filtered companies`
           : `Successfully retrieved all companies`,
-      data,
+      data as GetCompanyResponse[],
     );
   } catch (error: any) {
     return errorResponse('An unexpected error occured', error?.message);
@@ -436,7 +436,7 @@ export const updateCompany = async (
   payload: UpdateCompanySchema,
   userId: string,
   trx?: Knex.Transaction,
-): Promise<ApiResponse<GetCompanyResponse>> => {
+): Promise<ApiResponse<GetCompanyResponse | null>> => {
   try {
     const validInput = updateCompanySchema.safeParse(payload);
     if (!validInput.success) {

@@ -1,6 +1,6 @@
 import MonoConnect from '@mono.co/connect.js';
-import { MonoWidgetProps } from './types';
-import { memo, useEffect, useRef } from 'react';
+import type { MonoWidgetProps } from './types';
+import { useEffect, useRef } from 'react';
 
 export function MonoWidget({
   open,

@@ -1,12 +1,12 @@
 import api from '@/lib/axios';
-import { ApiResponse } from '@/shared/types/core';
-import { AuthCompanyContext, UserContext } from '@/features/auth/types';
+import type { ApiResponse } from '@/shared/types/core';
+import type { AuthCompanyContext, AuthUserContext } from '@/features/auth/types';
 
 export const switchCompanyApi = async (data: {
   newCompanyId: string;
 }): Promise<
   ApiResponse<{
-    user: UserContext;
+    user: AuthUserContext;
     company: AuthCompanyContext;
     csrfToken: string;
   }>

@@ -1,5 +1,4 @@
-import { checkEmail, CheckEmailProps } from '@/shared/services/EmailServices';
-import { ApiResponse } from '@/shared/types/core';
+import { checkEmail } from '@/shared/services/EmailServices';
 import { useMutation } from '@tanstack/react-query';
 
 export function useCheckEmail() {

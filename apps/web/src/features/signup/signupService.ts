@@ -1,6 +1,6 @@
 import axios from '@/lib/axios';
-import { ApiResponse } from '@/shared/types/core';
-import { NewCompany, NewFirm, NewUser } from './signupTypes';
+import type { ApiResponse } from '@/shared/types/core';
+import { type NewCompany, type NewFirm, type NewUser } from './signupTypes';
 
 export const submitSignup = async (data: {
   user: NewUser;

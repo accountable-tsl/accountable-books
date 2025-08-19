@@ -1,7 +1,7 @@
 import { AppHeader } from '@/components/AppHeader';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import { AppSidebar, AppSidebarProps } from '@/components/SideBar';
+import { AppSidebar, type AppSidebarProps } from '@/components/SideBar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useSession } from '@/features/auth/Session';
 import { useCanonicalUrlEnforcer } from '@/shared/routes/hooks';

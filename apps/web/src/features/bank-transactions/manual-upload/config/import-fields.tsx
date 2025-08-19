@@ -1,5 +1,5 @@
-import { FieldValue } from '@/features/bank-transactions/manual-upload/types';
-import { SpreadsheetImporterField } from '@/features/spreadsheets/types';
+import { type FieldValue } from '@/features/bank-transactions/manual-upload/types';
+import { type SpreadsheetImporterField } from '@/features/spreadsheets/types';
 import { formatDate, parseDateString } from '@/shared/utils/formatting-utils';
 import { FormattedAmount } from '@/components/FormattedAmount';
 import { cn } from '@/lib/utils';

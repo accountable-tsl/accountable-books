@@ -1,5 +1,6 @@
 import api from '@/lib/axios';
-import { ApiResponse } from '@/shared/types/core';
+import type { ApiResponse } from '@/shared/types/core';
+import { AxiosError } from 'axios';
 
 export const checkSlug = async (slug: string): Promise<ApiResponse<{ isAvailable: boolean }>> => {
   try {
@@ -8,7 +9,7 @@ export const checkSlug = async (slug: string): Promise<ApiResponse<{ isAvailable
     );
     return response.data;
   } catch (error: unknown) {
-    if (error.response?.data) {
+    if (error instanceof AxiosError && error.response?.data) {
       return error.response.data;
     }
 

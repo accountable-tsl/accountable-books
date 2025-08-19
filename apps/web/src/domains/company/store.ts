@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { CompanyStore } from './types';
+import type { CompanyStore } from './types';
 import { getCompanyDetails } from './api';
 
 export const companyStore = create<CompanyStore>()(
@@ -26,7 +26,9 @@ export const companyStore = create<CompanyStore>()(
               companyId: res.data.id,
               companyType: res.data.companyType,
               slug: res.data.assignedFirmSlug || null,
-              onboardingStatus: res.data.onboardingStatus || null,
+              onboardingStatus: res.data.onboardingState?.steps
+                ? 'onboarding_complete'
+                : 'not_started',
               isLoading: false,
               error: null,
             });
@@ -53,7 +55,9 @@ export const companyStore = create<CompanyStore>()(
             companyId: company.id,
             companyType: company.companyType,
             slug: company.assignedFirmSlug ?? null,
-            onboardingStatus: company.onboardingStatus ?? null,
+            onboardingStatus: company.onboardingState?.steps
+              ? 'onboarding_complete'
+              : 'not_started',
             isLoading: false,
             error: null,
           };

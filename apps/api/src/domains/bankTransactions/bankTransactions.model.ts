@@ -63,203 +63,211 @@ export async function addNewBankTransactions({
       return errorResponse('Fingerprint is required for deduplication');
     }
 
-    const result = await knexClient.transaction(async (trx) => {
-      // Fetch the relevant bank account, join companies for reportingCurrencyId. Also acts to verify bank account exists
-      const bankAccount = await trx('bank_accounts as ba')
-        .select(
-          'ba.id as bankAccountId',
-          'ba.currency_id as bankCurrencyId',
-          'c.reporting_currency_id as reportingCurrencyId',
-        )
-        .join('companies as c', 'ba.company_id', 'c.id')
-        .where({
-          'ba.id': batch.bank_account_id,
-          'ba.company_id': companyUUID,
-          'ba.is_deleted': false,
-        })
-        .first();
-
-      if (!bankAccount) return errorResponse('Bank account not found');
-      const { bankAccountId, bankCurrencyId, reportingCurrencyId } = bankAccount;
-
-      // Fetch existing transactions to calculate balanceBefore
-      /**
-       * I guess  we can just use getBankAccountBalances, not sure which is best
-       * const existingTransactions = await trx("BankTransaction").where({ bank_account_id: data.bankAccountId }).orderBy("date", "asc");
-       * const balanceBefore = existingTransactions.reduce((total: Decimal, txn: any) => total.plus(new Decimal(txn.amount)),new Decimal(0));
-       */
-      //
-
-      const balanceBeforeResponse = await getBankAccountBalances(trx, companyUUID, {
-        includeStats: true,
-        bankAccountIds: [bankAccountId],
-      });
-      if (!balanceBeforeResponse.success || !balanceBeforeResponse.data) {
-        return errorResponse('Failed to calculate balance before new transactions');
-      }
-      const balanceBeforeObj = balanceBeforeResponse.data[bankAccountId];
-
-      //   ----
-      // Sort and Calculate or verify batch total
-      const sortedTransactions = [...batch.bank_transactions].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-      );
-
-      let currentRunningBalance = balanceBeforeObj.nativeBalance;
-      let batchTotal = 0;
-
-      // Prepare each transaction, resolve system exchange rate
-      const preparedTransactions: NewBankTransaction[] = await Promise.all(
-        sortedTransactions.map(async (txn) => {
-          const txnAmount = Number(txn.amount);
-          batchTotal = batchTotal += txnAmount;
-          currentRunningBalance = currentRunningBalance += txnAmount;
-
-          // Resolve exchange rate perhaos we could skip this if reportingCurrencyId === bankCurrencyId
-          let exr: number;
-
-          if (reportingCurrencyId === bankCurrencyId) {
-            exr = 1;
-          } else {
-            const exchangeRate = await determineExchangeRate(
-              txn.date,
-              reportingCurrencyId,
-              bankCurrencyId,
-            );
-            if (exchangeRate === null) {
-              throw new Error(
-                `Exchange rate not available for ${txn.date}: ${reportingCurrencyId} to ${bankCurrencyId}`,
-              );
-            }
-            exr = Number(exchangeRate);
-          }
-          const external_id = generateExternalId({
-            date: txn.date,
-            amount: txn.amount,
-            payee: txn.payee || '',
-            description: txn.description || '',
-            bankAccountId: bankAccountId,
-          });
-
-          const txForDb = {
-            ...txn,
-            external_id,
-            amount: txnAmount,
-            absolute_amount: Math.abs(txnAmount),
-            system_exchange_rate: exr,
-            transaction_side: txnAmount < 0 ? debitCredit.enum.credit : debitCredit.enum.debit,
-            categorization_status: categorizationStatus.enum.uncategorized,
-            bank_transaction_batch_id: undefined, // to be set after batch inser
-            created_by_id: userId,
-            updated_by_id: userId,
-          };
-
-          const validateTx = newBankTransaction.safeParse(txForDb);
-          if (!validateTx.success) {
-            throw new Error(validateTx.error.message);
-          }
-
-          // Compose prepared transaction
-          return validateTx.data;
-        }),
-      );
-
-      // Confirm balance after
-      const balanceAfter = balanceBeforeObj.nativeBalance + batchTotal;
-
-      let balanceWarning: {
-        message: string;
-        calculatedBalance: string;
-        runningBalance: string;
-      } | null = null;
-      if (Math.abs(balanceAfter - currentRunningBalance) > 0.0001) {
-        balanceWarning = {
-          message: 'Balance calculation mismatch detected',
-          calculatedBalance: balanceAfter.toString(),
-          runningBalance: currentRunningBalance.toString(),
-        };
-        console.warn('Balance mismatch in batch import:', balanceWarning);
-      }
-
-      // Insert bank transaction batch
-      const batchInsertResult = await trx('bank_transaction_batches')
-        .insert({
-          bank_account_id: bankAccountId,
-          import_date: new Date(),
-          start_date: batch.start_date,
-          end_date: batch.end_date,
-          source: batch.source,
-          balance_before: balanceBeforeObj.nativeBalance,
-          balance_after: balanceAfter,
-          import_row_count: preparedTransactions.length,
-          fingerprint: batch.fingerprint,
-          source_metadata: batch.source_metadata || null,
-          created_by_id: userId,
-          updated_by_id: userId,
-        })
-        .onConflict(['bank_account_id', 'fingerprint'])
-        .ignore()
-        .returning(['id', 'start_date', 'end_date', 'balance_before', 'balance_after', 'source']);
-
-      if (!batchInsertResult.length) {
-        // Check if batch already exists
-        const existingBatch = await trx('bank_transaction_batches')
-          .select(['id', 'start_date', 'end_date', 'balance_before', 'balance_after', 'source'])
-          .where('bank_account_id', bankAccountId)
-          .andWhere('fingerprint', batch.fingerprint)
+    const result: ApiResponse<AddBankTransactionsResponse> = await knexClient.transaction(
+      async (trx) => {
+        // Fetch the relevant bank account, join companies for reportingCurrencyId. Also acts to verify bank account exists
+        const bankAccount = await trx('bank_accounts as ba')
+          .select(
+            'ba.id as bankAccountId',
+            'ba.currency_id as bankCurrencyId',
+            'c.reporting_currency_id as reportingCurrencyId',
+          )
+          .join('companies as c', 'ba.company_id', 'c.id')
+          .where({
+            'ba.id': batch.bank_account_id,
+            'ba.company_id': companyUUID,
+            'ba.is_deleted': false,
+          })
           .first();
 
-        if (!existingBatch) {
-          return errorResponse('An unknown error occurred');
+        if (!bankAccount) return errorResponse('Bank account not found');
+        const { bankAccountId, bankCurrencyId, reportingCurrencyId } = bankAccount;
+
+        // Fetch existing transactions to calculate balanceBefore
+        /**
+         * I guess  we can just use getBankAccountBalances, not sure which is best
+         * const existingTransactions = await trx("BankTransaction").where({ bank_account_id: data.bankAccountId }).orderBy("date", "asc");
+         * const balanceBefore = existingTransactions.reduce((total: Decimal, txn: any) => total.plus(new Decimal(txn.amount)),new Decimal(0));
+         */
+        //
+
+        const balanceBeforeResponse = await getBankAccountBalances(trx, companyUUID, {
+          includeStats: true,
+          bankAccountIds: [bankAccountId],
+        });
+        if (!balanceBeforeResponse.success || !balanceBeforeResponse.data) {
+          return errorResponse('Failed to calculate balance before new transactions');
+        }
+        const balanceBeforeObj = balanceBeforeResponse.data[bankAccountId];
+
+        //   ----
+        // Sort and Calculate or verify batch total
+        const sortedTransactions = [...batch.bank_transactions].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+        );
+
+        let currentRunningBalance = balanceBeforeObj.nativeBalance;
+        let batchTotal = 0;
+
+        // Prepare each transaction, resolve system exchange rate
+        const preparedTransactions: NewBankTransaction[] = await Promise.all(
+          sortedTransactions.map(async (txn) => {
+            const txnAmount = Number(txn.amount);
+            batchTotal = batchTotal += txnAmount;
+            currentRunningBalance = currentRunningBalance += txnAmount;
+
+            // Resolve exchange rate perhaos we could skip this if reportingCurrencyId === bankCurrencyId
+            let exr: number;
+
+            if (reportingCurrencyId === bankCurrencyId) {
+              exr = 1;
+            } else {
+              const exchangeRate = await determineExchangeRate(
+                txn.date,
+                reportingCurrencyId,
+                bankCurrencyId,
+              );
+              if (exchangeRate === null) {
+                throw new Error(
+                  `Exchange rate not available for ${txn.date}: ${reportingCurrencyId} to ${bankCurrencyId}`,
+                );
+              }
+              exr = Number(exchangeRate);
+            }
+            const external_id = generateExternalId({
+              date: txn.date,
+              amount: txn.amount,
+              payee: txn.payee || '',
+              description: txn.description || '',
+              bankAccountId: bankAccountId,
+            });
+
+            const txForDb = {
+              ...txn,
+              external_id,
+              amount: txnAmount,
+              absolute_amount: Math.abs(txnAmount),
+              system_exchange_rate: exr,
+              transaction_side: txnAmount < 0 ? debitCredit.enum.credit : debitCredit.enum.debit,
+              categorization_status: categorizationStatus.enum.uncategorized,
+              bank_transaction_batch_id: undefined, // to be set after batch inser
+              created_by_id: userId,
+              updated_by_id: userId,
+            };
+
+            const validateTx = newBankTransaction.safeParse(txForDb);
+            if (!validateTx.success) {
+              throw new Error(validateTx.error.message);
+            }
+
+            // Compose prepared transaction
+            return validateTx.data;
+          }),
+        );
+
+        // Confirm balance after
+        const balanceAfter = balanceBeforeObj.nativeBalance + batchTotal;
+
+        let balanceWarning: {
+          message: string;
+          calculatedBalance: string;
+          runningBalance: string;
+        } | null = null;
+        if (Math.abs(balanceAfter - currentRunningBalance) > 0.0001) {
+          balanceWarning = {
+            message: 'Balance calculation mismatch detected',
+            calculatedBalance: balanceAfter.toString(),
+            runningBalance: currentRunningBalance.toString(),
+          };
+          console.warn('Balance mismatch in batch import:', balanceWarning);
         }
 
-        const countResult = await trx('bank_transactions')
-          .where({ bank_transaction_batch_id: existingBatch.id })
-          .count<{ count: string }>('* as count')
-          .first();
+        // Insert bank transaction batch
+        const batchInsertResult = await trx('bank_transaction_batches')
+          .insert({
+            bank_account_id: bankAccountId,
+            import_date: new Date(),
+            start_date: batch.start_date,
+            end_date: batch.end_date,
+            source: batch.source,
+            balance_before: balanceBeforeObj.nativeBalance,
+            balance_after: balanceAfter,
+            import_row_count: preparedTransactions.length,
+            fingerprint: batch.fingerprint,
+            source_metadata: batch.source_metadata || null,
+            created_by_id: userId,
+            updated_by_id: userId,
+          })
+          .onConflict(['bank_account_id', 'fingerprint'])
+          .ignore()
+          .returning(['id', 'start_date', 'end_date', 'balance_before', 'balance_after', 'source']);
 
-        const count = countResult ? countResult.count : '0';
+        if (!batchInsertResult.length) {
+          // Check if batch already exists
+          const existingBatch = await trx('bank_transaction_batches')
+            .select(['id', 'start_date', 'end_date', 'balance_before', 'balance_after', 'source'])
+            .where('bank_account_id', bankAccountId)
+            .andWhere('fingerprint', batch.fingerprint)
+            .first();
 
-        return errorResponse('This batch was previously imported', {
-          batch: snakeToCamel(existingBatch),
-          transactionsCount: Number(count),
-          inserted: 0,
-          skippedDuplicates: Number(count),
-          balanceAfter: existingBatch?.balance_after,
-          note: 'This batch was previously imported',
+          if (!existingBatch) {
+            return errorResponse('An unknown error occurred');
+          }
+
+          const countResult = await trx('bank_transactions')
+            .where({ bank_transaction_batch_id: existingBatch.id })
+            .count<{ count: string }>('* as count')
+            .first();
+
+          const count = countResult ? countResult.count : '0';
+
+          return errorResponse('This batch was previously imported', {
+            batch: snakeToCamel(existingBatch),
+            transactionsCount: Number(count),
+            inserted: 0,
+            skippedDuplicates: Number(count),
+            balanceAfter: existingBatch?.balance_after,
+            note: 'This batch was previously imported',
+          });
+        }
+
+        const thisBatch = batchInsertResult[0];
+
+        // Insert prepared transactions with batch id
+        const insertedTxns = await trx('bank_transactions')
+          .insert(
+            preparedTransactions.map((txn) => ({
+              ...txn,
+              bank_transaction_batch_id: thisBatch.id,
+            })),
+          )
+          .onConflict(['bank_account_id', 'external_id', 'date'])
+          .ignore()
+          .returning('id');
+
+        const inserted = insertedTxns.length;
+        const skippedDuplicates = preparedTransactions.length - inserted;
+
+        // Return balance sorted by date and created_at if not already sorted
+        //   ----
+        // Return result
+        return successResponse<AddBankTransactionsResponse>('Transactions imported successfully', {
+          batch: snakeToCamel(thisBatch) as AddBankTransactionsResponse['batch'],
+          transactionsCount: preparedTransactions.length,
+          inserted,
+          skippedDuplicates,
+          batchTotal,
+          balanceAfter,
+          balanceWarning: balanceWarning
+            ? {
+                message: balanceWarning.message,
+                calculatedBalance: balanceWarning.calculatedBalance,
+                runningBalance: balanceWarning.runningBalance,
+              }
+            : undefined,
         });
-      }
-
-      const thisBatch = batchInsertResult[0];
-
-      // Insert prepared transactions with batch id
-      const insertedTxns = await trx('bank_transactions')
-        .insert(
-          preparedTransactions.map((txn) => ({
-            ...txn,
-            bank_transaction_batch_id: thisBatch.id,
-          })),
-        )
-        .onConflict(['bank_account_id', 'external_id', 'date'])
-        .ignore()
-        .returning('id');
-
-      const inserted = insertedTxns.length;
-      const skippedDuplicates = preparedTransactions.length - inserted;
-
-      // Return balance sorted by date and created_at if not already sorted
-      //   ----
-      // Return result
-      return successResponse('Transactions imported successfully', {
-        batch: snakeToCamel(thisBatch),
-        transactionsCount: preparedTransactions.length,
-        inserted,
-        skippedDuplicates,
-        batchTotal,
-        balanceAfter,
-        balanceWarning,
-      });
-    });
+      },
+    );
 
     return result;
   } catch (error) {

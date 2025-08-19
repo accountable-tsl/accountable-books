@@ -1,26 +1,26 @@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { StepProgress } from '@/components/StepProgress/StepProgress';
 import { useEffect, useRef, useState } from 'react';
-import { CompanyType, Country, zEmail } from '@/shared/types/core';
+import { type CompanyType, type Country, zEmail } from '@/shared/types/core';
 import { Button } from '@/components/ui/button';
-import { NewCompany, NewUser } from './signupTypes';
+import { type NewCompany, type NewUser } from './signupTypes';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { getDefaultCurrencyCodeForCountry } from '@/constants/countryCurrencyMap';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { SignupSelector } from './steps/SignupSelector';
-import { SignupBasicInfo, SignupBasicInfoHandle } from './steps/SignupBasicInfo';
+import { SignupBasicInfo, type SignupBasicInfoHandle } from './steps/SignupBasicInfo';
 import { useCheckEmail } from '@/shared/hooks/useCheckEmail';
-import { SignupCompanyInfo, SignupCompanyInfoHandle } from './steps/SignupCompanyInfo';
+import { SignupCompanyInfo, type SignupCompanyInfoHandle } from './steps/SignupCompanyInfo';
 import { toast } from 'sonner';
 import { submitSignup } from './signupService';
 import { PuffLoader } from 'react-spinners';
 import { XIcon } from 'lucide-react';
 import { AuthHeader } from '@/components/AuthHeader';
-import { buildCanonicalUrl } from '@/shared/routes/utils';
 import { routes } from '@/shared/routes/routes';
 import { performLoginFlow } from '../auth/utils';
 import { authStore } from '../auth/store';
+import type { AxiosError } from 'axios';
 
 //TODO: Refactor whole signup flow later
 export default function Signup() {
@@ -81,7 +81,10 @@ export default function Signup() {
       }
       return true;
     } catch (err: unknown) {
-      const backendError = err?.response?.data?.message || err.message || 'Something went wrong';
+      const backendError =
+        (err as AxiosError<{ message: string }>)?.response?.data?.message ||
+        (err as Error).message ||
+        'Something went wrong';
       throw new Error(backendError);
     }
   };

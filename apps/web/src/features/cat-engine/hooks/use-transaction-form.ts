@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { useCallback, useEffect, useState } from 'react';
-import { TransactionData, TransactionFormData, FormError } from '../types';
+import { type TransactionData, type TransactionFormData } from '../types';
 import { VALIDATION, ERROR_MESSAGES, FORM_CONFIG } from '../constants';
 
 interface UseTransactionFormProps {
@@ -20,7 +20,6 @@ export function useTransactionForm({ transaction, onSubmit, onCancel }: UseTrans
     formState: { errors, isValid, isDirty },
     reset,
     watch,
-    setValue,
   } = useForm<TransactionFormData>({
     defaultValues: {
       fsDate: transaction.fsDate.toISOString().split('T')[0], // Convert Date to YYYY-MM-DD
@@ -144,7 +143,7 @@ export function useTransactionForm({ transaction, onSubmit, onCancel }: UseTrans
     register,
     handleSubmit: (e: React.FormEvent) => {
       e.preventDefault();
-      handleSubmit();
+      handleSubmit(onSubmit);
     },
     handleCancel,
     errors,

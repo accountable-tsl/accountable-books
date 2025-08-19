@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { SwitchCompanyOpts } from '@/features/switchCompany/types';
+import type { SwitchCompanyOpts } from '@/features/switchCompany/types';
 import { useCompany } from '@/domains/company/store';
 import { useRef, useState } from 'react';
 import { routes } from '@/shared/routes/routes';
@@ -73,7 +73,7 @@ export function useCompanySwitch() {
 
       const { user, company, csrfToken } = res.data;
       console.log(company);
-      const slug = company.assignedFirmSlug || user.assignedFirmSlug || '';
+      // const slug = company.assignedFirmSlug || '';
       const newCompanyId = company.id || user.currentCompanyId || '';
 
       if (!user || !company || !csrfToken) {

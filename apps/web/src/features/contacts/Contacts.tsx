@@ -6,19 +6,19 @@ import { useContacts } from '@/features/contacts/contacts-hooks';
 import { useSession } from '@/features/auth/Session';
 import ErrorPage from '@/components/ErrorPage';
 import { CenteredLoader } from '@/components/CenteredLoader';
-import { Contacts as ContactResponse } from '@/features/contacts/contacts-types';
-import { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import type { Contacts as ContactResponse } from '@/features/contacts/contacts-types';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
 import { Separator } from '@/components/ui/separator';
-import { DataTableToolbarConfig } from '@/components/data-table/toolbar';
+import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { AddContactDialog } from '@/features/contacts/contacts-add';
 
 export const Contacts = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(30);
+  const [page, _setPage] = useState(1);
+  const [limit, _setLimit] = useState(30);
 
   const { companyId, loading } = useSession();
   const { data, isLoading, isError } = useContacts({

@@ -1,8 +1,7 @@
-import { AlertDialog } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { BadgeAlert, Check, TriangleAlert, Waypoints } from 'lucide-react';
 import React, { useState } from 'react';
-import { ConnectionResponse } from '../types';
+import type { ConnectionResponse } from '../types';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { maskDigits } from '@/shared/utils/formatting-utils';
 import {
@@ -75,7 +74,7 @@ export const AccountLinked = ({
     if (handleDone) {
       handleDone?.();
     } else {
-      navigate(routes.accounting.workstation.catEngine.relativePath);
+      navigate(routes.accounting.catEngine.relativePath);
     }
   };
 
@@ -258,16 +257,16 @@ export const AccountLinked = ({
       </div>
     </>
   );
-  const renderAlreadyLinked = () => (
-    <>
-      <></>
-    </>
-  );
-  const renderNeedsConfirmation = () => (
-    <>
-      <></>
-    </>
-  );
+  // const renderAlreadyLinked = () => (
+  //   <>
+  //     <></>
+  //   </>
+  // );
+  // const renderNeedsConfirmation = () => (
+  //   <>
+  //     <></>
+  //   </>
+  // );
   return (
     <>
       {/* Account Linked Account Link Successful? Show Linked page and let user

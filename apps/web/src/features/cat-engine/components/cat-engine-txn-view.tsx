@@ -19,7 +19,11 @@ import { FormattedAmount } from '@/components/FormattedAmount';
 import { safeFormatDate } from '@/shared/utils/formatting-utils';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { useState, memo, useCallback, useMemo } from 'react';
-import { TransactionData, CatEngineTxnViewProps, TransactionFormData } from '../types';
+import {
+  type TransactionData,
+  type CatEngineTxnViewProps,
+  type TransactionFormData,
+} from '../types';
 import {
   DESCRIPTION_TRUNCATE_LENGTH,
   DEFAULT_CURRENCY,
@@ -40,7 +44,7 @@ export function CatEngineTxnView({
   onEdit = () => {},
   onAccept = () => {},
   onMarkReviewed = () => {},
-  isEditable = false,
+  // isEditable = false,
   isLoading = false,
   error = null,
 }: CatEngineTxnViewProps) {

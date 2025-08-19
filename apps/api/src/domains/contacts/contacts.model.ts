@@ -187,7 +187,7 @@ export async function getContacts(input: GetContactsParams): Promise<ApiResponse
 
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
-    return result;
+    return result as ApiResponse<ContactResponse>;
   } catch (error: any) {
     return errorResponse(`Failed to fetch contacts`, error);
   }

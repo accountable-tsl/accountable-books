@@ -1,17 +1,17 @@
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { useCompanyBankAccounts } from '@/domains/bank-accounts/hooks';
-import { BankAccountWithMeta } from '@/domains/bank-accounts/types';
+import type { BankAccountWithMeta } from '@/domains/bank-accounts/types';
 import { useSession } from '@/features/auth/Session';
 import { BankDropdown } from '@/features/bank-transactions/manual-upload/components/bank-selection/dropdown';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SelectedBankAccount } from './components/bank-selection/selected-account';
 import { SpreadsheetImporter } from '@/features/spreadsheets/SpreadsheetImporter';
 import { cn } from '@/lib/utils';
-import { ParsedCsvResult } from '@/features/spreadsheets/types';
+import type { ParsedCsvResult } from '@/features/spreadsheets/types';
 import {
-  BankTransactionBatchInsert,
   bankTransactionSource,
+  type BankTransactionBatchInsert,
 } from '@/features/bank-transactions/manual-upload/types';
 import { transformParsedData } from '@/features/bank-transactions/manual-upload/services/transaction-parsers';
 import { FailedRowsDisplay } from '@/features/bank-transactions/manual-upload/components/failed-rows';
@@ -119,7 +119,7 @@ export function UploadBankTransactions() {
         setUploadError(response.message || 'Failed to upload transactions');
       }
     } catch (error: unknown) {
-      setUploadError(error.message || 'Failed to upload transactions');
+      setUploadError((error as Error).message || 'Failed to upload transactions');
     } finally {
       setIsUploading(false);
     }

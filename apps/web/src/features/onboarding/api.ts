@@ -1,8 +1,8 @@
 import api from '@/lib/axios';
-import { ResendVerEmailService, VerifyEmailFnResponse } from '@/features/onboarding/types';
-import { ApiResponse } from '@/shared/types/core';
-import { CompanyData } from '@/domains/company/types';
-import { UserData } from '@/domains/user/types';
+import type { ResendVerEmailService, VerifyEmailFnResponse } from '@/features/onboarding/types';
+import type { ApiResponse } from '@/shared/types/core';
+import type { CompanyData } from '@/domains/company/types';
+import type { UserData } from '@/domains/user/types';
 import { isAxiosError } from 'axios';
 
 export const updateCompanyOnboardingStatus = async (data: {

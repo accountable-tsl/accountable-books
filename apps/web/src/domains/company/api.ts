@@ -1,6 +1,6 @@
 import api from '@/lib/axios';
-import { ApiResponse } from '@/shared/types/core';
-import { CompanyData, UpdateCompanyVitalsData } from './types';
+import type { ApiResponse } from '@/shared/types/core';
+import type { CompanyData, UpdateCompanyVitalsData } from './types';
 
 export const getCompanyDetails = async (companyId: string): Promise<ApiResponse<CompanyData>> => {
   const response = await api.get(`/api/companies/${companyId}`);

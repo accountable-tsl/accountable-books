@@ -1,4 +1,4 @@
-import { BankTransactionBatchInsert } from '@/features/bank-transactions/manual-upload/types';
+import { type BankTransactionBatchInsert } from '@/features/bank-transactions/manual-upload/types';
 import api from '@/lib/axios';
 import { isAxiosError } from 'axios';
 

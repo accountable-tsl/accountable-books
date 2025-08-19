@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { Account } from './seed';
+import type { Account } from './seed';
 import { Text } from 'lucide-react';
 
 export function getAccountColumns(): ColumnDef<Account>[] {

@@ -1,7 +1,7 @@
-import { CompanyData } from '@/domains/company/types';
-import { UserContext } from '@/features/auth/types';
+import type { CompanyData } from '@/domains/company/types';
+import type { AuthUserContext } from '@/features/auth/types';
 import { MonoWidget } from '../widgets/MonoWidget';
-import { MonoConnectCustomer } from '../widgets/types';
+import type { MonoConnectCustomer } from '../widgets/types';
 
 export const ProviderWidgets: Record<string, React.FC<any>> = {
   mono: MonoWidget,
@@ -10,28 +10,23 @@ export const ProviderWidgets: Record<string, React.FC<any>> = {
   // etc.
 };
 
-export const getProviderData: Record<string, (user: UserContext, company: CompanyData) => any> = {
-  mono: (user, company): MonoConnectCustomer => {
-    if (company?.monoCustomerId) {
+export const getProviderData: Record<string, (user: AuthUserContext, company: CompanyData) => any> =
+  {
+    mono: (user, company): MonoConnectCustomer => {
+      const name = company?.legalName;
+      const email = user?.email;
+
+      if (!name || !email) {
+        throw new Error('Name and email are required for new Mono customer');
+      }
+
       return {
-        id: company.monoCustomerId,
+        name,
+        email,
       };
-    }
-
-    const name = company?.legalName;
-    const email = user?.email;
-
-    if (!name || !email) {
-      throw new Error('Name and email are required for new Mono customer');
-    }
-
-    return {
-      name,
-      email,
-    };
-  },
-  //   plaid: () => ({}),
-  //   okra: (user) => ({
-  //     email: user?.email,
-  //   }),
-};
+    },
+    //   plaid: () => ({}),
+    //   okra: (user) => ({
+    //     email: user?.email,
+    //   }),
+  };

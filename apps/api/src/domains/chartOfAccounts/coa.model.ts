@@ -130,6 +130,8 @@ export const createCoa = async ({
       totalInserted += res.length;
     }
 
+    await invalidateCoaCache({ companyUUID });
+
     return successResponse(
       `Successfully created ${totalInserted} account${totalInserted > 1 ? 's' : ''}`,
       totalInserted,
@@ -138,9 +140,6 @@ export const createCoa = async ({
 
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
-    if (result.success) {
-      await invalidateCoaCache({ companyUUID: result.data.companyUUID });
-    }
 
     return result;
   } catch (error) {

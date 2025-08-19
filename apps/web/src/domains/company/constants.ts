@@ -1,4 +1,4 @@
-import { CompanyType } from './types';
+import type { CompanyType } from './types';
 
 export const COMPANY_TYPES: {
   key: CompanyType;

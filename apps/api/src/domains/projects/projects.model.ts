@@ -133,7 +133,7 @@ export async function getProjects(input: GetProjectsParams): Promise<ApiResponse
 
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
-    return result;
+    return result as ApiResponse<ProjectResponse>;
   } catch (error) {
     return errorResponse('Failed to fetch project(s)', error);
   }
@@ -205,7 +205,7 @@ export async function addNewProjects({
 
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
-    return result;
+    return result as ApiResponse<{ id: string; name: string }[]>;
   } catch (error: any) {
     return errorResponse('Failed to create project(s)', error);
   }

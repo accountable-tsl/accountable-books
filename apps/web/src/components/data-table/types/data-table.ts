@@ -98,13 +98,13 @@ export interface BaseDataTableOptions {
     emptyTableRow?: string;
   };
 }
-export type DataTableInputOptions<TData = unknown> = BaseDataTableOptions & {
+export type DataTableInputOptions<TData = any> = BaseDataTableOptions & {
   rowClick?: RowClickBehavior<TData>;
   uniqueRowIdentifierKey?: string;
 };
 
-export type DataTableExtras<TData = unknown> = BaseDataTableOptions & {
-  stableData?: unknown[];
+export type DataTableExtras<TData = any> = BaseDataTableOptions & {
+  stableData?: any[];
   setGlobalSearchColumns?: Dispatch<SetStateAction<string[]>>;
   rowClick?: ResolvedRowClick<TData>;
 };
