@@ -71,6 +71,7 @@ Components are organized by feature and complexity:
 ### Design System
 
 Built with a cohesive design system:
+
 - **Tailwind CSS**: Utility-first CSS framework
 - **Shadcn/UI**: High-quality component library
 - **Design tokens**: Consistent colors, spacing, typography
@@ -99,6 +100,7 @@ Built with a cohesive design system:
 Environment variables are loaded from `apps/web/.env.local` (created automatically by `make setup`).
 
 Key variables for local development:
+
 - `VITE_BACKEND_URL` - API backend URL (default: http://localhost:5000)
 - `VITE_MONO_PUBLIC_KEY` - Mono bank integration key (optional)
 
@@ -116,7 +118,8 @@ import { api } from '../lib/axios';
 
 // Fully typed request/response
 type LoginRequest = paths['/auth/login']['post']['requestBody']['content']['application/json'];
-type LoginResponse = paths['/auth/login']['post']['responses']['200']['content']['application/json'];
+type LoginResponse =
+  paths['/auth/login']['post']['responses']['200']['content']['application/json'];
 
 export async function login(data: LoginRequest): Promise<LoginResponse> {
   const response = await api.post('/auth/login', data);
@@ -143,10 +146,10 @@ export function useCompanies() {
 // Usage in component
 function CompanyList() {
   const { data: companies, isLoading, error } = useCompanies();
-  
+
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading companies</div>;
-  
+
   return (
     <ul>
       {companies?.map(company => (
@@ -187,17 +190,17 @@ vi.mock('../api/auth', () => ({
 
 test('submits login form with correct data', async () => {
   render(<LoginForm />);
-  
+
   fireEvent.change(screen.getByLabelText(/email/i), {
     target: { value: 'test@example.com' }
   });
-  
+
   fireEvent.change(screen.getByLabelText(/password/i), {
     target: { value: 'password123' }
   });
-  
+
   fireEvent.click(screen.getByRole('button', { name: /login/i }));
-  
+
   expect(login).toHaveBeenCalledWith({
     email: 'test@example.com',
     password: 'password123'
@@ -252,7 +255,7 @@ src/features/invoices/
 │   ├── InvoiceForm.tsx
 │   └── InvoiceDetail.tsx
 ├── api.ts              # API integration
-├── hooks.ts           # Feature-specific hooks  
+├── hooks.ts           # Feature-specific hooks
 ├── types.ts           # TypeScript types
 ├── constants.ts       # Feature constants
 └── utils.ts           # Feature utilities
@@ -263,11 +266,12 @@ src/features/invoices/
 ### Server State (React Query)
 
 For data from the API:
+
 ```typescript
 // Queries for fetching data
 const { data, isLoading, error } = useQuery({...});
 
-// Mutations for creating/updating data  
+// Mutations for creating/updating data
 const mutation = useMutation({
   mutationFn: createInvoice,
   onSuccess: () => {
@@ -280,6 +284,7 @@ const mutation = useMutation({
 ### Client State (Zustand)
 
 For UI state and temporary data:
+
 ```typescript
 import { create } from 'zustand';
 
@@ -339,6 +344,7 @@ dist/
 ## 🛠️ Development Workflow
 
 1. **Start development**:
+
    ```bash
    make web-dev  # From root, or pnpm dev from apps/web
    ```
@@ -346,11 +352,13 @@ dist/
 2. **Make changes** to source files (hot reload enabled)
 
 3. **Run quality checks**:
+
    ```bash
    make check    # Lint, typecheck, format from root
    ```
 
 4. **Run tests**:
+
    ```bash
    pnpm test     # From apps/web
    ```
@@ -363,21 +371,27 @@ dist/
 ## 🔍 Common Issues
 
 ### Build Issues
+
 If Vite build fails:
+
 ```bash
 rm -rf node_modules/.vite  # Clear Vite cache
 pnpm dev                   # Restart development server
 ```
 
 ### Type Issues
+
 If TypeScript compilation fails:
+
 ```bash
 make contracts     # Regenerate API types
 pnpm typecheck    # Check for remaining type errors
 ```
 
 ### API Connection Issues
+
 If API calls fail:
+
 - Verify API is running on http://localhost:5000
 - Check `VITE_BACKEND_URL` in `.env.local`
 - Check browser network tab for CORS errors

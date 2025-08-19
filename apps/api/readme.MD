@@ -51,6 +51,7 @@ src/
 ### Domain-Driven Structure
 
 Each domain follows a consistent structure:
+
 ```
 domains/users/
 ├── users.model.ts        # Database models and queries
@@ -63,6 +64,7 @@ domains/users/
 ## 🗄️ Database
 
 ### Local Development Database
+
 - **Host**: localhost:5433 (Docker)
 - **Database**: `accountable_books`
 - **User/Pass**: `user`/`password`
@@ -99,8 +101,9 @@ pnpm migrate:rollback
 Environment variables are loaded from `apps/api/.env.local` (created automatically by `make setup`).
 
 Key variables for local development:
+
 - `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis connection string  
+- `REDIS_URL` - Redis connection string
 - `JWT_ACCESS_SECRET` - JWT signing secret
 - `PORT` - API server port (default: 5000)
 
@@ -140,10 +143,8 @@ describe('User API', () => {
   });
 
   it('should create a user', async () => {
-    const response = await request(app)
-      .post('/users')
-      .send({ email: 'test@example.com' });
-      
+    const response = await request(app).post('/users').send({ email: 'test@example.com' });
+
     expect(response.status).toBe(201);
   });
 });
@@ -154,10 +155,12 @@ describe('User API', () => {
 The API uses BullMQ for background job processing:
 
 ### Available Queues
+
 - **Email Queue**: Sending emails via Postmark
 - **Analytics Queue**: Tracking events to Mixpanel
 
 ### Development
+
 - **Bull Board**: http://localhost:5000/admin/queues (admin/secret)
 - **Redis Commander**: Connect to localhost:6380
 
@@ -169,19 +172,21 @@ import { emailQueue } from '../jobs/queues/email.queue.js';
 await emailQueue.add('welcome-email', {
   to: 'user@example.com',
   template: 'welcome',
-  data: { name: 'John' }
+  data: { name: 'John' },
 });
 ```
 
 ## 📖 API Documentation
 
 ### Interactive Documentation
+
 - **Swagger UI**: http://localhost:5000/docs (when running)
 - **OpenAPI Spec**: `http://localhost:5000/docs/json`
 
 ### Contract-First Development
 
 API contracts are defined in `/packages/contracts/` and automatically generate:
+
 1. **TypeScript types** for request/response objects
 2. **Validation schemas** for runtime validation
 3. **API documentation** via Swagger
@@ -196,11 +201,13 @@ API contracts are defined in `/packages/contracts/` and automatically generate:
 ## 🔐 Authentication & Security
 
 ### JWT Authentication
+
 - **Access tokens**: Short-lived (15 minutes)
 - **Refresh tokens**: Long-lived (7 days)
 - **Secure cookies**: HttpOnly, SameSite=Strict
 
 ### Security Middleware
+
 - **Rate limiting**: Per-IP and per-user limits
 - **CORS**: Configured for frontend domain
 - **Helmet**: Security headers
@@ -209,11 +216,13 @@ API contracts are defined in `/packages/contracts/` and automatically generate:
 ## 📊 Monitoring & Observability
 
 ### Development
+
 - **Structured logging**: JSON logs via Pino
 - **Error tracking**: Console logging in development
 - **Performance**: Basic Express metrics
 
 ### Production Ready
+
 - **Sentry**: Error tracking (configure `SENTRY_DSN`)
 - **Mixpanel**: User analytics (configure `MIXPANEL_TOKEN`)
 
@@ -229,8 +238,9 @@ pnpm start              # Run production build
 ### Environment Setup
 
 Production requires:
+
 - **PostgreSQL**: With required extensions
-- **Redis**: For sessions and queues  
+- **Redis**: For sessions and queues
 - **Environment variables**: See [Environment Guide](../../docs/ENVIRONMENT.md)
 
 ### Health Checks
@@ -241,6 +251,7 @@ Production requires:
 ## 🛠️ Development Workflow
 
 1. **Start development**:
+
    ```bash
    make api-dev  # From root, or pnpm dev from apps/api
    ```
@@ -248,11 +259,13 @@ Production requires:
 2. **Make changes** to source files (auto-reloads)
 
 3. **Run quality checks**:
+
    ```bash
    make check    # Lint, typecheck, format from root
    ```
 
 4. **Run tests**:
+
    ```bash
    pnpm test     # From apps/api
    ```
@@ -265,21 +278,27 @@ Production requires:
 ## 🔍 Common Issues
 
 ### Database Connection Issues
+
 If you see connection refused errors:
+
 ```bash
 make db-up      # Ensure database is running
 make db-logs    # Check database startup logs
 ```
 
 ### Migration Issues
+
 For migration-related problems:
+
 ```bash
 make db-shell   # Connect to database
 \dt             # List tables to check state
 ```
 
 ### Type Issues
+
 If TypeScript compilation fails:
+
 ```bash
 make contracts  # Regenerate types from OpenAPI
 pnpm typecheck  # Check for type errors
@@ -300,7 +319,7 @@ See [Troubleshooting Guide](../../docs/TROUBLESHOOTING.md) for comprehensive sol
 ## 🤝 Contributing
 
 1. **Follow existing patterns** in the codebase
-2. **Add tests** for new functionality  
+2. **Add tests** for new functionality
 3. **Update contracts** for API changes
 4. **Run quality checks** before committing
 5. **Write clear commit messages**

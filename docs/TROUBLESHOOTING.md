@@ -5,13 +5,17 @@ Common issues and solutions for Accountable Books development.
 ## Quick Fixes
 
 ### 🔄 Nuclear Reset
+
 If things are completely broken, try a full reset:
+
 ```bash
 make clean-all  # Nuclear cleanup: removes everything and reinstalls
 ```
 
 ### 🧹 Partial Reset
+
 For less dramatic issues:
+
 ```bash
 make clean      # Clean Docker containers and generated files
 make setup      # Re-setup environment
@@ -24,7 +28,9 @@ make setup      # Re-setup environment
 **Problem**: Docker permission denied errors on Linux/WSL
 
 **Solutions**:
+
 1. Add your user to the docker group:
+
    ```bash
    sudo usermod -aG docker $USER
    # Log out and back in
@@ -40,7 +46,9 @@ make setup      # Re-setup environment
 **Problem**: Package installation fails behind corporate firewall
 
 **Solutions**:
+
 1. Configure pnpm registry:
+
    ```bash
    pnpm config set registry https://registry.npmjs.org/
    ```
@@ -56,7 +64,9 @@ make setup      # Re-setup environment
 **Problem**: Database never becomes ready
 
 **Solutions**:
+
 1. Check Docker logs:
+
    ```bash
    make db-logs
    ```
@@ -81,12 +91,15 @@ make setup      # Re-setup environment
 **Root Cause**: Database service not running or not ready
 
 **Solutions**:
+
 1. Check if database is running:
+
    ```bash
    docker ps | grep accountable-books-db
    ```
 
 2. Start database services:
+
    ```bash
    make db-up
    sleep 10  # Wait for startup
@@ -102,7 +115,9 @@ make setup      # Re-setup environment
 **Problem**: Migrations fail because tables already exist
 
 **Solutions**:
+
 1. Check migration status:
+
    ```bash
    make db-shell
    \dt  -- List tables
@@ -123,7 +138,9 @@ make setup      # Re-setup environment
 **Problem**: Database connected but missing extensions or data
 
 **Solutions**:
+
 1. Ensure migrations ran successfully:
+
    ```bash
    make db-migrate
    ```
@@ -142,23 +159,26 @@ make setup      # Re-setup environment
 **Problem**: `Error: listen EADDRINUSE :::5433`
 
 **Solutions**:
+
 1. Find what's using the port:
+
    ```bash
    # On macOS/Linux
    lsof -i :5433
    lsof -i :6380
    lsof -i :5000
    lsof -i :5173
-   
+
    # On Windows
    netstat -ano | findstr :5433
    ```
 
 2. Stop conflicting services:
+
    ```bash
    # Kill specific process by PID
    kill <PID>
-   
+
    # Or stop common conflicting services
    brew services stop postgresql  # If you have local Postgres
    brew services stop redis       # If you have local Redis
@@ -175,13 +195,16 @@ make setup      # Re-setup environment
 **Problem**: Internal server errors when making requests
 
 **Solutions**:
+
 1. Check API logs:
+
    ```bash
    pnpm --filter @accountable-books/api dev
    # Look for error messages
    ```
 
 2. Verify environment variables:
+
    ```bash
    cat apps/api/.env.local
    # Ensure DATABASE_URL, REDIS_URL are correct
@@ -200,6 +223,7 @@ make setup      # Re-setup environment
 **Problem**: Cross-origin request blocked
 
 **Solutions**:
+
 1. Ensure CORS configuration matches:
    - API `FRONTEND_URL` in `.env.local`
    - Web `VITE_BACKEND_URL` in `.env.local`
@@ -213,9 +237,11 @@ make setup      # Re-setup environment
 **Problem**: React app doesn't load or shows white screen
 
 **Solutions**:
+
 1. Check browser console for errors (F12)
 
 2. Verify web app is running:
+
    ```bash
    pnpm --filter @accountable-books/web dev
    ```
@@ -231,7 +257,9 @@ make setup      # Re-setup environment
 **Problem**: Web app can't connect to API
 
 **Solutions**:
+
 1. Verify API is running on correct port:
+
    ```bash
    curl http://localhost:5000/health
    ```
@@ -247,13 +275,15 @@ make setup      # Re-setup environment
 **Problem**: Node.js not installed or wrong version
 
 **Solutions**:
+
 1. Install Node.js using a version manager:
+
    ```bash
    # Using nvm (recommended)
    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
    nvm install 20
    nvm use 20
-   
+
    # Or using Homebrew (macOS)
    brew install node@20
    ```
@@ -263,6 +293,7 @@ make setup      # Re-setup environment
 **Problem**: pnpm not installed
 
 **Solutions**:
+
 ```bash
 # Install pnpm
 npm install -g pnpm
@@ -279,7 +310,9 @@ pnpm --version
 **Problem**: "engines" field mismatch errors
 
 **Solutions**:
+
 1. Check required Node version:
+
    ```bash
    cat package.json | grep -A 2 engines
    ```
@@ -296,6 +329,7 @@ pnpm --version
 **Problem**: Docker not installed
 
 **Solutions**:
+
 1. Install Docker Desktop:
    - [macOS](https://docs.docker.com/desktop/install/mac-install/)
    - [Windows](https://docs.docker.com/desktop/install/windows-install/)
@@ -306,12 +340,14 @@ pnpm --version
 **Problem**: `Cannot connect to the Docker daemon`
 
 **Solutions**:
+
 1. Start Docker Desktop application
 2. Or start Docker service:
+
    ```bash
    # On Linux with systemd
    sudo systemctl start docker
-   
+
    # On macOS/Windows, start Docker Desktop app
    ```
 
@@ -322,7 +358,9 @@ pnpm --version
 **Problem**: TypeScript compilation fails with type errors
 
 **Solutions**:
+
 1. Regenerate types from OpenAPI:
+
    ```bash
    make contracts  # Validates, bundles, and generates types
    ```
@@ -340,6 +378,7 @@ pnpm --version
 **Problem**: `make setup` or `make dev` takes too long
 
 **Solutions**:
+
 1. Increase Docker memory allocation (Docker Desktop settings)
 2. Use faster package manager:
    ```bash

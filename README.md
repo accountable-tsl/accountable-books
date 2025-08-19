@@ -123,7 +123,7 @@ PostgreSQL 17.5 with custom extensions:
 
 3. **Access services:**
    - API: http://localhost:5000
-   - Web App: http://localhost:5173  
+   - Web App: http://localhost:5173
    - Database: localhost:5433
    - Redis: localhost:6380
    - API Docs: http://localhost:5000/docs
@@ -139,12 +139,13 @@ PostgreSQL 17.5 with custom extensions:
 ## 🔧 Environment Setup
 
 The `make setup` command automatically:
+
 - ✅ Creates `.env.local` files from `.env.example` templates
 - ✅ Installs all dependencies
 - ✅ Starts database services
 - ✅ Runs database migrations
 
-**Most configuration works out-of-the-box for local development.** 
+**Most configuration works out-of-the-box for local development.**
 
 For production or custom setups, see the [Environment Variables Guide](docs/ENVIRONMENT.md).
 
@@ -153,12 +154,13 @@ For production or custom setups, see the [Environment Variables Guide](docs/ENVI
 **Having issues?** Check our [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for solutions to common problems:
 
 - Docker/Database connection issues
-- Port conflicts  
+- Port conflicts
 - Node.js version problems
 - Permission errors
 - Build failures
 
 **Quick fix for most issues:**
+
 ```bash
 make clean-all  # Nuclear reset - removes everything and reinstalls
 ```
@@ -185,11 +187,13 @@ make clean-all  # Nuclear reset - removes everything and reinstalls
 Git hooks are automatically configured to ensure code quality:
 
 **Pre-commit hooks** (run automatically on `git commit`):
+
 - ✅ **Lint & format** changed files (ESLint + Prettier)
 - ✅ **Validate OpenAPI contracts** if changed
 - ✅ **Bundle contracts** and add generated files to commit
 
 **Pre-push hooks** (run automatically on `git push`):
+
 - ✅ **Type checking** across all packages
 - ✅ **Run tests** to ensure nothing is broken
 - ✅ **Build verification** to catch build issues
@@ -200,7 +204,7 @@ Run these commands manually when needed:
 
 ```bash
 make check      # Full quality check (lint, typecheck, format)
-make test       # Run all tests  
+make test       # Run all tests
 make build      # Build all packages
 make contracts  # Validate, bundle, and generate types from OpenAPI
 ```
@@ -210,13 +214,15 @@ make contracts  # Validate, bundle, and generate types from OpenAPI
 ### Development Process
 
 1. **Clone and setup**:
+
    ```bash
    git clone <repo-url>
-   cd accountable-books  
+   cd accountable-books
    make setup
    ```
 
 2. **Create feature branch**:
+
    ```bash
    git checkout -b feature/my-feature
    ```
@@ -235,7 +241,7 @@ make contracts  # Validate, bundle, and generate types from OpenAPI
 
 - **Follow existing patterns** in the codebase
 - **TypeScript strict mode** - no `any` types
-- **Feature-first organization** - group related code together  
+- **Feature-first organization** - group related code together
 - **Write tests** for new functionality
 - **Update documentation** for significant changes
 - **Clear commit messages** following conventional commits
