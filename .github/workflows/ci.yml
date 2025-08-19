@@ -50,6 +50,9 @@ jobs:
       - name: Generate types (required for typecheck)
         run: pnpm run codegen
 
+      - name: Format generated files
+        run: pnpm run format packages/api-types/src/generated/
+
       - name: Lint workspace
         run: pnpm run lint
 
@@ -82,6 +85,9 @@ jobs:
 
       - name: Generate types (required for builds)
         run: pnpm run codegen
+
+      - name: Format generated files
+        run: pnpm run format packages/api-types/src/generated/
 
       - name: Build ${{ matrix.package }}
         run: pnpm --filter @accountable-books/${{ matrix.package }} build
