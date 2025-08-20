@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "generate-env": "tsx scripts/generate-env.ts",
     "knex": "tsx node_modules/knex/bin/cli.js",
     "migrate:make": "pnpm run knex migrate:make -x ts --knexfile knexfile.ts",
     "migrate:local": "pnpm run knex migrate:latest --env local --knexfile knexfile.ts",
@@ -59,7 +60,8 @@
     "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0",
     "zod": "^3.24.2",
-    "@accountable-books/api-types": "workspace:*"
+    "@accountable-books/api-types": "workspace:*",
+    "@accountable-books/utils": "workspace:*"
   },
   "devDependencies": {
     "@faker-js/faker": "^9.7.0",

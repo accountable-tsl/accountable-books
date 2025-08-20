@@ -53,6 +53,9 @@ jobs:
       - name: Format generated files
         run: pnpm run format packages/api-types/src/generated/
 
+      - name: Build shared packages for typecheck
+        run: pnpm --filter @accountable-books/utils build
+
       - name: Lint workspace
         run: pnpm run lint
 
@@ -89,8 +92,11 @@ jobs:
       - name: Format generated files
         run: pnpm run format packages/api-types/src/generated/
 
-      - name: Build api-types package
-        run: pnpm --filter @accountable-books/api-types build
+      - name: Build shared packages (api-types, utils)
+        run: pnpm --filter @accountable-books/api-types build && pnpm --filter @accountable-books/utils build
+
+      - name: Generate environment files
+        run: pnpm --filter @accountable-books/${{ matrix.package }} generate-env
 
       - name: Build ${{ matrix.package }}
         run: pnpm --filter @accountable-books/${{ matrix.package }} build

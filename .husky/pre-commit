@@ -5,6 +5,13 @@ export CI=1 TURBO_TELEMETRY_DISABLED=1 TURBO_TERM=plain
 # pre-commit
 echo "🔍 Running pre-commit checks..."
 
+# Ensure essential environment files exist
+echo "🔍 Validating environment files..."
+if [ ! -f "apps/api/.env.test" ] || [ ! -f "apps/api/.env.example" ] || [ ! -f "apps/web/.env.test" ] || [ ! -f "apps/web/.env.example" ]; then
+  echo "❌ Missing essential environment files. Run 'pnpm run generate-env' to generate them."
+  exit 1
+fi
+
 # Run lint-staged for changed files (includes linting, formatting, contract validation)
 pnpm lint-staged
 

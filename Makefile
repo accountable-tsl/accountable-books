@@ -16,21 +16,13 @@ help: ## Display this help
 
 setup: ## Setup complete development environment
 	@echo "$(GREEN)Setting up development environment...$(RESET)"
-	@echo "$(YELLOW)📋 Setting up environment files...$(RESET)"
-	@if [ ! -f apps/api/.env.local ]; then \
-		cp apps/api/.env.example apps/api/.env.local && \
-		echo "$(GREEN)✓ Created apps/api/.env.local$(RESET)"; \
-	else \
-		echo "$(YELLOW)⚠️ apps/api/.env.local already exists$(RESET)"; \
-	fi
-	@if [ ! -f apps/web/.env.local ]; then \
-		cp apps/web/.env.example apps/web/.env.local && \
-		echo "$(GREEN)✓ Created apps/web/.env.local$(RESET)"; \
-	else \
-		echo "$(YELLOW)⚠️ apps/web/.env.local already exists$(RESET)"; \
-	fi
 	@echo "$(YELLOW)📦 Installing dependencies...$(RESET)"
 	pnpm install
+	@echo "$(YELLOW)🔧 Building shared packages...$(RESET)"
+	pnpm --filter @accountable-books/utils build
+	@echo "$(YELLOW)📋 Generating environment files...$(RESET)"
+	pnpm --filter @accountable-books/api generate-env
+	pnpm --filter @accountable-books/web generate-env
 	@echo "$(YELLOW)🐳 Starting database services...$(RESET)"
 	$(MAKE) db-up
 	@echo "$(YELLOW)⏳ Waiting for database to be ready...$(RESET)"
