@@ -16,6 +16,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Load test environment variables from .env.test
+    env: {
+      NODE_ENV: 'test',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
