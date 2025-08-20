@@ -19,15 +19,20 @@ const envFileMap: Record<NodeEnv, string> = {
 
 const determineEnvKey = (): NodeEnv => {
   // Get base env without 'docker.' prefix if it exists
-  const baseEnv = process.env.NODE_ENV || 'dev';
-  const dockerKey = `docker.${baseEnv}` as NodeEnv;
+  const baseEnv = process.env.NODE_ENV || 'local';
 
-  // Check if the constructed key is valid
+  // First check if the base env is directly supported
+  if (Object.keys(envFileMap).includes(baseEnv)) {
+    return baseEnv as NodeEnv;
+  }
+
+  // Then check if there's a docker variant
+  const dockerKey = `docker.${baseEnv}` as NodeEnv;
   if (Object.keys(envFileMap).includes(dockerKey)) {
     return dockerKey;
   }
 
-  // Fallback
+  // Fallback to local
   return 'local';
 };
 
