@@ -1,4 +1,4 @@
-# Demo Seeds (DEX)
+# Demo Seeds
 
 Deterministic, idempotent, and reversible demo seeding for six companies with clear steps, targeting, and progress reporting.
 
@@ -19,31 +19,31 @@ Key features:
 From repo root (executed with tsx):
 
 ```
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts apply --all
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply --all
 
 # or target subsets
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts apply --country US
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts apply --country NG --type business
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts apply --company firmDemoUS
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply --country US
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply --country NG --type business
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply --company firmDemoUS
 
 # add an extra step across targets (e.g., bank accounts)
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts add --step bank-accounts --all
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts add --step bank-accounts --all
 
 # purge artifacts (reversible)
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts purge --company indDemoNG
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts purge --country US --type accounting_firm
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts purge --all
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts purge --company indDemoNG
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts purge --country US --type accounting_firm
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts purge --all
 
 # inspect
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts list
-pnpm --filter @accountable-books/api exec tsx apps/api/seeds-dex/cli.ts status --company bizDemoUS
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts list
+pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts status --company bizDemoUS
 ```
 
 ### Advanced
 
 - Parallel runs: add `--parallel`
 - Stop on first error: add `--bail`
-- Custom scenarios file: `--config apps/api/seeds-dex/config/scenarios.json`
+- Custom scenarios file: `--config apps/api/seeds/demo/config/scenarios.json`
 - Include transactions step (stub only): `--step bank-transactions` (requires future implementation)
 
 ### Help
