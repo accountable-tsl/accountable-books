@@ -1,6 +1,6 @@
-import { FetchProjectsParams, NewProject } from '@/features/projects/projects-types';
+import type { FetchProjectsParams, NewProject } from '@/features/projects/projects-types';
 import { queryClient } from '@/lib/queryClient';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { addNewProjects, fetchProjects } from '@/features/projects/projects-api';
 import { toast } from 'sonner';
 

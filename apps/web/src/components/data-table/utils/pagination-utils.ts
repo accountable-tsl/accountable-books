@@ -1,4 +1,4 @@
-import { PaginationOptions } from '@/components/data-table/types/data-table';
+import type { PaginationOptions } from '@/components/data-table/types/data-table';
 
 interface PageSizeOptionsParams {
   options?: PaginationOptions;

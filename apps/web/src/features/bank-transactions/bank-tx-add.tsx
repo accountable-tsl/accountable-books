@@ -1,5 +1,3 @@
-import { BankTransactionImporter } from '@/features/bankConnection/manualUpload/BankTransactionImporter';
-import { BankAccount } from '../onboarding/steps/BankAccount';
 import { UploadBankTransactions } from '@/features/bank-transactions/manual-upload/upload';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';

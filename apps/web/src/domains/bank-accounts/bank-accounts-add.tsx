@@ -5,13 +5,13 @@ import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useCountries } from '@/shared/hooks/useCountries';
 import ErrorPage from '../../components/ErrorPage';
 import { getDefaultCountryAndCurrency } from '@/shared/utils/random-utils';
-import { companyType, Country } from '@/shared/types/core';
+import { companyType, type Country } from '@/shared/types/core';
 import { Controller, useForm } from 'react-hook-form';
 import {
-  AddBankAccountProps,
+  type AddBankAccountProps,
   bankAccountType,
-  BankAccountWithMeta,
-  NewBankAccountInput,
+  type BankAccountWithMeta,
+  type NewBankAccountInput,
   newBankAccountInput,
 } from '@/domains/bank-accounts/types';
 import { zodResolver } from '@hookform/resolvers/zod';

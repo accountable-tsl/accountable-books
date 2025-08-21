@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { DataTableProps } from '@/components/data-table/types/data-table';
+import type { DataTableProps } from '@/components/data-table/types/data-table';
 import { getPageSizeOptions } from '@/components/data-table/utils/pagination-utils';
 import { useCallback, useMemo } from 'react';
 

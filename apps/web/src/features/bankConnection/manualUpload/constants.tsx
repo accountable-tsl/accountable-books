@@ -1,4 +1,4 @@
-import { SpreadsheetImporterField } from '@/features/spreadsheets/types';
+import type { SpreadsheetImporterField } from '@/features/spreadsheets/types';
 import { formatDate, parseDateString } from '@/shared/utils/formatting-utils';
 import { FormattedAmount } from '@/components/FormattedAmount';
 import Decimal from 'decimal.js';

@@ -1,5 +1,5 @@
 import { toTitleCase } from '@/shared/utils/formatting-utils';
-import {
+import type {
   ActionSummary,
   AnalyzeSelectionResponse,
   CoaResponse,

@@ -1,11 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { SpreadsheetImporter } from '@/features/spreadsheets/SpreadsheetImporter';
-import { ParsedCsvResult, SpreadsheetImporterField } from '@/features/spreadsheets/types';
+import type { ParsedCsvResult, SpreadsheetImporterField } from '@/features/spreadsheets/types';
 import { cn } from '@/lib/utils';
 import { useCallback, useState } from 'react';
-import { CreateCoa, createCoaSchema } from '@/features/coa/types';
+import { type CreateCoa, createCoaSchema } from '@/features/coa/types';
 import { useCompanyCoa } from '@/features/coa/hooks';
-import { EnrichedAccountType } from '@/domains/account-classification/types';
+import type { EnrichedAccountType } from '@/domains/account-classification/types';
 import { XCircle } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 

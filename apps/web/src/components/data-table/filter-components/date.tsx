@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { formatDate } from '@/components/data-table/utils/format';
-import { DateRange } from 'react-day-picker';
+import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 
 type DateSelection = Date[] | DateRange;

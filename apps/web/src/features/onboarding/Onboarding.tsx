@@ -4,14 +4,14 @@ import { Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   getPathByStepKey,
-  OnboardingPathKey,
+  type OnboardingPathKey,
   onboardingSteps,
   onboardingStepsConfig,
 } from '@/features/onboarding/utils';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { EnrichedOnboardingStep, OnboardingState } from '@/features/onboarding/types';
+import type { EnrichedOnboardingStep, OnboardingState } from '@/features/onboarding/types';
 import { CenteredLoader } from '@/components/CenteredLoader';
-import { CompanyData } from '@/domains/company/types';
+import type { CompanyData } from '@/domains/company/types';
 import ErrorPage from '@/components/ErrorPage';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { MockSidebar } from '@/components/SideBar';

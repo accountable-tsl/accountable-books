@@ -18,7 +18,7 @@ export const useSlugCheck = (slug: string, currentSlug?: string) => {
     enabled: shouldCheck,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 30, // 30 minutes
-    retry: (failureCount, error: unknown) => {
+    retry: (failureCount, error: any) => {
       if (error?.response?.status >= 400 && error?.response?.status < 500) {
         return false;
       }

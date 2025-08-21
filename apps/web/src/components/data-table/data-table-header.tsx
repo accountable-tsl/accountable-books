@@ -1,4 +1,4 @@
-import { DataTableProps } from '@/components/data-table/types/data-table';
+import type { DataTableProps } from '@/components/data-table/types/data-table';
 import { TableHeader, TableRow, TableCell } from '@/components/CustomTable';
 import { flexRender } from '@tanstack/react-table';
 import { DataTableResizer } from '@/components/data-table/data-table-resizer';

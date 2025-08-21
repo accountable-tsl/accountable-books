@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { checkSlug } from '../firms/api';
 
 export const companyType = z.enum(['business', 'accounting_firm', 'individual']);
 export type CompanyType = z.infer<typeof companyType>;

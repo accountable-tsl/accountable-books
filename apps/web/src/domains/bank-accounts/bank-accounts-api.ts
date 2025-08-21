@@ -1,6 +1,6 @@
 import api from '@/lib/axios';
-import { ApiResponse } from '@/shared/types/core';
-import { BankAccountWithMeta } from '@/domains/bank-accounts/types';
+import type { ApiResponse } from '@/shared/types/core';
+import type { BankAccountWithMeta } from '@/domains/bank-accounts/types';
 
 // export const createBankAccount = async (
 //   companyId: string,

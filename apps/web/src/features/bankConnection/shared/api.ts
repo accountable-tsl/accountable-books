@@ -1,10 +1,10 @@
-import { BankAccountWithMeta, NewBankAccountInput } from '@/domains/bank-accounts/types';
-import {
+import type { BankAccountWithMeta, NewBankAccountInput } from '@/domains/bank-accounts/types';
+import type {
   AddBankTransactionsResponse,
   BankTransactionBatchInput,
 } from '@/features/bankConnection/manualUpload/types';
 import api from '@/lib/axios';
-import { ApiResponse } from '@/shared/types/core';
+import type { ApiResponse } from '@/shared/types/core';
 
 export const addNewBankTransactions = async (
   companyId: string,

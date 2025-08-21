@@ -1,10 +1,10 @@
 import {
-  CoaResponse,
-  CoaUpdateResponse,
-  CreateCoa,
+  type CoaResponse,
+  type CoaUpdateResponse,
+  type CreateCoa,
   createCoaSchema,
-  EditCoaRequest,
-  FetchCoaInput,
+  type EditCoaRequest,
+  type FetchCoaInput,
 } from '@/features/coa/types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {

@@ -2,13 +2,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConnectBankAccount from '@/features/bankConnection/connectViaFeed/ConnectBankAccount';
 import { BankTransactionImporter } from '@/features/bankConnection/manualUpload/BankTransactionImporter';
-import { BankTransactionImportOptions } from '@/features/bankConnection/manualUpload/types';
+import type { BankTransactionImportOptions } from '@/features/bankConnection/manualUpload/types';
 import { useCallback, useState } from 'react';
-import { updateCompanyOnboardingStatus } from '../api';
 import { useCompany } from '@/domains/company/store';
 import { toast } from 'sonner';
-import { fetchSession } from '@/features/auth/api';
-import { OnboardingStatus } from '@/domains/company/types';
+import type { OnboardingStatus } from '@/domains/company/types';
 import { useSession } from '@/features/auth/Session';
 import { useNavigate } from 'react-router-dom';
 

@@ -1,5 +1,5 @@
 import { Building2Icon, CreditCardIcon, MailCheckIcon, Settings } from 'lucide-react';
-import { OnboardingSidebarItem, OnboardingStepKey } from './types';
+import type { OnboardingSidebarItem, OnboardingStepKey } from './types';
 import { routes } from '@/shared/routes/routes';
 import { VerifyEmail } from './steps/VerifyEmail';
 import { CompanyInfo } from './steps/CompanyInfo';

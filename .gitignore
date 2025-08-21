@@ -53,3 +53,5 @@ prisma/*
 packages/contracts/dist/
 CLAUDE.md
 CLAUDE.local.md
+GEMINI.md
+AGENTS.md

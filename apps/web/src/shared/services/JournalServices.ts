@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { PostJournalPayload } from '../types/core';
+import type { PostJournalPayload } from '../types/core';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 

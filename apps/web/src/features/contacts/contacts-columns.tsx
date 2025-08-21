@@ -1,5 +1,5 @@
-import { ColumnDef } from '@tanstack/react-table';
-import { Contacts, ContactStatus } from '@/features/contacts/contacts-types';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { Contacts, ContactStatus } from '@/features/contacts/contacts-types';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
 import { Mail, MailX } from 'lucide-react';
 

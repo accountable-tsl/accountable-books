@@ -1,5 +1,5 @@
 import { Checkbox } from '@/components/ui/checkbox';
-import { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 
 export function createSelectionColumn<T>(id?: string): ColumnDef<T, any> {
   return {

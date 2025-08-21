@@ -1,6 +1,5 @@
 // import crypto from "crypto";
-import { bankAccountType, BankAccountWithMeta } from '@/domains/bank-accounts/types';
-import { ConnectionResponse } from './types';
+import type { ConnectionResponse } from './types';
 
 const generateId = () =>
   typeof window !== 'undefined' && window.crypto?.randomUUID

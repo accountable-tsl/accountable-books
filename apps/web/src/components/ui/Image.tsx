@@ -1,4 +1,4 @@
-import React, { forwardRef, ImgHTMLAttributes, useState, useMemo } from 'react';
+import React, { forwardRef, type ImgHTMLAttributes, useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface ImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'> {

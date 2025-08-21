@@ -1,8 +1,6 @@
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { useState } from 'react';
-import { QuickFilterOptions } from './types';
+import type { QuickFilterOptions } from './types';
 
 interface QuickFilterProps {
   isMobile?: boolean;

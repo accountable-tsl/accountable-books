@@ -1,6 +1,10 @@
 import { addNewContacts, fetchContacts } from '@/features/contacts/contacts-api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { GetContactsParams, newContact, NewContact } from '@/features/contacts/contacts-types';
+import {
+  type GetContactsParams,
+  newContact,
+  type NewContact,
+} from '@/features/contacts/contacts-types';
 import { toast } from 'sonner';
 
 const CACHE_TIMES = {

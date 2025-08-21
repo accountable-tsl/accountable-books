@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
-import { Column } from '@tanstack/react-table';
+import type { Column } from '@tanstack/react-table';
 import { PlusCircle, XCircle } from 'lucide-react';
 import React from 'react';
 

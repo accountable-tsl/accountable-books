@@ -2,7 +2,7 @@ import { CenteredLoader } from '@/components/CenteredLoader';
 import { useSession } from '@/features/auth/Session';
 import { routes } from '@/shared/routes/routes';
 import { isPublicRoute } from '@/shared/routes/utils';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 
 export function RootRedirector() {

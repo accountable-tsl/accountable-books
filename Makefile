@@ -2,6 +2,7 @@
 .PHONY: db-up db-down db-restart db-migrate db-rollback db-seed db-logs db-shell
 .PHONY: api-dev api-build api-test web-dev web-build web-test docker-up docker-down docker-build docker-clean
 .PHONY: validate-contracts bundle-contracts bundle-contracts-watch clean-bundled codegen contracts
+.PHONY: demo-apply demo-add demo-purge demo-list demo-status
 
 # Colors for output
 GREEN := \033[32m
@@ -26,7 +27,7 @@ setup: ## Setup complete development environment
 	@echo "$(YELLOW)🐳 Starting database services...$(RESET)"
 	$(MAKE) db-up
 	@echo "$(YELLOW)⏳ Waiting for database to be ready...$(RESET)"
-	@sleep 5
+	@timeout 30 sh -c 'until docker exec accountable-books-db pg_isready -U user -d accountable_books; do sleep 1; done' || (echo "$(RED)Database failed to start$(RESET)" && exit 1)
 	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
 	$(MAKE) db-migrate
 	@echo ""
@@ -41,6 +42,7 @@ dev: db-up contracts ## Start development environment
 ##@ Database
 db-up: ## Start database services
 	@echo "$(GREEN)Starting database...$(RESET)"
+	@if [ ! -f docker-compose.dev.yml ]; then echo "$(RED)docker-compose.dev.yml not found$(RESET)"; exit 1; fi
 	docker-compose -f docker-compose.dev.yml up -d db redis
 
 db-down: ## Stop database services
@@ -61,14 +63,39 @@ db-seed: ## Seed database with test data
 	@echo "$(GREEN)Seeding database...$(RESET)"
 	pnpm --filter @accountable-books/api seed:demo
 
+##@ Demo Seeds (DEX)
+demo-apply: ## Apply demo seeds (use ARGS="--all" or e.g. "--country US --parallel")
+	pnpm --filter @accountable-books/api demo:apply -- $(ARGS)
+
+demo-add: ## Apply a single step (use ARGS="--step bank-accounts --all")
+	pnpm --filter @accountable-books/api demo:add -- $(ARGS)
+
+demo-purge: ## Purge demo artifacts (use ARGS="--all" or "--company indDemoNG")
+	pnpm --filter @accountable-books/api demo:purge -- $(ARGS)
+
+demo-list: ## List seed runs
+	pnpm --filter @accountable-books/api demo:list
+
+demo-status: ## Show applied runs (use ARGS="--country NG")
+	pnpm --filter @accountable-books/api demo:status -- $(ARGS)
+
 db-logs: ## Show database logs
 	docker-compose -f docker-compose.dev.yml logs -f db
 
 db-shell: ## Connect to database shell
+	@if ! docker ps | grep -q accountable-books-db; then echo "$(RED)Database container not running. Run 'make db-up' first.$(RESET)"; exit 1; fi
 	docker exec -it accountable-books-db psql -U user -d accountable_books
 
 ##@ API
-api-dev: ## Start API in development mode
+api-dev: db-up ## Start API in development mode
+	@echo "$(GREEN)Starting API in development mode...$(RESET)"
+	@echo "$(YELLOW)⏳ Waiting for database services to be ready...$(RESET)"
+	@timeout 30 sh -c 'until docker exec accountable-books-db pg_isready -U user -d accountable_books; do sleep 1; done' || (echo "$(RED)Database failed to start$(RESET)" && exit 1)
+	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
+	pnpm --filter @accountable-books/api migrate:local
+	@echo "$(YELLOW)🌱 Seeding database with demo data...$(RESET)"
+	pnpm --filter @accountable-books/api seed:demo
+	@echo "$(GREEN)🚀 Starting API server...$(RESET)"
 	pnpm --filter @accountable-books/api dev
 
 api-build: ## Build API

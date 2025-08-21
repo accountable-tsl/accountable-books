@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { EnrichedOnboardingStep } from '@/features/onboarding/types';
+import type { EnrichedOnboardingStep } from '@/features/onboarding/types';
 import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { OnboardingFormFooter } from '@/features/onboarding/shared/Footer';

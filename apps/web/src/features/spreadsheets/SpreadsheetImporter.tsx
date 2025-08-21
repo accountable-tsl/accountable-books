@@ -10,9 +10,9 @@ import { cn } from '@/lib/utils';
 import { FileUploader } from '@/components/FileUploader';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  FileCardExtraProps,
-  ParsedCsvResult,
-  SpreadsheetImporterProps,
+  type FileCardExtraProps,
+  type ParsedCsvResult,
+  type SpreadsheetImporterProps,
 } from '@/features/spreadsheets/types';
 import {
   getDisplayFields,
@@ -20,7 +20,6 @@ import {
   normalizeRow,
   parseSpreadsheetFile,
   validateHeaders as validateFileHeaders,
-  validateRow,
 } from '@/features/spreadsheets/utils';
 import { FILE_TYPE_MAP } from '@/features/spreadsheets/constants';
 import { SkeletonBlock } from '@/components/SkeletonBlock';

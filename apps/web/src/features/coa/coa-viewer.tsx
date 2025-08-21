@@ -1,10 +1,10 @@
-import { Row } from '@tanstack/react-table';
+import type { Row } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CoaResponse, editCoaRequest, EditCoaRequest } from '@/features/coa/types';
+import { type CoaResponse, editCoaRequest, type EditCoaRequest } from '@/features/coa/types';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Archive,
@@ -28,7 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { useAccountMeta } from '@/domains/account-classification/hooks';
 import { CenteredLoader } from '@/components/CenteredLoader';
-import { ACCOUNT_TYPE_BLACKLIST, BlacklistedType } from '@/features/coa/constants';
+import { ACCOUNT_TYPE_BLACKLIST, type BlacklistedType } from '@/features/coa/constants';
 
 // Constants
 const STYLES = {

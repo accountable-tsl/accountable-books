@@ -3,13 +3,13 @@ import {
   DataTableActionBarAction,
   DataTableActionBarSelection,
 } from '@/components/data-table/action-bar/data-table-action-bar';
-import { CustomTable } from '@/components/data-table/types/data-table';
+import type { CustomTable } from '@/components/data-table/types/data-table';
 import { Separator } from '@/components/ui/separator';
-import { CoaResponse } from '@/features/coa/types';
+import type { CoaResponse } from '@/features/coa/types';
 import { analyzeSelectedAccounts } from '@/features/coa/utils';
 import { cn } from '@/lib/utils';
-import { Row } from '@tanstack/react-table';
-import { Archive, Download, Trash2 } from 'lucide-react';
+import type { Row } from '@tanstack/react-table';
+import { Archive, Trash2 } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { useArchiveCoa, useDeleteCoa } from './hooks';
 

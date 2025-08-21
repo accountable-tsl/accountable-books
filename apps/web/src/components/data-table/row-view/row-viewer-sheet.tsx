@@ -4,9 +4,8 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
-import { Row } from '@tanstack/react-table';
+import type { Row } from '@tanstack/react-table';
 
 interface RowViewerSheetProps<TData> {
   row: Row<TData>;

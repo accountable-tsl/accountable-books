@@ -1,13 +1,13 @@
 import { useCountries } from '@/shared/hooks/useCountries';
 import React, { useCallback, useMemo, useState } from 'react';
 import CountrySelection from '@/features/bankConnection/connectViaFeed/steps/CountrySelection';
-import { Country } from '@/shared/types/core';
+import { type Country } from '@/shared/types/core';
 import { Dot, EyeOff, Lock, Shield } from 'lucide-react';
 import { ProviderSelection } from './steps/ProviderSelection';
-import { BankFeedProvider } from '@/domains/bankFeedProviders/types';
+import { type BankFeedProvider } from '@/domains/bankFeedProviders/types';
 import { useBankFeedProviders } from '@/domains/bankFeedProviders/hooks';
-import { UnsupportedCountryProps } from '@/features/bankConnection/shared/types';
-import { ConnectBankAccountProps, ConnectionResponse } from './types';
+import { type UnsupportedCountryProps } from '@/features/bankConnection/shared/types';
+import { type ConnectBankAccountProps, type ConnectionResponse } from './types';
 import { cn } from '@/lib/utils';
 import { AccountLinked } from './steps/AccountLinked';
 import { handleMonoConnection } from '../widgets/api';

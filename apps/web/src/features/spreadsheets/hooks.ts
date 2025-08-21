@@ -1,6 +1,6 @@
 import * as Papa from 'papaparse';
 import React from 'react';
-import { ParseCsvOptions, ParsedCsvResult } from './types';
+import type { ParseCsvOptions, ParsedCsvResult } from './types';
 import { parseCsvFile } from './utils';
 
 interface CsvState {

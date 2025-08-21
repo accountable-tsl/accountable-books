@@ -24,7 +24,7 @@ import { useAccountMeta, useAccountTypeByKey } from '@/domains/account-classific
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CreateCoa, createCoaSchema } from '@/features/coa/types';
+import { type CreateCoa, createCoaSchema } from '@/features/coa/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/features/auth/Session';
 import { CenteredLoader } from '@/components/CenteredLoader';

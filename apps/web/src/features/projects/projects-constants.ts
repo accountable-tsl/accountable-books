@@ -1,4 +1,4 @@
-import { ProjectStatus } from './projects-types';
+import type { ProjectStatus } from './projects-types';
 
 export const projectStatusOptions: {
   label: string;

@@ -1,4 +1,4 @@
-import { RowViewerProps } from '@/components/data-table/types/row-click';
+import type { RowViewerProps } from '@/components/data-table/types/row-click';
 import { RowViewerSheet } from '@/components/data-table/row-view/row-viewer-sheet';
 
 export function RowViewer<TData>({ rowViewerInfo }: { rowViewerInfo: RowViewerProps<TData> }) {

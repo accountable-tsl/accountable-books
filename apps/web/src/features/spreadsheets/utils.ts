@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
-import Papa, { ParseResult } from 'papaparse';
-import {
+import Papa, { type ParseResult } from 'papaparse';
+import type {
   ParseCsvOptions,
   ParsedCsvResult,
   SpreadsheetAcceptType,

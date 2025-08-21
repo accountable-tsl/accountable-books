@@ -24,6 +24,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "useUnknownInCatchVariables": true
+    // "verbatimModuleSyntax": false
   },
   "include": ["src", "vitest.config.ts", "vitest.setup.ts"],
   "exclude": ["node_modules", "dist"],

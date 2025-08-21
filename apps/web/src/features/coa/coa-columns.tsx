@@ -1,5 +1,5 @@
-import { ColumnDef } from '@tanstack/react-table';
-import { CoaResponse } from '@/features/coa/types';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { CoaResponse } from '@/features/coa/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Text } from 'lucide-react';

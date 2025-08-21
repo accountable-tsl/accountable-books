@@ -4,10 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { Contacts } from '@/features/contacts/contacts-types';
+import type { Contacts } from '@/features/contacts/contacts-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { newProject, NewProject } from '@/features/projects/projects-types';
+import { newProject, type NewProject } from '@/features/projects/projects-types';
 import { toast } from 'sonner';
 import { Success } from '@/components/Success';
 import {
@@ -17,7 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ActionItem, AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import type { ActionItem } from '@/components/AutocompleteDropdown';
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { useContacts } from '@/features/contacts/contacts-hooks';
 import { useSession } from '@/features/auth/Session';
 import { useCreateProjects } from '@/features/projects/projects-hooks';

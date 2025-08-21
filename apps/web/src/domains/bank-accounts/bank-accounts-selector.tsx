@@ -3,7 +3,7 @@ import { FormField } from '@/components/FormField';
 import { useMemo, useState } from 'react';
 import { useCompanyBankAccounts } from '@/domains/bank-accounts/hooks';
 import { useCompany } from '@/domains/company/store';
-import { BankAccountWithMeta } from '@/domains/bank-accounts/types';
+import { type BankAccountWithMeta } from '@/domains/bank-accounts/types';
 import { maskDigits } from '@/shared/utils/formatting-utils';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { Plus } from 'lucide-react';

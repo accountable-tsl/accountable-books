@@ -10,12 +10,12 @@ import {
   exportData,
   exportToCSV,
   exportToExcel,
-  ExportableData,
-  DataTransformFunction,
+  type ExportableData,
+  type DataTransformFunction,
 } from '@/shared/utils/export-utils';
 import { toast } from 'sonner';
 import { useState } from 'react';
-import { CustomTable } from '@/components/data-table/types/data-table';
+import type { CustomTable } from '@/components/data-table/types/data-table';
 
 interface DataTableExportProps<TData extends ExportableData> {
   table: CustomTable<TData>;

@@ -5,18 +5,18 @@ import { useChartOfAccountsQuery } from '@/features/coa/hooks';
 import { useSession } from '@/features/auth/Session';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
-import { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { getCoaTableColumns } from './coa-columns';
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
-import { DataTableToolbarConfig } from '@/components/data-table/toolbar';
+import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
 import { AddAccountSelection } from '@/features/coa/coa-add-selection';
 import { QuickFilter } from '@/features/coa/coa-quickfilter';
 import { getAccountElementOptions } from '@/features/coa/utils';
 import { CoaActionBar } from '@/features/coa/coa-action-bar';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
 import { CoaViewer } from '@/features/coa/coa-viewer';
-import { CoaResponse } from '@/features/coa/types';
+import type { CoaResponse } from '@/features/coa/types';
 import ErrorPage from '@/components/ErrorPage';
 
 export const ChartOfAccounts: React.FC = () => {

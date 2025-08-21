@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
-import { NewContact, newContact } from '@/features/contacts/contacts-types';
+import { type NewContact, newContact } from '@/features/contacts/contacts-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateContacts } from '@/features/contacts/contacts-hooks';
 import { useCallback, useState } from 'react';

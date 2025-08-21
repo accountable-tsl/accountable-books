@@ -1,6 +1,6 @@
 import axios from 'axios';
 import qs from 'qs';
-import {
+import type {
   AccountingTxnFilters,
   BankTransactionBatch,
   BankTransactionFilters,
