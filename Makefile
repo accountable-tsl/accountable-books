@@ -14,8 +14,8 @@ RESET := \033[0m
 
 
 # Config
-DOCKER_COMPOSE_DEV := docker-compose -f docker-compose.dev.yml
-DOCKER_COMPOSE_STAGING := docker-compose -f docker-compose.staging.yml
+DOCKER_COMPOSE_DEV := docker-compose -p acct-dev -f docker-compose.dev.yml
+DOCKER_COMPOSE_STAGING := docker-compose -p -acct-staging -f docker-compose.staging.yml
 
 DB_CONTAINER := accountable-books-db
 DB_NAME := accountable_books
@@ -30,9 +30,7 @@ compose_for = \
       $(error Unknown environment '$(1)'. Use dev, staging, or stg)))
 
 # Map env → compose filename (for lazy existence checks)
-file_for = \
-  $(if $(filter $(1),dev),docker-compose.dev.yml,\
-    $(if $(filter $(1),staging stg),docker-compose.staging.yml,))
+file_for = $(if $(filter $(1),dev),docker-compose.dev.yml,$(if $(filter $(1),staging stg),docker-compose.staging.yml,))
 
 .PHONY: ensure-%
 ensure-%:

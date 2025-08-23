@@ -1,21 +1,21 @@
+networks:
+  accountable-staging:
+    driver: bridge
+
 services:
   # Simple PostgreSQL for staging
   db:
     image: iamtemi/accountable:pg17-cron-vector-v1
+    container_name: books-db-staging
     env_file:
-      - ./apps/api/.env.local
+      - ./apps/api/.env.staging
     volumes:
       - postgres_data_staging:/var/lib/postgresql/data
       - ./backups:/var/backups
-    entrypoint: ['docker-entrypoint.sh']
-    command:
-      - postgres
-      - -c
-      - shared_preload_libraries=pg_cron
-      - -c
-      - cron.database_name=$${POSTGRES_DB}
+    networks:
+      - accountable-staging
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
       timeout: 3s
       retries: 5
@@ -24,57 +24,99 @@ services:
 
   # Simple Redis for staging
   redis:
-    image: redis:8.0.3-alpine
+    image: redis:8.0-alpine
     container_name: accountable-staging-redis
-    command: redis-server --requirepass staging_redis_password
-    ports:
-      - '6385:6379'
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
-      - redis_data:/data
+      - redis_data_staging:/data
+    networks:
+      - accountable-staging
     healthcheck:
-      test: ['CMD', 'redis-cli', '--pass', 'staging_redis_password', 'ping']
+      test: ['CMD', 'redis-cli', '--pass', '${REDIS_PASSWORD}', 'ping']
       interval: 10s
       timeout: 3s
       retries: 3
+    restart: unless-stopped
 
   # API service - run migration then start server
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        - NODE_ENV=staging
     container_name: accountable-staging-api
+    env_file:
+      - ./apps/api/.env.staging
     environment:
-      NODE_ENV: staging
-      DATABASE_URL: postgresql://postgres:staging_password@db:5432/accountable_books
-      REDIS_URL: redis://:staging_redis_password@redis:6379
-      PORT: 5000
-      JWT_ACCESS_SECRET: staging_jwt_secret_key_123
-      JWT_REFRESH_SECRET: staging_jwt_refresh_secret_key_456
+      - NODE_ENV=staging
+      - PORT=5000
     ports:
       - '5000:5000'
+    networks:
+      - accountable-staging
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: sh -c "npx tsx scripts/migrate-staging.ts && node dist/server.js"
+    command: sh -c "npm run migrate:staging && node dist/server.js"
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/health']
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
-  # Web frontend
+    # Web frontend
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        - NODE_ENV=staging
+        - VITE_BACKEND_URL=${STAGING_API_URL:-http://api:5000}
     container_name: accountable-staging-web
     ports:
       - '3000:80'
+    networks:
+      - accountable-staging
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost/']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  ml-engine:
+    build:
+      context: .
+      dockerfile: apps/ml-engine/Dockerfile
+      args:
+        - ENV=staging
+    container_name: accountable-staging-ml
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '8000:8000'
+    networks:
+      - accountable-staging
+    environment:
+      - PYTHONPATH=/app
+      - ENV=staging
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
 volumes:
   postgres_data_staging:
+    driver: local
   redis_data_staging:
+    driver: local

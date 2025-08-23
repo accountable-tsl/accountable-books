@@ -1,0 +1,16 @@
+Dockerfile, entrypoint and postgresql.conf are not being used in docker compose
+We've baked them into an image and pushed to docker
+Keeping them for reference
+
+# For production (multi-platform, with push)
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -f apps/api/infra/postgres/Dockerfile \
+  -t docker.io/iamtemi/accountable:pg17-cron-vector-v1 \
+  apps/api/infra/postgres --push
+
+# For development (single platform, much faster)
+docker build \
+  -f apps/api/infra/postgres/Dockerfile \
+  -t iamtemi/accountable:pg17-cron-vector-dev \
+  apps/api/infra/postgres

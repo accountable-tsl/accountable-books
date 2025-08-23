@@ -1,3 +1,6 @@
+networks:
+  accountable-dev:
+    driver: bridge
 services:
   db:
     image: iamtemi/accountable:pg17-cron-vector-v1
@@ -6,25 +9,21 @@ services:
       - ./apps/api/.env.local
     ports:
       - 5433:5432
-    entrypoint: ['docker-entrypoint.sh']
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
-    command:
-      - postgres
-      - -c
-      - shared_preload_libraries=pg_cron
-      - -c
-      - cron.database_name=$${POSTGRES_DB}
+    networks:
+      - accountable-dev
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 20s
+      start_period: 30s
+    restart: unless-stopped
 
   redis:
-    image: redis:8.0.3-alpine
-    container_name: accountable-books-redis
+    image: redis:8.0-alpine
+    container_name: books-redis-dev
     ports:
       - 6380:6379
     volumes:
@@ -34,12 +33,13 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+    restart: unless-stopped
 
   api:
     build:
       context: .
       dockerfile: apps/api/infra/docker/Dockerfile.dev
-    container_name: accountable-books-api
+    container_name: books-api-dev
     depends_on:
       db:
         condition: service_healthy
@@ -53,33 +53,28 @@ services:
       - /app/apps/api/node_modules
       - /app/packages/api-types/node_modules
       - /app/packages/utils/node_modules
+    env_file:
+      - ./apps/api/.env.local
     environment:
       - NODE_ENV=local
       - PORT=5000
-      # Service-to-service DB/Redis inside Docker network
       - DB_HOST=db
+      - REDIS_HOST=redis
       - DB_PORT=5432
-      - DB_NAME=accountable_books
-      - DB_USER=user
-      - DB_PASSWORD=password
-      - DATABASE_URL=postgresql://user:password@db:5432/accountable_books
-      - REDIS_URL=redis://redis:6379
-      # Public URLs (from host)
-      - BACKEND_URL=http://localhost:5000
-      - FRONTEND_URL=http://localhost:5173
-      # Local cookie domain for dev
-      - COOKIE_DOMAIN=localhost
+    networks:
+      - accountable-dev
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:5000/health']
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
   web:
     build:
       context: .
       dockerfile: apps/web/infra/docker/Dockerfile.dev
-    container_name: accountable-books-web
+    container_name: books-web-dev
     depends_on:
       api:
         condition: service_healthy
@@ -94,17 +89,20 @@ services:
     environment:
       - NODE_ENV=local
       - VITE_BACKEND_URL=http://localhost:5000
+    networks:
+      - accountable-dev
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:5173/']
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
   ml-engine:
     build:
       context: .
       dockerfile: apps/ml-engine/infra/docker/Dockerfile.dev
-    container_name: accountable-books-ml
+    container_name: books-ml-dev
     depends_on:
       api:
         condition: service_healthy
@@ -119,7 +117,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
 volumes:
   postgres_data_dev:
+    driver: local
   redis_data_dev:
+    driver: local

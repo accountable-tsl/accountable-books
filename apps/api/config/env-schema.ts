@@ -141,6 +141,16 @@ export const API_ENV_SCHEMA: EnvSchema = {
     production: 'CHANGE_IN_PRODUCTION',
   },
 
+  REDIS_PASSWORD: {
+    description: 'Redis password',
+    type: 'secret',
+    required: true,
+    local: 'password',
+    test: 'test',
+    staging: 'password',
+    production: 'CHANGE_IN_PRODUCTION',
+  },
+
   // ============================================================================
   // SECURITY CONFIGURATION
   // ============================================================================

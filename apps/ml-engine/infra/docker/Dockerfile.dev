@@ -1,0 +1,44 @@
+# Development Dockerfile with hot reload and development tools
+FROM python:3.11-slim
+
+# Install system dependencies for data science and development
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+ENV POETRY_VERSION=1.8.3
+ENV POETRY_HOME="/opt/poetry"
+ENV PATH="$POETRY_HOME/bin:$PATH"
+RUN python -m pip install --no-cache-dir poetry==$POETRY_VERSION
+
+# Configure poetry for development
+RUN poetry config virtualenvs.create false
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files
+COPY pyproject.toml ./
+
+# Install all dependencies (including dev dependencies)
+RUN poetry install --no-interaction --no-ansi
+
+# Copy application code
+COPY . .
+
+# Create non-root user for development
+RUN groupadd --gid 1000 appuser \
+    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser \
+    && chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Default command with hot reload for development
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

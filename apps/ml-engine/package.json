@@ -1,8 +1,0 @@
-{
-  "name": "@accountable-books/ml-engine",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "test": "poetry run pytest"
-  }
-}
