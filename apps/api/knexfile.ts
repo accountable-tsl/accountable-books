@@ -24,11 +24,11 @@ const config: Record<string, Knex.Config> = {
   },
 
   test: {
-    client: 'sqlite3',
-    connection: { filename: ':memory:' },
-    useNullAsDefault: true,
-    migrations: { directory: './migrations' },
-    seeds: { directory: './seeds' },
+    ...runtimeKnexConfig,
+    migrations: {
+      tableName: 'knex_migrations_test',
+      directory: './migrations',
+    },
   },
 };
 

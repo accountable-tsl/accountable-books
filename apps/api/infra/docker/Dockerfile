@@ -1,5 +1,5 @@
 # ---- build ----
-FROM node:20-alpine AS build
+FROM node:24-alpine3.21 AS build
 WORKDIR /app
 ENV PNPM_HOME="/pnpm" PATH="$PNPM_HOME:$PATH"
 ENV CI=true
@@ -19,7 +19,7 @@ RUN pnpm --filter @accountable-books/api-types build || echo "No build script fo
 RUN pnpm --filter @accountable-books/api build
 
 # ---- runtime ----
-FROM node:20-alpine AS runtime
+FROM node:24-alpine3.21 AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 

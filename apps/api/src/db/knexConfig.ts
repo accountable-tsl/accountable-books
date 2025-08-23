@@ -4,9 +4,9 @@ import { ENV } from '../config/env.js';
 export const runtimeKnexConfig: Knex.Config = {
   client: 'postgresql',
   connection: {
-    database: ENV.DB_NAME,
-    user: ENV.DB_USER,
-    password: ENV.DB_PASSWORD,
+    database: ENV.POSTGRES_DB,
+    user: ENV.POSTGRES_USER,
+    password: ENV.POSTGRES_PASSWORD,
     host: ENV.DB_HOST || 'localhost',
     port: Number(ENV.DB_PORT) || 5432,
   },

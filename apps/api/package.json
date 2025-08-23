@@ -10,6 +10,7 @@
     "typecheck:all": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tooling.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:pg": "NODE_ENV=test vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "generate-env": "tsx scripts/generate-env.ts",
@@ -17,6 +18,7 @@
     "migrate:make": "pnpm run knex migrate:make -x ts --knexfile knexfile.ts",
     "migrate:local": "pnpm run knex migrate:latest --env local --knexfile knexfile.ts",
     "migrate:rollback": "pnpm run knex migrate:rollback --step=1 --env local --knexfile knexfile.ts",
+    "migrate:test": "NODE_ENV=test pnpm run knex migrate:latest --env test --knexfile knexfile.ts",
     "reset:db": "NODE_ENV=local tsx scripts/resetDatabase.ts && pnpm run migrate:local && pnpm run seed:demo",
     "seed:demo": "tsx seeds/demo/cli.ts apply --all",
     "demo": "tsx seeds/demo/cli.ts",
@@ -88,6 +90,7 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
     "cpy-cli": "^6.0.0",
+    "sqlite3": "5.1.6",
     "tsx": "^4.19.3"
   }
 }

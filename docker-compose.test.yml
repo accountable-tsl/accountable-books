@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test
+    ports:
+      - '5434:5432'
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.test
+    depends_on:
+      - db
+    environment:
+      NODE_ENV: test
+      DB_HOST: db
+      DB_USER: test
+      DB_PASSWORD: test
+      DB_NAME: test
+      DB_PORT: 5432

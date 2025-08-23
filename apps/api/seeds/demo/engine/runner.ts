@@ -149,12 +149,15 @@ export class DemoSeedRunner {
   ): Promise<void> {
     for (const step of steps) {
       try {
-        console.log(`   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`);
-        if (operation === 'create') {
-          await step.createFn(trx, filters);
-        } else {
-          await step.deleteFn(trx, filters);
+        const fn = operation === 'create' ? step.createFn : step.deleteFn;
+
+        if (!fn) {
+          console.log(`   ⏭️  Skipping ${step.name} (no ${operation} function)`);
+          continue;
         }
+
+        console.log(`   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`);
+        await fn(trx, filters);
         console.log(`   ✓ ${step.name} ${operation === 'create' ? 'created' : 'deleted'}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'unknown error';
@@ -172,21 +175,27 @@ export class DemoSeedRunner {
   ): Promise<void> {
     console.warn('⚠️  Running in parallel mode - dependencies may not be respected');
 
-    const promises = steps.map(async (step) => {
-      try {
-        console.log(`   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`);
-        if (operation === 'create') {
-          await step.createFn(trx, filters);
-        } else {
-          await step.deleteFn(trx, filters);
+    const promises = steps
+      .filter((step) => {
+        const fn = operation === 'create' ? step.createFn : step.deleteFn;
+        if (!fn) {
+          console.log(`   ⏭️  Skipping ${step.name} (no ${operation} function)`);
+          return false;
         }
-        console.log(`   ✓ ${step.name} ${operation === 'create' ? 'created' : 'deleted'}`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'unknown error';
-        console.error(`   ❌ Failed to ${operation} ${step.name}: ${message}`);
-        throw error;
-      }
-    });
+        return true;
+      })
+      .map(async (step) => {
+        try {
+          const fn = operation === 'create' ? step.createFn : step.deleteFn;
+          console.log(`   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`);
+          await fn!(trx, filters);
+          console.log(`   ✓ ${step.name} ${operation === 'create' ? 'created' : 'deleted'}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'unknown error';
+          console.error(`   ❌ Failed to ${operation} ${step.name}: ${message}`);
+          throw error;
+        }
+      });
 
     await Promise.all(promises);
   }

@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
 
-const REQUIRED_EXTENSIONS = [
+const REQUIRED_EXTENSIONS_BASE = [
   'pg_cron',
   'pgcrypto',
   'pg_uuidv7',
@@ -12,7 +12,19 @@ const REQUIRED_EXTENSIONS = [
 ];
 
 export async function up(knex: Knex): Promise<void> {
-  // Attempt to create all required extensions
+  // Determine if pg_cron should be required for the current database
+  const currentDbRes = await knex.raw('select current_database() as current_database');
+  const current_database: string = currentDbRes?.rows?.[0]?.current_database;
+
+  const cronRes = await knex.raw("SELECT current_setting('cron.database_name', true) as setting");
+  const cronDatabase: string | null = cronRes?.rows?.[0]?.setting ?? null;
+
+  const shouldRequirePgCron = cronDatabase === current_database;
+  const REQUIRED_EXTENSIONS = REQUIRED_EXTENSIONS_BASE.filter(
+    (ext) => ext !== 'pg_cron' || shouldRequirePgCron,
+  );
+
+  // Attempt to create required extensions (skip pg_cron if not applicable)
   for (const ext of REQUIRED_EXTENSIONS) {
     await knex.raw(`CREATE EXTENSION IF NOT EXISTS "${ext}"`);
   }

@@ -4,13 +4,13 @@ import pg from 'pg';
 const client = new pg.Client({
   host: ENV.DB_HOST || 'localhost',
   port: Number(ENV.DB_PORT) || 5432,
-  user: ENV.DB_USER,
-  password: ENV.DB_PASSWORD,
-  database: ENV.DB_NAME,
+  user: ENV.POSTGRES_USER,
+  password: ENV.POSTGRES_PASSWORD,
+  database: ENV.POSTGRES_DB,
 });
 
 const run = async () => {
-  console.log('⚠️ Resetting database:', ENV.DB_NAME);
+  console.log('⚠️ Resetting database:', ENV.POSTGRES_DB);
 
   await client.connect();
 

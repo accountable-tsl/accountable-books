@@ -1,21 +1,26 @@
 services:
   # Simple PostgreSQL for staging
   db:
-    build: ./infra/postgres
-    container_name: accountable-staging-db
-    environment:
-      POSTGRES_DB: accountable_books
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: staging_password
-    ports:
-      - '5433:5432'
+    image: iamtemi/accountable:pg17-cron-vector-v1
+    env_file:
+      - ./apps/api/.env.local
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_staging:/var/lib/postgresql/data
+      - ./backups:/var/backups
+    entrypoint: ['docker-entrypoint.sh']
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=$${POSTGRES_DB}
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d accountable_books']
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
   # Simple Redis for staging
   redis:
@@ -71,7 +76,5 @@ services:
       - api
 
 volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
+  postgres_data_staging:
+  redis_data_staging:

@@ -1,10 +1,10 @@
 import type { Knex } from 'knex';
 import { addNewContacts } from '../../../../src/domains/contacts/contacts.model.js';
 import { ContactInput } from '../../../../src/domains/contacts/contact.types.js';
-import { deleteDemoData, resolveFiltersToIds } from '../../shared/utils.js';
-import { DEMO_CONTACTS_MAP, DemoContactsMap, generateDemoContactsMap } from './contacts.data.js';
+import { deleteDemoData } from '../../shared/utils.js';
+import { generateDemoContactsMap } from './contacts.data.js';
 import { DemoFilter } from '../../shared/config.js';
-import { DEMO_COMPANIES_IDS } from '../002_companies/companies.data.js';
+import { dedupeByNormalizedKey, normalizeName, uuidV5ForCompanyName } from '../../shared/id.js';
 const createContactsHelper = async (
   contacts: ContactInput[],
   companyId: string,
@@ -29,7 +29,6 @@ const createContactsHelper = async (
 // };
 
 export const createDemoContacts = async (trx: Knex.Transaction, filters?: DemoFilter) => {
-  const companyIds = filters ? resolveFiltersToIds(filters) : DEMO_COMPANIES_IDS;
   const contactsMap = generateDemoContactsMap(filters);
 
   if (contactsMap.length === 0) {
@@ -41,8 +40,17 @@ export const createDemoContacts = async (trx: Knex.Transaction, filters?: DemoFi
   for (const item of contactsMap) {
     const { contacts, user, company } = item;
 
+    // 1) Deduplicate within batch by normalized display name
+    const deduped = dedupeByNormalizedKey(contacts, (c) => c.displayName);
+
+    // 2) Compute deterministic IDs per (companyId, normalizedName)
+    const withIds: ContactInput[] = deduped.map((c) => ({
+      ...c,
+      id: uuidV5ForCompanyName(company.id, c.displayName),
+    }));
+
     const res = await addNewContacts({
-      input: contacts,
+      input: withIds,
       trx,
       companyId: company.id,
       userId: user.id,

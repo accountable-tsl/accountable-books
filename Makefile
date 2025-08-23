@@ -1,5 +1,6 @@
 .PHONY: help bootstrap dev dev-setup ci check build test clean clean-all reset
-.PHONY: db-up db-down db-restart db-wait db-prepare db-setup db-migrate db-rollback db-seed db-reset db-logs db-shell
+# .PHONY: db-up db-down db-restart db-wait db-prepare db-setup db-migrate db-rollback db-seed db-reset db-logs db-shell
+# .PHONY: db-test-create db-test-migrate db-test-prepare
 .PHONY: api-dev api-build api-test web-dev web-build web-test
 .PHONY: validate-contracts bundle-contracts bundle-contracts-watch contracts-watch clean-bundled codegen contracts
 .PHONY: demo-apply demo-reverse demo-reset demo-status
@@ -11,14 +12,33 @@ BLUE := \033[34m
 RED := \033[31m
 RESET := \033[0m
 
+
 # Config
-DOCKER_COMPOSE := docker-compose -f docker-compose.dev.yml
+DOCKER_COMPOSE_DEV := docker-compose -f docker-compose.dev.yml
+DOCKER_COMPOSE_STAGING := docker-compose -f docker-compose.staging.yml
+
 DB_CONTAINER := accountable-books-db
 DB_NAME := accountable_books
 DB_USER := user
 APP_ENV ?= local
 WAIT_TIMEOUT ?= 30
 SEED_ARGS ?= --all
+
+compose_for = \
+  $(if $(filter $(1),dev),$(DOCKER_COMPOSE_DEV),\
+    $(if $(filter $(1),staging stg),$(DOCKER_COMPOSE_STAGING),\
+      $(error Unknown environment '$(1)'. Use dev, staging, or stg)))
+
+# Map env → compose filename (for lazy existence checks)
+file_for = \
+  $(if $(filter $(1),dev),docker-compose.dev.yml,\
+    $(if $(filter $(1),staging stg),docker-compose.staging.yml,))
+
+.PHONY: ensure-%
+ensure-%:
+	@f="$(call file_for,$*)"; \
+	if [ -z "$$f" ]; then echo "$(RED)Unknown environment '$*'$(RESET)"; exit 1; fi; \
+	if [ ! -f "$$f" ]; then echo "$(RED)Missing $$f$(RESET)"; exit 1; fi
 
 # Guard: prevent destructive commands in production contexts
 .PHONY: guard-nonprod
@@ -32,6 +52,15 @@ guard-nonprod:
 ##@ Help
 help: ## Display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\n$(BLUE)Usage:$(RESET)\n  make $(YELLOW)<target>$(RESET)\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(YELLOW)%-18s$(RESET) %s\n", $$1, $$2 } /^##@/ { printf "\n$(BLUE)%s$(RESET)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+
+MAKEFILES_DIR := infra/makefiles
+$(info Wildcard files: $(wildcard $(MAKEFILES_DIR)/*.mk))
+ifneq ($(wildcard $(MAKEFILES_DIR)/*.mk),)
+    include $(wildcard $(MAKEFILES_DIR)/*.mk)
+else
+    $(warning No .mk files found in $(MAKEFILES_DIR))
+endif
 
 ##@ Bootstrap
 bootstrap: ## Install deps, generate envs, and build contracts/types
@@ -57,18 +86,80 @@ dev: ## Start apps in development mode (servers only; no DB side effects)
 	@echo "$(GREEN)Starting apps (no DB prep)$(RESET)"
 	pnpm dev
 
+dev-full: guard-nonprod ## Complete containerized development environment (one command setup)
+	@echo "$(GREEN)🚀 Setting up complete containerized development environment...$(RESET)"
+	$(MAKE) bootstrap
+	$(MAKE) dev-validate-env
+	$(MAKE) dev-up
+	$(MAKE) dev-wait-services
+	$(MAKE) dev-db-setup
+	$(MAKE) dev-health-check
+	@echo "$(GREEN)✅ Complete development environment ready!$(RESET)"
+	@echo "$(BLUE)🌐 Web App: http://localhost:5173$(RESET)"
+	@echo "$(BLUE)🔌 API: http://localhost:5000$(RESET)"
+	@echo "$(BLUE)🤖 ML Engine: http://localhost:8000$(RESET)"
+	@echo "$(BLUE)📊 Bull Board: http://localhost:5000/admin/queues$(RESET)"
+
+dev-validate-env: ## Validate all environment files exist and are valid
+	@echo "$(GREEN)📋 Validating environment files...$(RESET)"
+	@if [ ! -f apps/api/.env.local ]; then echo "$(YELLOW)Generating API environment file...$(RESET)"; cd apps/api && pnpm run generate-env; fi
+	@if [ ! -f apps/web/.env.local ]; then echo "$(YELLOW)Generating Web environment file...$(RESET)"; cd apps/web && pnpm run generate-env; fi
+	@echo "$(GREEN)✅ Environment validation complete$(RESET)"
+
+dev-up: guard-nonprod ## Start all development containers
+	@echo "$(GREEN)🐳 Starting all development containers...$(RESET)"
+	docker-compose -f docker-compose.dev.yml up -d --build
+
+dev-wait-services: ## Wait for all containerized services to be healthy
+	@echo "$(YELLOW)⏳ Waiting for services to be healthy...$(RESET)"
+	@timeout 300 sh -c 'until docker-compose -f docker-compose.dev.yml ps --filter "health=healthy" | grep -q "healthy.*healthy.*healthy"; do echo "Waiting for services..."; sleep 5; done' || (echo "$(RED)Services failed to start$(RESET)" && exit 1)
+	@echo "$(GREEN)✅ All services are healthy$(RESET)"
+
+dev-db-setup: ## Setup database for containerized environment
+	@echo "$(GREEN)🗄️ Setting up database...$(RESET)"
+	@sleep 5  # Give DB extra time to be fully ready
+	docker-compose -f docker-compose.dev.yml exec api pnpm run migrate:local
+	docker-compose -f docker-compose.dev.yml exec api pnpm run demo:apply -- --all
+	@echo "$(GREEN)✅ Database setup complete$(RESET)"
+
+dev-health-check: ## Validate all services are responding properly
+	@echo "$(GREEN)🔍 Running health checks...$(RESET)"
+	@curl -f -s http://localhost:5000/health > /dev/null && echo "$(GREEN)✅ API health check passed$(RESET)" || (echo "$(RED)❌ API health check failed$(RESET)" && exit 1)
+	@curl -f -s http://localhost:5173/ > /dev/null && echo "$(GREEN)✅ Web health check passed$(RESET)" || (echo "$(RED)❌ Web health check failed$(RESET)" && exit 1)
+	@curl -f -s http://localhost:8000/health > /dev/null && echo "$(GREEN)✅ ML Engine health check passed$(RESET)" || echo "$(YELLOW)⚠️ ML Engine health check failed (may not be critical)$(RESET)"
+	@echo "$(GREEN)✅ All health checks complete$(RESET)"
+
+dev-logs: ## Show logs from all development services
+	docker-compose -f docker-compose.dev.yml logs -f
+
+dev-restart: guard-nonprod ## Restart all development services
+	@echo "$(YELLOW)🔄 Restarting all development services...$(RESET)"
+	docker-compose -f docker-compose.dev.yml restart
+	@echo "$(GREEN)✅ Services restarted$(RESET)"
+
+dev-stop: guard-nonprod ## Stop all development services
+	@echo "$(YELLOW)🛑 Stopping all development services...$(RESET)"
+	docker-compose -f docker-compose.dev.yml stop
+	@echo "$(GREEN)✅ Services stopped$(RESET)"
+
+dev-down: guard-nonprod ## Stop and remove all development containers
+	@echo "$(YELLOW)⬇️ Stopping and removing development containers...$(RESET)"
+	docker-compose -f docker-compose.dev.yml down
+	@echo "$(GREEN)✅ Development containers removed$(RESET)"
+
+dev-clean: guard-nonprod ## Clean restart everything (rebuild containers)
+	@echo "$(YELLOW)🧹 Clean restart of development environment...$(RESET)"
+	docker-compose -f docker-compose.dev.yml down --volumes --remove-orphans
+	docker-compose -f docker-compose.dev.yml up -d --build
+	$(MAKE) dev-wait-services
+	$(MAKE) dev-db-setup
+	@echo "$(GREEN)✅ Clean restart complete$(RESET)"
+
+dev-status: ## Show status of all development services
+	@echo "$(BLUE)📊 Development Services Status:$(RESET)"
+	docker-compose -f docker-compose.dev.yml ps
+
 ##@ Database
-db-up: guard-nonprod ## Start database services (Postgres + Redis)
-	@echo "$(GREEN)Starting database services...$(RESET)"
-	@if [ ! -f docker-compose.dev.yml ]; then echo "$(RED)docker-compose.dev.yml not found$(RESET)"; exit 1; fi
-	$(DOCKER_COMPOSE) up -d db redis
-
-db-down: guard-nonprod ## Stop database services
-	@echo "$(YELLOW)Stopping database services...$(RESET)"
-	$(DOCKER_COMPOSE) down
-
-db-restart: guard-nonprod db-down db-up ## Restart database services
-
 db-wait: ## Wait for Postgres to become ready
 	@echo "$(YELLOW)⏳ Waiting for database to be ready...$(RESET)"
 	@timeout $(WAIT_TIMEOUT) sh -c 'until docker exec $(DB_CONTAINER) pg_isready -U $(DB_USER) -d $(DB_NAME); do sleep 1; done' || (echo "$(RED)Database failed to start$(RESET)" && exit 1)
@@ -96,11 +187,29 @@ db-setup: guard-nonprod db-prepare db-seed ## Full DB setup (up + ready + migrat
 	@echo "$(GREEN)✅ DB setup complete (includes seeding)$(RESET)"
 
 db-logs: ## Show database logs
-	$(DOCKER_COMPOSE) logs -f db
+	$(DOCKER_COMPOSE_DEV) logs -f db
 
 db-shell: ## Connect to Postgres shell
 	@if ! docker ps | grep -q $(DB_CONTAINER); then echo "$(RED)Database container not running. Run 'make db-up' first.$(RESET)"; exit 1; fi
 	docker exec -it $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
+
+
+# --- Test DB helpers ---
+TEST_DB_NAME := test_db
+
+db-test-create: guard-nonprod ## Create test database if missing
+	@if ! docker ps | grep -q $(DB_CONTAINER); then echo "$(RED)DB not running. Run 'make db-up' first.$(RESET)"; exit 1; fi
+	@echo "$(GREEN)Ensuring test database exists ($(TEST_DB_NAME))...$(RESET)"
+	@docker exec -i $(DB_CONTAINER) bash -lc "psql -U $(DB_USER) -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='$(TEST_DB_NAME)'\" | grep -q 1 || psql -U $(DB_USER) -d postgres -c \"CREATE DATABASE $(TEST_DB_NAME)\""
+	@echo "$(GREEN)✅ Test database ready$(RESET)"
+
+db-test-migrate: guard-nonprod ## Run migrations against test database
+	@echo "$(GREEN)Running test migrations...$(RESET)"
+	PNPM_FILTER=@accountable-books/api NODE_ENV=test pnpm --filter @accountable-books/api migrate:test
+	@echo "$(GREEN)✅ Test migrations complete$(RESET)"
+
+db-test-prepare: guard-nonprod db-up db-wait db-test-create db-test-migrate ## Prepare Postgres test DB
+	@echo "$(GREEN)✅ Test DB prepared (up + ready + migrated)$(RESET)"
 
 ##@ Demo Seeds (DEX)
 demo-apply: guard-nonprod ## Apply demo seeds (use ARGS="--all" or e.g. "--country US --type business")

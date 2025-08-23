@@ -1,21 +1,12 @@
 import { ContactInput } from '../../../../src/domains/contacts/contact.types.js';
 import { DemoCompanyType, DemoFilter } from '../../shared/config.js';
 import { resolveFiltersToIds } from '../../shared/utils.js';
-import { DemoUser, NG_USER, US_USER } from '../001_users/users.data.js';
-import {
-  DEMO_COMPANIES_MAP,
-  DemoCompaniesMap,
-  DemoCompany,
-  NG_DEMO_COMPANIES,
-  US_DEMO_COMPANIES,
-} from '../002_companies/companies.data.js';
+import { DEMO_COMPANIES_MAP, DemoCompaniesMap } from '../002_companies/companies.data.js';
 import { generateRandomContacts } from './contacts.utils.js';
 import * as ngContacts from './raw/ng_contacts.json';
 import * as usContacts from './raw/us_contacts.json';
 
-export type DemoContact = ContactInput & {
-  id: string;
-};
+export type DemoContact = ContactInput; // id is optional; computed at insert time
 const randomContacts: DemoContact[] = generateRandomContacts();
 
 const NG_BIZ_CONTACTS = [...ngContacts.business, ...randomContacts];

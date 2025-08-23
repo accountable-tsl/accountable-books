@@ -145,8 +145,14 @@ export const createCompany = async (
     return errorResponse(userIdError);
   }
 
-  const { reporting_currency_id, reporting_currency_code, country_code, country_id, ...rest } =
-    validateInput.data;
+  const {
+    slug,
+    reporting_currency_id,
+    reporting_currency_code,
+    country_code,
+    country_id,
+    ...rest
+  } = validateInput.data;
 
   const countryId = country_id ? country_id : country_code && (await getCountry(country_code)).id;
 

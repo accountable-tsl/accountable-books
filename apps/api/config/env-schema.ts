@@ -88,7 +88,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     production: '5432',
   },
 
-  DB_NAME: {
+  POSTGRES_DB: {
     description: 'Database name',
     type: 'string',
     required: true,
@@ -98,7 +98,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     production: 'CHANGE_IN_PRODUCTION',
   },
 
-  DB_USER: {
+  POSTGRES_USER: {
     description: 'Database username',
     type: 'string',
     required: true,
@@ -108,7 +108,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     production: 'CHANGE_IN_PRODUCTION',
   },
 
-  DB_PASSWORD: {
+  POSTGRES_PASSWORD: {
     description: 'Database password',
     type: 'secret',
     required: true,

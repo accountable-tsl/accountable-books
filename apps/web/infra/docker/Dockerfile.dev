@@ -1,0 +1,33 @@
+FROM node:20-alpine
+WORKDIR /app
+
+# Install development tools
+RUN apk add --no-cache curl wget tini
+
+# Enable pnpm
+ENV PNPM_HOME="/pnpm" PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+# Copy package files for caching
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/api-types/package.json packages/api-types/package.json
+COPY packages/utils/package.json packages/utils/package.json
+
+# Install dependencies (including dev dependencies)
+RUN pnpm install --frozen-lockfile
+
+# Copy source code (this will be overridden by volume mounts in dev)
+COPY . .
+
+# Set development environment
+ENV NODE_ENV=local
+
+# Expose Vite dev server port
+EXPOSE 5173
+
+# Use tini for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Start in development mode with Vite HMR (binding to 0.0.0.0)
+CMD ["pnpm", "--filter", "@accountable-books/web", "dev:docker"]

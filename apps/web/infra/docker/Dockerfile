@@ -1,5 +1,5 @@
 # ---- build ----
-FROM node:20-alpine AS build
+FROM node:24-alpine3.21 AS build
 WORKDIR /app
 ENV PNPM_HOME="/pnpm" PATH="$PNPM_HOME:$PATH"
 RUN corepack enable

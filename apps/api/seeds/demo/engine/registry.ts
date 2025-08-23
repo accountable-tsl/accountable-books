@@ -1,20 +1,35 @@
 import type { Knex } from 'knex';
 import { DemoFilter } from '../shared/config.js';
-import { createDemoUsers, deleteDemoUsers } from '../config/001_users/users.fn.js';
-import { createDemoCompanies, deleteDemoCompanies } from '../config/002_companies/companies.fn.js';
-import { createDemoContacts, deleteDemoContacts } from '../config/003_contacts/contacts.fn.js';
-// import { createDemoProjects, deleteDemoProjects } from '../config/004_projects/projects.fn.js';
+import {
+  createDemoCompaniesAndUsers,
+  deleteDemoCompanies,
+} from '../config/002_companies/companies.fn.js';
+import { createDemoContacts, deleteDemoContacts } from '../config/010_contacts/contacts.fn.js';
+import { createDemoProjects, deleteDemoProjects } from '../config/015_projects/projects.fn.js';
+import { deleteDemoUsers } from '../config/001_users/users.fn.js';
+import { deleteDemoCoa } from '../config/003_coa/coa.fn.js';
 
 export type SeedStep = {
   name: string;
   order: number;
-  createFn: (trx: Knex.Transaction, filters?: DemoFilter) => Promise<void>;
-  deleteFn: (trx: Knex.Transaction, filters?: DemoFilter) => Promise<any>;
+  createFn?: (trx: Knex.Transaction, filters?: DemoFilter) => Promise<void>;
+  deleteFn?: (trx: Knex.Transaction, filters?: DemoFilter) => Promise<any>;
 };
 
 export const SEED_STEPS: SeedStep[] = [
-  { name: 'users', order: 1, createFn: createDemoUsers, deleteFn: deleteDemoUsers },
-  { name: 'companies', order: 2, createFn: createDemoCompanies, deleteFn: deleteDemoCompanies },
+  { name: 'user', order: 1, deleteFn: deleteDemoUsers },
+  {
+    name: 'companies',
+    order: 2,
+    createFn: createDemoCompaniesAndUsers,
+    deleteFn: deleteDemoCompanies,
+  },
+  {
+    name: 'chart-of-accounts',
+    order: 3,
+    deleteFn: deleteDemoCoa,
+  },
+
   { name: 'contacts', order: 3, createFn: createDemoContacts, deleteFn: deleteDemoContacts },
-  // { name: 'projects', order: 4, createFn: createDemoProjects, deleteFn: deleteDemoProjects },
+  { name: 'projects', order: 4, createFn: createDemoProjects, deleteFn: deleteDemoProjects },
 ];

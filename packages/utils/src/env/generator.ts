@@ -195,3 +195,65 @@ export function generateEnvFiles(
 
   return files;
 }
+
+/**
+ * Parse an .env file and return key-value pairs
+ */
+function parseEnvFile(content: string): Record<string, string> {
+  const vars: Record<string, string> = {};
+
+  content.split('\n').forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+
+    const [key, ...valueParts] = trimmed.split('=');
+    if (key && valueParts.length > 0) {
+      vars[key.trim()] = valueParts.join('=').trim();
+    }
+  });
+
+  return vars;
+}
+
+/**
+ * Validate existing environment files against schema
+ */
+export function validateEnvFiles(
+  schema: EnvSchema,
+  environment: Environment,
+  envFileContent?: string,
+): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // If no content provided, we can't validate
+  if (!envFileContent) {
+    errors.push(`Environment file content not provided for ${environment}`);
+    return { isValid: false, errors };
+  }
+
+  const envVars = parseEnvFile(envFileContent);
+
+  // Check required variables
+  for (const [key, config] of Object.entries(schema)) {
+    if (config.required !== false) {
+      // default is required
+      if (!envVars[key]) {
+        errors.push(`Missing required environment variable: ${key}`);
+        continue;
+      }
+
+      try {
+        validateValue(key, envVars[key], config);
+      } catch (error) {
+        errors.push(
+          `Invalid value for ${key}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      }
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}

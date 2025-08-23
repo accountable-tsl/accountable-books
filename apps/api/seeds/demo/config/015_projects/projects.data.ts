@@ -5,43 +5,31 @@ import {
   DemoContactsMap,
   NG_DEMO_CONTACTS,
   US_DEMO_CONTACTS,
-} from '../003_contacts/contacts.data';
+} from '../010_contacts/contacts.data';
 import {
-  DemoProject,
+  SeedProject,
   generateRandomProjects,
   getBusinessProjects,
   getFirmProjects,
 } from './projects.utils';
 
-const US_DEMO_FIRM_CONTACT_IDS: string[] = US_DEMO_CONTACTS.accounting_firm.map((c) => c.id);
-const NG_DEMO_FIRM_CONTACT_IDS: string[] = NG_DEMO_CONTACTS.accounting_firm.map((c) => c.id);
+const US_FIRM_PROJECTS: SeedProject[] = [...getFirmProjects(), ...generateRandomProjects(5)];
+const NG_FIRM_PROJECTS: SeedProject[] = [...getFirmProjects(), ...generateRandomProjects(5)];
 
-const US_DEMO_BUSINESS_CONTACT_IDS: string[] = US_DEMO_CONTACTS.business.map((c) => c.id);
-const NG_DEMO_BUSINESS_CONTACT_IDS: string[] = NG_DEMO_CONTACTS.business.map((c) => c.id);
-
-const US_FIRM_PROJECTS = [
-  ...getFirmProjects(US_DEMO_FIRM_CONTACT_IDS),
-  ...generateRandomProjects(5, US_DEMO_FIRM_CONTACT_IDS),
+const US_BUSINESS_PROJECTS: SeedProject[] = [
+  ...getBusinessProjects('US'),
+  ...generateRandomProjects(5),
 ];
-const NG_FIRM_PROJECTS = [
-  ...getFirmProjects(NG_DEMO_FIRM_CONTACT_IDS),
-  ...generateRandomProjects(5, NG_DEMO_FIRM_CONTACT_IDS),
+const NG_BUSINESS_PROJECTS: SeedProject[] = [
+  ...getBusinessProjects('NG'),
+  ...generateRandomProjects(5),
 ];
 
-const US_BUSINESS_PROJECTS = [
-  ...getBusinessProjects(US_DEMO_BUSINESS_CONTACT_IDS, 'US'),
-  ...generateRandomProjects(5, US_DEMO_BUSINESS_CONTACT_IDS),
-];
-const NG_BUSINESS_PROJECTS = [
-  ...getBusinessProjects(NG_DEMO_BUSINESS_CONTACT_IDS, 'NG'),
-  ...generateRandomProjects(5, NG_DEMO_BUSINESS_CONTACT_IDS),
-];
-
-export const US_DEMO_PROJECTS: Record<Exclude<DemoCompanyType, 'individual'>, DemoProject[]> = {
+export const US_DEMO_PROJECTS: Record<Exclude<DemoCompanyType, 'individual'>, SeedProject[]> = {
   accounting_firm: US_FIRM_PROJECTS,
   business: US_BUSINESS_PROJECTS,
 };
-export const NG_DEMO_PROJECTS: Record<Exclude<DemoCompanyType, 'individual'>, DemoProject[]> = {
+export const NG_DEMO_PROJECTS: Record<Exclude<DemoCompanyType, 'individual'>, SeedProject[]> = {
   accounting_firm: NG_FIRM_PROJECTS,
   business: NG_BUSINESS_PROJECTS,
 };
@@ -51,7 +39,7 @@ export const NG_DEMO_PROJECTS_ARRAY = [...NG_FIRM_PROJECTS, ...NG_BUSINESS_PROJE
 
 const contacts = DEMO_CONTACTS_MAP;
 export type DemoProjectsMap = DemoContactsMap & {
-  projects?: DemoProject[];
+  projects?: SeedProject[];
 };
 export const generateDemoProjectsMap = (filters?: DemoFilter): DemoProjectsMap[] => {
   const map = DEMO_CONTACTS_MAP.map((c) => {

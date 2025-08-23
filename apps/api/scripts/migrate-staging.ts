@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { knexClient as knex } from '../dist/db/knexClient.js';
-import { logger } from '../dist/shared/utils/logger.js';
+import { knexClient as knex } from '../../dist/db/knexClient.js';
+import { logger } from '../../dist/shared/utils/logger.js';
 
 async function runStagingMigrations() {
   try {

@@ -32,6 +32,10 @@ import {
 import { grantDirectAccess } from '../../domains/userRoles/userRoles.model.js';
 import { type RoleKey } from '../../domains/roles/roles.types.js';
 import { knexClient } from '../../db/knexClient.js';
+import {
+  createCompleteCompanyOnboardingState,
+  createCompleteUserOnboardingState,
+} from '../onboarding/onboarding.utils.js';
 
 /**
  * Registers a new user and company.
@@ -55,19 +59,19 @@ import { knexClient } from '../../db/knexClient.js';
  *
  * @throws AppError
  */
-export const registerNewAccount = async (
-  input: { user: NewUserInputCamel; company: NewCompanyInputCamel },
-  trx?: Knex.Transaction,
-  demo?: boolean,
-): Promise<ApiResponse<{ user: CreateUserResponse; company: NewCompanyResCamel }>> => {
+export const registerNewAccount = async (input: {
+  user: NewUserInputCamel;
+  company: NewCompanyInputCamel;
+  trx?: Knex.Transaction;
+}): Promise<ApiResponse<{ user: CreateUserResponse; company: NewCompanyResCamel }>> => {
   // Check that company type exists
-  if (!input || !input.company.type) {
+  if (!input.user || !input.company.type) {
     return errorResponse('Invalid input or missing company type');
   }
 
-  console.log(input.user);
+  const { trx, ...rest } = input;
   // Convert to snake case and validate
-  const snakeInput = camelToSnake(input);
+  const snakeInput = camelToSnake(rest);
 
   const validateInput = newSignup.safeParse(snakeInput);
   if (!validateInput.success) {
@@ -82,7 +86,7 @@ export const registerNewAccount = async (
   // Once user is created, company is created & assigned to firm,
   // Once this fn is successful, return successful, even if everything else fails
   const registerNewAccountFn = async (knex: Knex.Transaction) => {
-    const { user, company } = await createUserAndCompany(knex, userInput, companyInput, demo);
+    const { user, company } = await createUserAndCompany(knex, userInput, companyInput);
 
     let firm;
     // For an accounting firm, create accounting_firm
@@ -196,11 +200,20 @@ const createUserAndCompany = async (
   trx: Knex.Transaction,
   userInput: NewUserDirect,
   companyInput: NewCompanyInput,
-  demo?: boolean,
 ): Promise<{ user: CreateUserResponse; company: NewCompanyRes }> => {
+  const now = new Date();
+
   // Create user
   const userResponse = await createUserDirect({
-    input: userInput,
+    input: {
+      ...userInput,
+      ...(userInput.is_demo_user
+        ? {
+            email_verified_at: now,
+            onboarding_state: createCompleteUserOnboardingState(),
+          }
+        : {}),
+    },
     transaction: trx,
   });
   if (!userResponse.success || !userResponse.data?.id) {
@@ -226,6 +239,12 @@ const createUserAndCompany = async (
       ...restOfCompanyInput,
       created_by_id: userResponse.data?.id,
       assigned_firm_id: platformFirmId,
+      ...(restOfCompanyInput.is_demo_company
+        ? {
+            onboarding_state: createCompleteCompanyOnboardingState(restOfCompanyInput.type),
+            onboarding_completed_at: now,
+          }
+        : {}),
     },
     transaction: trx,
   });

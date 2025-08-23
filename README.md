@@ -53,6 +53,7 @@ infra/
 - `make bootstrap`: install deps, generate envs, validate/bundle contracts, and generate types.
 - `make dev-setup`: start DB, wait, migrate, and seed (no servers).
 - `make dev`: start dev servers only (no DB side effects).
+- `make dev-full`: one-command Docker development (builds and starts DB, Redis, API, Web, ML engine; runs migrations and demo seeds; performs health checks).
 - `make api-dev`: start API server only (prepares DB, no seeding).
 - `make web-dev`: start web app only.
 - `make db-shell`: open a psql shell into Postgres.

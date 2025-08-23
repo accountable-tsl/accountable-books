@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { resolveFiltersToIds } from './utils.js';
-import { DEMO_COMPANIES } from '../config/002_companies/companies.data.js';
+import { DEMO_COMPANIES, US_DEMO_COMPANIES } from '../config/002_companies/companies.data.js';
 
 describe('resolveFiltersToIds', () => {
   test('returns empty array for empty filter', () => {
@@ -43,14 +43,14 @@ describe('resolveFiltersToIds', () => {
   });
 
   test('returns valid company ID when filtering by existing company ID', () => {
-    const validId = '00000000-0000-00US-DEMO-000000000BIZ';
+    const validId = US_DEMO_COMPANIES[0].id;
     const result = resolveFiltersToIds({ companyIds: [validId] });
 
     expect(result).toEqual([validId]);
   });
 
   test('filters out invalid company IDs', () => {
-    const validId = '00000000-0000-00US-DEMO-000000000BIZ';
+    const validId = US_DEMO_COMPANIES[0].id;
     const invalidId = 'invalid-company-id';
     const result = resolveFiltersToIds({ companyIds: [validId, invalidId] });
 
@@ -96,7 +96,7 @@ describe('resolveFiltersToIds', () => {
   });
 
   test('returns unique IDs when filters overlap', () => {
-    const usBusinessId = '00000000-0000-00US-DEMO-000000000BIZ';
+    const usBusinessId = US_DEMO_COMPANIES[1].id;
     const result = resolveFiltersToIds({
       countryCodes: ['US'],
       companyTypes: ['business'],
