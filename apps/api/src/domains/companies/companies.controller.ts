@@ -47,15 +47,21 @@ export const getCompaniesController = async (req: Request, res: Response) => {
 };
 export const getCompanyController = async (req: AuthRequest, res: Response) => {
   try {
-    const company = req.company;
+    // const company = req.company;
+    // console.log(company);
+    const companyId = req.params.companyId;
+    if (!companyId) {
+      return res.status(400).json(errorResponse('Company ID is required'));
+    }
+    const company = await getSingleCompany(companyId);
 
-    if (!company || !company.id) {
-      return res.status(400).json(errorResponse('Bad Request'));
+    if (!company || !company.success) {
+      return res.status(400).json(errorResponse('Company not found'));
     }
 
-    return res.status(200).json(successResponse('Company retrieved successfully', company));
+    return res.status(200).json(company);
   } catch (error: unknown) {
-    return res.status(500).json(errorResponse());
+    return res.status(500).json(errorResponse('Internal server error'));
   }
 };
 

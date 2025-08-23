@@ -22,7 +22,10 @@ export async function up(knex: Knex.Transaction): Promise<void> {
       throw new Error(parsed.error.message);
     }
 
-    createUserDirect(knex, parsed.data);
+    await createUserDirect({
+      input: parsed.data,
+      transaction: knex,
+    });
   }
 
   if ((!isProd && !ENV.TEST_ADMIN_PASSWORD) || !ENV.TEST_ADMIN_EMAIL || !ENV.TEST_ADMIN_FIRSTNAME) {
@@ -38,7 +41,10 @@ export async function up(knex: Knex.Transaction): Promise<void> {
     const parsed = newUserDirect.safeParse(adminUser);
     if (!parsed.success) throw new Error(parsed.error.message);
 
-    createUserDirect(knex, parsed.data);
+    await createUserDirect({
+      input: parsed.data,
+      transaction: knex,
+    });
   }
 }
 

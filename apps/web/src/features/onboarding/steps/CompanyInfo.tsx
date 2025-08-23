@@ -70,11 +70,13 @@ export const CompanyInfo = () => {
     companyType,
     refetchSession,
   } = useSession();
+
   const {
     data: industries,
     isLoading: isIndustriesLoading,
     isError: isIndustriesError,
   } = useIndustries();
+
   const { data: countries, isLoading: isCountryLoading } = useCountries();
   const { data: currencies, isLoading: isCurrencyLoading } = useCurrencies();
 

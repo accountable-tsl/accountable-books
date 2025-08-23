@@ -20,8 +20,12 @@ DO $$ DECLARE
   r RECORD;
 BEGIN
 
-  -- Drop all views
-  FOR r IN (SELECT table_name FROM information_schema.views WHERE table_schema = 'public') LOOP
+  -- Drop all views (excluding extension-owned views)
+  FOR r IN (
+    SELECT table_name FROM information_schema.views 
+    WHERE table_schema = 'public' 
+    AND table_name NOT IN ('pg_stat_statements_info', 'pg_stat_statements')
+  ) LOOP
     EXECUTE 'DROP VIEW IF EXISTS public.' || quote_ident(r.table_name) || ' CASCADE';
   END LOOP;
 

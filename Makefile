@@ -1,8 +1,8 @@
-.PHONY: help setup dev build test clean check
-.PHONY: db-up db-down db-restart db-migrate db-rollback db-seed db-logs db-shell
-.PHONY: api-dev api-build api-test web-dev web-build web-test docker-up docker-down docker-build docker-clean
-.PHONY: validate-contracts bundle-contracts bundle-contracts-watch clean-bundled codegen contracts
-.PHONY: demo-apply demo-add demo-purge demo-list demo-status
+.PHONY: help bootstrap dev dev-setup ci check build test clean clean-all reset
+.PHONY: db-up db-down db-restart db-wait db-prepare db-setup db-migrate db-rollback db-seed db-reset db-logs db-shell
+.PHONY: api-dev api-build api-test web-dev web-build web-test
+.PHONY: validate-contracts bundle-contracts bundle-contracts-watch contracts-watch clean-bundled codegen contracts
+.PHONY: demo-apply demo-reverse demo-reset demo-status
 
 # Colors for output
 GREEN := \033[32m
@@ -11,91 +11,113 @@ BLUE := \033[34m
 RED := \033[31m
 RESET := \033[0m
 
-##@ Development
-help: ## Display this help
-	@awk 'BEGIN {FS = ":.*##"; printf "\n$(BLUE)Usage:$(RESET)\n  make $(YELLOW)<target>$(RESET)\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(YELLOW)%-15s$(RESET) %s\n", $$1, $$2 } /^##@/ { printf "\n$(BLUE)%s$(RESET)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+# Config
+DOCKER_COMPOSE := docker-compose -f docker-compose.dev.yml
+DB_CONTAINER := accountable-books-db
+DB_NAME := accountable_books
+DB_USER := user
+APP_ENV ?= local
+WAIT_TIMEOUT ?= 30
+SEED_ARGS ?= --all
 
-setup: ## Setup complete development environment
-	@echo "$(GREEN)Setting up development environment...$(RESET)"
+# Guard: prevent destructive commands in production contexts
+.PHONY: guard-nonprod
+guard-nonprod:
+	@if [ "$(APP_ENV)" = "production" ] || [ "$(NODE_ENV)" = "production" ] || [ -n "$$FLY_APP_NAME" ] || [ -n "$$VERCEL" ]; then \
+		echo "$(RED)Refusing to run this target in a production-like context.$(RESET)"; \
+		echo "$(YELLOW)Hint: set APP_ENV=local (or unset NODE_ENV) to proceed locally.$(RESET)"; \
+		exit 1; \
+	fi
+
+##@ Help
+help: ## Display this help
+	@awk 'BEGIN {FS = ":.*##"; printf "\n$(BLUE)Usage:$(RESET)\n  make $(YELLOW)<target>$(RESET)\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(YELLOW)%-18s$(RESET) %s\n", $$1, $$2 } /^##@/ { printf "\n$(BLUE)%s$(RESET)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+##@ Bootstrap
+bootstrap: ## Install deps, generate envs, and build contracts/types
+	@echo "$(GREEN)Bootstrapping repository...$(RESET)"
 	@echo "$(YELLOW)📦 Installing dependencies...$(RESET)"
 	pnpm install
-	@echo "$(YELLOW)🔧 Building shared packages...$(RESET)"
-	pnpm --filter @accountable-books/utils build
 	@echo "$(YELLOW)📋 Generating environment files...$(RESET)"
-	pnpm --filter @accountable-books/api generate-env
-	pnpm --filter @accountable-books/web generate-env
-	@echo "$(YELLOW)🐳 Starting database services...$(RESET)"
-	$(MAKE) db-up
-	@echo "$(YELLOW)⏳ Waiting for database to be ready...$(RESET)"
-	@timeout 30 sh -c 'until docker exec accountable-books-db pg_isready -U user -d accountable_books; do sleep 1; done' || (echo "$(RED)Database failed to start$(RESET)" && exit 1)
-	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
-	$(MAKE) db-migrate
-	@echo ""
-	@echo "$(GREEN)✅ Setup complete!$(RESET)"
-	@echo "$(GREEN)🚀 Run 'make dev' to start developing$(RESET)"
-	@echo "$(BLUE)📚 Check the README for more information$(RESET)"
+	pnpm run generate-env
+	@echo "$(YELLOW)📄 Contracts: validate, bundle, codegen...$(RESET)"
+	$(MAKE) contracts
+	@echo "$(GREEN)✅ Bootstrap complete$(RESET)"
 
-dev: db-up contracts ## Start development environment
-	@echo "$(GREEN)Starting development environment...$(RESET)"
+# Back-compat alias when using this file directly
+setup: bootstrap ## Alias for bootstrap (compat)
+
+##@ Development
+dev-setup: db-setup ## Prepare DB (up+wait+migrate+seed) without starting servers
+	@echo "$(GREEN)✅ Development DB prepared (no servers started)$(RESET)"
+
+dev-start: db-setup pnpm dev
+
+dev: ## Start apps in development mode (servers only; no DB side effects)
+	@echo "$(GREEN)Starting apps (no DB prep)$(RESET)"
 	pnpm dev
 
 ##@ Database
-db-up: ## Start database services
-	@echo "$(GREEN)Starting database...$(RESET)"
+db-up: guard-nonprod ## Start database services (Postgres + Redis)
+	@echo "$(GREEN)Starting database services...$(RESET)"
 	@if [ ! -f docker-compose.dev.yml ]; then echo "$(RED)docker-compose.dev.yml not found$(RESET)"; exit 1; fi
-	docker-compose -f docker-compose.dev.yml up -d db redis
+	$(DOCKER_COMPOSE) up -d db redis
 
-db-down: ## Stop database services
-	@echo "$(YELLOW)Stopping database...$(RESET)"
-	docker-compose -f docker-compose.dev.yml down
+db-down: guard-nonprod ## Stop database services
+	@echo "$(YELLOW)Stopping database services...$(RESET)"
+	$(DOCKER_COMPOSE) down
 
-db-restart: db-down db-up ## Restart database services
+db-restart: guard-nonprod db-down db-up ## Restart database services
 
-db-migrate: ## Run database migrations
+db-wait: ## Wait for Postgres to become ready
+	@echo "$(YELLOW)⏳ Waiting for database to be ready...$(RESET)"
+	@timeout $(WAIT_TIMEOUT) sh -c 'until docker exec $(DB_CONTAINER) pg_isready -U $(DB_USER) -d $(DB_NAME); do sleep 1; done' || (echo "$(RED)Database failed to start$(RESET)" && exit 1)
+
+db-migrate: guard-nonprod ## Run database migrations (local)
 	@echo "$(GREEN)Running migrations...$(RESET)"
 	pnpm --filter @accountable-books/api migrate:local
 
-db-rollback: ## Rollback last migration
+db-rollback: guard-nonprod ## Rollback last migration (local)
 	@echo "$(YELLOW)Rolling back migration...$(RESET)"
 	pnpm --filter @accountable-books/api migrate:rollback
 
-db-seed: ## Seed database with test data
-	@echo "$(GREEN)Seeding database...$(RESET)"
-	pnpm --filter @accountable-books/api seed:demo
+db-seed: guard-nonprod ## Seed database with demo data (all steps)
+	@echo "$(GREEN)Seeding database (demo:apply --all)...$(RESET)"
+	pnpm --filter @accountable-books/api demo:apply -- $(SEED_ARGS)
 
-##@ Demo Seeds (DEX)
-demo-apply: ## Apply demo seeds (use ARGS="--all" or e.g. "--country US --parallel")
-	pnpm --filter @accountable-books/api demo:apply -- $(ARGS)
+db-reset: guard-nonprod ## Reset database (drop, migrate, seed)
+	@echo "$(YELLOW)Resetting database (drop + migrate + seed)...$(RESET)"
+	pnpm --filter @accountable-books/api reset:db
 
-demo-add: ## Apply a single step (use ARGS="--step bank-accounts --all")
-	pnpm --filter @accountable-books/api demo:add -- $(ARGS)
+db-prepare: guard-nonprod db-up db-wait db-migrate ## Bring up DB, wait, and migrate
+	@echo "$(GREEN)✅ DB prepared (up + ready + migrated)$(RESET)"
 
-demo-purge: ## Purge demo artifacts (use ARGS="--all" or "--company indDemoNG")
-	pnpm --filter @accountable-books/api demo:purge -- $(ARGS)
-
-demo-list: ## List seed runs
-	pnpm --filter @accountable-books/api demo:list
-
-demo-status: ## Show applied runs (use ARGS="--country NG")
-	pnpm --filter @accountable-books/api demo:status -- $(ARGS)
+db-setup: guard-nonprod db-prepare db-seed ## Full DB setup (up + ready + migrated + seeded)
+	@echo "$(GREEN)✅ DB setup complete (includes seeding)$(RESET)"
 
 db-logs: ## Show database logs
-	docker-compose -f docker-compose.dev.yml logs -f db
+	$(DOCKER_COMPOSE) logs -f db
 
-db-shell: ## Connect to database shell
-	@if ! docker ps | grep -q accountable-books-db; then echo "$(RED)Database container not running. Run 'make db-up' first.$(RESET)"; exit 1; fi
-	docker exec -it accountable-books-db psql -U user -d accountable_books
+db-shell: ## Connect to Postgres shell
+	@if ! docker ps | grep -q $(DB_CONTAINER); then echo "$(RED)Database container not running. Run 'make db-up' first.$(RESET)"; exit 1; fi
+	docker exec -it $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
+
+##@ Demo Seeds (DEX)
+demo-apply: guard-nonprod ## Apply demo seeds (use ARGS="--all" or e.g. "--country US --type business")
+	pnpm --filter @accountable-books/api demo:apply -- $(ARGS)
+
+demo-reverse: guard-nonprod ## Delete demo data (use ARGS="--all" or "--company bizDemoUS")
+	pnpm --filter @accountable-books/api demo:reverse -- $(ARGS)
+
+demo-reset: guard-nonprod ## Delete then recreate demo data (use ARGS="--country US")
+	pnpm --filter @accountable-books/api demo:reset -- $(ARGS)
+
+demo-status: ## Show current demo data counts
+	pnpm --filter @accountable-books/api demo:status
 
 ##@ API
-api-dev: db-up ## Start API in development mode
-	@echo "$(GREEN)Starting API in development mode...$(RESET)"
-	@echo "$(YELLOW)⏳ Waiting for database services to be ready...$(RESET)"
-	@timeout 30 sh -c 'until docker exec accountable-books-db pg_isready -U user -d accountable_books; do sleep 1; done' || (echo "$(RED)Database failed to start$(RESET)" && exit 1)
-	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
-	pnpm --filter @accountable-books/api migrate:local
-	@echo "$(YELLOW)🌱 Seeding database with demo data...$(RESET)"
-	pnpm --filter @accountable-books/api seed:demo
-	@echo "$(GREEN)🚀 Starting API server...$(RESET)"
+api-dev: db-prepare ## Start API in development mode (prepares DB; no seeding)
+	@echo "$(GREEN)Starting API (no seeding)$(RESET)"
 	pnpm --filter @accountable-books/api dev
 
 api-build: ## Build API
@@ -127,6 +149,10 @@ bundle-contracts-watch: ## Bundle OpenAPI contracts in watch mode
 	@echo "$(GREEN)Watching and bundling OpenAPI contracts...$(RESET)"
 	pnpm exec redocly bundle packages/contracts/openapi.yaml --output packages/contracts/dist/openapi-bundled.yaml --dereferenced --watch
 
+contracts-watch: ## Watch contracts; validate + bundle + regenerate types on change
+	@echo "$(GREEN)Starting contracts watcher (validate + bundle + codegen)...$(RESET)"
+	pnpm contracts:watch
+
 clean-bundled: ## Clean bundled contract files
 	@echo "$(YELLOW)Cleaning bundled contracts...$(RESET)"
 	rm -rf packages/contracts/dist
@@ -153,54 +179,29 @@ check: contracts ## Run all quality checks (lint, typecheck, format)
 	pnpm typecheck
 	pnpm format:check
 
-##@ Docker
-docker-up: ## Start all services with Docker
-	@echo "$(GREEN)Starting all Docker services...$(RESET)"
-	docker-compose -f docker-compose.dev.yml up
-
-docker-down: ## Stop all Docker services
-	@echo "$(YELLOW)Stopping all Docker services...$(RESET)"
-	docker-compose -f docker-compose.dev.yml down
-
-docker-build: ## Build Docker images
-	@echo "$(GREEN)Building Docker images...$(RESET)"
-	docker-compose -f docker-compose.dev.yml build
-
-docker-clean: ## Clean Docker (remove volumes, images, rebuild)
-	@echo "$(YELLOW)Cleaning Docker environment...$(RESET)"
-	docker-compose -f docker-compose.dev.yml down -v --rmi all
-	docker-compose -f docker-compose.dev.yml build --no-cache
-	@echo "$(GREEN)✅ Docker environment cleaned$(RESET)"
+ci: check test ## CI: quality checks + tests
+	@echo "$(GREEN)✅ CI checks and tests completed$(RESET)"
 
 ##@ Maintenance
-clean: ## Clean all generated files and containers
+clean: guard-nonprod ## Clean generated files and containers
 	@echo "$(YELLOW)Cleaning workspace...$(RESET)"
-	$(MAKE) docker-down
+	$(MAKE) db-down
 	$(MAKE) clean-bundled
-	docker system prune -f
+	docker system prune -f || true
 	pnpm clean || true
 	@echo "$(GREEN)✅ Workspace cleaned$(RESET)"
 
-clean-all: ## Nuclear cleanup: remove all caches, coverage, node_modules, and reinstall
+clean-all: guard-nonprod ## Nuclear cleanup: remove caches, node_modules, and reinstall
 	@echo "$(RED)Nuclear cleanup starting...$(RESET)"
 	@echo "$(YELLOW)Stopping Docker services...$(RESET)"
-	$(MAKE) docker-down || true
+	$(MAKE) db-down || true
 	@echo "$(YELLOW)Removing all node_modules...$(RESET)"
-	rm -rf node_modules
-	rm -rf apps/*/node_modules
-	rm -rf packages/*/node_modules
-	@echo "$(YELLOW)Removing all coverage reports...$(RESET)"
-	rm -rf apps/*/coverage
-	rm -rf packages/*/coverage
-	rm -rf coverage
-	@echo "$(YELLOW)Removing all cache directories...$(RESET)"
-	rm -rf .turbo
-	rm -rf apps/*/.turbo
-	rm -rf packages/*/.turbo
-	rm -rf apps/*/dist
-	rm -rf packages/*/dist
-	rm -rf dist
-	@echo "$(YELLOW)Removing pnpm store cache...$(RESET)"
+	rm -rf node_modules apps/*/node_modules packages/*/node_modules
+	@echo "$(YELLOW)Removing all coverage and cache directories...$(RESET)"
+	rm -rf apps/*/coverage packages/*/coverage coverage
+	rm -rf .turbo apps/*/.turbo packages/*/.turbo
+	rm -rf apps/*/dist packages/*/dist dist
+	@echo "$(YELLOW)Cleaning pnpm store cache...$(RESET)"
 	pnpm store prune || true
 	@echo "$(YELLOW)Cleaning bundled contracts...$(RESET)"
 	$(MAKE) clean-bundled
@@ -212,5 +213,5 @@ clean-all: ## Nuclear cleanup: remove all caches, coverage, node_modules, and re
 	$(MAKE) contracts
 	@echo "$(GREEN)✅ Nuclear cleanup complete!$(RESET)"
 
-reset: clean setup ## Full reset: clean everything and setup fresh
+reset: guard-nonprod clean bootstrap ## Full reset: clean everything and bootstrap fresh
 	@echo "$(GREEN)✅ Full reset complete$(RESET)"

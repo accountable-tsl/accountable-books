@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
-import { addNewContacts } from '../../src/domains/contacts/contacts.model';
-import { generateDemoContactsForCompany } from '../../seeds/demo/utils/003_genDemoContacts';
-import type { MarkFn, SeedCtx } from '../engine/helpers';
+import { addNewContacts } from '../../../src/domains/contacts/contacts.model.js';
+import type { MarkFn, SeedCtx } from '../old_engine/helpers.js';
+import { generateDemoContactsForCompany } from '../utils/003_genDemoContacts.js';
 
 export async function up(knex: Knex, ctx: SeedCtx, mark: MarkFn) {
   const { country, type, companyShortCode, userEmail } = ctx;

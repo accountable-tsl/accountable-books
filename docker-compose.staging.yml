@@ -1,0 +1,77 @@
+services:
+  # Simple PostgreSQL for staging
+  db:
+    build: ./infra/postgres
+    container_name: accountable-staging-db
+    environment:
+      POSTGRES_DB: accountable_books
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: staging_password
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d accountable_books']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Simple Redis for staging
+  redis:
+    image: redis:8.0.3-alpine
+    container_name: accountable-staging-redis
+    command: redis-server --requirepass staging_redis_password
+    ports:
+      - '6385:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--pass', 'staging_redis_password', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # API service - run migration then start server
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: accountable-staging-api
+    environment:
+      NODE_ENV: staging
+      DATABASE_URL: postgresql://postgres:staging_password@db:5432/accountable_books
+      REDIS_URL: redis://:staging_redis_password@redis:6379
+      PORT: 5000
+      JWT_ACCESS_SECRET: staging_jwt_secret_key_123
+      JWT_REFRESH_SECRET: staging_jwt_refresh_secret_key_456
+    ports:
+      - '5000:5000'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "npx tsx scripts/migrate-staging.ts && node dist/server.js"
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Web frontend
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: accountable-staging-web
+    ports:
+      - '3000:80'
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

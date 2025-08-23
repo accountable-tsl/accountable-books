@@ -141,7 +141,11 @@ export async function up(knex: Knex): Promise<void> {
 
   // Update last_active_company_id column in users table
   await knex.schema.alterTable('users', (table) => {
-    table.foreign('last_active_company_id').references('id').inTable('companies');
+    table
+      .foreign('last_active_company_id')
+      .references('id')
+      .inTable('companies')
+      .onDelete('SET NULL');
   });
 }
 

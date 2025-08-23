@@ -13,5 +13,11 @@ export const runtimeKnexConfig: Knex.Config = {
   pool: {
     min: 2,
     max: 10,
+    // Close idle connections after 30 seconds
+    idleTimeoutMillis: 30000,
+    // Close connections after 60 seconds of use
+    acquireTimeoutMillis: 60000,
   },
+  // Ensure transactions are properly handled
+  asyncStackTraces: true,
 };

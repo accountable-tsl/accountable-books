@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
-import { addNewProjects } from '../../src/domains/projects/projects.model';
-import { generateDemoProjectsForCompany } from '../../seeds/demo/utils/004_genDemoProjects';
-import type { MarkFn, SeedCtx } from '../engine/helpers';
+import { addNewProjects } from '../../../src/domains/projects/projects.model.js';
+import { generateDemoProjectsForCompany } from '../utils/004_genDemoProjects.js';
+import type { MarkFn, SeedCtx } from '../old_engine/helpers.js';
 
 export async function up(knex: Knex, ctx: SeedCtx, mark: MarkFn) {
   const { country, type, companyShortCode, userEmail } = ctx;

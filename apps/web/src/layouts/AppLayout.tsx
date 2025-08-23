@@ -45,4 +45,5 @@ export default function AppLayout({ sidebarCollapsible = 'icon' }: AppLayoutProp
   );
 }
 
+AppLayout.displayName = 'AppLayout';
 // AppLayout.whyDidYouRender = true;

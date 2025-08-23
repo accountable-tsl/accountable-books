@@ -8,7 +8,7 @@
 import type { EnvSchema } from '@accountable-books/utils/env/types';
 
 // Target files to generate (only essential ones)
-export const API_TARGET_FILES = ['.env.local', '.env.test', '.env.example'];
+export const API_TARGET_FILES = ['.env.local', '.env.test', '.env.staging', '.env.example'];
 
 export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
@@ -44,8 +44,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: true,
     local: 'http://localhost:5000',
     test: 'http://localhost:3001',
-    staging: 'https://api-staging.accountable.local',
-    production: 'https://api.accountable.com',
+    staging: 'http://localhost:5000',
+    production: 'https://api.getaccountable.com',
   },
 
   FRONTEND_URL: {
@@ -54,8 +54,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: true,
     local: 'http://localhost:5173',
     test: 'http://localhost:3000',
-    staging: 'https://app-staging.accountable.local',
-    production: 'https://app.accountable.com',
+    staging: 'http://localhost:3000',
+    production: 'https://app.getaccountable.com',
   },
 
   COOKIE_DOMAIN: {
@@ -74,7 +74,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: true,
     local: 'localhost',
     test: 'localhost',
-    staging: 'CHANGE_IN_PRODUCTION',
+    staging: 'db',
     production: 'CHANGE_IN_PRODUCTION',
   },
 
@@ -94,7 +94,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: true,
     local: 'accountable_books',
     test: 'test_db',
-    staging: 'CHANGE_IN_PRODUCTION',
+    staging: 'accountable_books',
     production: 'CHANGE_IN_PRODUCTION',
   },
 
@@ -104,7 +104,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: true,
     local: 'user',
     test: 'test',
-    staging: 'CHANGE_IN_PRODUCTION',
+    staging: 'user',
     production: 'CHANGE_IN_PRODUCTION',
   },
 
@@ -114,7 +114,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: true,
     local: 'password',
     test: 'test',
-    staging: 'CHANGE_IN_PRODUCTION',
+    staging: 'password',
     production: 'CHANGE_IN_PRODUCTION',
   },
 
@@ -124,7 +124,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: true,
     local: 'postgres://user:password@localhost:5433/accountable_books',
     test: 'postgresql://test:test@localhost:5432/test_db',
-    staging: 'CHANGE_IN_PRODUCTION',
+    staging: 'postgresql://user:password@db:5432/accountable_books',
     production: 'CHANGE_IN_PRODUCTION',
   },
 
@@ -135,7 +135,10 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Redis connection URL',
     type: 'url',
     required: true,
-    default: 'redis://localhost:6380',
+    local: 'redis://localhost:6380',
+    test: 'redis://localhost:6379',
+    staging: 'redis://redis:6379',
+    production: 'CHANGE_IN_PRODUCTION',
   },
 
   // ============================================================================
@@ -171,6 +174,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: false,
     local: 'postmark',
     test: 'console',
+    staging: 'console',
     default: 'postmark',
   },
 
@@ -227,6 +231,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: false,
     local: 'dev',
     test: 'test',
+    staging: 'staging',
     default: 'general',
   },
 
@@ -278,11 +283,140 @@ export const API_ENV_SCHEMA: EnvSchema = {
     test: 'https://test.r2.cloudflarestorage.com',
   },
 
-  R2_BUCKET: {
-    description: 'Cloudflare R2 bucket name',
+  R2_LOGOS_BUCKET_NAME: {
+    description: 'Cloudflare R2 bucket name for logos',
     type: 'string',
     required: false,
+    default: 'logos',
     test: 'test-bucket',
+  },
+
+  R2_LOGOS_DOMAIN: {
+    description: 'Cloudflare R2 domain for logos',
+    type: 'url',
+    required: false,
+    test: 'https://test.r2.cloudflarestorage.com',
+  },
+
+  // ============================================================================
+  // PLATFORM COMPANY CONFIGURATION
+  // ============================================================================
+  PLATFORM_COMPANY_ID: {
+    description: 'Main platform company UUID',
+    type: 'string',
+    required: true,
+    local: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
+    test: '018f7e5e-1111-2222-3333-000000000001',
+    staging: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
+    production: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
+  },
+
+  PLATFORM_COMPANY_NAME: {
+    description: 'Platform company legal name',
+    type: 'string',
+    required: true,
+    local: 'Accountable Techserve Ltd',
+    test: 'Test Platform Company',
+    staging: 'Accountable Techserve Ltd',
+    production: 'Accountable Techserve Ltd',
+  },
+
+  PLATFORM_COMPANY_SHORT_CODE: {
+    description: 'Platform company short identifier',
+    type: 'string',
+    required: true,
+    local: 'accX',
+    test: 'TEST',
+    staging: 'accX',
+    production: 'accX',
+  },
+
+  PLATFORM_ACCOUNTING_FIRM_ID: {
+    description: 'Platform accounting firm UUID',
+    type: 'string',
+    required: true,
+    local: 'fb60dc2d-732e-4bf6-9f0c-74577354e816',
+    test: '018f7e5e-4444-5555-6666-000000000002',
+    staging: 'fb60dc2d-732e-4bf6-9f0c-74577354e816',
+    production: 'fb60dc2d-732e-4bf6-9f0c-74577354e816',
+  },
+
+  // ============================================================================
+  // ADMIN USER CONFIGURATION
+  // ============================================================================
+  TEST_ADMIN_ID: {
+    description: 'Test admin user ID (UUID)',
+    type: 'string',
+    required: false,
+    local: '018f7e5e-0000-0000-0000-000000000001',
+    test: '018f7e5e-0000-0000-0000-000000000001',
+  },
+
+  TEST_ADMIN_EMAIL: {
+    description: 'Test admin user email',
+    type: 'string',
+    required: false,
+    local: 'support@getaccountable.com',
+    test: 'support@getaccountable.com',
+  },
+
+  TEST_ADMIN_FIRSTNAME: {
+    description: 'Test admin user first name',
+    type: 'string',
+    required: false,
+    local: 'Admin',
+    test: 'Test',
+  },
+
+  TEST_ADMIN_LASTNAME: {
+    description: 'Test admin user last name',
+    type: 'string',
+    required: false,
+    local: 'User',
+    test: 'Admin',
+  },
+
+  TEST_ADMIN_PASSWORD: {
+    description: 'Test admin user password',
+    type: 'secret',
+    required: false,
+    local: 'StrongAdminPass!',
+    test: 'StrongAdminPass!',
+  },
+
+  ADMIN_ID: {
+    description: 'Production admin user ID (UUID)',
+    type: 'string',
+    required: false,
+    production: 'CHANGE_IN_PRODUCTION',
+  },
+
+  ADMIN_EMAIL: {
+    description: 'Production admin user email',
+    type: 'string',
+    required: false,
+    production: 'CHANGE_IN_PRODUCTION',
+  },
+
+  ADMIN_FIRSTNAME: {
+    description: 'Production admin user first name',
+    type: 'string',
+    required: false,
+    production: 'CHANGE_IN_PRODUCTION',
+  },
+
+  ADMIN_LASTNAME: {
+    description: 'Production admin user last name',
+    type: 'string',
+    required: false,
+    production: 'CHANGE_IN_PRODUCTION',
+  },
+
+  ADMIN_PASSWORD: {
+    description: 'Production admin user password',
+    type: 'secret',
+    required: false,
+    production: 'CHANGE_IN_PRODUCTION',
   },
 
   // ============================================================================
@@ -292,7 +426,10 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Whether to seed database with demo data',
     type: 'boolean',
     required: false,
-    default: 'false',
+    local: 'false',
+    test: 'false',
+    staging: 'true',
+    production: 'false',
   },
 
   BULLBOARD_USER: {

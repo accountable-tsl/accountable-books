@@ -21,155 +21,289 @@ import {
 } from '../../shared/utils/response.utils.js';
 import generateSecureShortCode, { shortCodelooksWeird } from '../../shared/utils/crypto.utils.js';
 import { knexClient } from '../../db/knexClient.js';
-import { buildAuthContext, generateAuthTokens } from '../../features/auth/auth.utils.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import { updateFirm } from '../accountingFirms/firms.model.js';
 import { type AuthUserContext } from '../../features/auth/auth.types.js';
-import { hasAccessToCompany } from '../userRoles/userRoles.model.js';
-import { redis } from '../../lib/redis.js';
 import {
   createInitialCompanyOnboardingState,
   markCompanyOnboardingStepComplete,
 } from '../../features/onboarding/onboarding.utils.js';
+import { logger, logError, logDatabaseOperation, logTiming } from '../../shared/utils/logger.js';
+import { getCurrency } from '../currencies/currencies.utils.js';
+import { getCountry } from '../countries/countries.utils.js';
 
 /**
- * Creates a new company in the database.
+ * Generates a unique short code for a company with collision handling
  *
- * This function validates the given company input, ensuring that all required fields are present
- * and correctly formatted. It checks that the user attempting to create the company exists and
- * assigns the company to a firm if not already assigned. The function generates a unique short code
- * for the company if not provided, initializes the onboarding state, and inserts the company data
- * into the database. It also handles assigning the company to a firm and returns a success or error
- * response based on the operation outcome.
- *
- * @param {Knex.Transaction} knexTrx - The transaction object for database operations.
- * @param {NewCompanyInput} input - The input data for the company to be created.
- * @returns {Promise<ApiResponse>} A promise that resolves to an ApiResponse with the result of the
- * company creation operation.
- * @throws {AppError} Throws an error if the user is unauthorized, if a short code cannot be
- * generated, if the company cannot be created, or if the company cannot be assigned to a firm.
+ * @param trx - Database transaction
+ * @param providedShortCode - Optional specific short code to use
+ * @param operationLogger - Logger instance for this operation
+ * @returns Object with generated short code and attempt count
  */
+async function generateUniqueShortCode(
+  trx: Knex.Transaction,
+  providedShortCode: string | undefined,
+  operationLogger: any,
+): Promise<{ shortCode: string; attempts: number }> {
+  let shortCode: string;
+  let exists = false;
+  let attempts = 0;
+  const maxAttempts = 5;
 
+  do {
+    shortCode = providedShortCode || generateSecureShortCode();
+
+    // If no provided short code, check if generated code looks weird
+    if (!providedShortCode && shortCodelooksWeird(shortCode, 4)) {
+      attempts++;
+      continue; // Skip the database check, just generate another
+    }
+
+    logDatabaseOperation('SELECT', 'companies', { shortCode });
+    exists = !!(await trx('companies').where({ short_code: shortCode }).first());
+    attempts++;
+
+    // If we provided a specific short_code and it exists, fail immediately
+    if (providedShortCode && exists) {
+      operationLogger.warn({ providedShortCode }, 'Provided short code already exists');
+      throw new AppError(
+        'Provided short code already exists',
+        { shortCode: providedShortCode },
+        true,
+      );
+    }
+  } while (exists && attempts < maxAttempts);
+
+  if (exists) {
+    const error = `Unable to generate unique short code after ${maxAttempts} attempts`;
+    operationLogger.error({ attempts: maxAttempts }, error);
+    throw new AppError(error, { attempts: maxAttempts }, true);
+  }
+
+  return { shortCode, attempts };
+}
+
+/**
+ * Options for creating a company
+ */
+export interface CreateCompanyOptions {
+  /** Company creation data */
+  company: NewCompanyInput;
+  /** Database transaction context (required) */
+  transaction: Knex.Transaction;
+}
+
+/**
+ * Creates a new company in the database with full transaction safety.
+ *
+ * This function handles:
+ * - Input validation and sanitization
+ * - Atomic database operations within provided transaction
+ * - User authorization verification
+ * - Unique short code generation with collision handling
+ * - Firm assignment and relationship creation
+ * - Complete audit logging and error handling
+ *
+ * @param options - Company creation options with named parameters
+ * @returns ApiResponse with company creation result
+ */
 export const createCompany = async (
-  knexTrx: Knex.Transaction,
-  input: NewCompanyInput,
+  options: CreateCompanyOptions,
 ): Promise<ApiResponse<NewCompany>> => {
-  const snakeInput = camelToSnake(input);
-  const validateInput = newCompanyInput.safeParse(snakeInput);
+  const { company: input, transaction: trx } = options;
+  const startTime = Date.now();
+  const operationId = `create-company-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+  const companyLogger = logger.child({
+    operation: 'createCompany',
+    operationId,
+    legalName: input.legal_name,
+    companyType: input.type,
+    createdById: input.created_by_id,
+  });
+
+  companyLogger.info('Starting company creation');
+
+  // Input validation and sanitization
+  // const snakeInput = camelToSnake(input);
+  const validateInput = newCompanyInput.safeParse(input);
 
   if (!validateInput.success) {
-    return errorResponse('Invalid input', validateInput.error.flatten());
+    const validationError = 'Invalid input provided for company creation';
+    companyLogger.warn(
+      {
+        validationErrors: validateInput.error.flatten(),
+      },
+      validationError,
+    );
+    return errorResponse(validationError, validateInput.error.flatten());
   }
 
   if (!input.created_by_id) {
-    return errorResponse('UserID is required');
+    const userIdError = 'User ID is required for company creation';
+    companyLogger.warn(userIdError);
+    return errorResponse(userIdError);
   }
-  const { assigned_firm_id } = validateInput.data;
 
+  const { reporting_currency_id, reporting_currency_code, country_code, country_id, ...rest } =
+    validateInput.data;
+
+  const countryId = country_id ? country_id : country_code && (await getCountry(country_code)).id;
+
+  const reportingCurrencyId = reporting_currency_id
+    ? reporting_currency_id
+    : reporting_currency_code && (await getCurrency(reporting_currency_code)).id;
+
+  // Sanitize company names (trim and basic cleaning)
+  const sanitizedData = {
+    ...rest,
+    legal_name: rest.legal_name.trim(),
+    display_name: rest.display_name?.trim() || rest.legal_name.trim(),
+    reporting_currency_id: reportingCurrencyId,
+    country_id: countryId,
+  };
+
+  const { assigned_firm_id } = sanitizedData;
+
+  // Execute company creation within the provided transaction
   try {
-    const userExists = await knexTrx('users').where({ id: input.created_by_id }).first();
+    // Verify user exists and has permission
+    logDatabaseOperation('SELECT', 'users', { userId: input.created_by_id });
+    const userExists = await trx('users').where({ id: input.created_by_id }).first();
 
     if (!userExists) {
+      const authError = `Non-existent user attempting to create company`;
+      companyLogger.warn({ userId: input.created_by_id }, authError);
       throw new AppError(
         'Unauthorized',
-        `Non existent user trying to create company ${input.legal_name} with userId: ${input.created_by_id}`,
+        `${authError}: ${sanitizedData.legal_name} with userId: ${input.created_by_id}`,
         true,
       );
     }
 
+    companyLogger.debug({ userId: userExists.id }, 'User authorization verified');
+
+    // Resolve firm assignment
     let firmId = assigned_firm_id || null;
     if (!firmId) {
-      const [firm] = await knexTrx('accounting_firms_meta as af')
+      logDatabaseOperation('SELECT', 'accounting_firms_meta', { isPlatform: true });
+      const [firm] = await trx('accounting_firms_meta as af')
         .join('companies as c', 'af.company_id', 'c.id')
         .where('c.is_platform', true)
         .select('af.company_id as id');
 
-      firmId = firm.id;
+      firmId = firm?.id;
       if (!firmId) {
+        const firmError = 'No platform firm available for company assignment';
+        companyLogger.error(firmError);
         throw new AppError('Company must be assigned to a firm');
       }
+      companyLogger.debug({ firmId }, 'Assigned to platform firm');
+    } else {
+      companyLogger.debug({ firmId }, 'Using provided firm assignment');
     }
 
-    let short_code: string;
-    let exists;
-    let attempts = 0;
-    const maxAttempts = 5;
+    // Generate unique short code with collision handling
+    const { shortCode, attempts } = await generateUniqueShortCode(
+      trx,
+      input.short_code,
+      companyLogger,
+    );
+    companyLogger.debug({ shortCode, attempts }, 'Short code generated successfully');
 
-    do {
-      short_code = input.short_code || generateSecureShortCode();
-
-      // If no input.short_code, check if generated code looks weird
-      if (!input.short_code && shortCodelooksWeird(short_code, 4)) {
-        attempts++;
-        continue; // Skip the database check, just generate another
-      }
-
-      exists = !!(await knexTrx('companies').where({ short_code }).first());
-      attempts++;
-
-      // If we provided a specific short_code and it exists, fail immediately
-      if (input.short_code && exists) {
-        throw new AppError('Provided short code already exists', input, true);
-      }
-    } while (exists && attempts < maxAttempts);
-
-    if (exists) {
-      throw new AppError(
-        `Unable to generate unique short code after ${maxAttempts} attempts`,
-        input,
-        true,
-      );
-    }
-
+    // Prepare company data with defaults
     const onboardingState =
-      validateInput.data.onboarding_state ||
-      createInitialCompanyOnboardingState(validateInput.data.type);
+      sanitizedData.onboarding_state || createInitialCompanyOnboardingState(sanitizedData.type);
 
-    const [company] = await knexTrx('companies')
-      .insert({
-        ...validateInput.data,
-        legal_name: validateInput.data.legal_name,
-        display_name: validateInput.data.display_name || validateInput.data.legal_name,
-        short_code,
-        year_end_day: validateInput.data.year_end_day || 31,
-        year_end_month: validateInput.data.year_end_month || 12,
-        reporting_framework: validateInput.data.reporting_framework || 'ifrs',
-        created_by_id: userExists.id,
-        last_updated_by_id: userExists.id,
-        accounting_basis:
-          validateInput.data.accounting_basis ??
-          (validateInput.data.type === 'individual'
-            ? 'modified_cash_basis'
-            : 'modified_accrual_basis'),
-        is_demo_company: validateInput.data.is_demo_company || false,
-        industry:
-          validateInput.data.industry || validateInput.data.type === 'accounting_firm'
-            ? 'professional_services'
-            : null,
-        onboarding_state: onboardingState,
-      })
-      .returning('*');
+    const companyData = {
+      ...sanitizedData,
+      ...(sanitizedData.id ? { id: sanitizedData.id } : {}),
+      ...(sanitizedData.is_demo_company ? { is_demo_company: sanitizedData.is_demo_company } : {}),
+      legal_name: sanitizedData.legal_name,
+      display_name: sanitizedData.display_name,
+      short_code: shortCode,
+      year_end_day: sanitizedData.year_end_day || 31,
+      year_end_month: sanitizedData.year_end_month || 12,
+      reporting_framework: sanitizedData.reporting_framework || 'ifrs',
+      created_by_id: userExists.id,
+      last_updated_by_id: userExists.id,
+      accounting_basis:
+        sanitizedData.accounting_basis ??
+        (sanitizedData.type === 'individual' ? 'modified_cash_basis' : 'modified_accrual_basis'),
+      is_demo_company: sanitizedData.is_demo_company || false,
+      industry:
+        sanitizedData.industry || sanitizedData.type === 'accounting_firm'
+          ? 'professional_services'
+          : null,
+      onboarding_state: onboardingState,
+    };
 
-    if (!company) {
-      throw new AppError('Unable to create company');
+    // Insert company record
+    logDatabaseOperation('INSERT', 'companies', {
+      legalName: sanitizedData.legal_name,
+      shortCode,
+    });
+    const [company] = await trx('companies').insert(companyData).returning('*');
+
+    if (!company?.id) {
+      const insertError = 'Failed to create company record - no company returned';
+      companyLogger.error(insertError);
+      throw new AppError(insertError);
     }
 
-    const firmAssignment = await knexTrx('client_firm_assignments').insert({
+    companyLogger.info({ companyId: company.id }, 'Company record created successfully');
+
+    // Create firm assignment
+    logDatabaseOperation('INSERT', 'client_firm_assignments', {
+      clientCompanyId: company.id,
+      firmId,
+    });
+    const firmAssignment = await trx('client_firm_assignments').insert({
       client_company_id: company.id,
       accounting_firm_company_id: firmId,
       created_by_id: userExists.id,
       updated_by_id: userExists.id,
     });
 
-    const companyData = newCompany.safeParse(company);
-
     if (!firmAssignment) {
-      throw new AppError('Unable to assign company to firm');
+      const assignmentError = 'Failed to assign company to firm';
+      companyLogger.error({ companyId: company.id, firmId }, assignmentError);
+      throw new AppError(assignmentError);
     }
 
-    return successResponse('Company created successfully', companyData?.data ?? company);
+    companyLogger.info({ companyId: company.id, firmId }, 'Company assigned to firm successfully');
+
+    // Validate and return company data
+    const companyDataValidation = newCompany.safeParse(company);
+    const finalCompanyData = companyDataValidation.success ? companyDataValidation.data : company;
+
+    logTiming('createCompany', startTime, {
+      companyId: company.id,
+      operationId,
+    });
+
+    companyLogger.info({ companyId: company.id }, 'Company creation completed successfully');
+    return successResponse('Company created successfully', finalCompanyData);
   } catch (error) {
-    return errorResponse('Unable to create company', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    companyLogger.error(
+      {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operationId,
+      },
+      `Company creation failed: ${errorMessage}`,
+    );
+
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      operation: 'createCompany',
+      legalName: sanitizedData.legal_name,
+      operationId,
+    });
+
+    return errorResponse(
+      'Unable to create company',
+      process.env.NODE_ENV === 'production' ? undefined : error,
+    );
   }
 };
 
@@ -423,7 +557,7 @@ export const getCompaniesByIds = async (
 
 export const getSingleCompany = async (id: string): Promise<ApiResponse<GetCompanyResponse>> => {
   const res = await fetchCompanies({ identifiers: [id] });
-
+  console.log(res);
   if (!res.success || !res.data || res.data.length === 0) {
     return errorResponse(res.message, null);
   }

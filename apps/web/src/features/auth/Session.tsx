@@ -70,6 +70,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
   } = useCompanyDetails(companyId || '');
 
   const company = companyDataResponse?.data;
+
   const companyType = company?.companyType;
 
   const isLoading = isPublic ? isLoadingSession : isLoadingSession || isLoadingCompany;

@@ -12,7 +12,9 @@
     "sourceMap": true,
     "inlineSources": true,
     "sourceRoot": "/",
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "declaration": false,
+    "composite": false
   },
   "include": ["src"],
   "exclude": [

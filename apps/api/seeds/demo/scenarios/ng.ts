@@ -1,10 +1,10 @@
-import { getCountry } from '../../src/domains/countries/countries.utils';
-import { getCurrency } from '../../src/domains/currencies/currencies.utils';
+import { getCountry } from 'src/domains/countries/countries.utils.js';
+import { getCurrency } from 'src/domains/currencies/currencies.utils.js';
+import type { Scenario } from '../engine/registry.js';
 import {
   createCompleteCompanyOnboardingState,
   createCompleteUserOnboardingState,
-} from '../../src/features/onboarding/onboarding.utils';
-import type { Scenario } from '../engine/registry';
+} from 'src/features/onboarding/onboarding.utils.js';
 
 export async function buildNGScenarios(): Promise<Scenario[]> {
   const NGN = await getCurrency('NGN');

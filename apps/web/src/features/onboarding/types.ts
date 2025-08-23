@@ -62,6 +62,7 @@ export const companyOnboardingStepKeys = {
 export const onboardingStepKeys = {
   ...userOnboardingStepKeys,
   ...companyOnboardingStepKeys,
+  miscellaneousCompleted: 'miscellaneous_completed',
 } as const;
 
 export type UserOnboardingStepKey =

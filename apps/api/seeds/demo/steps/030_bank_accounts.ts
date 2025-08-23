@@ -1,10 +1,16 @@
 import type { Knex } from 'knex';
-import { createNewBankAccount } from '../../src/domains/bankAccounts/bankAccounts.model';
-import { coaSource } from '../../src/domains/chartOfAccounts/coa.types';
-import { bankAccountType } from '../../src/domains/bankAccounts/bankAccounts.types';
-import { banksInSystem, countriesInSystem, currenciesInSystem } from '../../seeds/demo/data/shared';
+import { createNewBankAccount } from '../../../src/domains/bankAccounts/bankAccounts.model.js';
+import { coaSource } from '../../../src/domains/chartOfAccounts/coa.types.js';
+import { bankAccountType } from '../../../src/domains/bankAccounts/bankAccounts.types.js';
 import { faker } from '@faker-js/faker';
-import type { MarkFn, SeedCtx } from '../engine/helpers';
+import type { MarkFn, SeedCtx } from '../old_engine/helpers.js';
+import banks from '../../../migrations/data/banks.json' with { type: 'json' };
+import countries from '../../../migrations/data/countries.json' with { type: 'json' };
+import currencies from '../../../migrations/data/currencies.json' with { type: 'json' };
+
+const banksInSystem = banks;
+const countriesInSystem = countries;
+const currenciesInSystem = currencies;
 
 export async function up(knex: Knex, ctx: SeedCtx, mark: MarkFn) {
   const { companyShortCode, userEmail, reportingCurrencyId, countryId } = ctx;

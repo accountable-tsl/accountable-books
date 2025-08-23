@@ -1,5 +1,5 @@
 import express from 'express';
-import 'dotenv/config';
+// Load env solely via config/env to avoid duplicate dotenv loads
 import cors from 'cors';
 import currencyRoutes from './domains/currencies/currencies.routes.js';
 import countryRoutes from './domains/countries/countries.routes.js';
@@ -31,6 +31,7 @@ import { conditionalCsrf, verifyRefreshToken } from './features/auth/auth.middle
 import { loadAccountMeta } from './domains/account/account.registry.js';
 import pino from 'pino';
 import { pinoHttp } from 'pino-http';
+import path from 'path';
 
 export const FRONTEND_URL = ENV.FRONTEND_URL!;
 
@@ -82,6 +83,8 @@ export async function setupApp() {
   await loadAccountMeta();
 
   app.use(cors({ origin: allowedOrigins, credentials: true }));
+  // Serve built static assets first (Docker runtime) then fallback to dev path
+  app.use(express.static('./dist/public'));
   app.use(express.static('./public'));
 
   app.use(conditionalCsrf);

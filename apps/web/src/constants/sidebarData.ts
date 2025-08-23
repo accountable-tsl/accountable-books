@@ -24,7 +24,7 @@ export const getNavMain = (companyId: string, companyType: CompanyType): NavMain
       ? [
           {
             title: 'Accounting',
-            url: '#',
+            url: routes.accounting.index.relativePath, // Temporal
             icon: CalculatorIcon,
           },
           {
@@ -34,7 +34,7 @@ export const getNavMain = (companyId: string, companyType: CompanyType): NavMain
             sub: [
               {
                 title: 'Accounting',
-                url: routes.accounting.setup.relativePath,
+                url: routes.accounting.index.relativePath,
               },
               {
                 title: 'Tax',

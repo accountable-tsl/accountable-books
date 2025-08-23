@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.json && cpy \"src/public/**\" dist/public",
     "start": "NODE_ENV=production node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:all": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tooling.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -20,9 +21,8 @@
     "seed:demo": "tsx seeds/demo/cli.ts apply --all",
     "demo": "tsx seeds/demo/cli.ts",
     "demo:apply": "tsx seeds/demo/cli.ts apply",
-    "demo:add": "tsx seeds/demo/cli.ts add",
-    "demo:purge": "tsx seeds/demo/cli.ts purge",
-    "demo:list": "tsx seeds/demo/cli.ts list",
+    "demo:reverse": "tsx seeds/demo/cli.ts reverse",
+    "demo:reset": "tsx seeds/demo/cli.ts reset",
     "demo:status": "tsx seeds/demo/cli.ts status",
     "start:worker": "tsx src/jobs/workers/email.worker.ts",
     "sentry:sourcemaps": "sentry-cli releases files \"$SENTRY_RELEASE\" upload-sourcemaps dist --rewrite && sentry-cli releases finalize \"$SENTRY_RELEASE\"",
@@ -32,6 +32,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@accountable-books/api-types": "workspace:*",
+    "@accountable-books/utils": "workspace:*",
     "@aws-sdk/client-s3": "^3.817.0",
     "@aws-sdk/s3-request-presigner": "^3.32.0",
     "@bull-board/api": "^6.9.0",
@@ -39,6 +41,7 @@
     "@sentry/node": "^9.12.0",
     "@sentry/profiling-node": "^9.12.0",
     "@slack/bolt": "^4.3.0",
+    "@zodios/core": "^10.9.6",
     "axios": "^1.7.9",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.48.0",
@@ -65,9 +68,7 @@
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0",
-    "zod": "^3.24.2",
-    "@accountable-books/api-types": "workspace:*",
-    "@accountable-books/utils": "workspace:*"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@faker-js/faker": "^9.7.0",

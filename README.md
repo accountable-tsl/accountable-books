@@ -7,13 +7,16 @@ Accountable Books is the MVP of our AI-native accounting suite. We ingest bank d
 ## 🚀 Quick Start
 
 ```bash
-# One-command setup (installs deps, starts database, runs migrations)
-make setup
+# Bootstrap (deps, envs, contracts/types)
+make bootstrap   # or: make setup (alias)
 
-# Start development
+# Prepare DB with seeds (no servers)
+make dev-setup
+
+# Start development servers (API + Web)
 make dev
 
-# See all available commands
+# See available commands
 make help
 ```
 
@@ -47,27 +50,39 @@ infra/
 
 ### Core Commands
 
-| Command           | Description                               |
-| ----------------- | ----------------------------------------- |
-| `make setup`      | Complete development environment setup    |
-| `make dev`        | Start all development servers (API + Web) |
-| `make api-dev`    | Start API server only                     |
-| `make web-dev`    | Start web app only                        |
-| `make db-migrate` | Run database migrations                   |
-| `make db-shell`   | Connect to database                       |
-| `make test`       | Run all tests                             |
-| `make check`      | Run linting, typechecking, formatting     |
-| `make clean`      | Clean all containers and generated files  |
+- `make bootstrap`: install deps, generate envs, validate/bundle contracts, and generate types.
+- `make dev-setup`: start DB, wait, migrate, and seed (no servers).
+- `make dev`: start dev servers only (no DB side effects).
+- `make api-dev`: start API server only (prepares DB, no seeding).
+- `make web-dev`: start web app only.
+- `make db-shell`: open a psql shell into Postgres.
+- `make test`: run all tests. `make check`: lint + typecheck + format:check. `make ci`: check + tests.
 
 ### Database Management
 
 ```bash
-make db-up          # Start database
-make db-migrate     # Run migrations
-make db-rollback    # Rollback last migration
-make db-seed        # Seed with test data
-make db-logs        # View database logs
-make db-shell       # Connect to database shell
+make db-prepare                 # Start DB, wait, migrate
+make db-setup                   # Prepare + seed
+make db-seed SEED_ARGS="--all"  # Apply demo seeds (parametrized)
+make db-rollback                # Roll back last migration
+make db-logs                    # View database logs
+make db-shell                   # Connect to database shell
+```
+
+Seed parameters examples:
+
+```bash
+# All seeds (default)
+make db-seed
+
+# Country-specific with parallelization
+make db-seed SEED_ARGS="--country NG --parallel --all"
+```
+
+DB wait timeout (seconds):
+
+```bash
+make db-prepare WAIT_TIMEOUT=10
 ```
 
 ### Web App Development
@@ -136,16 +151,28 @@ PostgreSQL 17.5 with custom extensions:
 - **[Environment Variables](docs/ENVIRONMENT.md)** - Configuration guide for all environments
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 
-## 🔧 Environment Setup
+## 🔒 Production Guard (Safety)
 
-The `make setup` command automatically:
+Destructive or state-changing targets are protected by a guard and refuse to run in production-like contexts.
 
-- ✅ Creates `.env.local` files from `.env.example` templates
-- ✅ Installs all dependencies
-- ✅ Starts database services
-- ✅ Runs database migrations
+Guarded targets include: `db-*` (except `db-logs`/`db-shell`), `demo-*` (except `demo-list`/`demo-status`), `clean`, `clean-all`, `reset`.
 
-**Most configuration works out-of-the-box for local development.**
+The guard blocks when any of the following is true:
+
+- `APP_ENV=production`, or `NODE_ENV=production`
+- running in popular PaaS contexts (e.g. `FLY_APP_NAME`, `VERCEL` envs detected)
+
+Override locally by ensuring: `APP_ENV=local` and `NODE_ENV` unset or non-production.
+
+Examples:
+
+```bash
+# Will refuse (production-like)
+make db-setup APP_ENV=production
+
+# Local safe run
+make db-setup APP_ENV=local
+```
 
 For production or custom setups, see the [Environment Variables Guide](docs/ENVIRONMENT.md).
 

@@ -1,0 +1,344 @@
+# Production-grade staging environment
+# Define custom networks for security segmentation
+networks:
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+  database:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/24
+    internal: true # Database network is isolated
+
+# Define named volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  nginx_logs:
+    driver: local
+
+# Secrets management (in production, use external secret stores)
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  jwt_access_secret:
+    file: ./secrets/jwt_access_secret.txt
+  jwt_refresh_secret:
+    file: ./secrets/jwt_refresh_secret.txt
+
+services:
+  # PostgreSQL Database with security hardening
+  db:
+    build:
+      context: .
+      dockerfile: infra/postgres/Dockerfile
+    container_name: accountable-db-staging
+    networks:
+      - database
+    secrets:
+      - db_password
+    environment:
+      POSTGRES_DB: accountable_books
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_INITDB_ARGS: '--auth-host=scram-sha-256'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app_user -d accountable_books']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - CHOWN
+      - FOWNER
+      - DAC_OVERRIDE
+
+  # Redis with persistence and security
+  redis:
+    image: redis:7-alpine
+    container_name: accountable-redis-staging
+    networks:
+      - backend
+    command: >
+      --requirepass ${REDIS_PASSWORD:-change_me_in_production}
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--pass', '${REDIS_PASSWORD:-change_me_in_production}', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/lib/redis
+      - /run/redis
+
+  # Database Migration Init Container
+  api-migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: accountable-migrate-staging
+    networks:
+      - database
+      - backend
+    env_file:
+      - apps/api/.env.staging
+    secrets:
+      - db_password
+      - jwt_access_secret
+      - jwt_refresh_secret
+    environment:
+      DATABASE_URL: postgresql://app_user:$(cat /run/secrets/db_password)@db:5432/accountable_books
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ['npx', 'tsx', 'scripts/migrate-staging.ts']
+    restart: 'no'
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  # API Application Server
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: accountable-api-staging
+    networks:
+      - backend
+      - database
+    env_file:
+      - apps/api/.env.staging
+    secrets:
+      - db_password
+      - jwt_access_secret
+      - jwt_refresh_secret
+    environment:
+      DATABASE_URL: postgresql://app_user:$(cat /run/secrets/db_password)@db:5432/accountable_books
+      JWT_ACCESS_SECRET_FILE: /run/secrets/jwt_access_secret
+      JWT_REFRESH_SECRET_FILE: /run/secrets/jwt_refresh_secret
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/logs
+
+  # ML Engine (Optional)
+  ml:
+    build:
+      context: .
+      dockerfile: apps/ml-engine/Dockerfile
+    container_name: accountable-ml-staging
+    networks:
+      - backend
+    environment:
+      API_URL: http://api:5000
+      ENVIRONMENT: staging
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  # Production-grade Reverse Proxy
+  nginx:
+    build:
+      context: .
+      dockerfile: infra/nginx/Dockerfile
+    container_name: accountable-nginx-staging
+    networks:
+      - frontend
+      - backend
+    ports:
+      - '80:80'
+      - '443:443'
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./apps/web/dist:/usr/share/nginx/html:ro
+      - nginx_logs:/var/log/nginx
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+
+  # Monitoring and Observability (Optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: accountable-prometheus-staging
+    networks:
+      - backend
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - '9090:9090'
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: accountable-grafana-staging
+    networks:
+      - backend
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin_change_me
+    volumes:
+      - ./infra/monitoring/grafana:/etc/grafana/provisioning:ro
+    ports:
+      - '3001:3000'
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'

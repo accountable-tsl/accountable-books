@@ -60,7 +60,10 @@ export const seedAdminUser = async (knex: Knex) => {
       return { success: true, data: existingUser };
     }
 
-    const result = await createUserDirect(trx, adminUser);
+    const result = await createUserDirect({
+      input: adminUser,
+      transaction: trx,
+    });
     if (!result.success) {
       console.error(`Failed to create admin user: ${result.message}`);
       throw new Error(result.message);

@@ -5,7 +5,7 @@ import { ENV, NODE_ENV } from './config/env.js';
 import { initSentry } from './sentry.bootstrap.js';
 
 const PORT = Number(ENV.PORT);
-const listeningOn = `api.${ENV.BASE_DOMAIN!}`;
+const listeningOn = '0.0.0.0';
 
 (async () => {
   try {

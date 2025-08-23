@@ -58,6 +58,7 @@ import { knexClient } from '../../db/knexClient.js';
 export const registerNewAccount = async (
   input: { user: NewUserInputCamel; company: NewCompanyInputCamel },
   trx?: Knex.Transaction,
+  demo?: boolean,
 ): Promise<ApiResponse<{ user: CreateUserResponse; company: NewCompanyResCamel }>> => {
   // Check that company type exists
   if (!input || !input.company.type) {
@@ -81,7 +82,7 @@ export const registerNewAccount = async (
   // Once user is created, company is created & assigned to firm,
   // Once this fn is successful, return successful, even if everything else fails
   const registerNewAccountFn = async (knex: Knex.Transaction) => {
-    const { user, company } = await createUserAndCompany(knex, userInput, companyInput);
+    const { user, company } = await createUserAndCompany(knex, userInput, companyInput, demo);
 
     let firm;
     // For an accounting firm, create accounting_firm
@@ -195,9 +196,13 @@ const createUserAndCompany = async (
   trx: Knex.Transaction,
   userInput: NewUserDirect,
   companyInput: NewCompanyInput,
+  demo?: boolean,
 ): Promise<{ user: CreateUserResponse; company: NewCompanyRes }> => {
   // Create user
-  const userResponse = await createUserDirect(trx, userInput);
+  const userResponse = await createUserDirect({
+    input: userInput,
+    transaction: trx,
+  });
   if (!userResponse.success || !userResponse.data?.id) {
     throw new AppError(`User creation failed: ${userResponse.message}`, userResponse.error);
   }
@@ -216,10 +221,13 @@ const createUserAndCompany = async (
 
   const { slug, ...restOfCompanyInput } = companyInput;
   // Create company
-  const companyResponse = await createCompany(trx, {
-    ...restOfCompanyInput,
-    created_by_id: userResponse.data?.id,
-    assigned_firm_id: platformFirmId,
+  const companyResponse = await createCompany({
+    company: {
+      ...restOfCompanyInput,
+      created_by_id: userResponse.data?.id,
+      assigned_firm_id: platformFirmId,
+    },
+    transaction: trx,
   });
 
   if (!companyResponse.success || !companyResponse.data?.id) {

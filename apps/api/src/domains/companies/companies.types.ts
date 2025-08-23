@@ -11,9 +11,11 @@ export const accountingBasis = z.enum(['modified_cash_basis', 'modified_accrual_
 export const newCompanyInput = z.object({
   id: z.string().uuid().optional(),
   legal_name: z.string().min(2).max(256),
-  country_id: z.string().uuid(),
+  country_code: z.string().max(3).optional(),
+  country_id: z.string().uuid().optional(),
   type: companyType,
-  reporting_currency_id: z.string().uuid(),
+  reporting_currency_code: z.string().max(3).optional(),
+  reporting_currency_id: z.string().uuid().optional(),
   accounting_basis: accountingBasis.optional(),
 
   display_name: z.string().max(256).optional(),
@@ -37,12 +39,14 @@ export const newCompanyInput = z.object({
   tax_id: z.string().max(256).nullish(),
   is_demo_company: z.boolean().default(false).optional(),
   slug: z.string().max(20).optional(),
-  onboarding_state: companyOnboardingState,
+  onboarding_state: companyOnboardingState.optional(),
 });
 
 export const newCompany = newCompanyInput
   .extend({
     display_name: z.string().max(256), // legal_name
+    country_id: z.string().uuid(),
+    reporting_currency_id: z.string().uuid(),
     accounting_basis: accountingBasis,
     short_code: z.string().max(50),
     year_end_day: z.coerce.number(),

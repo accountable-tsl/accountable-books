@@ -115,3 +115,24 @@ jobs:
       #     sentry-cli releases new "$SENTRY_RELEASE"
       #     sentry-cli releases files "$SENTRY_RELEASE" upload-sourcemaps apps/api/dist --rewrite
       #     sentry-cli releases finalize "$SENTRY_RELEASE"
+
+  ml-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install --upgrade pip poetry
+
+      - name: Install dependencies (ml-engine)
+        working-directory: apps/ml-engine
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Run tests (ml-engine)
+        working-directory: apps/ml-engine
+        run: poetry run pytest

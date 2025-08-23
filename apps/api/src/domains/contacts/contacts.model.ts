@@ -13,8 +13,22 @@ import {
 import { knexClient } from '../../db/knexClient.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import { createHybridSearch, defineSearchableColumns } from '../../shared/utils/search.utils.js';
+import { logger, logError, logDatabaseOperation, logTiming } from '../../shared/utils/logger.js';
 
 const normalizeName = (name: string) => name.trim().toLowerCase();
+
+/**
+ * Sanitizes contact input data by trimming whitespace and normalizing text fields
+ */
+function sanitizeContactInput(contact: ContactInput): ContactInput {
+  return {
+    ...contact,
+    displayName: contact.displayName.trim(),
+    email: contact.email?.trim().toLowerCase(),
+    address: contact.address?.trim(),
+    notes: contact.notes?.trim(),
+  };
+}
 
 export async function addNewContacts({
   input,
@@ -26,50 +40,206 @@ export async function addNewContacts({
   companyId: string;
   userId: string;
   trx?: Knex.Transaction;
-}): Promise<ApiResponse<ContactResponse[]>> {
-  const validate = contactInputSchema.array().safeParse(Array.isArray(input) ? input : [input]);
+}): Promise<ApiResponse<ContactResponse['contacts']>> {
+  const startTime = Date.now();
+  const operationId = `add-contacts-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const inputArray = Array.isArray(input) ? input : [input];
+
+  const contactsLogger = logger.child({
+    operation: 'addNewContacts',
+    operationId,
+    companyId,
+    userId,
+    contactCount: inputArray.length,
+  });
+
+  contactsLogger.info('Starting contact creation');
+
+  // Input validation with detailed error context
+  const validate = contactInputSchema.array().safeParse(inputArray);
   if (!validate.success) {
-    return errorResponse('Invalid input', validate.error.errors);
+    const validationError = 'Invalid contact input provided';
+    contactsLogger.warn(
+      {
+        validationErrors: validate.error.errors,
+        inputCount: inputArray.length,
+      },
+      validationError,
+    );
+    return errorResponse(validationError, validate.error.errors);
   }
 
+  // Convert validated snake_case data to camelCase and sanitize
+  const camelCaseContacts: ContactInput[] = validate.data.map((contact) => ({
+    id: contact.id,
+    displayName: contact.display_name,
+    email: contact.email,
+    address: contact.address,
+    status: contact.status,
+    notes: contact.notes,
+  }));
+
+  const sanitizedContacts = camelCaseContacts.map(sanitizeContactInput);
+  contactsLogger.debug({ sanitizedCount: sanitizedContacts.length }, 'Contact input sanitized');
+
   const query = async (tx: Knex.Transaction) => {
-    // Get company's UUID
-    const companyUUID = await getCompanyUUID(companyId, tx);
+    try {
+      // Get company's UUID with logging
+      logDatabaseOperation('SELECT', 'companies', { companyId });
+      const companyUUID = await getCompanyUUID(companyId, tx);
 
-    // Normalize names to verify uniqueness
-    const normalizedNames = validate.data.map((c) => normalizeName(c.display_name));
+      if (!companyUUID) {
+        const companyError = `Company not found: ${companyId}`;
+        contactsLogger.error({ companyId }, companyError);
+        throw new Error(companyError);
+      }
 
-    const existingContacts: { display_name: string }[] = await tx('contacts')
-      .whereIn('normalized_name', normalizedNames)
-      .andWhere('company_id', companyUUID)
-      .select('display_name');
+      contactsLogger.debug({ companyUUID }, 'Company resolved successfully');
 
-    if (existingContacts.length > 0) {
-      const existingNames = existingContacts.map((c) => c.display_name);
-      throw new Error(`Contact(s) with these names already exist: ${existingNames.join(', ')}`);
+      // Normalize names to verify uniqueness
+      const normalizedNames = sanitizedContacts.map((c) => normalizeName(c.displayName));
+      contactsLogger.debug(
+        {
+          names: sanitizedContacts.map((c) => c.displayName),
+          normalizedNames,
+        },
+        'Contact names normalized for duplicate check',
+      );
+
+      // Check for existing contacts
+      logDatabaseOperation('SELECT', 'contacts', {
+        companyId: companyUUID,
+        nameCount: normalizedNames.length,
+      });
+      const existingContacts: { display_name: string }[] = await tx('contacts')
+        .whereIn('normalized_name', normalizedNames)
+        .andWhere('company_id', companyUUID)
+        .select('display_name');
+
+      if (existingContacts.length > 0) {
+        const existingNames = existingContacts.map((c) => c.display_name);
+        const duplicateError = `Contact(s) with these names already exist: ${existingNames.join(', ')}`;
+        contactsLogger.warn(
+          {
+            existingNames,
+            attemptedNames: sanitizedContacts.map((c) => c.displayName),
+          },
+          'Duplicate contact names detected',
+        );
+        throw new Error(duplicateError);
+      }
+
+      contactsLogger.debug('No duplicate contacts found, proceeding with creation');
+
+      // Create data structure for insertion
+      const data = sanitizedContacts.map((contact) => ({
+        ...(contact.id && { id: contact.id }),
+        display_name: contact.displayName,
+        email: contact.email,
+        address: contact.address,
+        notes: contact.notes,
+        status: contact.status,
+        normalized_name: normalizeName(contact.displayName),
+        company_id: companyUUID,
+        created_by_id: userId,
+        updated_by_id: userId,
+      }));
+
+      // Insert contacts with logging
+      logDatabaseOperation('INSERT', 'contacts', {
+        companyId: companyUUID,
+        contactCount: data.length,
+        names: data.map((c) => c.display_name),
+      });
+      const result = await tx('contacts')
+        .insert(data)
+        .returning(['id', 'display_name as displayName', 'address', 'email', 'status', 'notes']);
+
+      contactsLogger.info(
+        {
+          createdCount: result.length,
+          contactIds: result.map((c) => c.id),
+        },
+        'Contacts created successfully',
+      );
+
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      contactsLogger.error(
+        {
+          error: error instanceof Error ? error : new Error(String(error)),
+          operationId,
+        },
+        `Contact creation failed: ${errorMessage}`,
+      );
+
+      logError(error instanceof Error ? error : new Error(String(error)), {
+        operation: 'addNewContacts',
+        companyId,
+        userId,
+        operationId,
+        contactCount: sanitizedContacts.length,
+      });
+
+      throw error;
     }
-
-    // Create data structure and insert
-    const data = validate.data.map((contact) => ({
-      ...contact,
-      normalized_name: normalizeName(contact.display_name),
-      company_id: companyUUID,
-      created_by_id: userId,
-      updated_by_id: userId,
-    }));
-
-    return await tx('contacts')
-      .insert(data)
-      .returning(['id', 'display_name as displayName', 'address', 'email', 'status', 'notes']);
   };
+  // Execute within transaction context
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
-    return successResponse('Contact created successfully', result);
+
+    logTiming('addNewContacts', startTime, {
+      contactCount: result.length,
+      companyId,
+      operationId,
+    });
+
+    const message =
+      result.length === 1
+        ? 'Contact created successfully'
+        : `${result.length} contacts created successfully`;
+    contactsLogger.info(
+      {
+        createdCount: result.length,
+        duration: Date.now() - startTime,
+      },
+      'Contact creation operation completed successfully',
+    );
+
+    return successResponse(message, result);
   } catch (error: any) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    contactsLogger.error(
+      {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operationId,
+        duration: Date.now() - startTime,
+        contactCount: sanitizedContacts.length,
+      },
+      'Contact creation operation failed',
+    );
+
+    // Handle specific error types with appropriate responses
     if (error.message?.startsWith('Contact(s) with these names')) {
-      return errorResponse(String(error.message), error);
+      return errorResponse(
+        String(error.message),
+        process.env.NODE_ENV === 'production' ? undefined : error,
+      );
     }
-    return errorResponse('Failed to create contact', error);
+
+    if (error.message?.startsWith('Company not found')) {
+      return errorResponse(
+        'Invalid company identifier',
+        process.env.NODE_ENV === 'production' ? undefined : error,
+      );
+    }
+
+    return errorResponse(
+      'Failed to create contact(s). Please try again.',
+      process.env.NODE_ENV === 'production' ? undefined : error,
+    );
   }
 }
 

@@ -13,27 +13,105 @@ import dayjs from 'dayjs';
 import { knexClient } from '../../db/knexClient.js';
 import { addNewToken } from '../tokens/tokens.model.js';
 import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
+import { logger, logError, logDatabaseOperation, logTiming } from '../../shared/utils/logger.js';
 
+/**
+ * Options for creating a user directly
+ */
+export interface CreateUserDirectOptions {
+  /** User creation data */
+  input: NewUserDirect;
+  /** Database transaction context (required) */
+  transaction: Knex.Transaction;
+}
+
+/**
+ * Creates a new user account directly with full transaction safety.
+ *
+ * This function handles:
+ * - Input validation and sanitization
+ * - Atomic database operations within provided transaction
+ * - Duplicate email checking
+ * - Password hashing with crypto-secure methods
+ * - Email verification token generation
+ * - Complete audit logging
+ *
+ * @param options - User creation options with named parameters
+ * @returns ApiResponse with user creation result
+ */
 export async function createUserDirect(
-  knexTrx: Knex.Transaction,
-  input: NewUserDirect,
+  options: CreateUserDirectOptions,
 ): Promise<ApiResponse<CreateUserResponse>> {
+  const { input, transaction: trx } = options;
+  const startTime = Date.now();
+  const operationId = `create-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+  const userLogger = logger.child({
+    operation: 'createUserDirect',
+    operationId,
+    email: input.email,
+    isDemo: input.is_demo_user || false,
+  });
+
+  userLogger.info('Starting user creation');
+
+  // Input validation and sanitization
   const validateInput = newUserDirect.safeParse(input);
   if (!validateInput.success) {
-    return errorResponse('Invalid input', validateInput.error.format());
-  }
-  const { email, password, ...rest } = validateInput.data;
-  if (!password) {
-    return errorResponse('Password is required');
+    const validationError = 'Invalid input provided for user creation';
+    userLogger.warn(
+      {
+        validationErrors: validateInput.error.format(),
+      },
+      validationError,
+    );
+    return errorResponse(validationError, validateInput.error.format());
   }
 
+  const { email, password, ...rest } = validateInput.data;
+  const isDemo = validateInput.data.is_demo_user || false;
+
+  // Password requirement check
+  if (!password) {
+    const passwordError = 'Password is required for user creation';
+    userLogger.warn(passwordError);
+    return errorResponse(passwordError);
+  }
+
+  // Email sanitization (trim and lowercase)
+  const sanitizedEmail = email.trim().toLowerCase();
+
+  // Execute user creation within the provided transaction
   try {
-    const existingUser = await knexTrx('users').select('id').where({ email }).first();
+    logDatabaseOperation('SELECT', 'users', { email: sanitizedEmail });
+
+    // Check for existing user
+    const existingUser = await trx('users')
+      .select(['id', 'firstname', 'lastname', 'email', 'onboarding_state'])
+      .where({ email: sanitizedEmail })
+      .first();
 
     if (existingUser) {
-      return errorResponse('User with this email already exists');
+      if (isDemo) {
+        userLogger.info('Demo user already exists, returning existing user');
+        return successResponse('User with this email already exists', {
+          id: existingUser.id,
+          firstname: existingUser.firstname,
+          lastname: existingUser.lastname,
+          email: sanitizedEmail,
+          onboardingState: existingUser.onboarding_state,
+          verificationToken: '',
+        });
+      }
+
+      const duplicateError = 'User with this email already exists';
+      userLogger.warn({ userId: existingUser.id }, duplicateError);
+      return errorResponse(duplicateError);
     }
 
+    userLogger.debug('No existing user found, proceeding with creation');
+
+    // Generate tokens and hash password concurrently
     const [verificationToken, hashedPassword] = await Promise.all([
       generateRandomToken(),
       hashPassword(password),
@@ -41,20 +119,34 @@ export async function createUserDirect(
 
     const onboardingState = createInitialUserOnboardingState();
 
-    const [user] = await knexTrx('users')
+    // Insert user
+    logDatabaseOperation('INSERT', 'users', { email: sanitizedEmail });
+    const [user] = await trx('users')
       .insert({
         ...rest,
-        email,
+
+        email: sanitizedEmail,
         password: hashedPassword,
         onboarding_state: onboardingState,
       })
       .returning(['id', 'firstname', 'lastname', 'email', 'onboarding_state']);
 
-    if (!user) {
-      return errorResponse("We couldn't create your account. Please try again.");
+    if (!user?.id) {
+      const insertError = 'Failed to create user record - no user returned';
+      userLogger.error(insertError);
+      throw new Error(insertError);
     }
 
+    userLogger.info({ userId: user.id }, 'User record created successfully');
+
+    // Create verification token
     const hashedVerificationToken = await hashToken(verificationToken);
+
+    logDatabaseOperation('INSERT', 'tokens', {
+      userId: user.id,
+      tokenType: 'email_verification',
+    });
+
     await addNewToken(
       {
         user_id: user.id,
@@ -62,21 +154,47 @@ export async function createUserDirect(
         expires_at: dayjs().add(24, 'hours').toDate(),
         token_type: 'email_verification',
       },
-      knexTrx,
+      trx,
     );
 
-    const resp: CreateUserResponse = {
+    userLogger.info({ userId: user.id }, 'Email verification token created');
+
+    const response: CreateUserResponse = {
       id: user.id,
       email: user.email,
       firstname: user.firstname,
-      lastname: user?.lastname,
+      lastname: user.lastname,
       onboardingState: user.onboarding_state || onboardingState,
       verificationToken,
     };
 
-    return successResponse('Account created successfully', resp);
+    logTiming('createUserDirect', startTime, {
+      userId: user.id,
+      operationId,
+    });
+
+    userLogger.info({ userId: user.id }, 'User creation completed successfully');
+    return successResponse('Account created successfully', response);
   } catch (error) {
-    return errorResponse("We couldn't create your account. Please try again.", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    userLogger.error(
+      {
+        error: error instanceof Error ? error : new Error(String(error)),
+        operationId,
+      },
+      `User creation failed: ${errorMessage}`,
+    );
+
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      operation: 'createUserDirect',
+      email: sanitizedEmail,
+      operationId,
+    });
+
+    return errorResponse(
+      "We couldn't create your account. Please try again.",
+      process.env.NODE_ENV === 'production' ? undefined : error,
+    );
   }
 }
 

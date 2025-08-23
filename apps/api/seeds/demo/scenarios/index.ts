@@ -1,13 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import type { Scenario } from '../engine/registry';
-import { getCountry } from '../../src/domains/countries/countries.utils';
-import { getCurrency } from '../../src/domains/currencies/currencies.utils';
+import type { Scenario } from '../old_engine/registry.js';
+import { getCountry } from 'src/domains/countries/countries.utils.js';
+import { getCurrency } from 'src/domains/currencies/currencies.utils.js';
 import {
   createCompleteCompanyOnboardingState,
   createCompleteUserOnboardingState,
-} from '../../src/features/onboarding/onboarding.utils';
+} from 'src/features/onboarding/onboarding.utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

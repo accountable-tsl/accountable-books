@@ -1,97 +1,174 @@
 #!/usr/bin/env tsx
-import { knexClient } from '../../src/db/knexClient';
-import { applyAll, addStep, purge, list, status } from './engine/runner';
 
-type Argv = {
-  cmd: string;
-  all: boolean;
-  country?: 'US' | 'NG';
-  type?: 'individual' | 'business' | 'accounting_firm';
-  company?: string;
-  step?: 'base' | 'contacts' | 'projects' | 'bank-accounts' | 'bank-transactions';
-  parallel?: boolean;
-  bail?: boolean;
-  config?: string;
-};
+import { createDemoSeedRunner } from './engine/runner.js';
+import { knexClient } from '../../src/db/knexClient.js';
+import { DemoFilter, COUNTRY_CODES, COMPANY_TYPES } from './shared/config.js';
 
-function parseArgs(): Argv {
-  const [cmd = ''] = process.argv.slice(2, 3);
-  const rest = process.argv.slice(3);
-  const get = (f: string) => {
-    const i = rest.indexOf(f);
-    return i >= 0 ? (rest[i + 1] as string | undefined) : undefined;
+// Parse command line arguments
+const args = process.argv.slice(2);
+const command = args[0];
+
+function parseFilters(args: string[]): DemoFilter | undefined {
+  const filters: DemoFilter = {};
+  let hasFilters = false;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === '--country' && args[i + 1]) {
+      const countries = args[i + 1].split(',') as Array<keyof typeof COUNTRY_CODES>;
+      filters.countryCodes = countries.filter((c) => c in COUNTRY_CODES);
+      hasFilters = true;
+      i++; // skip next arg
+    }
+
+    if (arg === '--type' && args[i + 1]) {
+      const types = args[i + 1].split(',') as Array<keyof typeof COMPANY_TYPES>;
+      filters.companyTypes = types.filter((t) => t in COMPANY_TYPES).map((t) => COMPANY_TYPES[t]);
+      hasFilters = true;
+      i++; // skip next arg
+    }
+
+    if (arg === '--company' && args[i + 1]) {
+      filters.companyIds = args[i + 1].split(',');
+      hasFilters = true;
+      i++; // skip next arg
+    }
+  }
+
+  return hasFilters ? filters : undefined;
+}
+
+function parseOptions(args: string[]) {
+  return {
+    parallel: args.includes('--parallel'),
+    dryRun: args.includes('--dry-run'),
+    steps: args.includes('--steps') ? args[args.indexOf('--steps') + 1]?.split(',') : undefined,
   };
-  const has = (f: string) => rest.includes(f);
-  const country = get('--country') as any as 'US' | 'NG' | undefined;
-  const type = get('--type') as any as 'individual' | 'business' | 'accounting_firm' | undefined;
-  const company = get('--company');
-  const step = get('--step') as any as Argv['step'];
-  const all = has('--all');
-  const parallel = has('--parallel');
-  const bail = has('--bail');
-  const config = get('--config');
-  return { cmd, all, country, type, company, step, parallel, bail, config } as Argv;
+}
+
+function showHelp() {
+  console.log(`
+🌱 Demo Seed CLI
+
+Usage: tsx apps/api/seeds/demo/cli.ts <command> [options]
+
+Commands:
+  apply     Create demo data
+  reverse   Delete demo data  
+  reset     Delete then create demo data
+  status    Show current demo data status
+  help      Show this help
+
+Filters:
+  --country US,NG              Filter by country codes
+  --type business,individual   Filter by company types  
+  --company bizDemoUS          Filter by company IDs or shortCodes
+
+Options:
+  --steps users,companies      Only run specific steps
+  --parallel                   Run steps in parallel (dangerous!)
+  --dry-run                    Show what would happen without doing it
+
+Examples:
+  tsx apps/api/seeds/demo/cli.ts apply                           # Create all demo data
+  tsx apps/api/seeds/demo/cli.ts apply --country US              # Create US demo data only
+  tsx apps/api/seeds/demo/cli.ts apply --type business           # Create business demo data only
+  tsx apps/api/seeds/demo/cli.ts reverse --company bizDemoUS     # Delete specific company data
+  tsx apps/api/seeds/demo/cli.ts reset --country NG --steps users,companies
+  tsx apps/api/seeds/demo/cli.ts status                          # Show current state
+
+Available Countries: ${Object.values(COUNTRY_CODES).join(', ')}
+Available Types: ${Object.values(COMPANY_TYPES).join(', ')}
+
+Workspace Commands (from project root):
+  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply --all
+  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts status
+`);
+}
+
+// Cleanup function to ensure database connection is properly closed
+async function cleanup() {
+  try {
+    await knexClient.destroy();
+  } catch (error) {
+    console.warn('Warning: Error during cleanup:', error instanceof Error ? error.message : error);
+  }
 }
 
 async function main() {
-  const argv = parseArgs();
-  const filters = { country: argv.country, type: argv.type, company: argv.company } as any;
-  const opts = { parallel: argv.parallel, bail: argv.bail, configPath: argv.config } as any;
-
-  if (argv.cmd === 'apply') {
-    const f = argv.all ? {} : filters;
-    await applyAll(knexClient, f, undefined, opts);
-  } else if (argv.cmd === 'add') {
-    if (!argv.step) throw new Error('Missing --step');
-    const f = argv.all ? {} : filters;
-    await addStep(knexClient, f, argv.step, opts);
-  } else if (argv.cmd === 'purge') {
-    const f = argv.all ? {} : filters;
-    await purge(knexClient, { ...f, step: argv.step });
-  } else if (argv.cmd === 'list') {
-    await list();
-  } else if (argv.cmd === 'status') {
-    const f = argv.all ? {} : filters;
-    await status(f, { configPath: argv.config });
-  } else {
-    printHelp();
+  if (!command || command === 'help' || command === '--help' || command === '-h') {
+    showHelp();
+    return;
   }
 
-  await knexClient.destroy();
+  const runner = createDemoSeedRunner(knexClient);
+  const filters = parseFilters(args);
+  const options = parseOptions(args);
+
+  try {
+    switch (command) {
+      case 'apply':
+        await runner.apply(filters, options);
+        break;
+
+      case 'reverse':
+        await runner.reverse(filters, options);
+        break;
+
+      case 'reset':
+        await runner.reset(filters, options);
+        break;
+
+      case 'status':
+        await runner.status();
+        break;
+
+      default:
+        console.error(`❌ Unknown command: ${command}`);
+        console.log('Run "tsx apps/api/seeds/demo/cli.ts help" for usage information');
+        throw new Error(`Unknown command: ${command}`);
+    }
+  } catch (error) {
+    console.error('❌ Command failed:', error instanceof Error ? error.message : error);
+    throw error; // Re-throw to be handled by main catch
+  }
 }
 
-main().catch((e) => {
-  console.error(e);
+// Handle graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n👋 Received SIGINT, cleaning up...');
+  await cleanup();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n👋 Received SIGTERM, cleaning up...');
+  await cleanup();
+  process.exit(0);
+});
+
+// Handle uncaught errors without preventing cleanup
+process.on('unhandledRejection', async (error) => {
+  console.error('❌ Unhandled rejection:', error);
+  await cleanup();
   process.exit(1);
 });
 
-function printHelp() {
-  console.log(`
-Usage:
-  tsx apps/api/seeds/demo/cli.ts <command> [options]
+process.on('uncaughtException', async (error) => {
+  console.error('❌ Uncaught exception:', error);
+  await cleanup();
+  process.exit(1);
+});
 
-Commands:
-  apply     Apply seeds to targets
-  add       Apply a single step to targets
-  purge     Purge artifacts for targets
-  list      List seed runs
-  status    Show applied runs for targets
-
-Options:
-  --all                     Target all scenarios
-  --country US|NG           Filter by country
-  --type individual|business|accounting_firm
-  --company <shortCode>     Target a single company
-  --step base|contacts|projects|bank-accounts|bank-transactions
-  --parallel                Run scenarios in parallel
-  --bail                    Stop on first error
-  --config <path>           Use custom scenarios JSON
-
-Examples:
-  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply --all
-  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply --country US --parallel
-  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts add --step bank-accounts --type business
-  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts purge --company indDemoNG --bail
-  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts status --country NG
-`);
-}
+// Main execution with proper cleanup
+main()
+  .then(async () => {
+    await cleanup();
+    process.exit(0);
+  })
+  .catch(async (error) => {
+    console.error('❌ Fatal error:', error);
+    await cleanup();
+    process.exit(1);
+  });

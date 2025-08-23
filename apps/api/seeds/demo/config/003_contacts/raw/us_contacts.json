@@ -1,0 +1,98 @@
+{
+  "business": [
+    {
+      "id": "0198d36f-0f6a-7b94-9612-b8a021c86476",
+      "displayName": "Stripe",
+      "email": "support@stripe.com",
+      "notes": "Payment gateway"
+    },
+    {
+      "id": "0198d36f-0f6a-79ab-a17a-831f30cd13b8",
+      "displayName": "AWS",
+      "email": "billing@amazon.com",
+      "notes": "Cloud hosting"
+    },
+    {
+      "id": "0198d36f-0f6a-74c6-ae7b-5a62cb5a2100",
+      "displayName": "Zapier",
+      "email": "support@zapier.com",
+      "notes": "Workflow automation"
+    },
+    {
+      "id": "0198d36f-0f6a-7b99-9276-39f9e3d9b7c5",
+      "displayName": "Gusto",
+      "email": "payroll@gusto.com",
+      "notes": "Payroll service"
+    },
+    {
+      "id": "0198d36f-0f6a-770b-af6d-681b5ef6a5a3",
+      "displayName": "Zoom",
+      "email": "billing@zoom.us",
+      "notes": "Online meetings"
+    }
+  ],
+  "firm": [
+    {
+      "id": "0198d36f-0f6a-7782-8eef-7d6324dc838d",
+      "displayName": "QuickBooks",
+      "email": "support@quickbooks.com",
+      "notes": "Accounting software"
+    },
+    {
+      "id": "0198d36f-0f6a-7687-8703-f5cb27b20b2d",
+      "displayName": "Xero",
+      "email": "support@xero.com",
+      "notes": "Accounting software"
+    },
+    {
+      "id": "0198d36f-0f6a-79b4-8216-af940c27d32a",
+      "displayName": "Gusto",
+      "email": "support@gusto.com",
+      "notes": "Payroll integration"
+    },
+    {
+      "id": "0198d36f-0f6a-7ebd-8d0b-c7b0f3f0bc38",
+      "displayName": "Bench",
+      "email": "hello@bench.co",
+      "notes": "Bookkeeping partner"
+    },
+    {
+      "id": "0198d36f-0f6a-7493-919d-8d8f61f1e87e",
+      "displayName": "Zapier",
+      "email": "support@zapier.com",
+      "notes": "Integration tool"
+    }
+  ],
+  "individual": [
+    {
+      "id": "0198d36f-0f6a-7182-838c-c389796a32d4",
+      "displayName": "Jane Doe",
+      "email": "fakejane@personalmail.com",
+      "notes": "Sister"
+    },
+    {
+      "id": "0198d36f-0f6a-7f8f-a10f-ea893dbe46ab",
+      "displayName": "Spotify",
+      "email": "support@spotify.com",
+      "notes": "Music streaming subscription"
+    },
+    {
+      "id": "0198d36f-0f6a-7c2b-b54b-59cf1d454a4c",
+      "displayName": "John's Groceries",
+      "email": "johngroceries@gmail.com",
+      "notes": "Weekly grocery delivery"
+    },
+    {
+      "id": "0198d36f-0f6a-77ae-8bdd-8ea3c41dd24a",
+      "displayName": "T-Mobile",
+      "email": "support@t-mobile.com",
+      "notes": "Mobile provider"
+    },
+    {
+      "id": "0198d36f-0f6a-7894-b963-ddc3b616ca6d",
+      "displayName": "Netflix",
+      "email": "billing@netflix.com",
+      "notes": "Streaming subscription"
+    }
+  ]
+}

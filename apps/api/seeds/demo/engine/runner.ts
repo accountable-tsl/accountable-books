@@ -1,148 +1,200 @@
 import type { Knex } from 'knex';
-import knex from 'knex';
-import { knexClient } from '../../src/db/knexClient';
-import { createRegistry, type Registry, type StepId, type Scenario } from './registry';
-import { withSeedRun, purgeByFilters, listRuns } from './helpers';
-import { getAllScenarios } from '../scenarios';
+import { DemoFilter } from '../shared/config.js';
+import { SEED_STEPS, SeedStep } from './registry.js';
 
-// Steps
-import * as stepBase from '../steps/000_base';
-import * as stepContacts from '../steps/010_contacts';
-import * as stepProjects from '../steps/020_projects';
-import * as stepBankAccounts from '../steps/030_bank_accounts';
-import * as stepBankTransactions from '../steps/040_bank_transactions';
-
-export type TargetFilters = {
-  country?: 'US' | 'NG';
-  type?: 'individual' | 'business' | 'accounting_firm';
-  company?: string; // shortCode
-};
-
-type BuildOpts = { configPath?: string };
-
-export async function buildRegistry(opts: BuildOpts = {}): Promise<Registry> {
-  const scenarios = await getAllScenarios(opts.configPath);
-  const steps = [
-    { id: 'base', version: 1, up: stepBase.up },
-    { id: 'contacts', version: 1, up: stepContacts.up },
-    { id: 'projects', version: 1, up: stepProjects.up },
-    { id: 'bank-accounts', version: 1, up: stepBankAccounts.up },
-    { id: 'bank-transactions', version: 1, up: stepBankTransactions.up },
-  ] as const;
-
-  return createRegistry({ steps: steps as any, scenarios });
+export interface RunnerOptions {
+  steps?: string[]; // Only run specific steps
+  parallel?: boolean; // Run steps in parallel (dangerous for dependencies)
+  dryRun?: boolean; // Log what would happen without executing
 }
 
-export async function applyAll(
-  knex: Knex,
-  filters: TargetFilters,
-  stepFilter?: StepId[],
-  opts: { parallel?: boolean; bail?: boolean; configPath?: string } = {},
-) {
-  const registry = await buildRegistry({ configPath: opts.configPath });
-  const scenarios = registry.resolveScenarios(filters);
-  const steps = registry.resolveSteps(stepFilter);
-  const total = scenarios.length * steps.length;
-  let done = 0;
+/**
+ * Main runner for demo seeding operations
+ */
+export class DemoSeedRunner {
+  constructor(private knex: Knex) {}
 
-  console.log(
-    `➡️  Targets: ${scenarios.length} scenario(s), ${steps.length} step(s)${opts.parallel ? ' • parallel' : ''}${opts.bail ? ' • bail' : ''}`,
-  );
+  /**
+   * Apply demo seeds (create operations)
+   */
+  async apply(filters?: DemoFilter, options: RunnerOptions = {}): Promise<void> {
+    const steps = this.getSteps(options.steps);
+    const { parallel = false, dryRun = false } = options;
 
-  const runScenario = async (s: Scenario) => {
-    console.log(`▶️  ${s.company.shortCode} (${s.country} • ${s.type})`);
-    for (const st of steps) {
-      const name = seedName(s, st.id);
-      const tags = seedTags(s, st.id);
-      const ctx = seedCtx(s);
+    console.log(`🌱 Applying demo seeds...`);
+    console.log(`   Steps: ${steps.map((s) => s.name).join(', ')}`);
+    console.log(`   Filters:`, filters || 'none');
+    console.log(`   Mode: ${parallel ? 'parallel' : 'sequential'}${dryRun ? ' (dry run)' : ''}`);
+
+    if (dryRun) {
+      console.log('✅ Dry run complete - no changes made');
+      return;
+    }
+
+    await this.knex.transaction(async (trx) => {
+      if (parallel) {
+        await this.runParallel(steps, 'create', trx, filters);
+      } else {
+        await this.runSequential(steps, 'create', trx, filters);
+      }
+    });
+
+    console.log('✅ Demo seeds applied successfully');
+  }
+
+  /**
+   * Reverse demo seeds (delete operations)
+   */
+  async reverse(filters?: DemoFilter, options: RunnerOptions = {}): Promise<void> {
+    const steps = this.getSteps(options.steps);
+    const reversedSteps = [...steps].reverse(); // Delete in reverse order
+    const { dryRun = false } = options;
+
+    console.log(`🧹 Reversing demo seeds...`);
+    console.log(`   Steps: ${reversedSteps.map((s) => s.name).join(', ')}`);
+    console.log(`   Filters:`, filters || 'none');
+    console.log(`   Mode: sequential${dryRun ? ' (dry run)' : ''}`);
+
+    if (dryRun) {
+      console.log('✅ Dry run complete - no changes made');
+      return;
+    }
+
+    await this.knex.transaction(async (trx) => {
+      // Always run deletions sequentially to respect dependencies
+      await this.runSequential(reversedSteps, 'delete', trx, filters);
+    });
+
+    console.log('✅ Demo seeds reversed successfully');
+  }
+
+  /**
+   * Reset: reverse then apply
+   */
+  async reset(filters?: DemoFilter, options: RunnerOptions = {}): Promise<void> {
+    console.log('🔄 Resetting demo seeds...');
+    await this.reverse(filters, options);
+    await this.apply(filters, options);
+    console.log('✅ Demo seeds reset successfully');
+  }
+
+  /**
+   * Show status of current demo data
+   */
+  async status(): Promise<void> {
+    console.log('📊 Demo Seed Status:');
+
+    for (const step of SEED_STEPS) {
+      let count = 0;
       try {
-        await withSeedRun(knex, { name, version: st.version, tags }, ctx, async (trx, mark) => {
-          await st.up(trx, ctx, mark);
-        });
-        done += 1;
-        console.log(`   ✓ ${st.id}  [${done}/${total}]`);
-      } catch (err) {
-        console.error(
-          `❌ Failed step ${st.id} for ${s.company.shortCode}:`,
-          (err as Error).message,
+        switch (step.name) {
+          case 'users':
+            count = await this.knex('users')
+              .where('is_demo_user', true)
+              .count('* as count')
+              .first()
+              .then((r) => Number(r?.count) || 0);
+            break;
+          case 'companies':
+            count = await this.knex('companies')
+              .where('is_demo_company', true)
+              .count('* as count')
+              .first()
+              .then((r) => Number(r?.count) || 0);
+            break;
+          case 'contacts':
+            count = await this.knex('contacts')
+              .join('companies', 'contacts.company_id', 'companies.id')
+              .where('companies.is_demo_company', true)
+              .count('contacts.id as count')
+              .first()
+              .then((r) => Number(r?.count) || 0);
+            break;
+          default:
+            count = 0;
+        }
+        console.log(`   ${step.name.padEnd(12)} ${count.toString().padStart(4)} records`);
+      } catch (error) {
+        console.log(
+          `   ${step.name.padEnd(12)}    ? records (error: ${error instanceof Error ? error.message : 'unknown'})`,
         );
-        if (opts.bail) throw err;
       }
     }
-  };
+  }
 
-  if (opts.parallel) await Promise.all(scenarios.map(runScenario));
-  else for (const s of scenarios) await runScenario(s);
+  private getSteps(stepNames?: string[]): SeedStep[] {
+    if (!stepNames?.length) {
+      return SEED_STEPS;
+    }
+
+    const requestedSteps = stepNames.map((name) => {
+      const step = SEED_STEPS.find((s) => s.name === name);
+      if (!step) {
+        throw new Error(
+          `Unknown step: ${name}. Available steps: ${SEED_STEPS.map((s) => s.name).join(', ')}`,
+        );
+      }
+      return step;
+    });
+
+    // Sort by order to maintain dependencies
+    return requestedSteps.sort((a, b) => a.order - b.order);
+  }
+
+  private async runSequential(
+    steps: SeedStep[],
+    operation: 'create' | 'delete',
+    trx: Knex.Transaction,
+    filters?: DemoFilter,
+  ): Promise<void> {
+    for (const step of steps) {
+      try {
+        console.log(`   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`);
+        if (operation === 'create') {
+          await step.createFn(trx, filters);
+        } else {
+          await step.deleteFn(trx, filters);
+        }
+        console.log(`   ✓ ${step.name} ${operation === 'create' ? 'created' : 'deleted'}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown error';
+        console.error(`   ❌ Failed to ${operation} ${step.name}: ${message}`);
+        throw error;
+      }
+    }
+  }
+
+  private async runParallel(
+    steps: SeedStep[],
+    operation: 'create' | 'delete',
+    trx: Knex.Transaction,
+    filters?: DemoFilter,
+  ): Promise<void> {
+    console.warn('⚠️  Running in parallel mode - dependencies may not be respected');
+
+    const promises = steps.map(async (step) => {
+      try {
+        console.log(`   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`);
+        if (operation === 'create') {
+          await step.createFn(trx, filters);
+        } else {
+          await step.deleteFn(trx, filters);
+        }
+        console.log(`   ✓ ${step.name} ${operation === 'create' ? 'created' : 'deleted'}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown error';
+        console.error(`   ❌ Failed to ${operation} ${step.name}: ${message}`);
+        throw error;
+      }
+    });
+
+    await Promise.all(promises);
+  }
 }
 
-export async function addStep(
-  knex: Knex,
-  filters: TargetFilters,
-  step: StepId,
-  opts: { parallel?: boolean; bail?: boolean; configPath?: string } = {},
-) {
-  return applyAll(knex, filters, [step], opts);
-}
-
-export async function purge(knex: Knex, filters: TargetFilters & { step?: StepId }) {
-  const deleted = await purgeByFilters(knex, {
-    country: filters.country,
-    type: filters.type,
-    company: filters.company,
-    step: filters.step,
-  });
-  console.log(`🧹 Purged ${deleted} rows`);
-}
-
-export async function list() {
-  const rows = await listRuns(knexClient);
-  console.table(
-    rows.map((r: any) => ({
-      id: r.id,
-      name: r.name,
-      version: r.version,
-      tags: r.tags,
-      applied_at: r.applied_at,
-    })),
-  );
-}
-
-export async function status(filters: TargetFilters, opts: { configPath?: string } = {}) {
-  const registry = await buildRegistry({ configPath: opts.configPath });
-  const scenarios = registry.resolveScenarios(filters);
-  const names = new Set(scenarios.flatMap((s) => registry.steps.map((st) => seedName(s, st.id))));
-  const runs = await knexClient('seed_runs')
-    .whereIn('name', Array.from(names))
-    .orderBy('applied_at', 'desc');
-  console.table(
-    runs.map((r: any) => ({ name: r.name, version: r.version, applied_at: r.applied_at })),
-  );
-}
-
-function seedName(s: Scenario, step: StepId) {
-  return `demo:${s.country}:${s.type}:${s.company.shortCode}:${step}`;
-}
-
-function seedTags(s: Scenario, step: StepId): string[] {
-  return [
-    'demo',
-    'tenant',
-    `country:${s.country}`,
-    `type:${s.type}`,
-    `company:${s.company.shortCode}`,
-    `step:${step}`,
-  ];
-}
-
-function seedCtx(s: Scenario) {
-  return {
-    country: s.country,
-    type: s.type,
-    companyShortCode: s.company.shortCode,
-    countryId: s.company.countryId,
-    reportingCurrencyId: s.company.reportingCurrencyId,
-    userEmail: s.user.email,
-    user: s.user,
-    company: s.company,
-  } as const;
+/**
+ * Create a runner instance
+ */
+export function createDemoSeedRunner(knex: Knex): DemoSeedRunner {
+  return new DemoSeedRunner(knex);
 }
