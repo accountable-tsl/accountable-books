@@ -124,8 +124,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
   REDIS_URL: {
     description: 'Redis connection URL',
     type: 'url',
-    local: 'redis://localhost:6379',
-    test: 'redis://localhost:6379',
+    local: 'redis://redis:6379',
+    test: 'redis://redis:6379',
     staging: 'redis://redis:6379',
     production: 'rediss://default:password@region-cache.upstash.io:6380',
   },

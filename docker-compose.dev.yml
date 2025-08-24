@@ -67,7 +67,6 @@ services:
       - DB_PORT=5432
     networks:
       - accountable-dev
-    # command: sh -c "cd apps/api && pnpm run migrate:local && pnpm run demo:apply -- --all && pnpm run dev"
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:5000/health']
       interval: 30s
