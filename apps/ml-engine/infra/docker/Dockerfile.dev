@@ -21,13 +21,13 @@ RUN poetry config virtualenvs.create false
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml ./
+COPY apps/ml-engine/pyproject.toml ./
 
 # Install all dependencies (including dev dependencies)
 RUN poetry install --no-interaction --no-ansi
 
 # Copy application code
-COPY . .
+COPY apps/ml-engine/ .
 
 # Create non-root user for development
 RUN groupadd --gid 1000 appuser \

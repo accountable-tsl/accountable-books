@@ -17,14 +17,12 @@ export const API_ENV_SCHEMA: EnvSchema = {
   NODE_ENV: {
     description: 'Application environment',
     type: 'string',
-    required: true,
     // Auto-generated per environment
   },
 
   PORT: {
     description: 'Server port',
     type: 'number',
-    required: true,
     local: '5000',
     test: '3001',
     staging: '5000',
@@ -34,14 +32,15 @@ export const API_ENV_SCHEMA: EnvSchema = {
   BASE_DOMAIN: {
     description: 'Base domain for the application',
     type: 'string',
-    required: true,
-    default: 'localhost',
+    local: 'localhost',
+    test: 'localhost',
+    staging: 'localhost',
+    production: 'getaccountable.com',
   },
 
   BACKEND_URL: {
     description: 'Backend API URL',
     type: 'url',
-    required: true,
     local: 'http://localhost:5000',
     test: 'http://localhost:3001',
     staging: 'http://localhost:5000',
@@ -51,7 +50,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
   FRONTEND_URL: {
     description: 'Frontend application URL',
     type: 'url',
-    required: true,
     local: 'http://localhost:5173',
     test: 'http://localhost:3000',
     staging: 'http://localhost:3000',
@@ -61,8 +59,10 @@ export const API_ENV_SCHEMA: EnvSchema = {
   COOKIE_DOMAIN: {
     description: 'Domain for setting cookies',
     type: 'string',
-    required: true,
-    default: 'localhost',
+    local: 'localhost',
+    test: 'localhost',
+    staging: 'localhost',
+    production: '.getaccountable.com',
   },
 
   // ============================================================================
@@ -71,17 +71,15 @@ export const API_ENV_SCHEMA: EnvSchema = {
   DB_HOST: {
     description: 'Database host',
     type: 'string',
-    required: true,
     local: 'localhost',
     test: 'localhost',
     staging: 'db',
-    production: 'CHANGE_IN_PRODUCTION',
+    production: 'ep-example-12345.us-east-1.aws.neon.tech',
   },
 
   DB_PORT: {
     description: 'Database port',
     type: 'number',
-    required: true,
     local: '5433',
     test: '5432',
     staging: '5432',
@@ -91,41 +89,33 @@ export const API_ENV_SCHEMA: EnvSchema = {
   POSTGRES_DB: {
     description: 'Database name',
     type: 'string',
-    required: true,
     local: 'accountable_books',
     test: 'test_db',
     staging: 'accountable_books',
-    production: 'CHANGE_IN_PRODUCTION',
+    production: 'main',
   },
 
   POSTGRES_USER: {
     description: 'Database username',
     type: 'string',
-    required: true,
     local: 'user',
     test: 'test',
     staging: 'user',
-    production: 'CHANGE_IN_PRODUCTION',
+    production: 'neondb_owner',
   },
 
   POSTGRES_PASSWORD: {
     description: 'Database password',
     type: 'secret',
-    required: true,
     local: 'password',
     test: 'test',
-    staging: 'password',
-    production: 'CHANGE_IN_PRODUCTION',
   },
 
   DATABASE_URL: {
     description: 'Complete PostgreSQL connection string',
     type: 'secret',
-    required: true,
     local: 'postgres://user:password@localhost:5433/accountable_books',
     test: 'postgresql://test:test@localhost:5432/test_db',
-    staging: 'postgresql://user:password@db:5432/accountable_books',
-    production: 'CHANGE_IN_PRODUCTION',
   },
 
   // ============================================================================
@@ -134,21 +124,17 @@ export const API_ENV_SCHEMA: EnvSchema = {
   REDIS_URL: {
     description: 'Redis connection URL',
     type: 'url',
-    required: true,
-    local: 'redis://localhost:6380',
+    local: 'redis://localhost:6379',
     test: 'redis://localhost:6379',
     staging: 'redis://redis:6379',
-    production: 'CHANGE_IN_PRODUCTION',
+    production: 'rediss://default:password@region-cache.upstash.io:6380',
   },
 
   REDIS_PASSWORD: {
     description: 'Redis password',
     type: 'secret',
-    required: true,
     local: 'password',
     test: 'test',
-    staging: 'password',
-    production: 'CHANGE_IN_PRODUCTION',
   },
 
   // ============================================================================
@@ -157,21 +143,18 @@ export const API_ENV_SCHEMA: EnvSchema = {
   CSRF_SECRET: {
     description: 'CSRF protection secret',
     type: 'secret',
-    required: true,
     minLength: 32,
   },
 
   JWT_ACCESS_SECRET: {
     description: 'JWT access token secret (min 32 chars)',
     type: 'secret',
-    required: true,
     minLength: 32,
   },
 
   JWT_REFRESH_SECRET: {
     description: 'JWT refresh token secret (min 32 chars)',
     type: 'secret',
-    required: true,
     minLength: 32,
   },
 
@@ -250,7 +233,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
   MIXPANEL_TOKEN: {
     description: 'Mixpanel analytics token',
-    type: 'string',
+    type: 'secret',
     required: false,
     test: 'test-mixpanel-token',
   },
@@ -291,6 +274,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'url',
     required: false,
     test: 'https://test.r2.cloudflarestorage.com',
+    production: 'https://1234567890abcdef.r2.cloudflarestorage.com',
   },
 
   R2_LOGOS_BUCKET_NAME: {
@@ -306,6 +290,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'url',
     required: false,
     test: 'https://test.r2.cloudflarestorage.com',
+    production: 'https://logos.accountable.com',
   },
 
   // ============================================================================
@@ -314,7 +299,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
   PLATFORM_COMPANY_ID: {
     description: 'Main platform company UUID',
     type: 'string',
-    required: true,
     local: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
     test: '018f7e5e-1111-2222-3333-000000000001',
     staging: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
@@ -324,7 +308,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
   PLATFORM_COMPANY_NAME: {
     description: 'Platform company legal name',
     type: 'string',
-    required: true,
     local: 'Accountable Techserve Ltd',
     test: 'Test Platform Company',
     staging: 'Accountable Techserve Ltd',
@@ -334,7 +317,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
   PLATFORM_COMPANY_SHORT_CODE: {
     description: 'Platform company short identifier',
     type: 'string',
-    required: true,
     local: 'accX',
     test: 'TEST',
     staging: 'accX',
@@ -344,7 +326,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
   PLATFORM_ACCOUNTING_FIRM_ID: {
     description: 'Platform accounting firm UUID',
     type: 'string',
-    required: true,
     local: 'fb60dc2d-732e-4bf6-9f0c-74577354e816',
     test: '018f7e5e-4444-5555-6666-000000000002',
     staging: 'fb60dc2d-732e-4bf6-9f0c-74577354e816',
@@ -398,35 +379,34 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Production admin user ID (UUID)',
     type: 'string',
     required: false,
-    production: 'CHANGE_IN_PRODUCTION',
+    production: '018f7e5e-9999-8888-7777-000000000001',
   },
 
   ADMIN_EMAIL: {
     description: 'Production admin user email',
     type: 'string',
     required: false,
-    production: 'CHANGE_IN_PRODUCTION',
+    production: 'admin@getaccountable.com',
   },
 
   ADMIN_FIRSTNAME: {
     description: 'Production admin user first name',
     type: 'string',
     required: false,
-    production: 'CHANGE_IN_PRODUCTION',
+    production: 'System',
   },
 
   ADMIN_LASTNAME: {
     description: 'Production admin user last name',
     type: 'string',
     required: false,
-    production: 'CHANGE_IN_PRODUCTION',
+    production: 'Administrator',
   },
 
   ADMIN_PASSWORD: {
     description: 'Production admin user password',
     type: 'secret',
     required: false,
-    production: 'CHANGE_IN_PRODUCTION',
   },
 
   // ============================================================================

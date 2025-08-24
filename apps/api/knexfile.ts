@@ -23,13 +23,13 @@ const config: Record<string, Knex.Config> = {
     migrations: { directory: './migrations', tableName: 'knex_migrations' },
   },
 
-  test: {
-    ...runtimeKnexConfig,
-    migrations: {
-      tableName: 'knex_migrations_test',
-      directory: './migrations',
-    },
-  },
+  // test: {
+  //   ...runtimeKnexConfig,
+  //   migrations: {
+  //     tableName: 'knex_migrations_test',
+  //     directory: './migrations',
+  //   },
+  // },
 };
 
 export default config;

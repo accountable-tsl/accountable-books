@@ -245,8 +245,6 @@ importers:
         specifier: ^4.19.3
         version: 4.20.4
 
-  apps/ml-engine: {}
-
   apps/web:
     dependencies:
       '@accountable-books/api-types':

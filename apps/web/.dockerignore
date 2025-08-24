@@ -1,2 +1,35 @@
 node_modules
 dist
+.vitest
+coverage
+.git
+*.log
+.DS_Store
+.env*
+!.env.example
+.turbo
+.next
+.vscode
+.idea
+docs
+examples
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+test-results
+playwright-report
+coverage
+.nyc_output
+.husky
+# Large directories that aren't needed for Web build
+infra/monitoring
+infra/backup
+scripts/deploy
+scripts/security
+# API build artifacts not needed for Web
+apps/api/dist
+apps/api/node_modules
+# ML engine not needed for Web
+apps/ml-engine

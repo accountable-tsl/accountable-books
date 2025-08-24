@@ -1,0 +1,38 @@
+FROM node:24-alpine AS development
+WORKDIR /app
+
+# Install development tools
+RUN apk add --no-cache \
+    git \
+    curl \
+    bash \
+    postgresql-client
+
+# Enable pnpm
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+# Copy workspace configuration
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+
+# Copy all package.json files
+COPY apps/api/package.json apps/api/
+COPY packages/api-types/package.json packages/api-types/
+COPY packages/utils/package.json packages/utils/
+
+# Install all dependencies (including dev)
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
+# Copy application code
+COPY . .
+
+# Set development environment
+ENV NODE_ENV=development
+ENV DEBUG=*
+ENV NODE_OPTIONS="--enable-source-maps --inspect=0.0.0.0:9229"
+
+EXPOSE 5000 9229
+
+# Use nodemon or tsx for hot reload
+CMD ["pnpm", "--filter", "@accountable-books/api", "dev"]

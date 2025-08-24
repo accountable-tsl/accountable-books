@@ -1,54 +1,96 @@
-# ---- build ----
-FROM node:24-alpine3.21 AS build
+# ---- base ----
+FROM node:24-alpine AS base
 WORKDIR /app
-ENV PNPM_HOME="/pnpm" PATH="$PNPM_HOME:$PATH"
-ENV CI=true
+ENV PNPM_HOME="/pnpm" 
+ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
-# Copy entire workspace for proper dependency resolution
-COPY . .
 
-# Install all dependencies (this handles workspace deps correctly)
-RUN pnpm install --frozen-lockfile
+# ---- dependencies ----
+FROM base AS deps
+# Copy workspace config and lockfile
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
-# Build workspace dependencies first
-RUN pnpm --filter @accountable-books/utils build || echo "No build script for utils"
-RUN pnpm --filter @accountable-books/api-types build || echo "No build script for api-types"
+# Copy all package.json files to maintain workspace structure
+COPY apps/api/package.json apps/api/
+COPY packages/api-types/package.json packages/api-types/
+COPY packages/utils/package.json packages/utils/
 
-# Build the API application
-RUN pnpm --filter @accountable-books/api build
 
-# ---- runtime ----
-FROM node:24-alpine3.21 AS runtime
+# Install ALL dependencies (including devDependencies for building)
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
+# ---- builder ----
+FROM base AS builder
 WORKDIR /app
-ENV NODE_ENV=production
 
-# Install runtime dependencies
-RUN apk add --no-cache tini curl wget
+# Copy installed dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=deps /app/packages/api-types/node_modules ./packages/api-types/node_modules
+COPY --from=deps /app/packages/utils/node_modules ./packages/utils/node_modules
+
+# Copy source code
+COPY pnpm-workspace.yaml package.json tsconfig.base.json ./
+COPY apps/api ./apps/api
+COPY packages ./packages
+
+# Build packages and application
+RUN pnpm --filter @accountable-books/utils build || true && \
+    pnpm --filter @accountable-books/api-types build || true && \
+    pnpm --filter @accountable-books/api build
+
+# ---- production dependencies ----
+FROM base AS prod-deps
+# Copy workspace config
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/api/package.json apps/api/
+COPY packages/api-types/package.json packages/api-types/
+COPY packages/utils/package.json packages/utils/
 
 # Install production dependencies only
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
-COPY apps/api/package.json apps/api/package.json
-COPY packages/api-types/package.json packages/api-types/package.json
-COPY packages/utils/package.json packages/utils/package.json
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile --ignore-scripts
 
-ENV PNPM_HOME="/pnpm" PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && \
-    pnpm install --frozen-lockfile --prod --ignore-scripts && \
-    pnpm store prune
+# ---- runtime ----
+FROM node:24-alpine AS runtime
+WORKDIR /app
 
-# Copy built application
-COPY --from=build /app/apps/api/dist ./dist
-COPY --from=build /app/apps/api/migrations ./migrations
-COPY --from=build /app/apps/api/scripts ./scripts
-COPY --from=build /app/apps/api/knexfile.ts ./knexfile.ts
+# Enable pnpm for runtime
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S api -u 1001 -G nodejs && \
-    chown -R api:nodejs /app
+# Install runtime dependencies
+RUN apk add --no-cache tini curl && \
+    addgroup -g 1001 -S nodejs && \
+    adduser -S api -u 1001 -G nodejs
+
+# Copy production dependencies
+COPY --from=prod-deps --chown=api:nodejs /app/node_modules ./node_modules
+COPY --from=prod-deps --chown=api:nodejs /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=prod-deps --chown=api:nodejs /app/packages/api-types/node_modules ./packages/api-types/node_modules
+
+# Copy built application and necessary files
+COPY --from=builder --chown=api:nodejs /app/apps/api/dist ./apps/api/dist
+COPY --from=builder --chown=api:nodejs /app/packages/utils/dist ./packages/utils/dist
+COPY --from=builder --chown=api:nodejs /app/packages/api-types/dist ./packages/api-types/dist
+
+# Copy migration files and scripts
+COPY --chown=api:nodejs apps/api/migrations ./apps/api/migrations
+COPY --chown=api:nodejs apps/api/scripts ./apps/api/scripts
+COPY --chown=api:nodejs apps/api/knexfile.ts ./apps/api/knexfile.ts
+COPY --chown=api:nodejs apps/api/package.json ./apps/api/package.json
+
+# Set environment
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--enable-source-maps"
 
 USER api
 EXPOSE 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "dist/server.js"]
+CMD ["node", "apps/api/dist/server.js"]

@@ -18,7 +18,7 @@ export type VariableType = 'string' | 'number' | 'boolean' | 'url' | 'secret';
 /**
  * Configuration for a single environment variable
  */
-export interface EnvVariableConfig {
+interface BaseEnvVariableConfig {
   /** Human-readable description of the variable */
   description: string;
 
@@ -49,6 +49,8 @@ export interface EnvVariableConfig {
   /** Custom validation function */
   validation?: (value: string) => boolean;
 }
+
+export type EnvVariableConfig = BaseEnvVariableConfig;
 
 /**
  * Complete schema for a package's environment variables

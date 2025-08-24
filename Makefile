@@ -15,9 +15,9 @@ RESET := \033[0m
 
 # Config
 DOCKER_COMPOSE_DEV := docker-compose -p acct-dev -f docker-compose.dev.yml
-DOCKER_COMPOSE_STAGING := docker-compose -p -acct-staging -f docker-compose.staging.yml
+DOCKER_COMPOSE_STAGING := docker-compose -p acct-staging -f docker-compose.staging.yml
 
-DB_CONTAINER := accountable-books-db
+DB_CONTAINER := books-db-dev
 DB_NAME := accountable_books
 DB_USER := user
 APP_ENV ?= local
@@ -93,10 +93,10 @@ dev-full: guard-nonprod ## Complete containerized development environment (one c
 	$(MAKE) dev-db-setup
 	$(MAKE) dev-health-check
 	@echo "$(GREEN)✅ Complete development environment ready!$(RESET)"
-	@echo "$(BLUE)🌐 Web App: http://localhost:5173$(RESET)"
-	@echo "$(BLUE)🔌 API: http://localhost:5000$(RESET)"
+	@echo "$(BLUE)🌐 Web App: http://app.lvh.me:5173$(RESET)"
+	@echo "$(BLUE)🔌 API: http://api.lvh.me:5000$(RESET)"
 	@echo "$(BLUE)🤖 ML Engine: http://localhost:8000$(RESET)"
-	@echo "$(BLUE)📊 Bull Board: http://localhost:5000/admin/queues$(RESET)"
+	@echo "$(BLUE)📊 Bull Board: http://api.lvh.me:5000/admin/queues$(RESET)"
 
 dev-validate-env: ## Validate all environment files exist and are valid
 	@echo "$(GREEN)📋 Validating environment files...$(RESET)"
@@ -122,8 +122,8 @@ dev-db-setup: ## Setup database for containerized environment
 
 dev-health-check: ## Validate all services are responding properly
 	@echo "$(GREEN)🔍 Running health checks...$(RESET)"
-	@curl -f -s http://localhost:5000/health > /dev/null && echo "$(GREEN)✅ API health check passed$(RESET)" || (echo "$(RED)❌ API health check failed$(RESET)" && exit 1)
-	@curl -f -s http://localhost:5173/ > /dev/null && echo "$(GREEN)✅ Web health check passed$(RESET)" || (echo "$(RED)❌ Web health check failed$(RESET)" && exit 1)
+	@curl -f -s http://api.lvh.me:5000/health > /dev/null && echo "$(GREEN)✅ API health check passed$(RESET)" || (echo "$(RED)❌ API health check failed$(RESET)" && exit 1)
+	@curl -f -s http://app.lvh.me:5173/ > /dev/null && echo "$(GREEN)✅ Web health check passed$(RESET)" || (echo "$(RED)❌ Web health check failed$(RESET)" && exit 1)
 	@curl -f -s http://localhost:8000/health > /dev/null && echo "$(GREEN)✅ ML Engine health check passed$(RESET)" || echo "$(YELLOW)⚠️ ML Engine health check failed (may not be critical)$(RESET)"
 	@echo "$(GREEN)✅ All health checks complete$(RESET)"
 
@@ -156,6 +156,78 @@ dev-clean: guard-nonprod ## Clean restart everything (rebuild containers)
 dev-status: ## Show status of all development services
 	@echo "$(BLUE)📊 Development Services Status:$(RESET)"
 	docker-compose -f docker-compose.dev.yml ps
+
+##@ Staging
+staging-validate-env: ## Validate staging environment files exist and are valid
+	@echo "$(GREEN)📋 Validating staging environment files...$(RESET)"
+	@if [ ! -f apps/api/.env.staging ]; then echo "$(RED)Missing apps/api/.env.staging$(RESET)"; exit 1; fi
+	@if [ ! -f apps/api/.env.staging.secrets ]; then echo "$(RED)Missing apps/api/.env.staging.secrets$(RESET)"; exit 1; fi
+	@echo "$(GREEN)✅ Staging environment validation complete$(RESET)"
+
+staging-up: staging-validate-env ## Start all staging containers
+	@echo "$(GREEN)🐳 Starting staging environment...$(RESET)"
+	$(DOCKER_COMPOSE_STAGING) up -d --build
+
+staging-wait-services: ## Wait for all staging services to be healthy
+	@echo "$(YELLOW)⏳ Waiting for staging services to be healthy...$(RESET)"
+	@timeout 300 sh -c 'until $(DOCKER_COMPOSE_STAGING) ps --filter "health=healthy" | grep -q "healthy.*healthy.*healthy"; do echo "Waiting for services..."; sleep 5; done' || (echo "$(RED)Staging services failed to start$(RESET)" && exit 1)
+	@echo "$(GREEN)✅ All staging services are healthy$(RESET)"
+
+staging-db-setup: ## Setup database for staging environment
+	@echo "$(GREEN)🗄️ Setting up staging database...$(RESET)"
+	@sleep 5  # Give DB extra time to be fully ready
+	$(DOCKER_COMPOSE_STAGING) exec api pnpm run migrate:staging
+	$(DOCKER_COMPOSE_STAGING) exec api pnpm run demo:apply -- --all
+	@echo "$(GREEN)✅ Staging database setup complete$(RESET)"
+
+staging-health-check: ## Validate all staging services are responding properly
+	@echo "$(GREEN)🔍 Running staging health checks...$(RESET)"
+	@curl -f -s http://api.lvh.me:5000/health > /dev/null && echo "$(GREEN)✅ API health check passed$(RESET)" || (echo "$(RED)❌ API health check failed$(RESET)" && exit 1)
+	@curl -f -s http://app.lvh.me:3000/ > /dev/null && echo "$(GREEN)✅ Web health check passed$(RESET)" || (echo "$(RED)❌ Web health check failed$(RESET)" && exit 1)
+	@curl -f -s http://localhost:8000/health > /dev/null && echo "$(GREEN)✅ ML Engine health check passed$(RESET)" || echo "$(YELLOW)⚠️ ML Engine health check failed (may not be critical)$(RESET)"
+	@echo "$(GREEN)✅ All staging health checks complete$(RESET)"
+
+staging-full: ## Complete staging environment setup (one command)
+	@echo "$(GREEN)🚀 Setting up complete staging environment...$(RESET)"
+	$(MAKE) staging-up
+	$(MAKE) staging-wait-services
+	$(MAKE) staging-db-setup
+	$(MAKE) staging-health-check
+	@echo "$(GREEN)✅ Complete staging environment ready!$(RESET)"
+	@echo "$(BLUE)🌐 Web App: http://app.lvh.me:3000$(RESET)"
+	@echo "$(BLUE)🔌 API: http://api.lvh.me:5000$(RESET)"
+	@echo "$(BLUE)🤖 ML Engine: http://localhost:8000$(RESET)"
+	@echo "$(BLUE)📊 Bull Board: http://api.lvh.me:5000/admin/queues$(RESET)"
+
+staging-logs: ## Show logs from all staging services
+	$(DOCKER_COMPOSE_STAGING) logs -f
+
+staging-restart: ## Restart all staging services
+	@echo "$(YELLOW)🔄 Restarting all staging services...$(RESET)"
+	$(DOCKER_COMPOSE_STAGING) restart
+	@echo "$(GREEN)✅ Staging services restarted$(RESET)"
+
+staging-stop: ## Stop all staging services
+	@echo "$(YELLOW)🛑 Stopping all staging services...$(RESET)"
+	$(DOCKER_COMPOSE_STAGING) stop
+	@echo "$(GREEN)✅ Staging services stopped$(RESET)"
+
+staging-down: ## Stop and remove all staging containers
+	@echo "$(YELLOW)⬇️ Stopping and removing staging containers...$(RESET)"
+	$(DOCKER_COMPOSE_STAGING) down
+	@echo "$(GREEN)✅ Staging containers removed$(RESET)"
+
+staging-clean: ## Clean restart staging environment (rebuild containers)
+	@echo "$(YELLOW)🧹 Clean restart of staging environment...$(RESET)"
+	$(DOCKER_COMPOSE_STAGING) down --volumes --remove-orphans
+	$(DOCKER_COMPOSE_STAGING) up -d --build
+	$(MAKE) staging-wait-services
+	$(MAKE) staging-db-setup
+	@echo "$(GREEN)✅ Staging clean restart complete$(RESET)"
+
+staging-status: ## Show status of all staging services
+	@echo "$(BLUE)📊 Staging Services Status:$(RESET)"
+	$(DOCKER_COMPOSE_STAGING) ps
 
 ##@ Database
 db-wait: ## Wait for Postgres to become ready
