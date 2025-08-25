@@ -182,7 +182,9 @@ jobs:
         run: |
           pnpm dlx turbo prune --scope=@accountable-books/api --docker --out-dir .pruned/api
           pnpm dlx turbo prune --scope=@accountable-books/web --docker --out-dir .pruned/web
-          pnpm dlx turbo prune --scope=@accountable-books/ml-engine --docker --out-dir .pruned/ml
+          # ML engine is Python-only, just copy the directory
+          mkdir -p .pruned/ml
+          cp -r apps/ml-engine .pruned/ml/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

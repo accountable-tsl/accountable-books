@@ -1,4 +1,4 @@
-# Build from pruned context: turbo prune --scope=@accountable-books/ml-engine --docker --out-dir .pruned/ml
+# Build from copied ml-engine directory
 ARG APP_DIR=.pruned/ml
 
 FROM python:3.11-slim AS builder
@@ -11,9 +11,8 @@ ENV PIP_NO_CACHE_DIR=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 RUN python -m pip install --no-cache-dir "poetry==${POETRY_VERSION}"
 WORKDIR /app
-# copy only deps files from pruned tree for cache
-COPY ${APP_DIR}/apps/ml-engine/pyproject.toml ./pyproject.toml
-COPY ${APP_DIR}/apps/ml-engine/poetry.lock ./poetry.lock
+# copy only deps files from copied directory for cache
+COPY ${APP_DIR}/ml-engine/pyproject.toml ./pyproject.toml
 RUN poetry config virtualenvs.create false
 RUN poetry install --no-dev --no-interaction --no-ansi
 
@@ -30,8 +29,8 @@ WORKDIR /app
 # site-packages and console scripts from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-# app code from pruned tree
-COPY ${APP_DIR}/apps/ml-engine/ ./
+# app code from copied directory
+COPY ${APP_DIR}/ml-engine/ ./
 USER appuser
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
