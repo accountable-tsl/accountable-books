@@ -14,7 +14,7 @@ services:
     container_name: books-db-staging
     env_file:
       - ./apps/api/.env.staging
-      - ./apps/api/.env.staging.secrets
+      - ./apps/api/.env.secrets.staging
     networks:
       - books-staging
     volumes:
@@ -52,7 +52,7 @@ services:
     container_name: books-migrator-staging
     env_file:
       - ./apps/api/.env.staging
-      - ./apps/api/.env.staging.secrets
+      - ./apps/api/.env.secrets.staging
     networks:
       - books-staging
     depends_on:
@@ -64,12 +64,13 @@ services:
   # API service - run migration then start server
   api:
     image: ghcr.io/accountable-tsl/accountable-books/api:${GIT_SHA}
+    platform: linux/amd64
     container_name: books-api-staging
     networks:
       - books-staging
     env_file:
       - ./apps/api/.env.staging
-      - ./apps/api/.env.staging.secrets
+      - ./apps/api/.env.secrets.staging
     depends_on:
       migrator: { condition: service_completed_successfully }
     healthcheck:
@@ -108,7 +109,8 @@ services:
     networks:
       - books-staging
     depends_on:
-      - api: { condition: service_healthy }
+      api:
+        condition: service_healthy
     ports:
       - 80:80 # only public port
     healthcheck:

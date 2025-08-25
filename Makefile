@@ -99,7 +99,7 @@ dev-ml: ## Start ML Engine development server
 staging-validate-env: ## Validate staging environment files exist and are valid
 	@echo "$(GREEN)📋 Validating staging environment files...$(RESET)"
 	@if [ ! -f apps/api/.env.staging ]; then echo "$(RED)Missing apps/api/.env.staging$(RESET)"; exit 1; fi
-	@if [ ! -f apps/api/.env.staging.secrets ]; then echo "$(RED)Missing apps/api/.env.staging.secrets$(RESET)"; exit 1; fi
+	@if [ ! -f apps/api/.env.secrets.staging ]; then echo "$(RED)Missing apps/api/.env.secrets.staging$(RESET)"; exit 1; fi
 	@echo "$(GREEN)✅ Staging environment validation complete$(RESET)"
 
 staging-up: staging-validate-env ## Start all staging containers
@@ -284,7 +284,6 @@ reset: guard-nonprod clean bootstrap ## Full reset: clean everything and bootstr
 
 deploy-stg: ## Deploy to staging
 	@echo "$(GREEN)Deploying to staging...$(RESET)"
-	export GIT_SHA=$(git rev-parse --short=40 HEAD)
-	docker compose -f docker-compose.staging.yml pull
-	docker compose -f docker-compose.staging.yml up -d --remove-orphans
+	GIT_SHA=$(shell git rev-parse --short=40 HEAD) docker compose -f docker-compose.staging.yml pull
+	GIT_SHA=$(shell git rev-parse --short=40 HEAD) docker compose -f docker-compose.staging.yml up -d --remove-orphans
  
