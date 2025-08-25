@@ -1,0 +1,35 @@
+{
+  "name": "@accountable-books/api-types",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Generated API types and schemas for Accountable Books",
+  "scripts": {
+    "clean": "rm -rf src/generated",
+    "codegen:paths": "openapi-typescript $(pnpm --silent exec node -e \"console.log(require.resolve('@accountable-books/contracts/openapi'))\") -o src/generated/openapi-paths.ts",
+    "codegen:schema-types": "typed-openapi $(pnpm --silent exec node -e \"console.log(require.resolve('@accountable-books/contracts/bundled'))\") -o src/generated/schema-types.ts",
+    "codegen:client": "pnpm dlx openapi-zod-client $(pnpm --silent exec node -e \"console.log(require.resolve('@accountable-books/contracts/bundled'))\") -o src/generated/zod-client.ts --export-schemas",
+    "codegen": "pnpm run clean && pnpm run codegen:paths && pnpm run codegen:schema-types && pnpm run codegen:client",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zodios/core": "^10.9.6",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@accountable-books/contracts": "workspace:*",
+    "openapi-typescript": "^7.4.2",
+    "openapi-zod-client": "^1.18.2",
+    "typed-openapi": "^1.5.0",
+    "typescript": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
+}

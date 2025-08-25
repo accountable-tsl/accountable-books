@@ -1,0 +1,21 @@
+@use '../../styles/partials/colors' as *;
+
+.popup {
+  @apply fixed top-0 left-0 w-full h-full flex justify-center items-center;
+  background-color: rgba($color: black, $alpha: 0.7);
+  z-index: 100000;
+
+  &-content {
+    @apply relative p-5 rounded-lg;
+    background: $white;
+    box-shadow: 0 0 10px rgba($color: $text, $alpha: 0.2);
+  }
+
+  &-close {
+    position: absolute;
+    color: $error;
+    font-size: 1.5rem;
+    top: 3%;
+    left: 90%;
+  }
+}

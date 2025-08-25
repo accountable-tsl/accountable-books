@@ -1,0 +1,7 @@
+type: object
+required: [ok]
+properties:
+  ok:
+    type: boolean
+    example: true
+    description: Service health check indicator

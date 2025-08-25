@@ -1,0 +1,17 @@
+type: object
+required: [success, message]
+properties:
+  success:
+    type: boolean
+  message:
+    type: string
+  data:
+    type: object
+    properties:
+      csrfToken:
+        type: string
+        example: 'new-csrf-token-here'
+  error:
+    type: object
+  code:
+    type: string

@@ -1,0 +1,26 @@
+code,label,shortLabel
+agriculture,"Agriculture, Forestry, Fishing and Hunting",Agriculture
+info_software_tech,"SaaS, Information, Software and Tech",Tech
+interior_design,"Interior Design, Construction Projects",Interior Design
+retail_trade,Retail Trade,Retail
+professional_services,"Consulting, Professional, Scientific, and Technical Services",Consulting & Professional Services
+arts_entertainment,"Arts, Entertainment, and Recreation",Arts & Entertainment
+not_for_profit,Not-For-Profit,Nonprofit
+health_social_assistance,Health Care and Social Assistance,Healthcare
+finance_insurance,Finance and Insurance,Finance & Insurance
+educational_services,Educational Services,Education
+real_estate,Real Estate Rental and Leasing,Real Estate
+transportation_warehousing,Transportation and Warehousing,Transport & Logistics
+admin_support_waste,Administrative and Support And Waste Services,Admin & Support
+oil_gas_servicing,Oil and Gas Servicing,Oil & Gas
+hotel_accommodation,Hotel and Accommodation,Hotel & Lodging
+restaurants_food,"Restaurants, Bars and Other Food Sale Outlets",Restaurants & Bars
+food_catering,Food and Catering Services (Others),Catering
+management_companies,Management of Companies and Enterprises,Management
+wholesale_trade,Wholesale Trade,Wholesale
+mining,Mining,Mining
+utilities,Utilities,Utilities
+construction_design,Construction and Interior Design,Construction
+manufacturing,Manufacturing,Manufacturing
+other_services,Other Services (Except Public Administration),Other Services
+public_administration,Public Administration,Public Sector

@@ -28,7 +28,7 @@ make dev-setup
 # Start all apps (Turbo orchestration)
 make dev
 
-# Full setup: infra + deps + migrations + seeds + start apps  
+# Full setup: infra + deps + migrations + seeds + start apps
 make dev-full
 ```
 
@@ -63,19 +63,22 @@ infra/
 ### Core Commands
 
 **Development:**
+
 - `make dev-setup`: start infrastructure, run migrations, install dependencies (no apps)
 - `make dev`: start all apps via Turbo orchestration
 - `make dev-full`: complete setup (infra + deps + migrations + seeds + start apps)
 - `make dev-api`: start API only
-- `make dev-web`: start Web app only  
+- `make dev-web`: start Web app only
 - `make dev-ml`: start ML engine only
 
 **Quality & Testing:**
+
 - `make test`: run all tests
 - `make check`: lint + typecheck + format check
 - `make ci`: check + tests
 
 **Database:**
+
 - `make db-shell`: open psql shell into Postgres
 - `make demo-apply`: apply demo seeds
 
@@ -84,7 +87,7 @@ infra/
 ```bash
 make db-dev-up                  # Start infrastructure (DB + Redis)
 make db-dev-migrate             # Run migrations
-make demo-apply                 # Apply demo seeds  
+make demo-apply                 # Apply demo seeds
 make demo-apply ARGS="--country US"  # Apply specific seeds
 make db-dev-rollback            # Roll back last migration
 make db-dev-logs                # View database logs
@@ -112,7 +115,7 @@ make demo-reset ARGS="--country US"
 ```bash
 # Start individual services (after running dev-setup)
 make dev-api        # Start API development server
-make dev-web        # Start web app development server  
+make dev-web        # Start web app development server
 make dev-ml         # Start ML engine development server
 
 # Build and test
@@ -176,7 +179,8 @@ COOKIE_DOMAIN=localhost
 VITE_BACKEND_URL=http://localhost:5000
 ```
 
-**lvh.me Benefits:** 
+**lvh.me Benefits:**
+
 - Proper cookie sharing between API and Web app
 - Multi-tenant subdomain testing (e.g., `firm1.app.lvh.me:5173`)
 - No environment file changes needed

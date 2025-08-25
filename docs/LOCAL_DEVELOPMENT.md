@@ -3,6 +3,7 @@
 ## Overview
 
 This project uses a **hybrid development approach**:
+
 - **Infrastructure** (Database + Redis) runs in Docker containers
 - **Applications** (API, Web, ML Engine) run directly on your host via Turbo
 
@@ -11,7 +12,7 @@ This gives you the benefits of consistent infrastructure with the speed and flex
 ## Prerequisites
 
 - **Node.js** >= 20.0.0 < 24.4.0
-- **pnpm** >= 8.0.0  
+- **pnpm** >= 8.0.0
 - **Docker** & **Docker Compose**
 
 ### Setup Options
@@ -19,6 +20,7 @@ This gives you the benefits of consistent infrastructure with the speed and flex
 **Option 1: lvh.me (Default - Recommended)**
 
 Update your `/etc/hosts` file:
+
 ```bash
 sudo nano /etc/hosts
 
@@ -30,10 +32,11 @@ sudo nano /etc/hosts
 **Option 2: localhost**
 
 If you prefer localhost, after running `make dev-setup`, update:
+
 ```bash
 # In apps/api/.env.local:
 BACKEND_URL=http://localhost:5000
-FRONTEND_URL=http://localhost:5173  
+FRONTEND_URL=http://localhost:5173
 COOKIE_DOMAIN=localhost
 
 # In apps/web/.env.local:
@@ -71,6 +74,7 @@ make dev-full
 ## Access URLs
 
 **Default (lvh.me):**
+
 - **🌐 Web App**: http://app.lvh.me:5173
 - **🔌 API**: http://api.lvh.me:5000
 - **🤖 ML Engine**: http://localhost:8000
@@ -78,6 +82,7 @@ make dev-full
 - **📄 API Docs**: http://api.lvh.me:5000/docs
 
 **If using localhost option:**
+
 - **🌐 Web App**: http://localhost:5173
 - **🔌 API**: http://localhost:5000
 - **🤖 ML Engine**: http://localhost:8000
@@ -113,7 +118,7 @@ Start specific services after running `make dev-setup`:
 ```bash
 # Start individual apps
 make dev-api      # API only
-make dev-web      # Web app only  
+make dev-web      # Web app only
 make dev-ml       # ML engine only
 
 # Or with pnpm directly
@@ -165,6 +170,7 @@ make demo-apply
 ## Development Commands
 
 **Infrastructure:**
+
 ```bash
 # View infrastructure logs
 make db-dev-logs
@@ -180,6 +186,7 @@ make db-dev-status
 ```
 
 **Applications:**
+
 ```bash
 # Start all apps (after dev-setup)
 make dev
@@ -195,10 +202,12 @@ make dev-ml
 ## Environment Variables
 
 Environment files are automatically generated in:
+
 - `apps/api/.env.local`
 - `apps/web/.env.local`
 
 Key settings for development:
+
 - `NODE_ENV=local`
 - `DB_HOST=localhost` (Docker port forwarded)
 - `DB_PORT=5433`
@@ -224,17 +233,20 @@ make demo-reset ARGS="--all"
 ```
 
 **Demo Users:**
+
 - Email: `demo.us@example.com` | Password: `StrongDemoPass!`
 - Email: `demo.ng@example.com` | Password: `StrongDemoPass!`
 
 ## Staging vs Development
 
 **Development (this guide):**
+
 - Infrastructure: Docker containers
 - Apps: Run on host via Turbo
 - Fast iteration, debugging
 
 **Staging:**
+
 - Everything: Docker containers
 - Production-like environment
 - Use `make staging-*` commands

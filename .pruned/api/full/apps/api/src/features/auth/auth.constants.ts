@@ -1,0 +1,16 @@
+export const publicPaths = [
+  '/auth/login',
+  '/auth/refresh',
+  '/auth/logout',
+  '/auth/verify-email',
+  '/auth/resend-verification',
+  '/signup',
+  '/forgot-password',
+  '/public',
+  '/api/onboarding/advance',
+  '/api/logos/upload',
+  '/api/logos/delete',
+  '/api/logos/signed-url',
+  '/api/email/check',
+  '/api/accounting-firms/check-slug',
+];

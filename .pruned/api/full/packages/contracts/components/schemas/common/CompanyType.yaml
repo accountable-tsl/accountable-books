@@ -1,0 +1,2 @@
+type: string
+enum: [business, individual, accounting_firm]

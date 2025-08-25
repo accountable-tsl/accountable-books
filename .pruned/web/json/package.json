@@ -1,0 +1,78 @@
+{
+  "name": "accountable-books",
+  "version": "1.0.0",
+  "description": "AI-native accounting platform for accounting firms - monorepo containing API, Web App, and ML Engine",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "generate-env": "pnpm -r -F \"@accountable-books/api\" -F \"@accountable-books/web\" run generate-env",
+    "validate-contracts": "spectral lint packages/contracts/openapi.yaml --ruleset packages/contracts/.spectral.yaml",
+    "validate-contracts:ci": "spectral lint packages/contracts/openapi.yaml --ruleset packages/contracts/.spectral.yaml --fail-severity=warn",
+    "bundle-contracts": "turbo run bundle-contracts",
+    "codegen": "turbo run codegen",
+    "clean": "turbo run clean",
+    "prepare": "is-ci || husky"
+  },
+  "keywords": [],
+  "author": "Accountable Techserve Inc.",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.4",
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@redocly/cli": "^2.0.5",
+    "@stoplight/spectral-cli": "^6.15.0",
+    "@types/node": "^24.3.0",
+    "@types/supertest": "^6.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "chokidar": "^4.0.3",
+    "chokidar-cli": "^3.0.0",
+    "eslint": "^9.33.0",
+    "husky": "^9.1.7",
+    "is-ci": "^3.0.1",
+    "lint-staged": "^16.1.5",
+    "pino-pretty": "^13.1.1",
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.4",
+    "turbo": "^2.5.5",
+    "typescript": "5.9.2",
+    "typescript-eslint": "^8.39.1",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20.0.0 <24.4.0",
+    "pnpm": ">=8.0.0"
+  },
+  "lint-staged": {
+    "**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "apps/api/{migrations,seeds,knexfile.ts,scripts}/**/*.{ts,js}": [
+      "cd apps/api && tsc -p tsconfig.tooling.json --noEmit"
+    ],
+    "**/*.{json,md,yaml,yml}": [
+      "prettier --write"
+    ],
+    "packages/contracts/**/*.yaml": [
+      "spectral lint --ruleset packages/contracts/.spectral.yaml"
+    ],
+    "apps/{api,web}/config/env-schema.ts": [
+      "pnpm run generate-env"
+    ]
+  },
+  "pnpm": {
+    "overrides": {
+      "typescript": "5.9.2",
+      "eslint": "9.33.0",
+      "prettier": "3.6.2"
+    }
+  }
+}
