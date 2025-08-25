@@ -16,10 +16,9 @@ RESET := \033[0m
 # Config
 DOCKER_COMPOSE_DEV := docker-compose -p acct-dev -f docker-compose.dev.yml
 DOCKER_COMPOSE_STAGING := docker-compose -p acct-staging -f docker-compose.staging.yml
+PID_FILE := .dev_server.pid
 
-DB_CONTAINER := books-db-dev
-DB_NAME := accountable_books
-DB_USER := user
+
 APP_ENV ?= local
 WAIT_TIMEOUT ?= 30
 SEED_ARGS ?= --all
@@ -60,102 +59,41 @@ else
     $(warning No .mk files found in $(MAKEFILES_DIR))
 endif
 
-##@ Bootstrap
-bootstrap: ## Install deps, generate envs, and build contracts/types
-	@echo "$(GREEN)Bootstrapping repository...$(RESET)"
+# Development
+dev-setup: guard-nonprod ## Setup development environment
+	@echo "$(GREEN)Setting up...$(RESET)"
+	@echo "$(YELLOW)🐳 Starting infrastructure (DB + Redis)...$(RESET)"
+	$(MAKE) db-dev-up
+	@echo "$(YELLOW)🗄️ Running migrations...$(RESET)"
+	$(MAKE) db-dev-migrate
 	@echo "$(YELLOW)📦 Installing dependencies...$(RESET)"
 	pnpm install
-	@echo "$(YELLOW)📋 Generating environment files...$(RESET)"
-	pnpm run generate-env
-	@echo "$(YELLOW)📄 Contracts: validate, bundle, codegen...$(RESET)"
-	$(MAKE) contracts
-	@echo "$(GREEN)✅ Bootstrap complete$(RESET)"
+	@echo "$(GREEN)✅ Setup complete$(RESET)"
+	@echo "$(BLUE)Run 'make demo-apply' to apply demo seeds$(RESET)"
+	@echo "$(BLUE)💡 Ready to develop! Run 'make dev or pnpm dev' to start all apps$(RESET)"
 
-# Back-compat alias when using this file directly
-setup: bootstrap ## Alias for bootstrap (compat)
-
-##@ Development
-dev-setup: db-setup ## Prepare DB (up+wait+migrate+seed) without starting servers
-	@echo "$(GREEN)✅ Development DB prepared (no servers started)$(RESET)"
-
-dev-start: db-setup pnpm dev
-
-dev: ## Start apps in development mode (servers only; no DB side effects)
-	@echo "$(GREEN)Starting apps (no DB prep)$(RESET)"
+dev: guard-nonprod ## Start apps in development mode (Turbo orchestration)
+	@echo "$(GREEN)Starting apps via Turbo...$(RESET)"
 	pnpm dev
 
-dev-full: guard-nonprod ## Complete containerized development environment (one command setup)
-	@echo "$(GREEN)🚀 Setting up complete containerized development environment...$(RESET)"
-	$(MAKE) bootstrap
-	$(MAKE) dev-validate-env
-	$(MAKE) dev-up
-	$(MAKE) dev-wait-services
-	$(MAKE) dev-db-setup
-	$(MAKE) dev-health-check
-	@echo "$(GREEN)✅ Complete development environment ready!$(RESET)"
-	@echo "$(BLUE)🌐 Web App: http://app.lvh.me:5173$(RESET)"
-	@echo "$(BLUE)🔌 API: http://api.lvh.me:5000$(RESET)"
-	@echo "$(BLUE)🤖 ML Engine: http://localhost:8000$(RESET)"
-	@echo "$(BLUE)📊 Bull Board: http://api.lvh.me:5000/admin/queues$(RESET)"
+dev-full: guard-nonprod ## Complete development environment setup (3-command approach)
+	@echo "$(GREEN)🚀 Setting up complete development environment...$(RESET)"
+	$(MAKE) dev-setup
+	$(MAKE) demo-apply
+	$(MAKE) dev
 
-dev-validate-env: ## Validate all environment files exist and are valid
-	@echo "$(GREEN)📋 Validating environment files...$(RESET)"
-	@if [ ! -f apps/api/.env.local ]; then echo "$(YELLOW)Generating API environment file...$(RESET)"; cd apps/api && pnpm run generate-env; fi
-	@if [ ! -f apps/web/.env.local ]; then echo "$(YELLOW)Generating Web environment file...$(RESET)"; cd apps/web && pnpm run generate-env; fi
-	@echo "$(GREEN)✅ Environment validation complete$(RESET)"
+dev-down: ## Stop development environment
+	@echo "$(YELLOW)Stopping development environment...$(RESET)"
+	$(MAKE) db-dev-down
+	@-if [ -f $(PID_FILE) ]; then kill $(shell cat $(PID_FILE)); fi
+	@echo "$(GREEN) Development environment stopped $(RESET)"
 
-dev-up: guard-nonprod ## Start all development containers
-	@echo "$(GREEN)🐳 Starting all development containers...$(RESET)"
-	docker-compose -f docker-compose.dev.yml up -d --build
-
-dev-wait-services: ## Wait for all containerized services to be healthy
-	@echo "$(YELLOW)⏳ Waiting for services to be healthy...$(RESET)"
-	@timeout 300 sh -c 'until docker-compose -f docker-compose.dev.yml ps --filter "health=healthy" | grep -q "healthy.*healthy.*healthy"; do echo "Waiting for services..."; sleep 5; done' || (echo "$(RED)Services failed to start$(RESET)" && exit 1)
-	@echo "$(GREEN)✅ All services are healthy$(RESET)"
-
-dev-db-setup: ## Setup database for containerized environment
-	@echo "$(GREEN)🗄️ Setting up database...$(RESET)"
-	@sleep 5  # Give DB extra time to be fully ready
-	docker-compose -f docker-compose.dev.yml exec api pnpm run migrate:local
-	docker-compose -f docker-compose.dev.yml exec api pnpm run demo:apply -- --all
-	@echo "$(GREEN)✅ Database setup complete$(RESET)"
-
-dev-health-check: ## Validate all services are responding properly
-	@echo "$(GREEN)🔍 Running health checks...$(RESET)"
-	@curl -f -s http://api.lvh.me:5000/health > /dev/null && echo "$(GREEN)✅ API health check passed$(RESET)" || (echo "$(RED)❌ API health check failed$(RESET)" && exit 1)
-	@curl -f -s http://app.lvh.me:5173/ > /dev/null && echo "$(GREEN)✅ Web health check passed$(RESET)" || (echo "$(RED)❌ Web health check failed$(RESET)" && exit 1)
-	@curl -f -s http://localhost:8000/health > /dev/null && echo "$(GREEN)✅ ML Engine health check passed$(RESET)" || echo "$(YELLOW)⚠️ ML Engine health check failed (may not be critical)$(RESET)"
-	@echo "$(GREEN)✅ All health checks complete$(RESET)"
-
-dev-logs: ## Show logs from all development services
-	docker-compose -f docker-compose.dev.yml logs -f
-
-dev-restart: guard-nonprod ## Restart all development services
-	@echo "$(YELLOW)🔄 Restarting all development services...$(RESET)"
-	docker-compose -f docker-compose.dev.yml restart
-	@echo "$(GREEN)✅ Services restarted$(RESET)"
-
-dev-stop: guard-nonprod ## Stop all development services
-	@echo "$(YELLOW)🛑 Stopping all development services...$(RESET)"
-	docker-compose -f docker-compose.dev.yml stop
-	@echo "$(GREEN)✅ Services stopped$(RESET)"
-
-dev-down: guard-nonprod ## Stop and remove all development containers
-	@echo "$(YELLOW)⬇️ Stopping and removing development containers...$(RESET)"
-	docker-compose -f docker-compose.dev.yml down
-	@echo "$(GREEN)✅ Development containers removed$(RESET)"
-
-dev-clean: guard-nonprod ## Clean restart everything (rebuild containers)
-	@echo "$(YELLOW)🧹 Clean restart of development environment...$(RESET)"
-	docker-compose -f docker-compose.dev.yml down --volumes --remove-orphans
-	docker-compose -f docker-compose.dev.yml up -d --build
-	$(MAKE) dev-wait-services
-	$(MAKE) dev-db-setup
-	@echo "$(GREEN)✅ Clean restart complete$(RESET)"
-
-dev-status: ## Show status of all development services
-	@echo "$(BLUE)📊 Development Services Status:$(RESET)"
-	docker-compose -f docker-compose.dev.yml ps
+dev-api: ## Start API development server
+	pnpm -F @accountable-books/api run dev
+dev-web: ## Start Web development server
+	pnpm -F @accountable-books/web run dev
+dev-ml: ## Start ML Engine development server
+	pnpm -F @accountable-books/ml-engine dev
 
 ##@ Staging
 staging-validate-env: ## Validate staging environment files exist and are valid
@@ -229,67 +167,16 @@ staging-status: ## Show status of all staging services
 	@echo "$(BLUE)📊 Staging Services Status:$(RESET)"
 	$(DOCKER_COMPOSE_STAGING) ps
 
-##@ Database
-db-wait: ## Wait for Postgres to become ready
-	@echo "$(YELLOW)⏳ Waiting for database to be ready...$(RESET)"
-	@timeout $(WAIT_TIMEOUT) sh -c 'until docker exec $(DB_CONTAINER) pg_isready -U $(DB_USER) -d $(DB_NAME); do sleep 1; done' || (echo "$(RED)Database failed to start$(RESET)" && exit 1)
-
-db-migrate: guard-nonprod ## Run database migrations (local)
-	@echo "$(GREEN)Running migrations...$(RESET)"
-	pnpm --filter @accountable-books/api migrate:local
-
-db-rollback: guard-nonprod ## Rollback last migration (local)
-	@echo "$(YELLOW)Rolling back migration...$(RESET)"
-	pnpm --filter @accountable-books/api migrate:rollback
-
-db-seed: guard-nonprod ## Seed database with demo data (all steps)
-	@echo "$(GREEN)Seeding database (demo:apply --all)...$(RESET)"
-	pnpm --filter @accountable-books/api demo:apply -- $(SEED_ARGS)
-
-db-reset: guard-nonprod ## Reset database (drop, migrate, seed)
-	@echo "$(YELLOW)Resetting database (drop + migrate + seed)...$(RESET)"
-	pnpm --filter @accountable-books/api reset:db
-
-db-prepare: guard-nonprod db-up db-wait db-migrate ## Bring up DB, wait, and migrate
-	@echo "$(GREEN)✅ DB prepared (up + ready + migrated)$(RESET)"
-
-db-setup: guard-nonprod db-prepare db-seed ## Full DB setup (up + ready + migrated + seeded)
-	@echo "$(GREEN)✅ DB setup complete (includes seeding)$(RESET)"
-
-db-logs: ## Show database logs
-	$(DOCKER_COMPOSE_DEV) logs -f db
-
-db-shell: ## Connect to Postgres shell
-	@if ! docker ps | grep -q $(DB_CONTAINER); then echo "$(RED)Database container not running. Run 'make db-up' first.$(RESET)"; exit 1; fi
-	docker exec -it $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
-
-
-# --- Test DB helpers ---
-TEST_DB_NAME := test_db
-
-db-test-create: guard-nonprod ## Create test database if missing
-	@if ! docker ps | grep -q $(DB_CONTAINER); then echo "$(RED)DB not running. Run 'make db-up' first.$(RESET)"; exit 1; fi
-	@echo "$(GREEN)Ensuring test database exists ($(TEST_DB_NAME))...$(RESET)"
-	@docker exec -i $(DB_CONTAINER) bash -lc "psql -U $(DB_USER) -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='$(TEST_DB_NAME)'\" | grep -q 1 || psql -U $(DB_USER) -d postgres -c \"CREATE DATABASE $(TEST_DB_NAME)\""
-	@echo "$(GREEN)✅ Test database ready$(RESET)"
-
-db-test-migrate: guard-nonprod ## Run migrations against test database
-	@echo "$(GREEN)Running test migrations...$(RESET)"
-	PNPM_FILTER=@accountable-books/api NODE_ENV=test pnpm --filter @accountable-books/api migrate:test
-	@echo "$(GREEN)✅ Test migrations complete$(RESET)"
-
-db-test-prepare: guard-nonprod db-up db-wait db-test-create db-test-migrate ## Prepare Postgres test DB
-	@echo "$(GREEN)✅ Test DB prepared (up + ready + migrated)$(RESET)"
 
 ##@ Demo Seeds (DEX)
-demo-apply: guard-nonprod ## Apply demo seeds (use ARGS="--all" or e.g. "--country US --type business")
-	pnpm --filter @accountable-books/api demo:apply -- $(ARGS)
+demo-apply: ## Apply demo seeds (use ARGS="--all" or e.g. "--country US --type business")
+	pnpm --filter @accountable-books/api demo:apply -- $(SEED_ARGS)
 
-demo-reverse: guard-nonprod ## Delete demo data (use ARGS="--all" or "--company bizDemoUS")
-	pnpm --filter @accountable-books/api demo:reverse -- $(ARGS)
+demo-reverse: ## Delete demo data (use ARGS="--all" or "--company bizDemoUS")
+	pnpm --filter @accountable-books/api demo:reverse -- $(SEED_ARGS)
 
-demo-reset: guard-nonprod ## Delete then recreate demo data (use ARGS="--country US")
-	pnpm --filter @accountable-books/api demo:reset -- $(ARGS)
+demo-reset: ## Delete then recreate demo data (use ARGS="--country US")
+	pnpm --filter @accountable-books/api demo:reset -- $(SEED_ARGS)
 
 demo-status: ## Show current demo data counts
 	pnpm --filter @accountable-books/api demo:status

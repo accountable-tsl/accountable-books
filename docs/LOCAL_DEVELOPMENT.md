@@ -6,15 +6,36 @@ This project uses `lvh.me` domains for local development to support multi-tenant
 
 ## Quick Start
 
+### Development with Turbo (Recommended)
+
 ```bash
 # Start the complete development environment
-make dev-full
+pnpm dev
 
 # Or start step by step
 make dev-up
 make dev-wait-services
 make dev-db-setup
 make dev-health-check
+```
+
+### Containerized Development (Alternative)
+
+```bash
+# Start the complete development environment
+pnpm dev:docker
+# or
+make dev-full
+```
+
+### Local Development (Alternative)
+
+```bash
+# Start database only
+make db-dev-up
+
+# Start services locally
+pnpm dev
 ```
 
 ## Access URLs
@@ -97,21 +118,62 @@ make dev-clean
 
 ## Development Commands
 
+### Turbo Commands (Recommended)
+
 ```bash
-# View logs
-make dev-logs
+# Start development
+pnpm dev                  # Start with Turbo (recommended)
+pnpm dev:docker          # Start in containers
 
-# Restart services
-make dev-restart
+# Testing
+pnpm test                # Run tests with Turbo
+pnpm test:docker         # Run tests in containers
 
-# Stop services
-make dev-stop
+# Linting
+pnpm lint                # Run linting with Turbo
+pnpm lint:docker         # Run linting in containers
+pnpm lint:fix            # Fix linting issues with Turbo
+pnpm lint:fix:docker     # Fix linting issues in containers
 
-# Check status
-make dev-status
+# Type checking
+pnpm typecheck           # Run type checking with Turbo
+pnpm typecheck:docker    # Run type checking in containers
 
-# Clean restart (rebuild containers)
-make dev-clean
+# Database operations
+make api-dev-migrate     # Run migrations
+make api-dev-seed        # Apply demo data
+make db-dev-reset        # Reset database
+
+# Service management
+make dev-logs            # View logs
+make dev-restart         # Restart services
+make dev-stop            # Stop services
+make dev-status          # Check status
+make dev-clean           # Clean restart
+```
+
+### Individual Service Commands
+
+```bash
+# API operations
+make api-dev-up          # Start API
+make api-dev-down        # Stop API
+make api-dev-logs        # API logs
+make api-dev-test        # API tests
+make api-dev-lint        # API linting
+
+# Web operations
+make web-dev-up          # Start Web app
+make web-dev-down        # Stop Web app
+make web-dev-logs        # Web logs
+make web-dev-test        # Web tests
+make web-dev-lint        # Web linting
+
+# Database operations
+make db-dev-up           # Start database
+make db-dev-down         # Stop database
+make db-dev-logs         # Database logs
+make db-dev-nuke         # Destroy database
 ```
 
 ## Environment Variables
@@ -139,3 +201,49 @@ For even better subdomain support, you can add to your `/etc/hosts`:
 ```
 
 This ensures all subdomains resolve properly.
+
+## Migration to Turbo-First Development
+
+### What Changed
+
+We've migrated to a Turbo-first development approach that leverages Turbo's benefits while maintaining container support:
+
+**Before:**
+
+- Mixed local and Docker commands
+- Inconsistent environments across developers
+- Manual task orchestration
+
+**After:**
+
+- `pnpm dev` uses Turbo for smart task orchestration
+- Turbo handles parallel execution and caching
+- Container alternatives available with `:docker` suffix
+- Consistent environment for all developers
+
+### Command Mapping
+
+| Command          | Turbo (Recommended) | Container Alternative   |
+| ---------------- | ------------------- | ----------------------- |
+| `pnpm dev`       | `pnpm dev`          | `pnpm dev:docker`       |
+| `pnpm test`      | `pnpm test`         | `pnpm test:docker`      |
+| `pnpm lint`      | `pnpm lint`         | `pnpm lint:docker`      |
+| `pnpm typecheck` | `pnpm typecheck`    | `pnpm typecheck:docker` |
+
+### Benefits
+
+1. **Consistency**: All developers get the same environment
+2. **Isolation**: No conflicts with local Node.js versions or dependencies
+3. **Reproducibility**: Exact same setup as production
+4. **Simplicity**: One command (`pnpm dev`) sets up everything
+5. **Multi-tenant Testing**: Proper subdomain support with `lvh.me`
+
+### Troubleshooting
+
+If you encounter issues with the containerized setup:
+
+1. **Use local alternatives**: Add `:local` to any command
+2. **Check container status**: `make dev-status`
+3. **Restart containers**: `make dev-restart`
+4. **Clean restart**: `make dev-clean`
+5. **View logs**: `make dev-logs`

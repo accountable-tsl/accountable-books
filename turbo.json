@@ -2,6 +2,11 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "tasks": {
+    "generate-env": {
+      "outputs": ["apps/**/.env.local"],
+      "inputs": ["packages/utils/src/env/*"]
+    },
+
     "validate-contracts": {
       "outputs": []
     },
@@ -11,7 +16,8 @@
       "inputs": [
         "packages/contracts/openapi.yaml",
         "packages/contracts/components/**",
-        "packages/contracts/paths/**"
+        "packages/contracts/paths/**",
+        "packages/contracts/.spectral.yaml"
       ],
       "outputs": ["dist/**"]
     },
@@ -27,7 +33,7 @@
     },
 
     "build": {
-      "dependsOn": ["^build", "codegen"],
+      "dependsOn": ["^build", "codegen", "generate-env"],
       "outputs": ["dist/**", "build/**", ".vite/**"]
     },
 
@@ -46,7 +52,8 @@
 
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["generate-env", "codegen"]
     },
 
     "migrate": {
