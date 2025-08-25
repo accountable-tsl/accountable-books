@@ -1,29 +1,25 @@
+name: accountable-books-staging
+
 networks:
-  frontend:
-    driver: bridge
-  backend:
-    driver: bridge
-  database:
+  books-staging:
     driver: bridge
 
 volumes:
   postgres_data_stg:
-    driver: local
   redis_data_stg:
-    driver: local
-  nginx_logs:
-    driver: local
+
 services:
   db:
     image: iamtemi/accountable:pg17-cron-vector-v1
     container_name: books-db-staging
     env_file:
       - ./apps/api/.env.staging
+      - ./apps/api/.env.staging.secrets
+    networks:
+      - books-staging
     volumes:
       - postgres_data_stg:/var/lib/postgresql/data
       - ./backups:/var/backups
-    networks:
-      - database
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -h localhost -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
@@ -35,95 +31,88 @@ services:
   # Simple Redis for staging
   redis:
     image: redis:8.0-alpine
-    container_name: accountable-staging-redis
+    container_name: books-redis-staging
     env_file:
       - ./apps/api/.env.staging
     command: sh -c 'redis-server --requirepass "$$REDIS_PASSWORD"'
     volumes:
       - redis_data_stg:/data
     networks:
-      - accountable-staging
+      - books-staging
     healthcheck:
-      test: ['CMD', 'sh', '-c', 'redis-cli --pass "$$REDIS_PASSWORD" ping']
+      test: ['CMD', 'sh', '-lc', 'redis-cli -a "$$REDIS_PASSWORD" ping']
       interval: 10s
       timeout: 3s
       retries: 3
     restart: unless-stopped
 
+  # Run DB migrations & perhaps demo seeds once, then exit
+  migrator:
+    container_name: books-migrator-staging
+    env_file:
+      - ./infra/env/.env.api.staging # contains DATABASE_URL=postgres://...@db:5432/...
+    networks:
+      - books-staging
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: pnpm run migrate:staging && pnpm run demo:apply
+    restart: 'no'
+
   # API service - run migration then start server
   api:
-    build:
-      context: .
-      dockerfile: apps/api/infra/docker/Dockerfile
-      args:
-        - NODE_ENV=staging
-    container_name: accountable-staging-api
+    image: ghcr.io/accountable-tsls/accountable-books/api:${GIT_SHA}
+    container_name: books-api-staging
+    networks:
+      - books-staging
     env_file:
       - ./apps/api/.env.staging
       - ./apps/api/.env.staging.secrets
-    environment:
-      - NODE_ENV=staging
-      - PORT=5000
-    ports:
-      - '5000:5000'
-    networks:
-      - accountable-staging
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: sh -c "cd apps/api && pnpm run knex migrate:latest --env staging --knexfile knexfile.ts && cd /app && node apps/api/dist/server.js"
+      migrator: { condition: service_completed_successfully }
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:5000/health || exit 1']
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     restart: unless-stopped
 
-    # Web frontend
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/infra/docker/Dockerfile
-      args:
-        - NODE_ENV=staging
-        - VITE_BACKEND_URL=${STAGING_API_URL:-http://api:5000}
-    container_name: accountable-staging-web
-    ports:
-      - '3000:80'
+  ml:
+    image: ghcr.io/accountable-tsls/accountable-books/ml:${GIT_SHA}
+    container_name: books-ml-staging
     networks:
-      - accountable-staging
+      - books-staging
     depends_on:
       api:
         condition: service_healthy
-    healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost/']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-
-  ml-engine:
-    build:
-      context: .
-      dockerfile: apps/ml-engine/Dockerfile
-      args:
-        - ENV=staging
-    container_name: accountable-staging-ml
-    depends_on:
-      api:
-        condition: service_healthy
-    ports:
-      - '8000:8000'
-    networks:
-      - accountable-staging
     environment:
       - PYTHONPATH=/app
       - ENV=staging
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:8000/health || exit 1']
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # Web frontend - build only
+  web:
+    image: ghcr.io/accountable-tsls/accountable-books/web:${GIT_SHA}
+    container_name: books-web-staging
+    env_file:
+      - ./apps/web/.env.staging
+    networks:
+      - books-staging
+    depends_on:
+      - api: { condition: service_healthy }
+    ports:
+      - 80:80 # only public port
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost/ || exit 1']
       interval: 30s
-      timeout: 10s
-      retries: 3
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped

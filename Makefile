@@ -281,3 +281,10 @@ clean-all: guard-nonprod ## Nuclear cleanup: remove caches, node_modules, and re
 
 reset: guard-nonprod clean bootstrap ## Full reset: clean everything and bootstrap fresh
 	@echo "$(GREEN)✅ Full reset complete$(RESET)"
+
+deploy-stg: ## Deploy to staging
+	@echo "$(GREEN)Deploying to staging...$(RESET)"
+	export GIT_SHA=$(git rev-parse --short=40 HEAD)
+	docker compose -f docker-compose.staging.yml pull
+	docker compose -f docker-compose.staging.yml up -d --remove-orphans
+ 

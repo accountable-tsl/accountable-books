@@ -8,11 +8,7 @@
 import type { EnvSchema } from '@accountable-books/utils/env/types';
 
 // Target environments to generate files for
-export const WEB_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
-  'local',
-  'staging',
-  'production',
-];
+export const WEB_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = ['local', 'staging'];
 
 export const WEB_ENV_SCHEMA: EnvSchema = {
   // ============================================================================

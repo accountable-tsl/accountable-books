@@ -10,19 +10,6 @@ const config: Record<string, Knex.Config> = {
     },
   },
 
-  staging: {
-    ...runtimeKnexConfig,
-    migrations: {
-      tableName: 'knex_migrations_staging',
-      directory: './migrations',
-    },
-  },
-
-  production: {
-    ...runtimeKnexConfig,
-    migrations: { directory: './migrations', tableName: 'knex_migrations' },
-  },
-
   test: {
     ...runtimeKnexConfig,
     migrations: {

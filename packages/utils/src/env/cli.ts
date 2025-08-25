@@ -96,6 +96,15 @@ export async function createEnvGenerator(
     // Determine the package root (current working directory when called from config)
     const packageRoot = process.cwd();
 
+    // Check if any files were generated
+    const fileCount = Object.keys(files).length;
+    if (fileCount === 0) {
+      console.log(
+        `ℹ️  No environment files generated for ${serviceName} (schema has no applicable variables)`,
+      );
+      return;
+    }
+
     // Write each file
     for (const [fileName, content] of Object.entries(files)) {
       const filePath = path.join(packageRoot, fileName);

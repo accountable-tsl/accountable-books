@@ -8,11 +8,7 @@
 import type { EnvSchema } from '@accountable-books/utils/env/types';
 
 // Target environments to generate files for
-export const API_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
-  'local',
-  'staging',
-  'production',
-];
+export const API_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = ['local', 'staging'];
 
 export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
@@ -87,7 +83,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database name',
     type: 'string',
     local: 'accountable_books',
-    staging: 'accountable_books',
+    staging: 'accountable_books_stg',
     production: 'main',
   },
 
@@ -222,11 +218,9 @@ export const API_ENV_SCHEMA: EnvSchema = {
 
   SENTRY_DSN: {
     description: 'Sentry error tracking DSN',
-    type: 'url',
+    type: 'secret',
     required: false,
     local: 'https://your-sentry-dsn@sentry.io/project',
-    production:
-      'https://dc1680a6d867d6d380f73083d6da30f3@o4509142160506880.ingest.de.sentry.io/4509142176104528',
   },
 
   // ============================================================================
@@ -252,10 +246,9 @@ export const API_ENV_SCHEMA: EnvSchema = {
 
   R2_ENDPOINT: {
     description: 'Cloudflare R2 endpoint URL',
-    type: 'url',
+    type: 'secret',
     required: false,
-    local: 'https://your-account-id.r2.cloudflarestorage.com',
-    production: 'https://1234567890abcdef.r2.cloudflarestorage.com',
+    local: 'https://abcdefg.r2.cloudflarestorage.com',
   },
 
   R2_LOGOS_BUCKET_NAME: {
@@ -269,8 +262,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Cloudflare R2 domain for logos',
     type: 'url',
     required: false,
-    local: 'https://logos.accountable.local',
-    production: 'https://logos.accountable.com',
+    local: 'https://logos.getaccountable.com',
   },
 
   // ============================================================================

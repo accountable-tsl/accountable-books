@@ -153,26 +153,11 @@ export function generateEnvFile(
   environment: Environment,
   fileType: 'main' | 'secrets' | 'example' = 'main',
   includeComments = true,
-): string {
+): string | null {
   const lines: string[] = [];
+  const contentLines: string[] = [];
 
-  // Add header comment
-  if (includeComments) {
-    const title = fileType === 'secrets' ? 'Secrets Configuration' : 'Environment Configuration';
-    lines.push(`# =============================================================================`);
-    lines.push(`# ${title} - ${environment.toUpperCase()}`);
-    lines.push(`# =============================================================================`);
-    if (fileType === 'secrets') {
-      lines.push(`# Fill in the actual secret values for ${environment} deployment`);
-      lines.push(`# This file should NEVER be committed to version control`);
-    } else {
-      lines.push(`# Auto-generated from environment schema. Do not edit manually.`);
-      lines.push(`# Run 'pnpm run generate-env' to regenerate this file.`);
-    }
-    lines.push(``);
-  }
-
-  // Process each variable based on file type
+  // First pass: collect content to see if we have any variables to include
   for (const [key, config] of Object.entries(schema)) {
     const isSecret = config.type === 'secret';
 
@@ -216,13 +201,13 @@ export function generateEnvFile(
       }
 
       if (includeComments) {
-        lines.push(`# ${config.description}`);
+        contentLines.push(`# ${config.description}`);
       }
 
-      lines.push(`${key}=${value}`);
+      contentLines.push(`${key}=${value}`);
 
       if (includeComments) {
-        lines.push('');
+        contentLines.push('');
       }
     } catch (error) {
       throw new Error(
@@ -230,6 +215,30 @@ export function generateEnvFile(
       );
     }
   }
+
+  // Return null if no content was generated
+  if (contentLines.length === 0) {
+    return null;
+  }
+
+  // Add header comment if we have content
+  if (includeComments) {
+    const title = fileType === 'secrets' ? 'Secrets Configuration' : 'Environment Configuration';
+    lines.push(`# =============================================================================`);
+    lines.push(`# ${title} - ${environment.toUpperCase()}`);
+    lines.push(`# =============================================================================`);
+    if (fileType === 'secrets') {
+      lines.push(`# Fill in the actual secret values for ${environment} deployment`);
+      lines.push(`# This file should NEVER be committed to version control`);
+    } else {
+      lines.push(`# Auto-generated from environment schema. Do not edit manually.`);
+      lines.push(`# Run 'pnpm run generate-env' to regenerate this file.`);
+    }
+    lines.push(``);
+  }
+
+  // Add the content
+  lines.push(...contentLines);
 
   return lines.join('\n');
 }
@@ -248,14 +257,23 @@ export function generateEnvFiles(
   const { blankStagingSecrets = true, blankProductionSecrets = true } = options;
   const files: Record<string, string> = {};
 
-  // Always generate example file
-  files['.env.example'] = generateEnvFile(schema, 'local', 'example', true);
+  // Helper function to conditionally add file if it has content
+  const addFileIfNotEmpty = (fileName: string, content: string | null) => {
+    if (content !== null) {
+      files[fileName] = content;
+    }
+  };
+
+  // Always generate example file (but only if it has content)
+  const exampleContent = generateEnvFile(schema, 'local', 'example', true);
+  addFileIfNotEmpty('.env.example', exampleContent);
 
   // Generate files for each target environment
   for (const env of targetEnvironments) {
     // Generate main env file
     const envFileName = env === 'local' ? '.env.local' : `.env.${env}`;
-    files[envFileName] = generateEnvFile(schema, env, 'main', true);
+    const mainContent = generateEnvFile(schema, env, 'main', true);
+    addFileIfNotEmpty(envFileName, mainContent);
 
     // Generate separate secrets file for staging/production based on flags
     if (env === 'staging' || env === 'production') {
@@ -265,7 +283,8 @@ export function generateEnvFiles(
 
       if (shouldGenerate) {
         const secretsFileName = `.env.secrets.${env}`;
-        files[secretsFileName] = generateEnvFile(schema, env, 'secrets', true);
+        const secretsContent = generateEnvFile(schema, env, 'secrets', true);
+        addFileIfNotEmpty(secretsFileName, secretsContent);
       }
     }
   }

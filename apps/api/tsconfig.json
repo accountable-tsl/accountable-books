@@ -21,7 +21,7 @@
     "node_modules",
     "dist",
     "vitest.config.ts",
-    "knexfile.ts",
+    "knexfile.cjs",
     "migrations",
     "seeds",
     "scripts"
