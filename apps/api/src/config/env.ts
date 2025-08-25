@@ -14,7 +14,7 @@ const envFileMap: Record<NodeEnv, string> = {
   local: '.env.local',
   production: '.env.production',
   staging: '.env.staging',
-  test: '.env.test',
+  test: '.env.local',
 };
 
 const determineEnvKey = (): NodeEnv => {
