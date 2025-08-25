@@ -3,6 +3,7 @@
 ARG APP_DIR=.pruned/web
 
 FROM node:20-alpine AS build
+ARG APP_DIR=.pruned/web
 WORKDIR /app
 ENV PNPM_HOME="/pnpm" PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.12.4 --activate

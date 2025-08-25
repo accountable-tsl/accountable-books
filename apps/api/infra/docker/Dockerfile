@@ -10,12 +10,14 @@ ARG APP_DIR=.pruned/api
 
 # ---- dependencies ----
 FROM base AS deps
+ARG APP_DIR=.pruned/api
 COPY ${APP_DIR}/package.json ${APP_DIR}/pnpm-lock.yaml ${APP_DIR}/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
 
 
 # ---- builder ----
 FROM base AS build
+ARG APP_DIR=.pruned/api
 COPY --from=deps /app /app
 COPY ${APP_DIR}/ ./
 # Build workspace (utils, api-types, then api). Adjust if your build scripts already cascade.
@@ -26,6 +28,7 @@ RUN pnpm -w --filter @accountable-books/api build
 
 # ---- prod deps ----
 FROM base AS prod-deps
+ARG APP_DIR=.pruned/api
 COPY ${APP_DIR}/package.json ${APP_DIR}/pnpm-lock.yaml ${APP_DIR}/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile --ignore-scripts
 
@@ -44,6 +47,7 @@ COPY --from=build     --chown=api:nodejs /app/packages/utils/dist ./packages/uti
 COPY --from=build     --chown=api:nodejs /app/packages/api-types/dist ./packages/api-types/dist
 
 # migrations + knexfile
+ARG APP_DIR=.pruned/api
 COPY --chown=api:nodejs ${APP_DIR}/apps/api/migrations ./apps/api/migrations
 COPY --chown=api:nodejs ${APP_DIR}/apps/api/package.json ./apps/api/package.json
 

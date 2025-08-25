@@ -2,6 +2,7 @@
 ARG APP_DIR=.pruned/ml
 
 FROM python:3.11-slim AS builder
+ARG APP_DIR=.pruned/ml
 ENV PIP_NO_CACHE_DIR=1 \
     POETRY_VERSION=1.8.3 \
     POETRY_HOME="/opt/poetry" \
@@ -18,6 +19,7 @@ RUN poetry install --no-dev --no-interaction --no-ansi
 
 # Runtime
 FROM python:3.11-slim AS runtime
+ARG APP_DIR=.pruned/ml
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 # Add small runtime deps; libgomp1 is required by many scientific wheels
