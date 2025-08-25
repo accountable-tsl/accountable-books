@@ -8,7 +8,7 @@
     "clean": "rm -rf src/generated",
     "codegen:paths": "openapi-typescript $(pnpm --silent exec node -e \"console.log(require.resolve('@accountable-books/contracts/openapi'))\") -o src/generated/openapi-paths.ts",
     "codegen:schema-types": "typed-openapi $(pnpm --silent exec node -e \"console.log(require.resolve('@accountable-books/contracts/bundled'))\") -o src/generated/schema-types.ts",
-    "codegen:client": "pnpx openapi-zod-client $(pnpm --silent exec node -e \"console.log(require.resolve('@accountable-books/contracts/bundled'))\") -o src/generated/zod-client.ts --export-schemas",
+    "codegen:client": "pnpm dlx openapi-zod-client $(pnpm --silent exec node -e \"console.log(require.resolve('@accountable-books/contracts/bundled'))\") -o src/generated/zod-client.ts --export-schemas",
     "codegen": "pnpm run clean && pnpm run codegen:paths && pnpm run codegen:schema-types && pnpm run codegen:client",
     "build": "tsc",
     "typecheck": "tsc --noEmit"
