@@ -3,7 +3,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import __version__
+# Import version directly to avoid relative import issues in tests
+try:
+    from . import __version__
+except ImportError:
+    # Fallback for when running as script or in tests
+    __version__ = "0.1.0"
 
 app = FastAPI(
     title="Accountable Books ML Engine",
