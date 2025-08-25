@@ -1,32 +1,26 @@
-#!/usr/bin/env tsx
 /**
- * Web Environment File Generator
+ * Environment File Generation CLI
  *
- * Generates all environment files from the centralized schema.
- * Usage: pnpm run generate-env
+ * Shared CLI utilities for generating environment files from schema configurations.
+ * Provides a unified interface for all apps in the monorepo.
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { generateEnvFiles } from '@accountable-books/utils/env/generator';
-import { WEB_ENV_SCHEMA, WEB_TARGET_ENVIRONMENTS } from '../config/env-schema.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const packageRoot = path.resolve(__dirname, '..');
+import * as fs from 'fs';
+import * as path from 'path';
+import type { Environment, EnvSchema } from './types.js';
+import { generateEnvFiles } from './generator.js';
 
 /**
- * Preserve existing .env.local values if they exist
+ * Preserve existing values from a file if it exists
  */
-function preserveLocalEnv(generatedContent: string, existingLocalPath: string): string {
-  if (!fs.existsSync(existingLocalPath)) {
+function preserveExistingValues(generatedContent: string, existingFilePath: string): string {
+  if (!fs.existsSync(existingFilePath)) {
     return generatedContent;
   }
 
-  console.log('📋 Preserving existing .env.local values...');
+  console.log(`📋 Preserving existing values in ${path.basename(existingFilePath)}...`);
 
-  const existingContent = fs.readFileSync(existingLocalPath, 'utf-8');
+  const existingContent = fs.readFileSync(existingFilePath, 'utf-8');
   const existingLines = existingContent.split('\n');
   const generatedLines = generatedContent.split('\n');
 
@@ -64,15 +58,8 @@ function writeEnvFile(filePath: string, content: string, preserve = false): void
   const fileName = path.basename(filePath);
 
   try {
-    // Preserve existing .env.local values
-    const finalContent = preserve ? preserveLocalEnv(content, filePath) : content;
-
-    // Create backup if file exists (disabled to avoid clutter)
-    // if (fs.existsSync(filePath)) {
-    //   const backupPath = `${filePath}.backup`;
-    //   fs.copyFileSync(filePath, backupPath);
-    //   console.log(`💾 Created backup: ${fileName}.backup`);
-    // }
+    // Preserve existing values if requested
+    const finalContent = preserve ? preserveExistingValues(content, filePath) : content;
 
     // Write new file
     fs.writeFileSync(filePath, finalContent);
@@ -84,17 +71,30 @@ function writeEnvFile(filePath: string, content: string, preserve = false): void
 }
 
 /**
- * Main generation function
+ * Create environment file generator for a specific service
  */
-function main(): void {
-  console.log('🔧 Generating Web environment files...\n');
+export async function createEnvGenerator(
+  serviceName: string,
+  schema: EnvSchema,
+  targetEnvironments: Environment[],
+  options: {
+    blankStagingSecrets?: boolean;
+    blankProductionSecrets?: boolean;
+  } = {},
+): Promise<void> {
+  const { blankStagingSecrets = true, blankProductionSecrets = true } = options;
+
+  console.log(`🔧 Generating ${serviceName} environment files...\n`);
 
   try {
     // Generate environment files for specified target environments
-    const files = generateEnvFiles(WEB_ENV_SCHEMA, WEB_TARGET_ENVIRONMENTS, {
-      blankStagingSecrets: true,
-      blankProductionSecrets: true,
+    const files = generateEnvFiles(schema, targetEnvironments, {
+      blankStagingSecrets,
+      blankProductionSecrets,
     });
+
+    // Determine the package root (current working directory when called from config)
+    const packageRoot = process.cwd();
 
     // Write each file
     for (const [fileName, content] of Object.entries(files)) {
@@ -105,23 +105,20 @@ function main(): void {
       writeEnvFile(filePath, content, shouldPreserve);
     }
 
-    console.log('\n🎉 All Web environment files generated successfully!');
+    console.log(`\n🎉 All ${serviceName} environment files generated successfully!`);
     console.log('\n📝 Next steps:');
     console.log('   1. Review the generated files');
     console.log('   2. Update .env.local with your actual values if needed');
     console.log(
-      '   3. Fill in .env.secrets.staging and .env.secrets.production if any secrets are generated',
+      '   3. Fill in .env.secrets.staging and .env.secrets.production with actual secrets',
     );
     console.log('   4. Commit .env.example to version control');
     console.log(
       '   5. Keep .env.local, .env.staging, .env.production, and .env.secrets.* in .gitignore',
     );
   } catch (error) {
-    console.error('❌ Environment file generation failed:');
+    console.error(`❌ ${serviceName} environment file generation failed:`);
     console.error(error instanceof Error ? error.message : 'Unknown error');
     process.exit(1);
   }
 }
-
-// Run the generator
-main();

@@ -224,6 +224,9 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Sentry error tracking DSN',
     type: 'url',
     required: false,
+    local: 'https://your-sentry-dsn@sentry.io/project',
+    production:
+      'https://dc1680a6d867d6d380f73083d6da30f3@o4509142160506880.ingest.de.sentry.io/4509142176104528',
   },
 
   // ============================================================================
@@ -251,6 +254,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Cloudflare R2 endpoint URL',
     type: 'url',
     required: false,
+    local: 'https://your-account-id.r2.cloudflarestorage.com',
     production: 'https://1234567890abcdef.r2.cloudflarestorage.com',
   },
 
@@ -265,6 +269,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Cloudflare R2 domain for logos',
     type: 'url',
     required: false,
+    local: 'https://logos.accountable.local',
     production: 'https://logos.accountable.com',
   },
 
@@ -402,3 +407,24 @@ export const API_ENV_SCHEMA: EnvSchema = {
     local: 'secret',
   },
 } as const;
+
+// ==============================================================================
+// ENVIRONMENT FILE GENERATION
+// ==============================================================================
+
+/**
+ * Generate environment files for the API service
+ * Can be executed directly: tsx apps/api/config/env-schema.ts
+ */
+export async function generateFiles() {
+  const { createEnvGenerator } = await import('@accountable-books/utils/env/cli');
+  await createEnvGenerator('API', API_ENV_SCHEMA, API_TARGET_ENVIRONMENTS);
+}
+
+// Auto-run when executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  generateFiles().catch((error) => {
+    console.error('Generation failed:', error);
+    process.exit(1);
+  });
+}

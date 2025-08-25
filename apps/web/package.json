@@ -13,7 +13,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "generate-env": "tsx scripts/generate-env.ts"
+    "generate-env": "tsx config/env-schema.ts"
   },
   "dependencies": {
     "@accountable-books/api-types": "workspace:*",

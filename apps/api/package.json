@@ -13,7 +13,7 @@
     "test:pg": "NODE_ENV=test vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "generate-env": "tsx scripts/generate-env.ts",
+    "generate-env": "tsx config/env-schema.ts",
     "knex": "tsx node_modules/knex/bin/cli.js",
     "migrate:make": "pnpm run knex migrate:make -x ts --knexfile knexfile.ts",
     "migrate:local": "pnpm run knex migrate:latest --env local --knexfile knexfile.ts",

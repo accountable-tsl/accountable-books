@@ -70,3 +70,24 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     default: '10000',
   },
 } as const;
+
+// ==============================================================================
+// ENVIRONMENT FILE GENERATION
+// ==============================================================================
+
+/**
+ * Generate environment files for the Web service
+ * Can be executed directly: tsx apps/web/config/env-schema.ts
+ */
+export async function generateFiles() {
+  const { createEnvGenerator } = await import('@accountable-books/utils/env/cli');
+  await createEnvGenerator('Web', WEB_ENV_SCHEMA, WEB_TARGET_ENVIRONMENTS);
+}
+
+// Auto-run when executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  generateFiles().catch((error) => {
+    console.error('Generation failed:', error);
+    process.exit(1);
+  });
+}

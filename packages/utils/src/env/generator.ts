@@ -8,6 +8,41 @@
 import * as crypto from 'crypto';
 import type { Environment, EnvSchema, EnvVariableConfig } from './types.js';
 
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+/**
+ * Convert real values to example placeholders for .env.example files
+ */
+function convertToExampleValue(key: string, value: string, config: EnvVariableConfig): string {
+  // For secrets, always use placeholder
+  if (config.type === 'secret') {
+    return `your_${key.toLowerCase()}_here`;
+  }
+
+  // For UUIDs (like platform company IDs), use example UUID
+  if (value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    return '00000000-0000-0000-0000-000000000000';
+  }
+
+  // For real company names, use example
+  if (value === 'Accountable Techserve Ltd') {
+    return 'Accountable Company Name';
+  }
+
+  // For company codes that look real
+  if (key.includes('CODE') && value.length <= 10) {
+    return 'YOUR_CODE';
+  }
+
+  // For real email addresses
+  if (emailRegex.test(value)) {
+    return 'email@example.com';
+  }
+
+  // Keep everything else as-is
+  return value;
+}
+
 /**
  * Generate a secure random secret for the given environment
  */
@@ -171,6 +206,12 @@ export function generateEnvFile(
         }
       } else {
         value = resolveValue(key, config, environment);
+
+        // For example files, convert real values to placeholders
+        if (fileType === 'example') {
+          value = convertToExampleValue(key, value, config);
+        }
+
         validateValue(key, value, config);
       }
 
