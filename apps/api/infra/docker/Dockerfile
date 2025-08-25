@@ -1,38 +1,30 @@
-# ---- base ----
-FROM node:20-alpine AS base
+# Build from pruned context:
+# pnpm dlx turbo prune --scope=@accountable-books/api --docker --out-dir .pruned/api
+ARG APP_DIR=.pruned/api
+
+FROM node:20-alpine AS build
+ARG APP_DIR=.pruned/api
 WORKDIR /app
-ENV PNPM_HOME="/pnpm" 
+ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
-
-# Accept pruned context produced by: turbo prune --scope=@accountable-books/api --docker --out-dir .pruned/api
-ARG APP_DIR=.pruned/api
-
-# ---- dependencies ----
-FROM base AS deps
-ARG APP_DIR=.pruned/api
-COPY ${APP_DIR}/package.json ${APP_DIR}/pnpm-lock.yaml ${APP_DIR}/pnpm-workspace.yaml ./
+# deps (cacheable)
+COPY ${APP_DIR}/full/package.json ${APP_DIR}/pnpm-lock.yaml ${APP_DIR}/full/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
-
-
-# ---- builder ----
-FROM base AS build
-ARG APP_DIR=.pruned/api
-COPY --from=deps /app /app
+# source
 COPY ${APP_DIR}/full/ ./
-# Build workspace (utils, api-types, then api). Adjust if your build scripts already cascade.
+# Copy tsconfig.base.json which is needed for TypeScript builds
+COPY tsconfig.base.json ./
+# Install dependencies first
 RUN pnpm install --offline
-RUN pnpm -w --filter @accountable-books/utils build || true
-RUN pnpm -w --filter @accountable-books/api-types build || true
-RUN pnpm -w --filter @accountable-books/api build
+# Build dependencies first (contracts, utils, api-types)
+RUN cd packages/contracts && pnpm run bundle-contracts
+RUN cd packages/utils && pnpm run build
+RUN cd packages/api-types && pnpm run codegen
+RUN cd packages/api-types && pnpm run build
+# Now build the API (which depends on the above)
+RUN cd apps/api && pnpm run build
 
-# ---- prod deps ----
-FROM base AS prod-deps
-ARG APP_DIR=.pruned/api
-COPY ${APP_DIR}/package.json ${APP_DIR}/pnpm-lock.yaml ${APP_DIR}/pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile --ignore-scripts
-
-# ---- runtime ----
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production NODE_OPTIONS="--enable-source-maps"
@@ -41,10 +33,10 @@ RUN apk add --no-cache tini curl
 RUN addgroup -S nodejs -g 1001 && adduser -S api -G nodejs -u 1001
 
 # copy prod deps and build outputs from pruned context
-COPY --from=prod-deps --chown=api:nodejs /app/node_modules ./node_modules
-COPY --from=build     --chown=api:nodejs /app/apps/api/dist ./apps/api/dist
-COPY --from=build     --chown=api:nodejs /app/packages/utils/dist ./packages/utils/dist
-COPY --from=build     --chown=api:nodejs /app/packages/api-types/dist ./packages/api-types/dist
+COPY --from=build --chown=api:nodejs /app/node_modules ./node_modules
+COPY --from=build --chown=api:nodejs /app/apps/api/dist ./apps/api/dist
+COPY --from=build --chown=api:nodejs /app/packages/utils/dist ./packages/utils/dist
+COPY --from=build --chown=api:nodejs /app/packages/api-types/dist ./packages/api-types/dist
 
 # migrations + knexfile
 ARG APP_DIR=.pruned/api

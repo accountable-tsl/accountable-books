@@ -5,10 +5,10 @@ FROM python:3.11-slim AS builder
 ARG APP_DIR=.pruned/ml
 ENV PIP_NO_CACHE_DIR=1 \
     POETRY_VERSION=1.8.3 \
-    POETRY_HOME="/opt/poetry" \
-    PATH="$POETRY_HOME/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
+ENV POETRY_HOME="/opt/poetry"
+ENV PATH="$POETRY_HOME/bin:$PATH"
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 RUN python -m pip install --no-cache-dir "poetry==${POETRY_VERSION}"
 WORKDIR /app
