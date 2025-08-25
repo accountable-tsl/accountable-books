@@ -11,7 +11,7 @@ RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 COPY ${APP_DIR}/package.json ${APP_DIR}/pnpm-lock.yaml ${APP_DIR}/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
 # source
-COPY ${APP_DIR}/ ./
+COPY ${APP_DIR}/full/ ./
 # non-secret build-time vars
 ARG VITE_BACKEND_URL VITE_APP_NAME VITE_ENVIRONMENT VITE_API_URL
 ENV VITE_BACKEND_URL=$VITE_BACKEND_URL VITE_APP_NAME=$VITE_APP_NAME VITE_ENVIRONMENT=$VITE_ENVIRONMENT VITE_API_URL=$VITE_API_URL

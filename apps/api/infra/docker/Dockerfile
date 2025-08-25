@@ -19,7 +19,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
 FROM base AS build
 ARG APP_DIR=.pruned/api
 COPY --from=deps /app /app
-COPY ${APP_DIR}/ ./
+COPY ${APP_DIR}/full/ ./
 # Build workspace (utils, api-types, then api). Adjust if your build scripts already cascade.
 RUN pnpm install --offline
 RUN pnpm -w --filter @accountable-books/utils build || true
@@ -48,8 +48,8 @@ COPY --from=build     --chown=api:nodejs /app/packages/api-types/dist ./packages
 
 # migrations + knexfile
 ARG APP_DIR=.pruned/api
-COPY --chown=api:nodejs ${APP_DIR}/apps/api/migrations ./apps/api/migrations
-COPY --chown=api:nodejs ${APP_DIR}/apps/api/package.json ./apps/api/package.json
+COPY --chown=api:nodejs ${APP_DIR}/full/apps/api/migrations ./apps/api/migrations
+COPY --chown=api:nodejs ${APP_DIR}/full/apps/api/package.json ./apps/api/package.json
 
 USER api
 EXPOSE 5000
