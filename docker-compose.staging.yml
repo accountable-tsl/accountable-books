@@ -46,21 +46,6 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Run DB migrations & perhaps demo seeds once, then exit
-  migrator:
-    image: ghcr.io/accountable-tsl/accountable-books/api:${GIT_SHA}
-    container_name: books-migrator-staging
-    env_file:
-      - ./apps/api/.env.staging
-      - ./apps/api/.env.secrets.staging
-    networks:
-      - books-staging
-    depends_on:
-      db: { condition: service_healthy }
-      redis: { condition: service_healthy }
-    command: pnpm run migrate:staging && pnpm run demo:apply
-    restart: 'no'
-
   # API service - run migration then start server
   api:
     image: ghcr.io/accountable-tsl/accountable-books/api:${GIT_SHA}
@@ -81,8 +66,25 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  # Run DB migrations & perhaps demo seeds once, then exit
+  migrator:
+    image: ghcr.io/accountable-tsl/accountable-books/api:${GIT_SHA}
+    platform: linux/amd64
+    container_name: books-migrator-staging
+    env_file:
+      - ./apps/api/.env.staging
+      - ./apps/api/.env.secrets.staging
+    networks:
+      - books-staging
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: pnpm run migrate:staging && pnpm run demo:apply
+    restart: 'no'
+
   ml:
     image: ghcr.io/accountable-tsl/accountable-books/ml:${GIT_SHA}
+    platform: linux/amd64
     container_name: books-ml-staging
     networks:
       - books-staging
@@ -103,6 +105,7 @@ services:
   # Web frontend - build only
   web:
     image: ghcr.io/accountable-tsl/accountable-books/web:${GIT_SHA}
+
     container_name: books-web-staging
     env_file:
       - ./apps/web/.env.staging

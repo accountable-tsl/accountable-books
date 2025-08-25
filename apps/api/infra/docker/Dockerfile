@@ -29,6 +29,10 @@ FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production NODE_OPTIONS="--enable-source-maps"
 RUN apk add --no-cache tini curl
+# Install pnpm for runtime commands (migrations, etc.)
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 # nonroot
 RUN addgroup -S nodejs -g 1001 && adduser -S api -G nodejs -u 1001
 

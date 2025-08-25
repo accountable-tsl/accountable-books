@@ -18,6 +18,7 @@ build
 .next
 out
 *.tsbuildinfo
+.pruned/
 
 # Env
 .env

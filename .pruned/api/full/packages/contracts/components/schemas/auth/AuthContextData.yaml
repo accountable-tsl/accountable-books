@@ -1,8 +1,0 @@
-type: object
-required: [user]
-properties:
-  user:
-    $ref: './AuthUserContext.yaml'
-  csrfToken:
-    type: string
-    example: 'csrf-token-here'
