@@ -6,7 +6,7 @@
  */
 
 import * as crypto from 'crypto';
-import type { Environment, EnvSchema, EnvVariableConfig, GeneratorOptions } from './types.js';
+import type { Environment, EnvSchema, EnvVariableConfig } from './types.js';
 
 /**
  * Generate a secure random secret for the given environment
@@ -113,36 +113,66 @@ export function validateValue(key: string, value: string, config: EnvVariableCon
 /**
  * Generate environment file content from schema
  */
-export function generateEnvFile(schema: EnvSchema, options: GeneratorOptions): string {
-  const { environment, includeSensitive = true, includeComments = true } = options;
-
+export function generateEnvFile(
+  schema: EnvSchema,
+  environment: Environment,
+  fileType: 'main' | 'secrets' | 'example' = 'main',
+  includeComments = true,
+): string {
   const lines: string[] = [];
 
   // Add header comment
   if (includeComments) {
+    const title = fileType === 'secrets' ? 'Secrets Configuration' : 'Environment Configuration';
     lines.push(`# =============================================================================`);
-    lines.push(`# Environment Configuration - ${environment.toUpperCase()}`);
+    lines.push(`# ${title} - ${environment.toUpperCase()}`);
     lines.push(`# =============================================================================`);
-    lines.push(`# Auto-generated from environment schema. Do not edit manually.`);
-    lines.push(`# Run 'pnpm run generate-env' to regenerate this file.`);
+    if (fileType === 'secrets') {
+      lines.push(`# Fill in the actual secret values for ${environment} deployment`);
+      lines.push(`# This file should NEVER be committed to version control`);
+    } else {
+      lines.push(`# Auto-generated from environment schema. Do not edit manually.`);
+      lines.push(`# Run 'pnpm run generate-env' to regenerate this file.`);
+    }
     lines.push(``);
   }
 
-  // Process each variable
+  // Process each variable based on file type
   for (const [key, config] of Object.entries(schema)) {
-    // Skip sensitive variables for .env.example
-    if (!includeSensitive && config.type === 'secret') {
-      if (includeComments) {
-        lines.push(`# ${config.description}`);
-        lines.push(`${key}=your_${key.toLowerCase()}_here`);
-        lines.push('');
-      }
-      continue;
+    const isSecret = config.type === 'secret';
+
+    // Determine if we should include this variable
+    let shouldInclude = false;
+    let useBlankValue = false;
+
+    if (fileType === 'secrets') {
+      // Secrets file: only include secrets
+      shouldInclude = isSecret;
+      useBlankValue = environment === 'staging' || environment === 'production';
+    } else if (fileType === 'example') {
+      // Example file: include all with placeholders for secrets
+      shouldInclude = true;
+      useBlankValue = isSecret;
+    } else {
+      // Main file: exclude secrets for staging/production, include everything for local
+      shouldInclude = !isSecret || environment === 'local';
     }
 
+    if (!shouldInclude) continue;
+
     try {
-      const value = resolveValue(key, config, environment);
-      validateValue(key, value, config);
+      let value: string;
+
+      if (useBlankValue) {
+        if (fileType === 'example') {
+          value = `your_${key.toLowerCase()}_here`;
+        } else {
+          value = ''; // Blank for staging/production secrets
+        }
+      } else {
+        value = resolveValue(key, config, environment);
+        validateValue(key, value, config);
+      }
 
       if (includeComments) {
         lines.push(`# ${config.description}`);
@@ -164,31 +194,37 @@ export function generateEnvFile(schema: EnvSchema, options: GeneratorOptions): s
 }
 
 /**
- * Generate specified environment files for a package
+ * Generate specified environment files for a package using target environments
  */
 export function generateEnvFiles(
   schema: EnvSchema,
-  targetFiles: string[] = ['.env.local', '.env.test', '.env.example'],
+  targetEnvironments: Environment[] = ['local'],
+  options: {
+    blankStagingSecrets?: boolean;
+    blankProductionSecrets?: boolean;
+  } = {},
 ): Record<string, string> {
+  const { blankStagingSecrets = true, blankProductionSecrets = true } = options;
   const files: Record<string, string> = {};
 
-  for (const fileName of targetFiles) {
-    if (fileName === '.env.example') {
-      // Generate example file without sensitive values
-      files[fileName] = generateEnvFile(schema, {
-        environment: 'local', // Use local as base for example
-        includeSensitive: false,
-        includeComments: true,
-      });
-    } else if (fileName.startsWith('.env.')) {
-      // Extract environment from filename
-      const env = fileName.replace('.env.', '') as Environment;
-      if (['local', 'test', 'staging', 'production'].includes(env)) {
-        files[fileName] = generateEnvFile(schema, {
-          environment: env,
-          includeSensitive: true,
-          includeComments: true,
-        });
+  // Always generate example file
+  files['.env.example'] = generateEnvFile(schema, 'local', 'example', true);
+
+  // Generate files for each target environment
+  for (const env of targetEnvironments) {
+    // Generate main env file
+    const envFileName = env === 'local' ? '.env.local' : `.env.${env}`;
+    files[envFileName] = generateEnvFile(schema, env, 'main', true);
+
+    // Generate separate secrets file for staging/production based on flags
+    if (env === 'staging' || env === 'production') {
+      const shouldGenerate =
+        (env === 'staging' && blankStagingSecrets) ||
+        (env === 'production' && blankProductionSecrets);
+
+      if (shouldGenerate) {
+        const secretsFileName = `.env.secrets.${env}`;
+        files[secretsFileName] = generateEnvFile(schema, env, 'secrets', true);
       }
     }
   }
@@ -222,6 +258,7 @@ export function validateEnvFiles(
   schema: EnvSchema,
   environment: Environment,
   envFileContent?: string,
+  secretsFileContent?: string,
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -232,18 +269,22 @@ export function validateEnvFiles(
   }
 
   const envVars = parseEnvFile(envFileContent);
+  const secretVars = secretsFileContent ? parseEnvFile(secretsFileContent) : {};
+
+  // Combine both files for validation
+  const allVars = { ...envVars, ...secretVars };
 
   // Check required variables
   for (const [key, config] of Object.entries(schema)) {
     if (config.required !== false) {
       // default is required
-      if (!envVars[key]) {
+      if (!allVars[key]) {
         errors.push(`Missing required environment variable: ${key}`);
         continue;
       }
 
       try {
-        validateValue(key, envVars[key], config);
+        validateValue(key, allVars[key], config);
       } catch (error) {
         errors.push(
           `Invalid value for ${key}: ${error instanceof Error ? error.message : 'Unknown error'}`,

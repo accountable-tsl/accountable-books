@@ -7,8 +7,12 @@
 
 import type { EnvSchema } from '@accountable-books/utils/env/types';
 
-// Target files to generate (only essential ones)
-export const WEB_TARGET_FILES = ['.env.local', '.env.test', '.env.example'];
+// Target environments to generate files for
+export const WEB_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
+  'local',
+  'staging',
+  'production',
+];
 
 export const WEB_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
@@ -19,7 +23,6 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     type: 'url',
     required: true,
     local: 'http://localhost:5000',
-    test: 'http://localhost:3001',
     staging: 'https://api-staging.accountable.local',
     production: 'https://api.accountable.com',
   },
@@ -31,7 +34,6 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     description: 'Mono bank connection service public key',
     type: 'string',
     required: false,
-    test: 'test_mono_key',
   },
 
   // ============================================================================
@@ -41,7 +43,6 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     description: 'Mixpanel analytics token for frontend tracking',
     type: 'string',
     required: false,
-    test: 'test-mixpanel-token',
   },
 
   VITE_SENTRY_DSN: {
@@ -58,7 +59,6 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     type: 'boolean',
     required: false,
     local: 'true',
-    test: 'false',
     staging: 'false',
     production: 'false',
   },

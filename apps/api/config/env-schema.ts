@@ -2,13 +2,17 @@
  * API Environment Schema Configuration
  *
  * Single source of truth for all API environment variables.
- * Generates only essential files: .env.local, .env.test, .env.example
+ * Generates only essential files: .env.local, .env.example
  */
 
 import type { EnvSchema } from '@accountable-books/utils/env/types';
 
-// Target files to generate (only essential ones)
-export const API_TARGET_FILES = ['.env.local', '.env.test', '.env.staging', '.env.example'];
+// Target environments to generate files for
+export const API_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
+  'local',
+  'staging',
+  'production',
+];
 
 export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
@@ -24,7 +28,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Server port',
     type: 'number',
     local: '5000',
-    test: '3001',
     staging: '5000',
     production: '5000',
   },
@@ -33,7 +36,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Base domain for the application',
     type: 'string',
     local: 'localhost',
-    test: 'localhost',
     staging: 'localhost',
     production: 'getaccountable.com',
   },
@@ -42,7 +44,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Backend API URL',
     type: 'url',
     local: 'http://localhost:5000',
-    test: 'http://localhost:3001',
     staging: 'http://localhost:5000',
     production: 'https://api.getaccountable.com',
   },
@@ -51,7 +52,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Frontend application URL',
     type: 'url',
     local: 'http://localhost:5173',
-    test: 'http://localhost:3000',
     staging: 'http://localhost:3000',
     production: 'https://app.getaccountable.com',
   },
@@ -60,7 +60,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Domain for setting cookies',
     type: 'string',
     local: 'localhost',
-    test: 'localhost',
     staging: 'localhost',
     production: '.getaccountable.com',
   },
@@ -72,7 +71,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database host',
     type: 'string',
     local: 'localhost',
-    test: 'localhost',
     staging: 'db',
     production: 'ep-example-12345.us-east-1.aws.neon.tech',
   },
@@ -81,7 +79,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database port',
     type: 'number',
     local: '5433',
-    test: '5432',
     staging: '5432',
     production: '5432',
   },
@@ -90,7 +87,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database name',
     type: 'string',
     local: 'accountable_books',
-    test: 'test_db',
     staging: 'accountable_books',
     production: 'main',
   },
@@ -99,7 +95,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database username',
     type: 'string',
     local: 'user',
-    test: 'test',
     staging: 'user',
     production: 'neondb_owner',
   },
@@ -108,14 +103,12 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database password',
     type: 'secret',
     local: 'password',
-    test: 'test',
   },
 
   DATABASE_URL: {
     description: 'Complete PostgreSQL connection string',
     type: 'secret',
     local: 'postgres://user:password@localhost:5433/accountable_books',
-    test: 'postgresql://test:test@localhost:5432/test_db',
   },
 
   // ============================================================================
@@ -125,7 +118,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Redis connection URL',
     type: 'url',
     local: 'redis://localhost:6380',
-    test: 'redis://redis:6379',
     staging: 'redis://redis:6379',
     production: 'rediss://default:password@region-cache.upstash.io:6380',
   },
@@ -134,7 +126,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Redis password',
     type: 'secret',
     local: '',
-    test: 'test',
   },
 
   // ============================================================================
@@ -166,7 +157,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     local: 'postmark',
-    test: 'console',
     staging: 'console',
     default: 'postmark',
   },
@@ -175,7 +165,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Postmark API key for sending emails',
     type: 'secret',
     required: false,
-    test: 'test-postmark-key',
   },
 
   EMAIL_FROM: {
@@ -183,7 +172,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     local: 'dev@accountable.local',
-    test: 'test@example.com',
     default: 'noreply@accountable.com',
   },
 
@@ -191,14 +179,12 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Ethereal email for testing',
     type: 'string',
     required: false,
-    test: 'test@ethereal.email',
   },
 
   ETHEREAL_PASSWORD: {
     description: 'Ethereal email password for testing',
     type: 'secret',
     required: false,
-    test: 'test-password',
   },
 
   // ============================================================================
@@ -208,14 +194,12 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Slack app signing secret',
     type: 'secret',
     required: false,
-    test: 'test-slack-signing-secret',
   },
 
   SLACK_BOT_TOKEN: {
     description: 'Slack bot token',
     type: 'secret',
     required: false,
-    test: 'test-slack-bot-token',
   },
 
   SLACK_CHANNEL: {
@@ -223,7 +207,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     local: 'dev',
-    test: 'test',
     staging: 'staging',
     default: 'general',
   },
@@ -235,14 +218,12 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Mixpanel analytics token',
     type: 'secret',
     required: false,
-    test: 'test-mixpanel-token',
   },
 
   SENTRY_DSN: {
     description: 'Sentry error tracking DSN',
     type: 'url',
     required: false,
-    test: 'https://test@sentry.io/123456',
   },
 
   // ============================================================================
@@ -252,28 +233,24 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Cloudflare R2 API token',
     type: 'secret',
     required: false,
-    test: 'test-r2-token',
   },
 
   R2_ACCESS_KEY_ID: {
     description: 'Cloudflare R2 access key ID',
     type: 'secret',
     required: false,
-    test: 'test-access-key',
   },
 
   R2_SECRET_ACCESS_KEY: {
     description: 'Cloudflare R2 secret access key',
     type: 'secret',
     required: false,
-    test: 'test-secret-key',
   },
 
   R2_ENDPOINT: {
     description: 'Cloudflare R2 endpoint URL',
     type: 'url',
     required: false,
-    test: 'https://test.r2.cloudflarestorage.com',
     production: 'https://1234567890abcdef.r2.cloudflarestorage.com',
   },
 
@@ -282,14 +259,12 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     default: 'logos',
-    test: 'test-bucket',
   },
 
   R2_LOGOS_DOMAIN: {
     description: 'Cloudflare R2 domain for logos',
     type: 'url',
     required: false,
-    test: 'https://test.r2.cloudflarestorage.com',
     production: 'https://logos.accountable.com',
   },
 
@@ -300,7 +275,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Main platform company UUID',
     type: 'string',
     local: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
-    test: '018f7e5e-1111-2222-3333-000000000001',
     staging: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
     production: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
   },
@@ -309,7 +283,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Platform company legal name',
     type: 'string',
     local: 'Accountable Techserve Ltd',
-    test: 'Test Platform Company',
     staging: 'Accountable Techserve Ltd',
     production: 'Accountable Techserve Ltd',
   },
@@ -318,7 +291,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Platform company short identifier',
     type: 'string',
     local: 'accX',
-    test: 'TEST',
     staging: 'accX',
     production: 'accX',
   },
@@ -327,7 +299,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Platform accounting firm UUID',
     type: 'string',
     local: 'fb60dc2d-732e-4bf6-9f0c-74577354e816',
-    test: '018f7e5e-4444-5555-6666-000000000002',
     staging: 'fb60dc2d-732e-4bf6-9f0c-74577354e816',
     production: 'fb60dc2d-732e-4bf6-9f0c-74577354e816',
   },
@@ -340,7 +311,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     local: '018f7e5e-0000-0000-0000-000000000001',
-    test: '018f7e5e-0000-0000-0000-000000000001',
   },
 
   TEST_ADMIN_EMAIL: {
@@ -348,7 +318,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     local: 'support@getaccountable.com',
-    test: 'support@getaccountable.com',
   },
 
   TEST_ADMIN_FIRSTNAME: {
@@ -356,7 +325,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     local: 'Admin',
-    test: 'Test',
   },
 
   TEST_ADMIN_LASTNAME: {
@@ -364,7 +332,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     local: 'User',
-    test: 'Admin',
   },
 
   TEST_ADMIN_PASSWORD: {
@@ -372,7 +339,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'secret',
     required: false,
     local: 'StrongAdminPass!',
-    test: 'StrongAdminPass!',
   },
 
   ADMIN_ID: {
@@ -417,7 +383,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'boolean',
     required: false,
     local: 'false',
-    test: 'false',
     staging: 'true',
     production: 'false',
   },
@@ -427,7 +392,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     local: 'admin',
-    test: 'test',
     default: 'admin',
   },
 
@@ -436,6 +400,5 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'secret',
     required: false,
     local: 'secret',
-    test: 'test',
   },
 } as const;

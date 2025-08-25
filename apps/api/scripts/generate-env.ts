@@ -10,7 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateEnvFiles } from '@accountable-books/utils/env/generator';
-import { API_ENV_SCHEMA, API_TARGET_FILES } from '../config/env-schema.js';
+import { API_ENV_SCHEMA, API_TARGET_ENVIRONMENTS } from '../config/env-schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,7 +64,7 @@ function writeEnvFile(filePath: string, content: string, preserve = false): void
   const fileName = path.basename(filePath);
 
   try {
-    // Preserve existing .env.local values
+    // Preserve existing values if requested
     const finalContent = preserve ? preserveLocalEnv(content, filePath) : content;
 
     // Create backup if file exists (disabled to avoid clutter)
@@ -90,13 +90,17 @@ function main(): void {
   console.log('🔧 Generating API environment files...\n');
 
   try {
-    // Generate only specified environment files
-    const files = generateEnvFiles(API_ENV_SCHEMA, API_TARGET_FILES);
+    // Generate environment files for specified target environments
+    const files = generateEnvFiles(API_ENV_SCHEMA, API_TARGET_ENVIRONMENTS, {
+      blankStagingSecrets: true,
+      blankProductionSecrets: true,
+    });
 
     // Write each file
     for (const [fileName, content] of Object.entries(files)) {
       const filePath = path.join(packageRoot, fileName);
-      const shouldPreserve = fileName === '.env.local';
+      // Preserve user values for local env and secrets files
+      const shouldPreserve = fileName === '.env.local' || fileName.startsWith('.env.secrets.');
 
       writeEnvFile(filePath, content, shouldPreserve);
     }
@@ -105,8 +109,13 @@ function main(): void {
     console.log('\n📝 Next steps:');
     console.log('   1. Review the generated files');
     console.log('   2. Update .env.local with your actual values if needed');
-    console.log('   3. Commit .env.test and .env.example to version control');
-    console.log('   4. Keep .env.local, .env.staging, .env.production in .gitignore');
+    console.log(
+      '   3. Fill in .env.secrets.staging and .env.secrets.production with actual secrets',
+    );
+    console.log('   4. Commit .env.example to version control');
+    console.log(
+      '   5. Keep .env.local, .env.staging, .env.production, and .env.secrets.* in .gitignore',
+    );
   } catch (error) {
     console.error('❌ Environment file generation failed:');
     console.error(error instanceof Error ? error.message : 'Unknown error');

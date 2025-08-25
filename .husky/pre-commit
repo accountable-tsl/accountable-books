@@ -7,7 +7,7 @@ echo "🔍 Running pre-commit checks..."
 
 # Ensure essential environment files exist
 echo "🔍 Validating environment files..."
-if [ ! -f "apps/api/.env.test" ] || [ ! -f "apps/api/.env.example" ] || [ ! -f "apps/web/.env.test" ] || [ ! -f "apps/web/.env.example" ]; then
+if [ ! -f "apps/api/.env.example" ] || [ ! -f "apps/web/.env.example" ]; then
   echo "❌ Missing essential environment files. Run 'pnpm run generate-env' to generate them."
   exit 1
 fi

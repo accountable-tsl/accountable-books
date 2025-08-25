@@ -8,7 +8,7 @@
 /**
  * Supported deployment environments
  */
-export type Environment = 'local' | 'test' | 'staging' | 'production';
+export type Environment = 'local' | 'staging' | 'production';
 
 /**
  * Environment variable data types with validation support
@@ -34,9 +34,6 @@ interface BaseEnvVariableConfig {
   /** Local development value */
   local?: string;
 
-  /** Test environment value */
-  test?: string;
-
   /** Staging environment value */
   staging?: string;
 
@@ -50,28 +47,27 @@ interface BaseEnvVariableConfig {
   validation?: (value: string) => boolean;
 }
 
-export type EnvVariableConfig = BaseEnvVariableConfig;
+/**
+ * Type-safe environment variable configuration that prevents
+ * production/staging values for secret types
+ */
+export type EnvVariableConfig =
+  | (BaseEnvVariableConfig & {
+      type: 'secret';
+      // For secrets, production and staging values should not be set in schema
+      // They should be provided via separate .env.secrets files
+      staging?: never;
+      production?: never;
+    })
+  | (BaseEnvVariableConfig & {
+      type: 'string' | 'number' | 'boolean' | 'url';
+      staging?: string;
+      production?: string;
+    });
 
 /**
  * Complete schema for a package's environment variables
  */
 export interface EnvSchema {
   [key: string]: EnvVariableConfig;
-}
-
-/**
- * Options for environment file generation
- */
-export interface GeneratorOptions {
-  /** Target environment to generate for */
-  environment: Environment;
-
-  /** Whether to include sensitive variables */
-  includeSensitive?: boolean;
-
-  /** Whether to include descriptive comments */
-  includeComments?: boolean;
-
-  /** Specific files to generate (e.g., ['.env.local', '.env.test']) */
-  targetFiles?: string[];
 }
