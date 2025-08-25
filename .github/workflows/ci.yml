@@ -189,7 +189,7 @@ jobs:
             APP_DIR=.pruned/api
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:${{ env.GIT_SHA }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api:${{ env.GIT_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -207,7 +207,7 @@ jobs:
             VITE_ENVIRONMENT=${{ env.ENVIRONMENT }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-web:${{ env.GIT_SHA }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web:${{ env.GIT_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -221,6 +221,6 @@ jobs:
             APP_DIR=.pruned/ml
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-ml:${{ env.GIT_SHA }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ml:${{ env.GIT_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

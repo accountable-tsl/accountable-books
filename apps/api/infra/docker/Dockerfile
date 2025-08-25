@@ -15,7 +15,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
 
 
 # ---- builder ----
-FROM base AS builder
+FROM base AS build
 COPY --from=deps /app /app
 COPY ${APP_DIR}/ ./
 # Build workspace (utils, api-types, then api). Adjust if your build scripts already cascade.
