@@ -2,50 +2,87 @@
 
 ## Overview
 
-This project uses `lvh.me` domains for local development to support multi-tenant features and subdomain testing. The `lvh.me` domain resolves to `127.0.0.1` (localhost) but allows for proper cookie sharing and subdomain testing.
+This project uses a **hybrid development approach**:
+- **Infrastructure** (Database + Redis) runs in Docker containers
+- **Applications** (API, Web, ML Engine) run directly on your host via Turbo
+
+This gives you the benefits of consistent infrastructure with the speed and flexibility of host-based development.
+
+## Prerequisites
+
+- **Node.js** >= 20.0.0 < 24.4.0
+- **pnpm** >= 8.0.0  
+- **Docker** & **Docker Compose**
+
+### Setup Options
+
+**Option 1: lvh.me (Default - Recommended)**
+
+Update your `/etc/hosts` file:
+```bash
+sudo nano /etc/hosts
+
+# Add:
+127.0.0.1 app.lvh.me
+127.0.0.1 api.lvh.me
+```
+
+**Option 2: localhost**
+
+If you prefer localhost, after running `make dev-setup`, update:
+```bash
+# In apps/api/.env.local:
+BACKEND_URL=http://localhost:5000
+FRONTEND_URL=http://localhost:5173  
+COOKIE_DOMAIN=localhost
+
+# In apps/web/.env.local:
+VITE_BACKEND_URL=http://localhost:5000
+```
 
 ## Quick Start
 
-### Development with Turbo (Recommended)
+**3 commands to get started:**
 
 ```bash
-# Start the complete development environment
-pnpm dev
+# 1. Start infrastructure (DB + Redis)
+docker compose -f docker-compose.dev.yml up -d
 
-# Or start step by step
-make dev-up
-make dev-wait-services
-make dev-db-setup
-make dev-health-check
+# 2. Install dependencies
+pnpm install
+
+# 3. Start all apps
+pnpm dev
 ```
 
-### Containerized Development (Alternative)
+**Or use Make shortcuts:**
 
 ```bash
-# Start the complete development environment
-pnpm dev:docker
-# or
+# Setup everything (infra + deps + migrations)
+make dev-setup
+
+# Start all apps
+make dev
+
+# Full setup including demo seeds
 make dev-full
-```
-
-### Local Development (Alternative)
-
-```bash
-# Start database only
-make db-dev-up
-
-# Start services locally
-pnpm dev
 ```
 
 ## Access URLs
 
-Once the environment is running, access the applications at:
-
-- **🌐 Frontend (Web App)**: http://app.lvh.me:5173
-- **🔌 Backend (API)**: http://api.lvh.me:5000
+**Default (lvh.me):**
+- **🌐 Web App**: http://app.lvh.me:5173
+- **🔌 API**: http://api.lvh.me:5000
 - **🤖 ML Engine**: http://localhost:8000
-- **📊 Bull Board (Admin)**: http://api.lvh.me:5000/admin/queues
+- **📊 Admin Panel**: http://api.lvh.me:5000/admin/queues
+- **📄 API Docs**: http://api.lvh.me:5000/docs
+
+**If using localhost option:**
+- **🌐 Web App**: http://localhost:5173
+- **🔌 API**: http://localhost:5000
+- **🤖 ML Engine**: http://localhost:8000
+- **📊 Admin Panel**: http://localhost:5000/admin/queues
+- **📄 API Docs**: http://localhost:5000/docs
 
 ## Demo Credentials
 
@@ -60,190 +97,144 @@ Use these credentials to log in:
 
 - **Email**: `support@getaccountable.com` | **Password**: `StrongAdminPass!`
 
-## Why lvh.me?
+## Why Hybrid Development?
 
-We use `lvh.me` instead of `localhost` because:
+We use **infrastructure in Docker + apps on host** because:
 
-1. **Subdomain Testing**: Allows testing multi-tenant features with subdomains like:
-   - `firm1.app.lvh.me:5173`
-   - `firm2.app.lvh.me:5173`
-   - `us-demo.app.lvh.me:5173`
+1. **Consistent Infrastructure**: Everyone gets the same DB and Redis setup
+2. **Fast Development**: Apps run directly on host with immediate hot reload
+3. **Turbo Benefits**: Full monorepo optimization, intelligent caching, parallel execution
+4. **Easy Debugging**: Direct access to Node.js processes, no container complexity
 
-2. **Cookie Sharing**: Proper cookie domain sharing between `api.lvh.me` and `app.lvh.me`
+## Individual Service Development
 
-3. **Consistent Environment**: All developers get the same setup without configuration
-
-## Subdomain Testing
-
-For testing different firms and multi-tenant features:
+Start specific services after running `make dev-setup`:
 
 ```bash
-# Test different firm subdomains
-http://us-demo.app.lvh.me:5173
-http://ng-demo.app.lvh.me:5173
-http://firm-slug.app.lvh.me:5173
+# Start individual apps
+make dev-api      # API only
+make dev-web      # Web app only  
+make dev-ml       # ML engine only
+
+# Or with pnpm directly
+pnpm -F @accountable-books/api dev
+pnpm -F @accountable-books/web dev
+pnpm -F @accountable-books/ml-engine dev
 ```
 
 ## Troubleshooting
 
-### Login Issues
+### Application Issues
 
-If you're getting logged out immediately:
+If apps aren't starting properly:
 
-1. Make sure you're using `app.lvh.me:5173` (not `localhost:5173`)
-2. Check that the API is accessible at `api.lvh.me:5000`
-3. Clear browser cookies for the domain
+1. Make sure infrastructure is running: `docker compose -f docker-compose.dev.yml ps`
+2. Check that dependencies are installed: `pnpm install`
+3. Verify database migrations: `make db-dev-migrate`
+4. Check individual app logs in your terminal
 
-### Port Already in Use
+### Port Conflicts
 
 If ports are already in use:
 
 ```bash
-# Stop all containers
-make dev-down
+# Stop infrastructure
+make db-dev-down
 
-# Clean restart
-make dev-clean
+# Stop any running apps (Ctrl+C in terminal)
+# Then restart infrastructure
+make db-dev-up
 ```
 
 ### Database Issues
 
 ```bash
-# Reset database
-make db-reset
+# Check database status
+make db-dev-status
 
-# Or clean restart everything
-make dev-clean
+# Run migrations manually
+make db-dev-migrate
+
+# Reset database completely
+make db-dev-nuke && make db-dev-up
+
+# Apply demo seeds
+make demo-apply
 ```
 
 ## Development Commands
 
-### Turbo Commands (Recommended)
-
+**Infrastructure:**
 ```bash
-# Start development
-pnpm dev                  # Start with Turbo (recommended)
-pnpm dev:docker          # Start in containers
+# View infrastructure logs
+make db-dev-logs
 
-# Testing
-pnpm test                # Run tests with Turbo
-pnpm test:docker         # Run tests in containers
+# Restart infrastructure
+make db-dev-restart
 
-# Linting
-pnpm lint                # Run linting with Turbo
-pnpm lint:docker         # Run linting in containers
-pnpm lint:fix            # Fix linting issues with Turbo
-pnpm lint:fix:docker     # Fix linting issues in containers
+# Stop infrastructure
+make db-dev-down
 
-# Type checking
-pnpm typecheck           # Run type checking with Turbo
-pnpm typecheck:docker    # Run type checking in containers
-
-# Database operations
-make api-dev-migrate     # Run migrations
-make api-dev-seed        # Apply demo data
-make db-dev-reset        # Reset database
-
-# Service management
-make dev-logs            # View logs
-make dev-restart         # Restart services
-make dev-stop            # Stop services
-make dev-status          # Check status
-make dev-clean           # Clean restart
+# Check infrastructure status
+make db-dev-status
 ```
 
-### Individual Service Commands
-
+**Applications:**
 ```bash
-# API operations
-make api-dev-up          # Start API
-make api-dev-down        # Stop API
-make api-dev-logs        # API logs
-make api-dev-test        # API tests
-make api-dev-lint        # API linting
+# Start all apps (after dev-setup)
+make dev
 
-# Web operations
-make web-dev-up          # Start Web app
-make web-dev-down        # Stop Web app
-make web-dev-logs        # Web logs
-make web-dev-test        # Web tests
-make web-dev-lint        # Web linting
+# Start individual apps
+make dev-api
+make dev-web
+make dev-ml
 
-# Database operations
-make db-dev-up           # Start database
-make db-dev-down         # Stop database
-make db-dev-logs         # Database logs
-make db-dev-nuke         # Destroy database
+# Stop apps: Ctrl+C in terminal where they're running
 ```
 
 ## Environment Variables
 
-The environment is pre-configured for `lvh.me` domains in:
-
+Environment files are automatically generated in:
 - `apps/api/.env.local`
 - `apps/web/.env.local`
 
-Key settings:
+Key settings for development:
+- `NODE_ENV=local`
+- `DB_HOST=localhost` (Docker port forwarded)
+- `DB_PORT=5433`
+- `REDIS_HOST=localhost`
+- `REDIS_PORT=6380`
 
-- `BACKEND_URL=http://api.lvh.me:5000`
-- `FRONTEND_URL=http://app.lvh.me:5173`
-- `COOKIE_DOMAIN=.lvh.me`
+## Demo Data
 
-## Adding to /etc/hosts (Optional)
-
-For even better subdomain support, you can add to your `/etc/hosts`:
+Apply demo seeds for testing:
 
 ```bash
-# Add these lines to /etc/hosts
-127.0.0.1 app.lvh.me
-127.0.0.1 api.lvh.me
-127.0.0.1 *.lvh.me
+# Apply all demo data
+make demo-apply
+
+# Country-specific
+make demo-apply ARGS="--country US"
+
+# View current demo data
+make demo-status
+
+# Reset demo data
+make demo-reset ARGS="--all"
 ```
 
-This ensures all subdomains resolve properly.
+**Demo Users:**
+- Email: `demo.us@example.com` | Password: `StrongDemoPass!`
+- Email: `demo.ng@example.com` | Password: `StrongDemoPass!`
 
-## Migration to Turbo-First Development
+## Staging vs Development
 
-### What Changed
+**Development (this guide):**
+- Infrastructure: Docker containers
+- Apps: Run on host via Turbo
+- Fast iteration, debugging
 
-We've migrated to a Turbo-first development approach that leverages Turbo's benefits while maintaining container support:
-
-**Before:**
-
-- Mixed local and Docker commands
-- Inconsistent environments across developers
-- Manual task orchestration
-
-**After:**
-
-- `pnpm dev` uses Turbo for smart task orchestration
-- Turbo handles parallel execution and caching
-- Container alternatives available with `:docker` suffix
-- Consistent environment for all developers
-
-### Command Mapping
-
-| Command          | Turbo (Recommended) | Container Alternative   |
-| ---------------- | ------------------- | ----------------------- |
-| `pnpm dev`       | `pnpm dev`          | `pnpm dev:docker`       |
-| `pnpm test`      | `pnpm test`         | `pnpm test:docker`      |
-| `pnpm lint`      | `pnpm lint`         | `pnpm lint:docker`      |
-| `pnpm typecheck` | `pnpm typecheck`    | `pnpm typecheck:docker` |
-
-### Benefits
-
-1. **Consistency**: All developers get the same environment
-2. **Isolation**: No conflicts with local Node.js versions or dependencies
-3. **Reproducibility**: Exact same setup as production
-4. **Simplicity**: One command (`pnpm dev`) sets up everything
-5. **Multi-tenant Testing**: Proper subdomain support with `lvh.me`
-
-### Troubleshooting
-
-If you encounter issues with the containerized setup:
-
-1. **Use local alternatives**: Add `:local` to any command
-2. **Check container status**: `make dev-status`
-3. **Restart containers**: `make dev-restart`
-4. **Clean restart**: `make dev-clean`
-5. **View logs**: `make dev-logs`
+**Staging:**
+- Everything: Docker containers
+- Production-like environment
+- Use `make staging-*` commands

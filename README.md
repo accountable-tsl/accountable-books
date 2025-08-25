@@ -6,18 +6,30 @@ Accountable Books is the MVP of our AI-native accounting suite. We ingest bank d
 
 ## 🚀 Quick Start
 
-```bash
-# Bootstrap (deps, envs, contracts/types)
-make bootstrap   # or: make setup (alias)
+**3 commands to get started:**
 
-# Prepare DB with seeds (no servers)
+```bash
+# 1. Start infrastructure (DB + Redis)
+docker compose -f docker-compose.dev.yml up -d
+
+# 2. Install dependencies
+pnpm install
+
+# 3. Start all apps with Turbo
+pnpm dev
+```
+
+**Or use Make shortcuts:**
+
+```bash
+# Setup infrastructure + dependencies + migrations (no apps)
 make dev-setup
 
-# Start development servers (API + Web)
+# Start all apps (Turbo orchestration)
 make dev
 
-# See available commands
-make help
+# Full setup: infra + deps + migrations + seeds + start apps  
+make dev-full
 ```
 
 ## 🏗️ Architecture
@@ -50,23 +62,32 @@ infra/
 
 ### Core Commands
 
-- `make bootstrap`: install deps, generate envs, validate/bundle contracts, and generate types.
-- `make dev-setup`: start DB, wait, migrate, and seed (no servers).
-- `make dev`: start dev servers only (no DB side effects).
-- `make dev-full`: one-command Docker development (builds and starts DB, Redis, API, Web, ML engine; runs migrations and demo seeds; performs health checks).
-- `make api-dev`: start API server only (prepares DB, no seeding).
-- `make web-dev`: start web app only.
-- `make db-shell`: open a psql shell into Postgres.
-- `make test`: run all tests. `make check`: lint + typecheck + format:check. `make ci`: check + tests.
+**Development:**
+- `make dev-setup`: start infrastructure, run migrations, install dependencies (no apps)
+- `make dev`: start all apps via Turbo orchestration
+- `make dev-full`: complete setup (infra + deps + migrations + seeds + start apps)
+- `make dev-api`: start API only
+- `make dev-web`: start Web app only  
+- `make dev-ml`: start ML engine only
+
+**Quality & Testing:**
+- `make test`: run all tests
+- `make check`: lint + typecheck + format check
+- `make ci`: check + tests
+
+**Database:**
+- `make db-shell`: open psql shell into Postgres
+- `make demo-apply`: apply demo seeds
 
 ### Database Management
 
 ```bash
-make db-prepare                 # Start DB, wait, migrate
-make db-setup                   # Prepare + seed
-make db-seed SEED_ARGS="--all"  # Apply demo seeds (parametrized)
-make db-rollback                # Roll back last migration
-make db-logs                    # View database logs
+make db-dev-up                  # Start infrastructure (DB + Redis)
+make db-dev-migrate             # Run migrations
+make demo-apply                 # Apply demo seeds  
+make demo-apply ARGS="--country US"  # Apply specific seeds
+make db-dev-rollback            # Roll back last migration
+make db-dev-logs                # View database logs
 make db-shell                   # Connect to database shell
 ```
 
@@ -74,24 +95,29 @@ Seed parameters examples:
 
 ```bash
 # All seeds (default)
-make db-seed
+make demo-apply
 
-# Country-specific with parallelization
-make db-seed SEED_ARGS="--country NG --parallel --all"
+# Country-specific
+make demo-apply ARGS="--country NG"
+
+# Company type specific
+make demo-apply ARGS="--type business"
+
+# Delete and recreate
+make demo-reset ARGS="--country US"
 ```
 
-DB wait timeout (seconds):
+### Individual Service Development
 
 ```bash
-make db-prepare WAIT_TIMEOUT=10
-```
+# Start individual services (after running dev-setup)
+make dev-api        # Start API development server
+make dev-web        # Start web app development server  
+make dev-ml         # Start ML engine development server
 
-### Web App Development
-
-```bash
-make web-dev        # Start web app development server
-make web-build      # Build web app for production
-make web-test       # Run web app tests
+# Build and test
+make build          # Build all packages
+make test           # Run all tests
 ```
 
 ### Package Scripts (via pnpm/turbo)
@@ -116,10 +142,44 @@ PostgreSQL 17.5 with custom extensions:
 
 ## 🔧 Prerequisites
 
-- **Node.js** >= 18.0.0 < 24.4.0
+- **Node.js** >= 20.0.0 < 24.4.0 (see `engines` in package.json)
 - **pnpm** >= 8.0.0
 - **Docker** & **Docker Compose**
 - **Make** (for development commands)
+
+### Local Development Options
+
+**Option 1: Use lvh.me (Recommended)**
+
+Add these entries to your `/etc/hosts` file for multi-tenant features:
+
+```bash
+sudo nano /etc/hosts
+
+# Add these lines:
+127.0.0.1 app.lvh.me
+127.0.0.1 api.lvh.me
+127.0.0.1 *.lvh.me
+```
+
+**Option 2: Use localhost**
+
+If you prefer localhost, update the environment files:
+
+```bash
+# In apps/api/.env.local, change:
+BACKEND_URL=http://localhost:5000
+FRONTEND_URL=http://localhost:5173
+COOKIE_DOMAIN=localhost
+
+# In apps/web/.env.local, change:
+VITE_BACKEND_URL=http://localhost:5000
+```
+
+**lvh.me Benefits:** 
+- Proper cookie sharing between API and Web app
+- Multi-tenant subdomain testing (e.g., `firm1.app.lvh.me:5173`)
+- No environment file changes needed
 
 ## 🚦 Getting Started
 
@@ -128,7 +188,7 @@ PostgreSQL 17.5 with custom extensions:
    ```bash
    git clone <repo-url>
    cd accountable-books
-   make setup
+   make dev-setup
    ```
 
 2. **Start developing:**
@@ -138,12 +198,13 @@ PostgreSQL 17.5 with custom extensions:
    ```
 
 3. **Access services:**
-   - API: http://localhost:5000
-   - Web App: http://localhost:5173
-   - Database: localhost:5433
-   - Redis: localhost:6380
-   - API Docs: http://localhost:5000/docs
-   - Bull Board: http://localhost:5000/admin/queues
+   - **Web App**: http://app.lvh.me:5173
+   - **API**: http://api.lvh.me:5000
+   - **ML Engine**: http://localhost:8000
+   - **Database**: localhost:5433 (PostgreSQL)
+   - **Redis**: localhost:6380
+   - **API Docs**: http://api.lvh.me:5000/docs
+   - **Admin Panel**: http://api.lvh.me:5000/admin/queues
 
 ## 📚 Documentation
 

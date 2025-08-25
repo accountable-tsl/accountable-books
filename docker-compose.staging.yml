@@ -1,19 +1,29 @@
 networks:
-  accountable-staging:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+  database:
     driver: bridge
 
+volumes:
+  postgres_data_stg:
+    driver: local
+  redis_data_stg:
+    driver: local
+  nginx_logs:
+    driver: local
 services:
-  # Simple PostgreSQL for staging
   db:
     image: iamtemi/accountable:pg17-cron-vector-v1
     container_name: books-db-staging
     env_file:
       - ./apps/api/.env.staging
     volumes:
-      - postgres_data_staging:/var/lib/postgresql/data
+      - postgres_data_stg:/var/lib/postgresql/data
       - ./backups:/var/backups
     networks:
-      - accountable-staging
+      - database
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -h localhost -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
@@ -30,7 +40,7 @@ services:
       - ./apps/api/.env.staging
     command: sh -c 'redis-server --requirepass "$$REDIS_PASSWORD"'
     volumes:
-      - redis_data_staging:/data
+      - redis_data_stg:/data
     networks:
       - accountable-staging
     healthcheck:
@@ -117,9 +127,3 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
-
-volumes:
-  postgres_data_staging:
-    driver: local
-  redis_data_staging:
-    driver: local
