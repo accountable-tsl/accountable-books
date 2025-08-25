@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Accountable Books ML Engine - AI-native transaction categorization and financial insights"
 authors = ["Accountable Books Team"]
 readme = "README.md"
-packages = [{include = ".", from = "."}]
 
 [tool.poetry.dependencies]
 python = "^3.11"

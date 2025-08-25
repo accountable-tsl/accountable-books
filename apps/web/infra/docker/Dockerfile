@@ -5,7 +5,7 @@ ARG APP_DIR=.pruned/web
 FROM node:20-alpine AS build
 WORKDIR /app
 ENV PNPM_HOME="/pnpm" PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 # deps (cacheable)
 COPY ${APP_DIR}/package.json ${APP_DIR}/pnpm-lock.yaml ${APP_DIR}/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch

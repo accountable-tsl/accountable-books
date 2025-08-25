@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 WORKDIR /app
 ENV PNPM_HOME="/pnpm" 
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 
 # Accept pruned context produced by: turbo prune --scope=@accountable-books/api --docker --out-dir .pruned/api
 ARG APP_DIR=.pruned/api
