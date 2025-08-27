@@ -1,9 +1,11 @@
+import type { ProjectStatus } from '../../../../src/domains/projects/projects.types.js';
+
 export type DemoProject = {
   id: string;
   name: string;
   code?: string;
   description?: string;
-  status: 'active' | 'inactive' | 'completed';
+  status: ProjectStatus;
   contactId: string;
   startDate?: string;
   endDate?: string;

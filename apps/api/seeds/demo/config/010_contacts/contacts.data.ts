@@ -18,7 +18,7 @@ export type DemoContactData = {
 // Single type for contact mapping - contacts can be with or without IDs
 export type CompanyContactsMap<T = DemoContactData> = {
   company: { id: string; shortCode: string; companyType: DemoCompanyType };
-  user: { id: string };
+  user: { id: string; email: string };
   country: { code: string };
   contacts: T[];
 };
@@ -79,7 +79,10 @@ export const getRawContactsForInsertion = async (
         shortCode: company.short_code,
         companyType: companyMapData.company.companyType,
       },
-      user: companyMapData.user,
+      user: {
+        id: companyMapData.user.id || '',
+        email: companyMapData.user.email,
+      },
       country: companyMapData.country,
       contacts: getContactsForCompanyType(
         companyMapData.company.companyType,
@@ -119,7 +122,10 @@ export const generateDemoContactsMap = async (
         shortCode: company.short_code,
         companyType: companyMapData.company.companyType,
       },
-      user: companyMapData.user,
+      user: {
+        id: companyMapData.user.id ?? '',
+        email: companyMapData.user.email,
+      },
       country: companyMapData.country,
       contacts: demoContactsByCompanyMap.get(company.id) || [],
     };

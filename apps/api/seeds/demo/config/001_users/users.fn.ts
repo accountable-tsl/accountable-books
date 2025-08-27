@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import { DEMO_USERS, NG_USER, US_USER } from './users.data.js';
 import { faker } from '@faker-js/faker';
 import { DemoFilter } from '../../shared/config.js';
-import { createUser } from '../../../../migrations/20250403184441_users.js';
+import { createUser } from '../../../../migrations/20250403184441_users.ts';
 
 export const createDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilter) => {
   // Determine which users to create based on filters
@@ -11,8 +11,8 @@ export const createDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilte
   if (filters?.countryCodes?.length) {
     // Filter users based on country codes
     usersToCreate = DEMO_USERS.filter((user) => {
-      if (user.id === US_USER.id && filters.countryCodes?.includes('US')) return true;
-      if (user.id === NG_USER.id && filters.countryCodes?.includes('NG')) return true;
+      if (user.email === US_USER.email && filters.countryCodes?.includes('US')) return true;
+      if (user.email === NG_USER.email && filters.countryCodes?.includes('NG')) return true;
       return false;
     });
   }

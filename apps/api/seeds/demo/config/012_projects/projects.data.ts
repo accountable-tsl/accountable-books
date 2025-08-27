@@ -66,7 +66,10 @@ export const getRawProjectsForInsertion = async (
         shortCode: company.short_code,
         companyType: companyMapData.company.companyType,
       },
-      user: companyMapData.user,
+      user: {
+        id: companyMapData.user.id || '',
+        email: companyMapData.user.email,
+      },
       country: companyMapData.country,
       projects: getProjectsForCompanyType(
         companyMapData.company.companyType,
@@ -108,7 +111,10 @@ export const generateDemoProjectsMap = async (
         shortCode: company.short_code,
         companyType: companyMapData.company.companyType,
       },
-      user: companyMapData.user,
+      user: {
+        id: companyMapData.user.id || '',
+        email: companyMapData.user.email,
+      },
       country: companyMapData.country,
       projects: demoProjectsByCompanyMap.get(company.id) || [],
     };
