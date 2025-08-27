@@ -1,12 +1,15 @@
 import { faker } from '@faker-js/faker';
-import { ContactInput } from '../../../../src/domains/contacts/contact.types.js';
+import type { DemoContactData } from './contacts.data.js';
 
-// Generate contacts without IDs; IDs are deterministically computed per-company at insert time
-export function generateRandomContacts(count: number = 15): Omit<ContactInput, 'id'>[] {
+/**
+ * Generate random contacts for demo companies
+ */
+export function generateRandomContacts(count: number = 15): DemoContactData[] {
   return Array.from({ length: count }, () => ({
     displayName: faker.company.name(),
     email: faker.internet.email(),
     notes: faker.company.catchPhrase(),
     address: faker.location.streetAddress({ useFullAddress: true }),
+    status: faker.helpers.arrayElement(['active', 'inactive']) as 'active' | 'inactive',
   }));
 }

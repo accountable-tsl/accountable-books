@@ -1,56 +1,59 @@
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+/**
+ * Environment Configuration
+ *
+ * This module provides type-safe access to environment variables and secrets.
+ *
+ * Usage:
+ * - ENV.VARIABLE_NAME - Access regular environment variables (throws if undefined)
+ * - SECRETS.SECRET_NAME - Access any secret variable (throws if undefined)
+ *
+ * Environment files:
+ * - Local/Test: Uses .env.local for all variables
+ * - Staging: Uses .env.staging + .env.secrets.staging
+ * - Production: Uses .env.production + .env.secrets.production
+ */
+
 import { nodeEnv, type NodeEnv } from '../core/types/core.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Detect runtime environment
+// Get current environment
 export const NODE_ENV: NodeEnv = nodeEnv.parse(process.env.NODE_ENV || 'local');
 
-// Mapping from NODE_ENV and Docker context to .env file names
-const envFileMap: Record<NodeEnv, string> = {
-  local: '.env.local',
-  production: '.env.production',
-  staging: '.env.staging',
-  test: '.env.local',
+// This module only provides typed access to already-loaded env
+
+// Create proxy for ENV that throws on undefined access
+const createEnvProxy = (envVars: NodeJS.ProcessEnv) => {
+  return new Proxy(envVars, {
+    get(target, prop: string) {
+      const value = target[prop];
+      if (value === undefined) {
+        throw new Error(`Required environment variable ${prop} is not set`);
+      }
+      return value;
+    },
+  });
 };
 
-const determineEnvKey = (): NodeEnv => {
-  // Get base env without 'docker.' prefix if it exists
-  const baseEnv = process.env.NODE_ENV || 'local';
-
-  // First check if the base env is directly supported
-  if (Object.keys(envFileMap).includes(baseEnv)) {
-    return baseEnv as NodeEnv;
-  }
-
-  // Then check if there's a docker variant
-  const dockerKey = `docker.${baseEnv}` as NodeEnv;
-  if (Object.keys(envFileMap).includes(dockerKey)) {
-    return dockerKey;
-  }
-
-  // Fallback to local
-  return 'local';
+// Create proxy for SECRETS that throws on undefined access
+const createSecretsProxy = (envVars: NodeJS.ProcessEnv) => {
+  return new Proxy(envVars, {
+    get(target, prop: string) {
+      const value = target[prop];
+      if (value === undefined) {
+        const fileHint =
+          NODE_ENV === 'local' || NODE_ENV === 'test'
+            ? `.env.${NODE_ENV} file`
+            : `.env.secrets.${NODE_ENV} file`;
+        throw new Error(`Required secret ${prop} is not set. Please check your ${fileHint}`);
+      }
+      return value;
+    },
+  });
 };
 
-export const envKey: NodeEnv = determineEnvKey();
-export const envFile = envFileMap[envKey];
+// Export the environment objects
+export const ENV = createEnvProxy(process.env);
+export const SECRETS = createSecretsProxy(process.env);
 
-if (!envFile) {
-  console.warn(
-    `⚠️ Unknown environment combination (NODE_ENV=${NODE_ENV}). Falling back to .env.local`,
-  );
-}
-
-dotenv.config({
-  path: path.resolve(__dirname, `../../${envFile || '.env.local'}`),
-});
-
-// console.log(`🌱 Loaded environment from: ${envFile}`);
-
-export const ENV = process.env;
+// Environment helpers
 export const isProd = NODE_ENV === 'production' || NODE_ENV === 'staging';
 export const isDev = NODE_ENV === 'local';

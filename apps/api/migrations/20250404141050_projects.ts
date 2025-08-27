@@ -36,7 +36,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.unique(['company_id', 'name']);
     table.index(['company_id', 'status'], 'project_company_status_idx');

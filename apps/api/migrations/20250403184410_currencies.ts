@@ -1,33 +1,30 @@
 import type { Knex } from 'knex';
-import path from 'path';
-import fs from 'fs/promises';
-import { fileURLToPath } from 'url';
+import data from './data/currencies.json';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from './utils/db';
-import { currencyWithId, NewCurrencyWithId } from '../src/core/types/db.types';
-import { NODE_ENV } from '../src/config/env';
+import { isDev } from '../config/env-loader';
+import z from 'zod';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const currencyWithId = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  code: z.string(),
+  symbol: z.string(),
+});
+
+type NewCurrencyWithId = z.infer<typeof currencyWithId>;
+
+export const CURRENCY_MAP = new Map<string, NewCurrencyWithId>(data.map((c) => [c.code, c]));
 
 const tableName = 'currencies';
 
 export async function seedCurrencies(knex: Knex): Promise<void> {
-  const filePath = path.join(__dirname, 'data/currencies.json');
-
   try {
-    const rawData = await fs.readFile(filePath, 'utf-8');
-    const jsonData: unknown = JSON.parse(rawData);
-
-    if (!Array.isArray(jsonData)) {
-      throw new Error('currencies.json must be an array');
-    }
-
-    const currencies = jsonData as Array<NewCurrencyWithId>;
+    const currencies: NewCurrencyWithId[] = data;
     const seedData: Array<NewCurrencyWithId> = [];
     let skipped = 0;
 
@@ -48,11 +45,11 @@ export async function seedCurrencies(knex: Knex): Promise<void> {
     }
 
     if (skipped > 0) {
-      throw new Error(`Skipped ${skipped} invalid currencies from ${filePath}`);
+      throw new Error(`Skipped ${skipped} invalid currencies`);
     }
 
     if (seedData.length === 0) {
-      console.warn(`No valid currencies to seed from ${filePath}`);
+      console.warn(`No valid currencies to seed`);
     }
 
     if (seedData.length > 0) {
@@ -60,11 +57,11 @@ export async function seedCurrencies(knex: Knex): Promise<void> {
         await trx(tableName).insert(seedData).onConflict('code').ignore();
       });
     }
-    if (NODE_ENV === 'local' || NODE_ENV === 'docker') {
+    if (isDev) {
       console.log(`Seeded ${seedData.length} currencies`);
     }
   } catch (error) {
-    console.error(`Error seeding currencies from ${filePath}:`, error);
+    console.error(`Error seeding currencies:`, error);
     throw error;
   }
 }
@@ -76,7 +73,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('name', 50).unique().notNullable();
     table.string('symbol', 5).notNullable();
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['code'], 'currency_code_idx');
   });

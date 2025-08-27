@@ -92,7 +92,7 @@ export function resolveValue(
     return environment;
   }
 
-  // 5. Optional variables default to empty string
+  // 5. Optional variables default to empty string (only if no default was specified)
   if (config.required === false) {
     return '';
   }

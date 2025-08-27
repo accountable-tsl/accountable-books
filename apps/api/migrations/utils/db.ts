@@ -1,10 +1,9 @@
 import type { Knex } from 'knex';
-import { knexClient } from '../../src/db/knexClient.js';
 
-export function addStandardColumns(table: Knex.CreateTableBuilder) {
-  table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knexClient.fn.now());
+export function addStandardColumns(knex: Knex, table: Knex.CreateTableBuilder) {
+  table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
 
-  table.timestamp('updated_at', { useTz: true }).notNullable().defaultTo(knexClient.fn.now());
+  table.timestamp('updated_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
 
   table.boolean('is_deleted').notNullable().defaultTo(false);
   table.timestamp('deleted_at', { useTz: true }).nullable();

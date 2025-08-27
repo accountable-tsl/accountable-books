@@ -5,11 +5,19 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from './utils/db';
-import { NewFinancialStatementInput } from '../src/core/types/db.types';
 import { financialStatementIds } from './data/ids';
-import { NODE_ENV } from '../src/config/env';
+import { isDev } from '../config/env-loader';
+import z from 'zod';
 
-type NewFinancialStatementWithId = NewFinancialStatementInput & { id: string };
+const financialStatement = z.object({
+  id: z.string().uuid(),
+  key: z.string(),
+  us_gaap_label: z.string(),
+  ifrs_label: z.string(),
+  default_label: z.string(),
+});
+type NewFinancialStatementWithId = z.infer<typeof financialStatement>;
+
 const tableName = 'financial_statements';
 
 export const defaultFinancialStatements: NewFinancialStatementWithId[] = [
@@ -40,7 +48,7 @@ const seedFs = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
     await trx(tableName).insert(defaultFinancialStatements).onConflict('key').ignore();
 
-    if (NODE_ENV === 'local' || NODE_ENV === 'docker') {
+    if (isDev) {
       console.log(`Seeded ${defaultFinancialStatements.length} financial statements`);
     }
   });
@@ -56,7 +64,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('ifrs_label', 256).notNullable();
     table.string('default_label', 256).notNullable();
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

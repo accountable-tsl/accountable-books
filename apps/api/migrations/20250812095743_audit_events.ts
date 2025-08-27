@@ -35,7 +35,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.text('notes').nullable();
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
   });
 
   // Create indexes for common query patterns

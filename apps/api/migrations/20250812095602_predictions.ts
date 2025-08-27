@@ -24,7 +24,7 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('created_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
     table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['bank_transaction_id', 'company_id', 'coa_id']);
     table.index(['company_id', 'created_at']);

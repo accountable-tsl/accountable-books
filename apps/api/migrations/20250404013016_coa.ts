@@ -4,21 +4,11 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db';
-import { loadCoaTemplateForCompany } from '../src/domains/chartOfAccounts/coaTemplate.model';
 import { createPlatformCompany } from './20250403194332_companies';
 
 const tableName = 'coa';
 
 const addCoaToPlatformCompany = async (knex: Knex) => {
-  const template_name = 'acc:prof:basic:code:v1';
-  const [templateExists] = await knex('coa_templates').where({
-    template_name,
-  });
-
-  if (!templateExists) {
-    throw new Error('COA template not found');
-  }
-
   const platformCompany = await createPlatformCompany(knex);
 
   const existingCoa = await knex('coa').where({ company_id: platformCompany.id }).first();
@@ -28,18 +18,32 @@ const addCoaToPlatformCompany = async (knex: Knex) => {
     return;
   }
 
-  const result = await loadCoaTemplateForCompany(knex, {
-    companyId: platformCompany.id,
-    created_by_id: platformCompany.created_by_id,
-    template_name,
-  });
+  const template_name = 'acc:prof:basic:code:v1';
+  const coaTemplate = await knex('coa_templates')
+    .where('is_active', true)
+    .where('template_name', template_name)
+    .select(['code', 'name', 'description', 'account_type_id', 'locked']);
 
-  if (!result.success) {
-    throw new Error(result.message);
+  if (!coaTemplate.length) {
+    throw new Error('COA template not found');
   }
 
-  console.log('Platform COA template loaded:', result.message);
-  return result;
+  const toInsert = coaTemplate.map((t) => {
+    return {
+      code: t.code,
+      name: t.name,
+      account_type_id: t.account_type_id,
+      description: t.description,
+      is_active: true,
+      currency_id: platformCompany.reporting_currency_id,
+      company_id: platformCompany.id,
+      created_by_id: platformCompany.created_by_id,
+      locked: t.locked,
+      source: 'template',
+    };
+  });
+  const res = await knex('coa').insert(toInsert).returning('id');
+  console.log('Platform COA template loaded:', res.length);
 };
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
@@ -81,7 +85,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.uuid('updated_by_id').references('id').inTable('users').onDelete('SET NULL');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['company_id', 'is_deleted'], 'coa_company_deleted_idx');
     table.index(['company_id', 'is_active'], 'coa_company_active_idx');

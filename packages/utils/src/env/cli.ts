@@ -21,33 +21,47 @@ function preserveExistingValues(generatedContent: string, existingFilePath: stri
   console.log(`📋 Preserving existing values in ${path.basename(existingFilePath)}...`);
 
   const existingContent = fs.readFileSync(existingFilePath, 'utf-8');
-  const existingLines = existingContent.split('\n');
-  const generatedLines = generatedContent.split('\n');
 
-  // Create a map of existing non-comment values
+  // Parse existing values
   const existingValues = new Map<string, string>();
+  const existingLines = existingContent.split('\n');
   for (const line of existingLines) {
     const trimmed = line.trim();
     if (trimmed && !trimmed.startsWith('#')) {
       const [key, ...valueParts] = trimmed.split('=');
       if (key && valueParts.length > 0) {
-        existingValues.set(key, valueParts.join('='));
+        const value = valueParts.join('=').trim();
+        // Only preserve non-empty values
+        if (value !== '') {
+          existingValues.set(key.trim(), value);
+        }
       }
     }
   }
 
-  // Replace generated values with existing ones where they exist
+  console.log(`   Found ${existingValues.size} existing values to preserve`);
+
+  // Parse generated content and replace values with existing ones
+  const generatedLines = generatedContent.split('\n');
+  let preservedCount = 0;
+
   const mergedLines = generatedLines.map((line) => {
     const trimmed = line.trim();
     if (trimmed && !trimmed.startsWith('#')) {
-      const [key] = trimmed.split('=');
-      if (key && existingValues.has(key)) {
-        return `${key}=${existingValues.get(key)}`;
+      const [key, ...valueParts] = trimmed.split('=');
+      if (key && valueParts.length > 0) {
+        const keyTrimmed = key.trim();
+        if (existingValues.has(keyTrimmed)) {
+          // Preserve the existing value
+          preservedCount++;
+          return `${keyTrimmed}=${existingValues.get(keyTrimmed)}`;
+        }
       }
     }
     return line;
   });
 
+  console.log(`   Preserved ${preservedCount} values from existing file`);
   return mergedLines.join('\n');
 }
 
@@ -108,8 +122,14 @@ export async function createEnvGenerator(
     // Write each file
     for (const [fileName, content] of Object.entries(files)) {
       const filePath = path.join(packageRoot, fileName);
-      // Preserve user values for local env and secrets files
-      const shouldPreserve = fileName === '.env.local' || fileName.startsWith('.env.secrets.');
+      // Preserve user values for all environment files except .env.example
+      const shouldPreserve = fileName !== '.env.example';
+
+      if (shouldPreserve && fs.existsSync(filePath)) {
+        console.log(`🔄 Updating ${fileName} (preserving existing values)...`);
+      } else {
+        console.log(`📝 Creating ${fileName}...`);
+      }
 
       writeEnvFile(filePath, content, shouldPreserve);
     }

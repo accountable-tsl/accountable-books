@@ -1,4 +1,4 @@
-name: accountable-books-staging
+name: acct-books-staging
 
 networks:
   books-staging:
@@ -20,6 +20,8 @@ services:
     volumes:
       - postgres_data_stg:/var/lib/postgresql/data
       - ./backups:/var/backups
+    ports:
+      - 5434:5432
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -h localhost -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
@@ -46,10 +48,29 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # API service - run migration then start server
+  api-migrate:
+    build:
+      context: .
+      dockerfile: apps/api/infra/docker/Dockerfile
+    container_name: books-api-migrate-staging
+    networks:
+      - books-staging
+    env_file:
+      - ./apps/api/.env.staging
+      - ./apps/api/.env.secrets.staging
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ['sh', '-c', 'cd apps/api && npx knex migrate:latest --env staging']
+    restart: 'no'
+
+  # API service - start after migrations complete
   api:
-    image: ghcr.io/accountable-tsl/accountable-books/api:${GIT_SHA}
-    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: apps/api/infra/docker/Dockerfile
     container_name: books-api-staging
     networks:
       - books-staging
@@ -57,34 +78,21 @@ services:
       - ./apps/api/.env.staging
       - ./apps/api/.env.secrets.staging
     depends_on:
-      migrator: { condition: service_completed_successfully }
+      api-migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ['CMD-SHELL', 'curl -fsS http://localhost:5000/health || exit 1']
-      interval: 20s
+      interval: 30s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
-  # Run DB migrations & perhaps demo seeds once, then exit
-  migrator:
-    image: ghcr.io/accountable-tsl/accountable-books/api:${GIT_SHA}
-    platform: linux/amd64
-    container_name: books-migrator-staging
-    env_file:
-      - ./apps/api/.env.staging
-      - ./apps/api/.env.secrets.staging
-    networks:
-      - books-staging
-    depends_on:
-      db: { condition: service_healthy }
-      redis: { condition: service_healthy }
-    command: pnpm run migrate:staging && pnpm run demo:apply
-    restart: 'no'
-
   ml:
-    image: ghcr.io/accountable-tsl/accountable-books/ml:${GIT_SHA}
-    platform: linux/amd64
+    # image: ghcr.io/accountable-tsl/accountable-books/ml:${GIT_SHA}
+    build:
+      context: .
+      dockerfile: apps/ml-engine/infra/docker/Dockerfile
     container_name: books-ml-staging
     networks:
       - books-staging
@@ -96,16 +104,18 @@ services:
       - ENV=staging
     healthcheck:
       test: ['CMD-SHELL', 'curl -fsS http://localhost:8000/health || exit 1']
-      interval: 20s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   # Web frontend - build only
   web:
-    image: ghcr.io/accountable-tsl/accountable-books/web:${GIT_SHA}
-
+    # image: ghcr.io/accountable-tsl/accountable-books/web:${GIT_SHA}
+    build:
+      context: .
+      dockerfile: apps/web/infra/docker/Dockerfile
     container_name: books-web-staging
     env_file:
       - ./apps/web/.env.staging
@@ -120,6 +130,6 @@ services:
       test: ['CMD-SHELL', 'curl -fsS http://localhost/ || exit 1']
       interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 20s
     restart: unless-stopped

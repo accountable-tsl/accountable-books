@@ -1,63 +1,118 @@
-import { ContactInput } from '../../../../src/domains/contacts/contact.types.js';
-import { DemoCompanyType, DemoFilter } from '../../shared/config.js';
-import { resolveFiltersToIds } from '../../shared/utils.js';
-import { DEMO_COMPANIES_MAP, DemoCompaniesMap } from '../002_companies/companies.data.js';
+import type { Knex } from 'knex';
+import type { DemoCompanyType, DemoFilter } from '../../shared/config.js';
+import { getDemoCompanies } from '../../shared/utils.js';
+import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
+import { demoContactsByCompanyMap, type DemoContact } from './contacts.state.js';
 import { generateRandomContacts } from './contacts.utils.js';
 import * as ngContacts from './raw/ng_contacts.json';
 import * as usContacts from './raw/us_contacts.json';
 
-export type DemoContact = ContactInput; // id is optional; computed at insert time
-const randomContacts: DemoContact[] = generateRandomContacts();
-
-const NG_BIZ_CONTACTS = [...ngContacts.business, ...randomContacts];
-const NG_FIRM_CONTACTS = [...ngContacts.business, ...ngContacts.firm, ...randomContacts];
-const NG_IND_CONTACTS = [...ngContacts.individual, ...randomContacts];
-export const NG_DEMO_CONTACTS: Record<DemoCompanyType, DemoContact[]> = {
-  business: NG_BIZ_CONTACTS,
-  accounting_firm: NG_FIRM_CONTACTS,
-  individual: NG_IND_CONTACTS,
-};
-const NG_DEMO_CONTACTS_ARRAY = [...NG_BIZ_CONTACTS, ...NG_FIRM_CONTACTS, ...NG_IND_CONTACTS];
-
-const US_BIZ_CONTACTS = [...usContacts.business, ...randomContacts];
-const US_FIRM_CONTACTS = [...usContacts.business, ...usContacts.firm, ...randomContacts];
-const US_IND_CONTACTS = [...usContacts.individual, ...randomContacts];
-export const US_DEMO_CONTACTS: Record<DemoCompanyType, DemoContact[]> = {
-  business: US_BIZ_CONTACTS,
-  accounting_firm: US_FIRM_CONTACTS,
-  individual: US_IND_CONTACTS,
-};
-const US_DEMO_CONTACTS_ARRAY = [...US_BIZ_CONTACTS, ...US_FIRM_CONTACTS, ...US_IND_CONTACTS];
-export const DEMO_CONTACTS: DemoContact[] = [...NG_DEMO_CONTACTS_ARRAY, ...US_DEMO_CONTACTS_ARRAY];
-
-export type DemoContactsMap = DemoCompaniesMap & {
-  contacts: DemoContact[];
+export type DemoContactData = {
+  displayName: string;
+  email: string;
+  address?: string;
+  notes?: string;
+  status?: 'active' | 'inactive';
 };
 
-export const generateDemoContactsMap = (filters?: DemoFilter): DemoContactsMap[] => {
-  const map = DEMO_COMPANIES_MAP.map((c) => {
-    if (c.countryCode === 'NG') {
-      return {
-        ...c,
-        contacts: NG_DEMO_CONTACTS[c.company.companyType],
-      };
+// Single type for contact mapping - contacts can be with or without IDs
+export type CompanyContactsMap<T = DemoContactData> = {
+  company: { id: string; shortCode: string; companyType: DemoCompanyType };
+  user: { id: string };  
+  country: { code: string };
+  contacts: T[];
+};
+
+/**
+ * Get contact data for a specific company type and country
+ */
+function getContactsForCompanyType(
+  companyType: DemoCompanyType,
+  countryCode: string,
+): DemoContactData[] {
+  const randomContacts = generateRandomContacts();
+
+  if (countryCode === 'NG') {
+    switch (companyType) {
+      case 'business':
+        return [...ngContacts.business, ...randomContacts];
+      case 'accounting_firm':
+        return [...ngContacts.business, ...ngContacts.firm, ...randomContacts];
+      case 'individual':
+        return [...ngContacts.individual, ...randomContacts];
     }
-    if (c.countryCode === 'US') {
-      return {
-        ...c,
-        contacts: US_DEMO_CONTACTS[c.company.companyType],
-      };
+  }
+
+  if (countryCode === 'US') {
+    switch (companyType) {
+      case 'business':
+        return [...usContacts.business, ...randomContacts];
+      case 'accounting_firm':
+        return [...usContacts.business, ...usContacts.firm, ...randomContacts];
+      case 'individual':
+        return [...usContacts.individual, ...randomContacts];
     }
+  }
+
+  return randomContacts;
+}
+
+/**
+ * Get raw contact data for insertion (used during creation phase)  
+ */
+export const getRawContactsForInsertion = async (trx: Knex, filters?: DemoFilter): Promise<CompanyContactsMap[]> => {
+  const companies = await getDemoCompanies(trx, filters);
+  const companiesMap = generateDemoCompaniesMap(filters);
+
+  return companies.map((company) => {
+    const companyMapData = companiesMap.find(c => c.company.shortCode === company.short_code);
+    if (!companyMapData) {
+      throw new Error(`Company map data not found for ${company.short_code}`);
+    }
+
     return {
-      ...c,
-      contacts: [],
+      company: {
+        id: company.id,
+        shortCode: company.short_code,
+        companyType: companyMapData.company.companyType,
+      },
+      user: companyMapData.user,
+      country: companyMapData.country,
+      contacts: getContactsForCompanyType(companyMapData.company.companyType, companyMapData.country.code),
     };
   });
-
-  const filteredMap = filters
-    ? map.filter((input) => resolveFiltersToIds(filters).includes(input.company.id))
-    : map;
-  return filteredMap;
 };
 
-export const DEMO_CONTACTS_MAP: DemoContactsMap[] = generateDemoContactsMap();
+/**
+ * Get demo contacts map from created contacts (reads from state)
+ * This should be called AFTER contacts have been created and stored in demoContactsByCompanyMap
+ */
+export const generateDemoContactsMap = async (trx: Knex, filters?: DemoFilter): Promise<CompanyContactsMap<DemoContact>[]> => {
+  if (demoContactsByCompanyMap.size === 0) {
+    throw new Error(
+      'generateDemoContactsMap called before contacts were created. ' +
+        'Call createDemoContacts(trx, filters) first.',
+    );
+  }
+
+  const companies = await getDemoCompanies(trx, filters);
+  const companiesMap = generateDemoCompaniesMap(filters);
+
+  return companies.map((company) => {
+    const companyMapData = companiesMap.find(c => c.company.shortCode === company.short_code);
+    if (!companyMapData) {
+      throw new Error(`Company map data not found for ${company.short_code}`);
+    }
+
+    return {
+      company: {
+        id: company.id,
+        shortCode: company.short_code,
+        companyType: companyMapData.company.companyType,
+      },
+      user: companyMapData.user,
+      country: companyMapData.country,
+      contacts: demoContactsByCompanyMap.get(company.id) || [],
+    };
+  });
+};

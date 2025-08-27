@@ -5,30 +5,33 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from './utils/db';
-import path from 'path';
-import fs from 'fs/promises';
-import { fileURLToPath } from 'url';
-import { newCountry, NewCountryInput } from '../src/core/types/db.types';
+import data from './data/countries.json';
 import { randomUUID } from 'crypto';
-import { NODE_ENV } from '../src/config/env';
+import { isDev } from '../config/env-loader';
+import z from 'zod';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const newCountry = z.object({
+  id: z.string().uuid().optional(),
+  code: z
+    .string()
+    .min(2)
+    .max(3)
+    .transform((val) => val.toUpperCase()),
+  name: z.string(),
+  phone_code: z.string().max(10),
+  flag: z.string().max(10).nullish(),
+  continent: z.string().max(50).nullish(),
+});
+
+export type NewCountryInput = z.infer<typeof newCountry>;
+
+export const COUNTRY_MAP = new Map<string, NewCountryInput>(data.map((c) => [c.code, c]));
 
 const tableName = 'countries';
 
 const seedCountries = async function seed(knex: Knex): Promise<void> {
-  const filePath = path.join(__dirname, 'data/countries.json');
-
   try {
-    const rawData = await fs.readFile(filePath, 'utf-8');
-    const jsonData: unknown = JSON.parse(rawData);
-
-    if (!Array.isArray(jsonData)) {
-      throw new Error('countries.json must be an array');
-    }
-
-    const countries = jsonData as Array<NewCountryInput>;
+    const countries: NewCountryInput[] = data;
     const seedData: Array<NewCountryInput> = [];
     let skipped = 0;
 
@@ -51,11 +54,11 @@ const seedCountries = async function seed(knex: Knex): Promise<void> {
     }
 
     if (skipped > 0) {
-      throw new Error(`Skipped ${skipped} invalid countries in ${filePath}`);
+      throw new Error(`Skipped ${skipped} invalid countries`);
     }
 
     if (seedData.length === 0) {
-      console.warn(`No valid countries found in ${filePath}`);
+      console.warn(`No valid countries found`);
     }
 
     if (seedData.length > 0) {
@@ -64,7 +67,7 @@ const seedCountries = async function seed(knex: Knex): Promise<void> {
       });
     }
 
-    if (NODE_ENV === 'local' || NODE_ENV === 'docker') {
+    if (isDev) {
       console.log(`Seeded ${seedData.length} countries`);
     }
   } catch (error) {
@@ -82,7 +85,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('flag', 15).nullable();
     table.string('continent', 50).nullable();
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['code'], 'country_code_idx');
     table.index(['name'], 'country_name_idx');

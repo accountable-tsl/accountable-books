@@ -1,6 +1,5 @@
 import type { Knex } from 'knex';
 import { preventUpdateOrDelete } from './utils/db';
-// import { NODE_ENV as _NODE_ENV } from '../src/config/env';
 
 const tableName = 'role_permissions';
 
@@ -128,8 +127,6 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await preventUpdateOrDelete(knex, tableName);
-
-  // await seedRolePermissions(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

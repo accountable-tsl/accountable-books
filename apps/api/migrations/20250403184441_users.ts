@@ -1,21 +1,84 @@
 import type { Knex } from 'knex';
+import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db';
-import { createUserDirect } from '../src/domains/users/users.model';
-import { ENV, NODE_ENV } from '../src/config/env';
-import { NewUserDirect } from '../src/domains/users/users.types';
-import {
-  createInitialUserOnboardingState,
-  markAllOnboardingStepsComplete,
-} from '../src/features/onboarding/onboarding.utils';
+import { ENV, isProd } from '../config/env-loader';
+
+export async function createUser({
+  user: input,
+  trx,
+}: {
+  user: {
+    email: string;
+    password: string;
+    firstname: string;
+    lastname?: string | null;
+    is_demo_user?: boolean;
+    onboarding_state?: any;
+    avatar_url?: string;
+    email_verified_at: Date;
+  };
+  trx: Knex.Transaction;
+}) {
+  const sanitizedEmail = input.email.trim().toLowerCase();
+  const hashedPassword = await bcrypt.hash(input.password, 12);
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  const hashedVerificationToken = await bcrypt.hash(verificationToken, 12);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  const existingUser = await trx(tableName)
+    .where({ email: sanitizedEmail })
+    .select(['id', 'firstname', 'lastname', 'email', 'onboarding_state as onboardingState'])
+    .first();
+
+  if (existingUser) {
+    console.log(`User ${sanitizedEmail} already exists. Skipping insert.`);
+    return { ...existingUser, verificationToken };
+  }
+
+  const [user] = await trx('users')
+    .insert({
+      ...input,
+      email: sanitizedEmail,
+      password: hashedPassword,
+      email_verified_at: input.email_verified_at ?? new Date(),
+    })
+    .returning(['id', 'firstname', 'lastname', 'email', 'onboarding_state'])
+    .onConflict('email')
+    .ignore();
+
+  if (!user || !user?.id) {
+    console.log('User with this email already exists');
+    return;
+  }
+
+  await trx('tokens')
+    .insert({
+      user_id: user.id,
+      token_hash: hashedVerificationToken,
+      expires_at: expiresAt,
+      token_type: 'email_verification',
+    })
+    .returning('*');
+
+  return {
+    id: user.id,
+    email: user.email,
+    firstname: user.firstname,
+    lastname: user.lastname,
+    onboardingState: user.onboarding_state,
+    verificationToken,
+  };
+}
 
 const tableName = 'users';
 
-const getAdminUserConfig = (): NewUserDirect => {
-  if (NODE_ENV === 'production') {
+const getAdminUserConfig = () => {
+  if (isProd) {
     return {
       id: ENV.ADMIN_ID,
       firstname: ENV.ADMIN_FIRSTNAME!,
@@ -36,8 +99,14 @@ const getAdminUserConfig = (): NewUserDirect => {
     email_verified_at: new Date(),
   };
 };
-const currState = createInitialUserOnboardingState();
-const completeOnbState = currState && markAllOnboardingStepsComplete(currState);
+const completeOnbState = {
+  steps: {
+    email_verified: true,
+  },
+  completed_at: {
+    email_verified: new Date(),
+  },
+};
 
 export const adminUser = {
   ...getAdminUserConfig(),
@@ -53,20 +122,13 @@ export const seedAdminUser = async (knex: Knex) => {
     );
   }
   return knex.transaction(async (trx) => {
-    const existingUser = await trx(tableName).where({ email }).first();
-
-    if (existingUser) {
-      console.log(`Admin user ${email} already exists. Skipping insert.`);
-      return { success: true, data: existingUser };
-    }
-
-    const result = await createUserDirect({
-      input: adminUser,
-      transaction: trx,
+    const result = await createUser({
+      user: adminUser,
+      trx,
     });
-    if (!result.success) {
-      console.error(`Failed to create admin user: ${result.message}`);
-      throw new Error(result.message);
+    if (!result) {
+      console.error(`Failed to create admin user`);
+      throw new Error('Failed to create admin user');
     }
 
     console.log(`Successfully created admin user: ${email}`);
@@ -96,7 +158,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.boolean('is_demo_user').defaultTo(false);
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

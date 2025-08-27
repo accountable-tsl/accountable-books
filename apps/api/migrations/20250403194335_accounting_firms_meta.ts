@@ -5,22 +5,18 @@ import {
   dropUpdateTimestampTrigger,
 } from './utils/db';
 import { createPlatformCompany } from './20250403194332_companies';
-import { AccFirmWithId, newAccFirm } from '../src/domains/accountingFirms/firms.types';
 
 export const buildPlatformAccountingFirm = (platformCompany: { id: string }) => ({
   company_id: platformCompany.id,
   slug: 'app',
 });
-export const createPlatformFirm = async (knex: Knex): Promise<AccFirmWithId> => {
+export const createPlatformFirm = async (knex: Knex) => {
   const platformCompany = await createPlatformCompany(knex);
 
-  const platformFirm = newAccFirm.safeParse(buildPlatformAccountingFirm(platformCompany));
-  if (!platformFirm.success) {
-    throw new Error(platformFirm.error.message);
-  }
+  const platformFirm = buildPlatformAccountingFirm(platformCompany);
 
   const platformFirmExists = await knex(tableName)
-    .where({ company_id: platformFirm.data.company_id })
+    .where({ company_id: platformFirm.company_id })
     .first();
 
   if (platformFirmExists) {
@@ -32,9 +28,7 @@ export const createPlatformFirm = async (knex: Knex): Promise<AccFirmWithId> => 
     };
   }
 
-  const [{ company_id: id, ...rest }] = await knex(tableName)
-    .insert(platformFirm.data)
-    .returning('*');
+  const [{ company_id: id, ...rest }] = await knex(tableName).insert(platformFirm).returning('*');
 
   console.log(
     `Successfully created platform accounting firm: ${platformCompany.display_name || platformCompany.legal_name}`,
@@ -50,7 +44,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('slug', 20).unique().nullable();
     table.string('firm_type', 50).nullable(); //freelancer, ca / cpa, tax preparer, international
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
   });
 
   const hasColumn = await knex.schema.hasColumn('companies', 'assigned_firm_id');
@@ -70,5 +64,15 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
+
+  // Remove the foreign key constraint from companies table first
+  const hasColumn = await knex.schema.hasColumn('companies', 'assigned_firm_id');
+  if (hasColumn) {
+    await knex.schema.alterTable('companies', (table) => {
+      table.dropForeign(['assigned_firm_id']);
+      table.dropColumn('assigned_firm_id');
+    });
+  }
+
   await knex.schema.dropTableIfExists(tableName);
 }

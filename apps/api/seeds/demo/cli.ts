@@ -1,8 +1,12 @@
 #!/usr/bin/env tsx
 
+import knex from 'knex';
 import { createDemoSeedRunner } from './engine/runner.js';
-import { knexClient } from '../../src/db/knexClient.js';
-import { DemoFilter, COUNTRY_CODES, COMPANY_TYPES } from './shared/config.js';
+import { runtimeKnexConfig } from '../../knexfile.js';
+import { DemoFilter, COUNTRY_CODES, COMPANY_TYPES, DemoCompanyType } from './shared/config.js';
+
+// Create knex instance for the CLI
+const knexClient = knex(runtimeKnexConfig);
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -23,8 +27,19 @@ function parseFilters(args: string[]): DemoFilter | undefined {
     }
 
     if (arg === '--type' && args[i + 1]) {
-      const types = args[i + 1].split(',') as Array<keyof typeof COMPANY_TYPES>;
-      filters.companyTypes = types.filter((t) => t in COMPANY_TYPES).map((t) => COMPANY_TYPES[t]);
+      const types = args[i + 1].split(',');
+      filters.companyTypes = types.map((t) => {
+        const upperType = t.toUpperCase() as keyof typeof COMPANY_TYPES;
+        if (upperType in COMPANY_TYPES) {
+          return COMPANY_TYPES[upperType];
+        }
+        // Also check if it's already a valid company type value
+        const validTypes = Object.values(COMPANY_TYPES) as string[];
+        if (validTypes.includes(t)) {
+          return t as DemoCompanyType;
+        }
+        return null;
+      }).filter((t): t is DemoCompanyType => t !== null);
       hasFilters = true;
       i++; // skip next arg
     }

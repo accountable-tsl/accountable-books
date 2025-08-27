@@ -9,8 +9,32 @@ import path from 'path';
 import fs from 'fs';
 import csv from 'csv-parser';
 import { fileURLToPath } from 'url';
-import { addNewCoaTemplates } from '../src/domains/chartOfAccounts/coaTemplate.model';
-import { NewCoaTemplateInput } from '../src/domains/chartOfAccounts/coaTemplate.type';
+
+type NewCoaTemplateInput = {
+  template_name: string;
+  name: string;
+  account_type_id: string;
+  is_active: boolean;
+  locked: boolean;
+  code?: string | null | undefined;
+  description?: string | null | undefined;
+};
+
+const addNewCoaTemplates = async (knex: Knex, input: NewCoaTemplateInput[]) => {
+  const insertedRecords = await knex.transaction(async (trx) => {
+    const inserted = await trx('coa_templates').insert(input).returning('*');
+    return inserted;
+  });
+
+  if (!insertedRecords || insertedRecords.length === 0) {
+    throw new Error('Failed to insert any coa template records');
+  }
+
+  return {
+    message: `coa template(s) with ${insertedRecords.length} records entered successfully`,
+    firstFive: insertedRecords.slice(0, 5),
+  };
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,11 +71,7 @@ const seedCoaTemplates = async function seed(knex: Knex): Promise<void> {
   });
 
   // Insert with transaction
-  const result = await addNewCoaTemplates(knex, seedCoaData);
-  if (!result.success) {
-    console.error('Error seeding coa templates:', result.error);
-    throw new Error(result.message);
-  }
+  await addNewCoaTemplates(knex, seedCoaData);
 };
 
 export async function up(knex: Knex): Promise<void> {
@@ -71,7 +91,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('account_types')
       .onDelete('RESTRICT');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.unique(['template_name', 'name', 'code'], {
       indexName: 'coa_template_name_code_unique',

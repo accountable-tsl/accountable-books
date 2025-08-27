@@ -5,11 +5,10 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from './utils/db';
-import { AccountElementWithRequiredReportCode } from '../src/core/types/db.types';
 import { accountElementIds, financialStatementIds } from './data/ids';
-import { NODE_ENV } from '../src/config/env';
+import { isDev } from '../config/env-loader';
 
-const parentAccountElements: AccountElementWithRequiredReportCode[] = [
+const parentAccountElements = [
   {
     id: accountElementIds.assets,
     label: 'Assets',
@@ -62,7 +61,7 @@ const parentAccountElements: AccountElementWithRequiredReportCode[] = [
   },
 ];
 
-const childrenAccountElements: AccountElementWithRequiredReportCode[] = [
+const childrenAccountElements = [
   {
     id: accountElementIds.nonCurrentAsset,
     key: 'non_current_asset',
@@ -216,16 +215,13 @@ const childrenAccountElements: AccountElementWithRequiredReportCode[] = [
   },
 ];
 
-const defaultAccountElements: AccountElementWithRequiredReportCode[] = [
-  ...parentAccountElements,
-  ...childrenAccountElements,
-];
+const defaultAccountElements = [...parentAccountElements, ...childrenAccountElements];
 
 const seedAccountElements = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
     await trx(tableName).insert(defaultAccountElements).onConflict().ignore();
 
-    if (NODE_ENV === 'local' || NODE_ENV === 'docker') {
+    if (isDev) {
       console.log(`Seeded ${parentAccountElements.length} parent elements`);
       console.log(`Seeded ${childrenAccountElements.length} child elements`);
     }
@@ -250,7 +246,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('financial_statements')
       .onDelete('RESTRICT');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['parent_id'], 'account_category_parent_idx');
   });

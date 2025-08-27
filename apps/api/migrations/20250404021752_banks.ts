@@ -4,37 +4,44 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db';
-import { addNewBank } from '../src/domains/banks/banks.model';
 import bankData from './data/banks.json';
 import { adminUser } from './20250403184441_users';
 
 const tableName = 'banks';
 
+export const countryMap = new Map<string, any>();
+
 const seedBanks = async function seed(knex: Knex): Promise<void> {
   const adminUserId = adminUser.id;
   if (!adminUserId) throw new Error('adminUserId is required');
+  const countries = await knex('countries').select('id', 'code');
+  if (!countries.length) throw new Error('No countries found');
+  countries.forEach((country) => {
+    countryMap.set(country.code, country);
+  });
 
-  // //include admin user id as created_by_id within the bank data
-  // const data = bankData.map((bank) => ({
-  //   ...bank,
-  //   created_by_id: adminUserId,
-  //   updated_by_id: adminUserId,
-  // }));
+  const banks = bankData.map((bank) => {
+    const country = countryMap.get(bank.country);
+    if (!country) throw new Error(`Country ${bank.country} not found`);
+    return {
+      id: bank.id,
+      key: bank.key,
+      display_name: bank.display_name,
+      official_name: bank.official_name,
+      swift_code: bank.swift_code || null,
+      local_code: bank.local_code || null,
+      local_code_type: bank.local_code_type || null,
+      secondary_reference: bank.secondary_reference || null,
+      website: bank.website || null,
+      logo_url: bank.logo_url || null,
+      country_id: country.id,
+      created_by_id: adminUserId,
+      updated_by_id: adminUserId,
+    };
+  });
 
-  // data.forEach((bank, index) => {
-  //   if (!bank.key || !bank.country_id || !bank.display_name) {
-  //     console.log(bank);
-  //     throw new Error(`Bank at index ${index} is missing a required field`);
-  //   }
-  // });
-
-  const res = await addNewBank(bankData, adminUserId, knex);
-  if (!res.success) {
-    console.error('Error creating banks:', res.error);
-    throw new Error(res.message);
-  }
-
-  console.log(`Successfully created ${res.data.length} banks`);
+  const res = await knex.batchInsert(tableName, banks, 100);
+  console.log(`Successfully created ${res.length} banks`);
 };
 
 export async function up(knex: Knex): Promise<void> {
@@ -65,7 +72,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.unique(['key', 'country_id']);
     table.index(['key', 'country_id']);

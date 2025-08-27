@@ -59,7 +59,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.primary(['user_id', 'company_id']);
     table.index(['user_id', 'company_id'], 'user_company_composite_idx');

@@ -1,31 +1,91 @@
 import type { Knex } from 'knex';
-import { createUserDirect } from '../../../../src/domains/users/users.model.js';
 import { DEMO_USERS, NG_USER, US_USER } from './users.data.js';
 import { faker } from '@faker-js/faker';
 import { DemoFilter } from '../../shared/config.js';
+import { createUser } from '../../../../migrations/20250403184441_users.js';
 
 export const createDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilter) => {
-  // For users, we always create all demo users since they're required for companies
-  const users = DEMO_USERS;
-
-  for (const user of users) {
-    await createUserDirect({
-      input: { ...user, avatar_url: faker.image.avatar(), is_demo_user: true },
-      transaction: trx,
+  // Determine which users to create based on filters
+  let usersToCreate = DEMO_USERS;
+  
+  if (filters?.countryCodes?.length) {
+    // Filter users based on country codes
+    usersToCreate = DEMO_USERS.filter(user => {
+      if (user.id === US_USER.id && filters.countryCodes?.includes('US')) return true;
+      if (user.id === NG_USER.id && filters.countryCodes?.includes('NG')) return true;
+      return false;
     });
   }
+
+  if (usersToCreate.length === 0) {
+    console.log('No users to create based on filters');
+    return;
+  }
+
+  // Check which users already exist
+  const existingUsers = await trx('users')
+    .whereIn('email', usersToCreate.map(u => u.email))
+    .select('email');
+  
+  const existingEmails = new Set(existingUsers.map(u => u.email));
+  const newUsers = usersToCreate.filter(user => !existingEmails.has(user.email));
+
+  if (newUsers.length === 0) {
+    console.log('All required demo users already exist');
+    return;
+  }
+
+  // Create new users idempotently
+  for (const user of newUsers) {
+    await createUser({
+      user: {
+        ...user,
+        avatar_url: faker.image.avatar(),
+        is_demo_user: true,
+        email_verified_at: new Date(),
+      },
+      trx,
+    });
+  }
+
+  console.log(`Users processed: ${newUsers.length} created, ${existingEmails.size} already existed`);
 };
 export const deleteDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilter) => {
-  const f = filters?.countryCodes?.length === 1 ? filters.countryCodes[0] : undefined;
-  let userId: string | undefined;
-  if (f === 'NG') {
-    userId = NG_USER.id;
-  } else if (f === 'US') {
-    userId = US_USER.id;
+  // Smart user deletion logic - only delete users if we're deleting ALL companies for their country
+  // Otherwise users shared between companies will cause foreign key violations
+  
+  if (!filters) {
+    // No filters = delete all demo users
+    await trx('users').where('is_demo_user', true).delete();
+    console.log('Deleted all demo users');
+    return;
   }
-  const qb = trx('users').where('is_demo_user', true);
-  if (userId) {
-    qb.andWhere('id', userId);
+
+  // Check if this is a complete country deletion
+  const isCompleteCountryDeletion = (countryCode: string) => {
+    if (filters.countryCodes?.length === 1 && filters.countryCodes[0] === countryCode) {
+      // Only delete if no other filters restrict companies within this country
+      return !filters.companyIds?.length && !filters.companyTypes?.length;
+    }
+    return false;
+  };
+
+  const userEmailsToDelete: string[] = [];
+  
+  if (isCompleteCountryDeletion('US')) {
+    userEmailsToDelete.push(US_USER.email);
   }
-  await qb.delete();
+  if (isCompleteCountryDeletion('NG')) {
+    userEmailsToDelete.push(NG_USER.email);
+  }
+
+  if (userEmailsToDelete.length > 0) {
+    await trx('users')
+      .whereIn('email', userEmailsToDelete)
+      .where('is_demo_user', true)
+      .delete();
+    console.log(`Deleted ${userEmailsToDelete.length} demo users`);
+  } else {
+    console.log('Skipping user deletion - partial filter would cause foreign key violations');
+  }
 };

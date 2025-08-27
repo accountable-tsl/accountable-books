@@ -5,9 +5,26 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from './utils/db';
-import { AccountTypeWithRequiredReportCode } from '../src/core/types/db.types';
 import { accountElementIds } from './data/ids';
-import { NODE_ENV } from '../src/config/env';
+import { isDev } from '../config/env-loader';
+import z from 'zod';
+
+export const newAccountType = z.object({
+  id: z.string().uuid(),
+  key: z.string().max(64),
+  label: z.string().max(256),
+  description: z.string().max(512).nullish(),
+  account_element_id: z.string().uuid(),
+  report_code: z
+    .string()
+    .regex(
+      /^(BS|IS)(\.[A-Z]{3}){3,4}$/,
+      'Report code must follow BS|IS.XXX.XXX.XXX or BS|IS.XXX.XXX.XXX.XXX format',
+    )
+    .max(64),
+});
+
+type AccountTypeWithRequiredReportCode = z.infer<typeof newAccountType>;
 
 const defaultNonCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
   {
@@ -94,6 +111,7 @@ const defaultNonCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     report_code: 'BS.ASS.NCA.OTH',
   },
 ];
+
 const defaultCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
   {
     id: 'd9c4adcd-add7-4602-a1bc-1edad19da4f0',
@@ -542,7 +560,7 @@ const seedAccountTypes = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
     await trx(tableName).insert(defaultAccountTypes).onConflict().ignore();
 
-    if (NODE_ENV === 'local' || NODE_ENV === 'docker') {
+    if (isDev) {
       console.log(`Seeded ${defaultAccountTypes.length} account types`);
     }
   });
@@ -563,7 +581,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('account_elements')
       .onDelete('RESTRICT');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['account_element_id'], 'account_type_element_idx');
   });

@@ -4,7 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2022",
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
     "tsBuildInfoFile": "dist/.tsbuildinfo",
     "baseUrl": ".",
@@ -16,7 +16,7 @@
     "declaration": false,
     "composite": false
   },
-  "include": ["src"],
+  "include": ["src", "config/env-loader.ts"],
   "exclude": [
     "node_modules",
     "dist",

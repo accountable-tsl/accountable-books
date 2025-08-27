@@ -88,7 +88,7 @@ export class DemoSeedRunner {
       let count = 0;
       try {
         switch (step.name) {
-          case 'users':
+          case 'user':
             count = await this.knex('users')
               .where('is_demo_user', true)
               .count('* as count')
@@ -102,11 +102,35 @@ export class DemoSeedRunner {
               .first()
               .then((r) => Number(r?.count) || 0);
             break;
+          case 'chart-of-accounts':
+            count = await this.knex('coa')
+              .join('companies', 'coa.company_id', 'companies.id')
+              .where('companies.is_demo_company', true)
+              .count('coa.id as count')
+              .first()
+              .then((r) => Number(r?.count) || 0);
+            break;
           case 'contacts':
             count = await this.knex('contacts')
               .join('companies', 'contacts.company_id', 'companies.id')
               .where('companies.is_demo_company', true)
               .count('contacts.id as count')
+              .first()
+              .then((r) => Number(r?.count) || 0);
+            break;
+          case 'projects':
+            count = await this.knex('projects')
+              .join('companies', 'projects.company_id', 'companies.id')
+              .where('companies.is_demo_company', true)
+              .count('projects.id as count')
+              .first()
+              .then((r) => Number(r?.count) || 0);
+            break;
+          case 'bank-accounts':
+            count = await this.knex('bank_accounts')
+              .join('companies', 'bank_accounts.company_id', 'companies.id')
+              .where('companies.is_demo_company', true)
+              .count('bank_accounts.id as count')
               .first()
               .then((r) => Number(r?.count) || 0);
             break;

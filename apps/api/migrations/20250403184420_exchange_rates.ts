@@ -3,17 +3,23 @@ import path from 'path';
 import fs from 'fs';
 import csv from 'csv-parser';
 import { fileURLToPath } from 'url';
-import { NODE_ENV } from '../src/config/env';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from './utils/db';
-import { NewExchangeRateInput } from '../src/domains/exchangeRates/exchangeRate.types';
+import { isDev } from '../config/env-loader';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+interface NewExchangeRateInput {
+  date: Date;
+  from_currency_id: string;
+  to_currency_id: string;
+  rate: number;
+}
 
 const seedExchangeRates = async function seed(knex: Knex): Promise<void> {
   const filePath = path.join(__dirname, 'data/ng_exrates.csv');
@@ -58,7 +64,7 @@ const seedExchangeRates = async function seed(knex: Knex): Promise<void> {
     });
   }
 
-  if (NODE_ENV === 'local' || NODE_ENV === 'docker') {
+  if (isDev) {
     console.log(
       `Seeded ${exchangeRates.length} exchange rates, skipped ${skipped} from ${filePath}`,
     );
@@ -85,7 +91,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.decimal('rate', 32, 10).notNullable();
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['from_currency_id', 'to_currency_id'], 'exchange_rates_currency_idx');
     table.index(['date'], 'exchange_rates_date_idx');

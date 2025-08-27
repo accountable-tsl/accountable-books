@@ -49,7 +49,7 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp('reversed_at', { useTz: true }).nullable();
     table.specificType('reversal_reason', 'journal_reversal_reason').nullable();
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.unique(['company_id', 'sequence_number'], {
       indexName: 'journal_batch_company_id_sequence_number_unique',

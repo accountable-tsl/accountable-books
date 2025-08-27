@@ -39,7 +39,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['bank_account_id'], 'batch_bank_account_idx');
     table.index(['start_date', 'end_date'], 'batch_date_range_idx');

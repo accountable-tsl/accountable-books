@@ -72,7 +72,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.unique(['client_company_id']);
 

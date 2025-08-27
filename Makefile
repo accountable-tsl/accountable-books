@@ -5,6 +5,7 @@
 .PHONY: validate-contracts bundle-contracts bundle-contracts-watch contracts-watch clean-bundled codegen contracts
 .PHONY: demo-apply demo-reverse demo-reset demo-status
 
+## Structure [domain]-[environment]-[action]
 # Colors for output
 GREEN := \033[32m
 YELLOW := \033[33m
@@ -21,7 +22,7 @@ PID_FILE := .dev_server.pid
 
 APP_ENV ?= local
 WAIT_TIMEOUT ?= 30
-SEED_ARGS ?= --all
+ARGS ?= --all
 
 compose_for = \
   $(if $(filter $(1),dev),$(DOCKER_COMPOSE_DEV),\
@@ -95,77 +96,6 @@ dev-web: ## Start Web development server
 dev-ml: ## Start ML Engine development server
 	pnpm -F @accountable-books/ml-engine dev
 
-##@ Staging
-staging-validate-env: ## Validate staging environment files exist and are valid
-	@echo "$(GREEN)📋 Validating staging environment files...$(RESET)"
-	@if [ ! -f apps/api/.env.staging ]; then echo "$(RED)Missing apps/api/.env.staging$(RESET)"; exit 1; fi
-	@if [ ! -f apps/api/.env.secrets.staging ]; then echo "$(RED)Missing apps/api/.env.secrets.staging$(RESET)"; exit 1; fi
-	@echo "$(GREEN)✅ Staging environment validation complete$(RESET)"
-
-staging-up: staging-validate-env ## Start all staging containers
-	@echo "$(GREEN)🐳 Starting staging environment...$(RESET)"
-	$(DOCKER_COMPOSE_STAGING) up -d --build
-
-staging-wait-services: ## Wait for all staging services to be healthy
-	@echo "$(YELLOW)⏳ Waiting for staging services to be healthy...$(RESET)"
-	@timeout 300 sh -c 'until $(DOCKER_COMPOSE_STAGING) ps --filter "health=healthy" | grep -q "healthy.*healthy.*healthy"; do echo "Waiting for services..."; sleep 5; done' || (echo "$(RED)Staging services failed to start$(RESET)" && exit 1)
-	@echo "$(GREEN)✅ All staging services are healthy$(RESET)"
-
-staging-db-setup: ## Setup database for staging environment
-	@echo "$(GREEN)🗄️ Setting up staging database...$(RESET)"
-	@sleep 5  # Give DB extra time to be fully ready
-	$(DOCKER_COMPOSE_STAGING) exec api pnpm run migrate:staging
-	$(DOCKER_COMPOSE_STAGING) exec api pnpm run demo:apply -- --all
-	@echo "$(GREEN)✅ Staging database setup complete$(RESET)"
-
-staging-health-check: ## Validate all staging services are responding properly
-	@echo "$(GREEN)🔍 Running staging health checks...$(RESET)"
-	@curl -f -s http://api.lvh.me:5000/health > /dev/null && echo "$(GREEN)✅ API health check passed$(RESET)" || (echo "$(RED)❌ API health check failed$(RESET)" && exit 1)
-	@curl -f -s http://app.lvh.me:3000/ > /dev/null && echo "$(GREEN)✅ Web health check passed$(RESET)" || (echo "$(RED)❌ Web health check failed$(RESET)" && exit 1)
-	@curl -f -s http://localhost:8000/health > /dev/null && echo "$(GREEN)✅ ML Engine health check passed$(RESET)" || echo "$(YELLOW)⚠️ ML Engine health check failed (may not be critical)$(RESET)"
-	@echo "$(GREEN)✅ All staging health checks complete$(RESET)"
-
-staging-full: ## Complete staging environment setup (one command)
-	@echo "$(GREEN)🚀 Setting up complete staging environment...$(RESET)"
-	$(MAKE) staging-up
-	$(MAKE) staging-wait-services
-	$(MAKE) staging-db-setup
-	$(MAKE) staging-health-check
-	@echo "$(GREEN)✅ Complete staging environment ready!$(RESET)"
-	@echo "$(BLUE)🌐 Web App: http://app.lvh.me:3000$(RESET)"
-	@echo "$(BLUE)🔌 API: http://api.lvh.me:5000$(RESET)"
-	@echo "$(BLUE)🤖 ML Engine: http://localhost:8000$(RESET)"
-	@echo "$(BLUE)📊 Bull Board: http://api.lvh.me:5000/admin/queues$(RESET)"
-
-staging-logs: ## Show logs from all staging services
-	$(DOCKER_COMPOSE_STAGING) logs -f
-
-staging-restart: ## Restart all staging services
-	@echo "$(YELLOW)🔄 Restarting all staging services...$(RESET)"
-	$(DOCKER_COMPOSE_STAGING) restart
-	@echo "$(GREEN)✅ Staging services restarted$(RESET)"
-
-staging-stop: ## Stop all staging services
-	@echo "$(YELLOW)🛑 Stopping all staging services...$(RESET)"
-	$(DOCKER_COMPOSE_STAGING) stop
-	@echo "$(GREEN)✅ Staging services stopped$(RESET)"
-
-staging-down: ## Stop and remove all staging containers
-	@echo "$(YELLOW)⬇️ Stopping and removing staging containers...$(RESET)"
-	$(DOCKER_COMPOSE_STAGING) down
-	@echo "$(GREEN)✅ Staging containers removed$(RESET)"
-
-staging-clean: ## Clean restart staging environment (rebuild containers)
-	@echo "$(YELLOW)🧹 Clean restart of staging environment...$(RESET)"
-	$(DOCKER_COMPOSE_STAGING) down --volumes --remove-orphans
-	$(DOCKER_COMPOSE_STAGING) up -d --build
-	$(MAKE) staging-wait-services
-	$(MAKE) staging-db-setup
-	@echo "$(GREEN)✅ Staging clean restart complete$(RESET)"
-
-staging-status: ## Show status of all staging services
-	@echo "$(BLUE)📊 Staging Services Status:$(RESET)"
-	$(DOCKER_COMPOSE_STAGING) ps
 
 
 ##@ Demo Seeds (DEX)
@@ -282,8 +212,18 @@ clean-all: guard-nonprod ## Nuclear cleanup: remove caches, node_modules, and re
 reset: guard-nonprod clean bootstrap ## Full reset: clean everything and bootstrap fresh
 	@echo "$(GREEN)✅ Full reset complete$(RESET)"
 
-deploy-stg: ## Deploy to staging
-	@echo "$(GREEN)Deploying to staging...$(RESET)"
-	GIT_SHA=$(shell git rev-parse --short=40 HEAD) docker compose -f docker-compose.staging.yml pull
-	GIT_SHA=$(shell git rev-parse --short=40 HEAD) docker compose -f docker-compose.staging.yml up -d --remove-orphans
- 
+##@ Deployment 
+deploy-local-staging: ## Deploy to staging (local)
+	@echo "$(GREEN)Deploying to staging (local)$(RESET)"
+	$(MAKE) db-staging-up-postgres ## Start postgres service
+	$(MAKE) db-local-staging-migrate ## Run migrations
+	$(MAKE) db-local-staging-apply-demo ## Seed database
+
+
+drop-local-staging: ## Stop staging services
+	@echo "$(YELLOW)Stopping staging services...$(RESET)"
+	$(MAKE) db-staging-nuke
+
+deploy-remote-staging: ## Deploy to staging (remote)
+	@echo "$(GREEN)Deploying to staging (remote)$(RESET)"
+	$(MAKE) db-remote-staging-migrate

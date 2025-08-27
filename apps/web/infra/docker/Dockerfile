@@ -1,37 +1,57 @@
-# Build from pruned context:
-# pnpm dlx turbo prune --scope=@accountable-books/web --docker --out-dir .pruned/web
-ARG APP_DIR=.pruned/web
-
-FROM node:20-alpine AS build
-ARG APP_DIR=.pruned/web
+# ---- base ----
+FROM node:24-alpine AS base
 WORKDIR /app
-ENV PNPM_HOME="/pnpm"
+ENV PNPM_HOME="/pnpm" 
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
-# deps (cacheable)
-COPY ${APP_DIR}/full/package.json ${APP_DIR}/pnpm-lock.yaml ${APP_DIR}/full/pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
-# source
-COPY ${APP_DIR}/full/ ./
-# Copy tsconfig.base.json which is needed for TypeScript builds
-COPY tsconfig.base.json ./
-# Install dependencies first
-RUN pnpm install --offline
-# Build dependencies first (contracts, utils, api-types)
-RUN cd packages/contracts && pnpm run bundle-contracts
-RUN cd packages/utils && pnpm run build
-RUN cd packages/api-types && pnpm run codegen
-RUN cd packages/api-types && pnpm run build
-# non-secret build-time vars
-ARG VITE_BACKEND_URL VITE_APP_NAME VITE_ENVIRONMENT VITE_API_URL
-ENV VITE_BACKEND_URL=$VITE_BACKEND_URL VITE_APP_NAME=$VITE_APP_NAME VITE_ENVIRONMENT=$VITE_ENVIRONMENT VITE_API_URL=$VITE_API_URL
-# Now build the web app (which depends on the above)
-RUN cd apps/web && pnpm run build
+RUN corepack enable
 
+# ---- dependencies ----
+FROM base AS deps
+# Copy workspace config and lockfile
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+
+# Copy all package.json files to maintain workspace structure
+COPY apps/web/package.json apps/web/
+COPY packages/api-types/package.json packages/api-types/
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/utils/package.json packages/utils/
+
+# Install ALL dependencies (including devDependencies for building)
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
+# ---- builder ----
+FROM base AS builder
+WORKDIR /app
+
+# Copy installed dependencies
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy source code
+COPY pnpm-workspace.yaml package.json tsconfig.base.json ./
+COPY apps/web ./apps/web
+COPY packages ./packages
+
+# Build args for environment variables
+ARG VITE_BACKEND_URL
+ARG VITE_APP_NAME
+ARG VITE_ENVIRONMENT
+ARG VITE_API_URL
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL 
+ENV VITE_APP_NAME=$VITE_APP_NAME 
+ENV VITE_ENVIRONMENT=$VITE_ENVIRONMENT 
+ENV VITE_API_URL=$VITE_API_URL
+
+# Build packages and application
+RUN pnpm --filter @accountable-books/contracts build || true && \
+    pnpm --filter @accountable-books/utils build || true && \
+    pnpm --filter @accountable-books/api-types build || true && \
+    pnpm --filter @accountable-books/web build
+
+# ---- runtime ----
 FROM nginx:1.27-alpine AS runtime
-# copy nginx conf from repo
+# Copy nginx conf from repo
 COPY apps/web/infra/nginx/nginx.conf /etc/nginx/conf.d/default.conf
-# copy built SPA
-COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+# Copy built SPA
+COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fsS http://localhost/ || exit 1

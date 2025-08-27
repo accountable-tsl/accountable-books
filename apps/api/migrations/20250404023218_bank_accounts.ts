@@ -42,10 +42,9 @@ export async function up(knex: Knex): Promise<void> {
 
     table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['company_id', 'bank_id'], 'bank_account_company_bank_index');
-    // table.unique(["company_id", "account_number", "bank_id"]);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

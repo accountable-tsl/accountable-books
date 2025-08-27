@@ -1,6 +1,4 @@
-import { NewRoleInput } from '../../src/domains/roles/roles.types';
-
-export const ROLES: Record<string, Array<NewRoleInput>> = {
+export const ROLES = {
   PLATFORM_ROLES: [
     {
       key: 'super_admin',

@@ -26,7 +26,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.uuid('created_by_id').nullable().references('id').inTable('users').onDelete('RESTRICT');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.unique(['firm_staff_user_id', 'client_company_id']);
   });

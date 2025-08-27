@@ -16,7 +16,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('description', 512).nullable();
     table.string('label', 256).notNullable();
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.unique(['action', 'resource'], {
       indexName: 'permission_action_resource_unique',

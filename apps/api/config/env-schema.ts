@@ -67,7 +67,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database host',
     type: 'string',
     local: 'localhost',
-    staging: 'db',
+    staging: 'localhost',
     production: 'ep-example-12345.us-east-1.aws.neon.tech',
   },
 
@@ -75,7 +75,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database port',
     type: 'number',
     local: '5433',
-    staging: '5432',
+    staging: '5434',
     production: '5432',
   },
 
@@ -83,7 +83,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database name',
     type: 'string',
     local: 'accountable_books',
-    staging: 'accountable_books_stg',
+    staging: 'accountable_books_staging',
     production: 'main',
   },
 
@@ -91,8 +91,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Database username',
     type: 'string',
     local: 'user',
-    staging: 'user',
-    production: 'neondb_owner',
+    staging: 'app_user',
+    production: 'app_user',
   },
 
   POSTGRES_PASSWORD: {
@@ -104,7 +104,13 @@ export const API_ENV_SCHEMA: EnvSchema = {
   DATABASE_URL: {
     description: 'Complete PostgreSQL connection string',
     type: 'secret',
-    local: 'postgres://user:password@localhost:5433/accountable_books',
+    local: `postgresql://user:password@localhost:5433/accountable_books'`,
+  },
+
+  DATABASE_URL_NOPOOL: {
+    description: 'Complete PostgreSQL connection string',
+    type: 'secret',
+    local: '',
   },
 
   // ============================================================================
@@ -300,6 +306,24 @@ export const API_ENV_SCHEMA: EnvSchema = {
     production: 'fb60dc2d-732e-4bf6-9f0c-74577354e816',
   },
 
+  PLATFORM_COMPANY_LOGO_URL: {
+    description: 'Platform company logo URL',
+    required: false,
+    type: 'url',
+    local: '',
+    staging: 'https://logos.getaccountable.com/42619yzn-25431a6c-59c7-4bf4-9348-be6e651d47dc.png',
+    production:
+      'https://logos.getaccountable.com/42619yzn-25431a6c-59c7-4bf4-9348-be6e651d47dc.png',
+  },
+
+  CONFIRM_PLATFORM_SETUP: {
+    description: 'Confirm platform setup',
+    type: 'string',
+    required: false,
+    staging: 'yes',
+    production: 'yes',
+  },
+
   // ============================================================================
   // ADMIN USER CONFIGURATION
   // ============================================================================
@@ -342,28 +366,26 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Production admin user ID (UUID)',
     type: 'string',
     required: false,
-    production: '018f7e5e-9999-8888-7777-000000000001',
   },
 
   ADMIN_EMAIL: {
     description: 'Production admin user email',
     type: 'string',
     required: false,
-    production: 'admin@getaccountable.com',
   },
 
   ADMIN_FIRSTNAME: {
     description: 'Production admin user first name',
     type: 'string',
     required: false,
-    production: 'System',
+    default: 'System',
   },
 
   ADMIN_LASTNAME: {
     description: 'Production admin user last name',
     type: 'string',
     required: false,
-    production: 'Administrator',
+    default: 'Administrator',
   },
 
   ADMIN_PASSWORD: {
@@ -397,6 +419,16 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'secret',
     required: false,
     local: 'secret',
+  },
+
+  // ============================================================================
+  // BANK FEED PROVIDERS
+  // ============================================================================
+  MONO_SECRET_KEY: {
+    description: 'Mono secret key',
+    type: 'secret',
+    required: false,
+    local: 'test_sk_t72nrt2xsyizcr08j9ep',
   },
 } as const;
 

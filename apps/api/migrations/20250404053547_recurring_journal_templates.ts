@@ -26,7 +26,7 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('users')
       .onDelete('RESTRICT');
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index(['frequency', 'next_run_date'], 'rjt_frequency_nextrun_idx');
   });

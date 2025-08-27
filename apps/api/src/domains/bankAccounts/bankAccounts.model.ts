@@ -10,9 +10,7 @@ import {
 // import Decimal from "decimal.js";
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import { camelToSnake, snakeToCamel } from '../../shared/utils/formatting.utils.js';
-import { createCoa } from '../chartOfAccounts/coa.model.js';
 import { coaSource } from '../chartOfAccounts/coa.types.js';
-import { getAccessibleCompaniesForUser, hasAccessToCompany } from '../userRoles/userRoles.model.js';
 import type { Knex } from 'knex';
 import { type AccessibleCompaniesResponse } from '../userRoles/userRoles.types.js';
 import { getAccountTypeByKey } from '../account/account.registry.js';

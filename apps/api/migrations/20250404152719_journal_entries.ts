@@ -26,7 +26,7 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('ledger_entry_id').nullable();
     table.date('ledger_entry_fs_date').nullable();
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
     table.index(['journal_batch_id'], 'journal_entry_batch_idx');
     table.unique(['ledger_entry_id', 'ledger_entry_fs_date']);
   });

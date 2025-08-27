@@ -2,12 +2,15 @@ DRY_RUN ?=
 DRY_RUN_PREFIX = $(if $(DRY_RUN),echo )
 
 .PHONY: db-up db-dev db-stg db-% db-%-build db-%-build-redis db-%-build-postgres db-%-up db-%-up-postgres db-%-up-redis db-%-down db-%-logs db-%-restart db-%-nuke db-%-status
+.PHONY: db-dev-migrate db-dev-rollback db-remote-staging-migrate db-local-staging-migrate db-staging-rollback db-print-loaded
 
 db-up: db-dev-up ## Start database and redis for dev environment (default)
 db-dev: db-dev-up ## Start database and redis for dev environment
 db-stg: db-staging-up ## Start database and redis for staging environment
 db-down: db-dev-down ## Stop database and redis for dev environment
 db-nuke: db-dev-nuke ## Destructive: stop services and remove volumes for dev environment
+migrate-dev: db-dev-migrate ## Run migrations for dev environment
+rollback-dev: db-dev-rollback ## Rollback migrations for dev environment
 
 
 db-%: db-%-up ## Start database and redis services for environment <env>
@@ -26,15 +29,15 @@ db-%-build-postgres: ensure-% ## Build only postgres image for environment <env>
 
 db-%-up: guard-nonprod ensure-% ## Start database and redis services for environment <env>
 	@echo "$(GREEN)Starting database services for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d db redis
+	$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d --build db redis
 
 db-%-up-postgres: guard-nonprod ensure-% ## Start only postgres service for environment <env>
 	@echo "$(GREEN)Starting postgres service for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d db
+	$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d --build db
 
 db-%-up-redis: guard-nonprod ensure-% ## Start only redis service for environment <env>
 	@echo "$(GREEN)Starting redis service for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d redis
+	$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d --build redis
 
 db-%-down: guard-nonprod ensure-% ## Stop database and redis services for environment <env>
 	@echo "$(YELLOW)Stopping database services for env: $*$(RESET)"
@@ -47,7 +50,7 @@ db-%-restart: guard-nonprod db-%-down db-%-up ## Restart database and redis serv
 
 db-%-nuke: guard-nonprod ensure-% ## Destructive: stop services and remove volumes for environment <env>
 	@echo "$(YELLOW)🧹 Nuking database for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) down -v
+	$(DRY_RUN_PREFIX)$(call compose_for,$*) down -v --remove-orphans
 
 db-%-status: ensure-% ## Show status of database and redis services for environment <env>
 	@echo "$(BLUE)Checking status for env: $*$(RESET)"
@@ -58,11 +61,32 @@ db-%-wait: ensure-% ## Wait for database to be ready for environment <env>
 	@timeout $(WAIT_TIMEOUT) sh -c 'until $(call compose_for,$*) exec db pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB; do sleep 1; done' || (echo "$(RED)Database failed to start$(RESET)" && exit 1)
 	@echo "$(GREEN)✅ Database ready for env: $*$(RESET)"
 
-db-dev-migrate: ## Show status of database and redis services for environment <env>
+db-dev-migrate: guard-nonprod ## Show status of database and redis services for environment <env>
 	@echo "$(GREEN)Running migrations...$(RESET)"
 	pnpm -F @accountable-books/api run migrate:local
 
-db-dev-rollback: ## Show status of database and redis services for environment <env>
+db-remote-staging-migrate: ## Show status of database and redis services for environment <env>
+	@echo "$(GREEN)Running migrations...$(RESET)"
+	pnpm -F @accountable-books/api run migrate:staging:remote
+
+db-local-staging-migrate: ## Show status of database and redis services for environment <env>
+	@echo "$(GREEN)Running migrations...$(RESET)"
+	pnpm -F @accountable-books/api run migrate:staging:local
+
+db-dev-apply-demo:
+	pnpm -F @accountable-books/api run demo:apply
+
+db-remote-staging-apply-demo:
+	pnpm -F @accountable-books/api run demo:apply:staging:remote
+
+db-local-staging-apply-demo:
+	pnpm -F @accountable-books/api run demo:apply:staging:local
+
+db-dev-rollback: guard-nonprod ## Show status of database and redis services for environment <env>
+	@echo "$(GREEN)Rolling back migrations...$(RESET)"
+	pnpm -F @accountable-books/api run migrate:rollback
+
+db-local-staging-rollback: ## Show status of database and redis services for environment <env>
 	@echo "$(GREEN)Rolling back migrations...$(RESET)"
 	pnpm -F @accountable-books/api run migrate:rollback
 

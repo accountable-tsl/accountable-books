@@ -4,17 +4,20 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db';
-import { ENV, isProd } from '../src/config/env';
+import { ENV, isProd } from '../config/env-loader';
 import { adminUser } from './20250403184441_users';
-import { verifyCompanyDependenciesExist } from '../src/domains/companies/companies.model';
-import { newCompany } from '../src/domains/companies/companies.types';
-import {
-  createInitialCompanyOnboardingState,
-  markAllOnboardingStepsComplete,
-} from '../src/features/onboarding/onboarding.utils';
 
-const currOnbState = createInitialCompanyOnboardingState('accounting_firm');
-const completeOnbState = currOnbState && markAllOnboardingStepsComplete(currOnbState);
+const completeOnbState = {
+  steps: {
+    company_details_confirmed: true,
+    first_bank_account_added: true,
+  },
+  completed_at: {
+    company_details_confirmed: new Date(),
+    first_bank_account_added: new Date(),
+  },
+  metadata: null,
+};
 
 export const buildPlatformCompany = (adminUserId: string) => ({
   id: ENV.PLATFORM_COMPANY_ID || 'a494b675-fedd-455c-ab6d-00ffdff9a047',
@@ -60,17 +63,7 @@ export const createPlatformCompany = async (knex: Knex) => {
     if (platformCompany.type !== 'accounting_firm')
       throw new Error('PLATFORM_COMPANY_TYPE must be set to accounting_firm');
 
-    await verifyCompanyDependenciesExist(trx, {
-      reportingCurrencyId: platformCompany.reporting_currency_id,
-      countryId: platformCompany.country_id,
-    });
-
-    const validatedInput = newCompany.safeParse(platformCompany);
-    if (!validatedInput.success) {
-      throw new Error(validatedInput.error.message);
-    }
-
-    const [inserted] = await knex(tableName).insert(validatedInput.data).returning('*');
+    const [inserted] = await knex(tableName).insert(platformCompany).returning('*');
     console.log(`Created platform company: ${platformCompany.legal_name}`);
     return inserted;
   });
@@ -131,7 +124,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('SET NULL');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
 
     table.index('short_code');
   });

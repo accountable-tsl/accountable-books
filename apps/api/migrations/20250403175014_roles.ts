@@ -5,9 +5,8 @@ import {
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from './utils/db';
-import { NewRoleInput, roleScope } from '../src/domains/roles/roles.types';
-import { isDev } from '../src/config/env';
 import { ROLES } from './data/roles';
+import { isDev } from '../config/env-loader';
 
 const tableName = 'roles';
 const { PLATFORM_ROLES, FIRM_ROLES, COMPANY_ROLES } = ROLES;
@@ -15,15 +14,15 @@ const { PLATFORM_ROLES, FIRM_ROLES, COMPANY_ROLES } = ROLES;
 const seedRoles = async function seed(knex: Knex): Promise<void> {
   try {
     // Validate and prepare data
-    const seedData: Array<NewRoleInput> = [
+    const seedData = [
       ...PLATFORM_ROLES.map((role) => ({
         ...role,
-        scope: roleScope.enum.platform,
+        scope: 'platform',
       })),
-      ...FIRM_ROLES.map((role) => ({ ...role, scope: roleScope.enum.firm })),
+      ...FIRM_ROLES.map((role) => ({ ...role, scope: 'firm' })),
       ...COMPANY_ROLES.map((role) => ({
         ...role,
-        scope: roleScope.enum.company,
+        scope: 'company',
       })),
     ];
 
@@ -49,7 +48,7 @@ export async function up(knex: Knex): Promise<void> {
     table.specificType('scope', 'role_scope').notNullable();
     table.string('description', 512).nullable();
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

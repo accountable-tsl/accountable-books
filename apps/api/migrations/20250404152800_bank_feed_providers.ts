@@ -29,7 +29,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
-    addStandardColumns(table);
+    addStandardColumns(knex, table);
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

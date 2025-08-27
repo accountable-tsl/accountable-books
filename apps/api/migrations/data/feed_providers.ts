@@ -1,7 +1,6 @@
-import { BankFeedProviderInputCamel } from '../../src/domains/bankFeedProviders/bankFeedProviders.types';
-
-export const SEED_BANK_FEED_PROVIDERS: BankFeedProviderInputCamel[] = [
+export const SEED_BANK_FEED_PROVIDERS = [
   {
+    id: 'ceb8e1dc-abb3-4db4-8689-8c400943ea95',
     key: 'mono',
     name: 'Mono',
     description: 'Mono API',
@@ -11,6 +10,7 @@ export const SEED_BANK_FEED_PROVIDERS: BankFeedProviderInputCamel[] = [
     priority: 1,
   },
   {
+    id: '4766559e-252c-445c-ae5c-46e5e1e894bc',
     key: 'okra',
     name: 'Okra',
     description: 'Okra API',
@@ -20,6 +20,7 @@ export const SEED_BANK_FEED_PROVIDERS: BankFeedProviderInputCamel[] = [
     priority: 2,
   },
   {
+    id: 'e5b2a79f-9d28-4afb-897c-b837b332d7a1',
     key: 'plaid',
     name: 'Plaid',
     description: 'Plaid API',
@@ -29,6 +30,7 @@ export const SEED_BANK_FEED_PROVIDERS: BankFeedProviderInputCamel[] = [
     priority: 1,
   },
   {
+    id: 'ca5cfb9c-dd13-4bb1-b6e8-30d03ac86f80',
     key: 'stripe',
     name: 'Stripe',
     description: 'Stripe API',

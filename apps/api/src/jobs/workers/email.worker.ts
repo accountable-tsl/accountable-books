@@ -12,6 +12,7 @@ import {
 import { sendEmail } from '../../features/communications/email/email.service.js';
 
 const baseUrl = ENV.BACKEND_URL;
+if (!redis) throw new Error('Missing redis connection');
 
 export const emailWorker = new Worker(
   'email',

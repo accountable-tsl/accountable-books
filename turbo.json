@@ -3,8 +3,8 @@
   "ui": "tui",
   "tasks": {
     "generate-env": {
-      "outputs": ["apps/**/.env.local"],
-      "inputs": ["packages/utils/src/env/*"]
+      "inputs": ["packages/utils/src/env/*"],
+      "outputs": ["apps/**/.env.**"]
     },
 
     "validate-contracts": {
