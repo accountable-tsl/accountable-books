@@ -24,7 +24,7 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
 
   // Get actual user IDs from database (users now have dynamic IDs)
   const userMap = await getDemoUserMap(trx);
-  
+
   // Helper to get user ID safely
   const getUserId = (email: string) => {
     const userId = userMap.get(email);
@@ -120,19 +120,19 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
   const roles = await trx('roles')
     .whereIn('key', ['firm_owner', 'client_owner'])
     .select('id', 'key');
-  
-  const roleMap = new Map(roles.map(r => [r.key, r.id]));
+
+  const roleMap = new Map(roles.map((r) => [r.key, r.id]));
 
   // Assign companies to platform firm and set up user roles (idempotent)
   const clientFirmAssignments: any[] = [];
   const userCompanyRoles: any[] = [];
 
   for (const company of existingCompanies) {
-    const originalCompany = data.find(d => d.c.short_code === company.short_code);
+    const originalCompany = data.find((d) => d.c.short_code === company.short_code);
     if (!originalCompany) continue;
 
     const isFirm = company.type === COMPANY_TYPES.ACCOUNTING_FIRM;
-    
+
     // Client firm assignments
     if (isFirm) {
       // Firm assigns itself
@@ -153,7 +153,7 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
     // User company roles
     const roleKey = isFirm ? 'firm_owner' : 'client_owner';
     const roleId = roleMap.get(roleKey);
-    
+
     if (roleId) {
       userCompanyRoles.push({
         user_id: originalCompany.c.created_by_id,
@@ -194,8 +194,8 @@ export const deleteDemoCompanies = async (trx: Knex.Transaction, filters?: DemoF
     .whereIn('short_code', shortCodes)
     .where('is_demo_company', true)
     .select('id');
-  
-  const companyIds = companies.map(c => c.id);
+
+  const companyIds = companies.map((c) => c.id);
 
   if (companyIds.length === 0) {
     console.log('No demo companies found to delete');

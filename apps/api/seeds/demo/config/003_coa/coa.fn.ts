@@ -41,7 +41,7 @@ export const createDemoCoa = async (trx: Knex.Transaction, filters?: DemoFilter)
   // Get company database IDs and user IDs
   const companyIdMap = await getCompanyIdMap(trx);
   const userMap = await getDemoUserMap(trx);
-  
+
   // Helper to get user ID safely
   const getUserId = (email: string) => {
     const userId = userMap.get(email);

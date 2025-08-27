@@ -55,7 +55,7 @@ export const getRawProjectsForInsertion = async (
   const companiesMap = generateDemoCompaniesMap(filters);
 
   return companies.map((company) => {
-    const companyMapData = companiesMap.find(c => c.company.shortCode === company.short_code);
+    const companyMapData = companiesMap.find((c) => c.company.shortCode === company.short_code);
     if (!companyMapData) {
       throw new Error(`Company map data not found for ${company.short_code}`);
     }
@@ -68,7 +68,10 @@ export const getRawProjectsForInsertion = async (
       },
       user: companyMapData.user,
       country: companyMapData.country,
-      projects: getProjectsForCompanyType(companyMapData.company.companyType, companyMapData.country.code),
+      projects: getProjectsForCompanyType(
+        companyMapData.company.companyType,
+        companyMapData.country.code,
+      ),
     };
   });
 };
@@ -94,7 +97,7 @@ export const generateDemoProjectsMap = async (
   const companiesMap = generateDemoCompaniesMap(filters);
 
   return companies.map((company) => {
-    const companyMapData = companiesMap.find(c => c.company.shortCode === company.short_code);
+    const companyMapData = companiesMap.find((c) => c.company.shortCode === company.short_code);
     if (!companyMapData) {
       throw new Error(`Company map data not found for ${company.short_code}`);
     }

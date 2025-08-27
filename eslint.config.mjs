@@ -53,8 +53,12 @@ export default tseslint.config(
         require: 'readonly',
         __dirname: 'readonly',
         process: 'readonly',
+        console: 'readonly',
       },
       sourceType: 'commonjs',
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 );

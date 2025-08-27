@@ -21,7 +21,7 @@ export const createDemoContacts = async (trx: Knex.Transaction, filters?: DemoFi
 
   // Get user mapping for dynamic user ID lookup
   const userMap = await getDemoUserMap(trx);
-  
+
   // Helper to get user ID safely
   const getUserId = (email: string) => {
     const userId = userMap.get(email);
@@ -36,9 +36,7 @@ export const createDemoContacts = async (trx: Knex.Transaction, filters?: DemoFi
     const companyId = company.id;
 
     // Check if contacts already exist for this company (simple idempotency like COA)
-    const existingContacts = await trx('contacts')
-      .where({ company_id: companyId })
-      .first();
+    const existingContacts = await trx('contacts').where({ company_id: companyId }).first();
 
     if (existingContacts) {
       console.log(`Contacts already exist for company ${company.shortCode}, skipping`);
@@ -67,14 +65,17 @@ export const createDemoContacts = async (trx: Knex.Transaction, filters?: DemoFi
 
     // Store in state map for potential later use
     if (insertedContacts.length > 0) {
-      demoContactsByCompanyMap.set(companyId, insertedContacts.map(contact => ({
-        id: contact.id,
-        email: contact.email,
-        displayName: contact.display_name,
-        status: contact.status,
-        companyId: contact.company_id,
-        userId: getUserId(item.user.email),
-      })));
+      demoContactsByCompanyMap.set(
+        companyId,
+        insertedContacts.map((contact) => ({
+          id: contact.id,
+          email: contact.email,
+          displayName: contact.display_name,
+          status: contact.status,
+          companyId: contact.company_id,
+          userId: getUserId(item.user.email),
+        })),
+      );
     }
 
     console.log(`Created ${insertedContacts.length} contacts for company ${company.shortCode}`);

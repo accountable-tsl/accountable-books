@@ -66,7 +66,6 @@ export const loadCoaTemplateForCompany = async (
         'website',
         'reporting_framework',
         'reporting_currency_id',
-        
       );
 
     if (!company || !company.type || !company.reporting_currency_id)

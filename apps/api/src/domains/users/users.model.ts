@@ -46,7 +46,6 @@ export async function createUserDirect(
   const startTime = Date.now();
   const operationId = `create-user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
-  const isDemo = input.is_demo_user || false;
   const userLogger = logger.child({
     operation: 'createUserDirect',
     operationId,
@@ -54,22 +53,18 @@ export async function createUserDirect(
     isDemo: input.is_demo_user || false,
   });
 
-  !isDemo && userLogger.info('Starting user creation');
+  userLogger.info('Starting user creation');
 
   // Input validation and sanitization
   const validateInput = newUserDirect.safeParse(input);
   if (!validateInput.success) {
     const validationError = 'Invalid input provided for user creation';
-    !isDemo &&
-      userLogger.warn(
-        {
-          validationErrors: validateInput.error.format(),
-        },
-        validationError,
-      );
-    if (isDemo) {
-      throw new Error(validationError);
-    }
+    userLogger.warn(
+      {
+        validationErrors: validateInput.error.format(),
+      },
+      validationError,
+    );
     return errorResponse(validationError, validateInput.error.format());
   }
 
@@ -78,10 +73,7 @@ export async function createUserDirect(
   // Password requirement check
   if (!password) {
     const passwordError = 'Password is required for user creation';
-    !isDemo && userLogger.warn(passwordError);
-    if (isDemo) {
-      throw new Error(passwordError);
-    }
+    userLogger.warn(passwordError);
     return errorResponse(passwordError);
   }
 
@@ -90,7 +82,7 @@ export async function createUserDirect(
 
   // Execute user creation within the provided transaction
   try {
-    !isDemo && logDatabaseOperation('SELECT', 'users', { email: sanitizedEmail });
+    logDatabaseOperation('SELECT', 'users', { email: sanitizedEmail });
 
     // Check for existing user
     const existingUser = await trx('users')
@@ -99,23 +91,12 @@ export async function createUserDirect(
       .first();
 
     if (existingUser) {
-      if (isDemo) {
-        return successResponse('User with this email already exists', {
-          id: existingUser.id,
-          firstname: existingUser.firstname,
-          lastname: existingUser.lastname,
-          email: sanitizedEmail,
-          onboardingState: existingUser.onboarding_state,
-          verificationToken: '',
-        });
-      }
-
       const duplicateError = 'User with this email already exists';
-      !isDemo && userLogger.warn({ userId: existingUser.id }, duplicateError);
+      userLogger.warn({ userId: existingUser.id }, duplicateError);
       return errorResponse(duplicateError);
     }
 
-    !isDemo && userLogger.debug('No existing user found, proceeding with creation');
+    userLogger.debug('No existing user found, proceeding with creation');
 
     // Generate tokens and hash password concurrently
     const [verificationToken, hashedPassword] = await Promise.all([
@@ -126,7 +107,7 @@ export async function createUserDirect(
     const onboardingState = createInitialUserOnboardingState();
 
     // Insert user
-    !isDemo && logDatabaseOperation('INSERT', 'users', { email: sanitizedEmail });
+    logDatabaseOperation('INSERT', 'users', { email: sanitizedEmail });
     const [user] = await trx('users')
       .insert({
         ...rest,
@@ -139,20 +120,19 @@ export async function createUserDirect(
 
     if (!user?.id) {
       const insertError = 'Failed to create user record - no user returned';
-      !isDemo && userLogger.error(insertError);
+      userLogger.error(insertError);
       throw new Error(insertError);
     }
 
-    !isDemo && userLogger.info({ userId: user.id }, 'User record created successfully');
+    userLogger.info({ userId: user.id }, 'User record created successfully');
 
     // Create verification token
     const hashedVerificationToken = await hashToken(verificationToken);
 
-    !isDemo &&
-      logDatabaseOperation('INSERT', 'tokens', {
-        userId: user.id,
-        tokenType: 'email_verification',
-      });
+    logDatabaseOperation('INSERT', 'tokens', {
+      userId: user.id,
+      tokenType: 'email_verification',
+    });
 
     await addNewToken(
       {
@@ -164,7 +144,7 @@ export async function createUserDirect(
       trx,
     );
 
-    !isDemo && userLogger.info({ userId: user.id }, 'Email verification token created');
+    userLogger.info({ userId: user.id }, 'Email verification token created');
 
     const response: CreateUserResponse = {
       id: user.id,
@@ -175,31 +155,28 @@ export async function createUserDirect(
       verificationToken,
     };
 
-    !isDemo &&
-      logTiming('createUserDirect', startTime, {
-        userId: user.id,
-        operationId,
-      });
+    logTiming('createUserDirect', startTime, {
+      userId: user.id,
+      operationId,
+    });
 
-    !isDemo && userLogger.info({ userId: user.id }, 'User creation completed successfully');
+    userLogger.info({ userId: user.id }, 'User creation completed successfully');
     return successResponse('Account created successfully', response);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    !isDemo &&
-      userLogger.error(
-        {
-          error: error instanceof Error ? error : new Error(String(error)),
-          operationId,
-        },
-        `User creation failed: ${errorMessage}`,
-      );
-
-    !isDemo &&
-      logError(error instanceof Error ? error : new Error(String(error)), {
-        operation: 'createUserDirect',
-        email: sanitizedEmail,
+    userLogger.error(
+      {
+        error: error instanceof Error ? error : new Error(String(error)),
         operationId,
-      });
+      },
+      `User creation failed: ${errorMessage}`,
+    );
+
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      operation: 'createUserDirect',
+      email: sanitizedEmail,
+      operationId,
+    });
 
     return errorResponse(
       "We couldn't create your account. Please try again.",

@@ -28,18 +28,20 @@ function parseFilters(args: string[]): DemoFilter | undefined {
 
     if (arg === '--type' && args[i + 1]) {
       const types = args[i + 1].split(',');
-      filters.companyTypes = types.map((t) => {
-        const upperType = t.toUpperCase() as keyof typeof COMPANY_TYPES;
-        if (upperType in COMPANY_TYPES) {
-          return COMPANY_TYPES[upperType];
-        }
-        // Also check if it's already a valid company type value
-        const validTypes = Object.values(COMPANY_TYPES) as string[];
-        if (validTypes.includes(t)) {
-          return t as DemoCompanyType;
-        }
-        return null;
-      }).filter((t): t is DemoCompanyType => t !== null);
+      filters.companyTypes = types
+        .map((t) => {
+          const upperType = t.toUpperCase() as keyof typeof COMPANY_TYPES;
+          if (upperType in COMPANY_TYPES) {
+            return COMPANY_TYPES[upperType];
+          }
+          // Also check if it's already a valid company type value
+          const validTypes = Object.values(COMPANY_TYPES) as string[];
+          if (validTypes.includes(t)) {
+            return t as DemoCompanyType;
+          }
+          return null;
+        })
+        .filter((t): t is DemoCompanyType => t !== null);
       hasFilters = true;
       i++; // skip next arg
     }

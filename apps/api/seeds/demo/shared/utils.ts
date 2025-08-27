@@ -197,13 +197,19 @@ export const clearCompanyCache = (): void => {
  * Fetch and cache all account types from database
  * This is the SINGLE source of truth for account type data
  */
-export const loadAccountTypes = async (trx: Knex, refresh = false): Promise<AccountTypeRecord[]> => {
+export const loadAccountTypes = async (
+  trx: Knex,
+  refresh = false,
+): Promise<AccountTypeRecord[]> => {
   if (!refresh && accountTypesCache) {
     return accountTypesCache;
   }
 
-  accountTypesCache = (await trx('account_types')
-    .select('id', 'key', 'label')) as AccountTypeRecord[];
+  accountTypesCache = (await trx('account_types').select(
+    'id',
+    'key',
+    'label',
+  )) as AccountTypeRecord[];
 
   return accountTypesCache;
 };
@@ -211,7 +217,10 @@ export const loadAccountTypes = async (trx: Knex, refresh = false): Promise<Acco
 /**
  * Get account type by key - uses cached data, loads if needed
  */
-export const getAccountTypeByKey = async (trx: Knex, key: string): Promise<AccountTypeRecord | undefined> => {
+export const getAccountTypeByKey = async (
+  trx: Knex,
+  key: string,
+): Promise<AccountTypeRecord | undefined> => {
   const accountTypes = await loadAccountTypes(trx);
   return accountTypes.find((at) => at.key === key);
 };
@@ -219,7 +228,10 @@ export const getAccountTypeByKey = async (trx: Knex, key: string): Promise<Accou
 /**
  * Get account type mapping - uses cached data, loads if needed
  */
-export const getAccountTypeMap = async (trx: Knex, refresh = false): Promise<Map<string, string>> => {
+export const getAccountTypeMap = async (
+  trx: Knex,
+  refresh = false,
+): Promise<Map<string, string>> => {
   const accountTypes = await loadAccountTypes(trx, refresh);
   return new Map(accountTypes.map((at) => [at.key, at.id]));
 };
@@ -239,8 +251,7 @@ export const loadBanks = async (trx: Knex, refresh = false): Promise<BankRecord[
     return banksCache;
   }
 
-  banksCache = (await trx('banks')
-    .select('id', 'key', 'display_name')) as BankRecord[];
+  banksCache = (await trx('banks').select('id', 'key', 'display_name')) as BankRecord[];
 
   return banksCache;
 };
@@ -278,7 +289,10 @@ export const loadDemoUsers = async (trx: Knex, refresh = false): Promise<DemoUse
 /**
  * Get demo user by email - uses cached data
  */
-export const getDemoUserByEmail = async (trx: Knex, email: string): Promise<DemoUserRecord | undefined> => {
+export const getDemoUserByEmail = async (
+  trx: Knex,
+  email: string,
+): Promise<DemoUserRecord | undefined> => {
   const users = await loadDemoUsers(trx);
   return users.find((u) => u.email === email);
 };

@@ -7,10 +7,10 @@ import { createUser } from '../../../../migrations/20250403184441_users.js';
 export const createDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilter) => {
   // Determine which users to create based on filters
   let usersToCreate = DEMO_USERS;
-  
+
   if (filters?.countryCodes?.length) {
     // Filter users based on country codes
-    usersToCreate = DEMO_USERS.filter(user => {
+    usersToCreate = DEMO_USERS.filter((user) => {
       if (user.id === US_USER.id && filters.countryCodes?.includes('US')) return true;
       if (user.id === NG_USER.id && filters.countryCodes?.includes('NG')) return true;
       return false;
@@ -24,11 +24,14 @@ export const createDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilte
 
   // Check which users already exist
   const existingUsers = await trx('users')
-    .whereIn('email', usersToCreate.map(u => u.email))
+    .whereIn(
+      'email',
+      usersToCreate.map((u) => u.email),
+    )
     .select('email');
-  
-  const existingEmails = new Set(existingUsers.map(u => u.email));
-  const newUsers = usersToCreate.filter(user => !existingEmails.has(user.email));
+
+  const existingEmails = new Set(existingUsers.map((u) => u.email));
+  const newUsers = usersToCreate.filter((user) => !existingEmails.has(user.email));
 
   if (newUsers.length === 0) {
     console.log('All required demo users already exist');
@@ -48,12 +51,14 @@ export const createDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilte
     });
   }
 
-  console.log(`Users processed: ${newUsers.length} created, ${existingEmails.size} already existed`);
+  console.log(
+    `Users processed: ${newUsers.length} created, ${existingEmails.size} already existed`,
+  );
 };
 export const deleteDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilter) => {
   // Smart user deletion logic - only delete users if we're deleting ALL companies for their country
   // Otherwise users shared between companies will cause foreign key violations
-  
+
   if (!filters) {
     // No filters = delete all demo users
     await trx('users').where('is_demo_user', true).delete();
@@ -71,7 +76,7 @@ export const deleteDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilte
   };
 
   const userEmailsToDelete: string[] = [];
-  
+
   if (isCompleteCountryDeletion('US')) {
     userEmailsToDelete.push(US_USER.email);
   }
@@ -80,10 +85,7 @@ export const deleteDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilte
   }
 
   if (userEmailsToDelete.length > 0) {
-    await trx('users')
-      .whereIn('email', userEmailsToDelete)
-      .where('is_demo_user', true)
-      .delete();
+    await trx('users').whereIn('email', userEmailsToDelete).where('is_demo_user', true).delete();
     console.log(`Deleted ${userEmailsToDelete.length} demo users`);
   } else {
     console.log('Skipping user deletion - partial filter would cause foreign key violations');

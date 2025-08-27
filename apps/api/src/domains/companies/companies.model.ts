@@ -112,7 +112,6 @@ export const createCompany = async (
   const { company: input, transaction: trx } = options;
   const startTime = Date.now();
   const operationId = `create-company-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  const isDemo = input.is_demo_company || false;
   const companyLogger = logger.child({
     operation: 'createCompany',
     operationId,
@@ -121,7 +120,7 @@ export const createCompany = async (
     createdById: input.created_by_id,
   });
 
-  !isDemo && companyLogger.info('Starting company creation');
+  companyLogger.info('Starting company creation');
 
   // Input validation and sanitization
   // const snakeInput = camelToSnake(input);
@@ -129,19 +128,18 @@ export const createCompany = async (
 
   if (!validateInput.success) {
     const validationError = 'Invalid input provided for company creation';
-    !isDemo &&
-      companyLogger.warn(
-        {
-          validationErrors: validateInput.error.flatten(),
-        },
-        validationError,
-      );
+    companyLogger.warn(
+      {
+        validationErrors: validateInput.error.flatten(),
+      },
+      validationError,
+    );
     return errorResponse(validationError, validateInput.error.flatten());
   }
 
   if (!input.created_by_id) {
     const userIdError = 'User ID is required for company creation';
-    !isDemo && companyLogger.warn(userIdError);
+    companyLogger.warn(userIdError);
     return errorResponse(userIdError);
   }
 
@@ -174,12 +172,12 @@ export const createCompany = async (
   // Execute company creation within the provided transaction
   try {
     // Verify user exists and has permission
-    !isDemo && logDatabaseOperation('SELECT', 'users', { userId: input.created_by_id });
+    logDatabaseOperation('SELECT', 'users', { userId: input.created_by_id });
     const userExists = await trx('users').where({ id: input.created_by_id }).first();
 
     if (!userExists) {
       const authError = `Non-existent user attempting to create company`;
-      !isDemo && companyLogger.warn({ userId: input.created_by_id }, authError);
+      companyLogger.warn({ userId: input.created_by_id }, authError);
       throw new AppError(
         'Unauthorized',
         `${authError}: ${sanitizedData.legal_name} with userId: ${input.created_by_id}`,
@@ -187,12 +185,12 @@ export const createCompany = async (
       );
     }
 
-    !isDemo && companyLogger.debug({ userId: userExists.id }, 'User authorization verified');
+    companyLogger.debug({ userId: userExists.id }, 'User authorization verified');
 
     // Resolve firm assignment
     let firmId = assigned_firm_id || null;
     if (!firmId) {
-      !isDemo && logDatabaseOperation('SELECT', 'accounting_firms_meta', { isPlatform: true });
+      logDatabaseOperation('SELECT', 'accounting_firms_meta', { isPlatform: true });
       const [firm] = await trx('accounting_firms_meta as af')
         .join('companies as c', 'af.company_id', 'c.id')
         .where('c.is_platform', true)
@@ -201,12 +199,12 @@ export const createCompany = async (
       firmId = firm?.id;
       if (!firmId) {
         const firmError = 'No platform firm available for company assignment';
-        !isDemo && companyLogger.error(firmError);
+        companyLogger.error(firmError);
         throw new AppError('Company must be assigned to a firm');
       }
-      !isDemo && companyLogger.debug({ firmId }, 'Assigned to platform firm');
+      companyLogger.debug({ firmId }, 'Assigned to platform firm');
     } else {
-      !isDemo && companyLogger.debug({ firmId }, 'Using provided firm assignment');
+      companyLogger.debug({ firmId }, 'Using provided firm assignment');
     }
 
     // Generate unique short code with collision handling
@@ -215,7 +213,7 @@ export const createCompany = async (
       input.short_code,
       companyLogger,
     );
-    !isDemo && companyLogger.debug({ shortCode, attempts }, 'Short code generated successfully');
+    companyLogger.debug({ shortCode, attempts }, 'Short code generated successfully');
 
     // Prepare company data with defaults
     const onboardingState =
@@ -245,27 +243,25 @@ export const createCompany = async (
     };
 
     // Insert company record
-    !isDemo &&
-      logDatabaseOperation('INSERT', 'companies', {
-        legalName: sanitizedData.legal_name,
-        shortCode,
-      });
+    logDatabaseOperation('INSERT', 'companies', {
+      legalName: sanitizedData.legal_name,
+      shortCode,
+    });
     const [company] = await trx('companies').insert(companyData).returning('*');
 
     if (!company?.id) {
       const insertError = 'Failed to create company record - no company returned';
-      !isDemo && companyLogger.error(insertError);
+      companyLogger.error(insertError);
       throw new AppError(insertError);
     }
 
-    !isDemo && companyLogger.info({ companyId: company.id }, 'Company record created successfully');
+    companyLogger.info({ companyId: company.id }, 'Company record created successfully');
 
     // Create firm assignment
-    !isDemo &&
-      logDatabaseOperation('INSERT', 'client_firm_assignments', {
-        clientCompanyId: company.id,
-        firmId,
-      });
+    logDatabaseOperation('INSERT', 'client_firm_assignments', {
+      clientCompanyId: company.id,
+      firmId,
+    });
     const firmAssignment = await trx('client_firm_assignments').insert({
       client_company_id: company.id,
       accounting_firm_company_id: firmId,
@@ -275,46 +271,38 @@ export const createCompany = async (
 
     if (!firmAssignment) {
       const assignmentError = 'Failed to assign company to firm';
-      !isDemo && companyLogger.error({ companyId: company.id, firmId }, assignmentError);
+      companyLogger.error({ companyId: company.id, firmId }, assignmentError);
       throw new AppError(assignmentError);
     }
 
-    !isDemo &&
-      companyLogger.info(
-        { companyId: company.id, firmId },
-        'Company assigned to firm successfully',
-      );
+    companyLogger.info({ companyId: company.id, firmId }, 'Company assigned to firm successfully');
 
     // Validate and return company data
     const companyDataValidation = newCompany.safeParse(company);
     const finalCompanyData = companyDataValidation.success ? companyDataValidation.data : company;
 
-    !isDemo &&
-      logTiming('createCompany', startTime, {
-        companyId: company.id,
-        operationId,
-      });
+    logTiming('createCompany', startTime, {
+      companyId: company.id,
+      operationId,
+    });
 
-    !isDemo &&
-      companyLogger.info({ companyId: company.id }, 'Company creation completed successfully');
+    companyLogger.info({ companyId: company.id }, 'Company creation completed successfully');
     return successResponse('Company created successfully', finalCompanyData);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    !isDemo &&
-      companyLogger.error(
-        {
-          error: error instanceof Error ? error : new Error(String(error)),
-          operationId,
-        },
-        `Company creation failed: ${errorMessage}`,
-      );
-
-    !isDemo &&
-      logError(error instanceof Error ? error : new Error(String(error)), {
-        operation: 'createCompany',
-        legalName: sanitizedData.legal_name,
+    companyLogger.error(
+      {
+        error: error instanceof Error ? error : new Error(String(error)),
         operationId,
-      });
+      },
+      `Company creation failed: ${errorMessage}`,
+    );
+
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      operation: 'createCompany',
+      legalName: sanitizedData.legal_name,
+      operationId,
+    });
 
     return errorResponse(
       'Unable to create company',

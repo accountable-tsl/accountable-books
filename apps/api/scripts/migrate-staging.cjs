@@ -5,7 +5,7 @@ const knexConfig = require('../knexfile.cjs');
 
 async function runStagingMigrations() {
   const db = knex(knexConfig.staging);
-  
+
   try {
     console.log('Starting database migrations for staging environment...');
 

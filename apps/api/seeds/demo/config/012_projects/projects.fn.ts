@@ -15,7 +15,7 @@ import { addNewProjects } from '../../../../src/domains/projects/projects.model.
 async function assignContactsToProjects(
   projects: any[],
   companyId: string,
-  trx: Knex.Transaction
+  trx: Knex.Transaction,
 ): Promise<any[]> {
   // Fetch available contacts for the company
   const contacts = await trx('contacts')
@@ -54,7 +54,7 @@ export const createDemoProjects = async (trx: Knex.Transaction, filters?: DemoFi
 
   // Get user mapping for dynamic user ID lookup
   const userMap = await getDemoUserMap(trx);
-  
+
   // Helper to get user ID safely
   const getUserId = (email: string) => {
     const userId = userMap.get(email);
@@ -71,9 +71,7 @@ export const createDemoProjects = async (trx: Knex.Transaction, filters?: DemoFi
     if (!projects || projects.length === 0) continue;
 
     // Check if projects already exist for this company (idempotency)
-    const existingProjects = await trx('projects')
-      .where({ company_id: company.id })
-      .first();
+    const existingProjects = await trx('projects').where({ company_id: company.id }).first();
 
     if (existingProjects) {
       console.log(`Projects already exist for company ${company.shortCode}, skipping`);
@@ -142,7 +140,7 @@ export const getOrCreateDemoProjectsMap = async (
   filters?: DemoFilter,
 ): Promise<CompanyProjectsMap[]> => {
   const companies = await getDemoCompanies(trx, filters);
-  const targetCompanyIds = companies.map(c => c.id);
+  const targetCompanyIds = companies.map((c) => c.id);
 
   // Check if projects exist for all target companies
   const hasAllProjects = targetCompanyIds.every((id) => demoProjectsByCompanyMap.has(id));
@@ -155,7 +153,6 @@ export const getOrCreateDemoProjectsMap = async (
   // Return the projects map with IDs
   return generateDemoProjectsMap(trx, filters);
 };
-
 
 /**
  * Delete demo projects from the database

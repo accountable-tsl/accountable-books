@@ -12,11 +12,11 @@ export type CompanyEcosystemData = {
   companyType: string;
   countryCode: string;
   currencyCode: string;
-  
+
   // User info
   userId: string;
   userEmail: string;
-  
+
   // Related data (with IDs from database)
   contacts: Array<{
     id: string;
@@ -24,7 +24,7 @@ export type CompanyEcosystemData = {
     email: string;
     status: string;
   }>;
-  
+
   projects: Array<{
     id: string;
     name: string;
@@ -40,27 +40,21 @@ export type CompanyEcosystemData = {
  */
 export const getCompanyEcosystemData = async (
   trx: Knex.Transaction,
-  filters?: DemoFilter
+  filters?: DemoFilter,
 ): Promise<CompanyEcosystemData[]> => {
   // Determine which companies to query
-  const targetCompanyIds = filters 
-    ? resolveFiltersToIds(filters) 
-    : DEMO_COMPANIES.map(c => c.id);
+  const targetCompanyIds = filters ? resolveFiltersToIds(filters) : DEMO_COMPANIES.map((c) => c.id);
 
   const ecosystemData: CompanyEcosystemData[] = [];
 
   for (const companyId of targetCompanyIds) {
     // Get company info
-    const company = await trx('companies')
-      .where({ id: companyId })
-      .first();
-    
+    const company = await trx('companies').where({ id: companyId }).first();
+
     if (!company) continue;
 
     // Get user info
-    const user = await trx('users')
-      .where({ id: company.created_by_id })
-      .first();
+    const user = await trx('users').where({ id: company.created_by_id }).first();
 
     // Get contacts for this company
     const contacts = await trx('contacts')
@@ -78,10 +72,10 @@ export const getCompanyEcosystemData = async (
       companyType: company.company_type,
       countryCode: company.country_code,
       currencyCode: company.currency_code,
-      
+
       userId: user?.id || '',
       userEmail: user?.email || '',
-      
+
       contacts: contacts || [],
       projects: projects || [],
     });
@@ -96,7 +90,7 @@ export const getCompanyEcosystemData = async (
  */
 export const getOrCreateCompanyEcosystemData = async (
   trx: Knex.Transaction,
-  filters?: DemoFilter
+  filters?: DemoFilter,
 ): Promise<CompanyEcosystemData[]> => {
   // Import the creation functions dynamically to avoid circular deps
   const { getOrCreateDemoContactsMap } = await import('../config/010_contacts/contacts.fn.js');
@@ -104,10 +98,10 @@ export const getOrCreateCompanyEcosystemData = async (
 
   // Ensure contacts exist
   await getOrCreateDemoContactsMap(trx, filters);
-  
-  // Ensure projects exist  
+
+  // Ensure projects exist
   await getOrCreateDemoProjectsMap(trx, filters);
-  
+
   // Now get the complete data from database
   return await getCompanyEcosystemData(trx, filters);
 };

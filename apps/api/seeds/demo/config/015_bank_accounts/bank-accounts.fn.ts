@@ -1,6 +1,12 @@
 import type { Knex } from 'knex';
 import { DemoFilter, DEMO_CURRENCIES } from '../../shared/config.js';
-import { deleteDemoData, getAccountTypeByKey, getBankMap, resolveFiltersToIds, getDemoUserMap } from '../../shared/utils.js';
+import {
+  deleteDemoData,
+  getAccountTypeByKey,
+  getBankMap,
+  resolveFiltersToIds,
+  getDemoUserMap,
+} from '../../shared/utils.js';
 import { getRawBankAccountsForInsertion, RawBankAccount } from './bank-accounts.data.js';
 
 /**
@@ -72,7 +78,7 @@ export const createDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
 
   // Get user mapping for dynamic user ID lookup
   const userMap = await getDemoUserMap(trx);
-  
+
   // Helper to get user ID safely
   const getUserId = (email: string) => {
     const userId = userMap.get(email);
@@ -89,9 +95,7 @@ export const createDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
     if (!bankAccounts || bankAccounts.length === 0) continue;
 
     // Check if bank accounts already exist for this company (idempotency)
-    const existingAccounts = await trx('bank_accounts')
-      .where({ company_id: company.id })
-      .first();
+    const existingAccounts = await trx('bank_accounts').where({ company_id: company.id }).first();
 
     if (existingAccounts) {
       console.log(`Bank accounts already exist for company ${company.shortCode}, skipping`);
@@ -124,7 +128,7 @@ export const createDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
           bankId,
           demoCurrency.id,
           userId,
-          trx
+          trx,
         );
         companyResults.push(result);
       } catch (error) {
@@ -156,7 +160,7 @@ export const deleteDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
   }
 
   const bankAccountsToDelete = await bankAccountsQuery.select('bank_accounts.coa_id');
-  const coaIds = bankAccountsToDelete.map(ba => ba.coa_id).filter(id => id); // Filter out any null coa_ids
+  const coaIds = bankAccountsToDelete.map((ba) => ba.coa_id).filter((id) => id); // Filter out any null coa_ids
 
   // Delete bank accounts first (they reference COA)
   await deleteDemoData({
@@ -167,10 +171,8 @@ export const deleteDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
 
   // Then delete the associated COA entries if any exist
   if (coaIds.length > 0) {
-    await trx('coa')
-      .whereIn('id', coaIds)
-      .delete();
-    
+    await trx('coa').whereIn('id', coaIds).delete();
+
     console.log(`Deleted ${coaIds.length} associated COA entries for bank accounts`);
   }
 };

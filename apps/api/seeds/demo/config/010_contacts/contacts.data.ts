@@ -18,7 +18,7 @@ export type DemoContactData = {
 // Single type for contact mapping - contacts can be with or without IDs
 export type CompanyContactsMap<T = DemoContactData> = {
   company: { id: string; shortCode: string; companyType: DemoCompanyType };
-  user: { id: string };  
+  user: { id: string };
   country: { code: string };
   contacts: T[];
 };
@@ -58,14 +58,17 @@ function getContactsForCompanyType(
 }
 
 /**
- * Get raw contact data for insertion (used during creation phase)  
+ * Get raw contact data for insertion (used during creation phase)
  */
-export const getRawContactsForInsertion = async (trx: Knex, filters?: DemoFilter): Promise<CompanyContactsMap[]> => {
+export const getRawContactsForInsertion = async (
+  trx: Knex,
+  filters?: DemoFilter,
+): Promise<CompanyContactsMap[]> => {
   const companies = await getDemoCompanies(trx, filters);
   const companiesMap = generateDemoCompaniesMap(filters);
 
   return companies.map((company) => {
-    const companyMapData = companiesMap.find(c => c.company.shortCode === company.short_code);
+    const companyMapData = companiesMap.find((c) => c.company.shortCode === company.short_code);
     if (!companyMapData) {
       throw new Error(`Company map data not found for ${company.short_code}`);
     }
@@ -78,7 +81,10 @@ export const getRawContactsForInsertion = async (trx: Knex, filters?: DemoFilter
       },
       user: companyMapData.user,
       country: companyMapData.country,
-      contacts: getContactsForCompanyType(companyMapData.company.companyType, companyMapData.country.code),
+      contacts: getContactsForCompanyType(
+        companyMapData.company.companyType,
+        companyMapData.country.code,
+      ),
     };
   });
 };
@@ -87,7 +93,10 @@ export const getRawContactsForInsertion = async (trx: Knex, filters?: DemoFilter
  * Get demo contacts map from created contacts (reads from state)
  * This should be called AFTER contacts have been created and stored in demoContactsByCompanyMap
  */
-export const generateDemoContactsMap = async (trx: Knex, filters?: DemoFilter): Promise<CompanyContactsMap<DemoContact>[]> => {
+export const generateDemoContactsMap = async (
+  trx: Knex,
+  filters?: DemoFilter,
+): Promise<CompanyContactsMap<DemoContact>[]> => {
   if (demoContactsByCompanyMap.size === 0) {
     throw new Error(
       'generateDemoContactsMap called before contacts were created. ' +
@@ -99,7 +108,7 @@ export const generateDemoContactsMap = async (trx: Knex, filters?: DemoFilter): 
   const companiesMap = generateDemoCompaniesMap(filters);
 
   return companies.map((company) => {
-    const companyMapData = companiesMap.find(c => c.company.shortCode === company.short_code);
+    const companyMapData = companiesMap.find((c) => c.company.shortCode === company.short_code);
     if (!companyMapData) {
       throw new Error(`Company map data not found for ${company.short_code}`);
     }
