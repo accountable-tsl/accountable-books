@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,8 +15,21 @@ if (!envs.includes(currentEnv)) {
 
 const loadEnvFiles = () => {
   const envFile = `.env.${currentEnv}`;
-  dotenv.config({ path: path.resolve(__dirname, `../${envFile}`) });
-  console.log(`🌱 Loaded environment from: ${envFile}`);
+  const envPath = path.resolve(__dirname, `../${envFile}`);
+
+  // Check if specific environment file exists, fallback to .env.local for test
+  let actualEnvFile = envFile;
+  let actualEnvPath = envPath;
+
+  if (currentEnv === 'test' && !fs.existsSync(envPath)) {
+    // Fallback to .env.local for test environment when .env.test doesn't exist
+    actualEnvFile = '.env.local';
+    actualEnvPath = path.resolve(__dirname, `../.env.local`);
+    console.log(`🌱 Using .env.local for test environment (no .env.test found)`);
+  }
+
+  dotenv.config({ path: actualEnvPath });
+  console.log(`🌱 Loaded environment from: ${actualEnvFile}`);
 
   if (currentEnv === 'staging' || currentEnv === 'production') {
     const secretsFile = `.env.secrets.${currentEnv}`;

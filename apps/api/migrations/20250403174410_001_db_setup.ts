@@ -1,15 +1,17 @@
 import type { Knex } from 'knex';
 
 const ENV = (process.env.NODE_ENV || 'local').toLowerCase();
-const IS_LOCAL = ENV === 'local' || ENV === 'development' || ENV === 'test';
+const IS_LOCAL = ENV === 'local' || ENV === 'development';
+const IS_TEST = ENV === 'test';
 
-const BASE = ['pgcrypto', 'pg_uuidv7', 'pg_trgm', 'vector', 'citext', 'unaccent', 'pg_cron'];
+const BASE = ['pgcrypto', 'pg_uuidv7', 'pg_trgm', 'vector', 'citext', 'unaccent'];
+
 const CANDIDATE_EXTENSIONS = IS_LOCAL ? [...BASE, 'pg_cron'] : BASE;
 
 export async function up(knex: Knex): Promise<void> {
   // Only create extensions in local environments
-  if (!IS_LOCAL) {
-    console.log('Skipping extension creation in non-local environment');
+  if (!IS_LOCAL && !IS_TEST) {
+    console.log('Skipping extension creation...');
     return;
   }
 
