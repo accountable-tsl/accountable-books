@@ -118,14 +118,18 @@ export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
   REDIS_URL: {
     description: 'Redis connection URL',
-    type: 'url',
+    type: 'secret',
     local: 'redis://localhost:6380',
-    staging: 'redis://redis:6379',
-    production: 'rediss://default:password@region-cache.upstash.io:6380',
   },
 
   REDIS_PASSWORD: {
     description: 'Redis password',
+    type: 'secret',
+    local: '',
+  },
+
+  LOCAL_STAGING_REDIS_URL: {
+    description: 'Local Redis connection URL',
     type: 'secret',
     local: '',
   },

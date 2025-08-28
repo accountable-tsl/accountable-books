@@ -57,3 +57,5 @@ export const SECRETS = createSecretsProxy(process.env);
 // Environment helpers
 export const isProd = NODE_ENV === 'production' || NODE_ENV === 'staging';
 export const isDev = NODE_ENV === 'local';
+export const isLocalStaging =
+  process.argv.includes('--local:staging') || process.env.LOCAL_STAGING === 'true';

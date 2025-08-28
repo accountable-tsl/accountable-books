@@ -1,9 +1,9 @@
 import { Redis } from 'ioredis';
-import { ENV, isDev } from '../config/env.js';
+import { ENV, isLocalStaging } from '../config/env.js';
 
-const url: string = isDev ? ENV.REDIS_URL || 'redis://localhost:6379' : ENV.REDIS_URL || '';
+const url: string = (isLocalStaging ? ENV.LOCAL_STAGING_REDIS_URL : ENV.REDIS_URL) || '';
 if (!url) throw new Error('Redis URL is not set');
 
-export const redis: Redis = new Redis(url, {
+export const redis = new Redis(url, {
   maxRetriesPerRequest: null,
 });
