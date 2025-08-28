@@ -220,20 +220,18 @@ deploy-local-staging: ## Deploy to staging (local)
 	$(MAKE) db-local-staging-apply-demo ## Seed database
 	$(MAKE) db-staging-up-redis ## Start redis service
 
-
-
 drop-local-staging: ## Stop staging services
 	@echo "$(YELLOW)Stopping staging services...$(RESET)"
 	$(MAKE) db-staging-nuke
 
-deploy-remote-staging: ## Deploy to staging (remote)
-	@echo "$(GREEN)Deploying to staging (remote)$(RESET)"
-	$(MAKE) db-remote-staging-migrate
-	$(MAKE) db-remote-staging-migrate
-	$(MAKE) db-remote-staging-apply-demo
-	./scripts/deploy-fly-staging.sh deploy ## for fly.io
-	# start worker as well
-	## not sure what i did for vercel
-	## is it possible to make sure all these happens whenever i push to staging branch?
+# deploy-remote-staging: ## Deploy to staging (remote)
+# 	@echo "$(GREEN)Deploying to staging (remote)$(RESET)"
+# 	$(MAKE) db-remote-staging-migrate
+# 	$(MAKE) db-remote-staging-migrate
+# 	$(MAKE) db-remote-staging-apply-demo
+# 	./scripts/deploy-fly-staging.sh deploy ## for fly.io
+# 	# start worker as well
+# 	## not sure what i did for vercel
+# 	## is it possible to make sure all these happens whenever i push to staging branch?
 
 
