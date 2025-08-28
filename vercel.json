@@ -1,4 +1,0 @@
-{
-  "buildCommand": "pnpm -w install && pnpm --filter @accountable-books/web build",
-  "outputDirectory": "apps/web/dist"
-}
