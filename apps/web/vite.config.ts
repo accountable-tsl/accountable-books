@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const env = process.env.NODE_ENV;
-const isDev = env === 'development' || env === 'local' || env === 'docker:dev';
+const isDev = env === 'development' || env === 'local';
+const isStaging = env === 'staging';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -18,7 +19,7 @@ export default defineConfig({
 
   server: {
     host: true /* == 0.0.0.0 */,
-    port: 5173,
+    port: isStaging ? 3000 : 5173,
     allowedHosts: ['localhost', 'lvh.me', '.lvh.me'],
   },
 });

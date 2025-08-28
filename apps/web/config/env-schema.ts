@@ -18,9 +18,17 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     description: 'Backend API URL (must start with VITE_ for Vite)',
     type: 'url',
     required: true,
-    local: 'http://localhost:5000',
-    staging: 'https://api-staging.accountable.local',
-    production: 'https://api.accountable.com',
+    local: 'http://api.lvh.me:5000',
+    staging: 'localhost:5001',
+    production: 'https://api.getaccountable.com',
+  },
+
+  VITE_BASE_DOMAIN: {
+    description: 'Base domain for the application',
+    type: 'string',
+    local: 'lvh.me',
+    staging: 'localhost',
+    production: 'app.getaccountable.com',
   },
 
   // ============================================================================

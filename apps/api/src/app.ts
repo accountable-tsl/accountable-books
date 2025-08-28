@@ -49,34 +49,36 @@ app.get('/health', (_req: express.Request, res: express.Response) =>
   res.status(200).json({ ok: true }),
 );
 
-const originalError = console.error;
-console.error = (...args: unknown[]) => {
-  originalError(...args);
+// const originalError = console.error;
+// console.error = (...args: unknown[]) => {
+//   originalError(...args);
 
-  for (const arg of args) {
-    if (arg instanceof Error && arg.stack) {
-      originalError('Stack Trace:', arg.stack);
-      return;
-    }
-  }
+//   for (const arg of args) {
+//     if (arg instanceof Error && arg.stack) {
+//       originalError('Stack Trace:', arg.stack);
+//       return;
+//     }
+//   }
 
-  // fallback if no Error instance is found
-  const fallbackStack = new Error().stack;
-  if (fallbackStack) originalError('Generated Stack Trace:', fallbackStack);
-};
+//   // fallback if no Error instance is found
+//   const fallbackStack = new Error().stack;
+//   if (fallbackStack) originalError('Generated Stack Trace:', fallbackStack);
+// };
 
-const allowedOrigins = [
-  FRONTEND_URL,
-  /^https?:\/\/[\w-]+\.localhost(:\d+)?$/,
+const devOrigins = [
+  'http://app.lvh.me:5173',
+  'http://app.lvh.me:5174',
+  'http://app.lvh.me:3001',
   'http://localhost:5173',
-  'localhost:5173',
-  'http://lvh.me:5173',
-  /\.lvh\.me(:5173)?$/,
-  new RegExp(
-    `^https?://[\\w-]+\\.${FRONTEND_URL.replace(/^https?:\/\//, '').replace(/\\./g, '\\\\.')}$`,
-  ),
+  'http://localhost:5174',
+  'http://localhost:3001',
+  /^https?:\/\/[\w-]+\.lvh\.me:(5173|5174|3001)$/,
 ];
 
+const allowedOrigins =
+  process.env.NODE_ENV === 'production'
+    ? [process.env.FRONTEND_URL]
+    : [process.env.FRONTEND_URL, ...devOrigins];
 export async function setupApp() {
   // Load critical stuff first
   await loadRoles();

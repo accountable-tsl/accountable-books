@@ -1,3 +1,5 @@
+name: acct-dev
+
 services:
   db:
     image: iamtemi/accountable:pg17-cron-vector-v1

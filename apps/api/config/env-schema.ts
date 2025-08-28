@@ -24,14 +24,14 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Server port',
     type: 'number',
     local: '5000',
-    staging: '5000',
+    staging: '5001',
     production: '5000',
   },
 
   BASE_DOMAIN: {
     description: 'Base domain for the application',
     type: 'string',
-    local: 'localhost',
+    local: 'lvh.me',
     staging: 'localhost',
     production: 'getaccountable.com',
   },
@@ -39,23 +39,24 @@ export const API_ENV_SCHEMA: EnvSchema = {
   BACKEND_URL: {
     description: 'Backend API URL',
     type: 'url',
-    local: 'http://localhost:5000',
-    staging: 'http://localhost:5000',
+    local: 'http://api.lvh.me:5000',
+    staging: 'http://localhost:5001',
     production: 'https://api.getaccountable.com',
   },
 
   FRONTEND_URL: {
     description: 'Frontend application URL',
     type: 'url',
-    local: 'http://localhost:5173',
+    local: 'http://app.lvh.me:5173',
     staging: 'http://localhost:3000',
     production: 'https://app.getaccountable.com',
   },
 
+  // I use .lvh for me in dev to test out subdomain implementation
   COOKIE_DOMAIN: {
-    description: 'Domain for setting cookies',
+    description: 'Domain for setting cookies (e.g. .lvh.me or localhost)',
     type: 'string',
-    local: 'localhost',
+    local: '.lvh.me',
     staging: 'localhost',
     production: '.getaccountable.com',
   },
@@ -229,8 +230,14 @@ export const API_ENV_SCHEMA: EnvSchema = {
   SENTRY_DSN: {
     description: 'Sentry error tracking DSN',
     type: 'secret',
-    required: false,
-    local: 'https://your-sentry-dsn@sentry.io/project',
+    local:
+      'https://dc1680a6d867d6d380f73083d6da30f3@o4509142160506880.ingest.de.sentry.io/4509142176104528',
+  },
+
+  SENTRY_RELEASE: {
+    description: 'Sentry release version',
+    type: 'string',
+    default: '0.0.0',
   },
 
   // ============================================================================

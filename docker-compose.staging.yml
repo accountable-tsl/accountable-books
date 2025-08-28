@@ -1,3 +1,5 @@
+name: acct-staging
+
 networks:
   books-staging:
     driver: bridge
@@ -47,25 +49,24 @@ services:
       retries: 3
     restart: unless-stopped
 
-  api-migrate:
-    build:
-      context: .
-      dockerfile: apps/api/infra/docker/Dockerfile
-    container_name: books-api-migrate-staging
-    networks:
-      - books-staging
-    env_file:
-      - ./apps/api/.env.staging
-      - ./apps/api/.env.secrets.staging
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: ['sh', '-c', 'cd apps/api && npx knex migrate:latest --env staging']
-    restart: 'no'
+  # api-migrate:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/api/infra/docker/Dockerfile
+  #   container_name: books-api-migrate-staging
+  #   networks:
+  #     - books-staging
+  #   env_file:
+  #     - ./apps/api/.env.staging
+  #     - ./apps/api/.env.secrets.staging
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   command: ['sh', '-c', 'cd apps/api && npx knex migrate:latest --env staging']
+  #   restart: 'no'
 
-  # API service - start after migrations complete
   api:
     build:
       context: .
@@ -77,8 +78,6 @@ services:
       - ./apps/api/.env.staging
       - ./apps/api/.env.secrets.staging
     depends_on:
-      api-migrate:
-        condition: service_completed_successfully
     healthcheck:
       test: ['CMD-SHELL', 'curl -fsS http://localhost:5000/health || exit 1']
       interval: 30s
