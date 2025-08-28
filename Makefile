@@ -217,8 +217,8 @@ deploy-local-staging: ## Deploy to staging (local)
 	@echo "$(GREEN)Deploying to staging (local)$(RESET)"
 	$(MAKE) db-staging-up-postgres ## Start postgres service
 	$(MAKE) db-local-staging-migrate ## Run migrations
-	@sleep 10
 	$(MAKE) db-local-staging-apply-demo ## Seed database
+	$(MAKE) db-staging-up-redis ## Start redis service
 
 
 drop-local-staging: ## Stop staging services
@@ -228,3 +228,5 @@ drop-local-staging: ## Stop staging services
 deploy-remote-staging: ## Deploy to staging (remote)
 	@echo "$(GREEN)Deploying to staging (remote)$(RESET)"
 	$(MAKE) db-remote-staging-migrate
+	$(MAKE) db-remote-staging-migrate
+	$(MAKE) db-remote-staging-apply-demo
