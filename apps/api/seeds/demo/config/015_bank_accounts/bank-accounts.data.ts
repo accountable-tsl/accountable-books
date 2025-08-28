@@ -60,7 +60,8 @@ const US_BANK_KEYS = [
 const NG_BANK_KEYS = [
   'ng_gtbank',
   'ng_zenith_bank',
-  'ng_uba',
+  'ng_united_bank_for_africa',
+  'ng_polaris_bank',
   'ng_access_bank',
   'ng_citibank_nigeria',
   'ng_ecobank_nigeria',

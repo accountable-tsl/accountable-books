@@ -6,9 +6,6 @@ const ENV = process.env.NODE_ENV ?? 'local';
 const IS_LOCAL_STAGING =
   process.argv.includes('--local:staging') || process.env.LOCAL_STAGING === 'true';
 
-// const USE_LOCAL = ENV === 'local' || IS_LOCAL_STAGING;
-// const IS_TEST = ENV === 'test';
-
 // Database URLs
 const DATABASE_URL = process.env.DATABASE_URL ?? '';
 const DATABASE_URL_UNPOOLED = process.env.DATABASE_URL_NOPOOL ?? '';
@@ -75,8 +72,11 @@ const cfg = (tableName: string, connection: Knex.Config['connection']): Knex.Con
 const config: Record<string, Knex.Config> = {
   local: cfg('knex_migrations_dev', getLocalConnection()),
   test: cfg('knex_migrations_test', getLocalConnection(true)),
-  staging: cfg('knex_migrations_staging', getRemoteConnection(DATABASE_URL)),
-  production: cfg('knex_migrations', getRemoteConnection(DATABASE_URL)),
+  staging: cfg(
+    'knex_migrations_staging',
+    IS_LOCAL_STAGING ? getLocalConnection() : getRemoteConnection(DATABASE_URL_UNPOOLED),
+  ),
+  production: cfg('knex_migrations', getRemoteConnection(DATABASE_URL_UNPOOLED)),
 };
 
 export default config;

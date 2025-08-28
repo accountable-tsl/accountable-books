@@ -217,6 +217,7 @@ deploy-local-staging: ## Deploy to staging (local)
 	@echo "$(GREEN)Deploying to staging (local)$(RESET)"
 	$(MAKE) db-staging-up-postgres ## Start postgres service
 	$(MAKE) db-local-staging-migrate ## Run migrations
+	@sleep 10
 	$(MAKE) db-local-staging-apply-demo ## Seed database
 
 
