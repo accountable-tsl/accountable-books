@@ -1,4 +1,12 @@
 {
-  "buildCommand": "pnpm -w install && pnpm --filter @accountable-books/web build",
-  "outputDirectory": "apps/web/dist"
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
+  "framework": "vite",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
