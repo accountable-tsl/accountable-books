@@ -27,7 +27,7 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     description: 'Base domain for the application',
     type: 'string',
     local: 'lvh.me',
-    staging: 'localhost',
+    staging: ' ',
     production: 'app.getaccountable.com',
   },
 

@@ -11,6 +11,7 @@ primary_region = "iad"  # Washington DC (US East)
 [build]
   dockerfile = "apps/api/infra/docker/Dockerfile.staging"
   # Build context: Project root (required for monorepo dependencies)
+  build-target = "runtime"
 
 [env]
   # Essential overrides - these override values from .env.staging
@@ -20,8 +21,12 @@ primary_region = "iad"  # Washington DC (US East)
   # Custom domain overrides
   BASE_DOMAIN = "getaccountable.com"
   BACKEND_URL = "https://api-staging.getaccountable.com"
-  FRONTEND_URL = "https://app-staging.getaccountable.com"
+  FRONTEND_URL = "https://staging.getaccountable.com"
   COOKIE_DOMAIN = ".getaccountable.com" 
+
+[processes]
+  web = "node dist/src/server.js"
+  worker = "node dist/src/jobs/workers/email.worker.js"
 
 [http_service]
   internal_port = 5001
@@ -29,6 +34,7 @@ primary_region = "iad"  # Washington DC (US East)
   auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
+  processes = ["web"]  # Only web process handles HTTP traffic
 
   [[http_service.checks]]
     method = "GET"
