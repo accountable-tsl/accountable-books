@@ -41,7 +41,7 @@ const getConnection = (): Knex.Config['connection'] => {
   if (isLocal) return getLocalConnection();
   if (isTest) return getLocalConnection(true);
 
-  return DATABASE_URL_UNPOOLED || DATABASE_URL;
+  return DATABASE_URL || DATABASE_URL_UNPOOLED;
 };
 
 // Base configuration shared across all environments

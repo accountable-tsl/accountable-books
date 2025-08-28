@@ -13,7 +13,24 @@ if (!envs.includes(currentEnv)) {
   throw new Error(`Unsupported environment: ${currentEnv}`);
 }
 
+export const isDev = currentEnv === 'local' || currentEnv === 'test';
+export const isProd = currentEnv === 'staging' || currentEnv === 'production';
+export const ENV = process.env;
+
 const loadEnvFiles = () => {
+  // Skip loading .env files on Fly.io - use environment variables and secrets instead
+  const isOnFly = process.env.FLY_APP_NAME || process.env.FLY_ALLOC_ID;
+
+  if (isOnFly) {
+    console.log(`🚀 Running on Fly.io - using environment variables and secrets`);
+    return;
+  }
+
+  if (currentEnv === 'production') {
+    console.log(`🚀 Production environment - using environment variables and secrets`);
+    return;
+  }
+
   const envFile = `.env.${currentEnv}`;
   const envPath = path.resolve(__dirname, `../${envFile}`);
 
@@ -45,7 +62,3 @@ const loadEnvFiles = () => {
 };
 
 loadEnvFiles();
-
-export const isDev = currentEnv === 'local' || currentEnv === 'test';
-export const isProd = currentEnv === 'staging' || currentEnv === 'production';
-export const ENV = process.env;

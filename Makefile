@@ -230,3 +230,8 @@ deploy-remote-staging: ## Deploy to staging (remote)
 	$(MAKE) db-remote-staging-migrate
 	$(MAKE) db-remote-staging-migrate
 	$(MAKE) db-remote-staging-apply-demo
+	./scripts/deploy-fly-staging.sh deploy ## for fly.io
+	## not sure what i did for vercel
+	## is it possible to make sure all these happens whenever i push to staging branch?
+
+

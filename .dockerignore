@@ -1,0 +1,65 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+.turbo
+.next
+out
+
+# Development files
+.git
+.gitignore
+.env*
+!.env.example
+.DS_Store
+*.log
+.vscode
+.idea
+
+# Test files
+coverage
+.nyc_output
+*.test.ts
+*.spec.ts
+__tests__
+test-results
+playwright-report
+
+# Documentation
+docs
+README.md
+*.md
+
+# CI/CD
+.github
+.husky
+
+# Local development
+docker-compose*.yml
+Makefile
+scripts/deploy-*.sh
+
+# Large directories not needed for API build
+infra/monitoring
+infra/backup
+scripts/deploy
+scripts/security
+
+# Web app (not needed for API)
+apps/web/dist
+apps/web/node_modules
+
+# ML engine (not needed for API)
+apps/ml-engine
+
+# Secrets
+secrets/
+
+# Backups
+backups/
+
+# IDE
+.cursor/
+.claude/

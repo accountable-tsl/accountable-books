@@ -1,0 +1,74 @@
+# Multi-stage build for API staging
+FROM node:24.3.0-alpine AS base
+RUN npm install -g pnpm@10.15.0
+WORKDIR /app
+
+# Prune stage - only get what @accountable-books/api needs
+FROM base AS pruner
+COPY . .
+RUN npm install -g turbo@2.5.6
+RUN turbo prune @accountable-books/api --docker
+
+# Install dependencies stage
+FROM base AS deps
+# Copy pruned workspace
+COPY --from=pruner /app/out/json/ .
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Build stage
+FROM base AS builder
+# Install turbo for the build
+RUN npm install -g turbo@2.5.6
+
+# Copy dependencies
+COPY --from=deps /app/ .
+
+# Copy pruned source code
+COPY --from=pruner /app/out/full/ .
+
+# Copy root config files that turbo prune doesn't include
+COPY tsconfig.base.json ./
+COPY turbo.json ./
+
+# Build the API
+RUN turbo build --filter=@accountable-books/api
+
+# Runtime stage
+FROM node:24.3.0-alpine AS runtime
+RUN npm install -g pnpm@10.15.0 && apk add --no-cache jq
+WORKDIR /app
+
+# Copy the entire built workspace structure
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+COPY --from=builder /app/apps/api/knexfile.ts ./apps/api/
+COPY --from=builder /app/apps/api/migrations ./apps/api/migrations
+COPY --from=builder /app/apps/api/seeds ./apps/api/seeds
+
+# Copy workspace packages (both source and dist)
+COPY --from=builder /app/packages ./packages
+
+# Copy all node_modules with proper structure
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+
+# Copy package files for proper resolution
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+
+# Fix package.json exports to point to dist instead of src
+RUN for pkg in packages/*/package.json; do \
+    if [ -f "$pkg" ]; then \
+        jq '.exports={".":{"types":"./dist/index.d.ts","import":"./dist/index.js"}} | .main="./dist/index.js" | .types="./dist/index.d.ts"' "$pkg" > "$pkg.tmp" && \
+        mv "$pkg.tmp" "$pkg"; \
+    fi \
+done
+
+WORKDIR /app/apps/api
+
+EXPOSE 5001
+
+CMD ["node", "dist/src/server.js"]

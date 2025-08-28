@@ -19,7 +19,7 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     type: 'url',
     required: true,
     local: 'http://api.lvh.me:5000',
-    staging: 'localhost:5001',
+    staging: 'http://localhost:5001',
     production: 'https://api.getaccountable.com',
   },
 

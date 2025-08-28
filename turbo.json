@@ -3,6 +3,7 @@
   "ui": "tui",
   "tasks": {
     "generate-env": {
+      "dependsOn": ["^build"],
       "inputs": ["packages/utils/src/env/*"],
       "outputs": ["apps/**/.env.**"]
     },

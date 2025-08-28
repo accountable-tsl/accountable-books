@@ -24,14 +24,13 @@ import projectsRoutes from './domains/projects/projects.routes.js';
 import { swaggerUi, specs } from './docs/swagger.js';
 import { serverAdapter } from './lib/bullboard.js';
 import { basicAuth } from './core/middlewares/basicAuth.middleware.js';
-import { ENV, isDev } from './config/env.js';
+import { ENV, isDev, NODE_ENV } from './config/env.js';
 import { loadRoles } from './domains/roles/roles.model.js';
 import cookieParser from 'cookie-parser';
 import { conditionalCsrf, verifyRefreshToken } from './features/auth/auth.middleware.js';
 import { loadAccountMeta } from './domains/account/account.registry.js';
 import pino from 'pino';
 import { pinoHttp } from 'pino-http';
-import path from 'path';
 
 export const FRONTEND_URL = ENV.FRONTEND_URL!;
 
@@ -65,6 +64,22 @@ app.get('/health', (_req: express.Request, res: express.Response) =>
 //   if (fallbackStack) originalError('Generated Stack Trace:', fallbackStack);
 // };
 
+const exact = new Set<string>([
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3001',
+  'http://app.lvh.me:5173',
+  'http://app.lvh.me:5174',
+  'http://app.lvh.me:3001',
+  'https://staging.getaccountable.com', // staging web
+]);
+
+const patterns: RegExp[] = [
+  new RegExp(`^https:\\/\\/[\\w-]+\\.getaccountable\\.com$`),
+  ...(NODE_ENV === 'staging' ? [/^https:\/\/.+\.vercel\.app$/] : []),
+  /^https?:\/\/[\w-]+\.lvh\.me:(5173|5174|3001)$/,
+];
+
 const devOrigins = [
   'http://app.lvh.me:5173',
   'http://app.lvh.me:5174',
@@ -75,16 +90,25 @@ const devOrigins = [
   /^https?:\/\/[\w-]+\.lvh\.me:(5173|5174|3001)$/,
 ];
 
-const allowedOrigins =
-  process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL]
-    : [process.env.FRONTEND_URL, ...devOrigins];
+const allowedOrigins = NODE_ENV === 'production' ? [FRONTEND_URL] : [FRONTEND_URL, ...devOrigins];
 export async function setupApp() {
   // Load critical stuff first
   await loadRoles();
   await loadAccountMeta();
 
-  app.use(cors({ origin: allowedOrigins, credentials: true }));
+  // app.use(cors({ origin: allowedOrigins, credentials: true }));
+
+  app.use(
+    cors({
+      origin(origin, cb) {
+        if (!origin) return cb(null, true); // health checks, curl
+        const ok = exact.has(origin) || patterns.some((rx) => rx.test(origin));
+        cb(ok ? null : new Error('CORS blocked'));
+      },
+      credentials: true,
+    }),
+  );
+
   // Serve built static assets first (Docker runtime) then fallback to dev path
   app.use(express.static('./dist/public'));
   app.use(express.static('./public'));
