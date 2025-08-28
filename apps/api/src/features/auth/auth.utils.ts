@@ -62,7 +62,7 @@ export const setAuthCookies = (
     domain: cookieDomain,
     httpOnly: true,
     secure: isProd,
-    sameSite: 'strict',
+    sameSite: 'none',
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: '/',
   });
@@ -71,7 +71,7 @@ export const setAuthCookies = (
     domain: cookieDomain,
     httpOnly: true,
     secure: isProd,
-    sameSite: 'strict',
+    sameSite: 'none',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',
   });
@@ -81,7 +81,7 @@ export const setAuthCookies = (
 //   cookie: {
 //     httpOnly: true,
 //     secure: isProd,
-//     sameSite: isDev ? "lax" : "strict",
+//     sameSite: isDev ? "lax" : "none",
 //     domain: cookieDomain,
 //     path: "/",
 //   },
@@ -99,7 +99,7 @@ export const {
   cookieOptions: {
     httpOnly: true,
     secure: isProd,
-    sameSite: isDev ? 'lax' : 'strict',
+    sameSite: isDev ? 'lax' : 'none',
     domain: cookieDomain,
     path: '/',
   },
@@ -113,7 +113,7 @@ export const clearCsrfCookie = (res: Response) => {
     path: '/',
     secure: isProd,
     httpOnly: true,
-    sameSite: isDev ? 'lax' : 'strict',
+    sameSite: isDev ? 'lax' : 'none',
   });
 };
 

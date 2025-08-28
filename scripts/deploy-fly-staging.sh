@@ -101,6 +101,43 @@ set_secrets() {
     print_success "Secrets configured"
 }
 
+# Function to extract environment variables from fly.staging.toml
+extract_fly_env_vars() {
+    local fly_config="fly.staging.toml"
+    local override_vars=()
+    
+    if [ ! -f "$fly_config" ]; then
+        print_error "Fly config file not found: $fly_config"
+        return 1
+    fi
+    
+    print_status "Extracting environment variables from $fly_config..."
+    
+    # Extract variables from [env] section
+    local in_env_section=false
+    while IFS= read -r line; do
+        # Check if we're entering the [env] section
+        if [[ "$line" =~ ^\[env\]$ ]]; then
+            in_env_section=true
+            continue
+        fi
+        
+        # Check if we're leaving the [env] section (next section starts)
+        if [[ "$in_env_section" == true ]] && [[ "$line" =~ ^\[.*\]$ ]]; then
+            break
+        fi
+        
+        # Extract variable names from [env] section
+        if [[ "$in_env_section" == true ]] && [[ "$line" =~ ^[[:space:]]*([A-Z_][A-Z0-9_]*)[[:space:]]*=[[:space:]]* ]]; then
+            local var_name="${BASH_REMATCH[1]}"
+            override_vars+=("$var_name")
+            print_status "Found override var: $var_name"
+        fi
+    done < "$fly_config"
+    
+    echo "${override_vars[@]}"
+}
+
 # Function to build environment variables string for deployment
 build_env_vars() {
     if [ ! -f "$ENV_FILE" ]; then
@@ -114,6 +151,15 @@ build_env_vars() {
     # Build env vars string for fly deploy
     ENV_ARGS=""
     
+    # Dynamically extract override variables from fly.staging.toml
+    local override_vars=($(extract_fly_env_vars))
+    
+    if [ ${#override_vars[@]} -eq 0 ]; then
+        print_warning "No environment variables found in fly.staging.toml [env] section"
+    else
+        print_status "Found ${#override_vars[@]} variables in fly.staging.toml that will override local values"
+    fi
+    
     # Read env file and build non-secret variables
     while IFS='=' read -r key value; do
         # Skip comments and empty lines
@@ -122,6 +168,12 @@ build_env_vars() {
         
         # Skip secrets (these should be in .env.secrets.staging)
         if [[ $key == *"SECRET"* ]] || [[ $key == *"PASSWORD"* ]] || [[ $key == *"KEY"* ]]; then
+            continue
+        fi
+        
+        # Skip variables that are overridden by fly.staging.toml
+        if [[ " ${override_vars[@]} " =~ " ${key} " ]]; then
+            print_status "Skipping $key (overridden by fly.staging.toml)"
             continue
         fi
         

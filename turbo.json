@@ -1,11 +1,12 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "globalDependencies": ["**/.env.*local"],
   "tasks": {
     "generate-env": {
       "dependsOn": ["^build"],
       "inputs": ["packages/utils/src/env/*"],
-      "outputs": ["apps/**/.env.**"]
+      "outputs": ["apps/api/.env.**", "apps/web/.env.**"]
     },
 
     "validate-contracts": {

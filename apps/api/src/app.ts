@@ -72,40 +72,31 @@ const exact = new Set<string>([
   'http://app.lvh.me:5174',
   'http://app.lvh.me:3001',
   'https://staging.getaccountable.com', // staging web
+  'https://app.getaccountable.com', // production web
 ]);
 
 const patterns: RegExp[] = [
-  new RegExp(`^https:\\/\\/[\\w-]+\\.getaccountable\\.com$`),
+  /^https:\/\/[\w-]+\.getaccountable\.com$/,
   ...(NODE_ENV === 'staging' ? [/^https:\/\/.+\.vercel\.app$/] : []),
   /^https?:\/\/[\w-]+\.lvh\.me:(5173|5174|3001)$/,
 ];
 
-const devOrigins = [
-  'http://app.lvh.me:5173',
-  'http://app.lvh.me:5174',
-  'http://app.lvh.me:3001',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:3001',
-  /^https?:\/\/[\w-]+\.lvh\.me:(5173|5174|3001)$/,
-];
-
-const allowedOrigins = NODE_ENV === 'production' ? [FRONTEND_URL] : [FRONTEND_URL, ...devOrigins];
 export async function setupApp() {
   // Load critical stuff first
   await loadRoles();
   await loadAccountMeta();
 
-  // app.use(cors({ origin: allowedOrigins, credentials: true }));
-
   app.use(
     cors({
       origin(origin, cb) {
-        if (!origin) return cb(null, true); // health checks, curl
+        if (!origin) return cb(null, true);
         const ok = exact.has(origin) || patterns.some((rx) => rx.test(origin));
-        cb(ok ? null : new Error('CORS blocked'));
+        cb(null, ok); // FIX: Must be (null, true/false) not (error)
       },
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+      exposedHeaders: ['X-CSRF-Token'],
     }),
   );
 

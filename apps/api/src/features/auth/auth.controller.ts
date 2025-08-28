@@ -103,14 +103,14 @@ export async function logoutController(req: AuthRequest, res: Response) {
     path: '/',
     httpOnly: true,
     secure: isProd,
-    sameSite: 'strict',
+    sameSite: 'none',
   });
   res.clearCookie('refreshToken', {
     domain: cookieDomain,
     path: '/',
     httpOnly: true,
     secure: isProd,
-    sameSite: 'strict',
+    sameSite: 'none',
   });
   clearCsrfCookie(res);
 

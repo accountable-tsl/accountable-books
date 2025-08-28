@@ -280,6 +280,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'url',
     required: false,
     local: 'https://logos.getaccountable.com',
+    staging: 'https://logos.getaccountable.com',
+    production: 'https://logos.getaccountable.com',
   },
 
   // ============================================================================
