@@ -76,7 +76,7 @@ const config: Record<string, Knex.Config> = {
     'knex_migrations_staging',
     IS_LOCAL_STAGING ? getLocalConnection() : getRemoteConnection(DATABASE_URL_UNPOOLED),
   ),
-  production: cfg('knex_migrations', getRemoteConnection(DATABASE_URL_UNPOOLED)),
+  production: cfg('knex_migrations', getRemoteConnection(DATABASE_URL_UNPOOLED ?? DATABASE_URL)),
 };
 
 export default config;

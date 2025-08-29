@@ -56,6 +56,7 @@ jobs:
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
+          DATABASE_URL_NOPOOL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
         run: |
           echo "🔄 Running database migrations on staging..."
           pnpm -F @accountable-books/api run migrate:staging:remote
@@ -211,6 +212,7 @@ jobs:
       - name: Apply demo data
         env:
           DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
+          DATABASE_URL_NOPOOL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
         run: |
           echo "🌱 Seeding demo data..."
           pnpm -F @accountable-books/api run demo:apply:staging:remote -- --all
