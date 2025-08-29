@@ -130,10 +130,55 @@ jobs:
             exit 1
           fi
 
-  # Step 3: Apply demo data only after API is healthy
-  apply-demo-data:
+  # Step 3: Deploy Frontend to Vercel only after API is healthy
+  deploy-frontend:
     runs-on: ubuntu-latest
     needs: [run-migrations, deploy-api]
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          standalone: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate types from contracts
+        run: pnpm run codegen
+
+      - name: Build shared packages
+        run: |
+          pnpm --filter @accountable-books/api-types build
+          pnpm --filter @accountable-books/utils build
+
+      - name: Generate environment files
+        run: pnpm --filter @accountable-books/web generate-env
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./
+          vercel-args: '--prod'
+
+  # Step 4: Apply demo data only after both API and frontend are deployed
+  apply-demo-data:
+    runs-on: ubuntu-latest
+    needs: [run-migrations, deploy-api, deploy-frontend]
     if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')) && github.event.inputs.skip_demo_seed != 'true' && !contains(github.event.head_commit.message, '[skip-seed]') }}
     environment: staging
     steps:
@@ -171,10 +216,10 @@ jobs:
           pnpm -F @accountable-books/api run demo:apply:staging:remote -- --all
           echo "✅ Demo data applied successfully"
 
-  # Step 4: Deployment summary and notifications
+  # Step 5: Deployment summary and notifications
   deployment-summary:
     runs-on: ubuntu-latest
-    needs: [run-migrations, deploy-api, apply-demo-data]
+    needs: [run-migrations, deploy-api, deploy-frontend, apply-demo-data]
     if: always()
     steps:
       - name: Deployment summary
@@ -185,11 +230,12 @@ jobs:
           echo "Commit: ${{ github.sha }}"
           echo "API URL: https://accountable-books-api-staging.fly.dev"
           echo "API Health: https://accountable-books-api-staging.fly.dev/health"
-          echo "Frontend URL: https://staging.getaccountable.com (Vercel auto-deploy)"
+          echo "Frontend URL: https://staging.getaccountable.com"
           echo ""
           echo "Job Status:"
           echo "- Migrations: ${{ needs.run-migrations.result }}"
           echo "- API Deployment: ${{ needs.deploy-api.result }}"
+          echo "- Frontend Deployment: ${{ needs.deploy-frontend.result }}"
           echo "- Demo Data: ${{ needs.apply-demo-data.result }}"
 
       - name: Notify deployment status
@@ -203,5 +249,6 @@ jobs:
             echo "Failed jobs:"
             [ "${{ needs.run-migrations.result }}" != "success" ] && echo "- Database Migrations"
             [ "${{ needs.deploy-api.result }}" != "success" ] && echo "- API Deployment"
+            [ "${{ needs.deploy-frontend.result }}" != "success" ] && echo "- Frontend Deployment"
             [ "${{ needs.apply-demo-data.result }}" != "success" ] && echo "- Demo Data Seeding"
           fi
