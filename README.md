@@ -2,7 +2,7 @@
 
 > **AI-native accounting platform for accounting firms**
 
-Accountable Books is the MVP of our AI-native accounting suite. We ingest bank data, auto-categorize transactions with explainability, draft journals & financials, and provide human review workflows for exceptions.
+Accountable Books is the MVP of our AI-native accounting suite. We ingest bank data via **Plaid** (US) and **Mono** (Nigeria), auto-categorize transactions using **ML with explainability**, draft journals & financials, and provide human review workflows for exceptions.
 
 ## 🚀 Quick Start
 
@@ -32,11 +32,27 @@ make dev
 make dev-full
 ```
 
+## 🎯 MVP Features at Launch
+
+### Core Capabilities
+
+- **🏦 Real Bank Connections**: Plaid (US) + Mono (Nigeria) for automatic transaction import
+- **🤖 AI Categorization**: ML-powered transaction categorization with 90%+ accuracy
+- **📊 Financial Statements**: Automated P&L and Balance Sheet generation
+- **🏢 Multi-Company**: Accounting firms managing multiple client books
+- **✅ Explainability**: Every AI decision is traceable and auditable
+
+### Flexible Data Import Options
+
+- **CSV Import**: Essential fallback for banks/countries not covered by Plaid/Mono
+- **Manual Entry**: For corrections and special cases
+- **API Integrations**: Plaid (US) and Mono (Nigeria) for supported banks
+
 ## 🏗️ Architecture
 
 - **API**: Node.js/Express/Knex/TypeScript
 - **Web**: React/TypeScript/Vite
-- **ML Engine**: Python/FastAPI _(coming soon)_
+- **ML Engine**: Python/FastAPI _(MVP requirement - in development)_
 - **Database**: PostgreSQL with vector extensions
 - **Deployment**: Fly.io + Neon + Vercel + Cloudflare CDN
 
@@ -46,13 +62,12 @@ make dev-full
 apps/
 ├── api/          # Node.js backend
 ├── web/          # React frontend
-└── ml-engine/    # Python ML service (planned)
+└── ml-engine/    # Python ML service (MVP - in development)
 
 packages/
 ├── contracts/    # OpenAPI specs & generated types
-├── infra/        # Shared infra logic
-├── ui/          # Shared components (planned)
-└── utils/       # Shared utilities (planned)
+├── api-types/    # Generated TypeScript types
+└── utils/        # Shared utilities
 
 infra/
 └── postgres/     # Custom PostgreSQL with extensions
@@ -258,15 +273,33 @@ For production or custom setups, see the [Environment Variables Guide](docs/ENVI
 make clean-all  # Nuclear reset - removes everything and reinstalls
 ```
 
+## 🚨 MVP Development Priorities
+
+### Current Sprint Focus (Blockers for Launch)
+
+1. **Complete Plaid Integration** - US bank connections
+2. **Complete Mono Integration** - Nigerian bank connections
+3. **ML Engine Implementation** - Transaction categorization
+4. **Financial Statements** - P&L and Balance Sheet generation
+
+### Ready for MVP
+
+- ✅ Multi-company management
+- ✅ Authentication & authorization
+- ✅ Chart of Accounts
+- ✅ Contacts & Projects
+- ✅ CI/CD pipeline
+
 ## 🏢 Non-Negotiables
 
-1. **Accuracy** - Financial data must be precise
+1. **Accuracy** - Financial data must be 100% precise
 2. **Explainability** - AI decisions must be traceable
 3. **Auditability** - Complete audit trail required
+4. **Bank Integrations** - Plaid and Mono are required for MVP
 
 ## 📏 Development Principles
 
-**Priority Order**: Quality → Readability → Simplicity → Performance
+**Priority Order**: Accuracy → Simplicity → Readability → Performance
 
 - Design first; avoid "clever" solutions
 - Measure before optimizing

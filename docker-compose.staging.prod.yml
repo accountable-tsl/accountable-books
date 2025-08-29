@@ -1,6 +1,0 @@
-services:
-  db:
-    profiles: ['local-only']
-
-  redis:
-    profiles: ['local-only']
