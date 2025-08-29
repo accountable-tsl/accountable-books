@@ -21,11 +21,17 @@ jobs:
   # Step 1: Run database migrations BEFORE deploying API
   run-migrations:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'staging')
     environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -66,11 +72,17 @@ jobs:
   deploy-api:
     runs-on: ubuntu-latest
     needs: run-migrations
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'staging')
     environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -135,11 +147,17 @@ jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
     needs: [run-migrations, deploy-api]
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'staging')
     environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -180,11 +198,17 @@ jobs:
   apply-demo-data:
     runs-on: ubuntu-latest
     needs: [run-migrations, deploy-api, deploy-frontend]
-    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')) && github.event.inputs.skip_demo_seed != 'true' && !contains(github.event.head_commit.message, '[skip-seed]') }}
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'staging')
     environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -222,7 +246,11 @@ jobs:
   deployment-summary:
     runs-on: ubuntu-latest
     needs: [run-migrations, deploy-api, deploy-frontend, apply-demo-data]
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'staging')
     steps:
       - name: Deployment summary
         run: |
