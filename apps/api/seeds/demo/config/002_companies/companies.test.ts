@@ -69,6 +69,7 @@ const createMockTransaction = (): Knex.Transaction => {
       whereIn: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       join: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
       first: vi.fn(),
       select: vi.fn(),
       delete: vi.fn(),
