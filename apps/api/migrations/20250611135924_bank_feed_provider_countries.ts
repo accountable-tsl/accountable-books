@@ -7,7 +7,6 @@ import {
 import { adminUser } from './20250403184441_users';
 import {
   MONO_COUNTRIES,
-  OKRA_COUNTRIES,
   PLAID_COUNTRIES,
   SEED_BANK_FEED_PROVIDERS,
   STRIPE_COUNTRIES,
@@ -70,7 +69,6 @@ const seedBankFeedProviders = async function seed(knex: Knex): Promise<void> {
 
   const providerCountryMappings = [
     ...mapProviderToCountry('mono', MONO_COUNTRIES, adminUserId),
-    ...mapProviderToCountry('okra', OKRA_COUNTRIES, adminUserId),
     ...mapProviderToCountry('plaid', PLAID_COUNTRIES, adminUserId),
     ...mapProviderToCountry('stripe', STRIPE_COUNTRIES, adminUserId),
   ];

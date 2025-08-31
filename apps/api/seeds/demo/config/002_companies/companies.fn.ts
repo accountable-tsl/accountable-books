@@ -170,6 +170,13 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
       .insert(clientFirmAssignments)
       .onConflict(['client_company_id'])
       .ignore();
+
+    // Update assigned_firm_id for each company after successful client-firm assignment
+    for (const assignment of clientFirmAssignments) {
+      await trx('companies')
+        .where({ id: assignment.client_company_id })
+        .update({ assigned_firm_id: assignment.accounting_firm_company_id });
+    }
   }
 
   // Insert user company roles (idempotent)

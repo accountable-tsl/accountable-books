@@ -7,6 +7,30 @@ import { routes } from '@/shared/routes/routes';
 import type { AuthUserContext, SessionContextType } from './types';
 import { isAxiosError } from 'axios';
 
+// Logout reason with 12-hour expiration
+export const setLogoutReason = (reason: 'expired' | 'manual' | 'forced') => {
+  localStorage.setItem('logoutReason', JSON.stringify({ reason, timestamp: Date.now() }));
+};
+
+export const getLogoutReason = (): string | null => {
+  const data = localStorage.getItem('logoutReason');
+  if (!data) return null;
+
+  try {
+    const { reason, timestamp } = JSON.parse(data);
+    if (Date.now() - timestamp > 12 * 60 * 60 * 1000) {
+      localStorage.removeItem('logoutReason');
+      return null;
+    }
+    return reason;
+  } catch {
+    localStorage.removeItem('logoutReason');
+    return null;
+  }
+};
+
+export const clearLogoutReason = () => localStorage.removeItem('logoutReason');
+
 export const performLoginFlow = async ({
   email,
   password,
@@ -35,7 +59,7 @@ export const performLoginFlow = async ({
 }> => {
   try {
     const loginFn = handleLogin({ email, password });
-    localStorage.removeItem('logoutReason');
+    clearLogoutReason();
 
     const res = await loginFn;
     // wait for 2 seconds, while waiting, show toast, logging in

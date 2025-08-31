@@ -6,7 +6,6 @@ import type { MonoConnectCustomer } from '../widgets/types';
 export const ProviderWidgets: Record<string, React.FC<any>> = {
   mono: MonoWidget,
   // plaid: PlaidWidget,
-  // okra: OkraWidget,
   // etc.
 };
 
@@ -26,7 +25,4 @@ export const getProviderData: Record<string, (user: AuthUserContext, company: Co
       };
     },
     //   plaid: () => ({}),
-    //   okra: (user) => ({
-    //     email: user?.email,
-    //   }),
   };

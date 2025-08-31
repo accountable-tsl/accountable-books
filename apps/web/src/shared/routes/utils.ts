@@ -250,11 +250,27 @@ export function buildCanonicalUrl<K extends FlattenedRouteKey>({
   const normalizedPath =
     fullPath === '' ? '' : fullPath.startsWith('/') ? fullPath : `/${fullPath}`;
 
+  // Use 'app' as default subdomain when no firm is assigned
+  const subdomain = firmSlug || 'app';
+
+  // Determine the base domain based on environment
+  const getBaseDomain = () => {
+    if (import.meta.env.PROD) {
+      return 'getaccountable.com';
+    }
+    // Check if we're on staging
+    if (window.location.hostname.includes('staging.getaccountable.com')) {
+      return 'staging.getaccountable.com';
+    }
+    // Local development
+    return `${window.location.hostname}:${window.location.port}`;
+  };
+
   const resolvedOrigin =
     origin ||
-    (import.meta.env.PROD
-      ? `https://${firmSlug}.getaccountable.com`
-      : `${window.location.protocol}//${window.location.hostname}:${window.location.port}`);
+    (import.meta.env.PROD || window.location.hostname.includes('getaccountable.com')
+      ? `https://${subdomain}.${getBaseDomain()}`
+      : `${window.location.protocol}//${getBaseDomain()}`);
 
   return `${resolvedOrigin}${normalizedPath}`;
 }

@@ -11,7 +11,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { routes } from '@/shared/routes/routes';
 import { AuthHeader } from '@/components/AuthHeader';
 import { toast } from 'sonner';
-import { loginAndRedirect } from '@/features/auth/utils';
+import { loginAndRedirect, getLogoutReason } from '@/features/auth/utils';
 import { useSession } from '@/features/auth/Session';
 import { authStore } from '@/features/auth/store';
 
@@ -53,7 +53,7 @@ export default function Login() {
   };
 
   const alreadyLoggedIn = !loading && isLoggedIn && companyId && company && tenantRoutes;
-  const logoutReason = localStorage.getItem('logoutReason');
+  const logoutReason = getLogoutReason();
 
   return (
     <div className="flex min-h-svh flex-col">

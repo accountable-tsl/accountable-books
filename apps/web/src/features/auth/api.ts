@@ -3,6 +3,7 @@ import api from '@/lib/axios';
 import { isAxiosError } from 'axios';
 import type { ApiResponse } from '@/shared/types/core';
 import { authStore } from '@/features/auth/store';
+import { setLogoutReason } from './utils';
 
 export const handleLogin = async (
   data: LoginForm,
@@ -50,7 +51,7 @@ export const fetchSession = async (): Promise<
     if (isAxiosError(err) && err.response?.status === 401) {
       const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
       if (wasAuthenticated) {
-        localStorage.setItem('logoutReason', 'expired');
+        setLogoutReason('expired');
       }
       throw new Error('Unauthorized'); // triggers useQuery failure state
     }

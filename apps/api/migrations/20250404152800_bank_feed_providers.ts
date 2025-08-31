@@ -10,7 +10,7 @@ const tableName = 'bank_feed_providers';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
-    table.string('key').notNullable().unique(); // e.g., 'mono', 'okra', 'plaid'
+    table.string('key').notNullable().unique(); // e.g., 'mono', 'plaid'
     table.string('name').notNullable();
     table.string('external_id');
     table.text('description');

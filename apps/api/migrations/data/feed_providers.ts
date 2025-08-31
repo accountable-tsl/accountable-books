@@ -10,16 +10,6 @@ export const SEED_BANK_FEED_PROVIDERS = [
     priority: 1,
   },
   {
-    id: '4766559e-252c-445c-ae5c-46e5e1e894bc',
-    key: 'okra',
-    name: 'Okra',
-    description: 'Okra API',
-    website: 'https://okra.ng',
-    logoUrl: 'https://i.postimg.cc/mgfM4f4t/okra.png',
-    status: 'inactive',
-    priority: 2,
-  },
-  {
     id: 'e5b2a79f-9d28-4afb-897c-b837b332d7a1',
     key: 'plaid',
     name: 'Plaid',
@@ -42,6 +32,5 @@ export const SEED_BANK_FEED_PROVIDERS = [
 ];
 
 export const MONO_COUNTRIES = ['NG', 'GH', 'KE', 'ZA']; // Nigeria, Ghana, Kenya, South Africa
-export const OKRA_COUNTRIES = ['NG', 'KE', 'ZA']; // Nigeria, Kenya, South Africa
 export const PLAID_COUNTRIES = ['US', 'CA']; // US, Canada
 export const STRIPE_COUNTRIES = ['US', 'CA', 'GB']; // US, Canada

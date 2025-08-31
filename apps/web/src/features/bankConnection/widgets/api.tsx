@@ -9,7 +9,7 @@ export const handleBankAccountConnection = async ({
   data,
 }: {
   companyId: string;
-  provider: 'mono' | 'plaid' | 'okra' | 'stripe';
+  provider: 'mono' | 'plaid' | 'stripe';
   data: any;
 }): Promise<ApiResponse<{ connections: ConnectionResponse[] }>> => {
   try {

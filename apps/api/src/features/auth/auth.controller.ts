@@ -98,20 +98,16 @@ export async function logoutController(req: AuthRequest, res: Response) {
   }
 
   const cookieDomain = ENV.COOKIE_DOMAIN;
-  res.clearCookie('accessToken', {
+  const clearCookieOptions = {
     domain: cookieDomain,
     path: '/',
     httpOnly: true,
     secure: isProd,
-    sameSite: 'none',
-  });
-  res.clearCookie('refreshToken', {
-    domain: cookieDomain,
-    path: '/',
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'none',
-  });
+    sameSite: isProd ? ('none' as const) : ('lax' as const),
+  };
+
+  res.clearCookie('accessToken', clearCookieOptions);
+  res.clearCookie('refreshToken', clearCookieOptions);
   clearCsrfCookie(res);
 
   return res.status(200).json(successResponse('Logged out successfully', null));

@@ -2,6 +2,7 @@ import { fetchSession } from '@/features/auth/api';
 import { authStore } from '@/features/auth/store';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
+import { setLogoutReason } from './utils';
 
 export const clearSessionFn = (logoutReason?: 'expired' | 'manual' | 'forced') => {
   authStore.getState().clearAuth();
@@ -15,7 +16,7 @@ export const clearSessionFn = (logoutReason?: 'expired' | 'manual' | 'forced') =
   }
 
   if (logoutReason) {
-    localStorage.setItem('logoutReason', logoutReason);
+    setLogoutReason(logoutReason);
   }
 
   queryClient.clear();

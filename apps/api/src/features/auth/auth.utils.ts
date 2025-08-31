@@ -58,22 +58,22 @@ export const setAuthCookies = (
   accessToken: string,
   refreshToken: string,
 ) => {
-  res.cookie('accessToken', accessToken, {
+  const cookieOptions = {
     domain: cookieDomain,
     httpOnly: true,
     secure: isProd,
-    sameSite: 'none',
-    maxAge: 15 * 60 * 1000, // 15 minutes
+    sameSite: isProd ? ('none' as const) : ('lax' as const),
     path: '/',
+  };
+
+  res.cookie('accessToken', accessToken, {
+    ...cookieOptions,
+    maxAge: 15 * 60 * 1000, // 15 minutes
   });
 
   res.cookie('refreshToken', refreshToken, {
-    domain: cookieDomain,
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'none',
+    ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/',
   });
 };
 
@@ -81,7 +81,7 @@ export const setAuthCookies = (
 //   cookie: {
 //     httpOnly: true,
 //     secure: isProd,
-//     sameSite: isDev ? "lax" : "none",
+//     sameSite:  "none",
 //     domain: cookieDomain,
 //     path: "/",
 //   },
@@ -99,7 +99,7 @@ export const {
   cookieOptions: {
     httpOnly: true,
     secure: isProd,
-    sameSite: isDev ? 'lax' : 'none',
+    sameSite: isProd ? ('none' as const) : ('lax' as const),
     domain: cookieDomain,
     path: '/',
   },
@@ -113,7 +113,7 @@ export const clearCsrfCookie = (res: Response) => {
     path: '/',
     secure: isProd,
     httpOnly: true,
-    sameSite: isDev ? 'lax' : 'none',
+    sameSite: isProd ? ('none' as const) : ('lax' as const),
   });
 };
 
