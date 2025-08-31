@@ -1,4 +1,4 @@
-import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useSearchParams } from 'react-router';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { routes } from '@/shared/routes/routes';
 import { useSession } from '@/features/auth/Session';

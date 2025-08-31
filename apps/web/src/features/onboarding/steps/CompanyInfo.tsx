@@ -42,7 +42,7 @@ import {
 import { useSlugCheck } from '@/domains/firms/hooks';
 import { useSession } from '@/features/auth/Session';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { routes } from '@/shared/routes/routes';
 
 export const CompanyInfo = () => {

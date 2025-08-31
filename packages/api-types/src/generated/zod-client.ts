@@ -26,6 +26,8 @@ const CompanyType = z.enum(['business', 'individual', 'accounting_firm']);
 const AuthCompanyContext = z
   .object({
     id: z.string().uuid(),
+    legalName: z.string(),
+    displayName: z.string().nullish(),
     assignedFirmSlug: z.string(),
     hasExplicitAccess: z.boolean(),
     roleKey: z
@@ -59,6 +61,8 @@ const AuthUserContext = z
     currentCompany: z
       .object({
         id: z.string().uuid(),
+        legalName: z.string(),
+        displayName: z.string().nullish(),
         assignedFirmSlug: z.string(),
         hasExplicitAccess: z.boolean(),
         roleKey: z
@@ -84,6 +88,8 @@ const AuthUserContext = z
       z
         .object({
           id: z.string().uuid(),
+          legalName: z.string(),
+          displayName: z.string().nullish(),
           assignedFirmSlug: z.string(),
           hasExplicitAccess: z.boolean(),
           roleKey: z
@@ -122,6 +128,8 @@ const AuthContextData = z
         currentCompany: z
           .object({
             id: z.string().uuid(),
+            legalName: z.string(),
+            displayName: z.string().nullish(),
             assignedFirmSlug: z.string(),
             hasExplicitAccess: z.boolean(),
             roleKey: z
@@ -147,6 +155,8 @@ const AuthContextData = z
           z
             .object({
               id: z.string().uuid(),
+              legalName: z.string(),
+              displayName: z.string().nullish(),
               assignedFirmSlug: z.string(),
               hasExplicitAccess: z.boolean(),
               roleKey: z
@@ -192,6 +202,8 @@ const LoginResponse = z
             currentCompany: z
               .object({
                 id: z.string().uuid(),
+                legalName: z.string(),
+                displayName: z.string().nullish(),
                 assignedFirmSlug: z.string(),
                 hasExplicitAccess: z.boolean(),
                 roleKey: z
@@ -217,6 +229,8 @@ const LoginResponse = z
               z
                 .object({
                   id: z.string().uuid(),
+                  legalName: z.string(),
+                  displayName: z.string().nullish(),
                   assignedFirmSlug: z.string(),
                   hasExplicitAccess: z.boolean(),
                   roleKey: z
@@ -285,6 +299,8 @@ const MeResponse = z
             currentCompany: z
               .object({
                 id: z.string().uuid(),
+                legalName: z.string(),
+                displayName: z.string().nullish(),
                 assignedFirmSlug: z.string(),
                 hasExplicitAccess: z.boolean(),
                 roleKey: z
@@ -310,6 +326,8 @@ const MeResponse = z
               z
                 .object({
                   id: z.string().uuid(),
+                  legalName: z.string(),
+                  displayName: z.string().nullish(),
                   assignedFirmSlug: z.string(),
                   hasExplicitAccess: z.boolean(),
                   roleKey: z
@@ -392,6 +410,8 @@ const endpoints = makeApi([
                 currentCompany: z
                   .object({
                     id: z.string().uuid(),
+                    legalName: z.string(),
+                    displayName: z.string().nullish(),
                     assignedFirmSlug: z.string(),
                     hasExplicitAccess: z.boolean(),
                     roleKey: z
@@ -417,6 +437,8 @@ const endpoints = makeApi([
                   z
                     .object({
                       id: z.string().uuid(),
+                      legalName: z.string(),
+                      displayName: z.string().nullish(),
                       assignedFirmSlug: z.string(),
                       hasExplicitAccess: z.boolean(),
                       roleKey: z
@@ -518,6 +540,8 @@ const endpoints = makeApi([
                 currentCompany: z
                   .object({
                     id: z.string().uuid(),
+                    legalName: z.string(),
+                    displayName: z.string().nullish(),
                     assignedFirmSlug: z.string(),
                     hasExplicitAccess: z.boolean(),
                     roleKey: z
@@ -543,6 +567,8 @@ const endpoints = makeApi([
                   z
                     .object({
                       id: z.string().uuid(),
+                      legalName: z.string(),
+                      displayName: z.string().nullish(),
                       assignedFirmSlug: z.string(),
                       hasExplicitAccess: z.boolean(),
                       roleKey: z

@@ -3,7 +3,7 @@ import { useSession } from '@/features/auth/Session';
 import { routes } from '@/shared/routes/routes';
 import { isPublicRoute } from '@/shared/routes/utils';
 import type { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router';
 
 export function RootRedirector() {
   const { loading, companyId, hasAppAccess } = useSession();

@@ -1,6 +1,6 @@
 import icon from '@/assets/images/email-file.gif';
 import { Button } from '@/components/ui/button';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useCallback, useEffect, useState } from 'react';
 import { routes } from '@/shared/routes/routes';
 import { CenteredLoader } from '@/components/CenteredLoader';

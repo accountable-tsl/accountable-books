@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import './styles/App.scss';
 import { PopupProvider, usePopup } from './contexts/PopupContext';
 import Popup from './components/Popup/Popup';
@@ -31,7 +31,7 @@ function App() {
     <ThemeProvider>
       <PopupProvider>
         <QueryClientProvider client={queryClient}>
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <BrowserRouter>
             <SessionProvider>
               <TooltipProvider>
                 <Toaster />
@@ -60,12 +60,6 @@ export const PopupManager = () => {
     </>
   );
 };
-// const pageVariants = {
-//   initial: { opacity: 0, y: 10 },
-//   animate: { opacity: 1, y: 0 },
-//   exit: { opacity: 0, y: -10 },
-// };
-// const pageTransition = { type: "tween", ease: "anticipate", duration: 0.4 };
 
 function AppRoutes() {
   return (

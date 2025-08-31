@@ -1,14 +1,17 @@
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { clearSessionFn, useSessionQuery } from '@/features/auth/hooks';
 import { authStore } from '@/features/auth/store';
 import { routes } from '@/shared/routes/routes';
 import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import { createTenantRoutes, isPublicRoute } from '@/shared/routes/utils';
 import type { LogoutOptions, SessionContextType } from '@/features/auth/types';
 import { useCompanyDetails } from '@/domains/company/hooks';
 import { handleLogout } from './api';
 import { createDefaultSessionContext } from '@/features/auth/utils';
+import { SwitchConfirmModal } from '@/features/switchCompany/SwitchConfirmModal';
+import { useCompanySwitch } from '@/features/switchCompany/hooks';
+import type { AuthCompanyContext } from '@/features/auth/types';
 
 const SessionContext = createContext<SessionContextType>(createDefaultSessionContext());
 
@@ -18,6 +21,14 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
   const user = authStore((s) => s.user);
   const setAuth = authStore((s) => s.setAuth);
   const clearAuth = authStore((s) => s.clearAuth);
+  const { switchCompany, isSwitching } = useCompanySwitch();
+
+  // State for company switch confirmation modal
+  const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [pendingCompanySwitch, setPendingCompanySwitch] = useState<{
+    from: AuthCompanyContext;
+    to: AuthCompanyContext;
+  } | null>(null);
 
   const { data, isLoading: isLoadingSession, isError, refetch: refetchSession } = useSessionQuery(); // auth/me inside useQuery
   const { data: authData, success } = data || {};
@@ -57,6 +68,52 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       setAuth(authData.user, authData.csrfToken);
     }
   }, [authData, user]);
+
+  // URL company change detection
+  useEffect(() => {
+    if (isPublic || !user?.currentCompanyId || !user?.companies) return;
+
+    const urlSegments = location.pathname.split('/').filter(Boolean);
+    const urlCompanyId = urlSegments[0]; // First segment should be companyId
+
+    // If URL has a company ID and it's different from current user's company
+    if (urlCompanyId && urlCompanyId !== user.currentCompanyId) {
+      // Find the target company in user's accessible companies
+      const targetCompany = user.companies.find((company) => company.id === urlCompanyId);
+      const currentCompany = user.companies.find((company) => company.id === user.currentCompanyId);
+
+      if (!targetCompany) {
+        // User doesn't have access - redirect to current company's dashboard
+        navigate(routes.general.dashboard.build({ companyId: user.currentCompanyId }), {
+          replace: true,
+        });
+        return;
+      }
+
+      // Check if user has auto-switch preference
+      const autoSwitch = localStorage.getItem('autoSwitchCompanies') === 'true';
+
+      if (autoSwitch) {
+        // Auto-switch without confirmation
+        switchCompany({
+          companyId: urlCompanyId,
+          onError: () => {
+            // On error, redirect back to current company
+            navigate(routes.general.dashboard.build({ companyId: user.currentCompanyId }), {
+              replace: true,
+            });
+          },
+        });
+      } else if (currentCompany && !showSwitchModal) {
+        // Show confirmation modal
+        setPendingCompanySwitch({
+          from: currentCompany,
+          to: targetCompany,
+        });
+        setShowSwitchModal(true);
+      }
+    }
+  }, [location.pathname, user, navigate, isPublic, switchCompany, showSwitchModal]);
 
   const isLoggedIn = !!user;
   const companyId = user?.currentCompanyId;
@@ -105,6 +162,37 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     return true;
   }, []);
 
+  // Modal handlers
+  const handleConfirmSwitch = async () => {
+    if (!pendingCompanySwitch) return;
+
+    await switchCompany({
+      companyId: pendingCompanySwitch.to.id,
+      onError: () => {
+        // On error, redirect back to current company
+        navigate(routes.general.dashboard.build({ companyId: user?.currentCompanyId || '' }), {
+          replace: true,
+        });
+      },
+      onSuccess: () => {
+        // Switch successful, modal will close automatically
+        setShowSwitchModal(false);
+        setPendingCompanySwitch(null);
+      },
+    });
+  };
+
+  const handleCancelSwitch = () => {
+    // Redirect back to current company
+    if (user?.currentCompanyId) {
+      navigate(routes.general.dashboard.build({ companyId: user.currentCompanyId }), {
+        replace: true,
+      });
+    }
+    setShowSwitchModal(false);
+    setPendingCompanySwitch(null);
+  };
+
   const contextValue: SessionContextType = useMemo(
     () => ({
       loading: isLoading ?? false,
@@ -142,7 +230,20 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     ],
   );
 
-  return <SessionContext.Provider value={contextValue}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={contextValue}>
+      {children}
+
+      <SwitchConfirmModal
+        isOpen={showSwitchModal}
+        onClose={handleCancelSwitch}
+        onConfirm={handleConfirmSwitch}
+        fromCompany={pendingCompanySwitch?.from || null}
+        toCompany={pendingCompanySwitch?.to || null}
+        isLoading={isSwitching}
+      />
+    </SessionContext.Provider>
+  );
 };
 
 export const useSession = () => {

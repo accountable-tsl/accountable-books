@@ -2,7 +2,7 @@ import './Breadcrumb.scss';
 import { faChevronDown, faChevronRight, IconDefinition } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 type BreadcrumbItem = {
   text: string;

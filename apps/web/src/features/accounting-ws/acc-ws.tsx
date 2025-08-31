@@ -14,7 +14,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useSession } from '@/features/auth/Session';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 

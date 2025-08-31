@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { routes } from '@/shared/routes/routes';
 
 export const AccountLinked = ({

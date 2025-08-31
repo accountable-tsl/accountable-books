@@ -10,10 +10,10 @@ import {
 } from '@/components/ui/breadcrumb';
 import React from 'react';
 import { ThemeToggle } from './ThemeToggle';
-import { ChevronDownIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCompanySwitch } from '@/features/switchCompany/hooks';
 import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
+import { CompanySwitcher } from '@/features/switchCompany/CompanySwitcher';
 import type { CompanyData } from '@/domains/company/types';
 
 type BreadcrumbItem = {
@@ -33,10 +33,7 @@ export function AppHeader({ company }: AppHeaderProps) {
   const breadcrumbs = useBreadcrumbs();
   const { handleExitDemo } = useCompanySwitch();
 
-  const handleSwitch = async () => {
-    console.log('Switch');
-
-    // if is demo, handle exit demo, otherwise show dropdown
+  const handleDemoExit = async () => {
     if (company?.isDemoCompany) {
       await handleExitDemo();
     }
@@ -84,13 +81,25 @@ export function AppHeader({ company }: AppHeaderProps) {
           </strong>
           <span>{company?.countryFlag}</span>
         </div>
-        {/* TODO: Handle company switching later */}
-        <div
-          className="flex items-center justify-center gap-1 text-blue-500 hover:text-blue-500/80 cursor-pointer"
-          onClick={handleSwitch}
-        >
-          switch
-          <ChevronDownIcon size={10} />
+
+        <div className="flex items-center justify-center gap-2">
+          <CompanySwitcher
+            currentCompany={{
+              displayName: company?.displayName || undefined,
+              legalName: company?.legalName || undefined,
+              countryFlag: company?.countryFlag || undefined,
+              isDemoCompany: company?.isDemoCompany,
+            }}
+          />
+
+          {company?.isDemoCompany && (
+            <button
+              onClick={handleDemoExit}
+              className="text-red-500 hover:text-red-400 text-xs underline"
+            >
+              exit demo
+            </button>
+          )}
         </div>
       </div>
 

@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Send, X } from 'lucide-react';
 import { useUploadBankTransactions } from '@/features/bank-transactions/bank-tx-hooks';
 import { Success } from '@/components/Success';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { sleep } from '@/shared/utils/random-utils';
 
 export function UploadBankTransactions() {

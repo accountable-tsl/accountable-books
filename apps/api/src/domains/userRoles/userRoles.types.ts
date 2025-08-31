@@ -27,17 +27,30 @@ export type NewUserCompanyRole = z.infer<typeof newUserCompanyRole>;
 export const userCompanyRole = newUserCompanyRole.merge(dbBaseFields);
 export type UserCompanyRole = z.infer<typeof userCompanyRole>;
 
-export type UserCompanyRoleAssignmentRes = {
-  userId: string;
+// Base company data fields used across role contexts
+export type CompanyBaseFields = {
   companyId: string;
-  firmSlug: string;
+  legalName: string;
+  displayName: string | null;
+  companyType: CompanyType;
+  firmSlug: string | null;
+};
+
+// User's role assignment with company details (from DB queries)
+export type UserCompanyRoleWithDetails = CompanyBaseFields & {
+  userId: string;
   roleId: string;
   roleKey: RoleKey;
   roleName: string;
   roleScope: RoleScope;
-  companyType: CompanyType;
   onboardingState: CompanyOnboardingState;
+  isDemoCompany: boolean;
 };
+
+// Legacy type aliases for backward compatibility (will be removed in next version)
+export type RoleQueryResult = UserCompanyRoleWithDetails;
+export type UserCompanyRoleAssignmentRes = UserCompanyRoleWithDetails;
+export type DemoCompany = CompanyBaseFields;
 
 // GRANT ACCESS TO COMPANY
 export type GrantDirectAccess = {
@@ -58,14 +71,16 @@ export type GrantAccessResponse = {
 };
 
 export type AccessibleCompanies = {
-  id: string;
-  assignedFirmSlug: string;
+  id: string; // API field name for companyId
+  legalName: string;
+  displayName: string | null;
+  assignedFirmSlug: string; // API field name for firmSlug
   companyType: CompanyType;
   hasExplicitAccess: boolean;
   roleKey: RoleKey | null;
   roleScope: RoleScope | null;
   isDemoCompany: boolean;
-  onboardingState: CompanyOnboardingState;
+  onboardingState: CompanyOnboardingState | null;
 };
 
 export type AccessibleCompaniesResponse = {

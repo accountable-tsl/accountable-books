@@ -6,7 +6,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useSession } from '@/features/auth/Session';
 import { useCanonicalUrlEnforcer } from '@/shared/routes/hooks';
 import { pageStore, usePageMeta, useUpdatePageInfo } from '@/shared/stores/page';
-import { Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router';
 
 interface AppLayoutProps extends AppSidebarProps {}
 export default function AppLayout({ sidebarCollapsible = 'icon' }: AppLayoutProps) {

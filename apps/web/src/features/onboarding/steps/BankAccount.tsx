@@ -8,7 +8,7 @@ import { useCompany } from '@/domains/company/store';
 import { toast } from 'sonner';
 import type { OnboardingStatus } from '@/domains/company/types';
 import { useSession } from '@/features/auth/Session';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 export const BankAccount = ({
   onBankAccountComplete,

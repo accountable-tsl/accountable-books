@@ -8,7 +8,7 @@ import type { Country } from '@/shared/types/core';
 import { getCountryFromLocale } from '@/shared/utils/random-utils';
 import { CheckCircle, Globe, MapPin, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 interface CountrySelectionProps {
   supportedCountries: Country[];
