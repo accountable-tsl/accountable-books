@@ -1921,3 +1921,12 @@ User → Frontend → API → Provider → Bank
 ---
 
 This flow ensures a smooth, secure, and reliable bank connection experience while maintaining data integrity and providing real-time updates to users.
+
+---
+
+MY LAYMAN NOTES:
+The flow should:
+
+1. Auto-Detect + Manual Country SelectionAutomatically detect the user’s country. simple, nothing complexStill allow the user to manually select a different country if needed.
+   2, Show Available Providers or AlternativesAfter country selection, show a list of supported bank feed providers (Plaid, Mono, etc.) available in that country.If none are available, prompt the user to:Upload transactions via CSV, orContact support for assistance.
+2. Connect a Bank AccountOn provider selection, guide the user through connecting their bank account securely and take them to a list of connected banks page in the end.

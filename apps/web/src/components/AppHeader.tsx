@@ -11,7 +11,6 @@ import {
 import React from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import { cn } from '@/lib/utils';
-import { useCompanySwitch } from '@/features/switchCompany/hooks';
 import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
 import { CompanySwitcher } from '@/features/switchCompany/CompanySwitcher';
 import type { CompanyData } from '@/domains/company/types';
@@ -31,13 +30,6 @@ interface AppHeaderProps {
 
 export function AppHeader({ company }: AppHeaderProps) {
   const breadcrumbs = useBreadcrumbs();
-  const { handleExitDemo } = useCompanySwitch();
-
-  const handleDemoExit = async () => {
-    if (company?.isDemoCompany) {
-      await handleExitDemo();
-    }
-  };
 
   return (
     <header
@@ -83,23 +75,7 @@ export function AppHeader({ company }: AppHeaderProps) {
         </div>
 
         <div className="flex items-center justify-center gap-2">
-          <CompanySwitcher
-            currentCompany={{
-              displayName: company?.displayName || undefined,
-              legalName: company?.legalName || undefined,
-              countryFlag: company?.countryFlag || undefined,
-              isDemoCompany: company?.isDemoCompany,
-            }}
-          />
-
-          {company?.isDemoCompany && (
-            <button
-              onClick={handleDemoExit}
-              className="text-red-500 hover:text-red-400 text-xs underline"
-            >
-              exit demo
-            </button>
-          )}
+          <CompanySwitcher />
         </div>
       </div>
 
