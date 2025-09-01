@@ -3,6 +3,9 @@ rules:
   oas3-schema: error
   operation-tags: warn
 
+  # Disable unused component warnings since we use $ref paths
+  oas3-unused-component: off
+
   # Names
   schema-names-pascal-case:
     description: 'Schema names must be PascalCase'
