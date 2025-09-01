@@ -105,7 +105,7 @@ export type SessionContextType = {
 
   tenantRoutes: TenantRoutes | null;
 
-  refetchSession: () => void;
+  refetchSession: (companyId?: string) => void;
   refetchCompany: () => void;
   logout: (options?: LogoutOptions) => Promise<boolean>;
 };

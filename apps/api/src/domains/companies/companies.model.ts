@@ -339,7 +339,7 @@ export const switchCompany = async (
       return errorResponse('Company not found');
     }
 
-    console.log(company);
+    // console.log(company);
 
     // Grant demo access if needed
     // if (company.is_demo_company) {

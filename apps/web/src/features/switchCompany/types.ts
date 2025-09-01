@@ -1,5 +1,6 @@
 export type SwitchCompanyOpts = {
-  companyId: string;
+  fromCompanyId?: string;
+  toCompanyId: string;
   onError?: (err: unknown) => void;
   onSuccess?: () => void;
   rememberCurrentAsOriginal?: boolean;

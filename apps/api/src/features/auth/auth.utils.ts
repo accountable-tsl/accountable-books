@@ -124,6 +124,7 @@ export async function buildAuthContext(
     const { sub, email, firstname, lastname, emailVerifiedAt, currentCompanyId, onboardingState } =
       decoded;
 
+    console.log({ decoded });
     if (!sub) return errorResponse('Invalid token payload, missing user ID');
     // Sub is user ID
     const userAccessProfileResponse = await getAccessibleCompaniesForUser({
@@ -132,17 +133,15 @@ export async function buildAuthContext(
     if (!userAccessProfileResponse.success || !userAccessProfileResponse.data)
       return errorResponse(userAccessProfileResponse.message);
 
+    console.log({ userAccessProfileResponse });
     const userAccessProfile = userAccessProfileResponse.data;
     const accessibleCompanies = userAccessProfile.accessibleCompanies;
-    const accessibleCompaniesIdsExDemo = userAccessProfile.accessibleCompanies
-      .filter((c) => !c.isDemoCompany)
-      .map((c) => c.id);
+    const accessibleCompaniesIds = userAccessProfile.accessibleCompanies.map((c) => c.id);
 
     // Determine valid current company
     let activeCompanyId = currentCompanyId;
-    if (!activeCompanyId || !accessibleCompaniesIdsExDemo.includes(activeCompanyId)) {
-      activeCompanyId = accessibleCompaniesIdsExDemo[0];
-
+    if (!activeCompanyId || !accessibleCompaniesIds.includes(activeCompanyId)) {
+      activeCompanyId = accessibleCompaniesIds[0];
       // Update last_active_company_id
       const activeCompanyUUID = await getCompanyUUID(activeCompanyId);
       await knexClient('users')
@@ -151,6 +150,7 @@ export async function buildAuthContext(
     }
 
     const activeCompany = accessibleCompanies.find((c) => c.id === activeCompanyId);
+    console.log({ activeCompany });
     if (!activeCompany) {
       return errorResponse('Active company not found');
     }

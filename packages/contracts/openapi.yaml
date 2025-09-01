@@ -26,6 +26,34 @@ paths:
     $ref: './paths/auth.yaml#/me'
 
 components:
+  schemas:
+    AuthCompanyContext:
+      $ref: './components/schemas/auth/AuthCompanyContext.yaml'
+    AuthContextData:
+      $ref: './components/schemas/auth/AuthContextData.yaml'
+    AuthUserContext:
+      $ref: './components/schemas/auth/AuthUserContext.yaml'
+    LoginForm:
+      $ref: './components/schemas/auth/LoginForm.yaml'
+    LoginResponse:
+      $ref: './components/schemas/auth/LoginResponse.yaml'
+    MeResponse:
+      $ref: './components/schemas/auth/MeResponse.yaml'
+    RefreshResponse:
+      $ref: './components/schemas/auth/RefreshResponse.yaml'
+    ApiResponse:
+      $ref: './components/schemas/common/ApiResponse.yaml'
+    CompanyType:
+      $ref: './components/schemas/common/CompanyType.yaml'
+    Email:
+      $ref: './components/schemas/common/Email.yaml'
+    HealthResponse:
+      $ref: './components/schemas/common/HealthResponse.yaml'
+    RoleKey:
+      $ref: './components/schemas/common/RoleKey.yaml'
+    RoleScope:
+      $ref: './components/schemas/common/RoleScope.yaml'
+
   securitySchemes:
     CookieAuth:
       type: apiKey

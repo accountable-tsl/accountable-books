@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:all": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tooling.json --noEmit",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "test:pg": "NODE_ENV=test vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

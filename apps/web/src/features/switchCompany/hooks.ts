@@ -1,18 +1,20 @@
 import { useNavigate } from 'react-router';
 import type { SwitchCompanyOpts } from '@/features/switchCompany/types';
 import { useCompany } from '@/domains/company/store';
-import { useRef, useState } from 'react';
-import { routes } from '@/shared/routes/routes';
+import { useRef } from 'react';
 import { toast } from 'sonner';
 import { switchCompanyApi } from './api';
 import { authStore } from '../auth/store';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSafeSession } from '../auth/Session';
 
 export function useCompanySwitch() {
-  const [isSwitching, setIsSwitching] = useState(false);
-
   const navigate = useNavigate();
-  const { setUser } = authStore((s) => s);
-  const { companyId: currentCompanyId, slug: currentSlug, fetchCompany } = useCompany();
+  const queryClient = useQueryClient();
+  const { refetchSession, refetchCompany } = useSafeSession();
+  const { user, setUser } = authStore((s) => s);
+  const { companyId: currentCompanyId, slug: currentSlug } = useCompany();
+  console.log(user);
 
   const originalCompanyRef = useRef<{
     companyId: string | null;
@@ -38,64 +40,90 @@ export function useCompanySwitch() {
     localStorage.removeItem(LOCALSTORAGE_KEY);
   }
 
+  const switchMutation = useMutation({
+    mutationFn: async (companyId: string) => {
+      // Pre-validate user has access to target company
+      if (!user?.companies?.some((company) => company.id === companyId)) {
+        throw new Error('You do not have access to this company');
+      }
+
+      const res = await switchCompanyApi(companyId);
+
+      if (!res.success || !res.data) {
+        throw new Error(res.message || 'Switch failed');
+      }
+
+      return res.data;
+    },
+    onSuccess: (data) => {
+      const { user, company } = data;
+
+      // Update auth store with new user context (includes company data)
+      setUser(user);
+
+      // Invalidate session query to refresh auth context across the app
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+
+      // Navigate to new company dashboard
+      navigate(`/${company.id}/dashboard`, {
+        replace: true,
+      });
+
+      toast.success(`Switched to ${company.displayName || company.legalName}`);
+    },
+    onError: (error) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(errorMessage);
+    },
+  });
+
   const switchCompany = async ({
-    companyId,
+    fromCompanyId,
+    toCompanyId,
     onError,
     onSuccess,
     rememberCurrentAsOriginal, // Pass true when switching to demo
   }: SwitchCompanyOpts) => {
+    if (fromCompanyId === toCompanyId) {
+      toast.info('You are already on this company');
+      return;
+    }
+
     // Prevent concurrent switches
-    if (isSwitching) {
+    if (switchMutation.isPending) {
       toast.info('Company switch already in progress');
       return;
     }
-    setIsSwitching(true);
 
     try {
-      if (rememberCurrentAsOriginal && currentCompanyId && currentSlug) {
-        setOriginalCompany(currentCompanyId, currentSlug);
+      if (rememberCurrentAsOriginal && currentCompanyId) {
+        setOriginalCompany(currentCompanyId, currentSlug || 'app');
       }
 
-      if (isSwitching) {
-        toast.loading('Switching...');
-      }
+      // Show loading toast with dismissible ID
+      const loadingToast = toast.loading('Switching company...');
 
-      const res = await switchCompanyApi({
-        newCompanyId: companyId,
-      });
-      console.log(res);
-
-      if (!res.success || !res.data) {
-        toast.error(res.message || 'Switch failed');
-        onError?.(res.message || 'Switch failed');
+      // Verify that the user has access to the target company
+      if (!user?.companies?.some((company) => company.id === toCompanyId)) {
+        toast.error('You do not have access to this company');
         return;
       }
 
-      const { user, company, csrfToken } = res.data;
-      console.log(company);
-      // const slug = company.assignedFirmSlug || '';
-      const newCompanyId = company.id || user.currentCompanyId || '';
+      try {
+        await switchMutation.mutateAsync(toCompanyId);
 
-      if (!user || !company || !csrfToken) {
-        toast.error('Failed to switch company.');
-        return onError?.('Failed to switch company.');
+        refetchSession();
+        refetchCompany();
+
+        toast.dismiss(loadingToast); // Dismiss loading toast on success
+        onSuccess?.();
+      } catch (mutationError) {
+        toast.dismiss(loadingToast); // Dismiss loading toast on error
+        throw mutationError; // Re-throw to be caught by outer catch
       }
-      localStorage.setItem('csrfToken', csrfToken);
-      setUser(user);
-      await fetchCompany(newCompanyId);
-
-      navigate(routes.general.dashboard.build({ companyId: newCompanyId }), {
-        replace: true,
-      });
-
-      onSuccess?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      toast.error(errorMessage);
       onError?.(errorMessage);
-      return;
-    } finally {
-      setIsSwitching(false);
     }
   };
 
@@ -108,7 +136,7 @@ export function useCompanySwitch() {
   } = {}) => {
     const { companyId, slug } = getOriginalCompany() || {};
     if (companyId && slug) {
-      await switchCompany({ companyId, onError, onSuccess });
+      await switchCompany({ toCompanyId: companyId, onError, onSuccess });
       clearOriginalCompany();
     } else {
       const msg = 'Original company not found in this session.';
@@ -120,7 +148,7 @@ export function useCompanySwitch() {
   return {
     switchCompany,
     handleExitDemo,
-    isSwitching,
+    isSwitching: switchMutation.isPending,
     // isCurrentCompanyDemo,
     // isCurrentCompanyDemoByFlag,
   };

@@ -1,7 +1,9 @@
 type: object
-required: [id, assignedFirmSlug, hasExplicitAccess, isDemoCompany, companyType]
+required: [id, legalName, assignedFirmSlug, hasExplicitAccess, isDemoCompany, companyType]
 properties:
   id: { type: string, format: uuid }
+  legalName: { type: string }
+  displayName: { type: string, nullable: true }
   assignedFirmSlug: { type: string }
   hasExplicitAccess: { type: boolean }
   roleKey: { $ref: '../common/RoleKey.yaml', nullable: true }

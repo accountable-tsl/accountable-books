@@ -3,6 +3,7 @@ import { matchPath, useLocation, useNavigate } from 'react-router';
 import { buildCanonicalUrl, flatRoutes } from '@/shared/routes/utils';
 import { useSession } from '@/features/auth/Session';
 import { routes } from '@/shared/routes/routes';
+
 export function useRoutePath<T extends Record<string, any>>(
   route: { buildPath: (params?: T) => string },
   params?: T,

@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "bundle": "redocly bundle openapi.yaml -o dist/openapi-bundled.yaml --dereferenced",
+    "register-specs": "node scripts/register-specs.cjs",
+    "bundle": "pnpm run register-specs && redocly bundle openapi.yaml -o dist/openapi-bundled.yaml --dereferenced",
     "bundle-contracts": "pnpm run bundle"
   },
   "devDependencies": {

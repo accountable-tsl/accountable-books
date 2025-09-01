@@ -10,10 +10,9 @@ import {
 } from '@/components/ui/breadcrumb';
 import React from 'react';
 import { ThemeToggle } from './ThemeToggle';
-import { ChevronDownIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useCompanySwitch } from '@/features/switchCompany/hooks';
 import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
+import { CompanySwitcher } from '@/features/switchCompany/CompanySwitcher';
 import type { CompanyData } from '@/domains/company/types';
 
 type BreadcrumbItem = {
@@ -31,16 +30,6 @@ interface AppHeaderProps {
 
 export function AppHeader({ company }: AppHeaderProps) {
   const breadcrumbs = useBreadcrumbs();
-  const { handleExitDemo } = useCompanySwitch();
-
-  const handleSwitch = async () => {
-    console.log('Switch');
-
-    // if is demo, handle exit demo, otherwise show dropdown
-    if (company?.isDemoCompany) {
-      await handleExitDemo();
-    }
-  };
 
   return (
     <header
@@ -84,13 +73,9 @@ export function AppHeader({ company }: AppHeaderProps) {
           </strong>
           <span>{company?.countryFlag}</span>
         </div>
-        {/* TODO: Handle company switching later */}
-        <div
-          className="flex items-center justify-center gap-1 text-blue-500 hover:text-blue-500/80 cursor-pointer"
-          onClick={handleSwitch}
-        >
-          switch
-          <ChevronDownIcon size={10} />
+
+        <div className="flex items-center justify-center gap-2">
+          <CompanySwitcher />
         </div>
       </div>
 
