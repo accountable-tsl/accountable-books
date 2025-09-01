@@ -10,9 +10,7 @@ import { ErrorCode, errorResponse, successResponse } from '../../shared/utils/re
 import { type AuthRequest } from './auth.types.js';
 import { clearCsrfCookie, generateCsrfToken, setAuthCookies } from './auth.utils.js';
 import { redis } from '../../lib/redis.js';
-import { user } from '../../domains/users/users.types.js';
 import { ENV, isProd } from '../../config/env.js';
-import { getAppUrl } from '../../shared/utils/string.utils.js';
 
 export async function loginController(req: AuthRequest, res: Response) {
   try {

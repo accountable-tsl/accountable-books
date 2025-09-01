@@ -105,6 +105,8 @@ export type SessionContextType = {
 
   tenantRoutes: TenantRoutes | null;
 
+  setAuth?: (user: AuthUserContext, csrfToken: string) => void;
+  clearAuth?: () => void;
   refetchSession: (companyId?: string) => void;
   refetchCompany: () => void;
   logout: (options?: LogoutOptions) => Promise<boolean>;

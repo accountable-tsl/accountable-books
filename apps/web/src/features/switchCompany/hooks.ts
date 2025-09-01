@@ -6,15 +6,14 @@ import { toast } from 'sonner';
 import { switchCompanyApi } from './api';
 import { authStore } from '../auth/store';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSafeSession } from '../auth/Session';
+import { useSession } from '../auth/Session';
 
 export function useCompanySwitch() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { refetchSession, refetchCompany } = useSafeSession();
-  const { user, setUser } = authStore((s) => s);
+  // const { user } = authStore((s) => s);
+  const { setAuth, user, refetchSession, refetchCompany } = useSession();
   const { companyId: currentCompanyId, slug: currentSlug } = useCompany();
-  console.log(user);
 
   const originalCompanyRef = useRef<{
     companyId: string | null;
@@ -56,20 +55,29 @@ export function useCompanySwitch() {
       return res.data;
     },
     onSuccess: (data) => {
-      const { user, company } = data;
+      const { user, csrfToken } = data;
 
       // Update auth store with new user context (includes company data)
-      setUser(user);
+      if (setAuth) {
+        setAuth(user, csrfToken);
+      } else {
+        authStore.getState().setAuth(user, csrfToken);
+      }
 
-      // Invalidate session query to refresh auth context across the app
-      queryClient.invalidateQueries({ queryKey: ['session'] });
+      // Invalidate all queries
+      // There's an issue here, because this then might affect other users that are not switching
+      // queryClient.invalidateQueries();
+      refetchSession();
+      refetchCompany();
 
       // Navigate to new company dashboard
-      navigate(`/${company.id}/dashboard`, {
+      navigate(`/${user.currentCompanyId}/dashboard`, {
         replace: true,
       });
 
-      toast.success(`Switched to ${company.displayName || company.legalName}`);
+      toast.success(
+        `Switched to ${user.currentCompany.displayName || user.currentCompany.legalName}`,
+      );
     },
     onError: (error) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -111,9 +119,6 @@ export function useCompanySwitch() {
 
       try {
         await switchMutation.mutateAsync(toCompanyId);
-
-        refetchSession();
-        refetchCompany();
 
         toast.dismiss(loadingToast); // Dismiss loading toast on success
         onSuccess?.();
