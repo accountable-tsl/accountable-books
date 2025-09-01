@@ -197,7 +197,7 @@ const userRoleToAccessibleCompany = (role: UserCompanyRoleWithDetails): Accessib
   assignedFirmSlug: role.firmSlug || '',
   companyType: role.companyType,
   hasExplicitAccess: true,
-  isDemoCompany: role.isDemoCompany,
+  isDemoCompany: false,
   roleKey: role.roleKey,
   roleScope: role.roleScope,
   onboardingState: role.onboardingState,

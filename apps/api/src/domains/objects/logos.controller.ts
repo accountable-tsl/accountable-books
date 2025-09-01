@@ -31,8 +31,6 @@ export async function uploadLogoController(req: Request, res: Response) {
       companyId,
     });
 
-    console.log(uploadResult);
-
     if (!uploadResult.success || !uploadResult.data) {
       return res.status(500).json(errorResponse(uploadResult.message || 'Failed to store logo'));
     }

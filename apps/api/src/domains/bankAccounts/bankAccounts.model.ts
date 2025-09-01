@@ -264,7 +264,6 @@ export async function createNewBankAccount(input: {
       })
       .first();
 
-    console.log(existingCoa);
     if (existingCoa) {
       return errorResponse(
         `A chart of account with the name "${coaInput.name}" ${coaInput.code ? `and code "${coaInput.code}"` : ''} already exists in this company`,

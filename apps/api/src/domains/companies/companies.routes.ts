@@ -9,7 +9,7 @@ import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
 
 const router = express.Router({ mergeParams: true });
 
-router.post('/switch', verifyAccessToken, checkCompanyId, switchCompanyController);
+router.post('/switch', verifyAccessToken, switchCompanyController);
 
 // router.get(
 //   "/",

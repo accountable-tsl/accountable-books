@@ -17,11 +17,9 @@ export const handleBankAccountConnection = async ({
       provider,
       data,
     });
-    console.log(res.status, res.data);
     return res.data;
   } catch (err: unknown) {
     if (isAxiosError(err) && err.response?.data) {
-      console.log('err.response.data', err.response.data);
       return err.response.data;
     }
 

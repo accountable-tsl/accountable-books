@@ -41,7 +41,6 @@ export async function uploadObjectController(req: Request, res: Response) {
     };
 
     const uploadResult = await uploadObject(objectType, parsedParams);
-    console.log(uploadResult);
 
     if (!uploadResult.success) {
       return res.status(500).json(errorResponse(uploadResult.message || 'Failed to store logo'));

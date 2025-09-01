@@ -1,12 +1,17 @@
 import { type Request, type Response } from 'express';
-import { AppError, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  AppError,
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import { type AuthRequest } from '../../features/auth/auth.types.js';
 import { getCompanies, getSingleCompany, switchCompany, updateCompany } from './companies.model.js';
-import { setAuthCookies } from '../../features/auth/auth.utils.js';
+import { generateCsrfToken, setAuthCookies } from '../../features/auth/auth.utils.js';
 
 export const switchCompanyController = async (req: AuthRequest, res: Response) => {
   try {
-    const companyId = req.params.companyId || req.body.companyId;
+    const companyId = req.body.companyId;
     if (!req.user || !companyId) throw new AppError('Unauthorized');
 
     const switchResult = await switchCompany({
@@ -14,17 +19,29 @@ export const switchCompanyController = async (req: AuthRequest, res: Response) =
       newCompanyId: companyId,
     });
 
-    if (!switchResult.success) {
-      return res.status(403).json(errorResponse(switchResult.message));
+    if (!switchResult.success || !switchResult.data) {
+      const status =
+        switchResult?.code === ErrorCode.INVALID_CREDENTIALS
+          ? 401
+          : switchResult?.code === ErrorCode.GENERIC
+            ? 500
+            : 403;
+      return res
+        .status(status)
+        .json(errorResponse(switchResult.message, switchResult.data || undefined));
     }
 
     const { accessToken, refreshToken, user, company } = switchResult.data;
-
     setAuthCookies(req, res, accessToken, refreshToken);
+
+    req.company = company;
+    req.user = user;
+    const csrfToken = generateCsrfToken(req, res);
+
     return res.json(
       successResponse('Company switched successfully', {
         user,
-        company,
+        csrfToken,
       }),
     );
   } catch (error: unknown) {
@@ -47,8 +64,6 @@ export const getCompaniesController = async (req: Request, res: Response) => {
 };
 export const getCompanyController = async (req: AuthRequest, res: Response) => {
   try {
-    // const company = req.company;
-    // console.log(company);
     const companyId = req.params.companyId;
     if (!companyId) {
       return res.status(400).json(errorResponse('Company ID is required'));

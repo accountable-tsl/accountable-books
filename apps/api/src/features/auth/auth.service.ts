@@ -23,6 +23,7 @@ import { sendVerificationEmail } from '../../features/communications/email/email
 import { type UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import { addNewToken, getUserToken } from '../../domains/tokens/tokens.model.js';
 import { markUserOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
+import { getCompanyShortCode } from 'src/shared/utils/random.utils.js';
 
 export async function loginService(
   email: string,
@@ -363,13 +364,14 @@ export async function meService(userId: string): Promise<
 > {
   try {
     const user = await knexClient('users').select('*').where({ id: userId }).first();
-
     if (!user) {
       // If no user found, fail with invalid credentials error
       return errorResponse('Invalid credentials', undefined, {
         code: ErrorCode.INVALID_CREDENTIALS,
       });
     }
+
+    const shortCode = await getCompanyShortCode(user.last_active_company_id);
 
     const userData: DecodedToken = {
       sub: user.id,
@@ -378,7 +380,7 @@ export async function meService(userId: string): Promise<
       ...(user.lastname && { lastname: user.lastname }),
       emailVerifiedAt: user.email_verified_at || null,
       onboardingState: user.onboarding_state as UserOnboardingState,
-      currentCompanyId: user.last_active_company_id || undefined, // Let buildAuthContext finalize company
+      currentCompanyId: shortCode || undefined, // Let buildAuthContext finalize company
     };
 
     const contextResponse = await buildAuthContext(userData);

@@ -30,7 +30,7 @@ export interface DecodedToken {
   lastname?: string;
   emailVerifiedAt: Date | null;
   onboardingState: UserOnboardingState;
-  currentCompanyId?: string;
+  currentCompanyId?: string; // This should be the short code of the company
 }
 
 export type OldAuthUserContext = {

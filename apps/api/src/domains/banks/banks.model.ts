@@ -89,8 +89,6 @@ export async function addNewBank(data: NewInput | NewInput[], userId: string, kn
     );
   }
 
-  console.log(`Inserting ${validateProcessedBanks.data.length} banks...`);
-
   try {
     const inserted = await knex('banks').insert(validateProcessedBanks.data).returning('id');
 

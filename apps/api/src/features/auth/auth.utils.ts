@@ -124,7 +124,6 @@ export async function buildAuthContext(
     const { sub, email, firstname, lastname, emailVerifiedAt, currentCompanyId, onboardingState } =
       decoded;
 
-    console.log({ decoded });
     if (!sub) return errorResponse('Invalid token payload, missing user ID');
     // Sub is user ID
     const userAccessProfileResponse = await getAccessibleCompaniesForUser({
@@ -133,7 +132,6 @@ export async function buildAuthContext(
     if (!userAccessProfileResponse.success || !userAccessProfileResponse.data)
       return errorResponse(userAccessProfileResponse.message);
 
-    console.log({ userAccessProfileResponse });
     const userAccessProfile = userAccessProfileResponse.data;
     const accessibleCompanies = userAccessProfile.accessibleCompanies;
     const accessibleCompaniesIds = userAccessProfile.accessibleCompanies.map((c) => c.id);
@@ -150,7 +148,6 @@ export async function buildAuthContext(
     }
 
     const activeCompany = accessibleCompanies.find((c) => c.id === activeCompanyId);
-    console.log({ activeCompany });
     if (!activeCompany) {
       return errorResponse('Active company not found');
     }

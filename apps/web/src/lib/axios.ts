@@ -73,7 +73,8 @@ api.interceptors.response.use(
     if (
       error.response?.status !== 401 ||
       !originalRequest ||
-      originalRequest.url?.includes('/auth')
+      originalRequest.url?.includes('/auth') ||
+      originalRequest.url?.includes('/companies/switch')
     ) {
       return Promise.reject(error);
     }

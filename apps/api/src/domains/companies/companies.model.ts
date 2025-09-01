@@ -23,7 +23,7 @@ import generateSecureShortCode, { shortCodelooksWeird } from '../../shared/utils
 import { knexClient } from '../../db/knexClient.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import { updateFirm } from '../accountingFirms/firms.model.js';
-import { type AuthUserContext } from '../../features/auth/auth.types.js';
+import { type AuthUserContext, type DecodedToken } from '../../features/auth/auth.types.js';
 import {
   createInitialCompanyOnboardingState,
   markCompanyOnboardingStepComplete,
@@ -31,6 +31,8 @@ import {
 import { logger, logError, logDatabaseOperation, logTiming } from '../../shared/utils/logger.js';
 import { getCurrency } from '../currencies/currencies.utils.js';
 import { getCountry } from '../countries/countries.utils.js';
+import { buildAuthContext, generateAuthTokens } from 'src/features/auth/auth.utils.js';
+import { redis } from 'src/lib/redis.js';
 
 /**
  * Generates a unique short code for a company with collision handling
@@ -331,7 +333,7 @@ export const switchCompany = async (
     const companyUUID = await getCompanyUUID(newCompanyId);
     // Get company details
     const company = await knexClient('companies')
-      .select('is_demo_company')
+      .select('short_code')
       .where({ is_deleted: false, id: companyUUID })
       .first();
 
@@ -339,60 +341,42 @@ export const switchCompany = async (
       return errorResponse('Company not found');
     }
 
-    // console.log(company);
+    // Update user's last active company
 
-    // Grant demo access if needed
-    // if (company.is_demo_company) {
-    //   const accessGranted = await grantAccessToCompany({
-    //     companyId: companyUUID,
-    //     userId: user.id,
-    //     roleName: "demo_user",
-    //   });
+    const [u] = await knexClient('users')
+      .where({ id: user.id })
+      .update({ last_active_company_id: companyUUID })
+      .returning('*');
 
-    //   console.log({ accessGranted });
-    // }
+    if (!u) throw new Error('User not found');
 
-    // Confirm access
-    // const accessCheck = await hasAccessToCompany({
-    //   userId: user.id,
-    //   companyId: companyUUID,
-    // });
+    const userData: DecodedToken = {
+      sub: u.id,
+      email: u.email,
+      firstname: u.firstname,
+      lastname: u.lastname,
+      currentCompanyId: company.short_code,
+      emailVerifiedAt: u.emailVerifiedAt,
+      onboardingState: u.onboardingState,
+    };
 
-    // console.log({ accessCheck });
-    // if (!accessCheck.data?.hasAccess) {
-    //   return errorResponse("You do not have access to this company");
-    // }
+    // Generate new tokens reflecting the new active company
+    const { accessToken, refreshToken } = generateAuthTokens(userData);
 
-    // // Update user's last active company
-    // if (!company.is_demo_company) {
-    //   await knexClient("users")
-    //     .where("id", user.id)
-    //     .update("last_active_company_id", companyUUID);
-    // }
+    // Store refresh token in Redis
+    await redis.sadd(`refreshTokens:${user.id}`, refreshToken);
+    await redis.expire(`refreshTokens:${user.id}`, 604800); // 7 days
 
-    // const userData = {
-    //   sub: user.id,
-    //   email: user.email,
-    //   firstname: user.firstname,
-    //   lastname: user.lastname,
-    //   status: user.status,
-    //   currentCompanyId: companyUUID,
-    // };
-    // console.log(userData);
-    // // Generate new tokens reflecting the new active company
-    // const { accessToken, refreshToken } = generateAuthTokens(userData);
-
-    // // Store refresh token in Redis
-    // await redis.sadd(`refreshTokens:${user.id}`, refreshToken);
-    // await redis.expire(`refreshTokens:${user.id}`, 604800); // 7 days
-
-    // const authContext = await buildAuthContext(userData);
+    const authContext = await buildAuthContext(userData);
+    if (!authContext.success || !authContext.data) {
+      return errorResponse(authContext.message);
+    }
 
     return successResponse('Company switched successfully', {
-      // accessToken,
-      // refreshToken,
-      // user: authContext.user,
-      // company: authContext.company,
+      accessToken,
+      refreshToken,
+      user: authContext.data.user,
+      company: authContext.data.activeCompany,
     });
   } catch (error) {
     return errorResponse('Something went wrong', error);
@@ -561,7 +545,6 @@ export const getCompaniesByIds = async (
 
 export const getSingleCompany = async (id: string): Promise<ApiResponse<GetCompanyResponse>> => {
   const res = await fetchCompanies({ identifiers: [id] });
-  console.log(res);
   if (!res.success || !res.data || res.data.length === 0) {
     return errorResponse(res.message, null);
   }

@@ -67,8 +67,6 @@ export async function syncMonoInstitutionsToMappingsNG(
       });
     }
 
-    console.log('Starting Mono institutions sync...');
-
     // Fetch Mono institutions with timeout and retry logic
     let monoInstitutionsResp: MonoBankCoverage;
     try {
@@ -99,8 +97,6 @@ export async function syncMonoInstitutionsToMappingsNG(
     const monoInstitutionsToMap = monoInstitutionsResp.data.filter(
       (inst) => inst.country?.toLowerCase() === 'ng' && inst.id && inst.institution,
     );
-
-    console.log(`Found ${monoInstitutionsToMap.length} Nigerian institutions to process`);
 
     if (monoInstitutionsToMap.length === 0) {
       return successResponse('No institutions to sync', {
@@ -221,14 +217,10 @@ export async function syncMonoInstitutionsToMappingsNG(
       } else {
         await knex.transaction(processInTransaction);
       }
-
-      console.log(`Processed batch: ${batch.length} institutions`);
     }
 
     const duration = Date.now() - startTime;
     const result = { created, updated, skipped };
-
-    console.log(`Sync completed in ${duration}ms:`, result);
 
     return successResponse(
       `Successfully synced Mono institutions: ${created} created, ${updated} updated, ${skipped} skipped`,

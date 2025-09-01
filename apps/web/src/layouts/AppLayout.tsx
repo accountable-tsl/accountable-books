@@ -11,7 +11,6 @@ import { Outlet } from 'react-router';
 interface AppLayoutProps extends AppSidebarProps {}
 export default function AppLayout({ sidebarCollapsible = 'icon' }: AppLayoutProps) {
   const { user, company, companyId, companyType, loading } = useSession();
-
   useCanonicalUrlEnforcer();
   useUpdatePageInfo();
   usePageMeta();

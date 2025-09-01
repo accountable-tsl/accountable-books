@@ -43,7 +43,6 @@ export const getMonoAccountDetails = async ({
       },
     };
 
-    console.log({ m3etaToSave: accountMetaToSave });
     return { account: data.data.account, meta: accountMetaToSave };
   } catch (error) {
     if (axios.isAxiosError(error)) {

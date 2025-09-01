@@ -145,7 +145,6 @@ export function CompanySwitcher() {
       toCompanyId: company.id,
       // Remember current company when switching to demo
       rememberCurrentAsOriginal: company.isDemoCompany,
-      // Error toast is already handled in the hook, no need for onError callback
     });
   };
 

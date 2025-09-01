@@ -15,7 +15,7 @@ const SessionContext = createContext<SessionContextType>(createDefaultSessionCon
 export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const user = authStore((s) => s.user);
+  const { user } = authStore.getState();
   const setAuth = authStore((s) => s.setAuth);
   const clearAuth = authStore((s) => s.clearAuth);
 
@@ -119,6 +119,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       companyType,
 
       tenantRoutes,
+      setAuth,
 
       refetchSession: async () => {
         try {

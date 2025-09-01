@@ -198,8 +198,6 @@ export async function fetchExchangeRate(
       try {
         const [inserted] = await knex('exchange_rates').insert(rateData).returning('id');
 
-        console.log({ inserted });
-
         persistedRate = await knex('exchange_rates')
           .select('id', 'date', 'rate', 'from_currency_id', 'to_currency_id')
           .where('id', inserted.id)
