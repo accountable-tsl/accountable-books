@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { type CompanyType, type Country, zEmail } from '@/shared/types/core';
 import { Button } from '@/components/ui/button';
 import { type NewCompany, type NewUser } from './signupTypes';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { getDefaultCurrencyCodeForCountry } from '@/constants/countryCurrencyMap';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';

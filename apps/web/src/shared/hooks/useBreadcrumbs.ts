@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { findMatchingRouteSmart, flatRoutes, routeIndex } from '@/shared/routes/utils';
 import { useSession } from '@/features/auth/Session';
 

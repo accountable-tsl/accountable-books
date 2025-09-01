@@ -1,5 +1,5 @@
 import './Header.scss';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import logo from '../../assets/images/mainlogo.png';
 import {
   faBars,

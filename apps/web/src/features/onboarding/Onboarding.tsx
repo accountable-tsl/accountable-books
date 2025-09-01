@@ -8,7 +8,7 @@ import {
   onboardingSteps,
   onboardingStepsConfig,
 } from '@/features/onboarding/utils';
-import { Navigate, useLocation, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router';
 import type { EnrichedOnboardingStep, OnboardingState } from '@/features/onboarding/types';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import type { CompanyData } from '@/domains/company/types';

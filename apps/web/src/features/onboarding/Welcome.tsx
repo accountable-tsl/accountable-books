@@ -1,7 +1,7 @@
 import { ConfettiCelebration } from '@/components/Confetti';
 import { useEffect, useState } from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useSession } from '../auth/Session';
 import { routes } from '@/shared/routes/routes';
 

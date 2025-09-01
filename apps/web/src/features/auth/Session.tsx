@@ -3,7 +3,7 @@ import { clearSessionFn, useSessionQuery } from '@/features/auth/hooks';
 import { authStore } from '@/features/auth/store';
 import { routes } from '@/shared/routes/routes';
 import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import { createTenantRoutes, isPublicRoute } from '@/shared/routes/utils';
 import type { LogoutOptions, SessionContextType } from '@/features/auth/types';
 import { useCompanyDetails } from '@/domains/company/hooks';

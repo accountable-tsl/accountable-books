@@ -25,7 +25,7 @@ import type {
 import { createSelectionColumn } from '@/components/data-table/utils/select-column';
 import type { RowClickBehavior } from './types/row-click';
 import { isInternalUrl } from './utils/table';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { createMultiColumnFilter } from './toolbar';
 
 /**

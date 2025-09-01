@@ -11,7 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { getNavMain, getNavSecondary, getNavUser } from '@/constants/sidebarData';
 import { NavMain } from '@/components/NavMain';
 import { NavUser } from '@/components/NavUser';

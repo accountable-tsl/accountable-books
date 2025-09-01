@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import type { SwitchCompanyOpts } from '@/features/switchCompany/types';
 import { useCompany } from '@/domains/company/store';
 import { useRef, useState } from 'react';

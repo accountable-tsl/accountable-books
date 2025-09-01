@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { matchPath, useLocation, useNavigate } from 'react-router-dom';
+import { matchPath, useLocation, useNavigate } from 'react-router';
 import { buildCanonicalUrl, flatRoutes } from '@/shared/routes/utils';
 import { useSession } from '@/features/auth/Session';
 import { routes } from '@/shared/routes/routes';
