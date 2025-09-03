@@ -1,21 +1,5 @@
 export namespace Schemas {
   // <Schemas>
-  export type HealthResponse = { ok: boolean };
-  export type Email = string;
-  export type LoginForm = { email: string; password: string };
-  export type RoleKey =
-    | 'super_admin'
-    | 'support_admin'
-    | 'support_agent'
-    | 'firm_owner'
-    | 'firm_admin'
-    | 'accountant'
-    | 'staff_accountant'
-    | 'client_owner'
-    | 'client_admin'
-    | 'client_user';
-  export type RoleScope = 'platform' | 'firm' | 'company';
-  export type CompanyType = 'business' | 'individual' | 'accounting_firm';
   export type AuthCompanyContext = {
     id: string;
     legalName: string;
@@ -42,69 +26,6 @@ export namespace Schemas {
     roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
     isDemoCompany: boolean;
     companyType: 'business' | 'individual' | 'accounting_firm';
-  };
-  export type AuthUserContext = {
-    id: string;
-    email: string;
-    firstname: string;
-    lastname?: string | undefined;
-    isPlatformUser?: boolean | undefined;
-    platformUserKey?: (string | null) | undefined;
-    currentCompanyId: string;
-    currentCompany: {
-      id: string;
-      legalName: string;
-      displayName?: (string | null) | undefined;
-      assignedFirmSlug: string;
-      hasExplicitAccess: boolean;
-      roleKey?:
-        | (
-            | (
-                | 'super_admin'
-                | 'support_admin'
-                | 'support_agent'
-                | 'firm_owner'
-                | 'firm_admin'
-                | 'accountant'
-                | 'staff_accountant'
-                | 'client_owner'
-                | 'client_admin'
-                | 'client_user'
-              )
-            | null
-          )
-        | undefined;
-      roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
-      isDemoCompany: boolean;
-      companyType: 'business' | 'individual' | 'accounting_firm';
-    };
-    companies: Array<{
-      id: string;
-      legalName: string;
-      displayName?: (string | null) | undefined;
-      assignedFirmSlug: string;
-      hasExplicitAccess: boolean;
-      roleKey?:
-        | (
-            | (
-                | 'super_admin'
-                | 'support_admin'
-                | 'support_agent'
-                | 'firm_owner'
-                | 'firm_admin'
-                | 'accountant'
-                | 'staff_accountant'
-                | 'client_owner'
-                | 'client_admin'
-                | 'client_user'
-              )
-            | null
-          )
-        | undefined;
-      roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
-      isDemoCompany: boolean;
-      companyType: 'business' | 'individual' | 'accounting_firm';
-    }>;
   };
   export type AuthContextData = {
     user: {
@@ -172,6 +93,70 @@ export namespace Schemas {
     };
     csrfToken?: string | undefined;
   };
+  export type AuthUserContext = {
+    id: string;
+    email: string;
+    firstname: string;
+    lastname?: string | undefined;
+    isPlatformUser?: boolean | undefined;
+    platformUserKey?: (string | null) | undefined;
+    currentCompanyId: string;
+    currentCompany: {
+      id: string;
+      legalName: string;
+      displayName?: (string | null) | undefined;
+      assignedFirmSlug: string;
+      hasExplicitAccess: boolean;
+      roleKey?:
+        | (
+            | (
+                | 'super_admin'
+                | 'support_admin'
+                | 'support_agent'
+                | 'firm_owner'
+                | 'firm_admin'
+                | 'accountant'
+                | 'staff_accountant'
+                | 'client_owner'
+                | 'client_admin'
+                | 'client_user'
+              )
+            | null
+          )
+        | undefined;
+      roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+      isDemoCompany: boolean;
+      companyType: 'business' | 'individual' | 'accounting_firm';
+    };
+    companies: Array<{
+      id: string;
+      legalName: string;
+      displayName?: (string | null) | undefined;
+      assignedFirmSlug: string;
+      hasExplicitAccess: boolean;
+      roleKey?:
+        | (
+            | (
+                | 'super_admin'
+                | 'support_admin'
+                | 'support_agent'
+                | 'firm_owner'
+                | 'firm_admin'
+                | 'accountant'
+                | 'staff_accountant'
+                | 'client_owner'
+                | 'client_admin'
+                | 'client_user'
+              )
+            | null
+          )
+        | undefined;
+      roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+      isDemoCompany: boolean;
+      companyType: 'business' | 'individual' | 'accounting_firm';
+    }>;
+  };
+  export type LoginForm = { email: string; password: string };
   export type LoginResponse = {
     success: boolean;
     message: string;
@@ -243,20 +228,6 @@ export namespace Schemas {
           csrfToken?: string | undefined;
         }
       | undefined;
-    error?: Record<string, unknown> | undefined;
-    code?: string | undefined;
-  };
-  export type ApiResponse = {
-    success: boolean;
-    message: string;
-    data?: unknown | undefined;
-    error?: unknown | undefined;
-    code?: string | undefined;
-  };
-  export type RefreshResponse = {
-    success: boolean;
-    message: string;
-    data?: Partial<{ csrfToken: string }> | undefined;
     error?: Record<string, unknown> | undefined;
     code?: string | undefined;
   };
@@ -334,6 +305,35 @@ export namespace Schemas {
     error?: Record<string, unknown> | undefined;
     code?: string | undefined;
   };
+  export type RefreshResponse = {
+    success: boolean;
+    message: string;
+    data?: Partial<{ csrfToken: string }> | undefined;
+    error?: Record<string, unknown> | undefined;
+    code?: string | undefined;
+  };
+  export type ApiResponse = {
+    success: boolean;
+    message: string;
+    data?: unknown | undefined;
+    error?: unknown | undefined;
+    code?: string | undefined;
+  };
+  export type CompanyType = 'business' | 'individual' | 'accounting_firm';
+  export type Email = string;
+  export type HealthResponse = { ok: boolean };
+  export type RoleKey =
+    | 'super_admin'
+    | 'support_admin'
+    | 'support_agent'
+    | 'firm_owner'
+    | 'firm_admin'
+    | 'accountant'
+    | 'staff_accountant'
+    | 'client_owner'
+    | 'client_admin'
+    | 'client_user';
+  export type RoleScope = 'platform' | 'firm' | 'company';
 
   // </Schemas>
 }

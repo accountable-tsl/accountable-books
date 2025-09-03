@@ -4,25 +4,6 @@ import { z } from 'zod';
 const loginUser_Body = z
   .object({ email: z.string().email(), password: z.string().min(8) })
   .passthrough();
-const HealthResponse = z.object({ ok: z.boolean() }).passthrough();
-const Email = z.string();
-const LoginForm = z
-  .object({ email: z.string().email(), password: z.string().min(8) })
-  .passthrough();
-const RoleKey = z.enum([
-  'super_admin',
-  'support_admin',
-  'support_agent',
-  'firm_owner',
-  'firm_admin',
-  'accountant',
-  'staff_accountant',
-  'client_owner',
-  'client_admin',
-  'client_user',
-]);
-const RoleScope = z.enum(['platform', 'firm', 'company']);
-const CompanyType = z.enum(['business', 'individual', 'accounting_firm']);
 const AuthCompanyContext = z
   .object({
     id: z.string().uuid(),
@@ -47,71 +28,6 @@ const AuthCompanyContext = z
     roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
     isDemoCompany: z.boolean(),
     companyType: z.enum(['business', 'individual', 'accounting_firm']),
-  })
-  .passthrough();
-const AuthUserContext = z
-  .object({
-    id: z.string().uuid(),
-    email: z.string().email(),
-    firstname: z.string(),
-    lastname: z.string().optional(),
-    isPlatformUser: z.boolean().optional(),
-    platformUserKey: z.string().nullish(),
-    currentCompanyId: z.string().uuid(),
-    currentCompany: z
-      .object({
-        id: z.string().uuid(),
-        legalName: z.string(),
-        displayName: z.string().nullish(),
-        assignedFirmSlug: z.string(),
-        hasExplicitAccess: z.boolean(),
-        roleKey: z
-          .enum([
-            'super_admin',
-            'support_admin',
-            'support_agent',
-            'firm_owner',
-            'firm_admin',
-            'accountant',
-            'staff_accountant',
-            'client_owner',
-            'client_admin',
-            'client_user',
-          ])
-          .nullish(),
-        roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-        isDemoCompany: z.boolean(),
-        companyType: z.enum(['business', 'individual', 'accounting_firm']),
-      })
-      .passthrough(),
-    companies: z.array(
-      z
-        .object({
-          id: z.string().uuid(),
-          legalName: z.string(),
-          displayName: z.string().nullish(),
-          assignedFirmSlug: z.string(),
-          hasExplicitAccess: z.boolean(),
-          roleKey: z
-            .enum([
-              'super_admin',
-              'support_admin',
-              'support_agent',
-              'firm_owner',
-              'firm_admin',
-              'accountant',
-              'staff_accountant',
-              'client_owner',
-              'client_admin',
-              'client_user',
-            ])
-            .nullish(),
-          roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-          isDemoCompany: z.boolean(),
-          companyType: z.enum(['business', 'individual', 'accounting_firm']),
-        })
-        .passthrough(),
-    ),
   })
   .passthrough();
 const AuthContextData = z
@@ -183,6 +99,74 @@ const AuthContextData = z
       .passthrough(),
     csrfToken: z.string().optional(),
   })
+  .passthrough();
+const AuthUserContext = z
+  .object({
+    id: z.string().uuid(),
+    email: z.string().email(),
+    firstname: z.string(),
+    lastname: z.string().optional(),
+    isPlatformUser: z.boolean().optional(),
+    platformUserKey: z.string().nullish(),
+    currentCompanyId: z.string().uuid(),
+    currentCompany: z
+      .object({
+        id: z.string().uuid(),
+        legalName: z.string(),
+        displayName: z.string().nullish(),
+        assignedFirmSlug: z.string(),
+        hasExplicitAccess: z.boolean(),
+        roleKey: z
+          .enum([
+            'super_admin',
+            'support_admin',
+            'support_agent',
+            'firm_owner',
+            'firm_admin',
+            'accountant',
+            'staff_accountant',
+            'client_owner',
+            'client_admin',
+            'client_user',
+          ])
+          .nullish(),
+        roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+        isDemoCompany: z.boolean(),
+        companyType: z.enum(['business', 'individual', 'accounting_firm']),
+      })
+      .passthrough(),
+    companies: z.array(
+      z
+        .object({
+          id: z.string().uuid(),
+          legalName: z.string(),
+          displayName: z.string().nullish(),
+          assignedFirmSlug: z.string(),
+          hasExplicitAccess: z.boolean(),
+          roleKey: z
+            .enum([
+              'super_admin',
+              'support_admin',
+              'support_agent',
+              'firm_owner',
+              'firm_admin',
+              'accountant',
+              'staff_accountant',
+              'client_owner',
+              'client_admin',
+              'client_user',
+            ])
+            .nullish(),
+          roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+          isDemoCompany: z.boolean(),
+          companyType: z.enum(['business', 'individual', 'accounting_firm']),
+        })
+        .passthrough(),
+    ),
+  })
+  .passthrough();
+const LoginForm = z
+  .object({ email: z.string().email(), password: z.string().min(8) })
   .passthrough();
 const LoginResponse = z
   .object({
@@ -259,24 +243,6 @@ const LoginResponse = z
       })
       .passthrough()
       .optional(),
-    error: z.object({}).partial().passthrough().optional(),
-    code: z.string().optional(),
-  })
-  .passthrough();
-const ApiResponse = z
-  .object({
-    success: z.boolean(),
-    message: z.string(),
-    data: z.unknown().optional(),
-    error: z.unknown().optional(),
-    code: z.string().optional(),
-  })
-  .passthrough();
-const RefreshResponse = z
-  .object({
-    success: z.boolean(),
-    message: z.string(),
-    data: z.object({ csrfToken: z.string() }).partial().passthrough().optional(),
     error: z.object({}).partial().passthrough().optional(),
     code: z.string().optional(),
   })
@@ -360,22 +326,56 @@ const MeResponse = z
     code: z.string().optional(),
   })
   .passthrough();
+const RefreshResponse = z
+  .object({
+    success: z.boolean(),
+    message: z.string(),
+    data: z.object({ csrfToken: z.string() }).partial().passthrough().optional(),
+    error: z.object({}).partial().passthrough().optional(),
+    code: z.string().optional(),
+  })
+  .passthrough();
+const ApiResponse = z
+  .object({
+    success: z.boolean(),
+    message: z.string(),
+    data: z.unknown().optional(),
+    error: z.unknown().optional(),
+    code: z.string().optional(),
+  })
+  .passthrough();
+const CompanyType = z.enum(['business', 'individual', 'accounting_firm']);
+const Email = z.string();
+const HealthResponse = z.object({ ok: z.boolean() }).passthrough();
+const RoleKey = z.enum([
+  'super_admin',
+  'support_admin',
+  'support_agent',
+  'firm_owner',
+  'firm_admin',
+  'accountant',
+  'staff_accountant',
+  'client_owner',
+  'client_admin',
+  'client_user',
+]);
+const RoleScope = z.enum(['platform', 'firm', 'company']);
 
 export const schemas = {
   loginUser_Body,
-  HealthResponse,
-  Email,
+  AuthCompanyContext,
+  AuthContextData,
+  AuthUserContext,
   LoginForm,
+  LoginResponse,
+  MeResponse,
+  RefreshResponse,
+  ApiResponse,
+  CompanyType,
+  Email,
+  HealthResponse,
   RoleKey,
   RoleScope,
-  CompanyType,
-  AuthCompanyContext,
-  AuthUserContext,
-  AuthContextData,
-  LoginResponse,
-  ApiResponse,
-  RefreshResponse,
-  MeResponse,
 };
 
 const endpoints = makeApi([

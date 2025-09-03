@@ -108,35 +108,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
-    HealthResponse: {
-      /**
-       * @description Service health check indicator
-       * @example true
-       */
-      ok: boolean;
-    };
-    /** Format: email */
-    Email: string;
-    LoginForm: {
-      email: components['schemas']['Email'];
-      password: string;
-    };
-    /** @enum {string} */
-    RoleKey:
-      | 'super_admin'
-      | 'support_admin'
-      | 'support_agent'
-      | 'firm_owner'
-      | 'firm_admin'
-      | 'accountant'
-      | 'staff_accountant'
-      | 'client_owner'
-      | 'client_admin'
-      | 'client_user';
-    /** @enum {string} */
-    RoleScope: 'platform' | 'firm' | 'company';
-    /** @enum {string} */
-    CompanyType: 'business' | 'individual' | 'accounting_firm';
     AuthCompanyContext: {
       /** Format: uuid */
       id: string;
@@ -148,6 +119,11 @@ export interface components {
       roleScope?: components['schemas']['RoleScope'];
       isDemoCompany: boolean;
       companyType: components['schemas']['CompanyType'];
+    };
+    AuthContextData: {
+      user: components['schemas']['AuthUserContext'];
+      /** @example csrf-token-here */
+      csrfToken?: string;
     };
     AuthUserContext: {
       /** Format: uuid */
@@ -163,10 +139,9 @@ export interface components {
       currentCompany: components['schemas']['AuthCompanyContext'];
       companies: components['schemas']['AuthCompanyContext'][];
     };
-    AuthContextData: {
-      user: components['schemas']['AuthUserContext'];
-      /** @example csrf-token-here */
-      csrfToken?: string;
+    LoginForm: {
+      email: components['schemas']['Email'];
+      password: string;
     };
     LoginResponse: {
       success: boolean;
@@ -175,11 +150,11 @@ export interface components {
       error?: Record<string, never>;
       code?: string;
     };
-    ApiResponse: {
+    MeResponse: {
       success: boolean;
       message: string;
-      data?: unknown;
-      error?: unknown;
+      data?: components['schemas']['AuthContextData'];
+      error?: Record<string, never>;
       code?: string;
     };
     RefreshResponse: {
@@ -192,13 +167,38 @@ export interface components {
       error?: Record<string, never>;
       code?: string;
     };
-    MeResponse: {
+    ApiResponse: {
       success: boolean;
       message: string;
-      data?: components['schemas']['AuthContextData'];
-      error?: Record<string, never>;
+      data?: unknown;
+      error?: unknown;
       code?: string;
     };
+    /** @enum {string} */
+    CompanyType: 'business' | 'individual' | 'accounting_firm';
+    /** Format: email */
+    Email: string;
+    HealthResponse: {
+      /**
+       * @description Service health check indicator
+       * @example true
+       */
+      ok: boolean;
+    };
+    /** @enum {string} */
+    RoleKey:
+      | 'super_admin'
+      | 'support_admin'
+      | 'support_agent'
+      | 'firm_owner'
+      | 'firm_admin'
+      | 'accountant'
+      | 'staff_accountant'
+      | 'client_owner'
+      | 'client_admin'
+      | 'client_user';
+    /** @enum {string} */
+    RoleScope: 'platform' | 'firm' | 'company';
   };
   responses: never;
   parameters: never;

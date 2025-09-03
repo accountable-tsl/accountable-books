@@ -51,19 +51,19 @@ async function processTransactionSyncJob(job: Job<TransactionSyncJobData | BulkS
     switch (job.name) {
       case 'sync-transactions': {
         const data = job.data as TransactionSyncJobData;
-        await syncSingleConnection(job, data);
+        await syncSingleConnection(job as Job<TransactionSyncJobData>, data);
         break;
       }
 
       case 'bulk-sync-transactions': {
         const data = job.data as BulkSyncJobData;
-        await syncBulkConnections(job, data);
+        await syncBulkConnections(job as Job<BulkSyncJobData>, data);
         break;
       }
 
       case 'periodic-sync': {
         const data = job.data as TransactionSyncJobData;
-        await periodicSync(job, data);
+        await periodicSync(job as Job<TransactionSyncJobData>, data);
         break;
       }
 
