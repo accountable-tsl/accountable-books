@@ -80,6 +80,32 @@ jobs:
     strategy:
       matrix:
         package: [api, web]
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: accountable_books
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
+      redis:
+        image: redis:8.0-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6380:6379
+
     steps:
       - uses: actions/checkout@v4
 
@@ -109,6 +135,12 @@ jobs:
 
       - name: Generate environment files
         run: pnpm --filter @accountable-books/${{ matrix.package }} generate-env
+
+      - name: Create test database
+        if: matrix.package == 'api'
+        run: |
+          PGPASSWORD=password psql -h localhost -p 5433 -U user -d accountable_books -c "CREATE DATABASE accountable_books_test;"
+        continue-on-error: true
 
       - name: Build ${{ matrix.package }}
         run: pnpm --filter @accountable-books/${{ matrix.package }} build
