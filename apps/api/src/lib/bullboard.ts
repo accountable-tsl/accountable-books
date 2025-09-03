@@ -2,12 +2,16 @@ import { createBullBoard } from '@bull-board/api';
 import { ExpressAdapter } from '@bull-board/express';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter.js';
 import { emailQueue } from '../jobs/queues/email.queue.js';
+import { transactionSyncQueue } from '../jobs/queues/transaction-sync.queue.js';
 
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queues');
 
+// Initialize with all available queues
+const queues = [new BullMQAdapter(emailQueue), new BullMQAdapter(transactionSyncQueue)];
+
 const { addQueue, removeQueue, setQueues, replaceQueues } = createBullBoard({
-  queues: [new BullMQAdapter(emailQueue)],
+  queues,
   serverAdapter,
 });
 

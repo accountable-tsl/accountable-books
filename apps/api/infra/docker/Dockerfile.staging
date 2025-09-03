@@ -70,5 +70,7 @@ done
 WORKDIR /app/apps/api
 
 EXPOSE 5001
+EXPOSE 9091
 
-CMD ["node", "dist/src/server.js"]
+# Support multiple processes based on Fly.io process group
+CMD ["sh", "-c", "if [ \"$FLY_PROCESS_GROUP\" = \"worker\" ]; then node dist/src/worker.js; else node dist/src/server.js; fi"]

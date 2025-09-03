@@ -437,11 +437,88 @@ export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
   // BANK FEED PROVIDERS
   // ============================================================================
+  FEED_DISPLAY_NAME: {
+    description: 'Name feed providers will display',
+    type: 'string',
+    required: false,
+    local: 'Accountable',
+  },
   MONO_SECRET_KEY: {
     description: 'Mono secret key',
     type: 'secret',
     required: false,
     local: 'test_sk_t72nrt2xsyizcr08j9ep',
+  },
+
+  PLAID_CLIENT_ID: {
+    description: 'Plaid client ID',
+    type: 'secret',
+    local: '6849db53d71e300025a5abcb',
+  },
+
+  PLAID_SECRET: {
+    description: 'Plaid secret',
+    type: 'secret',
+    local: 'afc8335d9193fa38981a998ea9e09a',
+  },
+
+  PLAID_COUNTRY_CODES: {
+    description: 'Plaid country codes (comma-separated)',
+    type: 'string',
+    default: 'US,CA',
+  },
+
+  PLAID_PRODUCTS: {
+    description: 'Plaid products (comma-separated)',
+    type: 'string',
+    default: 'auth,transactions',
+  },
+
+  PLAID_ENV: {
+    description: 'Plaid environment',
+    required: true,
+    type: 'string',
+    local: 'sandbox',
+    staging: 'sandbox',
+  },
+
+  PLAID_VERSION: {
+    description: 'Plaid API version',
+    type: 'string',
+    default: '2020-09-14',
+  },
+
+  PLAID_REDIRECT_URI: {
+    description: 'Plaid redirect URI',
+    required: false,
+    type: 'string',
+  },
+
+  // ============================================================================
+  // OTHERS
+  // ============================================================================
+  APP_ENC_KEY_ID: {
+    description: 'Active AES-256 key id (0..255)',
+    type: 'secret',
+    default: '1',
+    validation: (v: unknown) => typeof v === 'string' && Number(v) >= 0 && Number(v) <= 255,
+  },
+
+  APP_ENC_KEYS: {
+    // Example: 1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    description: 'Comma-separated keys as id:base64(32B)',
+    type: 'secret',
+    default: '1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+    validation: (v: unknown) => {
+      if (typeof v !== 'string') return false;
+      return v.split(',').every((pair) => {
+        const [idStr, b64] = pair.split(':');
+        if (!idStr || !b64) return false;
+        if (!/^\d+$/.test(idStr)) return false;
+        if (b64.length !== 44) return false;
+        return Buffer.from(b64, 'base64').length === 32;
+      });
+    },
   },
 } as const;
 

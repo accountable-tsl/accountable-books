@@ -22,11 +22,20 @@ primary_region = "iad"  # Washington DC (US East)
   BASE_DOMAIN = "getaccountable.com"
   BACKEND_URL = "https://api-staging.getaccountable.com"
   FRONTEND_URL = "https://staging.getaccountable.com"
-  COOKIE_DOMAIN = ".getaccountable.com" 
+  COOKIE_DOMAIN = ".getaccountable.com"
+  
+  # Worker configuration (optimized for low Redis usage)
+  ENABLE_EMAIL_WORKER = "true"
+  ENABLE_TRANSACTION_SYNC = "false"
+  EMAIL_WORKER_CONCURRENCY = "5"
+  TRANSACTION_SYNC_CONCURRENCY = "3"
+  
+  # Redis monitoring (enabled in staging to track usage)
+  ENABLE_REDIS_MONITORING = "true" 
 
 [processes]
   web = "node dist/src/server.js"
-  worker = "node dist/src/jobs/workers/email.worker.js"
+  worker = "node dist/src/worker.js"
 
 [http_service]
   internal_port = 5001
@@ -36,6 +45,23 @@ primary_region = "iad"  # Washington DC (US East)
   min_machines_running = 0
   max_machines_running = 2
   processes = ["web"]  # Only web process handles HTTP traffic
+
+# Worker machine configuration
+[[services]]
+  processes = ["worker"]
+  internal_port = 9091
+  
+  # Worker health check (optional, for monitoring)
+  [[services.tcp_checks]]
+    interval = "30s"
+    timeout = "10s"
+
+# Ensure worker machines stay running
+[mounts]
+
+# Worker-specific VM settings
+[compute]
+  memory = "512MB"
 
   [[http_service.checks]]
     method = "GET"

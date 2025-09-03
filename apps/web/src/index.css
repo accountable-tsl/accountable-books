@@ -128,14 +128,8 @@
   }
 
   .scrollbar-thin-2px::-webkit-scrollbar-thumb {
-    /* background-color: var(--muted-foreground, #d1d5db); */
-    background-color: transparent;
-    border-radius: 1px;
-    transition: background-color 0.2s ease;
-  }
-
-  .scrollbar-thin-2px:hover::-webkit-scrollbar-thumb {
     background-color: var(--muted-foreground, #d1d5db);
+    border-radius: 1px;
   }
 }
 

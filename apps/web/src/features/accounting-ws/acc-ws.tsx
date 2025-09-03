@@ -47,7 +47,11 @@ export function AccountingWorkspace() {
           icon: <Upload className="w-4 h-4" />,
           onClick: () => navigate(tenantRoutes.accounting.uploadBankTxn()),
         },
-        { label: 'Connect', icon: <Link className="w-4 h-4" /> },
+        {
+          label: 'Connect',
+          icon: <Link className="w-4 h-4" />,
+          onClick: () => navigate(tenantRoutes.banking.connect()),
+        },
       ],
     },
 

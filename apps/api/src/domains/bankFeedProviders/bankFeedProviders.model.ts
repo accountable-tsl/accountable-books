@@ -13,6 +13,7 @@ import {
   type NewBankFeedProviderCountry,
 } from '../../domains/bankFeedProviders/bankFeedProviders.types.js';
 import { redis } from '../../lib/redis.js';
+import { refreshProviderRegistry } from '../../integrations/banking/providers/registry.js';
 
 export async function invalidateBankFeedProvidersCache(providerIds?: string[]) {
   try {
@@ -21,6 +22,9 @@ export async function invalidateBankFeedProvidersCache(providerIds?: string[]) {
     if (keys.length > 0) {
       await redis.del(...keys);
     }
+
+    // Also refresh the provider registry since it depends on this data
+    await refreshProviderRegistry();
   } catch (error) {
     console.warn('Cache invalidation failed:', error);
   }

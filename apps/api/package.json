@@ -40,7 +40,8 @@
     "demo:reverse": "tsx seeds/demo/cli.ts reverse",
     "demo:reset": "tsx seeds/demo/cli.ts reset",
     "demo:status": "tsx seeds/demo/cli.ts status",
-    "start:worker": "tsx src/jobs/workers/email.worker.ts",
+    "start:worker": "tsx src/worker.ts",
+    "start:worker:dev": "tsx watch src/worker.ts",
     "sentry:sourcemaps": "sentry-cli releases files \"$SENTRY_RELEASE\" upload-sourcemaps dist --rewrite && sentry-cli releases finalize \"$SENTRY_RELEASE\"",
     "slack": "tsx src/features/communications/slack.service.ts"
   },
@@ -79,6 +80,7 @@
     "pg": "^8.16.3",
     "pino": "^9.9.0",
     "pino-http": "^10.5.0",
+    "plaid": "^38.0.0",
     "rate-limit-redis": "^4.2.0",
     "redis": "^4.7.0",
     "swagger-jsdoc": "^6.2.8",
