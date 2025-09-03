@@ -1,94 +1,143 @@
-DRY_RUN ?=
-DRY_RUN_PREFIX = $(if $(DRY_RUN),echo )
+# 🗄️ Complete Database Operations Suite
+# All database-related commands consolidated in one place for better DX
 
-.PHONY: db-up db-dev db-stg db-% db-%-build db-%-build-redis db-%-build-postgres db-%-up db-%-up-postgres db-%-up-redis db-%-down db-%-logs db-%-restart db-%-nuke db-%-status
-.PHONY: db-dev-migrate db-dev-rollback db-remote-staging-migrate db-local-staging-migrate db-staging-rollback db-print-loaded
+.PHONY: db-up db-down db-logs db-migrate db-seed db-reset db-rollback db-wait db-shell
+.PHONY: db-staging-up db-staging-down db-staging-logs db-staging-migrate db-staging-rollback
+.PHONY: staging-up staging-down staging-logs staging-status staging-full-up staging-full-down
+.PHONY: staging-health deploy-staging-check deploy-production-check
 
-db-up: db-dev-up ## Start database and redis for dev environment (default)
-db-dev: db-dev-up ## Start database and redis for dev environment
-db-stg: db-staging-up ## Start database and redis for staging environment
-db-down: db-dev-down ## Stop database and redis for dev environment
-db-nuke: db-dev-nuke ## Destructive: stop services and remove volumes for dev environment
-migrate-dev: db-dev-migrate ## Run migrations for dev environment
-rollback-dev: db-dev-rollback ## Rollback migrations for dev environment
+# =============================================================================
+# 🚀 BASIC DATABASE OPERATIONS (Local Development)
+# =============================================================================
 
+db-up: guard-nonprod ## Start database and redis for local development
+	@echo "$(GREEN)🐳 Starting database and redis...$(RESET)"
+	@docker compose -f docker-compose.dev.yml up -d --build db redis
 
-db-%: db-%-up ## Start database and redis services for environment <env>
+db-down: guard-nonprod ## Stop database and redis for local development
+	@echo "$(YELLOW)🛑 Stopping database and redis...$(RESET)"
+	@docker compose -f docker-compose.dev.yml down
 
-db-%-build: ensure-% ## Build database and redis images for environment <env>
-	@echo "$(BLUE)Building images for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) build db redis
+db-logs: ## View local database logs
+	@docker compose -f docker-compose.dev.yml logs -f --tail=100 db redis
 
-db-%-build-redis: ensure-% ## Build only redis image for environment <env>
-	@echo "$(BLUE)Building redis image for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) build redis
+db-migrate: guard-nonprod ## Run database migrations for local development
+	@echo "$(GREEN)🗄️ Running migrations...$(RESET)"
+	@pnpm -F @accountable-books/api run migrate
 
-db-%-build-postgres: ensure-% ## Build only postgres image for environment <env>
-	@echo "$(BLUE)Building postgres image for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) build db
+db-seed: guard-nonprod ## Apply demo data for local development
+	@echo "$(GREEN)🌱 Applying demo data...$(RESET)"
+	@pnpm -F @accountable-books/api run demo:apply
 
-db-%-up: guard-nonprod ensure-% ## Start database and redis services for environment <env>
-	@echo "$(GREEN)Starting database services for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d --build db redis
+# =============================================================================
+# 🔧 ADVANCED DATABASE OPERATIONS (Local Development)
+# =============================================================================
 
-db-%-up-postgres: guard-nonprod ensure-% ## Start only postgres service for environment <env>
-	@echo "$(GREEN)Starting postgres service for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d --build db
+db-reset: guard-nonprod ## Reset database: rollback all migrations, then migrate fresh
+	@echo "$(YELLOW)🔄 Resetting database...$(RESET)"
+	@pnpm -F @accountable-books/api run db:reset
+	@echo "$(GREEN)✅ Database reset complete$(RESET)"
 
-db-%-up-redis: guard-nonprod ensure-% ## Start only redis service for environment <env>
-	@echo "$(GREEN)Starting redis service for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d --build redis
+db-rollback: guard-nonprod ## Rollback last migration
+	@echo "$(YELLOW)⏪ Rolling back last migration...$(RESET)"
+	@pnpm -F @accountable-books/api run rollback
 
-db-%-down: guard-nonprod ensure-% ## Stop database and redis services for environment <env>
-	@echo "$(YELLOW)Stopping database services for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) down
+db-wait: ## Wait for database to be ready
+	@echo "$(YELLOW)⏳ Waiting for database...$(RESET)"
+	@timeout 30 sh -c 'until docker compose -f docker-compose.dev.yml exec -T db pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB; do sleep 1; done' || (echo "$(RED)❌ Database failed to start$(RESET)" && exit 1)
+	@echo "$(GREEN)✅ Database ready$(RESET)"
 
-db-%-logs: ensure-% ## Tail logs for database and redis services in environment <env>
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) logs -f --tail=200 db redis
+db-shell: ## Open PostgreSQL shell for local database
+	@docker compose -f docker-compose.dev.yml exec db psql -U $$POSTGRES_USER -d $$POSTGRES_DB
 
-db-%-restart: guard-nonprod db-%-down db-%-up ## Restart database and redis services for environment <env>
+# =============================================================================
+# 🚀 STAGING ENVIRONMENT OPERATIONS
+# =============================================================================
 
-db-%-nuke: guard-nonprod ensure-% ## Destructive: stop services and remove volumes for environment <env>
-	@echo "$(YELLOW)🧹 Nuking database for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) down -v --remove-orphans
+db-staging-up: guard-nonprod ## Start staging database and redis
+	@echo "$(GREEN)🚀 Starting staging database...$(RESET)"
+	@docker compose -f docker-compose.staging.yml up -d --build db redis
 
-db-%-status: ensure-% ## Show status of database and redis services for environment <env>
-	@echo "$(BLUE)Checking status for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) ps
+db-staging-down: guard-nonprod ## Stop staging database and redis
+	@echo "$(YELLOW)🛑 Stopping staging database...$(RESET)"
+	@docker compose -f docker-compose.staging.yml down
 
-db-%-wait: ensure-% ## Wait for database to be ready for environment <env>
-	@echo "$(YELLOW)Waiting for database in env: $*...$(RESET)"
-	@timeout $(WAIT_TIMEOUT) sh -c 'until $(call compose_for,$*) exec db pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB; do sleep 1; done' || (echo "$(RED)Database failed to start$(RESET)" && exit 1)
-	@echo "$(GREEN)✅ Database ready for env: $*$(RESET)"
+db-staging-logs: ## View staging database logs
+	@docker compose -f docker-compose.staging.yml logs -f --tail=100 db redis
 
-db-dev-migrate: guard-nonprod ## Show status of database and redis services for environment <env>
-	@echo "$(GREEN)Running migrations...$(RESET)"
-	pnpm -F @accountable-books/api run migrate:local
+db-staging-migrate: ## Run migrations on staging (local staging environment)
+	@echo "$(GREEN)🗄️ Running staging migrations...$(RESET)"
+	@pnpm -F @accountable-books/api run migrate:staging
 
-db-remote-staging-migrate: ## Show status of database and redis services for environment <env>
-	@echo "$(GREEN)Running migrations...$(RESET)"
-	pnpm -F @accountable-books/api run migrate:staging:remote
+db-staging-rollback: ## Rollback migrations on staging (local staging environment)
+	@echo "$(YELLOW)⏪ Rolling back staging migrations...$(RESET)"
+	@pnpm -F @accountable-books/api run rollback:staging
 
-db-local-staging-migrate: ## Show status of database and redis services for environment <env>
-	@echo "$(GREEN)Running migrations...$(RESET)"
-	pnpm -F @accountable-books/api run migrate:staging:local
+# =============================================================================
+# 🚀 FULL STAGING ENVIRONMENT MANAGEMENT
+# =============================================================================
 
-db-dev-apply-demo:
-	pnpm -F @accountable-books/api run demo:apply
+staging-up: guard-nonprod ## Start all staging services (db + api + web)
+	@echo "$(GREEN)🚀 Starting staging environment...$(RESET)"
+	@docker compose -f docker-compose.staging.yml up -d --build
+	@echo "$(GREEN)✅ Staging environment started$(RESET)"
 
-db-remote-staging-apply-demo:
-	pnpm -F @accountable-books/api run demo:apply:staging:remote
+staging-down: guard-nonprod ## Stop all staging services
+	@echo "$(YELLOW)🛑 Stopping staging environment...$(RESET)"
+	@docker compose -f docker-compose.staging.yml down
+	@echo "$(GREEN)✅ Staging environment stopped$(RESET)"
 
-db-local-staging-apply-demo:
-	pnpm -F @accountable-books/api run demo:apply:staging:local
+staging-logs: ## View all staging service logs
+	@docker compose -f docker-compose.staging.yml logs -f --tail=50
 
-db-dev-rollback: guard-nonprod ## Show status of database and redis services for environment <env>
-	@echo "$(GREEN)Rolling back migrations...$(RESET)"
-	pnpm -F @accountable-books/api run migrate:rollback
+staging-status: ## Show staging services status
+	@echo "$(BLUE)📊 Staging environment status:$(RESET)"
+	@docker compose -f docker-compose.staging.yml ps
 
-db-local-staging-rollback: ## Show status of database and redis services for environment <env>
-	@echo "$(GREEN)Rolling back migrations...$(RESET)"
-	pnpm -F @accountable-books/api run migrate:rollback
+staging-full-up: guard-nonprod ## Start staging + run migrations + seed
+	@echo "$(GREEN)🚀 Starting full staging environment...$(RESET)"
+	@$(MAKE) staging-up
+	@echo "$(YELLOW)🗄️ Running staging migrations...$(RESET)"
+	@pnpm -F @accountable-books/api run migrate:staging
+	@echo "$(YELLOW)🌱 Applying staging demo data...$(RESET)"
+	@pnpm -F @accountable-books/api run demo:apply
+	@echo "$(GREEN)✅ Full staging environment ready$(RESET)"
 
-db-print-loaded: ## Confirm db.mk is loaded
-	@echo "db.mk loaded OK"
+staging-full-down: guard-nonprod ## Stop staging + clean up
+	@echo "$(YELLOW)🧹 Cleaning staging environment...$(RESET)"
+	@docker compose -f docker-compose.staging.yml down -v --remove-orphans
+	@echo "$(GREEN)✅ Staging environment cleaned$(RESET)"
+
+# =============================================================================
+# 🔍 HEALTH CHECKS & VALIDATION
+# =============================================================================
+
+staging-health: ## Check staging services health
+	@echo "$(BLUE)🏥 Checking staging health...$(RESET)"
+	@docker compose -f docker-compose.staging.yml ps
+	@echo "$(YELLOW)API Health:$(RESET)"
+	@curl -s http://localhost:5001/health || echo "❌ API not responding"
+	@echo "$(YELLOW)Web Health:$(RESET)"
+	@curl -s http://localhost:3000 | head -1 || echo "❌ Web not responding"
+
+deploy-staging-check: ## Run pre-deployment checks for staging
+	@echo "$(GREEN)🔍 Running staging deployment checks...$(RESET)"
+	@echo "$(YELLOW)Checking contracts...$(RESET)"
+	@pnpm validate-contracts
+	@echo "$(YELLOW)Running tests...$(RESET)"
+	@pnpm test
+	@echo "$(YELLOW)Checking linting...$(RESET)"
+	@pnpm lint
+	@echo "$(GREEN)✅ Staging deployment checks passed$(RESET)"
+
+deploy-production-check: ## Run pre-deployment checks for production
+	@echo "$(RED)⚠️ Running production deployment checks...$(RESET)"
+	@echo "$(YELLOW)Checking contracts...$(RESET)"
+	@pnpm validate-contracts
+	@echo "$(YELLOW)Running tests...$(RESET)"
+	@pnpm test
+	@echo "$(YELLOW)Checking linting...$(RESET)"
+	@pnpm lint
+	@echo "$(YELLOW)Building packages...$(RESET)"
+	@pnpm build
+	@echo "$(GREEN)✅ Production deployment checks passed$(RESET)"

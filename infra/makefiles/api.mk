@@ -1,82 +1,129 @@
-DRY_RUN ?=
-DRY_RUN_PREFIX = $(if $(DRY_RUN),echo )
+# 🚀 API Operations Suite
+# Complete API development, testing, and deployment commands
 
-.PHONY: api-dev api-stg api-% api-%-build api-%-up api-%-down api-%-logs api-%-restart api-%-status api-%-shell api-%-migrate api-%-seed api-%-test api-%-lint
+.PHONY: api-only api-dev api-build api-test api-lint api-typecheck
+.PHONY: api-migrate api-rollback api-db-reset
+.PHONY: api-demo-apply api-demo-reverse api-demo-status
+.PHONY: api-worker api-worker-dev
+.PHONY: api-staging-up api-staging-down api-staging-logs
+.PHONY: api-shell api-logs
 
-api-dev: api-dev-up ## Start API in development mode
-api-stg: api-staging-up ## Start API for staging environment
-api-down: api-staging-down ## Stop API for staging environment
+# =============================================================================
+# 🚀 DEVELOPMENT & BUILD
+# =============================================================================
 
-api-%: api-%-up ## Start API service for environment <env>
+api-only: guard-nonprod ## Start API only in development mode (not via Turbo)
+	@echo "$(GREEN)🎯 Starting API only...$(RESET)"
+	@pnpm -F @accountable-books/api run dev
 
-api-%-build: ensure-% ## Build API image for environment <env>
-	@echo "$(BLUE)Building API image for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) build api
+api-dev: api-only ## Start API in development mode (alias for api-only)
 
-api-%-up: guard-nonprod ensure-% ## Start API service for environment <env>
-	@if [ "$*" = "dev" ]; then \
-		pnpm -F @accountable-books/api run dev; \
-	else \
-		echo "$(GREEN)Starting API for env: $*$(RESET)"; \
-		$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d api; \
-	fi
+api-build: ## Build API for production
+	@echo "$(GREEN)🔨 Building API...$(RESET)"
+	@pnpm -F @accountable-books/api run build
 
-api-%-down: guard-nonprod ensure-% ## Stop API service for environment <env>
-	@if [ "$*" = "dev" ]; then \
-		echo "$(YELLOW)ℹ️  For development, stop apps with Ctrl+C in your 'pnpm dev' session$(RESET)"; \
-	else \
-		echo "$(YELLOW)Stopping API for env: $*$(RESET)"; \
-		$(DRY_RUN_PREFIX)$(call compose_for,$*) stop api; \
-	fi
+# =============================================================================
+# 🧪 TESTING & QUALITY
+# =============================================================================
 
-api-%-logs: ensure-% ## Tail logs for API service in environment <env>
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) logs -f --tail=200 api
+api-test: ## Run API tests
+	@echo "$(GREEN)🧪 Running API tests...$(RESET)"
+	@pnpm -F @accountable-books/api run test
 
-api-%-restart: guard-nonprod api-%-down api-%-up ## Restart API service for environment <env>
+api-test-watch: ## Run API tests in watch mode
+	@echo "$(GREEN)👀 Running API tests in watch mode...$(RESET)"
+	@pnpm -F @accountable-books/api run test:watch
 
-api-%-status: ensure-% ## Show status of API service for environment <env>
-	@echo "$(BLUE)Checking API status for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) ps api
+api-test-coverage: ## Run API tests with coverage
+	@echo "$(GREEN)📊 Running API tests with coverage...$(RESET)"
+	@pnpm -F @accountable-books/api run test:coverage
 
-api-%-shell: guard-nonprod ensure-% ## Open shell in API container for environment <env>
-	@echo "$(BLUE)Opening shell in API container for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) exec api sh
+api-lint: ## Run API linting
+	@echo "$(GREEN)🔍 Running API linting...$(RESET)"
+	@pnpm -F @accountable-books/api run lint
 
-api-%-migrate: guard-nonprod ensure-% ## Run database migrations for environment <env>
-	@if [ "$*" = "dev" ]; then \
-		echo "$(GREEN)Running migrations for dev (host-based)...$(RESET)"; \
-		pnpm --filter @accountable-books/api migrate:local; \
-	else \
-		echo "$(GREEN)Running migrations for env: $*$(RESET)"; \
-		$(DRY_RUN_PREFIX)$(call compose_for,$*) exec api sh -c "cd apps/api && pnpm run migrate:local"; \
-	fi
+api-typecheck: ## Run API type checking
+	@echo "$(GREEN)🔍 Running API type checking...$(RESET)"
+	@pnpm -F @accountable-books/api run typecheck
 
-api-%-seed: guard-nonprod ensure-% ## Apply demo seeds for environment <env>
-	@if [ "$*" = "dev" ]; then \
-		echo "$(GREEN)Applying demo seeds for dev (host-based)...$(RESET)"; \
-		pnpm --filter @accountable-books/api demo:apply -- --all; \
-	else \
-		echo "$(GREEN)Applying demo seeds for env: $*$(RESET)"; \
-		$(DRY_RUN_PREFIX)$(call compose_for,$*) exec api sh -c "cd apps/api && pnpm run demo:apply -- --all"; \
-	fi
+# =============================================================================
+# 🗄️ DATABASE OPERATIONS
+# =============================================================================
 
-api-%-test: guard-nonprod ensure-% ## Run tests for environment <env>
-	@if [ "$*" = "dev" ]; then \
-		echo "$(GREEN)Running API tests for dev (host-based)...$(RESET)"; \
-		pnpm --filter @accountable-books/api test; \
-	else \
-		echo "$(GREEN)Running API tests for env: $*$(RESET)"; \
-		$(DRY_RUN_PREFIX)$(call compose_for,$*) exec api sh -c "cd apps/api && pnpm test"; \
-	fi
+api-migrate: guard-nonprod ## Run API database migrations
+	@echo "$(GREEN)🗄️ Running API migrations...$(RESET)"
+	@pnpm -F @accountable-books/api run migrate
 
-api-%-lint: guard-nonprod ensure-% ## Run linting for environment <env>
-	@if [ "$*" = "dev" ]; then \
-		echo "$(GREEN)Running API linting for dev (host-based)...$(RESET)"; \
-		pnpm --filter @accountable-books/api lint; \
-	else \
-		echo "$(GREEN)Running API linting for env: $*$(RESET)"; \
-		$(DRY_RUN_PREFIX)$(call compose_for,$*) exec api sh -c "cd apps/api && pnpm lint"; \
-	fi
+api-migrate-test: guard-nonprod ## Run API database migrations for test environment
+	@echo "$(GREEN)🗄️ Running API test migrations...$(RESET)"
+	@pnpm -F @accountable-books/api run migrate:test
 
-api-print-loaded: ## Confirm api.mk is loaded
-	@echo "api.mk loaded OK"
+api-migrate-staging: guard-nonprod ## Run API database migrations for staging
+	@echo "$(GREEN)🗄️ Running API staging migrations...$(RESET)"
+	@pnpm -F @accountable-books/api run migrate:staging
+
+api-rollback: guard-nonprod ## Rollback last API database migration
+	@echo "$(YELLOW)⏪ Rolling back last API migration...$(RESET)"
+	@pnpm -F @accountable-books/api run rollback
+
+api-rollback-staging: guard-nonprod ## Rollback last API staging migration
+	@echo "$(YELLOW)⏪ Rolling back last API staging migration...$(RESET)"
+	@pnpm -F @accountable-books/api run rollback:staging
+
+api-db-reset: guard-nonprod ## Reset API database (rollback all + migrate + seed)
+	@echo "$(YELLOW)🔄 Resetting API database...$(RESET)"
+	@pnpm -F @accountable-books/api run db:reset
+	@echo "$(GREEN)✅ API database reset complete$(RESET)"
+
+# =============================================================================
+# 🌱 DEMO DATA MANAGEMENT
+# =============================================================================
+
+api-demo-apply: guard-nonprod ## Apply demo data for API
+	@echo "$(GREEN)🌱 Applying API demo data...$(RESET)"
+	@pnpm -F @accountable-books/api run demo:apply
+
+api-demo-reverse: guard-nonprod ## Remove demo data for API
+	@echo "$(YELLOW)🗑️ Removing API demo data...$(RESET)"
+	@pnpm -F @accountable-books/api run demo:reverse
+
+api-demo-status: ## Show API demo data status
+	@pnpm -F @accountable-books/api run demo:status
+
+# =============================================================================
+# ⚙️ WORKERS & SERVICES
+# =============================================================================
+
+api-worker: guard-nonprod ## Start API worker
+	@echo "$(GREEN)⚙️ Starting API worker...$(RESET)"
+	@pnpm -F @accountable-books/api run worker
+
+api-worker-dev: guard-nonprod ## Start API worker in development mode
+	@echo "$(GREEN)⚙️ Starting API worker (dev mode)...$(RESET)"
+	@pnpm -F @accountable-books/api run worker:dev
+
+# =============================================================================
+# 🚀 STAGING CONTAINER OPERATIONS
+# =============================================================================
+
+api-staging-up: guard-nonprod ## Start staging API container
+	@echo "$(GREEN)🚀 Starting staging API...$(RESET)"
+	@docker compose -f docker-compose.staging.yml up -d --build api
+
+api-staging-down: guard-nonprod ## Stop staging API container
+	@echo "$(YELLOW)🛑 Stopping staging API...$(RESET)"
+	@docker compose -f docker-compose.staging.yml stop api
+
+api-staging-logs: ## View staging API logs
+	@docker compose -f docker-compose.staging.yml logs -f --tail=100 api
+
+# =============================================================================
+# 🔧 DEBUGGING & CONTAINER ACCESS
+# =============================================================================
+
+api-shell: ## Open shell in API container
+	@echo "$(BLUE)🐚 Opening API container shell...$(RESET)"
+	@docker compose -f docker-compose.staging.yml exec api sh
+
+api-logs: ## View API container logs
+	@docker compose -f docker-compose.staging.yml logs -f --tail=100 api

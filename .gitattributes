@@ -1,0 +1,2 @@
+# Generated files - don't show diffs and prefer local version during merges
+packages/api-types/src/generated/* -diff merge=ours linguist-generated=true

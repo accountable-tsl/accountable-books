@@ -1,54 +1,54 @@
-DRY_RUN ?=
-DRY_RUN_PREFIX = $(if $(DRY_RUN),echo )
+# 🌐 Web App Operations
+# Simple, clean web development commands
 
-.PHONY: web-dev web-stg web-% web-%-build web-%-up web-%-down web-%-logs web-%-restart web-%-status web-%-shell web-%-test web-%-lint web-%-typecheck
+.PHONY: web-only web-dev web-build web-test web-lint
+.PHONY: web-staging-up web-staging-down web-staging-logs
+.PHONY: web-shell web-logs
 
-web-dev: web-dev-up ## Start Web App for dev environment  
-web-stg: web-staging-up ## Start Web App for staging environment
-web-down: web-dev-down ## Stop Web App for dev environment
+# =============================================================================
+# 🚀 BASIC WEB DEVELOPMENT
+# =============================================================================
 
-web-%: web-%-up ## Start Web App service for environment <env>
+web-only: guard-nonprod ## Start Web App only in development mode (not via Turbo)
+	@echo "$(GREEN)🎯 Starting Web App only...$(RESET)"
+	@pnpm -F @accountable-books/web run dev
 
-web-%-build: ensure-% ## Build Web App image for environment <env>
-	@echo "$(BLUE)Building Web App image for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) build web
+web-dev: web-only ## Start Web App in development mode (alias for web-only)
 
-web-%-up: guard-nonprod ensure-% ## Start Web App service for environment <env>
-	@if [ "$*" = "dev" ]; then \
-		pnpm -F @accountable-books/web run dev; \
-	else \
-		@echo "$(GREEN)Starting Web App for env: $*$(RESET)"; \
-		$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d web; \
-	fi
+web-build: ## Build Web App for production
+	@echo "$(GREEN)🔨 Building Web App...$(RESET)"
+	@pnpm -F @accountable-books/web run build
 
-web-%-down: guard-nonprod ensure-% ## Stop Web App service for environment <env>
-	@echo "$(YELLOW)Stopping Web App for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) stop web
+web-test: ## Run Web App tests
+	@echo "$(GREEN)🧪 Running Web App tests...$(RESET)"
+	@pnpm -F @accountable-books/web run test
 
-web-%-logs: ensure-% ## Tail logs for Web App service in environment <env>
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) logs -f --tail=200 web
+web-lint: ## Run Web App linting
+	@echo "$(GREEN)🔍 Running Web App linting...$(RESET)"
+	@pnpm -F @accountable-books/web run lint
 
-web-%-restart: guard-nonprod web-%-down web-%-up ## Restart Web App service for environment <env>
+# =============================================================================
+# 🚀 STAGING ENVIRONMENT
+# =============================================================================
 
-web-%-status: ensure-% ## Show status of Web App service for environment <env>
-	@echo "$(BLUE)Checking Web App status for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) ps web
+web-staging-up: guard-nonprod ## Start staging Web App container
+	@echo "$(GREEN)🚀 Starting staging Web App...$(RESET)"
+	@docker compose -f docker-compose.staging.yml up -d --build web
 
-web-%-shell: guard-nonprod ensure-% ## Open shell in Web App container for environment <env>
-	@echo "$(BLUE)Opening shell in Web App container for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) exec web sh
+web-staging-down: guard-nonprod ## Stop staging Web App container
+	@echo "$(YELLOW)🛑 Stopping staging Web App...$(RESET)"
+	@docker compose -f docker-compose.staging.yml stop web
 
-web-%-test: guard-nonprod ensure-% ## Run tests in Web App container for environment <env>
-	@echo "$(GREEN)Running Web App tests for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) exec web sh -c "cd apps/web && pnpm test"
+web-staging-logs: ## View staging Web App logs
+	@docker compose -f docker-compose.staging.yml logs -f --tail=100 web
 
-web-%-lint: guard-nonprod ensure-% ## Run linting in Web App container for environment <env>
-	@echo "$(GREEN)Running Web App linting for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) exec web sh -c "cd apps/web && pnpm lint"
+# =============================================================================
+# 🔧 DEBUGGING
+# =============================================================================
 
-web-%-typecheck: guard-nonprod ensure-% ## Run type checking in Web App container for environment <env>
-	@echo "$(GREEN)Running Web App type checking for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) exec web sh -c "cd apps/web && pnpm typecheck"
+web-shell: ## Open shell in Web App container
+	@echo "$(BLUE)🐚 Opening Web App container shell...$(RESET)"
+	@docker compose -f docker-compose.staging.yml exec web sh
 
-web-print-loaded: ## Confirm web.mk is loaded
-	@echo "web.mk loaded OK"
+web-logs: ## View Web App container logs
+	@docker compose -f docker-compose.staging.yml logs -f --tail=100 web

@@ -37,13 +37,29 @@ export const FRONTEND_URL = ENV.FRONTEND_URL!;
 
 export const app = express();
 const logger = isDev
-  ? pino({ transport: { target: 'pino-pretty', options: { colorize: true, singleLine: true } } })
+  ? pino({
+      level: 'debug',
+      transport: { target: 'pino-pretty', options: { colorize: true, singleLine: false } },
+    })
   : pino();
 
 app.use(express.json());
 app.use(cookieParser());
 
-app.use(pinoHttp({ logger }));
+app.use(
+  pinoHttp({
+    logger,
+    redact: {
+      paths: [
+        'req.headers.authorization',
+        'req.headers.cookie',
+        'req.headers["x-csrf-token"]',
+        'res.headers["set-cookie"]',
+      ],
+      censor: '[REDACTED]',
+    },
+  }),
+);
 
 app.get('/health', (_req: express.Request, res: express.Response) =>
   res.status(200).json({ ok: true }),

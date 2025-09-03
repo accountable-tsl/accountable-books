@@ -1,51 +1,45 @@
-DRY_RUN ?=
-DRY_RUN_PREFIX = $(if $(DRY_RUN),echo )
+# Advanced ML Engine operations (complements main Makefile)
+# Use these for containerized operations or advanced debugging
 
-.PHONY: ml-dev ml-stg ml-% ml-%-build ml-%-up ml-%-down ml-%-logs ml-%-restart ml-%-status ml-%-shell ml-%-test ml-%-lint
+.PHONY: ml-shell ml-logs ml-staging-up ml-staging-down ml-staging-logs
 
-ml-dev: ml-dev-up ## Start ML Engine for dev environment  
-ml-stg: ml-staging-up ## Start ML Engine for staging environment
-ml-down: ml-dev-down ## Stop ML Engine for dev environment
+# ML container operations
+ml-shell: ## Open shell in ML Engine container
+	@echo "$(BLUE)🐚 Opening ML Engine container shell...$(RESET)"
+	@docker compose -f docker-compose.staging.yml exec ml-engine bash
 
-ml-%: ml-%-up ## Start ML Engine service for environment <env>
+ml-logs: ## View ML Engine container logs
+	@docker compose -f docker-compose.staging.yml logs -f --tail=100 ml-engine
 
-ml-%-build: ensure-% ## Build ML Engine image for environment <env>
-	@echo "$(BLUE)Building ML Engine image for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) build ml-engine
+# Staging ML management
+ml-staging-up: guard-nonprod ## Start staging ML Engine container
+	@echo "$(GREEN)🚀 Starting staging ML Engine...$(RESET)"
+	@docker compose -f docker-compose.staging.yml up -d --build ml-engine
 
-ml-%-up: guard-nonprod ensure-% ## Start ML Engine service for environment <env>
-	@if [ "$*" = "dev" ]; then \
-		pnpm -F @accountable-books/ml-engine run dev; \
-	else \
-		@echo "$(GREEN)Starting ML Engine for env: $*$(RESET)"; \
-		$(DRY_RUN_PREFIX)$(call compose_for,$*) up -d ml-engine; \
-	fi
+ml-staging-down: guard-nonprod ## Stop staging ML Engine container
+	@echo "$(YELLOW)🛑 Stopping staging ML Engine...$(RESET)"
+	@docker compose -f docker-compose.staging.yml stop ml-engine
 
-ml-%-down: guard-nonprod ensure-% ## Stop ML Engine service for environment <env>
-	@echo "$(YELLOW)Stopping ML Engine for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) stop ml-engine
+ml-staging-logs: ## View staging ML Engine logs
+	@docker compose -f docker-compose.staging.yml logs -f --tail=100 ml-engine
 
-ml-%-logs: ensure-% ## Tail logs for ML Engine service in environment <env>
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) logs -f --tail=200 ml-engine
+# ML-specific development commands
+ml-only: guard-nonprod ## Start only ML Engine in development (not via Turbo)
+	@echo "$(GREEN)🎯 Starting ML Engine only...$(RESET)"
+	@cd apps/ml-engine && poetry run python main.py
 
-ml-%-restart: guard-nonprod ml-%-down ml-%-up ## Restart ML Engine service for environment <env>
+ml-build-local: ## Build ML Engine locally (not for containers)
+	@echo "$(GREEN)🔨 Building ML Engine locally...$(RESET)"
+	@echo "$(YELLOW)Note: ML Engine uses Poetry for dependency management$(RESET)"
 
-ml-%-status: ensure-% ## Show status of ML Engine service for environment <env>
-	@echo "$(BLUE)Checking ML Engine status for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) ps ml-engine
+ml-test-local: ## Run ML Engine tests locally
+	@echo "$(GREEN)🧪 Running ML Engine tests locally...$(RESET)"
+	@cd apps/ml-engine && poetry run pytest
 
-ml-%-shell: guard-nonprod ensure-% ## Open shell in ML Engine container for environment <env>
-	@echo "$(BLUE)Opening shell in ML Engine container for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) exec ml-engine bash
+ml-lint-local: ## Run ML Engine linting locally
+	@echo "$(GREEN)🔍 Running ML Engine linting locally...$(RESET)"
+	@cd apps/ml-engine && poetry run ruff check . && poetry run black --check .
 
-ml-%-test: guard-nonprod ensure-% ## Run tests in ML Engine container for environment <env>
-	@echo "$(GREEN)Running ML Engine tests for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) exec ml-engine pytest
-
-ml-%-lint: guard-nonprod ensure-% ## Run linting in ML Engine container for environment <env>
-	@echo "$(GREEN)Running ML Engine linting for env: $*$(RESET)"
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) exec ml-engine ruff check .
-	$(DRY_RUN_PREFIX)$(call compose_for,$*) exec ml-engine black --check .
-
-ml-print-loaded: ## Confirm ml.mk is loaded
-	@echo "ml.mk loaded OK"
+ml-format-local: ## Format ML Engine code locally
+	@echo "$(GREEN)🎨 Formatting ML Engine code...$(RESET)"
+	@cd apps/ml-engine && poetry run black .
