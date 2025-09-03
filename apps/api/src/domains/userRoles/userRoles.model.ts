@@ -61,10 +61,11 @@ const getDirectCompanyRoles = async (
 
     return directRoles;
   } catch (error) {
+    const duration = Date.now() - startTime;
     logger.error(
       {
         userId,
-        duration: Date.now() - startTime,
+        duration,
         error,
       },
       'Direct company roles query failed',
