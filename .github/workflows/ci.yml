@@ -83,7 +83,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:17
+        image: iamtemi/accountable:pg17-cron-vector-v1
         env:
           POSTGRES_DB: accountable_books
           POSTGRES_USER: user
