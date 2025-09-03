@@ -142,6 +142,10 @@ jobs:
           PGPASSWORD=password psql -h localhost -p 5433 -U user -d accountable_books -c "CREATE DATABASE accountable_books_test;"
         continue-on-error: true
 
+      - name: Run database migrations
+        if: matrix.package == 'api'
+        run: pnpm --filter @accountable-books/api run migrate:test
+
       - name: Build ${{ matrix.package }}
         run: pnpm --filter @accountable-books/${{ matrix.package }} build
 
