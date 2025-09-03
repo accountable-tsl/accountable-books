@@ -9,23 +9,23 @@ export namespace Schemas {
     roleKey?:
       | (
           | (
-              | 'super_admin'
-              | 'support_admin'
-              | 'support_agent'
-              | 'firm_owner'
-              | 'firm_admin'
-              | 'accountant'
-              | 'staff_accountant'
-              | 'client_owner'
-              | 'client_admin'
-              | 'client_user'
+              | "super_admin"
+              | "support_admin"
+              | "support_agent"
+              | "firm_owner"
+              | "firm_admin"
+              | "accountant"
+              | "staff_accountant"
+              | "client_owner"
+              | "client_admin"
+              | "client_user"
             )
           | null
         )
       | undefined;
-    roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+    roleScope?: (("platform" | "firm" | "company") | null) | undefined;
     isDemoCompany: boolean;
-    companyType: 'business' | 'individual' | 'accounting_firm';
+    companyType: "business" | "individual" | "accounting_firm";
   };
   export type AuthContextData = {
     user: {
@@ -45,23 +45,23 @@ export namespace Schemas {
         roleKey?:
           | (
               | (
-                  | 'super_admin'
-                  | 'support_admin'
-                  | 'support_agent'
-                  | 'firm_owner'
-                  | 'firm_admin'
-                  | 'accountant'
-                  | 'staff_accountant'
-                  | 'client_owner'
-                  | 'client_admin'
-                  | 'client_user'
+                  | "super_admin"
+                  | "support_admin"
+                  | "support_agent"
+                  | "firm_owner"
+                  | "firm_admin"
+                  | "accountant"
+                  | "staff_accountant"
+                  | "client_owner"
+                  | "client_admin"
+                  | "client_user"
                 )
               | null
             )
           | undefined;
-        roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+        roleScope?: (("platform" | "firm" | "company") | null) | undefined;
         isDemoCompany: boolean;
-        companyType: 'business' | 'individual' | 'accounting_firm';
+        companyType: "business" | "individual" | "accounting_firm";
       };
       companies: Array<{
         id: string;
@@ -72,23 +72,23 @@ export namespace Schemas {
         roleKey?:
           | (
               | (
-                  | 'super_admin'
-                  | 'support_admin'
-                  | 'support_agent'
-                  | 'firm_owner'
-                  | 'firm_admin'
-                  | 'accountant'
-                  | 'staff_accountant'
-                  | 'client_owner'
-                  | 'client_admin'
-                  | 'client_user'
+                  | "super_admin"
+                  | "support_admin"
+                  | "support_agent"
+                  | "firm_owner"
+                  | "firm_admin"
+                  | "accountant"
+                  | "staff_accountant"
+                  | "client_owner"
+                  | "client_admin"
+                  | "client_user"
                 )
               | null
             )
           | undefined;
-        roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+        roleScope?: (("platform" | "firm" | "company") | null) | undefined;
         isDemoCompany: boolean;
-        companyType: 'business' | 'individual' | 'accounting_firm';
+        companyType: "business" | "individual" | "accounting_firm";
       }>;
     };
     csrfToken?: string | undefined;
@@ -110,23 +110,23 @@ export namespace Schemas {
       roleKey?:
         | (
             | (
-                | 'super_admin'
-                | 'support_admin'
-                | 'support_agent'
-                | 'firm_owner'
-                | 'firm_admin'
-                | 'accountant'
-                | 'staff_accountant'
-                | 'client_owner'
-                | 'client_admin'
-                | 'client_user'
+                | "super_admin"
+                | "support_admin"
+                | "support_agent"
+                | "firm_owner"
+                | "firm_admin"
+                | "accountant"
+                | "staff_accountant"
+                | "client_owner"
+                | "client_admin"
+                | "client_user"
               )
             | null
           )
         | undefined;
-      roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+      roleScope?: (("platform" | "firm" | "company") | null) | undefined;
       isDemoCompany: boolean;
-      companyType: 'business' | 'individual' | 'accounting_firm';
+      companyType: "business" | "individual" | "accounting_firm";
     };
     companies: Array<{
       id: string;
@@ -137,23 +137,23 @@ export namespace Schemas {
       roleKey?:
         | (
             | (
-                | 'super_admin'
-                | 'support_admin'
-                | 'support_agent'
-                | 'firm_owner'
-                | 'firm_admin'
-                | 'accountant'
-                | 'staff_accountant'
-                | 'client_owner'
-                | 'client_admin'
-                | 'client_user'
+                | "super_admin"
+                | "support_admin"
+                | "support_agent"
+                | "firm_owner"
+                | "firm_admin"
+                | "accountant"
+                | "staff_accountant"
+                | "client_owner"
+                | "client_admin"
+                | "client_user"
               )
             | null
           )
         | undefined;
-      roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+      roleScope?: (("platform" | "firm" | "company") | null) | undefined;
       isDemoCompany: boolean;
-      companyType: 'business' | 'individual' | 'accounting_firm';
+      companyType: "business" | "individual" | "accounting_firm";
     }>;
   };
   export type LoginForm = { email: string; password: string };
@@ -179,23 +179,23 @@ export namespace Schemas {
               roleKey?:
                 | (
                     | (
-                        | 'super_admin'
-                        | 'support_admin'
-                        | 'support_agent'
-                        | 'firm_owner'
-                        | 'firm_admin'
-                        | 'accountant'
-                        | 'staff_accountant'
-                        | 'client_owner'
-                        | 'client_admin'
-                        | 'client_user'
+                        | "super_admin"
+                        | "support_admin"
+                        | "support_agent"
+                        | "firm_owner"
+                        | "firm_admin"
+                        | "accountant"
+                        | "staff_accountant"
+                        | "client_owner"
+                        | "client_admin"
+                        | "client_user"
                       )
                     | null
                   )
                 | undefined;
-              roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+              roleScope?: (("platform" | "firm" | "company") | null) | undefined;
               isDemoCompany: boolean;
-              companyType: 'business' | 'individual' | 'accounting_firm';
+              companyType: "business" | "individual" | "accounting_firm";
             };
             companies: Array<{
               id: string;
@@ -206,23 +206,23 @@ export namespace Schemas {
               roleKey?:
                 | (
                     | (
-                        | 'super_admin'
-                        | 'support_admin'
-                        | 'support_agent'
-                        | 'firm_owner'
-                        | 'firm_admin'
-                        | 'accountant'
-                        | 'staff_accountant'
-                        | 'client_owner'
-                        | 'client_admin'
-                        | 'client_user'
+                        | "super_admin"
+                        | "support_admin"
+                        | "support_agent"
+                        | "firm_owner"
+                        | "firm_admin"
+                        | "accountant"
+                        | "staff_accountant"
+                        | "client_owner"
+                        | "client_admin"
+                        | "client_user"
                       )
                     | null
                   )
                 | undefined;
-              roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+              roleScope?: (("platform" | "firm" | "company") | null) | undefined;
               isDemoCompany: boolean;
-              companyType: 'business' | 'individual' | 'accounting_firm';
+              companyType: "business" | "individual" | "accounting_firm";
             }>;
           };
           csrfToken?: string | undefined;
@@ -253,23 +253,23 @@ export namespace Schemas {
               roleKey?:
                 | (
                     | (
-                        | 'super_admin'
-                        | 'support_admin'
-                        | 'support_agent'
-                        | 'firm_owner'
-                        | 'firm_admin'
-                        | 'accountant'
-                        | 'staff_accountant'
-                        | 'client_owner'
-                        | 'client_admin'
-                        | 'client_user'
+                        | "super_admin"
+                        | "support_admin"
+                        | "support_agent"
+                        | "firm_owner"
+                        | "firm_admin"
+                        | "accountant"
+                        | "staff_accountant"
+                        | "client_owner"
+                        | "client_admin"
+                        | "client_user"
                       )
                     | null
                   )
                 | undefined;
-              roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+              roleScope?: (("platform" | "firm" | "company") | null) | undefined;
               isDemoCompany: boolean;
-              companyType: 'business' | 'individual' | 'accounting_firm';
+              companyType: "business" | "individual" | "accounting_firm";
             };
             companies: Array<{
               id: string;
@@ -280,23 +280,23 @@ export namespace Schemas {
               roleKey?:
                 | (
                     | (
-                        | 'super_admin'
-                        | 'support_admin'
-                        | 'support_agent'
-                        | 'firm_owner'
-                        | 'firm_admin'
-                        | 'accountant'
-                        | 'staff_accountant'
-                        | 'client_owner'
-                        | 'client_admin'
-                        | 'client_user'
+                        | "super_admin"
+                        | "support_admin"
+                        | "support_agent"
+                        | "firm_owner"
+                        | "firm_admin"
+                        | "accountant"
+                        | "staff_accountant"
+                        | "client_owner"
+                        | "client_admin"
+                        | "client_user"
                       )
                     | null
                   )
                 | undefined;
-              roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+              roleScope?: (("platform" | "firm" | "company") | null) | undefined;
               isDemoCompany: boolean;
-              companyType: 'business' | 'individual' | 'accounting_firm';
+              companyType: "business" | "individual" | "accounting_firm";
             }>;
           };
           csrfToken?: string | undefined;
@@ -319,21 +319,21 @@ export namespace Schemas {
     error?: unknown | undefined;
     code?: string | undefined;
   };
-  export type CompanyType = 'business' | 'individual' | 'accounting_firm';
+  export type CompanyType = "business" | "individual" | "accounting_firm";
   export type Email = string;
   export type HealthResponse = { ok: boolean };
   export type RoleKey =
-    | 'super_admin'
-    | 'support_admin'
-    | 'support_agent'
-    | 'firm_owner'
-    | 'firm_admin'
-    | 'accountant'
-    | 'staff_accountant'
-    | 'client_owner'
-    | 'client_admin'
-    | 'client_user';
-  export type RoleScope = 'platform' | 'firm' | 'company';
+    | "super_admin"
+    | "support_admin"
+    | "support_agent"
+    | "firm_owner"
+    | "firm_admin"
+    | "accountant"
+    | "staff_accountant"
+    | "client_owner"
+    | "client_admin"
+    | "client_user";
+  export type RoleScope = "platform" | "firm" | "company";
 
   // </Schemas>
 }
@@ -342,16 +342,16 @@ export namespace Endpoints {
   // <Endpoints>
 
   export type get_HealthCheck = {
-    method: 'GET';
-    path: '/health';
-    requestFormat: 'json';
+    method: "GET";
+    path: "/health";
+    requestFormat: "json";
     parameters: never;
     response: { ok: boolean };
   };
   export type post_LoginUser = {
-    method: 'POST';
-    path: '/auth/login';
-    requestFormat: 'json';
+    method: "POST";
+    path: "/auth/login";
+    requestFormat: "json";
     parameters: {
       body: { email: string; password: string };
     };
@@ -377,23 +377,23 @@ export namespace Endpoints {
                 roleKey?:
                   | (
                       | (
-                          | 'super_admin'
-                          | 'support_admin'
-                          | 'support_agent'
-                          | 'firm_owner'
-                          | 'firm_admin'
-                          | 'accountant'
-                          | 'staff_accountant'
-                          | 'client_owner'
-                          | 'client_admin'
-                          | 'client_user'
+                          | "super_admin"
+                          | "support_admin"
+                          | "support_agent"
+                          | "firm_owner"
+                          | "firm_admin"
+                          | "accountant"
+                          | "staff_accountant"
+                          | "client_owner"
+                          | "client_admin"
+                          | "client_user"
                         )
                       | null
                     )
                   | undefined;
-                roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+                roleScope?: (("platform" | "firm" | "company") | null) | undefined;
                 isDemoCompany: boolean;
-                companyType: 'business' | 'individual' | 'accounting_firm';
+                companyType: "business" | "individual" | "accounting_firm";
               };
               companies: Array<{
                 id: string;
@@ -404,23 +404,23 @@ export namespace Endpoints {
                 roleKey?:
                   | (
                       | (
-                          | 'super_admin'
-                          | 'support_admin'
-                          | 'support_agent'
-                          | 'firm_owner'
-                          | 'firm_admin'
-                          | 'accountant'
-                          | 'staff_accountant'
-                          | 'client_owner'
-                          | 'client_admin'
-                          | 'client_user'
+                          | "super_admin"
+                          | "support_admin"
+                          | "support_agent"
+                          | "firm_owner"
+                          | "firm_admin"
+                          | "accountant"
+                          | "staff_accountant"
+                          | "client_owner"
+                          | "client_admin"
+                          | "client_user"
                         )
                       | null
                     )
                   | undefined;
-                roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+                roleScope?: (("platform" | "firm" | "company") | null) | undefined;
                 isDemoCompany: boolean;
-                companyType: 'business' | 'individual' | 'accounting_firm';
+                companyType: "business" | "individual" | "accounting_firm";
               }>;
             };
             csrfToken?: string | undefined;
@@ -429,12 +429,12 @@ export namespace Endpoints {
       error?: Record<string, unknown> | undefined;
       code?: string | undefined;
     };
-    responseHeaders: { 'set-cookie': string };
+    responseHeaders: { "set-cookie": string };
   };
   export type post_LogoutUser = {
-    method: 'POST';
-    path: '/auth/logout';
-    requestFormat: 'json';
+    method: "POST";
+    path: "/auth/logout";
+    requestFormat: "json";
     parameters: never;
     response: {
       success: boolean;
@@ -445,9 +445,9 @@ export namespace Endpoints {
     };
   };
   export type post_RefreshToken = {
-    method: 'POST';
-    path: '/auth/refresh';
-    requestFormat: 'json';
+    method: "POST";
+    path: "/auth/refresh";
+    requestFormat: "json";
     parameters: never;
     response: {
       success: boolean;
@@ -458,9 +458,9 @@ export namespace Endpoints {
     };
   };
   export type get_GetCurrentUser = {
-    method: 'GET';
-    path: '/auth/me';
-    requestFormat: 'json';
+    method: "GET";
+    path: "/auth/me";
+    requestFormat: "json";
     parameters: never;
     response: {
       success: boolean;
@@ -484,23 +484,23 @@ export namespace Endpoints {
                 roleKey?:
                   | (
                       | (
-                          | 'super_admin'
-                          | 'support_admin'
-                          | 'support_agent'
-                          | 'firm_owner'
-                          | 'firm_admin'
-                          | 'accountant'
-                          | 'staff_accountant'
-                          | 'client_owner'
-                          | 'client_admin'
-                          | 'client_user'
+                          | "super_admin"
+                          | "support_admin"
+                          | "support_agent"
+                          | "firm_owner"
+                          | "firm_admin"
+                          | "accountant"
+                          | "staff_accountant"
+                          | "client_owner"
+                          | "client_admin"
+                          | "client_user"
                         )
                       | null
                     )
                   | undefined;
-                roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+                roleScope?: (("platform" | "firm" | "company") | null) | undefined;
                 isDemoCompany: boolean;
-                companyType: 'business' | 'individual' | 'accounting_firm';
+                companyType: "business" | "individual" | "accounting_firm";
               };
               companies: Array<{
                 id: string;
@@ -511,23 +511,23 @@ export namespace Endpoints {
                 roleKey?:
                   | (
                       | (
-                          | 'super_admin'
-                          | 'support_admin'
-                          | 'support_agent'
-                          | 'firm_owner'
-                          | 'firm_admin'
-                          | 'accountant'
-                          | 'staff_accountant'
-                          | 'client_owner'
-                          | 'client_admin'
-                          | 'client_user'
+                          | "super_admin"
+                          | "support_admin"
+                          | "support_agent"
+                          | "firm_owner"
+                          | "firm_admin"
+                          | "accountant"
+                          | "staff_accountant"
+                          | "client_owner"
+                          | "client_admin"
+                          | "client_user"
                         )
                       | null
                     )
                   | undefined;
-                roleScope?: (('platform' | 'firm' | 'company') | null) | undefined;
+                roleScope?: (("platform" | "firm" | "company") | null) | undefined;
                 isDemoCompany: boolean;
-                companyType: 'business' | 'individual' | 'accounting_firm';
+                companyType: "business" | "individual" | "accounting_firm";
               }>;
             };
             csrfToken?: string | undefined;
@@ -544,21 +544,21 @@ export namespace Endpoints {
 // <EndpointByMethod>
 export type EndpointByMethod = {
   get: {
-    '/health': Endpoints.get_HealthCheck;
-    '/auth/me': Endpoints.get_GetCurrentUser;
+    "/health": Endpoints.get_HealthCheck;
+    "/auth/me": Endpoints.get_GetCurrentUser;
   };
   post: {
-    '/auth/login': Endpoints.post_LoginUser;
-    '/auth/logout': Endpoints.post_LogoutUser;
-    '/auth/refresh': Endpoints.post_RefreshToken;
+    "/auth/login": Endpoints.post_LoginUser;
+    "/auth/logout": Endpoints.post_LogoutUser;
+    "/auth/refresh": Endpoints.post_RefreshToken;
   };
 };
 
 // </EndpointByMethod>
 
 // <EndpointByMethod.Shorthands>
-export type GetEndpoints = EndpointByMethod['get'];
-export type PostEndpoints = EndpointByMethod['post'];
+export type GetEndpoints = EndpointByMethod["get"];
+export type PostEndpoints = EndpointByMethod["post"];
 // </EndpointByMethod.Shorthands>
 
 // <ApiClientTypes>
@@ -569,10 +569,10 @@ export type EndpointParameters = {
   path?: Record<string, unknown>;
 };
 
-export type MutationMethod = 'post' | 'put' | 'patch' | 'delete';
-export type Method = 'get' | 'head' | 'options' | MutationMethod;
+export type MutationMethod = "post" | "put" | "patch" | "delete";
+export type Method = "get" | "head" | "options" | MutationMethod;
 
-type RequestFormat = 'json' | 'form-data' | 'form-url' | 'binary' | 'text';
+type RequestFormat = "json" | "form-data" | "form-url" | "binary" | "text";
 
 export type DefaultEndpoint = {
   parameters?: EndpointParameters | undefined;
@@ -585,21 +585,17 @@ export type Endpoint<TConfig extends DefaultEndpoint = DefaultEndpoint> = {
   method: Method;
   path: string;
   requestFormat: RequestFormat;
-  parameters?: TConfig['parameters'];
+  parameters?: TConfig["parameters"];
   meta: {
     alias: string;
     hasParameters: boolean;
     areParametersRequired: boolean;
   };
-  response: TConfig['response'];
-  responseHeaders?: TConfig['responseHeaders'];
+  response: TConfig["response"];
+  responseHeaders?: TConfig["responseHeaders"];
 };
 
-export type Fetcher = (
-  method: Method,
-  url: string,
-  parameters?: EndpointParameters | undefined,
-) => Promise<Response>;
+export type Fetcher = (method: Method, url: string, parameters?: EndpointParameters | undefined) => Promise<Response>;
 
 type RequiredKeys<T> = {
   [P in keyof T]-?: undefined extends T[P] ? never : P;
@@ -611,7 +607,7 @@ type MaybeOptionalArg<T> = RequiredKeys<T> extends never ? [config?: T] : [confi
 
 // <ApiClient>
 export class ApiClient {
-  baseUrl: string = '';
+  baseUrl: string = "";
 
   constructor(public fetcher: Fetcher) {}
 
@@ -620,9 +616,9 @@ export class ApiClient {
     return this;
   }
 
-  parseResponse = async <T>(response: Response): Promise<T> => {
-    const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
+  parseResponse = async <T,>(response: Response): Promise<T> => {
+    const contentType = response.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
       return response.json();
     }
     return response.text() as unknown as T;
@@ -631,22 +627,22 @@ export class ApiClient {
   // <ApiClient.get>
   get<Path extends keyof GetEndpoints, TEndpoint extends GetEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint['parameters']>
-  ): Promise<TEndpoint['response']> {
-    return this.fetcher('get', this.baseUrl + path, params[0]).then((response) =>
+    ...params: MaybeOptionalArg<TEndpoint["parameters"]>
+  ): Promise<TEndpoint["response"]> {
+    return this.fetcher("get", this.baseUrl + path, params[0]).then((response) =>
       this.parseResponse(response),
-    ) as Promise<TEndpoint['response']>;
+    ) as Promise<TEndpoint["response"]>;
   }
   // </ApiClient.get>
 
   // <ApiClient.post>
   post<Path extends keyof PostEndpoints, TEndpoint extends PostEndpoints[Path]>(
     path: Path,
-    ...params: MaybeOptionalArg<TEndpoint['parameters']>
-  ): Promise<TEndpoint['response']> {
-    return this.fetcher('post', this.baseUrl + path, params[0]).then((response) =>
+    ...params: MaybeOptionalArg<TEndpoint["parameters"]>
+  ): Promise<TEndpoint["response"]> {
+    return this.fetcher("post", this.baseUrl + path, params[0]).then((response) =>
       this.parseResponse(response),
-    ) as Promise<TEndpoint['response']>;
+    ) as Promise<TEndpoint["response"]>;
   }
   // </ApiClient.post>
 
@@ -663,7 +659,7 @@ export class ApiClient {
     path: TPath,
     ...params: MaybeOptionalArg<TEndpoint extends { parameters: infer Params } ? Params : never>
   ): Promise<
-    Omit<Response, 'json'> & {
+    Omit<Response, "json"> & {
       /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
       json: () => Promise<TEndpoint extends { response: infer Res } ? Res : never>;
     }
@@ -674,7 +670,7 @@ export class ApiClient {
 }
 
 export function createApiClient(fetcher: Fetcher, baseUrl?: string) {
-  return new ApiClient(fetcher).setBaseUrl(baseUrl ?? '');
+  return new ApiClient(fetcher).setBaseUrl(baseUrl ?? "");
 }
 
 /**

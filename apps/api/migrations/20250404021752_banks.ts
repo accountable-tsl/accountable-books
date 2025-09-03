@@ -41,7 +41,7 @@ const seedBanks = async function seed(knex: Knex): Promise<void> {
   });
 
   const res = await knex.batchInsert(tableName, banks, 100);
-  console.log(`Successfully created ${res.length} banks`);
+  console.log(`Successfully created ${banks.length} banks`);
 };
 
 export async function up(knex: Knex): Promise<void> {
