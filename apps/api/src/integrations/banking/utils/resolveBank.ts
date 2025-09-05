@@ -1,0 +1,289 @@
+import type { NewBankProviderMapping } from 'src/domains/banking/bankProviderMappings/bankProviderMappings.types.js';
+import type { ProviderInstitution } from '../types/base.js';
+import { isProd, ENV } from 'src/config/env.js';
+import type { Knex } from 'knex';
+import { knexClient } from 'src/db/knexClient.js';
+import { getBankProviderMapping } from 'src/domains/banking/bankProviderMappings/bankProviderMappings.model.js';
+import { logger } from 'src/shared/utils/logger.js';
+import { getCountry } from 'src/domains/countries/countries.utils.js';
+import type { NewBank } from 'src/domains/banking/banks/banks.types.js';
+
+// --- CONFIGURATION CONSTANTS ---
+const BANK_KEY_MAX_LENGTH = 100;
+
+// --- NORMALIZATION HELPERS ---
+const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+/**
+ * Generate a standardized, unique bank key from name and country.
+ */
+function generateBankKey(name: string, countryCode: string): string {
+  const normalizedName = stripDiacritics(name)
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove special characters
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .replace(/_+/g, '_') // Normalize multiple underscores
+    .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+
+  const key = `${countryCode.toLowerCase()}_${normalizedName}`;
+  return key.substring(0, BANK_KEY_MAX_LENGTH);
+}
+
+async function getSystemUserId(txn: Knex.Transaction): Promise<string> {
+  const email = isProd ? ENV.ADMIN_EMAIL : ENV.TEST_ADMIN_EMAIL;
+
+  if (!email) {
+    throw new Error('System admin email is not configured.');
+  }
+  const row = await txn('users').where({ email }).first('id');
+  if (!row?.id) throw new Error(`System user not found for ${email}`);
+  return row.id;
+}
+
+async function findExistingBank({
+  institution,
+  countryId,
+  txn,
+}: {
+  institution: ProviderInstitution;
+  countryId: string;
+  txn: Knex.Transaction;
+}): Promise<{ id: string; display_name: string } | null> {
+  const tableName = 'banks';
+  const selectFields = ['id', 'display_name'];
+  const strategies = [
+    () =>
+      // Exact name match
+      txn(tableName)
+        .where({
+          country_id: countryId,
+          is_deleted: false,
+        })
+        .andWhere(function () {
+          this.where('display_name', institution.name).orWhere('official_name', institution.name);
+        })
+        .select(selectFields)
+        .first(),
+
+    // Swift code match
+    () =>
+      institution.bankCodes?.swift
+        ? txn(tableName)
+            .where({
+              country_id: countryId,
+              is_deleted: false,
+              swift_code: institution.bankCodes.swift,
+            })
+            .select(selectFields)
+            .first()
+        : undefined,
+
+    // Routing or local code match
+    () => {
+      const codes: string[] = [institution.bankCodes?.routing, institution.bankCodes?.local].filter(
+        (code): code is string => code != null && typeof code === 'string',
+      );
+
+      return codes.length
+        ? txn(tableName)
+            .where({
+              country_id: countryId,
+              is_deleted: false,
+            })
+            .where(function () {
+              this.whereIn('local_code', codes).orWhereIn('secondary_reference', codes);
+            })
+            .select(selectFields)
+            .first()
+        : undefined;
+    },
+  ];
+
+  // Try each strategy in order
+  for (const [index, strategy] of strategies.entries()) {
+    const result = await strategy();
+    if (result) {
+      logger.info(
+        {
+          bank_id: result.id,
+          display_name: result.display_name,
+          strategy: ['exact_name', 'swift_code', 'routing_code'][index],
+        },
+        `Bank matched using strategy ${index + 1}`,
+      );
+      return { id: result.id, display_name: result.display_name };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Resolves bank mapping: finds existing or creates new bank + mapping
+ * Priority: 1) Existing mapping, 2) Fuzzy match existing bank, 3) Create new bank
+ */
+interface FindOrCreateBankMappingResponse {
+  bankId: string;
+  providerId: string;
+  providerBankId: string;
+  providerBankName: string;
+  // bankDisplayName: string;
+  // providerKey: string;
+}
+export async function findOrCreateBankMapping(params: {
+  providerKey: string;
+  institution: ProviderInstitution;
+  userId?: string;
+  trx?: Knex.Transaction;
+}): Promise<FindOrCreateBankMappingResponse> {
+  const { providerKey, institution, userId } = params;
+  const countryCode = institution.countryCode.toUpperCase();
+
+  const log = logger.child({
+    operation: 'findOrCreateBankMapping',
+    providerKey,
+    institutionId: institution.institutionId,
+    institutionName: institution.name,
+    countryCode,
+  });
+
+  const startTime = Date.now();
+  log.info('Starting bank resolution');
+
+  const exec = async (txn: Knex.Transaction): Promise<FindOrCreateBankMappingResponse> => {
+    // Fast Path - check for existing mapping
+    const existingMapping = await getBankProviderMapping(
+      { providerKey, providerBankId: institution.institutionId },
+      txn,
+    );
+
+    if (existingMapping.success && existingMapping.data) {
+      log.info('Existing mapping found directly.');
+      const r = existingMapping.data;
+      return {
+        bankId: r.bankId,
+        providerId: r.providerId,
+        providerBankId: r.providerBankId,
+        providerBankName: r.providerBankName,
+        // providerKey: r.providerKey,
+        // bankDisplayName: r.bankDisplayName,
+      };
+    }
+
+    // Resolve dependencies (Provider ID and User ID)
+    const provider = await txn('bank_feed_providers').where({ key: providerKey }).first('id');
+    if (!provider) {
+      throw new Error(`Bank feed provider ${providerKey} not found`);
+    }
+    const resolvedProviderId = provider.id;
+    const resolvedUserId = userId || (await getSystemUserId(txn));
+    const country = await getCountry(countryCode);
+    const countryId = country.id;
+
+    // Find or create the bank record.
+    let bankId: string;
+    let bankDisplayName: string;
+
+    // Check for existing bank, create mapping if found
+    const existingBank = await findExistingBank({
+      institution,
+      countryId,
+      txn,
+    });
+
+    if (existingBank) {
+      bankId = existingBank.id;
+      bankDisplayName = existingBank.display_name;
+      log.info(`Found existing bank: ${bankDisplayName}`);
+    } else {
+      // No match, so we will create a new bank.
+      const newBankKey = generateBankKey(institution.name, countryCode);
+      const newBankData: NewBank = {
+        key: newBankKey,
+        display_name: institution.name,
+        official_name: institution.name,
+        country_id: countryId,
+        swift_code: institution.bankCodes?.swift,
+        local_code: institution.bankCodes?.local,
+        secondary_reference: institution.bankCodes?.routing,
+        website: institution.website,
+        logo_url: institution.logoUrl,
+        raw_data: institution.rawData,
+        created_by_id: resolvedUserId,
+        updated_by_id: resolvedUserId,
+      };
+
+      const [finalBank] = await txn('banks')
+        .insert(newBankData)
+        .onConflict('key')
+        .ignore()
+        .returning(['id', 'display_name']);
+      if (!finalBank) {
+        // This should be virtually impossible if the logic is correct
+        throw new Error(`Failed to create or find bank with key ${newBankKey}`);
+      }
+
+      bankId = finalBank.id;
+      bankDisplayName = finalBank.display_name;
+      log.info(`Created new bank: ${bankDisplayName}`);
+    }
+
+    // Create the bank provider mapping using an atomic upsert.
+    const mappingInput: NewBankProviderMapping = {
+      provider_id: resolvedProviderId,
+      bank_id: bankId,
+      provider_bank_id: institution.institutionId,
+      provider_bank_name: institution.name,
+      raw_provider_data: institution.rawData,
+      created_by_id: resolvedUserId,
+      updated_by_id: resolvedUserId,
+    };
+
+    const insertQuery = txn('bank_provider_mappings').insert(mappingInput);
+    const updateQuery = txn.queryBuilder().update({
+      provider_bank_name: institution.name,
+      raw_provider_data: institution.rawData,
+      updated_at: txn.fn.now(),
+    });
+
+    await txn.raw(`? ON CONFLICT (provider_id, provider_bank_id) DO ?`, [insertQuery, updateQuery]);
+
+    const finalMapping = await txn('bank_provider_mappings as bpm')
+      // .join('bank_feed_providers as bfp', 'bfp.id', 'bpm.provider_id')
+      .select(
+        'bpm.bank_id as bankId',
+        'bpm.provider_id as providerId',
+        'bpm.provider_bank_id as providerBankId',
+        'bpm.provider_bank_name as providerBankName',
+        // 'bfp.key as providerKey',
+        // 'b.display_name as bankDisplayName',
+      )
+      // .join('banks as b', 'b.id', 'bpm.bank_id')
+      .where({ providerId: resolvedProviderId, provider_bank_id: institution.institutionId })
+      .first();
+
+    if (!finalMapping) {
+      // This would indicate a serious logic error, as the upsert should guarantee its existence.
+      throw new Error('Failed to retrieve the mapping after upsert operation.');
+    }
+
+    return finalMapping;
+  };
+
+  try {
+    const result = params.trx ? await exec(params.trx) : await knexClient.transaction(exec);
+    log.info({ duration_ms: Date.now() - startTime }, `Bank resolution completed successfully.`);
+    return result;
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error(
+      {
+        duration_ms: Date.now() - startTime,
+        error: err.message,
+        stack: err.stack,
+      },
+      'Bank resolution failed',
+    );
+    throw err;
+  }
+}

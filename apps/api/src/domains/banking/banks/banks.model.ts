@@ -1,9 +1,9 @@
-import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { redis } from '../../lib/redis.js';
-import { camelToSnake, isValidUUID } from '../../shared/utils/formatting.utils.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
-import { generateCacheKey } from '../../shared/utils/string.utils.js';
+import { knexClient } from '../../../db/knexClient.js';
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import { redis } from '../../../lib/redis.js';
+import { camelToSnake, isValidUUID } from '../../../shared/utils/formatting.utils.js';
+import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
+import { generateCacheKey } from '../../../shared/utils/string.utils.js';
 import {
   fetchBanksOptions,
   type FetchBanksOptions,
@@ -12,8 +12,15 @@ import {
   newBankInput,
   type NewInput,
 } from './banks.types.js';
+import type { Knex } from 'knex';
 
-export async function addNewBank(data: NewInput | NewInput[], userId: string, knex = knexClient) {
+export async function addNewBank(params: {
+  data: NewInput[];
+  userId: string;
+  trx?: Knex.Transaction;
+}) {
+  const { data, userId, trx } = params;
+  const knex = trx || knexClient;
   // Normalize input to an array
   const bankData = Array.isArray(data) ? data : [data];
   const banks = camelToSnake(bankData);
@@ -92,7 +99,11 @@ export async function addNewBank(data: NewInput | NewInput[], userId: string, kn
   console.log(`Inserting ${validateProcessedBanks.data.length} banks...`);
 
   try {
-    const inserted = await knex('banks').insert(validateProcessedBanks.data).returning('id');
+    const inserted = await knex('banks')
+      .insert(validateProcessedBanks.data)
+      .onConflict('key')
+      .ignore()
+      .returning('id');
 
     if (!inserted || inserted.length === 0) {
       return errorResponse('No banks were inserted');

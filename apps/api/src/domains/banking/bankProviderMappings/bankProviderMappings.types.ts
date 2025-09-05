@@ -2,8 +2,8 @@ import { z } from 'zod';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
-} from '../../shared/utils/formatting.utils.js';
-import { dbBaseFields } from '../../core/types/core.js';
+} from '../../../shared/utils/formatting.utils.js';
+import { dbBaseFields } from '../../../core/types/core.js';
 import type { Knex } from 'knex';
 
 const newBankProviderMappingInput = z.object({
@@ -33,9 +33,39 @@ export type BankProviderMapping = z.infer<typeof bankProviderMapping>;
 
 export type CreateBankProviderMappings = {
   userId: string;
-  input: NewBankProviderMappingInputCamel[] | NewBankProviderMappingInput[];
-  knex?: Knex;
+  input: NewBankProviderMappingInputCamel[];
+  trx?: Knex.Transaction;
 };
+
+type ProviderMappingInput = { providerKey: string } | { providerId: string };
+type BankMappingInput =
+  | { internalBankId: string }
+  | { providerBankId: string }
+  | { internalBankId: string; providerBankId: string };
+
+// Simple input type for getBankProviderMapping
+export type GetBankProviderMappingInput = ProviderMappingInput &
+  BankMappingInput & {
+    // Optional filters
+    providerBankName?: string;
+    search?: string;
+  };
+
+// Response type for getBankProviderMapping
+export interface GetBankProviderMappingResponse {
+  bankId: string;
+  bankKey: string;
+  bankDisplayName: string;
+  bankOfficialName: string;
+  providerId: string;
+  providerKey: string;
+  providerName: string;
+  providerStatus: string;
+  providerBankId: string;
+  providerAlternateId: string | null;
+  providerBankSecondaryReference: string | null;
+  providerBankName: string;
+}
 
 export interface MonoInstitution {
   id: string;

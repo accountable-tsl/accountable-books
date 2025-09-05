@@ -15,7 +15,8 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('provider_id').notNullable().references('id').inTable('bank_feed_providers');
     table.string('identifier').nullable(); // Primary identifier if provided
     table.string('encrypted_token').nullable(); // Primary credential
-    table.jsonb('raw_data').notNullable().defaultTo('{}'); // Store full record received
+    table.jsonb('raw_credentials').notNullable().defaultTo('{}'); // Store credentials received
+    table.jsonb('metadata').nullable().defaultTo('{}');
     table.enu('status', ['active', 'expired', 'revoked']).defaultTo('active');
     table.timestamp('first_connected_at', { useTz: true }).defaultTo(knex.fn.now());
     table.timestamp('last_connected_at', { useTz: true }).defaultTo(knex.fn.now());

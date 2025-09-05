@@ -7,6 +7,84 @@ import type { AuthRequest } from 'src/features/auth/auth.types.js';
 import { providerRegistry } from '../../integrations/banking/providers/registry.js';
 
 export class BankingController {
+  /**
+   * NEW: Connect bank accounts - unified endpoint
+   * Replaces the separate exchangeToken flow with complete account connection
+   */
+  async connectBankAccounts(req: AuthRequest, res: Response) {
+    try {
+      const userId = String(req.user?.id);
+      const companyId = String(req.user?.currentCompanyId);
+
+      if (!userId || !companyId) {
+        return res.status(400).json(errorResponse('Missing user or company ID'));
+      }
+
+      const { provider, publicToken, metadata } = req.body;
+
+      if (!provider || !publicToken) {
+        return res
+          .status(400)
+          .json(errorResponse('Missing required fields: provider, publicToken'));
+      }
+
+      const result = await bankingService.connectBankAccounts({
+        provider,
+        publicToken,
+        metadata,
+        companyId,
+        userId,
+      });
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error: any) {
+      console.error('Error connecting bank accounts:', error);
+      res.status(500).json(errorResponse('Internal server error'));
+    }
+  }
+
+  /**
+   * Classify a bank account as business or personal
+   */
+  async classifyBankAccount(req: AuthRequest, res: Response) {
+    try {
+      const userId = String(req.user?.id);
+      const companyId = String(req.user?.currentCompanyId);
+      const { accountId } = req.params;
+      const { businessOrPersonal } = req.body;
+
+      if (!userId || !companyId || !accountId) {
+        return res.status(400).json(errorResponse('Missing required parameters'));
+      }
+
+      if (!businessOrPersonal || !['business', 'personal'].includes(businessOrPersonal)) {
+        return res.status(400).json(
+          errorResponse('businessOrPersonal must be either "business" or "personal"')
+        );
+      }
+
+      const result = await bankingService.classifyBankAccount({
+        accountId,
+        companyId,
+        userId,
+        businessOrPersonal,
+      });
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error: any) {
+      console.error('Error classifying bank account:', error);
+      res.status(500).json(errorResponse('Internal server error'));
+    }
+  }
+
   async createLinkToken(req: Request, res: Response) {
     try {
       const { provider, userId, companyId } = req.body;

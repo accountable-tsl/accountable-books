@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { dbBaseFields } from '../../core/types/core.js';
-import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+import { dbBaseFields } from '../../../core/types/core.js';
+import { type SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
 
 export const bankLocalCodeType = z.enum([
   'sort_code',
@@ -42,6 +42,7 @@ export const newBankInput = z.object({
 
   logo_url: z.string().nullish(),
   logo_key: z.string().nullish(),
+  raw_data: z.any().nullish(),
 });
 export type NewBankInput = z.infer<typeof newBankInput>;
 export type NewBankInputCamel = SnakeToCamelCaseObject<NewBankInput>;

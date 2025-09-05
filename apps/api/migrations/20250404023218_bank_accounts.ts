@@ -14,7 +14,7 @@ export async function up(knex: Knex): Promise<void> {
     table.specificType('account_type', 'bank_account_type').nullable();
     table.string('account_number').notNullable();
     table.specificType('business_or_personal', 'business_or_personal_account').nullable();
-
+    table.jsonb('metadata').nullable().defaultTo('{}');
     table.uuid('bank_id').notNullable().references('id').inTable('banks').onDelete('RESTRICT');
 
     table

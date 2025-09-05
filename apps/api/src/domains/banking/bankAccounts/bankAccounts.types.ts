@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { dbBaseFields } from '../../core/types/core.js';
-import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
-import { coaSource } from '../chartOfAccounts/coa.types.js';
-import { bankAccountConnectionStatus } from '../bankAccountConnections/baccons.types.js';
+import { dbBaseFields } from '../../../core/types/core.js';
+import { type SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
+import { coaSource } from '../../chartOfAccounts/coa.types.js';
+import { bankAccountConnectionStatus } from '../../bankAccountConnections/baccons.types.js';
 
 export const bankAccountType = z.enum([
   'other',
@@ -27,6 +27,7 @@ export const newBankAccountInput = z.object({
   bank_id: z.string().uuid(),
   currency_id: z.string().uuid(),
   source: coaSource.optional(),
+  metadata: z.any().nullish(),
 
   // company_id: z.string().uuid(),
   // coa_id: z.string().uuid(),

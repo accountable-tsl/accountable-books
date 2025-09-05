@@ -5,7 +5,14 @@ import {
 } from '../../shared/utils/formatting.utils.js';
 import type { Knex } from 'knex';
 
-export const bankAccountConnectionStatus = z.enum(['active', 'revoked', 'pending', 'error']);
+export const bankAccountConnectionStatus = z.enum([
+  'active',
+  'revoked',
+  'pending',
+  'error',
+  'pending_enrichment',
+  'pending_institution',
+]);
 export type BankAccountConnectionStatus = z.infer<typeof bankAccountConnectionStatus>;
 
 export const bankAccountConnectionInput = z.object({
@@ -14,9 +21,10 @@ export const bankAccountConnectionInput = z.object({
   bank_account_id: z.string().uuid().nullish(),
   provider_id: z.string().uuid(),
   status: bankAccountConnectionStatus,
-  raw_metadata: z.record(z.string(), z.any()).optional(),
+  raw_metadata: z.any(),
   last_sync_at: z.date().optional(),
   connected_at: z.date().optional(),
+  company_bank_credential_id: z.string().uuid(),
 });
 
 export const bankAccountConnectionInputCamel = createCamelCaseSchema(bankAccountConnectionInput);

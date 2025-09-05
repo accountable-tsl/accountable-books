@@ -87,17 +87,15 @@ export async function up(knex: Knex): Promise<void> {
 
     addStandardColumns(knex, table);
 
-    table.index(['company_id', 'is_deleted'], 'coa_company_deleted_idx');
-    table.index(['company_id', 'is_active'], 'coa_company_active_idx');
-    table.index(['account_type_id'], 'coa_account_type_idx');
-
-    table.unique(['name', 'code', 'company_id'], {
-      indexName: 'coa_name_code_company_unique',
-    });
-
     table.unique(['name', 'account_type_id', 'company_id']);
     table.unique(['code', 'company_id']);
   });
+
+  await knex.raw(`
+    CREATE UNIQUE INDEX coa_name_code_company_unique 
+    ON coa (name, code, company_id) 
+    WHERE code IS NOT NULL
+  `);
 
   await createUpdateTimestampTrigger(knex, tableName);
   await addCoaToPlatformCompany(knex);

@@ -42,6 +42,12 @@ export async function up(knex: Knex): Promise<void> {
     table.index(['provider_id', 'status']);
     table.index('last_sync_at', 'idx_last_sync');
   });
+
+  await knex.schema.raw(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_connection_per_account
+    ON bank_account_connections (bank_account_id) 
+    WHERE status = 'active' AND bank_account_id IS NOT NULL;
+  `);
 }
 
 export async function down(knex: Knex): Promise<void> {

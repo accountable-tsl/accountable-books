@@ -8,6 +8,9 @@ import { dbBaseFields } from '../../core/types/core.js';
 export const bankFeedProviderStatus = z.enum(['active', 'inactive', 'deprecated']);
 export type BankFeedProviderStatus = z.infer<typeof bankFeedProviderStatus>;
 
+export const bankProviderKey = z.enum(['plaid', 'mono']); // stripe, teller, enable_banking, yodlee, etc.
+export type BankProviderKey = z.infer<typeof bankProviderKey>;
+
 export const bankFeedProviderInput = z.object({
   id: z.string().uuid().optional(),
   key: z.string().min(2), // customize min length as needed
@@ -63,7 +66,7 @@ export type BankFeedProviderCountries = z.infer<typeof bankFeedProviderCountries
 
 export type BankFeedProviderWithCountries = {
   id: string;
-  key: string;
+  key: BankProviderKey;
   name: string;
   description: string;
   website: string;

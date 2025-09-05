@@ -7,7 +7,13 @@ const bankingController = new BankingController();
 // POST /api/banking/link-token
 router.post('/link-token', bankingController.createLinkToken.bind(bankingController));
 
-// POST /api/banking/exchange-token
+// NEW: POST /api/banking/connect-accounts (replaces exchange-token)
+router.post('/connect-accounts', bankingController.connectBankAccounts.bind(bankingController));
+
+// NEW: PUT /api/banking/accounts/:accountId/classify
+router.put('/accounts/:accountId/classify', bankingController.classifyBankAccount.bind(bankingController));
+
+// DEPRECATED: POST /api/banking/exchange-token (keep for backward compatibility)
 router.post('/exchange-token', bankingController.exchangeToken.bind(bankingController));
 
 // GET /api/banking/supported-countries

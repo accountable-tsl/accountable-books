@@ -96,6 +96,8 @@ export async function up(knex: Knex): Promise<void> {
       'revoked',
       'pending',
       'error',
+      'pending_enrichment',
+      'pending_institution',
     ]),
   );
 

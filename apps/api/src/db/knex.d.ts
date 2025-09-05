@@ -24,9 +24,9 @@ import { Company, NewCompany } from '../domains/companies/companies.types.js';
 import { Coa, NewCoa } from '../domains/chartOfAccounts/coa.types.js';
 import { AccFirm, NewAccFirm } from '../domains/accountingFirms/firms.types.js';
 import { NewUserCompanyRole, UserCompanyRole } from '../domains/userRoles/userRoles.types.js';
-import { BankAccount, NewBankAccount } from '../domains/bankAccounts/bankAccounts.types.js';
+import { BankAccount, NewBankAccount } from '../domains/banking/bankAccounts/bankAccounts.types.ts';
 import { ExchangeRate, NewExchangeRateInput } from '../domains/exchangeRates/exchangeRate.types.js';
-import { Bank, NewBank } from '../domains/banks/banks.types.js';
+import { Bank, NewBank } from '../domains/banking/banks/banks.types.ts';
 import {
   BankTransaction,
   BankTransactionBatches,
@@ -46,7 +46,7 @@ import {
 import {
   BankProviderMapping,
   NewBankProviderMapping,
-} from '../domains/mapBankToProviderBank/bankProviderMappings.types.js';
+} from '../domains/banking/bankProviderMappings/bankProviderMappings.types.ts';
 import { NewToken, Token } from '../domains/tokens/tokens.types.js';
 import { NewRoleInput, Role } from '../domains/roles/roles.types.js';
 import { Contact, NewContact } from '../domains/contacts/contact.types.js';

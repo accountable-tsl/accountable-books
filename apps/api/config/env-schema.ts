@@ -495,6 +495,59 @@ export const API_ENV_SCHEMA: EnvSchema = {
   },
 
   // ============================================================================
+  // WORKER CONFIGURATION
+  // ============================================================================
+  ENABLE_EMAIL_WORKER: {
+    description: 'Enable email worker for background job processing',
+    type: 'boolean',
+    required: false,
+    local: 'true',
+    staging: 'true',
+    production: 'true',
+    default: 'true',
+  },
+
+  ENABLE_TRANSACTION_SYNC: {
+    description: 'Enable transaction sync worker for banking integrations',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'false',
+    production: 'false',
+    default: 'false',
+  },
+
+  EMAIL_WORKER_CONCURRENCY: {
+    description: 'Number of concurrent email jobs to process',
+    type: 'number',
+    required: false,
+    local: '5',
+    staging: '5',
+    production: '10',
+    default: '5',
+  },
+
+  TRANSACTION_SYNC_CONCURRENCY: {
+    description: 'Number of concurrent transaction sync connections to process',
+    type: 'number',
+    required: false,
+    local: '3',
+    staging: '3',
+    production: '5',
+    default: '3',
+  },
+
+  ENABLE_REDIS_MONITORING: {
+    description: 'Enable Redis command usage monitoring and logging',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
+  },
+
+  // ============================================================================
   // OTHERS
   // ============================================================================
   APP_ENC_KEY_ID: {

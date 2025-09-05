@@ -3,10 +3,10 @@ import pg from 'pg';
 
 const client = new pg.Client({
   host: ENV.DB_HOST || 'localhost',
-  port: Number(ENV.DB_PORT) || 5432,
-  user: ENV.POSTGRES_USER,
-  password: ENV.POSTGRES_PASSWORD,
-  database: ENV.POSTGRES_DB,
+  port: Number(ENV.DB_PORT) || 5433,
+  user: ENV.POSTGRES_USER || 'user',
+  password: ENV.POSTGRES_PASSWORD || 'password',
+  database: ENV.POSTGRES_DB || 'accountable_books',
 });
 
 const run = async () => {

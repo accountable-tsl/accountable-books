@@ -2,10 +2,16 @@ import { BankingProvider } from '../types/base.js';
 import { PlaidProvider } from './plaid.provider.js';
 import { MonoProvider } from './mono.provider.js';
 import { getBankFeedProviders } from '../../../domains/bankFeedProviders/bankFeedProviders.model.js';
+import type {
+  BankFeedProviderWithCountries,
+  BankProviderKey,
+} from 'src/domains/bankFeedProviders/bankFeedProviders.types.js';
 
 export class ProviderRegistry {
-  private providers = new Map<string, BankingProvider>();
-  private providerCountries = new Map<string, { id: string; code: string }[]>();
+  private providers = new Map<BankProviderKey, BankingProvider>();
+  private providerCountries = new Map<BankProviderKey, { id: string; code: string }[]>();
+  private providerIds = new Map<BankProviderKey, string>();
+  private enabledProviders = new Map<BankProviderKey, BankFeedProviderWithCountries>();
   private initialized = false;
 
   private async initializeProviders() {
@@ -14,34 +20,56 @@ export class ProviderRegistry {
     // Get enabled providers from database
     const response = await getBankFeedProviders({ useCache: true });
 
-    if (!response.success) {
+    if (!response.success || !response.data) {
       console.warn(
         'Failed to fetch providers from database, falling back to environment variables',
       );
-      this.fallbackToEnvironmentProviders();
+      // TODO: Decide whether to return, throw error or fallback
+      // this.fallbackToEnvironmentProviders();
       return;
     }
 
-    const enabledProviderKeys = (response.data || [])
-      .filter((provider) => provider.status === 'active')
-      .map((provider) => provider.key);
-
     // Initialize provider instances and country mappings based on database configuration
-    response.data?.forEach((providerData) => {
-      const { key, countries } = providerData;
+    for (const provider of response.data) {
+      if (provider.status !== 'active') continue;
 
-      if (enabledProviderKeys.includes(key)) {
-        // Initialize provider instance
+      const { key, countries, id } = provider;
+
+      // Store the provider in enabledProviders
+      this.enabledProviders.set(key, provider);
+
+      // Initialize provider instance if not already done
+      if (!this.providers.has(key)) {
         if (key === 'plaid') {
           this.providers.set('plaid', new PlaidProvider());
         } else if (key === 'mono') {
           this.providers.set('mono', new MonoProvider());
         }
-
-        // Store country mapping (both ID and code)
-        this.providerCountries.set(key, countries);
       }
-    });
+
+      // Store country mapping
+      this.providerCountries.set(key, countries);
+
+      // Store provider ID
+      this.providerIds.set(key, id);
+    }
+
+    // response.data?.forEach((providerData) => {
+    //   const { key, countries } = providerData;
+
+    //   if (enabledProviderKeys.includes(key)) {
+    //     // Initialize provider instance
+    //     if (key === 'plaid') {
+    //       this.providers.set('plaid', new PlaidProvider());
+    //     } else if (key === 'mono') {
+    //       this.providers.set('mono', new MonoProvider());
+    //     }
+
+    //     // Store country mapping (both ID and code)
+    //     this.providerCountries.set(key, countries);
+    //     this.providerIds.set(key, providerData.id);
+    //   }
+    // });
 
     this.initialized = true;
   }
@@ -67,7 +95,7 @@ export class ProviderRegistry {
     this.initialized = true;
   }
 
-  async get(key: string): Promise<BankingProvider | undefined> {
+  async get(key: BankProviderKey): Promise<BankingProvider | undefined> {
     await this.initializeProviders();
     return this.providers.get(key);
   }
@@ -105,11 +133,24 @@ export class ProviderRegistry {
   /**
    * Get full country details (including IDs) for a provider
    */
-  async getProviderCountries(providerKey: string): Promise<{ id: string; code: string }[]> {
+  async getProviderCountries(
+    providerKey: BankProviderKey,
+  ): Promise<{ id: string; code: string }[]> {
     await this.initializeProviders();
     return this.providerCountries.get(providerKey) || [];
   }
 
+  async getProviderId(providerKey: BankProviderKey): Promise<string | undefined> {
+    await this.initializeProviders();
+    return this.providerIds.get(providerKey);
+  }
+
+  async getEnabledProvider(
+    providerKey: BankProviderKey,
+  ): Promise<BankFeedProviderWithCountries | undefined> {
+    await this.initializeProviders();
+    return this.enabledProviders.get(providerKey);
+  }
   /**
    * Force re-initialization of providers (useful when database is updated)
    */
@@ -117,6 +158,7 @@ export class ProviderRegistry {
     this.initialized = false;
     this.providers.clear();
     this.providerCountries.clear();
+    this.providerIds.clear();
     await this.initializeProviders();
   }
 }

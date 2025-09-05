@@ -6,6 +6,7 @@ import {
 } from './utils/db';
 import bankData from './data/banks.json';
 import { adminUser } from './20250403184441_users';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes';
 
 const tableName = 'banks';
 
@@ -60,6 +61,7 @@ export async function up(knex: Knex): Promise<void> {
 
     table.string('logo_url').nullable();
     table.string('logo_key').nullable();
+    table.jsonb('raw_data').nullable().defaultTo('{}');
 
     table
       .uuid('country_id')
@@ -82,11 +84,13 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
+  await createTrgmIndexes(knex, tableName, ['display_name', 'official_name']);
 
   await seedBanks(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await dropTrgmIndexes(knex, tableName);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

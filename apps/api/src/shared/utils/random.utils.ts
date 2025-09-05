@@ -54,3 +54,19 @@ export function chunkArray<T>(array: T[], size: number): T[][] {
   }
   return chunks;
 }
+
+export function isUniqueConstraintError(error: unknown): boolean {
+  const knexError = error as {
+    code?: string;
+    sqlState?: string;
+    detail?: string;
+    constraint?: string;
+  };
+
+  if (knexError.code === '23505' || knexError.sqlState === '23505') {
+    return true;
+  }
+
+  const errorMessage = String(error).toLowerCase();
+  return errorMessage.includes('unique constraint') || errorMessage.includes('duplicate key');
+}

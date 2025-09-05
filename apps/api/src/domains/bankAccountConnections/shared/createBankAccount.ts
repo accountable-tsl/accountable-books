@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import { type MonoAccountDetails } from '../baccons.types.js';
 import { getCurrencyByCode } from '../../currencies/currencies.model.js';
 import { knexClient } from '../../../db/knexClient.js';
-import { createNewBankAccount } from '../../bankAccounts/bankAccounts.model.js';
+import { createNewBankAccount } from '../../banking/bankAccounts/bankAccounts.model.js';
 import { AppError } from '../../../shared/utils/response.utils.js';
 import { resolveBankFromMonoDetails } from './resolveBank.js';
 import { resolveCurrency } from './resolveCurrency.js';

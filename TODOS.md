@@ -11,3 +11,4 @@ CAN DELAY
 
 - Implement monitoring - grafana, prometheus etc, and maybe versioning too
 - Add concurrency to deploy-staging.yml : { group: staging, cancel-in-progress: true }.
+- Add all ISO 4217 currency codes to currencies table

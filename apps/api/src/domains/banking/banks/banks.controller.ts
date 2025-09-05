@@ -1,6 +1,6 @@
 import { type Response } from 'express';
-import type { AuthRequest } from '../../features/auth/auth.types.js';
-import { errorResponse } from '../../shared/utils/response.utils.js';
+import type { AuthRequest } from '../../../features/auth/auth.types.js';
+import { errorResponse } from '../../../shared/utils/response.utils.js';
 import { getAllBanks, getBankByCountry, getSingleBank } from './banks.model.js';
 
 export async function getAllBanksController(req: AuthRequest, res: Response) {

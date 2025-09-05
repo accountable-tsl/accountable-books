@@ -1,6 +1,6 @@
 import type { Response } from 'express';
-import type { AuthRequest } from '../../features/auth/auth.types.js';
-import { errorResponse } from '../../shared/utils/response.utils.js';
+import type { AuthRequest } from '../../../features/auth/auth.types.js';
+import { errorResponse } from '../../../shared/utils/response.utils.js';
 import { createNewBankAccount, getBankAccountsWithDetails } from './bankAccounts.model.js';
 
 export async function createBankAccountController(req: AuthRequest, res: Response) {

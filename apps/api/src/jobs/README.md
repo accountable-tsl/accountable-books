@@ -66,7 +66,7 @@ stalledInterval: 300000, // 5 minutes (10x reduction!)
 pnpm dev
 
 # Start only the worker process
-pnpm start:worker:dev
+pnpm worker:dev
 
 # Run type checking
 pnpm typecheck
