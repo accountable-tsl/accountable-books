@@ -11,10 +11,11 @@ import {
   createBankAccountWithConnection,
   type WithConnParams,
 } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
-import type { ProviderAccount, ProviderInstitution } from '../types/base.js';
+import type { BankingProvider, ProviderAccount, ProviderInstitution } from '../types/base.js';
 import { getCurrency } from 'src/domains/currencies/currencies.utils.js';
 import { ENV } from 'src/config/env.js';
 import type { BankProviderKey } from 'src/domains/bankFeedProviders/bankFeedProviders.types.js';
+import { addNewBankAccountConnectionEntry } from 'src/domains/bankAccountConnections/baccons.model.js';
 
 export interface ConnectAccountsParams {
   providerKey: BankProviderKey;
@@ -150,20 +151,99 @@ export class ConnectAccountsService {
     const providerCountries = providerInfo.countries;
     const providerCountryCodes = providerCountries.map((country) => country.code);
 
-    const { accessToken, itemId } = await provider.exchangeToken({
+    const { institutionId, credentialId, providerAccounts } = await this.performCriticalSyncOps({
+      provider,
       publicToken: params.publicToken,
-      metadata: params.metadata,
+      userId: params.userId,
+      companyId: params.companyId,
+      providerKey,
     });
 
+    const { canBeAdded, needToBeResolved } = await this.quickAccountResolution({
+      provider,
+      institutionId,
+      providerCountryCodes,
+      accounts: providerAccounts,
+      providerKey,
+      userId: params.userId,
+      companyId: params.companyId,
+      providerId,
+      credentialId,
+    });
+
+    /**
+     * Bank account resolution was fast enough?
+     * If needsToBeResolved.length > 0, we need to enqueue a background job to resolve the bank accounts
+     * If canBeAdded.length > 0, we need to create the bank accounts and connections
+     * If creating the bank accounts and connections was fast enough and fully successful, nothing to enqueue, return the bank account records
+     * If creating the bank accounts and connections was not fully successful or timed out, we need to enqueue a background job to handle the failed bank accounts creation
+     * For the accounts we need to enqueue, we need to add the necessary details to the bank_account_connections table so we can retry the creation
+     * Try to cover most edge cases
+     */
+    const unableToCreate: WithConnParams[] = [];
+    for (const bankAccount of canBeAdded) {
+      const res = await createBankAccountWithConnection(bankAccount);
+      if (!res.success) {
+        unableToCreate.push(bankAccount);
+      }
+    }
+
+    // Stage unresolved accounts, enqueue background job to resolve
+    for (const account of needToBeResolved) {
+    await addNewBankAccountConnectionEntry({
+      userId: params.userId,
+      data:{
+        providerBankAccountId: account.providerBankAccountId,
+        providerId: account.providerId,
+        companyBankCredentialId: account.credentialId,
+        status: "pending_resolution",
+        rawMetadata: account,
+      }
+    })}
+
+    for (const account of unableToCreate) {
+      await addNewBankAccountConnectionEntry({
+        userId: params.userId,
+        data: {
+          providerBankAccountId: account.providerBankAccountId,
+          providerId: account.providerId,
+          companyBankCredentialId: account.credentialId,
+          bankAccountId: account.bankAccountId,
+          status: "error",
+          rawMetadata: account,
+        },
+      });
+    }
+  }
+
+  private async performCriticalSyncOps({
+    provider,
+    publicToken,
+    userId,
+    companyId,
+    providerKey,
+  }: {
+    provider: BankingProvider;
+    publicToken: string;
+    userId: string;
+    companyId: string;
+    providerKey: BankProviderKey;
+  }) {
+    // 1. Exchange token
+    const { accessToken, itemId } = await provider.exchangeToken({
+      publicToken: publicToken,
+    });
+
+    // 2. Get item details
     const { institutionId, metadata: itemMetadata } = await provider.getItemDetails({
       accessToken,
     });
 
-    // 2. Encrypt and save credential (critical)
+    // 3. Encrypt and save credential
     const credentialResult = await createCompanyBankCredential({
-      userId: params.userId,
-      companyId: params.companyId,
-      providerKey: providerKey,
+      userId,
+      companyId,
+      providerKey,
       identifier: itemId || null,
       token: accessToken,
       rawData: { itemId, metadata: itemMetadata },
@@ -172,270 +252,133 @@ export class ConnectAccountsService {
     if (!credentialResult.success || !credentialResult.data) {
       throw new Error('Failed to save bank credential');
     }
-
     const credentialId = credentialResult.data.id;
 
-    // 3. Fetch accounts from provider (critical)
+    // 4. Fetch accounts from provider (critical)
     const providerAccounts = await provider.fetchBankAccounts({
       accessToken,
     });
 
-    // 4. Get institution info (can be deferred)
-    const institutions = await provider.getInstitutionById({
-      institutionId,
-      countryCodes: providerCountryCodes,
-    });
-
-    // 5. Resolve bank(s) mapping (can be deferred)
-    const bankMappings = await Promise.all(
-      institutions.map((institution) =>
-        findOrCreateBankMapping({
-          providerKey,
-          institution,
-          userId: params.userId,
-        }),
-      ),
-    );
-
-    // 6. Upsert bank accounts and connections (if fails or slow or no bank mapping, save details to bank_account_connections, resort to background processing)
-    const bankAccounts: WithConnParams[] = providerAccounts.map((account) => ({
-      companyId: params.companyId,
-      currencyCode: account.currencyCode,
-      bankId: bankMappings.find(
-        (mapping) => mapping.providerBankId === (account.institutionId || institutionId),
-      )?.bankId, // Assuming bank mapping is available
-      createdById: params.userId,
-      accountNumber: account.accountNumber,
-      displayName: account.displayName,
-      accountName: account.officialName || account.displayName,
-      accountType: account.type,
-      bankAccountMetadata: account.rawData,
-      inputSource: 'system', // or user??
-      businessOrPersonal: null,
-      providerId,
-      providerBankAccountId: account.accountId,
-      connectionStatus: 'active', // might be active, pending_enrichment, pending_institution, error
-      credentialId,
-      //      connectionMetadata:
-    }));
-    const createdBankAccounts = bankAccounts.map((bankAccount) =>
-      createBankAccountWithConnection(bankAccount),
-    );
-
-    // 4. Create minimal bank account records
-    const savedAccounts = await this.createMinimalBankAccounts({
-      accounts: providerAccounts,
-      credentialId,
-      companyId: params.companyId,
-      userId: params.userId,
-    });
-
-    return {
-      credential: {
-        id: credentialId,
-        providerKey: provider.key,
-        accessToken,
-        itemId,
-        companyId: params.companyId,
-        userId: params.userId,
-      },
-      accounts: savedAccounts,
-    };
+    return { institutionId, credentialId, providerAccounts };
   }
 
   /**
    * Phase 2: Quick sync - attempt to complete institution resolution quickly
    */
-  private async performQuickSync(
-    credential: any,
-    accounts: ConnectedAccount[],
-  ): Promise<{ success: true; accounts: ConnectedAccount[] } | null> {
-    try {
-      const provider = await providerRegistry.get(credential.providerKey);
-      if (!provider) return null;
+  private async quickAccountResolution(p: {
+    provider: BankingProvider;
+    institutionId: string;
+    providerCountryCodes: string[];
+    accounts: ProviderAccount[];
+    providerId: string;
+    providerKey: BankProviderKey;
+    userId: string;
+    companyId: string;
+    credentialId: string;
+  }): Promise<{
+    canBeAdded: WithConnParams[];
+    needToBeResolved: Omit<WithConnParams, 'bankId'>[];
+  }> {
+    const {
+      provider,
+      institutionId,
+      providerCountryCodes,
+      accounts,
+      providerKey,
+      userId,
+      companyId,
+      providerId,
+      credentialId,
+    } = p;
 
-      // 1. Get item details
-      const itemDetails = await provider.getItemDetails({
-        accessToken: credential.accessToken,
+    // 1. Get institution info
+    const institutions = await provider.getInstitutionById({
+      institutionId,
+      countryCodes: providerCountryCodes,
+    });
+
+    const bankMappings = await Promise.all(
+      institutions.map((institution) =>
+        findOrCreateBankMapping({
+          providerKey,
+          institution,
+          userId,
+        }),
+      ),
+    );
+
+    const canBeAdded: WithConnParams[] = [];
+    const needToBeResolved: Omit<WithConnParams, 'bankId'>[] = [];
+    for (const account of accounts) {
+      const bankId = bankMappings.find(
+        (mapping) => mapping.providerBankId === (account.institutionId ?? institutionId),
+      )?.bankId;
+
+      const acc = this.mapAccountForCreation({
+        account,
+        bankId,
+        companyId,
+        userId,
+        providerId,
+        credentialId,
       });
 
-      // 2. Get institution info
-      const institutions = await provider.getInstitutionById({
-        institutionId: itemDetails.institutionId,
-      });
-
-      const institution = institutions[0]; // Take first match
-      if (!institution) return null;
-
-      // 3. Resolve bank mapping (this might be slow)
-      const bankMapping = await findOrCreateBankMapping({
-        providerKey: credential.providerKey,
-        institution,
-        userId: credential.userId,
-      });
-
-      // 4. Update accounts with resolved bank info
-      await this.updateAccountsWithBankInfo(accounts, bankMapping.bankId);
-
-      // 5. Create COA entries (optional - can be done later)
-      // await this.createCOAEntries(accounts, credential.companyId);
-
-      return {
-        success: true,
-        accounts: await this.enrichAccountsWithBankInfo(accounts),
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.warn(
-        { credentialId: credential.id, error: errorMessage },
-        'Quick sync failed, falling back to background processing',
-      );
-      return null;
+      if (bankId) {
+        canBeAdded.push(acc as WithConnParams);
+      } else {
+        needToBeResolved.push(acc as Omit<WithConnParams, 'bankId'>);
+      }
     }
+
+    return { canBeAdded, needToBeResolved };
   }
 
-  /**
-   * Create minimal bank account records that can be shown to user immediately
-   * bank_accounts and bank_account_connections
-   */
-  private async createMinimalBankAccounts(params: {
-    accounts: ProviderAccount[];
-    credentialId: string;
+  private mapAccountForCreation(i: {
+    account: ProviderAccount;
+    bankId?: string;
     companyId: string;
     userId: string;
-  }): Promise<ConnectedAccount[]> {
-    const { accounts, credentialId, companyId, userId } = params;
-    const companyUUID = await getCompanyUUID(companyId);
-    if (!companyUUID) {
-      throw new Error('Invalid company ID');
+    providerId: string;
+    credentialId: string;
+  }): WithConnParams | Omit<WithConnParams, 'bankId'> {
+    const { account, bankId, companyId, userId, providerId, credentialId } = i;
+    const acc: Omit<WithConnParams, 'bankId'> = {
+      companyId,
+      currencyCode: account.currencyCode,
+      createdById: userId,
+      accountNumber: account.accountNumber,
+      displayName: account.displayName,
+      accountName: account.officialName ?? account.displayName,
+      accountType: account.type,
+      bankAccountMetadata: account.rawData,
+      inputSource: 'system',
+      businessOrPersonal: null,
+      providerId,
+      providerBankAccountId: account.accountId,
+      connectionStatus: bankId ? 'active' : 'pending',
+      credentialId,
+    };
+
+    if (bankId) {
+      return { ...acc, bankId };
+    } else {
+      return acc;
     }
+  }
 
-    // Get provider_id from the credential
-    const credential = await this.knex('company_bank_credentials')
-      .where({ id: credentialId })
-      .first(['provider_id']);
-
-    if (!credential) {
-      throw new Error('Invalid credential ID');
-    }
-
-    const savedAccounts: ConnectedAccount[] = [];
-
-    await this.knex.transaction(async (trx) => {
-      for (const account of accounts) {
-        // Create minimal bank account record
-        const [bankAccount] = await trx('bank_accounts')
-          .insert({
-            company_id: companyUUID,
-            bank_id: null, // Will be filled by quick sync or background job
-            display_name: account.displayName,
-            account_name: account.displayName,
-            account_number: account.accountNumber,
-            account_type: account.type || 'checking',
-            currency_id: await this.getCurrencyId(account.currencyCode),
-            coa_id: await this.getPlaceholderCOAId(companyUUID, trx), // Temporary COA account
-            business_or_personal: null, // User will classify
-            created_by_id: userId,
-            metadata: {
-              mask: account.mask,
-              officialName: account.officialName,
-              providerAccountId: account.accountId,
-              needsBankResolution: true,
-            },
-          })
-          .returning(['id', 'display_name', 'account_type', 'account_number', 'metadata']);
-
-        // Create connection record
-        await trx('bank_account_connections').insert({
-          bank_account_id: bankAccount.id,
-          provider_bank_account_id: account.accountId,
-          company_bank_credential_id: credentialId,
-          provider_id: credential.provider_id,
-          status: 'pending_enrichment',
-          raw_metadata: account.rawData,
-          created_by_id: userId,
-        });
-
-        savedAccounts.push({
-          id: bankAccount.id,
-          displayName: bankAccount.display_name,
-          accountType: bankAccount.account_type,
-          accountNumber: bankAccount.account_number,
-          mask: account.mask,
-          currencyCode: account.currencyCode,
-          requiresClassification: true, // Will determine based on company type
-          syncStatus: 'pending_enrichment', // From bank_account_connections
-          metadata: bankAccount.metadata,
-        });
-      }
+  // Add unresolved connections to the database so we can retry them later
+  private async stageUnresolvedConnection(userId: string, data: ) {
+    const connections = await addNewBankAccountConnectionEntry({
+      userId,
+      data,
     });
 
-    return savedAccounts;
+    // bank_account_id: null, // Staged for background       │ │
+    // │ │       provider_bank_account_id: account.accountId,          │ │
+    // │ │       company_bank_credential_id: credentialId,             │ │
+    // │ │       status: 'pending_institution',                        │ │
+    // │ │       raw_metadata: account.rawData
   }
-
-  /**
-   * Update bank accounts with resolved bank information
-   */
-  private async updateAccountsWithBankInfo(
-    accounts: ConnectedAccount[],
-    bankId: string,
-  ): Promise<void> {
-    await this.knex('bank_accounts')
-      .whereIn(
-        'id',
-        accounts.map((a) => a.id),
-      )
-      .update({
-        bank_id: bankId,
-        metadata: this.knex.raw("metadata - 'needsBankResolution'"),
-        updated_at: new Date(),
-      });
-
-    await this.knex('bank_account_connections')
-      .whereIn(
-        'bank_account_id',
-        accounts.map((a) => a.id),
-      )
-      .update({
-        status: 'active',
-        updated_at: new Date(),
-      });
-  }
-
-  /**
-   * Enrich accounts with bank information for response
-   */
-  private async enrichAccountsWithBankInfo(
-    accounts: ConnectedAccount[],
-  ): Promise<ConnectedAccount[]> {
-    const accountIds = accounts.map((a) => a.id);
-
-    const enrichedData = await this.knex('bank_accounts as ba')
-      .leftJoin('banks as b', 'ba.bank_id', 'b.id')
-      .leftJoin('bank_account_connections as bac', 'ba.id', 'bac.bank_account_id')
-      .whereIn('ba.id', accountIds)
-      .select(
-        'ba.id',
-        'ba.display_name',
-        'ba.account_type',
-        'ba.account_number',
-        'ba.metadata',
-        'b.display_name as bank_name',
-        'b.logo_url as bank_logo',
-        'bac.status as sync_status', // Get from connections table
-      );
-
-    return accounts.map((account) => {
-      const enriched = enrichedData.find((e) => e.id === account.id);
-      return {
-        ...account,
-        bankName: enriched?.bank_name || undefined,
-        bankLogo: enriched?.bank_logo || undefined,
-        syncStatus: enriched?.sync_status || account.syncStatus,
-      };
-    });
-  }
-
   /**
    * Schedule background processing for remaining operations
    */
@@ -458,87 +401,6 @@ export class ConnectAccountsService {
     //   accountIds: accounts.map(a => a.id),
     //   priority: 1
     // });
-  }
-
-  /**
-   * Format partial response when quick sync times out
-   */
-  private async formatPartialResponse(
-    accounts: ConnectedAccount[],
-    companyId: string,
-  ): Promise<ConnectAccountsResponse> {
-    const requiresClassification = await this.requiresClassification(companyId);
-
-    return {
-      status: 'partial',
-      accounts: accounts.map((account) => ({
-        ...account,
-        requiresClassification,
-      })),
-      syncDetails: {
-        institutionResolved: false,
-        coaCreated: false,
-        backgroundJobId: 'placeholder', // TODO: Real job ID
-        estimatedCompletion: new Date(Date.now() + 30000).toISOString(), // 30 seconds
-      },
-    };
-  }
-
-  /**
-   * Helper to check if accounts need classification based on company type
-   */
-  private async requiresClassification(companyId: string): Promise<boolean> {
-    const companyUUID = await getCompanyUUID(companyId);
-    const company = await this.knex('companies').where({ id: companyUUID }).first('company_type');
-
-    return company?.company_type !== 'individual';
-  }
-
-  /**
-   * Get currency ID by code
-   */
-  private async getCurrencyId(currencyCode: string): Promise<string> {
-    const currency = await getCurrency(currencyCode);
-    return currency.id;
-  }
-
-  /**
-   * Get a placeholder COA account ID for bank accounts
-   */
-  private async getPlaceholderCOAId(companyId: string, trx?: Knex.Transaction): Promise<string> {
-    // For now, just get the first bank asset account for this company
-    // In production, we should create a specific placeholder account or make coa_id optional
-    const query = (trx || this.knex)('coa')
-      .join('account_types', 'coa.account_type_id', 'account_types.id')
-      .where({
-        'coa.company_id': companyId,
-        'account_types.key': 'bank', // Bank asset account
-      })
-      .first('coa.id');
-
-    const coaAccount = await query;
-    if (!coaAccount) {
-      // If no bank COA account exists, get any asset account as fallback
-      const fallbackQuery = (trx || this.knex)('coa')
-        .join('account_types', 'coa.account_type_id', 'account_types.id')
-        .join('account_elements', 'account_types.element_id', 'account_elements.id')
-        .where({
-          'coa.company_id': companyId,
-          'account_elements.key': 'assets', // Any asset account
-        })
-        .first('coa.id');
-
-      const fallbackAccount = await fallbackQuery;
-      if (!fallbackAccount) {
-        throw new Error(
-          `No COA accounts found for company ${companyId}. Please ensure Chart of Accounts is set up.`,
-        );
-      }
-
-      return fallbackAccount.id;
-    }
-
-    return coaAccount.id;
   }
 
   /**

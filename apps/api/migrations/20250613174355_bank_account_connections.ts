@@ -24,8 +24,14 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('CASCADE');
 
     table.specificType('status', 'bank_account_connection_status').notNullable(); // active, revoked, pending, error
-
-    table.jsonb('raw_metadata'); // Connection speicific metadata
+    // Add company_bank_credential_id to bank_account_connections for easier lookup
+    table
+      .uuid('company_bank_credential_id')
+      .notNullable()
+      .references('id')
+      .inTable('company_bank_credentials')
+      .onDelete('CASCADE');
+    table.jsonb('raw_metadata'); // Connection specific metadata
 
     table.timestamp('last_sync_at').nullable(); // When data was last synced from provider
     table.timestamp('connected_at').notNullable().defaultTo(knex.fn.now()); // When connection was established
@@ -48,6 +54,34 @@ export async function up(knex: Knex): Promise<void> {
     ON bank_account_connections (bank_account_id) 
     WHERE status = 'active' AND bank_account_id IS NOT NULL;
   `);
+
+  await knex.schema.raw(`
+    CREATE INDEX IF NOT EXISTS idx_bank_account_connections_credential
+    ON bank_account_connections (company_bank_credential_id, status)
+    WHERE company_bank_credential_id IS NOT NULL;
+  `);
+
+  // await knex.schema.raw(`
+  //   CREATE INDEX IF NOT EXISTS idx_bank_account_connections_credential
+  //   ON bank_account_connections (company_bank_credential_id)
+  //   WHERE company_bank_credential_id IS NOT NULL;
+  // `);
+
+  // await knex.schema.raw(`
+  //   CREATE INDEX IF NOT EXISTS idx_staged_connections
+  //   ON bank_account_connections (company_bank_credential_id, status)
+  //   WHERE bank_account_id IS NULL;
+  // `);
+
+  // Add check constraint for status consistency
+  await knex.schema.raw(`
+      ALTER TABLE bank_account_connections ADD CONSTRAINT check_status_consistency
+      CHECK (
+        (bank_account_id IS NOT NULL AND status IN ('active', 'revoked', 'error'))
+        OR
+        (bank_account_id IS NULL AND status IN ('pending_resolution', 'pending'))
+      );
+    `);
 }
 
 export async function down(knex: Knex): Promise<void> {

@@ -5,6 +5,8 @@ import { knexClient } from '../../db/knexClient.js';
 import { type ApiResponse } from '../../core/types/api.types.js';
 import {
   bankAccountConnectionInputCamel,
+  type BankAccountConnectionInput,
+  type BankAccountConnectionStatus,
   type ConnectionResponse,
   type ConnectionStatus,
   type CreateNewBankAccountConnection,
@@ -13,7 +15,6 @@ import { getBankConnectionNeeds } from './shared/prerequisites.js';
 import { exchangeMonoCode } from './mono/exchangeCode.js';
 import { getMonoAccountDetails } from './mono/getAccountDetails.js';
 import { getProvider } from './shared/getProvider.js';
-import { checkForDuplicate } from './shared/checkDuplicate.js';
 import { updateBankAccountOnboardingState } from './shared/updateOnboarding.js';
 import { createBankAccount } from './shared/createBankAccount.js';
 import { resolveBankFromMonoDetails } from './shared/resolveBank.js';
@@ -355,6 +356,141 @@ export const addBankAccountConnection = async ({
       id: row.id,
     });
   };
+  try {
+    const result = trx ? await execute(trx) : await knexClient.transaction(execute);
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Failed to create bank account connection');
+    }
+    return result;
+  } catch (error) {
+    return errorResponse('Failed to create bank account connection', error);
+  }
+};
+
+export const checkForDuplicate = async ({
+  providerId,
+  providerUniqueBankAccountId,
+  status,
+  pruneStates = [],
+  trx,
+}: {
+  providerId: string;
+  providerUniqueBankAccountId: string;
+  status?: BankAccountConnectionStatus[];
+  pruneStates?: Exclude<BankAccountConnectionStatus, 'active'>[];
+  trx: Knex.Transaction;
+}): Promise<{
+  exists: boolean;
+  connection?: {
+    id: string;
+    status?: BankAccountConnectionStatus;
+    bankAccountId?: string;
+  };
+  pruned?: boolean;
+}> => {
+  try {
+    const query = trx('bank_account_connections').select('id', 'status', 'bank_account_id').where({
+      provider_bank_account_id: providerUniqueBankAccountId,
+      provider_id: providerId,
+    });
+
+    // Only filter by status if explicitly provided
+    if (status?.length) {
+      query.whereIn('status', status);
+    }
+
+    const connection = await query.first();
+
+    // Hard delete if requested and status matches
+    let pruned = false;
+    if (
+      connection?.status &&
+      connection.status !== 'active' &&
+      pruneStates.includes(connection.status)
+    ) {
+      await trx('bank_account_connections').where({ id: connection.id }).delete();
+
+      pruned = true;
+    }
+
+    return {
+      exists: !!connection && !pruned,
+      connection:
+        connection && !pruned
+          ? {
+              id: connection.id,
+              status: connection.status,
+              ...(connection?.bank_account_id
+                ? { bankAccountId: connection?.bank_account_id }
+                : {}),
+            }
+          : undefined,
+      pruned,
+    };
+  } catch (error: any) {
+    if (error instanceof Error) {
+      throw new Error(error.message);
+    }
+    if (typeof error === 'string') {
+      throw new Error(error);
+    }
+    throw new Error('Unknown error');
+  }
+};
+
+export const addNewBankAccountConnectionEntry = async ({
+  userId,
+  data,
+  trx,
+}: {
+  userId: string;
+  data: BankAccountConnectionInput;
+  trx?: Knex.Transaction;
+}): Promise<ApiResponse<{ id: string; created: boolean }>> => {
+  // validate input
+  const parsed = bankAccountConnectionInputCamel.safeParse(data);
+  if (!parsed.success) {
+    return errorResponse('Invalid input provided', parsed.error.flatten());
+  }
+  const v = parsed.data;
+
+  const execute = async (k: Knex.Transaction) => {
+    const rows = await k('bank_account_connections')
+      .insert({
+        provider_bank_account_id: v.provider_bank_account_id,
+        provider_bank_account_secondary_id: v.provider_bank_account_secondary_id ?? null,
+        bank_account_id: v.bank_account_id ?? null,
+        provider_id: v.provider_id,
+        company_bank_credential_id: v.company_bank_credential_id,
+        status: v.status,
+        ...(v.raw_metadata ? { raw_metadata: v.raw_metadata } : {}),
+        created_by_id: userId,
+      })
+      .onConflict(['provider_id', 'provider_bank_account_id'])
+      .ignore()
+      .returning<{ id: string }[]>('id');
+
+    if (rows.length) {
+      return successResponse('Bank account connection created', { id: rows[0].id, created: true });
+    }
+
+    const existing = await k('bank_account_connections')
+      .where({
+        provider_id: v.provider_id,
+        provider_bank_account_id: v.provider_bank_account_id,
+      })
+      .first<{ id: string }>('id');
+
+    if (!existing) {
+      return errorResponse('Conflict detected but existing id not found');
+    }
+
+    return successResponse('Connection exists; returned existing id', {
+      id: existing.id,
+      created: false,
+    });
+  };
+
   try {
     const result = trx ? await execute(trx) : await knexClient.transaction(execute);
     if (!result.success || !result.data) {
