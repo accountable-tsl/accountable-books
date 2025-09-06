@@ -140,7 +140,6 @@ export class MonoProvider extends BankingProvider {
         accountNumber: accountData.accountNumber,
         currencyCode: accountData.currency || 'NGN',
         type: accountData.type || 'checking',
-        subtype: undefined,
         mask: accountData.accountNumber?.slice(-4),
         rawData: {
           accountData,

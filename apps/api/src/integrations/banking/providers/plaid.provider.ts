@@ -2,20 +2,16 @@ import {
   Configuration,
   PlaidApi,
   PlaidEnvironments,
-  type PlaidError,
   CountryCode,
   Products,
   type LinkTokenCreateRequest,
-  type AccountAssets,
   type AuthGetResponse,
 } from 'plaid';
 import {
   BankingProvider,
   type ProviderError,
-  type AccountDiscoveryResult,
   type ProviderAccount,
   type ProviderInstitution,
-  type ProviderItemDetails,
 } from '../types/base.js';
 import { ENV } from 'src/config/env.js';
 import { createCompanyBankCredential } from 'src/domains/banking/banking.model.js';

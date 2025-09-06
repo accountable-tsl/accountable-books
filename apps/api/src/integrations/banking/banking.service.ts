@@ -2,7 +2,12 @@ import type { ApiResponse } from '../../core/types/api.types.js';
 import { providerRegistry } from './providers/registry.js';
 import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
 import { createCompanyBankCredential } from '../../domains/banking/banking.model.js';
-import { connectAccountsService, type ConnectAccountsParams, type ConnectAccountsResponse } from './services/connectAccounts.service.js';
+import {
+  connectAccountsService,
+  type ConnectAccountsParams,
+  type ConnectAccountsResponse,
+} from './services/connectAccounts.service.js';
+import type { BankProviderKey } from 'src/domains/bankFeedProviders/bankFeedProviders.types.js';
 
 export interface LinkTokenResponse {
   token?: string;
@@ -23,7 +28,9 @@ export class BankingService {
    * NEW: Connect bank accounts - unified endpoint for complete bank connection flow
    * Handles token exchange, credential storage, account fetch, and institution resolution
    */
-  async connectBankAccounts(params: ConnectAccountsParams): Promise<ApiResponse<ConnectAccountsResponse>> {
+  async connectBankAccounts(
+    params: ConnectAccountsParams,
+  ): Promise<ApiResponse<ConnectAccountsResponse>> {
     return await connectAccountsService.connectBankAccounts(params);
   }
 
@@ -39,7 +46,7 @@ export class BankingService {
     try {
       // TODO: Add validation that user can modify this account
       // TODO: Update bank_accounts table with classification
-      
+
       return successResponse('Account classified successfully', {
         id: params.accountId,
         businessOrPersonal: params.businessOrPersonal,
@@ -55,7 +62,7 @@ export class BankingService {
    * This token is required to link a bank account to a user.
    */
   async createLinkToken(params: {
-    provider: string;
+    provider: BankProviderKey;
     userId: string;
     companyId: string;
   }): Promise<ApiResponse<LinkTokenResponse>> {
@@ -77,7 +84,7 @@ export class BankingService {
   }
 
   async exchangeToken(params: {
-    provider: string;
+    provider: BankProviderKey;
     publicToken: string;
     metadata?: any;
     companyId: string;
@@ -134,4 +141,3 @@ export class BankingService {
 
 // Export singleton instance
 export const bankingService = new BankingService();
-
