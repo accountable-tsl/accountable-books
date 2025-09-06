@@ -33,11 +33,6 @@ export async function up(knex: Knex): Promise<void> {
     ON company_bank_credentials (company_id, provider_id, identifier) 
     WHERE identifier IS NOT NULL
   `);
-
-  await knex.schema.raw(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_provider_account_per_credential
-    ON bank_account_connections (company_bank_credential_id, provider_bank_account_id);
-  `);
 }
 
 export async function down(knex: Knex): Promise<void> {

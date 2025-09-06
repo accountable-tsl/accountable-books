@@ -92,11 +92,11 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(
     createEnumIfNotExists('bank_account_connection_status', [
+      'pending_sync',
+      'pending_resolution',
       'active',
       'revoked',
-      'pending',
       'error',
-      'pending_resolution',
     ]),
   );
 

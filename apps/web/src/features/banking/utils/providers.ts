@@ -1,6 +1,10 @@
+import z from "zod";
+
+export const bankProviderKey = z.enum(['plaid', 'mono']); // stripe, teller, enable_banking, yodlee, etc.
+export type BankProviderKey = z.infer<typeof bankProviderKey>;
 export interface BankProvider {
   id: string;
-  key: string;
+  key: BankProviderKey;
   name: string;
   logo: string;
   countries: string[];

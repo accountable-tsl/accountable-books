@@ -79,7 +79,7 @@ export async function up(knex: Knex): Promise<void> {
       CHECK (
         (bank_account_id IS NOT NULL AND status IN ('active', 'revoked', 'error'))
         OR
-        (bank_account_id IS NULL AND status IN ('pending_resolution', 'pending'))
+        (bank_account_id IS NULL AND status IN ('pending_resolution', 'pending_sync'))
       );
     `);
 }

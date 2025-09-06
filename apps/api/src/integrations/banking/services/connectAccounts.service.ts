@@ -11,6 +11,8 @@ import {
 import type { BankingProvider, ProviderAccount } from '../types/base.js';
 import type { BankProviderKey } from 'src/domains/bankFeedProviders/bankFeedProviders.types.js';
 import { addNewBankAccountConnectionEntry } from 'src/domains/bankAccountConnections/baccons.model.js';
+import type { BankAccountConnectionStatus } from 'src/domains/bankAccountConnections/baccons.types.js';
+import { randomUUID } from 'crypto';
 
 export interface ConnectAccountsParams {
   providerKey: BankProviderKey;
@@ -30,7 +32,7 @@ export interface ConnectedAccount {
   bankName?: string;
   bankLogo?: string;
   requiresClassification: boolean;
-  syncStatus?: 'active' | 'pending_enrichment' | 'pending_institution' | 'error'; // From bank_account_connections
+  syncStatus?: BankAccountConnectionStatus;
   metadata?: Record<string, unknown>;
 }
 
@@ -38,11 +40,14 @@ export interface ConnectAccountsResponse {
   status: 'complete' | 'partial';
   accounts: ConnectedAccount[];
   syncDetails: {
+    total: number;
+    created: number;
+    staged: number;
     institutionResolved: boolean;
+    allAccountsCreated: boolean;
     coaCreated: boolean;
     backgroundJobId?: string;
     estimatedCompletion?: string;
-    stagedCount?: number;
   };
 }
 
@@ -62,11 +67,82 @@ interface CriticalPhaseResult {
 
 interface QuickResolutionResult {
   created: ConnectedAccount[];
-  staged: (WithConnParams | Omit<WithConnParams, 'bankId'>)[];
+  staged: (WithConnParams | Omit<WithConnParams, 'bankId'> | ProviderAccount)[];
+  failed: WithConnParams[];
+  timedOut: boolean;
+  institutionResolved: boolean;
 }
 
 export class ConnectAccountsService {
   private readonly QUICK_SYNC_TIMEOUT = 3000; // 3 seconds
+
+  /**
+   * Sanitizes objects for safe logging by redacting PII fields
+   */
+  private sanitizeForLogging(data: unknown): unknown {
+    if (!data || typeof data !== 'object') return data;
+
+    const sensitiveFields = [
+      'token',
+      'accessToken',
+      'publicToken',
+      'refreshToken',
+      'accountNumber',
+      'routingNumber',
+      'ssn',
+      'socialSecurityNumber',
+      'creditCardNumber',
+      'cvv',
+      'pin',
+      'password',
+      'secret',
+    ];
+
+    return JSON.parse(
+      JSON.stringify(data, (key, value) => {
+        if (sensitiveFields.some((field) => key.toLowerCase().includes(field.toLowerCase()))) {
+          return '[REDACTED]';
+        }
+        return value;
+      }),
+    );
+  }
+
+  /**
+   * Gets account ID from different account types
+   */
+  private getAccountId(
+    account: WithConnParams | Omit<WithConnParams, 'bankId'> | ProviderAccount,
+  ): string {
+    if ('providerBankAccountId' in account) {
+      return account.providerBankAccountId;
+    }
+    return account.accountId;
+  }
+
+  /**
+   * Gets display name from different account types
+   */
+  private getDisplayName(
+    account: WithConnParams | Omit<WithConnParams, 'bankId'> | ProviderAccount,
+  ): string {
+    return account.displayName;
+  }
+
+  /**
+   * Gets account type from different account types
+   */
+  private getAccountType(
+    account: WithConnParams | Omit<WithConnParams, 'bankId'> | ProviderAccount,
+  ): string {
+    if ('accountType' in account) {
+      return account.accountType || 'checking';
+    }
+    if ('type' in account) {
+      return account.type || 'checking';
+    }
+    return 'checking';
+  }
 
   /**
    * Main orchestration method - handles complete bank account connection flow
@@ -74,102 +150,97 @@ export class ConnectAccountsService {
   async connectBankAccounts(
     params: ConnectAccountsParams,
   ): Promise<ApiResponse<ConnectAccountsResponse>> {
+    const traceId = randomUUID();
     const startTime = Date.now();
 
-    logger.info(
-      {
-        companyId: params.companyId,
-        providerKey: params.providerKey,
-        operation: 'connectBankAccounts',
-      },
-      'Starting bank account connection flow',
-    );
+    // Upfront input validation for fast 400 responses
+    if (!params.providerKey) {
+      return errorResponse('Missing required field: providerKey', null, { metadata: { traceId } });
+    }
+    if (!params.publicToken) {
+      return errorResponse('Missing required field: publicToken', null, { metadata: { traceId } });
+    }
+    if (!params.companyId) {
+      return errorResponse('Missing required field: companyId', null, { metadata: { traceId } });
+    }
+    if (!params.userId) {
+      return errorResponse('Missing required field: userId', null, { metadata: { traceId } });
+    }
+
+    const log = (phase: string, data: Record<string, unknown>) => {
+      logger.info(
+        {
+          traceId,
+          companyId: params.companyId,
+          providerKey: params.providerKey,
+          phase,
+          duration_ms: Date.now() - startTime,
+          ...data,
+        },
+        `[${traceId}] ${phase}`,
+      );
+    };
+
+    log('flow_start', { operation: 'connectBankAccounts' });
 
     try {
       // PHASE 1: Critical operations (no timeout)
+      log('critical_start', {});
       const criticalResult = await this.performCriticalPhase(params);
+      log('critical_complete', {
+        total: criticalResult.providerAccounts.length,
+      });
 
-      logger.info(
-        {
-          companyId: params.companyId,
-          duration_ms: Date.now() - startTime,
-          accountCount: criticalResult.providerAccounts.length,
-          phase: 'critical_complete',
-        },
-        'Critical sync completed successfully',
-      );
+      // PHASE 2: Quick resolution with internal time budget
+      log('quick_start', {});
+      const quickResult = await this.performQuickResolution(criticalResult, params, traceId);
+      log('quick_complete', {
+        total: criticalResult.providerAccounts.length,
+        created: quickResult.created.length,
+        staged: quickResult.staged.length,
+      });
 
-      // PHASE 2: Try quick resolution with timeout
-      const quickStartTime = Date.now();
-      const quickResult = await Promise.race([
-        this.performQuickResolution(criticalResult, params),
-        this.timeout(this.QUICK_SYNC_TIMEOUT).then(() => null),
-      ]);
-
-      const quickDuration = Date.now() - quickStartTime;
-
-      if (quickResult) {
-        logger.info(
-          {
-            companyId: params.companyId,
-            duration_ms: quickDuration,
-            created: quickResult.created.length,
-            staged: quickResult.staged.length,
-            phase: 'quick_complete',
-          },
-          'Quick resolution completed',
-        );
-
-        return successResponse('Bank accounts connected successfully', {
-          status: quickResult.created.length > 0 ? 'complete' : 'partial',
-          accounts: quickResult.created,
-          syncDetails: {
-            institutionResolved: true,
-            coaCreated: quickResult.created.length > 0,
-            stagedCount: quickResult.staged.length,
-          },
-        });
-      }
-
-      // PHASE 3: Critical fallback - stage everything
-      logger.warn(
-        {
-          companyId: params.companyId,
-          duration_ms: quickDuration,
-          accountCount: criticalResult.providerAccounts.length,
-          phase: 'quick_timeout',
-        },
-        'Quick resolution timed out, staging all accounts',
-      );
-
-      await this.stageAllAccounts(
-        criticalResult.providerAccounts,
-        criticalResult.credentialId,
-        criticalResult.providerId,
-        params.userId,
-      );
-
-      return successResponse('Bank accounts connected, processing in background', {
-        status: 'partial',
-        accounts: criticalResult.providerAccounts.map((acc) => ({
-          id: `pending_${acc.accountId}`,
-          displayName: acc.displayName,
-          accountType: acc.type || 'checking',
-          accountNumber: acc.accountNumber || '',
-          mask: acc.mask || '****',
+      // Return both created and staged accounts so UI can show everything
+      const allAccountsCreated = quickResult.staged.length === 0;
+      const institutionResolved = quickResult.institutionResolved;
+      const accounts = [
+        ...quickResult.created,
+        ...quickResult.staged.map((acc) => ({
+          id: `pending_${this.getAccountId(acc)}`,
+          displayName: this.getDisplayName(acc),
+          accountType: this.getAccountType(acc),
+          accountNumber: 'accountNumber' in acc ? acc.accountNumber || '' : '',
+          mask: '****',
           currencyCode: acc.currencyCode,
           requiresClassification: false,
-          syncStatus: 'pending_enrichment' as const,
+          syncStatus: 'pending_resolution' as const,
         })),
-        syncDetails: {
-          institutionResolved: false,
-          coaCreated: false,
-          backgroundJobId: 'pending',
-          estimatedCompletion: new Date(Date.now() + 30000).toISOString(),
+      ];
+
+      return successResponse(
+        allAccountsCreated
+          ? 'Bank accounts connected successfully'
+          : 'Bank accounts connected, some processing in background',
+        {
+          status: allAccountsCreated ? 'complete' : 'partial',
+          accounts,
+          syncDetails: {
+            total: criticalResult.providerAccounts.length,
+            created: quickResult.created.length,
+            staged: quickResult.staged.length,
+            institutionResolved,
+            allAccountsCreated,
+            coaCreated: quickResult.created.length > 0,
+          },
         },
-      });
+      );
     } catch (error: unknown) {
+      log('error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+
       logError(error as Error, {
+        traceId,
         companyId: params.companyId,
         providerKey: params.providerKey,
         operation: 'connectBankAccounts',
@@ -177,7 +248,7 @@ export class ConnectAccountsService {
       });
 
       const message = error instanceof Error ? error.message : 'Failed to connect bank accounts';
-      return errorResponse(message, error);
+      return errorResponse(message, error, { metadata: { traceId } });
     }
   }
 
@@ -205,7 +276,7 @@ export class ConnectAccountsService {
       accessToken,
     });
 
-    // 3. Encrypt and save credential
+    // 3. Encrypt and save credential (with retry protection)
     const credentialResult = await createCompanyBankCredential({
       userId: params.userId,
       companyId: params.companyId,
@@ -213,10 +284,21 @@ export class ConnectAccountsService {
       identifier: itemId || null,
       token: accessToken,
       rawData: { itemId, metadata: itemMetadata },
+      // rawData: this.sanitizeForLogging({ itemId, metadata: itemMetadata }) as Record<string, unknown>, // Restore if needed
     });
 
-    if (!credentialResult.success || !credentialResult.data) {
-      throw new Error('Failed to save bank credential');
+    if (!credentialResult.success) {
+      // If credential already exists, this might be a retry - let's check the error
+      if (credentialResult.message?.includes('already has an active')) {
+        throw new Error(
+          'Bank connection already exists. Please disconnect the existing connection first.',
+        );
+      }
+      throw new Error(credentialResult.message || 'Failed to save bank credential');
+    }
+
+    if (!credentialResult.data?.id) {
+      throw new Error('Failed to save bank credential - no ID returned');
     }
     const credentialId = credentialResult.data.id;
 
@@ -237,44 +319,100 @@ export class ConnectAccountsService {
   }
 
   /**
-   * PHASE 2: Quick resolution with timeout
+   * PHASE 2: Quick resolution with time budget
    * - Try to resolve banks and create complete accounts
-   * - Can timeout after 3 seconds
+   * - Uses time budget to avoid race conditions
    */
   private async performQuickResolution(
-    criticalResult: CriticalPhaseResult, 
-    params: ConnectAccountsParams
+    criticalResult: CriticalPhaseResult,
+    params: ConnectAccountsParams,
+    traceId: string,
   ): Promise<QuickResolutionResult> {
+    const deadline = Date.now() + this.QUICK_SYNC_TIMEOUT;
     const resolutionStartTime = Date.now();
 
-    // Try to resolve banks
-    const { canBeAdded, needToBeResolved } = await this.quickAccountResolution({
-      provider: criticalResult.provider,
-      institutionId: criticalResult.institutionId,
-      providerCountryCodes: criticalResult.providerCountryCodes,
-      accounts: criticalResult.providerAccounts,
-      providerKey: params.providerKey,
-      userId: params.userId,
-      companyId: params.companyId,
-      providerId: criticalResult.providerId,
-      credentialId: criticalResult.credentialId,
+    const log = (phase: string, data: Record<string, unknown>) => {
+      logger.info(
+        {
+          traceId,
+          phase: `quick_${phase}`,
+          duration_ms: Date.now() - resolutionStartTime,
+          ...data,
+        },
+        `[${traceId}] quick_${phase}`,
+      );
+    };
+
+    // Reserve time for account creation (at least 1 second)
+    const resolutionDeadline = Math.min(deadline - 1000, deadline);
+
+    // Try to resolve banks - check time budget first
+    if (Date.now() > resolutionDeadline) {
+      log('timeout_before_resolution', {});
+      const allStaged = [...criticalResult.providerAccounts];
+      await this.stageProviderAccounts(
+        allStaged,
+        criticalResult.credentialId,
+        criticalResult.providerId,
+        params.userId,
+      );
+      return {
+        created: [],
+        staged: allStaged,
+        failed: [],
+        timedOut: true,
+        institutionResolved: false,
+      };
+    }
+
+    // Begin institution resolution with cooperative cancellation
+    const { canBeAdded, needToBeResolved, timedOut, institutionResolved } =
+      await this.quickAccountResolution({
+        provider: criticalResult.provider,
+        institutionId: criticalResult.institutionId,
+        providerCountryCodes: criticalResult.providerCountryCodes,
+        accounts: criticalResult.providerAccounts,
+        providerKey: params.providerKey,
+        userId: params.userId,
+        companyId: params.companyId,
+        providerId: criticalResult.providerId,
+        credentialId: criticalResult.credentialId,
+        deadline: resolutionDeadline,
+      });
+
+    // If resolution timed out, stage all accounts
+    if (timedOut) {
+      log('resolution_timeout', { at: Date.now() });
+      const allStaged = [...criticalResult.providerAccounts];
+      await this.stageProviderAccounts(
+        allStaged,
+        criticalResult.credentialId,
+        criticalResult.providerId,
+        params.userId,
+      );
+      return { created: [], staged: allStaged, failed: [], timedOut: true, institutionResolved };
+    }
+
+    log('resolution_complete', {
+      canBeAdded: canBeAdded.length,
+      needToBeResolved: needToBeResolved.length,
     });
 
-    logger.info(
-      {
-        duration_ms: Date.now() - resolutionStartTime,
-        canBeAdded: canBeAdded.length,
-        needToBeResolved: needToBeResolved.length,
-      },
-      'Bank resolution completed',
-    );
+    const created: ConnectedAccount[] = [];
+    const failed: WithConnParams[] = [];
 
-    // Try to create accounts
-    const createStartTime = Date.now();
-    const created = [];
-    const failed = [];
-
+    // Process accounts one by one with time checks
     for (const account of canBeAdded) {
+      if (Date.now() > deadline) {
+        log('timeout_during_creation', {
+          processed: created.length,
+          remaining: canBeAdded.length - created.length,
+        });
+        // Time's up - add remaining accounts to failed list
+        failed.push(...canBeAdded.slice(canBeAdded.indexOf(account)));
+        break;
+      }
+
       try {
         const res = await createBankAccountWithConnection(account);
         if (res.success && res.data) {
@@ -283,37 +421,28 @@ export class ConnectAccountsService {
             displayName: account.displayName,
             accountType: account.accountType || 'checking',
             accountNumber: account.accountNumber || '',
-            mask: account.displayName?.slice(-4) || '****',
+            mask: account.accountNumber?.slice(-4) || '****',
             currencyCode: account.currencyCode,
             requiresClassification: false,
-            syncStatus: 'active' as const,
+            syncStatus: 'pending_sync' as const,
           });
         } else {
           failed.push(account);
-          logger.warn(
-            {
-              account: account.displayName,
-              error: res.message,
-            },
-            'Failed to create bank account',
-          );
+          log('account_creation_failed', {
+            account: account.displayName,
+            error: res.message,
+          });
         }
       } catch (error) {
         failed.push(account);
-        logger.error({ account: account.displayName, error }, 'Exception creating bank account');
+        log('account_creation_exception', {
+          account: account.displayName,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
       }
     }
 
-    logger.info(
-      {
-        duration_ms: Date.now() - createStartTime,
-        created: created.length,
-        failed: failed.length,
-      },
-      'Account creation phase completed',
-    );
-
-    // Stage unresolved and failed accounts
+    // Stage what couldn't be processed (unresolved + failed)
     const toStage = [...needToBeResolved, ...failed];
     if (toStage.length > 0) {
       await this.stageAccounts(
@@ -324,9 +453,17 @@ export class ConnectAccountsService {
       );
     }
 
+    log('creation_complete', {
+      created: created.length,
+      staged: toStage.length,
+    });
+
     return {
       created,
       staged: toStage,
+      failed,
+      timedOut: false,
+      institutionResolved,
     };
   }
 
@@ -334,30 +471,35 @@ export class ConnectAccountsService {
    * Stage accounts that couldn't be resolved or failed to create
    */
   private async stageAccounts(
-    accounts: (WithConnParams | Omit<WithConnParams, 'bankId'>)[],
+    accounts: (WithConnParams | Omit<WithConnParams, 'bankId'> | ProviderAccount)[],
     credentialId: string,
     providerId: string,
     userId: string,
   ): Promise<void> {
     for (const account of accounts) {
+      // Handle different account types
+      const providerBankAccountId =
+        'providerBankAccountId' in account ? account.providerBankAccountId : account.accountId;
+
       await addNewBankAccountConnectionEntry({
         userId,
         data: {
-          providerBankAccountId: account.providerBankAccountId,
+          providerBankAccountId,
           providerId: providerId,
           companyBankCredentialId: credentialId,
           bankAccountId: null, // Staged for background
-          status: ('bankId' in account && account.bankId) ? 'error' : 'pending_resolution',
+          status: 'bankId' in account && account.bankId ? 'error' : 'pending_resolution',
           rawMetadata: account,
+          // rawMetadata: this.sanitizeForLogging(account) as Record<string, unknown>,
         },
       });
     }
   }
 
   /**
-   * Stage all accounts when quick resolution times out
+   * Stage provider accounts when resolution times out before we can process them
    */
-  private async stageAllAccounts(
+  private async stageProviderAccounts(
     providerAccounts: ProviderAccount[],
     credentialId: string,
     providerId: string,
@@ -373,14 +515,18 @@ export class ConnectAccountsService {
           bankAccountId: null,
           status: 'pending_resolution',
           rawMetadata: account.rawData || account,
+          // rawMetadata: this.sanitizeForLogging(account.rawData || account) as Record<
+          //   string,
+          //   unknown
+          // >,
         },
       });
     }
   }
 
-
   /**
    * Phase 2: Quick sync - attempt to complete institution resolution quickly
+   * Uses cooperative cancellation with time checks instead of Promise.race
    */
   private async quickAccountResolution(p: {
     provider: BankingProvider;
@@ -392,9 +538,12 @@ export class ConnectAccountsService {
     userId: string;
     companyId: string;
     credentialId: string;
+    deadline: number; // Deadline parameter for cooperative cancellation
   }): Promise<{
     canBeAdded: WithConnParams[];
     needToBeResolved: Omit<WithConnParams, 'bankId'>[];
+    timedOut: boolean;
+    institutionResolved: boolean;
   }> {
     const {
       provider,
@@ -406,30 +555,56 @@ export class ConnectAccountsService {
       companyId,
       providerId,
       credentialId,
+      deadline,
     } = p;
 
-    // 1. Get institution info
+    // Check time budget before starting
+    if (Date.now() > deadline) {
+      return { canBeAdded: [], needToBeResolved: [], timedOut: true, institutionResolved: false };
+    }
+
+    // 1. Get institution info with time check
     const institutions = await provider.getInstitutionById({
       institutionId,
       countryCodes: providerCountryCodes,
     });
 
-    const bankMappings = await Promise.all(
-      institutions.map((institution) =>
-        findOrCreateBankMapping({
-          providerKey,
-          institution,
-          userId,
-        }),
-      ),
-    );
+    // Check time after institution fetch
+    if (Date.now() > deadline) {
+      return { canBeAdded: [], needToBeResolved: [], timedOut: true, institutionResolved: false };
+    }
+
+    // 2. Create bank mappings with cooperative cancellation
+    const bankMappings: Array<{ bankId: string; providerBankId: string }> = [];
+    for (const institution of institutions) {
+      if (Date.now() > deadline) {
+        // Time's up - return partial results
+        return {
+          canBeAdded: [],
+          needToBeResolved: [],
+          timedOut: true,
+          institutionResolved: bankMappings.length > 0,
+        };
+      }
+
+      const mapping = await findOrCreateBankMapping({
+        providerKey,
+        institution,
+        userId,
+      });
+      bankMappings.push({
+        bankId: mapping.bankId,
+        providerBankId: mapping.providerBankId,
+      });
+    }
 
     const canBeAdded: WithConnParams[] = [];
     const needToBeResolved: Omit<WithConnParams, 'bankId'>[] = [];
     for (const account of accounts) {
-      const bankId = bankMappings.find(
+      const bankMapping = bankMappings.find(
         (mapping) => mapping.providerBankId === (account.institutionId ?? institutionId),
-      )?.bankId;
+      );
+      const bankId = bankMapping?.bankId;
 
       const acc = this.mapAccountForCreation({
         account,
@@ -447,7 +622,12 @@ export class ConnectAccountsService {
       }
     }
 
-    return { canBeAdded, needToBeResolved };
+    return {
+      canBeAdded,
+      needToBeResolved,
+      timedOut: false,
+      institutionResolved: bankMappings.length > 0,
+    };
   }
 
   private mapAccountForCreation(i: {
@@ -472,7 +652,7 @@ export class ConnectAccountsService {
       businessOrPersonal: null,
       providerId,
       providerBankAccountId: account.accountId,
-      connectionStatus: bankId ? 'active' : 'pending',
+      connectionStatus: 'active',
       credentialId,
     };
 
@@ -481,13 +661,6 @@ export class ConnectAccountsService {
     } else {
       return acc;
     }
-  }
-
-  /**
-   * Promise timeout utility
-   */
-  private timeout(ms: number): Promise<null> {
-    return new Promise((resolve) => setTimeout(() => resolve(null), ms));
   }
 }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useBanking } from '../hooks/use-banking';
 import { useCountrySelection } from '../hooks/use-country-selection';
-import { useCreateLinkToken, useExchangeToken } from '../hooks/use-banking-api';
+import { useConnectAccounts, useCreateLinkToken } from '@/features/banking/hooks/use-banking-api';
 import { useSession } from '@/features/auth/Session';
 import { WelcomeStep } from './steps/welcome-step';
 import { CountrySelectStep } from './steps/country-select-step';
@@ -30,7 +30,7 @@ export function BankConnectionFlow() {
 
   const { user, companyId, loading: sessionLoading } = useSession();
   const createLinkTokenMutation = useCreateLinkToken();
-  const exchangeTokenMutation = useExchangeToken();
+  const connectAccountsMutation = useConnectAccounts();
 
   const { supportedCountries, getSelectionStrategy } = useBanking();
   const {
@@ -125,15 +125,15 @@ export function BankConnectionFlow() {
     );
   };
 
-  const exchangeToken = async (publicToken: string, metadata?: any) => {
+  const connectAccount = async (publicToken: string, metadata?: any) => {
     if (!selectedProvider) {
       console.error('No provider selected');
       return;
     }
 
-    exchangeTokenMutation.mutate(
+    connectAccountsMutation.mutate(
       {
-        provider: selectedProvider.key,
+        providerKey: selectedProvider.key,
         publicToken,
         metadata,
         userId: user?.id || '',
@@ -207,7 +207,7 @@ export function BankConnectionFlow() {
             <ProviderWidget
               provider={selectedProvider.key}
               token={linkToken}
-              onSuccess={exchangeToken}
+              onSuccess={connectAccount}
               onExit={() => setCurrentStep('provider-select')}
               onError={() => {
                 setCurrentStep('provider-select');

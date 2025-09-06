@@ -31,33 +31,40 @@ export const addNewBankAccountConnectionEntry = async ({
         bank_account_id: v.bank_account_id ?? null,
         provider_id: v.provider_id,
         company_bank_credential_id: v.company_bank_credential_id,
-        status: v.status,
+        status: v.status || 'pending_sync',
         ...(v.raw_metadata ? { raw_metadata: v.raw_metadata } : {}),
         created_by_id: userId,
       })
       .onConflict(['provider_id', 'provider_bank_account_id'])
-      .ignore()
+      .merge({
+        // Update fields that might have changed
+        bank_account_id: v.bank_account_id ?? null,
+        company_bank_credential_id: v.company_bank_credential_id,
+        status: v.status || 'pending_sync',
+        ...(v.raw_metadata ? { raw_metadata: v.raw_metadata } : {}),
+      })
       .returning<{ id: string }[]>('id');
 
+    // Always get an ID back - either from new insert or existing record
     if (rows.length) {
-      return successResponse('Bank account connection created', { id: rows[0].id, created: true });
+      // Check if this was a new insert or update
+      const wasExisting = await k('bank_account_connections')
+        .where({
+          provider_id: v.provider_id,
+          provider_bank_account_id: v.provider_bank_account_id,
+          id: rows[0].id,
+        })
+        .first('created_at');
+
+      const isNew = wasExisting && new Date(wasExisting.created_at).getTime() > Date.now() - 1000; // Within last second
+
+      return successResponse(
+        isNew ? 'Bank account connection created' : 'Bank account connection updated',
+        { id: rows[0].id, created: isNew || false },
+      );
     }
 
-    const existing = await k('bank_account_connections')
-      .where({
-        provider_id: v.provider_id,
-        provider_bank_account_id: v.provider_bank_account_id,
-      })
-      .first<{ id: string }>('id');
-
-    if (!existing) {
-      return errorResponse('Conflict detected but existing id not found');
-    }
-
-    return successResponse('Connection exists; returned existing id', {
-      id: existing.id,
-      created: false,
-    });
+    return errorResponse('Failed to create or update bank account connection');
   };
 
   try {

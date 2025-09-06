@@ -37,5 +37,12 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
+
+  // Drop dependent tables first to avoid foreign key constraint issues
+  await knex.schema.dropTableIfExists('company_bank_credentials');
+  await knex.schema.dropTableIfExists('bank_account_connections');
+  await knex.schema.dropTableIfExists('bank_provider_mappings');
+  await knex.schema.dropTableIfExists('bank_feed_provider_countries');
+
   await knex.schema.dropTableIfExists(tableName);
 }

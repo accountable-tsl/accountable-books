@@ -101,7 +101,7 @@ export async function addNewBank(params: {
   try {
     const inserted = await knex('banks')
       .insert(validateProcessedBanks.data)
-      .onConflict('key')
+      .onConflict(['key', 'country_id'])
       .ignore()
       .returning('id');
 

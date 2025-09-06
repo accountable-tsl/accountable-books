@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { createLinkToken, exchangeToken } from '@/features/banking/api';
+import { createLinkToken, connectAccounts } from '@/features/banking/api';
 import { toast } from 'sonner';
 
 export const useCreateLinkToken = () => {
@@ -13,9 +13,9 @@ export const useCreateLinkToken = () => {
   });
 };
 
-export const useExchangeToken = () => {
+export const useConnectAccounts = () => {
   return useMutation({
-    mutationFn: exchangeToken,
+    mutationFn: connectAccounts,
     onSuccess: () => {
       toast.success('Bank account connected successfully!');
     },

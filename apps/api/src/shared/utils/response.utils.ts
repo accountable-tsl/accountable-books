@@ -16,6 +16,7 @@ export function errorResponse<T = null>(
   options: {
     code?: ErrorCode;
     report?: boolean;
+    metadata?: Record<string, unknown>;
   } = {
     code: ErrorCode.GENERIC,
     report: false,
@@ -69,6 +70,7 @@ export function errorResponse<T = null>(
     message: finalMessage,
     code: finalCode,
     error: parsedError,
+    ...options.metadata,
   };
 }
 

@@ -41,7 +41,6 @@ export const createCompanyBankCredential = async (
         throw new Error('Company ID is required');
       }
 
-      // Check cache first to reduce DB calls
       let providerId = providerCache.get(input.providerKey);
       if (!providerId) {
         const provider = await getBankFeedProviders({ providerKeys: [input.providerKey] });
@@ -70,10 +69,11 @@ export const createCompanyBankCredential = async (
         .first('id');
 
       if (existing) {
-        throw new Error(
-          `Company already has an active ${input.providerKey} connection. ` +
-            'Please disconnect the existing connection first.',
-        );
+        // throw new Error(
+        //   `Company already has an active ${input.providerKey} connection. ` +
+        //     'Please disconnect the existing connection first.',
+        // );
+        return successResponse('Credential already exists', { id: existing.id });
       }
 
       const aad = getCompanyBankCredentialAAD({
@@ -88,7 +88,7 @@ export const createCompanyBankCredential = async (
           provider_id: providerId,
           identifier: input.identifier,
           encrypted_token: encryptedToken,
-          raw_data: input.rawData,
+          raw_credentials: input.rawData,
           status: input.status || 'active',
           connected_by: input.userId,
           updated_by: input.userId,
@@ -111,12 +111,14 @@ export const createCompanyBankCredential = async (
     };
 
     return trx ? await execute(trx) : await knexClient.transaction(execute);
-  } catch (error: any) {
-    logError(error, {
-      companyId: input.companyId,
-      provider: input.providerKey,
-      operation: 'createBankCredential',
-    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      logError(error, {
+        companyId: input.companyId,
+        provider: input.providerKey,
+        operation: 'createBankCredential',
+      });
+    }
     return errorResponse('Failed to create credential', error);
   }
 };

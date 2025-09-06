@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { bankProviderKey } from '../bankFeedProviders/bankFeedProviders.types.js';
 
 export const newCompanyBankCredentialInput = z.object({
   companyId: z.string().uuid(),
-  providerKey: z.string(),
+  providerKey: bankProviderKey,
   identifier: z.string().nullable(),
   token: z.string(),
   rawData: z.record(z.unknown()).default({}),

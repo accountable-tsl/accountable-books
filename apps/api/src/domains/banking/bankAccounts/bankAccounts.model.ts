@@ -382,6 +382,7 @@ interface CreateBankAccountParams {
   businessOrPersonal?: string | null;
   bankAccountMetadata?: Record<string, unknown> | null;
   connectionMetadata?: Record<string, unknown> | null;
+  credentialId: string;
 }
 
 interface CreateBankAccountResponse {
@@ -414,7 +415,6 @@ export async function createBankAccount2(
       .where({
         provider_id: params.providerId,
         provider_bank_account_id: params.providerBankAccountId,
-        company_id: companyUUID,
       })
       .first()
       .forUpdate();
@@ -517,12 +517,12 @@ export async function createBankAccount2(
           bank_account_id: bankAccountId,
           provider_id: params.providerId,
           status: params.connectionStatus,
-          company_id: companyUUID,
           created_by_id: params.createdById,
           connected_at: tx.fn.now(),
           raw_metadata: params.connectionMetadata ?? {},
+          company_bank_credential_id: params.credentialId,
         })
-        .onConflict(['provider_id', 'provider_bank_account_id', 'company_id']) // ORDER FIX
+        .onConflict(['provider_id', 'provider_bank_account_id'])
         .ignore()
         .returning<{ id: string }[]>('id')
         .then(async (rows) => {
@@ -532,7 +532,6 @@ export async function createBankAccount2(
             .where({
               provider_id: params.providerId,
               provider_bank_account_id: params.providerBankAccountId,
-              company_id: companyUUID,
             })
             .first()
             .forUpdate();
@@ -600,7 +599,6 @@ export async function createBankAccount(
         .where({
           provider_id: params.providerId,
           provider_bank_account_id: params.providerBankAccountId,
-          company_id: companyUUID,
         })
         .first()
         .forUpdate();
@@ -672,7 +670,7 @@ export async function createBankAccount(
           business_or_personal: params.businessOrPersonal ?? null,
           bank_id: params.bankId,
           currency_id: accountCurrency.id,
-          company_id: params.companyId,
+          company_id: companyUUID,
           coa_id: coaId,
           created_by_id: params.createdById,
           updated_by_id: params.createdById,
@@ -705,14 +703,13 @@ export async function createBankAccount(
           provider_bank_account_id: (params as WithConnParams).providerBankAccountId,
           bank_account_id: bankAccountId,
           provider_id: (params as WithConnParams).providerId,
-          status: (params as WithConnParams).connectionStatus,
-          company_id: companyUUID,
+          status: bankAccountId ? 'active' : (params as WithConnParams).connectionStatus,
           created_by_id: params.createdById,
           connected_at: tx.fn.now(),
           raw_metadata: (params as WithConnParams).rawConnectionData ?? {},
           company_bank_credential_id: (params as WithConnParams).credentialId,
         })
-        .onConflict(['provider_id', 'provider_bank_account_id', 'company_id']) // ORDER FIX
+        .onConflict(['provider_id', 'provider_bank_account_id'])
         .ignore()
         .returning<{ id: string }[]>('id')
         .then(async (rows) => {
@@ -722,7 +719,6 @@ export async function createBankAccount(
             .where({
               provider_id: (params as WithConnParams).providerId,
               provider_bank_account_id: (params as WithConnParams).providerBankAccountId,
-              company_id: companyUUID,
             })
             .first()
             .forUpdate();

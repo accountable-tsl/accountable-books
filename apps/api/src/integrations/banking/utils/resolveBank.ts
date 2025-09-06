@@ -215,7 +215,7 @@ export async function findOrCreateBankMapping(params: {
 
       const [finalBank] = await txn('banks')
         .insert(newBankData)
-        .onConflict('key')
+        .onConflict(['key', 'country_id'])
         .ignore()
         .returning(['id', 'display_name']);
       if (!finalBank) {
@@ -259,7 +259,10 @@ export async function findOrCreateBankMapping(params: {
         // 'b.display_name as bankDisplayName',
       )
       // .join('banks as b', 'b.id', 'bpm.bank_id')
-      .where({ providerId: resolvedProviderId, provider_bank_id: institution.institutionId })
+      .where({
+        'bpm.provider_id': resolvedProviderId,
+        'bpm.provider_bank_id': institution.institutionId,
+      })
       .first();
 
     if (!finalMapping) {
