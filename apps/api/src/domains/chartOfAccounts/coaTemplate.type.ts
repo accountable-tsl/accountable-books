@@ -3,8 +3,8 @@ import { type Company } from '../companies/companies.types.js';
 import { dbBaseFields } from '../../core/types/core.js';
 
 export const loadCoaTemplate = z.object({
-  companyId: z.string().uuid(),
-  created_by_id: z.string().uuid(),
+  companyId: z.uuid(),
+  created_by_id: z.uuid(),
   template_name: z.string().optional(),
   use_code: z.boolean().optional(),
   additional_info: z.string().optional(),
@@ -12,7 +12,7 @@ export const loadCoaTemplate = z.object({
 export type LoadCoaTemplateInput = z.infer<typeof loadCoaTemplate>;
 
 export const coaTemplateSelection = z.object({
-  companyId: z.string().uuid(),
+  companyId: z.uuid(),
   description: z.string().optional(),
   additionalNotes: z.string().optional(),
 });
@@ -72,10 +72,10 @@ export type IndustryKeywordConfig = {
 };
 
 export const keywordSchema = z.object({
-  primary: z.array(z.string().min(1).toLowerCase()).default([]),
-  secondary: z.array(z.string().min(1).toLowerCase()).default([]),
-  matchExactPhrases: z.boolean().default(true),
-  aliases: z.array(z.string()).default([]),
+  primary: z.array(z.string().min(1).toLowerCase()).prefault([]),
+  secondary: z.array(z.string().min(1).toLowerCase()).prefault([]),
+  matchExactPhrases: z.boolean().prefault(true),
+  aliases: z.array(z.string()).prefault([]),
 });
 
 // Dynamic regex
@@ -95,7 +95,7 @@ export const coaTemplateName = z
         !/^v[1-9]\d*$/.test(parts[2])
       ) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: 'Invalid shorthand format',
         });
         return z.NEVER;
@@ -104,7 +104,7 @@ export const coaTemplateName = z
     }
     if (parts.length !== 5) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: 'Invalid segment count',
       });
       return z.NEVER;
@@ -118,9 +118,9 @@ export const newCoaTemplate = z.object({
   name: z.string().trim().min(1, 'Name is required').max(256, 'Max account name length exceeded'),
   code: z.string().min(1, 'Code is required').max(256).nullish(),
   description: z.string().max(512).nullish(),
-  account_type_id: z.string().uuid('Account Type ID is required'),
-  is_active: z.boolean().default(true),
-  locked: z.boolean().default(false),
+  account_type_id: z.uuid('Account Type ID is required'),
+  is_active: z.boolean().prefault(true),
+  locked: z.boolean().prefault(false),
 });
 export const coaTemplate = newCoaTemplate.merge(dbBaseFields);
 

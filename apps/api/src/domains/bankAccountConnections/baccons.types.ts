@@ -17,13 +17,13 @@ export type BankAccountConnectionStatus = z.infer<typeof bankAccountConnectionSt
 export const bankAccountConnectionInput = z.object({
   provider_bank_account_id: z.string().min(1),
   provider_bank_account_secondary_id: z.string().min(1).optional(),
-  bank_account_id: z.string().uuid().nullish(),
-  provider_id: z.string().uuid(),
+  bank_account_id: z.uuid().nullish(),
+  provider_id: z.uuid(),
   status: bankAccountConnectionStatus,
   raw_metadata: z.any(),
   last_sync_at: z.date().optional(),
   connected_at: z.date().optional(),
-  company_bank_credential_id: z.string().uuid(),
+  company_bank_credential_id: z.uuid(),
 });
 
 export const bankAccountConnectionInputCamel = createCamelCaseSchema(bankAccountConnectionInput);
@@ -32,12 +32,12 @@ export type BankAccountConnectionInput = SnakeToCamelCaseObject<
 >;
 
 export const newBankAccountConnection = bankAccountConnectionInput.extend({
-  created_by_id: z.string().uuid(),
+  created_by_id: z.uuid(),
 });
 export type NewBankAccountConnection = z.infer<typeof newBankAccountConnection>;
 
 export const bankAccountConnection = newBankAccountConnection.extend({
-  id: z.string().uuid(),
+  id: z.uuid(),
 });
 export type BankAccountConnection = z.infer<typeof bankAccountConnection>;
 

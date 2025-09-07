@@ -8,7 +8,7 @@ import {
 
 // user
 export const newUser = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   firstname: z.string().min(1).max(256),
   lastname: z.string().trim().max(256).nullish(),
 
@@ -21,10 +21,10 @@ export const newUser = z.object({
 
   email_verified_at: zDate.nullish(),
 
-  last_active_company_id: z.string().uuid().nullish(),
+  last_active_company_id: z.uuid().nullish(),
   onboarding_state: userOnboardingState,
 
-  is_demo_user: z.boolean().default(false).optional(),
+  is_demo_user: z.boolean().prefault(false).optional(),
 });
 
 export const newUserDirect = newUser.extend({

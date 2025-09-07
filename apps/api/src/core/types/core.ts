@@ -17,7 +17,7 @@ export const dbStandardFields = z.object({
 });
 export type StandardFields = z.infer<typeof dbStandardFields>;
 
-export const dbBaseFields = z.object({ id: z.string().uuid() }).merge(dbStandardFields);
+export const dbBaseFields = z.object({ id: z.uuid() }).extend(dbStandardFields.shape);
 
 export const zDate = z.preprocess((val) => {
   if (typeof val === 'string' || typeof val === 'number' || val instanceof Date) {
@@ -28,9 +28,7 @@ export const zDate = z.preprocess((val) => {
 }, z.date());
 
 export const zEmail = () =>
-  z
-    .string()
-    .email()
+  z.email()
     .transform((email) => email.trim().toLowerCase());
 
 export const debitCredit = z.enum(['debit', 'credit']);

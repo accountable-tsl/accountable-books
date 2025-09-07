@@ -38,7 +38,7 @@ export const newCurrency = z.object({
   symbol: z.string().min(1).max(5),
 });
 export const currency = newCurrency.merge(dbBaseFields);
-export const currencyWithId = newCurrency.extend({ id: z.string().uuid() });
+export const currencyWithId = newCurrency.extend({ id: z.uuid() });
 
 export type NewCurrencyInput = z.infer<typeof newCurrency>;
 export type NewCurrencyWithId = z.infer<typeof currencyWithId>;
@@ -46,7 +46,7 @@ export type Currency = z.infer<typeof currency>;
 
 // country
 export const newCountry = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   code: z
     .string()
     .min(2)
@@ -94,8 +94,8 @@ export const newAccountElement = z.object({
     )
     .max(64)
     .nullish(),
-  parent_id: z.string().uuid().nullable(),
-  financial_statement_id: z.string().uuid(),
+  parent_id: z.uuid().nullable(),
+  financial_statement_id: z.uuid(),
 });
 export const accountElement = newAccountElement.merge(dbBaseFields);
 export const accountElementWithRequiredReportCode = accountElement.required({
@@ -113,7 +113,7 @@ export const newAccountType = z.object({
   key: z.string().max(64),
   label: z.string().max(256),
   description: z.string().max(512).nullish(),
-  account_element_id: z.string().uuid(),
+  account_element_id: z.uuid(),
   report_code: z
     .string()
     .regex(
@@ -134,10 +134,10 @@ export type AccountType = z.infer<typeof accountType>;
 export type AccountTypeWithRequiredReportCode = z.infer<typeof accountTypeWithRequiredReportCode>;
 
 export const newClientFirmAssignment = z.object({
-  client_company_id: z.string().uuid(),
-  accounting_firm_company_id: z.string().uuid(),
-  created_by_id: z.string().uuid().nullish(),
-  updated_by_id: z.string().uuid().nullish(),
+  client_company_id: z.uuid(),
+  accounting_firm_company_id: z.uuid(),
+  created_by_id: z.uuid().nullish(),
+  updated_by_id: z.uuid().nullish(),
 });
 type CFI = z.infer<typeof newClientFirmAssignment>;
 type CFISnake = SnakeToCamelCaseObject<CFI>;
@@ -146,7 +146,7 @@ export type NewClientFirmAssignmentsInput = CFI | CFISnake;
 export const newClientFirmAssignmentsInput = createCamelCaseSchema(newClientFirmAssignment);
 
 export const newClientFirmAssignments = newClientFirmAssignment.extend({
-  created_by_id: z.string().uuid(),
+  created_by_id: z.uuid(),
 });
 export type NewClientFirmAssignments = z.infer<typeof newClientFirmAssignments>;
 
@@ -155,17 +155,17 @@ export type ClientFirmAssignments = z.infer<typeof clientFirmAssignments>;
 
 // firm_user_client_assignments (fuca)
 const newFucaBase = z.object({
-  firm_staff_user_id: z.string().uuid(),
-  client_company_id: z.string().uuid(),
-  updated_by_id: z.string().uuid().nullish(),
-  created_by_id: z.string().uuid().nullish(),
+  firm_staff_user_id: z.uuid(),
+  client_company_id: z.uuid(),
+  updated_by_id: z.uuid().nullish(),
+  created_by_id: z.uuid().nullish(),
 });
 
 export const newFucaInput = createCamelCaseSchema(newFucaBase);
 export type NewFucaInput = SnakeToCamelCaseObject<z.infer<typeof newFucaBase>>;
 
 export const newFuca = newFucaBase.extend({
-  created_by_id: z.string().uuid(),
+  created_by_id: z.uuid(),
 });
 export type NewFuca = z.infer<typeof newFuca>;
 

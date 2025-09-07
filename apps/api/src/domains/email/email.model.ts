@@ -23,7 +23,7 @@ export async function checkEmail(
   purpose?: keyof typeof purposes,
 ): Promise<ApiResponse> {
   try {
-    const isValidEmailFormat = z.string().email().safeParse(email);
+    const isValidEmailFormat = z.email().safeParse(email);
 
     if (!isValidEmailFormat.success) {
       return errorResponse('Invalid email format', isValidEmailFormat.error);

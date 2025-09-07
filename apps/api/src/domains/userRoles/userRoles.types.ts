@@ -10,17 +10,17 @@ import { type CompanyOnboardingState } from '../../features/onboarding/onboardin
 import { type CompanyType } from '../companies/companies.types.js';
 
 export const userCompanyRoleBase = z.object({
-  user_id: z.string().uuid(),
-  company_id: z.string().uuid(),
-  role_id: z.string().uuid(),
-  updated_by_id: z.string().uuid().nullish(),
-  created_by_id: z.string().uuid().nullish(),
+  user_id: z.uuid(),
+  company_id: z.uuid(),
+  role_id: z.uuid(),
+  updated_by_id: z.uuid().nullish(),
+  created_by_id: z.uuid().nullish(),
 });
 export const newUserCompanyRoleInput = createCamelCaseSchema(userCompanyRoleBase);
 export type NewUserCompanyRoleInput = SnakeToCamelCaseObject<z.infer<typeof newUserCompanyRole>>;
 
 export const newUserCompanyRole = userCompanyRoleBase.extend({
-  created_by_id: z.string().uuid(),
+  created_by_id: z.uuid(),
 });
 export type NewUserCompanyRole = z.infer<typeof newUserCompanyRole>;
 

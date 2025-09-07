@@ -9,20 +9,20 @@ export const reportingFramework = z.enum(['ifrs', 'us_gaap']);
 export const accountingBasis = z.enum(['modified_cash_basis', 'modified_accrual_basis']);
 
 export const newCompanyInput = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   legal_name: z.string().min(2).max(256),
   country_code: z.string().max(3).optional(),
-  country_id: z.string().uuid().optional(),
+  country_id: z.uuid().optional(),
   type: companyType,
   reporting_currency_code: z.string().max(3).optional(),
-  reporting_currency_id: z.string().uuid().optional(),
+  reporting_currency_id: z.uuid().optional(),
   accounting_basis: accountingBasis.optional(),
 
   display_name: z.string().max(256).optional(),
   year_end_day: z.coerce.number().optional(),
   year_end_month: z.coerce.number().optional(),
-  created_by_id: z.string().uuid().optional(),
-  last_updated_by_id: z.string().uuid().optional(),
+  created_by_id: z.uuid().optional(),
+  last_updated_by_id: z.uuid().optional(),
   address: z.string().max(512).nullish(),
   logo_url: z.string().nullish(),
   logo_key: z.string().nullish(),
@@ -33,11 +33,11 @@ export const newCompanyInput = z.object({
   revenue: z.string().max(256).nullish(),
   reporting_framework: reportingFramework.nullish(),
   short_code: z.string().max(50).optional(),
-  assigned_firm_id: z.string().uuid().optional(),
+  assigned_firm_id: z.uuid().optional(),
   load_coa_template: z.boolean().optional(),
   registration_number: z.string().max(256).nullish(),
   tax_id: z.string().max(256).nullish(),
-  is_demo_company: z.boolean().default(false).optional(),
+  is_demo_company: z.boolean().prefault(false).optional(),
   slug: z.string().max(20).optional(),
   onboarding_state: companyOnboardingState.optional(),
 });
@@ -45,17 +45,17 @@ export const newCompanyInput = z.object({
 export const newCompany = newCompanyInput
   .extend({
     display_name: z.string().max(256), // legal_name
-    country_id: z.string().uuid(),
-    reporting_currency_id: z.string().uuid(),
+    country_id: z.uuid(),
+    reporting_currency_id: z.uuid(),
     accounting_basis: accountingBasis,
     short_code: z.string().max(50),
     year_end_day: z.coerce.number(),
     year_end_month: z.coerce.number(),
-    created_by_id: z.string().uuid(),
+    created_by_id: z.uuid(),
     created_at: z.date().optional(),
     updated_at: z.date().optional(),
-    is_demo_company: z.boolean().default(false),
-    is_platform: z.boolean().default(false).optional(),
+    is_demo_company: z.boolean().prefault(false),
+    is_platform: z.boolean().prefault(false).optional(),
   })
   .omit({ slug: true });
 
@@ -71,14 +71,14 @@ export type Company = z.infer<typeof company>;
 export type NewCompanyInputCamel = SnakeToCamelCaseObject<NewCompanyInput>;
 
 export const getCompanyResponse = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   legalName: z.string(),
   companyType: companyType,
   yearEndDay: z.number(),
   yearEndMonth: z.number(),
-  countryId: z.string().uuid(),
-  reportingCurrencyId: z.string().uuid(),
-  createdById: z.string().uuid(),
+  countryId: z.uuid(),
+  reportingCurrencyId: z.uuid(),
+  createdById: z.uuid(),
 
   displayName: z.string().nullable(),
   address: z.string().nullable(),
@@ -108,7 +108,7 @@ export const getCompanyResponse = z.object({
   reportingCurrencyName: z.string(),
   reportingCurrencySymbol: z.string().nullable(),
 
-  assignedFirmId: z.string().uuid().nullable(),
+  assignedFirmId: z.uuid().nullable(),
   assignedFirmName: z.string().nullable(),
   assignedFirmSlug: z.string().nullable(),
   assignedFirmIsPlatform: z.boolean().nullable(),

@@ -28,7 +28,7 @@ export const bankAccountConnectionStatus = z.enum([
 export type BankAccountConnectionStatus = z.infer<typeof bankAccountConnectionStatus>;
 
 const manualBankAccountInput = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   display_name: z.string().min(1, 'Display name is required'),
   account_name: z.string().nullish(),
   account_number: z
@@ -41,7 +41,7 @@ const manualBankAccountInput = z.object({
   business_or_personal: businessOrPersonalAccount.optional(),
   connection_status: bankAccountConnectionStatus.extract(['not_connected']), // must be not_connected
   notes: z.string().nullish(),
-  bank_id: z.string().uuid(),
+  bank_id: z.uuid(),
   currency_code: z.string().length(2, 'Currency code must be exactly 2 characters'),
   coa_code: z.string().optional(),
   coa_name: z.string().max(256, 'Coa name is too long').nullish(),
@@ -53,9 +53,9 @@ export type ManualBankAccountInput = SnakeToCamelCaseObject<z.infer<typeof manua
 // company, coa, etc, to be added later
 
 const connectionSpecificFields = z.object({
-  provider_id: z.string().uuid(),
+  provider_id: z.uuid(),
   provider_bank_account_id: z.string(),
-  connection_credential_id: z.string().uuid(),
+  connection_credential_id: z.uuid(),
   connection_status: bankAccountConnectionStatus.extract(['connected']),
   last_sync_at: z.date().nullish(),
   sync_error: z.string().nullish(),
@@ -87,11 +87,11 @@ export const newBankAccount = newBankAccountInput
     source: true,
   })
   .extend({
-    company_id: z.string().uuid(),
-    currency_id: z.string().uuid(),
-    coa_id: z.string().uuid(),
-    created_by_id: z.string().uuid(),
-    updated_by_id: z.string().uuid().optional(),
+    company_id: z.uuid(),
+    currency_id: z.uuid(),
+    coa_id: z.uuid(),
+    created_by_id: z.uuid(),
+    updated_by_id: z.uuid().optional(),
   });
 export type NewBankAccount = z.infer<typeof newBankAccount>;
 
@@ -102,27 +102,27 @@ export const bankAccount = newBankAccount.merge(dbBaseFields);
 export type BankAccount = z.infer<typeof bankAccount>;
 
 export const bankAccountWithMeta = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   displayName: z.string(),
   accountType: bankAccountType,
   accountNumber: z.string(),
 
-  bankId: z.string().uuid(),
+  bankId: z.uuid(),
   bankName: z.string(),
   bankLogo: z.string().optional(),
 
-  currencyId: z.string().uuid(),
+  currencyId: z.uuid(),
   currencyName: z.string(),
   currencySymbol: z.string(),
   currencyCode: z.string(),
 
-  companyId: z.string().uuid(),
-  reportingCurrencyId: z.string().uuid(),
+  companyId: z.uuid(),
+  reportingCurrencyId: z.uuid(),
   reportingCurrencyName: z.string(),
   reportingCurrencySymbol: z.string(),
   reportingCurrencyCode: z.string(),
 
-  coaId: z.string().uuid(),
+  coaId: z.uuid(),
   coaName: z.string(),
   coaCode: z.string().nullish(),
   coaTypeKey: z.string().nullish(),

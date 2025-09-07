@@ -1,12 +1,9 @@
 import { makeApi, Zodios, type ZodiosOptions } from '@zodios/core';
 import { z } from 'zod';
 
-const loginUser_Body = z
-  .object({ email: z.string().email(), password: z.string().min(8) })
-  .passthrough();
-const AuthCompanyContext = z
-  .object({
-    id: z.string().uuid(),
+const loginUser_Body = z.looseObject({ email: z.email(), password: z.string().min(8) });
+const AuthCompanyContext = z.looseObject({
+    id: z.uuid(),
     legalName: z.string(),
     displayName: z.string().nullish(),
     assignedFirmSlug: z.string(),
@@ -28,22 +25,79 @@ const AuthCompanyContext = z
     roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
     isDemoCompany: z.boolean(),
     companyType: z.enum(['business', 'individual', 'accounting_firm']),
-  })
-  .passthrough();
-const AuthContextData = z
-  .object({
-    user: z
-      .object({
-        id: z.string().uuid(),
-        email: z.string().email(),
-        firstname: z.string(),
-        lastname: z.string().optional(),
-        isPlatformUser: z.boolean().optional(),
-        platformUserKey: z.string().nullish(),
-        currentCompanyId: z.string().uuid(),
-        currentCompany: z
-          .object({
-            id: z.string().uuid(),
+  });
+const AuthContextData = z.looseObject({
+    user: z.looseObject({
+              id: z.uuid(),
+              email: z.email(),
+              firstname: z.string(),
+              lastname: z.string().optional(),
+              isPlatformUser: z.boolean().optional(),
+              platformUserKey: z.string().nullish(),
+              currentCompanyId: z.uuid(),
+              currentCompany: z.looseObject({
+                          id: z.uuid(),
+                          legalName: z.string(),
+                          displayName: z.string().nullish(),
+                          assignedFirmSlug: z.string(),
+                          hasExplicitAccess: z.boolean(),
+                          roleKey: z
+                            .enum([
+                              'super_admin',
+                              'support_admin',
+                              'support_agent',
+                              'firm_owner',
+                              'firm_admin',
+                              'accountant',
+                              'staff_accountant',
+                              'client_owner',
+                              'client_admin',
+                              'client_user',
+                            ])
+                            .nullish(),
+                          roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                          isDemoCompany: z.boolean(),
+                          companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                        }),
+              companies: z.array(
+                z.looseObject({
+                                id: z.uuid(),
+                                legalName: z.string(),
+                                displayName: z.string().nullish(),
+                                assignedFirmSlug: z.string(),
+                                hasExplicitAccess: z.boolean(),
+                                roleKey: z
+                                  .enum([
+                                    'super_admin',
+                                    'support_admin',
+                                    'support_agent',
+                                    'firm_owner',
+                                    'firm_admin',
+                                    'accountant',
+                                    'staff_accountant',
+                                    'client_owner',
+                                    'client_admin',
+                                    'client_user',
+                                  ])
+                                  .nullish(),
+                                roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                                isDemoCompany: z.boolean(),
+                                companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                              }),
+              ),
+            }),
+    csrfToken: z.string().optional(),
+  });
+const AuthUserContext = z.looseObject({
+    id: z.uuid(),
+    email: z.email(),
+    firstname: z.string(),
+    lastname: z.string().optional(),
+    isPlatformUser: z.boolean().optional(),
+    platformUserKey: z.string().nullish(),
+    currentCompanyId: z.uuid(),
+    currentCompany: z.looseObject({
+            id: z.uuid(),
             legalName: z.string(),
             displayName: z.string().nullish(),
             assignedFirmSlug: z.string(),
@@ -65,288 +119,190 @@ const AuthContextData = z
             roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
             isDemoCompany: z.boolean(),
             companyType: z.enum(['business', 'individual', 'accounting_firm']),
-          })
-          .passthrough(),
-        companies: z.array(
-          z
-            .object({
-              id: z.string().uuid(),
-              legalName: z.string(),
-              displayName: z.string().nullish(),
-              assignedFirmSlug: z.string(),
-              hasExplicitAccess: z.boolean(),
-              roleKey: z
-                .enum([
-                  'super_admin',
-                  'support_admin',
-                  'support_agent',
-                  'firm_owner',
-                  'firm_admin',
-                  'accountant',
-                  'staff_accountant',
-                  'client_owner',
-                  'client_admin',
-                  'client_user',
-                ])
-                .nullish(),
-              roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-              isDemoCompany: z.boolean(),
-              companyType: z.enum(['business', 'individual', 'accounting_firm']),
-            })
-            .passthrough(),
-        ),
-      })
-      .passthrough(),
-    csrfToken: z.string().optional(),
-  })
-  .passthrough();
-const AuthUserContext = z
-  .object({
-    id: z.string().uuid(),
-    email: z.string().email(),
-    firstname: z.string(),
-    lastname: z.string().optional(),
-    isPlatformUser: z.boolean().optional(),
-    platformUserKey: z.string().nullish(),
-    currentCompanyId: z.string().uuid(),
-    currentCompany: z
-      .object({
-        id: z.string().uuid(),
-        legalName: z.string(),
-        displayName: z.string().nullish(),
-        assignedFirmSlug: z.string(),
-        hasExplicitAccess: z.boolean(),
-        roleKey: z
-          .enum([
-            'super_admin',
-            'support_admin',
-            'support_agent',
-            'firm_owner',
-            'firm_admin',
-            'accountant',
-            'staff_accountant',
-            'client_owner',
-            'client_admin',
-            'client_user',
-          ])
-          .nullish(),
-        roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-        isDemoCompany: z.boolean(),
-        companyType: z.enum(['business', 'individual', 'accounting_firm']),
-      })
-      .passthrough(),
+          }),
     companies: z.array(
-      z
-        .object({
-          id: z.string().uuid(),
-          legalName: z.string(),
-          displayName: z.string().nullish(),
-          assignedFirmSlug: z.string(),
-          hasExplicitAccess: z.boolean(),
-          roleKey: z
-            .enum([
-              'super_admin',
-              'support_admin',
-              'support_agent',
-              'firm_owner',
-              'firm_admin',
-              'accountant',
-              'staff_accountant',
-              'client_owner',
-              'client_admin',
-              'client_user',
-            ])
-            .nullish(),
-          roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-          isDemoCompany: z.boolean(),
-          companyType: z.enum(['business', 'individual', 'accounting_firm']),
-        })
-        .passthrough(),
+      z.looseObject({
+                  id: z.uuid(),
+                  legalName: z.string(),
+                  displayName: z.string().nullish(),
+                  assignedFirmSlug: z.string(),
+                  hasExplicitAccess: z.boolean(),
+                  roleKey: z
+                    .enum([
+                      'super_admin',
+                      'support_admin',
+                      'support_agent',
+                      'firm_owner',
+                      'firm_admin',
+                      'accountant',
+                      'staff_accountant',
+                      'client_owner',
+                      'client_admin',
+                      'client_user',
+                    ])
+                    .nullish(),
+                  roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                  isDemoCompany: z.boolean(),
+                  companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                }),
     ),
-  })
-  .passthrough();
-const LoginForm = z
-  .object({ email: z.string().email(), password: z.string().min(8) })
-  .passthrough();
-const LoginResponse = z
-  .object({
+  });
+const LoginForm = z.looseObject({ email: z.email(), password: z.string().min(8) });
+const LoginResponse = z.looseObject({
     success: z.boolean(),
     message: z.string(),
-    data: z
-      .object({
-        user: z
-          .object({
-            id: z.string().uuid(),
-            email: z.string().email(),
-            firstname: z.string(),
-            lastname: z.string().optional(),
-            isPlatformUser: z.boolean().optional(),
-            platformUserKey: z.string().nullish(),
-            currentCompanyId: z.string().uuid(),
-            currentCompany: z
-              .object({
-                id: z.string().uuid(),
-                legalName: z.string(),
-                displayName: z.string().nullish(),
-                assignedFirmSlug: z.string(),
-                hasExplicitAccess: z.boolean(),
-                roleKey: z
-                  .enum([
-                    'super_admin',
-                    'support_admin',
-                    'support_agent',
-                    'firm_owner',
-                    'firm_admin',
-                    'accountant',
-                    'staff_accountant',
-                    'client_owner',
-                    'client_admin',
-                    'client_user',
-                  ])
-                  .nullish(),
-                roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-                isDemoCompany: z.boolean(),
-                companyType: z.enum(['business', 'individual', 'accounting_firm']),
-              })
-              .passthrough(),
-            companies: z.array(
-              z
-                .object({
-                  id: z.string().uuid(),
-                  legalName: z.string(),
-                  displayName: z.string().nullish(),
-                  assignedFirmSlug: z.string(),
-                  hasExplicitAccess: z.boolean(),
-                  roleKey: z
-                    .enum([
-                      'super_admin',
-                      'support_admin',
-                      'support_agent',
-                      'firm_owner',
-                      'firm_admin',
-                      'accountant',
-                      'staff_accountant',
-                      'client_owner',
-                      'client_admin',
-                      'client_user',
-                    ])
-                    .nullish(),
-                  roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-                  isDemoCompany: z.boolean(),
-                  companyType: z.enum(['business', 'individual', 'accounting_firm']),
-                })
-                .passthrough(),
-            ),
+    data: z.looseObject({
+            user: z.looseObject({
+                          id: z.uuid(),
+                          email: z.email(),
+                          firstname: z.string(),
+                          lastname: z.string().optional(),
+                          isPlatformUser: z.boolean().optional(),
+                          platformUserKey: z.string().nullish(),
+                          currentCompanyId: z.uuid(),
+                          currentCompany: z.looseObject({
+                                          id: z.uuid(),
+                                          legalName: z.string(),
+                                          displayName: z.string().nullish(),
+                                          assignedFirmSlug: z.string(),
+                                          hasExplicitAccess: z.boolean(),
+                                          roleKey: z
+                                            .enum([
+                                              'super_admin',
+                                              'support_admin',
+                                              'support_agent',
+                                              'firm_owner',
+                                              'firm_admin',
+                                              'accountant',
+                                              'staff_accountant',
+                                              'client_owner',
+                                              'client_admin',
+                                              'client_user',
+                                            ])
+                                            .nullish(),
+                                          roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                                          isDemoCompany: z.boolean(),
+                                          companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                                        }),
+                          companies: z.array(
+                            z.looseObject({
+                                                id: z.uuid(),
+                                                legalName: z.string(),
+                                                displayName: z.string().nullish(),
+                                                assignedFirmSlug: z.string(),
+                                                hasExplicitAccess: z.boolean(),
+                                                roleKey: z
+                                                  .enum([
+                                                    'super_admin',
+                                                    'support_admin',
+                                                    'support_agent',
+                                                    'firm_owner',
+                                                    'firm_admin',
+                                                    'accountant',
+                                                    'staff_accountant',
+                                                    'client_owner',
+                                                    'client_admin',
+                                                    'client_user',
+                                                  ])
+                                                  .nullish(),
+                                                roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                                                isDemoCompany: z.boolean(),
+                                                companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                                              }),
+                          ),
+                        }),
+            csrfToken: z.string().optional(),
           })
-          .passthrough(),
-        csrfToken: z.string().optional(),
-      })
-      .passthrough()
       .optional(),
-    error: z.object({}).partial().passthrough().optional(),
+    error: z.looseObject({}).partial().optional(),
     code: z.string().optional(),
-  })
-  .passthrough();
-const MeResponse = z
-  .object({
+  });
+const MeResponse = z.looseObject({
     success: z.boolean(),
     message: z.string(),
-    data: z
-      .object({
-        user: z
-          .object({
-            id: z.string().uuid(),
-            email: z.string().email(),
-            firstname: z.string(),
-            lastname: z.string().optional(),
-            isPlatformUser: z.boolean().optional(),
-            platformUserKey: z.string().nullish(),
-            currentCompanyId: z.string().uuid(),
-            currentCompany: z
-              .object({
-                id: z.string().uuid(),
-                legalName: z.string(),
-                displayName: z.string().nullish(),
-                assignedFirmSlug: z.string(),
-                hasExplicitAccess: z.boolean(),
-                roleKey: z
-                  .enum([
-                    'super_admin',
-                    'support_admin',
-                    'support_agent',
-                    'firm_owner',
-                    'firm_admin',
-                    'accountant',
-                    'staff_accountant',
-                    'client_owner',
-                    'client_admin',
-                    'client_user',
-                  ])
-                  .nullish(),
-                roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-                isDemoCompany: z.boolean(),
-                companyType: z.enum(['business', 'individual', 'accounting_firm']),
-              })
-              .passthrough(),
-            companies: z.array(
-              z
-                .object({
-                  id: z.string().uuid(),
-                  legalName: z.string(),
-                  displayName: z.string().nullish(),
-                  assignedFirmSlug: z.string(),
-                  hasExplicitAccess: z.boolean(),
-                  roleKey: z
-                    .enum([
-                      'super_admin',
-                      'support_admin',
-                      'support_agent',
-                      'firm_owner',
-                      'firm_admin',
-                      'accountant',
-                      'staff_accountant',
-                      'client_owner',
-                      'client_admin',
-                      'client_user',
-                    ])
-                    .nullish(),
-                  roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-                  isDemoCompany: z.boolean(),
-                  companyType: z.enum(['business', 'individual', 'accounting_firm']),
-                })
-                .passthrough(),
-            ),
+    data: z.looseObject({
+            user: z.looseObject({
+                          id: z.uuid(),
+                          email: z.email(),
+                          firstname: z.string(),
+                          lastname: z.string().optional(),
+                          isPlatformUser: z.boolean().optional(),
+                          platformUserKey: z.string().nullish(),
+                          currentCompanyId: z.uuid(),
+                          currentCompany: z.looseObject({
+                                          id: z.uuid(),
+                                          legalName: z.string(),
+                                          displayName: z.string().nullish(),
+                                          assignedFirmSlug: z.string(),
+                                          hasExplicitAccess: z.boolean(),
+                                          roleKey: z
+                                            .enum([
+                                              'super_admin',
+                                              'support_admin',
+                                              'support_agent',
+                                              'firm_owner',
+                                              'firm_admin',
+                                              'accountant',
+                                              'staff_accountant',
+                                              'client_owner',
+                                              'client_admin',
+                                              'client_user',
+                                            ])
+                                            .nullish(),
+                                          roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                                          isDemoCompany: z.boolean(),
+                                          companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                                        }),
+                          companies: z.array(
+                            z.looseObject({
+                                                id: z.uuid(),
+                                                legalName: z.string(),
+                                                displayName: z.string().nullish(),
+                                                assignedFirmSlug: z.string(),
+                                                hasExplicitAccess: z.boolean(),
+                                                roleKey: z
+                                                  .enum([
+                                                    'super_admin',
+                                                    'support_admin',
+                                                    'support_agent',
+                                                    'firm_owner',
+                                                    'firm_admin',
+                                                    'accountant',
+                                                    'staff_accountant',
+                                                    'client_owner',
+                                                    'client_admin',
+                                                    'client_user',
+                                                  ])
+                                                  .nullish(),
+                                                roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                                                isDemoCompany: z.boolean(),
+                                                companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                                              }),
+                          ),
+                        }),
+            csrfToken: z.string().optional(),
           })
-          .passthrough(),
-        csrfToken: z.string().optional(),
-      })
-      .passthrough()
       .optional(),
-    error: z.object({}).partial().passthrough().optional(),
+    error: z.looseObject({}).partial().optional(),
     code: z.string().optional(),
-  })
-  .passthrough();
-const RefreshResponse = z
-  .object({
+  });
+const RefreshResponse = z.looseObject({
     success: z.boolean(),
     message: z.string(),
-    data: z.object({ csrfToken: z.string() }).partial().passthrough().optional(),
-    error: z.object({}).partial().passthrough().optional(),
+    data: z.looseObject({ csrfToken: z.string() }).partial().optional(),
+    error: z.looseObject({}).partial().optional(),
     code: z.string().optional(),
-  })
-  .passthrough();
-const ApiResponse = z
-  .object({
+  });
+const ApiResponse = z.looseObject({
     success: z.boolean(),
     message: z.string(),
     data: z.unknown().optional(),
     error: z.unknown().optional(),
     code: z.string().optional(),
-  })
-  .passthrough();
+  });
 const CompanyType = z.enum(['business', 'individual', 'accounting_firm']);
 const Email = z.string();
-const HealthResponse = z.object({ ok: z.boolean() }).passthrough();
+const HealthResponse = z.looseObject({ ok: z.boolean() });
 const RoleKey = z.enum([
   'super_admin',
   'support_admin',
@@ -392,111 +348,97 @@ const endpoints = makeApi([
         schema: loginUser_Body,
       },
     ],
-    response: z
-      .object({
-        success: z.boolean(),
-        message: z.string(),
-        data: z
-          .object({
-            user: z
-              .object({
-                id: z.string().uuid(),
-                email: z.string().email(),
-                firstname: z.string(),
-                lastname: z.string().optional(),
-                isPlatformUser: z.boolean().optional(),
-                platformUserKey: z.string().nullish(),
-                currentCompanyId: z.string().uuid(),
-                currentCompany: z
-                  .object({
-                    id: z.string().uuid(),
-                    legalName: z.string(),
-                    displayName: z.string().nullish(),
-                    assignedFirmSlug: z.string(),
-                    hasExplicitAccess: z.boolean(),
-                    roleKey: z
-                      .enum([
-                        'super_admin',
-                        'support_admin',
-                        'support_agent',
-                        'firm_owner',
-                        'firm_admin',
-                        'accountant',
-                        'staff_accountant',
-                        'client_owner',
-                        'client_admin',
-                        'client_user',
-                      ])
-                      .nullish(),
-                    roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-                    isDemoCompany: z.boolean(),
-                    companyType: z.enum(['business', 'individual', 'accounting_firm']),
-                  })
-                  .passthrough(),
-                companies: z.array(
-                  z
-                    .object({
-                      id: z.string().uuid(),
-                      legalName: z.string(),
-                      displayName: z.string().nullish(),
-                      assignedFirmSlug: z.string(),
-                      hasExplicitAccess: z.boolean(),
-                      roleKey: z
-                        .enum([
-                          'super_admin',
-                          'support_admin',
-                          'support_agent',
-                          'firm_owner',
-                          'firm_admin',
-                          'accountant',
-                          'staff_accountant',
-                          'client_owner',
-                          'client_admin',
-                          'client_user',
-                        ])
-                        .nullish(),
-                      roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-                      isDemoCompany: z.boolean(),
-                      companyType: z.enum(['business', 'individual', 'accounting_firm']),
-                    })
-                    .passthrough(),
-                ),
-              })
-              .passthrough(),
-            csrfToken: z.string().optional(),
-          })
-          .passthrough()
-          .optional(),
-        error: z.object({}).partial().passthrough().optional(),
-        code: z.string().optional(),
-      })
-      .passthrough(),
+    response: z.looseObject({
+            success: z.boolean(),
+            message: z.string(),
+            data: z.looseObject({
+                        user: z.looseObject({
+                                          id: z.uuid(),
+                                          email: z.email(),
+                                          firstname: z.string(),
+                                          lastname: z.string().optional(),
+                                          isPlatformUser: z.boolean().optional(),
+                                          platformUserKey: z.string().nullish(),
+                                          currentCompanyId: z.uuid(),
+                                          currentCompany: z.looseObject({
+                                                              id: z.uuid(),
+                                                              legalName: z.string(),
+                                                              displayName: z.string().nullish(),
+                                                              assignedFirmSlug: z.string(),
+                                                              hasExplicitAccess: z.boolean(),
+                                                              roleKey: z
+                                                                .enum([
+                                                                  'super_admin',
+                                                                  'support_admin',
+                                                                  'support_agent',
+                                                                  'firm_owner',
+                                                                  'firm_admin',
+                                                                  'accountant',
+                                                                  'staff_accountant',
+                                                                  'client_owner',
+                                                                  'client_admin',
+                                                                  'client_user',
+                                                                ])
+                                                                .nullish(),
+                                                              roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                                                              isDemoCompany: z.boolean(),
+                                                              companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                                                            }),
+                                          companies: z.array(
+                                            z.looseObject({
+                                                                    id: z.uuid(),
+                                                                    legalName: z.string(),
+                                                                    displayName: z.string().nullish(),
+                                                                    assignedFirmSlug: z.string(),
+                                                                    hasExplicitAccess: z.boolean(),
+                                                                    roleKey: z
+                                                                      .enum([
+                                                                        'super_admin',
+                                                                        'support_admin',
+                                                                        'support_agent',
+                                                                        'firm_owner',
+                                                                        'firm_admin',
+                                                                        'accountant',
+                                                                        'staff_accountant',
+                                                                        'client_owner',
+                                                                        'client_admin',
+                                                                        'client_user',
+                                                                      ])
+                                                                      .nullish(),
+                                                                    roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                                                                    isDemoCompany: z.boolean(),
+                                                                    companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                                                                  }),
+                                          ),
+                                        }),
+                        csrfToken: z.string().optional(),
+                      })
+              .optional(),
+            error: z.looseObject({}).partial().optional(),
+            code: z.string().optional(),
+          }),
     errors: [
       {
         status: 400,
         description: `Invalid request`,
-        schema: z
-          .object({
-            success: z.boolean(),
-            message: z.string(),
-            data: z.unknown().optional(),
-            error: z.unknown().optional(),
-            code: z.string().optional(),
-          })
-          .passthrough(),
+        schema: z.looseObject({
+                    success: z.boolean(),
+                    message: z.string(),
+                    data: z.unknown().optional(),
+                    error: z.unknown().optional(),
+                    code: z.string().optional(),
+                  }),
       },
       {
         status: 401,
         description: `Invalid credentials`,
-        schema: z
-          .object({
-            success: z.boolean(),
-            message: z.string(),
-            data: z.unknown().optional(),
-            error: z.unknown().optional(),
-            code: z.string().optional(),
-          })
-          .passthrough(),
+        schema: z.looseObject({
+                    success: z.boolean(),
+                    message: z.string(),
+                    data: z.unknown().optional(),
+                    error: z.unknown().optional(),
+                    code: z.string().optional(),
+                  }),
       },
     ],
   },
@@ -506,15 +448,13 @@ const endpoints = makeApi([
     alias: 'logoutUser',
     description: `Logout user by invalidating their session tokens`,
     requestFormat: 'json',
-    response: z
-      .object({
-        success: z.boolean(),
-        message: z.string(),
-        data: z.unknown().optional(),
-        error: z.unknown().optional(),
-        code: z.string().optional(),
-      })
-      .passthrough(),
+    response: z.looseObject({
+            success: z.boolean(),
+            message: z.string(),
+            data: z.unknown().optional(),
+            error: z.unknown().optional(),
+            code: z.string().optional(),
+          }),
   },
   {
     method: 'get',
@@ -522,98 +462,86 @@ const endpoints = makeApi([
     alias: 'getCurrentUser',
     description: `Retrieve the current authenticated user&#x27;s profile information`,
     requestFormat: 'json',
-    response: z
-      .object({
-        success: z.boolean(),
-        message: z.string(),
-        data: z
-          .object({
-            user: z
-              .object({
-                id: z.string().uuid(),
-                email: z.string().email(),
-                firstname: z.string(),
-                lastname: z.string().optional(),
-                isPlatformUser: z.boolean().optional(),
-                platformUserKey: z.string().nullish(),
-                currentCompanyId: z.string().uuid(),
-                currentCompany: z
-                  .object({
-                    id: z.string().uuid(),
-                    legalName: z.string(),
-                    displayName: z.string().nullish(),
-                    assignedFirmSlug: z.string(),
-                    hasExplicitAccess: z.boolean(),
-                    roleKey: z
-                      .enum([
-                        'super_admin',
-                        'support_admin',
-                        'support_agent',
-                        'firm_owner',
-                        'firm_admin',
-                        'accountant',
-                        'staff_accountant',
-                        'client_owner',
-                        'client_admin',
-                        'client_user',
-                      ])
-                      .nullish(),
-                    roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-                    isDemoCompany: z.boolean(),
-                    companyType: z.enum(['business', 'individual', 'accounting_firm']),
-                  })
-                  .passthrough(),
-                companies: z.array(
-                  z
-                    .object({
-                      id: z.string().uuid(),
-                      legalName: z.string(),
-                      displayName: z.string().nullish(),
-                      assignedFirmSlug: z.string(),
-                      hasExplicitAccess: z.boolean(),
-                      roleKey: z
-                        .enum([
-                          'super_admin',
-                          'support_admin',
-                          'support_agent',
-                          'firm_owner',
-                          'firm_admin',
-                          'accountant',
-                          'staff_accountant',
-                          'client_owner',
-                          'client_admin',
-                          'client_user',
-                        ])
-                        .nullish(),
-                      roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
-                      isDemoCompany: z.boolean(),
-                      companyType: z.enum(['business', 'individual', 'accounting_firm']),
-                    })
-                    .passthrough(),
-                ),
-              })
-              .passthrough(),
-            csrfToken: z.string().optional(),
-          })
-          .passthrough()
-          .optional(),
-        error: z.object({}).partial().passthrough().optional(),
-        code: z.string().optional(),
-      })
-      .passthrough(),
+    response: z.looseObject({
+            success: z.boolean(),
+            message: z.string(),
+            data: z.looseObject({
+                        user: z.looseObject({
+                                          id: z.uuid(),
+                                          email: z.email(),
+                                          firstname: z.string(),
+                                          lastname: z.string().optional(),
+                                          isPlatformUser: z.boolean().optional(),
+                                          platformUserKey: z.string().nullish(),
+                                          currentCompanyId: z.uuid(),
+                                          currentCompany: z.looseObject({
+                                                              id: z.uuid(),
+                                                              legalName: z.string(),
+                                                              displayName: z.string().nullish(),
+                                                              assignedFirmSlug: z.string(),
+                                                              hasExplicitAccess: z.boolean(),
+                                                              roleKey: z
+                                                                .enum([
+                                                                  'super_admin',
+                                                                  'support_admin',
+                                                                  'support_agent',
+                                                                  'firm_owner',
+                                                                  'firm_admin',
+                                                                  'accountant',
+                                                                  'staff_accountant',
+                                                                  'client_owner',
+                                                                  'client_admin',
+                                                                  'client_user',
+                                                                ])
+                                                                .nullish(),
+                                                              roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                                                              isDemoCompany: z.boolean(),
+                                                              companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                                                            }),
+                                          companies: z.array(
+                                            z.looseObject({
+                                                                    id: z.uuid(),
+                                                                    legalName: z.string(),
+                                                                    displayName: z.string().nullish(),
+                                                                    assignedFirmSlug: z.string(),
+                                                                    hasExplicitAccess: z.boolean(),
+                                                                    roleKey: z
+                                                                      .enum([
+                                                                        'super_admin',
+                                                                        'support_admin',
+                                                                        'support_agent',
+                                                                        'firm_owner',
+                                                                        'firm_admin',
+                                                                        'accountant',
+                                                                        'staff_accountant',
+                                                                        'client_owner',
+                                                                        'client_admin',
+                                                                        'client_user',
+                                                                      ])
+                                                                      .nullish(),
+                                                                    roleScope: z.enum(['platform', 'firm', 'company']).nullish(),
+                                                                    isDemoCompany: z.boolean(),
+                                                                    companyType: z.enum(['business', 'individual', 'accounting_firm']),
+                                                                  }),
+                                          ),
+                                        }),
+                        csrfToken: z.string().optional(),
+                      })
+              .optional(),
+            error: z.looseObject({}).partial().optional(),
+            code: z.string().optional(),
+          }),
     errors: [
       {
         status: 401,
         description: `Unauthorized`,
-        schema: z
-          .object({
-            success: z.boolean(),
-            message: z.string(),
-            data: z.unknown().optional(),
-            error: z.unknown().optional(),
-            code: z.string().optional(),
-          })
-          .passthrough(),
+        schema: z.looseObject({
+                    success: z.boolean(),
+                    message: z.string(),
+                    data: z.unknown().optional(),
+                    error: z.unknown().optional(),
+                    code: z.string().optional(),
+                  }),
       },
     ],
   },
@@ -623,15 +551,13 @@ const endpoints = makeApi([
     alias: 'refreshToken',
     description: `Refresh the access token using a valid refresh token`,
     requestFormat: 'json',
-    response: z
-      .object({
-        success: z.boolean(),
-        message: z.string(),
-        data: z.object({ csrfToken: z.string() }).partial().passthrough().optional(),
-        error: z.object({}).partial().passthrough().optional(),
-        code: z.string().optional(),
-      })
-      .passthrough(),
+    response: z.looseObject({
+            success: z.boolean(),
+            message: z.string(),
+            data: z.looseObject({ csrfToken: z.string() }).partial().optional(),
+            error: z.looseObject({}).partial().optional(),
+            code: z.string().optional(),
+          }),
   },
   {
     method: 'get',
@@ -639,7 +565,7 @@ const endpoints = makeApi([
     alias: 'healthCheck',
     description: `Check the health status of the API service`,
     requestFormat: 'json',
-    response: z.object({ ok: z.boolean() }).passthrough(),
+    response: z.looseObject({ ok: z.boolean() }),
   },
 ]);
 

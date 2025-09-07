@@ -9,21 +9,21 @@ export type CoaSource = z.infer<typeof coaSource>;
 // coa
 export const newCoaInput = z.object({
   name: z.string().max(256),
-  is_active: z.boolean().default(true).optional(),
+  is_active: z.boolean().prefault(true).optional(),
   code: z.string().nullish(),
   description: z.string().max(512).nullish(),
-  locked: z.boolean().default(false).nullish(),
-  source: coaSource.default('user').nullish(),
+  locked: z.boolean().prefault(false).nullish(),
+  source: coaSource.prefault('user').nullish(),
 
   account_type_key: z.string().max(256),
 });
 
 export const newCoa = newCoaInput.omit({ account_type_key: true }).extend({
-  account_type_id: z.string().uuid(),
-  currency_id: z.string().uuid(),
-  company_id: z.string().uuid(),
-  created_by_id: z.string().uuid(),
-  updated_by_id: z.string().uuid().optional(),
+  account_type_id: z.uuid(),
+  currency_id: z.uuid(),
+  company_id: z.uuid(),
+  created_by_id: z.uuid(),
+  updated_by_id: z.uuid().optional(),
 });
 export const coa = newCoa.merge(dbBaseFields);
 
@@ -53,15 +53,15 @@ export const coaUpdateInput = z.object({
   code: z.string().max(256).nullish().optional(),
   name: z.string().max(256).optional(),
   description: z.string().max(512).nullish().optional(),
-  accountTypeKey: z.string().uuid().optional(),
+  accountTypeKey: z.uuid().optional(),
   isActive: z.boolean().optional(),
   isDeleted: z.boolean().optional(),
 });
 export type CoaUpdateInput = z.infer<typeof coaUpdateInput>;
 
 export const resolvedCoaUpdateInput = coaUpdateInput.omit({ accountTypeKey: true }).extend({
-  id: z.string().uuid(),
-  accountTypeId: z.string().uuid().optional(),
+  id: z.uuid(),
+  accountTypeId: z.uuid().optional(),
 });
 export type ResolvedCoaUpdateInput = z.infer<typeof resolvedCoaUpdateInput>;
 

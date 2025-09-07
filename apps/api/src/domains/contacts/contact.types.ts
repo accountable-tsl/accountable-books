@@ -11,14 +11,14 @@ export const contactStatus = z.enum(['active', 'inactive']);
 export type ContactStatus = z.infer<typeof contactStatus>;
 
 const contactInput = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   display_name: z.string().min(1).max(256),
   email: z
-    .union([z.literal(''), z.string().email()])
+    .union([z.literal(''), z.email()])
     .transform((val) => (val === '' ? undefined : val))
     .optional(),
   address: z.string().max(512).optional(),
-  status: contactStatus.default('active').optional(),
+  status: contactStatus.prefault('active').optional(),
   notes: z.string().max(1024).optional(),
 });
 export const contactInputSchema = createCamelCaseSchema(contactInput);
@@ -26,9 +26,9 @@ export type ContactInput = SnakeToCamelCaseObject<z.infer<typeof contactInput>>;
 
 const newContact = contactInput.extend({
   normalized_name: z.string().toLowerCase().min(1).max(256),
-  company_id: z.string().uuid(),
-  created_by_id: z.string().uuid(),
-  updated_by_id: z.string().uuid().optional(),
+  company_id: z.uuid(),
+  created_by_id: z.uuid(),
+  updated_by_id: z.uuid().optional(),
 });
 export type NewContact = z.infer<typeof newContact>;
 
@@ -36,7 +36,7 @@ export const contact = newContact.merge(dbStandardFields);
 export type Contact = z.infer<typeof contact>;
 
 export const updateContact = contactInput.partial().extend({
-  id: z.string().uuid(),
+  id: z.uuid(),
 });
 export const updateContactSchema = createCamelCaseSchema(updateContact);
 export type UpdateContact = SnakeToCamelCaseObject<z.infer<typeof updateContact>>;
@@ -57,15 +57,15 @@ export type ContactResponse = {
 
 export const getContactsParams = z.object({
   companyId: z.string().nonempty(),
-  ids: z.array(z.string().uuid()).optional(),
+  ids: z.array(z.uuid()).optional(),
   displayNames: z.array(z.string()).optional(),
-  page: z.number().int().min(1).default(1),
-  limit: z.number().int().min(1).max(100).default(30),
+  page: z.int().min(1).prefault(1),
+  limit: z.int().min(1).max(100).prefault(30),
   search: z.string().optional(),
   searchFields: z.array(z.enum(['displayName', 'email', 'notes'])).optional(),
   status: contactStatus.optional(),
-  sortBy: z.enum(['display_name', 'email', 'created_at', 'updated_at']).default('display_name'),
-  sortOrder: z.enum(['asc', 'desc']).default('asc'),
+  sortBy: z.enum(['display_name', 'email', 'created_at', 'updated_at']).prefault('display_name'),
+  sortOrder: z.enum(['asc', 'desc']).prefault('asc'),
   trx: z.any().optional(),
 });
 

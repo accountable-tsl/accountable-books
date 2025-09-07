@@ -5,12 +5,12 @@ import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils
 // exchange_rate
 export const newExchangeRate = z.object({
   date: z.coerce.date(),
-  from_currency_id: z.string().uuid(),
-  to_currency_id: z.string().uuid(),
+  from_currency_id: z.uuid(),
+  to_currency_id: z.uuid(),
   rate: z.number(),
 });
 export const exchangeRateWithId = newExchangeRate.extend({
-  id: z.string().uuid(),
+  id: z.uuid(),
 });
 export const exchangeRate = newExchangeRate.merge(dbBaseFields);
 

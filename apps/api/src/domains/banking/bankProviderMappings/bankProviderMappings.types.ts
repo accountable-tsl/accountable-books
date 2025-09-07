@@ -7,8 +7,8 @@ import { dbBaseFields } from '../../../core/types/core.js';
 import type { Knex } from 'knex';
 
 const newBankProviderMappingInput = z.object({
-  provider_id: z.string().uuid(),
-  bank_id: z.string().uuid(),
+  provider_id: z.uuid(),
+  bank_id: z.uuid(),
   provider_bank_id: z.string(),
   provider_alternate_id: z.string().nullish(),
   provider_bank_secondary_reference: z.string().nullish(),
@@ -22,9 +22,9 @@ export type NewBankProviderMappingInputCamel = SnakeToCamelCaseObject<
 >;
 
 export const newBankProviderMapping = newBankProviderMappingInput.extend({
-  id: z.string().uuid().optional(),
-  created_by_id: z.string().uuid(),
-  updated_by_id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
+  created_by_id: z.uuid(),
+  updated_by_id: z.uuid().optional(),
 });
 export type NewBankProviderMapping = z.infer<typeof newBankProviderMapping>;
 

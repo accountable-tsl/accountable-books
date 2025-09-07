@@ -14,7 +14,7 @@ export type BankTransactionSource = z.infer<typeof bankTransactionSource>;
 export const bankTransactionInput = z.object({
   date: zDate,
   amount: z.number(),
-  bank_account_id: z.string().uuid(),
+  bank_account_id: z.uuid(),
   transaction_side: debitCredit.nullish(),
   description: z.string().nullish(),
   payee: z.string().nullish(),
@@ -33,11 +33,11 @@ export const newBankTransaction = bankTransactionInput.extend({
   absolute_amount: z.number(),
   system_exchange_rate: z.number(),
   categorization_status: categorizationStatus.default('uncategorized'),
-  bank_transaction_batch_id: z.string().uuid().nullish(),
+  bank_transaction_batch_id: z.uuid().nullish(),
   external_id: z.string().regex(/^[a-f0-9]{64}$/i),
-  ledger_transaction_id: z.string().uuid().nullish(),
-  created_by_id: z.string().uuid(),
-  updated_by_id: z.string().uuid().nullish(),
+  ledger_transaction_id: z.uuid().nullish(),
+  created_by_id: z.uuid(),
+  updated_by_id: z.uuid().nullish(),
 });
 export type NewBankTransaction = z.infer<typeof newBankTransaction>;
 
@@ -49,13 +49,13 @@ export const bankTransactionBatchInput = z.object({
   start_date: zDate,
   end_date: zDate,
   source: bankTransactionSource,
-  bank_account_id: z.string().uuid(),
+  bank_account_id: z.uuid(),
   bank_transactions: z.array(bankTransactionInputCamel),
   fingerprint: z.string(),
   source_metadata: z.any().nullish(),
   import_row_count: z.number().nullish(),
-  created_by_id: z.string().uuid().optional(),
-  updated_by_id: z.string().uuid().optional(),
+  created_by_id: z.uuid().optional(),
+  updated_by_id: z.uuid().optional(),
 });
 export type BankTransactionBatchInput = z.infer<typeof bankTransactionBatchInput>;
 
@@ -69,7 +69,7 @@ export const newBankTransactionBatches = bankTransactionBatchInput
     balance_before: z.number(),
     balance_after: z.number(),
     source: bankTransactionSource,
-    created_by_id: z.string().uuid(),
+    created_by_id: z.uuid(),
   });
 export type NewBankTransactionBatches = z.infer<typeof newBankTransactionBatches>;
 
@@ -103,7 +103,7 @@ export type AddBankTransactionsResponse = {
 export const bankTransactionsFilters = z.object({
   startDate: z.date().optional(),
   endDate: z.date().optional(),
-  bankAccountIds: z.array(z.string().uuid()).optional(),
+  bankAccountIds: z.array(z.uuid()).optional(),
   transactionSide: debitCredit.optional(),
   categorizationStatus: categorizationStatus.optional(),
   isDeleted: z.boolean().optional(),

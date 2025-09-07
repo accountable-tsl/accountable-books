@@ -12,17 +12,17 @@ export const bankProviderKey = z.enum(['plaid', 'mono']); // stripe, teller, ena
 export type BankProviderKey = z.infer<typeof bankProviderKey>;
 
 export const bankFeedProviderInput = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   key: bankProviderKey,
   name: z.string(),
   description: z.string().nullish(),
-  website: z.string().url().nullish(),
-  logo_url: z.string().url().nullish(),
+  website: z.url().nullish(),
+  logo_url: z.url().nullish(),
   status: bankFeedProviderStatus.optional(),
-  priority: z.number().int().optional(),
+  priority: z.int().optional(),
   external_id: z.string().nullish(),
-  created_by_id: z.string().uuid().optional(),
-  updated_by_id: z.string().uuid().nullish(),
+  created_by_id: z.uuid().optional(),
+  updated_by_id: z.uuid().nullish(),
   countries: z.array(z.string().min(2).max(2)),
 });
 export type BankFeedProviderInput = z.infer<typeof bankFeedProviderInput>;
@@ -35,14 +35,14 @@ export const bankFeedProvider = bankFeedProviderInput.merge(dbBaseFields);
 export type BankFeedProvider = z.infer<typeof bankFeedProvider>;
 
 export const bpcInput = z.object({
-  bank_feed_provider_id: z.string().uuid().optional(),
+  bank_feed_provider_id: z.uuid().optional(),
   bank_feed_provider_key: z.string().optional(),
 
   country_code: z.string().length(2).optional(),
-  country_id: z.string().uuid().optional(),
+  country_id: z.uuid().optional(),
 
-  created_by_id: z.string().uuid().optional(),
-  updated_by_id: z.string().uuid().optional(),
+  created_by_id: z.uuid().optional(),
+  updated_by_id: z.uuid().optional(),
 });
 
 export type BpcInput = z.infer<typeof bpcInput>;
@@ -51,8 +51,8 @@ export type BpcInputCamel = SnakeToCamelCaseObject<BpcInput>;
 export const bpcInputCamel = createCamelCaseSchema(bpcInput);
 
 export const newBankFeedProviderCountry = bpcInput.omit({ country_id: true }).extend({
-  country_id: z.string().uuid(),
-  created_by_id: z.string().uuid(),
+  country_id: z.uuid(),
+  created_by_id: z.uuid(),
 });
 
 export type NewBankFeedProviderCountry = z.infer<typeof newBankFeedProviderCountry>;
