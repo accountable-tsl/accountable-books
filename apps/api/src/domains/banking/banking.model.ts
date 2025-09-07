@@ -59,22 +59,19 @@ export const createCompanyBankCredential = async (
         );
       }
 
-      // Check for existing active credentials (only fetch ID for efficiency)
-      const existing = await tx('company_bank_credentials')
-        .where({
-          company_id: companyUUID,
-          provider_id: providerId,
-          status: 'active',
-        })
-        .first('id');
+      // This might not be a good idea, are we saying every company will only have one active credential per provider, that's a bad assumption?
+      // // Check for existing active credentials (only fetch ID for efficiency)
+      // const existing = await tx('company_bank_credentials')
+      //   .where({
+      //     company_id: companyUUID,
+      //     provider_id: providerId,
+      //     status: 'active',
+      //   })
+      //   .first('id');
 
-      if (existing) {
-        // throw new Error(
-        //   `Company already has an active ${input.providerKey} connection. ` +
-        //     'Please disconnect the existing connection first.',
-        // );
-        return successResponse('Credential already exists', { id: existing.id });
-      }
+      // if (existing) {
+      //   return successResponse('Credential already exists', { id: existing.id });
+      // }
 
       const aad = getCompanyBankCredentialAAD({
         providerId: providerId,

@@ -5,9 +5,7 @@ import { errorResponse, successResponse } from '../../shared/utils/response.util
 import {
   bankFeedProviderInputCamel,
   type BankFeedProviderInputCamel,
-  type BankFeedProviderStatus,
   type BankFeedProviderWithCountries,
-  type BpcInput,
   bpcInputCamel,
   type BpcInputCamel,
   type NewBankFeedProviderCountry,

@@ -16,9 +16,14 @@ export async function up(knex: Knex): Promise<void> {
     table.text('description');
     table.string('website');
     table.string('logo_url');
-    table.string('logo_key');
-    table.specificType('status', 'bank_feed_provider_status').notNullable().defaultTo('active'); // active, inactive, deprecated
-    table.integer('priority').notNullable().defaultTo(1); // used for fallback logic
+    table
+      .enu('status', ['active', 'inactive', 'deprecated'], {
+        enumName: 'bank_feed_provider_status',
+        useNative: false,
+      })
+      .notNullable()
+      .defaultTo('active'); // active, inactive, deprecated
+    table.integer('priority').nullable(); // used for fallback logic
 
     table
       .uuid('created_by_id')
@@ -39,8 +44,6 @@ export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
 
   // Drop dependent tables first to avoid foreign key constraint issues
-  await knex.schema.dropTableIfExists('company_bank_credentials');
-  await knex.schema.dropTableIfExists('bank_account_connections');
   await knex.schema.dropTableIfExists('bank_provider_mappings');
   await knex.schema.dropTableIfExists('bank_feed_provider_countries');
 

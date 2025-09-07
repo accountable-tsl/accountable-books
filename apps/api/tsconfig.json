@@ -16,12 +16,12 @@
     "declaration": false,
     "composite": false
   },
-  "include": ["src", "config/env-loader.ts"],
+  "include": ["src", "config/env-loader.ts", "src/db/knex.d.ts"],
   "exclude": [
     "node_modules",
     "dist",
     "vitest.config.ts",
-    "knexfile.cjs",
+    // "knexfile.cjs",
     "migrations",
     "seeds",
     "scripts"

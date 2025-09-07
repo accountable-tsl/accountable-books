@@ -13,17 +13,17 @@ export type BankProviderKey = z.infer<typeof bankProviderKey>;
 
 export const bankFeedProviderInput = z.object({
   id: z.string().uuid().optional(),
-  key: z.string().min(2), // customize min length as needed
+  key: bankProviderKey,
   name: z.string(),
   description: z.string().nullish(),
   website: z.string().url().nullish(),
   logo_url: z.string().url().nullish(),
-  logo_key: z.string().nullish(),
   status: bankFeedProviderStatus.optional(),
-  priority: z.number().int().min(1).optional(),
+  priority: z.number().int().optional(),
   external_id: z.string().nullish(),
   created_by_id: z.string().uuid().optional(),
   updated_by_id: z.string().uuid().nullish(),
+  countries: z.array(z.string().min(2).max(2)),
 });
 export type BankFeedProviderInput = z.infer<typeof bankFeedProviderInput>;
 export type BankFeedProviderInputCamel = SnakeToCamelCaseObject<BankFeedProviderInput>;

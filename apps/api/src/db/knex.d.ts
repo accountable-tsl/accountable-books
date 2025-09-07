@@ -17,40 +17,40 @@ import {
   NewPermissionInput,
   Permission,
   RolePermission,
-} from '../core/types/db.types.js';
-import { CoaTemplate, NewCoaTemplateInput } from '../domains/chartOfAccounts/coaTemplate.type.js';
-import { NewUserDirect, NewUserInput, User } from '../domains/users/users.types.js';
-import { Company, NewCompany } from '../domains/companies/companies.types.js';
-import { Coa, NewCoa } from '../domains/chartOfAccounts/coa.types.js';
-import { AccFirm, NewAccFirm } from '../domains/accountingFirms/firms.types.js';
-import { NewUserCompanyRole, UserCompanyRole } from '../domains/userRoles/userRoles.types.js';
+} from '../core/types/db.types.ts';
+import { CoaTemplate, NewCoaTemplateInput } from '../domains/chartOfAccounts/coaTemplate.type.ts';
+import { NewUserDirect, NewUserInput, User } from '../domains/users/users.types.ts';
+import { Company, NewCompany } from '../domains/companies/companies.types.ts';
+import { Coa, NewCoa } from '../domains/chartOfAccounts/coa.types.ts';
+import { AccFirm, NewAccFirm } from '../domains/accountingFirms/firms.types.ts';
+import { NewUserCompanyRole, UserCompanyRole } from '../domains/userRoles/userRoles.types.ts';
 import { BankAccount, NewBankAccount } from '../domains/banking/bankAccounts/bankAccounts.types.ts';
-import { ExchangeRate, NewExchangeRateInput } from '../domains/exchangeRates/exchangeRate.types.js';
+import { ExchangeRate, NewExchangeRateInput } from '../domains/exchangeRates/exchangeRate.types.ts';
 import { Bank, NewBank } from '../domains/banking/banks/banks.types.ts';
 import {
   BankTransaction,
   BankTransactionBatches,
   NewBankTransaction,
   NewBankTransactionBatches,
-} from '../domains/bankTransactions/bankTransactions.types.js';
+} from '../domains/bankTransactions/bankTransactions.types.ts';
 import {
   BankFeedProvider,
   BankFeedProviderCountries,
   NewBankFeedProvider,
   NewBankFeedProviderCountry,
-} from '../domains/bankFeedProviders/bankFeedProviders.types.js';
-import {
-  BankAccountConnection,
-  NewBankAccountConnection,
-} from '../domains/bankAccountConnections/baccons.types.js';
+} from '../domains/bankFeedProviders/bankFeedProviders.types.ts';
 import {
   BankProviderMapping,
   NewBankProviderMapping,
 } from '../domains/banking/bankProviderMappings/bankProviderMappings.types.ts';
-import { NewToken, Token } from '../domains/tokens/tokens.types.js';
-import { NewRoleInput, Role } from '../domains/roles/roles.types.js';
-import { Contact, NewContact } from '../domains/contacts/contact.types.js';
-import { NewProject, Project } from '../domains/projects/projects.types.js';
+import { NewToken, Token } from '../domains/tokens/tokens.types.ts';
+import { NewRoleInput, Role } from '../domains/roles/roles.types.ts';
+import { Contact, NewContact } from '../domains/contacts/contact.types.ts';
+import { NewProject, Project } from '../domains/projects/projects.types.ts';
+import type {
+  BankAccountCredential,
+  NewBankAccountCredential,
+} from 'src/domains/banking/bankAccountCredentials/bankAccountCredentials.types.ts';
 
 declare module 'knex/types/tables' {
   interface Tables {
@@ -138,6 +138,12 @@ declare module 'knex/types/tables' {
       Partial<Omit<BankAccount, 'id'>>
     >;
 
+    bank_account_credentials: Knex.CompositeTableType<
+      BankAccountCredential,
+      NewBankAccountCredential,
+      Partial<Omit<BankAccountCredential, 'id'>>
+    >;
+
     bank_transactions: Knex.CompositeTableType<
       BankTransaction,
       NewBankTransaction,
@@ -166,12 +172,6 @@ declare module 'knex/types/tables' {
       BankProviderMapping,
       NewBankProviderMapping,
       Partial<Omit<BankProviderMapping, 'id'>>
-    >;
-
-    bank_account_connections: Knex.CompositeTableType<
-      BankAccountConnection,
-      NewBankAccountConnection,
-      Partial<Omit<BankAccountConnection, 'id'>>
     >;
 
     contacts: Knex.CompositeTableType<Contact, NewContact, Partial<Omit<Contact, 'id'>>>;

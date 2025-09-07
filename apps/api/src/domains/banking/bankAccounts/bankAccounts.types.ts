@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import { dbBaseFields } from '../../../core/types/core.js';
-import { type SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
+import {
+  createCamelCaseSchema,
+  type SnakeToCamelCaseObject,
+} from '../../../shared/utils/formatting.utils.js';
 import { coaSource } from '../../chartOfAccounts/coa.types.js';
-import { bankAccountConnectionStatus } from '../../bankAccountConnections/baccons.types.js';
 
 export const bankAccountType = z.enum([
   'other',
@@ -15,33 +17,82 @@ export const bankAccountType = z.enum([
 export type BankAccountType = z.infer<typeof bankAccountType>;
 
 export const businessOrPersonalAccount = z.enum(['business', 'personal']);
+export type BusinessOrPersonalAccount = z.infer<typeof businessOrPersonalAccount>;
 
-export const newBankAccountInput = z.object({
+export const bankAccountConnectionStatus = z.enum([
+  'connected',
+  'revoked',
+  'error',
+  'not_connected',
+]);
+export type BankAccountConnectionStatus = z.infer<typeof bankAccountConnectionStatus>;
+
+const manualBankAccountInput = z.object({
   id: z.string().uuid().optional(),
   display_name: z.string().min(1, 'Display name is required'),
   account_name: z.string().nullish(),
+  account_number: z
+    .string()
+    .min(1, 'Account number is required')
+    .max(50, 'Account number is too long'),
+  account_number_mask: z.string().nullish(),
   account_type: bankAccountType.nullish(),
-  business_or_personal: businessOrPersonalAccount.nullish(),
-  account_number: z.string(),
-  account_code: z.string().optional(),
+  account_metadata: z.any().nullish(),
+  business_or_personal: businessOrPersonalAccount.optional(),
+  connection_status: bankAccountConnectionStatus.extract(['not_connected']), // must be not_connected
+  notes: z.string().nullish(),
   bank_id: z.string().uuid(),
-  currency_id: z.string().uuid(),
+  currency_code: z.string().length(2, 'Currency code must be exactly 2 characters'),
+  coa_code: z.string().optional(),
+  coa_name: z.string().max(256, 'Coa name is too long').nullish(),
+  coa_description: z.string().max(1024, 'Coa description is too long').nullish(),
   source: coaSource.optional(),
-  metadata: z.any().nullish(),
-
-  // company_id: z.string().uuid(),
-  // coa_id: z.string().uuid(),
-  // created_by_id: z.string().uuid(),
 });
-export type NewBankAccountInput = SnakeToCamelCaseObject<z.infer<typeof newBankAccountInput>>;
+export const manualBankAccountInputCamel = createCamelCaseSchema(manualBankAccountInput);
+export type ManualBankAccountInput = SnakeToCamelCaseObject<z.infer<typeof manualBankAccountInput>>;
+// company, coa, etc, to be added later
 
-export const newBankAccount = newBankAccountInput.extend({
-  company_id: z.string().uuid(),
-  coa_id: z.string().uuid(),
-  created_by_id: z.string().uuid(),
-  updated_by_id: z.string().uuid().optional(),
+const connectionSpecificFields = z.object({
+  provider_id: z.string().uuid(),
+  provider_bank_account_id: z.string(),
+  connection_credential_id: z.string().uuid(),
+  connection_status: bankAccountConnectionStatus.extract(['connected']),
+  last_sync_at: z.date().nullish(),
+  sync_error: z.string().nullish(),
 });
+export const bankAccountWithConnectionInput = createCamelCaseSchema(
+  manualBankAccountInput.merge(connectionSpecificFields),
+);
+export type BankAccountWithConnectionInput = SnakeToCamelCaseObject<
+  z.infer<typeof bankAccountWithConnectionInput>
+>;
 
+export const newBankAccountInput = manualBankAccountInput
+  .merge(connectionSpecificFields.partial())
+  .omit({
+    connection_status: true,
+  })
+  .extend({
+    connection_status: bankAccountConnectionStatus,
+  });
+// export const newBankAccountInputCamel = createCamelCaseSchema(newBankAccountInput);
+
+export type NewBankAccountInput = z.infer<typeof newBankAccountInput>;
+
+export const newBankAccount = newBankAccountInput
+  .omit({
+    currency_code: true,
+    coa_name: true,
+    coa_description: true,
+    source: true,
+  })
+  .extend({
+    company_id: z.string().uuid(),
+    currency_id: z.string().uuid(),
+    coa_id: z.string().uuid(),
+    created_by_id: z.string().uuid(),
+    updated_by_id: z.string().uuid().optional(),
+  });
 export type NewBankAccount = z.infer<typeof newBankAccount>;
 
 export const updateBankAccount = newBankAccount.partial();

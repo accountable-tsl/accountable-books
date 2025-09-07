@@ -1,23 +1,21 @@
-import { ErrorCode, errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
+import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
 import { knexClient } from '../../../db/knexClient.js';
 import type { ApiResponse } from '../../../core/types/api.types.js';
 import {
-  type BankAccountType,
+  bankAccountWithConnectionInput,
+  type BankAccountWithConnectionInput,
   type BankAccountWithMeta,
   type CompanyBankingSnapshot,
+  type ManualBankAccountInput,
+  manualBankAccountInputCamel,
   newBankAccountInput,
   type NewBankAccountInput,
 } from './bankAccounts.types.js';
-// import Decimal from "decimal.js";
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
-import { camelToSnake, snakeToCamel } from '../../../shared/utils/formatting.utils.js';
-import { coaSource, type CoaSource } from '../../chartOfAccounts/coa.types.js';
 import type { Knex } from 'knex';
-import { type AccessibleCompaniesResponse } from '../../userRoles/userRoles.types.js';
 import { getAccountTypeByKey } from '../../account/account.registry.js';
 import { getCurrency } from 'src/domains/currencies/currencies.utils.js';
 import logger from 'src/shared/utils/logger.js';
-import type { BankAccountConnectionStatus } from 'src/domains/bankAccountConnections/baccons.types.js';
 
 const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields
@@ -54,9 +52,12 @@ const BANK_ACCOUNT_FIELDS = [
   'at.key as coaTypeKey',
 
   // Bank Connection Details (If any)
-  'bac.id as bankConnectionId',
-  'bac.status as bankConnectionStatus',
-  'bac.provider_bank_account_id as providerBankAccountId',
+  // 'bac.id as bankConnectionId',
+  // 'bac.status as bankConnectionStatus',
+  // 'bac.provider_bank_account_id as providerBankAccountId',
+  'ba.id as bankConnectionId', // TODO: Remove later
+  'ba.connection_status as bankConnectionStatus',
+  'ba.provider_bank_account_id as providerBankAccountId',
   'p.key as providerKey',
   'p.name as providerName',
   'p.logo_url as providerLogo',
@@ -84,8 +85,7 @@ export const getBankAccountsWithDetails = async (
       .join('currencies as rc', 'c.reporting_currency_id', 'rc.id')
       .join('coa', 'ba.coa_id', 'coa.id')
       .leftJoin('account_types as at', 'coa.account_type_id', 'at.id')
-      .leftJoin('bank_account_connections as bac', 'ba.id', 'bac.bank_account_id')
-      .leftJoin('bank_feed_providers as p', 'bac.provider_id', 'p.id');
+      .leftJoin('bank_feed_providers as p', 'ba.provider_id', 'p.id');
 
     const result = await query;
     return result?.length > 0
@@ -169,600 +169,151 @@ export async function getBankAccountsSnapshot(
   }
 }
 
-/**
- * Creates a new bank account for a company, just one
- * @param input
- * @returns
- */
-export async function createNewBankAccount(input: {
-  companyId: string;
+async function createBankAccount({
+  bankAccountData,
+  userId,
+  companyId,
+  trx,
+}: {
+  bankAccountData: NewBankAccountInput;
   userId: string;
-  data: NewBankAccountInput;
-  userContext?: AccessibleCompaniesResponse;
+  companyId: string;
   trx?: Knex.Transaction;
-}): Promise<ApiResponse<BankAccountWithMeta>> {
-  const knexInstance = input.trx || knexClient;
-  const { data: inputData, userId, companyId } = input;
-  if (!companyId)
-    return errorResponse('Company ID is required') as ApiResponse<BankAccountWithMeta>;
-  try {
-    const companyUUID = await getCompanyUUID(companyId, input.trx);
-    if (!companyUUID) {
-      return errorResponse('Invalid company ID') as ApiResponse<BankAccountWithMeta>;
-    }
-
-    const validatedInput = newBankAccountInput.safeParse(camelToSnake(inputData));
-    if (!validatedInput.success) {
-      return errorResponse(
-        `Invalid input provided`,
-        validatedInput.error.flatten(),
-      ) as ApiResponse<BankAccountWithMeta>;
-    }
-
-    const { data } = validatedInput;
-
-    // Check if bank and currency ids are valid
-    const [bank, currency] = await Promise.all([
-      knexInstance('banks').select('id').where('id', data.bank_id).first(),
-      knexInstance('currencies').select('id').where('id', data.currency_id).first(),
-    ]);
-
-    if (!bank)
-      return errorResponse('The selected bank cannot be verified', undefined, {
-        code: ErrorCode.NOT_FOUND,
-      }) as ApiResponse<BankAccountWithMeta>;
-    if (!currency) return errorResponse('Invalid currency');
-
-    // Check that bank account does not already exist
-    const existing = await knexInstance('bank_accounts')
-      .select('id')
-      .where({
-        company_id: companyUUID,
-        bank_id: data.bank_id,
-        account_number: data.account_number,
-      })
-      .first();
-
-    if (existing) {
-      return errorResponse('Bank account with same account number already exists');
-    }
-
-    const accountTypeKey = 'ca_bank';
-    const accountType = await getAccountTypeByKey(accountTypeKey);
-    if (!accountType || !accountType.id)
-      return errorResponse('Failed to fetch account type for bank account');
-
-    // Create chart of account (aka ledger) for the bank account
-    const coaInput = {
-      code: data.account_code,
-      name: data.display_name,
-      accountTypeId: accountType.id,
-      source: data.source || coaSource.enum.user,
-    };
-
-    const existingCoa = await knexInstance('coa')
-      .select('id')
-      .where({
-        company_id: companyUUID,
-        name: coaInput.name,
-      })
-      .first();
-
-    console.log(existingCoa);
-    if (existingCoa) {
-      return errorResponse(
-        `A chart of account with the name "${coaInput.name}" ${coaInput.code ? `and code "${coaInput.code}"` : ''} already exists in this company`,
-        undefined,
-        { code: ErrorCode.CONFLICT },
-      );
-    }
-
-    const executeWithTransaction = async (tx: Knex.Transaction) => {
-      // const coa = await createCoa({
-      //   companyId,
-      //   userId,
-      //   data: [coaInput],
-      //   trx: tx,
-      // });
-
-      const [coa] = await tx('coa')
-        .insert({
-          company_id: companyUUID,
-          name: coaInput.name,
-          code: coaInput.code,
-          account_type_id: coaInput.accountTypeId,
-          source: coaInput.source,
-          created_by_id: userId,
-          updated_by_id: userId,
-          currency_id: currency.id,
-        })
-        .returning('*');
-
-      if (!coa || !coa.id) {
-        tx.rollback();
-        return errorResponse('Failed to create coa for bank') as ApiResponse<BankAccountWithMeta>;
-      }
-
-      // Create new bank account
-      const [newBankAccount] = await tx('bank_accounts')
-        .insert({
-          display_name: data.display_name,
-          account_name: data.account_name || data.display_name,
-          account_type: data.account_type,
-          account_number: data.account_number,
-          bank_id: data.bank_id,
-          currency_id: data.currency_id,
-          company_id: companyUUID,
-          coa_id: coa.id,
-          created_by_id: userId,
-          updated_by_id: userId,
-        })
-        .returning('*');
-
-      if (!newBankAccount) {
-        return errorResponse(
-          'Failed to create bank account record',
-        ) as ApiResponse<BankAccountWithMeta>;
-      }
-
-      const [newBankAccountDetails] = await tx('bank_accounts as ba')
-        .select(BANK_ACCOUNT_FIELDS)
-        .where('ba.id', newBankAccount.id)
-        .join('banks as b', 'ba.bank_id', 'b.id')
-        .join('currencies as cur', 'ba.currency_id', 'cur.id')
-        .join('companies as c', 'ba.company_id', 'c.id')
-        .join('currencies as rc', 'c.reporting_currency_id', 'rc.id')
-        .join('coa', 'ba.coa_id', 'coa.id')
-        .leftJoin('account_types as at', 'coa.account_type_id', 'at.id')
-        .leftJoin('bank_account_connections as bac', 'ba.id', 'bac.bank_account_id')
-        .leftJoin('bank_feed_providers as p', 'bac.provider_id', 'p.id');
-
-      return successResponse(
-        'Bank account created successfully',
-        snakeToCamel(newBankAccountDetails),
-      );
-    };
-
-    if (input.trx) {
-      return (await executeWithTransaction(input.trx)) as ApiResponse<BankAccountWithMeta>;
-    } else {
-      return (await knexInstance.transaction(
-        executeWithTransaction,
-      )) as ApiResponse<BankAccountWithMeta>;
-    }
-  } catch (error) {
-    return errorResponse('An unexpected error occurred while creating the bank account', error);
-  }
-}
-
-type BaseCreateBankAccountParams = {
-  companyId: string;
-  currencyCode: string;
-  bankId: string;
-  createdById: string;
-  accountNumber: string;
-  displayName: string;
-  accountName?: string | null;
-  coaCode?: string | null;
-  coaDescription?: string | null;
-  accountType?: BankAccountType | null;
-  inputSource?: CoaSource | null;
-  businessOrPersonal?: 'business' | 'personal' | null;
-  bankAccountMetadata?: Record<string, unknown> | null;
-};
-
-export type WithConnParams = BaseCreateBankAccountParams & {
-  providerId: string;
-  providerBankAccountId: string;
-  connectionStatus: string;
-  rawConnectionData?: Record<string, unknown> | null;
-  credentialId: string;
-};
-
-type WithoutConnParams = BaseCreateBankAccountParams;
-
-type WithConnResp = { coaId: string; bankAccountId: string; connectionId: string };
-type WithoutConnResp = { coaId: string; bankAccountId: string };
-
-interface CreateBankAccountParams {
-  companyId: string;
-  currencyCode: string;
-  bankId: string;
-  providerId: string;
-  createdById: string;
-  accountNumber: string;
-  displayName: string;
-  accountName?: string | null;
-  providerBankAccountId: string;
-  connectionStatus: BankAccountConnectionStatus;
-  coaCode?: string | null;
-  coaDescription?: string | null;
-  accountType?: BankAccountType | null;
-  inputSource?: CoaSource;
-  businessOrPersonal?: string | null;
-  bankAccountMetadata?: Record<string, unknown> | null;
-  connectionMetadata?: Record<string, unknown> | null;
-  credentialId: string;
-}
-
-interface CreateBankAccountResponse {
-  coaId: string;
-  bankAccountId: string;
-  connectionId?: string;
-}
-
-export async function createBankAccount2(
-  params: CreateBankAccountParams,
-  trx?: Knex.Transaction,
-): Promise<ApiResponse<CreateBankAccountResponse>> {
+}) {
   const start = Date.now();
   const log = logger.child({
     op: 'createBankAccount',
-    companyId: params.companyId,
-    userId: params.createdById,
+    companyId,
+    userId,
   });
 
-  const companyUUID = await getCompanyUUID(params.companyId);
-  const accountCurrency = await getCurrency(params.currencyCode);
-  const at = await getAccountTypeByKey('ca_bank');
-  if (!at?.id) throw new Error('Account type not found');
-  const accountTypeId = at.id;
-
-  const run = async (tx: Knex.Transaction): Promise<ApiResponse<CreateBankAccountResponse>> => {
-    // Check for existing connection
-    const existingConn = await tx('bank_account_connections')
-      .select('id', 'bank_account_id')
-      .where({
-        provider_id: params.providerId,
-        provider_bank_account_id: params.providerBankAccountId,
-      })
-      .first()
-      .forUpdate();
-
-    if (existingConn?.bank_account_id) {
-      const ba = await tx('bank_accounts')
-        .select('id', 'coa_id')
-        .where({ id: existingConn.bank_account_id })
-        .first();
-      if (!ba) throw new Error('Invariant: connection points to missing bank account');
-      return successResponse('Bank account already exists', {
-        coaId: ba.coa_id,
-        bankAccountId: ba.id,
-        connectionId: existingConn.id,
-      });
-    }
-
-    const company = await tx('companies')
-      .select('reporting_currency_id')
-      .where({ id: companyUUID })
-      .first();
-    if (!company) throw new Error('Company not found');
-
-    // Create COA entry, else read existing on unique violation
-    let coaId: string;
-    const coaName = params.displayName || params.accountName;
-    try {
-      const [row] = await tx('coa')
-        .insert({
-          code: params.coaCode ?? null,
-          name: coaName,
-          description: params.coaDescription,
-          account_type_id: accountTypeId,
-          currency_id: company.reporting_currency_id,
-          company_id: companyUUID,
-          created_by_id: params.createdById,
-          updated_by_id: params.createdById,
-          source: params.inputSource ?? 'user',
-        })
-        .returning<{ id: string }[]>('id');
-      coaId = row.id;
-    } catch (e: any) {
-      if (e?.code !== '23505') throw e;
-      const byCode =
-        params.coaCode &&
-        (await tx('coa')
-          .select('id')
-          .where({ code: params.coaCode, company_id: companyUUID })
-          .first());
-      const byName =
-        !byCode &&
-        (await tx('coa')
-          .select('id')
-          .where({ name: coaName, account_type_id: accountTypeId, company_id: companyUUID })
-          .first());
-      if (!byCode && !byName) throw new Error('Failed to create or locate COA');
-      coaId = (byCode || byName)!.id;
-    }
-
-    // Create bank account entry
-    let bankAccountId: string;
-    try {
-      const [row] = await tx('bank_accounts')
-        .insert({
-          display_name: params.displayName,
-          account_name: params.accountName ?? params.displayName,
-          account_type: params.accountType,
-          account_number: params.accountNumber,
-          business_or_personal: params.businessOrPersonal ?? null,
-          bank_id: params.bankId,
-          currency_id: accountCurrency.id,
-          company_id: params.companyId,
-          coa_id: coaId,
-          created_by_id: params.createdById,
-          updated_by_id: params.createdById,
-          metadata: params.bankAccountMetadata ?? {},
-        })
-        .returning<{ id: string }[]>('id');
-      bankAccountId = row.id;
-    } catch (e: any) {
-      if (e?.code !== '23505') throw e;
-      const existing = await tx('bank_accounts')
-        .select('id')
-        .where({
-          company_id: companyUUID,
-          bank_id: params.bankId,
-          account_number: params.accountNumber,
-        })
-        .first();
-      if (!existing) throw new Error('Failed to create or locate bank account');
-      bankAccountId = existing.id;
-    }
-
-    // Create bank account connection entry
-    const connectionId =
-      existingConn?.id ??
-      (await tx('bank_account_connections')
-        .insert({
-          provider_bank_account_id: params.providerBankAccountId,
-          bank_account_id: bankAccountId,
-          provider_id: params.providerId,
-          status: params.connectionStatus,
-          created_by_id: params.createdById,
-          connected_at: tx.fn.now(),
-          raw_metadata: params.connectionMetadata ?? {},
-          company_bank_credential_id: params.credentialId,
-        })
-        .onConflict(['provider_id', 'provider_bank_account_id'])
-        .ignore()
-        .returning<{ id: string }[]>('id')
-        .then(async (rows) => {
-          if (rows[0]) return rows[0].id;
-          const existing = await tx('bank_account_connections')
-            .select('id', 'bank_account_id')
-            .where({
-              provider_id: params.providerId,
-              provider_bank_account_id: params.providerBankAccountId,
-            })
-            .first()
-            .forUpdate();
-          if (!existing) throw new Error('Failed to create or locate connection');
-          if (!existing.bank_account_id) {
-            const [upd] = await tx('bank_account_connections')
-              .where({ id: existing.id })
-              .update({
-                bank_account_id: bankAccountId,
-                status: params.connectionStatus,
-              })
-              .returning<{ id: string }[]>('id');
-            return upd.id;
-          }
-          return existing.id;
-        }));
-
-    return successResponse('Bank account record created successfully', {
-      coaId,
-      bankAccountId,
-      connectionId,
-    });
-  };
-  try {
-    const res = await (trx ? run(trx) : knexClient.transaction(run));
-    log.info({ duration: Date.now() - start }, 'created');
-    return res;
-  } catch (error) {
-    log.error(error);
-    return errorResponse('Failed to create bank account');
+  const validatedInput = newBankAccountInput.safeParse(bankAccountData);
+  if (!validatedInput.success) {
+    log.error({ validationErrors: validatedInput.error.flatten() }, 'invalid input');
+    return errorResponse('Invalid input', validatedInput.error.flatten());
   }
-}
 
-function hasConn(p: BaseCreateBankAccountParams | WithConnParams): p is WithConnParams {
-  return 'providerId' in p && 'providerBankAccountId' in p && 'connectionStatus' in p;
-}
+  const v = validatedInput.data;
 
-export async function createBankAccount(
-  params: WithConnParams | WithoutConnParams,
-  createConnection: boolean,
-  trx?: Knex.Transaction,
-): Promise<ApiResponse<WithConnResp | WithoutConnResp>> {
-  const start = Date.now();
-  const log = logger.child({
-    op: 'createBankAccount',
-    companyId: params.companyId,
-    userId: params.createdById,
-  });
-
-  const companyUUID = await getCompanyUUID(params.companyId);
-  const accountCurrency = await getCurrency(params.currencyCode);
-  const at = await getAccountTypeByKey('ca_bank');
-  if (!at?.id) throw new Error('Account type not found');
-  const accountTypeId = at.id;
-
-  const run = async (
+  const exec = async (
     tx: Knex.Transaction,
-  ): Promise<ApiResponse<WithConnResp | WithoutConnResp>> => {
-    let existingConn: { id: string; bank_account_id: string | null } | undefined;
+  ): Promise<ApiResponse<{ coaId: string; bankAccountId: string }>> => {
+    // Get currencyId, validate bankId
+    const [companyUUID, currency, bank, accountType] = await Promise.all([
+      getCompanyUUID(companyId, tx),
 
-    if (createConnection) {
-      if (!hasConn(params)) throw new Error('Missing provider fields for connection');
-      const existingConn = await tx('bank_account_connections')
-        .select('id', 'bank_account_id')
-        .where({
-          provider_id: params.providerId,
-          provider_bank_account_id: params.providerBankAccountId,
-        })
-        .first()
-        .forUpdate();
+      getCurrency(v.currency_code),
 
-      if (existingConn?.bank_account_id) {
-        const ba = await tx('bank_accounts')
-          .select('id', 'coa_id')
-          .where({ id: existingConn.bank_account_id })
-          .first();
-        if (!ba) throw new Error('Invariant: connection points to missing bank account');
-        return successResponse('Bank account already exists', {
-          coaId: ba.coa_id,
-          bankAccountId: ba.id,
-          connectionId: existingConn.id,
-        });
-      }
-    }
+      tx('banks').select('id').where('id', v.bank_id).first(),
 
-    const company = await tx('companies')
-      .select('reporting_currency_id')
-      .where({ id: companyUUID })
-      .first();
-    if (!company) throw new Error('Company not found');
+      getAccountTypeByKey('ca_bank'),
+    ]);
+    if (!companyUUID) return errorResponse('Company not found');
+    if (!currency || !currency.id) return errorResponse('Currency not found');
+    if (!bank) return errorResponse('Bank not found');
+    if (!accountType || !accountType.id) return errorResponse('Account type not found');
 
+    const currencyId = currency.id;
+    const bankId = bank.id || v.bank_id;
+    const coaAccountTypeId = accountType.id;
+    const coaName = v.coa_name || v.display_name || v.account_name;
+    const coaCode = v.coa_code || `**${v.account_number.slice(0, 4)}`;
+
+    // Create COA
     let coaId: string;
-    const coaName = params.displayName || params.accountName;
     try {
-      const [row] = await tx('coa')
+      const [coaRow] = await tx('coa')
         .insert({
-          code: params.coaCode ?? null,
+          code: coaCode,
           name: coaName,
-          description: params.coaDescription,
-          account_type_id: accountTypeId,
-          currency_id: company.reporting_currency_id,
+          description: v.coa_description,
+          account_type_id: coaAccountTypeId,
+          currency_id: currencyId,
           company_id: companyUUID,
-          created_by_id: params.createdById,
-          updated_by_id: params.createdById,
-          source: params.inputSource ?? 'user',
+          created_by_id: userId,
+          updated_by_id: userId,
+          source: v.source || 'user',
         })
         .returning<{ id: string }[]>('id');
-      coaId = row.id;
+      coaId = coaRow.id;
     } catch (e: any) {
       if (e?.code !== '23505') throw e;
-      const byCode =
-        params.coaCode &&
-        (await tx('coa')
-          .select('id')
-          .where({ code: params.coaCode, company_id: companyUUID })
-          .first());
-      const byName =
-        !byCode &&
-        (await tx('coa')
-          .select('id')
-          .where({ name: coaName, account_type_id: accountTypeId, company_id: companyUUID })
-          .first());
-      if (!byCode && !byName) throw new Error('Failed to create or locate COA');
-      coaId = (byCode || byName)!.id;
+      throw new Error('Chart of account with the same name or code already exists');
     }
 
     // Create bank account entry
     let bankAccountId: string;
     try {
-      const [row] = await tx('bank_accounts')
+      const [bankAccountRow] = await tx('bank_accounts')
         .insert({
-          display_name: params.displayName,
-          account_name: params.accountName ?? params.displayName,
-          account_type: params.accountType,
-          account_number: params.accountNumber,
-          business_or_personal: params.businessOrPersonal ?? null,
-          bank_id: params.bankId,
-          currency_id: accountCurrency.id,
+          display_name: v.display_name,
+          account_name: v.account_name || v.display_name,
+          account_number: v.account_number,
+          account_number_mask: v.account_number_mask,
+          account_type: v.account_type,
+          business_or_personal: v.business_or_personal,
+          bank_id: bankId,
+          currency_id: currencyId,
           company_id: companyUUID,
           coa_id: coaId,
-          created_by_id: params.createdById,
-          updated_by_id: params.createdById,
-          metadata: params.bankAccountMetadata ?? {},
+          provider_id: v.provider_id,
+          provider_bank_account_id: v.provider_bank_account_id,
+          connection_status: v.connection_status,
+          account_metadata: v.account_metadata,
+          connection_credential_id: v.connection_credential_id,
+          last_sync_at: v.last_sync_at,
+          sync_error: v.sync_error,
+          notes: v.notes,
+          created_by_id: userId,
+          updated_by_id: userId,
         })
         .returning<{ id: string }[]>('id');
-      bankAccountId = row.id;
+      bankAccountId = bankAccountRow.id;
     } catch (e: any) {
       if (e?.code !== '23505') throw e;
-      const existing = await tx('bank_accounts')
-        .select('id')
-        .where({
-          company_id: companyUUID,
-          bank_id: params.bankId,
-          account_number: params.accountNumber,
-        })
-        .first();
-      if (!existing) throw new Error('Failed to create or locate bank account');
-      bankAccountId = existing.id;
+      throw new Error('Bank account with the same details already exist');
     }
 
-    if (!createConnection) {
-      return successResponse('Bank account created', { coaId, bankAccountId });
-    }
-
-    const connectionId =
-      existingConn?.id ??
-      (await tx('bank_account_connections')
-        .insert({
-          provider_bank_account_id: (params as WithConnParams).providerBankAccountId,
-          bank_account_id: bankAccountId,
-          provider_id: (params as WithConnParams).providerId,
-          status: bankAccountId ? 'active' : (params as WithConnParams).connectionStatus,
-          created_by_id: params.createdById,
-          connected_at: tx.fn.now(),
-          raw_metadata: (params as WithConnParams).rawConnectionData ?? {},
-          company_bank_credential_id: (params as WithConnParams).credentialId,
-        })
-        .onConflict(['provider_id', 'provider_bank_account_id'])
-        .ignore()
-        .returning<{ id: string }[]>('id')
-        .then(async (rows) => {
-          if (rows[0]) return rows[0].id;
-          const existing = await tx('bank_account_connections')
-            .select('id', 'bank_account_id')
-            .where({
-              provider_id: (params as WithConnParams).providerId,
-              provider_bank_account_id: (params as WithConnParams).providerBankAccountId,
-            })
-            .first()
-            .forUpdate();
-          if (!existing) throw new Error('Failed to create or locate connection');
-          if (!existing.bank_account_id) {
-            const [upd] = await tx('bank_account_connections')
-              .where({ id: existing.id })
-              .update({
-                bank_account_id: bankAccountId,
-                status: (params as WithConnParams).connectionStatus,
-              })
-              .returning<{ id: string }[]>('id');
-            return upd.id;
-          }
-          return existing.id;
-        }));
-
-    return successResponse('Bank account record created successfully', {
+    return successResponse('Bank account and associated COA created successfully', {
       coaId,
       bankAccountId,
-      connectionId,
     });
   };
+
   try {
-    const res = await (trx ? run(trx) : knexClient.transaction(run));
+    const result = trx ? await exec(trx) : await knexClient.transaction(exec);
     log.info({ duration: Date.now() - start }, 'created');
-    return res;
+    return result;
   } catch (error) {
     log.error(error);
-    return errorResponse('Failed to create bank account');
+    return errorResponse('Failed to create bank account', error);
   }
+}
+
+export async function createManualBankAccount(
+  params: ManualBankAccountInput,
+  userId: string,
+  companyId: string,
+  trx?: Knex.Transaction,
+) {
+  const validatedInput = manualBankAccountInputCamel.safeParse(params);
+  if (!validatedInput.success) {
+    return errorResponse('Invalid input', validatedInput.error.flatten());
+  }
+  const { data } = validatedInput;
+  return createBankAccount({ bankAccountData: data, userId, companyId, trx });
 }
 
 export async function createBankAccountWithConnection(
-  params: WithConnParams,
+  params: BankAccountWithConnectionInput,
+  userId: string,
+  companyId: string,
   trx?: Knex.Transaction,
-): Promise<ApiResponse<WithConnResp>> {
-  return createBankAccount(params, true, trx) as Promise<ApiResponse<WithConnResp>>;
-}
-
-// Without connection
-export async function createBankAccountWithoutConnection(
-  params: WithoutConnParams,
-  trx?: Knex.Transaction,
-): Promise<ApiResponse<WithoutConnResp>> {
-  return createBankAccount(params, false, trx);
+) {
+  const validatedInput = bankAccountWithConnectionInput.safeParse(params);
+  if (!validatedInput.success) {
+    return errorResponse('Invalid input', validatedInput.error.flatten());
+  }
+  const { data } = validatedInput;
+  return createBankAccount({ bankAccountData: data, userId, companyId, trx });
 }

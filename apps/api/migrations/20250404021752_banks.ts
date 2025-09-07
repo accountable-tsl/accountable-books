@@ -54,7 +54,16 @@ export async function up(knex: Knex): Promise<void> {
 
     table.string('swift_code').nullable();
     table.string('local_code').nullable(); // We use NIP code for Nigeria
-    table.specificType('local_code_type', 'bank_local_code_type').nullable(); // value: e.g., 'sort_code'
+    table
+      .enu(
+        'local_code_type',
+        ['sort_code', 'routing', 'bank_code', 'nip_code', 'ifsc', 'blz', 'zengin_code', 'cnaps'],
+        {
+          enumName: 'bank_local_code_type',
+          useNative: false,
+        },
+      )
+      .nullable(); // value: e.g., 'sort_code'
     table.string('secondary_reference').nullable();
 
     table.string('website').nullable();

@@ -288,12 +288,6 @@ export class ConnectAccountsService {
     });
 
     if (!credentialResult.success) {
-      // If credential already exists, this might be a retry - let's check the error
-      if (credentialResult.message?.includes('already has an active')) {
-        throw new Error(
-          'Bank connection already exists. Please disconnect the existing connection first.',
-        );
-      }
       throw new Error(credentialResult.message || 'Failed to save bank credential');
     }
 
