@@ -49,7 +49,7 @@ const bankTransactionBatchInsertSchema = z.object({
   startDate: z.date(),
   endDate: z.date(),
   source: bankTransactionSource,
-  bankAccountId: z.string().uuid(),
+  bankAccountId: z.uuid(),
   bankTransactions: z.array(bankTransactionInsertSchema),
   fingerprint: z.string(),
   sourceMetadata: z.any(),

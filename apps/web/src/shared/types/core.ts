@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import Decimal from 'decimal.js';
 import z from 'zod';
 
-export const zEmail = z.string().trim().toLowerCase().email('Please enter a valid email address');
+export const zEmail = z.email('Please enter a valid email address').trim().toLowerCase();
 
 export type Email = z.infer<typeof zEmail>;
 

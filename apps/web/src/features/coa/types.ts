@@ -89,7 +89,7 @@ export interface CoaUpdateResponse {
 
 export const createCoaSchema = z.object({
   name: z.string().min(1).max(256),
-  isActive: z.boolean().default(true).optional(),
+  isActive: z.boolean().prefault(true).optional(),
   code: z.string().max(256).nullish(),
   description: z.string().max(512).nullish(),
   accountTypeKey: z.string().min(1, 'Account Type is required'),

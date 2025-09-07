@@ -36,17 +36,17 @@ function validateDayInMonth(year: number, month: number, day: number): void {
 const optionsSchema = z
   .object({
     // Day/Month inputs
-    startDay: z.number().int().min(1).max(31).optional(),
-    startMonth: z.number().int().min(1).max(12).optional(),
-    endDay: z.number().int().min(1).max(31).optional(),
-    endMonth: z.number().int().min(1).max(12).optional(),
+    startDay: z.int().min(1).max(31).optional(),
+    startMonth: z.int().min(1).max(12).optional(),
+    endDay: z.int().min(1).max(31).optional(),
+    endMonth: z.int().min(1).max(12).optional(),
 
     // Date string inputs
     startDate: dateStringSchema.optional(),
     endDate: dateStringSchema.optional(),
 
     // Configuration
-    year: z.number().int().min(1900).max(2900).optional(),
+    year: z.int().min(1900).max(2900).optional(),
     distance: z.number().positive().optional(),
     unit: dateUnitSchema.optional(),
     format: z.string().optional(),
@@ -61,8 +61,7 @@ const optionsSchema = z
       return hasStartComponents || hasEndComponents;
     },
     {
-      message:
-        'Must provide at least one of: startDay+startMonth, endDay+endMonth, startDate, or endDate',
+        error: 'Must provide at least one of: startDay+startMonth, endDay+endMonth, startDate, or endDate'
     },
   )
   .refine(
@@ -75,7 +74,7 @@ const optionsSchema = z
       return !(hasStartConflict || hasEndConflict);
     },
     {
-      message: 'Cannot mix day/month numbers with date strings for the same start/end point',
+        error: 'Cannot mix day/month numbers with date strings for the same start/end point'
     },
   )
   .refine(
@@ -96,7 +95,7 @@ const optionsSchema = z
       }
     },
     {
-      message: 'Invalid date: day does not exist in the specified month',
+        error: 'Invalid date: day does not exist in the specified month'
     },
   );
 export type DateRangeOptions = z.infer<typeof optionsSchema>;

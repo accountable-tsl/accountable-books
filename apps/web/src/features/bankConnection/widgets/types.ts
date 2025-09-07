@@ -23,7 +23,7 @@ const monoCustomerWithId = z.object({
 const monoCustomerWithNameEmail = z.object({
   id: z.never().optional(),
   name: z.string(),
-  email: z.string().email(),
+  email: z.email(),
   identity: identitySchema.optional(),
 });
 

@@ -50,7 +50,7 @@ export const objectTypes = ['logos', 'profile_picture'] as const;
 export type ObjectType = (typeof objectTypes)[number];
 
 export interface ObjectTypeConfig {
-  schema: z.ZodSchema<unknown>;
+  schema: z.ZodJSONSchema<unknown>;
   uploadEndpoint: string;
   deleteEndpoint: string;
 }

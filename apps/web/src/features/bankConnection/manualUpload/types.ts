@@ -25,7 +25,7 @@ export type BankTransactionSource = z.infer<typeof bankTransactionSource>;
 export const bankTransactionInput = z.object({
   date: z.date(),
   amount: z.number(),
-  bankAccountId: z.string().uuid(),
+  bankAccountId: z.uuid(),
   transactionSide: debitCredit.nullish(),
   description: z.string().nullish(),
   payee: z.string().nullish(),
@@ -38,14 +38,14 @@ export const bankTransactionBatchInput = z.object({
   startDate: z.date(),
   endDate: z.date(),
   source: bankTransactionSource,
-  bankAccountId: z.string().uuid(),
+  bankAccountId: z.uuid(),
   bankTransactions: z.array(bankTransactionInput),
 });
 export type BankTransactionBatchInput = z.infer<typeof bankTransactionBatchInput>;
 
 export const bankTransaction = bankTransactionInput.extend({
   source: bankTransactionSource.optional(),
-  bankTransactionBatchId: z.string().uuid().optional(),
+  bankTransactionBatchId: z.uuid().optional(),
 });
 export type BankTransaction = z.infer<typeof bankTransaction>;
 

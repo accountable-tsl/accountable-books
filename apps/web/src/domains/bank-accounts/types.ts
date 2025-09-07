@@ -41,12 +41,12 @@ export const newBankAccountInput = z.object({
     .string()
     .min(1, 'Account name is required')
     .regex(/.*[^0-9].*/, 'Account name cannot be just numbers'),
-  bankId: z.string().uuid('Please select a valid bank'),
-  currencyId: z.string().uuid('Please select a valid currency'),
+  bankId: z.uuid('Please select a valid bank'),
+  currencyId: z.uuid('Please select a valid currency'),
   accountType: bankAccountType.optional(),
   accountNumber: z.string().min(1, 'Account number is required'),
   accountCode: z.string().optional(),
-  source: coaSource.default('user').optional(),
+  source: coaSource.prefault('user').optional(),
 });
 export type NewBankAccountInput = z.infer<typeof newBankAccountInput>;
 
@@ -63,27 +63,27 @@ export type AddBankAccountDialogProps = AddBankAccountProps & {
 };
 
 export const bankAccountWithMeta = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   displayName: z.string(),
   accountType: bankAccountType,
   accountNumber: z.string(),
 
-  bankId: z.string().uuid(),
+  bankId: z.uuid(),
   bankName: z.string(),
   bankLogo: z.string().optional(),
 
-  currencyId: z.string().uuid(),
+  currencyId: z.uuid(),
   currencyName: z.string(),
   currencySymbol: z.string(),
   currencyCode: z.string(),
 
-  companyId: z.string().uuid(),
-  reportingCurrencyId: z.string().uuid(),
+  companyId: z.uuid(),
+  reportingCurrencyId: z.uuid(),
   reportingCurrencyName: z.string(),
   reportingCurrencySymbol: z.string(),
   reportingCurrencyCode: z.string(),
 
-  coaId: z.string().uuid(),
+  coaId: z.uuid(),
   coaName: z.string(),
   coaCode: z.string().optional(),
   coaTypeKey: z.string().optional(),

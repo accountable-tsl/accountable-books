@@ -15,15 +15,15 @@ export type SortField = (typeof sortFields)[number];
 const sortOrderEnum = z.enum(['asc', 'desc']);
 
 export const newProject = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   name: z.string().min(2, 'Project name is required').max(256),
   code: z.string().nullable(),
   description: z.string().max(512).nullish(),
-  status: projectStatus.default('in_draft').optional(),
+  status: projectStatus.prefault('in_draft').optional(),
   searchFields: z
     .array(z.enum(['name', 'code', 'description', 'contactName', 'address']))
     .optional(),
-  contactId: z.string().uuid(),
+  contactId: z.uuid(),
   startDate: z.date().nullish(),
   endDate: z.date().nullish(),
 });
@@ -35,20 +35,20 @@ export const fetchProjectsParams = z.object({
   status: projectStatus.optional(),
   contactIds: z.array(z.string()).optional(),
   search: z.string().optional(),
-  page: z.number().int().min(1),
-  limit: z.number().int().min(1).max(100),
+  page: z.int().min(1),
+  limit: z.int().min(1).max(100),
   sortBy: z.enum(sortFields).optional(),
   sortOrder: sortOrderEnum.optional(),
 });
 export type FetchProjectsParams = z.infer<typeof fetchProjectsParams>;
 
 export const projects = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   name: z.string().min(2, 'Project name is required').max(256),
   code: z.string().nullable(),
   description: z.string().max(512).nullish(),
-  status: projectStatus.default('in_draft'),
-  contactId: z.string().uuid(),
+  status: projectStatus.prefault('in_draft'),
+  contactId: z.uuid(),
   contactName: z.string().nullish(),
   startDate: z.date().nullish(),
   endDate: z.date().nullish(),
