@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useSlugCheck } from '@/domains/firms/hooks';
 import { useSession } from '@/features/auth/Session';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useNavigate } from 'react-router';
 import { routes } from '@/shared/routes/routes';
 
@@ -103,7 +103,7 @@ export const CompanyInfo = () => {
     formState: { errors, isSubmitting },
   } = useForm<UpdateCompanyVitalsData>({
     mode: 'onChange',
-    resolver: zodResolver(updateCompanyVitalsSchema),
+    resolver: standardSchemaResolver(updateCompanyVitalsSchema),
     defaultValues: getDefaultCompanyData(),
   });
 

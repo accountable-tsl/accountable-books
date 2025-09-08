@@ -12,6 +12,7 @@ if [ ! -f "apps/api/.env.example" ] || [ ! -f "apps/web/.env.example" ]; then
   exit 1
 fi
 
+make db-up
 # Run lint-staged for changed files (includes linting, formatting, contract validation)
 pnpm lint-staged
 

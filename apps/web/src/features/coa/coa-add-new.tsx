@@ -23,7 +23,7 @@ import { useCompanyCoa, useCreateCoa } from '@/features/coa/hooks';
 import { useAccountMeta, useAccountTypeByKey } from '@/domains/account-classification/hooks';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { type CreateCoa, createCoaSchema } from '@/features/coa/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/features/auth/Session';
@@ -68,7 +68,7 @@ export function AddNewCoa({
     setError,
     clearErrors,
   } = useForm<CreateCoa>({
-    resolver: zodResolver(createCoaSchema),
+    resolver: standardSchemaResolver(createCoaSchema),
     mode: 'onChange',
   });
 

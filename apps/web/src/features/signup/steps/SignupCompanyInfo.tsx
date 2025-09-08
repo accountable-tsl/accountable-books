@@ -13,7 +13,7 @@ import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { Controller, useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { FormField } from '@/components/FormField';
 import { TOOLTIP } from '../signupConstants';
 import { Textarea } from '@/components/ui/textarea';
@@ -73,7 +73,7 @@ export const SignupCompanyInfo = forwardRef<
     trigger,
     control,
   } = useForm<NewCompany>({
-    resolver: zodResolver(newCompany),
+    resolver: standardSchemaResolver(newCompany),
     mode: 'onChange',
     defaultValues,
   });

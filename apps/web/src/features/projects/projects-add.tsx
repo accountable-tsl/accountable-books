@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import type { Contacts } from '@/features/contacts/contacts-types';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { newProject, type NewProject } from '@/features/projects/projects-types';
 import { toast } from 'sonner';
@@ -39,7 +39,7 @@ export function AddProject({
 }) {
   const [formState, setFormState] = useState<'initial' | 'success'>('initial');
   const [page, setPage] = useState<number>(1);
-  const [limit, setLimit] = useState<number>(30);
+  const [limit, _setLimit] = useState<number>(30);
   const [contactSearch, setContactSearch] = useState<string>('');
   const [allContacts, setAllContacts] = useState<Contacts[]>([]);
   const [showContactDialog, setShowContactDialog] = useState(false);
@@ -86,7 +86,7 @@ export function AddProject({
     handleSubmit,
     reset,
   } = useForm<NewProject>({
-    resolver: zodResolver(newProject),
+    resolver: standardSchemaResolver(newProject),
     defaultValues: {
       name: '',
       status: 'in_draft',

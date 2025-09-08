@@ -14,7 +14,7 @@ import {
   type NewBankAccountInput,
   newBankAccountInput,
 } from '@/domains/bank-accounts/types';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { Input } from '@/components/ui/input';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
 import { Button } from '@/components/ui/button';
@@ -61,7 +61,7 @@ export default function AddBankAccount({ onSuccess, onCancel }: AddBankAccountPr
     setValue,
     formState: { errors: formErrors, isSubmitting, isValid },
   } = useForm<NewBankAccountInput>({
-    resolver: zodResolver(newBankAccountInput),
+    resolver: standardSchemaResolver(newBankAccountInput),
     defaultValues: {
       currencyId: '',
       accountType: bankAccountType.enum.checkings_current,

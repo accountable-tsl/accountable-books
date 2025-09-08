@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useSearchParams } from 'react-router';
 import { loginForm, type LoginForm } from './types';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { Eye, EyeOff } from 'lucide-react';
 import { routes } from '@/shared/routes/routes';
 import { AuthHeader } from '@/components/AuthHeader';
@@ -31,7 +31,7 @@ export default function Login() {
     handleSubmit,
     setError,
   } = useForm<LoginForm>({
-    resolver: zodResolver(loginForm),
+    resolver: standardSchemaResolver(loginForm),
     mode: 'onChange',
   });
 

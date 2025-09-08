@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { type CoaResponse, editCoaRequest, type EditCoaRequest } from '@/features/coa/types';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -107,7 +107,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
     reset,
     control,
   } = useForm<EditCoaRequest>({
-    resolver: zodResolver(editCoaRequest),
+    resolver: standardSchemaResolver(editCoaRequest),
     defaultValues: defaultAccountValues,
     mode: 'onChange',
   });

@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { type NewContact, newContact } from '@/features/contacts/contacts-types';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useCreateContacts } from '@/features/contacts/contacts-hooks';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
@@ -37,7 +37,7 @@ export function AddContact({
     handleSubmit,
     reset,
   } = useForm<NewContact>({
-    resolver: zodResolver(newContact),
+    resolver: standardSchemaResolver(newContact),
     defaultValues: {
       displayName: '',
       status: 'active',

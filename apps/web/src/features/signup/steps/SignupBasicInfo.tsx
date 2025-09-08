@@ -6,7 +6,7 @@ import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
 import { usePasswordRules } from '@/shared/hooks/usePasswordRules';
 import { newUser, type NewUser } from '../signupTypes';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { FormField } from '@/components/FormField';
 import type { AxiosError } from 'axios';
 
@@ -32,7 +32,7 @@ export const SignupBasicInfo = forwardRef<
     setError,
     clearErrors,
   } = useForm<NewUser>({
-    resolver: zodResolver(newUser),
+    resolver: standardSchemaResolver(newUser),
     defaultValues: userData,
     mode: 'onChange',
   });
