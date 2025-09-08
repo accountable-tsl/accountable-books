@@ -94,7 +94,7 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('countries')
       .onDelete('CASCADE');
-
+    table.boolean('active').notNullable().defaultTo(true);
     table
       .uuid('created_by_id')
       .notNullable()
@@ -104,18 +104,12 @@ export async function up(knex: Knex): Promise<void> {
 
     table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
-    addStandardColumns(knex, table);
-
     table.primary(['bank_feed_provider_id', 'country_id']);
-    table.index(['country_id'], 'idx_bank_feed_provider_countries_country_id');
   });
-
-  await createUpdateTimestampTrigger(knex, tableName);
 
   await seedBankFeedProviders(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

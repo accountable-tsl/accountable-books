@@ -95,7 +95,7 @@ export const coaTemplateName = z
         !/^v[1-9]\d*$/.test(parts[2])
       ) {
         ctx.addIssue({
-          code: "custom",
+          code: 'custom',
           message: 'Invalid shorthand format',
         });
         return z.NEVER;
@@ -104,7 +104,7 @@ export const coaTemplateName = z
     }
     if (parts.length !== 5) {
       ctx.addIssue({
-        code: "custom",
+        code: 'custom',
         message: 'Invalid segment count',
       });
       return z.NEVER;

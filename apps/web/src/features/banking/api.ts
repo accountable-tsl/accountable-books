@@ -13,7 +13,6 @@ export interface CreateLinkTokenResponse {
   token: string;
 }
 
-
 export const bankAccountConnectionStatus = z.enum([
   'active',
   'revoked',

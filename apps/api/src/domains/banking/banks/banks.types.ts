@@ -29,7 +29,8 @@ export const newBankInput = z.object({
     .min(1, 'Bank key is required')
     .transform((val) => val.toLowerCase())
     .refine((val) => /^[a-z]{2}_[a-z0-9_]+$/.test(val), {
-        error: "Bank key must start with 2-letter country code followed by underscore (e.g., 'ng_bank_name')"
+      error:
+        "Bank key must start with 2-letter country code followed by underscore (e.g., 'ng_bank_name')",
     }),
 
   country: z.union([countryId, countryCode]),

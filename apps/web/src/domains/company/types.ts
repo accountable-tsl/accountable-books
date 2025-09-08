@@ -159,20 +159,20 @@ export const slugSchema = z
   .min(3, 'Slug must be at least 3 characters ')
   .max(20, 'Slug must not exceed 20 characters')
   .refine((v) => !v.startsWith('-') && !v.endsWith('-'), {
-      error: 'Slug cannot start or end with a hyphen'
-})
+    error: 'Slug cannot start or end with a hyphen',
+  })
   .refine((v) => !v.includes('--'), {
-      error: 'Slug cannot contain consecutive hyphens'
-})
+    error: 'Slug cannot contain consecutive hyphens',
+  })
   .refine((v) => !/\d/.test(v), {
-      error: 'Slug must not contain numbers'
-})
+    error: 'Slug must not contain numbers',
+  })
   .refine((v) => v === v.toLowerCase(), {
-      error: 'Slug must be all lowercase letters'
-})
+    error: 'Slug must be all lowercase letters',
+  })
   .refine((val) => /^[a-z-]+$/.test(val), {
-      error: 'Slug must contain only lowercase letters and hyphens'
-});
+    error: 'Slug must contain only lowercase letters and hyphens',
+  });
 
 export const updateCompanyVitalsSchema = companyData
   .omit({

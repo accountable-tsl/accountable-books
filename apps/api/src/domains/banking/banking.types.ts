@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { bankProviderKey } from '../bankFeedProviders/bankFeedProviders.types.js';
+import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
 
 export const newCompanyBankCredentialInput = z.object({
   companyId: z.uuid(),

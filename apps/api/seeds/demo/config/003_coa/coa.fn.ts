@@ -97,11 +97,7 @@ export const createDemoCoa = async (trx: Knex.Transaction, filters?: DemoFilter)
     }));
 
     // Insert COA entries with idempotency
-    const insertedCoa = await trx('coa')
-      .insert(toInsert)
-      .onConflict(['name', 'account_type_id', 'company_id'])
-      .ignore()
-      .returning('id');
+    const insertedCoa = await trx('coa').insert(toInsert).onConflict().ignore().returning('id');
 
     console.log(
       `Created ${insertedCoa.length} COA entries for company ${company.shortCode} using template ${templateName}`,

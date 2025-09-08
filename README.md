@@ -65,8 +65,6 @@ apps/
 └── ml-engine/    # Python ML service (MVP - in development)
 
 packages/
-├── contracts/    # OpenAPI specs & generated types
-├── api-types/    # Generated TypeScript types
 └── utils/        # Shared utilities
 
 infra/
@@ -315,8 +313,6 @@ Git hooks are automatically configured to ensure code quality:
 **Pre-commit hooks** (run automatically on `git commit`):
 
 - ✅ **Lint & format** changed files (ESLint + Prettier)
-- ✅ **Validate OpenAPI contracts** if changed
-- ✅ **Bundle contracts** and add generated files to commit
 
 **Pre-push hooks** (run automatically on `git push`):
 
@@ -332,7 +328,6 @@ Run these commands manually when needed:
 make check      # Full quality check (lint, typecheck, format)
 make test       # Run all tests
 make build      # Build all packages
-make contracts  # Validate, bundle, and generate types from OpenAPI
 ```
 
 ## 🤝 Contributing

@@ -359,13 +359,7 @@ pnpm --version
 
 **Solutions**:
 
-1. Regenerate types from OpenAPI:
-
-   ```bash
-   make contracts  # Validates, bundles, and generates types
-   ```
-
-2. Clean and rebuild:
+1. Clean and rebuild:
    ```bash
    pnpm clean
    pnpm build

@@ -75,7 +75,7 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
     table.string('legal_name', 256).notNullable();
     table.string('display_name', 256).nullable();
-    table.string('short_code', 50).unique().notNullable();
+    table.string('short_code', 11).unique().notNullable();
     table.string('address', 512).nullable();
     table.specificType('type', 'company_type').notNullable();
     table.string('logo_url').nullable();

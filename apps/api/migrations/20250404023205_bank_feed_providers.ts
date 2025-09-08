@@ -1,9 +1,5 @@
 import type { Knex } from 'knex';
-import {
-  addStandardColumns,
-  createUpdateTimestampTrigger,
-  dropUpdateTimestampTrigger,
-} from './utils/db';
+import { createUpdateTimestampTrigger, dropUpdateTimestampTrigger } from './utils/db';
 
 const tableName = 'bank_feed_providers';
 
@@ -34,7 +30,8 @@ export async function up(knex: Knex): Promise<void> {
 
     table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
 
-    addStandardColumns(knex, table);
+    table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
+    table.timestamp('updated_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

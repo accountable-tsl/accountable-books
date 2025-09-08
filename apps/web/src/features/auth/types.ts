@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { zEmail } from '@/shared/types/core';
 import { type CompanyData, type CompanyType } from '@/domains/company/types';
 import { type TenantRoutes } from '@/shared/routes/types';
-import { type SchemaTypes, zodSchemas } from '@accountable-books/api-types';
-import type { OnboardingState } from '@/features/onboarding/types';
+import type { CompanyOnboardingState, OnboardingState } from '@/features/onboarding/types';
 
 export const loginForm = z.object({
   email: zEmail,
@@ -37,7 +36,7 @@ export type LogoutOptions = {
   query?: Record<string, string>; // e.g., { email: "foo@example.com" }
 };
 
-export interface OldAuthUserContext {
+export interface AuthUserContext {
   id: string;
   email: string;
   firstname: string;
@@ -51,28 +50,24 @@ export interface OldAuthUserContext {
   companies: AuthCompanyContext[];
 }
 
-export type AuthUserContext = SchemaTypes.AuthUserContext & {
-  currentCompany: CurrentCompanyContext;
-};
-
-export interface OldAuthCompanyContext {
-  id: string;
-  assignedFirmSlug: string;
+export interface AuthCompanyContext {
+  id: string; // API field name for companyId
+  legalName: string;
+  displayName: string | null;
+  assignedFirmSlug: string; // API field name for firmSlug
+  companyType: CompanyType;
   hasExplicitAccess: boolean;
   roleKey: RoleKey | null;
   roleScope: RoleScope | null;
   isDemoCompany: boolean;
-  companyType: CompanyType;
+  onboardingState: CompanyOnboardingState;
 }
-export type AuthCompanyContext = SchemaTypes.AuthCompanyContext;
 
 export type CurrentCompanyContext = AuthCompanyContext & {
   onboarding: OnboardingState;
 };
 
-export const roleKey = zodSchemas.RoleKey;
-export type RoleKey = SchemaTypes.RoleKey;
-export const oldRoleKey = z.enum([
+export const roleKey = z.enum([
   'super_admin',
   'support_admin',
   'support_agent',
@@ -84,12 +79,10 @@ export const oldRoleKey = z.enum([
   'client_admin',
   'client_user',
 ]);
-export type OldRoleKey = z.infer<typeof oldRoleKey>;
+export type RoleKey = z.infer<typeof roleKey>;
 
-export const roleScope = zodSchemas.RoleScope;
-export type RoleScope = SchemaTypes.RoleScope;
-export const oldRoleScope = z.enum(['platform', 'firm', 'company']);
-export type OldRoleScope = z.infer<typeof oldRoleScope>;
+export const roleScope = z.enum(['platform', 'firm', 'company']);
+export type RoleScope = z.infer<typeof roleScope>;
 
 export type SessionContextType = {
   loading: boolean;

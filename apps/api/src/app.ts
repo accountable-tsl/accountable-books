@@ -14,8 +14,7 @@ import firmRoutes from './domains/accountingFirms/firms.routes.js';
 import bankRoutes from './domains/banking/banks/banks.routes.js';
 import bankAccountsRoutes from './domains/banking/bankAccounts/bankAccounts.routes.js';
 import bankTransactionRoutes from './domains/bankTransactions/bankTransactions.routes.js';
-import bankFeedProvidersRoutes from './domains/bankFeedProviders/bankFeedProviders.routes.js';
-import bankAccountConnectionsRoutes from './domains/bankAccountConnections/baccons.routes.js';
+import bankFeedProvidersRoutes from './domains/banking/bankFeedProviders/bankFeedProviders.routes.js';
 import bankingRoutes from './domains/banking/banking.routes.js';
 import usersCompaniesRolesRoutes from './domains/userRoles/userRoles.routes.js';
 import coaRoutes from './domains/chartOfAccounts/coa.routes.js';
@@ -148,7 +147,6 @@ export async function setupApp() {
   app.use('/api/:companyId/bank-accounts', bankAccountsRoutes);
   app.use('/api/:companyId/bank-accounts/transactions', bankTransactionRoutes);
   app.use('/api/bank-feed-providers', bankFeedProvidersRoutes);
-  app.use('/api/:companyId/bank-connections', bankAccountConnectionsRoutes);
   app.use('/api/:companyId', usersCompaniesRolesRoutes);
 
   app.use('/api/:companyId/coa', coaRoutes);

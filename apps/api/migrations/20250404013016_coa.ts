@@ -94,11 +94,35 @@ export async function up(knex: Knex): Promise<void> {
     WHERE code IS NOT NULL
   `);
 
+  // Add check constraint to ensure currency_id matches company's reporting_currency_id
+  await knex.raw(`
+   CREATE OR REPLACE FUNCTION coa_currency_matches_company_reporting_currency()
+   RETURNS TRIGGER AS $$
+   BEGIN
+      IF NEW.currency_id IS DISTINCT FROM (
+        SELECT reporting_currency_id
+        FROM companies
+        WHERE companies.id = NEW.company_id
+      ) THEN
+        RAISE EXCEPTION 'Currency does not match company reporting currency';
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE TRIGGER coa_currency_matches_company_reporting_currency
+    BEFORE INSERT OR UPDATE ON coa
+    FOR EACH ROW
+    EXECUTE FUNCTION coa_currency_matches_company_reporting_currency();
+  `);
+
   await createUpdateTimestampTrigger(knex, tableName);
   await addCoaToPlatformCompany(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
+  await knex.raw(`DROP TRIGGER IF EXISTS coa_currency_matches_company_reporting_currency ON coa`);
+  await knex.raw(`DROP FUNCTION IF EXISTS coa_currency_matches_company_reporting_currency()`);
   await knex.schema.dropTableIfExists(tableName);
 }

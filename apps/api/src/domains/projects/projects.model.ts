@@ -11,11 +11,12 @@ import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import { knexClient } from '../../db/knexClient.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
 import { createHybridSearch, defineSearchableColumns } from '../../shared/utils/search.utils.js';
+import z from 'zod';
 
 export async function getProjects(input: GetProjectsParams): Promise<ApiResponse<ProjectResponse>> {
   const parseInput = getProjectsParams.safeParse(input);
   if (!parseInput.success) {
-    return errorResponse('Invalid request parameters', parseInput.error.errors);
+    return errorResponse('Invalid request parameters', z.treeifyError(parseInput.error));
   }
 
   const {
@@ -153,7 +154,7 @@ export async function addNewProjects({
   const validate = newProjectInput.array().safeParse(Array.isArray(input) ? input : [input]);
 
   if (!validate.success) {
-    return errorResponse('Invalid input', validate.error.errors);
+    return errorResponse('Invalid input', z.treeifyError(validate.error));
   }
 
   const data = validate.data;

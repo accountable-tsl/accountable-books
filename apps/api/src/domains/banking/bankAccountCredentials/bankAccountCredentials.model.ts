@@ -55,8 +55,8 @@ export const createBankAccountCredential = async ({
       .insert({
         company_id: companyUUID,
         item_identifier: v.item_identifier,
-        encrpyted_access_token: encryptedAccessToken,
-        ...(refresh_token ? { encrpyted_refresh_token: encryptedRefreshToken } : {}),
+        encrypted_access_token: encryptedAccessToken,
+        ...(encryptedRefreshToken ? { encrypted_refresh_token: encryptedRefreshToken } : {}),
         institution_id: v.institution_id,
         institution_name: v.institution_name,
         raw_metadata: rawMetadata,

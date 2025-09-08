@@ -60,9 +60,13 @@ const connectionSpecificFields = z.object({
   last_sync_at: z.date().nullish(),
   sync_error: z.string().nullish(),
 });
-export const bankAccountWithConnectionInput = createCamelCaseSchema(
-  manualBankAccountInput.merge(connectionSpecificFields),
-);
+
+const merged = z.object({
+  ...manualBankAccountInput.shape,
+  ...connectionSpecificFields.shape,
+});
+
+export const bankAccountWithConnectionInput = createCamelCaseSchema(merged);
 export type BankAccountWithConnectionInput = SnakeToCamelCaseObject<
   z.infer<typeof bankAccountWithConnectionInput>
 >;
@@ -75,7 +79,6 @@ export const newBankAccountInput = manualBankAccountInput
   .extend({
     connection_status: bankAccountConnectionStatus,
   });
-// export const newBankAccountInputCamel = createCamelCaseSchema(newBankAccountInput);
 
 export type NewBankAccountInput = z.infer<typeof newBankAccountInput>;
 
@@ -98,7 +101,7 @@ export type NewBankAccount = z.infer<typeof newBankAccount>;
 export const updateBankAccount = newBankAccount.partial();
 export type UpdateBankAccount = z.infer<typeof updateBankAccount>;
 
-export const bankAccount = newBankAccount.merge(dbBaseFields);
+export const bankAccount = z.object({ ...newBankAccount.shape, ...dbBaseFields.shape });
 export type BankAccount = z.infer<typeof bankAccount>;
 
 export const bankAccountWithMeta = z.object({

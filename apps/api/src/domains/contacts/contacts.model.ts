@@ -14,6 +14,7 @@ import { knexClient } from '../../db/knexClient.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import { createHybridSearch, defineSearchableColumns } from '../../shared/utils/search.utils.js';
 import { logger, logError, logDatabaseOperation, logTiming } from '../../shared/utils/logger.js';
+import z from 'zod';
 
 const normalizeName = (name: string) => name.trim().toLowerCase();
 
@@ -61,12 +62,12 @@ export async function addNewContacts({
     const validationError = 'Invalid contact input provided';
     contactsLogger.warn(
       {
-        validationErrors: validate.error.errors,
+        validationErrors: z.treeifyError(validate.error),
         inputCount: inputArray.length,
       },
       validationError,
     );
-    return errorResponse(validationError, validate.error.errors);
+    return errorResponse(validationError, z.treeifyError(validate.error));
   }
 
   // Convert validated snake_case data to camelCase and sanitize
@@ -223,23 +224,14 @@ export async function addNewContacts({
 
     // Handle specific error types with appropriate responses
     if (error.message?.startsWith('Contact(s) with these names')) {
-      return errorResponse(
-        String(error.message),
-        process.env.NODE_ENV === 'production' ? undefined : error,
-      );
+      return errorResponse(String(error.message), error);
     }
 
     if (error.message?.startsWith('Company not found')) {
-      return errorResponse(
-        'Invalid company identifier',
-        process.env.NODE_ENV === 'production' ? undefined : error,
-      );
+      return errorResponse('Invalid company identifier', error);
     }
 
-    return errorResponse(
-      'Failed to create contact(s). Please try again.',
-      process.env.NODE_ENV === 'production' ? undefined : error,
-    );
+    return errorResponse('Failed to create contact(s). Please try again.', error);
   }
 }
 
@@ -247,7 +239,7 @@ export async function getContacts(input: GetContactsParams): Promise<ApiResponse
   // Input validation
   const parseInput = getContactsParams.safeParse(input);
   if (!parseInput.success) {
-    return errorResponse('Invalid request parameters', parseInput.error.errors);
+    return errorResponse('Invalid request parameters', z.treeifyError(parseInput.error));
   }
 
   const { companyId, ids, displayNames, page, limit, search, status, sortBy, sortOrder, trx } =
@@ -376,7 +368,7 @@ export async function updateContacts({
 }) {
   const validate = updateContactSchema.array().safeParse(updates);
   if (!validate.success) {
-    return errorResponse('Invalid input', validate.error.errors);
+    return errorResponse('Invalid input', z.treeifyError(validate.error));
   }
 
   const query = async (tx: Knex.Transaction) => {

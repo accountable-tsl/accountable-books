@@ -183,20 +183,21 @@ await emailQueue.add('welcome-email', {
 - **Swagger UI**: http://localhost:5000/docs (when running)
 - **OpenAPI Spec**: `http://localhost:5000/docs/json`
 
-### Contract-First Development
+### API Development
 
-API contracts are defined in `/packages/contracts/` and automatically generate:
+API endpoints are implemented with:
 
-1. **TypeScript types** for request/response objects
-2. **Validation schemas** for runtime validation
-3. **API documentation** via Swagger
+1. **TypeScript types** defined locally in domain files
+2. **Zod schemas** for runtime validation
+3. **API documentation** via Swagger (code-first approach)
 
 ### Adding New Endpoints
 
-1. **Define contract** in `packages/contracts/paths/`
-2. **Generate types**: `pnpm codegen`
+1. **Define types** in the appropriate domain file (e.g., `src/domains/users/users.types.ts`)
+2. **Create Zod schemas** for validation
 3. **Implement handler** following existing domain patterns
-4. **Add tests** for the new endpoint
+4. **Add Swagger documentation** in `src/docs/`
+5. **Add tests** for the new endpoint
 
 ## 🔐 Authentication & Security
 
@@ -270,9 +271,10 @@ Production requires:
    pnpm test     # From apps/api
    ```
 
-5. **Update contracts** (if adding/changing endpoints):
+5. **Update types** (if adding/changing endpoints):
    ```bash
-   make contracts  # From root
+   # Update types in the appropriate domain file
+   # e.g., src/domains/users/users.types.ts
    ```
 
 ## 🔍 Common Issues
@@ -300,7 +302,7 @@ make db-shell   # Connect to database
 If TypeScript compilation fails:
 
 ```bash
-make contracts  # Regenerate types from OpenAPI
+# Update types in domain files as needed
 pnpm typecheck  # Check for type errors
 ```
 
@@ -320,6 +322,6 @@ See [Troubleshooting Guide](../../docs/TROUBLESHOOTING.md) for comprehensive sol
 
 1. **Follow existing patterns** in the codebase
 2. **Add tests** for new functionality
-3. **Update contracts** for API changes
+3. **Update types** for API changes
 4. **Run quality checks** before committing
 5. **Write clear commit messages**

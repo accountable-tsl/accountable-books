@@ -96,15 +96,15 @@ export abstract class BankingProvider {
     itemId?: string;
   }>;
 
-  // Encrypt and save the credentials (access token) securely
-  abstract saveCredentials(params: {
-    userId: string;
-    companyId: string;
-    providerKey: string; // or maybe ID
-    identifier: string;
-    rawData: Record<string, any>;
-    token: string;
-  }): Promise<void>;
+  // // Encrypt and save the credentials (access token) securely
+  // abstract saveCredentials(params: {
+  //   userId: string;
+  //   companyId: string;
+  //   providerKey: string; // or maybe ID
+  //   identifier: string;
+  //   rawData: Record<string, any>;
+  //   token: string;
+  // }): Promise<void>;
 
   // Retrieve Bank Accounts from the provider
   abstract fetchBankAccounts(params: {

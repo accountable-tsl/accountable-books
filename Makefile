@@ -71,11 +71,8 @@ demo-reverse: guard-nonprod ## Remove demo data
 	@pnpm -F @accountable-books/api run demo:reverse
 
 ##@ 🔧 Quality & Build
-check: ## Run all quality checks (contracts + lint + typecheck + format)
+check: ## Run all quality checks (lint + typecheck + format)
 	@echo "$(GREEN)🔍 Running quality checks...$(RESET)"
-	@pnpm validate-contracts
-	@pnpm bundle-contracts
-	@pnpm codegen
 	@pnpm lint
 	@pnpm typecheck
 	@pnpm format:check
@@ -128,15 +125,13 @@ clean-all: guard-nonprod ## Nuclear cleanup: remove everything and reinstall
 	@docker system prune -f || true
 	@echo "$(GREEN)📦 Reinstalling dependencies...$(RESET)"
 	@pnpm install
-	@echo "$(GREEN)🔨 Regenerating contracts and types...$(RESET)"
+	@echo "$(GREEN)🔨 Running quality checks...$(RESET)"
 	@$(MAKE) check
 	@echo "$(GREEN)✅ Nuclear cleanup complete!$(RESET)"
 
 ##@ 🚢 Deployment & Quality
-deploy-check: ## Run all deployment checks (contracts + tests + lint + build)
+deploy-check: ## Run all deployment checks (tests + lint + build)
 	@echo "$(GREEN)🔍 Running deployment checks...$(RESET)"
-	@echo "$(YELLOW)Checking contracts...$(RESET)"
-	@pnpm validate-contracts
 	@echo "$(YELLOW)Running tests...$(RESET)"
 	@pnpm test
 	@echo "$(YELLOW)Checking linting...$(RESET)"

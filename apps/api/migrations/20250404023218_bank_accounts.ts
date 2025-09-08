@@ -78,6 +78,7 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table.unique(['company_id', 'account_number']);
 
     addStandardColumns(knex, table);
   });

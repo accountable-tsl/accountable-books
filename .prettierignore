@@ -51,3 +51,4 @@ reports/
 
 # Generated
 packages/contracts/generated/
+packages/api-types/src/generated/

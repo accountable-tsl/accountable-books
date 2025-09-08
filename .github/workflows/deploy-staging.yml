@@ -49,13 +49,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate types from contracts
-        run: pnpm run codegen
-
       - name: Build shared packages
-        run: |
-          pnpm --filter @accountable-books/api-types build
-          pnpm --filter @accountable-books/utils build
+        run: pnpm --filter @accountable-books/utils build
 
       - name: Generate environment files
         run: pnpm --filter @accountable-books/api generate-env
@@ -100,13 +95,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate types from contracts
-        run: pnpm run codegen
-
       - name: Build shared packages
-        run: |
-          pnpm --filter @accountable-books/api-types build
-          pnpm --filter @accountable-books/utils build
+        run: pnpm --filter @accountable-books/utils build
 
       - name: Generate environment files
         run: pnpm --filter @accountable-books/api generate-env
@@ -175,13 +165,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate types from contracts
-        run: pnpm run codegen
-
       - name: Build shared packages
-        run: |
-          pnpm --filter @accountable-books/api-types build
-          pnpm --filter @accountable-books/utils build
+        run: pnpm --filter @accountable-books/utils build
 
       - name: Generate environment files
         run: pnpm --filter @accountable-books/web generate-env
@@ -226,13 +211,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate types from contracts
-        run: pnpm run codegen
-
       - name: Build shared packages
-        run: |
-          pnpm --filter @accountable-books/api-types build
-          pnpm --filter @accountable-books/utils build
+        run: pnpm --filter @accountable-books/utils build
 
       - name: Apply demo data
         env:

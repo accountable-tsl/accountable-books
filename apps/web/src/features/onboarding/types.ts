@@ -1,3 +1,4 @@
+import { dateOrStringNullish } from '@/shared/types/core';
 import { type LucideIcon } from 'lucide-react';
 import { z } from 'zod';
 
@@ -99,23 +100,23 @@ export type UserOnboardingState = {
   completed_at?: UserOnboardingStepsCompletedAt;
 } | null;
 
-export const onboardingStateObject = z
+export const companyOnboardingState = z
   .object({
     steps: z.object({
-      company_details_confirmed: z.boolean(),
-      first_bank_account_added: z.boolean(),
+      company_details_confirmed: z.boolean().nullish(),
+      first_bank_account_added: z.boolean().nullish(),
     }),
     completed_at: z
       .object({
-        company_details_confirmed: z.date().nullish(),
-        first_bank_account_added: z.date().nullish(),
+        company_details_confirmed: dateOrStringNullish,
+        first_bank_account_added: dateOrStringNullish,
       })
       .optional(),
     metadata: z.null().nullish(),
   })
   .nullish();
-
-export type OnboardingStateObject = z.infer<typeof onboardingStateObject> | null;
+export type CompanyOnboardingState = z.infer<typeof companyOnboardingState>;
+export type OnboardingStateObject = z.infer<typeof companyOnboardingState> | null;
 
 export type OnboardingUserObj = {
   id: string;

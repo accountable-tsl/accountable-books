@@ -9,35 +9,8 @@ env:
   PNPM_VERSION: 10.15.0
 
 jobs:
-  contracts:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          standalone: true
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: 'pnpm'
-
-      - name: Install deps (workspace)
-        run: pnpm install --frozen-lockfile
-
-      - name: Validate API contracts
-        run: pnpm run validate-contracts:ci
-
-      - name: Generate types from contracts
-        run: pnpm run codegen
-
   quality:
     runs-on: ubuntu-latest
-    needs: contracts
     steps:
       - uses: actions/checkout@v4
 
@@ -55,12 +28,6 @@ jobs:
 
       - name: Install deps (workspace)
         run: pnpm install --frozen-lockfile
-
-      - name: Generate types (required for typecheck)
-        run: pnpm run codegen
-
-      - name: Format generated files
-        run: pnpm run format packages/api-types/src/generated/
 
       - name: Build shared packages for typecheck
         run: pnpm --filter @accountable-books/utils build
@@ -76,7 +43,6 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    needs: contracts
     strategy:
       matrix:
         package: [api, web]
@@ -124,14 +90,8 @@ jobs:
       - name: Install deps (workspace)
         run: pnpm install --frozen-lockfile
 
-      - name: Generate types (required for builds)
-        run: pnpm run codegen
-
-      - name: Format generated files
-        run: pnpm run format packages/api-types/src/generated/
-
-      - name: Build shared packages (api-types, utils)
-        run: pnpm --filter @accountable-books/api-types build && pnpm --filter @accountable-books/utils build
+      - name: Build shared packages (utils)
+        run: pnpm --filter @accountable-books/utils build
 
       - name: Generate environment files
         run: pnpm --filter @accountable-books/${{ matrix.package }} generate-env

@@ -14,7 +14,8 @@
     "sourceRoot": "/",
     "verbatimModuleSyntax": true,
     "declaration": false,
-    "composite": false
+    "composite": false,
+    "esModuleInterop": true
   },
   "include": ["src", "config/env-loader.ts", "src/db/knex.d.ts"],
   "exclude": [

@@ -1,8 +1,8 @@
 import { createBullBoard } from '@bull-board/api';
 import { ExpressAdapter } from '@bull-board/express';
-import { BullMQAdapter } from '@bull-board/api/bullMQAdapter.js';
 import { emailQueue } from '../jobs/queues/email.queue.js';
 import { transactionSyncQueue } from '../jobs/queues/transaction-sync.queue.js';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queues');

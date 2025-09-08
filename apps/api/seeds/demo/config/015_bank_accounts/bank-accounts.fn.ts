@@ -56,6 +56,7 @@ const createBankAccountWithCoa = async (
       currency_id: currencyId,
       company_id: account.companyId,
       coa_id: coa.id, // Reference to created COA
+      connection_status: 'not_connected', // Demo accounts are not connected to providers
       created_by_id: createdById,
       updated_by_id: createdById,
     })

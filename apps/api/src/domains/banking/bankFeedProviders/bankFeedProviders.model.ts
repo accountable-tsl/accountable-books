@@ -1,18 +1,23 @@
 import type { Knex } from 'knex';
-import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import { knexClient } from '../../../db/knexClient.js';
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
 import {
   bankFeedProviderInputCamel,
+  updateProviderInput,
   type BankFeedProviderInputCamel,
+  type BankFeedProviderStatus,
   type BankFeedProviderWithCountries,
-  bpcInputCamel,
-  type BpcInputCamel,
-  type NewBankFeedProviderCountry,
-} from '../../domains/bankFeedProviders/bankFeedProviders.types.js';
-import { redis } from '../../lib/redis.js';
-import { refreshProviderRegistry } from '../../integrations/banking/providers/registry.js';
+  type BankProviderKey,
+  type RawBankFeedProviderResponse,
+  type UpdateProviderInput,
+} from './bankFeedProviders.types.js';
+import { redis } from '../../../lib/redis.js';
+import { refreshProviderRegistry } from '../../../integrations/banking/providers/registry.js';
+import z from 'zod';
+import { getCountryByCode } from 'src/domains/countries/countries.model.js';
 
+const TTL = 60 * 60 * 1; // 1 hour
 export async function invalidateBankFeedProvidersCache(providerIds?: string[]) {
   try {
     const pattern = 'bank_feed_providers:*';
@@ -34,28 +39,55 @@ export async function addBankFeedProvider({
   knex = knexClient,
 }: {
   userId: string;
-  input: BankFeedProviderInputCamel[];
-  knex?: Knex;
-}): Promise<ApiResponse<BankFeedProviderInputCamel[]>> {
+  input: BankFeedProviderInputCamel;
+  knex?: Knex | Knex.Transaction;
+}): Promise<ApiResponse<{ id: string }>> {
   // Validate input
-  const safeInput = bankFeedProviderInputCamel.array().safeParse(input);
-  if (!safeInput.success) {
-    return errorResponse('Invalid input', safeInput.error.flatten());
+  const validate = bankFeedProviderInputCamel.safeParse(input);
+  if (!validate.success) {
+    return errorResponse('Invalid input', z.treeifyError(validate.error));
   }
 
-  // Add created_by_id and updated_by_id
-  const updatedInput = safeInput.data.map((provider: any) => ({
-    ...provider,
-    created_by_id: userId,
-    updated_by_id: userId,
-  }));
+  const { countries: providerCountryCodes, ...providerData } = validate.data;
+
+  // For each entry, we need to insert the provider and then insert the provider-to-country mappings
+  // both must succeed or both must fail
+  const exec = async (trx: Knex.Transaction) => {
+    const [provider] = await trx('bank_feed_providers')
+      .insert(providerData)
+      .onConflict('key')
+      .ignore()
+      .returning<{ id: string }[]>('id');
+
+    if (!provider || !provider.id) {
+      throw new Error(`Failed to create provider with key ${providerData.key}`);
+    }
+
+    // get provider country IDs
+    for (const countryCode of providerCountryCodes) {
+      const country = await getCountryByCode(countryCode);
+
+      if (!country || !country.data || !country.data.id) {
+        throw new Error(`Failed to get country with code ${countryCode}`);
+      }
+
+      await trx('bank_feed_provider_countries').insert({
+        bank_feed_provider_id: provider.id,
+        country_id: country.data.id,
+        active: true,
+        created_by_id: userId,
+        updated_by_id: userId,
+      });
+    }
+    await invalidateBankFeedProvidersCache();
+    return successResponse('Provider successfully created', provider);
+  };
 
   try {
-    const providers = await knex('bank_feed_providers').insert(updatedInput).returning('*');
-
-    if (!providers.length) return errorResponse('Failed to create provider(s)');
-    await invalidateBankFeedProvidersCache();
-    return successResponse('Provider(s) successfully created', providers);
+    if (knex.isTransaction) {
+      return await exec(knex as Knex.Transaction);
+    }
+    return await knexClient.transaction(exec);
   } catch (error: any) {
     if (error.code === '23505') {
       return errorResponse('Provider key must be unique', error.detail);
@@ -64,208 +96,30 @@ export async function addBankFeedProvider({
   }
 }
 
-export async function addBankFeedProviderCountries({
-  input,
-  userId,
-  knex = knexClient,
-}: {
-  input: BpcInputCamel[];
-  userId: string;
-  knex?: Knex;
-}): Promise<ApiResponse<any[]>> {
-  // Validate input
-  const safeInput = bpcInputCamel.array().safeParse(input);
-  if (!safeInput.success) {
-    return errorResponse('Invalid input', safeInput.error.flatten());
-  }
-
-  const data = safeInput.data;
-  const errors: { index: number; message: string }[] = [];
-  const toInsert: NewBankFeedProviderCountry[] = [];
-
-  // Collect unique IDs/codes for all lookups
-  const countryCodes = Array.from(
-    new Set(data.map((x: any) => x.country_code).filter(Boolean)),
-  ) as string[];
-  const countryIds = Array.from(
-    new Set(data.map((x: any) => x.country_id).filter(Boolean)),
-  ) as string[];
-  const providerIds = Array.from(
-    new Set(data.map((x: any) => x.bank_feed_provider_id).filter(Boolean)),
-  ) as string[];
-  const providerKeys = Array.from(
-    new Set(data.map((x: any) => x.bank_feed_provider_key).filter(Boolean)),
-  ) as string[];
-
-  // Batch query all countries and providers needed
-  const countries: { id: string; code: string }[] = await knex('countries')
-    .modify((qb) => {
-      if (countryCodes.length) qb.orWhereIn('code', countryCodes);
-      if (countryIds.length) qb.orWhereIn('id', countryIds);
-    })
-    .select('id', 'code');
-
-  const providers: { id: string; key: string }[] = await knex('bank_feed_providers')
-    .modify((qb) => {
-      if (providerIds.length) qb.orWhereIn('id', providerIds);
-      if (providerKeys.length) qb.orWhereIn('key', providerKeys);
-    })
-    .select('id', 'key');
-
-  // Prepare map lookups
-  const countryById = Object.fromEntries(countries.map((c) => [c.id, c]));
-  const countryByCode = Object.fromEntries(countries.map((c) => [c.code, c]));
-
-  const providerById = Object.fromEntries(providers.map((p) => [p.id, p]));
-  const providerByKey = Object.fromEntries(providers.map((p) => [p.key, p]));
-
-  // Build insert data and collect errors
-  data.forEach((row: any, i: number) => {
-    let resolvedProvider: { id: string; key: string } | undefined;
-    if (row.bank_feed_provider_id && row.bank_feed_provider_key) {
-      const keyMatch = providerById[row.bank_feed_provider_id];
-      const idMatch = providerByKey[row.bank_feed_provider_key];
-      if (!keyMatch || !idMatch || keyMatch.id !== idMatch.id) {
-        errors.push({
-          index: i,
-          message: `bankFeedProviderId (${row.bank_feed_provider_id}) and bankFeedProviderKey (${row.bank_feed_provider_key}) do not match the same provider`,
-        });
-        return;
-      }
-      resolvedProvider = idMatch;
-    } else if (row.bank_feed_provider_id) {
-      resolvedProvider = providerById[row.bank_feed_provider_id];
-      if (!resolvedProvider) {
-        errors.push({
-          index: i,
-          message: `bankFeedProviderId (${row.bank_feed_provider_id}) does not exist`,
-        });
-        return;
-      }
-    } else if (row.bank_feed_provider_key) {
-      resolvedProvider = providerByKey[row.bank_feed_provider_key];
-      if (!resolvedProvider) {
-        errors.push({
-          index: i,
-          message: `bankFeedProviderKey (${row.bank_feed_provider_key}) does not exist`,
-        });
-        return;
-      }
-    } else {
-      errors.push({
-        index: i,
-        message: 'At least one of bankFeedProviderId or bankFeedProviderKey must be provided',
-      });
-      return;
-    }
-
-    let country: { id: string; code: string } | undefined;
-    if (row.country_code && row.country_id) {
-      const codeMatch = countryByCode[row.country_code];
-      const idMatch = countryById[row.country_id];
-      if (!codeMatch || !idMatch || codeMatch.id !== idMatch.id) {
-        errors.push({
-          index: i,
-          message: `countryCode (${row.country_code}) and countryId (${row.country_id}) do not match the same country`,
-        });
-        return;
-      }
-      country = idMatch;
-    } else if (row.country_code) {
-      country = countryByCode[row.country_code];
-      if (!country) {
-        errors.push({
-          index: i,
-          message: `countryCode (${row.country_code}) does not exist`,
-        });
-        return;
-      }
-    } else if (row.country_id) {
-      country = countryById[row.country_id];
-      if (!country) {
-        errors.push({
-          index: i,
-          message: `countryId (${row.country_id}) does not exist`,
-        });
-        return;
-      }
-    } else {
-      errors.push({
-        index: i,
-        message: 'At least one of countryCode or countryId must be provided.',
-      });
-      return;
-    }
-
-    toInsert.push({
-      bank_feed_provider_id: resolvedProvider.id,
-      country_id: country.id,
-      created_by_id: userId,
-      updated_by_id: userId,
-    });
-  });
-
-  // Return all errors at once if any
-  if (errors.length) {
-    return errorResponse('One or more errors in your input.', errors);
-  }
-
-  try {
-    const rows = await knex('bank_feed_provider_countries').insert(toInsert).returning('*');
-    if (!rows.length) {
-      return errorResponse('Failed to create country mapping(s)');
-    }
-    await invalidateBankFeedProvidersCache();
-    return successResponse('Mapping(s) successfully created', rows);
-  } catch (error: any) {
-    if (error.code === '23505') {
-      return errorResponse('Provider-country mapping must be unique', error.detail);
-    }
-    return errorResponse('Unknown error occurred', error);
-  }
-}
-
-export function buildProviderCountryMappings(
-  providerKey: string,
-  countryCodes: string[],
-  userId?: string,
-): BpcInputCamel[] {
-  return countryCodes.map((countryCode) => ({
-    bank_feed_provider_key: providerKey,
-    country_code: countryCode,
-    ...(userId && { updatedById: userId, createdById: userId }),
-  }));
-}
-
 export async function getBankFeedProviders({
   providerIds,
   providerKeys,
+  status = ['active'],
   useCache = true,
   trx,
 }: {
-  providerIds?: string | string[];
-  providerKeys?: string | string[];
+  providerIds?: string[];
+  providerKeys?: BankProviderKey[];
+  status?: BankFeedProviderStatus[];
   useCache?: boolean;
   trx?: Knex.Transaction;
-}): Promise<ApiResponse<BankFeedProviderWithCountries[]>> {
+} = {}): Promise<ApiResponse<BankFeedProviderWithCountries[]>> {
   if (trx && useCache) {
     console.warn('Cache disabled when using transactions');
     useCache = false;
   }
 
   try {
-    // Normalize inputs to arrays
-    const idsArray = providerIds ? (Array.isArray(providerIds) ? providerIds : [providerIds]) : [];
-    const keysArray = providerKeys
-      ? Array.isArray(providerKeys)
-        ? providerKeys
-        : [providerKeys]
-      : [];
-
     // Generate cache key
     const cacheKey = `bank_feed_providers:${JSON.stringify({
-      ids: idsArray.sort(),
-      keys: keysArray.sort(),
+      ids: providerIds?.sort() || [],
+      keys: providerKeys?.sort() || [],
+      status: status.sort(),
     })}`;
 
     // Try to get from cache first
@@ -281,83 +135,197 @@ export async function getBankFeedProviders({
       }
     }
 
-    const queryBuilder = (trx || knexClient)('bank_feed_providers as p');
-    const results = (await queryBuilder
-      .where('p.is_deleted', false)
-      .whereNot('p.status', 'deprecated')
-      .leftJoin('bank_feed_provider_countries as bpc', 'p.id', 'bpc.bank_feed_provider_id')
-      .leftJoin('countries as c', 'bpc.country_id', 'c.id')
-      .modify((qb) => {
-        if (idsArray.length && keysArray.length) {
-          qb.where(function () {
-            this.whereIn('p.id', idsArray).orWhereIn('p.key', keysArray);
-          });
-        } else if (idsArray.length) {
-          qb.whereIn('p.id', idsArray);
-        } else if (keysArray.length) {
-          qb.whereIn('p.key', keysArray);
-        }
-        // If no filters, return all providers
-      })
-      .select(
-        'p.id',
-        'p.key',
-        'p.name',
-        'p.description',
-        'p.website',
-        'p.logo_url as logoUrl',
-        'p.logo_key as logoKey',
-        'p.status',
-        'p.priority',
-        'p.external_id as externalId',
-        'c.id as countryId',
-        'c.code as countryCode',
-      )) as Array<
-      Omit<BankFeedProviderWithCountries, 'countries'> & {
-        countryId: string | null;
-        countryCode: string | null;
-      }
-    >;
+    const selectFields = [
+      'p.id as id',
+      'p.key as key',
+      'p.name as name',
+      'p.description as description',
+      'p.website as website',
+      'p.logo_url as logoUrl',
+      'p.status as status',
+      'p.priority as priority',
+      'p.external_id as externalId',
+      'c.id as countryId',
+      'c.code as countryCode',
+    ];
 
-    if (!results.length) {
+    const knex = trx || knexClient;
+    const query = knex('bank_feed_providers as p')
+      .select(selectFields)
+      .innerJoin('bank_feed_provider_countries as bpc', 'p.id', 'bpc.bank_feed_provider_id')
+      .innerJoin('countries as c', 'bpc.country_id', 'c.id')
+      .whereIn('p.status', status)
+      .where('bpc.active', true)
+      .orderBy('p.priority', 'p.id', 'c.id');
+
+    if (providerIds?.length) {
+      query.whereIn('p.id', providerIds);
+    }
+    if (providerKeys?.length) {
+      query.whereIn('p.key', providerKeys);
+    }
+
+    const result: RawBankFeedProviderResponse[] = await query;
+
+    if (!result.length) {
       return successResponse('No providers found', []);
     }
 
-    // Group the results
-    const providerMap: Record<string, BankFeedProviderWithCountries> = {};
-
-    results.forEach((row) => {
-      if (!providerMap[row.id]) {
-        providerMap[row.id] = {
+    // Group the results using reduce for better performance
+    const providersArray = result.reduce(
+      (acc, row) => {
+        const provider = acc[row.id] || {
           id: row.id,
           key: row.key,
           name: row.name,
           description: row.description,
           website: row.website,
           logoUrl: row.logoUrl,
-          logoKey: row.logoKey,
-          status: row.status,
+          status: row.status as BankFeedProviderStatus,
           priority: row.priority,
-          externalId: row.externalId,
+          externalId: row.externalId || '',
           countries: [],
         };
-      }
 
-      if (row.countryId && row.countryCode) {
-        providerMap[row.id].countries.push({
-          id: row.countryId,
-          code: row.countryCode,
-        });
-      }
-    });
+        if (row.countryId && row.countryCode) {
+          provider.countries.push({
+            id: row.countryId,
+            code: row.countryCode,
+          });
+        }
 
-    const result = Object.values(providerMap);
+        acc[row.id] = provider;
+        return acc;
+      },
+      {} as Record<string, BankFeedProviderWithCountries>,
+    );
+
+    const providers = Object.values(providersArray);
+
     if (useCache) {
-      await redis.set(cacheKey, JSON.stringify(result), 'EX', 60 * 15);
+      await redis.set(cacheKey, JSON.stringify(providers), 'EX', TTL);
     }
 
-    return successResponse('Providers fetched', result);
+    return successResponse('Providers fetched', providers);
   } catch (error: any) {
     return errorResponse('Failed to fetch providers', error.message);
+  }
+}
+
+export async function updateBankFeedProvider({
+  providerKey,
+  data,
+  userId,
+  knex,
+}: {
+  providerKey: BankProviderKey;
+  data: UpdateProviderInput;
+  userId: string;
+  knex?: Knex | Knex.Transaction;
+}): Promise<ApiResponse<BankFeedProviderWithCountries>> {
+  // Validate input
+  const validate = updateProviderInput.safeParse(data);
+  if (!validate.success) {
+    return errorResponse('Invalid input', z.treeifyError(validate.error));
+  }
+
+  const validatedData = validate.data;
+
+  const exec = async (trx: Knex.Transaction) => {
+    // Get current provider
+    const currentProvider = await trx('bank_feed_providers').where('key', providerKey).first();
+
+    if (!currentProvider) {
+      throw new Error(`Provider with key '${providerKey}' not found`);
+    }
+
+    // Update provider details if provided
+    const providerUpdateData = {
+      ...validatedData,
+      updated_by_id: userId,
+    };
+
+    // Remove undefined values and country arrays (handled separately)
+    const { new_countries, disable_countries, ...updateFields } = providerUpdateData;
+
+    // Update provider if there are changes
+    if (Object.keys(updateFields).length > 1) {
+      // More than just updated_by_id
+      await trx('bank_feed_providers').where('id', currentProvider.id).update(updateFields);
+    }
+
+    // Handle country updates
+    if (validatedData.new_countries?.length) {
+      for (const countryCode of validatedData.new_countries) {
+        const country = await getCountryByCode(countryCode);
+        if (!country?.data?.id) {
+          throw new Error(`Country with code '${countryCode}' not found`);
+        }
+
+        // Insert or update country mapping
+        await trx('bank_feed_provider_countries')
+          .insert({
+            bank_feed_provider_id: currentProvider.id,
+            country_id: country.data.id,
+            active: true,
+            created_by_id: userId,
+            updated_by_id: userId,
+          })
+          .onConflict(['bank_feed_provider_id', 'country_id'])
+          .merge({
+            active: true,
+            updated_by_id: userId,
+          });
+      }
+    }
+
+    if (validatedData.disable_countries?.length) {
+      for (const countryCode of validatedData.disable_countries) {
+        const country = await getCountryByCode(countryCode);
+        if (!country?.data?.id) {
+          throw new Error(`Country with code '${countryCode}' not found`);
+        }
+
+        // Disable country mapping
+        await trx('bank_feed_provider_countries')
+          .where({
+            bank_feed_provider_id: currentProvider.id,
+            country_id: country.data.id,
+          })
+          .update({
+            active: false,
+            updated_by_id: userId,
+          });
+      }
+    }
+
+    // Return updated provider with countries
+    const result = await getBankFeedProviders({
+      providerKeys: [providerKey],
+      useCache: false,
+      trx,
+    });
+
+    if (!result.success || !result.data?.[0]) {
+      throw new Error('Failed to fetch updated provider');
+    }
+
+    return result.data[0];
+  };
+
+  try {
+    if (knex?.isTransaction) {
+      const updatedProvider = await exec(knex as Knex.Transaction);
+      await invalidateBankFeedProvidersCache();
+      return successResponse('Provider updated successfully', updatedProvider);
+    }
+
+    return await knexClient.transaction(async (trx) => {
+      const updatedProvider = await exec(trx);
+      await invalidateBankFeedProvidersCache();
+      return successResponse('Provider updated successfully', updatedProvider);
+    });
+  } catch (error: any) {
+    return errorResponse('Failed to update provider', error.message);
   }
 }

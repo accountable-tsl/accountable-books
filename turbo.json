@@ -9,33 +9,8 @@
       "outputs": ["apps/api/.env.**", "apps/web/.env.**"]
     },
 
-    "validate-contracts": {
-      "outputs": []
-    },
-
-    "bundle": {
-      "dependsOn": ["validate-contracts"],
-      "inputs": [
-        "packages/contracts/openapi.yaml",
-        "packages/contracts/components/**",
-        "packages/contracts/paths/**",
-        "packages/contracts/.spectral.yaml"
-      ],
-      "outputs": ["dist/**"]
-    },
-
-    "bundle-contracts": {
-      "dependsOn": ["bundle"],
-      "outputs": []
-    },
-
-    "codegen": {
-      "dependsOn": ["bundle-contracts"],
-      "outputs": ["src/generated/**"]
-    },
-
     "build": {
-      "dependsOn": ["^build", "codegen", "generate-env"],
+      "dependsOn": ["^build", "generate-env"],
       "outputs": ["dist/**", "build/**", ".vite/**"]
     },
 
@@ -55,7 +30,7 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "dependsOn": ["generate-env", "codegen"]
+      "dependsOn": ["generate-env"]
     },
 
     "migrate": {

@@ -27,9 +27,7 @@ export const zDate = z.preprocess((val) => {
   return undefined;
 }, z.date());
 
-export const zEmail = () =>
-  z.email()
-    .transform((email) => email.trim().toLowerCase());
+export const zEmail = () => z.email().transform((email) => email.trim().toLowerCase());
 
 export const debitCredit = z.enum(['debit', 'credit']);
 export type DebitCredit = z.infer<typeof debitCredit>;

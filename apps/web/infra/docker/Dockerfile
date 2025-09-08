@@ -42,9 +42,7 @@ ENV VITE_ENVIRONMENT=$VITE_ENVIRONMENT
 ENV VITE_API_URL=$VITE_API_URL
 
 # Build packages and application
-RUN pnpm --filter @accountable-books/contracts build || true && \
-    pnpm --filter @accountable-books/utils build || true && \
-    pnpm --filter @accountable-books/api-types build || true && \
+RUN pnpm --filter @accountable-books/utils build || true && \
     pnpm --filter @accountable-books/web build
 
 # ---- runtime ----

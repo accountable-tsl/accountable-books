@@ -1,7 +1,8 @@
 import { type Response } from 'express';
-import type { AuthRequest } from '../../features/auth/auth.types.js';
-import { errorResponse } from '../../shared/utils/response.utils.js';
+import type { AuthRequest } from '../../../features/auth/auth.types.js';
+import { errorResponse } from '../../../shared/utils/response.utils.js';
 import { getBankFeedProviders } from './bankFeedProviders.model.js';
+import type { BankProviderKey } from './bankFeedProviders.types.js';
 
 export async function getBankFeedProvidersController(req: AuthRequest, res: Response) {
   try {
@@ -10,7 +11,7 @@ export async function getBankFeedProvidersController(req: AuthRequest, res: Resp
       : undefined;
 
     const providerKeys = req.query.providerKeys
-      ? String(req.query.providerKeys).split(',').filter(Boolean)
+      ? (String(req.query.providerKeys).split(',').filter(Boolean) as BankProviderKey[])
       : undefined;
 
     const response = await getBankFeedProviders({

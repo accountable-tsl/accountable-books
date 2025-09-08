@@ -1,11 +1,11 @@
 import axios from 'axios';
-import { 
-  BankingProvider, 
-  type ProviderError, 
+import {
+  BankingProvider,
+  type ProviderError,
   type AccountDiscoveryResult,
   type ProviderAccount,
   type ProviderInstitution,
-  type ProviderItemDetails
+  type ProviderItemDetails,
 } from '../types/base.js';
 import { ENV } from 'src/config/env.js';
 
@@ -93,15 +93,12 @@ export class MonoProvider extends BankingProvider {
 
       // For Mono, the access token is actually the account ID
       // Get account details
-      const response = await axios.get(
-        `https://api.withmono.com/v2/accounts/${accessToken}`,
-        {
-          headers: {
-            'mono-sec-key': this.secretKey,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const response = await axios.get(`https://api.withmono.com/v2/accounts/${accessToken}`, {
+        headers: {
+          'mono-sec-key': this.secretKey,
+          'Content-Type': 'application/json',
+        },
+      });
 
       if (response.data.status !== 'successful') {
         throw new Error(`Mono account fetch failed: ${response.data.message}`);
@@ -114,7 +111,7 @@ export class MonoProvider extends BankingProvider {
         itemId: accessToken,
         institutionId: accountData.institution.id || accountData.institution.bankCode,
         institutionName: accountData.institution.name,
-        rawData: response.data
+        rawData: response.data,
       };
 
       const institution: ProviderInstitution = {
@@ -127,9 +124,9 @@ export class MonoProvider extends BankingProvider {
         bankCodes: {
           routing: undefined,
           swift: undefined,
-          local: accountData.institution.bankCode // NIP code
+          local: accountData.institution.bankCode, // NIP code
         },
-        rawData: accountData.institution
+        rawData: accountData.institution,
       };
 
       // Mono typically returns a single account per connection
@@ -146,15 +143,15 @@ export class MonoProvider extends BankingProvider {
           balance: {
             available: accountData.balance ? accountData.balance / 100 : null, // Convert from Kobo to Naira
             current: accountData.balance ? accountData.balance / 100 : null,
-            limit: null
-          }
-        }
+            limit: null,
+          },
+        },
       };
 
       return {
         item,
         institution,
-        accounts: [account]
+        accounts: [account],
       };
     } catch (error) {
       throw this.handleError(error);

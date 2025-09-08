@@ -13,10 +13,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate-env": "pnpm -r -F \"@accountable-books/api\" -F \"@accountable-books/web\" run generate-env",
-    "validate-contracts": "spectral lint packages/contracts/openapi.yaml --ruleset packages/contracts/.spectral.yaml",
-    "validate-contracts:ci": "spectral lint packages/contracts/openapi.yaml --ruleset packages/contracts/.spectral.yaml --fail-severity=warn",
-    "bundle-contracts": "turbo run bundle-contracts",
-    "codegen": "turbo run codegen",
     "clean": "turbo run clean",
     "prepare": "is-ci || husky"
   },
@@ -26,8 +22,6 @@
   "packageManager": "pnpm@10.15.1",
   "devDependencies": {
     "@eslint/js": "^9.33.0",
-    "@redocly/cli": "^2.0.5",
-    "@stoplight/spectral-cli": "^6.15.0",
     "@types/node": "^24.3.0",
     "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^8.39.1",
@@ -61,9 +55,6 @@
     ],
     "**/*.{json,md,yaml,yml}": [
       "prettier --write"
-    ],
-    "packages/contracts/**/*.yaml": [
-      "spectral lint --ruleset packages/contracts/.spectral.yaml"
     ],
     "apps/{api,web}/config/env-schema.ts": [
       "pnpm run generate-env"

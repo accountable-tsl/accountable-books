@@ -110,16 +110,21 @@ See [Environment Variables Guide](../../docs/ENVIRONMENT.md) for complete config
 
 ### Type-Safe API Calls
 
-The app uses generated TypeScript types from OpenAPI contracts:
+The app uses TypeScript types defined locally for API calls:
 
 ```typescript
-import type { paths } from '@accountable-books/api-types/types';
 import { api } from '../lib/axios';
 
-// Fully typed request/response
-type LoginRequest = paths['/auth/login']['post']['requestBody']['content']['application/json'];
-type LoginResponse =
-  paths['/auth/login']['post']['responses']['200']['content']['application/json'];
+// Define types locally for API calls
+interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+interface LoginResponse {
+  user: AuthUserContext;
+  csrfToken: string;
+}
 
 export async function login(data: LoginRequest): Promise<LoginResponse> {
   const response = await api.post('/auth/login', data);
@@ -363,9 +368,10 @@ dist/
    pnpm test     # From apps/web
    ```
 
-5. **Update types** (if API contracts changed):
+5. **Update types** (if API changed):
    ```bash
-   make contracts  # From root to regenerate types
+   # Update types in the appropriate domain file
+   # e.g., src/domains/users/types.ts
    ```
 
 ## 🔍 Common Issues
@@ -384,7 +390,7 @@ pnpm dev                   # Restart development server
 If TypeScript compilation fails:
 
 ```bash
-make contracts     # Regenerate API types
+# Update types in domain files as needed
 pnpm typecheck    # Check for remaining type errors
 ```
 

@@ -16,6 +16,8 @@ import type { Knex } from 'knex';
 import { getAccountTypeByKey } from '../../account/account.registry.js';
 import { getCurrency } from 'src/domains/currencies/currencies.utils.js';
 import logger from 'src/shared/utils/logger.js';
+import z from 'zod';
+import { isValidUUID } from 'src/shared/utils/formatting.utils.js';
 
 const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields
@@ -199,8 +201,12 @@ async function createBankAccount({
     tx: Knex.Transaction,
   ): Promise<ApiResponse<{ coaId: string; bankAccountId: string }>> => {
     // Get currencyId, validate bankId
-    const [companyUUID, currency, bank, accountType] = await Promise.all([
-      getCompanyUUID(companyId, tx),
+    const [company, currency, bank, accountType] = await Promise.all([
+      tx('companies')
+        .select('id')
+        .where(isValidUUID(companyId) ? 'id' : 'short_code', companyId)
+        .returning<{ id: string; reporting_currency_id: string }>(['id', 'reporting_currency_id'])
+        .first(),
 
       getCurrency(v.currency_code),
 
@@ -208,18 +214,22 @@ async function createBankAccount({
 
       getAccountTypeByKey('ca_bank'),
     ]);
-    if (!companyUUID) return errorResponse('Company not found');
+
+    if (!company || !company.id || !company.reporting_currency_id)
+      return errorResponse('Company not found');
     if (!currency || !currency.id) return errorResponse('Currency not found');
     if (!bank) return errorResponse('Bank not found');
     if (!accountType || !accountType.id) return errorResponse('Account type not found');
 
+    const companyUUID = company.id;
+    const reportingCurrencyId = company.reporting_currency_id;
     const currencyId = currency.id;
     const bankId = bank.id || v.bank_id;
     const coaAccountTypeId = accountType.id;
     const coaName = v.coa_name || v.display_name || v.account_name;
     const coaCode = v.coa_code || `**${v.account_number.slice(0, 4)}`;
 
-    // Create COA
+    // Create COA (currency is reporting currency)
     let coaId: string;
     try {
       const [coaRow] = await tx('coa')
@@ -228,12 +238,14 @@ async function createBankAccount({
           name: coaName,
           description: v.coa_description,
           account_type_id: coaAccountTypeId,
-          currency_id: currencyId,
+          currency_id: reportingCurrencyId,
           company_id: companyUUID,
           created_by_id: userId,
           updated_by_id: userId,
           source: v.source || 'user',
         })
+        .onConflict() // ['name', 'code', 'company_id'] Removed since db constraint is partial on code (i.e where code is not null), trying to pass a standard unique constraint might fail
+        .ignore()
         .returning<{ id: string }[]>('id');
       coaId = coaRow.id;
     } catch (e: any) {
@@ -241,9 +253,21 @@ async function createBankAccount({
       throw new Error('Chart of account with the same name or code already exists');
     }
 
-    // Create bank account entry
     let bankAccountId: string;
     try {
+      // Check if bank account already exists
+      const existingBankAccount = await tx('bank_accounts')
+        .select(['id', 'connection_credential_id'])
+        .where({
+          company_id: companyUUID,
+          account_number: v.account_number,
+        })
+        .forUpdate()
+        .first();
+
+      const oldConnectionCredentialId = existingBankAccount?.connection_credential_id ?? null;
+
+      // Create bank account entry
       const [bankAccountRow] = await tx('bank_accounts')
         .insert({
           display_name: v.display_name,
@@ -267,8 +291,34 @@ async function createBankAccount({
           created_by_id: userId,
           updated_by_id: userId,
         })
-        .returning<{ id: string }[]>('id');
+        .onConflict(['account_number', 'company_id'])
+        .merge({
+          provider_id: v.provider_id,
+          connection_credential_id: v.connection_credential_id,
+          connection_status: v.connection_status,
+          updated_by_id: userId,
+          updated_at: tx.fn.now(),
+        })
+        .returning<{ id: string; connection_credential_id: string | null }[]>([
+          'id',
+          'connection_credential_id',
+        ]);
       bankAccountId = bankAccountRow.id;
+      const newConnectionCredentialId = bankAccountRow.connection_credential_id;
+
+      if (oldConnectionCredentialId && oldConnectionCredentialId !== newConnectionCredentialId) {
+        const result = await tx('bank_accounts')
+          .where('connection_credential_id', oldConnectionCredentialId)
+          .whereNot('id', bankAccountId)
+          .count()
+          .first();
+        const count = Number(result?.count ?? 0);
+        if (count && count === 0) {
+          await tx('bank_account_credentials').where('id', oldConnectionCredentialId).update({
+            status: 'revoked',
+          });
+        }
+      }
     } catch (e: any) {
       if (e?.code !== '23505') throw e;
       throw new Error('Bank account with the same details already exist');
@@ -290,29 +340,39 @@ async function createBankAccount({
   }
 }
 
-export async function createManualBankAccount(
-  params: ManualBankAccountInput,
-  userId: string,
-  companyId: string,
-  trx?: Knex.Transaction,
-) {
+export async function createManualBankAccount({
+  params,
+  userId,
+  companyId,
+  trx,
+}: {
+  params: ManualBankAccountInput;
+  userId: string;
+  companyId: string;
+  trx?: Knex.Transaction;
+}) {
   const validatedInput = manualBankAccountInputCamel.safeParse(params);
   if (!validatedInput.success) {
-    return errorResponse('Invalid input', validatedInput.error.flatten());
+    return errorResponse('Invalid input', z.treeifyError(validatedInput.error));
   }
   const { data } = validatedInput;
   return createBankAccount({ bankAccountData: data, userId, companyId, trx });
 }
 
-export async function createBankAccountWithConnection(
-  params: BankAccountWithConnectionInput,
-  userId: string,
-  companyId: string,
-  trx?: Knex.Transaction,
-) {
+export async function createBankAccountWithConnection({
+  params,
+  userId,
+  companyId,
+  trx,
+}: {
+  params: BankAccountWithConnectionInput;
+  userId: string;
+  companyId: string;
+  trx?: Knex.Transaction;
+}) {
   const validatedInput = bankAccountWithConnectionInput.safeParse(params);
   if (!validatedInput.success) {
-    return errorResponse('Invalid input', validatedInput.error.flatten());
+    return errorResponse('Invalid input', z.treeifyError(validatedInput.error));
   }
   const { data } = validatedInput;
   return createBankAccount({ bankAccountData: data, userId, companyId, trx });

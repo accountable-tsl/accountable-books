@@ -37,9 +37,7 @@ export const newUser = z.object({
     .max(20, 'Phone number cannot exceed 50 characters')
     .transform(sanitizeOptionalInput)
     .nullish(),
-  avatarUrl: z.url('Avatar must be a valid URL')
-    .transform(sanitizeOptionalInput)
-    .nullish(),
+  avatarUrl: z.url('Avatar must be a valid URL').transform(sanitizeOptionalInput).nullish(),
 });
 export type NewUser = z.infer<typeof newUser>;
 
@@ -85,7 +83,7 @@ export const newCompany = z
 
     if (yearEndMonth === 2 && yearEndDay > 28) {
       ctx.addIssue({
-        code: "custom",
+        code: 'custom',
         message: 'February fiscal end has 28 days at most',
         path: ['yearEndDay'],
       });
@@ -93,7 +91,7 @@ export const newCompany = z
 
     if (thirtyDayMonths.includes(yearEndMonth) && yearEndDay > 30) {
       ctx.addIssue({
-        code: "custom",
+        code: 'custom',
         message: 'This month has only 30 days',
         path: ['yearEndDay'],
       });
@@ -103,7 +101,7 @@ export const newCompany = z
       const result = validateSlug(slug, false);
       if (!result.isValid) {
         ctx.addIssue({
-          code: "custom",
+          code: 'custom',
           message: result.error || 'Invalid slug',
           path: ['slug'],
         });

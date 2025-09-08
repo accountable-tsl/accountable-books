@@ -482,3 +482,16 @@ export type Pagination = {
   hasNext: boolean;
   hasPrev: boolean;
 };
+
+export const dateFromStringOrDate = z.preprocess((arg) => {
+  if (arg instanceof Date) return arg;
+  if (typeof arg === 'string') {
+    const parsed = new Date(arg);
+    return isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+  return undefined;
+}, z.date());
+export const dateOrString = dateFromStringOrDate;
+export const dateOrStringOptional = dateFromStringOrDate.optional();
+export const dateOrStringNullable = dateFromStringOrDate.nullable();
+export const dateOrStringNullish = dateFromStringOrDate.nullish();

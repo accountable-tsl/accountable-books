@@ -122,8 +122,6 @@ staging-health: ## Check staging services health
 
 deploy-staging-check: ## Run pre-deployment checks for staging
 	@echo "$(GREEN)🔍 Running staging deployment checks...$(RESET)"
-	@echo "$(YELLOW)Checking contracts...$(RESET)"
-	@pnpm validate-contracts
 	@echo "$(YELLOW)Running tests...$(RESET)"
 	@pnpm test
 	@echo "$(YELLOW)Checking linting...$(RESET)"
@@ -132,8 +130,6 @@ deploy-staging-check: ## Run pre-deployment checks for staging
 
 deploy-production-check: ## Run pre-deployment checks for production
 	@echo "$(RED)⚠️ Running production deployment checks...$(RESET)"
-	@echo "$(YELLOW)Checking contracts...$(RESET)"
-	@pnpm validate-contracts
 	@echo "$(YELLOW)Running tests...$(RESET)"
 	@pnpm test
 	@echo "$(YELLOW)Checking linting...$(RESET)"

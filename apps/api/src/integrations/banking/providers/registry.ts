@@ -1,11 +1,11 @@
 import { BankingProvider } from '../types/base.js';
 import { PlaidProvider } from './plaid.provider.js';
 import { MonoProvider } from './mono.provider.js';
-import { getBankFeedProviders } from '../../../domains/bankFeedProviders/bankFeedProviders.model.js';
+import { getBankFeedProviders } from 'src/domains/banking/bankFeedProviders/bankFeedProviders.model.js';
 import type {
   BankFeedProviderWithCountries,
   BankProviderKey,
-} from 'src/domains/bankFeedProviders/bankFeedProviders.types.js';
+} from 'src/domains/banking/bankFeedProviders/bankFeedProviders.types.js';
 
 export class ProviderRegistry {
   private providers = new Map<BankProviderKey, BankingProvider>();
@@ -18,13 +18,13 @@ export class ProviderRegistry {
     if (this.initialized) return;
 
     // Get enabled providers from database
-    const response = await getBankFeedProviders({ useCache: true });
+    const response = await getBankFeedProviders();
 
     if (!response.success || !response.data) {
       console.warn(
         'Failed to fetch providers from database, falling back to environment variables',
       );
-      // TODO: Decide whether to return, throw error or fallback
+      // TODO: Decide whether to return, throw error or fallback, I guess it's better to throw an error
       // this.fallbackToEnvironmentProviders();
       return;
     }

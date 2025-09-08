@@ -61,7 +61,8 @@ const optionsSchema = z
       return hasStartComponents || hasEndComponents;
     },
     {
-        error: 'Must provide at least one of: startDay+startMonth, endDay+endMonth, startDate, or endDate'
+      error:
+        'Must provide at least one of: startDay+startMonth, endDay+endMonth, startDate, or endDate',
     },
   )
   .refine(
@@ -74,7 +75,7 @@ const optionsSchema = z
       return !(hasStartConflict || hasEndConflict);
     },
     {
-        error: 'Cannot mix day/month numbers with date strings for the same start/end point'
+      error: 'Cannot mix day/month numbers with date strings for the same start/end point',
     },
   )
   .refine(
@@ -95,7 +96,7 @@ const optionsSchema = z
       }
     },
     {
-        error: 'Invalid date: day does not exist in the specified month'
+      error: 'Invalid date: day does not exist in the specified month',
     },
   );
 export type DateRangeOptions = z.infer<typeof optionsSchema>;

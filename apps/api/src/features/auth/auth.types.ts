@@ -6,7 +6,6 @@ import {
   type OnboardingStateResult,
   type UserOnboardingState,
 } from '../../features/onboarding/onboarding.types.js';
-import { type SchemaTypes } from '@accountable-books/api-types';
 
 export interface TokenConfig {
   secret: string;
@@ -33,7 +32,7 @@ export interface DecodedToken {
   currentCompanyId?: string; // This should be the short code of the company
 }
 
-export type OldAuthUserContext = {
+export type AuthUserContext = {
   id: string;
   email: string;
   firstname: string;
@@ -46,13 +45,8 @@ export type OldAuthUserContext = {
   currentCompany: AuthCompanyContextWithOnboarding;
   companies: AuthCompanyContext[];
 };
-export type AuthUserContext = SchemaTypes.AuthUserContext & {
-  currentCompany: AuthCompanyContextWithOnboarding;
-  companies: AuthCompanyContext[];
-};
 
-export type OldAuthCompanyContext = AccessibleCompanies;
-export type AuthCompanyContext = SchemaTypes.AuthCompanyContext;
+export type AuthCompanyContext = AccessibleCompanies;
 export type AuthCompanyContextWithOnboarding = AuthCompanyContext & {
   onboarding: OnboardingStateResult;
 };

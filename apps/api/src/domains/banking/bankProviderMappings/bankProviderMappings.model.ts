@@ -24,7 +24,7 @@ export async function createBankProviderMappings({
   trx,
 }: CreateBankProviderMappings): Promise<ApiResponse<{ id: string }[]>> {
   const inputArray = Array.isArray(input) ? input : [input];
-  
+
   const validatedInput = newBankProviderMappingCamel.array().safeParse(inputArray);
   if (!validatedInput.success) {
     return errorResponse<{ id: string }[]>('Invalid input data', validatedInput.error.flatten());
@@ -45,8 +45,8 @@ export async function createBankProviderMappings({
       }
 
       return successResponse(
-        `${inserted.length} bank provider mapping(s) created successfully`, 
-        inserted
+        `${inserted.length} bank provider mapping(s) created successfully`,
+        inserted,
       );
     } catch (error) {
       // Handle specific database constraint errors
@@ -76,7 +76,7 @@ export async function createBankProviderMappings({
   if (trx) {
     return executeOperation(trx);
   }
-  
+
   return knexClient.transaction(executeOperation);
 }
 
@@ -352,10 +352,10 @@ export async function getBankProviderMapping(
         builder
           .where('bpm.provider_bank_id', providerBankId)
           .orWhere('bpm.provider_alternate_id', providerBankId)
-          .orWhere('bpm.provider_bank_secondary_reference', providerBankId)
-          // .orWhereRaw("bpm.raw_provider_data->>'id' = ?", [providerBankId])
-          // .orWhereRaw("bpm.raw_provider_data->>'bank_code' = ?", [providerBankId])
-          // .orWhereRaw("bpm.raw_provider_data->>'nip_code' = ?", [providerBankId]);
+          .orWhere('bpm.provider_bank_secondary_reference', providerBankId);
+        // .orWhereRaw("bpm.raw_provider_data->>'id' = ?", [providerBankId])
+        // .orWhereRaw("bpm.raw_provider_data->>'bank_code' = ?", [providerBankId])
+        // .orWhereRaw("bpm.raw_provider_data->>'nip_code' = ?", [providerBankId]);
       });
     }
 

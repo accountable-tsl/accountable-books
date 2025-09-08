@@ -1,21 +1,21 @@
 import type { Response } from 'express';
 import type { AuthRequest } from '../../../features/auth/auth.types.js';
 import { errorResponse } from '../../../shared/utils/response.utils.js';
-import { createNewBankAccount, getBankAccountsWithDetails } from './bankAccounts.model.js';
+import { createManualBankAccount, getBankAccountsWithDetails } from './bankAccounts.model.js';
 
 export async function createBankAccountController(req: AuthRequest, res: Response) {
   try {
-    const companyId = req.company?.id || req.params.companyId || req.body.companyId;
-    const userId = req.user?.id || req.body.userId;
+    const companyId = String(req.params.companyId || req.body.companyId);
+    const userId = String(req.user?.id || req.body.userId);
 
     if (!companyId || !userId) {
       return res.status(400).json(errorResponse('Unauthorized'));
     }
 
-    const response = await createNewBankAccount({
+    const response = await createManualBankAccount({
+      params: req.body,
+      userId: userId,
       companyId,
-      data: req.body,
-      userId,
     });
     return response.success ? res.status(200).json(response) : res.status(400).json(response);
   } catch (error: unknown) {

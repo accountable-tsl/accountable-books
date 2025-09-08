@@ -14,7 +14,6 @@ import {
   type ProviderInstitution,
 } from '../types/base.js';
 import { ENV } from 'src/config/env.js';
-import { createCompanyBankCredential } from 'src/domains/banking/banking.model.js';
 import { mapPlaidAccountType } from '../utils/mappings.js';
 
 export class PlaidProvider extends BankingProvider {
@@ -89,28 +88,6 @@ export class PlaidProvider extends BankingProvider {
         accessToken: response.data.access_token,
         itemId: response.data.item_id,
       };
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  async saveCredentials(params: {
-    userId: string;
-    companyId: string;
-    providerKey: string;
-    identifier: string;
-    rawData: Record<string, any>;
-    token: string;
-  }): Promise<void> {
-    try {
-      await createCompanyBankCredential({
-        userId: params.userId,
-        companyId: params.companyId,
-        providerKey: params.providerKey,
-        identifier: params.identifier,
-        rawData: params.rawData,
-        token: params.token,
-      });
     } catch (error) {
       throw this.handleError(error);
     }
