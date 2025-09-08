@@ -49,7 +49,6 @@
     "@sentry/node": "^9.46.0",
     "@sentry/profiling-node": "^9.46.0",
     "@slack/bolt": "^4.4.0",
-    "@zodios/core": "^10.9.6",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.58.5",

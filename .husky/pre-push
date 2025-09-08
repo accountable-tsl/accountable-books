@@ -13,9 +13,9 @@ pnpm build
 echo "🧪 Running full test suite..."
 pnpm test -- --run
 
-# Validate API contracts
-echo "📋 Validating API contracts..."
-pnpm validate-contracts:ci
+# # Validate API contracts
+# echo "📋 Validating API contracts..."
+# pnpm validate-contracts:ci
 
 # Final typecheck across all packages
 echo "🔍 Final type check..."

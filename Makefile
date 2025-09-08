@@ -73,6 +73,7 @@ demo-reverse: guard-nonprod ## Remove demo data
 ##@ 🔧 Quality & Build
 check: ## Run all quality checks (lint + typecheck + format)
 	@echo "$(GREEN)🔍 Running quality checks...$(RESET)"
+	@pnpm format
 	@pnpm lint
 	@pnpm typecheck
 	@pnpm format:check
@@ -115,8 +116,8 @@ clean-all: guard-nonprod ## Nuclear cleanup: remove everything and reinstall
 	@echo "$(YELLOW)🛑 Stopping infrastructure...$(RESET)"
 	@$(MAKE) db-down || true
 	@echo "$(YELLOW)🗑️ Removing node_modules and caches...$(RESET)"
-	@rm -rf node_modules apps/*/node_modules packages/*/node_modules
-	@rm -rf apps/*/dist packages/*/dist dist
+	@rm -rf node_modules pnpm-lock.yaml apps/*/node_modules packages/*/node_modules
+	@rm -rf apps/*/dist packages/*/dist dist .pnpm-store .vscode
 	@rm -rf apps/*/coverage packages/*/coverage coverage
 	@rm -rf .turbo apps/*/.turbo packages/*/.turbo
 	@echo "$(YELLOW)📦 Cleaning pnpm cache...$(RESET)"
