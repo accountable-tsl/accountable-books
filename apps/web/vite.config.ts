@@ -34,6 +34,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  optimizeDeps: {
+    include: ['zod', '@hookform/resolvers'],
+  },
 
   server: {
     // Listen on all interfaces to support both localhost and lvh.me
