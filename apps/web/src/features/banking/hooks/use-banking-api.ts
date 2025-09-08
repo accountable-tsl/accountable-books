@@ -16,8 +16,9 @@ export const useCreateLinkToken = () => {
 export const useConnectAccounts = () => {
   return useMutation({
     mutationFn: connectAccounts,
-    onSuccess: () => {
-      toast.success('Bank account connected successfully!');
+    onSuccess: (response) => {
+      const message = response?.message || 'Bank account connected successfully!';
+      toast.success(message);
     },
     onError: (error: any) => {
       const errorData = error.response?.data?.error;

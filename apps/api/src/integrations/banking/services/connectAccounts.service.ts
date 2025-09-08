@@ -142,6 +142,9 @@ export class ConnectAccountsService {
 
         // 3. Create all bank accounts
         const createdAccounts: ConnectedAccount[] = [];
+        let newCount = 0;
+        let updatedCount = 0;
+
         for (const [index, account] of providerAccounts.entries()) {
           log('creating_account', {
             index: index + 1,
@@ -170,25 +173,32 @@ export class ConnectAccountsService {
           });
 
           if (result.success && result.data) {
-            const { bankAccountId } = result.data;
+            const { bankAccountId, wasUpdated } = result.data;
             createdAccounts.push({
               id: bankAccountId,
               displayName: account.displayName ?? account.officialName,
               mask: account.mask || account.accountNumber?.slice(-4) || '****',
               currencyCode: account.currencyCode,
             });
-            log('account_created', {
-              bankAccountId,
-              index: index + 1,
-              displayName: account.displayName,
-            });
+
+            if (wasUpdated) {
+              updatedCount++;
+            } else {
+              newCount++;
+            }
           } else {
             throw new Error(`Failed to create account ${account.displayName}: ${result.message}`);
           }
         }
 
-        log('transaction_complete', { totalCreated: createdAccounts.length });
-        return successResponse('Bank accounts connected successfully', createdAccounts);
+        // Generate simple success message
+        const message = `All set! ${newCount} new account(s) connected and ${updatedCount} updated successfully.`;
+
+        log('transaction_complete', {
+          totalCreated: newCount,
+          totalUpdated: updatedCount,
+        });
+        return successResponse(message, createdAccounts);
       });
     } catch (error: unknown) {
       log('transaction_failed', {

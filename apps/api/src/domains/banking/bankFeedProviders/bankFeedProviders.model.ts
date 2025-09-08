@@ -156,7 +156,9 @@ export async function getBankFeedProviders({
       .innerJoin('countries as c', 'bpc.country_id', 'c.id')
       .whereIn('p.status', status)
       .where('bpc.active', true)
-      .orderBy('p.priority', 'p.id', 'c.id');
+      .orderByRaw('p.priority ASC NULLS LAST')
+      .orderBy('p.id', 'asc')
+      .orderBy('c.id', 'asc');
 
     if (providerIds?.length) {
       query.whereIn('p.id', providerIds);

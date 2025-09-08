@@ -333,7 +333,7 @@ export async function getBankProviderMapping(
       .where({
         'bpm.is_deleted': false,
         'b.is_deleted': false,
-        'bfp.is_deleted': false,
+        'bfp.status': 'active',
       });
 
     // Apply filters

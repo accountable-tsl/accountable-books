@@ -82,7 +82,7 @@ export function AddProject({
   const {
     control,
     register,
-    formState: { errors, isValid, dirtyFields },
+    formState: { errors, isValid },
     handleSubmit,
     reset,
   } = useForm<NewProject>({

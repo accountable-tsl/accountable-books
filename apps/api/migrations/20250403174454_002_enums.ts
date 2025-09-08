@@ -73,6 +73,8 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP TYPE IF EXISTS contact_status`);
+  await knex.raw(`DROP TYPE IF EXISTS role_scope`);
   await knex.raw(`DROP TYPE IF EXISTS token_type`);
   await knex.raw(`DROP TYPE IF EXISTS accounting_basis`);
   await knex.raw(`DROP TYPE IF EXISTS project_status`);

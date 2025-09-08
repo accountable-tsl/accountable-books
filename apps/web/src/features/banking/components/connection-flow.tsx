@@ -131,6 +131,9 @@ export function BankConnectionFlow() {
       return;
     }
 
+    // Set loading state immediately when connection starts
+    setCurrentStep('connecting');
+
     connectAccountsMutation.mutate(
       {
         providerKey: selectedProvider.key,
@@ -144,6 +147,10 @@ export function BankConnectionFlow() {
           if (response.success) {
             setCurrentStep('success');
           }
+        },
+        onError: () => {
+          // On error, go back to provider selection
+          setCurrentStep('provider-select');
         },
       },
     );
@@ -204,15 +211,27 @@ export function BankConnectionFlow() {
       case 'connecting':
         return selectedProvider && linkToken ? (
           <div className={stepWrapperClass}>
-            <ProviderWidget
-              provider={selectedProvider.key}
-              token={linkToken}
-              onSuccess={connectAccount}
-              onExit={() => setCurrentStep('provider-select')}
-              onError={() => {
-                setCurrentStep('provider-select');
-              }}
-            />
+            {connectAccountsMutation.isPending ? (
+              <div className="text-center space-y-4">
+                <div className="flex items-center justify-center">
+                  <div className="w-6 h-6 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  <span className="text-lg font-semibold">Connecting your accounts...</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Please wait while we securely connect your bank accounts
+                </div>
+              </div>
+            ) : (
+              <ProviderWidget
+                provider={selectedProvider.key}
+                token={linkToken}
+                onSuccess={connectAccount}
+                onExit={() => setCurrentStep('provider-select')}
+                onError={() => {
+                  setCurrentStep('provider-select');
+                }}
+              />
+            )}
           </div>
         ) : (
           <div className={stepWrapperClass}>

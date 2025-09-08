@@ -199,13 +199,12 @@ async function createBankAccount({
 
   const exec = async (
     tx: Knex.Transaction,
-  ): Promise<ApiResponse<{ coaId: string; bankAccountId: string }>> => {
+  ): Promise<ApiResponse<{ coaId: string; bankAccountId: string; wasUpdated: boolean }>> => {
     // Get currencyId, validate bankId
     const [company, currency, bank, accountType] = await Promise.all([
       tx('companies')
-        .select('id')
+        .select(['id', 'reporting_currency_id'])
         .where(isValidUUID(companyId) ? 'id' : 'short_code', companyId)
-        .returning<{ id: string; reporting_currency_id: string }>(['id', 'reporting_currency_id'])
         .first(),
 
       getCurrency(v.currency_code),
@@ -215,11 +214,18 @@ async function createBankAccount({
       getAccountTypeByKey('ca_bank'),
     ]);
 
-    if (!company || !company.id || !company.reporting_currency_id)
-      return errorResponse('Company not found');
-    if (!currency || !currency.id) return errorResponse('Currency not found');
-    if (!bank) return errorResponse('Bank not found');
-    if (!accountType || !accountType.id) return errorResponse('Account type not found');
+    if (!company || !company.id || !company.reporting_currency_id) {
+      throw new Error('Company or reporting currency not found');
+    }
+    if (!currency || !currency.id) {
+      throw new Error('Currency not found');
+    }
+    if (!bank) {
+      throw new Error('Bank not found');
+    }
+    if (!accountType || !accountType.id) {
+      throw new Error('Account type not found');
+    }
 
     const companyUUID = company.id;
     const reportingCurrencyId = company.reporting_currency_id;
@@ -227,7 +233,8 @@ async function createBankAccount({
     const bankId = bank.id || v.bank_id;
     const coaAccountTypeId = accountType.id;
     const coaName = v.coa_name || v.display_name || v.account_name;
-    const coaCode = v.coa_code || `**${v.account_number.slice(0, 4)}`;
+    const coaCode =
+      v.coa_code || `**${v.account_number_mask || v.account_number?.slice(-4)}` || null;
 
     // Create COA (currency is reporting currency)
     let coaId: string;
@@ -247,13 +254,32 @@ async function createBankAccount({
         .onConflict() // ['name', 'code', 'company_id'] Removed since db constraint is partial on code (i.e where code is not null), trying to pass a standard unique constraint might fail
         .ignore()
         .returning<{ id: string }[]>('id');
-      coaId = coaRow.id;
+
+      if (coaRow?.id) {
+        coaId = coaRow.id;
+      } else {
+        // COA already exists, fetch it
+        const existingCoa = await tx('coa')
+          .select('id')
+          .where({
+            code: coaCode,
+            company_id: companyUUID,
+          })
+          .first();
+
+        if (!existingCoa?.id) {
+          throw new Error('Failed to find or create COA account');
+        }
+        coaId = existingCoa.id;
+      }
     } catch (e: any) {
       if (e?.code !== '23505') throw e;
       throw new Error('Chart of account with the same name or code already exists');
     }
 
     let bankAccountId: string;
+    let oldConnectionCredentialId: string | null = null;
+
     try {
       // Check if bank account already exists
       const existingBankAccount = await tx('bank_accounts')
@@ -265,7 +291,7 @@ async function createBankAccount({
         .forUpdate()
         .first();
 
-      const oldConnectionCredentialId = existingBankAccount?.connection_credential_id ?? null;
+      oldConnectionCredentialId = existingBankAccount?.connection_credential_id ?? null;
 
       // Create bank account entry
       const [bankAccountRow] = await tx('bank_accounts')
@@ -293,6 +319,7 @@ async function createBankAccount({
         })
         .onConflict(['account_number', 'company_id'])
         .merge({
+          bank_id: bankId,
           provider_id: v.provider_id,
           connection_credential_id: v.connection_credential_id,
           connection_status: v.connection_status,
@@ -307,16 +334,51 @@ async function createBankAccount({
       const newConnectionCredentialId = bankAccountRow.connection_credential_id;
 
       if (oldConnectionCredentialId && oldConnectionCredentialId !== newConnectionCredentialId) {
+        log.info(
+          {
+            oldCredentialId: oldConnectionCredentialId,
+            newCredentialId: newConnectionCredentialId,
+            bankAccountId,
+          },
+          'Checking if old credential can be revoked',
+        );
+
         const result = await tx('bank_accounts')
           .where('connection_credential_id', oldConnectionCredentialId)
           .whereNot('id', bankAccountId)
           .count()
           .first();
         const count = Number(result?.count ?? 0);
-        if (count && count === 0) {
+
+        log.info(
+          {
+            oldCredentialId: oldConnectionCredentialId,
+            accountsUsingOldCredential: count,
+          },
+          'Credential usage check result',
+        );
+
+        if (count === 0) {
           await tx('bank_account_credentials').where('id', oldConnectionCredentialId).update({
             status: 'revoked',
+            updated_by: userId,
+            updated_at: tx.fn.now(),
           });
+
+          log.info(
+            {
+              oldCredentialId: oldConnectionCredentialId,
+            },
+            'Old credential revoked successfully',
+          );
+        } else {
+          log.info(
+            {
+              oldCredentialId: oldConnectionCredentialId,
+              accountsStillUsing: count,
+            },
+            'Old credential still in use, not revoked',
+          );
         }
       }
     } catch (e: any) {
@@ -327,6 +389,7 @@ async function createBankAccount({
     return successResponse('Bank account and associated COA created successfully', {
       coaId,
       bankAccountId,
+      wasUpdated: !!oldConnectionCredentialId,
     });
   };
 

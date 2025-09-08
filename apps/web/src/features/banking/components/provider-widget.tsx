@@ -1,5 +1,6 @@
-import { PlaidWidget } from '../providers/plaid-widget';
-import { MonoWidget } from '../providers/mono-widget';
+import { PlaidWidget } from '@/features/banking/providers/plaid-widget';
+import { MonoWidget } from '@/features/banking/providers/mono-widget';
+import { WidgetLoading } from '@/features/banking/components/widget-loading';
 
 interface ProviderWidgetProps {
   provider: string;
@@ -16,6 +17,9 @@ export function ProviderWidget({
   onExit,
   onError,
 }: ProviderWidgetProps) {
+  if (!token) {
+    return <WidgetLoading />;
+  }
   if (provider === 'plaid') {
     return (
       <PlaidWidget linkToken={token} onSuccess={onSuccess} onExit={onExit} onError={onError} />

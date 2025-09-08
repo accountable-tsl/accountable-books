@@ -117,4 +117,8 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
+
+  await knex.raw(`DROP TYPE IF EXISTS business_or_personal_account`);
+  await knex.raw(`DROP TYPE IF EXISTS bank_account_type`);
+  await knex.raw(`DROP TYPE IF EXISTS bank_account_connection_status`);
 }

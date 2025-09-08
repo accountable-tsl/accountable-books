@@ -17,6 +17,7 @@ export function CountryListItem({ country, onClick, className }: CountryListItem
     <div
       className={cn(
         'p-3 cursor-pointer hover:shadow-md transition-shadow border rounded-lg',
+        'active:bg-muted/40 active:border-muted-foreground/50',
         !country.isSupported && 'opacity-60 hover:opacity-80',
         className,
       )}

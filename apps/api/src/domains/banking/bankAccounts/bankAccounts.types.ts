@@ -42,7 +42,7 @@ const manualBankAccountInput = z.object({
   connection_status: bankAccountConnectionStatus.extract(['not_connected']), // must be not_connected
   notes: z.string().nullish(),
   bank_id: z.uuid(),
-  currency_code: z.string().length(2, 'Currency code must be exactly 2 characters'),
+  currency_code: z.string().length(3, 'Currency code must be exactly 3 characters'),
   coa_code: z.string().optional(),
   coa_name: z.string().max(256, 'Coa name is too long').nullish(),
   coa_description: z.string().max(1024, 'Coa description is too long').nullish(),

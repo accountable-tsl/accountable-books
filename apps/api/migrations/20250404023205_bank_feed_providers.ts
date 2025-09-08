@@ -45,4 +45,6 @@ export async function down(knex: Knex): Promise<void> {
   await knex.schema.dropTableIfExists('bank_feed_provider_countries');
 
   await knex.schema.dropTableIfExists(tableName);
+
+  await knex.raw(`DROP TYPE IF EXISTS bank_feed_provider_status`);
 }
