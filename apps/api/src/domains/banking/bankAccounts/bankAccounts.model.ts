@@ -10,6 +10,8 @@ import {
   manualBankAccountInputCamel,
   newBankAccountInput,
   type NewBankAccountInput,
+  updateBankAccount,
+  type UpdateBankAccount,
 } from './bankAccounts.types.js';
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
 import type { Knex } from 'knex';
@@ -301,7 +303,7 @@ async function createBankAccount({
           account_number: v.account_number,
           account_number_mask: v.account_number_mask,
           account_type: v.account_type,
-          business_or_personal: v.business_or_personal,
+          business_or_personal: v.business_or_personal || 'business',
           bank_id: bankId,
           currency_id: currencyId,
           company_id: companyUUID,
@@ -319,7 +321,8 @@ async function createBankAccount({
         })
         .onConflict(['account_number', 'company_id'])
         .merge({
-          bank_id: bankId,
+          // bank_id: bankId,
+          business_or_personal: v.business_or_personal || 'business',
           provider_id: v.provider_id,
           connection_credential_id: v.connection_credential_id,
           connection_status: v.connection_status,
@@ -439,4 +442,59 @@ export async function createBankAccountWithConnection({
   }
   const { data } = validatedInput;
   return createBankAccount({ bankAccountData: data, userId, companyId, trx });
+}
+
+export async function updateBankAccounts({
+  params,
+  userId,
+  companyId,
+  trx,
+}: {
+  params: UpdateBankAccount[];
+  userId: string;
+  companyId: string;
+  trx?: Knex.Transaction;
+}) {
+  const startTime = Date.now();
+  const validatedInput = updateBankAccount.array().safeParse(params);
+  if (!validatedInput.success) {
+    return errorResponse('Invalid input', z.treeifyError(validatedInput.error));
+  }
+
+  const { data } = validatedInput;
+  const exec = async (txn: Knex.Transaction): Promise<ApiResponse<number>> => {
+    const results = [];
+    for (const i of data) {
+      const result = await txn('bank_accounts')
+        .where('id', i.id)
+        .where('company_id', companyId)
+        .update({
+          display_name: i.displayName,
+          account_type: i.accountType,
+          business_or_personal: i.businessOrPersonal,
+          connection_status: i.connectionStatus,
+          notes: i.notes,
+          updated_by_id: userId,
+          updated_at: txn.fn.now(),
+        });
+      if (result === 0) {
+        throw new Error(`Unable to update bank account ${i.id}`);
+      }
+
+      results.push(result);
+    }
+    return successResponse('Bank accounts updated successfully', results.length);
+  };
+
+  try {
+    const result = trx ? await exec(trx) : await knexClient.transaction(exec);
+    logger.info({ userId, companyId, duration: Date.now() - startTime }, 'Bank accounts updated');
+    return result;
+  } catch (error) {
+    logger.error(
+      { userId, companyId, duration: Date.now() - startTime },
+      'Failed to update bank accounts',
+    );
+    return errorResponse('Failed to update bank accounts', error);
+  }
 }

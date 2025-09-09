@@ -71,8 +71,8 @@ export type BankAccountWithConnectionInput = SnakeToCamelCaseObject<
   z.infer<typeof bankAccountWithConnectionInput>
 >;
 
-export const newBankAccountInput = manualBankAccountInput
-  .merge(connectionSpecificFields.partial())
+export const newBankAccountInput = z
+  .object({ ...manualBankAccountInput.shape, ...connectionSpecificFields.partial().shape })
   .omit({
     connection_status: true,
   })
@@ -97,9 +97,6 @@ export const newBankAccount = newBankAccountInput
     updated_by_id: z.uuid().optional(),
   });
 export type NewBankAccount = z.infer<typeof newBankAccount>;
-
-export const updateBankAccount = newBankAccount.partial();
-export type UpdateBankAccount = z.infer<typeof updateBankAccount>;
 
 export const bankAccount = z.object({ ...newBankAccount.shape, ...dbBaseFields.shape });
 export type BankAccount = z.infer<typeof bankAccount>;
@@ -168,3 +165,13 @@ export const companyBankingSnapshot = z.object({
 });
 
 export type CompanyBankingSnapshot = z.infer<typeof companyBankingSnapshot>;
+
+export const updateBankAccount = z.object({
+  id: z.uuid(),
+  displayName: z.string(),
+  accountType: bankAccountType,
+  businessOrPersonal: businessOrPersonalAccount,
+  connectionStatus: bankAccountConnectionStatus,
+  notes: z.string(),
+});
+export type UpdateBankAccount = z.infer<typeof updateBankAccount>;

@@ -7,7 +7,10 @@ import { Progress } from '@/components/ui/progress';
 import { FileTextIcon, UploadIcon, X } from 'lucide-react';
 import { useControllableState } from '@/shared/hooks/useControllableState';
 import { Image } from '@/components/ui/Image';
-import { getSpreadsheetRowCount, isSpreadsheetFile } from '@/features/spreadsheets/utils';
+import {
+  getSpreadsheetRowCount,
+  isSpreadsheetFile,
+} from '@/domains-pending-migration/spreadsheets/utils';
 
 interface FileUploaderProps extends React.HTMLAttributes<HTMLDivElement> {
   /**

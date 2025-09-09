@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useEffect, useState } from 'react';
-import { getCompanyDetails as fetchCompany } from '@/domains/company/api';
-import type { CompanyData } from '@/domains/company/types';
+import { getCompanyDetails as fetchCompany } from '@/domains-pending-migration/company/api';
+import type { CompanyData } from '@/domains-pending-migration/company/types';
 
 type CompanyProviderProps = {
   children: ReactNode;

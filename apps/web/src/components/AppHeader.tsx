@@ -12,8 +12,8 @@ import React from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import { cn } from '@/lib/utils';
 import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
-import { CompanySwitcher } from '@/features/switchCompany/CompanySwitcher';
-import type { CompanyData } from '@/domains/company/types';
+import { CompanySwitcher } from '@/domains-pending-migration/switchCompany/CompanySwitcher';
+import type { CompanyData } from '@/domains-pending-migration/company/types';
 
 type BreadcrumbItem = {
   label: string;

@@ -18,8 +18,8 @@ import { NavUser } from '@/components/NavUser';
 import { NavSecondary } from '@/components/NavSecondary';
 import React from 'react';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { type CompanyData, type CompanyType } from '@/domains/company/types';
-import { type AuthUserContext } from '@/features/auth/types';
+import { type CompanyData, type CompanyType } from '@/domains-pending-migration/company/types';
+import { type AuthUserContext } from '@/modules/auth';
 import { routes } from '@/shared/routes/routes';
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {

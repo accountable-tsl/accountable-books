@@ -376,6 +376,7 @@ export async function getBankProviderMapping(
     const result = await query.first({
       bankId: 'bpm.bank_id',
       bankKey: 'b.key',
+      bankLogoUrl: 'b.logo_url',
       bankDisplayName: 'b.display_name',
       bankOfficialName: 'b.official_name',
       providerId: 'bpm.provider_id',

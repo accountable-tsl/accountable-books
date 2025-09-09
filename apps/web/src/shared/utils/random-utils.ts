@@ -1,5 +1,5 @@
 import { getDefaultCurrencyCodeForCountry } from '@/constants/countryCurrencyMap';
-import type { CompanyData } from '@/domains/company/types';
+import type { CompanyData } from '@/domains-pending-migration/company/types';
 import type { ApiResponse, Country, CurrencyList } from '@/shared/types/core';
 
 export const getUserLocale = () => {

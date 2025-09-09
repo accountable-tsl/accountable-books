@@ -55,6 +55,7 @@ export type GetBankProviderMappingInput = ProviderMappingInput &
 export interface GetBankProviderMappingResponse {
   bankId: string;
   bankKey: string;
+  bankLogoUrl: string | null;
   bankDisplayName: string;
   bankOfficialName: string;
   providerId: string;

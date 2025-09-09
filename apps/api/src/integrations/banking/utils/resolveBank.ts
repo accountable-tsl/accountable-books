@@ -48,9 +48,9 @@ async function findExistingBank({
   institution: ProviderInstitution;
   countryId: string;
   txn: Knex.Transaction;
-}): Promise<{ id: string; display_name: string } | null> {
+}): Promise<{ id: string; display_name: string; logo_url: string | null } | null> {
   const tableName = 'banks';
-  const selectFields = ['id', 'display_name'];
+  const selectFields = ['id', 'display_name', 'logo_url'];
   const strategies = [
     () =>
       // Exact name match
@@ -111,7 +111,7 @@ async function findExistingBank({
         },
         `Bank matched using strategy ${index + 1}`,
       );
-      return { id: result.id, display_name: result.display_name };
+      return { id: result.id, display_name: result.display_name, logo_url: result.logo_url };
     }
   }
 
@@ -127,6 +127,7 @@ interface FindOrCreateBankMappingResponse {
   providerId: string;
   providerBankId: string;
   providerBankName: string;
+  bankLogoUrl: string | null;
   // bankDisplayName: string;
   // providerKey: string;
 }
@@ -165,6 +166,7 @@ export async function findOrCreateBankMapping(params: {
         providerId: r.providerId,
         providerBankId: r.providerBankId,
         providerBankName: r.providerBankName,
+        bankLogoUrl: r.bankLogoUrl,
         // providerKey: r.providerKey,
         // bankDisplayName: r.bankDisplayName,
       };
@@ -183,6 +185,7 @@ export async function findOrCreateBankMapping(params: {
     // Find or create the bank record.
     let bankId: string;
     let bankDisplayName: string;
+    let bankLogoUrl: string | null;
 
     // Check for existing bank, create mapping if found
     const existingBank = await findExistingBank({
@@ -194,6 +197,7 @@ export async function findOrCreateBankMapping(params: {
     if (existingBank) {
       bankId = existingBank.id;
       bankDisplayName = existingBank.display_name;
+      bankLogoUrl = existingBank.logo_url;
       log.info(`Found existing bank: ${bankDisplayName}`);
     } else {
       // No match, so we will create a new bank.
@@ -217,7 +221,7 @@ export async function findOrCreateBankMapping(params: {
         .insert(newBankData)
         .onConflict(['key', 'country_id'])
         .ignore()
-        .returning(['id', 'display_name']);
+        .returning(['id', 'display_name', 'logo_url']);
       if (!finalBank) {
         // This should be virtually impossible if the logic is correct
         throw new Error(`Failed to create or find bank with key ${newBankKey}`);
@@ -225,6 +229,7 @@ export async function findOrCreateBankMapping(params: {
 
       bankId = finalBank.id;
       bankDisplayName = finalBank.display_name;
+      bankLogoUrl = finalBank.logo_url || institution.logoUrl || null;
       log.info(`Created new bank: ${bankDisplayName}`);
     }
 
@@ -270,7 +275,10 @@ export async function findOrCreateBankMapping(params: {
       throw new Error('Failed to retrieve the mapping after upsert operation.');
     }
 
-    return finalMapping;
+    return {
+      ...finalMapping,
+      bankLogoUrl,
+    };
   };
 
   try {

@@ -21,7 +21,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { useSession } from '@/features/auth/Session';
+import { useSession } from '@session';
 
 export function NavUser({
   user,

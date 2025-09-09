@@ -1,4 +1,4 @@
-import type { BankTransactionSource } from '@/features/bank-transactions/manual-upload/types';
+import type { BankTransactionSource } from '@/modules/bank-transactions/manual-upload/types';
 import dayjs from 'dayjs';
 import Decimal from 'decimal.js';
 import z from 'zod';

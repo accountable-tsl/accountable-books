@@ -51,6 +51,7 @@ const createBankAccountWithCoa = async (
       account_name: account.accountName,
       account_type: account.accountType,
       account_number: account.accountNumber,
+      account_number_mask: account.accountNumber.slice(-4),
       business_or_personal: account.businessOrPersonal,
       bank_id: bankId,
       currency_id: currencyId,
@@ -115,7 +116,7 @@ export const createDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
     const bankMap = await getBankMap(trx);
 
     // Create each bank account with its COA in a single transaction
-    const companyResults = [];
+    const companyResults: any[] = [];
     for (const account of bankAccounts) {
       const bankId = bankMap.get(account.bankKey);
       if (!bankId) {

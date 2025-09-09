@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { matchPath, useLocation, useNavigate } from 'react-router';
 import { buildCanonicalUrl, flatRoutes } from '@/shared/routes/utils';
-import { useSession } from '@/features/auth/Session';
+import { useSession } from '@session';
 import { routes } from '@/shared/routes/routes';
 
 export function useRoutePath<T extends Record<string, any>>(

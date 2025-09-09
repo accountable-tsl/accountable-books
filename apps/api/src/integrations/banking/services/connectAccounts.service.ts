@@ -8,6 +8,7 @@ import type { BankProviderKey } from 'src/domains/banking/bankFeedProviders/bank
 import { randomUUID } from 'crypto';
 import { createBankAccountCredential } from 'src/domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
 import { knexClient } from '../../../db/knexClient.js';
+import type { BusinessOrPersonalAccount } from 'src/domains/banking/bankAccounts/bankAccounts.types.js';
 
 export interface ConnectAccountsParams {
   providerKey: BankProviderKey;
@@ -22,6 +23,18 @@ export interface ConnectedAccount {
   displayName: string;
   mask: string;
   currencyCode: string;
+  businessOrPersonal: BusinessOrPersonalAccount;
+}
+
+interface ConnectedBank {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+}
+
+export interface ConnectAccountsResponse {
+  bank: ConnectedBank;
+  accounts: ConnectedAccount[];
 }
 
 export class ConnectAccountsService {
@@ -29,9 +42,12 @@ export class ConnectAccountsService {
    * Main orchestration method - handles complete bank account connection flow
    * All database operations are wrapped in a single transaction for atomicity
    */
-  async connectBankAccounts(
-    params: ConnectAccountsParams,
-  ): Promise<ApiResponse<ConnectedAccount[]>> {
+  async connectBankAccounts(params: ConnectAccountsParams): Promise<
+    ApiResponse<{
+      bank: { id: string; name: string; logoUrl: string | null };
+      accounts: ConnectedAccount[];
+    }>
+  > {
     const traceId = randomUUID();
     const startTime = Date.now();
 
@@ -132,7 +148,7 @@ export class ConnectAccountsService {
 
         // 2. Resolve bank mapping
         log('bank_mapping', {});
-        const { bankId } = await findOrCreateBankMapping({
+        const { bankId, bankLogoUrl, providerBankName } = await findOrCreateBankMapping({
           providerKey: params.providerKey,
           institution,
           userId: params.userId,
@@ -167,6 +183,7 @@ export class ConnectAccountsService {
               accountNumberMask: account.mask,
               accountType: account.type,
               currencyCode: account.currencyCode,
+              businessOrPersonal: 'business', // Default to business
               bankId,
             },
             trx,
@@ -179,6 +196,7 @@ export class ConnectAccountsService {
               displayName: account.displayName ?? account.officialName,
               mask: account.mask || account.accountNumber?.slice(-4) || '****',
               currencyCode: account.currencyCode,
+              businessOrPersonal: 'business', // Default to business
             });
 
             if (wasUpdated) {
@@ -192,13 +210,19 @@ export class ConnectAccountsService {
         }
 
         // Generate simple success message
-        const message = `All set! ${newCount} new account(s) connected and ${updatedCount} updated successfully.`;
+        const message =
+          newCount === 0
+            ? `All set! ${updatedCount} existing account${updatedCount > 1 ? 's' : ''} reconnected successfully.`
+            : `All set! ${newCount} new account${newCount > 1 ? 's' : ''} connected and ${updatedCount} updated successfully.`;
 
         log('transaction_complete', {
           totalCreated: newCount,
           totalUpdated: updatedCount,
         });
-        return successResponse(message, createdAccounts);
+        return successResponse(message, {
+          bank: { id: bankId, name: providerBankName ?? institutionName, logoUrl: bankLogoUrl },
+          accounts: createdAccounts,
+        });
       });
     } catch (error: unknown) {
       log('transaction_failed', {

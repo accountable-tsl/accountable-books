@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router';
 import { AuthHeader } from './AuthHeader';
 import { cn } from '@/lib/utils';
 import { routes } from '@/shared/routes/routes';
-import { useSession } from '@/features/auth/Session';
+import { useSession } from '@session';
 
 type ErrorType = '404' | '403' | 'default';
 // | "500"
