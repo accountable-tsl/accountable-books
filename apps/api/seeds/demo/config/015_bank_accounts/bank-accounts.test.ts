@@ -239,14 +239,18 @@ describe('createDemoBankAccounts', () => {
         bankAccounts: [
           {
             displayName: 'Business Checking',
+            accountName: 'Business Operating Account',
             accountType: 'checkings_current',
+            accountNumber: '1234567890',
             businessOrPersonal: 'business',
             bankKey: 'us_chase_bank',
             createdByEmail: 'alice@us-demo.com',
           },
           {
             displayName: 'Business Credit Card',
+            accountName: 'Business Credit Line',
             accountType: 'credit_card',
+            accountNumber: '4111111111111111',
             businessOrPersonal: 'business',
             bankKey: 'us_wells_fargo',
             createdByEmail: 'alice@us-demo.com',
@@ -279,7 +283,9 @@ describe('createDemoBankAccounts', () => {
         bankAccounts: [
           {
             displayName: 'Primary Checking',
+            accountName: 'Primary Checking Account',
             accountType: 'checkings_current',
+            accountNumber: '9876543210',
             businessOrPersonal: 'personal',
             bankKey: 'us_chase_bank',
             createdByEmail: 'alice@us-demo.com',
@@ -312,7 +318,10 @@ describe('createDemoBankAccounts', () => {
         bankAccounts: [
           {
             displayName: 'Business Checking',
+            accountName: 'Business Operating Account',
             accountType: 'checkings_current',
+            accountNumber: '1234567890',
+            businessOrPersonal: 'business',
             bankKey: 'ng_gtbank',
             createdByEmail: 'bob@ng-demo.com',
           },

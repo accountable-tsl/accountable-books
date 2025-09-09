@@ -1,14 +1,20 @@
 import { ArrowRight, Building2, Check, Dot, Landmark, Plus, User } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import type {
   ConnectedAccount,
   ConnectAccountsResponse,
 } from '@/modules/banking/connections/model/types';
 import { cn } from '@/lib/utils';
-import { useUpdateBankAccounts, type BusinessOrPersonalAccount } from '@/modules/banking/accounts';
+import {
+  useUpdateBankAccounts,
+  useMinimalBankAccountDetails,
+  type BusinessOrPersonalAccount,
+  type MinimalBankAccountDetails,
+} from '@/modules/banking';
 import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
+import { toast } from 'sonner';
 
 interface ClassifyAccountStepProps {
   stepWrapperClass: string;
@@ -18,6 +24,30 @@ interface ClassifyAccountStepProps {
   companyId: string;
 }
 
+// const mockAccounts: ConnectedAccount[] = [
+//   {
+//     id: 'acc-1',
+//     displayName: 'Business Current Account',
+//     mask: '****2847',
+//     businessOrPersonal: 'business',
+//     currencyCode: 'USD',
+//   },
+//   {
+//     id: 'acc-2',
+//     displayName: 'Business Savings',
+//     mask: '8392',
+//     businessOrPersonal: 'business',
+//     currencyCode: 'USD',
+//   },
+//   {
+//     id: 'acc-3',
+//     displayName: 'Personal Current Account',
+//     mask: '1956',
+//     businessOrPersonal: 'business', // Default all to business, user can change
+//     currencyCode: 'EUR',
+//   },
+// ];
+
 export function ClassifyAccountStep({
   stepWrapperClass,
   connectedAccounts,
@@ -25,72 +55,116 @@ export function ClassifyAccountStep({
   onConnectAnother,
   companyId,
 }: ClassifyAccountStepProps) {
-  const [accounts, setAccounts] = useState<ConnectedAccount[]>(connectedAccounts.accounts);
   const updateBankAccountsMutation = useUpdateBankAccounts();
 
-  // Baseline originally personal accounts from initial payload
-  const originallyPersonalIds = useMemo(() => {
-    return new Set(
-      connectedAccounts.accounts
-        .filter((a) => a.businessOrPersonal === 'personal')
-        .map((a) => a.id),
-    );
-  }, [connectedAccounts.accounts]);
+  // Start with bank connection data immediately (no loading delay)
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>(connectedAccounts.accounts);
 
-  // Mutable baseline that we extend after successful update
-  const baselinePersonalIdsRef = useRef<Set<string>>(originallyPersonalIds);
+  // Track what we know is saved in the database
+  const [savedState, setSavedState] = useState<ConnectedAccount[]>(connectedAccounts.accounts);
 
-  // Track IDs newly changed to personal (excluding baseline)
-  const [changedToPersonalIds, setChangedToPersonalIds] = useState<Set<string>>(new Set());
+  // Fetch database state in background (non-blocking)
+  const bankAccountIds = connectedAccounts.accounts.map((acc) => acc.id);
+  const { data: databaseResponse, refetch: refetchDatabaseState } = useMinimalBankAccountDetails(
+    companyId,
+    bankAccountIds,
+  );
+
+  // When database response arrives, update saved state and current accounts
+  useEffect(() => {
+    if (databaseResponse?.data) {
+      const mergedAccounts = connectedAccounts.accounts.map((bankAccount) => {
+        const dbAccount = databaseResponse.data!.find(
+          (db: MinimalBankAccountDetails) => db.id === bankAccount.id,
+        );
+        const mergedAccount = {
+          ...bankAccount,
+          businessOrPersonal: dbAccount?.businessOrPersonal ?? bankAccount.businessOrPersonal,
+        };
+        return mergedAccount;
+      });
+
+      // Update both saved state and current accounts
+      setSavedState(mergedAccounts);
+      setAccounts(mergedAccounts);
+    }
+  }, [connectedAccounts.accounts, databaseResponse?.data]);
+
+  // Calculate unsaved changes by comparing current vs saved state
+  const hasUnsavedChanges = useMemo(() => {
+    return accounts.some((account) => {
+      const savedAccount = savedState.find((saved) => saved.id === account.id);
+      return savedAccount?.businessOrPersonal !== account.businessOrPersonal;
+    });
+  }, [accounts, savedState]);
+
+  // Prevent navigation away with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        return 'You have unsaved account changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Sync with new accounts when connectedAccounts changes (if no unsaved changes)
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      // Refetch database state to get latest data for new connections
+      refetchDatabaseState();
+    }
+  }, [connectedAccounts.accounts, hasUnsavedChanges, refetchDatabaseState]);
 
   const handleAccountTypeChange = useCallback(
     (accountId: string, newType: BusinessOrPersonalAccount) => {
-      setAccounts((prevAccounts) => {
-        const updated = prevAccounts.map((account) =>
+      setAccounts((prevAccounts) =>
+        prevAccounts.map((account) =>
           account.id === accountId ? { ...account, businessOrPersonal: newType } : account,
-        );
-
-        return updated;
-      });
-
-      setChangedToPersonalIds((prev) => {
-        const next = new Set(prev);
-        const isInBaseline = baselinePersonalIdsRef.current.has(accountId);
-        if (newType === 'personal' && !isInBaseline) {
-          next.add(accountId);
-        } else {
-          next.delete(accountId);
-        }
-        return next;
-      });
+        ),
+      );
     },
     [],
   );
 
   const handleUpdateAccounts = useCallback(() => {
-    if (!companyId || changedToPersonalIds.size === 0) return;
-    const payload = Array.from(changedToPersonalIds).map((id) => ({
-      id,
-      businessOrPersonal: 'personal' as const,
+    if (!companyId || !hasUnsavedChanges) return;
+
+    // Send ALL current account states (simple and idempotent)
+    const payload = accounts.map((account) => ({
+      id: account.id,
+      businessOrPersonal: account.businessOrPersonal,
     }));
+
     updateBankAccountsMutation.mutate(
       { companyId, data: payload },
       {
         onSuccess: () => {
-          // Merge into baseline and clear changes
-          const merged = new Set(baselinePersonalIdsRef.current);
-          changedToPersonalIds.forEach((id) => merged.add(id));
-          baselinePersonalIdsRef.current = merged;
-          setChangedToPersonalIds(new Set());
+          // Optimistic update: immediately update saved state to match current
+          setSavedState([...accounts]);
+          // Still refetch database in background for verification
+          refetchDatabaseState();
+          toast.success('Bank account(s) updated successfully');
+        },
+        onError: (error) => {
+          // Save failure edge case: We deliberately keep the current UI state unchanged
+          // so the user can retry. The savedState remains at its previous value, which
+          // means hasUnsavedChanges will still be true and the "Update accounts" button
+          // remains visible for retry. No optimistic rollback needed - just let user retry.
+          console.error('Failed to save account classifications:', error);
+          toast.error('Failed to update bank accounts');
         },
       },
     );
-  }, [changedToPersonalIds, companyId, updateBankAccountsMutation]);
+  }, [companyId, hasUnsavedChanges, accounts, updateBankAccountsMutation, refetchDatabaseState]);
 
   const handleDone = useCallback(() => {
-    if (changedToPersonalIds.size > 0) return;
+    if (hasUnsavedChanges) return;
     onComplete();
-  }, [changedToPersonalIds, onComplete]);
+  }, [hasUnsavedChanges, onComplete]);
 
   const bank = useMemo(() => connectedAccounts.bank, [connectedAccounts]);
   const businessAccounts = useMemo(
@@ -158,7 +232,10 @@ export function ClassifyAccountStep({
                     </div>
                     <Switch
                       checked={acc.businessOrPersonal === 'business'}
-                      // disabled={updateClassificationMutation.isPending}
+                      disabled={updateBankAccountsMutation.isPending}
+                      className={cn(
+                        updateBankAccountsMutation.isPending && 'cursor-not-allowed opacity-70',
+                      )}
                       onCheckedChange={(checked) =>
                         handleAccountTypeChange(acc.id, checked ? 'business' : 'personal')
                       }
@@ -184,13 +261,13 @@ export function ClassifyAccountStep({
             variant="outline"
             className="w-full"
             onClick={onConnectAnother}
-            disabled={changedToPersonalIds.size > 0 || updateBankAccountsMutation.isPending}
+            disabled={hasUnsavedChanges || updateBankAccountsMutation.isPending}
           >
             <Plus className="w-4 h-4 mr-2" />
             Connect another account
           </Button>
 
-          {changedToPersonalIds.size > 0 ? (
+          {hasUnsavedChanges ? (
             <Button
               className="w-full"
               onClick={handleUpdateAccounts}

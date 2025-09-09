@@ -23,7 +23,7 @@ import {
   MobileOnboardingSidebar,
   OnboardingSidebar,
 } from '@/domains-pending-migration/onboarding/shared/Sidebar';
-import { useSession } from '../auth/Session';
+import { useSession } from '@session';
 import { routes } from '@/shared/routes/routes';
 
 export function OnboardingStepPage() {

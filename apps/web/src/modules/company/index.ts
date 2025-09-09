@@ -1,2 +1,2 @@
-export * as Companies from './companies';
-export * as Firms from './firms';
+export * from './companies';
+export * from './firms';

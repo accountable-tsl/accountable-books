@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useSession } from '@session';
+import { useSession } from '@/app/session';
 import { useCompanySwitch } from '@/domains-pending-migration/switchCompany/hooks';
 import { cn } from '@/lib/utils';
 import type { AuthCompanyContext } from '@/modules/auth';

@@ -16,12 +16,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { routes } from '@/shared/routes/routes';
 import { queryClient } from '@/lib/queryClient';
 import { OnboardingRouter } from '@/domains-pending-migration/onboarding/OnboardingRouter';
-import { SessionProvider } from '@session';
-import {
-  RequireAuth,
-  RequireOnboardingComplete,
-  RootRedirector,
-} from './domains-pending-migration/auth/Access';
+import { RequireAuth, RequireOnboardingComplete, RootRedirector } from '@/app/router/guards';
 import BlankLayout from './layouts/BlankLayout';
 import { AccountingWorkspaceSetup } from './domains-pending-migration/accounting-setup/AccountingSetup';
 import { Table } from '@/components/data-table/fake';
@@ -30,6 +25,8 @@ import { CatEngine } from '@/domains-pending-migration/cat-engine/cat-engine';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ConnectBank } from '@/features/connect-bank';
 import { AddBankTransaction } from './modules/banking/transactions/ui/bank-tx-add';
+import { SessionProvider } from '@session';
+
 function App() {
   return (
     <ThemeProvider>

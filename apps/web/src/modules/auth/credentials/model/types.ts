@@ -1,7 +1,7 @@
 import { zEmail } from '@/shared/types/core';
 import z from 'zod';
 import { sanitizeInput, sanitizeOptionalInput, validateSlug } from '../utils';
-import { Companies } from '@/modules/company';
+import { companyType } from '@/modules/company';
 
 export const loginForm = z.object({
   email: zEmail,
@@ -56,7 +56,7 @@ export const newCompany = z
   .object({
     legalName: z.string().max(256, 'Name cannot exceed 256 characters').transform(sanitizeInput),
     countryId: z.uuid(),
-    type: Companies.companyType,
+    type: companyType,
     reportingCurrencyId: z.uuid(),
     yearEndDay: z.coerce
       .number()

@@ -21,8 +21,8 @@ import { PuffLoader } from 'react-spinners';
 import { XIcon } from 'lucide-react';
 import { AuthHeader } from '@/components/AuthHeader';
 import { routes } from '@/shared/routes/routes';
-import { performLoginFlow } from '../../../domains-pending-migration/auth/utils';
-import { authStore } from '../../../domains-pending-migration/auth/store';
+import { performLoginFlow } from '@/features/auth-login/model/use-login-flow';
+import { authStore } from '@/modules/auth';
 import type { AxiosError } from 'axios';
 
 //TODO: Refactor whole signup flow later

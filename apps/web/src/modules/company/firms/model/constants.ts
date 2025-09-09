@@ -1,4 +1,4 @@
-const rawReservedSlugs = [
+export const rawReservedSlugs = [
   'admin',
   'administrator',
   'root',

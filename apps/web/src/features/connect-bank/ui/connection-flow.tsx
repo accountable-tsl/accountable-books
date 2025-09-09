@@ -1,23 +1,26 @@
 import { useState } from 'react';
-import { useBanking } from '@/modules/banking/connections/model/hooks';
-import { useCountrySelection } from '@/modules/banking/connections/model/hooks';
-import { useConnectAccounts, useCreateLinkToken } from '@/modules/banking/connections/model/hooks';
 import { useSession } from '@session';
-import { WelcomeStep } from '@/features/connect-bank/ui/steps/welcome-step';
-import { CountrySelectStep } from '@/features/connect-bank/ui/steps/country-select-step';
-import { ProviderSelectStep } from '@/features/connect-bank/ui/steps/provider-select-step';
-import { ProviderWidget } from '@/features/connect-bank/ui/provider-widget';
+import { WelcomeStep } from '../ui/steps/welcome-step';
+import { CountrySelectStep } from '../ui/steps/country-select-step';
+import { ProviderSelectStep } from '../ui/steps/provider-select-step';
+import { ProviderWidget } from '../ui/provider-widget';
+import { ClassifyAccountStep } from '../ui/steps/classify-account-step';
 import { Button } from '@/components/ui/button';
+import {
+  useBanking,
+  useCountrySelection,
+  useConnectAccounts,
+  useCreateLinkToken,
+} from '@/modules/banking';
 import type {
   BankProvider,
   ProviderSelectionResult,
-} from '@/modules/banking/providers/model/types';
-import type { ConnectAccountsResponse } from '@/modules/banking/connections/model/types';
-import type { CountryDisplay } from '@/modules/banking/connections/utils/utils';
+  ConnectAccountsResponse,
+  CountryDisplay,
+} from '@/modules/banking';
 import { toast } from 'sonner';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import { ClassifyAccountStep } from '@/features/connect-bank/ui/steps/classify-account-step';
 import { useNavigate } from 'react-router';
 
 type FlowStep =

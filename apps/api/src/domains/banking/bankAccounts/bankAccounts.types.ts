@@ -166,12 +166,14 @@ export const companyBankingSnapshot = z.object({
 
 export type CompanyBankingSnapshot = z.infer<typeof companyBankingSnapshot>;
 
-export const updateBankAccount = z.object({
-  id: z.uuid(),
-  displayName: z.string(),
-  accountType: bankAccountType,
-  businessOrPersonal: businessOrPersonalAccount,
-  connectionStatus: bankAccountConnectionStatus,
-  notes: z.string(),
-});
+export const updateBankAccount = z
+  .object({
+    id: z.uuid(),
+    displayName: z.string(),
+    accountType: bankAccountType,
+    businessOrPersonal: businessOrPersonalAccount,
+    connectionStatus: bankAccountConnectionStatus,
+    notes: z.string(),
+  })
+  .partial();
 export type UpdateBankAccount = z.infer<typeof updateBankAccount>;

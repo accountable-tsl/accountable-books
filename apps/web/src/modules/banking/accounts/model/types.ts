@@ -102,12 +102,23 @@ export type BankAccountConnectionStatus = z.infer<typeof bankAccountConnectionSt
 export const businessOrPersonalAccount = z.enum(['business', 'personal']);
 export type BusinessOrPersonalAccount = z.infer<typeof businessOrPersonalAccount>;
 
-export const updateBankAccount = z.object({
-  id: z.uuid(),
-  displayName: z.string(),
-  accountType: bankAccountType,
-  businessOrPersonal: businessOrPersonalAccount,
-  connectionStatus: bankAccountConnectionStatus,
-  notes: z.string(),
-});
+export const updateBankAccount = z
+  .object({
+    id: z.uuid(),
+    displayName: z.string(),
+    accountType: bankAccountType,
+    businessOrPersonal: businessOrPersonalAccount,
+    connectionStatus: bankAccountConnectionStatus,
+    notes: z.string(),
+  })
+  .partial();
 export type UpdateBankAccount = z.infer<typeof updateBankAccount>;
+
+export interface MinimalBankAccountDetails {
+  id: string;
+  displayName: string;
+  mask: string;
+  businessOrPersonal: BusinessOrPersonalAccount;
+  currencyCode: string;
+  bankName: string;
+}

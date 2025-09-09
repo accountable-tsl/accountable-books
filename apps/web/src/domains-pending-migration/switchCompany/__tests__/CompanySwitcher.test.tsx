@@ -7,11 +7,11 @@ import type { AuthUserContext, AuthCompanyContext, CurrentCompanyContext } from 
 const mockUseSession = vi.fn();
 const mockUseCompanySwitch = vi.fn();
 
-vi.mock('@/features/auth/Session', () => ({
+vi.mock('@/app/session', () => ({
   useSession: () => mockUseSession(),
 }));
 
-vi.mock('@/features/switchCompany/hooks', () => ({
+vi.mock('@/domains-pending-migration/switchCompany/hooks', () => ({
   useCompanySwitch: () => mockUseCompanySwitch(),
 }));
 

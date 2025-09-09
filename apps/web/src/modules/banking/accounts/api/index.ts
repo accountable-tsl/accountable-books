@@ -1,6 +1,10 @@
 import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
-import type { BankAccountWithMeta, UpdateBankAccount } from '../model/types';
+import type {
+  BankAccountWithMeta,
+  UpdateBankAccount,
+  MinimalBankAccountDetails,
+} from '../model/types';
 
 // export const createBankAccount = async (
 //   companyId: string,
@@ -40,5 +44,21 @@ export async function updateBankAccounts(
   data: UpdateBankAccount[],
 ): Promise<ApiResponse<number>> {
   const response = await api.patch(`/api/${companyId}/bank-accounts`, data);
+  return response.data;
+}
+
+export async function getMinimalBankAccountDetails({
+  bankAccountIds,
+  companyId,
+}: {
+  bankAccountIds?: string[];
+  companyId: string;
+}): Promise<ApiResponse<MinimalBankAccountDetails[]>> {
+  const params = new URLSearchParams();
+  if (bankAccountIds && bankAccountIds.length > 0) {
+    bankAccountIds.forEach((id) => params.append('bankAccountIds', id));
+  }
+
+  const response = await api.get(`/api/${companyId}/bank-accounts/minimal?${params.toString()}`);
   return response.data;
 }

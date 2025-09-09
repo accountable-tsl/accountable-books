@@ -1,5 +1,5 @@
-export * as Connections from './connections';
-export * as Providers from './providers';
-export * as Accounts from './accounts';
-export * as Institutions from './institutions';
-export * as Transactions from './transactions';
+export * from './connections';
+export * from './providers';
+export * from './accounts';
+export * from './institutions';
+export * from './transactions';

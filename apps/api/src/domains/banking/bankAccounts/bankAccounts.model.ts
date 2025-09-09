@@ -31,6 +31,7 @@ const BANK_ACCOUNT_FIELDS = [
   'ba.currency_id as currencyId',
   'ba.bank_id as bankId',
   'ba.company_id as companyId',
+  'ba.business_or_personal as businessOrPersonal',
 
   // Bank Details
   'b.display_name as bankName',
@@ -95,6 +96,64 @@ export const getBankAccountsWithDetails = async (
     return result?.length > 0
       ? successResponse('Bank accounts fetched successfully', result)
       : successResponse('No bank accounts found', []);
+  } catch (error) {
+    return errorResponse('Failed to fetch bank accounts', error);
+  }
+};
+
+interface MinimalBankAccountDetails {
+  id: string;
+  displayName: string;
+  mask: string;
+  businessOrPersonal: string;
+  currencyCode: string;
+  bankName: string;
+}
+export const getMinimalBankAccountDetails = async ({
+  bankAccountIds,
+  companyId,
+  trx,
+}: {
+  bankAccountIds?: string[];
+  companyId: string;
+  trx?: Knex.Transaction;
+}) => {
+  const exec = async (txn: Knex.Transaction): Promise<ApiResponse<MinimalBankAccountDetails[]>> => {
+    const companyUUID = await getCompanyUUID(companyId, txn);
+    if (!companyUUID) {
+      throw new Error('Company not found');
+    }
+
+    const query = txn('bank_accounts as ba')
+      .innerJoin('currencies as cur', 'ba.currency_id', 'cur.id')
+      .join('banks as b', 'ba.bank_id', 'b.id')
+      .select([
+        'ba.id as id',
+        'ba.display_name as displayName',
+        'ba.account_number_mask as mask',
+        'ba.business_or_personal as businessOrPersonal',
+        'cur.code as currencyCode',
+        'b.display_name as bankName',
+      ])
+      .where({
+        'ba.company_id': companyUUID,
+        'ba.is_deleted': false,
+      });
+
+    if (bankAccountIds?.length) {
+      query.whereIn('ba.id', bankAccountIds);
+    }
+
+    const results = await query;
+    return successResponse('Minimal bank account details fetched', results);
+  };
+
+  try {
+    if (trx) {
+      return await exec(trx);
+    } else {
+      return await knexClient.transaction(exec);
+    }
   } catch (error) {
     return errorResponse('Failed to fetch bank accounts', error);
   }
@@ -321,7 +380,7 @@ async function createBankAccount({
         })
         .onConflict(['account_number', 'company_id'])
         .merge({
-          // bank_id: bankId,
+          bank_id: bankId,
           business_or_personal: v.business_or_personal || 'business',
           provider_id: v.provider_id,
           connection_credential_id: v.connection_credential_id,
@@ -463,11 +522,15 @@ export async function updateBankAccounts({
 
   const { data } = validatedInput;
   const exec = async (txn: Knex.Transaction): Promise<ApiResponse<number>> => {
+    const companyUUID = await getCompanyUUID(companyId);
+    if (!companyUUID) {
+      throw new Error('Company not found');
+    }
     const results = [];
     for (const i of data) {
       const result = await txn('bank_accounts')
         .where('id', i.id)
-        .where('company_id', companyId)
+        .where('company_id', companyUUID)
         .update({
           display_name: i.displayName,
           account_type: i.accountType,

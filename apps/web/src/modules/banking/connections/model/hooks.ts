@@ -19,11 +19,6 @@ import {
 export const useCreateLinkToken = () => {
   return useMutation({
     mutationFn: createLinkToken,
-    // onError: () => {
-    //   toast.error('Failed to create bank connection', {
-    //     description: 'Please try again',
-    //   });
-    // },
   });
 };
 

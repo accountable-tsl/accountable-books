@@ -4,9 +4,11 @@ import { errorResponse } from '../../../shared/utils/response.utils.js';
 import {
   createManualBankAccount,
   getBankAccountsWithDetails,
+  getMinimalBankAccountDetails,
   updateBankAccounts,
 } from './bankAccounts.model.js';
 import { updateBankAccount } from './bankAccounts.types.js';
+import z from 'zod';
 
 export async function createBankAccountController(req: AuthRequest, res: Response) {
   try {
@@ -41,9 +43,10 @@ export async function getBankAccountsForCompany(req: AuthRequest, res: Response)
 export async function updateBankAccountsController(req: AuthRequest, res: Response) {
   const companyId = String(req.params.companyId);
   const userId = String(req.user?.id);
-  const v = updateBankAccount.array().safeParse(req.body);
+  const payload = Array.isArray(req.body) ? req.body : [req.body];
+  const v = updateBankAccount.array().safeParse(payload);
   if (!v.success) {
-    return res.status(400).json(errorResponse('Invalid input', v.error.flatten()));
+    return res.status(400).json(errorResponse('Invalid input', z.treeifyError(v.error)));
   }
   const { data } = v;
 
@@ -55,6 +58,24 @@ export async function updateBankAccountsController(req: AuthRequest, res: Respon
     const result = await updateBankAccounts({ companyId, params: data, userId });
     return result.success ? res.status(200).json(result) : res.status(400).json(result);
   } catch (error: unknown) {
+    return res.status(500).json(errorResponse('An unexpected error occurred'));
+  }
+}
+
+export async function getBankAccountsMinimal(req: AuthRequest, res: Response) {
+  const companyId = req.params.companyId;
+  const bankAccountIds = req.query.bankAccountIds;
+  const idsArray = Array.isArray(bankAccountIds)
+    ? bankAccountIds.filter((id): id is string => typeof id === 'string')
+    : typeof bankAccountIds === 'string'
+      ? [bankAccountIds]
+      : undefined;
+
+  try {
+    const response = await getMinimalBankAccountDetails({ companyId, bankAccountIds: idsArray });
+    console.log({ response });
+    return response.success ? res.status(200).json(response) : res.status(400).json(response);
+  } catch (error) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }

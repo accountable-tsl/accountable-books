@@ -4,9 +4,9 @@ import { useCompany } from '@/domains-pending-migration/company/store';
 import { useRef } from 'react';
 import { toast } from 'sonner';
 import { switchCompanyApi } from './api';
-import { authStore } from '../auth/store';
+import { authStore } from '@/modules/auth';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSession } from '../auth/Session';
+import { useSession } from '@session';
 
 export function useCompanySwitch() {
   const navigate = useNavigate();
