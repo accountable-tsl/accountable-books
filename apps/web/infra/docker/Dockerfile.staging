@@ -1,6 +1,6 @@
 # Multi-stage build for Web staging
 FROM node:24-alpine AS base
-RUN npm install -g pnpm@10.15.0
+RUN npm install -g pnpm@10.15.1
 WORKDIR /app
 
 # Prune stage - only get what @accountable-books/web needs
