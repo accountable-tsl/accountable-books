@@ -13,11 +13,6 @@
       "dependsOn": ["^build", "generate-env"],
       "outputs": ["dist/**", "build/**", ".vite/**"]
     },
-    "build:validate": {
-      "dependsOn": ["build"],
-      "cache": false,
-      "outputs": []
-    },
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },

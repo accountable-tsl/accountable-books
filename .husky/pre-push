@@ -7,7 +7,7 @@ echo "🚀 Running pre-push checks..."
 
 # Build all packages to ensure everything compiles
 echo "🏗️ Building all packages..."
-pnpm turbo run build:validate
+pnpm build
 
 # Run full test suite
 echo "🧪 Running full test suite..."
