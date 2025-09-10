@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { connectAccountsService } from '../../integrations/banking/services/connectAccounts.service.js';
-import { errorResponse, successResponse } from 'src/shared/utils/response.utils.js';
-import type { AuthRequest } from 'src/features/auth/auth.types.js';
+import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { providerRegistry } from '../../integrations/banking/providers/registry.js';
 
 export class BankingController {
