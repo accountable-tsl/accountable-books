@@ -54,6 +54,7 @@ primary_region = "iad"  # Washington DC (US East)
     grace_period = "20s"
   
 [[checks]]
+  name = "worker_tcp"
   type = "tcp"
   port = 9091
   interval = "30s"
