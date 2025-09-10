@@ -56,13 +56,13 @@ These have development defaults but **must be changed for production**:
 
 Leave empty for development (emails will be logged to console):
 
-| Variable            | Default                 | Description                     |
-| ------------------- | ----------------------- | ------------------------------- |
-| `EMAIL_PROVIDER`    | `postmark`              | Email service provider          |
-| `POSTMARK_API_KEY`  | _(empty)_               | Postmark API key for production |
-| `EMAIL_FROM`        | `dev@accountable.local` | From email address              |
-| `ETHEREAL_EMAIL`    | _(empty)_               | Ethereal test email username    |
-| `ETHEREAL_PASSWORD` | _(empty)_               | Ethereal test email password    |
+| Variable            | Default         | Description                     |
+| ------------------- | --------------- | ------------------------------- |
+| `EMAIL_PROVIDER`    | `postmark`      | Email service provider          |
+| `POSTMARK_API_KEY`  | _(empty)_       | Postmark API key for production |
+| `EMAIL_FROM`        | `mail@mail.com` | From email address              |
+| `ETHEREAL_EMAIL`    | _(empty)_       | Ethereal test email username    |
+| `ETHEREAL_PASSWORD` | _(empty)_       | Ethereal test email password    |
 
 ### 📱 Optional: Slack Integration
 

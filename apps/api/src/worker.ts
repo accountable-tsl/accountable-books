@@ -1,3 +1,6 @@
+// Load environment variables using the project's env-loader
+import '../config/env-loader.js';
+
 import * as Sentry from '@sentry/node';
 import { startAllWorkers, stopAllWorkers, getWorkersStatus } from './jobs/workers/index.js';
 import { initSentry } from './sentry.bootstrap.js';

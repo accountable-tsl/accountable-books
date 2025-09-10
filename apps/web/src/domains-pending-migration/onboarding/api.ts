@@ -27,6 +27,7 @@ export const handleEmailVerification = async (data: {
 }): Promise<ApiResponse<VerifyEmailFnResponse>> => {
   try {
     const res = await api.post(`/auth/verify-email`, data);
+    console.log({ res: res.data });
     return res.data as ApiResponse<VerifyEmailFnResponse>;
   } catch (err: unknown) {
     if (isAxiosError(err) && err.response?.data) {

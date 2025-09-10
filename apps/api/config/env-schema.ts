@@ -178,8 +178,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Default sender email address',
     type: 'string',
     required: false,
-    local: 'dev@accountable.local',
-    default: 'noreply@accountable.com',
+    default: 'support@getaccountable.com',
   },
 
   ETHEREAL_EMAIL: {

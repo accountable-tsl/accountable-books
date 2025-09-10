@@ -32,7 +32,23 @@ const createMockCurrentCompany = (
   overrides: Partial<CurrentCompanyContext> = {},
 ): CurrentCompanyContext => ({
   ...createMockCompany({ id: 'comp-1' }),
-  onboarding: { completedSteps: [], currentStep: 'welcome' },
+  onboarding: {
+    steps: [
+      {
+        key: 'email_verified',
+        label: 'Email verified',
+        complete: true,
+        blocked: false,
+        optional: true,
+        scope: 'company',
+        orderIndex: 1,
+      },
+    ],
+    isCompanyOwner: true,
+    canAccessApp: true,
+    nextStepToComplete: null,
+    userStepsComplete: true,
+  },
   ...overrides,
 });
 

@@ -3,9 +3,10 @@ import {
   type ParsedBankTxn,
   rawRowSchema,
   type TransformResult,
-} from '@/modules/banking/transactions/model/types';
+} from '@/modules/banking/csv-upload/model/types';
 import { debitCredit } from '@/shared/types/core';
 import { findDateRange, parseDateString, safeFormatDate } from '@/shared/utils/formatting-utils';
+import z from 'zod';
 
 export function transformParsedData({
   data,
@@ -42,10 +43,11 @@ export function transformParsedData({
       errors.push({
         rowIndex: index,
         originalRow: row,
-        errorMessages: res.error.errors.map((err) => {
-          const field = err.path.join('.');
-          return `${field ? `${field}: ` : ''}${err.message}`;
-        }),
+        // errorMessages: res.error.errors.map((err) => {
+        //   const field = err.path.join('.');
+        //   return `${field ? `${field}: ` : ''}${err.message}`;
+        // }),
+        errorMessages: z.treeifyError(res.error).errors?.map((err) => err) || [],
       });
       return;
     }

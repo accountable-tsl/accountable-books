@@ -6,22 +6,19 @@ import { ProviderSelectStep } from '../ui/steps/provider-select-step';
 import { ProviderWidget } from '../ui/provider-widget';
 import { ClassifyAccountStep } from '../ui/steps/classify-account-step';
 import { Button } from '@/components/ui/button';
-import {
-  useBanking,
-  useCountrySelection,
-  useConnectAccounts,
-  useCreateLinkToken,
-} from '@/modules/banking';
-import type {
-  BankProvider,
-  ProviderSelectionResult,
-  ConnectAccountsResponse,
-  CountryDisplay,
-} from '@/modules/banking';
 import { toast } from 'sonner';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { useNavigate } from 'react-router';
+import type { BankProvider, ProviderSelectionResult } from '@/modules/banking/providers';
+import {
+  useBanking,
+  useConnectAccounts,
+  useCountrySelection,
+  useCreateLinkToken,
+  type ConnectAccountsResponse,
+  type CountryDisplay,
+} from '@/modules/banking/connections';
 
 type FlowStep =
   | 'welcome'
@@ -29,8 +26,7 @@ type FlowStep =
   | 'provider-select'
   | 'connecting'
   | 'classify-accounts'
-  | 'success'
-  | 'csv-option';
+  | 'success';
 
 export function BankConnectionFlow() {
   const [currentStep, setCurrentStep] = useState<FlowStep>('welcome');
@@ -82,11 +78,11 @@ export function BankConnectionFlow() {
         setCurrentStep('provider-select');
       }
     } else {
-      setCurrentStep('csv-option');
+      handleSkipToCSV();
     }
   };
 
-  const stepWrapperClass = 'min-w-md max-w-lg flex flex-col gap-6 mx-auto';
+  const stepWrapperClass = 'md:min-w-md w-full max-w-lg flex flex-col gap-6 mx-auto';
 
   const handleWelcomeContinue = () => {
     if (selectedCountry && selectedCountryIsSupported) {
@@ -113,7 +109,9 @@ export function BankConnectionFlow() {
   };
 
   const handleSkipToCSV = () => {
-    setCurrentStep('csv-option');
+    if (tenantRoutes) {
+      navigate(tenantRoutes?.banking.upload());
+    }
   };
 
   const navigateAway = () => {

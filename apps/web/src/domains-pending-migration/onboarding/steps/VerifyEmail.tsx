@@ -43,6 +43,7 @@ export const VerifyEmail = ({
   // Retrieved from url
   const userIdFromUrl = params.get('userId');
   const verificationToken = params.get('token');
+  console.log({ userIdFromUrl, verificationToken });
 
   // Functions
   const verifyEmailFn = useCallback(async () => {

@@ -15,7 +15,6 @@ export const bankTransactionInput = z.object({
   date: zDate,
   amount: z.number(),
   bank_account_id: z.uuid(),
-  transaction_side: debitCredit.nullish(),
   description: z.string().nullish(),
   payee: z.string().nullish(),
   reference: z.string().nullish(),
@@ -29,8 +28,6 @@ export const bankTransactionInputCamel = createCamelCaseSchema(bankTransactionIn
 export type BankTransactionInputCamel = z.infer<typeof bankTransactionInputCamel>;
 
 export const newBankTransaction = bankTransactionInput.extend({
-  transaction_side: debitCredit,
-  absolute_amount: z.number(),
   system_exchange_rate: z.number(),
   categorization_status: categorizationStatus.default('uncategorized'),
   bank_transaction_batch_id: z.uuid().nullish(),

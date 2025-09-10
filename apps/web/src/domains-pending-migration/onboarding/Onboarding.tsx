@@ -14,7 +14,7 @@ import type {
   OnboardingState,
 } from '@/domains-pending-migration/onboarding/types';
 import { CenteredLoader } from '@/components/CenteredLoader';
-import type { CompanyData } from '@/domains-pending-migration/company/types';
+import type { CompanyData } from '@/modules/company/companies';
 import ErrorPage from '@/components/ErrorPage';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { MockSidebar } from '@/components/SideBar';
@@ -56,9 +56,11 @@ export function OnboardingStepPage() {
     return <CenteredLoader fullscreen message="Loading..." showAuthHeader={isLoggedIn} />;
   }
 
+  console.log({ stepInfo, stepKey });
+
   const StepComponent = stepInfo?.Component;
   if (!StepComponent) return <ErrorPage type="default" />;
-  if (!isLoggedIn) return <StepComponent />;
+  if (!isLoggedIn || stepKey === 'email_verified') return <StepComponent />;
 
   if (!onboardingState || !company || !onboardingState.nextStepToComplete) {
     return <ErrorPage type="default" />;

@@ -24,8 +24,8 @@ import { AccountingWorkspace } from '@/domains-pending-migration/accounting-ws/a
 import { CatEngine } from '@/domains-pending-migration/cat-engine/cat-engine';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ConnectBank } from '@/features/connect-bank';
-import { AddBankTransaction } from './modules/banking/transactions/ui/bank-tx-add';
 import { SessionProvider } from '@session';
+import { UploadBankTransactions } from '@/features/upload-bank-transactions';
 
 function App() {
   return (
@@ -116,11 +116,7 @@ function AppRoutes() {
             element={<AccountingWorkspaceSetup />}
           />
 
-          <Route
-            path={routes.accounting.uploadBankTxn.relativePath}
-            element={<AddBankTransaction />}
-          />
-
+          <Route path={routes.banking.upload.relativePath} element={<UploadBankTransactions />} />
           <Route path={routes.banking.connect.relativePath} element={<ConnectBank />} />
 
           <Route path={routes.accounting.catEngine.relativePath} element={<CatEngine />} />

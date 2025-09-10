@@ -146,9 +146,7 @@ export async function addNewBankTransactions({
               ...txn,
               external_id,
               amount: txnAmount,
-              absolute_amount: Math.abs(txnAmount),
               system_exchange_rate: exr,
-              transaction_side: txnAmount < 0 ? debitCredit.enum.credit : debitCredit.enum.debit,
               categorization_status: categorizationStatus.enum.uncategorized,
               bank_transaction_batch_id: undefined, // to be set after batch inser
               created_by_id: userId,

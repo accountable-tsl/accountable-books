@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { type Transporter } from 'nodemailer';
+import postmark from 'postmark';
 import {
   type EmailPayload,
   type InviteEmailPayload,
@@ -10,11 +11,14 @@ import { emailQueue } from '../../../jobs/queues/email.queue.js';
 import { type ApiResponse } from '../../../core/types/api.types.js';
 import { ENV } from '../../../config/env.js';
 
-let transporter: Transporter | null = null;
+// Union type for email sender - can be either nodemailer Transporter or Postmark ServerClient
+type EmailSender = Transporter | postmark.ServerClient;
 
-async function createTransporter(): Promise<Transporter> {
+let emailSender: EmailSender | null = null;
+
+async function createEmailSender(): Promise<EmailSender> {
   const provider = ENV.EMAIL_PROVIDER;
-  console.log('provider', provider);
+  console.log('📧 Email provider:', provider);
 
   switch (provider) {
     case 'dev': {
@@ -34,25 +38,20 @@ async function createTransporter(): Promise<Transporter> {
       });
     }
 
-    case 'postmark':
+    case 'postmark': {
       if (!ENV.POSTMARK_API_KEY) {
         throw new Error('Postmark API key missing');
       }
-      console.log("Postmark's being hit");
+      console.log('📮 Using Postmark API client');
 
-      return nodemailer.createTransport({
-        host: 'smtp.postmarkapp.com',
-        port: 587,
-        auth: {
-          user: ENV.POSTMARK_API_KEY,
-          pass: ENV.POSTMARK_API_KEY,
-        },
-      });
+      return new postmark.ServerClient(ENV.POSTMARK_API_KEY);
+    }
 
     case 'ses':
       if (!ENV.AWS_SES_SMTP_USERNAME || !ENV.AWS_SES_SMTP_PASSWORD) {
         throw new Error('AWS SES SMPT credentials missing');
       }
+      console.log('📤 Using AWS SES');
       return nodemailer.createTransport({
         host: `email-smtp.${ENV.AWS_REGION}.amazonaws.com`,
         port: 587,
@@ -67,39 +66,69 @@ async function createTransporter(): Promise<Transporter> {
   }
 }
 
-async function getTransporter() {
-  if (!transporter) {
-    transporter = await createTransporter();
+async function getEmailSender() {
+  if (!emailSender) {
+    emailSender = await createEmailSender();
   }
-  return transporter;
+  return emailSender;
+}
+
+// Helper function to check if sender is Postmark client
+function isPostmarkClient(sender: EmailSender): sender is postmark.ServerClient {
+  return sender instanceof postmark.ServerClient;
 }
 
 export async function sendEmail(payload: EmailPayload) {
-  const transporter = await getTransporter();
+  const sender = await getEmailSender();
 
-  console.log("I'm being hit (SendEmail)");
+  console.log('📧 Sending email via', ENV.EMAIL_PROVIDER);
 
   if (!ENV.EMAIL_FROM) {
     throw new Error('EMAIL_FROM is not set');
   }
 
   try {
-    const info = await transporter.sendMail({
-      from: ENV.EMAIL_FROM,
-      to: payload.to,
-      subject: payload.subject,
-      html: payload.html,
-      text: payload.text,
-    });
+    let result;
 
-    console.log('✅ Email sent:', info.messageId);
+    if (isPostmarkClient(sender)) {
+      // Use Postmark API
+      result = await sender.sendEmail({
+        From: ENV.EMAIL_FROM,
+        To: payload.to,
+        Subject: payload.subject || 'Notification from Accountable',
+        HtmlBody: payload.html || undefined,
+        TextBody: payload.text || undefined,
+      });
 
-    if (ENV.NODE_ENV === 'local' || ENV.NODE_ENV === 'docker') {
-      console.log('Email preview URL:', nodemailer.getTestMessageUrl(info));
+      console.log('✅ Email sent via Postmark:', result.MessageID);
+      return {
+        messageId: result.MessageID,
+        provider: 'postmark',
+      };
+    } else {
+      // Use nodemailer (for Ethereal, SES, etc.)
+      const info = await sender.sendMail({
+        from: ENV.EMAIL_FROM,
+        to: payload.to,
+        subject: payload.subject,
+        html: payload.html,
+        text: payload.text,
+      });
+
+      console.log('✅ Email sent via nodemailer:', info.messageId);
+
+      if (ENV.NODE_ENV === 'local' || ENV.NODE_ENV === 'docker') {
+        console.log('Email preview URL:', nodemailer.getTestMessageUrl(info));
+      }
+
+      return {
+        messageId: info.messageId,
+        provider: ENV.EMAIL_PROVIDER,
+        previewUrl: nodemailer.getTestMessageUrl(info),
+      };
     }
-
-    return info;
   } catch (error) {
+    console.error('❌ Failed to send email:', error);
     errorResponse('Failed to send email', error);
   }
 }

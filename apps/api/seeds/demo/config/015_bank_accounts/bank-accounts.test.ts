@@ -513,7 +513,7 @@ describe('deleteDemoBankAccounts', () => {
   test('should handle no associated COA entries', async () => {
     const mockTransaction = createMockTransaction({
       bankAccountsToDelete: [
-        { coa_id: null }, // No COA reference
+        { coa_id: '' }, // No COA reference
       ],
     });
 

@@ -2,19 +2,16 @@ import { ArrowRight, Building2, Check, Dot, Landmark, Plus, User } from 'lucide-
 import { Switch } from '@/components/ui/switch';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import type {
-  ConnectedAccount,
-  ConnectAccountsResponse,
-} from '@/modules/banking/connections/model/types';
+import type { ConnectedAccount, ConnectAccountsResponse } from '@/modules/banking/connections';
 import { cn } from '@/lib/utils';
-import {
-  useUpdateBankAccounts,
-  useMinimalBankAccountDetails,
-  type BusinessOrPersonalAccount,
-  type MinimalBankAccountDetails,
-} from '@/modules/banking';
 import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
 import { toast } from 'sonner';
+import {
+  useMinimalBankAccountDetails,
+  useUpdateBankAccounts,
+  type BusinessOrPersonalAccount,
+  type MinimalBankAccountDetails,
+} from '@/modules/banking/accounts';
 
 interface ClassifyAccountStepProps {
   stepWrapperClass: string;
@@ -23,30 +20,6 @@ interface ClassifyAccountStepProps {
   onConnectAnother: () => void;
   companyId: string;
 }
-
-// const mockAccounts: ConnectedAccount[] = [
-//   {
-//     id: 'acc-1',
-//     displayName: 'Business Current Account',
-//     mask: '****2847',
-//     businessOrPersonal: 'business',
-//     currencyCode: 'USD',
-//   },
-//   {
-//     id: 'acc-2',
-//     displayName: 'Business Savings',
-//     mask: '8392',
-//     businessOrPersonal: 'business',
-//     currencyCode: 'USD',
-//   },
-//   {
-//     id: 'acc-3',
-//     displayName: 'Personal Current Account',
-//     mask: '1956',
-//     businessOrPersonal: 'business', // Default all to business, user can change
-//     currencyCode: 'EUR',
-//   },
-// ];
 
 export function ClassifyAccountStep({
   stepWrapperClass,

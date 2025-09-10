@@ -4,7 +4,7 @@ import type {
   CompanyOnboardingState,
   CompanyType,
   OnboardingState,
-} from '@/modules/company';
+} from '@/modules/company/companies';
 import type { TenantRoutes } from '@/shared/routes/types';
 import type { LogoutOptions } from '../../credentials';
 

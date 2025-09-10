@@ -258,7 +258,7 @@ const createUserAndCompany = async (
   const assignRole = await grantDirectAccess({
     trx,
     userId: userResponse.data.id,
-    companyId: companyResponse.data.id,
+    companyId: companyResponse.data.short_code,
     roleKey,
     grantedBy: userResponse.data.id,
   });

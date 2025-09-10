@@ -71,6 +71,7 @@
     "pino": "^9.9.4",
     "pino-http": "^10.5.0",
     "plaid": "^38.1.0",
+    "postmark": "^4.0.5",
     "rate-limit-redis": "^4.2.2",
     "redis": "^4.7.1",
     "swagger-jsdoc": "^6.2.8",
