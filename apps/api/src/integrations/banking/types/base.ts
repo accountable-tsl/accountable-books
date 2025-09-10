@@ -1,4 +1,4 @@
-import type { BankAccountType } from 'src/domains/banking/bankAccounts/bankAccounts.types.js';
+import type { BankAccountType } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
 
 export interface ProviderError {
   code: string;

@@ -3,10 +3,10 @@ import {
   newBankAccountCredentialInput,
   type NewBankAccountCredentialInput,
 } from './bankAccountCredentials.types.js';
-import { errorResponse, successResponse } from 'src/shared/utils/response.utils.js';
-import { getCompanyUUID } from 'src/shared/utils/random.utils.js';
-import { knexClient } from 'src/db/knexClient.js';
-import { encrypt } from 'src/shared/utils/crypto.utils.js';
+import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
+import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
+import { knexClient } from '../../../db/knexClient.js';
+import { encrypt } from '../../../shared/utils/crypto.utils.js';
 
 const getBankAccountCredentialAAD = ({
   providerId,

@@ -16,10 +16,10 @@ import {
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
 import type { Knex } from 'knex';
 import { getAccountTypeByKey } from '../../account/account.registry.js';
-import { getCurrency } from 'src/domains/currencies/currencies.utils.js';
-import logger from 'src/shared/utils/logger.js';
+import { getCurrency } from '../../../domains/currencies/currencies.utils.js';
+import logger from '../../../shared/utils/logger.js';
 import z from 'zod';
-import { isValidUUID } from 'src/shared/utils/formatting.utils.js';
+import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
 
 const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields

@@ -13,7 +13,7 @@ import {
   type ProviderAccount,
   type ProviderInstitution,
 } from '../types/base.js';
-import { ENV } from 'src/config/env.js';
+import { ENV } from '../../../config/env.js';
 import { mapPlaidAccountType } from '../utils/mappings.js';
 
 export class PlaidProvider extends BankingProvider {

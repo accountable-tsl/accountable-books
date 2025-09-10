@@ -15,7 +15,7 @@ import {
 import { redis } from '../../../lib/redis.js';
 import { refreshProviderRegistry } from '../../../integrations/banking/providers/registry.js';
 import z from 'zod';
-import { getCountryByCode } from 'src/domains/countries/countries.model.js';
+import { getCountryByCode } from '../../../domains/countries/countries.model.js';
 
 const TTL = 60 * 60 * 1; // 1 hour
 export async function invalidateBankFeedProvidersCache(providerIds?: string[]) {

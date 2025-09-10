@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
-import { loadKeyRegistry } from 'src/config/enc-config.js';
+import { loadKeyRegistry } from '../../config/enc-config.js';
 
 export function generateRandomToken(length = 48): string {
   return crypto.randomBytes(length).toString('hex');

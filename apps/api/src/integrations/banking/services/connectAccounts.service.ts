@@ -4,11 +4,11 @@ import { logger, logError } from '../../../shared/utils/logger.js';
 import { providerRegistry } from '../providers/registry.js';
 import { findOrCreateBankMapping } from '../utils/resolveBank.js';
 import { createBankAccountWithConnection } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
-import type { BankProviderKey } from 'src/domains/banking/bankFeedProviders/bankFeedProviders.types.js';
+import type { BankProviderKey } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
 import { randomUUID } from 'crypto';
-import { createBankAccountCredential } from 'src/domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
+import { createBankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
 import { knexClient } from '../../../db/knexClient.js';
-import type { BusinessOrPersonalAccount } from 'src/domains/banking/bankAccounts/bankAccounts.types.js';
+import type { BusinessOrPersonalAccount } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
 
 export interface ConnectAccountsParams {
   providerKey: BankProviderKey;

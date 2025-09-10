@@ -1,12 +1,12 @@
-import type { NewBankProviderMapping } from 'src/domains/banking/bankProviderMappings/bankProviderMappings.types.js';
+import type { NewBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.types.js';
 import type { ProviderInstitution } from '../types/base.js';
-import { isProd, ENV } from 'src/config/env.js';
+import { isProd, ENV } from '../../../config/env.js';
 import type { Knex } from 'knex';
-import { knexClient } from 'src/db/knexClient.js';
-import { getBankProviderMapping } from 'src/domains/banking/bankProviderMappings/bankProviderMappings.model.js';
-import { logger } from 'src/shared/utils/logger.js';
-import { getCountry } from 'src/domains/countries/countries.utils.js';
-import type { NewBank } from 'src/domains/banking/banks/banks.types.js';
+import { knexClient } from '../../../db/knexClient.js';
+import { getBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.model.js';
+import { logger } from '../../../shared/utils/logger.js';
+import { getCountry } from '../../../domains/countries/countries.utils.js';
+import type { NewBank } from '../../../domains/banking/banks/banks.types.js';
 
 // --- CONFIGURATION CONSTANTS ---
 const BANK_KEY_MAX_LENGTH = 100;

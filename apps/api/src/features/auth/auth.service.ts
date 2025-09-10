@@ -23,7 +23,7 @@ import { sendVerificationEmail } from '../../features/communications/email/email
 import { type UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import { addNewToken, getUserToken } from '../../domains/tokens/tokens.model.js';
 import { markUserOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
-import { getCompanyShortCode } from 'src/shared/utils/random.utils.js';
+import { getCompanyShortCode } from '../../shared/utils/random.utils.js';
 
 export async function loginService(
   email: string,

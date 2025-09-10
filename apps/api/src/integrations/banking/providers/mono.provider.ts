@@ -7,7 +7,7 @@ import {
   type ProviderInstitution,
   type ProviderItemDetails,
 } from '../types/base.js';
-import { ENV } from 'src/config/env.js';
+import { ENV } from '../../../config/env.js';
 
 export class MonoProvider extends BankingProvider {
   readonly key = 'mono';

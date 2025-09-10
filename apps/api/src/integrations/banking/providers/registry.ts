@@ -1,11 +1,11 @@
 import { BankingProvider } from '../types/base.js';
 import { PlaidProvider } from './plaid.provider.js';
 import { MonoProvider } from './mono.provider.js';
-import { getBankFeedProviders } from 'src/domains/banking/bankFeedProviders/bankFeedProviders.model.js';
+import { getBankFeedProviders } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.model.js';
 import type {
   BankFeedProviderWithCountries,
   BankProviderKey,
-} from 'src/domains/banking/bankFeedProviders/bankFeedProviders.types.js';
+} from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
 
 export class ProviderRegistry {
   private providers = new Map<BankProviderKey, BankingProvider>();

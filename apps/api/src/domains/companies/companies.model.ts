@@ -31,8 +31,8 @@ import {
 import { logger, logError, logDatabaseOperation, logTiming } from '../../shared/utils/logger.js';
 import { getCurrency } from '../currencies/currencies.utils.js';
 import { getCountry } from '../countries/countries.utils.js';
-import { buildAuthContext, generateAuthTokens } from 'src/features/auth/auth.utils.js';
-import { redis } from 'src/lib/redis.js';
+import { buildAuthContext, generateAuthTokens } from '../../features/auth/auth.utils.js';
+import { redis } from '../../lib/redis.js';
 
 /**
  * Generates a unique short code for a company with collision handling

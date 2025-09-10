@@ -50,7 +50,7 @@ import { NewProject, Project } from '../domains/projects/projects.types.ts';
 import type {
   BankAccountCredential,
   NewBankAccountCredential,
-} from 'src/domains/banking/bankAccountCredentials/bankAccountCredentials.types.ts';
+} from '../domains/banking/bankAccountCredentials/bankAccountCredentials.types.ts';
 
 declare module 'knex/types/tables' {
   interface Tables {
