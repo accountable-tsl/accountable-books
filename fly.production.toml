@@ -5,38 +5,47 @@ app = "accountable-books-api"
 primary_region = "iad"  # Washington DC (US East)
 
 [build]
-  dockerfile = "apps/api/infra/docker/Dockerfile.staging"  # We'll create a production Dockerfile later
+  dockerfile = "apps/api/infra/docker/Dockerfile.prod"  # We'll create a production Dockerfile later
+  build-target = "runtime"
 
 [env]
   NODE_ENV = "production"
   PORT = "8080"  # Fly.io expects apps to listen on port 8080
+  BASE_DOMAIN = "getaccountable.com"
+  BACKEND_URL = "https://api.getaccountable.com"
+  FRONTEND_URL = "https://app.getaccountable.com"
+  COOKIE_DOMAIN = ".getaccountable.com"
+
+  # Worker configuration
+  ENABLE_EMAIL_WORKER = "true"
+  ENABLE_TRANSACTION_SYNC = "true"
+  EMAIL_WORKER_CONCURRENCY = "5"
+  TRANSACTION_SYNC_CONCURRENCY = "3"
+  ENABLE_REDIS_MONITORING = "true"
+
+[processes]
+  web = "node dist/src/server.js"
+  worker = "node dist/src/worker.js"
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false  # Keep running in production
+  auto_stop_machines = false
   auto_start_machines = true
-  min_machines_running = 1
-  processes = ["app"]
+  min_machines_running = 2
+  max_machines_running = 10
+  processes = ["web"]
 
   [[http_service.checks]]
-    grace_period = "10s"
-    interval = "30s"
     method = "GET"
-    timeout = "5s"
     path = "/health"
-
-[processes]
-  app = "node dist/src/server.js"
-
-[[vm]]
-  cpu_kind = "shared"
-  cpus = 2  # More resources for production
-  memory_mb = 2048
+    timeout = "2s"
+    interval = "10s"
+    grace_period = "20s"
 
 [metrics]
   port = 9091
   path = "/metrics"
 
-# Production secrets will be set via: fly secrets set SECRET_NAME=value
-# Example: fly secrets set JWT_ACCESS_SECRET=your-production-secret-here
+[compute]
+  memory = "1024MB"

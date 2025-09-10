@@ -1,13 +1,9 @@
 import { ENV } from '../src/config/env';
 import pg from 'pg';
 
-const client = new pg.Client({
-  host: ENV.DB_HOST || 'localhost',
-  port: Number(ENV.DB_PORT) || 5433,
-  user: ENV.POSTGRES_USER || 'user',
-  password: ENV.POSTGRES_PASSWORD || 'password',
-  database: ENV.POSTGRES_DB || 'accountable_books',
-});
+const client = new pg.Client(
+  'postgresql://app_user:4aHsvhaZQQiqbLJdJUVm@ep-restless-bird-admdf9pm-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
+);
 
 const run = async () => {
   console.log('⚠️ Resetting database:', ENV.POSTGRES_DB);
