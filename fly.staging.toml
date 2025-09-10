@@ -56,7 +56,6 @@ primary_region = "iad"  # Washington DC (US East)
 [[checks]]
   type = "tcp"
   port = 9091
-  path = "
   interval = "30s"
   timeout = "10s"
   processes = ["worker"]
