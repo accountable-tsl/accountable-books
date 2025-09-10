@@ -1,6 +1,6 @@
 # Multi-stage build for API staging
 FROM node:24.3.0-alpine AS base
-RUN npm install -g pnpm@10.15.0
+RUN npm install -g pnpm@10.15.1
 WORKDIR /app
 
 # Prune stage - only get what @accountable-books/api needs
@@ -38,7 +38,7 @@ RUN turbo build --filter=@accountable-books/api
 
 # Runtime stage
 FROM node:24.3.0-alpine AS runtime
-RUN npm install -g pnpm@10.15.0 && apk add --no-cache jq
+RUN npm install -g pnpm@10.15.1 && apk add --no-cache jq
 WORKDIR /app
 
 # Copy the entire built workspace structure
