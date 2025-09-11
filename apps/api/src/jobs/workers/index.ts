@@ -1,5 +1,6 @@
 import { startEmailWorker } from './email.worker.js';
 import { startTransactionSyncWorker } from './transaction-sync.worker.js';
+import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
 import type { Worker } from 'bullmq';
 
 export interface WorkerConfig {
@@ -8,6 +9,10 @@ export interface WorkerConfig {
     concurrency: number;
   };
   transactionSync: {
+    enabled: boolean;
+    concurrency: number;
+  };
+  partitionMaintenance: {
     enabled: boolean;
     concurrency: number;
   };
@@ -22,6 +27,10 @@ const DEFAULT_WORKER_CONFIG: WorkerConfig = {
   transactionSync: {
     enabled: process.env.ENABLE_TRANSACTION_SYNC === 'true',
     concurrency: Number(process.env.TRANSACTION_SYNC_CONCURRENCY) || 3,
+  },
+  partitionMaintenance: {
+    enabled: process.env.ENABLE_PARTITION_MAINTENANCE !== 'false',
+    concurrency: Number(process.env.PARTITION_MAINTENANCE_CONCURRENCY) || 1,
   },
 };
 
@@ -69,6 +78,22 @@ export async function startAllWorkers(config: Partial<WorkerConfig> = {}): Promi
     }
   } else {
     console.log('⏭️  Transaction sync worker disabled');
+  }
+
+  // Start partition maintenance worker
+  if (workerConfig.partitionMaintenance.enabled) {
+    try {
+      console.log('🗂️  Starting partition maintenance worker...');
+      const partitionWorker = startPartitionMaintenanceWorker();
+      activeWorkers.set('partitionMaintenance', partitionWorker);
+      workers.push(partitionWorker);
+      console.log('✅ Partition maintenance worker started successfully');
+    } catch (error) {
+      console.error('❌ Failed to start partition maintenance worker:', error);
+      // Don't throw for partition maintenance as it's not critical for MVP
+    }
+  } else {
+    console.log('⏭️  Partition maintenance worker disabled');
   }
 
   console.log(`✅ Started ${workers.length} workers successfully`);

@@ -6,6 +6,8 @@
     "dev": "NODE_ENV=local tsx watch src/server.ts",
     "dev:staging": "NODE_ENV=staging tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json && cpy \"src/public/**\" dist/public",
+    "fly:secrets:validate": "tsx scripts/validate-fly-secrets.ts staging",
+    "fly:secrets:validate:prod": "tsx scripts/validate-fly-secrets.ts production",
     "start": "NODE_ENV=production node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:all": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tooling.json --noEmit",

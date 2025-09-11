@@ -309,24 +309,13 @@ BEGIN
   END LOOP;
 END$$;
 
--- Before-insert trigger (year-only ensure; no months yet)
+-- Before-insert trigger (simplified - no dynamic partition creation)
 CREATE OR REPLACE FUNCTION le_ensure_partition_before_insert()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
-DECLARE
-  y int := EXTRACT(YEAR FROM NEW.fs_date);
-  rel_year text := format('public.ledger_entries_%s', y);
 BEGIN
-  IF y < 2024 THEN
-    RETURN NEW;
-  END IF;
-
-  IF to_regclass(rel_year) IS NULL THEN
-    IF pg_try_advisory_lock(43, y) THEN
-      PERFORM ensure_ledger_year_partition(y);
-      PERFORM pg_advisory_unlock(43, y);
-    END IF;
-  END IF;
-
+  -- Simplified trigger that doesn't create partitions dynamically
+  -- Partition creation is now handled at the application level
+  -- This prevents DDL-within-transaction conflicts
   RETURN NEW;
 END$$;
 

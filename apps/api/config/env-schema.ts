@@ -162,22 +162,18 @@ export const API_ENV_SCHEMA: EnvSchema = {
   EMAIL_PROVIDER: {
     description: 'Email service provider',
     type: 'string',
-    required: false,
-    local: 'postmark',
-    staging: 'console',
-    default: 'postmark',
+    local: 'ethereal',
+    staging: 'postmark',
   },
 
   POSTMARK_API_KEY: {
     description: 'Postmark API key for sending emails',
     type: 'secret',
-    required: false,
   },
 
   EMAIL_FROM: {
     description: 'Default sender email address',
     type: 'string',
-    required: false,
     default: 'support@getaccountable.com',
   },
 

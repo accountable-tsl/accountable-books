@@ -203,7 +203,7 @@ export function UploadBankTransactions() {
                 <span>Create your statement file with our CSV template</span>
                 <span>
                   <a
-                    href="https://docs.google.com/spreadsheets/d/1esQsP0H9gAZy_JAsz9CRVVYKlbHI7YGbofXJE5y6WAc"
+                    href="https://docs.google.com/spreadsheets/d/1odReHXPWoO6epMO11qMvdUL2FbXv4Qks9RVE08-4lDU"
                     target="_blank"
                     className="text-blue-600 hover:underline"
                   >

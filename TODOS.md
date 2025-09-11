@@ -1,14 +1,134 @@
-### TODOS & ISSUES TO RESOLVE
+# 🚀 14-DAY LAUNCH PLAN
 
-MUSTS
+Launch `2025-29-09`
 
-- Demo companies have null assigned firm ids
-- URL resolves to null subdomain in frontend, should solve. at worst resolve to app
-- Backup database for postgres
-- Re-enable deployment protection once we push to production;
+## 📅 WEEK 1: Core Transaction Flow
 
-CAN DELAY
+### Day 1: CSV Template & Upload Setup
 
-- Implement monitoring - grafana, prometheus etc, and maybe versioning too
-- Add concurrency to deploy-staging.yml : { group: staging, cancel-in-progress: true }.
-- Add all ISO 4217 currency codes to currencies table
+- [ ] Create standardized CSV template for bank transactions (similar to chart of accounts approach)
+- [ ] Write clear upload instructions in Google Sheets
+- [ ] Add template download link to upload UI
+- [ ] Test existing CSV upload flow with standardized format
+- [ ] Verify transactions save correctly to `bank_transactions` table
+
+### Day 2: Plaid Transaction Sync
+
+- [ ] Implement actual transaction fetching in `transaction-sync.worker.ts`
+- [ ] Connect to Plaid API's `/transactions/get` endpoint
+- [ ] Handle pagination and date ranges
+- [ ] Store fetched transactions in database
+- [ ] Add sync status tracking
+
+### Day 3-4: Transaction Categorization UI (CatEngine) - Part 1
+
+- [ ] Analyze database schema for transaction states (uncategorized, predicted, posted)
+- [ ] Create database VIEW or query to unify transactions from multiple sources:
+  - `bank_transactions` (uncategorized)
+  - `predictions` table (predicted but needs review/below threshold)
+  - `ledger_transactions`/`journal_entries` (already posted)
+- [ ] Build transaction list component with unified data source
+- [ ] Display: date, description, amount, account, current category, status
+- [ ] Add basic filtering by status (uncategorized, predicted, posted)
+
+### Day 5: Transaction Categorization UI (CatEngine) - Part 2
+
+- [ ] Add category dropdown with chart of accounts integration
+- [ ] Implement bulk categorization (select multiple transactions)
+- [ ] Add "reviewed" status toggle and confidence scoring display
+- [ ] Show categorization explanation/reasoning field
+- [ ] Save category changes and update transaction status
+
+### Day 6: Review Workflow & Auto-Post Logic
+
+- [ ] Add "needs review" filter to transaction list
+- [ ] Create review approval interface for predicted transactions
+- [ ] Implement auto-post threshold logic (high confidence predictions)
+- [ ] Add notes/explanation display for categorizations
+- [ ] Implement "approve all" and "post to ledger" bulk actions
+- [ ] Track who reviewed what and when (audit trail)
+
+### Day 7: P&L Calculation Engine
+
+- [ ] Create service to calculate P&L from transactions
+- [ ] Group by income/expense categories
+- [ ] Handle date range filtering
+- [ ] Calculate totals and net profit/loss
+- [ ] Add monthly/quarterly/annual views
+
+## 📅 WEEK 2: Reports & Multi-tenancy
+
+### Day 8: P&L Report UI
+
+- [ ] Build P&L report component
+- [ ] Display income, expenses, net profit sections
+- [ ] Add date range selector
+- [ ] Include drill-down to transaction details
+- [ ] Export to PDF functionality
+
+### Day 9: Balance Sheet Logic
+
+- [ ] Calculate assets, liabilities, equity from chart of accounts
+- [ ] Handle account balances as of specific dates
+- [ ] Ensure accounting equation (Assets = Liabilities + Equity)
+- [ ] Add comparative periods (previous month/year)
+
+### Day 10: Balance Sheet UI & Export
+
+- [ ] Build Balance Sheet report component
+- [ ] Display assets, liabilities, equity sections
+- [ ] Add PDF export functionality
+- [ ] Include simple notes section for assumptions
+- [ ] Add print-friendly styling
+
+### Day 11: Minimal Dashboard
+
+- [ ] Replace placeholder dashboard with real metrics
+- [ ] Show: total income, expenses, net profit (current month)
+- [ ] Display account balances summary
+- [ ] Add recent transactions widget (last 10)
+- [ ] Include simple income/expense trend chart
+
+### Day 12: Client Invitation System
+
+- [ ] Build email invitation system for accounting firms
+- [ ] Create invitation email templates
+- [ ] Add client signup flow from invitation links
+- [ ] Handle firm-client relationship assignment
+- [ ] Test subdomain routing for firms
+
+### Day 13: Client Management UI
+
+- [ ] Add client switcher component for accounting firms
+- [ ] List all firm clients with basic info
+- [ ] Implement client selection/switching
+- [ ] Update navigation to show current client context
+- [ ] Fix subdomain resolution issues
+
+### Day 14: Staging Deployment & Testing
+
+- [ ] Deploy complete system to staging environment
+- [ ] Test complete user flow: signup → bank connection → transactions → reports
+- [ ] Invite 3-5 accounting firms to test manually
+- [ ] Document critical bugs and quick fixes
+- [ ] Prepare production deployment checklist
+
+## 🔧 EXISTING ISSUES TO FIX (During Sprint)
+
+### CRITICAL (Must Fix)
+
+- [ ] Demo companies have null assigned firm ids
+- [ ] URL resolves to null subdomain in frontend, should resolve to app
+- [ ] Backup database for postgres
+- [ ] Re-enable deployment protection (vercel) once we push to production
+
+### CAN DELAY (Post-Launch)
+
+- [ ] Plaid Webhook implementation
+- [ ] Implement monitoring - grafana, prometheus etc, and maybe versioning too
+- [ ] Add concurrency to deploy-staging.yml : { group: staging, cancel-in-progress: true }
+- [ ] Add all ISO 4217 currency codes to currencies table
+
+---
+
+**Success Criteria**: By Day 14, users can signup, connect banks, categorize transactions, and generate basic P&L and Balance Sheet reports.

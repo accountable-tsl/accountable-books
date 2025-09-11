@@ -16,6 +16,7 @@ import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import { categorizationStatus, debitCredit } from '../../core/types/core.js';
 import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
 import { buildBankTransactionQuery } from './bankTransactions.utils.js';
+import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
 import crypto from 'crypto';
 import dayjs from 'dayjs';
 
@@ -62,6 +63,11 @@ export async function addNewBankTransactions({
     if (!batch.fingerprint) {
       return errorResponse('Fingerprint is required for deduplication');
     }
+
+    // Ensure partitions exist for all transaction dates BEFORE starting the main transaction
+    // This prevents DDL-within-transaction conflicts
+    const transactionDates = batch.bank_transactions.map((txn) => new Date(txn.date));
+    await ensurePartitionsForDates('bank_transactions', transactionDates);
 
     const result: ApiResponse<AddBankTransactionsResponse> = await knexClient.transaction(
       async (trx) => {

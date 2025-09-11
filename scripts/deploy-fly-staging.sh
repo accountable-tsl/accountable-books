@@ -187,6 +187,29 @@ build_env_vars() {
     print_success "Environment variables prepared"
 }
 
+# Function to validate Fly.io secrets
+validate_secrets() {
+    print_status "Validating Fly.io secrets..."
+    
+    # Change to the API directory and run validation
+    cd apps/api || {
+        print_error "Failed to change to apps/api directory"
+        exit 1
+    }
+    
+    if pnpm fly:secrets:validate 2>/dev/null; then
+        print_success "All required secrets are configured"
+    else
+        print_error "Missing required secrets detected!"
+        print_status "Run the validation manually to see what's missing:"
+        echo "  cd apps/api && pnpm fly:secrets:validate"
+        exit 1
+    fi
+    
+    # Return to root directory
+    cd ../.. || exit 1
+}
+
 # Function to deploy the application
 deploy_app() {
     print_status "Deploying application to Fly.io..."
@@ -263,6 +286,7 @@ deploy() {
     check_fly_auth
     create_app
     set_secrets
+    validate_secrets
     deploy_app  # This now handles env vars internally
     configure_domain
     show_status
@@ -300,18 +324,24 @@ case "${1:-deploy}" in
     "domain")
         configure_domain
         ;;
+    "validate")
+        check_fly_cli
+        check_fly_auth
+        validate_secrets
+        ;;
     *)
-        echo "Usage: $0 {deploy|status|logs|scale|destroy|secrets|create|domain}"
+        echo "Usage: $0 {deploy|status|logs|scale|destroy|secrets|create|domain|validate}"
         echo ""
         echo "Commands:"
-        echo "  deploy   - Full deployment (default)"
-        echo "  status   - Show deployment status"
-        echo "  logs     - Show application logs"
-        echo "  scale N  - Scale to N instances"
-        echo "  destroy  - Destroy the Fly app"
-        echo "  secrets  - Set secrets only"
-        echo "  create   - Create Fly app only"
-        echo "  domain   - Configure custom domain"
+        echo "  deploy    - Full deployment (default)"
+        echo "  status    - Show deployment status"
+        echo "  logs      - Show application logs"
+        echo "  scale N   - Scale to N instances"
+        echo "  destroy   - Destroy the Fly app"
+        echo "  secrets   - Set secrets only"
+        echo "  create    - Create Fly app only"
+        echo "  domain    - Configure custom domain"
+        echo "  validate  - Validate Fly.io secrets only"
         echo ""
         echo "Environment:"
         echo "  FLY_ORG  - Fly.io organization (default: accountable)"
