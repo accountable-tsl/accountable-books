@@ -1,0 +1,150 @@
+name: CI
+on:
+  push:
+    branches: [main, staging, develop]
+  pull_request:
+    branches: [main, staging, develop]
+
+env:
+  PNPM_VERSION: 10.15.1
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          standalone: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install deps (workspace)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages for typecheck
+        run: pnpm --filter @accountable-books/utils build
+
+      - name: Lint workspace
+        run: pnpm run lint
+
+      - name: Typecheck workspace
+        run: pnpm run typecheck
+
+      - name: Format check
+        run: pnpm run format:check
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [api, web]
+
+    services:
+      postgres:
+        image: iamtemi/accountable:pg17-cron-vector-v1
+        env:
+          POSTGRES_DB: accountable_books
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
+      redis:
+        image: redis:8.0-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6380:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          standalone: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install deps (workspace)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages (utils)
+        run: pnpm --filter @accountable-books/utils build
+
+      - name: Generate environment files
+        run: pnpm --filter @accountable-books/${{ matrix.package }} generate-env
+
+      - name: Create test database
+        if: matrix.package == 'api'
+        run: |
+          PGPASSWORD=password psql -h localhost -p 5433 -U user -d accountable_books -c "CREATE DATABASE accountable_books_test;"
+        continue-on-error: true
+
+      - name: Run database migrations
+        if: matrix.package == 'api'
+        run: pnpm --filter @accountable-books/api run migrate:test
+
+      - name: Build ${{ matrix.package }}
+        run: pnpm --filter @accountable-books/${{ matrix.package }} build
+
+      - name: Test ${{ matrix.package }}
+        run: pnpm --filter @accountable-books/${{ matrix.package }} test -- --run
+
+      # Optional: Sentry sourcemaps (enable once secrets exist)
+      # - name: Upload Sentry sourcemaps
+      #   env:
+      #     SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      #     SENTRY_ORG: your-org
+      #     SENTRY_PROJECT: node-express
+      #     SENTRY_RELEASE: ${{ github.sha }}
+      #   run: |
+      #     sentry-cli releases new "$SENTRY_RELEASE"
+      #     sentry-cli releases files "$SENTRY_RELEASE" upload-sourcemaps apps/api/dist --rewrite
+      #     sentry-cli releases finalize "$SENTRY_RELEASE"
+
+  ml-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install "poetry==1.8.3"
+
+      - name: Install dependencies (ml-engine)
+        working-directory: apps/ml-engine
+        run: poetry install --no-interaction --no-ansi --no-root
+
+      - name: Run tests (ml-engine)
+        working-directory: apps/ml-engine
+        env:
+          PYTHONPATH: ${{ github.workspace }}/apps/ml-engine
+        run: poetry run pytest -q
