@@ -6,11 +6,11 @@ Launch `2025-29-09`
 
 ### Day 1: CSV Template & Upload Setup
 
-- [ ] Create standardized CSV template for bank transactions (similar to chart of accounts approach)
-- [ ] Write clear upload instructions in Google Sheets
-- [ ] Add template download link to upload UI
-- [ ] Test existing CSV upload flow with standardized format
-- [ ] Verify transactions save correctly to `bank_transactions` table
+- [x] Create standardized CSV template for bank transactions (similar to chart of accounts approach)
+- [x] Write clear upload instructions in Google Sheets
+- [x] Add template download link to upload UI
+- [x] Test existing CSV upload flow with standardized format
+- [x] Verify transactions save correctly to `bank_transactions` table
 
 ### Day 2: Plaid Transaction Sync
 

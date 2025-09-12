@@ -2,15 +2,26 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
 import { Button } from '@/components/ui/button';
 import { WidgetLoading } from '@/features/connect-bank/ui/components/widget-loading';
+import { plaidOAuthStorage } from '@/features/connect-bank/utils/oauth-storage';
 
 interface PlaidWidgetProps {
   linkToken: string;
   onSuccess: (publicToken: string, metadata?: any) => void;
   onExit?: () => void;
   onError?: (error: any) => void;
+  // OAuth state props
+  userId?: string;
+  companyId?: string;
 }
 
-export function PlaidWidget({ linkToken, onSuccess, onExit, onError }: PlaidWidgetProps) {
+export function PlaidWidget({
+  linkToken,
+  onSuccess,
+  onExit,
+  onError,
+  userId,
+  companyId,
+}: PlaidWidgetProps) {
   const [_isReady, setIsReady] = useState(false);
 
   const onSuccessCallback = useCallback(
@@ -41,15 +52,38 @@ export function PlaidWidget({ linkToken, onSuccess, onExit, onError }: PlaidWidg
 
   const { open, ready, error } = usePlaidLink(config);
 
-  // Auto-open Plaid Link when ready
+  // Auto-open Plaid Link when ready and save OAuth state
   useEffect(() => {
     if (ready && !error) {
+      // Save OAuth state before opening Link (needed for OAuth institutions)
+      // This won't affect non-OAuth institutions but ensures we can handle OAuth redirects
+      if (userId && companyId && linkToken) {
+        plaidOAuthStorage.save({
+          linkToken,
+          companyId,
+          userId,
+          provider: 'plaid',
+          returnUrl: window.location.href, // Store current URL to return to after OAuth
+        });
+      }
+
       open();
     }
-  }, [ready, open, error]);
+  }, [ready, open, error, linkToken, companyId, userId]);
 
   const handleClick = () => {
     if (ready) {
+      // Save OAuth state before manually opening Link
+      if (userId && companyId && linkToken) {
+        plaidOAuthStorage.save({
+          linkToken,
+          companyId,
+          userId,
+          provider: 'plaid',
+          returnUrl: window.location.href,
+        });
+      }
+
       open();
     }
   };

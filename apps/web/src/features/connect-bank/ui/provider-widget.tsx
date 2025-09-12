@@ -8,6 +8,9 @@ interface ProviderWidgetProps {
   onSuccess: (token: string, metadata?: any) => void;
   onExit?: () => void;
   onError?: (error: any) => void;
+  // Session context for OAuth state
+  userId?: string;
+  companyId?: string;
 }
 
 export function ProviderWidget({
@@ -16,13 +19,22 @@ export function ProviderWidget({
   onSuccess,
   onExit,
   onError,
+  userId,
+  companyId,
 }: ProviderWidgetProps) {
   if (!token) {
     return <WidgetLoading />;
   }
   if (provider === 'plaid') {
     return (
-      <PlaidWidget linkToken={token} onSuccess={onSuccess} onExit={onExit} onError={onError} />
+      <PlaidWidget
+        linkToken={token}
+        onSuccess={onSuccess}
+        onExit={onExit}
+        onError={onError}
+        userId={userId}
+        companyId={companyId}
+      />
     );
   }
 

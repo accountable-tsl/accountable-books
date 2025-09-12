@@ -3,6 +3,7 @@ import { connectAccountsService } from '../../integrations/banking/services/conn
 import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { providerRegistry } from '../../integrations/banking/providers/registry.js';
+import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
 
 export class BankingController {
   async connectBankAccounts(req: AuthRequest, res: Response) {
@@ -89,7 +90,7 @@ export class BankingController {
     try {
       const { provider, userId, companyId } = req.body;
 
-      if (!provider || !userId || !companyId) {
+      if (!provider || !bankProviderKey.options.includes(provider) || !userId || !companyId) {
         return res.status(400).json({
           success: false,
           error: 'Missing required fields: provider, userId, companyId',
@@ -105,6 +106,8 @@ export class BankingController {
         userId,
         companyId,
       });
+
+      console.log({ token });
 
       const result = successResponse('Link token created', { token });
 

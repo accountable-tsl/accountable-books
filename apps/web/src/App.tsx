@@ -26,6 +26,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ConnectBank } from '@/features/connect-bank';
 import { SessionProvider } from '@session';
 import { UploadBankTransactions } from '@/features/upload-bank-transactions';
+import { PlaidOAuthCallback } from '@/features/connect-bank/ui/plaid-oauth-callback';
 
 function App() {
   return (
@@ -72,6 +73,9 @@ function AppRoutes() {
 
       {/* VERIFY EMAIL PAGE */}
       <Route path={routes.onboarding.verifyEmail.staticPath} element={<OnboardingStepPage />} />
+
+      {/* PLAID OAUTH CALLBACK */}
+      <Route path={routes.banking['plaid-oauth'].staticPath} element={<PlaidOAuthCallback />} />
 
       {/* PRIVATE ONBOARDING */}
       <Route

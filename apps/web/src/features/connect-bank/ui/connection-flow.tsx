@@ -265,6 +265,8 @@ export function BankConnectionFlow() {
                 onError={() => {
                   setCurrentStep('country-select');
                 }}
+                userId={user?.id}
+                companyId={companyId}
               />
             )}
           </div>

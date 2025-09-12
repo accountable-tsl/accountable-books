@@ -61,11 +61,12 @@ export class PlaidProvider extends BankingProvider {
         webhook: `${ENV.BACKEND_URL}/webhooks/plaid/${companyId}`,
       };
 
-      if (ENV.PLAID_REDIRECT_URI) {
-        config.redirect_uri = ENV.PLAID_REDIRECT_URI;
-      }
-
+      // if (ENV.PLAID_REDIRECT_URI) {
+      //   config.redirect_uri = ENV.PLAID_REDIRECT_URI;
+      // }
+      console.log({ plaidLinkConfig: config });
       const response = await this.client.linkTokenCreate(config);
+      console.log({ res: response.data });
       return response.data.link_token;
     } catch (error) {
       throw this.handleError(error);
