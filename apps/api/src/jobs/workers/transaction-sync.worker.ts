@@ -2,21 +2,22 @@ import { Worker } from 'bullmq';
 import { redis } from '../../lib/redis.js';
 import type { Job } from 'bullmq';
 import pino from 'pino';
+import { transactionSyncService } from '../../integrations/banking/services/transactionSync.service.js';
 
 const logger = pino();
 
 // Transaction sync job data interfaces
 export interface TransactionSyncJobData {
-  connectionId: string;
+  credentialId: string; // Changed from connectionId to credentialId
   startDate?: string;
   endDate?: string;
-  syncType: 'initial' | 'periodic' | 'manual';
+  syncType: 'initial' | 'periodic' | 'manual' | 'webhook';
   companyId: string;
   userId: string;
 }
 
 export interface BulkSyncJobData {
-  connectionIds: string[];
+  credentialIds: string[]; // Changed from connectionIds to credentialIds
   companyId: string;
   syncType: 'periodic' | 'manual';
 }
@@ -35,7 +36,9 @@ const TRANSACTION_SYNC_WORKER_OPTIONS = {
 };
 
 // Transaction sync job processor
-async function processTransactionSyncJob(job: Job<TransactionSyncJobData | BulkSyncJobData>) {
+async function processTransactionSyncJob(
+  job: Job<TransactionSyncJobData | BulkSyncJobData>,
+) {
   const startTime = Date.now();
 
   logger.info(
@@ -103,88 +106,108 @@ async function syncSingleConnection(
 ) {
   logger.info(
     {
-      connectionId: data.connectionId,
+      credentialId: data.credentialId,
       syncType: data.syncType,
     },
-    'Syncing transactions for single connection',
+    'Syncing transactions for credential',
   );
 
   // Update job progress
   await job.updateProgress(25);
 
-  // TODO: Implement actual transaction sync logic
-  // This would integrate with your banking providers (Plaid, Mono)
-  /*
-  const connection = await getBankConnection(data.connectionId);
-  if (!connection) {
-    throw new Error(`Bank connection not found: ${data.connectionId}`);
+  try {
+    // Use our new transaction sync service
+    await transactionSyncService.syncTransactionsForCredential(
+      data.credentialId,
+    );
+
+    await job.updateProgress(100);
+
+    logger.info(
+      { credentialId: data.credentialId },
+      'Single credential transaction sync completed',
+    );
+  } catch (error) {
+    logger.error(
+      {
+        credentialId: data.credentialId,
+        error: error instanceof Error ? error.message : error,
+      },
+      'Transaction sync failed for credential',
+    );
+    throw error;
   }
-
-  const provider = getProviderForConnection(connection);
-  const transactions = await provider.getTransactions({
-    connectionId: data.connectionId,
-    startDate: data.startDate,
-    endDate: data.endDate,
-  });
-
-  await job.updateProgress(75);
-
-  await saveTransactions(transactions, data.companyId);
-  await updateLastSyncTime(data.connectionId);
-  */
-
-  await job.updateProgress(100);
-
-  // Simulate processing time (remove in production)
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  logger.info({ connectionId: data.connectionId }, 'Single connection sync completed');
 }
 
 // Bulk connections sync
-async function syncBulkConnections(job: Job<BulkSyncJobData>, data: BulkSyncJobData) {
+async function syncBulkConnections(
+  job: Job<BulkSyncJobData>,
+  data: BulkSyncJobData,
+) {
   logger.info(
     {
-      connectionCount: data.connectionIds.length,
+      credentialCount: data.credentialIds.length,
       syncType: data.syncType,
     },
     'Starting bulk transaction sync',
   );
 
-  const totalConnections = data.connectionIds.length;
+  const totalCredentials = data.credentialIds.length;
+  const errors: string[] = [];
 
-  for (let i = 0; i < data.connectionIds.length; i++) {
-    const connectionId = data.connectionIds[i];
-    const progress = Math.round(((i + 1) / totalConnections) * 100);
+  for (let i = 0; i < data.credentialIds.length; i++) {
+    const credentialId = data.credentialIds[i];
+    const progress = Math.round(((i + 1) / totalCredentials) * 100);
 
     logger.info(
       {
-        connectionId,
-        progress: `${i + 1}/${totalConnections}`,
+        credentialId,
+        progress: `${i + 1}/${totalCredentials}`,
       },
-      'Syncing connection in bulk job',
+      'Syncing credential in bulk job',
     );
 
-    // TODO: Sync individual connection
-    // await syncSingleConnectionInternal(connectionId, data.companyId);
+    try {
+      await transactionSyncService.syncTransactionsForCredential(credentialId);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      errors.push(`${credentialId}: ${errorMsg}`);
+      logger.error(
+        {
+          credentialId,
+          error: errorMsg,
+        },
+        'Bulk sync failed for credential',
+      );
+    }
 
     await job.updateProgress(progress);
 
-    // Small delay between connections to avoid overwhelming APIs
+    // Small delay between credentials to avoid overwhelming APIs
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   logger.info(
     {
-      connectionCount: totalConnections,
+      credentialCount: totalCredentials,
       companyId: data.companyId,
+      errorCount: errors.length,
     },
     'Bulk transaction sync completed',
   );
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Bulk sync completed with ${errors.length} errors: ${errors.join('; ')}`,
+    );
+  }
 }
 
 // Periodic sync for all connections
-async function periodicSync(job: Job<TransactionSyncJobData>, data: TransactionSyncJobData) {
+async function periodicSync(
+  job: Job<TransactionSyncJobData>,
+  data: TransactionSyncJobData,
+) {
   logger.info(
     {
       companyId: data.companyId,

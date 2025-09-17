@@ -32,7 +32,13 @@ export async function createUser({
 
   const existingUser = await trx(tableName)
     .where({ email: sanitizedEmail })
-    .select(['id', 'firstname', 'lastname', 'email', 'onboarding_state as onboardingState'])
+    .select([
+      'id',
+      'firstname',
+      'lastname',
+      'email',
+      'onboarding_state as onboardingState',
+    ])
     .first();
 
   if (existingUser) {
@@ -126,12 +132,39 @@ export const seedAdminUser = async (knex: Knex) => {
       user: adminUser,
       trx,
     });
+
     if (!result) {
       console.error(`Failed to create admin user`);
       throw new Error('Failed to create admin user');
     }
 
     console.log(`Successfully created admin user: ${email}`);
+    return result;
+  });
+};
+
+export const seedSystemUser = async (knex: Knex) => {
+  const systemUserEmail = 'system@getaccountable.com';
+
+  return knex.transaction(async (trx) => {
+    const result = await createUser({
+      user: {
+        firstname: 'System',
+        lastname: 'User',
+        email: systemUserEmail,
+        password: await bcrypt.hash('system', 12),
+        email_verified_at: new Date(),
+        onboarding_state: completeOnbState,
+      },
+      trx,
+    });
+
+    if (!result) {
+      console.error(`Failed to create system user`);
+      throw new Error('Failed to create system user');
+    }
+
+    console.log(`Successfully created system user: ${systemUserEmail}`);
     return result;
   });
 };

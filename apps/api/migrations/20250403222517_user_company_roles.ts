@@ -5,6 +5,7 @@ import {
   dropUpdateTimestampTrigger,
 } from './utils/db';
 import { createPlatformCompany } from './20250403194332_companies';
+import { seedSystemUser } from './20250403184441_users';
 
 export const assignAdminRole = async (knex: Knex) => {
   const platformCompany = await createPlatformCompany(knex);
@@ -36,11 +37,47 @@ export const assignAdminRole = async (knex: Knex) => {
   });
   console.log('Assigned admin role to platform company creator.');
 };
+export const assignSystemUserRole = async (knex: Knex) => {
+  const platformCompany = await createPlatformCompany(knex);
+  const systemAdminUser = await seedSystemUser(knex);
+
+  const role = await knex('roles').where('key', 'system_user').first();
+  const roleId = role?.id;
+  if (!roleId) {
+    throw new Error('System user role not found');
+  }
+
+  const existing = await knex(tableName)
+    .where({
+      user_id: systemAdminUser.id,
+      company_id: platformCompany.id,
+      role_id: roleId,
+    })
+    .first();
+
+  if (existing) {
+    console.log('System user role already assigned to platform user.');
+    return;
+  }
+
+  await knex(tableName).insert({
+    user_id: systemAdminUser.id,
+    company_id: platformCompany.id,
+    role_id: roleId,
+    created_by_id: platformCompany.created_by_id,
+  });
+  console.log('Assigned system user role to platform company creator.');
+};
 
 const tableName = 'user_company_roles';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
+    table
+      .uuid('user_id')
+      .notNullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('CASCADE');
 
     table
       .uuid('company_id')
@@ -49,9 +86,19 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('CASCADE');
 
-    table.uuid('role_id').notNullable().references('id').inTable('roles').onDelete('CASCADE');
+    table
+      .uuid('role_id')
+      .notNullable()
+      .references('id')
+      .inTable('roles')
+      .onDelete('CASCADE');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
     table
       .uuid('created_by_id')
       .notNullable()

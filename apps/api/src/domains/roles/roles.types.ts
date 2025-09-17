@@ -4,6 +4,7 @@ import { dbBaseFields } from '../../core/types/core.js';
 // role
 export const roleKey = z.enum([
   'super_admin',
+  'system_user',
   'support_admin',
   'support_agent',
   'firm_owner',

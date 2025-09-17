@@ -15,15 +15,20 @@ export function useUploadBankTransactions() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { companyId: string; data: BankTransactionBatchInsert }) =>
-      uploadBankTransactions(input.companyId, input.data),
-    onSuccess: (response, variables) => {
+    mutationFn: (input: {
+      companyId: string;
+      data: BankTransactionBatchInsert;
+    }) => uploadBankTransactions(input.companyId, input.data),
+    // onSuccess: (response, variables) => {
+    //   invalidateQueries(queryClient, variables.companyId);
+    //   const { message } = response;
+    //   toast.success(message || 'Transactions uploaded successfully');
+    // },
+    onSuccess: (_, variables) => {
       invalidateQueries(queryClient, variables.companyId);
-      const { message } = response;
-      toast.success(message || 'Transactions uploaded successfully');
     },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to upload transactions');
-    },
+    // onError: (error) => {
+    //   toast.error(error.message || 'Failed to upload transactions');
+    // },
   });
 }

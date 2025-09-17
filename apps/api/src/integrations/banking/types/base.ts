@@ -71,6 +71,30 @@ export interface BankAccount {
   };
 }
 
+// Transaction sync interfaces
+export interface ProviderTransaction {
+  transactionId: string;
+  providerBankAccountId: string; // Provider's account ID
+  date: string; // ISO date string
+  amount: number;
+  merchantName?: string;
+  description?: string;
+  currencyCode: string;
+  pending: boolean;
+  category?: string[];
+  rawData: Record<string, any>;
+}
+
+export interface TransactionSyncResult {
+  transactions: {
+    added: ProviderTransaction[];
+    modified: ProviderTransaction[];
+    removed: string[]; // transaction IDs
+  };
+  nextCursor?: string;
+  hasMore: boolean;
+}
+
 export abstract class BankingProvider {
   abstract readonly key: string;
   abstract readonly name: string;
@@ -125,6 +149,16 @@ export abstract class BankingProvider {
     institutionId: string;
     countryCodes?: string[];
   }): Promise<ProviderInstitution[]>;
+
+  // Transaction sync support
+  abstract supportsTransactionSync(): boolean;
+
+  // Sync transactions (initial or incremental)
+  abstract syncTransactions(params: {
+    accessToken: string;
+    cursor?: string;
+    fromDate?: Date; // For initial sync only
+  }): Promise<TransactionSyncResult>;
 
   // Error handling
   abstract handleError(error: any): ProviderError;

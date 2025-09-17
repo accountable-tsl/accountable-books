@@ -6,12 +6,16 @@ import {
   Products,
   type LinkTokenCreateRequest,
   type AuthGetResponse,
+  type TransactionsSyncRequest,
+  type Transaction as PlaidTransaction,
 } from 'plaid';
 import {
   BankingProvider,
   type ProviderError,
   type ProviderAccount,
   type ProviderInstitution,
+  type TransactionSyncResult,
+  type ProviderTransaction,
 } from '../types/base.js';
 import { ENV } from '../../../config/env.js';
 import { mapPlaidAccountType } from '../utils/mappings.js';
@@ -48,8 +52,12 @@ export class PlaidProvider extends BankingProvider {
   }): Promise<string> {
     try {
       // get actual country code as retrieved from api, fallback to ENV or maybe env is simpler
-      const countries = (ENV.PLAID_COUNTRY_CODES || 'US,CA').split(',') as CountryCode[];
-      const products = (ENV.PLAID_PRODUCTS || 'auth,transactions').split(',') as Products[];
+      const countries = (ENV.PLAID_COUNTRY_CODES || 'US,CA').split(
+        ',',
+      ) as CountryCode[];
+      const products = (ENV.PLAID_PRODUCTS || 'auth,transactions').split(
+        ',',
+      ) as Products[];
       const clientName = ENV.FEED_DISPLAY_NAME || 'Accountable';
 
       const config: LinkTokenCreateRequest = {
@@ -58,15 +66,18 @@ export class PlaidProvider extends BankingProvider {
         country_codes: countries,
         language: 'en',
         products: products,
-        webhook: `${ENV.BACKEND_URL}/webhooks/plaid/${companyId}`,
+        webhook: `${ENV.BACKEND_URL}/webhooks/banking/plaid`,
+        // Configure transaction sync settings
+        transactions: {
+          days_requested: 730,
+        },
       };
 
-      // if (ENV.PLAID_REDIRECT_URI) {
-      //   config.redirect_uri = ENV.PLAID_REDIRECT_URI;
-      // }
-      console.log({ plaidLinkConfig: config });
+      if (ENV.PLAID_REDIRECT_URI) {
+        config.redirect_uri = ENV.PLAID_REDIRECT_URI;
+      }
+
       const response = await this.client.linkTokenCreate(config);
-      console.log({ res: response.data });
       return response.data.link_token;
     } catch (error) {
       throw this.handleError(error);
@@ -94,7 +105,11 @@ export class PlaidProvider extends BankingProvider {
     }
   }
 
-  async fetchBankAccounts({ accessToken }: { accessToken: string }): Promise<ProviderAccount[]> {
+  async fetchBankAccounts({
+    accessToken,
+  }: {
+    accessToken: string;
+  }): Promise<ProviderAccount[]> {
     try {
       const res = await this.client.authGet({ access_token: accessToken });
       const accountData = res.data;
@@ -206,7 +221,8 @@ export class PlaidProvider extends BankingProvider {
       .map((account) => {
         const numberData = accountNumberLookup.get(account.account_id);
         const currency =
-          account.balances.iso_currency_code || account.balances.unofficial_currency_code;
+          account.balances.iso_currency_code ||
+          account.balances.unofficial_currency_code;
         const type = mapPlaidAccountType({
           type: account.type,
           subtype: account.subtype || undefined,
@@ -229,6 +245,81 @@ export class PlaidProvider extends BankingProvider {
       });
   }
 
+  // Transaction sync support
+  supportsTransactionSync(): boolean {
+    return true;
+  }
+
+  async syncTransactions(params: {
+    accessToken: string;
+    cursor?: string;
+    fromDate?: Date;
+  }): Promise<TransactionSyncResult> {
+    try {
+      const request: TransactionsSyncRequest = {
+        access_token: params.accessToken,
+        options: {
+          include_personal_finance_category: true,
+          include_original_description: true,
+        },
+      };
+
+      // Add cursor if this is not the initial sync
+      if (params.cursor) {
+        request.cursor = params.cursor;
+      }
+
+      // For initial sync, Plaid will use the days_requested from Link token creation
+      // fromDate is handled at Link token creation time
+
+      const response = await this.client.transactionsSync(request);
+      const data = response.data;
+
+      return {
+        transactions: {
+          added: this.mapPlaidTransactions(data.added),
+          modified: this.mapPlaidTransactions(data.modified),
+          removed: data.removed.map((txn) => txn.transaction_id),
+        },
+        nextCursor: data.next_cursor,
+        hasMore: data.has_more,
+      };
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  private mapPlaidTransactions(
+    transactions: PlaidTransaction[],
+  ): ProviderTransaction[] {
+    return transactions.map((txn) => ({
+      transactionId: txn.transaction_id,
+      providerBankAccountId: txn.account_id,
+      date: txn.date,
+      merchantName: txn.merchant_name || undefined,
+      description:
+        (txn.merchant_name ?? '') +
+        txn.payment_channel +
+        (txn.original_description ?? ''),
+      // According to plaid, for transactions:
+      // -- Positive values when money moves out of the account;
+      // -- Negative values when money moves in
+      // For us, bank_transactions is a mirror of user's bank statements
+      // -- So +VE when money moves in; -VE when money moves out
+      amount: txn.amount * -1, // Critical!
+      currencyCode: (txn.iso_currency_code ||
+        txn.unofficial_currency_code) as string,
+      pending: txn.pending,
+      category: txn.personal_finance_category
+        ? [
+            txn.personal_finance_category.primary,
+            txn.personal_finance_category.detailed,
+          ].filter(Boolean)
+        : [],
+      rawData: txn,
+    }));
+  }
+
   handleError(error: any): ProviderError {
     if (error && typeof error === 'object' && 'error_code' in error) {
       return {
@@ -249,23 +340,31 @@ export class PlaidProvider extends BankingProvider {
   }
 
   private isRetryableError(errorCode: string): boolean {
-    const retryableCodes = ['RATE_LIMIT_EXCEEDED', 'INTERNAL_SERVER_ERROR', 'PLANNED_MAINTENANCE'];
+    const retryableCodes = [
+      'RATE_LIMIT_EXCEEDED',
+      'INTERNAL_SERVER_ERROR',
+      'PLANNED_MAINTENANCE',
+    ];
     return retryableCodes.includes(errorCode);
   }
 
   private getDisplayMessage(errorCode: string): string {
     const messages: Record<string, string> = {
       RATE_LIMIT_EXCEEDED: 'Too many requests. Please try again later.',
-      INVALID_CREDENTIALS: 'Invalid login credentials. Please check and try again.',
+      INVALID_CREDENTIALS:
+        'Invalid login credentials. Please check and try again.',
       ITEM_LOGIN_REQUIRED: 'Please reconnect your bank account.',
       INSUFFICIENT_CREDENTIALS: 'Additional verification required.',
-      ITEM_LOCKED: 'Your account is temporarily locked. Please try again later.',
+      ITEM_LOCKED:
+        'Your account is temporarily locked. Please try again later.',
       USER_SETUP_REQUIRED: 'Please complete account setup with your bank.',
-      MFA_NOT_SUPPORTED: 'Multi-factor authentication not supported for this account.',
+      MFA_NOT_SUPPORTED:
+        'Multi-factor authentication not supported for this account.',
     };
 
     return (
-      messages[errorCode] || 'An error occurred while connecting to your bank. Please try again.'
+      messages[errorCode] ||
+      'An error occurred while connecting to your bank. Please try again.'
     );
   }
 }

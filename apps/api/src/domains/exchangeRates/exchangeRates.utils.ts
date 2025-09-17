@@ -1,10 +1,14 @@
 import { fetchExchangeRate } from './exchangeRates.model.js';
 
-export async function determineExchangeRate(
-  date: Date | string,
-  fromCurrencyId: string,
-  toCurrencyId: string,
-): Promise<number | null> {
+export async function determineExchangeRate({
+  date,
+  fromCurrencyId,
+  toCurrencyId,
+}: {
+  date: Date | string;
+  fromCurrencyId: string;
+  toCurrencyId: string;
+}): Promise<number | null> {
   try {
     if (fromCurrencyId === toCurrencyId) {
       return Number(1);

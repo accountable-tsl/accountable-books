@@ -7,13 +7,26 @@ import {
   newUserDirect,
   type UserResponseCamel,
 } from '../../domains/users/users.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
-import { generateRandomToken, hashPassword, hashToken } from '../../shared/utils/crypto.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import {
+  generateRandomToken,
+  hashPassword,
+  hashToken,
+} from '../../shared/utils/crypto.utils.js';
 import dayjs from 'dayjs';
 import { knexClient } from '../../db/knexClient.js';
 import { addNewToken } from '../tokens/tokens.model.js';
 import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
-import { logger, logError, logDatabaseOperation, logTiming } from '../../shared/utils/logger.js';
+import {
+  logger,
+  logError,
+  logDatabaseOperation,
+  logTiming,
+} from '../../shared/utils/logger.js';
+import { redis } from '../../lib/redis.js';
 
 /**
  * Options for creating a user directly
@@ -160,10 +173,14 @@ export async function createUserDirect(
       operationId,
     });
 
-    userLogger.info({ userId: user.id }, 'User creation completed successfully');
+    userLogger.info(
+      { userId: user.id },
+      'User creation completed successfully',
+    );
     return successResponse('Account created successfully', response);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
     userLogger.error(
       {
         error: error instanceof Error ? error : new Error(String(error)),
@@ -185,9 +202,14 @@ export async function createUserDirect(
   }
 }
 
-export async function getUserDetails(userId: string): Promise<ApiResponse<UserResponseCamel>> {
+export async function getUserDetails(
+  userId: string,
+): Promise<ApiResponse<UserResponseCamel>> {
   try {
-    const user = await knexClient('users').select('*').where({ id: userId }).first();
+    const user = await knexClient('users')
+      .select('*')
+      .where({ id: userId })
+      .first();
 
     if (!user) {
       return errorResponse('User not found');
@@ -200,6 +222,38 @@ export async function getUserDetails(userId: string): Promise<ApiResponse<UserRe
   } catch (error) {
     return errorResponse('Error getting user details', error);
   }
+}
+
+export async function getSystemUser({
+  email,
+  trx,
+}: { email?: string; trx?: Knex.Transaction } = {}): Promise<{
+  id: string;
+  email: string;
+}> {
+  const CACHE_KEY_PREFIX = 'system_user:';
+  const emailKey = email || 'system@getaccountable.com';
+  const cacheKey = `${CACHE_KEY_PREFIX}${emailKey}`;
+
+  // Check Redis cache
+  const cached = await redis.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  // Query DB if not in cache
+  const knex = trx || knexClient;
+  const user = await knex('users')
+    .select(['id', 'email'])
+    .where({ email: emailKey })
+    .first();
+
+  // Store in Redis with 2-hour expiration
+  if (user) {
+    await redis.set(cacheKey, JSON.stringify(user), 'EX', 60 * 60 * 2);
+  }
+
+  return user;
 }
 
 // export async function createUserInvite(

@@ -5,6 +5,7 @@ CREATE TABLE public.bank_transactions (
     id                      UUID NOT NULL DEFAULT uuid_generate_v7(),
     date                    DATE NOT NULL,
     payee                   TEXT,
+    contact_id              UUID,
     reference               TEXT,
     description             TEXT,
     additional_notes        TEXT,
@@ -12,13 +13,13 @@ CREATE TABLE public.bank_transactions (
     absolute_amount         NUMERIC(32, 10) NOT NULL GENERATED ALWAYS AS (abs(amount)) STORED,
     system_exchange_rate    NUMERIC(32, 10) NOT NULL,
     -- Different from regular accounting convention, this just mirrors user bank statement
-    transaction_side        debit_credit GENERATED ALWAYS AS (
-        CASE
-            WHEN amount > 0 THEN 'credit'::debit_credit
-            WHEN amount < 0 THEN 'debit' ::debit_credit
-            ELSE NULL::debit_credit
-        END
-    ) STORED,
+    -- transaction_side        debit_credit GENERATED ALWAYS AS (
+    --     CASE
+    --         WHEN amount > 0 THEN 'credit'::debit_credit
+    --         WHEN amount < 0 THEN 'debit' ::debit_credit
+    --         ELSE NULL::debit_credit
+    --     END
+    -- ) STORED,
     categorization_status   categorization_status NOT NULL DEFAULT 'uncategorized',
     bank_account_id         UUID NOT NULL,
     bank_transaction_batch_id  UUID,
@@ -449,6 +450,14 @@ BEGIN
       FOREIGN KEY (created_by_id) REFERENCES "users" (id)
       ON DELETE RESTRICT;
   EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_bank_transaction_created_by exists, skipping';
+  END;
+
+  BEGIN
+    ALTER TABLE bank_transactions
+      ADD CONSTRAINT fk_bank_transaction_contact_id
+      FOREIGN KEY (contact_id) REFERENCES "contacts" (id)
+      ON DELETE RESTRICT;
+  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_bank_transaction_contact_id exists, skipping';
   END;
 
   BEGIN

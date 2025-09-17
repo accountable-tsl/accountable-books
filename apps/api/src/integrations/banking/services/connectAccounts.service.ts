@@ -1,5 +1,8 @@
 import type { ApiResponse } from '../../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
 import { logger, logError } from '../../../shared/utils/logger.js';
 import { providerRegistry } from '../providers/registry.js';
 import { findOrCreateBankMapping } from '../utils/resolveBank.js';
@@ -9,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { createBankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
 import { knexClient } from '../../../db/knexClient.js';
 import type { BusinessOrPersonalAccount } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
+import { transactionSyncQueue } from '../../../jobs/queues/transaction-sync.queue.js';
 
 export interface ConnectAccountsParams {
   providerKey: BankProviderKey;
@@ -53,16 +57,24 @@ export class ConnectAccountsService {
 
     // Upfront input validation for fast 400 responses
     if (!params.providerKey) {
-      return errorResponse('Missing required field: providerKey', null, { metadata: { traceId } });
+      return errorResponse('Missing required field: providerKey', null, {
+        metadata: { traceId },
+      });
     }
     if (!params.publicToken) {
-      return errorResponse('Missing required field: publicToken', null, { metadata: { traceId } });
+      return errorResponse('Missing required field: publicToken', null, {
+        metadata: { traceId },
+      });
     }
     if (!params.companyId) {
-      return errorResponse('Missing required field: companyId', null, { metadata: { traceId } });
+      return errorResponse('Missing required field: companyId', null, {
+        metadata: { traceId },
+      });
     }
     if (!params.userId) {
-      return errorResponse('Missing required field: userId', null, { metadata: { traceId } });
+      return errorResponse('Missing required field: userId', null, {
+        metadata: { traceId },
+      });
     }
 
     const log = (phase: string, data: Record<string, unknown>) => {
@@ -85,7 +97,9 @@ export class ConnectAccountsService {
       // External API calls (outside transaction)
       log('provider_setup', {});
       const provider = await providerRegistry.get(params.providerKey);
-      const providerInfo = await providerRegistry.getEnabledProvider(params.providerKey);
+      const providerInfo = await providerRegistry.getEnabledProvider(
+        params.providerKey,
+      );
 
       if (!provider || !providerInfo) {
         throw new Error(`Provider ${params.providerKey} not found`);
@@ -133,7 +147,7 @@ export class ConnectAccountsService {
             accessToken: accessToken,
             rawMetadata: { itemId, metadata: itemMetadata },
             status: 'active',
-            itemIdentifier: itemId,
+            itemIdentifier: itemId ?? null,
             institutionId,
             institutionName,
           },
@@ -141,19 +155,22 @@ export class ConnectAccountsService {
         });
 
         if (!credentialResult.success || !credentialResult.data?.id) {
-          throw new Error(credentialResult.message || 'Failed to save bank credential');
+          throw new Error(
+            credentialResult.message || 'Failed to save bank credential',
+          );
         }
         const credentialId = credentialResult.data.id;
         log('credential_created', { credentialId });
 
         // 2. Resolve bank mapping
         log('bank_mapping', {});
-        const { bankId, bankLogoUrl, providerBankName } = await findOrCreateBankMapping({
-          providerKey: params.providerKey,
-          institution,
-          userId: params.userId,
-          trx,
-        });
+        const { bankId, bankLogoUrl, providerBankName } =
+          await findOrCreateBankMapping({
+            providerKey: params.providerKey,
+            institution,
+            userId: params.userId,
+            trx,
+          });
         log('bank_mapping_created', { bankId });
 
         // 3. Create all bank accounts
@@ -205,7 +222,9 @@ export class ConnectAccountsService {
               newCount++;
             }
           } else {
-            throw new Error(`Failed to create account ${account.displayName}: ${result.message}`);
+            throw new Error(
+              `Failed to create account ${account.displayName}: ${result.message}`,
+            );
           }
         }
 
@@ -219,8 +238,63 @@ export class ConnectAccountsService {
           totalCreated: newCount,
           totalUpdated: updatedCount,
         });
+
+        // Queue initial transaction sync (after DB transaction completes)
+        // Only for providers that support transaction sync
+        try {
+          const provider = await providerRegistry.get(params.providerKey);
+          if (provider && provider.supportsTransactionSync()) {
+            await transactionSyncQueue.add(
+              'sync-transactions',
+              {
+                credentialId: credentialId,
+                syncType: 'initial',
+                companyId: params.companyId,
+                userId: params.userId,
+              },
+              {
+                delay: 5000, // Wait 5 seconds for Plaid to be ready
+                attempts: 3,
+                backoff: {
+                  type: 'exponential',
+                  delay: 2000,
+                },
+              },
+            );
+            log('sync_queued', {
+              credentialId,
+              syncType: 'initial',
+              queueDelay: 5000,
+              attempts: 3,
+              providerSupportsSync: true,
+            });
+          } else {
+            log('sync_skipped', {
+              credentialId,
+              reason: provider
+                ? 'Provider does not support transaction sync'
+                : 'Provider not found',
+              providerKey: params.providerKey,
+              providerSupportsSync:
+                provider?.supportsTransactionSync() || false,
+            });
+          }
+        } catch (error) {
+          // Don't fail the main flow if sync queueing fails
+          log('sync_queue_failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            errorName: error instanceof Error ? error.name : 'UnknownError',
+            credentialId,
+            providerKey: params.providerKey,
+          });
+        }
+
         return successResponse(message, {
-          bank: { id: bankId, name: providerBankName ?? institutionName, logoUrl: bankLogoUrl },
+          bank: {
+            id: bankId,
+            name: providerBankName ?? institutionName,
+            logoUrl: bankLogoUrl,
+          },
           accounts: createdAccounts,
         });
       });
@@ -237,7 +311,10 @@ export class ConnectAccountsService {
         duration_ms: Date.now() - startTime,
       });
 
-      const message = error instanceof Error ? error.message : 'Failed to connect bank accounts';
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to connect bank accounts';
       return errorResponse(message, error, { metadata: { traceId } });
     }
   }

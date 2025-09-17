@@ -8,7 +8,10 @@
 import type { EnvSchema } from '@accountable-books/utils/env/types';
 
 // Target environments to generate files for
-export const API_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = ['local', 'staging'];
+export const API_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
+  'local',
+  'staging',
+];
 
 export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
@@ -319,7 +322,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: false,
     type: 'url',
     local: '',
-    staging: 'https://logos.getaccountable.com/42619yzn-25431a6c-59c7-4bf4-9348-be6e651d47dc.png',
+    staging:
+      'https://logos.getaccountable.com/42619yzn-25431a6c-59c7-4bf4-9348-be6e651d47dc.png',
     production:
       'https://logos.getaccountable.com/42619yzn-25431a6c-59c7-4bf4-9348-be6e651d47dc.png',
   },
@@ -489,6 +493,23 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
   },
 
+  PLAID_WEBHOOK_SECRET: {
+    description:
+      'Plaid webhook verification secret (optional - enables webhook signature verification)',
+    type: 'secret',
+    required: false,
+  },
+
+  ENABLE_WEBHOOK_VERIFICATION: {
+    description: 'Force webhook verification even in development mode',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
+  },
+
   // ============================================================================
   // WORKER CONFIGURATION
   // ============================================================================
@@ -549,7 +570,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Active AES-256 key id (0..255)',
     type: 'secret',
     default: '1',
-    validation: (v: unknown) => typeof v === 'string' && Number(v) >= 0 && Number(v) <= 255,
+    validation: (v: unknown) =>
+      typeof v === 'string' && Number(v) >= 0 && Number(v) <= 255,
   },
 
   APP_ENC_KEYS: {
@@ -579,7 +601,9 @@ export const API_ENV_SCHEMA: EnvSchema = {
  * Can be executed directly: tsx apps/api/config/env-schema.ts
  */
 export async function generateFiles() {
-  const { createEnvGenerator } = await import('@accountable-books/utils/env/cli');
+  const { createEnvGenerator } = await import(
+    '@accountable-books/utils/env/cli'
+  );
   await createEnvGenerator('API', API_ENV_SCHEMA, API_TARGET_ENVIRONMENTS);
 }
 

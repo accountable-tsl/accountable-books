@@ -15,6 +15,11 @@ export const ROLES = {
       name: 'Support Agent',
       description: 'Basic support access',
     },
+    {
+      key: 'system_user',
+      name: 'System User',
+      description: 'User for system tasks',
+    },
   ],
   FIRM_ROLES: [
     {

@@ -2,7 +2,11 @@ import { debitCredit } from '@/shared/types/core';
 import { type DateRangeResult } from '@/shared/utils/formatting-utils';
 import z from 'zod';
 
-export const bankTransactionSource = z.enum(['file_import', 'bank_feed', 'manual_entry']);
+export const bankTransactionSource = z.enum([
+  'file_import',
+  'bank_feed',
+  'manual_entry',
+]);
 export type BankTransactionSource = z.infer<typeof bankTransactionSource>;
 
 export type FieldValue =
@@ -36,7 +40,8 @@ export type ParsedBankTxn = z.infer<typeof parsedBankTxn>;
 export const bankTransactionInsertSchema = z.object({
   date: z.date(),
   amount: z.number(),
-  transactionSide: debitCredit.nullish(),
+  bank_account_id: z.uuid(),
+  // transactionSide: debitCredit.nullish(),
   description: z.string().nullish(),
   payee: z.string().nullish(),
   reference: z.string().nullish(),
@@ -46,15 +51,14 @@ export const bankTransactionInsertSchema = z.object({
 export type BankTransactionInsert = z.infer<typeof bankTransactionInsertSchema>;
 
 const bankTransactionBatchInsertSchema = z.object({
-  startDate: z.date(),
-  endDate: z.date(),
   source: bankTransactionSource,
-  bankAccountId: z.uuid(),
-  bankTransactions: z.array(bankTransactionInsertSchema),
-  fingerprint: z.string(),
-  sourceMetadata: z.any(),
+  bank_account_id: z.uuid(),
+  bank_transactions: z.array(bankTransactionInsertSchema),
+  metadata: z.any().nullish(),
 });
-export type BankTransactionBatchInsert = z.infer<typeof bankTransactionBatchInsertSchema>;
+export type BankTransactionBatchInsert = z.infer<
+  typeof bankTransactionBatchInsertSchema
+>;
 
 export type ErrorRow = {
   rowIndex: number;
@@ -65,7 +69,7 @@ export type ErrorRow = {
 export type TransformResult = {
   transactions: ParsedBankTxn[];
   inserts: BankTransactionInsert[];
-  dateRange: DateRangeResult | null;
+  // dateRange: DateRangeResult | null;
   errors: ErrorRow[];
   totalMoneyIn: number;
   totalMoneyOut: number;

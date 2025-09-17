@@ -100,7 +100,7 @@ staging-full-up: guard-nonprod ## Start staging + run migrations + seed
 	@echo "$(YELLOW)🗄️ Running staging migrations...$(RESET)"
 	@pnpm -F @accountable-books/api run migrate:staging
 	@echo "$(YELLOW)🌱 Applying staging demo data...$(RESET)"
-	@pnpm -F @accountable-books/api run demo:apply
+	@pnpm -F @accountable-books/api run demo:apply:staging:local
 	@echo "$(GREEN)✅ Full staging environment ready$(RESET)"
 
 staging-full-down: guard-nonprod ## Stop staging + clean up

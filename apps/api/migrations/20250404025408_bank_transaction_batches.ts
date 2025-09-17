@@ -9,19 +9,22 @@ const tableName = 'bank_transaction_batches';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
-    table.timestamp('import_date', { useTz: true }).notNullable().defaultTo(knex.fn.now());
-    table.timestamp('start_date', { useTz: true }).notNullable();
-    table.timestamp('end_date', { useTz: true }).notNullable();
+    table
+      .timestamp('import_date', { useTz: true })
+      .notNullable()
+      .defaultTo(knex.fn.now());
+    table.date('start_date').notNullable();
+    table.date('end_date').notNullable();
 
-    // Got some reservations on this bit, keeping it for now
-    table.decimal('balance_before', 32, 10).notNullable();
-    table.decimal('balance_after', 32, 10).notNullable();
+    // Got some reservations on this bit, taking it off for now
+    // table.decimal('balance_before', 32, 10).notNullable();
+    // table.decimal('balance_after', 32, 10).notNullable();
 
     table.specificType('source', 'bank_transaction_source').notNullable();
 
     table.text('fingerprint').notNullable();
     table.integer('import_row_count').nullable();
-    table.jsonb('source_metadata').nullable();
+    table.jsonb('metadata').nullable();
 
     table
       .uuid('bank_account_id')
@@ -37,7 +40,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     addStandardColumns(knex, table);
 

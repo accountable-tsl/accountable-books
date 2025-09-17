@@ -6,6 +6,7 @@ interface SuccessProps {
   showText?: boolean;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  description?: string;
 }
 
 export const Success: React.FC<SuccessProps> = ({
@@ -13,6 +14,7 @@ export const Success: React.FC<SuccessProps> = ({
   showText = true,
   size = 'md',
   className,
+  description,
 }) => {
   const sizeClasses = {
     sm: 'w-8 h-8',
@@ -48,14 +50,21 @@ export const Success: React.FC<SuccessProps> = ({
       </div>
 
       {showText && text && (
-        <p
-          className={cn(
-            'text-green-700 dark:text-green-300 font-medium animate-fade-in',
-            textSizes[size],
+        <div className="flex flex-col items-center">
+          <p
+            className={cn(
+              'text-green-700 dark:text-green-300 font-medium animate-fade-in',
+              textSizes[size],
+            )}
+          >
+            {text}
+          </p>
+          {description && (
+            <p className={cn('text-muted-foreground text-sm animate-fade-in')}>
+              {description}
+            </p>
           )}
-        >
-          {text}
-        </p>
+        </div>
       )}
     </div>
   );

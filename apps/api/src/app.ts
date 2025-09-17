@@ -16,6 +16,7 @@ import bankAccountsRoutes from './domains/banking/bankAccounts/bankAccounts.rout
 import bankTransactionRoutes from './domains/bankTransactions/bankTransactions.routes.js';
 import bankFeedProvidersRoutes from './domains/banking/bankFeedProviders/bankFeedProviders.routes.js';
 import bankingRoutes from './domains/banking/banking.routes.js';
+import plaidWebhookRoutes from './domains/banking/webhooks/plaid.webhook.js';
 import usersCompaniesRolesRoutes from './domains/userRoles/userRoles.routes.js';
 import coaRoutes from './domains/chartOfAccounts/coa.routes.js';
 import accountRoutes from './domains/account/account.routes.js';
@@ -27,7 +28,10 @@ import { basicAuth } from './core/middlewares/basicAuth.middleware.js';
 import { ENV, isDev, NODE_ENV } from './config/env.js';
 import { loadRoles } from './domains/roles/roles.model.js';
 import cookieParser from 'cookie-parser';
-import { conditionalCsrf, verifyRefreshToken } from './features/auth/auth.middleware.js';
+import {
+  conditionalCsrf,
+  verifyRefreshToken,
+} from './features/auth/auth.middleware.js';
 import { loadAccountMeta } from './domains/account/account.registry.js';
 import pino from 'pino';
 import { pinoHttp } from 'pino-http';
@@ -38,7 +42,10 @@ export const app = express();
 const logger = isDev
   ? pino({
       level: 'debug',
-      transport: { target: 'pino-pretty', options: { colorize: true, singleLine: false } },
+      transport: {
+        target: 'pino-pretty',
+        options: { colorize: true, singleLine: false },
+      },
     })
   : pino();
 
@@ -83,9 +90,11 @@ app.get('/health', (_req: express.Request, res: express.Response) =>
 const exact = new Set<string>([
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:3000',
   'http://localhost:3001',
   'http://app.lvh.me:5173',
   'http://app.lvh.me:5174',
+  'http://app.lvh.me:3000',
   'http://app.lvh.me:3001',
   'https://staging.getaccountable.com', // staging web
   'https://app.getaccountable.com', // production web
@@ -133,6 +142,9 @@ export async function setupApp() {
   app.use('/api/email', emailRoutes);
   app.use('/api/accounting-firms/check-slug', firmRoutes);
   app.use('/api/accounts/classification/metadata', accountRoutes);
+
+  // Webhooks (no auth required)
+  app.use('/', plaidWebhookRoutes);
 
   app.use('/api', verifyRefreshToken);
 

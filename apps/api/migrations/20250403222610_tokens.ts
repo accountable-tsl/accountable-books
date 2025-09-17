@@ -1,9 +1,12 @@
 import type { Knex } from 'knex';
-import { seedAdminUser } from './20250403184441_users';
+import { seedAdminUser, seedSystemUser } from './20250403184441_users';
 import { createPlatformCompany } from './20250403194332_companies';
 import { createPlatformFirm } from './20250403194335_accounting_firms_meta';
 import { insertPlatformFirmCompany } from './20250403222519_client_firm_assignments';
-import { assignAdminRole } from './20250403222517_user_company_roles';
+import {
+  assignAdminRole,
+  assignSystemUserRole,
+} from './20250403222517_user_company_roles';
 
 const tableName = 'tokens';
 export async function up(knex: Knex): Promise<void> {
@@ -13,7 +16,12 @@ export async function up(knex: Knex): Promise<void> {
 
     table.specificType('token_type', 'token_type').notNullable();
     table.string('token_hash').notNullable();
-    table.uuid('user_id').nullable().references('id').inTable('users').onDelete('CASCADE');
+    table
+      .uuid('user_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('CASCADE');
 
     table
       .uuid('invitation_id')
@@ -22,13 +30,21 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('user_invitations')
       .onDelete('CASCADE');
 
-    table.uuid('company_id').nullable().references('id').inTable('companies').onDelete('CASCADE');
+    table
+      .uuid('company_id')
+      .nullable()
+      .references('id')
+      .inTable('companies')
+      .onDelete('CASCADE');
 
     table.timestamp('expires_at', { useTz: true }).notNullable();
     table.timestamp('consumed_at', { useTz: true }).nullable();
 
     table.timestamp('updated_at', { useTz: true }).nullable();
-    table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
+    table
+      .timestamp('created_at', { useTz: true })
+      .notNullable()
+      .defaultTo(knex.fn.now());
   });
 
   // Add a constraint to ensure either user_id or invitation_id is present, but not both
@@ -56,9 +72,11 @@ export async function up(knex: Knex): Promise<void> {
 `);
 
   await seedAdminUser(knex);
+  await seedSystemUser(knex);
   await createPlatformCompany(knex);
   await createPlatformFirm(knex);
   await assignAdminRole(knex);
+  await assignSystemUserRole(knex);
   await insertPlatformFirmCompany(knex);
 }
 

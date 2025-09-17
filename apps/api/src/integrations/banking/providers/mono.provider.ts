@@ -6,6 +6,7 @@ import {
   type ProviderAccount,
   type ProviderInstitution,
   type ProviderItemDetails,
+  type TransactionSyncResult,
 } from '../types/base.js';
 import { ENV } from '../../../config/env.js';
 
@@ -93,12 +94,15 @@ export class MonoProvider extends BankingProvider {
 
       // For Mono, the access token is actually the account ID
       // Get account details
-      const response = await axios.get(`https://api.withmono.com/v2/accounts/${accessToken}`, {
-        headers: {
-          'mono-sec-key': this.secretKey,
-          'Content-Type': 'application/json',
+      const response = await axios.get(
+        `https://api.withmono.com/v2/accounts/${accessToken}`,
+        {
+          headers: {
+            'mono-sec-key': this.secretKey,
+            'Content-Type': 'application/json',
+          },
         },
-      });
+      );
 
       if (response.data.status !== 'successful') {
         throw new Error(`Mono account fetch failed: ${response.data.message}`);
@@ -109,13 +113,15 @@ export class MonoProvider extends BankingProvider {
       // Map to our universal interfaces
       const item: ProviderItemDetails = {
         itemId: accessToken,
-        institutionId: accountData.institution.id || accountData.institution.bankCode,
+        institutionId:
+          accountData.institution.id || accountData.institution.bankCode,
         institutionName: accountData.institution.name,
         rawData: response.data,
       };
 
       const institution: ProviderInstitution = {
-        institutionId: accountData.institution.id || accountData.institution.bankCode,
+        institutionId:
+          accountData.institution.id || accountData.institution.bankCode,
         name: accountData.institution.name,
         key: `ng_${accountData.institution.name.toLowerCase().replace(/\s+/g, '_')}`,
         website: undefined,
@@ -158,6 +164,21 @@ export class MonoProvider extends BankingProvider {
     }
   }
 
+  // Transaction sync support
+  supportsTransactionSync(): boolean {
+    // Mono support can be added later
+    return false;
+  }
+
+  async syncTransactions(params: {
+    accessToken: string;
+    cursor?: string;
+    fromDate?: Date;
+  }): Promise<TransactionSyncResult> {
+    // TODO: Implement Mono transaction sync when needed
+    throw new Error('Transaction sync not yet implemented for Mono provider');
+  }
+
   handleError(error: any): ProviderError {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
@@ -174,7 +195,8 @@ export class MonoProvider extends BankingProvider {
     return {
       code: 'MONO_UNKNOWN_ERROR',
       message: error.message || 'Unknown Mono error',
-      displayMessage: 'An error occurred while connecting to your bank. Please try again.',
+      displayMessage:
+        'An error occurred while connecting to your bank. Please try again.',
       retryable: false,
     };
   }
@@ -196,7 +218,8 @@ export class MonoProvider extends BankingProvider {
     };
 
     return (
-      messages[status || 0] || 'An error occurred while connecting to your bank. Please try again.'
+      messages[status || 0] ||
+      'An error occurred while connecting to your bank. Please try again.'
     );
   }
 }

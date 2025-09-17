@@ -8,7 +8,10 @@
 import type { EnvSchema } from '@accountable-books/utils/env/types';
 
 // Target environments to generate files for
-export const WEB_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = ['local', 'staging'];
+export const WEB_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
+  'local',
+  'staging',
+];
 
 export const WEB_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
@@ -27,7 +30,7 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     description: 'Base domain for the application',
     type: 'string',
     local: 'lvh.me',
-    staging: ' ',
+    staging: 'localhost',
     production: 'app.getaccountable.com',
   },
 
@@ -84,7 +87,9 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
  * Can be executed directly: tsx apps/web/config/env-schema.ts
  */
 export async function generateFiles() {
-  const { createEnvGenerator } = await import('@accountable-books/utils/env/cli');
+  const { createEnvGenerator } = await import(
+    '@accountable-books/utils/env/cli'
+  );
   await createEnvGenerator('Web', WEB_ENV_SCHEMA, WEB_TARGET_ENVIRONMENTS);
 }
 

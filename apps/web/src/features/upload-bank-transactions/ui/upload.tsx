@@ -17,7 +17,7 @@ import { FailedRowsDisplay } from '@/features/upload-bank-transactions/ui/compon
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { DataTable } from '@/components/data-table/data-table';
 import { getBankTxnFields } from '@/features/upload-bank-transactions/ui/config/table-columns';
-import { generateMeta } from '@/modules/banking/csv-upload';
+import { generateSourceMetadata } from '@/modules/banking/csv-upload';
 import { FormattedAmount } from '@/components/FormattedAmount';
 import { Button } from '@/components/ui/button';
 import { Send, Upload, X } from 'lucide-react';
@@ -27,24 +27,33 @@ import { sleep } from '@/shared/utils/random-utils';
 import { fields } from '@/features/upload-bank-transactions/ui/config/import-fields';
 import { useUploadBankTransactions } from '@/modules/banking/csv-upload';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts';
+import { toast } from 'sonner';
 
 export function UploadBankTransactions() {
-  const [selectedBankAccount, setSelectedBankAccount] = useState<BankAccountWithMeta | null>(null);
+  const [selectedBankAccount, setSelectedBankAccount] =
+    useState<BankAccountWithMeta | null>(null);
   const [parsed, setParsed] = useState<ParsedCsvResult | null>(null);
-  const [batchInsert, setBatchInsert] = useState<BankTransactionBatchInsert | undefined>(undefined);
+  const [batchInsert, setBatchInsert] = useState<
+    BankTransactionBatchInsert | undefined
+  >(undefined);
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadSuccessMessage, setUploadSuccessMessage] = useState<
+    string | undefined
+  >(undefined);
 
   const navigate = useNavigate();
   const { companyId, loading, tenantRoutes } = useSession();
-  const { data: rawBankAccounts, isLoading: loadingBankAccounts } = useCompanyBankAccounts(
-    companyId ?? '',
-  );
+  const { data: rawBankAccounts, isLoading: loadingBankAccounts } =
+    useCompanyBankAccounts(companyId ?? '');
   const uploadBankTxnMutation = useUploadBankTransactions();
 
-  const bankAccounts = useMemo(() => rawBankAccounts?.data || [], [rawBankAccounts]);
+  const bankAccounts = useMemo(
+    () => rawBankAccounts?.data || [],
+    [rawBankAccounts],
+  );
 
   const handleParsedFile = useCallback((results: ParsedCsvResult[]) => {
     setParsed(results[0]);
@@ -52,7 +61,6 @@ export function UploadBankTransactions() {
 
   const {
     transactions: parsedBankTxns,
-    dateRange,
     inserts,
     errors: transactionErrors,
     totalMoneyIn,
@@ -68,25 +76,15 @@ export function UploadBankTransactions() {
     let isMounted = true;
 
     const computeBatchInsert = async () => {
-      if (
-        !parsed?.file ||
-        !selectedBankAccount?.id ||
-        !dateRange?.earliestDate ||
-        !dateRange?.latestDate ||
-        !inserts?.length
-      ) {
+      if (!parsed?.file || !selectedBankAccount?.id || !inserts?.length) {
         return undefined;
       }
 
-      const { fingerprint, sourceMetadata } = await generateMeta(parsed.file);
       return {
-        startDate: dateRange.earliestDate,
-        endDate: dateRange.latestDate,
         source: bankTransactionSource.enum.file_import,
-        bankAccountId: selectedBankAccount.id,
-        bankTransactions: inserts,
-        fingerprint,
-        sourceMetadata,
+        bank_account_id: selectedBankAccount.id,
+        bank_transactions: inserts,
+        metadata: generateSourceMetadata(parsed.file),
       };
     };
 
@@ -97,7 +95,7 @@ export function UploadBankTransactions() {
     return () => {
       isMounted = false;
     };
-  }, [dateRange, inserts, selectedBankAccount?.id, parsed?.file]);
+  }, [inserts, selectedBankAccount?.id, parsed?.file]);
 
   const handleSubmit = useCallback(async () => {
     if (!batchInsert) return;
@@ -108,18 +106,34 @@ export function UploadBankTransactions() {
     await sleep(1000);
 
     try {
-      const response = await uploadBankTxnMutation.mutateAsync({
-        companyId: companyId ?? '',
-        data: batchInsert,
-      });
+      console.log('batchInsert', batchInsert);
+      const response = await uploadBankTxnMutation.mutateAsync(
+        {
+          companyId: companyId ?? '',
+          data: batchInsert,
+        },
+        {
+          onSuccess: (response) => {
+            toast.success(
+              response.message || 'Transactions uploaded successfully',
+            );
+          },
+          onError: (error) => {
+            toast.error(error.message || 'Failed to upload transactions');
+          },
+        },
+      );
 
       if (response.success) {
         setUploadSuccess(true);
+        setUploadSuccessMessage(response.message);
       } else {
         setUploadError(response.message || 'Failed to upload transactions');
       }
     } catch (error: unknown) {
-      setUploadError((error as Error).message || 'Failed to upload transactions');
+      setUploadError(
+        (error as Error).message || 'Failed to upload transactions',
+      );
     } finally {
       setIsUploading(false);
     }
@@ -209,7 +223,9 @@ export function UploadBankTransactions() {
                   >
                     Open Google Sheets Template
                   </a>{' '}
-                  <span className="text-muted-foreground text-xs">(includes instructions)</span>
+                  <span className="text-muted-foreground text-xs">
+                    (includes instructions)
+                  </span>
                 </span>
               </div>
               <div className="w-full bg-muted p-4 rounded-md">
@@ -232,7 +248,9 @@ export function UploadBankTransactions() {
               >
                 <div className="p-4 rounded-md">
                   <div>#</div>
-                  <div>{parsedBankTxns?.length ?? 0} rows</div>
+                  <div className="text-base">
+                    {parsedBankTxns?.length ?? 0} rows
+                  </div>
                 </div>
                 <div className="p-4 rounded-md">
                   <div>Money In</div>
@@ -265,7 +283,9 @@ export function UploadBankTransactions() {
                   setSelectedBankAccount={setSelectedBankAccount}
                 />
                 {selectedBankAccount && (
-                  <SelectedBankAccount selectedBankAccount={selectedBankAccount} />
+                  <SelectedBankAccount
+                    selectedBankAccount={selectedBankAccount}
+                  />
                 )}
                 <div className="flex-1 overflow-auto min-h-0 scrollbar-thin-2px">
                   {showInput && (
@@ -283,7 +303,9 @@ export function UploadBankTransactions() {
                       fileCardContainerClassName="border-0"
                     />
                   )}
-                  {transactionErrors.length > 0 && <FailedRowsDisplay errors={transactionErrors} />}
+                  {transactionErrors.length > 0 && (
+                    <FailedRowsDisplay errors={transactionErrors} />
+                  )}
                   {parsedBankTxns?.length > 0 && (
                     <div className="min-h-0 h-[200px] max-h-[200px] flex flex-col transform transition-all duration-500 ease-in-out relative">
                       <DataTable table={table} />
@@ -296,14 +318,18 @@ export function UploadBankTransactions() {
                             uploadSuccess ? 'bg-green-100/30' : '',
                           )}
                         >
-                          {isUploading && <CenteredLoader message="Uploading..." />}
+                          {isUploading && (
+                            <CenteredLoader message="Uploading..." />
+                          )}
                           {uploadError && (
                             <div className="text-destructive flex flex-col items-center gap-2">
                               <X className="w-8 h-8" />
                               <span>{uploadError}</span>
                             </div>
                           )}
-                          {uploadSuccess && <Success />}
+                          {uploadSuccess && (
+                            <Success description={uploadSuccessMessage} />
+                          )}
                         </div>
                       )}
                     </div>
@@ -326,7 +352,9 @@ export function UploadBankTransactions() {
                   Connect bank
                 </div>
                 {uploadSuccess ? (
-                  <Button onClick={handleNavigateToTransactions}>Go to transactions</Button>
+                  <Button onClick={handleNavigateToTransactions}>
+                    Go to transactions
+                  </Button>
                 ) : (
                   <Button
                     disabled={!canSubmit}
