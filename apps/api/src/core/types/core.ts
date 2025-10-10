@@ -17,20 +17,31 @@ export const dbStandardFields = z.object({
 });
 export type StandardFields = z.infer<typeof dbStandardFields>;
 
-export const dbBaseFields = z.object({ id: z.uuid() }).extend(dbStandardFields.shape);
+export const dbBaseFields = z
+  .object({ id: z.uuid() })
+  .extend(dbStandardFields.shape);
 
 export const zDate = z.preprocess((val) => {
-  if (typeof val === 'string' || typeof val === 'number' || val instanceof Date) {
+  if (
+    typeof val === 'string' ||
+    typeof val === 'number' ||
+    val instanceof Date
+  ) {
     const date = new Date(val);
     return isNaN(date.getTime()) ? undefined : date;
   }
   return undefined;
 }, z.date());
 
-export const zEmail = () => z.email().transform((email) => email.trim().toLowerCase());
+export const zEmail = () =>
+  z.email().transform((email) => email.trim().toLowerCase());
 
 export const debitCredit = z.enum(['debit', 'credit']);
 export type DebitCredit = z.infer<typeof debitCredit>;
 
-export const categorizationStatus = z.enum(['uncategorized', 'suggested', 'reviewed']);
+export const categorizationStatus = z.enum([
+  'uncategorized',
+  'suggested',
+  'reviewed',
+]);
 export type CategorizationStatus = z.infer<typeof categorizationStatus>;

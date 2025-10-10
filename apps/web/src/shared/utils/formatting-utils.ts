@@ -37,7 +37,10 @@ export const parseDateString = (dateString: string | Date): Date | null => {
  * @param formatString The desired output format.
  * @returns A formatted date string.
  */
-export const formatDate = (date: Date, formatString: string = DEFAULT_DATE_FORMAT): string => {
+export const formatDate = (
+  date: Date,
+  formatString: string = DEFAULT_DATE_FORMAT,
+): string => {
   return format(date, formatString);
 };
 
@@ -110,7 +113,9 @@ export const findDateRange = <D>(
     return { earliestDate: null, latestDate: null };
   }
 
-  const earliestDate = new Date(Math.min(...parsedDates.map((d) => d.getTime())));
+  const earliestDate = new Date(
+    Math.min(...parsedDates.map((d) => d.getTime())),
+  );
   const latestDate = new Date(Math.max(...parsedDates.map((d) => d.getTime())));
 
   return { earliestDate, latestDate };
@@ -149,7 +154,11 @@ export function toTitleCase(
     preserveUppercase?: boolean;
   },
 ) {
-  const { delimiter = /\s+/, joinWith = ' ', preserveUppercase = true } = options || {};
+  const {
+    delimiter = /\s+/,
+    joinWith = ' ',
+    preserveUppercase = true,
+  } = options || {};
 
   return text
     .split(delimiter)
@@ -167,7 +176,11 @@ export function toTitleCase(
  * @param finalCharsLength How many digits to show at the end (default 4).
  * @param maskCount How many asterisks to prepend (default 3).
  */
-export function maskDigits(text: string, finalCharsLength: number = 4, maskCount: number = 3) {
+export function maskDigits(
+  text: string,
+  finalCharsLength: number = 4,
+  maskCount: number = 3,
+) {
   if (!text) return '';
   const final = text.slice(-finalCharsLength);
   return `${'*'.repeat(maskCount)}${final}`;
@@ -219,7 +232,10 @@ export function formatAccountText(
     return `${maskChar}${last}`;
   }
 
-  if (text.length <= minHideLength || text.length <= maxInitialLength + finalCharsLength) {
+  if (
+    text.length <= minHideLength ||
+    text.length <= maxInitialLength + finalCharsLength
+  ) {
     return text;
   }
 

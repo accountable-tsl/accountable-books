@@ -9,7 +9,9 @@ const tableName = 'audit_events';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
-    table.enu('entity_type', ['batch', 'transaction', 'prediction', 'journal']).notNullable();
+    table
+      .enu('entity_type', ['batch', 'transaction', 'prediction', 'journal'])
+      .notNullable();
     table.uuid('entity_id').notNullable();
     table
       .enu('action', [
@@ -31,7 +33,12 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('companies')
       .onDelete('RESTRICT');
-    table.uuid('user_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('user_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     table.text('notes').nullable();
 

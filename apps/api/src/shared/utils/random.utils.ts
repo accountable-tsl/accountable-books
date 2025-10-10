@@ -20,7 +20,10 @@ export const getCompanyShortCode = async (
   return short_code;
 };
 
-export const retryAxios = async <T>(fn: () => Promise<T>, retries = 3): Promise<T> => {
+export const retryAxios = async <T>(
+  fn: () => Promise<T>,
+  retries = 3,
+): Promise<T> => {
   try {
     return await fn();
   } catch (error) {
@@ -68,5 +71,8 @@ export function isUniqueConstraintError(error: unknown): boolean {
   }
 
   const errorMessage = String(error).toLowerCase();
-  return errorMessage.includes('unique constraint') || errorMessage.includes('duplicate key');
+  return (
+    errorMessage.includes('unique constraint') ||
+    errorMessage.includes('duplicate key')
+  );
 }

@@ -117,14 +117,16 @@ Launch `2025-29-09`
 
 ### CRITICAL (Must Fix)
 
-- [ ] Demo companies have null assigned firm ids
+- [x] Demo companies have null assigned firm ids
 - [ ] URL resolves to null subdomain in frontend, should resolve to app
 - [ ] Backup database for postgres
 - [ ] Re-enable deployment protection (vercel) once we push to production
+- [ ] Wire enqueueGLBalance into every ledger-entry mutation path so GL snapshots refresh automatically.
 
 ### CAN DELAY (Post-Launch)
 
-- [ ] Plaid Webhook implementation
+- [ ] Request company timezone at onboarding
+- [x] Plaid Webhook implementation
 - [ ] Implement monitoring - grafana, prometheus etc, and maybe versioning too
 - [ ] Add concurrency to deploy-staging.yml : { group: staging, cancel-in-progress: true }
 - [ ] Add all ISO 4217 currency codes to currencies table

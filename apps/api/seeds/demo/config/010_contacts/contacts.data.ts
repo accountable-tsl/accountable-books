@@ -2,7 +2,10 @@ import type { Knex } from 'knex';
 import type { DemoCompanyType, DemoFilter } from '../../shared/config.js';
 import { getDemoCompanies } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
-import { demoContactsByCompanyMap, type DemoContact } from './contacts.state.js';
+import {
+  demoContactsByCompanyMap,
+  type DemoContact,
+} from './contacts.state.js';
 import { generateRandomContacts } from './contacts.utils.js';
 import * as ngContacts from './raw/ng_contacts.json';
 import * as usContacts from './raw/us_contacts.json';
@@ -68,7 +71,9 @@ export const getRawContactsForInsertion = async (
   const companiesMap = generateDemoCompaniesMap(filters);
 
   return companies.map((company) => {
-    const companyMapData = companiesMap.find((c) => c.company.shortCode === company.short_code);
+    const companyMapData = companiesMap.find(
+      (c) => c.company.shortCode === company.short_code,
+    );
     if (!companyMapData) {
       throw new Error(`Company map data not found for ${company.short_code}`);
     }
@@ -111,7 +116,9 @@ export const generateDemoContactsMap = async (
   const companiesMap = generateDemoCompaniesMap(filters);
 
   return companies.map((company) => {
-    const companyMapData = companiesMap.find((c) => c.company.shortCode === company.short_code);
+    const companyMapData = companiesMap.find(
+      (c) => c.company.shortCode === company.short_code,
+    );
     if (!companyMapData) {
       throw new Error(`Company map data not found for ${company.short_code}`);
     }

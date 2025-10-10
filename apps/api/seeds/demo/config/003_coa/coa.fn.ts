@@ -1,6 +1,10 @@
 import type { Knex } from 'knex';
 import { DemoFilter, COMPANY_TYPES } from '../../shared/config';
-import { deleteDemoData, getCompanyIdMap, getDemoUserMap } from '../../shared/utils';
+import {
+  deleteDemoData,
+  getCompanyIdMap,
+  getDemoUserMap,
+} from '../../shared/utils';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data';
 
 // Template options for business companies
@@ -30,7 +34,10 @@ const getCoaTemplate = (companyType: string): string => {
   throw new Error(`Unknown company type: ${companyType}`);
 };
 
-export const createDemoCoa = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const createDemoCoa = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   const companiesMap = generateDemoCompaniesMap(filters);
 
   if (companiesMap.length === 0) {
@@ -56,15 +63,21 @@ export const createDemoCoa = async (trx: Knex.Transaction, filters?: DemoFilter)
     const companyId = companyIdMap.get(company.shortCode);
 
     if (!companyId) {
-      console.log(`Company ID not found for ${company.shortCode}, skipping COA creation`);
+      console.log(
+        `Company ID not found for ${company.shortCode}, skipping COA creation`,
+      );
       continue;
     }
 
     // Check if COA already exists for this company
-    const existingCoa = await trx('coa').where({ company_id: companyId }).first();
+    const existingCoa = await trx('coa')
+      .where({ company_id: companyId })
+      .first();
 
     if (existingCoa) {
-      console.log(`COA already exists for company ${company.shortCode}, skipping`);
+      console.log(
+        `COA already exists for company ${company.shortCode}, skipping`,
+      );
       continue;
     }
 
@@ -78,7 +91,9 @@ export const createDemoCoa = async (trx: Knex.Transaction, filters?: DemoFilter)
       .select(['code', 'name', 'description', 'account_type_id', 'locked']);
 
     if (!coaTemplate.length) {
-      console.warn(`COA template '${templateName}' not found for company ${company.shortCode}`);
+      console.warn(
+        `COA template '${templateName}' not found for company ${company.shortCode}`,
+      );
       continue;
     }
 
@@ -97,7 +112,11 @@ export const createDemoCoa = async (trx: Knex.Transaction, filters?: DemoFilter)
     }));
 
     // Insert COA entries with idempotency
-    const insertedCoa = await trx('coa').insert(toInsert).onConflict().ignore().returning('id');
+    const insertedCoa = await trx('coa')
+      .insert(toInsert)
+      .onConflict()
+      .ignore()
+      .returning('id');
 
     console.log(
       `Created ${insertedCoa.length} COA entries for company ${company.shortCode} using template ${templateName}`,
@@ -105,7 +124,10 @@ export const createDemoCoa = async (trx: Knex.Transaction, filters?: DemoFilter)
   }
 };
 
-export const deleteDemoCoa = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const deleteDemoCoa = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   await deleteDemoData({
     trx,
     table: 'coa',

@@ -1,4 +1,8 @@
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { ToggleButton } from '@/domains-pending-migration/cat-engine/components/toggle-button';
 import { PanelLeftOpen } from 'lucide-react';
 
@@ -20,7 +24,8 @@ export function CatEngineAdvFilter() {
         <div className="min-w-64">
           <h2 className="text-sm font-medium mb-2">Advanced Filters</h2>
           <div className="text-xs text-muted-foreground">
-            Coming soon: filter by amount range, confidence, contact, project, etc.
+            Coming soon: filter by amount range, confidence, contact, project,
+            etc.
           </div>
         </div>
       </PopoverContent>

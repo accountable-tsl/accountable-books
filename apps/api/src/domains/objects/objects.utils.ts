@@ -7,9 +7,18 @@ import { randomUUID } from 'crypto';
 import { type ZodSchema } from 'zod';
 
 export const imageFilter = (
-  allowedTypes: string[] = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+  allowedTypes: string[] = [
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/svg+xml',
+  ],
 ) => {
-  return (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  return (
+    req: Express.Request,
+    file: Express.Multer.File,
+    cb: multer.FileFilterCallback,
+  ) => {
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -18,7 +27,12 @@ export const imageFilter = (
   };
 };
 
-export const multerErrorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+export const multerErrorHandler = (
+  err: any,
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json(errorResponse('File too large, max 1MB'));
@@ -58,7 +72,12 @@ export const objectTypeHandlers: Record<
       const ext = params.originalFilename.split('.').pop() || 'obj';
       return `${params.companyId}-${randomUUID()}.${ext}`;
     },
-    allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+    allowedMimeTypes: [
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      'image/svg+xml',
+    ],
     maxSizeMB: 1,
   },
 

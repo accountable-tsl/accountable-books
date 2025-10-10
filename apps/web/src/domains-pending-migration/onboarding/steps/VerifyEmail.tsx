@@ -25,18 +25,26 @@ export const VerifyEmail = ({
   stateOverride?: string;
 }) => {
   // Hooks, Context
-  const { user, isLoggedIn, logout, refetchSession, loading: sessionLoading } = useSession();
+  const {
+    user,
+    isLoggedIn,
+    logout,
+    refetchSession,
+    loading: sessionLoading,
+  } = useSession();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
   // State
-  const [verifyEmailResponse, setVerifyEmailResponse] = useState<VerifyEmailFnResponse>({
-    emailVerified: false,
-    status: null,
-    slug: null,
-    email: null,
-  });
-  const [hasTriggeredVerification, setHasTriggeredVerification] = useState(false);
+  const [verifyEmailResponse, setVerifyEmailResponse] =
+    useState<VerifyEmailFnResponse>({
+      emailVerified: false,
+      status: null,
+      slug: null,
+      email: null,
+    });
+  const [hasTriggeredVerification, setHasTriggeredVerification] =
+    useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -124,7 +132,9 @@ export const VerifyEmail = ({
   };
   const isEmailVerificationStepComplete =
     isLoggedIn &&
-    user?.currentCompany.onboarding.steps.find((step) => step.key === 'email_verified')?.complete;
+    user?.currentCompany.onboarding.steps.find(
+      (step) => step.key === 'email_verified',
+    )?.complete;
 
   useEffect(() => {
     if (isLoading || sessionLoading) return;
@@ -143,7 +153,13 @@ export const VerifyEmail = ({
   }, [userIdFromUrl, verificationToken, hasTriggeredVerification]);
 
   if (isLoading || sessionLoading) {
-    return <CenteredLoader fullscreen message="Loading..." showAuthHeader={isLoggedIn} />;
+    return (
+      <CenteredLoader
+        fullscreen
+        message="Loading..."
+        showAuthHeader={isLoggedIn}
+      />
+    );
   }
 
   const { emailVerified, status, email } = verifyEmailResponse;
@@ -177,13 +193,19 @@ export const VerifyEmail = ({
       <div className="text-center text-sm md:text-base">
         <div>
           We've sent a verification link to
-          <span className="text-blue-500 px-1">{verifiedEmail || userEmail || 'your email'}.</span>
-          Click it to verify your account and continue setup. Can't find it? Check your spam folder
-          or click 'Resend' below.
+          <span className="text-blue-500 px-1">
+            {verifiedEmail || userEmail || 'your email'}.
+          </span>
+          Click it to verify your account and continue setup. Can't find it?
+          Check your spam folder or click 'Resend' below.
         </div>
       </div>
 
-      <div className={cn('flex flex-col-reverse md:flex-row gap-4 mb-8 mt-8 md:mb-0 md:mt-16')}>
+      <div
+        className={cn(
+          'flex flex-col-reverse md:flex-row gap-4 mb-8 mt-8 md:mb-0 md:mt-16',
+        )}
+      >
         <Button
           variant="link"
           onClick={handleResendEmail}
@@ -191,7 +213,9 @@ export const VerifyEmail = ({
         >
           Resend Email
         </Button>
-        <Button onClick={() => setHasTriggeredVerification(true)}>I've clicked the link</Button>
+        <Button onClick={() => setHasTriggeredVerification(true)}>
+          I've clicked the link
+        </Button>
       </div>
     </>
   );
@@ -216,26 +240,34 @@ export const VerifyEmail = ({
         <span>
           {loggedInDifferentUser ? (
             <>
-              You are logged in as <span className="text-blue-500">{userEmail}</span> but tried to
-              verify <span>{verifiedEmail || 'a different email'}</span>. There was an issue
-              verifying this email.
+              You are logged in as{' '}
+              <span className="text-blue-500">{userEmail}</span> but tried to
+              verify <span>{verifiedEmail || 'a different email'}</span>. There
+              was an issue verifying this email.
             </>
           ) : (
             <>
               We tried to verify{' '}
-              <span className="text-blue-500">{verifiedEmail || userEmail || 'your email'}</span>,
-              but it seems there was an issue.
+              <span className="text-blue-500">
+                {verifiedEmail || userEmail || 'your email'}
+              </span>
+              , but it seems there was an issue.
             </>
           )}
         </span>
         <br />
         <span className="text-muted-foreground">
           Click 'Resend' below to send a new verification link to{' '}
-          <span className="text-blue-500">{verifiedEmail || 'this email'}</span>.
+          <span className="text-blue-500">{verifiedEmail || 'this email'}</span>
+          .
         </span>
       </div>
 
-      <div className={cn('flex flex-col-reverse md:flex-row gap-4 mb-8 mt-8 md:mb-0 md:mt-16')}>
+      <div
+        className={cn(
+          'flex flex-col-reverse md:flex-row gap-4 mb-8 mt-8 md:mb-0 md:mt-16',
+        )}
+      >
         <Button variant="default" onClick={handleResendEmail}>
           Resend Email
         </Button>
@@ -246,7 +278,9 @@ export const VerifyEmail = ({
   const loggedOutAndVerificationFailed = (
     <>
       <h2 className="text-xl font-bold mb-2">❌ Verification Failed</h2>
-      <p className="text-center">This verification link is invalid or has expired.</p>
+      <p className="text-center">
+        This verification link is invalid or has expired.
+      </p>
       <Link
         to={`${routes.auth.login.staticPath}?email=${encodeURIComponent(email || '')}`}
         className="text-blue-500 underline mt-4 block"
@@ -262,8 +296,8 @@ export const VerifyEmail = ({
 
       {loggedInDifferentUser ? (
         <p>
-          You verified <b className="text-blue-500">{verifiedEmail}</b> but are logged in as{' '}
-          <b>{user?.email}</b>.
+          You verified <b className="text-blue-500">{verifiedEmail}</b> but are
+          logged in as <b>{user?.email}</b>.
         </p>
       ) : (
         <p className="mb-4">Your email has been verified successfully.</p>
@@ -298,7 +332,10 @@ export const VerifyEmail = ({
     <>
       <h2 className="text-xl font-bold mb-2">⚠️ Unexpected State</h2>
       <p>Something doesn't look right. Please log in to continue.</p>
-      <Link to={routes.auth.login.staticPath} className="text-blue-600 underline mt-4 block">
+      <Link
+        to={routes.auth.login.staticPath}
+        className="text-blue-600 underline mt-4 block"
+      >
         Log in {!loggedOut ? 'again' : ''}
       </Link>
     </>
@@ -306,8 +343,10 @@ export const VerifyEmail = ({
 
   let verifyEmailContent;
   if (!hasTriggeredVerification && isLoggedIn) verifyEmailContent = initialPage;
-  if (loggedOut && verificationFailed) verifyEmailContent = loggedOutAndVerificationFailed;
-  if (!loggedOut && verificationFailed) verifyEmailContent = loggedInAndVerificationFailed;
+  if (loggedOut && verificationFailed)
+    verifyEmailContent = loggedOutAndVerificationFailed;
+  if (!loggedOut && verificationFailed)
+    verifyEmailContent = loggedInAndVerificationFailed;
   if (verificationSuccessful) verifyEmailContent = verifiedSuccessfully;
   if (!verifyEmailContent) verifyEmailContent = fallbackContent; // Fallback
 

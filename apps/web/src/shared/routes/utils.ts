@@ -89,7 +89,10 @@ export function route<TPath extends string>(template: TPath, meta?: RouteMeta) {
  * @returns A new object with the same keys as `routes`, but with
  *   the modified functions as described above.
  */
-export function createTenantRoutes<T extends Record<string, any>>(routes: T, companyId: string) {
+export function createTenantRoutes<T extends Record<string, any>>(
+  routes: T,
+  companyId: string,
+) {
   // We create a new object with the same keys as the input routes.
   // The mapped type below defines the return type recursively,
   // distinguishing between leaf routes (with `.build()` functions)
@@ -133,7 +136,10 @@ export function createTenantRoutes<T extends Record<string, any>>(routes: T, com
       }
     } else {
       // Nested route group: recurse to create nested tenantRoutes object
-      tenantRoutes[key] = createTenantRoutes(routeOrNamespace, companyId) as any;
+      tenantRoutes[key] = createTenantRoutes(
+        routeOrNamespace,
+        companyId,
+      ) as any;
     }
   }
 
@@ -144,7 +150,12 @@ export function flattenRoutes(obj: Record<string, unknown>): RouteLike[] {
   const flat: RouteLike[] = [];
 
   for (const value of Object.values(obj)) {
-    if (value && typeof value === 'object' && 'staticPath' in value && 'meta' in value) {
+    if (
+      value &&
+      typeof value === 'object' &&
+      'staticPath' in value &&
+      'meta' in value
+    ) {
       flat.push(value as RouteLike);
     } else if (value && typeof value === 'object') {
       flat.push(...flattenRoutes(value as Record<string, unknown>));
@@ -187,7 +198,12 @@ export function flatRoutesForCanonicalUrls(
   for (const [key, value] of Object.entries(obj)) {
     const path = prefix ? `${prefix}.${key}` : key;
 
-    if (value && typeof value === 'object' && 'build' in value && 'staticPath' in value) {
+    if (
+      value &&
+      typeof value === 'object' &&
+      'build' in value &&
+      'staticPath' in value
+    ) {
       flat[path] = value as RouteEntry;
     } else if (value && typeof value === 'object') {
       Object.assign(flat, flatRoutesForCanonicalUrls(value, path));
@@ -230,7 +246,9 @@ export function buildCanonicalUrl<K extends FlattenedRouteKey>({
   const route = flatRoutes[routeKey];
   if (!route) {
     const availableKeys = Object.keys(flatRoutes).join(', ');
-    throw new Error(`Route key "${routeKey}" not found. Available keys: ${availableKeys}`);
+    throw new Error(
+      `Route key "${routeKey}" not found. Available keys: ${availableKeys}`,
+    );
   }
 
   const { currentCompanyId, companies } = user;
@@ -268,7 +286,8 @@ export function buildCanonicalUrl<K extends FlattenedRouteKey>({
 
   const resolvedOrigin =
     origin ||
-    (import.meta.env.PROD || window.location.hostname.includes('getaccountable.com')
+    (import.meta.env.PROD ||
+    window.location.hostname.includes('getaccountable.com')
       ? `https://${subdomain}.${getBaseDomain()}`
       : `${window.location.protocol}//${getBaseDomain()}`);
 
@@ -278,10 +297,14 @@ export function buildCanonicalUrl<K extends FlattenedRouteKey>({
 export const flattenedRoutes = flattenRoutes(routes);
 
 export function matchRouteForPath(path: string): RouteLike | undefined {
-  return flattenedRoutes.find((route) => matchPath({ path: route.staticPath, end: true }, path));
+  return flattenedRoutes.find((route) =>
+    matchPath({ path: route.staticPath, end: true }, path),
+  );
 }
 
-const flattenedPublicRoutes = flattenRoutes(routes).filter((r) => r.meta?.public);
+const flattenedPublicRoutes = flattenRoutes(routes).filter(
+  (r) => r.meta?.public,
+);
 
 export function isPublicRoute(path: string): boolean {
   return flattenedPublicRoutes.some((route) =>
@@ -306,7 +329,10 @@ function buildSmartIndex(flatRoutes: FlatRoutes): RouteIndex {
   return { directRoutes, companyRoutes };
 }
 
-export function findMatchingRouteSmart(index: RouteIndex, pathname: string): RouteMatch | null {
+export function findMatchingRouteSmart(
+  index: RouteIndex,
+  pathname: string,
+): RouteMatch | null {
   const { directRoutes, companyRoutes } = index;
 
   // Try direct match first

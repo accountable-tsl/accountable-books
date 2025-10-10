@@ -5,7 +5,6 @@ import {
 } from '../../../shared/utils/response.utils.js';
 import { logger, logError } from '../../../shared/utils/logger.js';
 import { providerRegistry } from '../providers/registry.js';
-import { findOrCreateBankMapping } from '../utils/resolveBank.js';
 import { createBankAccountWithConnection } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
 import type { BankProviderKey } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
 import { randomUUID } from 'crypto';
@@ -13,9 +12,11 @@ import { createBankAccountCredential } from '../../../domains/banking/bankAccoun
 import { knexClient } from '../../../db/knexClient.js';
 import type { BusinessOrPersonalAccount } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
 import { transactionSyncQueue } from '../../../jobs/queues/transaction-sync.queue.js';
+import type { ProviderInstitution } from '../types/base.js';
 
 export interface ConnectAccountsParams {
   providerKey: BankProviderKey;
+  countryCode: string;
   publicToken: string;
   metadata?: Record<string, unknown>;
   companyId: string;
@@ -112,26 +113,37 @@ export class ConnectAccountsService {
         publicToken: params.publicToken,
       });
 
-      log('item_details', {});
+      // log('item_details', {});
+      // const {
+      //   institutionId,
+      //   metadata: itemMetadata,
+      //   institutionName,
+      // } = await provider.getItemDetails({
+      //   accessToken,
+      // });
+
+      // log('fetch_accounts', {});
+      // const providerAccounts = await provider.fetchBankAccounts({
+      //   accessToken,
+      // });
+      // console.log('providerAccounts fetched', providerAccounts);
+
+      // log('resolve_institution', {});
+      // const resolvedInstitution = await provider.getInstitutionById({
+      //   institutionId,
+      //   countryCodes: providerCountryCodes,
+      // });
+      // const institution = resolvedInstitution[0];
+
       const {
-        institutionId,
-        metadata: itemMetadata,
-        institutionName,
-      } = await provider.getItemDetails({
+        connection,
+        institution,
+        bankAccounts: providerAccounts,
+      } = await provider.getConnectionDetails({
         accessToken,
+        countryCode: params.countryCode,
+        userId: params.userId,
       });
-
-      log('fetch_accounts', {});
-      const providerAccounts = await provider.fetchBankAccounts({
-        accessToken,
-      });
-
-      log('resolve_institution', {});
-      const resolvedInstitution = await provider.getInstitutionById({
-        institutionId,
-        countryCodes: providerCountryCodes,
-      });
-      const institution = resolvedInstitution[0];
 
       // ALL DATABASE OPERATIONS IN SINGLE TRANSACTION
       return await knexClient.transaction(async (trx) => {
@@ -145,11 +157,11 @@ export class ConnectAccountsService {
           data: {
             providerId: providerInfo.id,
             accessToken: accessToken,
-            rawMetadata: { itemId, metadata: itemMetadata },
+            rawMetadata: { itemId, metadata: connection.metadata },
             status: 'active',
             itemIdentifier: itemId ?? null,
-            institutionId,
-            institutionName,
+            institutionId: institution.providerInstitutionId,
+            institutionName: institution.name,
           },
           trx,
         });
@@ -162,16 +174,13 @@ export class ConnectAccountsService {
         const credentialId = credentialResult.data.id;
         log('credential_created', { credentialId });
 
-        // 2. Resolve bank mapping
-        log('bank_mapping', {});
-        const { bankId, bankLogoUrl, providerBankName } =
-          await findOrCreateBankMapping({
-            providerKey: params.providerKey,
-            institution,
-            userId: params.userId,
-            trx,
-          });
-        log('bank_mapping_created', { bankId });
+        // 2. Use pre-resolved bank from provider (already resolved in getConnectionDetails)
+        log('using_pre_resolved_bank', {
+          bankId: institution.systemInstitutionId,
+        });
+        const bankId = institution.systemInstitutionId;
+        const bankLogoUrl = institution.logoUrl ?? null;
+        const providerBankName = institution.name;
 
         // 3. Create all bank accounts
         const createdAccounts: ConnectedAccount[] = [];
@@ -202,6 +211,7 @@ export class ConnectAccountsService {
               currencyCode: account.currencyCode,
               businessOrPersonal: 'business', // Default to business
               bankId,
+              accountMetadata: account.rawData || {},
             },
             trx,
           });
@@ -229,10 +239,13 @@ export class ConnectAccountsService {
         }
 
         // Generate simple success message
+        const plural = (n: number) => (n > 1 ? 's' : '');
         const message =
-          newCount === 0
-            ? `All set! ${updatedCount} existing account${updatedCount > 1 ? 's' : ''} reconnected successfully.`
-            : `All set! ${newCount} new account${newCount > 1 ? 's' : ''} connected and ${updatedCount} updated successfully.`;
+          updatedCount === 0
+            ? `All set! ${newCount} new account${plural(newCount)} connected successfully.`
+            : newCount === 0
+              ? `All set! ${updatedCount} existing account${plural(updatedCount)} reconnected successfully.`
+              : `All set! ${newCount} new account${plural(newCount)} connected and ${updatedCount} updated successfully.`;
 
         log('transaction_complete', {
           totalCreated: newCount,
@@ -261,6 +274,8 @@ export class ConnectAccountsService {
                 },
               },
             );
+            // Note: Daily sync is handled by a central daily scan job
+            // No need to schedule per-credential repeatables
             log('sync_queued', {
               credentialId,
               syncType: 'initial',
@@ -292,7 +307,7 @@ export class ConnectAccountsService {
         return successResponse(message, {
           bank: {
             id: bankId,
-            name: providerBankName ?? institutionName,
+            name: providerBankName ?? institution.name,
             logoUrl: bankLogoUrl,
           },
           accounts: createdAccounts,

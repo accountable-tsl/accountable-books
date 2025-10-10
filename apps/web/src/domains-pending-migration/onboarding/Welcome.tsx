@@ -39,7 +39,10 @@ export default function Welcome() {
   }, [navigate]);
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center p-6">
-      <ConfettiCelebration isActive={isConfettiActive} duration={confettiDuration} />
+      <ConfettiCelebration
+        isActive={isConfettiActive}
+        duration={confettiDuration}
+      />
       <div className="flex flex-col items-center">
         <div className="w-48 h-auto">
           <DotLottieReact

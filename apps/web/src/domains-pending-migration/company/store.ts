@@ -66,7 +66,9 @@ export const companyStore = create<CompanyStore>()(
       setOnboardingStatus: (status) =>
         set((state) => ({
           onboardingStatus: status,
-          company: state.company ? { ...state.company, onboardingStatus: status } : state.company,
+          company: state.company
+            ? { ...state.company, onboardingStatus: status }
+            : state.company,
         })),
 
       // Clear out company state (e.g. on logout)

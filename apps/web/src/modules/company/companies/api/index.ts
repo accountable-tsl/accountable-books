@@ -2,7 +2,9 @@ import api from '@/lib/axios';
 import type { CompanyData, UpdateCompanyVitalsData } from '../model/types';
 import type { ApiResponse } from '@/shared/types/core';
 
-export const getCompanyDetails = async (companyId: string): Promise<ApiResponse<CompanyData>> => {
+export const getCompanyDetails = async (
+  companyId: string,
+): Promise<ApiResponse<CompanyData>> => {
   const response = await api.get(`/api/companies/${companyId}`);
   return response.data;
 };
@@ -15,7 +17,9 @@ export const updateCompanyDetails = async (
   return response.data;
 };
 
-export const checkSlugExists = async (slug: string): Promise<ApiResponse<{ exists: boolean }>> => {
+export const checkSlugExists = async (
+  slug: string,
+): Promise<ApiResponse<{ exists: boolean }>> => {
   if (!slug) {
     return {
       success: false,

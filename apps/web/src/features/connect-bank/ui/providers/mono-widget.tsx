@@ -1,72 +1,115 @@
 import { useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
+import MonoConnect from '@mono.co/connect.js';
+import z from 'zod';
+import { WidgetManualFallback } from './widget-manual-fallback';
+
+const identitySchema = z.object({
+  type: z.string(),
+  number: z.string(),
+});
+
+const monoCustomerWithId = z.object({
+  id: z.string(),
+  name: z.never().optional(),
+  email: z.never().optional(),
+  identity: identitySchema.optional(),
+});
+
+const monoCustomerWithNameEmail = z.object({
+  id: z.never().optional(),
+  name: z.string(),
+  email: z.email(),
+  identity: identitySchema.optional(),
+});
+
+export const monoConnectCustomerSchema = z.union([
+  monoCustomerWithId,
+  monoCustomerWithNameEmail,
+]);
+
+export type MonoConnectCustomer = z.infer<typeof monoConnectCustomerSchema>;
 
 interface MonoWidgetProps {
-  config: string; // JSON string with Mono configuration
-  onSuccess: (code: string, metadata?: any) => void;
   onClose?: () => void;
+  onLoad?: () => void;
+  onSuccess?: (code: string) => void;
+  customer?: MonoConnectCustomer;
+  autoOpen?: boolean;
 }
 
-declare global {
-  interface Window {
-    Mono?: any;
-  }
-}
+export function MonoWidget({
+  onClose,
+  onLoad,
+  onSuccess,
+  customer,
+  autoOpen = true,
+}: MonoWidgetProps) {
+  const publicKey = import.meta.env.VITE_MONO_PUBLIC_KEY as string | undefined;
+  const monoRef = useRef<MonoConnect | null>(null);
+  const successCalledRef = useRef(false);
+  const openedOnceRef = useRef(false);
 
-export function MonoWidget({ config, onSuccess, onClose }: MonoWidgetProps) {
-  const monoRef = useRef<any>(null);
-  const configData = JSON.parse(config);
+  console.log('customer', customer, 'publicKey', publicKey);
 
+  // init once
   useEffect(() => {
-    // Load Mono script if not already loaded
-    if (!window.Mono) {
-      const script = document.createElement('script');
-      script.src = 'https://connect.withmono.com/connect.js';
-      script.async = true;
-      document.head.appendChild(script);
+    if (!publicKey) {
+      console.error('VITE_MONO_PUBLIC_KEY is missing');
+      return;
+    }
+    if (typeof window === 'undefined') return; // SSR guard
+    if (monoRef.current) return;
+
+    const instance = new MonoConnect({
+      key: publicKey,
+      data: customer ? { customer } : undefined,
+      onClose: () => onClose?.(),
+      onLoad: () => onLoad?.(),
+      onSuccess: ({ code }: { code: string }) => {
+        if (successCalledRef.current) return;
+        successCalledRef.current = true;
+        onSuccess?.(code);
+      },
+    });
+
+    monoRef.current = instance;
+    instance.setup();
+
+    // open once after setup if requested
+    if (autoOpen && !openedOnceRef.current) {
+      openedOnceRef.current = true;
+      instance.open();
     }
 
     return () => {
-      // Cleanup
-      if (monoRef.current) {
-        monoRef.current.close();
-      }
+      // no documented destroy API; just drop the ref
+      monoRef.current = null;
     };
-  }, []);
+  }, [publicKey, autoOpen]);
 
-  const handleConnect = () => {
-    if (window.Mono && configData) {
-      monoRef.current = new window.Mono({
-        ...configData,
-        onSuccess: (code: string, metadata?: any) => {
-          onSuccess(code, metadata);
-        },
-        onClose: () => {
-          onClose?.();
-        },
-      });
+  // Expose manual open method
+  const open = () => monoRef.current?.open();
 
-      monoRef.current.setup();
-      monoRef.current.open();
-    }
-  };
+  // return (
+  //   <div className="space-y-4">
+  //     <div className="text-center">
+  //       <h3 className="text-lg font-semibold mb-2">
+  //         Connect Your Bank Account
+  //       </h3>
+  //       <p className="text-muted-foreground text-sm mb-4">
+  //         Securely link your Nigerian bank account to import transactions
+  //         automatically.
+  //       </p>
+  //     </div>
 
-  return (
-    <div className="space-y-4">
-      <div className="text-center">
-        <h3 className="text-lg font-semibold mb-2">Connect Your Bank Account</h3>
-        <p className="text-muted-foreground text-sm mb-4">
-          Securely link your Nigerian bank account to import transactions automatically.
-        </p>
-      </div>
+  //     <Button onClick={open} className="w-full" size="lg">
+  //       Connect Bank Account
+  //     </Button>
 
-      <Button onClick={handleConnect} className="w-full" size="lg">
-        Connect Bank Account
-      </Button>
-
-      <div className="text-xs text-muted-foreground text-center">
-        Your credentials are encrypted and secure
-      </div>
-    </div>
-  );
+  //     <div className="text-xs text-muted-foreground text-center">
+  //       Your credentials are encrypted and secure
+  //     </div>
+  //   </div>
+  // );
+  return <WidgetManualFallback onOpenClick={open} />;
 }

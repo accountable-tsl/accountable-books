@@ -2,7 +2,10 @@ import { isProd, NODE_ENV } from '../../config/env.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
 import * as Sentry from '@sentry/node';
 
-export function successResponse<T>(message = 'Query successful', data: T): ApiResponse<T> {
+export function successResponse<T>(
+  message = 'Query successful',
+  data: T,
+): ApiResponse<T> {
   return {
     success: true,
     message,
@@ -22,7 +25,8 @@ export function errorResponse<T = null>(
     report: false,
   },
 ): ApiResponse<T> {
-  let parsedError: string | Record<string, unknown> | string[] | undefined = undefined;
+  let parsedError: string | Record<string, unknown> | string[] | undefined =
+    undefined;
   let finalMessage = message;
   let finalCode = options.code;
   let shouldReport = options.report;
@@ -41,9 +45,12 @@ export function errorResponse<T = null>(
   }
 
   if (isProd && shouldReport) {
-    Sentry.captureException(error instanceof Error ? error : new Error(finalMessage), {
-      extra: { error: parsedError, code: finalCode },
-    });
+    Sentry.captureException(
+      error instanceof Error ? error : new Error(finalMessage),
+      {
+        extra: { error: parsedError, code: finalCode },
+      },
+    );
   }
 
   // if (!isProd) {

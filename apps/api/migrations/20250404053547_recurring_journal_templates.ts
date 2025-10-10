@@ -11,9 +11,16 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
     table.string('description', 512).notNullable();
     table.string('note', 1000).nullable();
-    table.specificType('status', 'recurring_journal_status').notNullable().defaultTo('draft');
+    table
+      .specificType('status', 'recurring_journal_status')
+      .notNullable()
+      .defaultTo('draft');
 
-    table.uuid('company_id').notNullable().references('id').inTable('companies');
+    table
+      .uuid('company_id')
+      .notNullable()
+      .references('id')
+      .inTable('companies');
     table.specificType('frequency', 'recurrence_frequency').notNullable();
     table.timestamp('start_date', { useTz: true }).notNullable();
     table.timestamp('end_date', { useTz: true }).nullable();

@@ -24,6 +24,7 @@ import { logger } from '../../shared/utils/logger.js';
 import crypto from 'crypto';
 import type { Knex } from 'knex';
 import { randomUUID } from 'crypto';
+import { enqueueBankBalance } from '../../jobs/queues/balance-recalc.queue.js';
 
 export async function addNewBankTransactions({
   userId,
@@ -266,6 +267,7 @@ export async function addNewBankTransactions({
 
           return {
             ...tx,
+            txn_at: tx.txn_at || tx.date,
             bank_account_id,
             contact_id: contactId,
             external_id: tx.external_id || generatedExternalId,
@@ -297,6 +299,44 @@ export async function addNewBankTransactions({
         skipped,
         totalProcessed: preparedTransactions.length,
       });
+
+      // Trigger balance recalculation if transactions were inserted
+      if (inserted > 0) {
+        try {
+          const earliestTxnAt = preparedTransactions.reduce<Date | null>(
+            (earliest, txn) => {
+              const txnAt = txn.txn_at as Date | undefined;
+              if (!txnAt) {
+                return earliest;
+              }
+              return !earliest || txnAt < earliest ? txnAt : earliest;
+            },
+            null,
+          );
+
+          if (earliestTxnAt) {
+            const recalcFrom = earliestTxnAt.toISOString().split('T')[0];
+            await enqueueBankBalance({
+              companyId: companyUUID,
+              bankAccountId: bank_account_id,
+              recalcFrom,
+              triggeredBy:
+                source === 'file_import' ? 'csv_upload' : 'transaction',
+            });
+
+            log('balance_recalc_queued', {
+              bankAccountId: bank_account_id,
+              recalcFrom,
+            });
+          }
+        } catch (error) {
+          // Don't fail the transaction if balance recalc enqueue fails
+          log('balance_recalc_enqueue_failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            bankAccountId: bank_account_id,
+          });
+        }
+      }
 
       log('completed', {
         inserted,

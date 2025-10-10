@@ -49,7 +49,10 @@ export async function setupTestDatabase(): Promise<void> {
 
   try {
     // Idempotent database creation - only create if it doesn't exist
-    const result = await mainDb.raw('SELECT 1 FROM pg_database WHERE datname = ?', [testDbName]);
+    const result = await mainDb.raw(
+      'SELECT 1 FROM pg_database WHERE datname = ?',
+      [testDbName],
+    );
 
     if (result.rows.length === 0) {
       console.log(`Creating test database: ${testDbName}`);
@@ -166,7 +169,10 @@ export async function setupTestDatabaseWithoutMigrations(): Promise<void> {
 
   try {
     // Idempotent database creation - only create if it doesn't exist
-    const result = await mainDb.raw('SELECT 1 FROM pg_database WHERE datname = ?', [testDbName]);
+    const result = await mainDb.raw(
+      'SELECT 1 FROM pg_database WHERE datname = ?',
+      [testDbName],
+    );
 
     if (result.rows.length === 0) {
       console.log(`Creating test database: ${testDbName}`);
@@ -189,7 +195,9 @@ export async function setupTestDatabaseWithoutMigrations(): Promise<void> {
 
   try {
     await testDb.raw('SELECT 1');
-    console.log(`✓ Connected to test database: ${testDbName} (without migrations)`);
+    console.log(
+      `✓ Connected to test database: ${testDbName} (without migrations)`,
+    );
   } catch (error) {
     throw new Error(`Test database connection failed: ${error}`);
   }

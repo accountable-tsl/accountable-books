@@ -39,7 +39,9 @@ export const updateContact = contactInput.partial().extend({
   id: z.uuid(),
 });
 export const updateContactSchema = createCamelCaseSchema(updateContact);
-export type UpdateContact = SnakeToCamelCaseObject<z.infer<typeof updateContact>>;
+export type UpdateContact = SnakeToCamelCaseObject<
+  z.infer<typeof updateContact>
+>;
 
 export type ContactResponse = {
   contacts: Array<{
@@ -64,7 +66,9 @@ export const getContactsParams = z.object({
   search: z.string().optional(),
   searchFields: z.array(z.enum(['displayName', 'email', 'notes'])).optional(),
   status: contactStatus.optional(),
-  sortBy: z.enum(['display_name', 'email', 'created_at', 'updated_at']).prefault('display_name'),
+  sortBy: z
+    .enum(['display_name', 'email', 'created_at', 'updated_at'])
+    .prefault('display_name'),
   sortOrder: z.enum(['asc', 'desc']).prefault('asc'),
   trx: z.any().optional(),
 });

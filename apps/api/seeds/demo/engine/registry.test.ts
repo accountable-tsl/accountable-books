@@ -18,7 +18,10 @@ describe('SEED_STEPS Registry', () => {
   });
 
   test('should have steps in correct dependency order', () => {
-    const steps = SEED_STEPS.map((step) => ({ name: step.name, order: step.order }));
+    const steps = SEED_STEPS.map((step) => ({
+      name: step.name,
+      order: step.order,
+    }));
 
     expect(steps).toEqual([
       { name: 'user', order: 1 },
@@ -117,7 +120,12 @@ describe('Step Dependencies', () => {
 
   test('companies should come before all dependent steps', () => {
     const companiesStep = SEED_STEPS.find((s) => s.name === 'companies');
-    const dependentSteps = ['chart-of-accounts', 'contacts', 'projects', 'bank-accounts'];
+    const dependentSteps = [
+      'chart-of-accounts',
+      'contacts',
+      'projects',
+      'bank-accounts',
+    ];
 
     dependentSteps.forEach((stepName) => {
       const step = SEED_STEPS.find((s) => s.name === stepName);
@@ -237,7 +245,9 @@ describe('Registry Integration', () => {
     expect(reversedSteps[0].name).toBe('bank-accounts');
 
     // Companies should be deleted near the end (after all dependents)
-    const companiesIndex = reversedSteps.findIndex((s) => s.name === 'companies');
+    const companiesIndex = reversedSteps.findIndex(
+      (s) => s.name === 'companies',
+    );
     const usersIndex = reversedSteps.findIndex((s) => s.name === 'user');
 
     // Users should be deleted last (after companies)
@@ -248,7 +258,11 @@ describe('Registry Integration', () => {
     // Registry should support executing only a subset of steps
     const firstThreeSteps = SEED_STEPS.slice(0, 3);
 
-    expect(firstThreeSteps.map((s) => s.name)).toEqual(['user', 'companies', 'chart-of-accounts']);
+    expect(firstThreeSteps.map((s) => s.name)).toEqual([
+      'user',
+      'companies',
+      'chart-of-accounts',
+    ]);
 
     // These should form a valid subset for execution
     firstThreeSteps.forEach((step) => {

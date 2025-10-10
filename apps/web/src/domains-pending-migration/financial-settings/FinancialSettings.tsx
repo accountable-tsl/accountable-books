@@ -25,7 +25,10 @@ export const FinancialSettings = () => {
   if (!company) return <ErrorPage type="default" />;
 
   const accountingBasis = useMemo(
-    () => (company?.accountingBasis === 'modified_cash_basis' ? 'Cash' : 'Modified Accrual'),
+    () =>
+      company?.accountingBasis === 'modified_cash_basis'
+        ? 'Cash'
+        : 'Modified Accrual',
     [company?.accountingBasis],
   );
 
@@ -46,7 +49,11 @@ export const FinancialSettings = () => {
       name: company.reportingCurrencyName,
       symbol: company.reportingCurrencySymbol,
     }),
-    [company.reportingCurrencyCode, company.reportingCurrencyName, company.reportingCurrencySymbol],
+    [
+      company.reportingCurrencyCode,
+      company.reportingCurrencyName,
+      company.reportingCurrencySymbol,
+    ],
   );
 
   const { start: fyStart, end: fyEnd } = useMemo(
@@ -72,8 +79,8 @@ export const FinancialSettings = () => {
         <div className="flex gap-2 items-center text-sm p-2 px-8 bg-muted">
           <Info className="flex-shrink-0 w-4 h-4" />
           <p>
-            These settings were configured during the initial setup of your account and cannot be
-            changed.
+            These settings were configured during the initial setup of your
+            account and cannot be changed.
           </p>
         </div>
         <Separator />
@@ -104,7 +111,9 @@ export const FinancialSettings = () => {
               <p className="font-medium">Financial Year</p>
               <TooltipHelper content={TOOLTIP.financialYear} />
             </div>
-            <p className="text-muted-foreground text-sm">Your annual financial reporting period</p>
+            <p className="text-muted-foreground text-sm">
+              Your annual financial reporting period
+            </p>
           </div>
           <Separator />
           <div className="flex items-center gap-2 py-1">
@@ -131,7 +140,9 @@ export const FinancialSettings = () => {
             <div>
               <div className="flex items-center gap-1">
                 <p className="font-medium">Accounting Basis</p>
-                <TooltipHelper content={basisTooltip || 'This is your accounting basis'} />
+                <TooltipHelper
+                  content={basisTooltip || 'This is your accounting basis'}
+                />
               </div>
               <p className="text-muted-foreground text-sm">
                 {`This dictates when you formally count a sale as income – or a purchase

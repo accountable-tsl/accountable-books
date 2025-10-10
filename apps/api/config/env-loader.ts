@@ -22,12 +22,16 @@ const loadEnvFiles = () => {
   const isOnFly = process.env.FLY_APP_NAME || process.env.FLY_ALLOC_ID;
 
   if (isOnFly) {
-    console.log(`🚀 Running on Fly.io - using environment variables and secrets`);
+    console.log(
+      `🚀 Running on Fly.io - using environment variables and secrets`,
+    );
     return;
   }
 
   if (currentEnv === 'production') {
-    console.log(`🚀 Production environment - using environment variables and secrets`);
+    console.log(
+      `🚀 Production environment - using environment variables and secrets`,
+    );
     return;
   }
 
@@ -42,7 +46,9 @@ const loadEnvFiles = () => {
     // Fallback to .env.local for test environment when .env.test doesn't exist
     actualEnvFile = '.env.local';
     actualEnvPath = path.resolve(__dirname, `../.env.local`);
-    console.log(`🌱 Using .env.local for test environment (no .env.test found)`);
+    console.log(
+      `🌱 Using .env.local for test environment (no .env.test found)`,
+    );
   }
 
   dotenv.config({ path: actualEnvPath });

@@ -25,12 +25,15 @@ export const retrieveTransactions = async (
   companyId: string | number,
   filters: BankTransactionFilters,
 ) => {
-  const response = await axios.get(`${backendUrl}/api/${companyId}/transactions`, {
-    params: filters,
-    paramsSerializer: (params) => {
-      return qs.stringify(params, { arrayFormat: 'repeat' }); // Serialize without `[]`
+  const response = await axios.get(
+    `${backendUrl}/api/${companyId}/transactions`,
+    {
+      params: filters,
+      paramsSerializer: (params) => {
+        return qs.stringify(params, { arrayFormat: 'repeat' }); // Serialize without `[]`
+      },
     },
-  });
+  );
 
   return response.data;
 };
@@ -51,7 +54,10 @@ export const fetchGenLedgerEntries = async (
   companyId: string,
   filters: AccountingTxnFilters,
 ): Promise<ApiResponse> => {
-  const response = await axios.post(`${backendUrl}/api/${companyId}/t`, filters);
+  const response = await axios.post(
+    `${backendUrl}/api/${companyId}/t`,
+    filters,
+  );
 
   return response.data;
 };

@@ -1,4 +1,7 @@
-import type { BankAccountWithMeta, NewBankAccountInput } from '@/modules/bank-accounts/ba-types';
+import type {
+  BankAccountWithMeta,
+  NewBankAccountInput,
+} from '@/modules/bank-accounts/ba-types';
 import type {
   AddBankTransactionsResponse,
   BankTransactionBatchInput,
@@ -10,7 +13,10 @@ export const addNewBankTransactions = async (
   companyId: string,
   data: BankTransactionBatchInput,
 ): Promise<ApiResponse<AddBankTransactionsResponse>> => {
-  const response = await api.post(`/api/${companyId}/bank-accounts/transactions/import`, data);
+  const response = await api.post(
+    `/api/${companyId}/bank-accounts/transactions/import`,
+    data,
+  );
   return response.data;
 };
 

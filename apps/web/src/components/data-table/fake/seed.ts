@@ -18,13 +18,28 @@ export interface Account {
   isTaxRelevant: boolean;
 }
 // Define account types and categories
-const accountTypes = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'] as const;
+const accountTypes = [
+  'Asset',
+  'Liability',
+  'Equity',
+  'Revenue',
+  'Expense',
+] as const;
 const accountCategories = {
   Asset: ['Current Assets', 'Fixed Assets', 'Investments', 'Other Assets'],
-  Liability: ['Current Liabilities', 'Long-Term Liabilities', 'Other Liabilities'],
+  Liability: [
+    'Current Liabilities',
+    'Long-Term Liabilities',
+    'Other Liabilities',
+  ],
   Equity: ['Common Stock', 'Retained Earnings', 'Other Equity'],
   Revenue: ['Operating Revenue', 'Non-Operating Revenue'],
-  Expense: ['Cost of Goods Sold', 'Operating Expenses', 'Financial Expenses', 'Taxes'],
+  Expense: [
+    'Cost of Goods Sold',
+    'Operating Expenses',
+    'Financial Expenses',
+    'Taxes',
+  ],
 } as const;
 
 // Define account statuses
@@ -103,14 +118,20 @@ const accountNameGenerators = {
       'Marketing and Advertising',
       'Research and Development',
     ]), // Fallback generator for other categories
-  default: (category: string) => `${category} Account ${faker.number.int({ min: 1, max: 100 })}`,
+  default: (category: string) =>
+    `${category} Account ${faker.number.int({ min: 1, max: 100 })}`,
 };
 
-export const generateCompanyAccounts = (companyId: string, count: number = 500): Account[] => {
+export const generateCompanyAccounts = (
+  companyId: string,
+  count: number = 500,
+): Account[] => {
   const accounts = [];
 
   for (let i = 0; i < count; i++) {
-    const type = faker.helpers.arrayElement(accountTypes) as keyof typeof accountCategories;
+    const type = faker.helpers.arrayElement(
+      accountTypes,
+    ) as keyof typeof accountCategories;
     const category = faker.helpers.arrayElement(accountCategories[type]);
     const nameGenerator =
       accountNameGenerators[category as keyof typeof accountNameGenerators] ||
@@ -128,9 +149,9 @@ export const generateCompanyAccounts = (companyId: string, count: number = 500):
       accountCategory: category,
       status: faker.helpers.arrayElement(statuses).value,
       description: faker.finance.transactionDescription(),
-      normalBalance: (type === 'Asset' || type === 'Expense' ? 'Debit' : 'Credit') as
-        | 'Debit'
-        | 'Credit',
+      normalBalance: (type === 'Asset' || type === 'Expense'
+        ? 'Debit'
+        : 'Credit') as 'Debit' | 'Credit',
       currency: faker.helpers.arrayElement(currencies).code,
       currentBalance: faker.finance.amount({ min: 0, max: 1000000, dec: 2 }),
       isBudgetControlled: faker.datatype.boolean({ probability: 0.7 }),

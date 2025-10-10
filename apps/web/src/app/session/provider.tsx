@@ -1,4 +1,10 @@
-import { createContext, useCallback, useContext, useMemo, useEffect } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useEffect,
+} from 'react';
 import { routes } from '@/shared/routes/routes';
 import { useLocation, useNavigate } from 'react-router';
 import { createTenantRoutes, isPublicRoute } from '@/shared/routes/utils';
@@ -30,14 +36,23 @@ const defaultContext = {
 };
 const SessionContext = createContext<SessionContextType>(defaultContext);
 
-export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
+export const SessionProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = authStore.getState();
   const setAuth = authStore((s) => s.setAuth);
   const clearAuth = authStore((s) => s.clearAuth);
 
-  const { data, isLoading: isLoadingSession, isError, refetch: refetchSession } = useSessionQuery();
+  const {
+    data,
+    isLoading: isLoadingSession,
+    isError,
+    refetch: refetchSession,
+  } = useSessionQuery();
   const { data: authData, success } = data || {};
 
   const isPublic = isPublicRoute(location.pathname);
@@ -50,7 +65,8 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     }
 
     if ((isError || !success) && !isLoadingSession && !isPublic) {
-      const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
+      const wasAuthenticated =
+        localStorage.getItem('wasAuthenticated') === 'true';
 
       void (async () => {
         try {
@@ -91,7 +107,9 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
 
   const companyType = company?.companyType;
 
-  const isLoading = isPublic ? isLoadingSession : isLoadingSession || isLoadingCompany;
+  const isLoading = isPublic
+    ? isLoadingSession
+    : isLoadingSession || isLoadingCompany;
 
   const tenantRoutes = useMemo(() => {
     if (!companyId) return null;
@@ -161,7 +179,11 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     ],
   );
 
-  return <SessionContext.Provider value={contextValue}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={contextValue}>
+      {children}
+    </SessionContext.Provider>
+  );
 };
 
 export const useSession = () => {

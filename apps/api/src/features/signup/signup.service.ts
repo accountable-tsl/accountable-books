@@ -1,10 +1,17 @@
 import type { Knex } from 'knex';
 import * as Sentry from '@sentry/node';
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { camelToSnake, snakeToCamel } from '../../shared/utils/formatting.utils.js';
+import {
+  camelToSnake,
+  snakeToCamel,
+} from '../../shared/utils/formatting.utils.js';
 
 import { createUserDirect } from '../../domains/users/users.model.js';
-import { AppError, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  AppError,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import { createCompany } from '../../domains/companies/companies.model.js';
 import { loadCoaTemplateForCompany } from '../../domains/chartOfAccounts/coaTemplate.model.js';
 import { trackEvent } from '../../shared/utils/analytics.utils.js';
@@ -63,7 +70,9 @@ export const registerNewAccount = async (input: {
   user: NewUserInputCamel;
   company: NewCompanyInputCamel;
   trx?: Knex.Transaction;
-}): Promise<ApiResponse<{ user: CreateUserResponse; company: NewCompanyResCamel }>> => {
+}): Promise<
+  ApiResponse<{ user: CreateUserResponse; company: NewCompanyResCamel }>
+> => {
   // Check that company type exists
   if (!input.user || !input.company.type) {
     return errorResponse('Invalid input or missing company type');
@@ -75,7 +84,7 @@ export const registerNewAccount = async (input: {
 
   const validateInput = newSignup.safeParse(snakeInput);
   if (!validateInput.success) {
-    return errorResponse('Invalid input', validateInput.error.flatten());
+    return errorResponse('Invalid input', validateInput.error.issues);
   }
 
   // Destructure and retrieve user and company input
@@ -86,7 +95,11 @@ export const registerNewAccount = async (input: {
   // Once user is created, company is created & assigned to firm,
   // Once this fn is successful, return successful, even if everything else fails
   const registerNewAccountFn = async (knex: Knex.Transaction) => {
-    const { user, company } = await createUserAndCompany(knex, userInput, companyInput);
+    const { user, company } = await createUserAndCompany(
+      knex,
+      userInput,
+      companyInput,
+    );
 
     let firm;
     // For an accounting firm, create accounting_firm
@@ -122,7 +135,9 @@ export const registerNewAccount = async (input: {
     if (trx) {
       result = await registerNewAccountFn(trx);
     } else {
-      result = await knexClient.transaction((newTrx) => registerNewAccountFn(newTrx));
+      result = await knexClient.transaction((newTrx) =>
+        registerNewAccountFn(newTrx),
+      );
     }
   } catch (error: any) {
     Sentry.captureException(error, {
@@ -139,7 +154,10 @@ export const registerNewAccount = async (input: {
         flow: 'newUserSignup',
       },
     });
-    return errorResponse(`Unable to signup user ${userInput?.email || ''}`, error);
+    return errorResponse(
+      `Unable to signup user ${userInput?.email || ''}`,
+      error,
+    );
   }
 
   const warnings: string[] = [];
@@ -149,7 +167,13 @@ export const registerNewAccount = async (input: {
     const { user, company: companyRes, firm } = result;
 
     try {
-      await trackSignupEvents(user.id, user.email, companyRes.type, companyRes.id, firm?.id);
+      await trackSignupEvents(
+        user.id,
+        user.email,
+        companyRes.type,
+        companyRes.id,
+        firm?.id,
+      );
     } catch (error: any) {
       Sentry.captureException(error, {
         tags: { flow: 'postSignupEvents' },
@@ -173,9 +197,13 @@ export const registerNewAccount = async (input: {
 
         if (!sentVerEmail) {
           warnings.push('Verification email was not sent');
-          errorResponse('Unable to send verification email on signup', sentVerEmail, {
-            report: true,
-          });
+          errorResponse(
+            'Unable to send verification email on signup',
+            sentVerEmail,
+            {
+              report: true,
+            },
+          );
         }
       } catch (error: any) {
         errorResponse('Unable to send verification email on signup', error, {
@@ -217,7 +245,10 @@ const createUserAndCompany = async (
     transaction: trx,
   });
   if (!userResponse.success || !userResponse.data?.id) {
-    throw new AppError(`User creation failed: ${userResponse.message}`, userResponse.error);
+    throw new AppError(
+      `User creation failed: ${userResponse.message}`,
+      userResponse.error,
+    );
   }
 
   const platformFirm = await trx('accounting_firms_meta as af')
@@ -241,7 +272,9 @@ const createUserAndCompany = async (
       assigned_firm_id: platformFirmId,
       ...(restOfCompanyInput.is_demo_company
         ? {
-            onboarding_state: createCompleteCompanyOnboardingState(restOfCompanyInput.type),
+            onboarding_state: createCompleteCompanyOnboardingState(
+              restOfCompanyInput.type,
+            ),
             onboarding_completed_at: now,
           }
         : {}),
@@ -254,7 +287,8 @@ const createUserAndCompany = async (
   }
 
   // Assign role
-  const roleKey: RoleKey = companyInput.type === 'accounting_firm' ? 'firm_owner' : 'client_owner';
+  const roleKey: RoleKey =
+    companyInput.type === 'accounting_firm' ? 'firm_owner' : 'client_owner';
   const assignRole = await grantDirectAccess({
     trx,
     userId: userResponse.data.id,
@@ -305,12 +339,16 @@ const setupAccountingFirm = async (
   }
 
   // Update the company's assigned_firm_id
-  await trx('companies').where('id', companyId).update({ assigned_firm_id: firmResponse.data.id });
+  await trx('companies')
+    .where('id', companyId)
+    .update({ assigned_firm_id: firmResponse.data.id });
 
   // Assign the company to the firm
-  await trx('client_firm_assignments').where('client_company_id', companyId).update({
-    accounting_firm_company_id: firmResponse.data.id,
-  });
+  await trx('client_firm_assignments')
+    .where('client_company_id', companyId)
+    .update({
+      accounting_firm_company_id: firmResponse.data.id,
+    });
 
   return firmResponse.data;
 };
@@ -325,7 +363,12 @@ const attachChartOfAccounts = async (
 ): Promise<void> => {
   try {
     if (params.loadCoaTemplate === false) {
-      await createDefaultAccounts(trx, params.companyId, params.userId, params.reportingCurrencyId);
+      await createDefaultAccounts(
+        trx,
+        params.companyId,
+        params.userId,
+        params.reportingCurrencyId,
+      );
     } else {
       await loadCoaTemplateForCompany(trx, {
         companyId: params.companyId,

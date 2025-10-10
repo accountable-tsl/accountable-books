@@ -68,7 +68,9 @@ export function DataTableExport<TData extends ExportableData>({
         const selectedItems = await getSelectedItems();
 
         if (selectedItems.length === 0) {
-          throw new Error(`Failed to retrieve complete data for selected ${entityName}`);
+          throw new Error(
+            `Failed to retrieve complete data for selected ${entityName}`,
+          );
         }
 
         // Order the items according to the current sorting in the table
@@ -82,7 +84,9 @@ export function DataTableExport<TData extends ExportableData>({
           // Validate that sortField exists in data before sorting
           const sampleItem = sortedItems[0];
           if (sampleItem && !(sortField in sampleItem)) {
-            console.warn(`Sort field "${sortField}" not found in data. Skipping sort.`);
+            console.warn(
+              `Sort field "${sortField}" not found in data. Skipping sort.`,
+            );
             return sortedItems;
           }
 
@@ -93,15 +97,25 @@ export function DataTableExport<TData extends ExportableData>({
 
               if (valueA === valueB) return 0;
 
-              if (valueA === null || valueA === undefined) return isDescending ? 1 : -1;
-              if (valueB === null || valueB === undefined) return isDescending ? -1 : 1;
+              if (valueA === null || valueA === undefined)
+                return isDescending ? 1 : -1;
+              if (valueB === null || valueB === undefined)
+                return isDescending ? -1 : 1;
 
               if (typeof valueA === 'string' && typeof valueB === 'string') {
-                return isDescending ? valueB.localeCompare(valueA) : valueA.localeCompare(valueB);
+                return isDescending
+                  ? valueB.localeCompare(valueA)
+                  : valueA.localeCompare(valueB);
               }
 
               // For numeric and other comparable types
-              return isDescending ? (valueB > valueA ? 1 : -1) : valueA > valueB ? 1 : -1;
+              return isDescending
+                ? valueB > valueA
+                  ? 1
+                  : -1
+                : valueA > valueB
+                  ? 1
+                  : -1;
             } catch (sortError) {
               console.error('Error during sorting:', sortError);
               return 0; // Maintain original order on error
@@ -157,7 +171,9 @@ export function DataTableExport<TData extends ExportableData>({
 
       // Generate export headers - use provided headers if available, otherwise fall back to visible columns
       const exportHeaders =
-        headers && headers.length > 0 ? headers : orderedVisibleColumns.map((column) => column.id);
+        headers && headers.length > 0
+          ? headers
+          : orderedVisibleColumns.map((column) => column.id);
 
       // Auto-generate column mapping from table headers if not provided
       const exportColumnMapping =
@@ -174,7 +190,10 @@ export function DataTableExport<TData extends ExportableData>({
               // Fallback to formatted column ID
               mapping[column.id] = column.id
                 .split(/(?=[A-Z])|_/)
-                .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .map(
+                  (word) =>
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+                )
                 .join(' ');
             }
           });
@@ -239,7 +258,9 @@ export function DataTableExport<TData extends ExportableData>({
         .filter((column) => column.id !== 'actions' && column.id !== 'select');
 
       const exportHeaders =
-        headers && headers.length > 0 ? headers : visibleColumns.map((column) => column.id);
+        headers && headers.length > 0
+          ? headers
+          : visibleColumns.map((column) => column.id);
       const exportColumnMapping =
         columnMapping ||
         (() => {
@@ -250,7 +271,10 @@ export function DataTableExport<TData extends ExportableData>({
             headers.forEach((header) => {
               mapping[header] = header
                 .split(/(?=[A-Z])|_/)
-                .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .map(
+                  (word) =>
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+                )
                 .join(' ');
             });
           } else {
@@ -263,7 +287,11 @@ export function DataTableExport<TData extends ExportableData>({
               } else {
                 mapping[column.id] = column.id
                   .split(/(?=[A-Z])|_/)
-                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                  .map(
+                    (word) =>
+                      word.charAt(0).toUpperCase() +
+                      word.slice(1).toLowerCase(),
+                  )
                   .join(' ');
               }
             });
@@ -316,7 +344,8 @@ export function DataTableExport<TData extends ExportableData>({
     } catch (error) {
       console.error('Error exporting all pages:', error);
       toast.error('Export failed', {
-        description: 'There was a problem exporting all pages. Please try again.',
+        description:
+          'There was a problem exporting all pages. Please try again.',
         id: 'export-data-toast',
       });
     } finally {
@@ -340,7 +369,9 @@ export function DataTableExport<TData extends ExportableData>({
             <>
               <DownloadIcon className="mr-2 h-4 w-4" />
               Export
-              {hasSelection && <span className="ml-1">({selectedData?.length})</span>}
+              {hasSelection && (
+                <span className="ml-1">({selectedData?.length})</span>
+              )}
             </>
           )}
         </Button>
@@ -348,27 +379,45 @@ export function DataTableExport<TData extends ExportableData>({
       <DropdownMenuContent align="end">
         {hasSelection ? (
           <>
-            <DropdownMenuItem onClick={() => handleExport('csv')} disabled={isLoading}>
+            <DropdownMenuItem
+              onClick={() => handleExport('csv')}
+              disabled={isLoading}
+            >
               Export Selected as CSV
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExport('excel')} disabled={isLoading}>
+            <DropdownMenuItem
+              onClick={() => handleExport('excel')}
+              disabled={isLoading}
+            >
               Export Selected as XLS
             </DropdownMenuItem>
           </>
         ) : (
           <>
-            <DropdownMenuItem onClick={() => handleExport('csv')} disabled={isLoading}>
+            <DropdownMenuItem
+              onClick={() => handleExport('csv')}
+              disabled={isLoading}
+            >
               Export Current Page as CSV
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExport('excel')} disabled={isLoading}>
+            <DropdownMenuItem
+              onClick={() => handleExport('excel')}
+              disabled={isLoading}
+            >
               Export Current Page as XLS
             </DropdownMenuItem>
             {getAllItems && (
               <>
-                <DropdownMenuItem onClick={() => exportAllPages('csv')} disabled={isLoading}>
+                <DropdownMenuItem
+                  onClick={() => exportAllPages('csv')}
+                  disabled={isLoading}
+                >
                   Export All Pages as CSV
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportAllPages('excel')} disabled={isLoading}>
+                <DropdownMenuItem
+                  onClick={() => exportAllPages('excel')}
+                  disabled={isLoading}
+                >
                   Export All Pages as XLS
                 </DropdownMenuItem>
               </>

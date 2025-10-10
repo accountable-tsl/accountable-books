@@ -57,7 +57,10 @@ const getProvidersData = (adminUserId: string) =>
     };
   });
 
-const addBankFeedProviders = async (knex: Knex, data: ReturnType<typeof getProvidersData>) => {
+const addBankFeedProviders = async (
+  knex: Knex,
+  data: ReturnType<typeof getProvidersData>,
+) => {
   await knex('bank_feed_providers').insert(data).onConflict().ignore();
 };
 
@@ -102,7 +105,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     table.primary(['bank_feed_provider_id', 'country_id']);
   });

@@ -21,7 +21,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('journal_batches')
       .onDelete('CASCADE');
 
-    table.uuid('coa_id').notNullable().references('id').inTable('coa').onDelete('RESTRICT');
+    table
+      .uuid('coa_id')
+      .notNullable()
+      .references('id')
+      .inTable('coa')
+      .onDelete('RESTRICT');
 
     table.uuid('ledger_entry_id').nullable();
     table.date('ledger_entry_fs_date').nullable();

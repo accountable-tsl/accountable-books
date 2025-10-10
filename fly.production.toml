@@ -17,8 +17,6 @@ primary_region = "iad"  # Washington DC (US East)
   COOKIE_DOMAIN = ".getaccountable.com"
 
   # Worker configuration
-  ENABLE_EMAIL_WORKER = "true"
-  ENABLE_TRANSACTION_SYNC = "true"
   EMAIL_WORKER_CONCURRENCY = "5"
   TRANSACTION_SYNC_CONCURRENCY = "3"
   ENABLE_REDIS_MONITORING = "true"

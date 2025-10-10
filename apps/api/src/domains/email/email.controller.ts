@@ -14,6 +14,8 @@ export async function checkEmailController(req: Request, res: Response) {
       return res.status(409).json(result);
     }
   } catch (error) {
-    return res.status(500).json(errorResponse('An unexpected error occurred', error));
+    return res
+      .status(500)
+      .json(errorResponse('An unexpected error occurred', error));
   }
 }

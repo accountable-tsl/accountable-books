@@ -29,7 +29,11 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -59,9 +63,12 @@ const multiSelectVariants = cva(
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        destructive:
+          'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        outline:
+          'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+        secondary:
+          'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground text-background',
         link: 'text-primary underline-offset-4 hover:underline text-background',
       },
@@ -148,8 +155,10 @@ const clamp = (d: Date, min?: Date, max?: Date) => {
   return d;
 };
 
-const startOfDayTZ = (d: Date, tz: string) => startOfDay(toDate(d, { timeZone: tz }));
-const endOfDayTZ = (d: Date, tz: string) => endOfDay(toDate(d, { timeZone: tz }));
+const startOfDayTZ = (d: Date, tz: string) =>
+  startOfDay(toDate(d, { timeZone: tz }));
+const endOfDayTZ = (d: Date, tz: string) =>
+  endOfDay(toDate(d, { timeZone: tz }));
 
 export interface DateRangePickerProps
   extends React.HTMLAttributes<HTMLButtonElement>,
@@ -172,7 +181,10 @@ export interface DateRangePickerProps
   enableScrollAdjust?: boolean; // opt-in experimental UX
 }
 
-export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProps>(
+export const DateRangePicker = forwardRef<
+  HTMLButtonElement,
+  DateRangePickerProps
+>(
   (
     {
       id = 'date-range-picker',
@@ -195,14 +207,22 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
     ref,
   ) => {
     // Derived / memoized
-    const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+    const timeZone = useMemo(
+      () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+      [],
+    );
     const presets = useMemo(buildPresets, []);
-    const years = useMemo(() => generateYears(new Date().getFullYear(), yearsRange), [yearsRange]);
+    const years = useMemo(
+      () => generateYears(new Date().getFullYear(), yearsRange),
+      [yearsRange],
+    );
 
     // Local UI state
     const initialMonth = date?.from ?? new Date();
     const [isOpen, setIsOpen] = useState(false);
-    const [selectedPreset, setSelectedPreset] = useState<string | null>('This Month');
+    const [selectedPreset, setSelectedPreset] = useState<string | null>(
+      'This Month',
+    );
     const [monthFrom, setMonthFrom] = useState<Date>(initialMonth);
     const [highlightedPart, setHighlightedPart] = useState<string | null>(null);
 
@@ -210,7 +230,8 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
 
     // Helpers
     const fmtTZ = useCallback(
-      (d?: Date, fmt = dateFormat) => (d && isValid(d) ? formatInTimeZone(d, timeZone, fmt) : ''),
+      (d?: Date, fmt = dateFormat) =>
+        d && isValid(d) ? formatInTimeZone(d, timeZone, fmt) : '',
       [timeZone, dateFormat],
     );
     const normalizeRange = useCallback(
@@ -258,7 +279,15 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
 
         if (closeOnSelect) setIsOpen(false);
       },
-      [date?.from, timeZone, minDate, maxDate, normalizeRange, onDateSelect, closeOnSelect],
+      [
+        date?.from,
+        timeZone,
+        minDate,
+        maxDate,
+        normalizeRange,
+        onDateSelect,
+        closeOnSelect,
+      ],
     );
 
     const handleMonthChange = useCallback(
@@ -266,7 +295,9 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
         if (monthIndex < 0 || monthIndex > 11) return;
 
         const src =
-          part === 'from' ? (date.from ?? new Date()) : (date.to ?? date.from ?? new Date());
+          part === 'from'
+            ? (date.from ?? new Date())
+            : (date.to ?? date.from ?? new Date());
         const year = src.getFullYear();
         const newMonth = new Date(year, monthIndex, 1);
 
@@ -292,7 +323,9 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
         }
 
         if (part === 'to' && to) {
-          const currentFrom = date.from ? startOfDayTZ(date.from, timeZone) : undefined;
+          const currentFrom = date.from
+            ? startOfDayTZ(date.from, timeZone)
+            : undefined;
           if (currentFrom && isAfter(currentFrom, to)) {
             setSelectedPreset(null);
             onDateSelect({ from: to });
@@ -315,7 +348,9 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
     const handleYearChange = useCallback(
       (year: number, part: RangePart) => {
         const srcMonth =
-          part === 'from' ? (date.from ?? monthFrom) : (date.to ?? date.from ?? monthFrom);
+          part === 'from'
+            ? (date.from ?? monthFrom)
+            : (date.to ?? date.from ?? monthFrom);
         const newMonth = new Date(year, srcMonth.getMonth(), 1);
 
         const from =
@@ -326,7 +361,9 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
               : startOfMonth(toDate(newMonth, { timeZone }));
 
         const to =
-          part === 'to' ? endOfMonth(toDate(newMonth, { timeZone })) : (date.to ?? undefined);
+          part === 'to'
+            ? endOfMonth(toDate(newMonth, { timeZone }))
+            : (date.to ?? undefined);
 
         if (part === 'from' && to && isAfter(from, to)) {
           if (part === 'from') {
@@ -338,7 +375,9 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
         }
 
         if (part === 'to' && to) {
-          const currentFrom = date.from ? startOfDayTZ(date.from, timeZone) : undefined;
+          const currentFrom = date.from
+            ? startOfDayTZ(date.from, timeZone)
+            : undefined;
           if (currentFrom && isAfter(currentFrom, to)) {
             setSelectedPreset(null);
             onDateSelect({ from: to }); // clear 'to'
@@ -370,8 +409,10 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
     const calendarDisabled = useCallback(
       (d: Date) => {
         const dayStart = startOfDayTZ(d, timeZone);
-        if (minDate && isBefore(dayStart, startOfDayTZ(minDate, timeZone))) return true;
-        if (maxDate && isAfter(dayStart, endOfDayTZ(maxDate, timeZone))) return true;
+        if (minDate && isBefore(dayStart, startOfDayTZ(minDate, timeZone)))
+          return true;
+        if (maxDate && isAfter(dayStart, endOfDayTZ(maxDate, timeZone)))
+          return true;
         return false;
       },
       [minDate, maxDate, timeZone],
@@ -435,14 +476,18 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
 
     // Render pieces
     const renderButtonLabel = () => {
-      if (!enableScrollAdjust) return <span className="truncate">{formatDisplayText()}</span>;
+      if (!enableScrollAdjust)
+        return <span className="truncate">{formatDisplayText()}</span>;
       // Rich label with tweakable parts
       if (!date?.from) return <span>{placeholder}</span>;
       const one = (
         <>
           <span
             id={`firstDay-${id}`}
-            className={cn('date-part', highlightedPart === 'firstDay' && 'underline font-semibold')}
+            className={cn(
+              'date-part',
+              highlightedPart === 'firstDay' && 'underline font-semibold',
+            )}
             onMouseEnter={() => setHighlightedPart('firstDay')}
             onMouseLeave={() => setHighlightedPart(null)}
             onWheel={onWheel}
@@ -526,7 +571,9 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
 
     return (
       <>
-        {enableScrollAdjust && <style>{`.date-part{touch-action:none;}`}</style>}
+        {enableScrollAdjust && (
+          <style>{`.date-part{touch-action:none;}`}</style>
+        )}
 
         <Popover open={isOpen} onOpenChange={handlePopoverChange}>
           <PopoverTrigger asChild>
@@ -577,7 +624,10 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
                     <Select
                       value={MONTHS[(date?.from ?? monthFrom).getMonth()]}
                       onValueChange={(value) =>
-                        handleMonthChange(MONTHS.indexOf(value as (typeof MONTHS)[number]), 'from')
+                        handleMonthChange(
+                          MONTHS.indexOf(value as (typeof MONTHS)[number]),
+                          'from',
+                        )
                       }
                     >
                       <SelectTrigger className="w-[120px] h-8 text-xs">
@@ -594,14 +644,20 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
 
                     <Select
                       value={(date?.from ?? monthFrom).getFullYear().toString()}
-                      onValueChange={(val) => handleYearChange(parseInt(val, 10), 'from')}
+                      onValueChange={(val) =>
+                        handleYearChange(parseInt(val, 10), 'from')
+                      }
                     >
                       <SelectTrigger className="w-[90px] h-8 text-xs">
                         <SelectValue placeholder="Year" />
                       </SelectTrigger>
                       <SelectContent>
                         {years.map((y) => (
-                          <SelectItem key={y} value={y.toString()} className="text-xs">
+                          <SelectItem
+                            key={y}
+                            value={y.toString()}
+                            className="text-xs"
+                          >
                             {y}
                           </SelectItem>
                         ))}
@@ -618,7 +674,10 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
                             : MONTHS[(date?.from ?? monthFrom).getMonth()]
                         }
                         onValueChange={(value) =>
-                          handleMonthChange(MONTHS.indexOf(value as (typeof MONTHS)[number]), 'to')
+                          handleMonthChange(
+                            MONTHS.indexOf(value as (typeof MONTHS)[number]),
+                            'to',
+                          )
                         }
                       >
                         <SelectTrigger className="w-[120px] h-8 text-xs">
@@ -634,15 +693,23 @@ export const DateRangePicker = forwardRef<HTMLButtonElement, DateRangePickerProp
                       </Select>
 
                       <Select
-                        value={(date?.to ?? date?.from ?? monthFrom).getFullYear().toString()}
-                        onValueChange={(val) => handleYearChange(parseInt(val, 10), 'to')}
+                        value={(date?.to ?? date?.from ?? monthFrom)
+                          .getFullYear()
+                          .toString()}
+                        onValueChange={(val) =>
+                          handleYearChange(parseInt(val, 10), 'to')
+                        }
                       >
                         <SelectTrigger className="w-[90px] h-8 text-xs">
                           <SelectValue placeholder="Year" />
                         </SelectTrigger>
                         <SelectContent>
                           {years.map((y) => (
-                            <SelectItem key={y} value={y.toString()} className="text-xs">
+                            <SelectItem
+                              key={y}
+                              value={y.toString()}
+                              className="text-xs"
+                            >
                               {y}
                             </SelectItem>
                           ))}

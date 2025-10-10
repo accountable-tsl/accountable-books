@@ -1,4 +1,9 @@
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -16,7 +21,9 @@ interface DataTablePaginationProps<TData> {
   table: DataTableProps<TData>['table'];
 }
 
-export function DataTablePagination<TData>({ table }: DataTablePaginationProps<TData>) {
+export function DataTablePagination<TData>({
+  table,
+}: DataTablePaginationProps<TData>) {
   const pagination = table?.customOptions?.pagination;
   const totalFilteredRows = table.getFilteredRowModel().rows.length;
 
@@ -41,7 +48,9 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
 
   // Get the current value for the select (either number or "all")
   const getCurrentValue = () => {
-    return currentPageSize === totalFilteredRows ? 'all' : currentPageSize.toString();
+    return currentPageSize === totalFilteredRows
+      ? 'all'
+      : currentPageSize.toString();
   };
 
   const startRow = totalFilteredRows === 0 ? 0 : pageIndex * pageSize + 1;

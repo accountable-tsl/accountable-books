@@ -11,18 +11,22 @@ import {
 } from 'plaid';
 import {
   BankingProvider,
+  TransactionSyncStrategy,
   type ProviderError,
   type ProviderAccount,
   type ProviderInstitution,
   type TransactionSyncResult,
   type ProviderTransaction,
+  type ConnectionDetails,
 } from '../types/base.js';
 import { ENV } from '../../../config/env.js';
 import { mapPlaidAccountType } from '../utils/mappings.js';
+import { findOrCreateBankMapping } from '../utils/resolveBank.js';
 
 export class PlaidProvider extends BankingProvider {
   readonly key = 'plaid';
   readonly name = 'Plaid';
+  readonly transactionSyncStrategy = TransactionSyncStrategy.CURSOR_BASED;
 
   private client: PlaidApi;
 
@@ -105,7 +109,7 @@ export class PlaidProvider extends BankingProvider {
     }
   }
 
-  async fetchBankAccounts({
+  private async fetchBankAccounts({
     accessToken,
   }: {
     accessToken: string;
@@ -120,17 +124,17 @@ export class PlaidProvider extends BankingProvider {
   }
 
   // Get institution by id from plaid
-  async getInstitutionById({
+  private async getInstitutionById({
     institutionId,
-    countryCodes = ['US', 'CA'],
+    countryCode,
   }: {
     institutionId: string;
-    countryCodes?: string[];
-  }): Promise<ProviderInstitution[]> {
+    countryCode: string;
+  }): Promise<ProviderInstitution> {
     try {
       // Map string country codes to Plaid's CountryCode enum
-      const plaidCountryCodes = countryCodes.map((code) => {
-        switch (code.toUpperCase()) {
+      const plaidCountryCodes = (countryCode: string) => {
+        switch (countryCode.toUpperCase()) {
           case 'US':
             return CountryCode.Us;
           case 'CA':
@@ -150,18 +154,19 @@ export class PlaidProvider extends BankingProvider {
           default:
             return CountryCode.Us;
         }
-      }) as CountryCode[];
+      };
+      const country = plaidCountryCodes(countryCode);
 
       const response = await this.client.institutionsGetById({
         institution_id: institutionId,
-        country_codes: plaidCountryCodes,
+        country_codes: [country],
       });
 
       const i = response.data.institution;
-      return response.data.institution.country_codes.map((country) => ({
-        institutionId: i.institution_id,
+      return {
+        providerInstitutionId: i.institution_id,
         name: i.name,
-        key: `${country}_${i.name}`.toLowerCase(),
+        // key: `${country}_${i.name}`.toLowerCase(),
         ...(i.url && { website: i.url }),
         ...(i.logo && { logoUrl: i.logo }),
         countryCode: country,
@@ -170,14 +175,18 @@ export class PlaidProvider extends BankingProvider {
           ...(i.routing_numbers[1] ? { local: i.routing_numbers[1] } : {}),
         },
         rawData: i,
-      }));
+      };
     } catch (error) {
       throw this.handleError(error);
     }
   }
 
   // Get item details (institution info) for a connected Plaid item
-  async getItemDetails({ accessToken }: { accessToken: string }): Promise<{
+  private async getItemDetails({
+    accessToken,
+  }: {
+    accessToken: string;
+  }): Promise<{
     itemId: string;
     institutionId: string;
     institutionName?: string;
@@ -202,6 +211,49 @@ export class PlaidProvider extends BankingProvider {
     } catch (error) {
       throw this.handleError(error);
     }
+  }
+
+  async getConnectionDetails({
+    accessToken,
+    countryCode,
+    userId,
+  }: {
+    accessToken: string;
+    countryCode: string;
+    userId: string;
+  }): Promise<ConnectionDetails> {
+    const item = await this.getItemDetails({ accessToken });
+    const providerInstitutionId = item.institutionId;
+    const institutionName = item.institutionName;
+
+    const i = await this.getInstitutionById({
+      institutionId: item.institutionId,
+      countryCode,
+    });
+
+    const bankAccounts = await this.fetchBankAccounts({ accessToken });
+
+    const { bankId, bankLogoUrl, providerBankName } =
+      await findOrCreateBankMapping({
+        providerKey: this.key,
+        institution: i,
+        userId,
+      });
+
+    return {
+      connection: {
+        id: item.itemId,
+        metadata: item,
+      },
+      institution: {
+        ...i,
+        name: institutionName || providerBankName,
+        logoUrl: bankLogoUrl,
+        systemInstitutionId: bankId,
+        providerInstitutionId,
+      },
+      bankAccounts,
+    };
   }
 
   private mapAuthGetResponse(data: AuthGetResponse): ProviderAccount[] {
@@ -229,17 +281,16 @@ export class PlaidProvider extends BankingProvider {
         });
         return {
           accountId: account.account_id,
-          institutionId: data.item.institution_id || undefined,
           displayName: account.name,
           officialName: account.official_name || account.name,
           accountNumber: numberData?.account || numberData?.iban,
           type,
           mask: account.mask || undefined,
           currencyCode: currency!,
-          balance: account.balances,
           rawData: {
             account,
             numberData,
+            balances: account.balances,
           },
         };
       });
@@ -296,6 +347,8 @@ export class PlaidProvider extends BankingProvider {
       transactionId: txn.transaction_id,
       providerBankAccountId: txn.account_id,
       date: txn.date,
+      txnAt:
+        txn.datetime || txn.date ? new Date(txn.datetime || txn.date) : null,
       merchantName: txn.merchant_name || undefined,
       description:
         (txn.merchant_name ?? '') +

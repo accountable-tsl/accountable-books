@@ -21,7 +21,9 @@ export let accountMetaCache: AccountMetaCache | null = null;
 /**
  * Creates indexed maps from the raw data for O(1) lookups
  */
-function createIndexedMetadata(metadata: AccountClassificationMetadata): AccountMetaCache {
+function createIndexedMetadata(
+  metadata: AccountClassificationMetadata,
+): AccountMetaCache {
   const accountTypesByKey = new Map<string, AccountTypeDTO>();
   const accountTypesById = new Map<string, AccountTypeDTO>();
 
@@ -99,22 +101,30 @@ async function ensureAccountMetaLoaded() {
 }
 
 // Lookup functions
-export async function getAccountTypeByKey(key: string): Promise<AccountTypeDTO | undefined> {
+export async function getAccountTypeByKey(
+  key: string,
+): Promise<AccountTypeDTO | undefined> {
   await ensureAccountMetaLoaded();
   return accountMetaCache!.accountTypesByKey.get(key);
 }
 
-export async function getAccountTypeById(id: string): Promise<AccountTypeDTO | undefined> {
+export async function getAccountTypeById(
+  id: string,
+): Promise<AccountTypeDTO | undefined> {
   await ensureAccountMetaLoaded();
   return accountMetaCache!.accountTypesById.get(id.toString());
 }
 
-export async function getAccountElementByKey(key: string): Promise<AccountElementDTO | undefined> {
+export async function getAccountElementByKey(
+  key: string,
+): Promise<AccountElementDTO | undefined> {
   await ensureAccountMetaLoaded();
   return accountMetaCache!.accountElementsByKey.get(key);
 }
 
-export async function getAccountElementById(id: string): Promise<AccountElementDTO | undefined> {
+export async function getAccountElementById(
+  id: string,
+): Promise<AccountElementDTO | undefined> {
   await ensureAccountMetaLoaded();
   return accountMetaCache!.accountElementsById.get(id.toString());
 }

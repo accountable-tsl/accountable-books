@@ -1,10 +1,17 @@
 import { dateOrStringNullish } from '@/shared/types/core';
 import { z } from 'zod';
 
-export const companyType = z.enum(['business', 'accounting_firm', 'individual']);
+export const companyType = z.enum([
+  'business',
+  'accounting_firm',
+  'individual',
+]);
 export type CompanyType = z.infer<typeof companyType>;
 
-export const accountingBasis = z.enum(['modified_cash_basis', 'modified_accrual_basis']);
+export const accountingBasis = z.enum([
+  'modified_cash_basis',
+  'modified_accrual_basis',
+]);
 export type AccountingBasis = z.infer<typeof accountingBasis>;
 export const userOnboardingStepKeys = {
   emailVerified: 'email_verified',
@@ -26,7 +33,8 @@ export type UserOnboardingStepKey =
   (typeof userOnboardingStepKeys)[keyof typeof userOnboardingStepKeys];
 export type CompanyOnboardingStepKey =
   (typeof companyOnboardingStepKeys)[keyof typeof companyOnboardingStepKeys];
-export type OnboardingStepKey = (typeof onboardingStepKeys)[keyof typeof onboardingStepKeys];
+export type OnboardingStepKey =
+  (typeof onboardingStepKeys)[keyof typeof onboardingStepKeys];
 
 export const onboardingStatus = z.enum([
   'not_started',
@@ -71,7 +79,12 @@ export type OnboardingState = {
   steps: OnboardingStep[];
 };
 
-export const firmType = z.enum(['freelancer', 'ca_cpa', 'tax_preparer', 'international']);
+export const firmType = z.enum([
+  'freelancer',
+  'ca_cpa',
+  'tax_preparer',
+  'international',
+]);
 export type FirmType = z.infer<typeof firmType>;
 export type CompanyStore = {
   companyId: string | null;
@@ -82,7 +95,9 @@ export type CompanyStore = {
   error: string | null;
   onboardingStatus: OnboardingStatus | null;
   fetchCompany: (companyId: string) => void;
-  setCompany: (company: CompanyData | ((prev: CompanyData | null) => CompanyData | null)) => void;
+  setCompany: (
+    company: CompanyData | ((prev: CompanyData | null) => CompanyData | null),
+  ) => void;
   setOnboardingStatus: (status: OnboardingStatus) => void;
   clearCompany: () => void;
 };
@@ -227,7 +242,11 @@ export const updateCompanyVitalsSchema = companyData
   })
   .extend({
     assignedFirmSlug: slugSchema.nullish(),
-    displayName: z.string().min(2, 'Display name must be at least 2 characters').max(256).nullish(),
+    displayName: z
+      .string()
+      .min(2, 'Display name must be at least 2 characters')
+      .max(256)
+      .nullish(),
   });
 
 export type UpdateCompanyVitalsData = z.infer<typeof updateCompanyVitalsSchema>;

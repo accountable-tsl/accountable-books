@@ -7,7 +7,11 @@ interface SubdomainRequest extends AuthRequest {
   firmId?: string;
 }
 
-export async function subdomain(req: SubdomainRequest, res: Response, next: NextFunction) {
+export async function subdomain(
+  req: SubdomainRequest,
+  res: Response,
+  next: NextFunction,
+) {
   console.log('req.headers.host', req.headers);
   const hostname = (req.headers.host || '').split(':')[0];
   const subdomain = hostname.split('.')[0];

@@ -4,15 +4,20 @@ import { faker } from '@faker-js/faker';
 import { DemoFilter } from '../../shared/config.js';
 import { createUser } from '../../../../migrations/20250403184441_users.ts';
 
-export const createDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const createDemoUsers = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   // Determine which users to create based on filters
   let usersToCreate = DEMO_USERS;
 
   if (filters?.countryCodes?.length) {
     // Filter users based on country codes
     usersToCreate = DEMO_USERS.filter((user) => {
-      if (user.email === US_USER.email && filters.countryCodes?.includes('US')) return true;
-      if (user.email === NG_USER.email && filters.countryCodes?.includes('NG')) return true;
+      if (user.email === US_USER.email && filters.countryCodes?.includes('US'))
+        return true;
+      if (user.email === NG_USER.email && filters.countryCodes?.includes('NG'))
+        return true;
       return false;
     });
   }
@@ -31,7 +36,9 @@ export const createDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilte
     .select('email');
 
   const existingEmails = new Set(existingUsers.map((u) => u.email));
-  const newUsers = usersToCreate.filter((user) => !existingEmails.has(user.email));
+  const newUsers = usersToCreate.filter(
+    (user) => !existingEmails.has(user.email),
+  );
 
   if (newUsers.length === 0) {
     console.log('All required demo users already exist');
@@ -55,7 +62,10 @@ export const createDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilte
     `Users processed: ${newUsers.length} created, ${existingEmails.size} already existed`,
   );
 };
-export const deleteDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const deleteDemoUsers = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   // Smart user deletion logic - only delete users if we're deleting ALL companies for their country
   // Otherwise users shared between companies will cause foreign key violations
 
@@ -68,7 +78,10 @@ export const deleteDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilte
 
   // Check if this is a complete country deletion
   const isCompleteCountryDeletion = (countryCode: string) => {
-    if (filters.countryCodes?.length === 1 && filters.countryCodes[0] === countryCode) {
+    if (
+      filters.countryCodes?.length === 1 &&
+      filters.countryCodes[0] === countryCode
+    ) {
       // Only delete if no other filters restrict companies within this country
       return !filters.companyIds?.length && !filters.companyTypes?.length;
     }
@@ -85,9 +98,14 @@ export const deleteDemoUsers = async (trx: Knex.Transaction, filters?: DemoFilte
   }
 
   if (userEmailsToDelete.length > 0) {
-    await trx('users').whereIn('email', userEmailsToDelete).where('is_demo_user', true).delete();
+    await trx('users')
+      .whereIn('email', userEmailsToDelete)
+      .where('is_demo_user', true)
+      .delete();
     console.log(`Deleted ${userEmailsToDelete.length} demo users`);
   } else {
-    console.log('Skipping user deletion - partial filter would cause foreign key violations');
+    console.log(
+      'Skipping user deletion - partial filter would cause foreign key violations',
+    );
   }
 };

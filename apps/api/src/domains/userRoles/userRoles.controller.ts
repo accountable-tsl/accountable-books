@@ -4,7 +4,10 @@ import { grantDirectAccess } from './userRoles.model.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 import { roleKey as roleKeyEnum } from '../roles/roles.types.js';
 
-export async function grantAccessToCompanyController(req: AuthRequest, res: Response) {
+export async function grantAccessToCompanyController(
+  req: AuthRequest,
+  res: Response,
+) {
   const { userId, companyId, roleKey } = req.body;
   const grantedBy = req.user?.id;
 
@@ -27,7 +30,9 @@ export async function grantAccessToCompanyController(req: AuthRequest, res: Resp
       grantedBy,
     });
 
-    return result.success ? res.status(200).json(result) : res.status(400).json(result);
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
   } catch (error: unknown) {
     return res.status(500).json(errorResponse('Internal server error'));
   }

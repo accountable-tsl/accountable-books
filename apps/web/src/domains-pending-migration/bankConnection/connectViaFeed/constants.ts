@@ -147,7 +147,8 @@ export const sampleConnections: ConnectionResponse[] = [
   {
     userActionRequired: false,
     connectionStatus: 'error',
-    message: 'An error occurred while connecting this account. Please try again.',
+    message:
+      'An error occurred while connecting this account. Please try again.',
     connectionDetails: {
       connectionId: 'c4',
       providerId: 'p2',

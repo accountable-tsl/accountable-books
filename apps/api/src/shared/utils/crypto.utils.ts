@@ -8,14 +8,22 @@ export function generateRandomToken(length = 48): string {
 
 export const hashToken = async (password: string) => bcrypt.hash(password, 12);
 
-export const hashPassword = async (password: string) => bcrypt.hash(password, 12);
-export const comparePassword = async (input: string, hash: string) => bcrypt.compare(input, hash);
+export const hashPassword = async (password: string) =>
+  bcrypt.hash(password, 12);
+export const comparePassword = async (input: string, hash: string) =>
+  bcrypt.compare(input, hash);
 
-export const compareToken = async ({ token, hash }: { token: string; hash: string }) =>
-  bcrypt.compare(token, hash);
+export const compareToken = async ({
+  token,
+  hash,
+}: {
+  token: string;
+  hash: string;
+}) => bcrypt.compare(token, hash);
 
 // Define a safe Base58 alphabet (avoiding ambiguous characters).
-const SAFE_BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const SAFE_BASE58 =
+  '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
 /**
  * Generates a secure random short code using the SAFE_BASE58 alphabet.
@@ -42,7 +50,10 @@ export default function generateSecureShortCode(length = 8): string {
   return code;
 }
 
-export function shortCodelooksWeird(code: string, maxRunLength?: number): boolean {
+export function shortCodelooksWeird(
+  code: string,
+  maxRunLength?: number,
+): boolean {
   if (!maxRunLength) maxRunLength = Math.floor(code.length / 2);
 
   // Check for long runs of same character type
@@ -70,7 +81,10 @@ export function encrypt(plaintext: string, aad?: string): string {
   const cipher = crypto.createCipheriv(ALG, key, iv);
   if (aad) cipher.setAAD(Buffer.from(aad, 'utf8'));
 
-  const ct = Buffer.concat([cipher.update(Buffer.from(plaintext, 'utf8')), cipher.final()]);
+  const ct = Buffer.concat([
+    cipher.update(Buffer.from(plaintext, 'utf8')),
+    cipher.final(),
+  ]);
   const tag = cipher.getAuthTag();
 
   const out = Buffer.concat([Buffer.from([CURRENT_ID]), iv, tag, ct]);

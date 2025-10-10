@@ -21,7 +21,11 @@ import { CatEngineAdvFilter } from '@/domains-pending-migration/cat-engine/compo
 import { Input } from '@/components/ui/input';
 import { DateRangePicker } from '@/components/date-picker/date-range-picker';
 import { CatEngineTxnView } from './components/cat-engine-txn-view';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable';
 
 export const accordionItems = [
   {
@@ -68,8 +72,12 @@ export function CatEngine() {
   const [view, setView] = useState<'table' | 'group'>('table');
   const [rowHeight, setRowHeight] = useState<'min' | 'mid' | 'max'>('mid');
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [openAccordionItem, setOpenAccordionItem] = useState<string>(accordionItems[0].id);
-  const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>(getInitialDateRange());
+  const [openAccordionItem, setOpenAccordionItem] = useState<string>(
+    accordionItems[0].id,
+  );
+  const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>(
+    getInitialDateRange(),
+  );
 
   const is1024 = useMediaQuery('(min-width: 1024px)');
   const columns = useMemo(() => getCatEngineColumns(), []);
@@ -95,12 +103,14 @@ export function CatEngine() {
         wrapper: `gap-0`,
         table: `flex-1 h-full ${
           view === 'group'
-            ? accordionItems.find((item) => item.id === openAccordionItem)?.borderClass
+            ? accordionItems.find((item) => item.id === openAccordionItem)
+                ?.borderClass
             : ''
         }`,
         tableHeader: `sticky top-0 z-10 ${
           view === 'group'
-            ? accordionItems.find((item) => item.id === openAccordionItem)?.backgroundClass
+            ? accordionItems.find((item) => item.id === openAccordionItem)
+                ?.backgroundClass
             : ''
         }`,
         emptyTableRow: 'h-full',
@@ -176,7 +186,9 @@ export function CatEngine() {
                   value={item.id}
                   className="flex flex-col [[data-state=open]]:min-h-0 [[data-state=open]]:h-full"
                 >
-                  <AccordionTrigger className={cn('p-0 py-1 px-2 hover:no-underline')}>
+                  <AccordionTrigger
+                    className={cn('p-0 py-1 px-2 hover:no-underline')}
+                  >
                     <div className="flex items-center gap-2">
                       <span
                         className={cn(
@@ -189,7 +201,9 @@ export function CatEngine() {
                         {item.title}
                       </span>
                       <Badge
-                        variant={item.id === openAccordionItem ? 'default' : 'outline'}
+                        variant={
+                          item.id === openAccordionItem ? 'default' : 'outline'
+                        }
                         className={cn(
                           'text-xs',
                           item.id === openAccordionItem

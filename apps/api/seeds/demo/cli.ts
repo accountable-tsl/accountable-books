@@ -3,7 +3,12 @@
 import knex from 'knex';
 import { createDemoSeedRunner } from './engine/runner.js';
 import { runtimeKnexConfig } from '../../knexfile.js';
-import { DemoFilter, COUNTRY_CODES, COMPANY_TYPES, DemoCompanyType } from './shared/config.js';
+import {
+  DemoFilter,
+  COUNTRY_CODES,
+  COMPANY_TYPES,
+  DemoCompanyType,
+} from './shared/config.js';
 
 // Create knex instance for the CLI
 const knexClient = knex(runtimeKnexConfig);
@@ -20,7 +25,9 @@ function parseFilters(args: string[]): DemoFilter | undefined {
     const arg = args[i];
 
     if (arg === '--country' && args[i + 1]) {
-      const countries = args[i + 1].split(',') as Array<keyof typeof COUNTRY_CODES>;
+      const countries = args[i + 1].split(',') as Array<
+        keyof typeof COUNTRY_CODES
+      >;
       filters.countryCodes = countries.filter((c) => c in COUNTRY_CODES);
       hasFilters = true;
       i++; // skip next arg
@@ -60,7 +67,9 @@ function parseOptions(args: string[]) {
   return {
     parallel: args.includes('--parallel'),
     dryRun: args.includes('--dry-run'),
-    steps: args.includes('--steps') ? args[args.indexOf('--steps') + 1]?.split(',') : undefined,
+    steps: args.includes('--steps')
+      ? args[args.indexOf('--steps') + 1]?.split(',')
+      : undefined,
   };
 }
 
@@ -109,12 +118,20 @@ async function cleanup() {
   try {
     await knexClient.destroy();
   } catch (error) {
-    console.warn('Warning: Error during cleanup:', error instanceof Error ? error.message : error);
+    console.warn(
+      'Warning: Error during cleanup:',
+      error instanceof Error ? error.message : error,
+    );
   }
 }
 
 async function main() {
-  if (!command || command === 'help' || command === '--help' || command === '-h') {
+  if (
+    !command ||
+    command === 'help' ||
+    command === '--help' ||
+    command === '-h'
+  ) {
     showHelp();
     return;
   }
@@ -143,11 +160,16 @@ async function main() {
 
       default:
         console.error(`❌ Unknown command: ${command}`);
-        console.log('Run "tsx apps/api/seeds/demo/cli.ts help" for usage information');
+        console.log(
+          'Run "tsx apps/api/seeds/demo/cli.ts help" for usage information',
+        );
         throw new Error(`Unknown command: ${command}`);
     }
   } catch (error) {
-    console.error('❌ Command failed:', error instanceof Error ? error.message : error);
+    console.error(
+      '❌ Command failed:',
+      error instanceof Error ? error.message : error,
+    );
     throw error; // Re-throw to be handled by main catch
   }
 }

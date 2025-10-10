@@ -14,9 +14,11 @@ export const checkOnboardingStatus = async (
   const companyId = req.user?.currentCompanyId;
 
   if (!userId || !companyId) {
-    return res
-      .status(403)
-      .json(errorResponse('Unauthorized', undefined, { code: ErrorCode.UNAUTHORIZED }));
+    return res.status(403).json(
+      errorResponse('Unauthorized', undefined, {
+        code: ErrorCode.UNAUTHORIZED,
+      }),
+    );
   }
 
   const company = await getSingleCompany(companyId);
@@ -24,7 +26,9 @@ export const checkOnboardingStatus = async (
     return res.status(404).json(errorResponse('Company not found'));
   }
 
-  const companyData = Array.isArray(company.data) ? company.data[0] : company.data;
+  const companyData = Array.isArray(company.data)
+    ? company.data[0]
+    : company.data;
 
   // If company is demo company, allow access
   if (companyData.isDemoCompany) {
@@ -47,9 +51,11 @@ export const checkOnboardingStatus = async (
   if (!userComplete) {
     const user = await getUserDetails(userId);
     if (!user || !user.success) {
-      return res
-        .status(404)
-        .json(errorResponse('User not found', undefined, { code: ErrorCode.NOT_FOUND }));
+      return res.status(404).json(
+        errorResponse('User not found', undefined, {
+          code: ErrorCode.NOT_FOUND,
+        }),
+      );
     }
 
     if (companyData.onboardingStatus === onboardingComplete) {

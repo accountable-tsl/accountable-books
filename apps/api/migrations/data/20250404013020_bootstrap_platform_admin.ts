@@ -21,7 +21,11 @@ export async function up(knex: Knex.Transaction): Promise<void> {
     });
   }
 
-  if ((!isProd && !ENV.TEST_ADMIN_PASSWORD) || !ENV.TEST_ADMIN_EMAIL || !ENV.TEST_ADMIN_FIRSTNAME) {
+  if (
+    (!isProd && !ENV.TEST_ADMIN_PASSWORD) ||
+    !ENV.TEST_ADMIN_EMAIL ||
+    !ENV.TEST_ADMIN_FIRSTNAME
+  ) {
     throw new Error('Set TEST_ADMIN_PASSWORD and TEST_ADMIN_EMAIL in dev');
   } else if (ENV.TEST_ADMIN_PASSWORD && ENV.TEST_ADMIN_EMAIL) {
     const hashedPassword = await bcrypt.hash(ENV.TEST_ADMIN_PASSWORD, 12);

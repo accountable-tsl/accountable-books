@@ -34,7 +34,10 @@ export function useCanonicalUrlEnforcer(): void {
 
     // Loop through flatRoutes to find a match, recall (dot-separated keys e.g "auth.login")
     for (const [routeKey, route] of Object.entries(flatRoutes)) {
-      const match = matchPath({ path: route.staticPath, end: true }, location.pathname);
+      const match = matchPath(
+        { path: route.staticPath, end: true },
+        location.pathname,
+      );
 
       if (!match) continue; // No match for this route
 

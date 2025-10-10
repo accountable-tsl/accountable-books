@@ -513,26 +513,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
   // WORKER CONFIGURATION
   // ============================================================================
-  ENABLE_EMAIL_WORKER: {
-    description: 'Enable email worker for background job processing',
-    type: 'boolean',
-    required: false,
-    local: 'true',
-    staging: 'true',
-    production: 'true',
-    default: 'true',
-  },
-
-  ENABLE_TRANSACTION_SYNC: {
-    description: 'Enable transaction sync worker for banking integrations',
-    type: 'boolean',
-    required: false,
-    local: 'false',
-    staging: 'false',
-    production: 'false',
-    default: 'false',
-  },
-
   EMAIL_WORKER_CONCURRENCY: {
     description: 'Number of concurrent email jobs to process',
     type: 'number',
@@ -551,6 +531,17 @@ export const API_ENV_SCHEMA: EnvSchema = {
     staging: '3',
     production: '5',
     default: '3',
+  },
+
+  TRANSACTION_SYNC_CRON: {
+    description:
+      'Cron pattern for transaction sync scheduler (e.g., "0 2 * * *" for daily at 2 AM UTC, "0 */6 * * *" for every 6 hours)',
+    type: 'string',
+    required: false,
+    local: '0 2 * * *', // Daily at 2 AM UTC
+    staging: '0 */6 * * *', // Every 6 hours for more frequent testing
+    production: '0 2 * * *', // Daily at 2 AM UTC
+    default: '0 2 * * *',
   },
 
   ENABLE_REDIS_MONITORING: {

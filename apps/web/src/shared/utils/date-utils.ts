@@ -20,13 +20,19 @@ export type DateUnit = z.infer<typeof dateUnitSchema>;
 // Accept both yyyy-MM-dd and yyyy-M-d formats
 const dateStringSchema = z.string().refine((dateStr) => {
   const formats = ['yyyy-MM-dd', 'yyyy-M-d'];
-  return formats.some((format) => isValid(parseDateFns(dateStr, format, new Date())));
+  return formats.some((format) =>
+    isValid(parseDateFns(dateStr, format, new Date())),
+  );
 }, 'Invalid date. Use YYYY-MM-DD or YYYY-M-D format (e.g., 2025-01-15 or 2025-1-15)');
 
 // Validate day exists in month (e.g., no April 31)
 function validateDayInMonth(year: number, month: number, day: number): void {
   const date = new Date(year, month - 1, day);
-  if (date.getFullYear() !== year || date.getMonth() + 1 !== month || date.getDate() !== day) {
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() + 1 !== month ||
+    date.getDate() !== day
+  ) {
     throw new Error(
       `Invalid date: ${year}-${month}-${day} (day ${day} does not exist in month ${month})`,
     );
@@ -54,9 +60,11 @@ const optionsSchema = z
   .refine(
     (data) => {
       const hasStartComponents =
-        (data.startDay !== undefined && data.startMonth !== undefined) || data.startDate;
+        (data.startDay !== undefined && data.startMonth !== undefined) ||
+        data.startDate;
       const hasEndComponents =
-        (data.endDay !== undefined && data.endMonth !== undefined) || data.endDate;
+        (data.endDay !== undefined && data.endMonth !== undefined) ||
+        data.endDate;
 
       return hasStartComponents || hasEndComponents;
     },
@@ -68,14 +76,17 @@ const optionsSchema = z
   .refine(
     (data) => {
       const hasStartConflict =
-        data.startDate && (data.startDay !== undefined || data.startMonth !== undefined);
+        data.startDate &&
+        (data.startDay !== undefined || data.startMonth !== undefined);
       const hasEndConflict =
-        data.endDate && (data.endDay !== undefined || data.endMonth !== undefined);
+        data.endDate &&
+        (data.endDay !== undefined || data.endMonth !== undefined);
 
       return !(hasStartConflict || hasEndConflict);
     },
     {
-      error: 'Cannot mix day/month numbers with date strings for the same start/end point',
+      error:
+        'Cannot mix day/month numbers with date strings for the same start/end point',
     },
   )
   .refine(
@@ -127,7 +138,9 @@ function parseDate(dateStr: string): Date {
     }
   }
 
-  throw new Error(`Unable to parse date: ${dateStr}. Use YYYY-MM-DD or YYYY-M-D format.`);
+  throw new Error(
+    `Unable to parse date: ${dateStr}. Use YYYY-MM-DD or YYYY-M-D format.`,
+  );
 }
 
 /**

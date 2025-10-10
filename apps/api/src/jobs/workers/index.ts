@@ -1,19 +1,20 @@
 import { startEmailWorker } from './email.worker.js';
 import { startTransactionSyncWorker } from './transaction-sync.worker.js';
 import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
+// import { startBalanceRecalcWorker } from './balance-recalc.worker.js';
 import type { Worker } from 'bullmq';
 
 export interface WorkerConfig {
   email: {
-    enabled: boolean;
     concurrency: number;
   };
   transactionSync: {
-    enabled: boolean;
     concurrency: number;
   };
   partitionMaintenance: {
-    enabled: boolean;
+    concurrency: number;
+  };
+  balanceRecalc: {
     concurrency: number;
   };
 }
@@ -21,16 +22,16 @@ export interface WorkerConfig {
 // Default worker configuration
 const DEFAULT_WORKER_CONFIG: WorkerConfig = {
   email: {
-    enabled: process.env.ENABLE_EMAIL_WORKER !== 'false',
     concurrency: Number(process.env.EMAIL_WORKER_CONCURRENCY) || 5,
   },
   transactionSync: {
-    enabled: process.env.ENABLE_TRANSACTION_SYNC === 'true',
     concurrency: Number(process.env.TRANSACTION_SYNC_CONCURRENCY) || 3,
   },
   partitionMaintenance: {
-    enabled: process.env.ENABLE_PARTITION_MAINTENANCE !== 'false',
     concurrency: Number(process.env.PARTITION_MAINTENANCE_CONCURRENCY) || 1,
+  },
+  balanceRecalc: {
+    concurrency: Number(process.env.BALANCE_RECALC_CONCURRENCY) || 5,
   },
 };
 
@@ -42,59 +43,60 @@ const activeWorkers: Map<string, Worker> = new Map();
  * @param config Optional worker configuration override
  * @returns Array of started workers
  */
-export async function startAllWorkers(config: Partial<WorkerConfig> = {}): Promise<Worker[]> {
+export async function startAllWorkers(
+  config: Partial<WorkerConfig> = {},
+): Promise<Worker[]> {
   const workerConfig = { ...DEFAULT_WORKER_CONFIG, ...config };
   const workers: Worker[] = [];
 
-  console.log('🚀 Starting workers with configuration:', workerConfig);
-
   // Start email worker
-  if (workerConfig.email.enabled) {
-    try {
-      console.log('📧 Starting email worker...');
-      const emailWorker = startEmailWorker();
-      activeWorkers.set('email', emailWorker);
-      workers.push(emailWorker);
-      console.log('✅ Email worker started successfully');
-    } catch (error) {
-      console.error('❌ Failed to start email worker:', error);
-      throw error;
-    }
-  } else {
-    console.log('⏭️  Email worker disabled');
+  try {
+    const emailWorker = startEmailWorker();
+    activeWorkers.set('email', emailWorker);
+    workers.push(emailWorker);
+    console.log('📧 Email worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start email worker:', error);
+    throw error;
   }
 
   // Start transaction sync worker
-  if (workerConfig.transactionSync.enabled) {
-    try {
-      console.log('💳 Starting transaction sync worker...');
-      const syncWorker = startTransactionSyncWorker();
-      activeWorkers.set('transactionSync', syncWorker);
-      workers.push(syncWorker);
-      console.log('✅ Transaction sync worker started successfully');
-    } catch (error) {
-      console.error('❌ Failed to start transaction sync worker:', error);
-      // Don't throw for transaction sync as it's not critical for MVP
-    }
-  } else {
-    console.log('⏭️  Transaction sync worker disabled');
+  try {
+    const syncWorker = startTransactionSyncWorker(
+      workerConfig.transactionSync.concurrency,
+    );
+    activeWorkers.set('transactionSync', syncWorker);
+    workers.push(syncWorker);
+    console.log('💳 Transaction sync worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start transaction sync worker:', error);
+    throw error;
+    // Throw, this is mission critical
   }
 
   // Start partition maintenance worker
-  if (workerConfig.partitionMaintenance.enabled) {
-    try {
-      console.log('🗂️  Starting partition maintenance worker...');
-      const partitionWorker = startPartitionMaintenanceWorker();
-      activeWorkers.set('partitionMaintenance', partitionWorker);
-      workers.push(partitionWorker);
-      console.log('✅ Partition maintenance worker started successfully');
-    } catch (error) {
-      console.error('❌ Failed to start partition maintenance worker:', error);
-      // Don't throw for partition maintenance as it's not critical for MVP
-    }
-  } else {
-    console.log('⏭️  Partition maintenance worker disabled');
+  try {
+    const partitionWorker = startPartitionMaintenanceWorker();
+    activeWorkers.set('partitionMaintenance', partitionWorker);
+    workers.push(partitionWorker);
+    console.log('🗂️ Partition maintenance worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start partition maintenance worker:', error);
+    // Don't throw for partition maintenance as it's not critical for MVP
   }
+
+  // // Start balance recalculation worker (always enabled - core functionality)
+  // try {
+  //   console.log('⚖️  Starting balance recalculation worker...');
+  //   const balanceWorker = startBalanceRecalcWorker();
+  //   activeWorkers.set('balanceRecalc', balanceWorker);
+  //   workers.push(balanceWorker);
+  //   console.log('✅ Balance recalculation worker started successfully');
+  // } catch (error) {
+  //   console.error('❌ Failed to start balance recalculation worker:', error);
+  //   // Balance recalc is core functionality, so throw the error
+  //   throw error;
+  // }
 
   console.log(`✅ Started ${workers.length} workers successfully`);
   return workers;
@@ -106,15 +108,17 @@ export async function startAllWorkers(config: Partial<WorkerConfig> = {}): Promi
 export async function stopAllWorkers(): Promise<void> {
   console.log('🛑 Stopping all workers...');
 
-  const stopPromises = Array.from(activeWorkers.entries()).map(async ([name, worker]) => {
-    try {
-      console.log(`⏹️  Stopping ${name} worker...`);
-      await worker.close();
-      console.log(`✅ ${name} worker stopped`);
-    } catch (error) {
-      console.error(`❌ Error stopping ${name} worker:`, error);
-    }
-  });
+  const stopPromises = Array.from(activeWorkers.entries()).map(
+    async ([name, worker]) => {
+      try {
+        console.log(`⏹️  Stopping ${name} worker...`);
+        await worker.close();
+        console.log(`✅ ${name} worker stopped`);
+      } catch (error) {
+        console.error(`❌ Error stopping ${name} worker:`, error);
+      }
+    },
+  );
 
   await Promise.all(stopPromises);
   activeWorkers.clear();

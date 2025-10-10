@@ -23,7 +23,9 @@ export function RootRedirector() {
 
   // Otherwise, redirect to tenant dashboard
   if (location.pathname === '/') {
-    return <Navigate to={routes.general.dashboard.build({ companyId })} replace />;
+    return (
+      <Navigate to={routes.general.dashboard.build({ companyId })} replace />
+    );
   }
 
   return null;
@@ -41,7 +43,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function RequireOnboardingComplete({ children }: { children: React.ReactNode }) {
+export function RequireOnboardingComplete({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { onboarding } = useSession();
 
   if (!onboarding?.canAccessApp) {
@@ -51,13 +57,19 @@ export function RequireOnboardingComplete({ children }: { children: React.ReactN
   return <>{children}</>;
 }
 
-export function RequireCurrentCompanyIsFirm({ children }: { children: React.ReactNode }) {
+export function RequireCurrentCompanyIsFirm({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { companyType, companyId } = useSession();
 
   const isAccountingFirm = companyType === 'accounting_firm';
 
   if (!isAccountingFirm) {
-    return <Navigate to={routes.general.dashboard.build({ companyId })} replace />;
+    return (
+      <Navigate to={routes.general.dashboard.build({ companyId })} replace />
+    );
   }
 
   return <>{children}</>;

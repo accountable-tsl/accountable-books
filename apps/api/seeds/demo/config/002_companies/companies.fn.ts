@@ -1,19 +1,31 @@
 import type { Knex } from 'knex';
-import { DEMO_COMPANIES_IDS, generateDemoCompaniesMap } from './companies.data.js';
-import { COMPANY_TYPES, type DemoCompanyType, type DemoFilter } from '../../shared/config.js';
+import {
+  DEMO_COMPANIES_IDS,
+  generateDemoCompaniesMap,
+} from './companies.data.js';
+import {
+  COMPANY_TYPES,
+  type DemoCompanyType,
+  type DemoFilter,
+} from '../../shared/config.js';
 import { resolveFiltersToIds, getDemoUserMap } from '../../shared/utils.js';
 
 const completeOnbState = (companyType: DemoCompanyType) => {
   return {
     steps: {
-      ...(companyType !== 'individual' ? { company_details_confirmed: true } : {}),
+      ...(companyType !== 'individual'
+        ? { company_details_confirmed: true }
+        : {}),
       first_bank_account_added: false,
     },
     completed_at: {},
   };
 };
 
-export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const createDemoCompaniesAndUsers = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   const companiesMap = generateDemoCompaniesMap(filters);
   console.log('companiesMap', companiesMap.length);
 
@@ -46,7 +58,8 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
    */
   const data = companiesMap.map((item) => {
     const c = item.company;
-    const isFirm = c.companyType === COMPANY_TYPES.ACCOUNTING_FIRM && 'slug' in c;
+    const isFirm =
+      c.companyType === COMPANY_TYPES.ACCOUNTING_FIRM && 'slug' in c;
     if (c.companyType === COMPANY_TYPES.ACCOUNTING_FIRM && !('slug' in c)) {
       throw new Error('Accounting firm must have a slug');
     }
@@ -67,6 +80,12 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
         reporting_currency_id: c.currency.id,
         created_by_id: getUserId(c.createdBy.email),
         last_updated_by_id: getUserId(c.createdBy.email),
+        default_timezone:
+          c.country.code === 'NG'
+            ? 'Africa/Lagos'
+            : c.country.code === 'US'
+              ? 'America/Adak'
+              : undefined,
       },
       ...(isFirm
         ? {
@@ -88,12 +107,16 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
 
   // Get all companies (including existing ones) for further processing
   const allShortCodes = companiesToInsert.map((c) => c.short_code);
-  const existingCompanies = await trx('companies').whereIn('short_code', allShortCodes).select('*');
+  const existingCompanies = await trx('companies')
+    .whereIn('short_code', allShortCodes)
+    .select('*');
 
   // For accounting firms, insert metadata using the company ID (idempotent)
   const firmMetadataToInsert = data
     .map((item) => {
-      const company = existingCompanies.find((c) => c.short_code === item.c.short_code);
+      const company = existingCompanies.find(
+        (c) => c.short_code === item.c.short_code,
+      );
       return { item, companyId: company?.id };
     })
     .filter(({ item, companyId }) => 'f' in item && companyId)
@@ -111,7 +134,11 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
 
   // Get platform firm (first accounting firm in the system)
   const platformFirm = await trx('companies')
-    .join('accounting_firms_meta', 'companies.id', 'accounting_firms_meta.company_id')
+    .join(
+      'accounting_firms_meta',
+      'companies.id',
+      'accounting_firms_meta.company_id',
+    )
     .where('companies.type', 'accounting_firm')
     .where('companies.is_demo_company', false)
     .first();
@@ -128,7 +155,9 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
   const userCompanyRoles: any[] = [];
 
   for (const company of existingCompanies) {
-    const originalCompany = data.find((d) => d.c.short_code === company.short_code);
+    const originalCompany = data.find(
+      (d) => d.c.short_code === company.short_code,
+    );
     if (!originalCompany) continue;
 
     const isFirm = company.type === COMPANY_TYPES.ACCOUNTING_FIRM;
@@ -192,9 +221,14 @@ export const createDemoCompaniesAndUsers = async (trx: Knex.Transaction, filters
   );
 };
 
-export const deleteDemoCompanies = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const deleteDemoCompanies = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   // Get demo companies to delete
-  const shortCodes = filters ? resolveFiltersToIds(filters) : DEMO_COMPANIES_IDS;
+  const shortCodes = filters
+    ? resolveFiltersToIds(filters)
+    : DEMO_COMPANIES_IDS;
 
   // Convert shortCodes to actual database IDs
   const companies = await trx('companies')
@@ -217,8 +251,12 @@ export const deleteDemoCompanies = async (trx: Knex.Transaction, filters?: DemoF
   await trx('user_company_roles').whereIn('company_id', companyIds).delete();
 
   // 3. Delete client firm assignments
-  await trx('client_firm_assignments').whereIn('client_company_id', companyIds).delete();
-  await trx('client_firm_assignments').whereIn('accounting_firm_company_id', companyIds).delete();
+  await trx('client_firm_assignments')
+    .whereIn('client_company_id', companyIds)
+    .delete();
+  await trx('client_firm_assignments')
+    .whereIn('accounting_firm_company_id', companyIds)
+    .delete();
 
   // 4. Finally delete companies
   const result = await trx('companies').whereIn('id', companyIds).delete();

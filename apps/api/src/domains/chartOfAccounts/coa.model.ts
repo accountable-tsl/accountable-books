@@ -17,18 +17,29 @@ import {
   type UpdateCoaResponse,
 } from './coa.types.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { AppError, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  AppError,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from './coa.constants.js';
 import { chunkArray, getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { camelToSnake, removeNullsShallow } from '../../shared/utils/formatting.utils.js';
+import {
+  camelToSnake,
+  removeNullsShallow,
+} from '../../shared/utils/formatting.utils.js';
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
-import { getAccountTypeByKey, getFullAccountMeta } from '../account/account.registry.js';
+import {
+  getAccountTypeByKey,
+  getFullAccountMeta,
+} from '../account/account.registry.js';
 
 // TODO: Invalidate coa cache on mutations
 const coaCacheTTL = 60 * 60 * 2;
 
-const generateCoaCacheKey = ({ companyUUID }: { companyUUID: string }) => `coa:v1:${companyUUID}`;
+const generateCoaCacheKey = ({ companyUUID }: { companyUUID: string }) =>
+  `coa:v1:${companyUUID}`;
 
 async function invalidateCoaCache({ companyUUID }: { companyUUID: string }) {
   const cacheKey = generateCoaCacheKey({ companyUUID });
@@ -62,7 +73,8 @@ export const createCoa = async ({
   // Validate input
   const snakeData = camelToSnake(data);
   const validate = newCoaInput.array().safeParse(snakeData);
-  if (!validate.success) return errorResponse(`Invalid input`, validate.error?.message);
+  if (!validate.success)
+    return errorResponse(`Invalid input`, validate.error?.message);
   const coaRecords = validate.data;
 
   const query = async (tx: Knex.Transaction) => {
@@ -70,7 +82,9 @@ export const createCoa = async ({
     const recordsToInsert: NewCoa[] = [];
 
     // Get company details
-    const company: { id: string; reportingCurrencyId: string } = await tx('companies')
+    const company: { id: string; reportingCurrencyId: string } = await tx(
+      'companies',
+    )
       .select('id', 'reporting_currency_id as reportingCurrencyId')
       .where('short_code', companyId)
       .first();
@@ -116,7 +130,8 @@ export const createCoa = async ({
       });
     }
 
-    if (errors.length) return errorResponse('Failed to create chart of accounts', errors);
+    if (errors.length)
+      return errorResponse('Failed to create chart of accounts', errors);
 
     // Invalidate coa cache
     // await invalidateCoaCache({ companyUUID });
@@ -172,17 +187,23 @@ export const createDefaultAccounts = async (
     .whereIn('account_type_id', Object.values(DEFAULT_ACCOUNT_TYPE_IDS))
     .select('account_type_id');
 
-  const existingAccountTypeIds = new Set(existingLockedAccounts.map((acc) => acc.account_type_id));
+  const existingAccountTypeIds = new Set(
+    existingLockedAccounts.map((acc) => acc.account_type_id),
+  );
 
   const accountsToCreate = defaultAccounts.filter(
     (acc) => !existingAccountTypeIds.has(acc.account_type_id),
   );
 
-  if (!accountsToCreate.length) return successResponse('No accounts to create', null);
+  if (!accountsToCreate.length)
+    return successResponse('No accounts to create', null);
 
   const validatedAccounts = newCoa.array().safeParse(accountsToCreate);
   if (!validatedAccounts.success) {
-    throw new AppError('Failed to validate default accounts', validatedAccounts.error.flatten());
+    throw new AppError(
+      'Failed to validate default accounts',
+      validatedAccounts.error.flatten(),
+    );
   }
   let inserted;
   if (validatedAccounts.success) {
@@ -258,7 +279,8 @@ export const fetchCompanyCoa = async ({
           if (codes?.length) qb.whereIn('coa.code', codes);
           if (active !== undefined) qb.where('coa.is_active', active);
           if (accountTypeKeys?.length) qb.where('at.key', accountTypeKeys);
-          if (includeDeleted === false) qb.where('coa.is_deleted', includeDeleted);
+          if (includeDeleted === false)
+            qb.where('coa.is_deleted', includeDeleted);
         })
         .join('account_types as at', 'coa.account_type_id', 'at.id')
         .join('account_elements as ae', 'at.account_element_id', 'ae.id')
@@ -266,7 +288,11 @@ export const fetchCompanyCoa = async ({
         .join('currencies as cur', 'coa.currency_id', 'cur.id')
         .join('companies as c', 'coa.company_id', 'c.id')
         .join('currencies as rc', 'c.reporting_currency_id', 'rc.id')
-        .join('financial_statements as fs', 'ae.financial_statement_id', 'fs.id')
+        .join(
+          'financial_statements as fs',
+          'ae.financial_statement_id',
+          'fs.id',
+        )
         // Sort by bank accounts first, then by account code for consistent ordering
         .orderByRaw(
           'CASE WHEN coa.is_deleted = true THEN 2 ' +
@@ -294,7 +320,10 @@ export const fetchCompanyCoa = async ({
     if (!companyUUID) return errorResponse('Invalid company identifier');
 
     const hasFilters =
-      ids.length > 0 || codes.length > 0 || active !== undefined || accountTypeKeys.length > 0;
+      ids.length > 0 ||
+      codes.length > 0 ||
+      active !== undefined ||
+      accountTypeKeys.length > 0;
 
     const cacheKey = generateCoaCacheKey({ companyUUID });
 
@@ -304,7 +333,10 @@ export const fetchCompanyCoa = async ({
       if (cached) {
         try {
           const parsedData = JSON.parse(cached);
-          return successResponse('Successfully retrieved chart of accounts', parsedData);
+          return successResponse(
+            'Successfully retrieved chart of accounts',
+            parsedData,
+          );
         } catch (e) {
           console.warn('Failed to parse cached COA', { cacheKey, error: e });
         }
@@ -481,7 +513,10 @@ const updateChartOfAccounts = async ({
   // Validate input
   const validatedInput = coaUpdateInput.array().safeParse(updates);
   if (!validatedInput.success) {
-    return errorResponse('Invalid input provided', validatedInput.error.flatten());
+    return errorResponse(
+      'Invalid input provided',
+      validatedInput.error.flatten(),
+    );
   }
 
   if (validatedInput.data.length === 0) {
@@ -495,7 +530,9 @@ const updateChartOfAccounts = async ({
     errors: [],
   };
 
-  const executeWithTransaction = async (tx: Knex.Transaction): Promise<UpdateCoaResponse> => {
+  const executeWithTransaction = async (
+    tx: Knex.Transaction,
+  ): Promise<UpdateCoaResponse> => {
     // Fetch existing COA records with account type information
     // Fetch existing COA records with account type information
     const existingCoaRecords = await tx('coa')
@@ -516,7 +553,9 @@ const updateChartOfAccounts = async ({
       .andWhere('coa.company_id', companyUUID);
 
     if (existingCoaRecords.length !== coaIds.length) {
-      throw new Error('One or more COA records not found or do not belong to this company');
+      throw new Error(
+        'One or more COA records not found or do not belong to this company',
+      );
     }
 
     // Create lookup map for efficiency
@@ -543,7 +582,9 @@ const updateChartOfAccounts = async ({
       const { accountTypeKey, ...rest } = item;
       const resolvedItem: ResolvedCoaUpdateInput = {
         ...rest,
-        ...(accountTypeKey && newAccountType ? { accountTypeId: newAccountType.id } : {}),
+        ...(accountTypeKey && newAccountType
+          ? { accountTypeId: newAccountType.id }
+          : {}),
       };
 
       const validation = validateUpdateRules({
@@ -600,7 +641,10 @@ function validateUpdateRules({
   error: string;
 } {
   // Check if account is locked for archive/delete operations
-  if (existing.isLocked && (operation === 'archive' || operation === 'delete')) {
+  if (
+    existing.isLocked &&
+    (operation === 'archive' || operation === 'delete')
+  ) {
     return {
       isValid: false,
       error: 'Locked accounts cannot be archived or deleted',
@@ -663,7 +707,8 @@ async function performBulkUpdate({
       if (u?.code !== undefined) updateData.code = u.code;
       if (u.description !== undefined) updateData.description = u.description;
       if (u?.name !== undefined) updateData.name = u.name;
-      if (u.accountTypeId !== undefined) updateData.account_type_id = u.accountTypeId;
+      if (u.accountTypeId !== undefined)
+        updateData.account_type_id = u.accountTypeId;
       if (u.isActive !== undefined) updateData.is_active = u.isActive;
       if (u.isDeleted !== undefined) {
         updateData.is_deleted = u.isDeleted;

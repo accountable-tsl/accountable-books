@@ -48,13 +48,19 @@ export const newUser = z.object({
     .max(20, 'Phone number cannot exceed 50 characters')
     .transform(sanitizeOptionalInput)
     .nullish(),
-  avatarUrl: z.url('Avatar must be a valid URL').transform(sanitizeOptionalInput).nullish(),
+  avatarUrl: z
+    .url('Avatar must be a valid URL')
+    .transform(sanitizeOptionalInput)
+    .nullish(),
 });
 export type NewUser = z.infer<typeof newUser>;
 
 export const newCompany = z
   .object({
-    legalName: z.string().max(256, 'Name cannot exceed 256 characters').transform(sanitizeInput),
+    legalName: z
+      .string()
+      .max(256, 'Name cannot exceed 256 characters')
+      .transform(sanitizeInput),
     countryId: z.uuid(),
     type: companyType,
     reportingCurrencyId: z.uuid(),

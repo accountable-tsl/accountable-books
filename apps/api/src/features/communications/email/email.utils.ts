@@ -1,5 +1,9 @@
 import { ENV } from '../../../config/env.js';
-import { type UrlParamMap, type UrlParams, type UrlType } from './email.types.js';
+import {
+  type UrlParamMap,
+  type UrlParams,
+  type UrlType,
+} from './email.types.js';
 const routePaths: Record<UrlType, string> = {
   'verify-email': 'verify-email',
   'reset-password': 'reset-password',

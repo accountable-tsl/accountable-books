@@ -11,4 +11,6 @@ export const newCompanyBankCredentialInput = z.object({
   userId: z.uuid(),
 });
 
-export type NewCompanyBankCredentialInput = z.infer<typeof newCompanyBankCredentialInput>;
+export type NewCompanyBankCredentialInput = z.infer<
+  typeof newCompanyBankCredentialInput
+>;

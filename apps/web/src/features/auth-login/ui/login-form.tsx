@@ -1,6 +1,12 @@
 import { FormField } from '@/components/FormField';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -11,11 +17,23 @@ import { routes } from '@/shared/routes/routes';
 import { AuthHeader } from '@/components/AuthHeader';
 import { toast } from 'sonner';
 import { useSession } from '@session';
-import { authStore, getLogoutReason, loginForm, type LoginForm } from '@/modules/auth';
+import {
+  authStore,
+  getLogoutReason,
+  loginForm,
+  type LoginForm,
+} from '@/modules/auth';
 import { loginAndRedirect } from '../model/use-login-flow';
 
 export function Login() {
-  const { isLoggedIn, hasAppAccess, company, companyId, tenantRoutes, loading } = useSession();
+  const {
+    isLoggedIn,
+    hasAppAccess,
+    company,
+    companyId,
+    tenantRoutes,
+    loading,
+  } = useSession();
   const { setAuth } = authStore((s) => s);
   const [params] = useSearchParams();
 
@@ -51,7 +69,8 @@ export function Login() {
     }
   };
 
-  const alreadyLoggedIn = !loading && isLoggedIn && companyId && company && tenantRoutes;
+  const alreadyLoggedIn =
+    !loading && isLoggedIn && companyId && company && tenantRoutes;
   const logoutReason = getLogoutReason();
 
   return (
@@ -69,7 +88,9 @@ export function Login() {
             )}
             {alreadyLoggedIn && (
               <div className="text-center rounded-lg border border-green-300 bg-green-50 p-2 md:p-3  text-sm text-green-800 shadow-sm">
-                <span className="block md:inline">You're already logged in.</span>{' '}
+                <span className="block md:inline">
+                  You're already logged in.
+                </span>{' '}
                 <Link
                   to={
                     hasAppAccess
@@ -93,9 +114,16 @@ export function Login() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+                <form
+                  onSubmit={handleSubmit(onSubmit)}
+                  className="flex flex-col gap-6"
+                >
                   <div className="flex flex-col gap-6">
-                    <FormField id="email" label="Email" error={errors.email?.message}>
+                    <FormField
+                      id="email"
+                      label="Email"
+                      error={errors.email?.message}
+                    >
                       <Input
                         id="email"
                         type="email"
@@ -106,19 +134,27 @@ export function Login() {
                       />
                     </FormField>
                     <div className="flex flex-col relative">
-                      <FormField id="password" label="Password" error={errors.password?.message}>
+                      <FormField
+                        id="password"
+                        label="Password"
+                        error={errors.password?.message}
+                      >
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
                           {...register('password')}
-                          aria-describedby={errors.password ? 'password-error' : undefined}
+                          aria-describedby={
+                            errors.password ? 'password-error' : undefined
+                          }
                           required
                           placeholder="************"
                         />
                         <Button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          aria-label={
+                            showPassword ? 'Hide password' : 'Show password'
+                          }
                           className="absolute right-2 top-1/3 bg-transparent text-foreground hover:bg-transparent"
                         >
                           {showPassword ? <EyeOff /> : <Eye />}
@@ -134,7 +170,11 @@ export function Login() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-3 mt-2">
-                    <Button type="submit" className="w-full" disabled={isSubmitting || !isValid}>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isSubmitting || !isValid}
+                    >
                       {isLoading ? 'Logging in...' : 'Login'}{' '}
                     </Button>
                   </div>

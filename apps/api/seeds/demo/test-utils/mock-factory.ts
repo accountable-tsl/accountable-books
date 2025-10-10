@@ -138,7 +138,9 @@ export class KnexMockFactory {
 
     // Mock where with data filtering
     mockTable.where.mockImplementation((column: string, value: any) => {
-      const filteredData = tableData.filter((item: any) => item[column] === value);
+      const filteredData = tableData.filter(
+        (item: any) => item[column] === value,
+      );
       return mockTable.mockSelectResult(filteredData);
     });
 
@@ -280,15 +282,17 @@ export class KnexMockFactory {
     });
 
     // Mock transaction
-    mockKnex.transaction = vi.fn().mockImplementation(async (callback?: any) => {
-      const transaction = this.createTransactionMock();
+    mockKnex.transaction = vi
+      .fn()
+      .mockImplementation(async (callback?: any) => {
+        const transaction = this.createTransactionMock();
 
-      if (callback) {
-        return await callback(transaction);
-      }
+        if (callback) {
+          return await callback(transaction);
+        }
 
-      return transaction;
-    });
+        return transaction;
+      });
 
     // Mock raw queries
     mockKnex.raw = vi.fn().mockResolvedValue({ rows: [] });

@@ -1,4 +1,7 @@
-import { addNewContacts, fetchContacts } from '@/domains-pending-migration/contacts/contacts-api';
+import {
+  addNewContacts,
+  fetchContacts,
+} from '@/domains-pending-migration/contacts/contacts-api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type GetContactsParams,
@@ -48,7 +51,13 @@ export function useContacts(input: GetContactsParams) {
 
 export const useCreateContacts = () => {
   return useMutation({
-    mutationFn: ({ companyId, data: input }: { companyId: string; data: NewContact[] }) => {
+    mutationFn: ({
+      companyId,
+      data: input,
+    }: {
+      companyId: string;
+      data: NewContact[];
+    }) => {
       const data = newContact.array().parse(input);
       return addNewContacts({ companyId, data });
     },

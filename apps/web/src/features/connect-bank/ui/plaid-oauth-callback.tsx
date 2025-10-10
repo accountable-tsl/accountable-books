@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router';
 import { plaidOAuthStorage } from '../utils/oauth-storage';
 import { useConnectAccounts } from '@/modules/banking/connections';
 import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -13,6 +12,7 @@ interface OAuthState {
   companyId: string;
   userId: string;
   provider: string;
+  countryCode: string;
   timestamp: number;
   returnUrl?: string;
 }
@@ -31,7 +31,9 @@ export function PlaidOAuthCallback() {
     const state = plaidOAuthStorage.retrieve();
 
     if (!state) {
-      console.warn('No valid OAuth state found, redirecting to banking connect page');
+      console.warn(
+        'No valid OAuth state found, redirecting to banking connect page',
+      );
       setHasError(true);
       setErrorMessage(
         'OAuth session expired or invalid. Please try connecting your bank account again.',
@@ -54,11 +56,20 @@ export function PlaidOAuthCallback() {
         return;
       }
 
+      // Prevent multiple simultaneous connection attempts
+      if (isConnecting) {
+        console.warn(
+          'Connection already in progress, ignoring duplicate request',
+        );
+        return;
+      }
+
       setIsConnecting(true);
 
       connectAccountsMutation.mutate(
         {
           providerKey: 'plaid',
+          countryCode: oauthState.countryCode,
           publicToken,
           metadata,
           userId: oauthState.userId,
@@ -70,7 +81,8 @@ export function PlaidOAuthCallback() {
             plaidOAuthStorage.clear();
 
             if (response.success && response.data) {
-              const message = response?.message || 'Bank account connected successfully!';
+              const message =
+                response?.message || 'Bank account connected successfully!';
               toast.success(message);
 
               // Navigate back to the original banking page
@@ -85,14 +97,20 @@ export function PlaidOAuthCallback() {
             setIsConnecting(false);
 
             const errorData = error.response?.data?.error;
-            const message = errorData?.displayMessage || errorData?.message || 'Connection failed';
+            const message =
+              errorData?.displayMessage ||
+              errorData?.message ||
+              'Connection failed';
 
+            console.error('Bank connection error:', error);
             toast.error('Failed to connect bank account', {
               description: message,
             });
 
             // Navigate back to banking connect page
-            navigate(`/${oauthState.companyId}/banking/connect`, { replace: true });
+            navigate(`/${oauthState.companyId}/banking/connect`, {
+              replace: true,
+            });
           },
         },
       );
@@ -102,18 +120,21 @@ export function PlaidOAuthCallback() {
 
   // Handle Plaid Link exit (user cancelled or error)
   const onExit = useCallback(
-    (error?: any, metadata?: any) => {
+    (error?: any) => {
       plaidOAuthStorage.clear();
 
       if (error) {
         console.error('Plaid Link exit with error:', error);
         toast.error('Connection cancelled', {
-          description: error.display_message || 'The bank connection was cancelled.',
+          description:
+            error.display_message || 'The bank connection was cancelled.',
         });
       }
 
       // Navigate back to the original page or banking connect
-      const returnPath = oauthState?.returnUrl || `/${oauthState?.companyId || ''}/banking/connect`;
+      const returnPath =
+        oauthState?.returnUrl ||
+        `/${oauthState?.companyId || ''}/banking/connect`;
       navigate(returnPath, { replace: true });
     },
     [oauthState, navigate],
@@ -127,10 +148,13 @@ export function PlaidOAuthCallback() {
 
       toast.error('Connection error', {
         description:
-          error.display_message || 'An error occurred while connecting your bank account.',
+          error.display_message ||
+          'An error occurred while connecting your bank account.',
       });
 
-      navigate(`/${oauthState?.companyId || ''}/banking/connect`, { replace: true });
+      navigate(`/${oauthState?.companyId || ''}/banking/connect`, {
+        replace: true,
+      });
     },
     [oauthState, navigate],
   );
@@ -146,22 +170,34 @@ export function PlaidOAuthCallback() {
       }
     : null;
 
-  const { open, ready, error: plaidError } = usePlaidLink(config || {});
+  const {
+    open,
+    ready,
+    error: plaidError,
+  } = usePlaidLink(
+    config || {
+      token: '',
+      onSuccess: () => {},
+      onExit: () => {},
+    },
+  );
 
   // Auto-open Plaid Link when ready (reinitialize after OAuth)
   useEffect(() => {
-    if (ready && oauthState && !isConnecting) {
+    if (ready && oauthState && !isConnecting && !hasError) {
       console.log('Reinitializing Plaid Link after OAuth redirect');
       open();
     }
-  }, [ready, oauthState, open, isConnecting]);
+  }, [ready, oauthState, open, isConnecting, hasError]);
 
   // Handle Plaid SDK errors
   useEffect(() => {
     if (plaidError) {
       console.error('Plaid SDK error:', plaidError);
       setHasError(true);
-      setErrorMessage('Failed to initialize bank connection. Please try again.');
+      setErrorMessage(
+        'Failed to initialize bank connection. Please try again.',
+      );
     }
   }, [plaidError]);
 
@@ -171,13 +207,28 @@ export function PlaidOAuthCallback() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center space-y-4">
           <div className="text-red-600 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-semibold text-gray-900">Connection Failed</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Connection Failed
+          </h1>
           <p className="text-gray-600">{errorMessage}</p>
           <div className="space-y-2">
-            <Button onClick={() => navigate('/banking/connect')} className="w-full">
+            <Button
+              onClick={() => {
+                plaidOAuthStorage.clear();
+                navigate('/banking/connect');
+              }}
+              className="w-full"
+            >
               Try Again
             </Button>
-            <Button variant="outline" onClick={() => navigate('/')} className="w-full">
+            <Button
+              variant="outline"
+              onClick={() => {
+                plaidOAuthStorage.clear();
+                navigate('/');
+              }}
+              className="w-full"
+            >
               Go Home
             </Button>
           </div>
@@ -193,7 +244,9 @@ export function PlaidOAuthCallback() {
         <div className="text-center space-y-4">
           <CenteredLoader />
           <div className="max-w-sm">
-            <h2 className="text-xl font-semibold mb-2">Completing Bank Connection</h2>
+            <h2 className="text-xl font-semibold mb-2">
+              Completing Bank Connection
+            </h2>
             <p className="text-muted-foreground text-sm">
               Please wait while we finalize your bank account connection...
             </p>

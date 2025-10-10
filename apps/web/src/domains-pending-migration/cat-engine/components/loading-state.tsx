@@ -19,8 +19,12 @@ export function LoadingState({
   };
 
   return (
-    <div className={cn('flex items-center justify-center gap-2 p-4', className)}>
-      <Loader2 className={cn(sizeClasses[size], 'animate-spin text-muted-foreground')} />
+    <div
+      className={cn('flex items-center justify-center gap-2 p-4', className)}
+    >
+      <Loader2
+        className={cn(sizeClasses[size], 'animate-spin text-muted-foreground')}
+      />
       <span className="text-sm text-muted-foreground">{message}</span>
     </div>
   );

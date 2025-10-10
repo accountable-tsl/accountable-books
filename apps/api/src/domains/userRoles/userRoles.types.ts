@@ -16,8 +16,11 @@ export const userCompanyRoleBase = z.object({
   updated_by_id: z.uuid().nullish(),
   created_by_id: z.uuid().nullish(),
 });
-export const newUserCompanyRoleInput = createCamelCaseSchema(userCompanyRoleBase);
-export type NewUserCompanyRoleInput = SnakeToCamelCaseObject<z.infer<typeof newUserCompanyRole>>;
+export const newUserCompanyRoleInput =
+  createCamelCaseSchema(userCompanyRoleBase);
+export type NewUserCompanyRoleInput = SnakeToCamelCaseObject<
+  z.infer<typeof newUserCompanyRole>
+>;
 
 export const newUserCompanyRole = userCompanyRoleBase.extend({
   created_by_id: z.uuid(),

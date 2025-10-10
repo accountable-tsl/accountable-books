@@ -40,7 +40,12 @@ const BULLMQ_COMMANDS = new Set([
   'TTL',
 ]);
 
-const HIGH_FREQUENCY_COMMANDS = new Set(['BZPOPMIN', 'BRPOPLPUSH', 'EXISTS', 'ZRANGEBYSCORE']);
+const HIGH_FREQUENCY_COMMANDS = new Set([
+  'BZPOPMIN',
+  'BRPOPLPUSH',
+  'EXISTS',
+  'ZRANGEBYSCORE',
+]);
 
 /**
  * Initialize Redis command monitoring
@@ -48,7 +53,8 @@ const HIGH_FREQUENCY_COMMANDS = new Set(['BZPOPMIN', 'BRPOPLPUSH', 'EXISTS', 'ZR
  */
 export function initRedisMonitoring() {
   const shouldMonitor =
-    process.env.ENABLE_REDIS_MONITORING === 'true' || process.env.NODE_ENV === 'staging';
+    process.env.ENABLE_REDIS_MONITORING === 'true' ||
+    process.env.NODE_ENV === 'staging';
 
   if (!shouldMonitor) {
     logger.info('Redis monitoring disabled');
@@ -123,7 +129,10 @@ export function initRedisMonitoring() {
         });
       })
       .catch((error) => {
-        logger.warn({ error }, '⚠️  Could not enable Redis command monitoring (not critical)');
+        logger.warn(
+          { error },
+          '⚠️  Could not enable Redis command monitoring (not critical)',
+        );
       });
   } catch (error) {
     logger.warn({ error }, '⚠️  Redis monitoring not available (not critical)');

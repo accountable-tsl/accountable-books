@@ -31,7 +31,8 @@ export const QuickFilter: React.FC<QuickFilterProps> = ({
 
   if (isMobile) return null;
 
-  const isActive = (val: string) => val.toLowerCase() === accountElementFilter.toLowerCase();
+  const isActive = (val: string) =>
+    val.toLowerCase() === accountElementFilter.toLowerCase();
 
   return (
     <div className="flex-1 flex items-center">

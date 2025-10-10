@@ -13,6 +13,7 @@ export async function createUser({
   trx,
 }: {
   user: {
+    id?: string;
     email: string;
     password: string;
     firstname: string;
@@ -149,6 +150,7 @@ export const seedSystemUser = async (knex: Knex) => {
   return knex.transaction(async (trx) => {
     const result = await createUser({
       user: {
+        id: '4324386b-1481-46f4-a63a-1d3ed515c2df',
         firstname: 'System',
         lastname: 'User',
         email: systemUserEmail,

@@ -13,12 +13,20 @@ export async function up(knex: Knex): Promise<void> {
     table.string('name').notNullable();
     table.string('code').nullable();
     table.string('description', 512).nullable();
-    table.specificType('status', 'project_status').defaultTo('in_draft').notNullable();
+    table
+      .specificType('status', 'project_status')
+      .defaultTo('in_draft')
+      .notNullable();
 
     table.timestamp('start_date', { useTz: true }).nullable();
     table.timestamp('end_date', { useTz: true }).nullable();
 
-    table.uuid('contact_id').nullable().references('id').inTable('contacts').onDelete('SET NULL');
+    table
+      .uuid('contact_id')
+      .nullable()
+      .references('id')
+      .inTable('contacts')
+      .onDelete('SET NULL');
 
     table
       .uuid('company_id')
@@ -34,7 +42,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     addStandardColumns(knex, table);
 

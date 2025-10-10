@@ -1,6 +1,10 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
-import { createDemoContacts, deleteDemoContacts, getDemoContactsMap } from './contacts.fn.js';
+import {
+  createDemoContacts,
+  deleteDemoContacts,
+  getDemoContactsMap,
+} from './contacts.fn.js';
 import { demoContactsByCompanyMap } from './contacts.state.js';
 
 // Mock shared utilities - handle company/user lookups and data deletion
@@ -120,7 +124,9 @@ vi.mock('./raw/ng_contacts.json', () => ({
  * Creates a simplified mock Knex transaction for contacts testing.
  * Simulates database queries for contacts table operations.
  */
-const createMockTransaction = (options: { existingContacts?: boolean } = {}): Knex.Transaction => {
+const createMockTransaction = (
+  options: { existingContacts?: boolean } = {},
+): Knex.Transaction => {
   const mockTransaction = vi.fn((tableName: string) => {
     const queryBuilder = {
       where: vi.fn().mockReturnThis(),
@@ -188,7 +194,9 @@ describe('createDemoContacts', () => {
 
     // Mock only business company in both getDemoCompanies and generateDemoCompaniesMap
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     (getDemoCompanies as any).mockResolvedValueOnce([
       { id: 'company-1', short_code: 'bizDemoUS', type: 'business' },
@@ -215,7 +223,9 @@ describe('createDemoContacts', () => {
 
     // Mock only accounting firm company in both mocks
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     (getDemoCompanies as any).mockResolvedValueOnce([
       { id: 'company-2', short_code: 'firmDemoUS', type: 'accounting_firm' },
@@ -242,7 +252,9 @@ describe('createDemoContacts', () => {
 
     // Mock only individual company in both mocks
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     (getDemoCompanies as any).mockResolvedValueOnce([
       { id: 'company-3', short_code: 'indDemoUS', type: 'individual' },
@@ -269,7 +281,9 @@ describe('createDemoContacts', () => {
 
     // Mock NG company in both mocks
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     (getDemoCompanies as any).mockResolvedValueOnce([
       { id: 'company-ng', short_code: 'bizDemoNG', type: 'business' },
@@ -298,7 +312,9 @@ describe('createDemoContacts', () => {
 
     // Should check for existing contacts but not proceed with insertion
     expect(mockTransaction).toHaveBeenCalledWith('contacts');
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Contacts already exist'));
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Contacts already exist'),
+    );
   });
 
   test('should handle empty companies list', async () => {
@@ -311,7 +327,9 @@ describe('createDemoContacts', () => {
     await createDemoContacts(mockTransaction);
 
     // Should log and exit early
-    expect(console.log).toHaveBeenCalledWith('No companies found for contact creation');
+    expect(console.log).toHaveBeenCalledWith(
+      'No companies found for contact creation',
+    );
   });
 
   test('should handle user not found error', async () => {
@@ -344,7 +362,9 @@ describe('createDemoContacts', () => {
 
     // Should pass filters to getDemoCompanies and generateDemoCompaniesMap
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     expect(getDemoCompanies).toHaveBeenCalledWith(expect.anything(), filters);
     expect(generateDemoCompaniesMap).toHaveBeenCalledWith(filters);
@@ -452,7 +472,9 @@ describe('getDemoContactsMap', () => {
 
     // Should pass filters to underlying functions
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     expect(getDemoCompanies).toHaveBeenCalledWith(expect.anything(), filters);
     expect(generateDemoCompaniesMap).toHaveBeenCalledWith(filters);

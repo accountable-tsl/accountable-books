@@ -18,7 +18,11 @@ async function testPartitionManagement() {
   try {
     // Test 1: Ensure partitions for future dates
     console.log('📅 Test 1: Creating partitions for future dates...');
-    const futureDates = [new Date('2025-06-01'), new Date('2026-03-15'), new Date('2027-12-25')];
+    const futureDates = [
+      new Date('2025-06-01'),
+      new Date('2026-03-15'),
+      new Date('2027-12-25'),
+    ];
 
     await ensurePartitionsForDates('bank_transactions', futureDates);
     console.log('✅ Future partitions created successfully\n');
@@ -53,15 +57,21 @@ async function testPartitionManagement() {
       SELECT COUNT(*) as count 
       FROM bank_transactions_default
     `);
-    console.log(`   Default partition contains ${defaultCheck.rows[0]?.count || 0} records`);
+    console.log(
+      `   Default partition contains ${defaultCheck.rows[0]?.count || 0} records`,
+    );
 
     // Test 5: Test that we can now insert without conflicts
     console.log('💳 Test 5: Testing transaction insertion (simulation)...');
 
     // Instead of actually inserting, we'll just validate the setup
-    console.log('   ✅ Partition management setup is ready for bank transactions');
+    console.log(
+      '   ✅ Partition management setup is ready for bank transactions',
+    );
     console.log('   ✅ Triggers have been simplified to avoid DDL conflicts');
-    console.log('   ✅ Application-level partition checks will prevent errors\n');
+    console.log(
+      '   ✅ Application-level partition checks will prevent errors\n',
+    );
 
     // Test 6: Test ledger entries partition management
     console.log('📚 Test 6: Testing ledger entries partition management...');
@@ -82,12 +92,18 @@ async function testPartitionManagement() {
 
     console.log('🎉 All tests completed successfully!');
     console.log('\n📝 Summary:');
-    console.log('   • Triggers simplified to prevent DDL-within-transaction conflicts');
+    console.log(
+      '   • Triggers simplified to prevent DDL-within-transaction conflicts',
+    );
     console.log('   • Partition management service created and working');
-    console.log('   • Bank transactions model updated with pre-insert partition checks');
+    console.log(
+      '   • Bank transactions model updated with pre-insert partition checks',
+    );
     console.log('   • Background partition maintenance worker configured');
     console.log('   • Both bank_transactions and ledger_entries supported');
-    console.log('\n✅ The partition management solution is ready for production use!');
+    console.log(
+      '\n✅ The partition management solution is ready for production use!',
+    );
   } catch (error) {
     console.error('❌ Test failed:', error);
     throw error;

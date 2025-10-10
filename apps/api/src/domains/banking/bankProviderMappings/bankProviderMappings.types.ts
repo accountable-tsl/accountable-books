@@ -15,8 +15,12 @@ const newBankProviderMappingInput = z.object({
   provider_bank_name: z.string().nullish(),
   raw_provider_data: z.record(z.string(), z.any()).nullish(),
 });
-export type NewBankProviderMappingInput = z.infer<typeof newBankProviderMappingInput>;
-export const newBankProviderMappingCamel = createCamelCaseSchema(newBankProviderMappingInput);
+export type NewBankProviderMappingInput = z.infer<
+  typeof newBankProviderMappingInput
+>;
+export const newBankProviderMappingCamel = createCamelCaseSchema(
+  newBankProviderMappingInput,
+);
 export type NewBankProviderMappingInputCamel = SnakeToCamelCaseObject<
   z.infer<typeof newBankProviderMappingInput>
 >;

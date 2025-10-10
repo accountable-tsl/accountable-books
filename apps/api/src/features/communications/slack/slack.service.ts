@@ -28,7 +28,9 @@ await sendSlackMessage({
 });
 */
 
-export async function sendSlackMessage(input: SlackMessageInput): Promise<void> {
+export async function sendSlackMessage(
+  input: SlackMessageInput,
+): Promise<void> {
   const channel = input.channel || ENV.SLACK_CHANNEL || 'sandbox';
 
   let text = 'New Slack notification';

@@ -131,8 +131,6 @@ Access the queue dashboard at: `https://api-staging.getaccountable.com/admin/que
 
 ```env
 # Worker Control
-ENABLE_EMAIL_WORKER=true
-ENABLE_TRANSACTION_SYNC=false
 EMAIL_WORKER_CONCURRENCY=5
 TRANSACTION_SYNC_CONCURRENCY=3
 

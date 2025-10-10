@@ -80,7 +80,8 @@ export function useCompanySwitch() {
       );
     },
     onError: (error) => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       toast.error(errorMessage);
     },
   });

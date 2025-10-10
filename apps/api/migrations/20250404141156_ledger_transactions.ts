@@ -21,7 +21,11 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('bank_transaction_id').nullable();
     table.date('bank_transaction_date').nullable();
 
-    table.uuid('company_id').notNullable().references('id').inTable('companies');
+    table
+      .uuid('company_id')
+      .notNullable()
+      .references('id')
+      .inTable('companies');
     table.uuid('created_by_id').notNullable().references('id').inTable('users');
     table.uuid('updated_by_id').nullable().references('id').inTable('users');
 
@@ -29,7 +33,11 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await createTrgmIndexes(knex, tableName, ['description', 'reference', 'note']);
+  await createTrgmIndexes(knex, tableName, [
+    'description',
+    'reference',
+    'note',
+  ]);
 }
 
 export async function down(knex: Knex): Promise<void> {

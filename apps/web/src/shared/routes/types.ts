@@ -20,11 +20,12 @@ export type ExtractPathParams<Path extends string> =
       ? { [k in Param]: string }
       : {};
 
-export type HasCompanyId<Path extends string> = Path extends `${string}:companyId${string}`
-  ? true
-  : false; // Identify if a route expects companyId
+export type HasCompanyId<Path extends string> =
+  Path extends `${string}:companyId${string}` ? true : false; // Identify if a route expects companyId
 
-export type OmitCompanyId<T> = T extends { companyId: any } ? Omit<T, 'companyId'> : T; // Extract route params except companyId
+export type OmitCompanyId<T> = T extends { companyId: any }
+  ? Omit<T, 'companyId'>
+  : T; // Extract route params except companyId
 
 export type RouteLike = {
   staticPath: string;

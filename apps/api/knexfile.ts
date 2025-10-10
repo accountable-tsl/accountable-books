@@ -4,7 +4,8 @@ import type { Knex } from 'knex';
 // Environment detection
 const ENV = process.env.NODE_ENV ?? 'local';
 const IS_LOCAL_STAGING =
-  process.argv.includes('--local:staging') || process.env.LOCAL_STAGING === 'true';
+  process.argv.includes('--local:staging') ||
+  process.env.LOCAL_STAGING === 'true';
 
 // Database URLs
 const DATABASE_URL = process.env.DATABASE_URL ?? '';
@@ -19,7 +20,8 @@ const DB_CONFIG = {
   port: Number(process.env.DB_PORT) || 5432,
 } as const;
 
-const isNeonHost = (url?: string): boolean => Boolean(url?.includes('.neon.tech'));
+const isNeonHost = (url?: string): boolean =>
+  Boolean(url?.includes('.neon.tech'));
 const getLocalConnection = (isTest: boolean = false) => ({
   ...DB_CONFIG,
   database: isTest ? `${DB_CONFIG.name}_test` : DB_CONFIG.name,
@@ -58,7 +60,10 @@ export const runtimeKnexConfig: Knex.Config = {
 };
 
 // Migration configuration factory
-const cfg = (tableName: string, connection: Knex.Config['connection']): Knex.Config => ({
+const cfg = (
+  tableName: string,
+  connection: Knex.Config['connection'],
+): Knex.Config => ({
   ...baseConfig,
   connection,
   migrations: {
@@ -74,9 +79,14 @@ const config: Record<string, Knex.Config> = {
   test: cfg('knex_migrations_test', getLocalConnection(true)),
   staging: cfg(
     'knex_migrations_staging',
-    IS_LOCAL_STAGING ? getLocalConnection() : getRemoteConnection(DATABASE_URL_UNPOOLED),
+    IS_LOCAL_STAGING
+      ? getLocalConnection()
+      : getRemoteConnection(DATABASE_URL_UNPOOLED),
   ),
-  production: cfg('knex_migrations', getRemoteConnection(DATABASE_URL_UNPOOLED ?? DATABASE_URL)),
+  production: cfg(
+    'knex_migrations',
+    getRemoteConnection(DATABASE_URL_UNPOOLED ?? DATABASE_URL),
+  ),
 };
 
 export default config;

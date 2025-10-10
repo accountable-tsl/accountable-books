@@ -27,6 +27,9 @@ const monoCustomerWithNameEmail = z.object({
   identity: identitySchema.optional(),
 });
 
-export const monoConnectCustomerSchema = z.union([monoCustomerWithId, monoCustomerWithNameEmail]);
+export const monoConnectCustomerSchema = z.union([
+  monoCustomerWithId,
+  monoCustomerWithNameEmail,
+]);
 
 export type MonoConnectCustomer = z.infer<typeof monoConnectCustomerSchema>;

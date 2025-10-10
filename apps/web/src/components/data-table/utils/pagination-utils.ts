@@ -60,7 +60,10 @@ export function getPageSizeOptions({
     const validSizes = pageSizeOptions
       .filter(
         (size): size is number =>
-          typeof size === 'number' && size > 0 && !isNaN(size) && isFinite(size),
+          typeof size === 'number' &&
+          size > 0 &&
+          !isNaN(size) &&
+          isFinite(size),
       )
       .filter((size) => {
         // Validate against total rows if provided
@@ -79,7 +82,9 @@ export function getPageSizeOptions({
 
     // Ensure we have at least one valid option
     if (validSizes.length === 0) {
-      const fallbackOptions = defaultOptions.filter((size) => size <= (maxAllowedSize || 500));
+      const fallbackOptions = defaultOptions.filter(
+        (size) => size <= (maxAllowedSize || 500),
+      );
       return allowShowAll ? [...fallbackOptions, 'all'] : fallbackOptions;
     }
 
@@ -91,7 +96,9 @@ export function getPageSizeOptions({
 
   // Validate the base value
   if (typeof base !== 'number' || base <= 0 || isNaN(base) || !isFinite(base)) {
-    const fallbackOptions = defaultOptions.filter((size) => size <= (maxAllowedSize || 500));
+    const fallbackOptions = defaultOptions.filter(
+      (size) => size <= (maxAllowedSize || 500),
+    );
     return allowShowAll ? [...fallbackOptions, 'all'] : fallbackOptions;
   }
 
@@ -127,7 +134,9 @@ export function getPageSizeOptions({
 
   // Ensure we have at least one valid option
   if (validSizes.length === 0) {
-    const fallbackOptions = defaultOptions.filter((size) => size <= (maxAllowedSize || 500));
+    const fallbackOptions = defaultOptions.filter(
+      (size) => size <= (maxAllowedSize || 500),
+    );
     return allowShowAll ? [...fallbackOptions, 'all'] : fallbackOptions;
   }
 

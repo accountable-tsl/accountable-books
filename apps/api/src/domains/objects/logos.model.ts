@@ -1,5 +1,9 @@
 import { ENV } from '../../config/env.js';
-import { AppError, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  AppError,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
 import { createHash, randomUUID } from 'crypto';
 import { type LogoUploadParams } from './objects.types.js';
@@ -10,15 +14,18 @@ if (!ENV.B2_LOGOS_KEY_ID || !ENV.B2_LOGOS_APPLICATION_KEY) {
 }
 
 async function authorizeAccount() {
-  const encoded = Buffer.from(`${ENV.B2_LOGOS_KEY_ID}:${ENV.B2_LOGOS_APPLICATION_KEY}`).toString(
-    'base64',
-  );
+  const encoded = Buffer.from(
+    `${ENV.B2_LOGOS_KEY_ID}:${ENV.B2_LOGOS_APPLICATION_KEY}`,
+  ).toString('base64');
 
-  const response = await axios.get('https://api.backblazeb2.com/b2api/v2/b2_authorize_account', {
-    headers: {
-      Authorization: `Basic ${encoded}`,
+  const response = await axios.get(
+    'https://api.backblazeb2.com/b2api/v2/b2_authorize_account',
+    {
+      headers: {
+        Authorization: `Basic ${encoded}`,
+      },
     },
-  });
+  );
 
   return response.data;
 }
@@ -72,7 +79,9 @@ export async function uploadLogo({
   return successResponse('Logo uploaded successfully', key);
 }
 
-export async function getSignedLogoUrl(key: string): Promise<ApiResponse<string>> {
+export async function getSignedLogoUrl(
+  key: string,
+): Promise<ApiResponse<string>> {
   try {
     const { authorizationToken, apiUrl } = await authorizeAccount();
     await axios.post(

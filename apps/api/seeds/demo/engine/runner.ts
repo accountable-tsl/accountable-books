@@ -17,14 +17,19 @@ export class DemoSeedRunner {
   /**
    * Apply demo seeds (create operations)
    */
-  async apply(filters?: DemoFilter, options: RunnerOptions = {}): Promise<void> {
+  async apply(
+    filters?: DemoFilter,
+    options: RunnerOptions = {},
+  ): Promise<void> {
     const steps = this.getSteps(options.steps);
     const { parallel = false, dryRun = false } = options;
 
     console.log(`🌱 Applying demo seeds...`);
     console.log(`   Steps: ${steps.map((s) => s.name).join(', ')}`);
     console.log(`   Filters:`, filters || 'none');
-    console.log(`   Mode: ${parallel ? 'parallel' : 'sequential'}${dryRun ? ' (dry run)' : ''}`);
+    console.log(
+      `   Mode: ${parallel ? 'parallel' : 'sequential'}${dryRun ? ' (dry run)' : ''}`,
+    );
 
     if (dryRun) {
       console.log('✅ Dry run complete - no changes made');
@@ -45,7 +50,10 @@ export class DemoSeedRunner {
   /**
    * Reverse demo seeds (delete operations)
    */
-  async reverse(filters?: DemoFilter, options: RunnerOptions = {}): Promise<void> {
+  async reverse(
+    filters?: DemoFilter,
+    options: RunnerOptions = {},
+  ): Promise<void> {
     const steps = this.getSteps(options.steps);
     const reversedSteps = [...steps].reverse(); // Delete in reverse order
     const { dryRun = false } = options;
@@ -71,7 +79,10 @@ export class DemoSeedRunner {
   /**
    * Reset: reverse then apply
    */
-  async reset(filters?: DemoFilter, options: RunnerOptions = {}): Promise<void> {
+  async reset(
+    filters?: DemoFilter,
+    options: RunnerOptions = {},
+  ): Promise<void> {
     console.log('🔄 Resetting demo seeds...');
     await this.reverse(filters, options);
     await this.apply(filters, options);
@@ -137,7 +148,9 @@ export class DemoSeedRunner {
           default:
             count = 0;
         }
-        console.log(`   ${step.name.padEnd(12)} ${count.toString().padStart(4)} records`);
+        console.log(
+          `   ${step.name.padEnd(12)} ${count.toString().padStart(4)} records`,
+        );
       } catch (error) {
         console.log(
           `   ${step.name.padEnd(12)}    ? records (error: ${error instanceof Error ? error.message : 'unknown'})`,
@@ -176,15 +189,22 @@ export class DemoSeedRunner {
         const fn = operation === 'create' ? step.createFn : step.deleteFn;
 
         if (!fn) {
-          console.log(`   ⏭️  Skipping ${step.name} (no ${operation} function)`);
+          console.log(
+            `   ⏭️  Skipping ${step.name} (no ${operation} function)`,
+          );
           continue;
         }
 
-        console.log(`   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`);
+        console.log(
+          `   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`,
+        );
         await fn(trx, filters);
-        console.log(`   ✓ ${step.name} ${operation === 'create' ? 'created' : 'deleted'}`);
+        console.log(
+          `   ✓ ${step.name} ${operation === 'create' ? 'created' : 'deleted'}`,
+        );
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'unknown error';
+        const message =
+          error instanceof Error ? error.message : 'unknown error';
         console.error(`   ❌ Failed to ${operation} ${step.name}: ${message}`);
         throw error;
       }
@@ -197,13 +217,17 @@ export class DemoSeedRunner {
     trx: Knex.Transaction,
     filters?: DemoFilter,
   ): Promise<void> {
-    console.warn('⚠️  Running in parallel mode - dependencies may not be respected');
+    console.warn(
+      '⚠️  Running in parallel mode - dependencies may not be respected',
+    );
 
     const promises = steps
       .filter((step) => {
         const fn = operation === 'create' ? step.createFn : step.deleteFn;
         if (!fn) {
-          console.log(`   ⏭️  Skipping ${step.name} (no ${operation} function)`);
+          console.log(
+            `   ⏭️  Skipping ${step.name} (no ${operation} function)`,
+          );
           return false;
         }
         return true;
@@ -211,12 +235,19 @@ export class DemoSeedRunner {
       .map(async (step) => {
         try {
           const fn = operation === 'create' ? step.createFn : step.deleteFn;
-          console.log(`   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`);
+          console.log(
+            `   ⚡ ${operation === 'create' ? 'Creating' : 'Deleting'} ${step.name}...`,
+          );
           await fn!(trx, filters);
-          console.log(`   ✓ ${step.name} ${operation === 'create' ? 'created' : 'deleted'}`);
+          console.log(
+            `   ✓ ${step.name} ${operation === 'create' ? 'created' : 'deleted'}`,
+          );
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'unknown error';
-          console.error(`   ❌ Failed to ${operation} ${step.name}: ${message}`);
+          const message =
+            error instanceof Error ? error.message : 'unknown error';
+          console.error(
+            `   ❌ Failed to ${operation} ${step.name}: ${message}`,
+          );
           throw error;
         }
       });

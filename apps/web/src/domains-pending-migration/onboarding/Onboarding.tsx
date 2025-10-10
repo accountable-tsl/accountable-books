@@ -53,7 +53,13 @@ export function OnboardingStepPage() {
   }
 
   if (sessionLoading) {
-    return <CenteredLoader fullscreen message="Loading..." showAuthHeader={isLoggedIn} />;
+    return (
+      <CenteredLoader
+        fullscreen
+        message="Loading..."
+        showAuthHeader={isLoggedIn}
+      />
+    );
   }
 
   console.log({ stepInfo, stepKey });
@@ -176,7 +182,12 @@ export function OnboardingStepWrapper({
               sidebarWidth={sidebarWidth}
               showSidebar={showSidebar}
             />
-            <div className={cn('flex overflow-hidden flex-1', isMobile ? 'flex-col' : '')}>
+            <div
+              className={cn(
+                'flex overflow-hidden flex-1',
+                isMobile ? 'flex-col' : '',
+              )}
+            >
               {showSidebar && !isMobile && (
                 <div
                   className={cn(
@@ -198,11 +209,15 @@ export function OnboardingStepWrapper({
                     aria-controls="mobile-onboarding-sidebar"
                   >
                     <Menu className="w-5 h-5" />
-                    <span className="sr-only">Toggle onboarding navigation menu</span>
+                    <span className="sr-only">
+                      Toggle onboarding navigation menu
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-sm">
-                      {currentStepObj && <currentStepObj.icon className="h-4 w-4" />}
+                      {currentStepObj && (
+                        <currentStepObj.icon className="h-4 w-4" />
+                      )}
                     </div>
                     <span className="text-sm">{currentStepObj?.title}</span>
                     <span className="text-xs text-gray-500">
@@ -220,7 +235,10 @@ export function OnboardingStepWrapper({
           </div>
 
           {mobileSidebarOpen && (
-            <MobileOnboardingSidebar steps={steps} onClose={() => setMobileSidebarOpen(false)} />
+            <MobileOnboardingSidebar
+              steps={steps}
+              onClose={() => setMobileSidebarOpen(false)}
+            />
           )}
         </div>
       </>

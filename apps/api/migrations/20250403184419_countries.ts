@@ -25,7 +25,9 @@ const newCountry = z.object({
 
 export type NewCountryInput = z.infer<typeof newCountry>;
 
-export const COUNTRY_MAP = new Map<string, NewCountryInput>(data.map((c) => [c.code, c]));
+export const COUNTRY_MAP = new Map<string, NewCountryInput>(
+  data.map((c) => [c.code, c]),
+);
 
 const tableName = 'countries';
 
@@ -49,7 +51,10 @@ const seedCountries = async function seed(knex: Knex): Promise<void> {
         });
       } else {
         skipped++;
-        console.warn(`Skipped invalid country: ${JSON.stringify(c)}`, result.error);
+        console.warn(
+          `Skipped invalid country: ${JSON.stringify(c)}`,
+          result.error,
+        );
       }
     }
 

@@ -23,7 +23,8 @@ export const BankAccount = ({
     const stored = localStorage.getItem('bankAccountActiveTab');
     return stored === 'connect' || stored === 'upload' ? stored : 'connect';
   });
-  const [bankConnectionOrUploadFailed, setBankConnectionOrUploadFailed] = useState(false);
+  const [bankConnectionOrUploadFailed, setBankConnectionOrUploadFailed] =
+    useState(false);
 
   const bankTxImporterOptions: BankTransactionImportOptions = {
     className: 'p-0 pb-4 gap-3 max-w-3xl mx-auto w-full hidden lg:flex',
@@ -68,7 +69,9 @@ export const BankAccount = ({
             >
               I'll do it later
             </Button>
-            <Button onClick={() => setBankConnectionOrUploadFailed(false)}>Try again</Button>
+            <Button onClick={() => setBankConnectionOrUploadFailed(false)}>
+              Try again
+            </Button>
           </div>
         </div>
       </div>
@@ -90,7 +93,10 @@ export const BankAccount = ({
         <div className="flex-1 min-h-0 overflow-auto scrollbar-thin-2px">
           {activeTab === 'connect' && (
             <TabsContent value="connect">
-              <ConnectBankAccount options={connectBankOptions} onSuccess={navigateToDashboard} />
+              <ConnectBankAccount
+                options={connectBankOptions}
+                onSuccess={navigateToDashboard}
+              />
             </TabsContent>
           )}
 
@@ -110,7 +116,9 @@ export const BankAccount = ({
           className="absolute bottom-0 left-1/2 transform -translate-x-1/2"
           onClick={navigateToDashboard}
         >
-          <span className="text-md hover:underline cursor-pointer">Skip for now</span>
+          <span className="text-md hover:underline cursor-pointer">
+            Skip for now
+          </span>
         </div>
       </Tabs>
     </>

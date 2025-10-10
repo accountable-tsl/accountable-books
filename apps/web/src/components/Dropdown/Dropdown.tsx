@@ -14,7 +14,11 @@ type DropdownProps = {
   onOptionSelected?: (option: Option) => void;
 };
 
-export default function Dropdown({ options, defaultLabel, onOptionSelected }: DropdownProps) {
+export default function Dropdown({
+  options,
+  defaultLabel,
+  onOptionSelected,
+}: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const [selectedOption, setSelectedOption] = useState({
@@ -33,7 +37,10 @@ export default function Dropdown({ options, defaultLabel, onOptionSelected }: Dr
   const dropdownRef = useRef(null);
 
   const handleOutsideClick = (event: MouseEvent) => {
-    if (dropdownRef.current && !event.composedPath().includes(dropdownRef.current)) {
+    if (
+      dropdownRef.current &&
+      !event.composedPath().includes(dropdownRef.current)
+    ) {
       setIsOpen(false);
     }
   };
@@ -59,7 +66,9 @@ export default function Dropdown({ options, defaultLabel, onOptionSelected }: Dr
       </div>
 
       {isOpen && (
-        <div className={`dropdown-options ${isOpen ? 'dropdown-options--open' : ''}`}>
+        <div
+          className={`dropdown-options ${isOpen ? 'dropdown-options--open' : ''}`}
+        >
           {options.map((option) => (
             <div
               className="dropdown-option"

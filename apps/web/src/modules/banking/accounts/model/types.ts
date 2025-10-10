@@ -66,7 +66,8 @@ export const bankAccountWithMeta = z.object({
   id: z.uuid(),
   displayName: z.string(),
   accountType: bankAccountType,
-  accountNumber: z.string(),
+  mask: z.string(),
+  balance: z.number().optional(),
 
   bankId: z.uuid(),
   bankName: z.string(),
@@ -88,6 +89,8 @@ export const bankAccountWithMeta = z.object({
   coaCode: z.string().optional(),
   coaTypeKey: z.string().optional(),
   coaTypeLabel: z.string().optional(),
+  connectionCredentialId: z.string().optional(),
+  lastSyncAt: z.date().optional(),
 });
 export type BankAccountWithMeta = z.infer<typeof bankAccountWithMeta>;
 
@@ -97,10 +100,14 @@ export const bankAccountConnectionStatus = z.enum([
   'error',
   'not_connected',
 ]);
-export type BankAccountConnectionStatus = z.infer<typeof bankAccountConnectionStatus>;
+export type BankAccountConnectionStatus = z.infer<
+  typeof bankAccountConnectionStatus
+>;
 
 export const businessOrPersonalAccount = z.enum(['business', 'personal']);
-export type BusinessOrPersonalAccount = z.infer<typeof businessOrPersonalAccount>;
+export type BusinessOrPersonalAccount = z.infer<
+  typeof businessOrPersonalAccount
+>;
 
 export const updateBankAccount = z
   .object({

@@ -3,6 +3,12 @@ import { redis } from '../../lib/redis.js';
 import type { Job } from 'bullmq';
 import pino from 'pino';
 import { transactionSyncService } from '../../integrations/banking/services/transactionSync.service.js';
+import { getAllActiveCredentials } from '../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
+import {
+  scheduleTransactionSync,
+  scheduleDailySyncScan,
+} from '../queues/transaction-sync.queue.js';
+import { ENV } from '../../config/env.js';
 
 const logger = pino();
 
@@ -24,16 +30,18 @@ export interface BulkSyncJobData {
 
 // Optimized worker settings for transaction sync
 // Even more conservative than email worker since transactions sync less frequently
-const TRANSACTION_SYNC_WORKER_OPTIONS = {
-  connection: redis,
-  concurrency: 3, // Process 3 connections simultaneously
-  // Very conservative settings for transaction sync
-  drainDelay: 600, // Wait 10 minutes when queue is empty
-  stalledInterval: 600000, // Check stalled jobs every 10 minutes
-  maxStalledCount: 2, // Allow 2 retries for stalled jobs
-  lockDuration: 120000, // 2 minute job lock (transactions can take time)
-  lockRenewTime: 60000, // Renew lock every minute
-};
+function buildTransactionSyncWorkerOptions(concurrency: number) {
+  return {
+    connection: redis,
+    concurrency, // Configurable per environment
+    // Very conservative settings for transaction sync
+    drainDelay: 600, // Wait 10 minutes when queue is empty
+    stalledInterval: 600000, // Check stalled jobs every 10 minutes
+    maxStalledCount: 2, // Allow 2 retries for stalled jobs
+    lockDuration: 120000, // 2 minute job lock (transactions can take time)
+    lockRenewTime: 60000, // Renew lock every minute
+  } as const;
+}
 
 // Transaction sync job processor
 async function processTransactionSyncJob(
@@ -64,9 +72,8 @@ async function processTransactionSyncJob(
         break;
       }
 
-      case 'periodic-sync': {
-        const data = job.data as TransactionSyncJobData;
-        await periodicSync(job as Job<TransactionSyncJobData>, data);
+      case 'daily-sync-scan': {
+        await dailySyncScan(job);
         break;
       }
 
@@ -203,42 +210,97 @@ async function syncBulkConnections(
   }
 }
 
-// Periodic sync for all connections
-async function periodicSync(
-  job: Job<TransactionSyncJobData>,
-  data: TransactionSyncJobData,
-) {
-  logger.info(
-    {
-      companyId: data.companyId,
-    },
-    'Running periodic transaction sync',
-  );
+// Daily scan: find all active credentials and enqueue sync jobs for each
+async function dailySyncScan(job: Job) {
+  logger.info('Running daily sync scan for all active credentials');
 
-  // TODO: Get all active connections for the company
-  // const connections = await getActiveConnectionsForCompany(data.companyId);
+  await job.updateProgress(10);
 
-  await job.updateProgress(50);
+  try {
+    // Get all active credentials
+    const credentials = await getAllActiveCredentials();
 
-  // TODO: Queue individual sync jobs for each connection
-  // This distributes the load and allows for better error handling
+    logger.info(
+      { credentialCount: credentials.length },
+      'Found active credentials for daily sync',
+    );
 
-  await job.updateProgress(100);
+    await job.updateProgress(30);
 
-  logger.info(
-    {
-      companyId: data.companyId,
-    },
-    'Periodic sync queuing completed',
-  );
+    // Enqueue sync job for each credential
+    const enqueuePromises = credentials.map(async (credential, index) => {
+      try {
+        await scheduleTransactionSync({
+          credentialId: credential.id,
+          companyId: credential.company_id,
+          userId: 'system', // System-initiated
+          syncType: 'periodic',
+        });
+
+        // Update progress as we go
+        const progress = 30 + Math.round((index / credentials.length) * 60);
+        await job.updateProgress(progress);
+
+        return { credentialId: credential.id, success: true };
+      } catch (error) {
+        logger.error(
+          {
+            credentialId: credential.id,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'Failed to enqueue sync for credential',
+        );
+        return { credentialId: credential.id, success: false, error };
+      }
+    });
+
+    const results = await Promise.all(enqueuePromises);
+    const successful = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+
+    await job.updateProgress(100);
+
+    logger.info(
+      {
+        totalCredentials: credentials.length,
+        successful,
+        failed,
+      },
+      'Daily sync scan completed',
+    );
+
+    if (failed > 0) {
+      logger.warn(
+        {
+          totalCredentials: credentials.length,
+          successful,
+          failed,
+          failedCredentials: results
+            .filter((r) => !r.success)
+            .map((r) => r.credentialId),
+        },
+        'Daily sync scan completed with some failures - continuing with successful credentials',
+      );
+      // Don't throw - let successful credentials proceed
+      // Failed credentials will be retried on the next daily scan
+    }
+  } catch (error) {
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+      'Daily sync scan failed',
+    );
+    throw error;
+  }
 }
 
 // Worker startup function
-export function startTransactionSyncWorker() {
+export function startTransactionSyncWorker(concurrency = 3) {
   const worker = new Worker(
     'transaction-sync',
     processTransactionSyncJob,
-    TRANSACTION_SYNC_WORKER_OPTIONS,
+    buildTransactionSyncWorkerOptions(concurrency),
   );
 
   // Event handlers
@@ -274,8 +336,23 @@ export function startTransactionSyncWorker() {
     );
   });
 
-  worker.on('ready', () => {
+  worker.on('ready', async () => {
     logger.info('Transaction sync worker ready with optimized Redis settings');
+
+    // Schedule the daily scan job on worker startup using environment-configured cron pattern
+    try {
+      const cronPattern = ENV.TRANSACTION_SYNC_CRON || '0 2 * * *';
+      await scheduleDailySyncScan(cronPattern);
+      logger.info(
+        { cronPattern },
+        'Daily sync scan job scheduled with cron pattern',
+      );
+    } catch (error) {
+      logger.error(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Failed to schedule daily sync scan job',
+      );
+    }
   });
 
   worker.on('error', (err) => {

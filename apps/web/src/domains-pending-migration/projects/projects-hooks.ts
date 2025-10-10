@@ -4,7 +4,10 @@ import type {
 } from '@/domains-pending-migration/projects/projects-types';
 import { queryClient } from '@/lib/queryClient';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { addNewProjects, fetchProjects } from '@/domains-pending-migration/projects/projects-api';
+import {
+  addNewProjects,
+  fetchProjects,
+} from '@/domains-pending-migration/projects/projects-api';
 import { toast } from 'sonner';
 
 const CACHE_TIMES = {
@@ -44,7 +47,13 @@ export const useFetchProjects = (input: FetchProjectsParams) => {
 
 export const useCreateProjects = () => {
   return useMutation({
-    mutationFn: ({ companyId, data }: { companyId: string; data: NewProject[] }) => {
+    mutationFn: ({
+      companyId,
+      data,
+    }: {
+      companyId: string;
+      data: NewProject[];
+    }) => {
       return addNewProjects({ companyId, data });
     },
     onSuccess: (response, variables) => {

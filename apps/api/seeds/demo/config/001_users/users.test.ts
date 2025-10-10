@@ -66,7 +66,9 @@ describe('Users Data', () => {
  * @param existingUsers - Array of users that should appear as already existing in the database
  * @returns Mock transaction that can be passed to createDemoUsers function
  */
-const createMockTransaction = (existingUsers: { email: string }[] = []): Knex.Transaction => {
+const createMockTransaction = (
+  existingUsers: { email: string }[] = [],
+): Knex.Transaction => {
   // Create a mock query builder
   const mockQueryBuilder = {
     whereIn: vi.fn().mockReturnThis(),
@@ -182,7 +184,9 @@ describe('createDemoUsers', () => {
 
   test('should skip users that already exist', async () => {
     // Mock transaction that returns US user as already existing
-    const mockTransaction = createMockTransaction([{ email: 'demo.us@example.com' }]);
+    const mockTransaction = createMockTransaction([
+      { email: 'demo.us@example.com' },
+    ]);
 
     await createDemoUsers(mockTransaction);
 
@@ -217,7 +221,8 @@ describe('deleteDemoUsers', () => {
   });
 
   test('should delete all demo users when no filters provided', async () => {
-    const { transaction, mockWhere, mockDelete } = createMockDeleteTransaction();
+    const { transaction, mockWhere, mockDelete } =
+      createMockDeleteTransaction();
 
     // When no filters provided, should delete all demo users
     await deleteDemoUsers(transaction);
@@ -227,7 +232,8 @@ describe('deleteDemoUsers', () => {
   });
 
   test('should delete specific country users when safe to do so', async () => {
-    const { transaction, mockWhereIn, mockDelete } = createMockDeleteTransaction();
+    const { transaction, mockWhereIn, mockDelete } =
+      createMockDeleteTransaction();
 
     // Should delete US user when only US country is specified (complete country deletion)
     await deleteDemoUsers(transaction, { countryCodes: ['US'] });

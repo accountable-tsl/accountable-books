@@ -14,7 +14,7 @@ export const newAccountType = z.object({
   key: z.string().max(64),
   label: z.string().max(256),
   description: z.string().max(512).nullish(),
-  account_element_id: z.string().uuid(),
+  account_element_id: z.uuid(),
   report_code: z
     .string()
     .regex(
@@ -22,6 +22,7 @@ export const newAccountType = z.object({
       'Report code must follow BS|IS.XXX.XXX.XXX or BS|IS.XXX.XXX.XXX.XXX format',
     )
     .max(64),
+  default_monetary: z.boolean().default(false).optional(),
 });
 
 type AccountTypeWithRequiredReportCode = z.infer<typeof newAccountType>;
@@ -49,7 +50,8 @@ const defaultNonCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'nca_ppe_contra',
     label: 'Contra Property, Plant, Equipment',
     account_element_id: accountElementIds.contraAsset,
-    description: 'Cumulative depreciation of Property, Plant, and Equipment over their useful life',
+    description:
+      'Cumulative depreciation of Property, Plant, and Equipment over their useful life',
     report_code: 'BS.ASS.NCA.PPE.CTR',
   },
   {
@@ -66,7 +68,8 @@ const defaultNonCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'nca_investment_property_contra',
     label: 'Contra Investment Property',
     account_element_id: accountElementIds.contraAsset,
-    description: 'Cumulative depreciation of Property, Plant, and Equipment over their useful life',
+    description:
+      'Cumulative depreciation of Property, Plant, and Equipment over their useful life',
     report_code: 'BS.ASS.NCA.PPE.CTR',
   },
   {
@@ -74,7 +77,8 @@ const defaultNonCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'nca_rou_asset',
     label: 'Right-of-Use Assets',
     account_element_id: accountElementIds.nonCurrentAsset,
-    description: 'Right-of-use assets from long-term lease agreements under IFRS 16 or ASC 842',
+    description:
+      'Right-of-use assets from long-term lease agreements under IFRS 16 or ASC 842',
     report_code: 'BS.ASS.NCA.ROU',
   },
   {
@@ -90,7 +94,8 @@ const defaultNonCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'nca_intangible_asset',
     label: 'Intangible Assets',
     account_element_id: accountElementIds.nonCurrentAsset,
-    description: 'Non-physical long-term assets such as patents, trademarks, and goodwill',
+    description:
+      'Non-physical long-term assets such as patents, trademarks, and goodwill',
     report_code: 'BS.ASS.NCA.INT',
   },
   {
@@ -98,7 +103,8 @@ const defaultNonCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'nca_intangible_asset_contra',
     label: 'Contra Intangible Assets',
     account_element_id: accountElementIds.contraAsset,
-    description: 'Cumulative amortization of intangible assets over their useful life',
+    description:
+      'Cumulative amortization of intangible assets over their useful life',
     report_code: 'BS.ASS.NCA.INT.CTR',
   },
   {
@@ -120,21 +126,25 @@ const defaultCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     account_element_id: accountElementIds.currentAsset,
     description: 'Ledger for cash held in company bank accounts, petty cash',
     report_code: 'BS.ASS.CUR.BNK',
+    default_monetary: true,
   },
   {
     id: '4a5d0024-6234-4982-809c-f16e3be7f379',
     key: 'ca_cash_equivalent',
     label: 'Cash Equivalents',
     account_element_id: accountElementIds.currentAsset,
-    description: 'Short-term, highly liquid investments that are readily convertible to cash',
+    description:
+      'Short-term, highly liquid investments that are readily convertible to cash',
     report_code: 'BS.ASS.CUR.CEQ',
+    default_monetary: true,
   },
   {
     id: '10149b24-6827-475d-a657-77497c0856a0',
     key: 'ca_inventory',
     label: 'Inventory',
     account_element_id: accountElementIds.currentAsset,
-    description: 'Goods held for sale, raw materials, work-in-progress, and finished goods',
+    description:
+      'Goods held for sale, raw materials, work-in-progress, and finished goods',
     report_code: 'BS.ASS.CUR.INV',
   },
   {
@@ -154,6 +164,7 @@ const defaultCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     description:
       'Amounts owed to the company by customers for goods or services provided on credit',
     report_code: 'BS.ASS.CUR.TRC',
+    default_monetary: true,
   },
   {
     id: '083d362e-2715-4556-922a-c86a6966bb98',
@@ -178,7 +189,8 @@ const defaultCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'ca_prepayment',
     label: 'Prepayments',
     account_element_id: accountElementIds.currentAsset,
-    description: 'Expenses paid in advance for future goods or services, such as insurance or rent',
+    description:
+      'Expenses paid in advance for future goods or services, such as insurance or rent',
     report_code: 'BS.ASS.CUR.PRP',
   },
   {
@@ -188,6 +200,7 @@ const defaultCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     account_element_id: accountElementIds.currentAsset,
     description: 'Loans to directors, staff salary advances etc',
     report_code: 'BS.ASS.CUR.RPA',
+    default_monetary: true,
   },
   {
     id: '176abf7d-d7d2-46fe-8981-5f3e1ddcf880',
@@ -197,6 +210,7 @@ const defaultCurrentAssetTypes: AccountTypeWithRequiredReportCode[] = [
     description:
       'Any other amounts owed to the company outside of trade receivables, such as tax refunds, interest receivables, or employee advances',
     report_code: 'BS.ASS.CUR.OTR',
+    default_monetary: true,
   },
   {
     id: '140e3f60-337b-4bf2-b42d-3c7f37dea88f',
@@ -214,15 +228,18 @@ const defaultNonCurrentLiabilityTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'ncl_long_term_debt',
     label: 'Long-Term Debt',
     account_element_id: accountElementIds.nonCurrentLiabilities,
-    description: 'Borrowed funds due beyond one year, such as mortgages or long-term bank loans',
+    description:
+      'Borrowed funds due beyond one year, such as mortgages or long-term bank loans',
     report_code: 'BS.LIA.NCL.DBT',
+    default_monetary: true,
   },
   {
     id: '5d8a18a7-477a-402c-8aca-f067cfe65520',
     key: 'ncl_long_term_debt_contra',
     label: 'Debt Discounts',
     account_element_id: accountElementIds.contraLiabilities,
-    description: 'Contra-liability reducing the carrying value of long-term debt',
+    description:
+      'Contra-liability reducing the carrying value of long-term debt',
     report_code: 'BS.LIA.NCL.DBT.CTR',
   },
   {
@@ -232,6 +249,7 @@ const defaultNonCurrentLiabilityTypes: AccountTypeWithRequiredReportCode[] = [
     account_element_id: accountElementIds.nonCurrentLiabilities,
     description: 'Long-term lease obligations under IFRS 16 / ASC 842',
     report_code: 'BS.LIA.NCL.LSE',
+    default_monetary: true,
   },
   {
     id: 'd01e3dfc-553b-4846-bd44-1078f94c43ee',
@@ -252,6 +270,7 @@ const defaultCurrentLiabilityTypes: AccountTypeWithRequiredReportCode[] = [
     description:
       'Amounts owed by the company to suppliers for goods or services purchased on credit',
     report_code: 'BS.LIA.CUR.TRP',
+    default_monetary: true,
   },
   {
     id: 'be425527-419e-4f1c-9ab6-61eae841758d',
@@ -261,6 +280,7 @@ const defaultCurrentLiabilityTypes: AccountTypeWithRequiredReportCode[] = [
     description:
       'Expenses incurred but not yet invoiced or paid, such as salaries payable, utilities, or interest owed',
     report_code: 'BS.LIA.CUR.ACC',
+    default_monetary: true,
   },
   {
     id: '00ec4957-593e-47e9-b231-c7bab4c32a0d',
@@ -270,6 +290,7 @@ const defaultCurrentLiabilityTypes: AccountTypeWithRequiredReportCode[] = [
     description:
       'Short-term obligations that do not fall under trade or accrued expenses, including statutory liabilities and sundry payables',
     report_code: 'BS.LIA.CUR.OPY',
+    default_monetary: true,
   },
   {
     id: 'f7e721d0-9912-402e-8746-7e9ef55f6cde',
@@ -287,21 +308,25 @@ const defaultCurrentLiabilityTypes: AccountTypeWithRequiredReportCode[] = [
     account_element_id: accountElementIds.currentLiabilities,
     description: 'Director loans, shareholder funding',
     report_code: 'BS.LIA.CUR.RPL',
+    default_monetary: true,
   },
   {
     id: '7780f7f0-ad31-44b7-acd1-d39a0a6c01a1',
     key: 'cl_short_term_debt',
     label: 'Short-Term Debt',
     account_element_id: accountElementIds.currentLiabilities,
-    description: 'Borrowings due within one year, such as bank overdrafts, short-term credit lines',
+    description:
+      'Borrowings due within one year, such as bank overdrafts, short-term credit lines',
     report_code: 'BS.LIA.CUR.STD',
+    default_monetary: true,
   },
   {
     id: 'de69a07e-18f4-49b9-9bc8-265cffd6ca14',
     key: 'cl_short_term_debt_contra',
     label: 'Debt Discounts - Short-Term Debt',
     account_element_id: accountElementIds.contraLiabilities,
-    description: 'Contra-liability reducing the carrying value of short-term debt',
+    description:
+      'Contra-liability reducing the carrying value of short-term debt',
     report_code: 'BS.LIA.CUR.STD.CTR',
   },
   {
@@ -311,6 +336,7 @@ const defaultCurrentLiabilityTypes: AccountTypeWithRequiredReportCode[] = [
     account_element_id: accountElementIds.currentLiabilities,
     description: 'Tax obligations due within one year',
     report_code: 'BS.LIA.CUR.TAX',
+    default_monetary: true,
   },
   {
     id: '105e8efd-77e4-4572-8dc6-c56d404ce018',
@@ -319,6 +345,7 @@ const defaultCurrentLiabilityTypes: AccountTypeWithRequiredReportCode[] = [
     account_element_id: accountElementIds.currentLiabilities,
     description: 'Principal due within one year on long-term borrowings',
     report_code: 'BS.LIA.CUR.CPF',
+    default_monetary: true,
   },
   {
     id: '7a9cea0c-223f-4854-8344-1ceee1436ed3',
@@ -335,7 +362,8 @@ const defaultEquityTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'eq_contributed_capital',
     label: 'Contributed Capital',
     account_element_id: accountElementIds.capital,
-    description: 'Share capital, premium, APIC, other direct contributions from owners',
+    description:
+      'Share capital, premium, APIC, other direct contributions from owners',
     report_code: 'BS.EQU.CAP.CAP',
   },
   {
@@ -343,7 +371,8 @@ const defaultEquityTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'eq_retained_earnings',
     label: 'Retained Earnings',
     account_element_id: accountElementIds.reserves,
-    description: 'Accumulated net income retained in the business after dividends are paid',
+    description:
+      'Accumulated net income retained in the business after dividends are paid',
     report_code: 'BS.EQU.RES.RET',
   },
   {
@@ -386,7 +415,8 @@ const defaultIncomeTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'rev_finance_income',
     label: 'Finance Income',
     account_element_id: accountElementIds.otherIncome,
-    description: 'Non-operating Interest earned, dividends, gains on financial instruments',
+    description:
+      'Non-operating Interest earned, dividends, gains on financial instruments',
     report_code: 'IS.INC.OTH.FIN',
   },
   {
@@ -394,7 +424,8 @@ const defaultIncomeTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'rev_other_income',
     label: 'Other Income',
     account_element_id: accountElementIds.otherIncome,
-    description: 'Miscellaneous income such as asset sales, grants, or one-time gains',
+    description:
+      'Miscellaneous income such as asset sales, grants, or one-time gains',
     report_code: 'IS.INC.OTH.OTH',
   },
 ];
@@ -404,7 +435,8 @@ const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'exp_cos',
     label: 'Cost of sales',
     account_element_id: accountElementIds.costOfSales,
-    description: 'Direct costs incurred in the production or acquisition of goods sold',
+    description:
+      'Direct costs incurred in the production or acquisition of goods sold',
     report_code: 'IS.EXP.COS.COS',
   },
   {
@@ -421,7 +453,8 @@ const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'exp_opex_marketing_selling',
     label: 'Marketing and Selling',
     account_element_id: accountElementIds.opex,
-    description: "Costs associated with promoting the company's products or services",
+    description:
+      "Costs associated with promoting the company's products or services",
     report_code: 'IS.EXP.OPX.MKT',
   },
   {
@@ -464,7 +497,8 @@ const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'exp_opex_professional_fees',
     label: 'Professional Fees',
     account_element_id: accountElementIds.opex,
-    description: 'Fees paid to external professionals, such as lawyers and consultants',
+    description:
+      'Fees paid to external professionals, such as lawyers and consultants',
     report_code: 'IS.EXP.OPX.PRF',
   },
   {
@@ -481,7 +515,8 @@ const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'exp_opex_software_subscriptions',
     label: 'IT Software, Subscriptions and Consumables',
     account_element_id: accountElementIds.opex,
-    description: 'Costs of cloud software, SaaS tools, licensing fees and general IT consumables',
+    description:
+      'Costs of cloud software, SaaS tools, licensing fees and general IT consumables',
     report_code: 'IS.EXP.OPX.SFT',
   },
   {
@@ -489,7 +524,8 @@ const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'exp_opex_travel',
     label: 'Transport and Travel',
     account_element_id: accountElementIds.opex,
-    description: 'Expenses related to employee transportation and business travel',
+    description:
+      'Expenses related to employee transportation and business travel',
     report_code: 'IS.EXP.OPX.TRV',
   },
   {
@@ -515,7 +551,8 @@ const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'exp_opex_other',
     label: 'Other Administrative Expenses',
     account_element_id: accountElementIds.opex,
-    description: 'Miscellaneous expenses related to the general running of the business',
+    description:
+      'Miscellaneous expenses related to the general running of the business',
     report_code: 'IS.EXP.OPX.OTH',
   },
   {
@@ -523,7 +560,8 @@ const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     key: 'exp_nopex_finance_costs',
     label: 'Finance Costs',
     account_element_id: accountElementIds.nonOpex,
-    description: 'Costs incurred from borrowing funds, including interest and other charges',
+    description:
+      'Costs incurred from borrowing funds, including interest and other charges',
     report_code: 'IS.EXP.NOP.FIN',
   },
   {
@@ -581,6 +619,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('account_elements')
       .onDelete('RESTRICT');
 
+    table.boolean('default_monetary').notNullable().defaultTo(false);
     addStandardColumns(knex, table);
 
     table.index(['account_element_id'], 'account_type_element_idx');

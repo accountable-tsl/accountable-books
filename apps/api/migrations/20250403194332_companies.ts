@@ -25,12 +25,13 @@ export const buildPlatformCompany = (adminUserId: string) => ({
   display_name: 'Accountable HQ',
   type: 'accounting_firm',
   country_id: '84258bff-b7ab-4d9f-83f5-1bd1f4e39ace',
+  default_timezone: 'Africa/Lagos',
   reporting_currency_id: '1d6a1e31-7e36-4eab-94e1-42f2173ea972',
   created_by_id: adminUserId,
-
   short_code: ENV.PLATFORM_COMPANY_SHORT_CODE || 'platform',
   website: 'getaccountable.com',
-  logo_url: ENV.PLATFORM_COMPANY_LOGO_URL || `${ENV.BACKEND_URL}/accountable-logo.png`,
+  logo_url:
+    ENV.PLATFORM_COMPANY_LOGO_URL || `${ENV.BACKEND_URL}/accountable-logo.png`,
   year_end_day: 31,
   year_end_month: 12,
   reporting_framework: 'ifrs',
@@ -41,7 +42,9 @@ export const buildPlatformCompany = (adminUserId: string) => ({
 
 export const createPlatformCompany = async (knex: Knex) => {
   if (isProd && !process.env.CONFIRM_PLATFORM_SETUP) {
-    throw new Error('Must set CONFIRM_PLATFORM_SETUP=yes to create platform company');
+    throw new Error(
+      'Must set CONFIRM_PLATFORM_SETUP=yes to create platform company',
+    );
   }
 
   if (!adminUser.id) throw new Error('adminUserId is required');
@@ -58,12 +61,15 @@ export const createPlatformCompany = async (knex: Knex) => {
       return existingPlatformCompany;
     }
 
-    if (!platformCompany.legal_name) throw new Error('PLATFORM_COMPANY_NAME must be set');
+    if (!platformCompany.legal_name)
+      throw new Error('PLATFORM_COMPANY_NAME must be set');
 
     if (platformCompany.type !== 'accounting_firm')
       throw new Error('PLATFORM_COMPANY_TYPE must be set to accounting_firm');
 
-    const [inserted] = await knex(tableName).insert(platformCompany).returning('*');
+    const [inserted] = await knex(tableName)
+      .insert(platformCompany)
+      .returning('*');
     console.log(`Created platform company: ${platformCompany.legal_name}`);
     return inserted;
   });
@@ -102,6 +108,7 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('countries')
       .onDelete('RESTRICT');
+    table.text('default_timezone').notNullable().defaultTo('Etc/UTC');
 
     table
       .uuid('reporting_currency_id')
@@ -130,6 +137,9 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
+  await knex.raw(
+    `ALTER TABLE companies ADD CONSTRAINT companies_tz_chk CHECK (default_timezone ~ '^[A-Za-z]+/[A-Za-z_]+$')`,
+  );
   // await createPlatformCompany(knex);
 
   // Update last_active_company_id column in users table

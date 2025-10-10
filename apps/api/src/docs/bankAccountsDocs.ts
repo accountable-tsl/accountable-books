@@ -107,7 +107,13 @@ export const bankAccountSchemas = {
   },
   BankAccountInput: {
     type: 'object',
-    required: ['bankId', 'displayName', 'bankAccountType', 'bankAccountNo', 'currencyId'],
+    required: [
+      'bankId',
+      'displayName',
+      'bankAccountType',
+      'bankAccountNo',
+      'currencyId',
+    ],
     properties: {
       bankId: { type: 'integer' },
       displayName: { type: 'string' },

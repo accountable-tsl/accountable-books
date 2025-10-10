@@ -10,7 +10,11 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
 
@@ -18,13 +22,18 @@ interface DataTableViewOptionsProps<TData> {
   table: Table<TData>;
 }
 
-export function DataTableViewOptions<TData>({ table }: DataTableViewOptionsProps<TData>) {
+export function DataTableViewOptions<TData>({
+  table,
+}: DataTableViewOptionsProps<TData>) {
   const columns = React.useMemo(
     () =>
       table
         .getAllColumns()
         .filter((col) => col.columnDef.meta?.hidden !== true)
-        .filter((column) => typeof column.accessorFn !== 'undefined' && column.getCanHide()),
+        .filter(
+          (column) =>
+            typeof column.accessorFn !== 'undefined' && column.getCanHide(),
+        ),
     [table],
   );
 
@@ -52,7 +61,9 @@ export function DataTableViewOptions<TData>({ table }: DataTableViewOptionsProps
               {columns.map((column) => (
                 <CommandItem
                   key={column.id}
-                  onSelect={() => column.toggleVisibility(!column.getIsVisible())}
+                  onSelect={() =>
+                    column.toggleVisibility(!column.getIsVisible())
+                  }
                 >
                   <span className="truncate">
                     {column.columnDef.meta?.label ?? toTitleCase(column.id)}

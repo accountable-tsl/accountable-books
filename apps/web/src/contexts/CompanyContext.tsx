@@ -53,7 +53,9 @@ export const CompanyProvider = ({
   }, [companyId]);
 
   return (
-    <CompanyContext.Provider value={{ companyId, company, setCompanyId, isLoading, error }}>
+    <CompanyContext.Provider
+      value={{ companyId, company, setCompanyId, isLoading, error }}
+    >
       {children}
     </CompanyContext.Provider>
   );

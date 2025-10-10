@@ -16,7 +16,9 @@ import {
  * don't exist during data insertion.
  */
 
-async function processPartitionMaintenanceJob(job: Job<PartitionMaintenanceJobData>) {
+async function processPartitionMaintenanceJob(
+  job: Job<PartitionMaintenanceJobData>,
+) {
   const { type, tableName, year, options } = job.data;
 
   console.log(`🗂️  Processing partition maintenance job: ${type}`, {
@@ -43,7 +45,9 @@ async function processPartitionMaintenanceJob(job: Job<PartitionMaintenanceJobDa
           throw new Error('Manual year creation requires tableName and year');
         }
         await ensureYearPartition(tableName, year);
-        console.log(`✅ Manual partition created for ${tableName} year ${year}`);
+        console.log(
+          `✅ Manual partition created for ${tableName} year ${year}`,
+        );
         break;
 
       default:
@@ -59,14 +63,18 @@ async function processPartitionMaintenanceJob(job: Job<PartitionMaintenanceJobDa
  * Start the partition maintenance worker
  */
 export function startPartitionMaintenanceWorker(): Worker {
-  const worker = new Worker('partition-maintenance', processPartitionMaintenanceJob, {
-    connection: redis,
-    concurrency: 1, // Process partition maintenance jobs one at a time
-    // Conservative settings since partition maintenance is not time-critical
-    drainDelay: 1800, // 30 minutes - very conservative since these are maintenance jobs
-    stalledInterval: 1800000, // 30 minutes between stalled checks
-    maxStalledCount: 1, // Only allow 1 stalled job before considering it failed
-  });
+  const worker = new Worker(
+    'partition-maintenance',
+    processPartitionMaintenanceJob,
+    {
+      connection: redis,
+      concurrency: 1, // Process partition maintenance jobs one at a time
+      // Conservative settings since partition maintenance is not time-critical
+      drainDelay: 1800, // 30 minutes - very conservative since these are maintenance jobs
+      stalledInterval: 1800000, // 30 minutes between stalled checks
+      maxStalledCount: 1, // Only allow 1 stalled job before considering it failed
+    },
+  );
 
   // Worker event handlers
   worker.on('ready', () => {
@@ -81,9 +89,15 @@ export function startPartitionMaintenanceWorker(): Worker {
     console.log(`✅ Partition job completed: ${job.data.type} (${job.id})`);
   });
 
-  worker.on('failed', (job: Job<PartitionMaintenanceJobData> | undefined, err: Error) => {
-    console.error(`❌ Partition job failed: ${job?.data.type} (${job?.id})`, err);
-  });
+  worker.on(
+    'failed',
+    (job: Job<PartitionMaintenanceJobData> | undefined, err: Error) => {
+      console.error(
+        `❌ Partition job failed: ${job?.data.type} (${job?.id})`,
+        err,
+      );
+    },
+  );
 
   worker.on('stalled', (jobId: string) => {
     console.warn(`⚠️  Partition job stalled: ${jobId}`);

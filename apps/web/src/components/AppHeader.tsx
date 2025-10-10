@@ -13,7 +13,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { cn } from '@/lib/utils';
 import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
 import { CompanySwitcher } from '@/domains-pending-migration/switchCompany/CompanySwitcher';
-import type { CompanyData } from '@/domains-pending-migration/company/types';
+import type { CompanyData } from '@/modules/company/companies';
 
 type BreadcrumbItem = {
   label: string;
@@ -41,7 +41,10 @@ export function AppHeader({ company }: AppHeaderProps) {
     >
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2">
         <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+        <Separator
+          orientation="vertical"
+          className="mr-2 data-[orientation=vertical]:h-4"
+        />
         <Breadcrumb>
           <BreadcrumbList>
             {breadcrumbs.map((item, index) => (
@@ -50,7 +53,9 @@ export function AppHeader({ company }: AppHeaderProps) {
                   {index === breadcrumbs.length - 1 ? (
                     <BreadcrumbPage>{item.label}</BreadcrumbPage>
                   ) : (
-                    <BreadcrumbLink href={item.link}>{item.label}</BreadcrumbLink>
+                    <BreadcrumbLink href={item.link}>
+                      {item.label}
+                    </BreadcrumbLink>
                   )}
                 </BreadcrumbItem>
                 {index < breadcrumbs.length - 1 && (
@@ -69,7 +74,9 @@ export function AppHeader({ company }: AppHeaderProps) {
             <span className="text-destructive">
               {company?.isDemoCompany ? 'Demo Company → ' : ''}
             </span>
-            {company?.displayName || company?.legalName || 'No Company Selected'}
+            {company?.displayName ||
+              company?.legalName ||
+              'No Company Selected'}
           </strong>
           <span>{company?.countryFlag}</span>
         </div>
@@ -100,7 +107,9 @@ export function BodyHead({
   return (
     <div className={cn('flex flex-col', className)}>
       <h2 className={cn('font-medium tracking-tight', titleClass)}>{title}</h2>
-      <p className={cn('text-muted-foreground text-sm', descriptionClass)}>{description}</p>
+      <p className={cn('text-muted-foreground text-sm', descriptionClass)}>
+        {description}
+      </p>
     </div>
   );
 }

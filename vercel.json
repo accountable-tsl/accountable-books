@@ -11,8 +11,8 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "feature*": false,
-      "fix*": false,
+      "feature/*": false,
+      "fix/*": false,
       "develop": false,
       "staging": true
     }

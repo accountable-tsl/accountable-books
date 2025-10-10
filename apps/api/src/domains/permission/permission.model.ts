@@ -1,8 +1,14 @@
 import { knexClient } from '../../db/knexClient.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { AppError, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  AppError,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 
-export async function getPermissionsForRole(roleId: string): Promise<ApiResponse> {
+export async function getPermissionsForRole(
+  roleId: string,
+): Promise<ApiResponse> {
   try {
     const results = await knexClient('roles_permissions')
       .join('permissions', 'roles_permissions.permission_id', 'permissions.id')

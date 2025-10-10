@@ -168,7 +168,11 @@ describe('Type Validation', () => {
   });
 
   test('DemoCompanyType should only accept valid company types', () => {
-    const validTypes: DemoCompanyType[] = ['individual', 'business', 'accounting_firm'];
+    const validTypes: DemoCompanyType[] = [
+      'individual',
+      'business',
+      'accounting_firm',
+    ];
     validTypes.forEach((type) => {
       expect(Object.values(COMPANY_TYPES)).toContain(type);
     });
@@ -196,7 +200,11 @@ describe('Configuration Consistency', () => {
   test('configuration objects should maintain their structure', () => {
     // Test that the objects have expected properties and structure
     expect(Object.keys(COUNTRY_CODES)).toEqual(['US', 'NG']);
-    expect(Object.keys(COMPANY_TYPES)).toEqual(['INDIVIDUAL', 'BUSINESS', 'ACCOUNTING_FIRM']);
+    expect(Object.keys(COMPANY_TYPES)).toEqual([
+      'INDIVIDUAL',
+      'BUSINESS',
+      'ACCOUNTING_FIRM',
+    ]);
     expect(Object.keys(CURRENCY_CODES)).toEqual(['USD', 'NGN']);
   });
 

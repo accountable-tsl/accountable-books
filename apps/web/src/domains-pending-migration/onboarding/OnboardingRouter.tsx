@@ -23,7 +23,13 @@ export function OnboardingRouter() {
   const hasTokenVerificationParams = !!verificationToken && !!userIdFromUrl;
 
   if (loading) {
-    return <CenteredLoader fullscreen message="Loading..." showAuthHeader={!isLoggedIn} />;
+    return (
+      <CenteredLoader
+        fullscreen
+        message="Loading..."
+        showAuthHeader={!isLoggedIn}
+      />
+    );
   }
 
   if (!isLoggedIn || !user) {
@@ -48,5 +54,10 @@ export function OnboardingRouter() {
     return <ErrorPage />;
   }
 
-  return <Navigate to={routes.onboarding.step.build({ step: nextStepPath })} replace />;
+  return (
+    <Navigate
+      to={routes.onboarding.step.build({ step: nextStepPath })}
+      replace
+    />
+  );
 }

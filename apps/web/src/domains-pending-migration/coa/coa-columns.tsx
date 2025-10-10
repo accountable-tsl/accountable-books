@@ -88,7 +88,12 @@ export function getCoaTableColumns(): ColumnDef<CoaResponse>[] {
 
         return (
           <div className="flex items-center justify-center">
-            <Badge className={cn('rounded-lg', active === 'Inactive' ? 'opacity-50' : '')}>
+            <Badge
+              className={cn(
+                'rounded-lg',
+                active === 'Inactive' ? 'opacity-50' : '',
+              )}
+            >
               {active}
             </Badge>
           </div>

@@ -1,6 +1,12 @@
 import api from '@/lib/axios';
-import { type ObjectType, type UploadParams } from '@/domains-pending-migration/objects/types';
-import { buildFormData, objectTypeConfigs } from '@/domains-pending-migration/objects/utils';
+import {
+  type ObjectType,
+  type UploadParams,
+} from '@/domains-pending-migration/objects/types';
+import {
+  buildFormData,
+  objectTypeConfigs,
+} from '@/domains-pending-migration/objects/utils';
 import type { ApiResponse } from '@/shared/types/core';
 
 export const fetchLogoUrl = async (key: string) => {

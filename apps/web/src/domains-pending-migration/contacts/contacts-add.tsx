@@ -4,7 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
-import { type NewContact, newContact } from '@/domains-pending-migration/contacts/contacts-types';
+import {
+  type NewContact,
+  newContact,
+} from '@/domains-pending-migration/contacts/contacts-types';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useCreateContacts } from '@/domains-pending-migration/contacts/contacts-hooks';
 import { useCallback, useState } from 'react';
@@ -95,11 +98,19 @@ export function AddContact({
                 <Input {...register('email')} />
               </FormField>
 
-              <FormField id="address" label="Address" error={errors.address?.message}>
+              <FormField
+                id="address"
+                label="Address"
+                error={errors.address?.message}
+              >
                 <Input {...register('address')} />
               </FormField>
 
-              <FormField id="notes" label="Additional Notes" error={errors.notes?.message}>
+              <FormField
+                id="notes"
+                label="Additional Notes"
+                error={errors.notes?.message}
+              >
                 <Textarea {...register('notes')} className="resize-none" />
               </FormField>
 

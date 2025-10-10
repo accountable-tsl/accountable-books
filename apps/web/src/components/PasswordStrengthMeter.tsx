@@ -3,8 +3,17 @@ type Props = {
   className?: { root?: string; bar?: string; label?: string };
 };
 
-export const PasswordStrengthMeter: React.FC<Props> = ({ score, className }) => {
-  const levels = ['bg-red-500', 'bg-orange-500', 'bg-yellow-400', 'bg-green-400', 'bg-green-600'];
+export const PasswordStrengthMeter: React.FC<Props> = ({
+  score,
+  className,
+}) => {
+  const levels = [
+    'bg-red-500',
+    'bg-orange-500',
+    'bg-yellow-400',
+    'bg-green-400',
+    'bg-green-600',
+  ];
   const labels = ['Too weak', 'Weak', 'Okay', 'Strong', 'Very strong'];
 
   return (
@@ -15,7 +24,9 @@ export const PasswordStrengthMeter: React.FC<Props> = ({ score, className }) => 
           style={{ width: `${(score + 1) * 20}%` }}
         />
       </div>
-      <p className={`text-xs text-muted-foreground mt-1 ${className?.label || ''}`}>
+      <p
+        className={`text-xs text-muted-foreground mt-1 ${className?.label || ''}`}
+      >
         {labels[score]}
       </p>
     </div>

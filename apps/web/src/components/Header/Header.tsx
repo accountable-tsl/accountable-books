@@ -22,14 +22,25 @@ export default function Header() {
       <div className="header-left">
         <Button icon={faBars} text="" variant="text" onClick={toggle} />
         <Link to={`/${companyId}`}>
-          <img src={logo} alt="Accountable Logo" className="header-left__logo" />
+          <img
+            src={logo}
+            alt="Accountable Logo"
+            className="header-left__logo"
+          />
         </Link>
       </div>
       <div className="header-middle">
         <form className="header-middle__form">
           <div className="header-middle__form-search">
-            <input type="search" placeholder="Search" className="header-middle__form-input" />
-            <Button icon={faMagnifyingGlass} customClass="header-middle__form-submit" />
+            <input
+              type="search"
+              placeholder="Search"
+              className="header-middle__form-input"
+            />
+            <Button
+              icon={faMagnifyingGlass}
+              customClass="header-middle__form-submit"
+            />
           </div>
           {/* <Button icon={faMicrophone} type="button" /> */}
         </form>
@@ -48,10 +59,25 @@ export default function Header() {
         />
         {/* <Button icon={faMagnifyingGlass} customClass="header-right__search" /> */}
         <div className="header-right__line"></div>
-        <Button icon={faSun} text="" variant="text" customClass="header-right__icon" />
-        <Button icon={faGear} text="" variant="text" customClass="header-right__icon" />
+        <Button
+          icon={faSun}
+          text=""
+          variant="text"
+          customClass="header-right__icon"
+        />
+        <Button
+          icon={faGear}
+          text=""
+          variant="text"
+          customClass="header-right__icon"
+        />
         <div className="header-right__notifications">
-          <Button icon={faBell} text="" variant="text" customClass="header-right__icon" />
+          <Button
+            icon={faBell}
+            text=""
+            variant="text"
+            customClass="header-right__icon"
+          />
           <div className="header-right__notifications--count">8</div>
         </div>
       </div>

@@ -24,28 +24,36 @@ export function FailedRowsDisplay({ errors }: { errors: ErrorRow[] }) {
               key={rowIndex}
               className="bg-white border border-red-100 rounded px-3 py-2 shadow-sm text-xs text-gray-800"
             >
-              <div className="font-medium text-gray-500 mb-1">Row {rowIndex + 1}</div>
+              <div className="font-medium text-gray-500 mb-1">
+                Row {rowIndex + 1}
+              </div>
 
               <div className="flex flex-wrap gap-x-6 gap-y-1 mb-1">
                 <div className="truncate">
-                  <span className="font-semibold">Date:</span> <span>{String(date)}</span>
+                  <span className="font-semibold">Date:</span>{' '}
+                  <span>{String(date)}</span>
                 </div>
                 <div className="truncate">
-                  <span className="font-semibold">Amount:</span> <span>{String(amount)}</span>
+                  <span className="font-semibold">Amount:</span>{' '}
+                  <span>{String(amount)}</span>
                 </div>
                 {payee && (
                   <div className="truncate">
-                    <span className="font-semibold">Payee:</span> <span>{payee}</span>
+                    <span className="font-semibold">Payee:</span>{' '}
+                    <span>{payee}</span>
                   </div>
                 )}
                 {description && (
                   <div className="truncate" title={description}>
-                    <span className="font-semibold">Description:</span> <span>{description}</span>
+                    <span className="font-semibold">Description:</span>{' '}
+                    <span>{description}</span>
                   </div>
                 )}
               </div>
 
-              <div className="text-red-600 truncate">{errorMessages.join('; ')}</div>
+              <div className="text-red-600 truncate">
+                {errorMessages.join('; ')}
+              </div>
             </li>
           );
         })}

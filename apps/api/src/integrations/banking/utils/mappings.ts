@@ -27,3 +27,32 @@ export function mapPlaidAccountType({
       return 'other';
   }
 }
+
+/**
+ * Maps Mono account types to our BankAccountType enum
+ */
+export function mapMonoAccountType(monoType?: string): BankAccountType {
+  if (!monoType) {
+    return 'other';
+  }
+
+  const type = monoType.toLowerCase();
+
+  // Mono account types: savings, current, domiciliary, etc.
+  switch (type) {
+    case 'savings':
+    case 'savings account':
+    case 'Digital Savings Account':
+      return 'savings';
+    case 'current':
+    case 'checking':
+      return 'checkings_current';
+    case 'domiciliary':
+      return 'other'; // USD/foreign currency account
+    case 'credit':
+    case 'credit_card':
+      return 'credit_card';
+    default:
+      return 'other';
+  }
+}

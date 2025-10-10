@@ -33,9 +33,15 @@ import type { BankTransactionBatchInsert } from '@/modules/banking/csv-upload/mo
 //     .join('');
 // }
 
-export async function uploadBankTransactions(companyId: string, data: BankTransactionBatchInsert) {
+export async function uploadBankTransactions(
+  companyId: string,
+  data: BankTransactionBatchInsert,
+) {
   try {
-    const res = await api.post(`/api/${companyId}/bank-accounts/transactions/import`, data);
+    const res = await api.post(
+      `/api/${companyId}/bank-accounts/transactions/import`,
+      data,
+    );
 
     return res.data;
   } catch (err) {

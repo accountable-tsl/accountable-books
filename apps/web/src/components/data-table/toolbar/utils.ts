@@ -26,7 +26,8 @@ export function generateSearchPlaceholder(labels: string[]): string {
 
   if (lowerLabels.length === 1) return `Search by ${lowerLabels[0]}...`;
 
-  if (lowerLabels.length === 2) return `Search by ${lowerLabels[0]} or ${lowerLabels[1]}...`;
+  if (lowerLabels.length === 2)
+    return `Search by ${lowerLabels[0]} or ${lowerLabels[1]}...`;
 
   const lastLabel = lowerLabels.pop()!;
 
@@ -43,10 +44,14 @@ export function categorizeColumns<TData>(columns: Column<TData>[]) {
     const columnMeta = column.columnDef.meta;
 
     const isGroupedTextColumn =
-      columnMeta?.variant === 'text' && columnMeta.separateFilter !== true && column.getCanFilter();
+      columnMeta?.variant === 'text' &&
+      columnMeta.separateFilter !== true &&
+      column.getCanFilter();
 
     const isIndividualTextColumn =
-      columnMeta?.variant === 'text' && columnMeta.separateFilter === true && column.getCanFilter();
+      columnMeta?.variant === 'text' &&
+      columnMeta.separateFilter === true &&
+      column.getCanFilter();
 
     if (isGroupedTextColumn) {
       groupedText.push(column);
@@ -63,7 +68,8 @@ export function categorizeColumns<TData>(columns: Column<TData>[]) {
 export function resolveToolbarItems(items: ToolbarItem[] = []): ToolbarItem[] {
   return items
     .filter((item) => {
-      const shouldShow = typeof item.show === 'function' ? item.show() : item.show !== false;
+      const shouldShow =
+        typeof item.show === 'function' ? item.show() : item.show !== false;
       return shouldShow;
     })
     .sort((a, b) => a.position - b.position)
@@ -80,7 +86,9 @@ export function resolveToolbarItems(items: ToolbarItem[] = []): ToolbarItem[] {
 }
 
 // Helper to merge user config with defaults
-export function mergeConfigs(userConfig?: DataTableToolbarConfig): DataTableToolbarConfig {
+export function mergeConfigs(
+  userConfig?: DataTableToolbarConfig,
+): DataTableToolbarConfig {
   if (!userConfig) return DEFAULT_CONFIG;
   const a = DEFAULT_CONFIG;
   const b = userConfig;
@@ -97,7 +105,10 @@ export function mergeConfigs(userConfig?: DataTableToolbarConfig): DataTableTool
   };
 }
 
-function mergeSection(a: ToolbarItem[] = [], b: ToolbarItem[] = []): ToolbarItem[] {
+function mergeSection(
+  a: ToolbarItem[] = [],
+  b: ToolbarItem[] = [],
+): ToolbarItem[] {
   const result: ToolbarItem[] = [];
 
   const byPosition = new Map<number, ToolbarItem>();

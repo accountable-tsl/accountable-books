@@ -28,7 +28,10 @@ export function SignupSelector({
           </span>
         </div>
         {error && (
-          <div className={`text-sm text-destructive`} data-testid="signup-companyType-error">
+          <div
+            className={`text-sm text-destructive`}
+            data-testid="signup-companyType-error"
+          >
             {error}
           </div>
         )}
@@ -61,7 +64,9 @@ export function SignupSelector({
 
               <div className="text-sm md:text-base">{c.description}</div>
               <hr className="md:hidden opacity-70 my-1" />
-              <div className="text-xs italic text-muted-foreground/80">Ideal for: {c.idealFor}</div>
+              <div className="text-xs italic text-muted-foreground/80">
+                Ideal for: {c.idealFor}
+              </div>
             </div>
           </Card>
         ))}

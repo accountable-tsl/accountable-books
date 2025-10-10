@@ -23,7 +23,13 @@ import {
 } from '@/domains-pending-migration/spreadsheets/utils';
 import { FILE_TYPE_MAP } from '@/domains-pending-migration/spreadsheets/constants';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/CustomTable';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from '@/components/CustomTable';
 
 export const SpreadsheetImporter = ({
   fields,
@@ -60,7 +66,10 @@ export const SpreadsheetImporter = ({
   // Memoize computed values
   const accept = useMemo(() => receivedAccept, []);
 
-  const maxSizeInBytes = useMemo(() => maxFileSizeInMB * 1024 * 1024, [maxFileSizeInMB]);
+  const maxSizeInBytes = useMemo(
+    () => maxFileSizeInMB * 1024 * 1024,
+    [maxFileSizeInMB],
+  );
   const effectiveMaxFileCount = useMemo(
     () => (uploadMultiple ? maxFileCount : 1),
     [uploadMultiple, maxFileCount],
@@ -131,7 +140,8 @@ export const SpreadsheetImporter = ({
             data: [],
             preview: [],
             rowCount: 0,
-            error: validationError || `File size exceeds ${maxFileSizeInMB}MB limit`,
+            error:
+              validationError || `File size exceeds ${maxFileSizeInMB}MB limit`,
             isValid: false,
           };
         }
@@ -147,7 +157,11 @@ export const SpreadsheetImporter = ({
 
           // Validate headers if enabled
           if (validateHeaders && hasHeader) {
-            const headerCheck = validateFileHeaders(result.headers, fields, validationOptions);
+            const headerCheck = validateFileHeaders(
+              result.headers,
+              fields,
+              validationOptions,
+            );
 
             // Add validation results to the parsed result
             result.error = headerCheck.error || undefined;
@@ -158,7 +172,8 @@ export const SpreadsheetImporter = ({
           }
           // Normalize data only if validation passed
           if (!result.error) {
-            const normalizeData = (rows: any[]) => rows.map((row) => normalizeRow(row, fields));
+            const normalizeData = (rows: any[]) =>
+              rows.map((row) => normalizeRow(row, fields));
 
             result.preview = normalizeData(result.preview);
             result.data = normalizeData(result.data);
@@ -318,7 +333,9 @@ export const SpreadsheetImporter = ({
         <DialogContent>
           <DialogHeader className={cn(dialogHeader ? '' : 'sr-only')}>
             <DialogTitle>{dialogHeader ?? 'Upload CSV'}</DialogTitle>
-            <DialogDescription>Drag and drop your files here or click to browse.</DialogDescription>
+            <DialogDescription>
+              Drag and drop your files here or click to browse.
+            </DialogDescription>
           </DialogHeader>
           {uploaderComponent}
         </DialogContent>
@@ -344,11 +361,12 @@ export const CustomFileCard = memo(
       return (
         <div className="flex flex-col gap-2 min-w-0 w-full">
           <div className="text-destructive font-bold">{parsedResult.error}</div>
-          {parsedResult.duplicateHeaders && parsedResult.duplicateHeaders?.length > 0 && (
-            <div className="text-destructive">
-              Duplicate columns: {parsedResult.duplicateHeaders.join(', ')}
-            </div>
-          )}
+          {parsedResult.duplicateHeaders &&
+            parsedResult.duplicateHeaders?.length > 0 && (
+              <div className="text-destructive">
+                Duplicate columns: {parsedResult.duplicateHeaders.join(', ')}
+              </div>
+            )}
         </div>
       );
     }
@@ -364,26 +382,38 @@ export const CustomFileCard = memo(
     );
 
     // Don't render table if nothing to show
-    if (!parsedResult.preview || !parsedResult.preview.length || !displayFields.length) {
+    if (
+      !parsedResult.preview ||
+      !parsedResult.preview.length ||
+      !displayFields.length
+    ) {
       return (
-        <div className="text-muted-foreground italic min-w-0 w-full">No preview available</div>
+        <div className="text-muted-foreground italic min-w-0 w-full">
+          No preview available
+        </div>
       );
     }
 
     const parsedResultWarning = parsedResult.warning;
     const unexpectedColumnsWarning =
-      parsedResult?.unexpectedColumns && parsedResult.unexpectedColumns.length > 0
+      parsedResult?.unexpectedColumns &&
+      parsedResult.unexpectedColumns.length > 0
         ? `Unexpected columns found: ${parsedResult.unexpectedColumns.join(', ')}`
         : null;
     return (
       <div className="flex flex-col gap-2 min-w-0 w-full">
         <div>
           {/* Show warning/info if present */}
-          {parsedResultWarning && parsedResultWarning !== unexpectedColumnsWarning && (
-            <div className="text-muted-foreground text-[15px] text-sm">{parsedResultWarning}</div>
-          )}
+          {parsedResultWarning &&
+            parsedResultWarning !== unexpectedColumnsWarning && (
+              <div className="text-muted-foreground text-[15px] text-sm">
+                {parsedResultWarning}
+              </div>
+            )}
           {unexpectedColumnsWarning && showUnexpectedColumnsWarning && (
-            <div className="text-blue-500 text-sm">{unexpectedColumnsWarning}</div>
+            <div className="text-blue-500 text-sm">
+              {unexpectedColumnsWarning}
+            </div>
           )}
         </div>
         <div>
@@ -415,14 +445,17 @@ export const CustomFileCard = memo(
                     {displayFields.map((f) => {
                       // If render returns undefined/null, fall back to ""
                       const cell =
-                        f.render?.(row[f.value], row, rowIdx, renderOptions) ?? row[f.value] ?? '';
+                        f.render?.(row[f.value], row, rowIdx, renderOptions) ??
+                        row[f.value] ??
+                        '';
                       // Force to string or ReactNode, never {}
                       return (
                         <TableCell
                           key={f.value}
                           className={cn(`p-2 ${f.className ?? ''}`, 'truncate')}
                         >
-                          {typeof cell === 'object' && !React.isValidElement(cell)
+                          {typeof cell === 'object' &&
+                          !React.isValidElement(cell)
                             ? JSON.stringify(cell)
                             : cell}
                         </TableCell>

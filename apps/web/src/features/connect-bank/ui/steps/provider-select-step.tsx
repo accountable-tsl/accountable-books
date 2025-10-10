@@ -22,7 +22,10 @@ function getCountryDisplayName(country: Country | null): string {
   return country ? `${country.flag} ${country.name}` : '';
 }
 
-function getBankConnectionMessage(country: Country | null, isSupported: boolean): string {
+function getBankConnectionMessage(
+  country: Country | null,
+  isSupported: boolean,
+): string {
   const countryDisplay = getCountryDisplayName(country);
 
   if (isSupported) {
@@ -42,7 +45,10 @@ export function ProviderSelectStep({
   selectedCountryIsSupported = false,
 }: ProviderSelectStepProps) {
   // Handle the simple case: show selection with available providers
-  if (selectionStrategy.type === 'show-selection' && selectionStrategy.providers) {
+  if (
+    selectionStrategy.type === 'show-selection' &&
+    selectionStrategy.providers
+  ) {
     return (
       <div className={stepWrapperClass}>
         <StepHeader
@@ -53,13 +59,21 @@ export function ProviderSelectStep({
 
         <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-thin-2px">
           {selectionStrategy.providers.map((provider) => (
-            <ProviderCard key={provider.key} provider={provider} onSelect={onProviderSelect} />
+            <ProviderCard
+              key={provider.key}
+              provider={provider}
+              onSelect={onProviderSelect}
+            />
           ))}
         </div>
 
         {/* Navigation */}
         <div className="flex items-center justify-between pt-4 border-t">
-          <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={onBack}
+            className="flex items-center gap-2"
+          >
             <ArrowLeft className="w-4 h-4" />
             Back
           </Button>
@@ -92,7 +106,10 @@ export function ProviderSelectStep({
 
       <div className="text-center space-y-4">
         <p className="text-muted-foreground text-sm">
-          {getBankConnectionMessage(selectedCountry, selectedCountryIsSupported)}
+          {getBankConnectionMessage(
+            selectedCountry,
+            selectedCountryIsSupported,
+          )}
         </p>
 
         <Button onClick={onSkipToCSV} className="w-full">
@@ -101,7 +118,11 @@ export function ProviderSelectStep({
       </div>
 
       <div className="flex justify-center pt-4 border-t">
-        <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          className="flex items-center gap-2"
+        >
           <ArrowLeft className="w-4 h-4" />
           Back to country selection
         </Button>

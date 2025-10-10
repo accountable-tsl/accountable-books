@@ -17,11 +17,28 @@ import { useSession } from '@session';
 import { useNavigate } from 'react-router';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
+import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
+import { toast } from 'sonner';
+import { useManualTransactionSync } from '@/modules/transactions/sync';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
+import { formatDistanceToNowStrict } from 'date-fns';
+import { TooltipHelper } from '@/components/TooltipHelper';
 
+interface Group {
+  bankName: string;
+  bankId: string;
+  logo: string;
+  lastSync?: Date;
+  accounts: BankAccountWithMeta[];
+  // balance: number;
+}
 export function AccountingWorkspace() {
-  const { tenantRoutes, loading } = useSession();
+  const { tenantRoutes, loading, companyId } = useSession();
   const navigate = useNavigate();
-
+  const syncTransactions = useManualTransactionSync();
+  const { data: bankAccountsResp, isLoading: baLoading } =
+    useCompanyBankAccounts(companyId ?? '');
+  const bankAccounts = bankAccountsResp?.data ?? [];
   const isMobile = useIsMobile();
   const is1440 = useMediaQuery('(min-width: 1440px)');
 
@@ -29,13 +46,49 @@ export function AccountingWorkspace() {
     return <SmallScreenMessage />;
   }
 
-  if (loading) {
+  if (loading || baLoading) {
     return <CenteredLoader />;
   }
 
   if (!tenantRoutes) {
     return <ErrorPage type="default" />;
   }
+
+  const handleTxnRefresh = async (credentialId: string) => {
+    if (!credentialId) return;
+    try {
+      syncTransactions.mutate({ credentialId });
+      toast.success('Transactions synced successfully');
+    } catch (error) {
+      toast.error('Failed to sync transactions');
+    }
+  };
+
+  const grouped = bankAccounts.reduce((map, acc) => {
+    if (!map.has(acc.bankId)) {
+      map.set(acc.bankId, {
+        bankName: acc.bankName,
+        bankId: acc.bankId,
+        logo: acc.bankLogo ?? '',
+        lastSync: acc.lastSyncAt,
+        accounts: [],
+      });
+    }
+
+    const group = map.get(acc.bankId)!;
+    group.accounts.push(acc);
+
+    if (
+      acc.lastSyncAt &&
+      (!group.lastSync || acc.lastSyncAt > group.lastSync)
+    ) {
+      group.lastSync = acc.lastSyncAt;
+    }
+
+    return map;
+  }, new Map<string, Group>());
+
+  const groupedBankAccounts = Array.from(grouped.values());
 
   const quickActionData: ActionCardProps[] = [
     {
@@ -87,7 +140,9 @@ export function AccountingWorkspace() {
         </div>
 
         <div className="p-4 flex flex-col">
-          <div className="text-sm text-muted-foreground">Bank Account Insights</div>
+          <div className="text-sm text-muted-foreground">
+            Bank Account Insights
+          </div>
           <Separator className="mb-4" />
           <div className="grid grid-cols-3 gap-4 min-h-[5rem]">
             <div className="h-full rounded-md border p-4 flex flex-col justify-between gap-2 divide-y overflow-clip">
@@ -101,64 +156,89 @@ export function AccountingWorkspace() {
               </div>
               <div className="grid truncate grid-cols-2 gap-2">
                 <div className="text-sm truncate">No of bank accounts</div>
-                <div className="text-right truncate">5</div>
+                <div className="text-right truncate">{bankAccounts.length}</div>
               </div>
               <div className="grid truncate grid-cols-2 gap-2">
                 <div className="text-sm truncate">Needs action</div>
-                <div className="text-right truncate">5</div>
-              </div>
-            </div>
-            <div className="h-full shadow-sm rounded-md border flex flex-col overflow-clip">
-              <div className="flex-shrink-0 p-4 pb-2 flex">
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                  <Building className="w-6 h-6" />
-                </div>
-                <Separator orientation="vertical" className="mx-2" />
-                <div className="overflow-hidden">
-                  <div className="flex gap-1 items-baseline">
-                    <span className="truncate text-[0.95rem]">Bank Account name</span>
-                    <span className="text-[0.75rem] underline decoration-dotted text-muted-foreground">
-                      USD
-                    </span>
-                  </div>
-                  <div className="text-[0.85rem] font-light truncate text-muted-foreground">
-                    Bank Name | Account Number
-                  </div>
-                </div>
-              </div>
-              <Separator />
-              <div className="flex-1 p-2 px-4 space-y-2">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="truncate text-[0.9rem] font-medium">$ 100,000,000,000.00</div>
-                    <div className="text-[0.80rem] font-light text-muted-foreground">
-                      Statement Balance
-                    </div>
-                  </div>
-                  <div>
-                    <div className="truncate text-[0.9rem] font-medium">$ 100,000,000.00</div>
-                    <div className="text-[0.80rem] font-light text-muted-foreground">
-                      Ledger Balance
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="truncate text-[0.9rem] font-medium">205,600</div>
-                    <div className="text-[0.80rem] font-light text-muted-foreground">
-                      Unreconciled
-                    </div>
-                  </div>
-                  <div>
-                    <div className="truncate text-[0.9rem] font-medium">100,200</div>
-                    <div className="text-[0.80rem] font-light text-muted-foreground">
-                      Needs Review
-                    </div>
-                  </div>
+                <div className="text-right truncate">
+                  {/* {bankAccounts.filter((acc) => acc.uncategorisedCount).length} */}
                 </div>
               </div>
             </div>
-            <div className="h-full shadow-sm rounded-md border"></div>
+            {bankAccounts.slice(0, 2).map((acc) => (
+              <div
+                key={acc.id}
+                className="h-full shadow-sm rounded-md border flex flex-col overflow-clip"
+              >
+                <div className="flex-shrink-0 p-4 pb-2 flex">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-muted dark:bg-white/80 flex items-center justify-center opacity-80 overflow-clip">
+                    {acc.bankLogo ? (
+                      <img
+                        src={acc.bankLogo}
+                        alt="bank logo"
+                        className="w-8 h-8 object-contain"
+                        style={{ imageRendering: 'auto' }}
+                      />
+                    ) : (
+                      <Building className="w-8 h-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <Separator orientation="vertical" className="mx-2" />
+                  <div className="overflow-hidden">
+                    <div className="flex gap-1 items-baseline">
+                      <span className="truncate text-[0.95rem]">
+                        {acc.displayName}
+                      </span>
+                      <span className="text-[0.75rem] underline decoration-dotted text-muted-foreground">
+                        {acc.currencyCode}
+                      </span>
+                    </div>
+                    <div className="text-[0.85rem] font-light truncate text-muted-foreground">
+                      {acc.bankName} | **{acc.mask}
+                    </div>
+                  </div>
+                </div>
+                <Separator />
+                <div className="flex-1 p-2 px-4 space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="truncate text-[0.9rem] font-medium">
+                        $ 100,000,000,000.00
+                      </div>
+                      <div className="text-[0.80rem] font-light text-muted-foreground">
+                        Statement Balance
+                      </div>
+                    </div>
+                    <div>
+                      <div className="truncate text-[0.9rem] font-medium">
+                        $ 100,000,000.00
+                      </div>
+                      <div className="text-[0.80rem] font-light text-muted-foreground">
+                        Ledger Balance
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="truncate text-[0.9rem] font-medium">
+                        205,600
+                      </div>
+                      <div className="text-[0.80rem] font-light text-muted-foreground">
+                        Uncategorized
+                      </div>
+                    </div>
+                    <div>
+                      <div className="truncate text-[0.9rem] font-medium">
+                        100,200
+                      </div>
+                      <div className="text-[0.80rem] font-light text-muted-foreground">
+                        Needs Review
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -205,37 +285,56 @@ export function AccountingWorkspace() {
       </div>
       {is1440 && (
         <div className="flex-shrink-0 min-w-sm w-sm ml-auto flex flex-col min-h-0">
-          <div className="text-sm text-muted-foreground pt-4 flex-shrink-0">Bank Accounts</div>
+          <div className="text-sm text-muted-foreground pt-4 flex-shrink-0">
+            Bank Accounts
+          </div>
           <Separator className="mb-4" />
           <div className="flex flex-col gap-4 overflow-y-auto min-h-0 h-full scrollbar-thin-2px">
-            {/* One bank account sample */}
-            {
-              <div className="border rounded-md p-2 flex flex-col overflow-clip">
+            {(groupedBankAccounts ?? []).map((g) => (
+              <div
+                key={g.bankId}
+                className="border rounded-md p-2 flex flex-col overflow-clip"
+              >
                 <div className="flex-shrink-0 px-2 flex gap-2 items-center">
-                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                    <Building className="w-6 h-6" />
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-muted dark:bg-primary/80 flex items-center justify-center">
+                    {g.logo ? (
+                      <img
+                        src={g.logo}
+                        alt={g.bankName}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <Building className="w-8 h-8 rounded-full object-cover" />
+                    )}
                   </div>
-                  <div className="overflow-hidden">
+                  <div className="overflow-hidden flex-1">
                     <div className="flex gap-1 items-baseline">
-                      <span className="truncate text-[0.95rem]">Bank Name HEre</span>
-                      <span className="text-[0.75rem] text-muted-foreground">{'(2)'}</span>
+                      <span className="truncate text-[0.95rem]">
+                        {g.bankName}
+                      </span>
+                      <span className="text-[0.75rem] text-muted-foreground">
+                        ({g.accounts.length})
+                      </span>
                     </div>
-                    <div className="text-[0.85rem] font-light truncate text-muted-foreground">
-                      Last updated 2 weeks ago
-                    </div>
+                    {/* {g.lastSync && (
+                      <div className="text-[0.85rem] font-light truncate text-muted-foreground">
+                        Last updated {formatDistanceToNowStrict(new Date(g.lastSync))} ago
+                      </div>
+                    )} */}
                   </div>
                 </div>
                 <Separator className="my-2" />
                 <div className="overflow-y-auto flex flex-col gap-2.5 min-h-0 max-h-[175px] scrollbar-thin-2px overflow-hidden">
-                  <MiniBankAccountCard
-                    name={'This is the bank account name'}
-                    balance="$ 100,000,000,000.00"
-                    unreconciled="9000"
-                    needsReview="5000"
-                  />
+                  {g.accounts.map((acc) => (
+                    <MiniBankAccountCard
+                      key={acc.id}
+                      account={acc}
+                      onRefreshClick={handleTxnRefresh}
+                    />
+                  ))}
                 </div>
               </div>
-            }{' '}
+            ))}
           </div>
         </div>
       )}
@@ -266,7 +365,12 @@ function ActionCard({ icon, title, actions, classNames }: ActionCardProps) {
         <div>{title}</div>
       </div>
       <Separator />
-      <div className={cn('flex-shrink-0 grid grid-cols-2 divide-x', classNames?.actionsBox)}>
+      <div
+        className={cn(
+          'flex-shrink-0 grid grid-cols-2 divide-x',
+          classNames?.actionsBox,
+        )}
+      >
         {actions.map((action, index) => (
           <div
             key={index}
@@ -283,27 +387,95 @@ function ActionCard({ icon, title, actions, classNames }: ActionCardProps) {
 }
 
 interface MiniBankAccountCardProps {
-  name: string;
-  balance: string;
-  unreconciled: string;
-  needsReview: string;
+  account: BankAccountWithMeta;
+  onRefreshClick?: (credentialId: string) => void;
 }
 
 function MiniBankAccountCard({
-  name,
-  balance,
-  unreconciled,
-  needsReview,
+  account,
+  onRefreshClick,
 }: MiniBankAccountCardProps) {
+  const needsReview = 0;
+  const Uncategorized = 0;
+  const balance = account?.balance;
+  const syncAt = account.lastSyncAt
+    ? formatDistanceToNowStrict(new Date(account.lastSyncAt))
+    : undefined;
+
+  const items: { key: string; node: React.ReactNode }[] = [];
+
+  if (needsReview)
+    items.push({ key: 'needs', node: `${needsReview} needs review` });
+  if (Uncategorized)
+    items.push({ key: 'unrec', node: `${Uncategorized} Uncategorized` });
+  if (syncAt)
+    items.push({ key: 'updated', node: `Last updated ${syncAt} ago` });
+  if (account?.connectionCredentialId && onRefreshClick) {
+    items.push({
+      key: 'refresh',
+      node: (
+        <span
+          className="hover:underline cursor-pointer active:cursor-progress"
+          onClick={() => onRefreshClick(account.connectionCredentialId!)}
+        >
+          Refresh feed
+        </span>
+      ),
+    });
+  }
+
+  // take two by priority
+  let picked = items.slice(0, 2);
+
+  // force updated to left if present
+  if (picked.length === 2 && picked[1].key === 'updated') {
+    picked = [picked[1], picked[0]];
+  }
+
   return (
     <div className="bg-muted/60 rounded-md px-2 py-2 max-h-[55px]">
       <div className="grid grid-cols-2 gap-2 overflow-hidden">
-        <span className="truncate">{name}</span>
-        <span className="truncate text-right">{balance}</span>
+        <TooltipHelper
+          content={account.displayName + ' **' + account.mask}
+          trigger={
+            <>
+              <span className="truncate">{account.displayName} </span>
+              <span className="text-muted-foreground flex-1">
+                **{account.mask}
+              </span>
+            </>
+          }
+          icon={false}
+          contentStyle="w-fit"
+          triggerWrapperClassName="flex gap-1 truncate"
+        />
+        {balance ? (
+          <TooltipHelper
+            content={balance + ' ' + account.currencyCode}
+            contentStyle="w-fit"
+            trigger={
+              <span className="truncate text-right">
+                <span className="text-muted-foreground text-sm">
+                  {account.currencyCode}
+                </span>{' '}
+                {balance}
+              </span>
+            }
+            icon={false}
+            triggerWrapperClassName="text-right truncate"
+          />
+        ) : (
+          <span className="truncate text-right">
+            <span className="text-muted-foreground text-sm">
+              {account.currencyCode}
+            </span>{' '}
+            {balance}
+          </span>
+        )}
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">{unreconciled} unreconciled</span>
-        <span className="text-sm text-muted-foreground">{needsReview} needs review</span>
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div>{picked[0]?.node}</div>
+        {picked[1] && <div>{picked[1].node}</div>}
       </div>
     </div>
   );

@@ -2,10 +2,15 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 // Generic type for exportable data - should have string keys and values that can be converted to string
-export type ExportableData = Record<string, string | number | boolean | null | undefined>;
+export type ExportableData = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
 
 // Type for transformation function that developers can provide
-export type DataTransformFunction<T extends ExportableData> = (row: T) => ExportableData;
+export type DataTransformFunction<T extends ExportableData> = (
+  row: T,
+) => ExportableData;
 
 /**
  * Convert array of objects to CSV string
@@ -48,7 +53,8 @@ function convertToCSV<T extends ExportableData>(
       const value = transformedItem[header];
 
       // Convert all values to string and properly escape for CSV
-      const cellValue = value === null || value === undefined ? '' : String(value);
+      const cellValue =
+        value === null || value === undefined ? '' : String(value);
       // Escape quotes and wrap in quotes if contains comma
       const escapedValue =
         cellValue.includes(',') || cellValue.includes('"')
@@ -99,7 +105,9 @@ export function exportToCSV<T extends ExportableData>(
     // Apply transformation function first if provided, then filter data to only include specified headers
     const processedData = data.map((item) => {
       // Apply transformation function if provided
-      const transformedItem = transformFunction ? transformFunction(item) : item;
+      const transformedItem = transformFunction
+        ? transformFunction(item)
+        : item;
 
       // Filter to only include specified headers
       const filteredItem: ExportableData = {};
@@ -143,7 +151,8 @@ export function exportToExcel<T extends ExportableData>(
       columnMapping ||
       Object.keys(data[0] || {}).reduce(
         (acc, key) => {
-          acc[key] = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+          acc[key] =
+            key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
           return acc;
         },
         {} as Record<string, string>,
@@ -152,7 +161,9 @@ export function exportToExcel<T extends ExportableData>(
     // Apply transformation function first if provided, then map data to worksheet format
     const worksheetData = data.map((item) => {
       // Apply transformation function if provided
-      const transformedItem = transformFunction ? transformFunction(item) : item;
+      const transformedItem = transformFunction
+        ? transformFunction(item)
+        : item;
 
       const row: ExportableData = {};
       // If headers are provided, only include those columns

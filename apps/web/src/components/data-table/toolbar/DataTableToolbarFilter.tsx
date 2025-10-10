@@ -10,7 +10,9 @@ export interface DataTableToolbarFilterProps<TData> {
   column: Column<TData>;
 }
 
-export function DataTableToolbarFilter<TData>({ column }: DataTableToolbarFilterProps<TData>) {
+export function DataTableToolbarFilter<TData>({
+  column,
+}: DataTableToolbarFilterProps<TData>) {
   const columnMeta = column.columnDef.meta;
 
   const onFilterRender = useCallback(() => {
@@ -47,7 +49,12 @@ export function DataTableToolbarFilter<TData>({ column }: DataTableToolbarFilter
         );
 
       case 'range':
-        return <DataTableSliderFilter column={column} title={columnMeta.label ?? column.id} />;
+        return (
+          <DataTableSliderFilter
+            column={column}
+            title={columnMeta.label ?? column.id}
+          />
+        );
 
       case 'date':
       case 'dateRange':

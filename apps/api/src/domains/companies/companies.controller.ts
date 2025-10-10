@@ -6,10 +6,21 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { type AuthRequest } from '../../features/auth/auth.types.js';
-import { getCompanies, getSingleCompany, switchCompany, updateCompany } from './companies.model.js';
-import { generateCsrfToken, setAuthCookies } from '../../features/auth/auth.utils.js';
+import {
+  getCompanies,
+  getSingleCompany,
+  switchCompany,
+  updateCompany,
+} from './companies.model.js';
+import {
+  generateCsrfToken,
+  setAuthCookies,
+} from '../../features/auth/auth.utils.js';
 
-export const switchCompanyController = async (req: AuthRequest, res: Response) => {
+export const switchCompanyController = async (
+  req: AuthRequest,
+  res: Response,
+) => {
   try {
     const companyId = req.body.companyId;
     if (!req.user || !companyId) throw new AppError('Unauthorized');
@@ -28,7 +39,9 @@ export const switchCompanyController = async (req: AuthRequest, res: Response) =
             : 403;
       return res
         .status(status)
-        .json(errorResponse(switchResult.message, switchResult.data || undefined));
+        .json(
+          errorResponse(switchResult.message, switchResult.data || undefined),
+        );
     }
 
     const { accessToken, refreshToken, user, company } = switchResult.data;
@@ -59,7 +72,9 @@ export const getCompaniesController = async (req: Request, res: Response) => {
 
     return res.status(200).json(result);
   } catch (error: any) {
-    return res.status(500).json(errorResponse(error.message || 'An unexpected error occurred'));
+    return res
+      .status(500)
+      .json(errorResponse(error.message || 'An unexpected error occurred'));
   }
 };
 export const getCompanyController = async (req: AuthRequest, res: Response) => {
@@ -80,11 +95,18 @@ export const getCompanyController = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateCompanyController = async (req: AuthRequest, res: Response) => {
+export const updateCompanyController = async (
+  req: AuthRequest,
+  res: Response,
+) => {
   const companyId = req.params.companyId;
   const userId = req.user?.id;
   const data = req.body;
-  const { companyId: companyIdFromData, userId: userIdFromData, ...updateData } = data;
+  const {
+    companyId: companyIdFromData,
+    userId: userIdFromData,
+    ...updateData
+  } = data;
 
   if (!companyId || !userId) {
     return res.status(400).json(errorResponse('Bad Request'));

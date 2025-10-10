@@ -53,10 +53,16 @@ export class ErrorBoundary extends Component<Props, State> {
             <div>
               <strong>Something went wrong</strong>
               <p className="text-sm text-muted-foreground mt-1">
-                An unexpected error occurred while displaying the transaction details.
+                An unexpected error occurred while displaying the transaction
+                details.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={this.handleRetry} className="w-fit">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={this.handleRetry}
+              className="w-fit"
+            >
               <RefreshCw className="h-4 w-4 mr-2" />
               Try Again
             </Button>

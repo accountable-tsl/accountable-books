@@ -1,7 +1,10 @@
 import type { Knex } from 'knex';
 import { knexClient } from '../../db/knexClient.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import {
   type AccountClassificationMetadata,
   type AccountElementDTO,
@@ -49,11 +52,12 @@ export async function getAccountClassificationMeta({
     //   }
     // }
     const fetchData = async (knex: Knex | Knex.Transaction) => {
-      const [accountTypesData, accountElementsData, financialStatements] = await Promise.all([
-        fetchAccountTypes(knex, includeIds),
-        fetchAccountElements(knex, includeIds),
-        fetchFinancialStatements(knex, includeIds),
-      ]);
+      const [accountTypesData, accountElementsData, financialStatements] =
+        await Promise.all([
+          fetchAccountTypes(knex, includeIds),
+          fetchAccountElements(knex, includeIds),
+          fetchFinancialStatements(knex, includeIds),
+        ]);
 
       return {
         accountTypes: accountTypesData.accountTypes,
@@ -64,11 +68,19 @@ export async function getAccountClassificationMeta({
       };
     };
 
-    const result = trx ? await fetchData(trx) : await knexClient.transaction(fetchData);
+    const result = trx
+      ? await fetchData(trx)
+      : await knexClient.transaction(fetchData);
 
-    return successResponse('Account classification metadata successfully retrieved', result);
+    return successResponse(
+      'Account classification metadata successfully retrieved',
+      result,
+    );
   } catch (error) {
-    return errorResponse('Failed to retrieve account classification metadata', error);
+    return errorResponse(
+      'Failed to retrieve account classification metadata',
+      error,
+    );
   }
 }
 
@@ -82,7 +94,11 @@ async function fetchAccountTypes(
   const rows = await knex('account_types as at')
     .innerJoin('account_elements as ae', 'at.account_element_id', 'ae.id')
     .leftJoin('account_elements as pae', 'ae.parent_id', 'pae.id')
-    .innerJoin('financial_statements as fs', 'ae.financial_statement_id', 'fs.id')
+    .innerJoin(
+      'financial_statements as fs',
+      'ae.financial_statement_id',
+      'fs.id',
+    )
     .select(
       'at.id',
       'at.key',
@@ -190,7 +206,11 @@ async function fetchAccountElements(
 }> {
   const raw = await knex('account_elements as ae')
     .leftJoin('account_elements as pae', 'ae.parent_id', 'pae.id')
-    .innerJoin('financial_statements as fs', 'ae.financial_statement_id', 'fs.id')
+    .innerJoin(
+      'financial_statements as fs',
+      'ae.financial_statement_id',
+      'fs.id',
+    )
     .select(
       'ae.id as id',
       'ae.key as key',

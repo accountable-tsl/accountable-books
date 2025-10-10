@@ -13,7 +13,11 @@ export function initSentry() {
     tracesSampleRate: isDev ? 1.0 : 0.7,
     profileSessionSampleRate: isDev ? 0 : 1.0,
     profileLifecycle: 'trace',
-    environment: isDev ? 'development' : NODE_ENV === 'staging' ? 'staging' : 'production',
+    environment: isDev
+      ? 'development'
+      : NODE_ENV === 'staging'
+        ? 'staging'
+        : 'production',
   });
 
   return Sentry;

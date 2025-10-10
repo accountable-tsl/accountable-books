@@ -27,7 +27,10 @@ import {
   getCompanyTypeDisplay,
   getDefaultCompanyData,
 } from '@/domains-pending-migration/company/utils';
-import { deleteObject, uploadObject } from '@/domains-pending-migration/objects/api';
+import {
+  deleteObject,
+  uploadObject,
+} from '@/domains-pending-migration/objects/api';
 import { ImageUploader } from '@/domains-pending-migration/objects/ImageUploader';
 import { TOOLTIP } from '@/features/auth-signup/model/constants';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
@@ -182,9 +185,8 @@ export const CompanyInfo = () => {
       'yearEndMonth',
       'industry',
     ];
-    const accountingRequired: (keyof UpdateCompanyVitalsData)[] = isAccountingFirm
-      ? ['accountingBasis', 'assignedFirmSlug']
-      : [];
+    const accountingRequired: (keyof UpdateCompanyVitalsData)[] =
+      isAccountingFirm ? ['accountingBasis', 'assignedFirmSlug'] : [];
     return [...baseRequired, ...accountingRequired];
   };
   const requiredFields = getRequiredFields();
@@ -193,7 +195,8 @@ export const CompanyInfo = () => {
   const checkEssentialFieldsComplete = (): boolean => {
     const fieldValues = watch(requiredFields);
     return requiredFields.every(
-      (_, index) => fieldValues[index] && fieldValues[index].toString().trim() !== '',
+      (_, index) =>
+        fieldValues[index] && fieldValues[index].toString().trim() !== '',
     );
   };
 
@@ -268,7 +271,9 @@ export const CompanyInfo = () => {
   // Submit form to backend
   const handleSubmit = async () => {
     if (!companyId) {
-      toast.error('We were unable to save your company details. Please try again.');
+      toast.error(
+        'We were unable to save your company details. Please try again.',
+      );
       return;
     }
 
@@ -388,7 +393,8 @@ export const CompanyInfo = () => {
       const scrollHeight = scrollContainer.scrollHeight;
       const clientHeight = scrollContainer.clientHeight;
       const maxScroll = scrollHeight - clientHeight;
-      const scrollPercentage = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
+      const scrollPercentage =
+        maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
 
       setScrollPosition(scrollPercentage);
     };
@@ -417,7 +423,9 @@ export const CompanyInfo = () => {
   }
 
   if (!company || !companyId) {
-    return <ErrorPage type="default" showHeader={false} className="min-h-0 h-full" />;
+    return (
+      <ErrorPage type="default" showHeader={false} className="min-h-0 h-full" />
+    );
   }
 
   return (
@@ -446,7 +454,11 @@ export const CompanyInfo = () => {
             <FormField
               label="Legal Name"
               required
-              error={controlledInputError?.legalName || errors.legalName?.message || ''}
+              error={
+                controlledInputError?.legalName ||
+                errors.legalName?.message ||
+                ''
+              }
               onClick={() => {
                 setControlledInputError((prev) => ({
                   ...prev,
@@ -454,7 +466,11 @@ export const CompanyInfo = () => {
                 }));
               }}
             >
-              <Input {...register('legalName', { required: true })} disabled readOnly />
+              <Input
+                {...register('legalName', { required: true })}
+                disabled
+                readOnly
+              />
             </FormField>
             <FormField
               label="Display Name"
@@ -467,7 +483,11 @@ export const CompanyInfo = () => {
             <FormField
               label="Company Type"
               required
-              error={controlledInputError?.companyType || errors.companyType?.message || ''}
+              error={
+                controlledInputError?.companyType ||
+                errors.companyType?.message ||
+                ''
+              }
               onClick={() => {
                 setControlledInputError((prev) => ({
                   ...prev,
@@ -534,7 +554,10 @@ export const CompanyInfo = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField label="Company Registration Number">
-              <Input {...register('companyRegistrationNumber')} placeholder="Not Incorporated" />
+              <Input
+                {...register('companyRegistrationNumber')}
+                placeholder="Not Incorporated"
+              />
             </FormField>
             <FormField label="Tax Identification Number">
               <Input {...register('companyTaxId')} placeholder="X1101234567" />
@@ -558,7 +581,11 @@ export const CompanyInfo = () => {
                   id="countryId"
                   label="Country"
                   required
-                  error={controlledInputError?.countryId || fieldState.error?.message || ''}
+                  error={
+                    controlledInputError?.countryId ||
+                    fieldState.error?.message ||
+                    ''
+                  }
                   onClick={() =>
                     setControlledInputError((prev) => ({
                       ...prev,
@@ -580,7 +607,9 @@ export const CompanyInfo = () => {
                       label: `${item.flag} ${item.name}`,
                     })}
                     placeholder="Select country"
-                    aria-describedby={errors.countryId ? 'countryId-error' : undefined}
+                    aria-describedby={
+                      errors.countryId ? 'countryId-error' : undefined
+                    }
                     onValueChange={field.onChange}
                     value={field.value || ''}
                     disabled
@@ -597,7 +626,9 @@ export const CompanyInfo = () => {
                   label="Reporting Currency"
                   required
                   error={
-                    controlledInputError?.reportingCurrencyId || fieldState.error?.message || ''
+                    controlledInputError?.reportingCurrencyId ||
+                    fieldState.error?.message ||
+                    ''
                   }
                   errorTooltip
                   errorTooltipStyle="w-full"
@@ -605,7 +636,8 @@ export const CompanyInfo = () => {
                   onClick={() =>
                     setControlledInputError((prev) => ({
                       ...prev,
-                      reportingCurrencyId: 'Reporting currency cannot be changed',
+                      reportingCurrencyId:
+                        'Reporting currency cannot be changed',
                     }))
                   }
                 >
@@ -624,7 +656,9 @@ export const CompanyInfo = () => {
                     onValueChange={field.onChange}
                     placeholder="Select currency"
                     aria-describedby={
-                      errors.reportingCurrencyId ? 'reportingCurrencyId-error' : undefined
+                      errors.reportingCurrencyId
+                        ? 'reportingCurrencyId-error'
+                        : undefined
                     }
                     disabled
                   />
@@ -649,7 +683,10 @@ export const CompanyInfo = () => {
                     label="Annual Revenue"
                     error={fieldState.error?.message || ''}
                   >
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || ''}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Choose revenue range" />
                       </SelectTrigger>
@@ -673,7 +710,10 @@ export const CompanyInfo = () => {
                     label="Company size"
                     error={fieldState.error?.message || ''}
                   >
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || ''}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select company size" />
                       </SelectTrigger>
@@ -698,7 +738,9 @@ export const CompanyInfo = () => {
                 <Input
                   id="website"
                   {...register('website')}
-                  aria-describedby={errors.website ? 'website-error' : undefined}
+                  aria-describedby={
+                    errors.website ? 'website-error' : undefined
+                  }
                   placeholder="yourcompany.com"
                 />
               </FormField>
@@ -709,7 +751,9 @@ export const CompanyInfo = () => {
                 helpTooltip={TOOLTIP.yearEnd}
                 required
                 error={
-                  errors.yearEndDay?.message || errors.yearEndMonth?.message || errors.root?.message
+                  errors.yearEndDay?.message ||
+                  errors.yearEndMonth?.message ||
+                  errors.root?.message
                 }
                 errorTooltip
                 errorTooltipStyle="w-full"
@@ -780,12 +824,18 @@ export const CompanyInfo = () => {
                     control={control}
                     render={({ field, fieldState }) => {
                       const { value, onChange } = field;
-                      const slugCheck = useSlugCheck(value || '', company?.assignedFirmSlug || '');
+                      const slugCheck = useSlugCheck(
+                        value || '',
+                        company?.assignedFirmSlug || '',
+                      );
                       const errorMessage = slugCheck.getError();
                       const isCurrentSlug = slugCheck?.isSameAsCurrent;
 
                       useEffect(() => {
-                        if ((slugCheck.validation.isValid && slugCheck.isValid) || isCurrentSlug) {
+                        if (
+                          (slugCheck.validation.isValid && slugCheck.isValid) ||
+                          isCurrentSlug
+                        ) {
                           clearErrors('assignedFirmSlug');
                         } else {
                           setError('assignedFirmSlug', {
@@ -793,7 +843,11 @@ export const CompanyInfo = () => {
                             message: errorMessage ?? 'Invalid slug',
                           });
                         }
-                      }, [slugCheck.isValid, slugCheck.validation.isValid, errorMessage]);
+                      }, [
+                        slugCheck.isValid,
+                        slugCheck.validation.isValid,
+                        errorMessage,
+                      ]);
                       return (
                         <FormField
                           label="Slug"
@@ -823,7 +877,10 @@ export const CompanyInfo = () => {
                         label="Accounting Basis"
                         error={fieldState.error?.message || ''}
                       >
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || ''}
+                        >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select accounting basis" />
                           </SelectTrigger>
@@ -844,7 +901,9 @@ export const CompanyInfo = () => {
           </div>
         )}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-muted-foreground border-b">Other</h3>
+          <h3 className="text-lg font-medium text-muted-foreground border-b">
+            Other
+          </h3>
           <FormField id="description" label="Description">
             <Textarea
               {...register('description')}
@@ -854,7 +913,10 @@ export const CompanyInfo = () => {
           </FormField>
         </div>
         {/* Form navigation */}
-        <div className="pb-4 flex justify-center md:justify-between" data-footer>
+        <div
+          className="pb-4 flex justify-center md:justify-between"
+          data-footer
+        >
           {!isMobile && (
             <Button type="button" variant="outline" disabled>
               Previous
@@ -869,10 +931,12 @@ export const CompanyInfo = () => {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent className="sm:max-w-[425px]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-center">Confirm Company Details</AlertDialogTitle>
+            <AlertDialogTitle className="text-center">
+              Confirm Company Details
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-destructive sr-only">
-              Critical: Most company details cannot be changed once saved. Please review everything
-              carefully.
+              Critical: Most company details cannot be changed once saved.
+              Please review everything carefully.
             </AlertDialogDescription>
             <hr />
           </AlertDialogHeader>
@@ -883,13 +947,17 @@ export const CompanyInfo = () => {
               </span>{' '}
               <br />
               <span className="text-sm text-muted-foreground">
-                Most company settings become permanent once saved and cannot be modified.
+                Most company settings become permanent once saved and cannot be
+                modified.
               </span>
             </p>
             {/* Summarize other fields */}
             <div className="-mb-2">
               <div className="flex items-center justify-center gap-2">
-                <Button disabled={isLoading || isSubmitting} onClick={handleSubmit}>
+                <Button
+                  disabled={isLoading || isSubmitting}
+                  onClick={handleSubmit}
+                >
                   Yes, Submit
                 </Button>
                 <Button onClick={() => setConfirmOpen(false)} variant="outline">
@@ -918,7 +986,8 @@ export const CompanyInfo = () => {
               {/* Content */}
               <div className="px-4 py-3 bg-black/10 text-white flex flex-col gap-2 relative z-50">
                 <p className="text-center text-white/80">
-                  You've completed the essential fields. Continue or scroll to submit
+                  You've completed the essential fields. Continue or scroll to
+                  submit
                 </p>
                 <div className="flex gap-2 justify-center">
                   <Button

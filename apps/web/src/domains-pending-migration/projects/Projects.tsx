@@ -6,7 +6,10 @@ import type { Project } from '@/domains-pending-migration/projects/projects-type
 import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { DataTable } from '@/components/data-table/data-table';
-import { DataTableToolbar, type DataTableToolbarConfig } from '@/components/data-table/toolbar';
+import {
+  DataTableToolbar,
+  type DataTableToolbarConfig,
+} from '@/components/data-table/toolbar';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { AddProjectDialog } from '@/domains-pending-migration/projects/projects-add';
@@ -25,7 +28,10 @@ export const Projects = () => {
     limit,
   });
 
-  const projects: Project[] = useMemo(() => data?.data?.projects || [], [data?.data]);
+  const projects: Project[] = useMemo(
+    () => data?.data?.projects || [],
+    [data?.data],
+  );
   const columns = useMemo(() => getProjectColumns(), []);
 
   const openDialog = useCallback(() => setIsDialogOpen(true), []);
@@ -74,7 +80,11 @@ export const Projects = () => {
   return (
     <div className="flex flex-col max-w-full overflow-clip p-4 gap-4">
       <DataTable table={table}>
-        <DataTableToolbar table={table} showViewOptions={false} config={toolbarConfig} />
+        <DataTableToolbar
+          table={table}
+          showViewOptions={false}
+          config={toolbarConfig}
+        />
       </DataTable>
       <AddProjectDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
     </div>

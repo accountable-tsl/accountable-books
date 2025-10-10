@@ -9,14 +9,20 @@ export interface ToolbarClassNames {
   rightSection?: string;
 }
 
-export interface DataTableToolbarProps<TData> extends React.HTMLAttributes<HTMLDivElement> {
+export interface DataTableToolbarProps<TData>
+  extends React.HTMLAttributes<HTMLDivElement> {
   table: CustomTable<TData>;
   children?: React.ReactNode;
   showViewOptions?: boolean;
   config?: DataTableToolbarConfig;
 }
 
-export type ToolbarItemType = 'search' | 'filters' | 'reset' | 'viewOptions' | 'custom';
+export type ToolbarItemType =
+  | 'search'
+  | 'filters'
+  | 'reset'
+  | 'viewOptions'
+  | 'custom';
 
 export type ToolbarSection = 'left' | 'center' | 'right';
 

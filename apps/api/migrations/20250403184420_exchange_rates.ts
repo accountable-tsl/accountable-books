@@ -32,7 +32,12 @@ const seedExchangeRates = async function seed(knex: Knex): Promise<void> {
       .pipe(csv())
       .on('data', (data: Record<string, string>) => {
         try {
-          if (data.date && data.from_currency_id && data.to_currency_id && data.rate) {
+          if (
+            data.date &&
+            data.from_currency_id &&
+            data.to_currency_id &&
+            data.rate
+          ) {
             exchangeRates.push({
               date: new Date(data.date),
               from_currency_id: data.from_currency_id.trim(),
@@ -93,7 +98,10 @@ export async function up(knex: Knex): Promise<void> {
 
     addStandardColumns(knex, table);
 
-    table.index(['from_currency_id', 'to_currency_id'], 'exchange_rates_currency_idx');
+    table.index(
+      ['from_currency_id', 'to_currency_id'],
+      'exchange_rates_currency_idx',
+    );
     table.index(['date'], 'exchange_rates_date_idx');
     table.unique(['date', 'from_currency_id', 'to_currency_id'], {
       indexName: 'exchange_rates_date_currency_unique',

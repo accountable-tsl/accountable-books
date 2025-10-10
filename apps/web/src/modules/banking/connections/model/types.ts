@@ -13,6 +13,7 @@ export interface CreateLinkTokenResponse {
 
 export interface ConnectAccountRequest {
   providerKey: BankProviderKey;
+  countryCode: string;
   publicToken: string;
   metadata?: any;
   userId: string;

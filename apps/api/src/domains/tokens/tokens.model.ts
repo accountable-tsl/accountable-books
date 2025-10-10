@@ -9,7 +9,10 @@ import {
 } from './tokens.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 
 export async function addNewToken(
   input: NewToken,
@@ -61,7 +64,9 @@ export async function addNewToken(
     if (!result.length) return errorResponse('Failed to save token');
     const { token_hash, ...rest } = result[0];
     return successResponse(
-      isUpdate ? 'Found and updated existing token' : 'Token created successfully',
+      isUpdate
+        ? 'Found and updated existing token'
+        : 'Token created successfully',
       rest,
     );
   } catch (error) {
@@ -77,7 +82,9 @@ export async function getUserToken({
   includeExpired = false,
   includeEmailAddress = false,
   trx,
-}: GetTokenInput & { trx?: Knex.Transaction }): Promise<ApiResponse<FetchTokenResponse>> {
+}: GetTokenInput & { trx?: Knex.Transaction }): Promise<
+  ApiResponse<FetchTokenResponse>
+> {
   const knex = trx || knexClient;
 
   // Validation
@@ -90,13 +97,17 @@ export async function getUserToken({
   }
 
   try {
-    const query = knex('tokens').where({ token_type: tokenType }).orderBy('created_at', 'desc');
+    const query = knex('tokens')
+      .where({ token_type: tokenType })
+      .orderBy('created_at', 'desc');
 
     if (!includeExpired) query.andWhere('expires_at', '>', knex.fn.now());
 
     // Handle email joins
     if (includeEmailAddress || email) {
-      query.leftJoin('users', 'tokens.user_id', 'users.id').select('tokens.*', 'users.email');
+      query
+        .leftJoin('users', 'tokens.user_id', 'users.id')
+        .select('tokens.*', 'users.email');
 
       if (email) {
         query.andWhere('users.email', email);
@@ -141,7 +152,11 @@ export async function getTokenForInvitedUser({
 
     // Always include email for invitation tokens
     query
-      .leftJoin('user_invitations', 'tokens.invitation_id', 'user_invitations.id')
+      .leftJoin(
+        'user_invitations',
+        'tokens.invitation_id',
+        'user_invitations.id',
+      )
       .select('tokens.*', 'user_invitations.email');
 
     // Filter by email if provided

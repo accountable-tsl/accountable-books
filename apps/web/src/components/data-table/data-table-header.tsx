@@ -14,9 +14,15 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
   return (
     <TableHeader className={cn('bg-background sticky top-0 z-10', tableHeader)}>
       {table.getHeaderGroups().map((headerGroup) => (
-        <TableRow key={headerGroup.id} variant="header" className={tableHeaderRow}>
+        <TableRow
+          key={headerGroup.id}
+          variant="header"
+          className={tableHeaderRow}
+        >
           {headerGroup.headers.map((header) => {
-            const columnDef = table._getColumnDefs().find((c) => c.id === header.id);
+            const columnDef = table
+              ._getColumnDefs()
+              .find((c) => c.id === header.id);
             const explicitSize = !!columnDef?.size;
             const colStyle = getColumnStyle({ column: header, explicitSize });
 
@@ -28,7 +34,9 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
                 key={header.id}
                 variant="header"
                 style={colStyle}
-                data-column-resizing={header.column.getIsResizing() ? 'true' : undefined}
+                data-column-resizing={
+                  header.column.getIsResizing() ? 'true' : undefined
+                }
                 className={tableHeaderCell}
               >
                 {header.isPlaceholder ? null : (
@@ -43,16 +51,23 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
                           header.getContext(),
                         )}`}
                         onClick={() =>
-                          header.column.toggleSorting(header.column.getIsSorted() === 'asc')
+                          header.column.toggleSorting(
+                            header.column.getIsSorted() === 'asc',
+                          )
                         }
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            header.column.toggleSorting(header.column.getIsSorted() === 'asc');
+                            header.column.toggleSorting(
+                              header.column.getIsSorted() === 'asc',
+                            );
                           }
                         }}
                       >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
                         <span className="ml-2">
                           {header.column.getIsSorted() === 'asc' ? (
                             <ArrowUp className="h-3 w-3" />
@@ -64,11 +79,16 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
                         </span>
                       </div>
                     ) : (
-                      flexRender(header.column.columnDef.header, header.getContext())
+                      flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )
                     )}
                   </>
                 )}
-                {header.column.getCanResize() && <DataTableResizer header={header} />}
+                {header.column.getCanResize() && (
+                  <DataTableResizer header={header} />
+                )}
               </TableCell>
             );
           })}

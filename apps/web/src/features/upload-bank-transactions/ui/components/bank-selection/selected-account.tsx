@@ -19,7 +19,8 @@ export function SelectedBankAccount({
             <div>
               <p className="font-medium">{selectedBankAccount.bankName}</p>
               <p className="text-sm">
-                {selectedBankAccount.displayName} {maskDigits(selectedBankAccount.accountNumber)}
+                {selectedBankAccount.displayName}{' '}
+                {maskDigits(selectedBankAccount.accountNumber)}
               </p>
             </div>
           </div>

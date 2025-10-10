@@ -10,7 +10,10 @@ import { toast } from 'sonner';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { useNavigate } from 'react-router';
-import type { BankProvider, ProviderSelectionResult } from '@/modules/banking/providers';
+import type {
+  BankProvider,
+  ProviderSelectionResult,
+} from '@/modules/banking/providers';
 import {
   useBanking,
   useConnectAccounts,
@@ -30,15 +33,25 @@ type FlowStep =
 
 export function BankConnectionFlow() {
   const [currentStep, setCurrentStep] = useState<FlowStep>('welcome');
-  const [selectedProvider, setSelectedProvider] = useState<BankProvider | null>(null);
-  const [selectionStrategy, setSelectionStrategy] = useState<ProviderSelectionResult | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<BankProvider | null>(
+    null,
+  );
+  const [selectionStrategy, setSelectionStrategy] =
+    useState<ProviderSelectionResult | null>(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [connectedAccounts, setConnectedAccounts] = useState<ConnectAccountsResponse>({
-    bank: { id: '', name: '', logoUrl: null },
-    accounts: [],
-  });
+  const [connectedAccounts, setConnectedAccounts] =
+    useState<ConnectAccountsResponse>({
+      bank: { id: '', name: '', logoUrl: null },
+      accounts: [],
+    });
 
-  const { user, companyId, companyType, loading: sessionLoading, tenantRoutes } = useSession();
+  const {
+    user,
+    companyId,
+    companyType,
+    loading: sessionLoading,
+    tenantRoutes,
+  } = useSession();
   const navigate = useNavigate();
   const createLinkTokenMutation = useCreateLinkToken();
   const connectAccountsMutation = useConnectAccounts();
@@ -82,7 +95,8 @@ export function BankConnectionFlow() {
     }
   };
 
-  const stepWrapperClass = 'md:min-w-md w-full max-w-lg flex flex-col gap-6 mx-auto';
+  const stepWrapperClass =
+    'md:min-w-md w-full max-w-lg flex flex-col gap-6 mx-auto';
 
   const handleWelcomeContinue = () => {
     if (selectedCountry && selectedCountryIsSupported) {
@@ -159,6 +173,7 @@ export function BankConnectionFlow() {
     connectAccountsMutation.mutate(
       {
         providerKey: selectedProvider.key,
+        countryCode: selectedCountry?.code || 'US', // Use selected country or default to US for Plaid
         publicToken,
         metadata,
         userId: user?.id || '',
@@ -168,7 +183,8 @@ export function BankConnectionFlow() {
         onSuccess: (response) => {
           if (response.success && response.data) {
             setConnectedAccounts(response.data);
-            const message = response?.message || 'Bank account connected successfully!';
+            const message =
+              response?.message || 'Bank account connected successfully!';
             toast.success(message);
             if (companyType === 'individual') {
               setCurrentStep('success');
@@ -179,7 +195,10 @@ export function BankConnectionFlow() {
         },
         onError: (error: any) => {
           const errorData = error.response?.data?.error;
-          const message = errorData?.displayMessage || errorData?.message || 'Connection failed';
+          const message =
+            errorData?.displayMessage ||
+            errorData?.message ||
+            'Connection failed';
 
           toast.error('Failed to connect bank account', {
             description: message,
@@ -250,7 +269,9 @@ export function BankConnectionFlow() {
               <div className="text-center space-y-4">
                 <div className="flex items-center justify-center">
                   <div className="w-6 h-6 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                  <span className="text-lg font-semibold">Connecting your accounts...</span>
+                  <span className="text-lg font-semibold">
+                    Connecting your accounts...
+                  </span>
                 </div>
                 <div className="text-sm text-muted-foreground">
                   Please wait while we securely connect your bank accounts
@@ -262,11 +283,17 @@ export function BankConnectionFlow() {
                 token={linkToken}
                 onSuccess={connectAccount}
                 onExit={() => setCurrentStep('provider-select')}
+                onLoad={() => setCurrentStep('connecting')}
                 onError={() => {
                   setCurrentStep('country-select');
                 }}
-                userId={user?.id}
+                user={{
+                  id: user?.id ?? '',
+                  name: user?.firstname ?? '',
+                  email: user?.email ?? '',
+                }}
                 companyId={companyId}
+                countryCode={selectedCountry?.code || 'US'}
               />
             )}
           </div>
@@ -274,7 +301,9 @@ export function BankConnectionFlow() {
           <div className={stepWrapperClass}>
             <div className="text-center space-y-4">
               <div className="text-lg font-semibold">
-                {createLinkTokenMutation.isPending ? 'Creating connection...' : 'Loading...'}
+                {createLinkTokenMutation.isPending
+                  ? 'Creating connection...'
+                  : 'Loading...'}
               </div>
               <div className="text-sm text-muted-foreground">
                 Please wait while we set up your connection
@@ -298,10 +327,12 @@ export function BankConnectionFlow() {
         return (
           <div className={stepWrapperClass}>
             <div className="text-center space-y-4">
-              <div className="text-lg font-semibold text-green-600">Success!</div>
+              <div className="text-lg font-semibold text-green-600">
+                Success!
+              </div>
               <div className="text-sm text-muted-foreground">
-                Your bank account has been connected successfully. Transactions will start syncing
-                shortly.
+                Your bank account has been connected successfully. Transactions
+                will start syncing shortly.
               </div>
               <Button onClick={() => window.location.reload()} className="mt-4">
                 Continue
@@ -332,7 +363,7 @@ export function BankConnectionFlow() {
     return <CenteredLoader />;
   }
 
-  if (!companyId || !user?.id) {
+  if (!companyId || !user) {
     return <ErrorPage type="default" />;
   }
 

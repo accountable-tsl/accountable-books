@@ -110,7 +110,11 @@ export function WelcomeStep({
 
       <TrustIndicators />
 
-      <Button className="w-full" disabled={detectingLocation || isLoading} onClick={onContinue}>
+      <Button
+        className="w-full"
+        disabled={detectingLocation || isLoading}
+        onClick={onContinue}
+      >
         {selectedCountry && selectedCountryIsSupported
           ? 'Connect your bank'
           : 'Choose a different country'}

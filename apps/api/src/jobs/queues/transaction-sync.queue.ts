@@ -51,52 +51,31 @@ export async function scheduleBulkTransactionSync(
 }
 
 /**
- * Schedule periodic sync for a connection (every 4 hours)
+ * Schedule daily scan-and-enqueue job for all active credentials
+ * Uses BullMQ Job Schedulers API for flexible, runtime-updatable scheduling
  */
-export async function schedulePeriodicSync(
-  connectionId: string,
-  companyId: string,
-  userId: string,
-) {
-  const jobId = `periodic-sync-${connectionId}`;
+export async function scheduleDailySyncScan(cronPattern = '0 2 * * *') {
+  const schedulerId = 'daily-sync-scan';
 
-  return await transactionSyncQueue.add(
-    'periodic-sync',
+  // Use modern Job Schedulers API (BullMQ v5.16.0+)
+  // Calling upsertJobScheduler with same ID updates existing scheduler (atomic operation)
+  return await transactionSyncQueue.upsertJobScheduler(
+    schedulerId,
     {
-      connectionId,
-      companyId,
-      userId,
-      syncType: 'periodic' as const,
+      pattern: cronPattern, // Cron expression (e.g., '0 2 * * *' for 2 AM UTC daily)
     },
     {
-      jobId, // Prevent duplicate periodic sync jobs
-      repeat: {
-        every: 4 * 60 * 60 * 1000, // 4 hours in milliseconds
+      name: 'daily-sync-scan',
+      data: {
+        syncType: 'periodic' as const,
       },
-      // Lower priority for periodic syncs
-      priority: -1,
+      opts: {
+        priority: -1, // Lower priority for periodic syncs
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 30000 },
+      },
     },
   );
-}
-
-/**
- * Cancel periodic sync for a connection (when connection is disabled/deleted)
- */
-export async function cancelPeriodicSync(connectionId: string) {
-  const jobId = `periodic-sync-${connectionId}`;
-
-  try {
-    // Remove the repeatable job
-    const repeatableJobs = await transactionSyncQueue.getRepeatableJobs();
-    const job = repeatableJobs.find((job) => job.id === jobId);
-
-    if (job) {
-      await transactionSyncQueue.removeRepeatableByKey(job.key);
-      console.log(`Cancelled periodic sync for connection: ${connectionId}`);
-    }
-  } catch (error) {
-    console.error(`Failed to cancel periodic sync for connection ${connectionId}:`, error);
-  }
 }
 
 /**
@@ -117,7 +96,12 @@ export async function getTransactionSyncQueueStats() {
     completed: completed.length,
     failed: failed.length,
     delayed: delayed.length,
-    total: waiting.length + active.length + completed.length + failed.length + delayed.length,
+    total:
+      waiting.length +
+      active.length +
+      completed.length +
+      failed.length +
+      delayed.length,
   };
 }
 
@@ -134,7 +118,11 @@ export async function cleanupTransactionSyncQueue() {
     );
 
     // Clean failed jobs older than 2 days
-    const failedCleaned = await transactionSyncQueue.clean(48 * 60 * 60 * 1000, 1000, 'failed');
+    const failedCleaned = await transactionSyncQueue.clean(
+      48 * 60 * 60 * 1000,
+      1000,
+      'failed',
+    );
 
     console.log(
       `Transaction sync queue cleanup: ${completedCleaned.length} completed, ${failedCleaned.length} failed jobs removed`,

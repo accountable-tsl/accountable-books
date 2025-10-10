@@ -15,7 +15,10 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp('date', { useTz: true }).notNullable();
     table.string('description', 512).notNullable();
     table.string('note', 1000).nullable();
-    table.specificType('status', 'journal_status').defaultTo('draft').notNullable();
+    table
+      .specificType('status', 'journal_status')
+      .defaultTo('draft')
+      .notNullable();
 
     table
       .uuid('generated_from_template_id')
@@ -44,8 +47,18 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('users')
       .onDelete('RESTRICT');
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
-    table.uuid('reversed_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
+    table
+      .uuid('reversed_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
     table.timestamp('reversed_at', { useTz: true }).nullable();
     table.specificType('reversal_reason', 'journal_reversal_reason').nullable();
 
@@ -55,7 +68,10 @@ export async function up(knex: Knex): Promise<void> {
       indexName: 'journal_batch_company_id_sequence_number_unique',
     });
 
-    table.index(['status', 'company_id'], 'journal_batch_status_company_id_idx');
+    table.index(
+      ['status', 'company_id'],
+      'journal_batch_status_company_id_idx',
+    );
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

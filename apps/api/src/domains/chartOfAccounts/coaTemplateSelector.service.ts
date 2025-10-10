@@ -14,7 +14,12 @@ export const selectBestCoaTemplate = async (
   knex: Knex,
   input: SelectBestCoa,
 ): Promise<{ template: string; score?: number; log?: string }> => {
-  const { company, templates: inputTemplates, use_code, additional_info } = input;
+  const {
+    company,
+    templates: inputTemplates,
+    use_code,
+    additional_info,
+  } = input;
 
   if (!company.type) {
     throw new Error('Company type is required');
@@ -42,7 +47,9 @@ export const selectBestCoaTemplate = async (
   }
 
   // 2. Validation Layer
-  const validTemplates = templates.filter((t) => coaTemplateName.safeParse(t).success);
+  const validTemplates = templates.filter(
+    (t) => coaTemplateName.safeParse(t).success,
+  );
 
   if (!validTemplates.length) {
     throw new Error(
@@ -60,7 +67,9 @@ export const selectBestCoaTemplate = async (
 
   // 3. Scoring Preparation
   const cleanIndustry = company.industry?.toLowerCase().trim() || '';
-  const additionalInfo = additional_info ? splitIntoWords(additional_info).join(' ') : '';
+  const additionalInfo = additional_info
+    ? splitIntoWords(additional_info).join(' ')
+    : '';
   const searchText = `${cleanIndustry} ${additionalInfo}`.trim().toLowerCase();
 
   // 4. Scoring Engine
@@ -73,19 +82,23 @@ export const selectBestCoaTemplate = async (
     const scoringLog: string[] = [];
 
     // Industry Scoring
-    const { primary, secondary, aliasPrimary, aliasSecondary } = getKeywords(t_industry);
+    const { primary, secondary, aliasPrimary, aliasSecondary } =
+      getKeywords(t_industry);
     let industryScore = 0;
 
     // Map company industry to expected template industry
     const expectedIndustry =
-      company.industry && industryKeywords[company.industry.toLowerCase() as CoaTemplateIndustry]
+      company.industry &&
+      industryKeywords[company.industry.toLowerCase() as CoaTemplateIndustry]
         ? company.industry.toLowerCase()
         : 'none';
 
     // Apply mismatch penalty if template industry doesn't align with expected
     if (expectedIndustry !== 'none' && t_industry !== expectedIndustry) {
       industryScore -= SCORE.INDUSTRY_MISMATCH_PENALTY;
-      scoringLog.push(`-200 (industry mismatch: expected ${expectedIndustry}, got ${t_industry})`);
+      scoringLog.push(
+        `-200 (industry mismatch: expected ${expectedIndustry}, got ${t_industry})`,
+      );
     }
 
     primary.forEach((phrase) => {
@@ -105,14 +118,18 @@ export const selectBestCoaTemplate = async (
     aliasPrimary.forEach((phrase) => {
       if (searchText.includes(phrase)) {
         industryScore += SCORE.INDUSTRY_ALIAS_PRIMARY;
-        scoringLog.push(`+${SCORE.INDUSTRY_ALIAS_PRIMARY} (alias primary: ${phrase})`);
+        scoringLog.push(
+          `+${SCORE.INDUSTRY_ALIAS_PRIMARY} (alias primary: ${phrase})`,
+        );
       }
     });
     aliasSecondary.forEach((keyword) => {
       const safeKeyword = escapeRegExp(keyword);
       if (new RegExp(`\\b${safeKeyword}\\b`).test(searchText)) {
         industryScore += SCORE.INDUSTRY_ALIAS_SECONDARY;
-        scoringLog.push(`+${SCORE.INDUSTRY_ALIAS_SECONDARY} (alias secondary: ${keyword})`);
+        scoringLog.push(
+          `+${SCORE.INDUSTRY_ALIAS_SECONDARY} (alias secondary: ${keyword})`,
+        );
       }
     });
 
@@ -137,7 +154,9 @@ export const selectBestCoaTemplate = async (
 
     // Code Matching
     const effectiveUseCode = use_code ?? companyType !== 'ind';
-    const codeMatch = effectiveUseCode ? t_code === 'code' : ['nocode', 'none'].includes(t_code);
+    const codeMatch = effectiveUseCode
+      ? t_code === 'code'
+      : ['nocode', 'none'].includes(t_code);
 
     if (codeMatch) {
       score += SCORE.CODE_MATCH;
@@ -161,7 +180,9 @@ export const selectBestCoaTemplate = async (
   });
 
   // 5. Result Determination
-  const viableScores = scores.filter(({ score }) => score > SCORE.MIN_THRESHOLD);
+  const viableScores = scores.filter(
+    ({ score }) => score > SCORE.MIN_THRESHOLD,
+  );
   const [best] = [...viableScores].sort((a, b) => b.score - a.score);
 
   if (best) {
@@ -315,7 +336,14 @@ const industryKeywords: Record<CoaTemplateIndustry, IndustryKeywordConfig> = {
     aliases: [],
   },
   retail: {
-    primary: ['retail', 'store', 'ecommerce', 'online store', 'brick and mortar', 'retail sales'],
+    primary: [
+      'retail',
+      'store',
+      'ecommerce',
+      'online store',
+      'brick and mortar',
+      'retail sales',
+    ],
     secondary: [
       'shop',
       'merchandise',
@@ -424,7 +452,9 @@ export function getKeywords(industry: CoaTemplateIndustry) {
   return {
     primary: [...new Set(config.primary.map(normalizeKeyword))],
     secondary: [...new Set(config.secondary.map(normalizeKeyword))],
-    aliasPrimary: aliasKeywords ? [...new Set(aliasKeywords.primary.map(normalizeKeyword))] : [],
+    aliasPrimary: aliasKeywords
+      ? [...new Set(aliasKeywords.primary.map(normalizeKeyword))]
+      : [],
     aliasSecondary: aliasKeywords
       ? [...new Set(aliasKeywords.secondary.map(normalizeKeyword))]
       : [],

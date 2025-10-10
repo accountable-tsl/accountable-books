@@ -1,7 +1,10 @@
 import type { Knex } from 'knex';
 import { knexClient } from '../../../db/knexClient.js';
 import type { ApiResponse } from '../../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
 import {
   bankFeedProviderInputCamel,
   updateProviderInput,
@@ -152,7 +155,11 @@ export async function getBankFeedProviders({
     const knex = trx || knexClient;
     const query = knex('bank_feed_providers as p')
       .select(selectFields)
-      .innerJoin('bank_feed_provider_countries as bpc', 'p.id', 'bpc.bank_feed_provider_id')
+      .innerJoin(
+        'bank_feed_provider_countries as bpc',
+        'p.id',
+        'bpc.bank_feed_provider_id',
+      )
       .innerJoin('countries as c', 'bpc.country_id', 'c.id')
       .whereIn('p.status', status)
       .where('bpc.active', true)
@@ -235,7 +242,9 @@ export async function updateBankFeedProvider({
 
   const exec = async (trx: Knex.Transaction) => {
     // Get current provider
-    const currentProvider = await trx('bank_feed_providers').where('key', providerKey).first();
+    const currentProvider = await trx('bank_feed_providers')
+      .where('key', providerKey)
+      .first();
 
     if (!currentProvider) {
       throw new Error(`Provider with key '${providerKey}' not found`);
@@ -248,12 +257,15 @@ export async function updateBankFeedProvider({
     };
 
     // Remove undefined values and country arrays (handled separately)
-    const { new_countries, disable_countries, ...updateFields } = providerUpdateData;
+    const { new_countries, disable_countries, ...updateFields } =
+      providerUpdateData;
 
     // Update provider if there are changes
     if (Object.keys(updateFields).length > 1) {
       // More than just updated_by_id
-      await trx('bank_feed_providers').where('id', currentProvider.id).update(updateFields);
+      await trx('bank_feed_providers')
+        .where('id', currentProvider.id)
+        .update(updateFields);
     }
 
     // Handle country updates

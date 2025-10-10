@@ -11,7 +11,10 @@ export interface ImageUploaderProps {
   onError?: (error: string, context: 'upload' | 'remove') => void;
   validateFile?: (file: File) => string | null; // Custom validation
   onUploadComplete?: (result: { url: string; key?: string }) => void;
-  renderMetadata?: (metadata: Record<string, unknown>, maxSizeText: string) => JSX.Element;
+  renderMetadata?: (
+    metadata: Record<string, unknown>,
+    maxSizeText: string,
+  ) => JSX.Element;
 
   className?: string;
   size?: number;
@@ -42,7 +45,9 @@ export const profilePictureUploadParams = z.object({
 });
 
 export type LogoUploadParams = z.infer<typeof logoUploadParams>;
-export type ProfilePictureUploadParams = z.infer<typeof profilePictureUploadParams>;
+export type ProfilePictureUploadParams = z.infer<
+  typeof profilePictureUploadParams
+>;
 
 export type UploadParams = LogoUploadParams | ProfilePictureUploadParams;
 

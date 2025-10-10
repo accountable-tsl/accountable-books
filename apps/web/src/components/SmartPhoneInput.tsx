@@ -4,7 +4,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { useCountries } from '@/shared/hooks/useCountries';
 import type { Country } from '@/shared/types/core';
-import { AlertCircle, Check, ChevronDownIcon, ChevronUpIcon, SearchIcon, X } from 'lucide-react';
+import {
+  AlertCircle,
+  Check,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  SearchIcon,
+  X,
+} from 'lucide-react';
 import { formatPhoneNumber } from '@/shared/utils/formatting-utils';
 
 interface PhoneData {
@@ -114,7 +121,9 @@ export function SmartPhoneInput({
 
     // Try to match the input against known country codes
     // Start with longer codes first to avoid partial matches
-    const sortedPhoneCodes = Array.from(phoneCodeMap.keys()).sort((a, b) => b.length - a.length);
+    const sortedPhoneCodes = Array.from(phoneCodeMap.keys()).sort(
+      (a, b) => b.length - a.length,
+    );
 
     for (const phoneCode of sortedPhoneCodes) {
       if (input.startsWith(phoneCode)) {
@@ -136,7 +145,10 @@ export function SmartPhoneInput({
     const input = e.target.value;
 
     // Check max length for digits only, excluding +
-    if (input.replace(/\D/g, '').length > maxLength && input.length > inputValue.length) {
+    if (
+      input.replace(/\D/g, '').length > maxLength &&
+      input.length > inputValue.length
+    ) {
       return;
     }
 
@@ -211,13 +223,20 @@ export function SmartPhoneInput({
         onChange({
           phoneNumber: input,
           countryCode: 'UNKNOWN',
-          completeNumber: unknownCountryCode + (unknownCountryCode && input ? ' ' : '') + input,
+          completeNumber:
+            unknownCountryCode +
+            (unknownCountryCode && input ? ' ' : '') +
+            input,
         });
       }
     } else {
       // Normal input handling for known country
-      const formattedPhoneNumber = formatPhoneNumber(cleanedInput, selectedCountry);
-      const completeNumber = `${selectedCountry.phoneCode} ${formattedPhoneNumber}`.trim();
+      const formattedPhoneNumber = formatPhoneNumber(
+        cleanedInput,
+        selectedCountry,
+      );
+      const completeNumber =
+        `${selectedCountry.phoneCode} ${formattedPhoneNumber}`.trim();
 
       console.log(completeNumber);
       if (onChange) {
@@ -337,7 +356,10 @@ export function SmartPhoneInput({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     };
@@ -381,19 +403,28 @@ export function SmartPhoneInput({
   return (
     <div className="space-y-4">
       {showLabel && (
-        <Label htmlFor="phone" className={cn('transition-colors', focused ? 'text-primary' : '')}>
+        <Label
+          htmlFor="phone"
+          className={cn('transition-colors', focused ? 'text-primary' : '')}
+        >
           {label ?? 'Phone Number'}
         </Label>
       )}
       <div className="relative" ref={dropdownRef}>
-        <div className={cn('flex items-center border rounded-md overflow-hidden transition-all')}>
+        <div
+          className={cn(
+            'flex items-center border rounded-md overflow-hidden transition-all',
+          )}
+        >
           {/* Country Selector */}
           <div
             className="flex items-center text-sm cursor-pointer border-r px-3 py-2"
             onClick={handleDropdownToggle}
           >
             <span>{selectedCountry?.flag}</span>
-            <span className="px-1 font-medium">{selectedCountry?.phoneCode}</span>
+            <span className="px-1 font-medium">
+              {selectedCountry?.phoneCode}
+            </span>
             <span>
               {dropdownOpen ? (
                 <ChevronUpIcon className="h-4 w-4 text-muted-foreground" />
@@ -415,7 +446,11 @@ export function SmartPhoneInput({
             onPaste={handlePaste}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder={isUnknownCountry ? 'Enter full number with country code' : '000 000 0000'}
+            placeholder={
+              isUnknownCountry
+                ? 'Enter full number with country code'
+                : '000 000 0000'
+            }
             className={cn(
               'border-none focus-visible:ring-0 flex-1 focus:outline-none bg-transparent',
             )}
@@ -453,12 +488,18 @@ export function SmartPhoneInput({
             {/* Countries List */}
             <div className="overflow-auto max-h-60">
               {filteredCountries.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground">No countries found</div>
+                <div className="p-4 text-center text-muted-foreground">
+                  No countries found
+                </div>
               ) : (
                 filteredCountries.map((country) => (
                   <div
                     key={country.code}
-                    ref={country.code === selectedCountry?.code ? selectedRef : null}
+                    ref={
+                      country.code === selectedCountry?.code
+                        ? selectedRef
+                        : null
+                    }
                     className={cn(
                       'flex items-center cursor-pointer hover:bg-muted px-3 py-2',
                       country.code === selectedCountry?.code ? 'bg-muted' : '',
@@ -468,8 +509,12 @@ export function SmartPhoneInput({
                     }}
                   >
                     <span>{country.flag}</span>
-                    <span className="px-1 font-medium">{country.phoneCode}</span>
-                    <span className="ml-1 text-muted-foreground text-sm">{country.name}</span>
+                    <span className="px-1 font-medium">
+                      {country.phoneCode}
+                    </span>
+                    <span className="ml-1 text-muted-foreground text-sm">
+                      {country.name}
+                    </span>
                   </div>
                 ))
               )}
@@ -481,7 +526,8 @@ export function SmartPhoneInput({
           {isUnknownCountry ? (
             <span className="flex items-center text-purple-500">
               <AlertCircle className="h-3 w-3 mr-1" />
-              Unknown country code - enter your full number including country code
+              Unknown country code - enter your full number including country
+              code
             </span>
           ) : !isUnknownCountry && inputValue.length >= maxLength ? (
             <span className="flex items-center text-green-500">

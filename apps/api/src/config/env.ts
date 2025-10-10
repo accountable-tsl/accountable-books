@@ -21,4 +21,5 @@ export const isProd = NODE_ENV === 'production' || NODE_ENV === 'staging';
 export const isTest = NODE_ENV === 'test';
 export const isDev = NODE_ENV === 'local';
 export const isLocalStaging =
-  process.argv.includes('--local:staging') || process.env.LOCAL_STAGING === 'true';
+  process.argv.includes('--local:staging') ||
+  process.env.LOCAL_STAGING === 'true';

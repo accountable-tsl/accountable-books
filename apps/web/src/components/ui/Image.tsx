@@ -1,7 +1,13 @@
-import React, { forwardRef, type ImgHTMLAttributes, useState, useMemo } from 'react';
+import React, {
+  forwardRef,
+  type ImgHTMLAttributes,
+  useState,
+  useMemo,
+} from 'react';
 import { cn } from '@/lib/utils';
 
-export interface ImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'> {
+export interface ImageProps
+  extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'> {
   src: string;
   alt: string;
   width?: number | string;
@@ -38,7 +44,9 @@ export const Image = forwardRef<HTMLImageElement, ImageProps>(
     ref,
   ) => {
     const [imgSrc, setImgSrc] = useState(src);
-    const [isBlurred, setIsBlurred] = useState(placeholder === 'blur' && !!blurDataURL);
+    const [isBlurred, setIsBlurred] = useState(
+      placeholder === 'blur' && !!blurDataURL,
+    );
 
     const getSize = (size: number | string | undefined) =>
       typeof size === 'number' ? `${size}px` : size;

@@ -17,7 +17,9 @@ export const bankAccountType = z.enum([
 export type BankAccountType = z.infer<typeof bankAccountType>;
 
 export const businessOrPersonalAccount = z.enum(['business', 'personal']);
-export type BusinessOrPersonalAccount = z.infer<typeof businessOrPersonalAccount>;
+export type BusinessOrPersonalAccount = z.infer<
+  typeof businessOrPersonalAccount
+>;
 
 export const bankAccountConnectionStatus = z.enum([
   'connected',
@@ -25,7 +27,9 @@ export const bankAccountConnectionStatus = z.enum([
   'error',
   'not_connected',
 ]);
-export type BankAccountConnectionStatus = z.infer<typeof bankAccountConnectionStatus>;
+export type BankAccountConnectionStatus = z.infer<
+  typeof bankAccountConnectionStatus
+>;
 
 const manualBankAccountInput = z.object({
   id: z.uuid().optional(),
@@ -42,14 +46,23 @@ const manualBankAccountInput = z.object({
   connection_status: bankAccountConnectionStatus.extract(['not_connected']), // must be not_connected
   notes: z.string().nullish(),
   bank_id: z.uuid(),
-  currency_code: z.string().length(3, 'Currency code must be exactly 3 characters'),
+  currency_code: z
+    .string()
+    .length(3, 'Currency code must be exactly 3 characters'),
   coa_code: z.string().optional(),
   coa_name: z.string().max(256, 'Coa name is too long').nullish(),
-  coa_description: z.string().max(1024, 'Coa description is too long').nullish(),
+  coa_description: z
+    .string()
+    .max(1024, 'Coa description is too long')
+    .nullish(),
   source: coaSource.optional(),
 });
-export const manualBankAccountInputCamel = createCamelCaseSchema(manualBankAccountInput);
-export type ManualBankAccountInput = SnakeToCamelCaseObject<z.infer<typeof manualBankAccountInput>>;
+export const manualBankAccountInputCamel = createCamelCaseSchema(
+  manualBankAccountInput,
+);
+export type ManualBankAccountInput = SnakeToCamelCaseObject<
+  z.infer<typeof manualBankAccountInput>
+>;
 // company, coa, etc, to be added later
 
 const connectionSpecificFields = z.object({
@@ -72,7 +85,10 @@ export type BankAccountWithConnectionInput = SnakeToCamelCaseObject<
 >;
 
 export const newBankAccountInput = z
-  .object({ ...manualBankAccountInput.shape, ...connectionSpecificFields.partial().shape })
+  .object({
+    ...manualBankAccountInput.shape,
+    ...connectionSpecificFields.partial().shape,
+  })
   .omit({
     connection_status: true,
   })
@@ -98,14 +114,18 @@ export const newBankAccount = newBankAccountInput
   });
 export type NewBankAccount = z.infer<typeof newBankAccount>;
 
-export const bankAccount = z.object({ ...newBankAccount.shape, ...dbBaseFields.shape });
+export const bankAccount = z.object({
+  ...newBankAccount.shape,
+  ...dbBaseFields.shape,
+});
 export type BankAccount = z.infer<typeof bankAccount>;
 
 export const bankAccountWithMeta = z.object({
   id: z.uuid(),
   displayName: z.string(),
   accountType: bankAccountType,
-  accountNumber: z.string(),
+  // accountNumber: z.string(),
+  mask: z.string(),
 
   bankId: z.uuid(),
   bankName: z.string(),
@@ -134,6 +154,8 @@ export const bankAccountWithMeta = z.object({
   providerKey: z.string().nullish(),
   providerName: z.string().nullish(),
   providerLogo: z.string().nullish(),
+  connectionCredentialId: z.string().nullish(),
+  lastSyncAt: z.date().nullish(),
 });
 export type BankAccountWithMeta = z.infer<typeof bankAccountWithMeta>;
 
@@ -146,7 +168,9 @@ export const bankAccountWithBalancesAndStats = bankAccountWithMeta.extend({
   autoCategorizedCount: z.number().min(0),
   uncategorizedCount: z.number().min(0),
 });
-export type BankAccountWithBalancesAndStats = z.infer<typeof bankAccountWithBalancesAndStats>;
+export type BankAccountWithBalancesAndStats = z.infer<
+  typeof bankAccountWithBalancesAndStats
+>;
 
 export const bankAccountsMeta = z.object({
   totalAccounts: z.number().min(0),

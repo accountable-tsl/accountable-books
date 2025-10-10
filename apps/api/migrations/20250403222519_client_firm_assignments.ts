@@ -63,7 +63,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('accounting_firms_meta')
       .onDelete('CASCADE');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     table
       .uuid('created_by_id')

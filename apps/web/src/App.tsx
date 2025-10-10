@@ -16,7 +16,11 @@ import { Toaster } from '@/components/ui/sonner';
 import { routes } from '@/shared/routes/routes';
 import { queryClient } from '@/lib/queryClient';
 import { OnboardingRouter } from '@/domains-pending-migration/onboarding/OnboardingRouter';
-import { RequireAuth, RequireOnboardingComplete, RootRedirector } from '@/app/router/guards';
+import {
+  RequireAuth,
+  RequireOnboardingComplete,
+  RootRedirector,
+} from '@/app/router/guards';
 import BlankLayout from './layouts/BlankLayout';
 import { AccountingWorkspaceSetup } from './domains-pending-migration/accounting-setup/AccountingSetup';
 import { Table } from '@/components/data-table/fake';
@@ -72,10 +76,16 @@ function AppRoutes() {
       <Route path={routes.auth.login.staticPath} element={<LoginForm />} />
 
       {/* VERIFY EMAIL PAGE */}
-      <Route path={routes.onboarding.verifyEmail.staticPath} element={<OnboardingStepPage />} />
+      <Route
+        path={routes.onboarding.verifyEmail.staticPath}
+        element={<OnboardingStepPage />}
+      />
 
       {/* PLAID OAUTH CALLBACK */}
-      <Route path={routes.banking['plaid-oauth'].staticPath} element={<PlaidOAuthCallback />} />
+      <Route
+        path={routes.banking['plaid-oauth'].staticPath}
+        element={<PlaidOAuthCallback />}
+      />
 
       {/* PRIVATE ONBOARDING */}
       <Route
@@ -102,28 +112,54 @@ function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route path={routes.general.welcome.relativePath} element={<Welcome />} />
+        <Route
+          path={routes.general.welcome.relativePath}
+          element={<Welcome />}
+        />
 
         <Route element={<AppLayout />}>
           <Route path="table" element={<Table />} />
-          <Route index element={<Navigate to={routes.general.dashboard.relativePath} replace />} />
-          <Route path={routes.general.dashboard.relativePath} element={<Dashboard />} />
-          <Route path={routes.general.home.relativePath} element={<Dashboard />} />
+          <Route
+            index
+            element={
+              <Navigate to={routes.general.dashboard.relativePath} replace />
+            }
+          />
+          <Route
+            path={routes.general.dashboard.relativePath}
+            element={<Dashboard />}
+          />
+          <Route
+            path={routes.general.home.relativePath}
+            element={<Dashboard />}
+          />
 
           {/* CLIENT-SPECIFIC PAGES */}
 
           {/* FIRM-SPECIFIC PAGES */}
-          <Route path={routes.accounting.index.relativePath} element={<AccountingWorkspace />} />
+          <Route
+            path={routes.accounting.index.relativePath}
+            element={<AccountingWorkspace />}
+          />
 
           <Route
             path={routes.accounting.setup.relativePath}
             element={<AccountingWorkspaceSetup />}
           />
 
-          <Route path={routes.banking.upload.relativePath} element={<UploadBankTransactions />} />
-          <Route path={routes.banking.connect.relativePath} element={<ConnectBank />} />
+          <Route
+            path={routes.banking.upload.relativePath}
+            element={<UploadBankTransactions />}
+          />
+          <Route
+            path={routes.banking.connect.relativePath}
+            element={<ConnectBank />}
+          />
 
-          <Route path={routes.accounting.catEngine.relativePath} element={<CatEngine />} />
+          <Route
+            path={routes.accounting.catEngine.relativePath}
+            element={<CatEngine />}
+          />
         </Route>
         <Route path="*" element={<ErrorPage type="404" />} />
       </Route>

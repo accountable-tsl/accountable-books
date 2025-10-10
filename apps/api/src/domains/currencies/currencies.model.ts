@@ -1,7 +1,10 @@
 import { knexClient } from '../../db/knexClient.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
 import { redis } from '../../lib/redis.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import { generateCacheKey } from '../../shared/utils/string.utils.js';
 import { type CurrencyRes } from './currencies.types.js';
 
@@ -14,7 +17,10 @@ export async function getAllCurrencies({
     if (!skipCache) {
       const cachedCurrencies = await redis.get(currenciesCacheKey);
       if (cachedCurrencies) {
-        return successResponse('Currencies fetched from cache', JSON.parse(cachedCurrencies));
+        return successResponse(
+          'Currencies fetched from cache',
+          JSON.parse(cachedCurrencies),
+        );
       }
     }
 
@@ -24,15 +30,25 @@ export async function getAllCurrencies({
 
     if (currencies.length === 0) successResponse('No currencies found', []);
 
-    await redis.set(currenciesCacheKey, JSON.stringify(currencies), 'EX', CACHE_TTL);
+    await redis.set(
+      currenciesCacheKey,
+      JSON.stringify(currencies),
+      'EX',
+      CACHE_TTL,
+    );
 
-    return successResponse(`Successfully retrieved ${currencies.length} currencies`, currencies);
+    return successResponse(
+      `Successfully retrieved ${currencies.length} currencies`,
+      currencies,
+    );
   } catch (error) {
     return errorResponse('Failed to fetch currencies', error);
   }
 }
 
-export async function getCurrencyByCode(code: string): Promise<ApiResponse<CurrencyRes | null>> {
+export async function getCurrencyByCode(
+  code: string,
+): Promise<ApiResponse<CurrencyRes | null>> {
   try {
     // Input validation
     if (!code || typeof code !== 'string' || code.trim().length === 0) {

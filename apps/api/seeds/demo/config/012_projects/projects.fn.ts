@@ -1,5 +1,9 @@
 import type { Knex } from 'knex';
-import { deleteDemoData, getDemoCompanies, getDemoUserMap } from '../../shared/utils.js';
+import {
+  deleteDemoData,
+  getDemoCompanies,
+  getDemoUserMap,
+} from '../../shared/utils.js';
 import {
   getRawProjectsForInsertion,
   generateDemoProjectsMap,
@@ -30,7 +34,8 @@ async function assignContactsToProjects(
 
   return projects.map((project) => {
     // If project already has a valid contactId, keep it
-    const hasValidContact = project.contactId && contactIds.includes(project.contactId);
+    const hasValidContact =
+      project.contactId && contactIds.includes(project.contactId);
     if (hasValidContact) {
       return project;
     }
@@ -44,7 +49,10 @@ async function assignContactsToProjects(
 /**
  * Create demo projects in the database
  */
-export const createDemoProjects = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const createDemoProjects = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   const projectsMap = await getRawProjectsForInsertion(trx, filters);
 
   if (projectsMap.length === 0) {
@@ -71,14 +79,20 @@ export const createDemoProjects = async (trx: Knex.Transaction, filters?: DemoFi
     if (!projects || projects.length === 0) continue;
 
     // Check if projects already exist for this company (idempotency)
-    const existingProjects = await trx('projects').where({ company_id: company.id }).first();
+    const existingProjects = await trx('projects')
+      .where({ company_id: company.id })
+      .first();
 
     if (existingProjects) {
-      console.log(`Projects already exist for company ${company.shortCode}, skipping`);
+      console.log(
+        `Projects already exist for company ${company.shortCode}, skipping`,
+      );
       continue;
     }
 
-    console.log(`Creating ${projects.length} projects for company ${company.shortCode}`);
+    console.log(
+      `Creating ${projects.length} projects for company ${company.shortCode}`,
+    );
 
     // Prepare projects for insertion (no IDs, let DB generate them)
     const prepared = projects.map((p) => ({
@@ -92,7 +106,11 @@ export const createDemoProjects = async (trx: Knex.Transaction, filters?: DemoFi
     }));
 
     // Assign contacts using database query
-    const withContacts = await assignContactsToProjects(prepared, company.id, trx);
+    const withContacts = await assignContactsToProjects(
+      prepared,
+      company.id,
+      trx,
+    );
 
     // Create projects
     const userId = getUserId(user.email);
@@ -104,7 +122,10 @@ export const createDemoProjects = async (trx: Knex.Transaction, filters?: DemoFi
     });
 
     if (!res.success) {
-      throw new Error(res.message || `Failed to create demo projects for ${company.shortCode}`);
+      throw new Error(
+        res.message ||
+          `Failed to create demo projects for ${company.shortCode}`,
+      );
     }
 
     // Store results in state map
@@ -143,7 +164,9 @@ export const getOrCreateDemoProjectsMap = async (
   const targetCompanyIds = companies.map((c) => c.id);
 
   // Check if projects exist for all target companies
-  const hasAllProjects = targetCompanyIds.every((id) => demoProjectsByCompanyMap.has(id));
+  const hasAllProjects = targetCompanyIds.every((id) =>
+    demoProjectsByCompanyMap.has(id),
+  );
 
   // Create projects if they don't exist
   if (!hasAllProjects) {
@@ -157,7 +180,10 @@ export const getOrCreateDemoProjectsMap = async (
 /**
  * Delete demo projects from the database
  */
-export const deleteDemoProjects = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const deleteDemoProjects = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   // Clear the state map
   demoProjectsByCompanyMap.clear();
 

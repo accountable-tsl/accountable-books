@@ -9,7 +9,13 @@ export const projectStatus = z.enum([
 ]);
 export type ProjectStatus = z.infer<typeof projectStatus>;
 
-export const sortFields = ['created_at', 'name', 'status', 'start_date', 'end_date'] as const;
+export const sortFields = [
+  'created_at',
+  'name',
+  'status',
+  'start_date',
+  'end_date',
+] as const;
 export type SortField = (typeof sortFields)[number];
 
 const sortOrderEnum = z.enum(['asc', 'desc']);

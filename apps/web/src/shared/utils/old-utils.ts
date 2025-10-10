@@ -1,6 +1,9 @@
 import { formatDistanceToNow } from 'date-fns';
 import dayjsLib, { type Dayjs } from 'dayjs';
-import { toTitleCase, formatAccountText } from '@/shared/utils/formatting-utils';
+import {
+  toTitleCase,
+  formatAccountText,
+} from '@/shared/utils/formatting-utils';
 
 export function sanitizeInput(value: string): string {
   return value
@@ -10,13 +13,17 @@ export function sanitizeInput(value: string): string {
     .trim();
 }
 
-export function sanitizeOptionalInput(value: string | null | undefined): string | undefined {
+export function sanitizeOptionalInput(
+  value: string | null | undefined,
+): string | undefined {
   if (value == null) return undefined;
   const cleaned = sanitizeInput(String(value));
   return cleaned.length ? cleaned : undefined;
 }
 
-export async function readCSV<T = Record<string, string>>(url: string): Promise<T[]> {
+export async function readCSV<T = Record<string, string>>(
+  url: string,
+): Promise<T[]> {
   const res = await fetch(url);
   const text = await res.text();
   const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
@@ -68,7 +75,9 @@ export function normalizeDate(input: Date | Dayjs | string): Date {
   if (input instanceof Date) return input;
   if (typeof input === 'string') return new Date(input);
   // Dayjs
-  return (input as Dayjs).toDate ? (input as Dayjs).toDate() : dayjsLib(input as any).toDate();
+  return (input as Dayjs).toDate
+    ? (input as Dayjs).toDate()
+    : dayjsLib(input as any).toDate();
 }
 
 export function timeAgo(date: Date | number | string): string {

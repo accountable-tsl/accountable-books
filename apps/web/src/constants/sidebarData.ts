@@ -13,7 +13,10 @@ import {
 } from 'lucide-react';
 import { routes } from '@/shared/routes/routes';
 
-export const getNavMain = (companyId: string, companyType: CompanyType): NavMainItems[] => {
+export const getNavMain = (
+  companyId: string,
+  companyType: CompanyType,
+): NavMainItems[] => {
   return [
     {
       title: 'Dashboard',
@@ -62,7 +65,11 @@ export const getNavMain = (companyId: string, companyType: CompanyType): NavMain
   ];
 };
 
-export const getNavUser = (user: { name: string; email: string; avatar: string }) => {
+export const getNavUser = (user: {
+  name: string;
+  email: string;
+  avatar: string;
+}) => {
   return {
     name: `${user.name}`,
     email: `${user.email}`,

@@ -1,4 +1,9 @@
-import { Building2Icon, CreditCardIcon, MailCheckIcon, Settings } from 'lucide-react';
+import {
+  Building2Icon,
+  CreditCardIcon,
+  MailCheckIcon,
+  Settings,
+} from 'lucide-react';
 import type { OnboardingSidebarItem, OnboardingStepKey } from './types';
 import { routes } from '@/shared/routes/routes';
 import { VerifyEmail } from './steps/VerifyEmail';
@@ -26,7 +31,10 @@ export const onboardingStepToSlug = {
 } as const;
 export type OnboardingSlug = (typeof onboardingStepToSlug)[OnboardingStepKey];
 
-export const onboardingStepsConfig: Record<OnboardingStepKey, OnboardingSidebarItem> = {
+export const onboardingStepsConfig: Record<
+  OnboardingStepKey,
+  OnboardingSidebarItem
+> = {
   email_verified: {
     icon: MailCheckIcon,
     title: 'Verify Email',
@@ -49,10 +57,12 @@ export const onboardingStepsConfig: Record<OnboardingStepKey, OnboardingSidebarI
   },
 };
 
-export function getPathByStepKey(stepKey: OnboardingStepKey): OnboardingPathKey | undefined {
-  return Object.entries(onboardingSteps).find(([, value]) => value.key === stepKey)?.[0] as
-    | OnboardingPathKey
-    | undefined;
+export function getPathByStepKey(
+  stepKey: OnboardingStepKey,
+): OnboardingPathKey | undefined {
+  return Object.entries(onboardingSteps).find(
+    ([, value]) => value.key === stepKey,
+  )?.[0] as OnboardingPathKey | undefined;
 }
 
 export const onboardingSteps: Record<

@@ -41,6 +41,8 @@ setup: guard-nonprod ## One-command setup: infra + deps + db + demo
 
 dev: guard-nonprod ## Start all apps in development mode (Turbo)
 	@echo "$(GREEN)🎯 Starting development environment...$(RESET)"
+	@echo "$(YELLOW)🔨 Ensuring dependencies are built...$(RESET)"
+	@pnpm -F @accountable-books/utils run build
 	@pnpm dev
 
 ##@ 🚀 Combined Workflows
@@ -48,6 +50,8 @@ dev-full: guard-nonprod ## Start development with infrastructure (db + redis + t
 	@echo "$(GREEN)🚀 Starting full development environment...$(RESET)"
 	@echo "$(YELLOW)🐳 Starting infrastructure...$(RESET)"
 	@$(MAKE) db-up
+	@echo "$(YELLOW)🔨 Ensuring dependencies are built...$(RESET)"
+	@pnpm -F @accountable-books/utils run build
 	@echo "$(YELLOW)⚡ Starting apps via Turbo...$(RESET)"
 	@pnpm dev
 

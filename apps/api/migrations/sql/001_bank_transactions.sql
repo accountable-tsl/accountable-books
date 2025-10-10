@@ -4,6 +4,7 @@
 CREATE TABLE public.bank_transactions (
     id                      UUID NOT NULL DEFAULT uuid_generate_v7(),
     date                    DATE NOT NULL,
+    txn_at                  TIMESTAMPTZ NOT NULL,
     payee                   TEXT,
     contact_id              UUID,
     reference               TEXT,
@@ -55,6 +56,10 @@ CREATE INDEX IF NOT EXISTS bt_live_status_date_idx
 CREATE INDEX IF NOT EXISTS bt_live_account_date_idx
   ON bank_transactions (is_deleted, bank_account_id, date DESC)
   INCLUDE (amount, payee);
+
+CREATE INDEX IF NOT EXISTS bt_live_account_txn_at_idx
+  ON bank_transactions (is_deleted, bank_account_id, txn_at DESC)
+  WHERE is_deleted=false;
 
 CREATE INDEX IF NOT EXISTS gin_bt_search_live_trgm_idx
   ON bank_transactions

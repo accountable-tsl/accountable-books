@@ -8,7 +8,14 @@ import {
 } from '@/components/ui/select';
 import { newCompany, type NewCompany, type NewUser } from '@/modules/auth';
 import { useIndustries } from '@/shared/hooks/useIndustries';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
@@ -21,7 +28,10 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import DOMPurify from 'dompurify';
-import { COMPANY_SIZE, COMPANY_TYPES } from '@/domains-pending-migration/company/constants';
+import {
+  COMPANY_SIZE,
+  COMPANY_TYPES,
+} from '@/domains-pending-migration/company/constants';
 import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
 
 export interface SignupCompanyInfoHandle {
@@ -137,7 +147,11 @@ export const SignupCompanyInfo = forwardRef<
   useEffect(() => {
     Object.entries(formData).forEach(([key, value]) => {
       // Only update if this specific field actually changed
-      if (prevFormDataRef.current[key] !== value && value !== undefined && value !== '') {
+      if (
+        prevFormDataRef.current[key] !== value &&
+        value !== undefined &&
+        value !== ''
+      ) {
         updateCompanyField(key as keyof NewCompany, (value || '').toString());
         prevFormDataRef.current[key] = value;
       }
@@ -230,7 +244,9 @@ export const SignupCompanyInfo = forwardRef<
               value={watch('countryId') || ''}
               onValueChange={(value) => handleChange('countryId', value)}
               placeholder="Select country"
-              aria-describedby={errors.countryId ? 'countryId-error' : undefined}
+              aria-describedby={
+                errors.countryId ? 'countryId-error' : undefined
+              }
             />
           </FormField>
 
@@ -256,17 +272,26 @@ export const SignupCompanyInfo = forwardRef<
                 label: `${item.name} (${item.symbol})`,
               })}
               value={watch('reportingCurrencyId')}
-              onValueChange={(value) => handleChange('reportingCurrencyId', value)}
+              onValueChange={(value) =>
+                handleChange('reportingCurrencyId', value)
+              }
               placeholder="Select currency"
               aria-describedby={
-                errors.reportingCurrencyId ? 'reportingCurrencyId-error' : undefined
+                errors.reportingCurrencyId
+                  ? 'reportingCurrencyId-error'
+                  : undefined
               }
             />
           </FormField>
         </div>
 
         {!isIndividual && (
-          <div className={cn('flex overflow-hidden', isFirm ? 'grid md:grid-cols-2 gap-2' : '')}>
+          <div
+            className={cn(
+              'flex overflow-hidden',
+              isFirm ? 'grid md:grid-cols-2 gap-2' : '',
+            )}
+          >
             {isFirm ? (
               <Controller
                 name="slug"
@@ -294,7 +319,9 @@ export const SignupCompanyInfo = forwardRef<
                       <Input
                         {...field}
                         value={field.value ?? ''}
-                        required={companyData.type === 'accounting_firm' ? true : false}
+                        required={
+                          companyData.type === 'accounting_firm' ? true : false
+                        }
                         onChange={(e) => {
                           field.onChange(e.target.value);
                           handleChange('slug', e.target.value);
@@ -321,7 +348,12 @@ export const SignupCompanyInfo = forwardRef<
                     isIndustriesLoading
                       ? [{ value: 'loading', label: 'Loading...' }]
                       : isIndustriesError
-                        ? [{ value: 'error', label: 'Error loading industries' }]
+                        ? [
+                            {
+                              value: 'error',
+                              label: 'Error loading industries',
+                            },
+                          ]
                         : industries || []
                   }
                   mapItem={(item) => ({
@@ -342,7 +374,9 @@ export const SignupCompanyInfo = forwardRef<
                 helpTooltip={TOOLTIP.yearEnd}
                 required
                 error={
-                  errors.yearEndDay?.message || errors.yearEndMonth?.message || errors.root?.message
+                  errors.yearEndDay?.message ||
+                  errors.yearEndMonth?.message ||
+                  errors.root?.message
                 }
                 errorTooltip
                 errorTooltipStyle="w-full"
@@ -350,7 +384,9 @@ export const SignupCompanyInfo = forwardRef<
                 <div className="grid md:grid-cols-2 gap-1">
                   <div className="relative">
                     <Select
-                      onValueChange={(value) => handleChange('yearEndDay', value)}
+                      onValueChange={(value) =>
+                        handleChange('yearEndDay', value)
+                      }
                       value={watch('yearEndDay')?.toString() || '31'}
                     >
                       <SelectTrigger className="w-full [&_svg]:hidden">
@@ -372,7 +408,9 @@ export const SignupCompanyInfo = forwardRef<
                   </div>
                   <div className="relative">
                     <Select
-                      onValueChange={(value) => handleChange('yearEndMonth', value)}
+                      onValueChange={(value) =>
+                        handleChange('yearEndMonth', value)
+                      }
                       value={watch('yearEndMonth')?.toString() || '12'}
                     >
                       <SelectTrigger className="w-full [&_svg]:hidden">
@@ -398,12 +436,20 @@ export const SignupCompanyInfo = forwardRef<
           </div>
         )}
 
-        <div className={cn('flex flex-col', !isIndividual ? '-mb-[1.75rem]' : '')}>
+        <div
+          className={cn('flex flex-col', !isIndividual ? '-mb-[1.75rem]' : '')}
+        >
           {/* Description */}
-          <FormField id="description" label="Description" helpTooltip={TOOLTIP.description}>
+          <FormField
+            id="description"
+            label="Description"
+            helpTooltip={TOOLTIP.description}
+          >
             <Textarea
               {...register('description')}
-              onChange={(e) => handleChange('description', DOMPurify.sanitize(e.target.value))}
+              onChange={(e) =>
+                handleChange('description', DOMPurify.sanitize(e.target.value))
+              }
               placeholder={
                 isIndividual
                   ? 'Tell us a bit about yourself'
@@ -418,7 +464,10 @@ export const SignupCompanyInfo = forwardRef<
               // value={description}
               onFocus={() => setIsDescriptionTouched(true)}
               onBlur={() => {
-                setTimeout(() => !viewOptionalFields && setIsDescriptionTouched(false), 2000);
+                setTimeout(
+                  () => !viewOptionalFields && setIsDescriptionTouched(false),
+                  2000,
+                );
               }}
             />
           </FormField>
@@ -492,9 +541,13 @@ export const SignupCompanyInfo = forwardRef<
                 <Input
                   id="registrationNumber"
                   {...register('registrationNumber')}
-                  onChange={(e) => handleChange('registrationNumber', e.target.value)}
+                  onChange={(e) =>
+                    handleChange('registrationNumber', e.target.value)
+                  }
                   aria-describedby={
-                    errors.registrationNumber ? 'registrationNumber-error' : undefined
+                    errors.registrationNumber
+                      ? 'registrationNumber-error'
+                      : undefined
                   }
                   placeholder="12345678"
                 />
@@ -518,7 +571,11 @@ export const SignupCompanyInfo = forwardRef<
 
             <div className="grid md:grid-cols-2 gap-2">
               {/* Company Size */}
-              <FormField id="teamSize" label="Company size" error={errors.teamSize?.message}>
+              <FormField
+                id="teamSize"
+                label="Company size"
+                error={errors.teamSize?.message}
+              >
                 <Select
                   onValueChange={(value) => handleChange('teamSize', value)}
                   value={watch('teamSize') || ''}
@@ -548,14 +605,20 @@ export const SignupCompanyInfo = forwardRef<
                   id="website"
                   {...register('website')}
                   onChange={(e) => handleChange('website', e.target.value)}
-                  aria-describedby={errors.website ? 'website-error' : undefined}
+                  aria-describedby={
+                    errors.website ? 'website-error' : undefined
+                  }
                   placeholder="yourcompany.com"
                 />
               </FormField>
             </div>
 
             {/* Address */}
-            <FormField id="address" label="Address" error={errors.address?.message}>
+            <FormField
+              id="address"
+              label="Address"
+              error={errors.address?.message}
+            >
               <Input
                 id="address"
                 {...register('address')}
@@ -565,7 +628,11 @@ export const SignupCompanyInfo = forwardRef<
               />
             </FormField>
 
-            <Button type="button" variant="outline" onClick={() => setViewOptionalFields(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setViewOptionalFields(false)}
+            >
               Done
             </Button>
           </div>

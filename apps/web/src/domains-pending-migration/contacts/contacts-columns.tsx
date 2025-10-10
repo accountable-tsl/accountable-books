@@ -1,5 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import type { Contacts, ContactStatus } from '@/domains-pending-migration/contacts/contacts-types';
+import type {
+  Contacts,
+  ContactStatus,
+} from '@/domains-pending-migration/contacts/contacts-types';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
 import { Mail, MailX } from 'lucide-react';
 
@@ -19,7 +22,11 @@ export function getContactColumns(): ColumnDef<Contacts>[] {
         const toDisplay = email ? String(email).toLowerCase() : '';
         return (
           <div className="flex items-center gap-2 text-muted-foreground">
-            {toDisplay ? <Mail className="h-3 w-3" /> : <MailX className="h-3 w-3" />}
+            {toDisplay ? (
+              <Mail className="h-3 w-3" />
+            ) : (
+              <MailX className="h-3 w-3" />
+            )}
             <span className="text-muted-foreground">{toDisplay}</span>
           </div>
         );

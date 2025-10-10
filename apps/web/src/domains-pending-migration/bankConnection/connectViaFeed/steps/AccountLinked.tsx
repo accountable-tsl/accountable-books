@@ -89,8 +89,9 @@ export const AccountLinked = ({
           </div>
           <h2 className="text-lg font-semibold">Account Linked!</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm">
-            Link other checking, savings, or credit accounts used for your business or continue
-            later. <br /> If you've added all your business accounts, you're all done!
+            Link other checking, savings, or credit accounts used for your
+            business or continue later. <br /> If you've added all your business
+            accounts, you're all done!
           </p>
         </div>
 
@@ -100,12 +101,12 @@ export const AccountLinked = ({
               <div className="flex items-center gap-2">
                 <div className="flex flex-col flex-1">
                   <span>
-                    We found bank accounts in your records that might match the one you just
-                    connected
+                    We found bank accounts in your records that might match the
+                    one you just connected
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Please select the correct account from the list below, or choose “This is a new
-                    account” if none match.
+                    Please select the correct account from the list below, or
+                    choose “This is a new account” if none match.
                   </span>
                 </div>
                 <BadgeAlert className="w-8 h-8 text-yellow-600" />
@@ -122,13 +123,16 @@ export const AccountLinked = ({
                       className="grid grid-cols-2 gap-3 items-center px-2"
                     >
                       <div>
-                        {c.accountDetails?.bankName} | {c.accountDetails?.accountName}{' '}
+                        {c.accountDetails?.bankName} |{' '}
+                        {c.accountDetails?.accountName}{' '}
                         {c.accountDetails?.accountNumber
                           ? maskDigits(c.accountDetails?.accountNumber || '')
                           : ''}
                       </div>
                       <Select
-                        value={selections[c.connectionDetails.connectionId] || ''}
+                        value={
+                          selections[c.connectionDetails.connectionId] || ''
+                        }
                         onValueChange={(val) => {
                           setSelections((prev) => ({
                             ...prev,
@@ -145,7 +149,9 @@ export const AccountLinked = ({
                               {m.bankName} | {m.accountName} {m.accountNumber}
                             </SelectItem>
                           ))}
-                          <SelectItem value="new">This is a new bank account</SelectItem>
+                          <SelectItem value="new">
+                            This is a new bank account
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -168,8 +174,13 @@ export const AccountLinked = ({
                   <Table>
                     <TableBody>
                       {grouped.connected.map((c) => (
-                        <TableRow className="text-[0.85rem]" key={c.connectionDetails.connectionId}>
-                          <TableCell className="px-4 py-3">{c.accountDetails?.bankName}</TableCell>
+                        <TableRow
+                          className="text-[0.85rem]"
+                          key={c.connectionDetails.connectionId}
+                        >
+                          <TableCell className="px-4 py-3">
+                            {c.accountDetails?.bankName}
+                          </TableCell>
                           <TableCell className="px-4 py-3">
                             {c.accountDetails?.accountName}{' '}
                             {maskDigits(c.accountDetails?.accountNumber || '')}
@@ -213,7 +224,9 @@ export const AccountLinked = ({
                           </TableCell>
                         </TableRow>
                         <TableRow className="text-[0.85rem]">
-                          <TableCell className="px-4 py-3">{c.accountDetails?.bankName}</TableCell>
+                          <TableCell className="px-4 py-3">
+                            {c.accountDetails?.bankName}
+                          </TableCell>
                           <TableCell className="px-4 py-3">
                             {c.accountDetails?.accountName}{' '}
                             {maskDigits(c.accountDetails?.accountNumber || '')}
@@ -238,7 +251,9 @@ export const AccountLinked = ({
         <div className="flex gap-2 justify-between flex-shrink-0">
           <Button
             variant="outline"
-            disabled={grouped.error.length > 0 || grouped.userActionRequired.length > 0}
+            disabled={
+              grouped.error.length > 0 || grouped.userActionRequired.length > 0
+            }
             onClick={reset}
           >
             Link another account

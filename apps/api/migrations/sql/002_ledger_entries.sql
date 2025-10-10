@@ -20,6 +20,8 @@ CREATE TABLE public.ledger_entries (
     categorization_status   categorization_status NOT NULL DEFAULT 'suggested',
     description             TEXT,
     project_id              UUID,
+    is_monetary             BOOLEAN NOT NULL DEFAULT false,
+    fx_transaction_id       TEXT,
     updated_by_id           UUID,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),

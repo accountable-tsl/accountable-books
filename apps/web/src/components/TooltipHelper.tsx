@@ -1,4 +1,8 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { CircleHelp } from 'lucide-react';
 
 type HelpTooltipProps = {
@@ -24,12 +28,23 @@ export const TooltipHelper = ({
     <Tooltip>
       <TooltipTrigger asChild aria-label={ariaLabel}>
         <div className={triggerWrapperClassName}>
-          {trigger && typeof trigger !== 'string' ? trigger : <span>{trigger}</span>}
-          {icon && <CircleHelp size={iconSize} className="text-muted-foreground cursor-help" />}
+          {trigger && typeof trigger !== 'string' ? (
+            trigger
+          ) : (
+            <span>{trigger}</span>
+          )}
+          {icon && (
+            <CircleHelp
+              size={iconSize}
+              className="text-muted-foreground cursor-help"
+            />
+          )}
         </div>
       </TooltipTrigger>
       <TooltipContent side="top" align="center">
-        <p className={`w-[200px] text-background/85 text ${contentStyle}`}>{content}</p>
+        <p className={`w-[200px] text-background/85 text ${contentStyle}`}>
+          {content}
+        </p>
       </TooltipContent>
     </Tooltip>
   );

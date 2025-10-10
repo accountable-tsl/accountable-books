@@ -72,12 +72,17 @@ export function CatEngineTxnView({
 
   // Centralized curr calculation - computed once and memoized
   const curr = useMemo(
-    () => accordionItems.find((item) => item.id === accordionItemId) || accordionItems[0],
+    () =>
+      accordionItems.find((item) => item.id === accordionItemId) ||
+      accordionItems[0],
     [accordionItemId],
   );
 
   // Determine if transaction is high confidence based on actual data
-  const isHighConfidence = useMemo(() => (tx.confidence || 0) >= 0.9, [tx.confidence]);
+  const isHighConfidence = useMemo(
+    () => (tx.confidence || 0) >= 0.9,
+    [tx.confidence],
+  );
 
   // Handle edit mode toggle
   const handleEdit = useCallback(() => {
@@ -214,32 +219,54 @@ const TransactionView = memo(
         {/* Transaction Details Section */}
         <div className="grid grid-cols-2 gap-4 p-4 pt-0 items-center overflow-clip">
           <div className="col-span-2 flex items-center gap-4 justify-between">
-            <AmountDisplay amount={transaction.amount} currency={transaction.currency} />
-            <BankLogo bankLogo={transaction.bankLogo} bankName={transaction.bankName} />
+            <AmountDisplay
+              amount={transaction.amount}
+              currency={transaction.currency}
+            />
+            <BankLogo
+              bankLogo={transaction.bankLogo}
+              bankName={transaction.bankName}
+            />
           </div>
           <DateField
             label="Date"
             date={transaction.date}
             tooltip={TOOLTIPS.BANK_TRANSACTION_DATE}
           />
-          <DateField label="FS Date" date={transaction.fsDate} tooltip={TOOLTIPS.FS_DATE} />
+          <DateField
+            label="FS Date"
+            date={transaction.fsDate}
+            tooltip={TOOLTIPS.FS_DATE}
+          />
           <div className="col-span-2">
             <TooltipHelper
               content={TOOLTIPS.DESCRIPTION}
               contentStyle="w-fit"
               icon={false}
-              trigger={<div className="text-xs text-muted-foreground truncate">Description</div>}
+              trigger={
+                <div className="text-xs text-muted-foreground truncate">
+                  Description
+                </div>
+              }
               triggerWrapperClassName="w-fit"
             />
             <TruncatedText text={transaction.description} />
           </div>
           <div>
             <div className="text-xs text-muted-foreground truncate">Payee</div>
-            <TruncatedText text={transaction.payee} fallback={DEFAULT_EMPTY_VALUE} />
+            <TruncatedText
+              text={transaction.payee}
+              fallback={DEFAULT_EMPTY_VALUE}
+            />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground truncate">Project</div>
-            <TruncatedText text={transaction.project} fallback={DEFAULT_EMPTY_VALUE} />
+            <div className="text-xs text-muted-foreground truncate">
+              Project
+            </div>
+            <TruncatedText
+              text={transaction.project}
+              fallback={DEFAULT_EMPTY_VALUE}
+            />
           </div>
         </div>
 
@@ -269,32 +296,45 @@ const TransactionView = memo(
 );
 
 // Journal Entries Section
-const JournalEntriesSection = memo(({ transaction }: { transaction: TransactionData }) => (
-  <div className="px-4">
-    <div className="flex items-center justify-between text-sm">
-      <div className="text-muted-foreground">Entries</div>
-      <div className="flex items-center gap-1 hover:underline cursor-pointer mr-2">
-        <Split className="w-3 h-3" />
-        Split
+const JournalEntriesSection = memo(
+  ({ transaction }: { transaction: TransactionData }) => (
+    <div className="px-4">
+      <div className="flex items-center justify-between text-sm">
+        <div className="text-muted-foreground">Entries</div>
+        <div className="flex items-center gap-1 hover:underline cursor-pointer mr-2">
+          <Split className="w-3 h-3" />
+          Split
+        </div>
       </div>
-    </div>
-    <div className="border rounded p-1 px-2 divide-y">
-      <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1">
-        <div className="truncate">Account</div>
-        <div className="truncate">Debit</div>
-        <FormattedAmount
-          amount={transaction.amount}
-          currency={transaction.currency}
-          showSymbol
-          accountingNegatives={false}
-          className="truncate text-right"
-        />
+      <div className="border rounded p-1 px-2 divide-y">
+        <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1">
+          <div className="truncate">Account</div>
+          <div className="truncate">Debit</div>
+          <FormattedAmount
+            amount={transaction.amount}
+            currency={transaction.currency}
+            showSymbol
+            accountingNegatives={false}
+            className="truncate text-right"
+          />
+        </div>
+        <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1">
+          <div className="truncate">Account</div>
+          <div className="truncate">Credit</div>
+          <FormattedAmount
+            amount={transaction.amount}
+            currency={transaction.currency}
+            showSymbol
+            accountingNegatives={false}
+            className="truncate text-right"
+          />
+        </div>
       </div>
-      <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1">
-        <div className="truncate">Account</div>
+      <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1 px-3 text-muted-foreground">
+        <div className="truncate">Net Total</div>
         <div className="truncate">Credit</div>
         <FormattedAmount
-          amount={transaction.amount}
+          amount={0}
           currency={transaction.currency}
           showSymbol
           accountingNegatives={false}
@@ -302,19 +342,8 @@ const JournalEntriesSection = memo(({ transaction }: { transaction: TransactionD
         />
       </div>
     </div>
-    <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1 px-3 text-muted-foreground">
-      <div className="truncate">Net Total</div>
-      <div className="truncate">Credit</div>
-      <FormattedAmount
-        amount={0}
-        currency={transaction.currency}
-        showSymbol
-        accountingNegatives={false}
-        className="truncate text-right"
-      />
-    </div>
-  </div>
-));
+  ),
+);
 
 // Transaction Actions Component
 const TransactionActions = memo(
@@ -331,7 +360,11 @@ const TransactionActions = memo(
   }) => (
     <div className="flex flex-col gap-2 px-4 pb-4">
       <div className="flex gap-4">
-        <Button variant="outline" className="flex items-center flex-1" onClick={onEdit}>
+        <Button
+          variant="outline"
+          className="flex items-center flex-1"
+          onClick={onEdit}
+        >
           <Edit className="w-4 h-4 mr-2" /> Edit
         </Button>
         <Button variant="outline" className="flex items-center flex-1">
@@ -407,7 +440,10 @@ const TransactionForm = memo(
     });
 
     return (
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 h-full min-h-0">
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-4 h-full min-h-0"
+      >
         {/* Error Alert */}
         {error && (
           <Alert variant="destructive" className="mx-4">
@@ -415,7 +451,9 @@ const TransactionForm = memo(
             <AlertDescription>
               {error}
               {retryCount > 0 && (
-                <span className="block text-xs mt-1">Retrying... ({retryCount}/3)</span>
+                <span className="block text-xs mt-1">
+                  Retrying... ({retryCount}/3)
+                </span>
               )}
             </AlertDescription>
           </Alert>
@@ -426,7 +464,9 @@ const TransactionForm = memo(
             {/* Amount - Read Only */}
             <div className="col-span-2 flex items-center gap-4 justify-between">
               <div>
-                <div className="text-xs text-muted-foreground truncate">Amount</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  Amount
+                </div>
                 <FormattedAmount
                   amount={transaction.amount}
                   currency={transaction.currency || DEFAULT_CURRENCY}
@@ -442,7 +482,10 @@ const TransactionForm = memo(
                   )}
                 />
               </div>
-              <BankLogo bankLogo={transaction.bankLogo} bankName={transaction.bankName} />
+              <BankLogo
+                bankLogo={transaction.bankLogo}
+                bankName={transaction.bankName}
+              />
             </div>
             {/* Date - Read Only */}
             <div>
@@ -474,17 +517,25 @@ const TransactionForm = memo(
             </div>
             {/* Description - Editable */}
             <div className="col-span-2">
-              <Label htmlFor="description" className="text-xs text-muted-foreground">
+              <Label
+                htmlFor="description"
+                className="text-xs text-muted-foreground"
+              >
                 Description *
               </Label>
               <Input
                 id="description"
                 {...register('description', validationRules.description)}
                 className="text-[0.9rem] h-8"
-                aria-describedby={errors.description ? 'description-error' : undefined}
+                aria-describedby={
+                  errors.description ? 'description-error' : undefined
+                }
               />
               {errors.description && (
-                <div id="description-error" className="text-xs text-red-500 mt-1">
+                <div
+                  id="description-error"
+                  className="text-xs text-red-500 mt-1"
+                >
                   {errors.description.message}
                 </div>
               )}
@@ -508,7 +559,10 @@ const TransactionForm = memo(
             </div>
             {/* Project - Editable */}
             <div>
-              <Label htmlFor="project" className="text-xs text-muted-foreground">
+              <Label
+                htmlFor="project"
+                className="text-xs text-muted-foreground"
+              >
                 Project
               </Label>
               <Input
@@ -527,7 +581,10 @@ const TransactionForm = memo(
           <div className="px-4 space-y-2">
             {/* Account - Editable */}
             <div>
-              <Label htmlFor="account" className="text-xs text-muted-foreground">
+              <Label
+                htmlFor="account"
+                className="text-xs text-muted-foreground"
+              >
                 Account *
               </Label>
               <Input
@@ -546,7 +603,12 @@ const TransactionForm = memo(
         </div>
         {/* Form Actions */}
         <div className="flex gap-2 p-4">
-          <Button type="submit" size="sm" disabled={isSubmitting} className="flex-1">
+          <Button
+            type="submit"
+            size="sm"
+            disabled={isSubmitting}
+            className="flex-1"
+          >
             {isSubmitting ? 'Saving...' : 'Save Changes'}
           </Button>
           <Button
@@ -566,7 +628,13 @@ const TransactionForm = memo(
 
 // Sub-components for better modularity
 const AmountDisplay = memo(
-  ({ amount, currency = DEFAULT_CURRENCY }: { amount: number; currency?: string }) => (
+  ({
+    amount,
+    currency = DEFAULT_CURRENCY,
+  }: {
+    amount: number;
+    currency?: string;
+  }) => (
     <div>
       <div className="text-xs text-muted-foreground truncate">Amount</div>
       <FormattedAmount
@@ -587,40 +655,52 @@ const AmountDisplay = memo(
   ),
 );
 
-const BankLogo = memo(({ bankLogo, bankName }: { bankLogo?: string; bankName?: string }) => (
-  <TooltipHelper
-    icon={false}
-    content={bankName || TOOLTIPS.BANK_LOGO}
-    contentStyle="w-fit"
-    trigger={
-      <div
-        className="flex-shrink-0 w-8 h-8 overflow-hidden rounded-full bg-muted flex items-center justify-center border"
-        role="img"
-        aria-label={`${bankName || TOOLTIPS.BANK_LOGO} logo`}
-      >
-        {bankLogo ? (
-          <img
-            src={bankLogo}
-            alt={`${bankName || 'Bank'} Logo`}
-            className="w-8 h-8 object-contain"
-            loading="lazy"
-          />
-        ) : (
-          <Landmark className="w-4 h-4" />
-        )}
-      </div>
-    }
-  />
-));
+const BankLogo = memo(
+  ({ bankLogo, bankName }: { bankLogo?: string; bankName?: string }) => (
+    <TooltipHelper
+      icon={false}
+      content={bankName || TOOLTIPS.BANK_LOGO}
+      contentStyle="w-fit"
+      trigger={
+        <div
+          className="flex-shrink-0 w-8 h-8 overflow-hidden rounded-full bg-muted flex items-center justify-center border"
+          role="img"
+          aria-label={`${bankName || TOOLTIPS.BANK_LOGO} logo`}
+        >
+          {bankLogo ? (
+            <img
+              src={bankLogo}
+              alt={`${bankName || 'Bank'} Logo`}
+              className="w-8 h-8 object-contain"
+              loading="lazy"
+            />
+          ) : (
+            <Landmark className="w-4 h-4" />
+          )}
+        </div>
+      }
+    />
+  ),
+);
 
 const DateField = memo(
-  ({ label, date, tooltip }: { label: string; date: Date; tooltip: string }) => (
+  ({
+    label,
+    date,
+    tooltip,
+  }: {
+    label: string;
+    date: Date;
+    tooltip: string;
+  }) => (
     <div>
       <TooltipHelper
         content={tooltip}
         contentStyle="w-fit"
         icon={false}
-        trigger={<div className="text-xs text-muted-foreground truncate">{label}</div>}
+        trigger={
+          <div className="text-xs text-muted-foreground truncate">{label}</div>
+        }
         triggerWrapperClassName="w-fit"
       />
       <div className="truncate text-[0.9rem]">
@@ -647,7 +727,12 @@ const TruncatedText = memo(
     const shouldTruncate = displayText.length > maxLength;
 
     const content = (
-      <div className={cn('truncate text-[0.9rem]', text ? '' : 'text-muted-foreground')}>
+      <div
+        className={cn(
+          'truncate text-[0.9rem]',
+          text ? '' : 'text-muted-foreground',
+        )}
+      >
         {displayText}
       </div>
     );
@@ -661,8 +746,18 @@ const TruncatedText = memo(
 );
 
 const CategoryDisplay = memo(
-  ({ account, confidence, curr }: { account?: string; confidence?: number; curr: any }) => {
-    const confidencePercent = confidence ? `${Math.round(confidence * 100)}%` : null;
+  ({
+    account,
+    confidence,
+    curr,
+  }: {
+    account?: string;
+    confidence?: number;
+    curr: any;
+  }) => {
+    const confidencePercent = confidence
+      ? `${Math.round(confidence * 100)}%`
+      : null;
 
     return (
       <div className="flex flex-col gap-1">
@@ -670,7 +765,10 @@ const CategoryDisplay = memo(
           {curr.id === 'reviewed' ? 'Account' : 'Predicted Category'}
         </div>
         <div
-          className={cn('flex gap-1 p-1 px-2 border items-center rounded', curr.borderClass || '')}
+          className={cn(
+            'flex gap-1 p-1 px-2 border items-center rounded',
+            curr.borderClass || '',
+          )}
         >
           <div className="truncate">{account || DEFAULT_ACCOUNT_TEXT}</div>
           {confidencePercent && (

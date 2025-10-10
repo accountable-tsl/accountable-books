@@ -56,22 +56,36 @@ export function SkeletonBlock({
       ? 4
       : Math.max(
           1,
-          Math.floor((autoLayout === 'horizontal' ? numericWidth : numericHeight) / blockMinSize),
+          Math.floor(
+            (autoLayout === 'horizontal' ? numericWidth : numericHeight) /
+              blockMinSize,
+          ),
         );
 
   const finalBlockCount = blocks ?? (autoSplit ? maxBlocks : 1);
 
-  const availableMainSize = autoLayout === 'horizontal' ? numericWidth : numericHeight;
+  const availableMainSize =
+    autoLayout === 'horizontal' ? numericWidth : numericHeight;
   const availablePerBlock = availableMainSize / finalBlockCount;
 
   const finalLineCount =
-    lines ?? Math.max(1, Math.floor((availablePerBlock - 60) / (lineHeight + lineSpacing)));
+    lines ??
+    Math.max(
+      1,
+      Math.floor((availablePerBlock - 60) / (lineHeight + lineSpacing)),
+    );
 
   const renderTextLines = (blockIdx: number) => (
     <div className="flex flex-col" style={{ gap: lineSpacing }}>
       {Array.from({ length: finalLineCount }).map((_, idx) => {
         const width = idx === finalLineCount - 1 ? '60%' : '100%';
-        return <Skeleton key={`${blockIdx}-${idx}`} className="h-4" style={{ width }} />;
+        return (
+          <Skeleton
+            key={`${blockIdx}-${idx}`}
+            className="h-4"
+            style={{ width }}
+          />
+        );
       })}
     </div>
   );
@@ -89,7 +103,8 @@ export function SkeletonBlock({
       <Skeleton
         className={cn(`rounded-${radius}`)}
         style={{
-          height: availablePerBlock - finalLineCount * (lineHeight + lineSpacing),
+          height:
+            availablePerBlock - finalLineCount * (lineHeight + lineSpacing),
           width: '100%',
         }}
       />

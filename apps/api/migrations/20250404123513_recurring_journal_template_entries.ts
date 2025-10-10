@@ -9,7 +9,12 @@ export async function up(knex: Knex): Promise<void> {
     table.decimal('amount', 32, 10).notNullable();
     table.specificType('transaction_side', 'debit_credit').notNullable();
     table.string('placeholder_description_var').nullable();
-    table.uuid('coa_id').notNullable().references('id').inTable('coa').onDelete('RESTRICT');
+    table
+      .uuid('coa_id')
+      .notNullable()
+      .references('id')
+      .inTable('coa')
+      .onDelete('RESTRICT');
     table
       .uuid('template_id')
       .notNullable()

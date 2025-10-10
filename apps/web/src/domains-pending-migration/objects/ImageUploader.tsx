@@ -50,7 +50,9 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const lastBlobUrl = useRef<string | null>(null);
 
-    const inputId = useRef(`image-uploader-${Math.random().toString(36).substring(2, 9)}`).current;
+    const inputId = useRef(
+      `image-uploader-${Math.random().toString(36).substring(2, 9)}`,
+    ).current;
 
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
     const maxSizeText =
@@ -93,7 +95,9 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
       }
 
       // Validate file
-      const validationError = validateFile ? validateFile(file) : defaultValidateFile(file);
+      const validationError = validateFile
+        ? validateFile(file)
+        : defaultValidateFile(file);
 
       if (validationError) {
         setError(validationError);
@@ -113,7 +117,9 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
       }
     };
 
-    const handleUpload = async (file: File): Promise<{ url: string; key?: string } | null> => {
+    const handleUpload = async (
+      file: File,
+    ): Promise<{ url: string; key?: string } | null> => {
       if (!onUpload) return null;
       setIsUploading(true);
       try {
@@ -227,7 +233,10 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
       <div className={cn(`flex flex-col items-center gap-2 p-4, ${className}`)}>
         {labelPosition === 'top' && renderLabel()}
 
-        <div className="relative" style={{ width: `${size}px`, height: `${size}px` }}>
+        <div
+          className="relative"
+          style={{ width: `${size}px`, height: `${size}px` }}
+        >
           <div
             onClick={triggerFileInput}
             className={`
@@ -275,11 +284,17 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
 
             {showMessage && (
               <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-[200px]">
-                {error && <p className="text-destructive text-sm mt-1 text-center">{error}</p>}
+                {error && (
+                  <p className="text-destructive text-sm mt-1 text-center">
+                    {error}
+                  </p>
+                )}
 
                 {uploadedUrl && (
                   <div className="p-2 text-center bg-muted rounded-md w-full">
-                    <p className="text-xs font-medium">Uploaded successfully!</p>
+                    <p className="text-xs font-medium">
+                      Uploaded successfully!
+                    </p>
                     {/* <p className="text-xs break-all">{uploadedUrl}</p> */}
                   </div>
                 )}
@@ -319,7 +334,11 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
         {showButtons && (
           <div className="flex flex-col items-center gap-2 w-full max-w-[200px]">
             <div className="flex gap-2 w-full">
-              <Button onClick={triggerFileInput} disabled={isUploading} className="flex-1">
+              <Button
+                onClick={triggerFileInput}
+                disabled={isUploading}
+                className="flex-1"
+              >
                 {image ? 'Change Image' : 'Upload Image'}
               </Button>
 
@@ -341,7 +360,9 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
         )}
 
         {metadataToShow.length > 0 &&
-          (renderMetadata ? renderMetadata(metadata, maxSizeText) : defaultRenderMetadata())}
+          (renderMetadata
+            ? renderMetadata(metadata, maxSizeText)
+            : defaultRenderMetadata())}
       </div>
     );
   },
@@ -364,7 +385,11 @@ const getMetadataDisplay = (
       const matchingMetaKey = Object.keys(metadata).find(
         (metaKey) => metaKey.toLowerCase() === lowerKey,
       );
-      if (matchingMetaKey && metadata[matchingMetaKey] && metadata[matchingMetaKey] !== '') {
+      if (
+        matchingMetaKey &&
+        metadata[matchingMetaKey] &&
+        metadata[matchingMetaKey] !== ''
+      ) {
         items.push(`${matchingMetaKey}: ${metadata[matchingMetaKey]}`);
       }
     }

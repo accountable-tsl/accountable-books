@@ -33,36 +33,46 @@ export function DataTableToolbar<TData>({
 
   const classNames = config?.classNames || {};
 
-  const isFiltered = table.getState().columnFilters.length > 0 || table.getState().globalFilter;
+  const isFiltered =
+    table.getState().columnFilters.length > 0 || table.getState().globalFilter;
 
   const filterableColumns = useMemo(
     () => table.getAllColumns().filter((column) => column.getCanFilter()),
     [table],
   );
 
-  const { groupedTextColumns, individualTextColumns, otherColumns, globalSearchPlaceholder } =
-    useMemo(() => {
-      try {
-        const { groupedText, individualText, other } = categorizeColumns(filterableColumns);
-        const labels = groupedText.map((column) => column.columnDef.meta?.label || column.id);
-        const placeholder =
-          customPlaceholder ||
-          (globalSearchType === 'multi-column' ? generateSearchPlaceholder(labels) : 'Search...');
-        return {
-          groupedTextColumns: groupedText,
-          individualTextColumns: individualText,
-          otherColumns: other,
-          globalSearchPlaceholder: placeholder,
-        };
-      } catch (error) {
-        return {
-          groupedTextColumns: [],
-          individualTextColumns: filterableColumns,
-          otherColumns: [],
-          globalSearchPlaceholder: 'Search...',
-        };
-      }
-    }, [filterableColumns, customPlaceholder]);
+  const {
+    groupedTextColumns,
+    individualTextColumns,
+    otherColumns,
+    globalSearchPlaceholder,
+  } = useMemo(() => {
+    try {
+      const { groupedText, individualText, other } =
+        categorizeColumns(filterableColumns);
+      const labels = groupedText.map(
+        (column) => column.columnDef.meta?.label || column.id,
+      );
+      const placeholder =
+        customPlaceholder ||
+        (globalSearchType === 'multi-column'
+          ? generateSearchPlaceholder(labels)
+          : 'Search...');
+      return {
+        groupedTextColumns: groupedText,
+        individualTextColumns: individualText,
+        otherColumns: other,
+        globalSearchPlaceholder: placeholder,
+      };
+    } catch (error) {
+      return {
+        groupedTextColumns: [],
+        individualTextColumns: filterableColumns,
+        otherColumns: [],
+        globalSearchPlaceholder: 'Search...',
+      };
+    }
+  }, [filterableColumns, customPlaceholder]);
 
   const handleGlobalSearchChange = useCallback(
     (value: string) => {
@@ -102,7 +112,11 @@ export function DataTableToolbar<TData>({
 
   // Memoized component renderers for each toolbar item type
   const renderedItems = useMemo(() => {
-    const renderItem = (item: ToolbarItem, sectionKey: string, index: number) => {
+    const renderItem = (
+      item: ToolbarItem,
+      sectionKey: string,
+      index: number,
+    ) => {
       const key = item.key || `${sectionKey}-${item.type}-${index}`;
 
       switch (item.type) {
@@ -115,8 +129,13 @@ export function DataTableToolbar<TData>({
                     <Input
                       placeholder={globalSearchPlaceholder}
                       value={globalSearchValue}
-                      onChange={(event) => handleGlobalSearchChange(event.target.value)}
-                      className={cn('pl-8 h-8 w-40 lg:w-56', globalSearchClassName)}
+                      onChange={(event) =>
+                        handleGlobalSearchChange(event.target.value)
+                      }
+                      className={cn(
+                        'pl-8 h-8 w-40 lg:w-56',
+                        globalSearchClassName,
+                      )}
                     />
                   </div>,
                 ]
@@ -134,7 +153,10 @@ export function DataTableToolbar<TData>({
         case 'filters': {
           const filterComponents = [
             ...otherColumns.map((column) => (
-              <DataTableToolbarFilter key={`${key}-${column.id}`} column={column} />
+              <DataTableToolbarFilter
+                key={`${key}-${column.id}`}
+                column={column}
+              />
             )),
           ];
           return filterComponents.length > 0 ? (
@@ -159,12 +181,20 @@ export function DataTableToolbar<TData>({
         }
         case 'viewOptions': {
           if (!showViewOptions) return null;
-          return <DataTableViewOptions key={key} table={table} {...(item.props || {})} />;
+          return (
+            <DataTableViewOptions
+              key={key}
+              table={table}
+              {...(item.props || {})}
+            />
+          );
         }
         case 'custom': {
           if (!item.component) return null;
           const CustomComponent = item.component;
-          return <CustomComponent key={key} table={table} {...(item.props || {})} />;
+          return (
+            <CustomComponent key={key} table={table} {...(item.props || {})} />
+          );
         }
         default:
           return null;
@@ -199,7 +229,11 @@ export function DataTableToolbar<TData>({
   ]);
 
   // Resolve items for each section
-  const { left: leftItems, center: centerItems, right: rightItems } = renderedItems;
+  const {
+    left: leftItems,
+    center: centerItems,
+    right: rightItems,
+  } = renderedItems;
 
   return (
     <div
@@ -213,19 +247,34 @@ export function DataTableToolbar<TData>({
       {...props}
     >
       {/* Left section */}
-      <div className={cn('flex flex-wrap items-center gap-2', classNames?.leftSection || '')}>
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-2',
+          classNames?.leftSection || '',
+        )}
+      >
         {leftItems}
       </div>
 
       {/* Center section */}
       {centerItems.length > 0 && centerItems && (
-        <div className={cn('flex items-center gap-2', classNames?.centerSection || '')}>
+        <div
+          className={cn(
+            'flex items-center gap-2',
+            classNames?.centerSection || '',
+          )}
+        >
           {centerItems}
         </div>
       )}
 
       {/* Right section */}
-      <div className={cn('flex items-center gap-2', classNames?.rightSection || '')}>
+      <div
+        className={cn(
+          'flex items-center gap-2',
+          classNames?.rightSection || '',
+        )}
+      >
         {rightItems}
         {children}
       </div>

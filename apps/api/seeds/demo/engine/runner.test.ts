@@ -1,7 +1,11 @@
 /* eslint-disable prefer-spread */
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
-import { DemoSeedRunner, createDemoSeedRunner, type RunnerOptions } from './runner.js';
+import {
+  DemoSeedRunner,
+  createDemoSeedRunner,
+  type RunnerOptions,
+} from './runner.js';
 import type { DemoFilter } from '../shared/config.js';
 
 // Mock the registry with complete 6-step registry matching reality
@@ -107,14 +111,19 @@ describe('DemoSeedRunner', () => {
       const filters: DemoFilter = { countryCodes: ['US'] };
       await runner.apply(filters);
 
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Filters:'), filters);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Filters:'),
+        filters,
+      );
     });
 
     test('should run in parallel mode when requested', async () => {
       const options: RunnerOptions = { parallel: true };
       await runner.apply(undefined, options);
 
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Mode: parallel'));
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Mode: parallel'),
+      );
       expect(console.warn).toHaveBeenCalledWith(
         '⚠️  Running in parallel mode - dependencies may not be respected',
       );
@@ -124,7 +133,9 @@ describe('DemoSeedRunner', () => {
       const options: RunnerOptions = { dryRun: true };
       await runner.apply(undefined, options);
 
-      expect(console.log).toHaveBeenCalledWith('✅ Dry run complete - no changes made');
+      expect(console.log).toHaveBeenCalledWith(
+        '✅ Dry run complete - no changes made',
+      );
       expect(mockKnex.transaction).not.toHaveBeenCalled();
     });
 
@@ -150,7 +161,10 @@ describe('DemoSeedRunner', () => {
       // Verify all create functions were called with correct parameters
       SEED_STEPS.forEach((step) => {
         if (step.createFn) {
-          expect(step.createFn).toHaveBeenCalledWith(mockTransaction, undefined);
+          expect(step.createFn).toHaveBeenCalledWith(
+            mockTransaction,
+            undefined,
+          );
         }
       });
     });
@@ -165,7 +179,9 @@ describe('DemoSeedRunner', () => {
       await expect(runner.apply()).rejects.toThrow('Step execution failed');
 
       expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Failed to create user: Step execution failed'),
+        expect.stringContaining(
+          '❌ Failed to create user: Step execution failed',
+        ),
       );
     });
   });
@@ -187,14 +203,19 @@ describe('DemoSeedRunner', () => {
       const filters: DemoFilter = { countryCodes: ['NG'] };
       await runner.reverse(filters);
 
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Filters:'), filters);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Filters:'),
+        filters,
+      );
     });
 
     test('should skip execution in dry run mode', async () => {
       const options: RunnerOptions = { dryRun: true };
       await runner.reverse(undefined, options);
 
-      expect(console.log).toHaveBeenCalledWith('✅ Dry run complete - no changes made');
+      expect(console.log).toHaveBeenCalledWith(
+        '✅ Dry run complete - no changes made',
+      );
       expect(mockKnex.transaction).not.toHaveBeenCalled();
     });
 
@@ -207,7 +228,10 @@ describe('DemoSeedRunner', () => {
       const reversedSteps = [...SEED_STEPS].reverse();
       reversedSteps.forEach((step) => {
         if (step.deleteFn) {
-          expect(step.deleteFn).toHaveBeenCalledWith(mockTransaction, undefined);
+          expect(step.deleteFn).toHaveBeenCalledWith(
+            mockTransaction,
+            undefined,
+          );
         }
       });
     });
@@ -220,7 +244,9 @@ describe('DemoSeedRunner', () => {
       await expect(runner.reverse()).rejects.toThrow('Deletion failed');
 
       expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('❌ Failed to delete chart-of-accounts: Deletion failed'),
+        expect.stringContaining(
+          '❌ Failed to delete chart-of-accounts: Deletion failed',
+        ),
       );
     });
   });
@@ -238,7 +264,9 @@ describe('DemoSeedRunner', () => {
       expect(reverseSpy).toHaveBeenCalledWith(filters, options);
       expect(applySpy).toHaveBeenCalledWith(filters, options);
       expect(console.log).toHaveBeenCalledWith('🔄 Resetting demo seeds...');
-      expect(console.log).toHaveBeenCalledWith('✅ Demo seeds reset successfully');
+      expect(console.log).toHaveBeenCalledWith(
+        '✅ Demo seeds reset successfully',
+      );
     });
 
     test('should handle reset errors', async () => {
@@ -301,12 +329,24 @@ describe('DemoSeedRunner', () => {
       await runner.status();
 
       expect(console.log).toHaveBeenCalledWith('📊 Demo Seed Status:');
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('   user'));
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('   companies'));
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('   chart-of-accounts'));
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('   contacts'));
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('   projects'));
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('   bank-accounts'));
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('   user'),
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('   companies'),
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('   chart-of-accounts'),
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('   contacts'),
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('   projects'),
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('   bank-accounts'),
+      );
     });
 
     test('should handle database errors in status queries', async () => {
@@ -338,7 +378,9 @@ describe('DemoSeedRunner', () => {
       const nullRunner = new DemoSeedRunner(nullKnex as any);
       await nullRunner.status();
 
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('0 records'));
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('0 records'),
+      );
     });
   });
 
@@ -441,7 +483,9 @@ describe('Runner Options', () => {
 
   beforeEach(() => {
     const mockKnex = {
-      transaction: vi.fn().mockImplementation(async (callback) => callback(vi.fn())),
+      transaction: vi
+        .fn()
+        .mockImplementation(async (callback) => callback(vi.fn())),
     };
     runner = new DemoSeedRunner(mockKnex as any);
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -464,8 +508,12 @@ describe('Runner Options', () => {
 
     await runner.apply(undefined, options);
 
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Mode: parallel (dry run)'));
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Steps: user'));
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Mode: parallel (dry run)'),
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Steps: user'),
+    );
   });
 });
 
@@ -487,12 +535,16 @@ describe('Error Handling', () => {
 
     const runner = new DemoSeedRunner(mockKnex as any);
     const { SEED_STEPS } = await import('./registry.js');
-    (SEED_STEPS[0].createFn as any)?.mockRejectedValue(new Error('Database connection failed'));
+    (SEED_STEPS[0].createFn as any)?.mockRejectedValue(
+      new Error('Database connection failed'),
+    );
 
     await expect(runner.apply()).rejects.toThrow('Database connection failed');
 
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('❌ Failed to create user: Database connection failed'),
+      expect.stringContaining(
+        '❌ Failed to create user: Database connection failed',
+      ),
     );
   });
 });

@@ -16,7 +16,12 @@ import { DataTablePagination } from '@/components/data-table/data-table-paginati
  * - Show a conditional "action bar" only when rows are selected
  * - Allow additional children above the table (e.g. filters, pagination, info)
  */
-export function DataTable<TData>({ table, actionBar, children, ...props }: DataTableProps<TData>) {
+export function DataTable<TData>({
+  table,
+  actionBar,
+  children,
+  ...props
+}: DataTableProps<TData>) {
   const { customClassNames, pagination } = table.customOptions || {};
   const { wrapper, table: tableClass } = customClassNames || {};
 
@@ -42,13 +47,22 @@ export function DataTable<TData>({ table, actionBar, children, ...props }: DataT
     : DataTableBody;
 
   return (
-    <div className={cn('flex flex-col w-full h-full min-h-0 gap-2.5', wrapper || '')} {...props}>
+    <div
+      className={cn(
+        'flex flex-col w-full h-full min-h-0 gap-2.5',
+        wrapper || '',
+      )}
+      {...props}
+    >
       {/* Top-level children (e.g., filters, pagination controls, etc.) */}
       {children}
 
       {/* Main table */}
       <Table
-        className={cn('min-w-full rounded-md overflow-clip border', tableClass || '')}
+        className={cn(
+          'min-w-full rounded-md overflow-clip border',
+          tableClass || '',
+        )}
         style={{
           ...columnSizeVars,
           width: '100%',
@@ -64,7 +78,9 @@ export function DataTable<TData>({ table, actionBar, children, ...props }: DataT
           <DataTablePagination table={table} />
         )}
         {/* TODO: Add support for 'infinite' pagination style */}
-        {actionBar && table.getFilteredSelectedRowModel().rows.length > 0 && actionBar}
+        {actionBar &&
+          table.getFilteredSelectedRowModel().rows.length > 0 &&
+          actionBar}
       </div>
     </div>
   );

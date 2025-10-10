@@ -20,7 +20,7 @@ declare module '@mono.co/connect.js' {
 
   interface MonoConnectConfig {
     key: string;
-    data: { customer: MonoConnectCustomer };
+    data?: { customer: MonoConnectCustomer };
     onClose?: () => void;
     onLoad?: () => void;
     onSuccess?: (response: { code: string }) => void;

@@ -1,12 +1,18 @@
 import type { RowViewerProps } from '@/components/data-table/types/row-click';
 import { RowViewerSheet } from '@/components/data-table/row-view/row-viewer-sheet';
 
-export function RowViewer<TData>({ rowViewerInfo }: { rowViewerInfo: RowViewerProps<TData> }) {
+export function RowViewer<TData>({
+  rowViewerInfo,
+}: {
+  rowViewerInfo: RowViewerProps<TData>;
+}) {
   const { wrapper, render, viewedRow, closeRowView: onClose } = rowViewerInfo;
 
   if (!viewedRow) return null;
 
-  const renderContent = render ? () => render({ row: viewedRow, onClose }) : undefined;
+  const renderContent = render
+    ? () => render({ row: viewedRow, onClose })
+    : undefined;
   switch (wrapper) {
     case 'dialog':
     case 'sheet':

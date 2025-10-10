@@ -10,7 +10,11 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,7 +63,10 @@ export function NavMain({ items }: { items: NavMainItems[] }) {
               return (
                 <DropdownMenu key={item.title}>
                   <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton tooltip={item.title} isActive={item.isActive}>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={item.isActive}
+                    >
                       {item.icon && <item.icon />}
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
@@ -68,7 +75,10 @@ export function NavMain({ items }: { items: NavMainItems[] }) {
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
                       {item.sub?.map((subItem) => (
-                        <DropdownMenuItem key={subItem.title} className="cursor-pointer">
+                        <DropdownMenuItem
+                          key={subItem.title}
+                          className="cursor-pointer"
+                        >
                           <Link to={subItem.url}>
                             <span>{subItem.title}</span>
                           </Link>

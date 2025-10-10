@@ -31,7 +31,8 @@ export const ProviderSelection = React.memo(
     onBack,
   }: ProviderSelectionProps) => {
     // States
-    const [selectedProvider, setSelectedProvider] = useState<BankFeedProvider | null>(null);
+    const [selectedProvider, setSelectedProvider] =
+      useState<BankFeedProvider | null>(null);
     const [widgetOpen, setWidgetOpen] = useState(false);
 
     // Hooks
@@ -93,11 +94,18 @@ export const ProviderSelection = React.memo(
       ) : (
         <p>Unsupported provider</p>
       );
-    }, [selectedProvider, widgetOpen, handleWidgetClose, userData, onWidgetSuccess]);
+    }, [
+      selectedProvider,
+      widgetOpen,
+      handleWidgetClose,
+      userData,
+      onWidgetSuccess,
+    ]);
 
     const providerCards = useMemo(() => {
       return sortedProviders.map((provider) => {
-        const recommended = provider.priority === 1 && provider.status === 'active';
+        const recommended =
+          provider.priority === 1 && provider.status === 'active';
         const isSelected = selectedProvider?.key === provider.key;
         const logo = provider.logoUrl;
         const active = provider.status === 'active';
@@ -145,9 +153,14 @@ export const ProviderSelection = React.memo(
                   <div className="flex flex-col items-end space-y-1">
                     <Badge
                       variant="secondary"
-                      className={cn('text-xs', recommended ? 'bg-green-100 text-green-800' : '')}
+                      className={cn(
+                        'text-xs',
+                        recommended ? 'bg-green-100 text-green-800' : '',
+                      )}
                     >
-                      {recommended ? 'Recommended' : toTitleCase(provider.status)}
+                      {recommended
+                        ? 'Recommended'
+                        : toTitleCase(provider.status)}
                     </Badge>
                   </div>
                 )}
@@ -158,7 +171,9 @@ export const ProviderSelection = React.memo(
                   <span className="flex items-center">
                     <Building className="w-3 h-3 mr-1" />
                     {/* Add no of banks supported */}
-                    {provider.name === 'plaid' || provider.name === 'stripe' ? '10,000+' : '300+'}
+                    {provider.name === 'plaid' || provider.name === 'stripe'
+                      ? '10,000+'
+                      : '300+'}
                   </span>
                   <span className="flex items-center">
                     <Clock className="w-3 h-3 mr-1" />
@@ -244,7 +259,11 @@ export const ProviderSelection = React.memo(
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
-          <Button onClick={handleNext} disabled={!selectedProvider || !widgetOpen} className="px-6">
+          <Button
+            onClick={handleNext}
+            disabled={!selectedProvider || !widgetOpen}
+            className="px-6"
+          >
             Continue
           </Button>
         </div>

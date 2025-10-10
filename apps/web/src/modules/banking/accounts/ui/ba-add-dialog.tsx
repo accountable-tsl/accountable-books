@@ -30,7 +30,10 @@ export function AddBankAccountDialog({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent overlayClassName={overlayClassName} className="sm:max-w-md max-w-md">
+        <DrawerContent
+          overlayClassName={overlayClassName}
+          className="sm:max-w-md max-w-md"
+        >
           <DrawerHeader className={showHeader ? '' : 'sr-only'}>
             <DrawerTitle>Add Bank Account</DrawerTitle>
             <DrawerDescription className="text-muted-foreground text-sm">

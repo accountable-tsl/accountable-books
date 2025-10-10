@@ -22,7 +22,9 @@ export const getContactsParams = z.object({
   search: z.string().optional(),
   status: contactStatus.optional(),
   searchFields: z.array(z.enum(['displayName', 'email', 'notes'])).optional(),
-  sortBy: z.enum(['display_name', 'email', 'created_at', 'updated_at']).optional(),
+  sortBy: z
+    .enum(['display_name', 'email', 'created_at', 'updated_at'])
+    .optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
 });
 

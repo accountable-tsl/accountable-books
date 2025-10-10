@@ -2,7 +2,12 @@ import { z } from 'zod';
 import { dbBaseFields } from '../../core/types/core.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
-export const firmType = z.enum(['freelancer', 'ca_cpa', 'tax_preparer', 'international']);
+export const firmType = z.enum([
+  'freelancer',
+  'ca_cpa',
+  'tax_preparer',
+  'international',
+]);
 
 export const newAccFirmInput = z.object({
   company_id: z.uuid().nullish(),

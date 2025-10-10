@@ -78,25 +78,43 @@ export const FormFieldLabel = ({
   labelClassName,
   errorClassName,
 }: Omit<FormFieldProps, 'children' | 'renderLabel'>) => (
-  <div className={cn('flex justify-between items-center gap-2', labelWrapperClassName)}>
+  <div
+    className={cn(
+      'flex justify-between items-center gap-2',
+      labelWrapperClassName,
+    )}
+  >
     <div className="flex gap-1 items-center">
       <Label htmlFor={id} className={cn('whitespace-nowrap', labelClassName)}>
         {label}
         {required && <span className="-ml-1.5 text-destructive">*</span>}
       </Label>
-      {helpIcon && <CircleHelp size={iconSize} className="text-muted-foreground" />}
+      {helpIcon && (
+        <CircleHelp size={iconSize} className="text-muted-foreground" />
+      )}
       {helpTooltip && (
-        <TooltipHelper content={helpTooltip} iconSize={iconSize} contentStyle={tooltipStyle} />
+        <TooltipHelper
+          content={helpTooltip}
+          iconSize={iconSize}
+          contentStyle={tooltipStyle}
+        />
       )}
     </div>
     {error && (
       <div
-        className={cn('text-xs text-destructive truncate cursor-help', errorClassName)}
+        className={cn(
+          'text-xs text-destructive truncate cursor-help',
+          errorClassName,
+        )}
         id={`${id}-error`}
       >
         {errorTooltip ? '' : error}
         {errorTooltip && (
-          <TooltipHelper content={error} contentStyle={errorTooltipStyle} trigger={error} />
+          <TooltipHelper
+            content={error}
+            contentStyle={errorTooltipStyle}
+            trigger={error}
+          />
         )}
       </div>
     )}

@@ -1,9 +1,16 @@
 import type { Knex } from 'knex';
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { ErrorCode, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import axios from 'axios';
 import { knexClient } from '../../db/knexClient.js';
-import { type ExchangeRateItem, newExchangeRate } from './exchangeRate.types.js';
+import {
+  type ExchangeRateItem,
+  newExchangeRate,
+} from './exchangeRate.types.js';
 
 export async function createNewExRates(
   data: ExchangeRateItem[],
@@ -13,7 +20,10 @@ export async function createNewExRates(
   const validatedData = newExchangeRate.array().safeParse(data);
 
   if (!validatedData.success) {
-    return errorResponse('Invalid input provided', validatedData.error.flatten());
+    return errorResponse(
+      'Invalid input provided',
+      validatedData.error.flatten(),
+    );
   }
 
   try {
@@ -73,13 +83,15 @@ export async function fetchExchangeRate(
 
     // 2. Validate currencies first to fail fast
     const [fromCurrency, toCurrency] = await Promise.all([
-      knex('currencies').where({ id: fromCurrencyId }).select('code').first() as Promise<
-        { code: string } | undefined
-      >,
+      knex('currencies')
+        .where({ id: fromCurrencyId })
+        .select('code')
+        .first() as Promise<{ code: string } | undefined>,
 
-      knex('currencies').where({ id: toCurrencyId }).select('code').first() as Promise<
-        { code: string } | undefined
-      >,
+      knex('currencies')
+        .where({ id: toCurrencyId })
+        .select('code')
+        .first() as Promise<{ code: string } | undefined>,
     ]);
 
     if (!fromCurrency?.code || !toCurrency?.code) {
@@ -120,15 +132,19 @@ export async function fetchExchangeRate(
 
     if (dbRate) {
       const isSameDay =
-        dbRate.date.toISOString().slice(0, 10) === searchDate.toISOString().slice(0, 10);
+        dbRate.date.toISOString().slice(0, 10) ===
+        searchDate.toISOString().slice(0, 10);
 
-      return successResponse(isSameDay ? 'Exact rate found' : 'Closest available rate found', {
-        id: dbRate.id,
-        date: dbRate.date,
-        rate: Number(dbRate.rate),
-        fromCurrencyId: dbRate.from_currency_id,
-        toCurrencyId: dbRate.to_currency_id,
-      });
+      return successResponse(
+        isSameDay ? 'Exact rate found' : 'Closest available rate found',
+        {
+          id: dbRate.id,
+          date: dbRate.date,
+          rate: Number(dbRate.rate),
+          fromCurrencyId: dbRate.from_currency_id,
+          toCurrencyId: dbRate.to_currency_id,
+        },
+      );
     }
 
     // If no rate found, fetch from external API
@@ -153,17 +169,23 @@ export async function fetchExchangeRate(
         }
 
         // Wait before retry with exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.pow(2, attempt) * 1000),
+        );
       }
     }
 
     const apiData = apiResponse?.data;
 
     if (!apiData?.rates || !apiData.time_last_update_unix) {
-      return errorResponse('Invalid or incomplete Exchange Rates API response received', apiData, {
-        code: ErrorCode.SERVICE_UNAVAILABLE,
-        report: true,
-      });
+      return errorResponse(
+        'Invalid or incomplete Exchange Rates API response received',
+        apiData,
+        {
+          code: ErrorCode.SERVICE_UNAVAILABLE,
+          report: true,
+        },
+      );
     }
 
     const apiRate = apiData.rates[toCurrency.code];
@@ -196,7 +218,9 @@ export async function fetchExchangeRate(
       let persistedRate;
 
       try {
-        const [inserted] = await knex('exchange_rates').insert(rateData).returning('id');
+        const [inserted] = await knex('exchange_rates')
+          .insert(rateData)
+          .returning('id');
 
         console.log({ inserted });
 
@@ -260,10 +284,16 @@ export async function fetchExchangeRate(
           details: dbError.message || 'Unknown database error',
         });
       } else {
-        return errorResponse('Failed to persist exchange rate to database', dbError);
+        return errorResponse(
+          'Failed to persist exchange rate to database',
+          dbError,
+        );
       }
     }
   } catch (error: unknown) {
-    return errorResponse('An unexpected error occurred while fetching exchange rate', error);
+    return errorResponse(
+      'An unexpected error occurred while fetching exchange rate',
+      error,
+    );
   }
 }

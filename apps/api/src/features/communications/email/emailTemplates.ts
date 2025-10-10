@@ -35,7 +35,11 @@ export function getVerifyEmailTemplate(name: string, url: string) {
   };
 }
 
-export function getUserInviteTemplate(url: string, invitedByUser: any, invitedByOrg: any) {
+export function getUserInviteTemplate(
+  url: string,
+  invitedByUser: any,
+  invitedByOrg: any,
+) {
   const templatePath = path.join(__dirname, 'invitation.html');
   console.log(templatePath);
   let template = fs.readFileSync(templatePath, 'utf-8');
@@ -48,7 +52,10 @@ export function getUserInviteTemplate(url: string, invitedByUser: any, invitedBy
     .replace(/[Product Name]/g, 'Accountable')
     .replace(/{{support_email}}/g, 'support@getaccountable.com')
     .replace(/{{invite_sender_name}}/g, inviteSenderName)
-    .replace(/{{invite_sender_organization_name}}/g, inviteSenderOrganizationName);
+    .replace(
+      /{{invite_sender_organization_name}}/g,
+      inviteSenderOrganizationName,
+    );
 
   return {
     subject: 'Invitation to Accountable',

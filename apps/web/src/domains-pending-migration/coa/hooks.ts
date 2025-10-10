@@ -80,8 +80,14 @@ export const useCompanyCoa = (companyId: string, includeDeleted = true) => {
     includeDeleted,
   });
 
-  const coaCodes = useMemo(() => new Set(data?.map((coa) => coa.code) || []), [data]);
-  const coaNames = useMemo(() => new Set(data?.map((coa) => coa.name) || []), [data]);
+  const coaCodes = useMemo(
+    () => new Set(data?.map((coa) => coa.code) || []),
+    [data],
+  );
+  const coaNames = useMemo(
+    () => new Set(data?.map((coa) => coa.name) || []),
+    [data],
+  );
 
   // Lowercased sets for comparison only
   const lowerCoaCodes = useMemo(
@@ -108,7 +114,13 @@ export const useCreateCoa = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ companyId, data: receivedData }: { companyId: string; data: CreateCoa[] }) => {
+    mutationFn: ({
+      companyId,
+      data: receivedData,
+    }: {
+      companyId: string;
+      data: CreateCoa[];
+    }) => {
       const data = createCoaSchema.array().parse(receivedData);
       return createCoa(companyId, data);
     },
@@ -132,10 +144,20 @@ export const useEditCoa = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ companyId, data }: { companyId: string; data: EditCoaRequest }) =>
-      editCoa(companyId, data),
+    mutationFn: ({
+      companyId,
+      data,
+    }: {
+      companyId: string;
+      data: EditCoaRequest;
+    }) => editCoa(companyId, data),
     onSuccess: (response, variables) => {
-      handleMutationSuccess(response, 'Updated', variables.companyId, queryClient);
+      handleMutationSuccess(
+        response,
+        'Updated',
+        variables.companyId,
+        queryClient,
+      );
     },
     onError: (error) => handleMutationError('update', error),
   });
@@ -145,10 +167,20 @@ export const useArchiveCoa = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ companyId, accountIds }: { companyId: string; accountIds: string[] }) =>
-      archiveCoa(companyId, accountIds),
+    mutationFn: ({
+      companyId,
+      accountIds,
+    }: {
+      companyId: string;
+      accountIds: string[];
+    }) => archiveCoa(companyId, accountIds),
     onSuccess: (response, variables) => {
-      handleMutationSuccess(response, 'Archived', variables.companyId, queryClient);
+      handleMutationSuccess(
+        response,
+        'Archived',
+        variables.companyId,
+        queryClient,
+      );
     },
     onError: (error) => handleMutationError('archive', error),
   });
@@ -158,10 +190,20 @@ export const useUnarchiveCoa = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ companyId, accountIds }: { companyId: string; accountIds: string[] }) =>
-      unarchiveCoa(companyId, accountIds),
+    mutationFn: ({
+      companyId,
+      accountIds,
+    }: {
+      companyId: string;
+      accountIds: string[];
+    }) => unarchiveCoa(companyId, accountIds),
     onSuccess: (response, variables) => {
-      handleMutationSuccess(response, 'Restored', variables.companyId, queryClient);
+      handleMutationSuccess(
+        response,
+        'Restored',
+        variables.companyId,
+        queryClient,
+      );
     },
     onError: (error) => handleMutationError('restore', error),
   });
@@ -171,10 +213,20 @@ export const useDeleteCoa = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ companyId, accountIds }: { companyId: string; accountIds: string[] }) =>
-      deleteCoa(companyId, accountIds),
+    mutationFn: ({
+      companyId,
+      accountIds,
+    }: {
+      companyId: string;
+      accountIds: string[];
+    }) => deleteCoa(companyId, accountIds),
     onSuccess: (response, variables) => {
-      handleMutationSuccess(response, 'Deleted', variables.companyId, queryClient);
+      handleMutationSuccess(
+        response,
+        'Deleted',
+        variables.companyId,
+        queryClient,
+      );
     },
     onError: (error) => handleMutationError('delete', error),
   });

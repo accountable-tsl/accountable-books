@@ -10,7 +10,13 @@ type FetchCoaParams = {
   sortOrder?: 'asc' | 'desc';
 };
 
-export const fetchCoa = async ({ companyId, page, limit, sortBy, sortOrder }: FetchCoaParams) => {
+export const fetchCoa = async ({
+  companyId,
+  page,
+  limit,
+  sortBy,
+  sortOrder,
+}: FetchCoaParams) => {
   const response = await axios.get(`${backendUrl}/api/${companyId}/coa`, {
     params: { page, limit, sortBy, sortOrder },
   });

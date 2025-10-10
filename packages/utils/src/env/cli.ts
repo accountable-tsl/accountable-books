@@ -13,12 +13,17 @@ import { generateEnvFiles } from './generator.js';
 /**
  * Preserve existing values from a file if it exists
  */
-function preserveExistingValues(generatedContent: string, existingFilePath: string): string {
+function preserveExistingValues(
+  generatedContent: string,
+  existingFilePath: string,
+): string {
   if (!fs.existsSync(existingFilePath)) {
     return generatedContent;
   }
 
-  console.log(`📋 Preserving existing values in ${path.basename(existingFilePath)}...`);
+  console.log(
+    `📋 Preserving existing values in ${path.basename(existingFilePath)}...`,
+  );
 
   const existingContent = fs.readFileSync(existingFilePath, 'utf-8');
 
@@ -68,12 +73,18 @@ function preserveExistingValues(generatedContent: string, existingFilePath: stri
 /**
  * Write environment file with backup and verification
  */
-function writeEnvFile(filePath: string, content: string, preserve = false): void {
+function writeEnvFile(
+  filePath: string,
+  content: string,
+  preserve = false,
+): void {
   const fileName = path.basename(filePath);
 
   try {
     // Preserve existing values if requested
-    const finalContent = preserve ? preserveExistingValues(content, filePath) : content;
+    const finalContent = preserve
+      ? preserveExistingValues(content, filePath)
+      : content;
 
     // Write new file
     fs.writeFileSync(filePath, finalContent);
@@ -134,7 +145,9 @@ export async function createEnvGenerator(
       writeEnvFile(filePath, content, shouldPreserve);
     }
 
-    console.log(`\n🎉 All ${serviceName} environment files generated successfully!`);
+    console.log(
+      `\n🎉 All ${serviceName} environment files generated successfully!`,
+    );
     console.log('\n📝 Next steps:');
     console.log('   1. Review the generated files');
     console.log('   2. Update .env.local with your actual values if needed');

@@ -24,7 +24,9 @@ describe('UserRoles Business Logic', () => {
         ],
       };
 
-      const company = userContext.accessibleCompanies.find((c) => c.id === 'company-1');
+      const company = userContext.accessibleCompanies.find(
+        (c) => c.id === 'company-1',
+      );
       const hasAccess = !!company;
       const roleKey = company?.roleKey || null;
       const accessReason = company?.isDemoCompany ? 'demo' : 'explicit';
@@ -68,7 +70,9 @@ describe('UserRoles Business Logic', () => {
         ],
       };
 
-      const company = userContext.accessibleCompanies.find((c) => c.id === 'demo-1');
+      const company = userContext.accessibleCompanies.find(
+        (c) => c.id === 'demo-1',
+      );
       const hasAccess = !!company;
       const roleKey = company?.roleKey || null;
       const accessReason = company?.isDemoCompany ? 'demo' : 'explicit';
@@ -83,7 +87,9 @@ describe('UserRoles Business Logic', () => {
         accessibleCompanies: [],
       };
 
-      const company = userContext.accessibleCompanies.find((c) => c.id === 'non-existent');
+      const company = userContext.accessibleCompanies.find(
+        (c) => c.id === 'non-existent',
+      );
       const hasAccess = !!company;
       const roleKey = company?.roleKey || null;
       const accessReason = 'none';
@@ -96,7 +102,11 @@ describe('UserRoles Business Logic', () => {
 
   describe('Platform Role Hierarchy', () => {
     it('should identify highest platform role correctly', () => {
-      const platformRoleHierarchy = ['super_admin', 'support_admin', 'support_agent'] as const;
+      const platformRoleHierarchy = [
+        'super_admin',
+        'support_admin',
+        'support_agent',
+      ] as const;
 
       const userRoles = [
         { roleKey: 'support_agent', roleScope: 'platform' },
@@ -112,7 +122,11 @@ describe('UserRoles Business Logic', () => {
     });
 
     it('should handle no platform roles correctly', () => {
-      const platformRoleHierarchy = ['super_admin', 'support_admin', 'support_agent'] as const;
+      const platformRoleHierarchy = [
+        'super_admin',
+        'support_admin',
+        'support_agent',
+      ] as const;
 
       const userRoles = [{ roleKey: 'client_owner', roleScope: 'company' }];
 

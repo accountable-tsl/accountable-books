@@ -26,7 +26,8 @@ export const sessionStore = create<SessionStore>()(
       failedAttempts: 0, // Track failed attempts
       setCheckingSession: (checking) => set({ checkingSession: checking }),
       setSessionValid: (valid) => set({ sessionValid: valid }),
-      incrementFailedAttempts: () => set((state) => ({ failedAttempts: state.failedAttempts + 1 })),
+      incrementFailedAttempts: () =>
+        set((state) => ({ failedAttempts: state.failedAttempts + 1 })),
       resetFailedAttempts: () => set({ failedAttempts: 0 }),
     }),
     {

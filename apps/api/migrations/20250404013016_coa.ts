@@ -11,7 +11,9 @@ const tableName = 'coa';
 const addCoaToPlatformCompany = async (knex: Knex) => {
   const platformCompany = await createPlatformCompany(knex);
 
-  const existingCoa = await knex('coa').where({ company_id: platformCompany.id }).first();
+  const existingCoa = await knex('coa')
+    .where({ company_id: platformCompany.id })
+    .first();
 
   if (existingCoa) {
     console.log('Platform COA already exists. Skipping.');
@@ -83,7 +85,11 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    table.uuid('updated_by_id').references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     addStandardColumns(knex, table);
   });
@@ -122,7 +128,11 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.raw(`DROP TRIGGER IF EXISTS coa_currency_matches_company_reporting_currency ON coa`);
-  await knex.raw(`DROP FUNCTION IF EXISTS coa_currency_matches_company_reporting_currency()`);
+  await knex.raw(
+    `DROP TRIGGER IF EXISTS coa_currency_matches_company_reporting_currency ON coa`,
+  );
+  await knex.raw(
+    `DROP FUNCTION IF EXISTS coa_currency_matches_company_reporting_currency()`,
+  );
   await knex.schema.dropTableIfExists(tableName);
 }

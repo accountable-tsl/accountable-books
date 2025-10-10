@@ -7,7 +7,10 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import type { Contacts } from '@/domains-pending-migration/contacts/contacts-types';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { newProject, type NewProject } from '@/domains-pending-migration/projects/projects-types';
+import {
+  newProject,
+  type NewProject,
+} from '@/domains-pending-migration/projects/projects-types';
 import { toast } from 'sonner';
 import { Success } from '@/components/Success';
 import {
@@ -56,7 +59,10 @@ export function AddProject({
 
   const contacts = useMemo(() => allContacts, [allContacts]);
 
-  const contactPagination = useMemo(() => contactData?.data?.pagination, [contactData?.data]);
+  const contactPagination = useMemo(
+    () => contactData?.data?.pagination,
+    [contactData?.data],
+  );
 
   const contactOptions = useMemo(() => {
     return contacts.map((contact) => ({
@@ -219,7 +225,9 @@ export function AddProject({
                       hasMore={contactPagination?.hasNext || false}
                       onLoadMore={loadMoreContacts}
                       onSearchChange={handleContactSearch}
-                      aria-describedby={errors.contactId ? 'contact-error' : undefined}
+                      aria-describedby={
+                        errors.contactId ? 'contact-error' : undefined
+                      }
                       actionItems={contactActionItems}
                       onAction={(actionId) => {
                         if (actionId === 'addContact') {
@@ -255,7 +263,8 @@ export function AddProject({
                   name="endDate"
                   control={control}
                   render={({ field, fieldState }) => {
-                    const calendarDisabled = (date: any) => date < (watchedStartDate ?? new Date());
+                    const calendarDisabled = (date: any) =>
+                      date < (watchedStartDate ?? new Date());
                     return (
                       <FormField
                         id="endDate"
@@ -266,7 +275,11 @@ export function AddProject({
                       >
                         <DatePicker
                           showLabel={false}
-                          value={!watchedStartDate ? undefined : (field.value ?? undefined)}
+                          value={
+                            !watchedStartDate
+                              ? undefined
+                              : (field.value ?? undefined)
+                          }
                           onChange={field.onChange}
                           calendarDisabled={calendarDisabled}
                         />
@@ -290,7 +303,11 @@ export function AddProject({
               </FormField>
 
               <div className="flex justify-between">
-                <Button type="button" variant="secondary" onClick={handleCancel}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleCancel}
+                >
                   Cancel
                 </Button>
                 <Button className="ml-auto" disabled={!isValid}>
@@ -344,7 +361,10 @@ export function AddProjectDialog({
             Add new project
           </DialogDescription>
         </DialogHeader>
-        <AddProject onCancel={handleCancel} classNames={{ content: 'border-0 p-0' }} />
+        <AddProject
+          onCancel={handleCancel}
+          classNames={{ content: 'border-0 p-0' }}
+        />
       </DialogContent>
     </Dialog>
   );

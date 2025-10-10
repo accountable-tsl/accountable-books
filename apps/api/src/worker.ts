@@ -2,7 +2,11 @@
 import '../config/env-loader.js';
 
 import * as Sentry from '@sentry/node';
-import { startAllWorkers, stopAllWorkers, getWorkersStatus } from './jobs/workers/index.js';
+import {
+  startAllWorkers,
+  stopAllWorkers,
+  getWorkersStatus,
+} from './jobs/workers/index.js';
 import { initSentry } from './sentry.bootstrap.js';
 import { NODE_ENV, ENV } from './config/env.js';
 import { initRedisMonitoring, getRedisStats } from './lib/redis-monitor.js';
@@ -11,7 +15,12 @@ import pino from 'pino';
 // Initialize logger
 const logger =
   NODE_ENV === 'local'
-    ? pino({ transport: { target: 'pino-pretty', options: { colorize: true, singleLine: true } } })
+    ? pino({
+        transport: {
+          target: 'pino-pretty',
+          options: { colorize: true, singleLine: true },
+        },
+      })
     : pino();
 
 /**
@@ -33,7 +42,8 @@ async function main() {
         environment: NODE_ENV,
         redisUrl: ENV.REDIS_URL ? 'configured' : 'missing',
         backendUrl: ENV.BACKEND_URL,
-        redisMonitoring: process.env.ENABLE_REDIS_MONITORING === 'true' ? 'enabled' : 'auto',
+        redisMonitoring:
+          process.env.ENABLE_REDIS_MONITORING === 'true' ? 'enabled' : 'auto',
       },
       'Worker environment',
     );
@@ -43,7 +53,10 @@ async function main() {
 
     // Log worker status
     const status = getWorkersStatus();
-    logger.info(status, `🎯 Worker process ready with ${workers.length} active workers`);
+    logger.info(
+      status,
+      `🎯 Worker process ready with ${workers.length} active workers`,
+    );
 
     // Set up health check endpoint (if needed)
     // This could be useful for monitoring worker health
@@ -87,7 +100,10 @@ async function main() {
 
     // Handle unhandled rejections
     process.on('unhandledRejection', (reason, promise) => {
-      logger.error({ reason, promise }, '🚨 Unhandled promise rejection in worker process');
+      logger.error(
+        { reason, promise },
+        '🚨 Unhandled promise rejection in worker process',
+      );
       Sentry.captureException(reason);
     });
 

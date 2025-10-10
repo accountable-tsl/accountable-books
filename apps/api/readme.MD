@@ -143,7 +143,9 @@ describe('User API', () => {
   });
 
   it('should create a user', async () => {
-    const response = await request(app).post('/users').send({ email: 'test@example.com' });
+    const response = await request(app)
+      .post('/users')
+      .send({ email: 'test@example.com' });
 
     expect(response.status).toBe(201);
   });

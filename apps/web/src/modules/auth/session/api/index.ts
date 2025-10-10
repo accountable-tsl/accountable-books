@@ -30,7 +30,8 @@ export const fetchSession = async (): Promise<
     return res.data;
   } catch (err: unknown) {
     if (isAxiosError(err) && err.response?.status === 401) {
-      const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
+      const wasAuthenticated =
+        localStorage.getItem('wasAuthenticated') === 'true';
       if (wasAuthenticated) {
         setLogoutReason('expired');
       }
@@ -40,7 +41,9 @@ export const fetchSession = async (): Promise<
   }
 };
 
-export const refreshToken = async (): Promise<ApiResponse<{ csrfToken: string }>> => {
+export const refreshToken = async (): Promise<
+  ApiResponse<{ csrfToken: string }>
+> => {
   try {
     const res = await api.post('/auth/refresh');
     return res.data as ApiResponse<{ csrfToken: string }>;

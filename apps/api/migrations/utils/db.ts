@@ -1,15 +1,24 @@
 import type { Knex } from 'knex';
 
 export function addStandardColumns(knex: Knex, table: Knex.CreateTableBuilder) {
-  table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
+  table
+    .timestamp('created_at', { useTz: true })
+    .notNullable()
+    .defaultTo(knex.fn.now());
 
-  table.timestamp('updated_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
+  table
+    .timestamp('updated_at', { useTz: true })
+    .notNullable()
+    .defaultTo(knex.fn.now());
 
   table.boolean('is_deleted').notNullable().defaultTo(false);
   table.timestamp('deleted_at', { useTz: true }).nullable();
 }
 
-export async function createUpdateTimestampTrigger(knex: Knex, tableName: string) {
+export async function createUpdateTimestampTrigger(
+  knex: Knex,
+  tableName: string,
+) {
   const quoted = `"${tableName}"`;
   await knex.raw(`
     CREATE OR REPLACE FUNCTION update_timestamp()
@@ -30,10 +39,15 @@ export async function createUpdateTimestampTrigger(knex: Knex, tableName: string
   `);
 }
 
-export async function dropUpdateTimestampTrigger(knex: Knex, tableName: string) {
+export async function dropUpdateTimestampTrigger(
+  knex: Knex,
+  tableName: string,
+) {
   const quoted = `"${tableName}"`;
 
-  await knex.raw(`DROP TRIGGER IF EXISTS update_${tableName}_timestamp ON ${quoted};`);
+  await knex.raw(
+    `DROP TRIGGER IF EXISTS update_${tableName}_timestamp ON ${quoted};`,
+  );
 }
 
 export async function preventUpdateOrDelete(knex: Knex, tableName: string) {

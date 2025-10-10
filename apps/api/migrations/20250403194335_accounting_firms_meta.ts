@@ -6,7 +6,9 @@ import {
 } from './utils/db';
 import { createPlatformCompany } from './20250403194332_companies';
 
-export const buildPlatformAccountingFirm = (platformCompany: { id: string }) => ({
+export const buildPlatformAccountingFirm = (platformCompany: {
+  id: string;
+}) => ({
   company_id: platformCompany.id,
   slug: 'app',
 });
@@ -28,7 +30,9 @@ export const createPlatformFirm = async (knex: Knex) => {
     };
   }
 
-  const [{ company_id: id, ...rest }] = await knex(tableName).insert(platformFirm).returning('*');
+  const [{ company_id: id, ...rest }] = await knex(tableName)
+    .insert(platformFirm)
+    .returning('*');
 
   console.log(
     `Successfully created platform accounting firm: ${platformCompany.display_name || platformCompany.legal_name}`,
@@ -39,7 +43,12 @@ export const createPlatformFirm = async (knex: Knex) => {
 const tableName = 'accounting_firms_meta';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
-    table.uuid('company_id').primary().references('id').inTable('companies').onDelete('CASCADE'); // Company that is the accounting firm's HQ
+    table
+      .uuid('company_id')
+      .primary()
+      .references('id')
+      .inTable('companies')
+      .onDelete('CASCADE'); // Company that is the accounting firm's HQ
 
     table.string('slug', 20).unique().nullable();
     table.string('firm_type', 50).nullable(); //freelancer, ca / cpa, tax preparer, international
@@ -47,7 +56,10 @@ export async function up(knex: Knex): Promise<void> {
     addStandardColumns(knex, table);
   });
 
-  const hasColumn = await knex.schema.hasColumn('companies', 'assigned_firm_id');
+  const hasColumn = await knex.schema.hasColumn(
+    'companies',
+    'assigned_firm_id',
+  );
   if (!hasColumn) {
     await knex.schema.alterTable('companies', (table) => {
       table
@@ -66,7 +78,10 @@ export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
 
   // Remove the foreign key constraint from companies table first
-  const hasColumn = await knex.schema.hasColumn('companies', 'assigned_firm_id');
+  const hasColumn = await knex.schema.hasColumn(
+    'companies',
+    'assigned_firm_id',
+  );
   if (hasColumn) {
     await knex.schema.alterTable('companies', (table) => {
       table.dropForeign(['assigned_firm_id']);

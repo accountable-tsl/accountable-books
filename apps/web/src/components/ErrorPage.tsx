@@ -58,7 +58,8 @@ export default function ErrorPage({
 }: ErrorPageProps) {
   const { isLoggedIn, companyId: currentCompanyId } = useSession();
   const navigate = useNavigate();
-  const config = errorConfigs[type as keyof typeof errorConfigs] || errorConfigs.default;
+  const config =
+    errorConfigs[type as keyof typeof errorConfigs] || errorConfigs.default;
   const displayTitle = title || config.title;
   const displayMessage = message || config.message;
 
@@ -67,7 +68,9 @@ export default function ErrorPage({
     : routes.auth.login.staticPath;
 
   return (
-    <div className={cn('flex flex-col min-h-screen justify-between', className)}>
+    <div
+      className={cn('flex flex-col min-h-screen justify-between', className)}
+    >
       {showHeader && <AuthHeader />}
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="text-center max-w-md space-y-4">
@@ -76,7 +79,10 @@ export default function ErrorPage({
               <span>{config.icon}</span>
             ) : (
               <>
-                {type} {showIcon && <span className="h-5 w-5 text-sm">{config.icon}</span>}
+                {type}{' '}
+                {showIcon && (
+                  <span className="h-5 w-5 text-sm">{config.icon}</span>
+                )}
               </>
             )}
           </h1>

@@ -85,7 +85,9 @@ export default function BankAccountSelector({
 
   if (isError) {
     return (
-      <ErrorPage message={`Error loading bank accounts: ${error?.message || 'Unknown error'}`} />
+      <ErrorPage
+        message={`Error loading bank accounts: ${error?.message || 'Unknown error'}`}
+      />
     );
   }
 

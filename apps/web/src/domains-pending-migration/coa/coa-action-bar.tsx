@@ -20,16 +20,27 @@ interface CoaActionBarProps {
   table: CustomTable<CoaResponse>;
   className?: string;
 }
-export function CoaActionBar({ table, className, companyId }: CoaActionBarProps) {
+export function CoaActionBar({
+  table,
+  className,
+  companyId,
+}: CoaActionBarProps) {
   const archiveCoaMutation = useArchiveCoa();
   const deleteCoaMutation = useDeleteCoa();
 
   const rows = table.getFilteredSelectedRowModel().rows;
-  const originalRows = useMemo(() => rows.map((r: Row<CoaResponse>) => r.original), [rows]);
+  const originalRows = useMemo(
+    () => rows.map((r: Row<CoaResponse>) => r.original),
+    [rows],
+  );
 
-  const selectedRowsIds = useMemo(() => originalRows.map((row) => row.id), [originalRows]);
+  const selectedRowsIds = useMemo(
+    () => originalRows.map((row) => row.id),
+    [originalRows],
+  );
 
-  const { canArchive, canDelete, canExport, summary } = analyzeSelectedAccounts(originalRows);
+  const { canArchive, canDelete, canExport, summary } =
+    analyzeSelectedAccounts(originalRows);
   const { total, locked, archived } = summary;
 
   const parts = [
@@ -63,7 +74,11 @@ export function CoaActionBar({ table, className, companyId }: CoaActionBarProps)
   }, [rows, canArchive]);
 
   return (
-    <DataTableActionBar table={table} visible={rows.length > 0} className={cn('', className)}>
+    <DataTableActionBar
+      table={table}
+      visible={rows.length > 0}
+      className={cn('', className)}
+    >
       <DataTableActionBarSelection table={table} />
       <Separator
         orientation="vertical"
@@ -71,14 +86,22 @@ export function CoaActionBar({ table, className, companyId }: CoaActionBarProps)
       />
 
       {canArchive && onTaskArchive && (
-        <DataTableActionBarAction size="icon" tooltip="Archive accounts" onClick={onTaskArchive}>
+        <DataTableActionBarAction
+          size="icon"
+          tooltip="Archive accounts"
+          onClick={onTaskArchive}
+        >
           <Archive />
         </DataTableActionBarAction>
       )}
 
       {/* Delete */}
       {canDelete && onTaskDelete && (
-        <DataTableActionBarAction size="icon" tooltip="Delete accounts" onClick={onTaskDelete}>
+        <DataTableActionBarAction
+          size="icon"
+          tooltip="Delete accounts"
+          onClick={onTaskDelete}
+        >
           <Trash2 />
         </DataTableActionBarAction>
       )}

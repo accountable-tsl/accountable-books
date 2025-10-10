@@ -59,6 +59,8 @@ export async function getMinimalBankAccountDetails({
     bankAccountIds.forEach((id) => params.append('bankAccountIds', id));
   }
 
-  const response = await api.get(`/api/${companyId}/bank-accounts/minimal?${params.toString()}`);
+  const response = await api.get(
+    `/api/${companyId}/bank-accounts/minimal?${params.toString()}`,
+  );
   return response.data;
 }

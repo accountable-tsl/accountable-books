@@ -6,7 +6,11 @@ import {
   type InviteEmailPayload,
   type TokenBasedEmailPayload,
 } from './email.types.js';
-import { AppError, errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
+import {
+  AppError,
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
 import { emailQueue } from '../../../jobs/queues/email.queue.js';
 import { type ApiResponse } from '../../../core/types/api.types.js';
 import { ENV } from '../../../config/env.js';
@@ -74,7 +78,9 @@ async function getEmailSender() {
 }
 
 // Helper function to check if sender is Postmark client
-function isPostmarkClient(sender: EmailSender): sender is postmark.ServerClient {
+function isPostmarkClient(
+  sender: EmailSender,
+): sender is postmark.ServerClient {
   return sender instanceof postmark.ServerClient;
 }
 
@@ -133,7 +139,9 @@ export async function sendEmail(payload: EmailPayload) {
   }
 }
 
-export async function sendVerificationEmail(payload: TokenBasedEmailPayload): Promise<ApiResponse> {
+export async function sendVerificationEmail(
+  payload: TokenBasedEmailPayload,
+): Promise<ApiResponse> {
   const url = payload.url;
 
   if (!url) {

@@ -1,6 +1,11 @@
 import './FallbackView.scss';
 
-type FallbackViewType = 'default' | 'notFound' | 'unauthorized' | 'noData' | 'screenSize';
+type FallbackViewType =
+  | 'default'
+  | 'notFound'
+  | 'unauthorized'
+  | 'noData'
+  | 'screenSize';
 
 interface FallbackViewProps {
   type?: FallbackViewType;
@@ -56,10 +61,14 @@ export default function FallbackView({
     <div className={`fbv fbv-${type} ${customClass}`}>
       <div className="fbv-icon">{config.icon}</div>
       <div className="fbv-title">{config.title}</div>
-      <p className="fbv-message">{customMessage ? customMessage : config.message}</p>
+      <p className="fbv-message">
+        {customMessage ? customMessage : config.message}
+      </p>
       {type !== 'screenSize' && (
         <div>
-          <button onClick={() => (window.location.href = '/')}>Return to Home</button>
+          <button onClick={() => (window.location.href = '/')}>
+            Return to Home
+          </button>
           <p className="fbv-support">
             If you believe this is an error, please contact{' '}
             <a href={`mailto:${supportEmail}`}>{supportEmail}</a>.

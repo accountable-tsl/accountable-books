@@ -16,7 +16,14 @@ export async function up(knex: Knex): Promise<void> {
     table
       .enu(
         'account_type',
-        ['checkings_current', 'savings', 'utility', 'credit_card', 'debit_card', 'other'],
+        [
+          'checkings_current',
+          'savings',
+          'utility',
+          'credit_card',
+          'debit_card',
+          'other',
+        ],
         { enumName: 'bank_account_type', useNative: true },
       )
       .nullable();
@@ -26,7 +33,12 @@ export async function up(knex: Knex): Promise<void> {
         useNative: true,
       })
       .nullable();
-    table.uuid('bank_id').notNullable().references('id').inTable('banks').onDelete('RESTRICT');
+    table
+      .uuid('bank_id')
+      .notNullable()
+      .references('id')
+      .inTable('banks')
+      .onDelete('RESTRICT');
     table
       .uuid('currency_id')
       .notNullable()
@@ -41,7 +53,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('RESTRICT');
 
-    table.uuid('coa_id').notNullable().references('id').inTable('coa').onDelete('RESTRICT');
+    table
+      .uuid('coa_id')
+      .notNullable()
+      .references('id')
+      .inTable('coa')
+      .onDelete('RESTRICT');
     table.jsonb('account_metadata').nullable().defaultTo('{}');
     // Provider & connection specific fields
     table
@@ -54,10 +71,14 @@ export async function up(knex: Knex): Promise<void> {
     table.string('provider_bank_account_id').nullable();
 
     table
-      .enu('connection_status', ['connected', 'revoked', 'error', 'not_connected'], {
-        enumName: 'bank_account_connection_status',
-        useNative: false,
-      })
+      .enu(
+        'connection_status',
+        ['connected', 'revoked', 'error', 'not_connected'],
+        {
+          enumName: 'bank_account_connection_status',
+          useNative: false,
+        },
+      )
       .notNullable();
     table
       .uuid('connection_credential_id')
@@ -77,7 +98,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
     table.unique(['company_id', 'account_number']);
 
     addStandardColumns(knex, table);

@@ -9,26 +9,33 @@ const Table = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
         ref={ref}
         data-slot="table"
         role="table"
-        className={cn('flex flex-col w-full caption-bottom text-sm relative min-h-0', className)}
+        className={cn(
+          'flex flex-col w-full caption-bottom text-sm relative min-h-0',
+          className,
+        )}
         {...props}
       />
     );
   },
 );
 
-const TableHeader = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
-  ({ className, ...props }, ref) => {
-    return (
-      <div
-        ref={ref}
-        role="rowgroup"
-        data-slot="table-header"
-        className={cn('[&_[data-slot=table-row]]:border-b flex flex-col flex-shrink-0', className)}
-        {...props}
-      />
-    );
-  },
-);
+const TableHeader = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<'div'>
+>(({ className, ...props }, ref) => {
+  return (
+    <div
+      ref={ref}
+      role="rowgroup"
+      data-slot="table-header"
+      className={cn(
+        '[&_[data-slot=table-row]]:border-b flex flex-col flex-shrink-0',
+        className,
+      )}
+      {...props}
+    />
+  );
+});
 
 const TableBody = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
   ({ className, ...props }, ref) => {
@@ -47,22 +54,23 @@ const TableBody = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
   },
 );
 
-const TableFooter = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
-  ({ className, ...props }, ref) => {
-    return (
-      <div
-        ref={ref}
-        role="rowgroup"
-        data-slot="table-footer"
-        className={cn(
-          'flex flex-col bg-muted/50 border-t font-medium [&>div[data-slot=table-row]:last]:border-b-0',
-          className,
-        )}
-        {...props}
-      />
-    );
-  },
-);
+const TableFooter = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<'div'>
+>(({ className, ...props }, ref) => {
+  return (
+    <div
+      ref={ref}
+      role="rowgroup"
+      data-slot="table-footer"
+      className={cn(
+        'flex flex-col bg-muted/50 border-t font-medium [&>div[data-slot=table-row]:last]:border-b-0',
+        className,
+      )}
+      {...props}
+    />
+  );
+});
 
 const TableRow = React.forwardRef<
   HTMLDivElement,

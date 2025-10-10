@@ -44,10 +44,12 @@ import {
 
 // Constants
 const STYLES = {
-  wrapper: 'w-full max-w-2xl mx-auto min-h-0 overflow-y-auto scrollbar-thin-2px',
+  wrapper:
+    'w-full max-w-2xl mx-auto min-h-0 overflow-y-auto scrollbar-thin-2px',
   titleSection: 'flex justify-between items-center border-b pl-4 pr-6 py-4',
   sectionClass: 'p-4 space-y-2',
-  sectionTitleClass: 'text-[10px] font-medium text-muted-foreground tracking-wider uppercase',
+  sectionTitleClass:
+    'text-[10px] font-medium text-muted-foreground tracking-wider uppercase',
   sectionGridClass: 'grid grid-cols-2 gap-x-4 gap-y-6 w-full',
   itemTitleClass: 'text-xs text-muted-foreground pb-[2px] truncate',
 } as const;
@@ -58,7 +60,11 @@ interface CoaViewerProps {
   onClose?: () => void;
 }
 
-export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose }) => {
+export const CoaViewer: React.FC<CoaViewerProps> = ({
+  row,
+  companyId,
+  onClose,
+}) => {
   const [editMode, setEditMode] = useState(false);
   const is1024 = useMediaQuery('(max-width: 1024px)');
 
@@ -97,7 +103,9 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
   const canDelete = useMemo(
     () =>
       !account.isLocked &&
-      !ACCOUNT_TYPE_BLACKLIST.includes(account.accountTypeKey.toLowerCase() as BlacklistedType) &&
+      !ACCOUNT_TYPE_BLACKLIST.includes(
+        account.accountTypeKey.toLowerCase() as BlacklistedType,
+      ) &&
       account.canDelete &&
       !account.hasTransactions,
     [account],
@@ -105,7 +113,9 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
 
   const canArchive = useMemo(
     () =>
-      !ACCOUNT_TYPE_BLACKLIST.includes(account.accountTypeKey.toLowerCase() as BlacklistedType) &&
+      !ACCOUNT_TYPE_BLACKLIST.includes(
+        account.accountTypeKey.toLowerCase() as BlacklistedType,
+      ) &&
       !account.isLocked &&
       account.isActive,
     [account],
@@ -141,7 +151,10 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
       const changedFields = getChangedFields(data, dirtyFields);
       const updates = { ...changedFields, id: data.id || account.id };
 
-      editCoaMutation.mutate({ companyId, data: updates }, { onSuccess: onClose });
+      editCoaMutation.mutate(
+        { companyId, data: updates },
+        { onSuccess: onClose },
+      );
     },
     [dirtyFields, account.id, editCoaMutation, companyId, onClose],
   );
@@ -155,7 +168,10 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
   }, [unarchiveCoaMutation, companyId, account.id]);
 
   const handleDelete = useCallback(() => {
-    deleteCoaMutation.mutate({ companyId, accountIds: [account.id] }, { onSuccess: onClose });
+    deleteCoaMutation.mutate(
+      { companyId, accountIds: [account.id] },
+      { onSuccess: onClose },
+    );
   }, [deleteCoaMutation, companyId, account.id, onClose]);
 
   if (isLoading) {
@@ -254,17 +270,23 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
                             })}
                             placeholder="Select account type..."
                             aria-describedby={
-                              errors.accountTypeKey ? 'accountTypeKey-error' : undefined
+                              errors.accountTypeKey
+                                ? 'accountTypeKey-error'
+                                : undefined
                             }
                             onValueChange={field.onChange}
                             value={field.value || ''}
                             groupBy={'parentElementLabel'}
                           />
                         </FormField>
-                        {Object.prototype.hasOwnProperty.call(dirtyFields, 'accountTypeKey') && (
+                        {Object.prototype.hasOwnProperty.call(
+                          dirtyFields,
+                          'accountTypeKey',
+                        ) && (
                           <div className="text-sm mt-2 py-2 px-4 bg-red-100 text-red-600 rounded">
-                            <strong>Warning:</strong> Changing your account type will affect all
-                            your postings and might not be reversible!
+                            <strong>Warning:</strong> Changing your account type
+                            will affect all your postings and might not be
+                            reversible!
                           </div>
                         )}
                       </div>
@@ -278,7 +300,10 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
                   >
                     <Input
                       disabled
-                      value={currentAccountTypeInfo?.elementLabel || account.accountElementLabel}
+                      value={
+                        currentAccountTypeInfo?.elementLabel ||
+                        account.accountElementLabel
+                      }
                     />
                   </FormField>
 
@@ -326,7 +351,11 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
                 Restore
               </Button>
             ) : (
-              <Button onClick={onEditToggle} disabled={account.isLocked} size="sm">
+              <Button
+                onClick={onEditToggle}
+                disabled={account.isLocked}
+                size="sm"
+              >
                 Edit
               </Button>
             )}
@@ -356,7 +385,9 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
                 <div className={itemTitleClass}>Account Code</div>
                 <div className="flex items-center gap-1">
                   <Binary className="w-4 h-4 text-muted-foreground" />
-                  <span>{account.code || <span className="text-gray-400">—</span>}</span>
+                  <span>
+                    {account.code || <span className="text-gray-400">—</span>}
+                  </span>
                 </div>
               </div>
               <div className="min-w-0">
@@ -366,7 +397,9 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
               <div className="min-w-0 col-span-2">
                 <div className={itemTitleClass}>Description</div>
                 <div className="line-clamp-2 text-ellipsis">
-                  {account.description || <span className="text-gray-400">—</span>}
+                  {account.description || (
+                    <span className="text-gray-400">—</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -412,7 +445,8 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
                 <div className="flex items-center gap-1">
                   <Coins className="w-4 h-4 text-muted-foreground" />
                   <span>
-                    {account.accountCurrencyCode} ({account.accountCurrencySymbol})
+                    {account.accountCurrencyCode} (
+                    {account.accountCurrencySymbol})
                   </span>
                 </div>
               </div>
@@ -422,7 +456,8 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
                 <div className="flex items-center gap-1">
                   <Coins className="w-4 h-4 text-muted-foreground" />
                   <span>
-                    {account.reportingCurrencyCode} ({account.reportingCurrencySymbol})
+                    {account.reportingCurrencyCode} (
+                    {account.reportingCurrencySymbol})
                   </span>
                 </div>
               </div>
@@ -467,7 +502,9 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({ row, companyId, onClose })
               <Separator className={is1024 ? 'my-2' : 'my-4'} />
 
               <div className={sectionClass}>
-                <h3 className={cn(sectionTitleClass, 'text-destructive')}>Danger Zone</h3>
+                <h3 className={cn(sectionTitleClass, 'text-destructive')}>
+                  Danger Zone
+                </h3>
                 <div className="flex gap-4">
                   {canArchive && (
                     <Button

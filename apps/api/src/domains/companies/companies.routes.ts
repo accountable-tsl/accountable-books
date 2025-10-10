@@ -18,7 +18,12 @@ router.post('/switch', verifyAccessToken, switchCompanyController);
 //   getCompaniesController
 // );
 
-router.get('/:companyId', verifyAccessToken, checkCompanyId, getCompanyController);
+router.get(
+  '/:companyId',
+  verifyAccessToken,
+  checkCompanyId,
+  getCompanyController,
+);
 
 router.patch('/:companyId', checkCompanyId, updateCompanyController);
 

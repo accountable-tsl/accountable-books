@@ -45,9 +45,14 @@ export const createBankAccountCredential = async ({
   const v = validatedInput.data;
   const knex = trx ? trx : knexClient;
 
+  const companyUUID = await getCompanyUUID(companyId);
+  if (!companyUUID) {
+    throw new Error('Company not found');
+  }
+
   const aad = getBankAccountCredentialAAD({
     providerId: v.provider_id,
-    companyId: companyId,
+    companyId: companyUUID,
   });
   const encryptedAccessToken = encrypt(v.access_token, aad);
   const encryptedRefreshToken = v.refresh_token
@@ -60,11 +65,6 @@ export const createBankAccountCredential = async ({
     refresh_token: '[REDACTED]',
   };
   try {
-    const companyUUID = await getCompanyUUID(companyId);
-    if (!companyUUID) {
-      throw new Error('Company not found');
-    }
-
     const [credential] = await knex('bank_account_credentials')
       .insert({
         company_id: companyUUID,
@@ -147,6 +147,25 @@ export async function getBankAccountCredential<T extends boolean>({
   } catch (error) {
     return errorResponse('Unable to retrieve credential', error);
   }
+}
+
+/**
+ * Get all active credentials for periodic sync scheduling
+ */
+export async function getAllActiveCredentials(trx?: Knex.Transaction): Promise<
+  {
+    id: string;
+    company_id: string;
+    provider_id: string;
+    status: string;
+  }[]
+> {
+  const knex = trx || knexClient;
+
+  return await knex('bank_account_credentials')
+    .select(['id', 'company_id', 'provider_id', 'status'])
+    .where('status', 'active')
+    .orderBy('created_at', 'desc');
 }
 // export async function getBankAccountCredential({
 //   credentialId,

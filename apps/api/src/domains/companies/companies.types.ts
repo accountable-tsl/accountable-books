@@ -4,9 +4,16 @@ import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils
 import { firmType } from '../accountingFirms/firms.types.js';
 import { companyOnboardingState } from '../../features/onboarding/onboarding.types.js';
 
-export const companyType = z.enum(['business', 'individual', 'accounting_firm']);
+export const companyType = z.enum([
+  'business',
+  'individual',
+  'accounting_firm',
+]);
 export const reportingFramework = z.enum(['ifrs', 'us_gaap']);
-export const accountingBasis = z.enum(['modified_cash_basis', 'modified_accrual_basis']);
+export const accountingBasis = z.enum([
+  'modified_cash_basis',
+  'modified_accrual_basis',
+]);
 
 export const newCompanyInput = z.object({
   id: z.uuid().optional(),
@@ -161,7 +168,9 @@ export type GetCompanyResponse = {
   assignedFirmLogo: string | null;
 };
 
-export const fieldToColumnMap: Partial<Record<keyof GetCompanyResponse, keyof NewCompany>> = {
+export const fieldToColumnMap: Partial<
+  Record<keyof GetCompanyResponse, keyof NewCompany>
+> = {
   legalName: 'legal_name',
   companyType: 'type',
   yearEndDay: 'year_end_day',

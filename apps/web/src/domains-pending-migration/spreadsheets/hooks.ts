@@ -92,7 +92,10 @@ export function useParseCsv({
     } else if (result.data[0]) {
       // No headers: generate "Column 1", "Column 2", ...
       const colCount = Object.keys(result.data[0]).length;
-      csvHeaders = Array.from({ length: colCount }, (_, i) => `Column ${i + 1}`);
+      csvHeaders = Array.from(
+        { length: colCount },
+        (_, i) => `Column ${i + 1}`,
+      );
     } else {
       csvHeaders = [];
     }
@@ -101,7 +104,9 @@ export function useParseCsv({
     // If no match, fallback to original CSV header
     const fieldMappings: { [csvHeader: string]: string } = {};
     csvHeaders.forEach((csvHeader) => {
-      const match = fields.find((field) => field.value.toLowerCase() === csvHeader.toLowerCase());
+      const match = fields.find(
+        (field) => field.value.toLowerCase() === csvHeader.toLowerCase(),
+      );
       fieldMappings[csvHeader] = match ? match.value : csvHeader;
     });
 
@@ -110,7 +115,10 @@ export function useParseCsv({
       .filter((field) => field.required)
       .filter(
         (field) =>
-          !csvHeaders.some((csvHeader) => field.value.toLowerCase() === csvHeader.toLowerCase()),
+          !csvHeaders.some(
+            (csvHeader) =>
+              field.value.toLowerCase() === csvHeader.toLowerCase(),
+          ),
       )
       .map((field) => field.value);
 
@@ -138,7 +146,13 @@ export function useParseCsv({
     });
   }
 
-  function oldOnParse({ file, limit = Infinity }: { file: File; limit?: number }) {
+  function oldOnParse({
+    file,
+    limit = Infinity,
+  }: {
+    file: File;
+    limit?: number;
+  }) {
     let count = 0;
     const allResults: Record<string, unknown>[] = [];
 
@@ -162,7 +176,10 @@ export function useParseCsv({
               const hasNonEmptyValue = rows
                 .slice(1)
                 .some(
-                  (row) => row[index] !== '' && row[index] !== null && row[index] !== undefined,
+                  (row) =>
+                    row[index] !== '' &&
+                    row[index] !== null &&
+                    row[index] !== undefined,
                 );
               if (!hasNonEmptyValue) {
                 return null;
@@ -203,7 +220,8 @@ export function useParseCsv({
             throw new Error(`Only ${limit} rows are allowed`);
           }
         } catch (err) {
-          const message = err instanceof Error ? err.message : 'Something went wrong';
+          const message =
+            err instanceof Error ? err.message : 'Something went wrong';
           setCsvState((prevState) => ({ ...prevState, error: message }));
           onError?.(message);
         }
@@ -211,7 +229,9 @@ export function useParseCsv({
       complete: (_, localFile: File) => {
         setCsvState((prevState) => ({
           ...prevState,
-          fileName: localFile?.name ? localFile.name.replace(/\.[^/.]+$/, '') : 'Untitled',
+          fileName: localFile?.name
+            ? localFile.name.replace(/\.[^/.]+$/, '')
+            : 'Untitled',
           data: {
             parsed: allResults,
             mapped: allResults,
@@ -222,7 +242,10 @@ export function useParseCsv({
     });
   }
 
-  async function onParse({ file, ...parseOptions }: { file: File } & ParseCsvOptions) {
+  async function onParse({
+    file,
+    ...parseOptions
+  }: { file: File } & ParseCsvOptions) {
     const result = await parseCsvFile({
       file,
       ...parseOptions,
@@ -234,7 +257,13 @@ export function useParseCsv({
       setState: setCsvState,
     });
   }
-  function onFieldChange({ oldValue, newValue }: { oldValue: string; newValue: string }) {
+  function onFieldChange({
+    oldValue,
+    newValue,
+  }: {
+    oldValue: string;
+    newValue: string;
+  }) {
     setCsvState((prevState) => ({
       ...prevState,
       fieldMappings: {
@@ -251,7 +280,13 @@ export function useParseCsv({
     }));
   }
 
-  function onFieldToggle({ value, checked }: { value: string; checked: boolean }) {
+  function onFieldToggle({
+    value,
+    checked,
+  }: {
+    value: string;
+    checked: boolean;
+  }) {
     setCsvState((prevState) => ({
       ...prevState,
       fieldMappings: {

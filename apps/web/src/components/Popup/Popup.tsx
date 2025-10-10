@@ -14,13 +14,15 @@ export default function Popup({ popupId, children }: PopupProps) {
 
   const popupRef: RefObject<HTMLDivElement> = useRef(null);
 
-  const isVisible = popups.includes(popupId) || componentPopups.some((p) => p.id === popupId);
+  const isVisible =
+    popups.includes(popupId) || componentPopups.some((p) => p.id === popupId);
 
   useEffect(() => {
     if (!isVisible) return;
 
     const handleOutsideClick = (event: MouseEvent) => {
-      if (popupRef.current && !popupRef.current.contains(event.target as Node)) closePopup(popupId);
+      if (popupRef.current && !popupRef.current.contains(event.target as Node))
+        closePopup(popupId);
     };
 
     document.addEventListener('mousedown', handleOutsideClick);

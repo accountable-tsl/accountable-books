@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { PlaidWidget } from '@/features/connect-bank/ui/providers/plaid-widget';
 import { MonoWidget } from '@/features/connect-bank/ui/providers/mono-widget';
 import { WidgetLoading } from '@/features/connect-bank/ui/components/widget-loading';
@@ -6,25 +7,42 @@ interface ProviderWidgetProps {
   provider: string;
   token: string;
   onSuccess: (token: string, metadata?: any) => void;
+  onLoad?: () => void;
   onExit?: () => void;
   onError?: (error: any) => void;
   // Session context for OAuth state
-  userId?: string;
   companyId?: string;
+  countryCode: string;
+  user: { id: string; name: string; email: string };
 }
 
 export function ProviderWidget({
   provider,
   token,
   onSuccess,
+  onLoad,
   onExit,
   onError,
-  userId,
+  user,
   companyId,
+  countryCode,
 }: ProviderWidgetProps) {
-  if (!token) {
+  const [minDelayElapsed, setMinDelayElapsed] = useState(false);
+
+  useEffect(() => {
+    const timerId = setTimeout(() => setMinDelayElapsed(true), 2000);
+    return () => clearTimeout(timerId);
+  }, []);
+
+  // Always show loading for at least 2 seconds for all providers
+  if (!minDelayElapsed) {
     return <WidgetLoading />;
   }
+
+  if (provider === 'plaid' && !token) {
+    return <WidgetLoading />;
+  }
+
   if (provider === 'plaid') {
     return (
       <PlaidWidget
@@ -32,14 +50,22 @@ export function ProviderWidget({
         onSuccess={onSuccess}
         onExit={onExit}
         onError={onError}
-        userId={userId}
+        userId={user?.id}
         companyId={companyId}
+        countryCode={countryCode}
       />
     );
   }
 
   if (provider === 'mono') {
-    return <MonoWidget config={token} onSuccess={onSuccess} onClose={onExit} />;
+    return (
+      <MonoWidget
+        onSuccess={onSuccess}
+        onLoad={onLoad}
+        onClose={onLoad}
+        customer={{ name: user.name, email: user.email }}
+      />
+    );
   }
 
   return (

@@ -18,7 +18,9 @@ const currencyWithId = z.object({
 
 type NewCurrencyWithId = z.infer<typeof currencyWithId>;
 
-export const CURRENCY_MAP = new Map<string, NewCurrencyWithId>(data.map((c) => [c.code, c]));
+export const CURRENCY_MAP = new Map<string, NewCurrencyWithId>(
+  data.map((c) => [c.code, c]),
+);
 
 const tableName = 'currencies';
 
@@ -40,7 +42,10 @@ export async function seedCurrencies(knex: Knex): Promise<void> {
         });
       } else {
         skipped++;
-        console.warn(`Skipped invalid currency: ${JSON.stringify(currency)}`, result.error);
+        console.warn(
+          `Skipped invalid currency: ${JSON.stringify(currency)}`,
+          result.error,
+        );
       }
     }
 

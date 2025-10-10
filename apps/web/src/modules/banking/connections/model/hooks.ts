@@ -1,5 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createLinkToken, connectAccounts } from '@/modules/banking/connections/api';
+import {
+  createLinkToken,
+  connectAccounts,
+} from '@/modules/banking/connections/api';
 import { useState, useMemo } from 'react';
 import type { Country } from '@/shared/types/core';
 import { useCountries } from '@/shared/hooks/useCountries';
@@ -60,7 +63,8 @@ export function useBanking() {
  * Hook for specific country context (optional convenience hook)
  */
 export function useBankingForCountry(countryCode?: string) {
-  const { supportedCountries, getProvidersForCountry, getSelectionStrategy } = useBanking();
+  const { supportedCountries, getProvidersForCountry, getSelectionStrategy } =
+    useBanking();
 
   const providers = useMemo(
     () => (countryCode ? getProvidersForCountry(countryCode) : []),
@@ -87,18 +91,27 @@ export function useBankingForCountry(countryCode?: string) {
 
 export function useCountrySelection(supportedCountries: string[]) {
   const { data: countriesData, isLoading: detectingLocation } = useCountries();
-  const [userSelectedCountry, setUserSelectedCountry] = useState<Country | null>(null);
+  const [userSelectedCountry, setUserSelectedCountry] =
+    useState<Country | null>(null);
 
-  const countries = useMemo(() => countriesData?.data || [], [countriesData?.data]);
+  const countries = useMemo(
+    () => countriesData?.data || [],
+    [countriesData?.data],
+  );
 
   const detectedCountry = useMemo(() => {
-    return countriesData && countriesData?.data ? getCountryFromLocale(countriesData.data) : null;
+    return countriesData && countriesData?.data
+      ? getCountryFromLocale(countriesData.data)
+      : null;
   }, [countriesData]);
 
   const selectedCountry = userSelectedCountry || detectedCountry || null;
 
   const userInNG = useMemo(() => {
-    return detectedCountry?.continent?.toLowerCase() === 'africa' || detectedCountry?.code === 'NG';
+    return (
+      detectedCountry?.continent?.toLowerCase() === 'africa' ||
+      detectedCountry?.code === 'NG'
+    );
   }, [detectedCountry]);
 
   const countryCategories: CountryCategories = useMemo(() => {

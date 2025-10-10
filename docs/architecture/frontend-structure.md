@@ -164,7 +164,8 @@ Tip (ESLint idea): Add rules to forbid deep imports and cross-layer violations w
 
 ```ts
 // modules/banking/accounts/model/hooks.ts (pure domain hook)
-export const useCreateBankAccount = () => useMutation({ mutationFn: createAccount });
+export const useCreateBankAccount = () =>
+  useMutation({ mutationFn: createAccount });
 
 // features/manage-accounts/model/use-account-management.ts (feature wrapper)
 export const useCreateAccountWithToast = () => {
@@ -281,8 +282,14 @@ export default [
         {
           patterns: [
             // Block deep imports into modules and features internals
-            { group: ['@/modules/*/*/*'], message: 'Use module barrels; avoid deep imports.' },
-            { group: ['@/features/*/*/*'], message: 'Use feature barrels; avoid deep imports.' },
+            {
+              group: ['@/modules/*/*/*'],
+              message: 'Use module barrels; avoid deep imports.',
+            },
+            {
+              group: ['@/features/*/*/*'],
+              message: 'Use feature barrels; avoid deep imports.',
+            },
           ],
         },
       ],
@@ -291,7 +298,13 @@ export default [
       'import/order': [
         'error',
         {
-          groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index'], 'type'],
+          groups: [
+            'builtin',
+            'external',
+            'internal',
+            ['parent', 'sibling', 'index'],
+            'type',
+          ],
           pathGroups: [
             { pattern: '@app/**', group: 'internal', position: 'before' },
             { pattern: '@pages/**', group: 'internal', position: 'before' },

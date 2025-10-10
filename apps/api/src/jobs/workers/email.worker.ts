@@ -32,9 +32,11 @@ async function processEmailJob(job: any) {
     case 'send_verification_email': {
       const payload: TokenBasedEmailPayload & { url: string } = job.data;
 
-      if (!payload.url) throw new Error('Missing url @ send_verification_email');
+      if (!payload.url)
+        throw new Error('Missing url @ send_verification_email');
 
-      const url = payload.url ?? `${baseUrl}/auth/verify-email?token=${payload.token}`;
+      const url =
+        payload.url ?? `${baseUrl}/auth/verify-email?token=${payload.token}`;
 
       const { subject, html, text } = getVerifyEmailTemplate(payload.name, url);
 

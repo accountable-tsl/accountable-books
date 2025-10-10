@@ -6,7 +6,10 @@ import type {
 } from '@/domains-pending-migration/spreadsheets/types';
 import { cn } from '@/lib/utils';
 import { useCallback, useState } from 'react';
-import { type CreateCoa, createCoaSchema } from '@/domains-pending-migration/coa/types';
+import {
+  type CreateCoa,
+  createCoaSchema,
+} from '@/domains-pending-migration/coa/types';
 import { useCompanyCoa } from '@/domains-pending-migration/coa/hooks';
 import type { EnrichedAccountType } from '@/domains-pending-migration/account-classification/types';
 import { XCircle } from 'lucide-react';
@@ -117,7 +120,9 @@ export function CoaImportCsv({
           return;
         }
 
-        const parsedData = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+        const parsedData = Array.isArray(parsed.data)
+          ? parsed.data
+          : [parsed.data];
         const results: CreateCoa[] = [];
         const allErrors: Array<{ row: number; errors: string[] }> = [];
         const seenCodes = new Set();
@@ -133,7 +138,9 @@ export function CoaImportCsv({
           const name = String(row['name'] || '').trim();
           const accountType = String(row['accountType'] || '').trim();
           const accountTypeKey = String(row['accountTypeKey'] || '').trim();
-          const description = row['description'] ? String(row['description']).trim() : null;
+          const description = row['description']
+            ? String(row['description']).trim()
+            : null;
 
           // Validate required fields
           if (!name || !accountType || !accountTypeKey) {
@@ -272,7 +279,11 @@ export function CoaImportCsv({
       )}
 
       {(error || processingErrors.length > 0) && (
-        <ErrorBanner error={error} processingErrors={processingErrors} errorsToShow={10} />
+        <ErrorBanner
+          error={error}
+          processingErrors={processingErrors}
+          errorsToShow={10}
+        />
       )}
 
       <div className="flex">
@@ -287,7 +298,11 @@ export function CoaImportCsv({
         )}
         <Button
           className="ml-auto"
-          disabled={coaData.length === 0 || processingErrors.length > 0 || error !== null}
+          disabled={
+            coaData.length === 0 ||
+            processingErrors.length > 0 ||
+            error !== null
+          }
           onClick={onImportClick}
         >
           Import

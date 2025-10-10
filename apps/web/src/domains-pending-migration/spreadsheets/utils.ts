@@ -18,7 +18,10 @@ export function isSpreadsheetFile(file: File) {
   ];
   const extensions = ['.xls', '.xlsx', '.ods', '.csv'];
   const name = file.name.toLowerCase();
-  return spreadsheetTypes.includes(file.type) || extensions.some((ext) => name.endsWith(ext));
+  return (
+    spreadsheetTypes.includes(file.type) ||
+    extensions.some((ext) => name.endsWith(ext))
+  );
 }
 
 export const countCsvRows = async (file: File) => {
@@ -43,7 +46,10 @@ const countExcelRows = async (file: File) => {
 
     const nonEmptyRows = data.filter((row) =>
       Array.isArray(row)
-        ? row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '')
+        ? row.some(
+            (cell) =>
+              cell !== null && cell !== undefined && String(cell).trim() !== '',
+          )
         : false,
     );
 
@@ -199,7 +205,10 @@ export function parseCsvFile({
       /**
        * Handles completion: captures meta, headers, and all errors.
        */
-      complete: (results: ParseResult<Record<string, unknown>>, fileObj: File) => {
+      complete: (
+        results: ParseResult<Record<string, unknown>>,
+        fileObj: File,
+      ) => {
         meta = results.meta;
 
         // Get headers if available (and header mode was used)
@@ -222,8 +231,9 @@ export function parseCsvFile({
             // If there is at least one "Delimiter" or "TooFewFields" error, treat as global error
             const fatal = rawErrors.find(
               (e) =>
-                ['Delimiter', 'TooFewFields', 'TooManyFields'].includes(e.code ?? '') ||
-                e.type === 'Quotes',
+                ['Delimiter', 'TooFewFields', 'TooManyFields'].includes(
+                  e.code ?? '',
+                ) || e.type === 'Quotes',
             );
 
             if (fatal) {
@@ -346,7 +356,8 @@ export const validateHeaders = (
       isValid: false,
     };
 
-  const { requireAllExpectedHeaders = false, rejectUnexpectedColumns = false } = opts;
+  const { requireAllExpectedHeaders = false, rejectUnexpectedColumns = false } =
+    opts;
 
   // Collect all issues
   const errors: string[] = [];
@@ -360,7 +371,9 @@ export const validateHeaders = (
     // Find original header names for the duplicates
     const originalDuplicates = duplicateHeaders
       .map((normalized) =>
-        fileHeaders.find((original) => original.trim().toLowerCase() === normalized),
+        fileHeaders.find(
+          (original) => original.trim().toLowerCase() === normalized,
+        ),
       )
       .filter(Boolean) as string[];
 
@@ -480,7 +493,9 @@ export const getDisplayFields = ({
     if (f.required) return true;
     // If not required, only include if present in the file
     const possible = f.possibleFields ?? [f.label, f.value];
-    return possible.some((p) => normalizedHeaders.includes(p.trim().toLowerCase()));
+    return possible.some((p) =>
+      normalizedHeaders.includes(p.trim().toLowerCase()),
+    );
   });
 };
 
@@ -505,7 +520,9 @@ export function validateRow(
 
     if (
       field.required &&
-      (row[key] === null || row[key] === undefined || row[key]?.toString().trim() === '')
+      (row[key] === null ||
+        row[key] === undefined ||
+        row[key]?.toString().trim() === '')
     ) {
       errors.push({
         field: key,

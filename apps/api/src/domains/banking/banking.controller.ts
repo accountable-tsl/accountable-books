@@ -23,18 +23,21 @@ export class BankingController {
       }
 
       console.log('req.body', req.body);
-      const { providerKey, publicToken, metadata } = req.body;
+      const { providerKey, publicToken, metadata, countryCode } = req.body;
 
-      if (!providerKey || !publicToken) {
+      if (!providerKey || !publicToken || !countryCode) {
         return res
           .status(400)
           .json(
-            errorResponse('Missing required fields: providerKey, publicToken'),
+            errorResponse(
+              'Missing required fields: providerKey, publicToken, countryCode',
+            ),
           );
       }
 
       const result = await connectAccountsService.connectBankAccounts({
         providerKey: providerKey,
+        countryCode: countryCode,
         publicToken,
         metadata,
         companyId,

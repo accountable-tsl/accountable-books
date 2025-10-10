@@ -1,5 +1,8 @@
 import { type Request, type Response } from 'express';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import { deleteObject, uploadObject } from './objects.model.js';
 import { objectTypeHandlers } from './objects.utils.js';
 import { type ObjectType } from './objects.types.js';
@@ -9,7 +12,8 @@ export async function uploadObjectController(req: Request, res: Response) {
       return res.status(400).json(errorResponse('No file uploaded'));
     }
 
-    const objectType = (req.params.objectType || req.body.objectType) as ObjectType;
+    const objectType = (req.params.objectType ||
+      req.body.objectType) as ObjectType;
 
     if (!objectType) {
       return res.status(400).json(errorResponse('Object type required'));
@@ -21,14 +25,18 @@ export async function uploadObjectController(req: Request, res: Response) {
     }
 
     if (req.file.size > handler.maxSizeMB * 1024 * 1024) {
-      return res.status(400).json(errorResponse(`File size exceeds ${handler.maxSizeMB}MB limit`));
+      return res
+        .status(400)
+        .json(errorResponse(`File size exceeds ${handler.maxSizeMB}MB limit`));
     }
 
     if (!handler.allowedMimeTypes.includes(req.file.mimetype)) {
       return res
         .status(400)
         .json(
-          errorResponse(`Unsupported file type. Allowed: ${handler.allowedMimeTypes.join(', ')}`),
+          errorResponse(
+            `Unsupported file type. Allowed: ${handler.allowedMimeTypes.join(', ')}`,
+          ),
         );
     }
 
@@ -43,13 +51,19 @@ export async function uploadObjectController(req: Request, res: Response) {
     const uploadResult = await uploadObject(objectType, parsedParams);
 
     if (!uploadResult.success) {
-      return res.status(500).json(errorResponse(uploadResult.message || 'Failed to store logo'));
+      return res
+        .status(500)
+        .json(errorResponse(uploadResult.message || 'Failed to store logo'));
     }
 
-    return res.status(200).json(successResponse('Logo uploaded', uploadResult.data));
+    return res
+      .status(200)
+      .json(successResponse('Logo uploaded', uploadResult.data));
   } catch (error: any) {
     console.error(error);
-    return res.status(500).json(errorResponse(`Upload failed - ${error.message}`));
+    return res
+      .status(500)
+      .json(errorResponse(`Upload failed - ${error.message}`));
   }
 }
 

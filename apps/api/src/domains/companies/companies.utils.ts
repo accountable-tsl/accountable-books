@@ -13,7 +13,8 @@ export const getCompanyIdentifiers = async (
   trx?: Knex.Transaction,
 ): Promise<CompanyIdentifierResult> => {
   const trimmedId = identifier.trim();
-  if (!trimmedId || trimmedId.length > 50) throw new AppError('Invalid company identifier');
+  if (!trimmedId || trimmedId.length > 50)
+    throw new AppError('Invalid company identifier');
 
   const knex = trx || knexClient;
 

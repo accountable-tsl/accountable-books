@@ -1,7 +1,11 @@
 import { type Knex } from 'knex';
 import { knexClient } from '../../db/knexClient.js';
 import { type ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse, AppError } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+  AppError,
+} from '../../shared/utils/response.utils.js';
 import { type RoleKey, type RoleScope, roleKey } from '../roles/roles.types.js';
 import type {
   AccessibleCompanies,
@@ -34,7 +38,11 @@ const getDirectCompanyRoles = async (
     const directRoles = await knex('user_company_roles as ucr')
       .join('roles as r', 'ucr.role_id', 'r.id')
       .join('companies as c', 'ucr.company_id', 'c.id')
-      .leftJoin('accounting_firms_meta as af', 'c.assigned_firm_id', 'af.company_id')
+      .leftJoin(
+        'accounting_firms_meta as af',
+        'c.assigned_firm_id',
+        'af.company_id',
+      )
       .where({ 'ucr.user_id': userId, 'ucr.is_deleted': false })
       .select(
         'ucr.user_id as userId',
@@ -56,7 +64,10 @@ const getDirectCompanyRoles = async (
     if (directRoles.length === 0) {
       logger.debug({ userId, duration }, 'No direct company roles found');
     } else if (duration > 1000) {
-      logger.warn({ userId, duration, resultCount: directRoles.length }, 'Slow direct roles query');
+      logger.warn(
+        { userId, duration, resultCount: directRoles.length },
+        'Slow direct roles query',
+      );
     }
 
     return directRoles;
@@ -90,15 +101,25 @@ const getFirmMediatedRoles = async (
 
   try {
     // Query firm-mediated roles
-    const rolesViaFirmAssignments = await knex('firm_user_client_assignments as fuca')
+    const rolesViaFirmAssignments = await knex(
+      'firm_user_client_assignments as fuca',
+    )
       .join('companies as c', 'fuca.client_company_id', 'c.id')
-      .join('client_firm_assignments as cfa', 'fuca.client_company_id', 'cfa.client_company_id')
+      .join(
+        'client_firm_assignments as cfa',
+        'fuca.client_company_id',
+        'cfa.client_company_id',
+      )
       .join('user_company_roles as ucr', function () {
         // Critical join: ensure user's role is at the firm assigned to this client
         this.on('ucr.user_id', 'fuca.firm_staff_user_id') // User matches
           .andOn('ucr.company_id', 'cfa.accounting_firm_company_id'); // Role is at the assigned firm
       })
-      .leftJoin('accounting_firms_meta as af', 'c.assigned_firm_id', 'af.company_id')
+      .leftJoin(
+        'accounting_firms_meta as af',
+        'c.assigned_firm_id',
+        'af.company_id',
+      )
       .join('roles as r', 'ucr.role_id', 'r.id')
       .where({
         'fuca.firm_staff_user_id': userId,
@@ -158,7 +179,11 @@ const getDemoCompanies = async ({
 
   try {
     const demoCompanies = await knex('companies as c')
-      .join('accounting_firms_meta as af', 'c.assigned_firm_id', 'af.company_id')
+      .join(
+        'accounting_firms_meta as af',
+        'c.assigned_firm_id',
+        'af.company_id',
+      )
       .select(
         'c.legal_name as legalName',
         'c.display_name as displayName',
@@ -172,7 +197,10 @@ const getDemoCompanies = async ({
     // Only log if slow or excessive demo companies
     const duration = Date.now() - startTime;
     if (duration > 500 || demoCompanies.length > 20) {
-      logger.debug({ duration, resultCount: demoCompanies.length }, 'Demo companies query metrics');
+      logger.debug(
+        { duration, resultCount: demoCompanies.length },
+        'Demo companies query metrics',
+      );
     }
 
     return demoCompanies;
@@ -191,7 +219,9 @@ const getDemoCompanies = async ({
 /**
  * Transform user company role to accessible company format
  */
-const userRoleToAccessibleCompany = (role: UserCompanyRoleWithDetails): AccessibleCompanies => ({
+const userRoleToAccessibleCompany = (
+  role: UserCompanyRoleWithDetails,
+): AccessibleCompanies => ({
   id: role.companyId,
   legalName: role.legalName,
   displayName: role.displayName,
@@ -207,7 +237,9 @@ const userRoleToAccessibleCompany = (role: UserCompanyRoleWithDetails): Accessib
 /**
  * Transform demo company to accessible company format
  */
-const demoToAccessibleCompany = (demo: CompanyBaseFields): AccessibleCompanies => ({
+const demoToAccessibleCompany = (
+  demo: CompanyBaseFields,
+): AccessibleCompanies => ({
   id: demo.companyId,
   legalName: demo.legalName,
   displayName: demo.displayName,
@@ -235,7 +267,9 @@ const determinePlatformAccess = (
     roleKey.enum.support_agent,
   ];
 
-  const platformRoleAssignments = userRoles.filter((r) => r.roleScope === 'platform');
+  const platformRoleAssignments = userRoles.filter(
+    (r) => r.roleScope === 'platform',
+  );
 
   const highestPlatformKey =
     platformRoleAssignments
@@ -325,11 +359,15 @@ export const getAccessibleCompaniesForUser = async ({
 
     // Get demo companies (excluding those user already has access to)
     const knownCompanyIds = userRoles.map((r) => r.companyId);
-    const demoCompanies = await getDemoCompanies({ excludeCompanyIds: knownCompanyIds, trx });
+    const demoCompanies = await getDemoCompanies({
+      excludeCompanyIds: knownCompanyIds,
+      trx,
+    });
     const mappedDemoCompanies = demoCompanies.map(demoToAccessibleCompany);
 
     // Determine platform access
-    const { isPlatformUser, platformUserKey } = determinePlatformAccess(userRoles);
+    const { isPlatformUser, platformUserKey } =
+      determinePlatformAccess(userRoles);
 
     // Combine all accessible companies
     const accessibleCompanies = [...explicitCompanies, ...mappedDemoCompanies];
@@ -399,16 +437,29 @@ export const hasAccessToCompany = async ({
       .first();
 
     if (!companyResult) {
-      return { hasAccess: false, roleKey: null, roleScope: null, accessReason: 'none' };
+      return {
+        hasAccess: false,
+        roleKey: null,
+        roleScope: null,
+        accessReason: 'none',
+      };
     }
 
-    const { isPlatformUser = false, platformUserKey, accessibleCompanies = [] } = userContext ?? {};
+    const {
+      isPlatformUser = false,
+      platformUserKey,
+      accessibleCompanies = [],
+    } = userContext ?? {};
 
-    const company = accessibleCompanies.find((c) => c.id === companyResult.short_code);
+    const company = accessibleCompanies.find(
+      (c) => c.id === companyResult.short_code,
+    );
     const hasAccess = !!company || !!isPlatformUser;
 
-    const roleKey = company?.roleKey || (isPlatformUser ? platformUserKey : null) || null;
-    const roleScope = company?.roleScope || (isPlatformUser ? 'platform' : null);
+    const roleKey =
+      company?.roleKey || (isPlatformUser ? platformUserKey : null) || null;
+    const roleScope =
+      company?.roleScope || (isPlatformUser ? 'platform' : null);
 
     const accessReason = company
       ? company.isDemoCompany
@@ -421,7 +472,12 @@ export const hasAccessToCompany = async ({
     return { hasAccess, roleKey, roleScope, accessReason };
   } catch (error) {
     logger.error({ companyIdentifier, error }, 'Error checking company access');
-    return { hasAccess: false, roleKey: null, roleScope: null, accessReason: 'none' };
+    return {
+      hasAccess: false,
+      roleKey: null,
+      roleScope: null,
+      accessReason: 'none',
+    };
   }
 };
 
@@ -529,7 +585,10 @@ export const isUserCompanyOwner = async ({
 
     return !!result;
   } catch (error) {
-    logger.error({ userId, companyId, error }, 'Error checking if user is company owner');
+    logger.error(
+      { userId, companyId, error },
+      'Error checking if user is company owner',
+    );
     return false;
   }
 };
@@ -547,7 +606,11 @@ export const grantDirectAccess = async ({
   const executeWithTransaction = async (knex: Knex | Knex.Transaction) => {
     // Validate all entities exist first
     const [companyResult, userExists, roleResult] = await Promise.all([
-      knex.select('id').from('companies').where('short_code', inputedCompanyId).first(),
+      knex
+        .select('id')
+        .from('companies')
+        .where('short_code', inputedCompanyId)
+        .first(),
       knex('users').where('id', userId).first(),
       knex('roles').where('key', roleKey).select('id').first(),
     ]);
@@ -667,7 +730,11 @@ export const grantAccessToFirmClient = async ({
   const executeWithTransaction = async (knex: Knex | Knex.Transaction) => {
     // Validate all entities exist first
     const [companyResult, userExists, roleResult] = await Promise.all([
-      knex.select('id').from('companies').where('short_code', clientCompanyId).first(),
+      knex
+        .select('id')
+        .from('companies')
+        .where('short_code', clientCompanyId)
+        .first(),
       knex('users').where('id', userId).first(),
       knex('roles').where('key', roleKey).select('id').first(),
     ]);
@@ -696,7 +763,9 @@ export const grantAccessToFirmClient = async ({
     }
 
     // Check if user already has access to this client
-    const existingAssignment = await knex('firm_user_client_assignments as fuca')
+    const existingAssignment = await knex(
+      'firm_user_client_assignments as fuca',
+    )
       .where({
         'fuca.firm_staff_user_id': userId,
         'fuca.client_company_id': companyResult.id,

@@ -38,7 +38,9 @@ export function AddAccountSelection() {
         <DropdownMenuContent align="end">
           {fields.map((item, index) => (
             <React.Fragment key={item.label}>
-              <DropdownMenuItem onClick={item.action}>{item.label}</DropdownMenuItem>
+              <DropdownMenuItem onClick={item.action}>
+                {item.label}
+              </DropdownMenuItem>
               {index !== fields.length - 1 && <Separator />}
             </React.Fragment>
           ))}
@@ -53,7 +55,10 @@ export function AddAccountSelection() {
       </>
 
       <>
-        <AddNewCoaDialog open={isAddCoaDialogOpen} onOpenChange={setIsAddCoaDialogOpen} />
+        <AddNewCoaDialog
+          open={isAddCoaDialogOpen}
+          onOpenChange={setIsAddCoaDialogOpen}
+        />
       </>
     </div>
   );

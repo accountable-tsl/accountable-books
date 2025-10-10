@@ -4,11 +4,16 @@ import { Loader, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { CustomTable } from '@/components/data-table/types/data-table';
 
-interface DataTableActionBarProps<TData> extends React.ComponentProps<typeof motion.div> {
+interface DataTableActionBarProps<TData>
+  extends React.ComponentProps<typeof motion.div> {
   table: CustomTable<TData>;
   visible?: boolean;
   container?: Element | DocumentFragment | null;
@@ -39,11 +44,13 @@ export function DataTableActionBar<TData>({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [table]);
 
-  const container = containerProp ?? (mounted ? globalThis.document?.body : null);
+  const container =
+    containerProp ?? (mounted ? globalThis.document?.body : null);
 
   if (!container) return null;
 
-  const visible = visibleProp ?? table.getFilteredSelectedRowModel().rows.length > 0;
+  const visible =
+    visibleProp ?? table.getFilteredSelectedRowModel().rows.length > 0;
 
   //   return ReactDOM.createPortal(
   //     <AnimatePresence>
@@ -92,7 +99,8 @@ export function DataTableActionBar<TData>({
   );
 }
 
-interface DataTableActionBarActionProps extends React.ComponentProps<typeof Button> {
+interface DataTableActionBarActionProps
+  extends React.ComponentProps<typeof Button> {
   tooltip?: string;
   isPending?: boolean;
 }
@@ -153,10 +161,18 @@ export function DataTableActionBarSelection<TData>({
       <span className="whitespace-nowrap text-xs">
         {table.getFilteredSelectedRowModel().rows.length} selected
       </span>
-      <Separator orientation="vertical" className="mr-1 ml-2 data-[orientation=vertical]:h-4" />
+      <Separator
+        orientation="vertical"
+        className="mr-1 ml-2 data-[orientation=vertical]:h-4"
+      />
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-5" onClick={onClearSelection}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-5"
+            onClick={onClearSelection}
+          >
             <X className="size-3.5" />
           </Button>
         </TooltipTrigger>

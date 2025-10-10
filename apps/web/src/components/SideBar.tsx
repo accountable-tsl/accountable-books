@@ -12,15 +12,19 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { Link } from 'react-router';
-import { getNavMain, getNavSecondary, getNavUser } from '@/constants/sidebarData';
+import {
+  getNavMain,
+  getNavSecondary,
+  getNavUser,
+} from '@/constants/sidebarData';
 import { NavMain } from '@/components/NavMain';
 import { NavUser } from '@/components/NavUser';
 import { NavSecondary } from '@/components/NavSecondary';
 import React from 'react';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { type CompanyData, type CompanyType } from '@/domains-pending-migration/company/types';
 import { type AuthUserContext } from '@/modules/auth';
 import { routes } from '@/shared/routes/routes';
+import type { CompanyData, CompanyType } from '@/modules/company/companies';
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   sidebarCollapsible?: 'icon' | 'offcanvas';
@@ -45,7 +49,8 @@ export const AppSidebar = ({
   const companyId = _companyId || company?.id;
   const companyType = _companyType || company?.companyType;
 
-  const navMain = companyId && companyType ? getNavMain(companyId, companyType) : [];
+  const navMain =
+    companyId && companyType ? getNavMain(companyId, companyType) : [];
   const navSecondary = companyId && companyType ? getNavSecondary() : [];
 
   const navUser = user
@@ -60,14 +65,18 @@ export const AppSidebar = ({
     companyId: companyId || '',
   });
 
-  if (!companyId || !companyType || !company) return <SkeletonBlock className="max-w-5xl" />;
+  if (!companyId || !companyType || !company)
+    return <SkeletonBlock className="max-w-5xl" />;
 
   return (
     <Sidebar collapsible={sidebarCollapsible} {...props}>
       <SidebarHeader className="h-12 md:border-b">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
+            <SidebarMenuButton
+              asChild
+              className="data-[slot=sidebar-menu-button]:!p-1.5"
+            >
               <Link to={dashboardPath} className="flex items-center gap-2">
                 <div className="flex items-center justify-center h-5 w-5 overflow-hidden">
                   {company?.assignedFirmLogo ? (
@@ -79,7 +88,9 @@ export const AppSidebar = ({
                     <ArrowUpCircleIcon />
                   )}
                 </div>
-                <span className="truncate text-sm font-medium">{company?.assignedFirmName}</span>
+                <span className="truncate text-sm font-medium">
+                  {company?.assignedFirmName}
+                </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

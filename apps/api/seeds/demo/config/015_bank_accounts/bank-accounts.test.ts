@@ -1,6 +1,9 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
-import { createDemoBankAccounts, deleteDemoBankAccounts } from './bank-accounts.fn.js';
+import {
+  createDemoBankAccounts,
+  deleteDemoBankAccounts,
+} from './bank-accounts.fn.js';
 
 // Mock shared utilities - handle user/company lookups, account types, banks, and data deletion
 vi.mock('../../shared/utils.js', () => ({
@@ -227,7 +230,9 @@ describe('createDemoBankAccounts', () => {
     const mockTransaction = createMockTransaction();
 
     // Mock business company data
-    const { getRawBankAccountsForInsertion } = await import('./bank-accounts.data.js');
+    const { getRawBankAccountsForInsertion } = await import(
+      './bank-accounts.data.js'
+    );
     (getRawBankAccountsForInsertion as any).mockResolvedValueOnce([
       {
         company: {
@@ -271,7 +276,9 @@ describe('createDemoBankAccounts', () => {
     const mockTransaction = createMockTransaction();
 
     // Mock individual company data
-    const { getRawBankAccountsForInsertion } = await import('./bank-accounts.data.js');
+    const { getRawBankAccountsForInsertion } = await import(
+      './bank-accounts.data.js'
+    );
     (getRawBankAccountsForInsertion as any).mockResolvedValueOnce([
       {
         company: {
@@ -306,7 +313,9 @@ describe('createDemoBankAccounts', () => {
     const mockTransaction = createMockTransaction();
 
     // Mock Nigeria company data
-    const { getRawBankAccountsForInsertion } = await import('./bank-accounts.data.js');
+    const { getRawBankAccountsForInsertion } = await import(
+      './bank-accounts.data.js'
+    );
     (getRawBankAccountsForInsertion as any).mockResolvedValueOnce([
       {
         company: {
@@ -379,7 +388,9 @@ describe('createDemoBankAccounts', () => {
     const mockTransaction = createMockTransaction();
 
     // Mock data with invalid currency
-    const { getRawBankAccountsForInsertion } = await import('./bank-accounts.data.js');
+    const { getRawBankAccountsForInsertion } = await import(
+      './bank-accounts.data.js'
+    );
     (getRawBankAccountsForInsertion as any).mockResolvedValueOnce([
       {
         company: {
@@ -387,7 +398,9 @@ describe('createDemoBankAccounts', () => {
           shortCode: 'bizDemoUS',
         },
         currencyCode: 'INVALID',
-        bankAccounts: [{ bankKey: 'us_chase_bank', createdByEmail: 'alice@us-demo.com' }],
+        bankAccounts: [
+          { bankKey: 'us_chase_bank', createdByEmail: 'alice@us-demo.com' },
+        ],
       },
     ]);
 
@@ -432,13 +445,17 @@ describe('createDemoBankAccounts', () => {
     const mockTransaction = createMockTransaction();
 
     // Mock empty companies list
-    const { getRawBankAccountsForInsertion } = await import('./bank-accounts.data.js');
+    const { getRawBankAccountsForInsertion } = await import(
+      './bank-accounts.data.js'
+    );
     (getRawBankAccountsForInsertion as any).mockResolvedValueOnce([]);
 
     const result = await createDemoBankAccounts(mockTransaction);
 
     // Should log and return undefined
-    expect(console.log).toHaveBeenCalledWith('No bank accounts to create based on filters');
+    expect(console.log).toHaveBeenCalledWith(
+      'No bank accounts to create based on filters',
+    );
     expect(result).toBeUndefined();
   });
 
@@ -449,8 +466,13 @@ describe('createDemoBankAccounts', () => {
     await createDemoBankAccounts(mockTransaction, filters);
 
     // Should pass filters to getRawBankAccountsForInsertion
-    const { getRawBankAccountsForInsertion } = await import('./bank-accounts.data.js');
-    expect(getRawBankAccountsForInsertion).toHaveBeenCalledWith(mockTransaction, filters);
+    const { getRawBankAccountsForInsertion } = await import(
+      './bank-accounts.data.js'
+    );
+    expect(getRawBankAccountsForInsertion).toHaveBeenCalledWith(
+      mockTransaction,
+      filters,
+    );
   });
 
   test('should log success message with correct count', async () => {
@@ -459,7 +481,9 @@ describe('createDemoBankAccounts', () => {
     await createDemoBankAccounts(mockTransaction);
 
     // Should log successful creation
-    expect(console.log).toHaveBeenCalledWith('Successfully created bank accounts for 1 companies');
+    expect(console.log).toHaveBeenCalledWith(
+      'Successfully created bank accounts for 1 companies',
+    );
   });
 });
 
@@ -490,7 +514,9 @@ describe('deleteDemoBankAccounts', () => {
 
     // Should delete associated COA entries
     expect(mockTransaction).toHaveBeenCalledWith('coa');
-    expect(console.log).toHaveBeenCalledWith('Deleted 2 associated COA entries for bank accounts');
+    expect(console.log).toHaveBeenCalledWith(
+      'Deleted 2 associated COA entries for bank accounts',
+    );
   });
 
   test('should delete with filters', async () => {
@@ -524,7 +550,9 @@ describe('deleteDemoBankAccounts', () => {
     expect(deleteDemoData).toHaveBeenCalled();
 
     // Should not attempt COA deletion for null coa_ids
-    expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Deleted'));
+    expect(console.log).not.toHaveBeenCalledWith(
+      expect.stringContaining('Deleted'),
+    );
   });
 
   test('should handle empty bank accounts to delete', async () => {
@@ -538,6 +566,8 @@ describe('deleteDemoBankAccounts', () => {
     const { deleteDemoData } = await import('../../shared/utils.js');
     expect(deleteDemoData).toHaveBeenCalled();
 
-    expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Deleted'));
+    expect(console.log).not.toHaveBeenCalledWith(
+      expect.stringContaining('Deleted'),
+    );
   });
 });

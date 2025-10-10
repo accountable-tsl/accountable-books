@@ -66,7 +66,9 @@ src/
 
    ```typescript
    // Before starting the main transaction
-   const transactionDates = batch.bank_transactions.map((txn) => new Date(txn.date));
+   const transactionDates = batch.bank_transactions.map(
+     (txn) => new Date(txn.date),
+   );
    await ensurePartitionsForDates('bank_transactions', transactionDates);
    ```
 

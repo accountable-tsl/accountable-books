@@ -14,11 +14,15 @@ import { handleMonoConnection } from '../widgets/api';
 import { toast } from 'sonner';
 import { useSession } from '@session';
 
-export default function ConnectBankAccount({ onSuccess, options }: ConnectBankAccountProps) {
+export default function ConnectBankAccount({
+  onSuccess,
+  options,
+}: ConnectBankAccountProps) {
   // States
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<BankFeedProvider | null>(null);
+  const [selectedProvider, setSelectedProvider] =
+    useState<BankFeedProvider | null>(null);
   const [showUnsupported, setShowUnsupported] = useState(false);
   // const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
   const [connections, setConnections] = useState<ConnectionResponse[]>([]);
@@ -27,7 +31,8 @@ export default function ConnectBankAccount({ onSuccess, options }: ConnectBankAc
   // Hooks
   const { companyId, refetchSession } = useSession();
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
-  const { data: providersData, isLoading: isLoadingProviders } = useBankFeedProviders({});
+  const { data: providersData, isLoading: isLoadingProviders } =
+    useBankFeedProviders({});
 
   const countries = countriesData?.data || [];
   const providers = providersData?.data || [];
@@ -37,19 +42,25 @@ export default function ConnectBankAccount({ onSuccess, options }: ConnectBankAc
   // Functions
   const supportedCountries = useMemo(() => {
     return countries.filter((country) =>
-      providers.some((provider) => provider.countries.some((c) => c.code === country.code)),
+      providers.some((provider) =>
+        provider.countries.some((c) => c.code === country.code),
+      ),
     );
   }, [countries, providers]);
 
   const providersForCountry = useCallback(
     (country: Country) =>
-      providers.filter((provider) => provider.countries.some((c) => c.code === country.code)),
+      providers.filter((provider) =>
+        provider.countries.some((c) => c.code === country.code),
+      ),
     [providers],
   );
 
   const countryIsSupported = useCallback(
     (country: Country) =>
-      providers.some((provider) => provider.countries.some((c) => c.code === country.code)),
+      providers.some((provider) =>
+        provider.countries.some((c) => c.code === country.code),
+      ),
     [providers],
   );
 
@@ -109,14 +120,18 @@ export default function ConnectBankAccount({ onSuccess, options }: ConnectBankAc
         }
 
         if (!result.success || !result.data) {
-          throw new Error(result.message || 'Failed to add bank account, please try again.');
+          throw new Error(
+            result.message || 'Failed to add bank account, please try again.',
+          );
         }
 
         setConnections(result.data.connections || []);
         setCurrentStep(3);
       } catch (err: unknown) {
         const fallbackMsg =
-          err?.response?.data?.message || err?.message || 'Failed to add bank account';
+          err?.response?.data?.message ||
+          err?.message ||
+          'Failed to add bank account';
         toast.error(fallbackMsg);
         setCurrentStep(1);
       } finally {
@@ -202,7 +217,9 @@ export default function ConnectBankAccount({ onSuccess, options }: ConnectBankAc
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full max-w-3xl mx-auto">
       <div className={cn('flex flex-col flex-1 min-h-0', 'p-6', className)}>
-        <div className={cn('min-h-0 overflow-hidden flex-1', stepClassName)}>{stepContent}</div>
+        <div className={cn('min-h-0 overflow-hidden flex-1', stepClassName)}>
+          {stepContent}
+        </div>
         <div className="flex-shrink-0">
           <BankAccountFooter />
         </div>
@@ -238,7 +255,8 @@ const BankAccountFooter = React.memo(() => (
       </div>
     </div>
     <p className="text-xs text-muted-foreground/60 text-center">
-      Protected by bank-grade security, Powered by leading financial data providers.
+      Protected by bank-grade security, Powered by leading financial data
+      providers.
     </p>
   </footer>
 ));
@@ -249,10 +267,13 @@ function UnsupportedCountry({ countryName, onBack }: UnsupportedCountryProps) {
         <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <i className="fas fa-globe text-orange-600 text-2xl"></i>
         </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Country Not Yet Supported</h2>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+          Country Not Yet Supported
+        </h2>
         <p className="text-gray-600 mb-8">
-          We don't support bank connections in <span className="font-semibold">{countryName}</span>{' '}
-          yet, but we're working on it!
+          We don't support bank connections in{' '}
+          <span className="font-semibold">{countryName}</span> yet, but we're
+          working on it!
         </p>
 
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 mb-8">

@@ -88,18 +88,23 @@ export function useDataTable<TData>({
    */
   const stableData = useMemo(() => tableOptions.data, [tableOptions.data]);
 
-  const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({});
+  const [internalRowSelection, setInternalRowSelection] =
+    useState<RowSelectionState>({});
   // const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [internalColumnFilters, setInternalColumnFilters] = useState<ColumnFiltersState>([]);
+  const [internalColumnFilters, setInternalColumnFilters] =
+    useState<ColumnFiltersState>([]);
 
   const controlledColumnFilters = tableOptions.state?.columnFilters;
   const controlledSetColumnFilters = tableOptions.onColumnFiltersChange;
 
   const columnFilters = controlledColumnFilters ?? internalColumnFilters;
-  const setColumnFilters = controlledSetColumnFilters ?? setInternalColumnFilters;
+  const setColumnFilters =
+    controlledSetColumnFilters ?? setInternalColumnFilters;
 
   // State for global search column configuration
-  const [globalSearchColumnIds, setGlobalSearchColumnIds] = useState<string[]>([]);
+  const [globalSearchColumnIds, setGlobalSearchColumnIds] = useState<string[]>(
+    [],
+  );
 
   const getRowSelectionOptions = (): RowSelectionOptions => {
     const rs = customOptions?.rowSelection;
@@ -150,7 +155,9 @@ export function useDataTable<TData>({
     );
   }, [columns]);
 
-  const [internalColumnVisibility, setInternalColumnVisibility] = useState(initialColumnVisibility);
+  const [internalColumnVisibility, setInternalColumnVisibility] = useState(
+    initialColumnVisibility,
+  );
 
   const [viewedRowId, setViewedRowId] = useState<string | null>(null);
 
@@ -185,8 +192,10 @@ export function useDataTable<TData>({
 
   const closeRowView = useCallback(() => setViewedRowId(null), []);
 
-  const columnVisibility = controlledColumnVisibility ?? internalColumnVisibility;
-  const setColumnVisibility = controlledSetColumnVisibility ?? setInternalColumnVisibility;
+  const columnVisibility =
+    controlledColumnVisibility ?? internalColumnVisibility;
+  const setColumnVisibility =
+    controlledSetColumnVisibility ?? setInternalColumnVisibility;
 
   const reactTable = useReactTable({
     ...tableOptions,
@@ -255,14 +264,20 @@ export function useDataTable<TData>({
       filterFn: 'weakEquals',
       meta: {
         ...(tableOptions.defaultColumn?.meta ?? {}),
-        variant: tableOptions.defaultColumn?.meta?.variant ?? (gs?.enabled ? 'text' : undefined),
+        variant:
+          tableOptions.defaultColumn?.meta?.variant ??
+          (gs?.enabled ? 'text' : undefined),
       },
     },
   });
 
   const viewedRow = useMemo(() => {
     if (!viewedRowId) return null;
-    return reactTable.getRowModel().rows.find((row) => uniqueRowId(row) === viewedRowId) || null;
+    return (
+      reactTable
+        .getRowModel()
+        .rows.find((row) => uniqueRowId(row) === viewedRowId) || null
+    );
   }, [viewedRowId, stableData]);
 
   const options: DataTableExtras<TData> = {

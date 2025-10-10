@@ -73,7 +73,10 @@ const createMockTransaction = (): Knex.Transaction => {
     switch (tableName) {
       case 'coa':
         queryBuilder.first.mockResolvedValue(null); // No existing COA by default
-        queryBuilder.returning.mockResolvedValue([{ id: 'coa-1' }, { id: 'coa-2' }]);
+        queryBuilder.returning.mockResolvedValue([
+          { id: 'coa-1' },
+          { id: 'coa-2' },
+        ]);
         break;
       case 'coa_templates':
         queryBuilder.select.mockResolvedValue([
@@ -124,7 +127,9 @@ describe('createDemoCoa', () => {
     const mockTransaction = createMockTransaction();
 
     // Mock only individual company
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
     (generateDemoCompaniesMap as any).mockReturnValueOnce([
       {
         company: {
@@ -145,7 +150,9 @@ describe('createDemoCoa', () => {
     const mockTransaction = createMockTransaction();
 
     // Mock only accounting firm company
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
     (generateDemoCompaniesMap as any).mockReturnValueOnce([
       {
         company: {
@@ -166,7 +173,9 @@ describe('createDemoCoa', () => {
     const mockTransaction = createMockTransaction();
 
     // Mock only business company
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
     (generateDemoCompaniesMap as any).mockReturnValueOnce([
       {
         company: {
@@ -215,20 +224,26 @@ describe('createDemoCoa', () => {
     await createDemoCoa(mockTransaction);
 
     // Should log and skip companies without IDs
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Company ID not found'));
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Company ID not found'),
+    );
   });
 
   test('should handle empty companies list', async () => {
     const mockTransaction = createMockTransaction();
 
     // Mock empty companies list
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
     (generateDemoCompaniesMap as any).mockReturnValueOnce([]);
 
     await createDemoCoa(mockTransaction);
 
     // Should log and exit early
-    expect(console.log).toHaveBeenCalledWith('No companies found for COA creation');
+    expect(console.log).toHaveBeenCalledWith(
+      'No companies found for COA creation',
+    );
   });
 
   test('should handle missing COA templates', async () => {
@@ -249,7 +264,9 @@ describe('createDemoCoa', () => {
     await createDemoCoa(mockTransaction as any);
 
     // Should warn about missing template but not crash
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('COA template'));
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('COA template'),
+    );
   });
 
   test('should handle filters', async () => {
@@ -259,7 +276,9 @@ describe('createDemoCoa', () => {
     await createDemoCoa(mockTransaction, filters);
 
     // Should pass filters to generateDemoCompaniesMap
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
     expect(generateDemoCompaniesMap).toHaveBeenCalledWith(filters);
   });
 
@@ -270,14 +289,18 @@ describe('createDemoCoa', () => {
     const { getDemoUserMap } = await import('../../shared/utils.js');
     (getDemoUserMap as any).mockResolvedValueOnce(new Map());
 
-    await expect(createDemoCoa(mockTransaction)).rejects.toThrow('Demo user not found for email');
+    await expect(createDemoCoa(mockTransaction)).rejects.toThrow(
+      'Demo user not found for email',
+    );
   });
 
   test('should handle unknown company type', async () => {
     const mockTransaction = createMockTransaction();
 
     // Mock company with unknown type that has a valid company ID
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
     (generateDemoCompaniesMap as any).mockReturnValueOnce([
       {
         company: {

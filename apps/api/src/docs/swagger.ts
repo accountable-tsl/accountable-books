@@ -6,7 +6,10 @@ import { bankAccountSchemas, bankAccountsDocs } from './bankAccountsDocs.js';
 import { coaDocs, coaSchemas } from './coaDocs.js';
 import { companyDocs, companySchemas } from './companyDocs.js';
 import { currenciesDocs, currenciesSchemas } from './currenciesDocs.js';
-import { bankTransactionDocs, bankTransactionSchemas } from './bankTransactionsDocs.js';
+import {
+  bankTransactionDocs,
+  bankTransactionSchemas,
+} from './bankTransactionsDocs.js';
 import { ENV } from '../config/env.js';
 
 const baseUrl = ENV.BACKEND_URL;

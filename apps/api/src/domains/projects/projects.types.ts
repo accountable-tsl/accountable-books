@@ -28,7 +28,9 @@ const newProjectBase = z.object({
 });
 
 export const newProjectInput = createCamelCaseSchema(newProjectBase);
-export type NewProjectInput = SnakeToCamelCaseObject<z.infer<typeof newProjectInput>>;
+export type NewProjectInput = SnakeToCamelCaseObject<
+  z.infer<typeof newProjectInput>
+>;
 
 const newProject = newProjectBase.extend({
   company_id: z.uuid(),
@@ -37,8 +39,12 @@ const newProject = newProjectBase.extend({
 });
 export type NewProject = z.infer<typeof newProject>;
 
-export const updateProjectInput = createCamelCaseSchema(newProjectBase.partial());
-export type UpdateProjectInput = SnakeToCamelCaseObject<z.infer<typeof updateProjectInput>>;
+export const updateProjectInput = createCamelCaseSchema(
+  newProjectBase.partial(),
+);
+export type UpdateProjectInput = SnakeToCamelCaseObject<
+  z.infer<typeof updateProjectInput>
+>;
 
 export const project = newProject.merge(dbBaseFields);
 export type Project = z.infer<typeof project>;
@@ -48,7 +54,13 @@ export type ProjectResponse = {
   pagination: Pagination;
 };
 
-export const sortFields = ['created_at', 'name', 'status', 'start_date', 'end_date'] as const;
+export const sortFields = [
+  'created_at',
+  'name',
+  'status',
+  'start_date',
+  'end_date',
+] as const;
 export type SortField = (typeof sortFields)[number];
 
 const sortOrderEnum = z.enum(['asc', 'desc']);
@@ -61,7 +73,9 @@ export const getProjectsParams = z.object({
   search: z.string().optional(),
   page: z.int().min(1).optional(),
   limit: z.int().min(1).max(100).prefault(30).optional(),
-  searchFields: z.array(z.enum(['name', 'code', 'description', 'contactName'])).optional(),
+  searchFields: z
+    .array(z.enum(['name', 'code', 'description', 'contactName']))
+    .optional(),
   sortBy: z.enum(sortFields).optional(),
   sortOrder: sortOrderEnum.optional(),
   trx: z.any().optional(),

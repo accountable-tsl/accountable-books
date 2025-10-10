@@ -22,7 +22,10 @@ type RowViewWrapper = 'sheet' | 'dialog';
 interface RowViewMode<TData> {
   mode: 'view';
   wrapper?: RowViewWrapper;
-  render: (props: { row?: Row<TData>; onClose?: () => void }) => React.ReactNode;
+  render: (props: {
+    row?: Row<TData>;
+    onClose?: () => void;
+  }) => React.ReactNode;
 }
 
 interface RowRedirectMode<TData> {
@@ -44,6 +47,8 @@ interface RowClickExtras<TData> {
   closeRowView?: () => void;
   handleRowClick?: (row: Row<TData>) => void;
 }
-export type ResolvedRowClick<TData> = RowClickBehavior<TData> & RowClickExtras<TData>;
+export type ResolvedRowClick<TData> = RowClickBehavior<TData> &
+  RowClickExtras<TData>;
 
-export type RowViewerProps<TData = any> = RowViewMode<TData> & RowClickExtras<TData>;
+export type RowViewerProps<TData = any> = RowViewMode<TData> &
+  RowClickExtras<TData>;

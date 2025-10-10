@@ -1,8 +1,15 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { r2Client } from '../../lib/r2Client.js';
 import { type ObjectType } from './objects.types.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import { objectTypeHandlers } from './objects.utils.js';
 
 export async function uploadObject(
@@ -18,7 +25,8 @@ export async function uploadObject(
 
   // Validate params with Zod
   const parsed = handler.schema.safeParse(params);
-  if (!parsed.success) return errorResponse('Invalid parameters', parsed.error.flatten());
+  if (!parsed.success)
+    return errorResponse('Invalid parameters', parsed.error.flatten());
 
   const { file, mimeType } = parsed.data;
   const key = handler.keyBuilder(parsed.data);

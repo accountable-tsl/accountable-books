@@ -7,7 +7,10 @@ import {
   type SelectBestCoa,
 } from './coaTemplate.type.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import { type Company } from '../companies/companies.types.js';
 import { selectBestCoaTemplate } from './coaTemplateSelector.service.js';
 import { createDefaultAccounts } from './coa.model.js';
@@ -22,12 +25,17 @@ export const addNewCoaTemplates = async (
     .nonempty('At least one template required')
     .safeParse(input);
   if (!validatedInput.success) {
-    return errorResponse('Invalid input provided', validatedInput.error.flatten());
+    return errorResponse(
+      'Invalid input provided',
+      validatedInput.error.flatten(),
+    );
   }
 
   try {
     const insertedRecords = await knex.transaction(async (trx) => {
-      const inserted = await trx('coa_templates').insert(validatedInput.data).returning('*');
+      const inserted = await trx('coa_templates')
+        .insert(validatedInput.data)
+        .returning('*');
       return inserted;
     });
 
@@ -53,7 +61,8 @@ export const loadCoaTemplateForCompany = async (
   if (!validatedInput.success)
     return errorResponse('Invalid Input', validatedInput.error.flatten());
 
-  const { companyId, template_name, use_code, additional_info } = validatedInput.data;
+  const { companyId, template_name, use_code, additional_info } =
+    validatedInput.data;
 
   try {
     // Fetch company

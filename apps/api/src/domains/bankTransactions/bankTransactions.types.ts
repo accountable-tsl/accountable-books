@@ -22,6 +22,7 @@ export type BankTransactionSource = z.infer<typeof bankTransactionSource>;
 // BANK TRANSACTIONS
 export const bankTransactionInput = z.object({
   date: zDate,
+  txn_at: z.date().optional(),
   amount: z.number(),
   bank_account_id: z.uuid().optional(),
   contact_id: z.uuid().nullish(),

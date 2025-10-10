@@ -60,7 +60,10 @@ export class SeedIntegrationTestHelper {
   /**
    * Count records in a table with optional conditions
    */
-  async countRecords(tableName: string, where?: Record<string, any>): Promise<number> {
+  async countRecords(
+    tableName: string,
+    where?: Record<string, any>,
+  ): Promise<number> {
     const trx = this.getTransaction();
     let query = trx(tableName);
 
@@ -75,7 +78,10 @@ export class SeedIntegrationTestHelper {
   /**
    * Check if records exist with specific conditions
    */
-  async recordsExist(tableName: string, where: Record<string, any>): Promise<boolean> {
+  async recordsExist(
+    tableName: string,
+    where: Record<string, any>,
+  ): Promise<boolean> {
     const count = await this.countRecords(tableName, where);
     return count > 0;
   }
@@ -83,7 +89,10 @@ export class SeedIntegrationTestHelper {
   /**
    * Get records from a table with optional conditions
    */
-  async getRecords(tableName: string, where?: Record<string, any>): Promise<any[]> {
+  async getRecords(
+    tableName: string,
+    where?: Record<string, any>,
+  ): Promise<any[]> {
     const trx = this.getTransaction();
     let query = trx(tableName);
 
@@ -133,7 +142,9 @@ export class SeedIntegrationTestHelper {
   }> {
     return {
       users: await this.countRecords('users', { is_demo_user: true }),
-      companies: await this.countRecords('companies', { is_demo_company: true }),
+      companies: await this.countRecords('companies', {
+        is_demo_company: true,
+      }),
       contacts: await this.countRecords('contacts', {}),
       projects: await this.countRecords('projects', {}),
       bankAccounts: await this.countRecords('bank_accounts', {}),
@@ -154,7 +165,9 @@ export async function setupIntegrationTest(): Promise<SeedIntegrationTestHelper>
 /**
  * Cleanup function for integration tests
  */
-export async function cleanupIntegrationTest(helper: SeedIntegrationTestHelper): Promise<void> {
+export async function cleanupIntegrationTest(
+  helper: SeedIntegrationTestHelper,
+): Promise<void> {
   await helper.cleanup();
 }
 
@@ -215,16 +228,22 @@ export const SeedTestAssertions = {
     helper: SeedIntegrationTestHelper,
     expectedCount: number,
   ): Promise<void> {
-    const count = await helper.countRecords('companies', { is_demo_company: true });
+    const count = await helper.countRecords('companies', {
+      is_demo_company: true,
+    });
     if (count !== expectedCount) {
-      throw new Error(`Expected ${expectedCount} demo companies, found ${count}`);
+      throw new Error(
+        `Expected ${expectedCount} demo companies, found ${count}`,
+      );
     }
   },
 
   /**
    * Assert that foreign key relationships are maintained
    */
-  async assertForeignKeyIntegrity(helper: SeedIntegrationTestHelper): Promise<void> {
+  async assertForeignKeyIntegrity(
+    helper: SeedIntegrationTestHelper,
+  ): Promise<void> {
     const trx = helper.getTransaction();
 
     // Check that all companies have valid created_by_id references
@@ -259,7 +278,9 @@ export const SeedTestAssertions = {
   /**
    * Assert that data follows demo seed conventions
    */
-  async assertDemoSeedConventions(helper: SeedIntegrationTestHelper): Promise<void> {
+  async assertDemoSeedConventions(
+    helper: SeedIntegrationTestHelper,
+  ): Promise<void> {
     const trx = helper.getTransaction();
 
     // All demo companies should have proper short codes
@@ -281,7 +302,9 @@ export const SeedTestAssertions = {
       .select('id', 'email');
 
     if (invalidEmails.length > 0) {
-      throw new Error(`Demo users should have 'demo' in email: ${JSON.stringify(invalidEmails)}`);
+      throw new Error(
+        `Demo users should have 'demo' in email: ${JSON.stringify(invalidEmails)}`,
+      );
     }
   },
 };

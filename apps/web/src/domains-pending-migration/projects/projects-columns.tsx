@@ -46,7 +46,9 @@ export function getProjectColumns(): ColumnDef<Project>[] {
       cell: (props) => {
         const contactName = props.getValue();
         return (
-          <div className="text-muted-foreground">{contactName ? String(contactName) : ''}</div>
+          <div className="text-muted-foreground">
+            {contactName ? String(contactName) : ''}
+          </div>
         );
       },
     },
@@ -54,7 +56,9 @@ export function getProjectColumns(): ColumnDef<Project>[] {
       id: 'startDate',
       accessorKey: 'startDate',
       accessorFn: (row) => {
-        return row.startDate ? formatDate(new Date(row.startDate), 'dd MMM yyyy') : '';
+        return row.startDate
+          ? formatDate(new Date(row.startDate), 'dd MMM yyyy')
+          : '';
       },
       header: 'Start Date',
       size: 120,
@@ -65,7 +69,9 @@ export function getProjectColumns(): ColumnDef<Project>[] {
       id: 'endDate',
       accessorKey: 'endDate',
       accessorFn: (row) => {
-        return row.startDate ? formatDate(new Date(row.startDate), 'dd MMM yyyy') : '';
+        return row.startDate
+          ? formatDate(new Date(row.startDate), 'dd MMM yyyy')
+          : '';
       },
       header: 'End Date',
       size: 120,

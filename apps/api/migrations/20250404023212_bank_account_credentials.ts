@@ -30,10 +30,42 @@ export async function up(knex: Knex): Promise<void> {
       })
       .defaultTo('active');
     table.timestamp('connected_at', { useTz: true }).defaultTo(knex.fn.now());
-    table.uuid('connected_by').notNullable().references('id').inTable('users').onDelete('RESTRICT');
+    table
+      .uuid('connected_by')
+      .notNullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('RESTRICT');
+    // Provider-agnostic sync fields
+    table
+      .text('sync_cursor')
+      .nullable()
+      .comment('Provider-specific sync cursor/token');
+    table
+      .jsonb('sync_state')
+      .nullable()
+      .defaultTo('{}')
+      .comment('Provider-specific sync state');
+    table
+      .boolean('initial_sync_completed')
+      .defaultTo(false)
+      .comment('Whether initial transaction sync is done');
+    table
+      .date('transactions_from_date')
+      .nullable()
+      .comment('User preference for transaction sync start date');
+    table
+      .timestamp('last_transactions_sync_at', { useTz: true })
+      .nullable()
+      .comment('Last successful transaction sync timestamp');
     table.timestamp('expires_at', { useTz: true }).nullable(); // Token expiry if applicable
     table.timestamp('updated_at', { useTz: true }).defaultTo(knex.fn.now());
-    table.uuid('updated_by').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     table.index(['company_id', 'provider_id', 'status']);
   });
@@ -43,9 +75,16 @@ export async function up(knex: Knex): Promise<void> {
     ON bank_account_credentials (company_id, provider_id, item_identifier) 
     WHERE item_identifier IS NOT NULL
   `);
+
+  await knex.raw(`
+    CREATE INDEX idx_credentials_sync_status 
+    ON ${tableName} (company_id, status, initial_sync_completed, last_transactions_sync_at)
+    WHERE status = 'active';
+  `);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP INDEX IF EXISTS idx_credentials_sync_status;`);
   await knex.schema.dropTableIfExists(tableName);
 
   await knex.raw(`DROP TYPE IF EXISTS bank_account_credential_status`);

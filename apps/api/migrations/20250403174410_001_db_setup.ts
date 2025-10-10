@@ -4,7 +4,14 @@ const ENV = (process.env.NODE_ENV || 'local').toLowerCase();
 const IS_LOCAL = ENV === 'local' || ENV === 'development';
 const IS_TEST = ENV === 'test';
 
-const BASE = ['pgcrypto', 'pg_uuidv7', 'pg_trgm', 'vector', 'citext', 'unaccent'];
+const BASE = [
+  'pgcrypto',
+  'pg_uuidv7',
+  'pg_trgm',
+  'vector',
+  'citext',
+  'unaccent',
+];
 
 const CANDIDATE_EXTENSIONS = IS_LOCAL ? [...BASE, 'pg_cron'] : BASE;
 

@@ -33,15 +33,20 @@ import { CircleCheck } from 'lucide-react';
 import { createNewBankAccount } from '@/domains-pending-migration/bankConnection/shared/api';
 import { useSession } from '@session';
 
-export default function AddBankAccount({ onSuccess, onCancel }: AddBankAccountProps) {
+export default function AddBankAccount({
+  onSuccess,
+  onCancel,
+}: AddBankAccountProps) {
   // States
   const [selectedCountry, setSelectedCountry] = useState<Country | undefined>();
   const [countryError, setCountryError] = useState('');
-  const [createdAccount, setCreatedAccount] = useState<BankAccountWithMeta | null>(null);
+  const [createdAccount, setCreatedAccount] =
+    useState<BankAccountWithMeta | null>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   // Hooks
-  const { data: currenciesData, isLoading: isLoadingCurrencies } = useCurrencies();
+  const { data: currenciesData, isLoading: isLoadingCurrencies } =
+    useCurrencies();
   const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
   const { data: bankData } = useBanks('countryId', selectedCountry?.id);
   const { company, loading } = useSession();
@@ -114,7 +119,12 @@ export default function AddBankAccount({ onSuccess, onCancel }: AddBankAccountPr
 
   // Set default country and currency
   useEffect(() => {
-    if (!hasUserInteracted && company && currencies.length && countries.length) {
+    if (
+      !hasUserInteracted &&
+      company &&
+      currencies.length &&
+      countries.length
+    ) {
       const { country, currency } = getDefaultCountryAndCurrency({
         company,
         countries,
@@ -341,12 +351,20 @@ export default function AddBankAccount({ onSuccess, onCancel }: AddBankAccountPr
               helpTooltip="Code for your bank account in coa"
               error={formErrors.accountCode?.message}
             >
-              <Input {...register('accountCode')} placeholder="e.g. 123, Bank-001" />
+              <Input
+                {...register('accountCode')}
+                placeholder="e.g. 123, Bank-001"
+              />
             </FormField>
           )}
         </div>
 
-        <div className={cn('flex gap-2', onCancel ? 'justify-between' : 'justify-end')}>
+        <div
+          className={cn(
+            'flex gap-2',
+            onCancel ? 'justify-between' : 'justify-end',
+          )}
+        >
           {onCancel && (
             <Button
               type="button"

@@ -43,7 +43,12 @@ export type FetchCoaInput = {
 };
 
 // Update COA schemas and types - separate schemas for each action
-export const updateCoaAction = z.enum(['delete', 'archive', 'unarchive', 'edit']);
+export const updateCoaAction = z.enum([
+  'delete',
+  'archive',
+  'unarchive',
+  'edit',
+]);
 export type UpdateCoaAction = z.infer<typeof updateCoaAction>;
 
 export const coaUpdateInput = z.object({
@@ -59,10 +64,12 @@ export const coaUpdateInput = z.object({
 });
 export type CoaUpdateInput = z.infer<typeof coaUpdateInput>;
 
-export const resolvedCoaUpdateInput = coaUpdateInput.omit({ accountTypeKey: true }).extend({
-  id: z.uuid(),
-  accountTypeId: z.uuid().optional(),
-});
+export const resolvedCoaUpdateInput = coaUpdateInput
+  .omit({ accountTypeKey: true })
+  .extend({
+    id: z.uuid(),
+    accountTypeId: z.uuid().optional(),
+  });
 export type ResolvedCoaUpdateInput = z.infer<typeof resolvedCoaUpdateInput>;
 
 export const coaUpdateOptions = z.object({

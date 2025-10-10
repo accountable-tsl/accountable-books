@@ -18,14 +18,30 @@ import {
   Permission,
   RolePermission,
 } from '../core/types/db.types.ts';
-import { CoaTemplate, NewCoaTemplateInput } from '../domains/chartOfAccounts/coaTemplate.type.ts';
-import { NewUserDirect, NewUserInput, User } from '../domains/users/users.types.ts';
+import {
+  CoaTemplate,
+  NewCoaTemplateInput,
+} from '../domains/chartOfAccounts/coaTemplate.type.ts';
+import {
+  NewUserDirect,
+  NewUserInput,
+  User,
+} from '../domains/users/users.types.ts';
 import { Company, NewCompany } from '../domains/companies/companies.types.ts';
 import { Coa, NewCoa } from '../domains/chartOfAccounts/coa.types.ts';
 import { AccFirm, NewAccFirm } from '../domains/accountingFirms/firms.types.ts';
-import { NewUserCompanyRole, UserCompanyRole } from '../domains/userRoles/userRoles.types.ts';
-import { BankAccount, NewBankAccount } from '../domains/banking/bankAccounts/bankAccounts.types.ts';
-import { ExchangeRate, NewExchangeRateInput } from '../domains/exchangeRates/exchangeRate.types.ts';
+import {
+  NewUserCompanyRole,
+  UserCompanyRole,
+} from '../domains/userRoles/userRoles.types.ts';
+import {
+  BankAccount,
+  NewBankAccount,
+} from '../domains/banking/bankAccounts/bankAccounts.types.ts';
+import {
+  ExchangeRate,
+  NewExchangeRateInput,
+} from '../domains/exchangeRates/exchangeRate.types.ts';
 import { Bank, NewBank } from '../domains/banking/banks/banks.types.ts';
 import {
   BankTransaction,
@@ -54,7 +70,11 @@ import type {
 
 declare module 'knex/types/tables' {
   interface Tables {
-    roles: Knex.CompositeTableType<Role, NewRoleInput, Partial<Omit<Role, 'id'>>>;
+    roles: Knex.CompositeTableType<
+      Role,
+      NewRoleInput,
+      Partial<Omit<Role, 'id'>>
+    >;
 
     permissions: Knex.CompositeTableType<
       Permission,
@@ -62,9 +82,17 @@ declare module 'knex/types/tables' {
       Partial<Omit<Permission, 'id'>>
     >;
 
-    currencies: Knex.CompositeTableType<Currency, NewCurrencyInput, Partial<Omit<Currency, 'id'>>>;
+    currencies: Knex.CompositeTableType<
+      Currency,
+      NewCurrencyInput,
+      Partial<Omit<Currency, 'id'>>
+    >;
 
-    countries: Knex.CompositeTableType<Country, NewCountryInput, Partial<Omit<Country, 'id'>>>;
+    countries: Knex.CompositeTableType<
+      Country,
+      NewCountryInput,
+      Partial<Omit<Country, 'id'>>
+    >;
 
     exchange_rate: Knex.CompositeTableType<
       ExchangeRate,
@@ -96,11 +124,23 @@ declare module 'knex/types/tables' {
       Partial<Omit<CoaTemplate, 'id'>>
     >;
 
-    users: Knex.CompositeTableType<User, NewUserDirect | NewUserInput, Partial<Omit<User, 'id'>>>;
+    users: Knex.CompositeTableType<
+      User,
+      NewUserDirect | NewUserInput,
+      Partial<Omit<User, 'id'>>
+    >;
 
-    tokens: Knex.CompositeTableType<Token, NewToken, Partial<Omit<Token, 'id'>>>;
+    tokens: Knex.CompositeTableType<
+      Token,
+      NewToken,
+      Partial<Omit<Token, 'id'>>
+    >;
 
-    companies: Knex.CompositeTableType<Company, NewCompany, Partial<Omit<Company, 'id'>>>;
+    companies: Knex.CompositeTableType<
+      Company,
+      NewCompany,
+      Partial<Omit<Company, 'id'>>
+    >;
 
     accounting_firms_meta: Knex.CompositeTableType<
       AccFirm,
@@ -120,7 +160,11 @@ declare module 'knex/types/tables' {
       Partial<Omit<ClientFirmAssignments, 'id'>>
     >;
 
-    firm_user_client_assignments: Knex.CompositeTableType<Fuca, NewFuca, Partial<Omit<Fuca, 'id'>>>;
+    firm_user_client_assignments: Knex.CompositeTableType<
+      Fuca,
+      NewFuca,
+      Partial<Omit<Fuca, 'id'>>
+    >;
 
     roles_permissions: Knex.CompositeTableType<
       RolePermission,
@@ -174,8 +218,16 @@ declare module 'knex/types/tables' {
       Partial<Omit<BankProviderMapping, 'id'>>
     >;
 
-    contacts: Knex.CompositeTableType<Contact, NewContact, Partial<Omit<Contact, 'id'>>>;
+    contacts: Knex.CompositeTableType<
+      Contact,
+      NewContact,
+      Partial<Omit<Contact, 'id'>>
+    >;
 
-    projects: Knex.CompositeTableType<Project, NewProject, Partial<Omit<Project, 'id'>>>;
+    projects: Knex.CompositeTableType<
+      Project,
+      NewProject,
+      Partial<Omit<Project, 'id'>>
+    >;
   }
 }

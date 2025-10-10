@@ -5,17 +5,23 @@ import { AppSidebar, type AppSidebarProps } from '@/components/SideBar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useSession } from '@session';
 import { useCanonicalUrlEnforcer } from '@/shared/routes/hooks';
-import { pageStore, usePageMeta, useUpdatePageInfo } from '@/shared/stores/page';
+import {
+  pageStore,
+  usePageMeta,
+  useUpdatePageInfo,
+} from '@/shared/stores/page';
 import { Outlet } from 'react-router';
 
 interface AppLayoutProps extends AppSidebarProps {}
-export default function AppLayout({ sidebarCollapsible = 'icon' }: AppLayoutProps) {
+export default function AppLayout({
+  sidebarCollapsible = 'icon',
+}: AppLayoutProps) {
   const { user, company, companyId, companyType, loading } = useSession();
 
   useCanonicalUrlEnforcer();
   useUpdatePageInfo();
   usePageMeta();
-  const { sidebarCollapsed } = pageStore();
+  const { sidebarCollapsed, setSidebarCollapsed } = pageStore();
 
   if (loading || sidebarCollapsed === undefined) {
     return <CenteredLoader />;
@@ -26,7 +32,11 @@ export default function AppLayout({ sidebarCollapsible = 'icon' }: AppLayoutProp
   }
 
   return (
-    <SidebarProvider defaultOpen={!sidebarCollapsed}>
+    <SidebarProvider
+      defaultOpen={!sidebarCollapsed}
+      open={sidebarCollapsed === undefined ? undefined : !sidebarCollapsed}
+      onOpenChange={(open) => setSidebarCollapsed?.(!open)}
+    >
       <AppSidebar
         sidebarCollapsible={sidebarCollapsible}
         user={user}

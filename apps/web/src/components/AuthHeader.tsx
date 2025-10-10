@@ -10,7 +10,10 @@ export function AuthHeader({ className }: { className?: string }) {
   return (
     <header
       data-component="auth-header"
-      className={cn('flex justify-between items-center px-6 py-2 z-20', className)}
+      className={cn(
+        'flex justify-between items-center px-6 py-2 z-20',
+        className,
+      )}
     >
       <Link to="/">
         <img

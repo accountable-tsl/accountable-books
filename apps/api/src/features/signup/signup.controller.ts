@@ -7,7 +7,9 @@ export const clientSignup = async (req: Request, res: Response) => {
     const user = req.body.data.user;
     const company = req.body.data.company;
     if (!user || !company) {
-      return res.status(400).json(errorResponse('Missing user or company data'));
+      return res
+        .status(400)
+        .json(errorResponse('Missing user or company data'));
     }
     const newUser = await registerNewAccount(req.body.data);
     if (newUser.success) {

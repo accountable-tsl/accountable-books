@@ -2,7 +2,9 @@ import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
 import { AxiosError } from 'axios';
 
-export const checkSlug = async (slug: string): Promise<ApiResponse<{ isAvailable: boolean }>> => {
+export const checkSlug = async (
+  slug: string,
+): Promise<ApiResponse<{ isAvailable: boolean }>> => {
   try {
     const response = await api.get(
       `/api/accounting-firms/check-slug?slug=${encodeURIComponent(slug)}`,

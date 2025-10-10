@@ -46,10 +46,15 @@ export const defaultFinancialStatements: NewFinancialStatementWithId[] = [
 
 const seedFs = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {
-    await trx(tableName).insert(defaultFinancialStatements).onConflict('key').ignore();
+    await trx(tableName)
+      .insert(defaultFinancialStatements)
+      .onConflict('key')
+      .ignore();
 
     if (isDev) {
-      console.log(`Seeded ${defaultFinancialStatements.length} financial statements`);
+      console.log(
+        `Seeded ${defaultFinancialStatements.length} financial statements`,
+      );
     }
   });
 };

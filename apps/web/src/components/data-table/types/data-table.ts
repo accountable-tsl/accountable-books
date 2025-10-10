@@ -52,7 +52,9 @@ export interface RowSelectionOptions {
   enableMultiRowSelection?: boolean;
 
   rowSelectionState?: RowSelectionState;
-  setRowSelectionState?: React.Dispatch<React.SetStateAction<RowSelectionState>>;
+  setRowSelectionState?: React.Dispatch<
+    React.SetStateAction<RowSelectionState>
+  >;
 }
 
 export interface GlobalSearch {

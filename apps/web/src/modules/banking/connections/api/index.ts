@@ -18,6 +18,5 @@ export const connectAccounts = async (
   data: ConnectAccountRequest,
 ): Promise<ApiResponse<ConnectAccountsResponse>> => {
   const response = await api.post('/api/banking/connect-accounts', data);
-  console.log(response.data);
   return response.data;
 };

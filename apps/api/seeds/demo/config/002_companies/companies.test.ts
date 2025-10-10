@@ -1,10 +1,15 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
-import { createDemoCompaniesAndUsers, deleteDemoCompanies } from './companies.fn.js';
+import {
+  createDemoCompaniesAndUsers,
+  deleteDemoCompanies,
+} from './companies.fn.js';
 
 // Mock utilities - getDemoUserMap provides user ID lookup, resolveFiltersToIds handles filtering
 vi.mock('../../shared/utils.js', () => ({
-  resolveFiltersToIds: vi.fn().mockReturnValue(['bizDemoUS', 'firmDemoUS', 'indDemoUS']),
+  resolveFiltersToIds: vi
+    .fn()
+    .mockReturnValue(['bizDemoUS', 'firmDemoUS', 'indDemoUS']),
   getDemoUserMap: vi.fn().mockResolvedValue(
     new Map([
       ['demo.us@example.com', 'user-1'],
@@ -167,7 +172,9 @@ describe('createDemoCompaniesAndUsers', () => {
     await createDemoCompaniesAndUsers(mockTransaction);
 
     // Should log and exit early
-    expect(console.log).toHaveBeenCalledWith('No companies to create based on filters');
+    expect(console.log).toHaveBeenCalledWith(
+      'No companies to create based on filters',
+    );
   });
 
   test('should handle user not found error', async () => {
@@ -252,7 +259,9 @@ describe('deleteDemoCompanies', () => {
     const result = await deleteDemoCompanies(mockTransaction);
 
     expect(result).toBe(0);
-    expect(console.log).toHaveBeenCalledWith('No demo companies found to delete');
+    expect(console.log).toHaveBeenCalledWith(
+      'No demo companies found to delete',
+    );
   });
 
   test('should apply filters', async () => {

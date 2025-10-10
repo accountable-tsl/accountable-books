@@ -4,8 +4,13 @@ import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { getSingleCompany } from '../../domains/companies/companies.model.js';
 import { getAccessibleCompaniesForUser } from '../../domains/userRoles/userRoles.model.js';
 
-export const checkCompanyId = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const companyId: string = req.params.companyId || req.body.companyId || req.query.companyId;
+export const checkCompanyId = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const companyId: string =
+    req.params.companyId || req.body.companyId || req.query.companyId;
 
   if (!companyId || typeof companyId !== 'string' || companyId.length > 40) {
     return res.status(400).json({ message: 'Invalid Company Identifier' });
@@ -21,11 +26,17 @@ export const checkCompanyId = async (req: AuthRequest, res: Response, next: Next
     if (!req.user?.id) {
       return res.status(401).json(errorResponse('User not authenticated'));
     }
-    const userAccess = await getAccessibleCompaniesForUser({ userId: req.user.id });
-    const accessibleCompany = userAccess.data?.accessibleCompanies.find((c) => c.id === companyId);
+    const userAccess = await getAccessibleCompaniesForUser({
+      userId: req.user.id,
+    });
+    const accessibleCompany = userAccess.data?.accessibleCompanies.find(
+      (c) => c.id === companyId,
+    );
 
     if (!accessibleCompany) {
-      return res.status(403).json(errorResponse('Access denied to this company'));
+      return res
+        .status(403)
+        .json(errorResponse('Access denied to this company'));
     }
 
     req.company = accessibleCompany;

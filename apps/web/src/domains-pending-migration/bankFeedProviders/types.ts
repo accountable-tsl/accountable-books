@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
-export const bankFeedProviderStatus = z.enum(['active', 'inactive', 'deprecated']);
+export const bankFeedProviderStatus = z.enum([
+  'active',
+  'inactive',
+  'deprecated',
+]);
 export type BankFeedProviderStatus = z.infer<typeof bankFeedProviderStatus>;
 export type BankFeedProvider = {
   id: string;

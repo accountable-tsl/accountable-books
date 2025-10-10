@@ -3,7 +3,11 @@ import { ChevronDownIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { safeFormatDate } from '@/shared/utils/formatting-utils';
 import { cn } from '@/lib/utils';
 
@@ -14,7 +18,13 @@ export interface DatePickerProps {
   showLabel?: boolean;
   name?: string;
   disabled?: boolean;
-  buttonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  buttonVariant?:
+    | 'default'
+    | 'destructive'
+    | 'outline'
+    | 'secondary'
+    | 'ghost'
+    | 'link';
   classNames?: { wrapper?: string; trigger?: string; label?: string };
   calendarDisabled?: (date: Date) => boolean;
 }
@@ -67,7 +77,10 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(
               disabled={disabled}
               variant={buttonVariant}
               id="date"
-              className={cn('w-48 justify-between font-normal', classNames?.trigger)}
+              className={cn(
+                'w-48 justify-between font-normal',
+                classNames?.trigger,
+              )}
             >
               {formattedDate || 'Select date'}
               <ChevronDownIcon />

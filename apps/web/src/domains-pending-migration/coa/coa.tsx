@@ -34,7 +34,10 @@ export const ChartOfAccounts: React.FC = () => {
   const [accountElementFilter, setAccountElementFilter] = useState('all');
 
   const columns = useMemo(() => getCoaTableColumns(), []);
-  const accounts = useMemo(() => coaAccounts?.filter((coa) => !coa.isDeleted) || [], [coaAccounts]);
+  const accounts = useMemo(
+    () => coaAccounts?.filter((coa) => !coa.isDeleted) || [],
+    [coaAccounts],
+  );
 
   const customOptions: DataTableInputOptions<CoaResponse> = {
     pagination: {
@@ -54,7 +57,8 @@ export const ChartOfAccounts: React.FC = () => {
     rowClick: {
       mode: 'view',
       wrapper: 'sheet',
-      render: (props) => (companyId ? <CoaViewer companyId={companyId} {...props} /> : <></>),
+      render: (props) =>
+        companyId ? <CoaViewer companyId={companyId} {...props} /> : <></>,
     },
   };
 
@@ -112,7 +116,8 @@ export const ChartOfAccounts: React.FC = () => {
   useEffect(() => {
     if (!parentElementColumn) return;
 
-    const nextFilter = accountElementFilter === 'all' ? undefined : accountElementFilter;
+    const nextFilter =
+      accountElementFilter === 'all' ? undefined : accountElementFilter;
     parentElementColumn.setFilterValue(nextFilter);
   }, [accountElementFilter, parentElementColumn]);
 
@@ -157,12 +162,20 @@ export const ChartOfAccounts: React.FC = () => {
   // TODO: Perhaps add a column for balances in the future
   return (
     <div className="p-3 overflow-clip h-full min-h-0 flex flex-col">
-      <div className="text-sm pb-2">{/* Manage your account structure and classifications */}</div>
+      <div className="text-sm pb-2">
+        {/* Manage your account structure and classifications */}
+      </div>
 
       {/* Accounts Table */}
       <DataTable
         table={table}
-        actionBar={<CoaActionBar table={table} className="bottom-12" companyId={companyId} />}
+        actionBar={
+          <CoaActionBar
+            table={table}
+            className="bottom-12"
+            companyId={companyId}
+          />
+        }
       >
         <DataTableToolbar table={table} config={toolbarConfig} />
       </DataTable>

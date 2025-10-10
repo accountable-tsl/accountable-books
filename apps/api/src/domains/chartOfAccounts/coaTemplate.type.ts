@@ -111,11 +111,19 @@ export const coaTemplateName = z
     }
     return normalizedInput;
   })
-  .pipe(z.string().regex(templateNameRegex, 'Invalid template name format or values'));
+  .pipe(
+    z
+      .string()
+      .regex(templateNameRegex, 'Invalid template name format or values'),
+  );
 
 export const newCoaTemplate = z.object({
   template_name: coaTemplateName,
-  name: z.string().trim().min(1, 'Name is required').max(256, 'Max account name length exceeded'),
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(256, 'Max account name length exceeded'),
   code: z.string().min(1, 'Code is required').max(256).nullish(),
   description: z.string().max(512).nullish(),
   account_type_id: z.uuid('Account Type ID is required'),

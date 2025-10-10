@@ -8,7 +8,11 @@ type CountryListItemProps = {
   className?: string;
 };
 
-export function CountryListItem({ country, onClick, className }: CountryListItemProps) {
+export function CountryListItem({
+  country,
+  onClick,
+  className,
+}: CountryListItemProps) {
   const handleClick = () => {
     onClick?.(country);
   };
@@ -26,7 +30,10 @@ export function CountryListItem({ country, onClick, className }: CountryListItem
       <div className="flex items-center gap-3">
         <span className="text-lg">{country.flag}</span>
         <span className="text-sm font-medium">{country.name}</span>
-        <Badge variant={country.isSupported ? 'outline' : 'secondary'} className="text-xs ml-auto">
+        <Badge
+          variant={country.isSupported ? 'outline' : 'secondary'}
+          className="text-xs ml-auto"
+        >
           {country.isSupported ? 'Available' : 'Coming Soon'}
         </Badge>
       </div>

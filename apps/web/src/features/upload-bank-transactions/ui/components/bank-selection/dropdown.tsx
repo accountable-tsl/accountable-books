@@ -14,7 +14,9 @@ export function BankDropdown({
 }: {
   bankAccounts: BankAccountWithMeta[] | null;
   selectedBankAccount: BankAccountWithMeta | null;
-  setSelectedBankAccount: React.Dispatch<React.SetStateAction<BankAccountWithMeta | null>>;
+  setSelectedBankAccount: React.Dispatch<
+    React.SetStateAction<BankAccountWithMeta | null>
+  >;
   onSuccess?: () => void;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);

@@ -19,7 +19,9 @@ export function ProviderCard({ provider, onSelect }: ProviderCardProps) {
 
           <div className="flex-1">
             <h3 className="font-semibold text-lg">{provider.name}</h3>
-            <p className="text-sm text-muted-foreground">Secure banking connection</p>
+            <p className="text-sm text-muted-foreground">
+              Secure banking connection
+            </p>
           </div>
         </div>
 

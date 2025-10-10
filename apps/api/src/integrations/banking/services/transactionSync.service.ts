@@ -6,6 +6,7 @@ import type {
   TransactionSyncResult,
   ProviderTransaction,
 } from '../types/base.js';
+import { TransactionSyncStrategy } from '../types/base.js';
 import { startOfMonth } from 'date-fns';
 import { randomUUID } from 'crypto';
 import { getBankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
@@ -17,6 +18,7 @@ import type {
 import { addNewBankTransactions } from '../../../domains/bankTransactions/bankTransactions.model.js';
 import { getSystemUser } from '../../../domains/users/users.model.js';
 import { redis as redisClient } from '../../../lib/redis.js';
+import { enqueueBankBalance } from '../../../jobs/queues/balance-recalc.queue.js';
 
 interface BankAccountForSync {
   id: string;
@@ -80,12 +82,13 @@ export class TransactionSyncService {
         credentialId,
         decryptToken: true,
       });
-      if (
-        !credentialRes.success ||
-        !credentialRes.data ||
-        !credentialRes.data.access_token
-      ) {
-        throw new Error(`Credential not found: ${credentialId}`);
+      if (!credentialRes.success) {
+        throw new Error(
+          `Credential lookup failed: ${credentialRes.message || 'Unknown error'}`,
+        );
+      }
+      if (!credentialRes.data || !credentialRes.data.access_token) {
+        throw new Error(`Credential not found or invalid: ${credentialId}`);
       }
       const credential = credentialRes.data;
 
@@ -112,14 +115,33 @@ export class TransactionSyncService {
       companyId = credential.company_id;
       providerId = credential.provider_id;
 
-      // Determine sync parameters
+      // Determine sync parameters based on provider strategy
       const isInitialSync = !credential.initial_sync_completed;
-      const fromDate = isInitialSync
-        ? credential.transactions_from_date || startOfMonth(new Date())
-        : undefined;
+      const usesDateRangeStrategy =
+        provider.transactionSyncStrategy ===
+        TransactionSyncStrategy.DATE_RANGE_OVERLAP;
+
+      // For date-range providers: Use date approach with overlap to prevent gaps
+      // For cursor-based providers: Use cursor approach
+      let fromDate: Date | undefined;
+      if (isInitialSync) {
+        fromDate =
+          credential.transactions_from_date || startOfMonth(new Date());
+      } else if (
+        usesDateRangeStrategy &&
+        credential.last_transactions_sync_at
+      ) {
+        // For incremental date-range syncs: go back 1 day to catch any backdated txns
+        const lastSync = new Date(credential.last_transactions_sync_at);
+        lastSync.setDate(lastSync.getDate() - 1); // 1-day overlap
+        fromDate = lastSync;
+      }
 
       log('sync_params', {
         isInitialSync,
+        providerKey: provider.key,
+        transactionSyncStrategy: provider.transactionSyncStrategy,
+        usesDateRangeStrategy,
         fromDate: fromDate?.toISOString(),
         hasCursor: !!credential.sync_cursor,
         syncCursor: credential.sync_cursor
@@ -135,9 +157,12 @@ export class TransactionSyncService {
 
       // Fetch transactions with pagination
       let hasMore = true;
-      let cursor = credential.sync_cursor;
+      // For date-range providers: Don't use stored cursor (pages are unstable)
+      // For cursor-based providers: Use stored cursor for stable incremental sync
+      let cursor = usesDateRangeStrategy ? undefined : credential.sync_cursor;
       let totalApiCalls = 0;
       let totalProcessingTime = 0;
+      let hasAnyFailures = false; // Track failures across ALL batches
 
       while (hasMore) {
         batchCount++;
@@ -164,102 +189,116 @@ export class TransactionSyncService {
         });
 
         // Process transactions in a database transaction
-        let batchResult:
-          | {
-              successful: number;
-              failed: number;
-              errors: Array<{ batch: any; error: string }>;
+        // Get mapping of provider account IDs to our bank account IDs
+        const accountMap = await this.getAccountMapping(credential);
+
+        let processedTxns = {
+          successful: 0,
+          failed: 0,
+          errors: [] as Array<{ batch: any; error: string }>,
+        };
+
+        // Process added transactions
+        if (result.transactions.added.length > 0) {
+          processedTxns = await this.processAddedTransactions(
+            result.transactions.added,
+            accountMap,
+            credential.company_id,
+          );
+        }
+
+        // Process modified transactions
+        if (result.transactions.modified.length > 0) {
+          await this.processModifiedTransactions(
+            result.transactions.modified,
+            accountMap,
+          );
+        }
+
+        // Process removed transactions
+        if (result.transactions.removed.length > 0) {
+          await this.processRemovedTransactions(
+            result.transactions.removed,
+            accountMap,
+          );
+
+          // Trigger balance recalculation for accounts with soft deleted transactions
+          try {
+            const affectedAccounts = new Set<string>();
+            for (const [, account] of accountMap) {
+              affectedAccounts.add(account.id);
             }
-          | undefined;
-        await knexClient.transaction(async (trx) => {
-          // Get mapping of provider account IDs to our bank account IDs
-          const accountMap = await this.getAccountMapping(credential, trx);
 
-          let processedTxns = {
-            successful: 0,
-            failed: 0,
-            errors: [] as Array<{ batch: any; error: string }>,
-          };
+            for (const bankAccountId of affectedAccounts) {
+              // Use a very early date to ensure we recalculate from the beginning
+              // since soft deletes can affect historical balances
+              await enqueueBankBalance({
+                companyId: companyId,
+                bankAccountId: bankAccountId,
+                recalcFrom: '2020-01-01', // Start from early date for soft deletes
+                triggeredBy: 'sync',
+              });
+            }
 
-          // Process added transactions
-          if (result.transactions.added.length > 0) {
-            processedTxns = await this.processAddedTransactions(
-              result.transactions.added,
-              accountMap,
-              credential.company_id,
-              trx,
-            );
+            log('balance_recalc_queued_for_deletions', {
+              affectedAccounts: Array.from(affectedAccounts),
+              removedCount: result.transactions.removed.length,
+            });
+          } catch (error) {
+            log('balance_recalc_enqueue_failed', {
+              error: error instanceof Error ? error.message : 'Unknown error',
+              removedCount: result.transactions.removed.length,
+            });
           }
+        }
 
-          // Process modified transactions
-          if (result.transactions.modified.length > 0) {
-            await this.processModifiedTransactions(
-              result.transactions.modified,
-              accountMap,
-              trx,
-            );
-          }
+        // Log batch processing results
+        log('batch_processed', {
+          successful: processedTxns.successful,
+          failed: processedTxns.failed,
+          errorCount: processedTxns.errors.length,
+          hasErrors: processedTxns.failed > 0,
+        });
 
-          // Process removed transactions
-          if (result.transactions.removed.length > 0) {
-            await this.processRemovedTransactions(
-              result.transactions.removed,
-              accountMap,
-              trx,
-            );
-          }
-
-          // Log batch processing results
-          log('batch_processed', {
-            successful: processedTxns.successful,
-            failed: processedTxns.failed,
-            errorCount: processedTxns.errors.length,
-            hasErrors: processedTxns.failed > 0,
+        // Handle failed transactions
+        if (processedTxns.failed > 0) {
+          hasAnyFailures = true; // Track failures across ALL batches
+          log('batch_errors', {
+            errors: processedTxns.errors,
+            failedCount: processedTxns.failed,
+            successfulCount: processedTxns.successful,
           });
 
-          // Handle failed transactions
-          if (processedTxns.failed > 0) {
-            log('batch_errors', {
-              errors: processedTxns.errors,
-              failedCount: processedTxns.failed,
-              successfulCount: processedTxns.successful,
+          // For now, we continue with partial success
+          // In the future, we might implement retry logic here
+        }
+
+        // Update cursor per batch (for cursor-based providers to avoid infinite loops)
+        // But DON'T update last_transactions_sync_at yet (wait until ALL batches complete)
+        const shouldUpdateCursor =
+          result.nextCursor &&
+          !usesDateRangeStrategy && // Only for cursor-based providers
+          (processedTxns.successful > 0 ||
+            (processedTxns.failed > 0 &&
+              processedTxns.successful === 0 &&
+              result.transactions.added.length === 0));
+
+        if (shouldUpdateCursor) {
+          await knexClient('bank_account_credentials')
+            .where({ id: credentialId })
+            .update({
+              sync_cursor: result.nextCursor,
+              updated_at: new Date(),
             });
 
-            // For now, we continue with partial success
-            // In the future, we might implement retry logic here
-          }
+          log('cursor_updated_mid_sync', {
+            nextCursor: result.nextCursor,
+            batchNumber: batchCount,
+            note: 'Cursor updated to prevent infinite loop, but timestamp NOT updated yet',
+          });
+        }
 
-          // Update cursor and sync status
-          // We update the cursor even with partial failures to avoid getting stuck
-          // on the same batch indefinitely
-          const shouldUpdateCursor =
-            result.nextCursor &&
-            (processedTxns.successful > 0 ||
-              (processedTxns.failed > 0 &&
-                processedTxns.successful === 0 &&
-                result.transactions.added.length === 0));
-
-          if (shouldUpdateCursor) {
-            await trx('bank_account_credentials')
-              .where({ id: credentialId })
-              .update({
-                sync_cursor: result.nextCursor,
-                last_transactions_sync_at: new Date(),
-                initial_sync_completed: true,
-                updated_at: new Date(),
-              });
-
-            log('cursor_updated', {
-              nextCursor: result.nextCursor,
-              reason:
-                processedTxns.successful > 0
-                  ? 'has_successful'
-                  : 'avoid_infinite_loop',
-            });
-          }
-
-          batchResult = processedTxns;
-        });
+        const batchResult = processedTxns;
 
         const batchProcessingTime = Date.now() - batchStartTime;
         totalProcessingTime += batchProcessingTime;
@@ -297,6 +336,28 @@ export class TransactionSyncService {
         cursor = result.nextCursor;
       }
 
+      // ALL batches complete - now update final state
+      // Only update last_transactions_sync_at if NO failures occurred
+      if (!hasAnyFailures) {
+        await knexClient('bank_account_credentials')
+          .where({ id: credentialId })
+          .update({
+            last_transactions_sync_at: new Date(),
+            initial_sync_completed: true,
+            updated_at: new Date(),
+          });
+
+        log('final_state_updated', {
+          last_transactions_sync_at: new Date().toISOString(),
+          reason: 'All batches succeeded - safe to update timestamp',
+        });
+      } else {
+        log('timestamp_not_updated_due_to_failures', {
+          hasAnyFailures,
+          note: 'Next sync will retry the same date range to recover failed transactions',
+        });
+      }
+
       // Comprehensive completion metrics
       const totalDuration = Date.now() - startTime;
       const avgBatchTime =
@@ -323,13 +384,24 @@ export class TransactionSyncService {
 
         // Sync metadata
         isInitialSync,
+        providerKey: provider.key,
+        transactionSyncStrategy: provider.transactionSyncStrategy,
+        usesDateRangeStrategy,
         finalCursor: cursor ? `${cursor.slice(0, 10)}...` : null,
+        cursorStoredForNextSync: !usesDateRangeStrategy,
+        dateRangeUsed: usesDateRangeStrategy
+          ? `${fromDate?.toISOString().split('T')[0]} to ${new Date().toISOString().split('T')[0]}`
+          : undefined,
         credentialId,
         companyId: credential.company_id,
         providerId: credential.provider_id,
 
+        // Failure tracking
+        hasAnyFailures,
+        timestampUpdated: !hasAnyFailures,
+
         // Status
-        status: 'success',
+        status: hasAnyFailures ? 'partial_success' : 'success',
       });
     } catch (error) {
       const errorDuration = Date.now() - startTime;
@@ -357,59 +429,21 @@ export class TransactionSyncService {
   }
 
   /**
-   * Process transaction changes (added, modified, removed)
-   */
-  private async processTransactions(
-    result: TransactionSyncResult,
-    credential: BankAccountCredential,
-    trx: Knex.Transaction,
-  ): Promise<void> {
-    // Get mapping of provider account IDs to our bank account IDs
-    const accountMap = await this.getAccountMapping(credential, trx);
-
-    // Process added transactions
-    if (result.transactions.added.length > 0) {
-      const res = await this.processAddedTransactions(
-        result.transactions.added,
-        accountMap,
-        credential.company_id,
-        trx,
-      );
-    }
-
-    // Process modified transactions
-    if (result.transactions.modified.length > 0) {
-      await this.processModifiedTransactions(
-        result.transactions.modified,
-        accountMap,
-        trx,
-      );
-    }
-
-    // Process removed transactions
-    if (result.transactions.removed.length > 0) {
-      await this.processRemovedTransactions(
-        result.transactions.removed,
-        accountMap,
-        trx,
-      );
-    }
-  }
-
-  /**
    * Insert new transactions
    */
   private async processAddedTransactions(
     transactions: ProviderTransaction[],
     accountMap: Map<string, BankAccountForSync>,
     companyId: string,
-    trx: Knex.Transaction,
   ): Promise<{
     successful: number;
     failed: number;
     errors: Array<{ batch: any; error: string }>;
   }> {
     const systemUser = await getSystemUser();
+    if (!systemUser) {
+      throw new Error('System user not found');
+    }
     const transactionBatches = this.groupTransactionsByAccountId({
       transactions,
       accountMap,
@@ -427,7 +461,7 @@ export class TransactionSyncService {
           userId: systemUser.id,
           companyId,
           data: batch,
-          trx,
+          // No shared transaction - let the model handle its own transaction
         });
 
         if (!res.success) {
@@ -467,7 +501,6 @@ export class TransactionSyncService {
   private async processModifiedTransactions(
     transactions: ProviderTransaction[],
     accountMap: Map<string, BankAccountForSync>,
-    trx: Knex.Transaction,
   ): Promise<void> {
     for (const txn of transactions) {
       const account = accountMap.get(txn.providerBankAccountId);
@@ -477,7 +510,7 @@ export class TransactionSyncService {
 
       // Due to immutability constraints, we can only update specific fields
       // For now, we'll just update the raw_data to track changes
-      await trx('bank_transactions')
+      await knexClient('bank_transactions')
         .where({
           external_id: txn.transactionId,
           bank_account_id: account.id,
@@ -500,13 +533,12 @@ export class TransactionSyncService {
   private async processRemovedTransactions(
     transactionIds: string[],
     accountMap: Map<string, BankAccountForSync>,
-    trx: Knex.Transaction,
   ): Promise<void> {
     if (transactionIds.length === 0) return;
 
     const accountIds = Array.from(accountMap.values()).map((a) => a.id);
 
-    await trx('bank_transactions')
+    await knexClient('bank_transactions')
       .whereIn('external_id', transactionIds)
       .whereIn('bank_account_id', accountIds)
       .update({
@@ -521,9 +553,8 @@ export class TransactionSyncService {
    */
   private async getAccountMapping(
     credential: BankAccountCredential,
-    trx: Knex.Transaction,
   ): Promise<Map<string, BankAccountForSync>> {
-    const accounts = await trx('bank_accounts')
+    const accounts = await knexClient('bank_accounts')
       .where({
         connection_credential_id: credential.id,
         company_id: credential.company_id,
@@ -613,6 +644,7 @@ export class TransactionSyncService {
 
       const bank_transactions: BankTransactionInput[] = txs.map((tx) => ({
         date: new Date(tx.date),
+        txn_at: tx.txnAt || new Date(tx.date),
         amount: tx.amount,
         bank_account_id: acct.id,
         description: tx.description ?? null,

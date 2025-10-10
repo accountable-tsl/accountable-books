@@ -23,7 +23,9 @@ function getPriorityIndex(value: string) {
 }
 
 export function getAccountElementOptions(
-  parentElementColumn: { getFacetedUniqueValues: () => Map<string, number> } | undefined,
+  parentElementColumn:
+    | { getFacetedUniqueValues: () => Map<string, number> }
+    | undefined,
 ): QuickFilterOptions[] {
   if (!parentElementColumn) return hardcodedParentAccountElements;
 
@@ -71,7 +73,9 @@ export function getAccountElementOptions(
   return [allOption, ...dynamicOptions];
 }
 
-export function analyzeSelectedAccounts(accounts: CoaResponse[]): AnalyzeSelectionResponse {
+export function analyzeSelectedAccounts(
+  accounts: CoaResponse[],
+): AnalyzeSelectionResponse {
   const summary: ActionSummary = {
     total: accounts.length,
     locked: 0,
@@ -89,7 +93,10 @@ export function analyzeSelectedAccounts(accounts: CoaResponse[]): AnalyzeSelecti
 
   const canDelete = summary.total > 0 && summary.undeletable === 0;
   const canArchive =
-    summary.total > 0 && summary.locked === 0 && summary.archived === 0 && summary.deleted === 0;
+    summary.total > 0 &&
+    summary.locked === 0 &&
+    summary.archived === 0 &&
+    summary.deleted === 0;
   const canExport = summary.total > 0;
 
   return {

@@ -78,17 +78,23 @@ const generateAccountNumber = (
   if (accountType === 'credit_card') {
     // Generate 16-digit credit card number
     const prefix = countryCode === 'US' ? '4' : '5'; // Visa for US, Mastercard for NG
-    const remaining = Array.from({ length: 15 }, () => Math.floor(Math.random() * 10)).join('');
+    const remaining = Array.from({ length: 15 }, () =>
+      Math.floor(Math.random() * 10),
+    ).join('');
     return prefix + remaining;
   }
 
   if (countryCode === 'US') {
     // US bank accounts: 8-17 digits, commonly 10-12
     const length = Math.floor(Math.random() * 3) + 10; // 10-12 digits
-    return Array.from({ length }, () => Math.floor(Math.random() * 10)).join('');
+    return Array.from({ length }, () => Math.floor(Math.random() * 10)).join(
+      '',
+    );
   } else {
     // Nigeria bank accounts: exactly 10 digits
-    return Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join('');
+    return Array.from({ length: 10 }, () =>
+      Math.floor(Math.random() * 10),
+    ).join('');
   }
 };
 
@@ -116,7 +122,10 @@ const getBankAccountsForCompanyType = (
           displayName: 'Primary Checking',
           accountName: 'Personal Checking Account',
           accountType: 'checkings_current',
-          accountNumber: generateAccountNumber('checkings_current', countryCode),
+          accountNumber: generateAccountNumber(
+            'checkings_current',
+            countryCode,
+          ),
           businessOrPersonal,
           bankKey: getRandomBankKey(countryCode),
           companyId,
@@ -143,7 +152,10 @@ const getBankAccountsForCompanyType = (
           displayName: 'Business Checking',
           accountName: 'Business Operating Account',
           accountType: 'checkings_current',
-          accountNumber: generateAccountNumber('checkings_current', countryCode),
+          accountNumber: generateAccountNumber(
+            'checkings_current',
+            countryCode,
+          ),
           businessOrPersonal,
           bankKey: getRandomBankKey(countryCode),
           companyId,
@@ -181,7 +193,10 @@ const getBankAccountsForCompanyType = (
           displayName: 'Operating Account',
           accountName: 'Professional Services Operating Account',
           accountType: 'checkings_current',
-          accountNumber: generateAccountNumber('checkings_current', countryCode),
+          accountNumber: generateAccountNumber(
+            'checkings_current',
+            countryCode,
+          ),
           businessOrPersonal,
           bankKey: getRandomBankKey(countryCode),
           companyId,
@@ -214,7 +229,9 @@ export const getRawBankAccountsForInsertion = async (
   const companiesMap = generateDemoCompaniesMap(filters);
 
   return companies.map((company) => {
-    const companyMapData = companiesMap.find((c) => c.company.shortCode === company.short_code);
+    const companyMapData = companiesMap.find(
+      (c) => c.company.shortCode === company.short_code,
+    );
     if (!companyMapData) {
       throw new Error(`Company map data not found for ${company.short_code}`);
     }

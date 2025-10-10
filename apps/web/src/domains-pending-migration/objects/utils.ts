@@ -8,7 +8,8 @@ import {
 
 export const matchesType = (fileType: string, acceptType: string) => {
   // normalise “jpg” ↔ “jpeg” and wildcards like image/*
-  const pattern = '^' + acceptType.trim().replace(/jpg$/i, 'jpeg').replace('*', '.*') + '$';
+  const pattern =
+    '^' + acceptType.trim().replace(/jpg$/i, 'jpeg').replace('*', '.*') + '$';
   return new RegExp(pattern, 'i').test(fileType);
 };
 
@@ -25,7 +26,10 @@ export const objectTypeConfigs: Record<ObjectType, ObjectTypeConfig> = {
   },
 };
 
-export const buildFormData = (params: UploadParams, objectType: ObjectType): FormData => {
+export const buildFormData = (
+  params: UploadParams,
+  objectType: ObjectType,
+): FormData => {
   const formData = new FormData();
   formData.append('objectType', objectType);
 

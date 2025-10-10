@@ -19,14 +19,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Info } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { useCompanyCoa, useCreateCoa } from '@/domains-pending-migration/coa/hooks';
+import {
+  useCompanyCoa,
+  useCreateCoa,
+} from '@/domains-pending-migration/coa/hooks';
 import {
   useAccountMeta,
   useAccountTypeByKey,
 } from '@/domains-pending-migration/account-classification/hooks';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { type CreateCoa, createCoaSchema } from '@/domains-pending-migration/coa/types';
+import {
+  type CreateCoa,
+  createCoaSchema,
+} from '@/domains-pending-migration/coa/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
@@ -98,8 +104,14 @@ export function AddNewCoa({
     };
   }, [accountTypeByKey, currentAccountTypeKey]);
 
-  const duplicateCode = useMemo(() => isDuplicateCode(watchedCode || ''), [watchedCode]);
-  const duplicateName = useMemo(() => isDuplicateName(watchedName || ''), [watchedName]);
+  const duplicateCode = useMemo(
+    () => isDuplicateCode(watchedCode || ''),
+    [watchedCode],
+  );
+  const duplicateName = useMemo(
+    () => isDuplicateName(watchedName || ''),
+    [watchedName],
+  );
 
   // Effects for validation
   useEffect(() => {
@@ -178,8 +190,18 @@ export function AddNewCoa({
   }
 
   return (
-    <div className={cn('w-full flex min-h-0 h-full items-center', classNames?.container || '')}>
-      <div className={cn('min-w-0 w-full max-w-md mx-auto p-6 border', classNames?.content || '')}>
+    <div
+      className={cn(
+        'w-full flex min-h-0 h-full items-center',
+        classNames?.container || '',
+      )}
+    >
+      <div
+        className={cn(
+          'min-w-0 w-full max-w-md mx-auto p-6 border',
+          classNames?.content || '',
+        )}
+      >
         <h2 className="text-lg font-semibold pb-4">
           {page === 'import' ? 'Import Chart of Accounts' : 'Add New Account'}
         </h2>
@@ -194,7 +216,12 @@ export function AddNewCoa({
             <FormField id="code" label="Code" error={errors.code?.message}>
               <Input placeholder="100-0001" {...register('code')} />
             </FormField>
-            <FormField id="name" label="Account Name" error={errors.name?.message} required>
+            <FormField
+              id="name"
+              label="Account Name"
+              error={errors.name?.message}
+              required
+            >
               <Input placeholder="Directors' Drawings" {...register('name')} />
             </FormField>
             <Controller
@@ -213,7 +240,11 @@ export function AddNewCoa({
                       items={accountTypes}
                       mapItem={mapItem}
                       placeholder="Select account type..."
-                      aria-describedby={errors.accountTypeKey ? 'accountTypeKey-error' : undefined}
+                      aria-describedby={
+                        errors.accountTypeKey
+                          ? 'accountTypeKey-error'
+                          : undefined
+                      }
                       onValueChange={field.onChange}
                       value={field.value ?? undefined}
                       groupBy={'parentElementLabel'}
@@ -233,7 +264,11 @@ export function AddNewCoa({
                 </div>
               )}
             />
-            <FormField id="description" label="Description" error={errors.description?.message}>
+            <FormField
+              id="description"
+              label="Description"
+              error={errors.description?.message}
+            >
               <Textarea
                 placeholder="This is an account that..."
                 className="resize-none"
@@ -257,7 +292,9 @@ export function AddNewCoa({
                 className="ml-auto"
                 disabled={!isValid || isSubmitting || addCoaMutation.isPending}
               >
-                {isSubmitting || addCoaMutation.isPending ? 'Adding...' : 'Add new account'}
+                {isSubmitting || addCoaMutation.isPending
+                  ? 'Adding...'
+                  : 'Add new account'}
               </Button>
             </div>
           </form>

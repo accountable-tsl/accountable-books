@@ -1,4 +1,7 @@
-import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
 import { knexClient } from '../../../db/knexClient.js';
 import type { ApiResponse } from '../../../core/types/api.types.js';
 import {
@@ -26,7 +29,6 @@ const BANK_ACCOUNT_FIELDS = [
   'ba.id as id',
   'ba.display_name as displayName',
   'ba.account_type as accountType',
-  'ba.account_number as accountNumber',
   'ba.coa_id as coaId',
   'ba.currency_id as currencyId',
   'ba.bank_id as bankId',
@@ -56,23 +58,19 @@ const BANK_ACCOUNT_FIELDS = [
   'at.label as coaTypeLabel',
   'at.key as coaTypeKey',
 
-  // Bank Connection Details (If any)
-  // 'bac.id as bankConnectionId',
-  // 'bac.status as bankConnectionStatus',
-  // 'bac.provider_bank_account_id as providerBankAccountId',
-  'ba.id as bankConnectionId', // TODO: Remove later
   'ba.connection_status as bankConnectionStatus',
   'ba.provider_bank_account_id as providerBankAccountId',
   'p.key as providerKey',
   'p.name as providerName',
   'p.logo_url as providerLogo',
+  'ba.connection_credential_id as connectionCredentialId',
 ];
 export const getBankAccountsWithDetails = async (
   companyId: string,
   trx?: Knex.Transaction,
 ): Promise<ApiResponse<BankAccountWithMeta[]>> => {
   if (!companyId) return errorResponse('Company ID is required');
-  const executor = trx || knexClient;
+  const db = trx ?? knexClient;
 
   try {
     const companyUUID = await getCompanyUUID(companyId);
@@ -80,8 +78,18 @@ export const getBankAccountsWithDetails = async (
       return errorResponse('Invalid company ID');
     }
 
-    const query = executor('bank_accounts as ba')
+    const query = db('bank_accounts as ba')
       .select(BANK_ACCOUNT_FIELDS)
+      .select({
+        lastSyncAt: db.raw('COALESCE(??, ??)', [
+          'ba.last_sync_at',
+          'ba.updated_at',
+        ]),
+        mask: db.raw('RIGHT(COALESCE(??, ??), 4)', [
+          'ba.account_number_mask',
+          'ba.account_number',
+        ]),
+      })
       .where('ba.company_id', companyUUID)
       .andWhere('ba.is_deleted', false)
       .join('banks as b', 'ba.bank_id', 'b.id')
@@ -118,7 +126,9 @@ export const getMinimalBankAccountDetails = async ({
   companyId: string;
   trx?: Knex.Transaction;
 }) => {
-  const exec = async (txn: Knex.Transaction): Promise<ApiResponse<MinimalBankAccountDetails[]>> => {
+  const exec = async (
+    txn: Knex.Transaction,
+  ): Promise<ApiResponse<MinimalBankAccountDetails[]>> => {
     const companyUUID = await getCompanyUUID(companyId, txn);
     if (!companyUUID) {
       throw new Error('Company not found');
@@ -252,7 +262,10 @@ async function createBankAccount({
 
   const validatedInput = newBankAccountInput.safeParse(bankAccountData);
   if (!validatedInput.success) {
-    log.error({ validationErrors: validatedInput.error.flatten() }, 'invalid input');
+    log.error(
+      { validationErrors: validatedInput.error.flatten() },
+      'invalid input',
+    );
     return errorResponse('Invalid input', validatedInput.error.flatten());
   }
 
@@ -260,7 +273,9 @@ async function createBankAccount({
 
   const exec = async (
     tx: Knex.Transaction,
-  ): Promise<ApiResponse<{ coaId: string; bankAccountId: string; wasUpdated: boolean }>> => {
+  ): Promise<
+    ApiResponse<{ coaId: string; bankAccountId: string; wasUpdated: boolean }>
+  > => {
     // Get currencyId, validate bankId
     const [company, currency, bank, accountType] = await Promise.all([
       tx('companies')
@@ -295,7 +310,9 @@ async function createBankAccount({
     const coaAccountTypeId = accountType.id;
     const coaName = v.coa_name || v.display_name || v.account_name;
     const coaCode =
-      v.coa_code || `**${v.account_number_mask || v.account_number?.slice(-4)}` || null;
+      v.coa_code ||
+      `**${v.account_number_mask || v.account_number?.slice(-4)}` ||
+      null;
 
     // Create COA (currency is reporting currency)
     let coaId: string;
@@ -335,7 +352,9 @@ async function createBankAccount({
       }
     } catch (e: any) {
       if (e?.code !== '23505') throw e;
-      throw new Error('Chart of account with the same name or code already exists');
+      throw new Error(
+        'Chart of account with the same name or code already exists',
+      );
     }
 
     let bankAccountId: string;
@@ -352,7 +371,8 @@ async function createBankAccount({
         .forUpdate()
         .first();
 
-      oldConnectionCredentialId = existingBankAccount?.connection_credential_id ?? null;
+      oldConnectionCredentialId =
+        existingBankAccount?.connection_credential_id ?? null;
 
       // Create bank account entry
       const [bankAccountRow] = await tx('bank_accounts')
@@ -395,7 +415,10 @@ async function createBankAccount({
       bankAccountId = bankAccountRow.id;
       const newConnectionCredentialId = bankAccountRow.connection_credential_id;
 
-      if (oldConnectionCredentialId && oldConnectionCredentialId !== newConnectionCredentialId) {
+      if (
+        oldConnectionCredentialId &&
+        oldConnectionCredentialId !== newConnectionCredentialId
+      ) {
         log.info(
           {
             oldCredentialId: oldConnectionCredentialId,
@@ -421,11 +444,13 @@ async function createBankAccount({
         );
 
         if (count === 0) {
-          await tx('bank_account_credentials').where('id', oldConnectionCredentialId).update({
-            status: 'revoked',
-            updated_by: userId,
-            updated_at: tx.fn.now(),
-          });
+          await tx('bank_account_credentials')
+            .where('id', oldConnectionCredentialId)
+            .update({
+              status: 'revoked',
+              updated_by: userId,
+              updated_at: tx.fn.now(),
+            });
 
           log.info(
             {
@@ -448,11 +473,14 @@ async function createBankAccount({
       throw new Error('Bank account with the same details already exist');
     }
 
-    return successResponse('Bank account and associated COA created successfully', {
-      coaId,
-      bankAccountId,
-      wasUpdated: !!oldConnectionCredentialId,
-    });
+    return successResponse(
+      'Bank account and associated COA created successfully',
+      {
+        coaId,
+        bankAccountId,
+        wasUpdated: !!oldConnectionCredentialId,
+      },
+    );
   };
 
   try {
@@ -497,6 +525,11 @@ export async function createBankAccountWithConnection({
 }) {
   const validatedInput = bankAccountWithConnectionInput.safeParse(params);
   if (!validatedInput.success) {
+    console.log('validatedInput banq', {
+      params,
+      err: z.treeifyError(validatedInput.error),
+      issues: validatedInput.error.issues,
+    });
     return errorResponse('Invalid input', z.treeifyError(validatedInput.error));
   }
   const { data } = validatedInput;
@@ -546,12 +579,18 @@ export async function updateBankAccounts({
 
       results.push(result);
     }
-    return successResponse('Bank accounts updated successfully', results.length);
+    return successResponse(
+      'Bank accounts updated successfully',
+      results.length,
+    );
   };
 
   try {
     const result = trx ? await exec(trx) : await knexClient.transaction(exec);
-    logger.info({ userId, companyId, duration: Date.now() - startTime }, 'Bank accounts updated');
+    logger.info(
+      { userId, companyId, duration: Date.now() - startTime },
+      'Bank accounts updated',
+    );
     return result;
   } catch (error) {
     logger.error(

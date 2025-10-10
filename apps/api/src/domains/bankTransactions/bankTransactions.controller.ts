@@ -18,7 +18,9 @@ export async function handleTransactionImport(req: AuthRequest, res: Response) {
       userId,
     });
 
-    return response.success ? res.status(200).json(response) : res.status(400).json(response);
+    return response.success
+      ? res.status(200).json(response)
+      : res.status(400).json(response);
   } catch (error: unknown) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }

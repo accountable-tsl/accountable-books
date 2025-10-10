@@ -90,7 +90,11 @@ export const Contacts = () => {
         <DataTableToolbar table={table} config={toolbarConfig} />
       </DataTable>
 
-      <AddContactDialog companyId={companyId!} open={isDialogOpen} onOpenChange={setIsDialogOpen} />
+      <AddContactDialog
+        companyId={companyId!}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+      />
     </div>
   );
 };

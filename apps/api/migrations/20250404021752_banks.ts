@@ -57,7 +57,16 @@ export async function up(knex: Knex): Promise<void> {
     table
       .enu(
         'local_code_type',
-        ['sort_code', 'routing', 'bank_code', 'nip_code', 'ifsc', 'blz', 'zengin_code', 'cnaps'],
+        [
+          'sort_code',
+          'routing',
+          'bank_code',
+          'nip_code',
+          'ifsc',
+          'blz',
+          'zengin_code',
+          'cnaps',
+        ],
         {
           enumName: 'bank_local_code_type',
           useNative: false,
@@ -79,9 +88,18 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('countries')
       .onDelete('RESTRICT');
 
-    table.uuid('created_by_id').references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('created_by_id')
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     addStandardColumns(knex, table);
 

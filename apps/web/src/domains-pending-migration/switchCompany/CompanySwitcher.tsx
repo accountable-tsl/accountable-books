@@ -39,8 +39,11 @@ export function CompanySwitcher() {
 
   const companies = user.companies;
   const getCompanyName = (company: AuthCompanyContext) =>
-    company.displayName || company.legalName || toTitleCase(company.id.slice(0, 8) + '...');
-  const isAccountingFirmUser = user.currentCompany.companyType === 'accounting_firm';
+    company.displayName ||
+    company.legalName ||
+    toTitleCase(company.id.slice(0, 8) + '...');
+  const isAccountingFirmUser =
+    user.currentCompany.companyType === 'accounting_firm';
 
   // Helper to detect demo users by email
   const isDemoUser = (email: string) => {
@@ -64,13 +67,17 @@ export function CompanySwitcher() {
 
     // Find demo matching both type and region
     const exactMatch = demoCompanies.find(
-      (demo) => demo.companyType === currentType && isNigerianCompany(demo.id) === currentIsNG,
+      (demo) =>
+        demo.companyType === currentType &&
+        isNigerianCompany(demo.id) === currentIsNG,
     );
 
     if (exactMatch) return exactMatch;
 
     // Fallback: any demo of same type
-    const typeMatch = demoCompanies.find((demo) => demo.companyType === currentType);
+    const typeMatch = demoCompanies.find(
+      (demo) => demo.companyType === currentType,
+    );
     if (typeMatch) return typeMatch;
 
     return null;
@@ -101,7 +108,9 @@ export function CompanySwitcher() {
     if (searchTerm.trim()) {
       return companies
         .filter((company) =>
-          getCompanyName(company).toLowerCase().includes(searchTerm.toLowerCase()),
+          getCompanyName(company)
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()),
         )
         .sort((a, b) => {
           if (a.id === user.currentCompanyId) return -1;
@@ -121,7 +130,10 @@ export function CompanySwitcher() {
     const displayList = sortedRegular.slice(0, 3);
 
     // Add matching demo company if not already in list
-    if (getMatchingDemoCompany && !displayList.find((c) => c.id === getMatchingDemoCompany.id)) {
+    if (
+      getMatchingDemoCompany &&
+      !displayList.find((c) => c.id === getMatchingDemoCompany.id)
+    ) {
       displayList.push(getMatchingDemoCompany);
     }
 
@@ -156,10 +168,14 @@ export function CompanySwitcher() {
   } as const;
 
   const getCompanyConfig = (type: string) =>
-    companyConfig[type as keyof typeof companyConfig] || { icon: BuildingIcon, label: 'Company' };
+    companyConfig[type as keyof typeof companyConfig] || {
+      icon: BuildingIcon,
+      label: 'Company',
+    };
 
   // Show search when there are many companies or demo companies exist
-  const showSearch = companies.length > MAX_VISIBLE_COMPANIES || demoCompanies.length > 0;
+  const showSearch =
+    companies.length > MAX_VISIBLE_COMPANIES || demoCompanies.length > 0;
 
   return (
     <>
@@ -177,7 +193,9 @@ export function CompanySwitcher() {
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <div className="px-2 py-2">
-            <div className="text-xs text-muted-foreground mb-2">Switch Company</div>
+            <div className="text-xs text-muted-foreground mb-2">
+              Switch Company
+            </div>
 
             {showSearch && (
               <div className="relative mb-2">
@@ -194,7 +212,9 @@ export function CompanySwitcher() {
 
           <div
             className="overflow-y-auto"
-            style={{ maxHeight: `${MAX_VISIBLE_COMPANIES * COMPANY_ITEM_HEIGHT}px` }}
+            style={{
+              maxHeight: `${MAX_VISIBLE_COMPANIES * COMPANY_ITEM_HEIGHT}px`,
+            }}
           >
             {visibleCompanies.length === 0 && searchTerm ? (
               <div className="px-2 py-4 text-center text-sm text-muted-foreground">
@@ -218,27 +238,39 @@ export function CompanySwitcher() {
                   >
                     <div className="flex-shrink-0">
                       {(() => {
-                        const { icon: Icon } = getCompanyConfig(company.companyType);
+                        const { icon: Icon } = getCompanyConfig(
+                          company.companyType,
+                        );
                         return <Icon className="h-4 w-4" />;
                       })()}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium truncate">{companyName}</span>
+                        <span className="text-sm font-medium truncate">
+                          {companyName}
+                        </span>
                         {isCurrentCompany && (
-                          <Badge variant="secondary" className="text-xs px-1 py-0">
+                          <Badge
+                            variant="secondary"
+                            className="text-xs px-1 py-0"
+                          >
                             Current
                           </Badge>
                         )}
                       </div>
 
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{getCompanyConfig(company.companyType).label}</span>
+                        <span>
+                          {getCompanyConfig(company.companyType).label}
+                        </span>
                         {company.isDemoCompany && (
                           <>
                             <span>•</span>
-                            <Badge variant="outline" className="text-xs px-1 py-0">
+                            <Badge
+                              variant="outline"
+                              className="text-xs px-1 py-0"
+                            >
                               Demo
                             </Badge>
                           </>

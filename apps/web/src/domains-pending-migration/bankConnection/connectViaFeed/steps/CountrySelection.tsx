@@ -32,9 +32,14 @@ export default function CountrySelection({
   const navigate = useNavigate();
 
   // Computed
-  const countries = useMemo(() => countriesData?.data || [], [countriesData?.data]);
+  const countries = useMemo(
+    () => countriesData?.data || [],
+    [countriesData?.data],
+  );
   const detectedCountry =
-    countriesData && countriesData?.data && getCountryFromLocale(countriesData?.data);
+    countriesData &&
+    countriesData?.data &&
+    getCountryFromLocale(countriesData?.data);
 
   // const detectedCountryIsSupported = SUPPORTED_COUNTRIES_CODES.includes(
   //   detectedCountry?.code || ""
@@ -97,7 +102,8 @@ export default function CountrySelection({
         </div>
         <h2 className="text-lg font-semibold">Select Your Country</h2>
         <p className="text-muted-foreground mx-auto text-sm">
-          Select your country to find the best way to securely connect your bank account.
+          Select your country to find the best way to securely connect your bank
+          account.
         </p>
       </div>
 
@@ -108,7 +114,8 @@ export default function CountrySelection({
             <MapPin className="w-5 h-5 text-blue-600" />
             <div className="flex-1">
               <p className="text-sm font-medium">
-                We detected you're in <span className="font-semibold">{detectedCountry.name}</span>
+                We detected you're in{' '}
+                <span className="font-semibold">{detectedCountry.name}</span>
               </p>
               <p className="hidden md:block text-sm text-muted-foreground">
                 You can change this if needed
@@ -125,7 +132,8 @@ export default function CountrySelection({
           </div>
           {!detectedCountryIsSupported && (
             <div className="mt-3 text-sm text-amber-700 dark:text-amber-200 bg-amber-50 dark:bg-amber-900 border border-amber-200 dark:border-amber-700 rounded p-2">
-              Sorry, we don't support bank connections in {detectedCountry.name} yet.
+              Sorry, we don't support bank connections in {detectedCountry.name}{' '}
+              yet.
             </div>
           )}
         </div>
@@ -133,7 +141,10 @@ export default function CountrySelection({
 
       <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
         <div className="flex-shrink-0">
-          <Label htmlFor="country-search" className="text-sm font-medium text-gray-700">
+          <Label
+            htmlFor="country-search"
+            className="text-sm font-medium text-gray-700"
+          >
             Country
           </Label>
           <div className="relative mt-1">
@@ -196,7 +207,9 @@ export default function CountrySelection({
             </>
           ) : (
             <>
-              <p className="text-sm font-medium text-muted-foreground mb-3">Popular Countries</p>
+              <p className="text-sm font-medium text-muted-foreground mb-3">
+                Popular Countries
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {popularCountries.map((country) => {
                   const isSupported = isCountrySupported(country);
@@ -220,7 +233,9 @@ export default function CountrySelection({
                           : // Disabled...
                             'bg-gray-50 opacity-60 cursor-not-allowed dark:bg-gray-800',
                       )}
-                      onClick={() => isSupported && handleCountrySelect(country)}
+                      onClick={() =>
+                        isSupported && handleCountrySelect(country)
+                      }
                     >
                       <div className="flex items-center space-x-3 p-3 rounded-xs">
                         <span className="text-lg">{country.flag}</span>
@@ -251,7 +266,11 @@ export default function CountrySelection({
         </Button>
         <Button
           onClick={handleNext}
-          disabled={!selectedCountry || isLoadingCountries || selectedCountry.code !== 'NG'} // TODO: Remove NG limit later
+          disabled={
+            !selectedCountry ||
+            isLoadingCountries ||
+            selectedCountry.code !== 'NG'
+          } // TODO: Remove NG limit later
           className="px-6 ml-auto"
         >
           Continue

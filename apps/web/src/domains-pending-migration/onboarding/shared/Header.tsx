@@ -18,12 +18,22 @@ export const OnboardingHeader = ({
 }) => {
   const isMobile = useIsMobile();
   const nameParts = (firmName ?? '').split(' ');
-  const initials = nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0);
+  const initials =
+    nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0);
 
   return (
     <>
-      <div className={cn('border-b h-12 flex items-center justify-between', className)}>
-        <div className={cn(showSidebar && sidebarWidth ? `md:w-[${sidebarWidth}]` : '')}>
+      <div
+        className={cn(
+          'border-b h-12 flex items-center justify-between',
+          className,
+        )}
+      >
+        <div
+          className={cn(
+            showSidebar && sidebarWidth ? `md:w-[${sidebarWidth}]` : '',
+          )}
+        >
           <div className="flex items-center gap-2 p-4 md:h-12">
             <div className="bg-muted rounded-full flex items-center justify-center h-6 w-6 overflow-hidden">
               {logoUrl ? (
@@ -36,7 +46,10 @@ export const OnboardingHeader = ({
           </div>
         </div>
         <div
-          className={cn('flex-1 flex items-center justify between', showSidebar ? 'relative' : '')}
+          className={cn(
+            'flex-1 flex items-center justify between',
+            showSidebar ? 'relative' : '',
+          )}
         >
           <div className="ml-auto mr-2">
             <ThemeToggle />

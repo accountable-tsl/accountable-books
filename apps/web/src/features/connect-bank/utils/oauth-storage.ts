@@ -3,6 +3,7 @@ interface PlaidOAuthState {
   companyId: string;
   userId: string;
   provider: string;
+  countryCode: string;
   timestamp: number;
   // Store the original URL to redirect back to after OAuth
   returnUrl?: string;

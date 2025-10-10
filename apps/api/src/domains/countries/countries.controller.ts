@@ -12,6 +12,8 @@ export async function getCountryList(req: Request, res: Response) {
       return res.status(400).json(result);
     }
   } catch (error) {
-    return res.status(500).json(errorResponse('An unexpected error occurred', error));
+    return res
+      .status(500)
+      .json(errorResponse('An unexpected error occurred', error));
   }
 }

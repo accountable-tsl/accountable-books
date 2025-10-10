@@ -1,6 +1,9 @@
 import type { Knex } from 'knex';
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import {
   type ContactInput,
   contactInputSchema,
@@ -12,8 +15,16 @@ import {
 } from './contact.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { createHybridSearch, defineSearchableColumns } from '../../shared/utils/search.utils.js';
-import { logger, logError, logDatabaseOperation, logTiming } from '../../shared/utils/logger.js';
+import {
+  createHybridSearch,
+  defineSearchableColumns,
+} from '../../shared/utils/search.utils.js';
+import {
+  logger,
+  logError,
+  logDatabaseOperation,
+  logTiming,
+} from '../../shared/utils/logger.js';
 import z from 'zod';
 
 const normalizeName = (name: string) => name.trim().toLowerCase();
@@ -81,7 +92,10 @@ export async function addNewContacts({
   }));
 
   const sanitizedContacts = camelCaseContacts.map(sanitizeContactInput);
-  contactsLogger.debug({ sanitizedCount: sanitizedContacts.length }, 'Contact input sanitized');
+  contactsLogger.debug(
+    { sanitizedCount: sanitizedContacts.length },
+    'Contact input sanitized',
+  );
 
   const query = async (tx: Knex.Transaction) => {
     try {
@@ -98,7 +112,9 @@ export async function addNewContacts({
       contactsLogger.debug({ companyUUID }, 'Company resolved successfully');
 
       // Normalize names to verify uniqueness
-      const normalizedNames = sanitizedContacts.map((c) => normalizeName(c.displayName));
+      const normalizedNames = sanitizedContacts.map((c) =>
+        normalizeName(c.displayName),
+      );
       contactsLogger.debug(
         {
           names: sanitizedContacts.map((c) => c.displayName),
@@ -130,7 +146,9 @@ export async function addNewContacts({
         throw new Error(duplicateError);
       }
 
-      contactsLogger.debug('No duplicate contacts found, proceeding with creation');
+      contactsLogger.debug(
+        'No duplicate contacts found, proceeding with creation',
+      );
 
       // Create data structure for insertion
       const data = sanitizedContacts.map((contact) => ({
@@ -154,7 +172,14 @@ export async function addNewContacts({
       });
       const result = await tx('contacts')
         .insert(data)
-        .returning(['id', 'display_name as displayName', 'address', 'email', 'status', 'notes']);
+        .returning([
+          'id',
+          'display_name as displayName',
+          'address',
+          'email',
+          'status',
+          'notes',
+        ]);
 
       contactsLogger.info(
         {
@@ -166,7 +191,8 @@ export async function addNewContacts({
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       contactsLogger.error(
         {
           error: error instanceof Error ? error : new Error(String(error)),
@@ -210,7 +236,8 @@ export async function addNewContacts({
 
     return successResponse(message, result);
   } catch (error: any) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
 
     contactsLogger.error(
       {
@@ -231,19 +258,37 @@ export async function addNewContacts({
       return errorResponse('Invalid company identifier', error);
     }
 
-    return errorResponse('Failed to create contact(s). Please try again.', error);
+    return errorResponse(
+      'Failed to create contact(s). Please try again.',
+      error,
+    );
   }
 }
 
-export async function getContacts(input: GetContactsParams): Promise<ApiResponse<ContactResponse>> {
+export async function getContacts(
+  input: GetContactsParams,
+): Promise<ApiResponse<ContactResponse>> {
   // Input validation
   const parseInput = getContactsParams.safeParse(input);
   if (!parseInput.success) {
-    return errorResponse('Invalid request parameters', z.treeifyError(parseInput.error));
+    return errorResponse(
+      'Invalid request parameters',
+      z.treeifyError(parseInput.error),
+    );
   }
 
-  const { companyId, ids, displayNames, page, limit, search, status, sortBy, sortOrder, trx } =
-    parseInput.data;
+  const {
+    companyId,
+    ids,
+    displayNames,
+    page,
+    limit,
+    search,
+    status,
+    sortBy,
+    sortOrder,
+    trx,
+  } = parseInput.data;
 
   const searchableColumns = defineSearchableColumns('c', [
     { column: 'display_name', name: 'displayName', weight: 2.0 },
@@ -297,7 +342,9 @@ export async function getContacts(input: GetContactsParams): Promise<ApiResponse
 
     // Validate page bounds
     if (page > totalPages) {
-      return errorResponse(`Page ${page} exceeds maximum pages (${totalPages})`);
+      return errorResponse(
+        `Page ${page} exceeds maximum pages (${totalPages})`,
+      );
     }
 
     const defaultSortCol = 'c.display_name';
@@ -382,13 +429,20 @@ export async function updateContacts({
       .select('id');
 
     if (existingContacts.length !== contactIds.length) {
-      const missingIds = contactIds.filter((id) => !existingContacts.some((c) => c.id === id));
-      throw new Error(`Contact(s) with these IDs do not exist: ${missingIds.join(', ')}`);
+      const missingIds = contactIds.filter(
+        (id) => !existingContacts.some((c) => c.id === id),
+      );
+      throw new Error(
+        `Contact(s) with these IDs do not exist: ${missingIds.join(', ')}`,
+      );
     }
 
     // Check for display name uniqueness if any updates include display names
     const displayNamesToUpdate = validate.data
-      .filter((c) => typeof c.display_name === 'string' && c.display_name.trim() !== '')
+      .filter(
+        (c) =>
+          typeof c.display_name === 'string' && c.display_name.trim() !== '',
+      )
       .map((c) => c.display_name as string);
 
     if (displayNamesToUpdate.length > 0) {
@@ -399,7 +453,9 @@ export async function updateContacts({
         (name, index, arr) => arr.indexOf(name) !== index,
       );
       if (duplicatesInBatch.length > 0) {
-        throw new Error(`Duplicate names found in update batch: ${duplicatesInBatch.join(', ')}`);
+        throw new Error(
+          `Duplicate names found in update batch: ${duplicatesInBatch.join(', ')}`,
+        );
       }
 
       // Check for conflicts with existing contacts (excluding those being updated)
@@ -411,7 +467,9 @@ export async function updateContacts({
 
       if (duplicateContacts.length > 0) {
         const duplicateNames = duplicateContacts.map((c) => c.display_name);
-        throw new Error(`Contact(s) with these names already exist: ${duplicateNames.join(', ')}`);
+        throw new Error(
+          `Contact(s) with these names already exist: ${duplicateNames.join(', ')}`,
+        );
       }
     }
 
@@ -441,7 +499,14 @@ export async function updateContacts({
       const [updatedContact] = await tx('contacts')
         .where({ id, company_id: companyUUID })
         .update(updateFields)
-        .returning(['id', 'display_name as displayName', 'address', 'email', 'status', 'notes']);
+        .returning([
+          'id',
+          'display_name as displayName',
+          'address',
+          'email',
+          'status',
+          'notes',
+        ]);
       return updatedContact;
     });
 

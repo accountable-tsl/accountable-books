@@ -18,7 +18,10 @@ export function OnboardingSidebar({
       {steps.map((step) => {
         const { title, description, icon: Icon, current, complete } = step;
         return (
-          <div key={step.key} className="relative flex gap-2 items-center text-sm md:text-base">
+          <div
+            key={step.key}
+            className="relative flex gap-2 items-center text-sm md:text-base"
+          >
             <div
               className={cn(
                 // "bg-background p-2 rounded-md outline relative flex h-8 w-8 shrink-0 items-center justify-center border",
@@ -29,7 +32,10 @@ export function OnboardingSidebar({
               {complete ? (
                 <Check size={14} />
               ) : (
-                <Icon color={`${current ? 'currentColor' : 'gray'}`} size={14} />
+                <Icon
+                  color={`${current ? 'currentColor' : 'gray'}`}
+                  size={14}
+                />
               )}
             </div>
 

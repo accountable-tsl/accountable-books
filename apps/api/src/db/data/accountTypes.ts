@@ -82,7 +82,8 @@ export const accountTypes = [
     key: 'nca_ppe_contra',
     report_code: 'BS.ASS.NCA.PPE.CTR',
     label: 'Contra Property, Plant, Equipment',
-    description: 'Cumulative depreciation of Property, Plant, and Equipment over their useful life',
+    description:
+      'Cumulative depreciation of Property, Plant, and Equipment over their useful life',
   },
   {
     id: accountTypeIds.nca_investment_property,
@@ -104,7 +105,8 @@ export const accountTypes = [
     key: 'nca_rou_asset',
     report_code: 'BS.ASS.NCA.ROU',
     label: 'Right-of-Use Assets',
-    description: 'Right-of-use assets from long-term lease agreements under IFRS 16 or ASC 842',
+    description:
+      'Right-of-use assets from long-term lease agreements under IFRS 16 or ASC 842',
   },
   {
     id: accountTypeIds.nca_rou_asset_contra,
@@ -118,14 +120,16 @@ export const accountTypes = [
     key: 'nca_intangible_asset',
     report_code: 'BS.ASS.NCA.INT',
     label: 'Intangible Assets',
-    description: 'Non-physical long-term assets such as patents, trademarks, and goodwill',
+    description:
+      'Non-physical long-term assets such as patents, trademarks, and goodwill',
   },
   {
     id: accountTypeIds.nca_intangible_asset_contra,
     key: 'nca_intangible_asset_contra',
     report_code: 'BS.ASS.NCA.INT.CTR',
     label: 'Contra Intangible Assets',
-    description: 'Cumulative amortization of intangible assets over their useful life',
+    description:
+      'Cumulative amortization of intangible assets over their useful life',
   },
   {
     id: accountTypeIds.nca_other,
@@ -147,14 +151,16 @@ export const accountTypes = [
     key: 'ca_cash_equivalent',
     report_code: 'BS.ASS.CUR.CEQ',
     label: 'Cash Equivalents',
-    description: 'Short-term, highly liquid investments that are readily convertible to cash',
+    description:
+      'Short-term, highly liquid investments that are readily convertible to cash',
   },
   {
     id: accountTypeIds.ca_inventory,
     key: 'ca_inventory',
     report_code: 'BS.ASS.CUR.INV',
     label: 'Inventory',
-    description: 'Goods held for sale, raw materials, work-in-progress, and finished goods',
+    description:
+      'Goods held for sale, raw materials, work-in-progress, and finished goods',
   },
   {
     id: accountTypeIds.ca_inventory_contra,
@@ -193,7 +199,8 @@ export const accountTypes = [
     key: 'ca_prepayment',
     report_code: 'BS.ASS.CUR.PRP',
     label: 'Prepayments',
-    description: 'Expenses paid in advance for future goods or services, such as insurance or rent',
+    description:
+      'Expenses paid in advance for future goods or services, such as insurance or rent',
   },
   {
     id: accountTypeIds.ca_due_from_related_party,
@@ -223,14 +230,16 @@ export const accountTypes = [
     key: 'ncl_long_term_debt',
     report_code: 'BS.LIA.NCL.DBT',
     label: 'Long-Term Debt',
-    description: 'Borrowed funds due beyond one year, such as mortgages or long-term bank loans',
+    description:
+      'Borrowed funds due beyond one year, such as mortgages or long-term bank loans',
   },
   {
     id: accountTypeIds.ncl_long_term_debt_contra,
     key: 'ncl_long_term_debt_contra',
     report_code: 'BS.LIA.NCL.DBT.CTR',
     label: 'Debt Discounts',
-    description: 'Contra-liability reducing the carrying value of long-term debt',
+    description:
+      'Contra-liability reducing the carrying value of long-term debt',
   },
   {
     id: accountTypeIds.ncl_long_term_lease,
@@ -291,14 +300,16 @@ export const accountTypes = [
     key: 'cl_short_term_debt',
     report_code: 'BS.LIA.CUR.STD',
     label: 'Short-Term Debt',
-    description: 'Borrowings due within one year, such as bank overdrafts, short-term credit lines',
+    description:
+      'Borrowings due within one year, such as bank overdrafts, short-term credit lines',
   },
   {
     id: accountTypeIds.cl_short_term_debt_contra,
     key: 'cl_short_term_debt_contra',
     report_code: 'BS.LIA.CUR.STD.CTR',
     label: 'Debt Discounts - Short-Term Debt',
-    description: 'Contra-liability reducing the carrying value of short-term debt',
+    description:
+      'Contra-liability reducing the carrying value of short-term debt',
   },
   {
     id: accountTypeIds.cl_tax,
@@ -326,14 +337,16 @@ export const accountTypes = [
     key: 'eq_contributed_capital',
     report_code: 'BS.EQU.CAP.CAP',
     label: 'Contributed Capital',
-    description: 'Share capital, premium, APIC, other direct contributions from owners',
+    description:
+      'Share capital, premium, APIC, other direct contributions from owners',
   },
   {
     id: accountTypeIds.eq_retained_earnings,
     key: 'eq_retained_earnings',
     report_code: 'BS.EQU.RES.RET',
     label: 'Retained Earnings',
-    description: 'Accumulated net income retained in the business after dividends are paid',
+    description:
+      'Accumulated net income retained in the business after dividends are paid',
   },
   {
     id: accountTypeIds.eq_oci,
@@ -347,7 +360,8 @@ export const accountTypes = [
     key: 'eq_other',
     report_code: 'BS.EQU.OTH.OTH',
     label: 'Other Components of Equity',
-    description: 'All other components of equity not included in any other category',
+    description:
+      'All other components of equity not included in any other category',
   },
   {
     id: accountTypeIds.rev_revenue,
@@ -375,14 +389,16 @@ export const accountTypes = [
     key: 'rev_other_income',
     report_code: 'IS.INC.OTH.OTH',
     label: 'Other Income',
-    description: 'Miscellaneous income such as asset sales, grants, or one-time gains',
+    description:
+      'Miscellaneous income such as asset sales, grants, or one-time gains',
   },
   {
     id: accountTypeIds.exp_cos,
     key: 'exp_cos',
     report_code: 'IS.EXP.COS.COS',
     label: 'Cost of sales',
-    description: 'Direct costs incurred in the production or acquisition of goods sold',
+    description:
+      'Direct costs incurred in the production or acquisition of goods sold',
   },
   {
     id: accountTypeIds.exp_opex_employee_benefits,
@@ -397,7 +413,8 @@ export const accountTypes = [
     key: 'exp_opex_marketing_selling',
     report_code: 'IS.EXP.OPX.MKT',
     label: 'Marketing and Selling',
-    description: "Costs associated with promoting the company's products or services",
+    description:
+      "Costs associated with promoting the company's products or services",
   },
   {
     id: accountTypeIds.exp_opex_rent,
@@ -435,7 +452,8 @@ export const accountTypes = [
     key: 'exp_opex_professional_fees',
     report_code: 'IS.EXP.OPX.PRF',
     label: 'Professional Fees',
-    description: 'Fees paid to external professionals, such as lawyers and consultants',
+    description:
+      'Fees paid to external professionals, such as lawyers and consultants',
   },
   {
     id: accountTypeIds.exp_opex_tel_internet,
@@ -450,14 +468,16 @@ export const accountTypes = [
     key: 'exp_opex_software_subscriptions',
     report_code: 'IS.EXP.OPX.SFT',
     label: 'IT Software, Subscriptions and Consumables',
-    description: 'Costs of cloud software, SaaS tools, licensing fees and general IT consumables',
+    description:
+      'Costs of cloud software, SaaS tools, licensing fees and general IT consumables',
   },
   {
     id: accountTypeIds.exp_opex_travel,
     key: 'exp_opex_travel',
     report_code: 'IS.EXP.OPX.TRV',
     label: 'Transport and Travel',
-    description: 'Expenses related to employee transportation and business travel',
+    description:
+      'Expenses related to employee transportation and business travel',
   },
   {
     id: accountTypeIds.exp_opex_depreciation_amortization,
@@ -480,14 +500,16 @@ export const accountTypes = [
     key: 'exp_opex_other',
     report_code: 'IS.EXP.OPX.OTH',
     label: 'Other Administrative Expenses',
-    description: 'Miscellaneous expenses related to the general running of the business',
+    description:
+      'Miscellaneous expenses related to the general running of the business',
   },
   {
     id: accountTypeIds.exp_nopex_finance_costs,
     key: 'exp_nopex_finance_costs',
     report_code: 'IS.EXP.NOP.FIN',
     label: 'Finance Costs',
-    description: 'Costs incurred from borrowing funds, including interest and other charges',
+    description:
+      'Costs incurred from borrowing funds, including interest and other charges',
   },
   {
     id: accountTypeIds.exp_nopex_other,

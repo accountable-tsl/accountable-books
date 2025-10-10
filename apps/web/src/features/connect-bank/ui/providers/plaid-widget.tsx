@@ -3,6 +3,7 @@ import { usePlaidLink } from 'react-plaid-link';
 import { Button } from '@/components/ui/button';
 import { WidgetLoading } from '@/features/connect-bank/ui/components/widget-loading';
 import { plaidOAuthStorage } from '@/features/connect-bank/utils/oauth-storage';
+import { WidgetManualFallback } from './widget-manual-fallback';
 
 interface PlaidWidgetProps {
   linkToken: string;
@@ -12,6 +13,7 @@ interface PlaidWidgetProps {
   // OAuth state props
   userId?: string;
   companyId?: string;
+  countryCode: string;
 }
 
 export function PlaidWidget({
@@ -21,6 +23,7 @@ export function PlaidWidget({
   onError,
   userId,
   companyId,
+  countryCode,
 }: PlaidWidgetProps) {
   const [_isReady, setIsReady] = useState(false);
 
@@ -63,23 +66,25 @@ export function PlaidWidget({
           companyId,
           userId,
           provider: 'plaid',
+          countryCode,
           returnUrl: window.location.href, // Store current URL to return to after OAuth
         });
       }
 
       open();
     }
-  }, [ready, open, error, linkToken, companyId, userId]);
+  }, [ready, open, error, linkToken, companyId, userId, countryCode]);
 
   const handleClick = () => {
     if (ready) {
       // Save OAuth state before manually opening Link
-      if (userId && companyId && linkToken) {
+      if (userId && companyId && linkToken && countryCode) {
         plaidOAuthStorage.save({
           linkToken,
           companyId,
           userId,
           provider: 'plaid',
+          countryCode,
           returnUrl: window.location.href,
         });
       }
@@ -91,8 +96,15 @@ export function PlaidWidget({
   if (error) {
     return (
       <div className="p-4 border border-red-200 rounded-md bg-red-50">
-        <p className="text-red-800 text-sm">Error loading Plaid Link. Please try again.</p>
-        <Button onClick={handleClick} disabled={!ready} className="mt-2" variant="outline">
+        <p className="text-red-800 text-sm">
+          Error loading Plaid Link. Please try again.
+        </p>
+        <Button
+          onClick={handleClick}
+          disabled={!ready}
+          className="mt-2"
+          variant="outline"
+        >
           Retry
         </Button>
       </div>
@@ -103,20 +115,5 @@ export function PlaidWidget({
     return <WidgetLoading />;
   }
 
-  return (
-    <div className="space-y-4 text-center">
-      <div>
-        <h3 className="text-lg font-semibold mb-2">Opening Bank Connection...</h3>
-        <p className="text-muted-foreground text-sm mb-4">
-          The secure banking interface will open automatically. If it doesn't appear, click below.
-        </p>
-      </div>
-
-      <Button onClick={handleClick} className="w-full" size="lg" variant="outline">
-        Open Bank Connection
-      </Button>
-
-      <div className="text-xs text-muted-foreground">Your credentials are encrypted and secure</div>
-    </div>
-  );
+  return <WidgetManualFallback onOpenClick={handleClick} />;
 }

@@ -31,7 +31,9 @@ export function AddBankTransaction() {
                 >
                   Open Google Sheets Template
                 </a>{' '}
-                <span className="text-muted-foreground text-xs">(includes instructions)</span>
+                <span className="text-muted-foreground text-xs">
+                  (includes instructions)
+                </span>
               </span>
             </div>
             <div className="w-full bg-muted p-4 rounded-md">

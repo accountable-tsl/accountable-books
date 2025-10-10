@@ -1,5 +1,7 @@
 import { ENV } from '../config/env-loader.js';
 import pg from 'pg';
+import { isProd } from '../src/config/env.js';
+import { redis } from '../src/lib/redis.js';
 
 const client = new pg.Client({
   host: ENV.DB_HOST || 'localhost',
@@ -56,6 +58,38 @@ END $$;
   await client.end();
 
   console.log('✅ Database reset complete.');
+
+  // Optionally flush Redis as part of full reset
+  const skipRedis = process.argv.includes('--no-redis');
+  const forceRedis = process.argv.includes('--force-redis');
+
+  if (skipRedis) {
+    console.log('⚠️ Skipping Redis flush (flag: --no-redis).');
+    return;
+  }
+
+  if (isProd && !forceRedis) {
+    console.log(
+      '🚫 Refusing to flush Redis in production without --force-redis',
+    );
+    return;
+  }
+
+  try {
+    console.log('🧹 Flushing Redis...');
+    await redis.flushdb();
+    console.log('✅ Redis flush complete.');
+  } catch (err) {
+    console.error('❌ Error flushing Redis:', err);
+    throw err;
+  } finally {
+    try {
+      await redis.quit();
+    } catch {
+      // Ignore redis quit errors
+      console.log('');
+    }
+  }
 };
 
 run().catch((err) => {

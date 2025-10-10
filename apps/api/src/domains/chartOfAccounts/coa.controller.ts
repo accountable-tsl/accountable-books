@@ -22,14 +22,23 @@ export const createCoaController = async (req: AuthRequest, res: Response) => {
     }
 
     const response = await createCoa({ companyId, userId, data });
-    return response.success ? res.status(200).json(response) : res.status(400).json(response);
+    return response.success
+      ? res.status(200).json(response)
+      : res.status(400).json(response);
   } catch (error: unknown) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 };
 
 export const getCoaController = async (req: AuthRequest, res: Response) => {
-  const { companyId: companyIdFromQuery, id, code, active, key, includeDeleted } = req.query;
+  const {
+    companyId: companyIdFromQuery,
+    id,
+    code,
+    active,
+    key,
+    includeDeleted,
+  } = req.query;
   const companyId = companyIdFromQuery || req.params.companyId;
   if (!companyId || typeof companyId !== 'string') {
     return res.status(400).json(errorResponse('Missing or invalid companyId'));
@@ -42,16 +51,23 @@ export const getCoaController = async (req: AuthRequest, res: Response) => {
       ...(code ? { code: String(code) } : {}),
       ...(active
         ? {
-            active: active === 'true' ? true : active === 'false' ? false : undefined,
+            active:
+              active === 'true' ? true : active === 'false' ? false : undefined,
           }
         : {}),
       ...(key ? { accountTypeKey: String(key) } : {}),
-      ...(includeDeleted ? { includeDeleted: includeDeleted === 'true' ? true : false } : {}),
+      ...(includeDeleted
+        ? { includeDeleted: includeDeleted === 'true' ? true : false }
+        : {}),
     });
 
-    return result.success ? res.status(200).json(result) : res.status(400).json(result);
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
   } catch (error) {
-    return res.status(500).json(errorResponse('An unexpected error occurred', error));
+    return res
+      .status(500)
+      .json(errorResponse('An unexpected error occurred', error));
   }
 };
 
@@ -65,9 +81,13 @@ export const editCoaController = async (req: AuthRequest, res: Response) => {
   try {
     const result = await editCoa(obj);
 
-    return result.success ? res.status(200).json(result) : res.status(400).json(result);
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
   } catch (error) {
-    return res.status(500).json(errorResponse('An unexpected error occurred', error));
+    return res
+      .status(500)
+      .json(errorResponse('An unexpected error occurred', error));
   }
 };
 
@@ -84,9 +104,13 @@ export const deleteCoaController = async (req: AuthRequest, res: Response) => {
       accountIds: updates.map(({ id }) => id),
     });
 
-    return result.success ? res.status(200).json(result) : res.status(400).json(result);
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
   } catch (error) {
-    return res.status(500).json(errorResponse('An unexpected error occurred', error));
+    return res
+      .status(500)
+      .json(errorResponse('An unexpected error occurred', error));
   }
 };
 
@@ -103,14 +127,21 @@ export const archiveCoaController = async (req: AuthRequest, res: Response) => {
       accountIds: updates.map(({ id }) => id),
     });
 
-    return result.success ? res.status(200).json(result) : res.status(400).json(result);
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
   } catch (error) {
-    return res.status(500).json(errorResponse('An unexpected error occurred', error));
+    return res
+      .status(500)
+      .json(errorResponse('An unexpected error occurred', error));
   }
 };
 
 // Bulk unarchive COA records
-export const unarchiveCoaController = async (req: AuthRequest, res: Response) => {
+export const unarchiveCoaController = async (
+  req: AuthRequest,
+  res: Response,
+) => {
   const obj = coaUpdatePreChecks(req, res);
   if (typeof obj === 'string') {
     return res.status(400).json(errorResponse(obj));
@@ -123,9 +154,13 @@ export const unarchiveCoaController = async (req: AuthRequest, res: Response) =>
       accountIds: updates.map(({ id }) => id),
     });
 
-    return result.success ? res.status(200).json(result) : res.status(400).json(result);
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
   } catch (error) {
-    return res.status(500).json(errorResponse('An unexpected error occurred', error));
+    return res
+      .status(500)
+      .json(errorResponse('An unexpected error occurred', error));
   }
 };
 

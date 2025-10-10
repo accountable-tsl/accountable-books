@@ -57,7 +57,11 @@ export function isObject(value: any): boolean {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function compareObjects(A: any, B: any, result: ComparisonResult): ComparisonResult {
+function compareObjects(
+  A: any,
+  B: any,
+  result: ComparisonResult,
+): ComparisonResult {
   const allKeys = new Set([...Object.keys(A), ...Object.keys(B)]);
 
   allKeys.forEach((key) => {
@@ -73,7 +77,12 @@ function compareObjects(A: any, B: any, result: ComparisonResult): ComparisonRes
       result.summary.removedCount++;
       result.summary.hasChanges = true;
     } else if (aValue !== bValue) {
-      if (isObject(aValue) || isObject(bValue) || Array.isArray(aValue) || Array.isArray(bValue)) {
+      if (
+        isObject(aValue) ||
+        isObject(bValue) ||
+        Array.isArray(aValue) ||
+        Array.isArray(bValue)
+      ) {
         const nestedResult = compareDeep(aValue, bValue);
         if (nestedResult.summary.hasChanges) {
           result.modified[key] = nestedResult;
@@ -91,7 +100,11 @@ function compareObjects(A: any, B: any, result: ComparisonResult): ComparisonRes
   return result;
 }
 
-function compareArrays(A: any[], B: any[], result: ComparisonResult): ComparisonResult {
+function compareArrays(
+  A: any[],
+  B: any[],
+  result: ComparisonResult,
+): ComparisonResult {
   const maxLength = Math.max(A.length, B.length);
 
   for (let i = 0; i < maxLength; i++) {
@@ -107,7 +120,12 @@ function compareArrays(A: any[], B: any[], result: ComparisonResult): Comparison
       result.summary.removedCount++;
       result.summary.hasChanges = true;
     } else if (aValue !== bValue) {
-      if (isObject(aValue) || isObject(bValue) || Array.isArray(aValue) || Array.isArray(bValue)) {
+      if (
+        isObject(aValue) ||
+        isObject(bValue) ||
+        Array.isArray(aValue) ||
+        Array.isArray(bValue)
+      ) {
         const nestedResult = compareDeep(aValue, bValue);
         if (nestedResult.summary.hasChanges) {
           result.modified[i] = nestedResult;

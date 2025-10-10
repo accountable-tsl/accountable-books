@@ -47,7 +47,9 @@ export function TrustIndicators() {
           </div>
           <div>
             <div className="font-medium text-sm">{indicator.title}</div>
-            <div className="text-xs text-muted-foreground">{indicator.description}</div>
+            <div className="text-xs text-muted-foreground">
+              {indicator.description}
+            </div>
           </div>
         </div>
       ))}

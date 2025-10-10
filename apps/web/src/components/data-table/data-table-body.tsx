@@ -14,9 +14,13 @@ interface DataTableBodyProps<TData> {
 export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const { virtualization, customClassNames } = table.customOptions || {};
-  const { tableBody, tableBodyCell, tableBodyRow, emptyTableRow } = customClassNames || {};
+  const { tableBody, tableBodyCell, tableBodyRow, emptyTableRow } =
+    customClassNames || {};
 
-  const rows = React.useMemo(() => table.getRowModel().rows, [table.getRowModel().rows]);
+  const rows = React.useMemo(
+    () => table.getRowModel().rows,
+    [table.getRowModel().rows],
+  );
 
   const enableVirtual = virtualization?.enabled ?? false;
   const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 60;
@@ -45,7 +49,8 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   //   }
   // }, [table.getState().sorting, virtualizer, enableVirtual]);
 
-  const virtualItems = enableVirtual && scrollRef.current ? virtualizer.getVirtualItems() : [];
+  const virtualItems =
+    enableVirtual && scrollRef.current ? virtualizer.getVirtualItems() : [];
 
   const rowClick = table.customOptions?.rowClick;
   const rowClickEnabled = !!rowClick || false;
@@ -91,7 +96,9 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
         {row.getVisibleCells().map((cell: Cell<TData, unknown>) => {
           // const hasCheckbox = cell.getValue() === 'checkbox' || cell.column.id === 'select';
 
-          const columnDef = table._getColumnDefs().find((c) => c.id === cell.column.id);
+          const columnDef = table
+            ._getColumnDefs()
+            .find((c) => c.id === cell.column.id);
           const explicitSize = !!columnDef?.size;
 
           const colStyle = getColumnStyle({ column: cell, explicitSize });
@@ -115,7 +122,9 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   if (enableVirtual && virtualizer) {
     return (
       <TableBody ref={scrollRef} className={tableBody}>
-        <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+        <div
+          style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+        >
           {virtualItems.map((virtualRow) => (
             <div
               key={virtualRow.key}
@@ -149,7 +158,9 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
         )}
       </TableBody>
 
-      {shouldShowViewer && rowViewerInfo && <RowViewer rowViewerInfo={rowViewerInfo} />}
+      {shouldShowViewer && rowViewerInfo && (
+        <RowViewer rowViewerInfo={rowViewerInfo} />
+      )}
     </>
   );
 }

@@ -46,17 +46,26 @@ export const BankTransactionImporter = ({
   options,
 }: BankTransactionImporterProps) => {
   // States
-  const [companyBankAccounts, setCompanyBankAccounts] = useState<BankAccountWithMeta[] | null>();
-  const [selectedBankAccount, setSelectedBankAccount] = useState<BankAccountWithMeta | null>(null);
+  const [companyBankAccounts, setCompanyBankAccounts] = useState<
+    BankAccountWithMeta[] | null
+  >();
+  const [selectedBankAccount, setSelectedBankAccount] =
+    useState<BankAccountWithMeta | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [parsedResults, setParsedResults] = useState<ParsedCsvResult[]>();
-  const [fileTransactions, setFileTransactions] = useState<FileTransaction[] | null>(null);
+  const [fileTransactions, setFileTransactions] = useState<
+    FileTransaction[] | null
+  >(null);
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [_isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<'success' | 'failed' | null>(null);
-  const [selectedStep, setSelectedStep] = useState<'upload' | 'review'>('upload');
+  const [uploadStatus, setUploadStatus] = useState<'success' | 'failed' | null>(
+    null,
+  );
+  const [selectedStep, setSelectedStep] = useState<'upload' | 'review'>(
+    'upload',
+  );
 
   // Hooks
   const { companyId } = useSession();
@@ -89,7 +98,9 @@ export const BankTransactionImporter = ({
 
     // Compute current key for each file
     const currKeys = (results || [])
-      .map((r) => r.file?.name + '-' + r.file?.size + '-' + r.file?.lastModified)
+      .map(
+        (r) => r.file?.name + '-' + r.file?.size + '-' + r.file?.lastModified,
+      )
       .sort();
     const prevKeys = prevParsedKeys.current;
 
@@ -115,8 +126,10 @@ export const BankTransactionImporter = ({
             };
           })
           .sort((a, b) => {
-            const dateA = a.date instanceof Date ? a.date : new Date(a.date as string);
-            const dateB = b.date instanceof Date ? b.date : new Date(b.date as string);
+            const dateA =
+              a.date instanceof Date ? a.date : new Date(a.date as string);
+            const dateB =
+              b.date instanceof Date ? b.date : new Date(b.date as string);
             return dateA.getTime() - dateB.getTime();
           });
 
@@ -140,9 +153,12 @@ export const BankTransactionImporter = ({
     const filesWithData = results.filter((r) => !r.error && r.data.length > 0);
 
     if (filesWithErrors.length) {
-      toast.error(`Some files had errors: ${filesWithErrors.map((r) => r.file.name).join(', ')}`, {
-        position: toastPosition || 'top-right',
-      });
+      toast.error(
+        `Some files had errors: ${filesWithErrors.map((r) => r.file.name).join(', ')}`,
+        {
+          position: toastPosition || 'top-right',
+        },
+      );
     }
     if (filesWithData.length) {
       toast.success(
@@ -173,7 +189,9 @@ export const BankTransactionImporter = ({
   };
   const handleBack = () => {
     if (fileTransactions?.length) {
-      if (window.confirm('Are you sure? You may lose unsaved transaction data.')) {
+      if (
+        window.confirm('Are you sure? You may lose unsaved transaction data.')
+      ) {
         setFileTransactions(null);
         setSelectedBankAccount(null);
         setParsedResults([]);
@@ -199,7 +217,12 @@ export const BankTransactionImporter = ({
     const { stats, transactions, bankAccount } = fileTransactions[0];
 
     // Guard: Incomplete data
-    if (!stats.earliestDate || !stats.latestDate || !transactions || !bankAccount.id) {
+    if (
+      !stats.earliestDate ||
+      !stats.latestDate ||
+      !transactions ||
+      !bankAccount.id
+    ) {
       toast.error('Error reading transaction data', {
         position: toastPosition || 'top-right',
       });
@@ -262,7 +285,9 @@ export const BankTransactionImporter = ({
           position: toastPosition || 'top-right',
         });
         setUploadStatus('failed');
-        onImportError?.(apiResult.status === 'rejected' ? apiResult.reason : response);
+        onImportError?.(
+          apiResult.status === 'rejected' ? apiResult.reason : response,
+        );
         return;
       }
 
@@ -297,7 +322,9 @@ export const BankTransactionImporter = ({
 
   const onNewBankAccount = (newAccount?: BankAccountWithMeta) => {
     if (newAccount) {
-      setCompanyBankAccounts((prev) => (prev ? [...prev, newAccount] : [newAccount]));
+      setCompanyBankAccounts((prev) =>
+        prev ? [...prev, newAccount] : [newAccount],
+      );
     }
 
     setSelectedBankAccount(newAccount ?? null);
@@ -354,7 +381,8 @@ export const BankTransactionImporter = ({
               <ul className="list-disc pl-4">
                 <li>Save/export your file as CSV</li>
                 <li>
-                  Make sure all dates are in <b>YYYY-MM-DD</b> format (e.g., 2025-06-07)
+                  Make sure all dates are in <b>YYYY-MM-DD</b> format (e.g.,
+                  2025-06-07)
                 </li>
                 <li>Don’t include currency symbols or commas in amounts</li>
               </ul>
@@ -378,7 +406,8 @@ export const BankTransactionImporter = ({
                 })}
                 value={selectedBankAccount?.id || ''}
                 onValueChange={(id) => {
-                  const found = companyBankAccounts?.find((acc) => acc.id === id) ?? null;
+                  const found =
+                    companyBankAccounts?.find((acc) => acc.id === id) ?? null;
                   setSelectedBankAccount(found);
                 }}
                 groupBy={isMobile ? '' : 'bankName'}
@@ -412,7 +441,9 @@ export const BankTransactionImporter = ({
                       </div>
 
                       <div>
-                        <p className="font-medium">{selectedBankAccount.bankName}</p>
+                        <p className="font-medium">
+                          {selectedBankAccount.bankName}
+                        </p>
                         <p className="text-sm">
                           {selectedBankAccount.displayName}{' '}
                           {maskDigits(selectedBankAccount.accountNumber)}
@@ -464,7 +495,11 @@ export const BankTransactionImporter = ({
         {/* Submit */}
         <div className="flex justify-end">
           <hr />
-          <Button type="button" disabled={!selectedBankAccount} onClick={handleReview}>
+          <Button
+            type="button"
+            disabled={!selectedBankAccount}
+            onClick={handleReview}
+          >
             Review Transactions
           </Button>
         </div>
@@ -492,7 +527,9 @@ export const BankTransactionImporter = ({
               return (
                 <React.Fragment key={`${tx.fileName}-${idx}`}>
                   <div>
-                    <div className="border-b font-semibold text-lg">Bank Account</div>
+                    <div className="border-b font-semibold text-lg">
+                      Bank Account
+                    </div>
 
                     <div className="bg-muted inset-shadow-sm p-4">
                       <div className="flex items-center justify-between">
@@ -502,9 +539,12 @@ export const BankTransactionImporter = ({
                           </div>
 
                           <div>
-                            <p className="font-medium">{bankAccount.bankName}</p>
+                            <p className="font-medium">
+                              {bankAccount.bankName}
+                            </p>
                             <p className="text-sm">
-                              {bankAccount.displayName} {maskDigits(bankAccount.accountNumber)}
+                              {bankAccount.displayName}{' '}
+                              {maskDigits(bankAccount.accountNumber)}
                             </p>
                           </div>
                         </div>
@@ -512,7 +552,9 @@ export const BankTransactionImporter = ({
                     </div>
                   </div>
                   <div key={`${idx}-${tx.fileName}`}>
-                    <div className="border-b font-semibold text-lg">Import Summary</div>
+                    <div className="border-b font-semibold text-lg">
+                      Import Summary
+                    </div>
                     <div
                       // className="grid grid-cols-1 sm:grid-cols-2 lg:[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-3 inset-shadow-sm pt-4"
                       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[auto_1fr_1fr_1fr] gap-3 inset-shadow-sm pt-4"
@@ -524,7 +566,9 @@ export const BankTransactionImporter = ({
                               <Activity className="h-4 w-4 text-blue-600" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600 truncate">Transactions</p>
+                              <p className="text-sm text-gray-600 truncate">
+                                Transactions
+                              </p>
                               <p className="text-xl font-semibold truncate">
                                 {stats.transactionCount || transactions.length}
                               </p>
@@ -540,7 +584,9 @@ export const BankTransactionImporter = ({
                               <TrendingUp className="h-4 w-4 text-green-600" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600 truncate">Money In</p>
+                              <p className="text-sm text-gray-600 truncate">
+                                Money In
+                              </p>
                               <p className="text-lg font-semibold text-green-600 truncate">
                                 <FormattedAmount
                                   amount={stats.totalPositive}
@@ -560,7 +606,9 @@ export const BankTransactionImporter = ({
                               <TrendingDown className="h-4 w-4 text-red-600" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600 truncate">Money Out</p>
+                              <p className="text-sm text-gray-600 truncate">
+                                Money Out
+                              </p>
                               <p className="text-lg font-semibold text-red-600 truncate">
                                 <FormattedAmount
                                   amount={stats.totalNegative}
@@ -580,7 +628,9 @@ export const BankTransactionImporter = ({
                               <DollarSign className="h-4 w-4 text-gray-600" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600 truncate">Net Change</p>
+                              <p className="text-sm text-gray-600 truncate">
+                                Net Change
+                              </p>
                               <p className="text-lg font-semibold truncate">
                                 <FormattedAmount
                                   amount={stats.netChange}
@@ -597,7 +647,9 @@ export const BankTransactionImporter = ({
                   </div>
 
                   <div className="flex flex-col flex-1 min-h-0 h-full">
-                    <div className="font-semibold text-lg">Transactions to import</div>
+                    <div className="font-semibold text-lg">
+                      Transactions to import
+                    </div>
                     <div className="flex-1 min-h-0 flex flex-col overflow-clip mb-2 inset-shadow-sm relative">
                       {(isSubmitting || uploadStatus) && (
                         <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/40 backdrop-blur-sm">
@@ -631,7 +683,9 @@ export const BankTransactionImporter = ({
                                   )}
                                   style={{
                                     flex: f.width ? `0 0 ${f.width}` : '1 1 0%',
-                                    width: f.width ? f.width : columnPercentWidth,
+                                    width: f.width
+                                      ? f.width
+                                      : columnPercentWidth,
                                     minWidth: f.width ? f.width : '5rem',
                                   }}
                                 >
@@ -644,7 +698,10 @@ export const BankTransactionImporter = ({
                       </div>
 
                       {/* Scrollable Body */}
-                      <div role="table" className="flex-1 overflow-auto scrollbar-thin-2px">
+                      <div
+                        role="table"
+                        className="flex-1 overflow-auto scrollbar-thin-2px"
+                      >
                         <div role="rowgroup">
                           {transactions.map((row: any, rowIdx: number) => (
                             <div
@@ -654,7 +711,12 @@ export const BankTransactionImporter = ({
                             >
                               {displayFields.map((f, fIdx) => {
                                 const cell =
-                                  f.render?.(row[f.value], row, rowIdx, bankAccount.currencyCode) ??
+                                  f.render?.(
+                                    row[f.value],
+                                    row,
+                                    rowIdx,
+                                    bankAccount.currencyCode,
+                                  ) ??
                                   row[f.value] ??
                                   '';
 
@@ -671,12 +733,17 @@ export const BankTransactionImporter = ({
                                           : 'text-left'
                                     } ${f.className ?? ''}`}
                                     style={{
-                                      flex: f.width ? `0 0 ${f.width}` : '1 1 0%',
-                                      width: f.width ? f.width : columnPercentWidth,
+                                      flex: f.width
+                                        ? `0 0 ${f.width}`
+                                        : '1 1 0%',
+                                      width: f.width
+                                        ? f.width
+                                        : columnPercentWidth,
                                       minWidth: f.width ? f.width : '5rem',
                                     }}
                                   >
-                                    {typeof cell === 'object' && !React.isValidElement(cell)
+                                    {typeof cell === 'object' &&
+                                    !React.isValidElement(cell)
                                       ? JSON.stringify(cell)
                                       : cell}
                                   </div>
@@ -694,7 +761,9 @@ export const BankTransactionImporter = ({
                         variant={'outline'}
                         onClick={handleBack}
                         disabled={
-                          isSubmitting || selectedStep !== 'review' || uploadStatus === 'success'
+                          isSubmitting ||
+                          selectedStep !== 'review' ||
+                          uploadStatus === 'success'
                         }
                       >
                         Back

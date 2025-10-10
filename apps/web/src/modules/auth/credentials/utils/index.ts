@@ -1,7 +1,10 @@
 import { normalizedReservedSlugs } from '@/modules/company/firms';
 
 export const setLogoutReason = (reason: 'expired' | 'manual' | 'forced') => {
-  localStorage.setItem('logoutReason', JSON.stringify({ reason, timestamp: Date.now() }));
+  localStorage.setItem(
+    'logoutReason',
+    JSON.stringify({ reason, timestamp: Date.now() }),
+  );
 };
 
 export const getLogoutReason = (): string | null => {
@@ -31,7 +34,9 @@ export function sanitizeInput(value: string): string {
     .trim();
 }
 
-export function sanitizeOptionalInput(value: string | null | undefined): string | undefined {
+export function sanitizeOptionalInput(
+  value: string | null | undefined,
+): string | undefined {
   if (value == null) return undefined;
   const cleaned = sanitizeInput(String(value));
   return cleaned.length ? cleaned : undefined;
