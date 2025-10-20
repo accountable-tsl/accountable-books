@@ -5,6 +5,7 @@ import { logger } from '../../../shared/utils/logger.js';
 import type {
   TransactionSyncResult,
   ProviderTransaction,
+  TransactionSyncBalance,
 } from '../types/base.js';
 import { TransactionSyncStrategy } from '../types/base.js';
 import { startOfMonth } from 'date-fns';
@@ -198,15 +199,6 @@ export class TransactionSyncService {
           errors: [] as Array<{ batch: any; error: string }>,
         };
 
-        // Process added transactions
-        if (result.transactions.added.length > 0) {
-          processedTxns = await this.processAddedTransactions(
-            result.transactions.added,
-            accountMap,
-            credential.company_id,
-          );
-        }
-
         // Process modified transactions
         if (result.transactions.modified.length > 0) {
           await this.processModifiedTransactions(
@@ -250,6 +242,15 @@ export class TransactionSyncService {
               removedCount: result.transactions.removed.length,
             });
           }
+        }
+
+        // Process added transactions
+        if (result.transactions.added.length > 0) {
+          processedTxns = await this.processAddedTransactions({
+            transactions: result.transactions.added,
+            accountMap,
+            companyId: credential.company_id,
+          });
         }
 
         // Log batch processing results
@@ -431,11 +432,15 @@ export class TransactionSyncService {
   /**
    * Insert new transactions
    */
-  private async processAddedTransactions(
-    transactions: ProviderTransaction[],
-    accountMap: Map<string, BankAccountForSync>,
-    companyId: string,
-  ): Promise<{
+  private async processAddedTransactions({
+    transactions,
+    accountMap,
+    companyId,
+  }: {
+    transactions: ProviderTransaction[];
+    accountMap: Map<string, BankAccountForSync>;
+    companyId: string;
+  }): Promise<{
     successful: number;
     failed: number;
     errors: Array<{ batch: any; error: string }>;
@@ -478,6 +483,8 @@ export class TransactionSyncService {
               },
               error: res.message || 'Unknown error',
             });
+            // TODO: Add notification system for failed batch imports
+            // Should notify users/admins when transaction sync batches fail
           }
         } else {
           results.successful++;

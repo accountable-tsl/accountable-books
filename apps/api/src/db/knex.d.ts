@@ -67,6 +67,30 @@ import type {
   BankAccountCredential,
   NewBankAccountCredential,
 } from '../domains/banking/bankAccountCredentials/bankAccountCredentials.types.ts';
+import type {
+  GLDailyBalanceSnapshot,
+  NewGLDailyBalanceSnapshot,
+  BankDailyBalanceSnapshot,
+  NewBankDailyBalanceSnapshot,
+  FiscalCalendar,
+  NewFiscalCalendar,
+  GLPeriodBalance,
+  NewGLPeriodBalance,
+  GLCurrentBalance,
+  NewGLCurrentBalance,
+  BankCurrentBalance,
+  NewBankCurrentBalance,
+} from '../domains/balances/balances.types.ts';
+import type {
+  FiscalCalendar,
+  NewFiscalCalendar,
+} from '../domains/reporting/fiscalCalendar/fiscalCalendar.types.ts';
+import type {
+  JournalBatch,
+  JournalEntry,
+  NewJournalBatch,
+  NewJournalEntry,
+} from '../domains/journals/journals.types.ts';
 
 declare module 'knex/types/tables' {
   interface Tables {
@@ -228,6 +252,71 @@ declare module 'knex/types/tables' {
       Project,
       NewProject,
       Partial<Omit<Project, 'id'>>
+    >;
+
+    // Balance system tables
+    fiscal_calendar: Knex.CompositeTableType<
+      FiscalCalendar,
+      NewFiscalCalendar,
+      Partial<
+        Omit<
+          FiscalCalendar,
+          'company_id' | 'fiscal_year' | 'period_number' | 'period_type'
+        >
+      >
+    >;
+
+    gl_daily_balance_snapshots: Knex.CompositeTableType<
+      GLDailyBalanceSnapshot,
+      NewGLDailyBalanceSnapshot,
+      Partial<Omit<GLDailyBalanceSnapshot, 'company_id' | 'coa_id' | 'day'>>
+    >;
+
+    bank_account_daily_native_snapshots: Knex.CompositeTableType<
+      BankDailyBalanceSnapshot,
+      NewBankDailyBalanceSnapshot,
+      Partial<
+        Omit<BankDailyBalanceSnapshot, 'company_id' | 'bank_account_id' | 'day'>
+      >
+    >;
+
+    gl_period_balances: Knex.CompositeTableType<
+      GLPeriodBalance,
+      NewGLPeriodBalance,
+      Partial<
+        Omit<
+          GLPeriodBalance,
+          | 'company_id'
+          | 'coa_id'
+          | 'fiscal_year'
+          | 'fiscal_period'
+          | 'period_type'
+        >
+      >
+    >;
+
+    gl_current_balances: Knex.CompositeTableType<
+      GLCurrentBalance,
+      NewGLCurrentBalance,
+      Partial<Omit<GLCurrentBalance, 'company_id' | 'coa_id'>>
+    >;
+
+    bank_account_current_native_balances: Knex.CompositeTableType<
+      BankCurrentBalance,
+      NewBankCurrentBalance,
+      Partial<Omit<BankCurrentBalance, 'company_id' | 'bank_account_id'>>
+    >;
+
+    journal_batches: Knex.CompositeTableType<
+      JournalBatch,
+      NewJournalBatch,
+      Partial<Omit<JournalBatch, 'id'>>
+    >;
+
+    journal_entries: Knex.CompositeTableType<
+      JournalEntry,
+      NewJournalEntry,
+      Partial<Omit<JournalEntry, 'id'>>
     >;
   }
 }

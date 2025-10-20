@@ -36,6 +36,10 @@ export async function up(knex: Knex): Promise<void> {
     table.unique(['ledger_entry_id', 'ledger_entry_fs_date']);
   });
 
+  await knex.raw(`
+    ALTER TABLE ${tableName}
+      ADD CONSTRAINT journal_entries_positive_amount_chk CHECK (amount > 0);
+  `);
   await createUpdateTimestampTrigger(knex, tableName);
 }
 

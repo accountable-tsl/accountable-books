@@ -23,6 +23,7 @@ import { getCurrency } from '../../../domains/currencies/currencies.utils.js';
 import logger from '../../../shared/utils/logger.js';
 import z from 'zod';
 import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
+import { setOpeningBalance } from '../../balances/openingBalance.service.js';
 
 const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields
@@ -263,10 +264,10 @@ async function createBankAccount({
   const validatedInput = newBankAccountInput.safeParse(bankAccountData);
   if (!validatedInput.success) {
     log.error(
-      { validationErrors: validatedInput.error.flatten() },
+      { validationErrors: z.treeifyError(validatedInput.error) },
       'invalid input',
     );
-    return errorResponse('Invalid input', validatedInput.error.flatten());
+    return errorResponse('Invalid input', z.treeifyError(validatedInput.error));
   }
 
   const v = validatedInput.data;
@@ -471,6 +472,64 @@ async function createBankAccount({
     } catch (e: any) {
       if (e?.code !== '23505') throw e;
       throw new Error('Bank account with the same details already exist');
+    }
+
+    // Handle opening balance if provided
+    if (
+      v.opening_balance !== undefined &&
+      v.opening_balance !== null &&
+      v.opening_balance_date
+    ) {
+      try {
+        const obDate = new Date(v.opening_balance_date);
+        const obResult = await setOpeningBalance({
+          params: {
+            bank_account_id: bankAccountId,
+            amount: v.opening_balance,
+            coverage_start: obDate,
+            coverage_end: obDate, // Same day for manual entry
+            origin: 'user_conversion',
+            metadata: {
+              source: 'manual_entry',
+              note: 'User-provided opening balance during account creation',
+            },
+          },
+          userId,
+          trx: tx,
+        });
+
+        if (!obResult.success) {
+          log.warn(
+            {
+              error: obResult.message,
+              bankAccountId,
+              openingBalance: v.opening_balance,
+              openingBalanceDate: v.opening_balance_date,
+            },
+            'Failed to create opening balance - continuing without it',
+          );
+          // Don't fail the whole transaction - just log the warning
+        } else {
+          log.info(
+            {
+              bankAccountId,
+              openingBalanceId: obResult.data?.openingBalanceId,
+              journalBatchId: obResult.data?.journalBatchId,
+              amount: v.opening_balance,
+            },
+            'Opening balance created successfully',
+          );
+        }
+      } catch (error) {
+        log.error(
+          {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            bankAccountId,
+          },
+          'Error creating opening balance',
+        );
+        // Don't fail the transaction - user can add opening balance later
+      }
     }
 
     return successResponse(

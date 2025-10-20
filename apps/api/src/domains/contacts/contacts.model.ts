@@ -27,7 +27,7 @@ import {
 } from '../../shared/utils/logger.js';
 import z from 'zod';
 
-const normalizeName = (name: string) => name.trim().toLowerCase();
+export const normalizeContactName = (name: string) => name.trim().toLowerCase();
 
 /**
  * Sanitizes contact input data by trimming whitespace and normalizing text fields
@@ -113,7 +113,7 @@ export async function addNewContacts({
 
       // Normalize names to verify uniqueness
       const normalizedNames = sanitizedContacts.map((c) =>
-        normalizeName(c.displayName),
+        normalizeContactName(c.displayName),
       );
       contactsLogger.debug(
         {
@@ -158,7 +158,7 @@ export async function addNewContacts({
         address: contact.address,
         notes: contact.notes,
         status: contact.status,
-        normalized_name: normalizeName(contact.displayName),
+        normalized_name: normalizeContactName(contact.displayName),
         company_id: companyUUID,
         created_by_id: userId,
         updated_by_id: userId,
@@ -446,7 +446,8 @@ export async function updateContacts({
       .map((c) => c.display_name as string);
 
     if (displayNamesToUpdate.length > 0) {
-      const normalizedNamesToUpdate = displayNamesToUpdate.map(normalizeName);
+      const normalizedNamesToUpdate =
+        displayNamesToUpdate.map(normalizeContactName);
 
       // Check for duplicates within the batch itself
       const duplicatesInBatch = normalizedNamesToUpdate.filter(
@@ -484,7 +485,7 @@ export async function updateContacts({
       // Only include fields that are explicitly provided
       if (contact.display_name !== undefined) {
         data.display_name = contact.display_name;
-        data.normalized_name = normalizeName(contact.display_name);
+        data.normalized_name = normalizeContactName(contact.display_name);
       }
       if (contact.address !== undefined) data.address = contact.address;
       if (contact.email !== undefined) data.email = contact.email;

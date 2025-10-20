@@ -24,7 +24,12 @@ export async function up(knex: Knex): Promise<void> {
 
     table.date('day').notNullable();
 
-    table.decimal('native_balance', 32, 10).notNullable().defaultTo(0);
+    // all in native currency of the bank account
+    table.decimal('opening_balance', 32, 10).notNullable().defaultTo(0);
+    table.decimal('day_debits', 32, 10).notNullable().defaultTo(0); // Total money out
+    table.decimal('day_credits', 32, 10).notNullable().defaultTo(0); // Total money in
+    table.decimal('closing_balance', 32, 10).notNullable().defaultTo(0);
+    table.integer('transaction_count').notNullable().defaultTo(0);
 
     table
       .timestamp('created_at', { useTz: true })
@@ -49,10 +54,20 @@ export async function up(knex: Knex): Promise<void> {
       ON ${tableName} (company_id, day DESC);
   `);
 
+  await knex.raw(`
+    ALTER TABLE bank_account_daily_native_snapshots
+      ADD CONSTRAINT bank_daily_balance_math_check
+      CHECK (closing_balance = opening_balance + day_debits - day_credits);
+  `);
+
   await createUpdateTimestampTrigger(knex, tableName);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(
+    `ALTER TABLE bank_account_daily_native_snapshots DROP CONSTRAINT IF EXISTS bank_daily_balance_math_check;`,
+  );
+
   await knex.raw(
     `DROP INDEX IF EXISTS bank_account_daily_snapshots_company_day_idx;`,
   );

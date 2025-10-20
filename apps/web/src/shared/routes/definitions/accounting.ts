@@ -8,9 +8,9 @@ export const accounting = {
   setup: route('/ws/accounting/setup', {
     label: 'Accounting Setup',
   }),
-  uploadBankTxn: route('/ws/accounting/upload-bank-txn', {
-    label: 'Upload Bank Transaction',
-  }),
+  // uploadBankTxn: route('/ws/accounting/upload-bank-txn', {
+  //   label: 'Upload Bank Transaction',
+  // }),
   transactions: route('/ws/accounting/transactions', {
     label: 'Transactions',
     sidebarCollapsed: true,

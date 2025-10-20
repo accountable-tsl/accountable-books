@@ -117,7 +117,8 @@ export class PlaidProvider extends BankingProvider {
     try {
       const res = await this.client.authGet({ access_token: accessToken });
       const accountData = res.data;
-      return this.mapAuthGetResponse(accountData);
+      const timestamp = new Date();
+      return this.mapAuthGetResponse(accountData, timestamp);
     } catch (error) {
       throw this.handleError(error);
     }
@@ -256,7 +257,10 @@ export class PlaidProvider extends BankingProvider {
     };
   }
 
-  private mapAuthGetResponse(data: AuthGetResponse): ProviderAccount[] {
+  private mapAuthGetResponse(
+    data: AuthGetResponse,
+    timestamp: Date,
+  ): ProviderAccount[] {
     const accountNumberLookup = new Map();
 
     for (const [numberType, accounts] of Object.entries(data.numbers)) {
@@ -292,6 +296,9 @@ export class PlaidProvider extends BankingProvider {
             numberData,
             balances: account.balances,
           },
+          balance: (account.balances.current ||
+            account.balances.available) as number,
+          balanceDate: timestamp,
         };
       });
   }
@@ -325,6 +332,12 @@ export class PlaidProvider extends BankingProvider {
 
       const response = await this.client.transactionsSync(request);
       const data = response.data;
+
+      const balances = data.accounts.map((account) => ({
+        providerBankAccountId: account.account_id,
+        closingBalance:
+          account.balances.current || account.balances.available || undefined,
+      }));
 
       return {
         transactions: {

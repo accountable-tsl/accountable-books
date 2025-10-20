@@ -50,6 +50,7 @@ export interface ProviderInstitution {
     swift?: string;
     local?: string; // NIP code, sort code, etc.
   };
+
   /** Raw provider response */
   rawData: Record<string, any>;
 }
@@ -65,6 +66,9 @@ export interface ProviderAccount {
   type?: BankAccountType; // Provider's account type
   mask?: string;
   rawData: Record<string, any>;
+
+  balance: number;
+  balanceDate: Date;
 }
 
 export interface AccountDiscoveryResult {
@@ -112,7 +116,9 @@ export interface ConnectionDetails {
     metadata?: Record<string, any>;
   };
 
-  institution: ProviderInstitution & { systemInstitutionId: string };
+  institution: ProviderInstitution & {
+    systemInstitutionId: string;
+  };
   bankAccounts: ProviderAccount[];
 }
 
@@ -122,6 +128,7 @@ export interface TransactionSyncResult {
     modified: ProviderTransaction[];
     removed: string[]; // transaction IDs
   };
+
   nextCursor?: string;
   hasMore: boolean;
 }

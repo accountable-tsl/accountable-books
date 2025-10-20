@@ -130,6 +130,7 @@ Launch `2025-29-09`
 - [ ] Implement monitoring - grafana, prometheus etc, and maybe versioning too
 - [ ] Add concurrency to deploy-staging.yml : { group: staging, cancel-in-progress: true }
 - [ ] Add all ISO 4217 currency codes to currencies table
+- Handling opening balances upon ingesting/connecting user's bank accounts + Opening / Conversion Balances
 
 ---
 

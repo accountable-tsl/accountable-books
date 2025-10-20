@@ -134,4 +134,5 @@ export type CoaResponse = {
   isActive: boolean;
   isDeleted: boolean;
   hasTransactions: boolean;
+  defaultMonetary: boolean;
 };

@@ -1,5 +1,4 @@
 import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   errorResponse,
@@ -25,6 +24,10 @@ import crypto from 'crypto';
 import type { Knex } from 'knex';
 import { randomUUID } from 'crypto';
 import { enqueueBankBalance } from '../../jobs/queues/balance-recalc.queue.js';
+import {
+  getActiveOpeningBalance,
+  setOpeningBalance,
+} from '../balances/openingBalance.service.js';
 
 export async function addNewBankTransactions({
   userId,
@@ -70,8 +73,14 @@ export async function addNewBankTransactions({
     });
   }
 
-  const { source, bank_account_id, bank_transactions, metadata } =
-    validate.data;
+  const {
+    source,
+    bank_account_id,
+    bank_transactions,
+    opening_balance,
+    closing_balance,
+    metadata,
+  } = validate.data;
   log('validation_complete');
 
   // const sameBankAccountIds = bank_transactions.every(
@@ -88,9 +97,19 @@ export async function addNewBankTransactions({
 
   // Ensure partitions exist for all transaction dates BEFORE starting the main transaction
   // This prevents DDL-within-transaction conflicts
-  const transactionDates = bank_transactions.map((txn) => new Date(txn.date));
-  await ensurePartitionsForDates('bank_transactions', transactionDates);
+  const transactionDates: Date[] = [];
+  let sumOfTransactions: number = 0.0;
+  let earliestTxn = bank_transactions[0];
+  let latestTxn = bank_transactions[0];
 
+  for (const txn of bank_transactions) {
+    transactionDates.push(txn.date);
+    sumOfTransactions += Number(txn.amount);
+    if (txn.date < earliestTxn.date) earliestTxn = txn;
+    if (txn.date > latestTxn.date) latestTxn = txn;
+  }
+
+  await ensurePartitionsForDates('bank_transactions', transactionDates);
   try {
     // Main transaction execution
     const executeTransaction = async (txn: Knex.Transaction) => {
@@ -101,11 +120,11 @@ export async function addNewBankTransactions({
       }
 
       // Verify bank account id exists and retrieve currency as well
-
       const bankAccount = await txn('bank_accounts as ba')
         .select(
           'ba.currency_id as bankCurrencyId',
           'c.reporting_currency_id as reportingCurrencyId',
+          'c.conversion_date as conversionDate',
         )
         .join('companies as c', 'ba.company_id', 'c.id')
         .where({
@@ -121,11 +140,196 @@ export async function addNewBankTransactions({
           traceId,
         });
       }
-      const { bankCurrencyId, reportingCurrencyId } = bankAccount;
+      const { bankCurrencyId, reportingCurrencyId, conversionDate } =
+        bankAccount;
+
+      /**
+       * Before inserting the batch:
+       * - Confirm that the conversion date is not set, If it is we just skip this step and continue with the rest of the flow
+       * - Check if there is an existing opening balance record for the bank account (A)
+       * - No existing opening balance record:
+       *    - Create an opening balance anchor record:
+       *      - as_of_date = end-of-day of the day BEFORE earliest txn
+       *      - opening balance is provided in params or derived from closing balance provided ** opening_amount = closing_at_t_close − Σ(txns in (as_of EOD, t_close]]**
+       *    - Post a single GL opening JE (Dr Bank / Cr Opening Balance Equity) for opening_amoun
+       *    - Enqueue a bank balance calculation job that is aware this is the first opening balance record and creates daily snapshot using this opening balance record as the starting point.
+       *
+       * - If there is an existing opening balance record,
+       * - Let E = earliest txn date, cStart..Cend = coverrage_start..coverage_end on A
+       *   Basically, we are checking if the earliest txn date is outside the coverage of the existing opening balance record
+       * - Case 1. If it is i.e E > Cend, no opening balance activity/adjustment is needed. Just proceed with the rest of the flow. and enqueue bank recalc for [E → today]
+       *
+       * - Case 2 E < Cstart (strictly BEFORE existing coverage - pure early backfill)
+       * - If it is not (i.e. the first transaction in this batch is earlier than the opening balance record date):
+       *    - Prepare to create an opening balance anchor record (Prepare a NEW opening balance anchor with new_as_of_date = end-of-day of day BEFORE E.)
+       *    - Determine the opening balance record that'll come right after this newly inserted one
+       *    - Compute what the opening balance for this new batch should be based on the existing opening balance record (referred above) (Recompute opening_amount against the SAME t_close used by A)
+       *    - Verify landing: derived opening amount + Σ(all txns in (new_as_of EOD, t_close]] = closing_at_t_close
+       *    - If opening balance is provided in the params or derived from closing balance provided, and this computation above doesn't match, we should log an error and fail the transaction
+       *    - If it matches or opening balance & closing balance is not provided, we should create the new opening balance anchor record
+       *    - Replace GL opening: VOID old opening JE, POST new opening JE and Enqueue bank recalc for [Cstart → today]
+       * - Case 3. If first transaction date happens to be the same as the existing opening balance record date,
+       * - i.e E ∈ [Cstart .. Cend] (INSIDE existing coverage, including same-day earlier time), we should do the following:
+       *    - Recompute opening_amount using SAME t_close and the expanded window (which now includes these lines). Verify landing as above
+       *    - Create a new journal entry for the GL and void the existing journal entry but link them using ids and add a note both journals
+       *    - Enqueue a bank balance recalculation job and GL balance recalculation job from this date to today
+       *    - Otherwise, enqueue a bank balance recalculation job (for the new anchor date to the last transaction date)
+       *
+       * - “Verify landing” = ensure recomputed timeline still reaches the same trusted closing (the t_close previously used).
+       * - In any case, current balance table should only be updated when a first opening balance record is created or updated and never again
+       */
+      const existingActiveOpeningBalance = await getActiveOpeningBalance({
+        bankAccountId: bank_account_id,
+        trx: txn,
+      });
+
+      // Only proceed if:
+      // 1. No active opening balance exists, OR
+      // 2. Active one is system_calculated (can be replaced)
+
+      if (!existingActiveOpeningBalance) {
+        let openingBalance: number | null;
+        if (opening_balance) {
+          openingBalance = opening_balance;
+        } else if (closing_balance) {
+          openingBalance = closing_balance - sumOfTransactions;
+        } else {
+          openingBalance = null;
+        }
+
+        if (openingBalance) {
+          const openingBalanceResult = await setOpeningBalance({
+            params: {
+              bank_account_id,
+              amount: openingBalance,
+              coverage_start: earliestTxn.date,
+              coverage_end: latestTxn.date,
+              origin: 'system_calculated',
+              metadata: {
+                source: 'transaction_import',
+                note: 'Opening balance created from transaction import',
+              },
+            },
+            userId,
+            trx: txn,
+          });
+
+          if (!openingBalanceResult.success) {
+            throw new Error(
+              `Failed to create opening balance: ${openingBalanceResult.error}`,
+            );
+          }
+
+          log('opening_balance_created', {
+            openingBalanceId: openingBalanceResult.data?.openingBalanceId,
+            journalBatchId: openingBalanceResult.data?.journalBatchId,
+            amount: openingBalance,
+            coverageStart: earliestTxn.date,
+            coverageEnd: latestTxn.date,
+          });
+        }
+      } else if (existingActiveOpeningBalance.origin === 'user_conversion') {
+        // Do nothing
+      } else {
+        // existingActive.origin === 'system_calculated'
+        const E = earliestTxn.date;
+        const Cstart = existingActiveOpeningBalance.coverage_start;
+        const Cend = existingActiveOpeningBalance.coverage_end;
+
+        if (E > Cend) {
+          // Case 1: New transactions AFTER existing coverage - no OB adjustment needed
+          log('transactions_after_coverage_window', {
+            earliestTxn: E.toISOString(),
+            coverageEnd: Cend.toISOString(),
+            note: 'No opening balance adjustment required',
+          });
+          // Just proceed with normal transaction import flow
+        } else if (E < Cstart) {
+          // Case 2: Pure early backfill - create NEW earlier opening balance
+          log('early_backfill', {
+            earliestTxn: E.toISOString(),
+            coverageStart: Cstart.toISOString(),
+            note: 'Creating new earlier opening balance',
+          });
+
+          // Compute new OB by working backward from existing OB
+          const txnsInWindow = bank_transactions.filter(
+            (t) => t.date >= E && t.date < Cstart,
+          );
+          const sumInWindow = txnsInWindow.reduce(
+            (sum, t) => sum + Number(t.amount),
+            0,
+          );
+
+          const computedOpeningAmount =
+            Number(existingActiveOpeningBalance.amount) - sumInWindow;
+
+          // Verify landing if user provided opening_balance
+          if (opening_balance !== undefined && opening_balance !== null) {
+            const diff = Math.abs(computedOpeningAmount - opening_balance);
+            if (diff > 0.01) {
+              // 1 cent tolerance
+              log('landing_verification_failed', {
+                computed: computedOpeningAmount,
+                provided: opening_balance,
+                difference: diff,
+                note: 'Proceeding with user-provided value',
+              });
+            }
+          }
+
+          // Create new opening balance (will auto-deactivate old one via setOpeningBalance)
+          const obResult = await setOpeningBalance({
+            params: {
+              bank_account_id,
+              amount: computedOpeningAmount,
+              coverage_start: E,
+              coverage_end: latestTxn.date > Cend ? latestTxn.date : Cend,
+              origin: 'system_calculated',
+              metadata: {
+                source: 'backfill',
+                note: 'Earlier transactions imported - opening balance updated',
+                supersedes: existingActiveOpeningBalance.id,
+                verification:
+                  opening_balance !== undefined
+                    ? {
+                        userProvided: opening_balance,
+                        systemComputed: computedOpeningAmount,
+                      }
+                    : undefined,
+              },
+            },
+            userId,
+            trx: txn,
+          });
+
+          if (!obResult.success) {
+            log('opening_balance_update_failed', {
+              error: obResult.message,
+              note: 'Continuing with transaction import',
+            });
+          } else {
+            log('opening_balance_updated', {
+              newOpeningBalanceId: obResult.data?.openingBalanceId,
+              newJournalBatchId: obResult.data?.journalBatchId,
+              amount: computedOpeningAmount,
+              supersededId: existingActiveOpeningBalance.id,
+            });
+          }
+        } else {
+          {
+            // Case 3: Inside coverage - no adjustment needed
+            log('transactions_overlap_coverage');
+            // Do nothing
+          }
+        }
+      }
 
       // Build batch insert object
       // Determine start and end dates
-      const { startDate, endDate } = getMinMaxDates(bank_transactions);
+      // const { startDate, endDate } = getMinMaxDates(bank_transactions);
+      const startDate = earliestTxn.date;
+      const endDate = latestTxn.date;
       const fingerprint = generateBatchFingerprint(bank_transactions);
       const [batch] = await txn('bank_transaction_batches')
         .insert({
@@ -330,7 +534,8 @@ export async function addNewBankTransactions({
             });
           }
         } catch (error) {
-          // Don't fail the transaction if balance recalc enqueue fails
+          // Don't fail the transaction if balance recalc enqueue fails, Log and notify
+          // TODO: Add to notification system later
           log('balance_recalc_enqueue_failed', {
             error: error instanceof Error ? error.message : 'Unknown error',
             bankAccountId: bank_account_id,

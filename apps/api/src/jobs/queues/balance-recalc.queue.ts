@@ -12,7 +12,8 @@ export interface GLBalanceJobData {
   type: 'gl-balance';
   companyId: string;
   coaId: string;
-  recalcFrom: string; // ISO date string (earliest affected date)
+  recalcFrom: string;
+  recalcTo?: string;
   triggeredBy: 'ledger_entry' | 'backfill' | 'soft_delete' | 'manual';
 }
 
@@ -20,8 +21,16 @@ export interface BankBalanceJobData {
   type: 'bank-balance';
   companyId: string;
   bankAccountId: string;
-  recalcFrom: string; // ISO date string (earliest affected date)
-  triggeredBy: 'transaction' | 'sync' | 'csv_upload' | 'soft_delete' | 'manual';
+  recalcFrom: string;
+  recalcTo?: string;
+  triggeredBy:
+    | 'transaction'
+    | 'sync'
+    | 'csv_upload'
+    | 'soft_delete'
+    | 'manual'
+    | 'opening_balance_calculated'
+    | 'conversion_set';
 }
 
 export type BalanceJobData = GLBalanceJobData | BankBalanceJobData;
@@ -58,15 +67,38 @@ export async function enqueueGLBalance(data: Omit<GLBalanceJobData, 'type'>) {
   if (existingJob && existingJob.data.type === 'gl-balance') {
     const existingData = existingJob.data as GLBalanceJobData;
     if (existingData.recalcFrom <= data.recalcFrom) {
-      // Existing job already covers this date range
+      // Check if we need to update recalcTo (keep the later date or undefined)
+      const shouldUpdateRecalcTo =
+        !data.recalcTo ||
+        (existingData.recalcTo && existingData.recalcTo > data.recalcTo);
+      if (!shouldUpdateRecalcTo) {
+        // Existing job already covers this date range
+        console.log(
+          `GL balance job already queued for company ${data.companyId}, COA ${data.coaId} from ${existingData.recalcFrom}`,
+        );
+        return existingJob;
+      }
+    }
+
+    // If job is active, don't remove it - just return the existing job
+    if (await existingJob.isActive()) {
       console.log(
-        `GL balance job already queued for company ${data.companyId}, COA ${data.coaId} from ${existingData.recalcFrom}`,
+        `GL balance job is currently active for company ${data.companyId}, COA ${data.coaId}. Skipping new request.`,
       );
       return existingJob;
     }
-    // Update the existing job to use the earlier date
+
+    // Update the existing job to use the earlier date and later recalcTo
     await existingJob.remove();
     jobData.recalcFrom = existingData.recalcFrom;
+    if (existingData.recalcTo && data.recalcTo) {
+      jobData.recalcTo =
+        existingData.recalcTo > data.recalcTo
+          ? existingData.recalcTo
+          : data.recalcTo;
+    } else if (existingData.recalcTo) {
+      jobData.recalcTo = existingData.recalcTo;
+    }
     console.log(
       `Updated GL balance job for company ${data.companyId}, COA ${data.coaId} to start from ${jobData.recalcFrom}`,
     );
@@ -85,7 +117,10 @@ export async function enqueueGLBalance(data: Omit<GLBalanceJobData, 'type'>) {
 export async function enqueueBankBalance(
   data: Omit<BankBalanceJobData, 'type'>,
 ) {
-  const jobData: BankBalanceJobData = { ...data, type: 'bank-balance' };
+  const jobData: BankBalanceJobData = {
+    ...data,
+    type: 'bank-balance',
+  };
   const jobId = `bank-${data.companyId}-${data.bankAccountId}`;
 
   // Check for existing job and keep the earlier recalcFrom date
@@ -93,15 +128,38 @@ export async function enqueueBankBalance(
   if (existingJob && existingJob.data.type === 'bank-balance') {
     const existingData = existingJob.data as BankBalanceJobData;
     if (existingData.recalcFrom <= data.recalcFrom) {
-      // Existing job already covers this date range
+      // Check if we need to update recalcTo (keep the later date or undefined)
+      const shouldUpdateRecalcTo =
+        !data.recalcTo ||
+        (existingData.recalcTo && existingData.recalcTo > data.recalcTo);
+      if (!shouldUpdateRecalcTo) {
+        // Existing job already covers this date range
+        console.log(
+          `Bank balance job already queued for company ${data.companyId}, account ${data.bankAccountId} from ${existingData.recalcFrom}`,
+        );
+        return existingJob;
+      }
+    }
+
+    // If job is active, don't remove it - just return the existing job
+    if (await existingJob.isActive()) {
       console.log(
-        `Bank balance job already queued for company ${data.companyId}, account ${data.bankAccountId} from ${existingData.recalcFrom}`,
+        `Bank balance job is currently active for company ${data.companyId}, account ${data.bankAccountId}. Skipping new request.`,
       );
       return existingJob;
     }
-    // Update the existing job to use the earlier date
+
+    // Update the existing job to use the earlier date and later recalcTo
     await existingJob.remove();
     jobData.recalcFrom = existingData.recalcFrom;
+    if (existingData.recalcTo && data.recalcTo) {
+      jobData.recalcTo =
+        existingData.recalcTo > data.recalcTo
+          ? existingData.recalcTo
+          : data.recalcTo;
+    } else if (existingData.recalcTo) {
+      jobData.recalcTo = existingData.recalcTo;
+    }
     console.log(
       `Updated bank balance job for company ${data.companyId}, account ${data.bankAccountId} to start from ${jobData.recalcFrom}`,
     );

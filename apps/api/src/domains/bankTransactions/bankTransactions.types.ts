@@ -59,12 +59,12 @@ export type BankTransaction = z.infer<typeof bankTransaction>;
 
 // BANK TRANSACTION BATCHES
 export const bankTransactionBatchInput = z.object({
-  // start_date: zDate,
-  // end_date: zDate,
   source: bankTransactionSource,
   bank_account_id: z.uuid(),
   bank_transactions: z.array(bankTransactionInput),
   // fingerprint: z.string(),
+  opening_balance: z.number().optional(), // Balance before the first transaction
+  closing_balance: z.number().optional(), // Balance after the last transaction
   metadata: z.any().nullish(),
   created_by_id: z.uuid().optional(),
   updated_by_id: z.uuid().optional(),

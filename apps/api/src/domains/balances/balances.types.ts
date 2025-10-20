@@ -1,4 +1,5 @@
-import type { Decimal } from 'decimal.js';
+import { z } from 'zod';
+import { dbStandardFields } from '../../core/types/core.js';
 
 /**
  * Balance domain types
@@ -11,15 +12,18 @@ export interface CompanyContext {
 }
 
 export interface BalanceSnapshot {
-  balance: string | Decimal;
+  balance: number;
   asOfTime: Date;
   day?: string; // YYYY-MM-DD format
 }
 
 export interface DailyBalance {
   day: string; // YYYY-MM-DD format
-  balance: string | Decimal;
-  transactionCount?: number;
+  opening_balance: number;
+  day_debits: number;
+  day_credits: number;
+  closing_balance: number;
+  transaction_count: number;
 }
 
 export interface BalanceRecalcResult {
@@ -35,6 +39,7 @@ export interface GLBalanceRecalcParams {
   companyId: string;
   coaId: string;
   recalcFrom: string; // ISO date string
+  recalcTo?: string; // Optional ISO date string to limit recalculation range
   triggeredBy: 'ledger_entry' | 'backfill' | 'soft_delete' | 'manual';
 }
 
@@ -42,14 +47,14 @@ export interface GLCurrentBalance {
   companyId: string;
   coaId: string;
   asOfTime: Date;
-  reportingCurrencyBalance: string | Decimal;
+  reportingCurrencyBalance: number;
 }
 
 export interface GLDailySnapshot {
   companyId: string;
   coaId: string;
   day: string; // YYYY-MM-DD format
-  reportingCurrencyBalance: string | Decimal;
+  reportingCurrencyBalance: number;
 }
 
 // Bank-specific types
@@ -57,21 +62,29 @@ export interface BankBalanceRecalcParams {
   companyId: string;
   bankAccountId: string;
   recalcFrom: string; // ISO date string
-  triggeredBy: 'transaction' | 'sync' | 'csv_upload' | 'soft_delete' | 'manual';
+  recalcTo?: string; // Optional ISO date string to limit recalculation range
+  triggeredBy:
+    | 'transaction'
+    | 'sync'
+    | 'csv_upload'
+    | 'soft_delete'
+    | 'manual'
+    | 'opening_balance_calculated'
+    | 'conversion_set';
 }
 
 export interface BankCurrentBalance {
   companyId: string;
   bankAccountId: string;
   asOfTime: Date;
-  nativeBalance: string | Decimal;
+  nativeBalance: number;
 }
 
 export interface BankDailySnapshot {
   companyId: string;
   bankAccountId: string;
   day: string; // YYYY-MM-DD format
-  nativeBalance: string | Decimal;
+  closingBalance: number;
 }
 
 // Ledger entry type for GL calculations
@@ -80,7 +93,7 @@ export interface LedgerEntryForBalance {
   ledgerTransactionId: string;
   ledgerTransactionDate: Date | string;
   localDay: string; // Pre-calculated local day in company timezone (YYYY-MM-DD)
-  amount: string | Decimal; // Already in reporting currency
+  amount: number; // Already in reporting currency
   createdAt: Date;
   isDeleted: boolean;
 }
@@ -90,7 +103,213 @@ export interface BankTransactionForBalance {
   id: string;
   txnAt: Date | string;
   localDay: string; // Pre-calculated local day in company timezone (YYYY-MM-DD)
-  amount: string | Decimal; // In native currency
+  amount: number; // In native currency
   createdAt: Date;
   isDeleted: boolean;
 }
+
+// Validation schemas
+export const bankBalanceRecalcParamsSchema = z.object({
+  companyId: z.uuid(),
+  bankAccountId: z.uuid(),
+  recalcFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD format'),
+  recalcTo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD format')
+    .optional(),
+  triggeredBy: z.enum([
+    'transaction',
+    'sync',
+    'csv_upload',
+    'soft_delete',
+    'manual',
+    'opening_balance_calculated',
+    'conversion_set',
+  ]),
+});
+
+export const glBalanceRecalcParamsSchema = z.object({
+  companyId: z.uuid(),
+  coaId: z.uuid(),
+  recalcFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD format'),
+  recalcTo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD format')
+    .optional(),
+  triggeredBy: z.enum(['ledger_entry', 'backfill', 'soft_delete', 'manual']),
+});
+
+export interface GLDailyBalanceSnapshot {
+  company_id: string;
+  coa_id: string;
+  day: string;
+  opening_balance: string; // DECIMAL stored as string
+  day_debits: string;
+  day_credits: string;
+  closing_balance: string;
+  transaction_count: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface NewGLDailyBalanceSnapshot {
+  company_id: string;
+  coa_id: string;
+  day: string;
+  opening_balance: string | number;
+  day_debits: string | number;
+  day_credits: string | number;
+  closing_balance: string | number;
+  transaction_count: number;
+}
+
+export interface BankDailyBalanceSnapshot {
+  company_id: string;
+  bank_account_id: string;
+  day: string;
+  opening_balance: string;
+  day_debits: string;
+  day_credits: string;
+  closing_balance: string;
+  transaction_count: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface NewBankDailyBalanceSnapshot {
+  company_id: string;
+  bank_account_id: string;
+  day: string;
+  opening_balance: string | number;
+  day_debits: string | number;
+  day_credits: string | number;
+  closing_balance: string | number;
+  transaction_count: number;
+}
+
+export interface GLPeriodBalance {
+  company_id: string;
+  coa_id: string;
+  fiscal_year: number;
+  fiscal_period: number;
+  period_type: string;
+  period_start_date: string;
+  period_end_date: string;
+  opening_balance: string;
+  period_debits: string;
+  period_credits: string;
+  closing_balance: string;
+  transaction_count: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface NewGLPeriodBalance {
+  company_id: string;
+  coa_id: string;
+  fiscal_year: number;
+  fiscal_period: number;
+  period_type: string;
+  period_start_date: string;
+  period_end_date: string;
+  opening_balance: string | number;
+  period_debits: string | number;
+  period_credits: string | number;
+  closing_balance: string | number;
+  transaction_count: number;
+}
+
+export interface GLCurrentBalance {
+  company_id: string;
+  coa_id: string;
+  reporting_currency_balance: string;
+  as_of_time: Date;
+}
+
+export interface NewGLCurrentBalance {
+  company_id: string;
+  coa_id: string;
+  reporting_currency_balance: string | number;
+  as_of_time?: Date;
+}
+
+export interface BankCurrentBalance {
+  company_id: string;
+  bank_account_id: string;
+  native_balance: string;
+  as_of_time: Date;
+}
+
+export interface NewBankCurrentBalance {
+  company_id: string;
+  bank_account_id: string;
+  native_balance: string | number;
+  as_of_time?: Date;
+}
+
+export interface TrialBalanceAccount {
+  coaId: string;
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+  openingBalance: string;
+  periodDebits: string;
+  periodCredits: string;
+  closingBalance: string;
+}
+
+export interface TrialBalanceTotals {
+  openingDebit: string;
+  openingCredit: string;
+  periodDebits: string;
+  periodCredits: string;
+  closingDebit: string;
+  closingCredit: string;
+}
+
+export interface TrialBalanceResponse {
+  period: {
+    year: number;
+    period: number;
+    type: string;
+    startDate: string;
+    endDate: string;
+  };
+  accounts: TrialBalanceAccount[];
+  totals: TrialBalanceTotals;
+}
+
+const bankOpeningBalanceOrigin = z.enum([
+  'user_conversion',
+  'system_calculated',
+]);
+export const bankOpeningBalanceParams = z.object({
+  bank_account_id: z.uuid(),
+  amount: z.number(),
+  coverage_start: z.date(),
+  coverage_end: z.date(),
+  origin: bankOpeningBalanceOrigin,
+  journal_batch_id: z.uuid().nullish(),
+  metadata: z.record(z.string(), z.any()).nullish(),
+});
+
+export type BankOpeningBalanceParams = z.infer<typeof bankOpeningBalanceParams>;
+
+export const newBankOpeningBalance = z.object({
+  ...bankOpeningBalanceParams.shape,
+  as_of_date: z.date(),
+  created_by_id: z.uuid(),
+  updated_by_id: z.uuid().nullish(),
+  ...dbStandardFields.shape,
+});
+
+const bankAccountOpeningBalances = newBankOpeningBalance.extend({
+  id: z.uuid(),
+});
+export type BankAccountOpeningBalances = z.infer<
+  typeof bankAccountOpeningBalances
+>;

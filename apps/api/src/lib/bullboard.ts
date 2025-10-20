@@ -3,6 +3,7 @@ import { ExpressAdapter } from '@bull-board/express';
 import { emailQueue } from '../jobs/queues/email.queue.js';
 import { transactionSyncQueue } from '../jobs/queues/transaction-sync.queue.js';
 import { partitionMaintenanceQueue } from '../jobs/queues/partition-maintenance.queue.js';
+import { balanceRecalcQueue } from '../jobs/queues/balance-recalc.queue.js';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 
 const serverAdapter = new ExpressAdapter();
@@ -13,6 +14,7 @@ const queues = [
   new BullMQAdapter(emailQueue),
   new BullMQAdapter(transactionSyncQueue),
   new BullMQAdapter(partitionMaintenanceQueue),
+  new BullMQAdapter(balanceRecalcQueue),
 ];
 
 const { addQueue, removeQueue, setQueues, replaceQueues } = createBullBoard({

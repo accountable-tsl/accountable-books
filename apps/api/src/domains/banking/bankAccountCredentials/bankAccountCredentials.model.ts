@@ -165,7 +165,7 @@ export async function getAllActiveCredentials(trx?: Knex.Transaction): Promise<
   return await knex('bank_account_credentials')
     .select(['id', 'company_id', 'provider_id', 'status'])
     .where('status', 'active')
-    .orderBy('created_at', 'desc');
+    .orderBy('connected_at', 'desc');
 }
 // export async function getBankAccountCredential({
 //   credentialId,

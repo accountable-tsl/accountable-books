@@ -1,7 +1,7 @@
 import { startEmailWorker } from './email.worker.js';
 import { startTransactionSyncWorker } from './transaction-sync.worker.js';
 import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
-// import { startBalanceRecalcWorker } from './balance-recalc.worker.js';
+import { startBalanceRecalcWorker } from './balance-recalc.worker.js';
 import type { Worker } from 'bullmq';
 
 export interface WorkerConfig {
@@ -85,18 +85,18 @@ export async function startAllWorkers(
     // Don't throw for partition maintenance as it's not critical for MVP
   }
 
-  // // Start balance recalculation worker (always enabled - core functionality)
-  // try {
-  //   console.log('⚖️  Starting balance recalculation worker...');
-  //   const balanceWorker = startBalanceRecalcWorker();
-  //   activeWorkers.set('balanceRecalc', balanceWorker);
-  //   workers.push(balanceWorker);
-  //   console.log('✅ Balance recalculation worker started successfully');
-  // } catch (error) {
-  //   console.error('❌ Failed to start balance recalculation worker:', error);
-  //   // Balance recalc is core functionality, so throw the error
-  //   throw error;
-  // }
+  // Start balance recalculation worker (always enabled - core functionality)
+  try {
+    console.log('⚖️  Starting balance recalculation worker...');
+    const balanceWorker = startBalanceRecalcWorker();
+    activeWorkers.set('balanceRecalc', balanceWorker);
+    workers.push(balanceWorker);
+    console.log('✅ Balance recalculation worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start balance recalculation worker:', error);
+    // Balance recalc is core functionality, so throw the error
+    throw error;
+  }
 
   console.log(`✅ Started ${workers.length} workers successfully`);
   return workers;

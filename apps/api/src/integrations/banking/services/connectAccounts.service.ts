@@ -212,6 +212,8 @@ export class ConnectAccountsService {
               businessOrPersonal: 'business', // Default to business
               bankId,
               accountMetadata: account.rawData || {},
+              openingBalance: account.balance,
+              openingBalanceDate: account.balanceDate.toISOString(),
             },
             trx,
           });

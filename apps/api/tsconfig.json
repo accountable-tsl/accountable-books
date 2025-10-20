@@ -14,7 +14,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src", "config/env-loader.ts", "src/db/knex.d.ts"],
+  "include": ["src", "config/env-loader.ts", "./src/db/knex.d.ts"],
   "exclude": [
     "node_modules",
     "dist",

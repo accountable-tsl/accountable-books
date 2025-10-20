@@ -101,6 +101,7 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp('onboarding_completed_at', { useTz: true }).nullable();
     table.boolean('is_demo_company').defaultTo(false);
     table.boolean('is_platform').defaultTo(false);
+    table.date('conversion_date').nullable();
 
     table
       .uuid('country_id')
@@ -150,9 +151,31 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('SET NULL');
   });
+
+  await knex.raw(`
+    ALTER TABLE companies
+      ADD CONSTRAINT year_end_month_range
+      CHECK (year_end_month >= 1 AND year_end_month <= 12);
+  `);
+
+  await knex.raw(`
+    ALTER TABLE companies
+      ADD CONSTRAINT year_end_day_range
+      CHECK (year_end_day >= 1 AND year_end_day <= 31);
+  `);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`
+    ALTER TABLE companies
+      DROP CONSTRAINT IF EXISTS year_end_day_range;
+  `);
+
+  await knex.raw(`
+    ALTER TABLE companies
+      DROP CONSTRAINT IF EXISTS year_end_month_range;
+  `);
+
   await knex.schema.alterTable('users', (table) => {
     table.dropForeign(['last_active_company_id']);
   });

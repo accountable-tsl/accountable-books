@@ -24,10 +24,13 @@ export async function up(knex: Knex): Promise<void> {
 
     table.date('day').notNullable();
 
-    table
-      .decimal('reporting_currency_balance', 32, 10)
-      .notNullable()
-      .defaultTo(0);
+    // all in reporting currency
+    table.decimal('opening_balance', 32, 10).notNullable().defaultTo(0);
+    table.decimal('day_debits', 32, 10).notNullable().defaultTo(0);
+    table.decimal('day_credits', 32, 10).notNullable().defaultTo(0);
+    table.decimal('closing_balance', 32, 10).notNullable().defaultTo(0);
+
+    table.integer('transaction_count').notNullable().defaultTo(0);
 
     table
       .timestamp('created_at', { useTz: true })
@@ -52,10 +55,19 @@ export async function up(knex: Knex): Promise<void> {
       ON ${tableName} (company_id, day DESC);
   `);
 
+  await knex.raw(`
+    ALTER TABLE gl_daily_balance_snapshots
+      ADD CONSTRAINT gl_daily_balance_math_check
+      CHECK (closing_balance = opening_balance + day_debits - day_credits);
+  `);
+
   await createUpdateTimestampTrigger(knex, tableName);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(
+    `ALTER TABLE gl_daily_balance_snapshots DROP CONSTRAINT IF EXISTS gl_daily_balance_math_check;`,
+  );
   await knex.raw(`DROP INDEX IF EXISTS gl_daily_snapshots_company_day_idx;`);
   await knex.raw(`DROP INDEX IF EXISTS gl_daily_snapshots_company_coa_idx;`);
   await dropUpdateTimestampTrigger(knex, tableName);

@@ -50,12 +50,12 @@ export async function up(knex: Knex): Promise<void> {
     createEnumIfNotExists('categorization_status', [
       'uncategorized',
       'suggested',
-      'approved',
+      'reviewed',
     ]),
   );
   await knex.raw(
     createEnumIfNotExists('transaction_source', [
-      'bank',
+      'bank_transaction',
       'manual_journal',
       'system',
     ]),

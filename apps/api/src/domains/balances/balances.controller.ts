@@ -1,358 +1,409 @@
-// import type { Request, Response } from 'express';
-// import {
-//   enqueueGLBalance,
-//   enqueueBankBalance,
-// } from '../../jobs/queues/balance-recalc.queue.js';
-// import { knexClient as db } from '../../db/knexClient.js';
-// import {
-//   successResponse,
-//   errorResponse,
-// } from '../../shared/utils/response.utils.js';
-// import type { AuthRequest } from '../../features/auth/auth.types.js';
+import type { Response } from 'express';
+import {
+  successResponse,
+  errorResponse,
+} from '../../shared/utils/response.utils.js';
+import type { AuthRequest } from '../../features/auth/auth.types.js';
+import {
+  getTrialBalance,
+  recalculateGLBalance,
+  recalculateBankBalance,
+  recalculateAllGLBalances,
+  recalculateAllBankBalances,
+  getCurrentGLBalance,
+  getCurrentBankBalance,
+  getGLBalanceHistory,
+  getBankBalanceHistory,
+} from './balances.model.js';
+import {
+  getFiscalPeriods,
+  closeFiscalPeriod,
+  reopenFiscalPeriod,
+} from './fiscal-calendar.service.js';
 
-// /**
-//  * Balance management controller
-//  * Handles manual balance recalculation and balance queries
-//  */
-// export class BalancesController {
-//   /**
-//    * Manually trigger GL balance recalculation for a specific COA
-//    */
-//   async recalculateGLBalance(req: AuthRequest, res: Response) {
-//     try {
-//       const companyId = req.company?.id;
-//       const { coaId } = req.params;
-//       const { recalcFrom } = req.body;
+/**
+ * Balance management controller
+ * Handles manual balance recalculation and balance queries
+ */
 
-//       // Validate COA exists and belongs to company
-//       const coa = await db('coa')
-//         .where('id', coaId)
-//         .where('company_id', companyId)
-//         .first();
+/**
+ * Manually trigger GL balance recalculation for a specific COA
+ */
+export async function recalculateGLBalanceController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const { coaId } = req.params;
+    const companyId = req.company!.id;
+    const { recalcFrom, recalcTo } = req.body;
 
-//       if (!coa) {
-//         return res.status(404).json(errorResponse('COA not found'));
-//       }
+    const result = await recalculateGLBalance({
+      companyId,
+      coaId,
+      recalcFrom: recalcFrom || '2020-01-01',
+      recalcTo,
+      triggeredBy: 'manual',
+    });
 
-//       // Enqueue balance recalculation
-//       const job = await enqueueGLBalance({
-//         companyId: companyId || '',
-//         coaId,
-//         recalcFrom: recalcFrom || '2020-01-01', // Default to early date if not specified
-//         triggeredBy: 'manual',
-//       });
+    return result.success ? res.json(result) : res.status(400).json(result);
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to queue GL balance recalculation', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
 
-//       return res.json(
-//         successResponse('GL balance recalculation queued', {
-//           jobId: job.id,
-//           coaId,
-//           recalcFrom: recalcFrom || '2020-01-01',
-//         }),
-//       );
-//     } catch (error) {
-//       return res.status(500).json(
-//         errorResponse('Failed to queue GL balance recalculation', {
-//           error: error instanceof Error ? error.message : 'Unknown error',
-//         }),
-//       );
-//     }
-//   }
+/**
+ * Manually trigger bank balance recalculation for a specific bank account
+ */
+export async function recalculateBankBalanceController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const { id: companyId } = req.company!;
+    const { bankAccountId } = req.params;
+    const { recalcFrom, recalcTo } = req.body;
 
-//   /**
-//    * Manually trigger bank balance recalculation for a specific bank account
-//    */
-//   async recalculateBankBalance(req: AuthRequest, res: Response) {
-//     try {
-//       const { id: companyId } = req.company!;
-//       const { bankAccountId } = req.params;
-//       const { recalcFrom } = req.body;
+    const result = await recalculateBankBalance({
+      companyId,
+      bankAccountId,
+      recalcFrom: recalcFrom || '2020-01-01',
+      recalcTo,
+      triggeredBy: 'manual',
+    });
 
-//       // Validate bank account exists and belongs to company
-//       const bankAccount = await db('bank_accounts')
-//         .where('id', bankAccountId)
-//         .where('company_id', companyId)
-//         .first();
+    return result.success ? res.json(result) : res.status(400).json(result);
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to queue bank balance recalculation', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
 
-//       if (!bankAccount) {
-//         return res.status(404).json(errorResponse('Bank account not found'));
-//       }
+/**
+ * Trigger recalculation for all GL accounts in the company
+ */
+export async function recalculateAllGLBalancesController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const { recalcFrom, recalcTo } = req.body;
 
-//       // Enqueue balance recalculation
-//       const job = await enqueueBankBalance({
-//         companyId,
-//         bankAccountId,
-//         recalcFrom: recalcFrom || '2020-01-01', // Default to early date if not specified
-//         triggeredBy: 'manual',
-//       });
+    const result = await recalculateAllGLBalances({
+      companyId,
+      recalcFrom: recalcFrom || '2020-01-01',
+      recalcTo,
+      triggeredBy: 'manual',
+    });
 
-//       return res.json(
-//         successResponse('Bank balance recalculation queued', {
-//           jobId: job.id,
-//           bankAccountId,
-//           recalcFrom: recalcFrom || '2020-01-01',
-//         }),
-//       );
-//     } catch (error) {
-//       return res.status(500).json(
-//         errorResponse('Failed to queue bank balance recalculation', {
-//           error: error instanceof Error ? error.message : 'Unknown error',
-//         }),
-//       );
-//     }
-//   }
+    return result.success ? res.json(result) : res.status(400).json(result);
+  } catch (error) {
+    return res
+      .status(500)
+      .json(
+        errorResponse(
+          'Failed to queue GL balance recalculation for all accounts',
+          { error: error instanceof Error ? error.message : 'Unknown error' },
+        ),
+      );
+  }
+}
 
-//   /**
-//    * Trigger recalculation for all GL accounts in the company
-//    */
-//   async recalculateAllGLBalances(req: Request, res: Response) {
-//     try {
-//       const { companyId } = req.company!;
-//       const { recalcFrom } = req.body;
+/**
+ * Trigger recalculation for all bank accounts in the company
+ */
+export async function recalculateAllBankBalancesController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const { recalcFrom, recalcTo } = req.body;
 
-//       // Get all COA accounts for the company
-//       const coaAccounts = await db('coa')
-//         .where('company_id', companyId)
-//         .select('id');
+    const result = await recalculateAllBankBalances({
+      companyId,
+      recalcFrom: recalcFrom || '2020-01-01',
+      recalcTo,
+      triggeredBy: 'manual',
+    });
 
-//       if (coaAccounts.length === 0) {
-//         return res.json(
-//           successResponse('No COA accounts found to recalculate'),
-//         );
-//       }
+    return result.success ? res.json(result) : res.status(400).json(result);
+  } catch (error) {
+    return res
+      .status(500)
+      .json(
+        errorResponse(
+          'Failed to queue bank balance recalculation for all accounts',
+          { error: error instanceof Error ? error.message : 'Unknown error' },
+        ),
+      );
+  }
+}
 
-//       // Enqueue recalculation for each COA
-//       const jobs = [];
-//       for (const coa of coaAccounts) {
-//         const job = await enqueueGLBalance({
-//           companyId,
-//           coaId: coa.id,
-//           recalcFrom: recalcFrom || '2020-01-01',
-//           triggeredBy: 'manual',
-//         });
-//         jobs.push({ coaId: coa.id, jobId: job.id });
-//       }
+/**
+ * Get current GL balance for a COA account
+ */
+export async function getCurrentGLBalanceController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const { coaId } = req.params;
 
-//       return res.json(
-//         successResponse('GL balance recalculation queued for all accounts', {
-//           jobsQueued: jobs.length,
-//           jobs: jobs.slice(0, 10), // Return first 10 jobs to avoid large response
-//           recalcFrom: recalcFrom || '2020-01-01',
-//         }),
-//       );
-//     } catch (error) {
-//       return res
-//         .status(500)
-//         .json(
-//           errorResponse(
-//             'Failed to queue GL balance recalculation for all accounts',
-//             { error: error instanceof Error ? error.message : 'Unknown error' },
-//           ),
-//         );
-//     }
-//   }
+    const result = await getCurrentGLBalance({
+      companyId,
+      coaId,
+    });
 
-//   /**
-//    * Trigger recalculation for all bank accounts in the company
-//    */
-//   async recalculateAllBankBalances(req: Request, res: Response) {
-//     try {
-//       const { companyId } = req.company!;
-//       const { recalcFrom } = req.body;
+    return result.success ? res.json(result) : res.status(404).json(result);
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to retrieve GL balance', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
 
-//       // Get all bank accounts for the company
-//       const bankAccounts = await db('bank_accounts')
-//         .where('company_id', companyId)
-//         .select('id');
+/**
+ * Get current bank balance for a bank account
+ */
+export async function getCurrentBankBalanceController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const { bankAccountId } = req.params;
 
-//       if (bankAccounts.length === 0) {
-//         return res.json(
-//           successResponse('No bank accounts found to recalculate'),
-//         );
-//       }
+    const result = await getCurrentBankBalance({
+      companyId,
+      bankAccountId,
+    });
 
-//       // Enqueue recalculation for each bank account
-//       const jobs = [];
-//       for (const account of bankAccounts) {
-//         const job = await enqueueBankBalance({
-//           companyId,
-//           bankAccountId: account.id,
-//           recalcFrom: recalcFrom || '2020-01-01',
-//           triggeredBy: 'manual',
-//         });
-//         jobs.push({ bankAccountId: account.id, jobId: job.id });
-//       }
+    return result.success ? res.json(result) : res.status(404).json(result);
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to retrieve bank balance', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
 
-//       return res.json(
-//         successResponse('Bank balance recalculation queued for all accounts', {
-//           jobsQueued: jobs.length,
-//           jobs: jobs.slice(0, 10), // Return first 10 jobs to avoid large response
-//           recalcFrom: recalcFrom || '2020-01-01',
-//         }),
-//       );
-//     } catch (error) {
-//       return res
-//         .status(500)
-//         .json(
-//           errorResponse(
-//             'Failed to queue bank balance recalculation for all accounts',
-//             { error: error instanceof Error ? error.message : 'Unknown error' },
-//           ),
-//         );
-//     }
-//   }
+/**
+ * Get GL balance history for a COA account
+ */
+export async function getGLBalanceHistoryController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const { coaId } = req.params;
+    const { fromDate, toDate, limit = 30 } = req.query;
 
-//   /**
-//    * Get current GL balance for a COA account
-//    */
-//   async getCurrentGLBalance(req: Request, res: Response) {
-//     try {
-//       const { companyId } = req.company!;
-//       const { coaId } = req.params;
+    const result = await getGLBalanceHistory({
+      companyId,
+      coaId,
+      fromDate: fromDate as string,
+      toDate: toDate as string,
+    });
 
-//       const balance = await db('gl_current_balances')
-//         .where('company_id', companyId)
-//         .where('coa_id', coaId)
-//         .first();
+    return result.success ? res.json(result) : res.status(400).json(result);
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to retrieve GL balance history', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
 
-//       if (!balance) {
-//         return res.status(404).json(errorResponse('GL balance not found'));
-//       }
+/**
+ * Get bank balance history for a bank account
+ */
+export async function getBankBalanceHistoryController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const { bankAccountId } = req.params;
+    const { fromDate, toDate, limit = 30 } = req.query;
 
-//       return res.json(
-//         successResponse('Current GL balance retrieved', {
-//           coaId,
-//           balance: balance.reporting_currency_balance,
-//           asOfTime: balance.as_of_time,
-//         }),
-//       );
-//     } catch (error) {
-//       return res.status(500).json(
-//         errorResponse('Failed to retrieve GL balance', {
-//           error: error instanceof Error ? error.message : 'Unknown error',
-//         }),
-//       );
-//     }
-//   }
+    const result = await getBankBalanceHistory({
+      companyId,
+      bankAccountId,
+      fromDate: fromDate as string,
+      toDate: toDate as string,
+    });
 
-//   /**
-//    * Get current bank balance for a bank account
-//    */
-//   async getCurrentBankBalance(req: Request, res: Response) {
-//     try {
-//       const { companyId } = req.company!;
-//       const { bankAccountId } = req.params;
+    return result.success ? res.json(result) : res.status(400).json(result);
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to retrieve bank balance history', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
 
-//       const balance = await db('bank_account_current_native_balances')
-//         .where('company_id', companyId)
-//         .where('bank_account_id', bankAccountId)
-//         .first();
+/**
+ * Get trial balance for a specific fiscal period
+ */
+export async function getTrialBalanceController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const { fiscalYear, fiscalPeriod, periodType = 'monthly' } = req.query;
 
-//       if (!balance) {
-//         return res.status(404).json(errorResponse('Bank balance not found'));
-//       }
+    if (!fiscalYear || !fiscalPeriod) {
+      return res
+        .status(400)
+        .json(errorResponse('fiscalYear and fiscalPeriod are required', {}));
+    }
 
-//       return res.json(
-//         successResponse('Current bank balance retrieved', {
-//           bankAccountId,
-//           balance: balance.native_balance,
-//           asOfTime: balance.as_of_time,
-//         }),
-//       );
-//     } catch (error) {
-//       return res.status(500).json(
-//         errorResponse('Failed to retrieve bank balance', {
-//           error: error instanceof Error ? error.message : 'Unknown error',
-//         }),
-//       );
-//     }
-//   }
+    const result = await getTrialBalance({
+      companyId,
+      fiscalYear: Number(fiscalYear),
+      fiscalPeriod: Number(fiscalPeriod),
+      periodType: periodType as 'monthly' | 'quarterly' | 'yearly',
+    });
 
-//   /**
-//    * Get GL balance history for a COA account
-//    */
-//   async getGLBalanceHistory(req: Request, res: Response) {
-//     try {
-//       const { companyId } = req.company!;
-//       const { coaId } = req.params;
-//       const { fromDate, toDate, limit = 30 } = req.query;
+    return result.success ? res.json(result) : res.status(400).json(result);
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to get trial balance', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
 
-//       let query = db('gl_daily_balance_snapshots')
-//         .where('company_id', companyId)
-//         .where('coa_id', coaId)
-//         .orderBy('day', 'desc')
-//         .limit(Number(limit));
+/**
+ * Get fiscal periods for a company
+ */
+export async function getFiscalPeriodsController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const { fiscalYear, periodType = 'monthly' } = req.query;
 
-//       if (fromDate) {
-//         query = query.where('day', '>=', String(fromDate));
-//       }
-//       if (toDate) {
-//         query = query.where('day', '<=', String(toDate));
-//       }
+    const periods = await getFiscalPeriods(
+      companyId,
+      fiscalYear ? Number(fiscalYear) : undefined,
+      periodType as 'monthly' | 'quarterly' | 'yearly',
+    );
 
-//       const history = await query;
+    return res.json(successResponse('Fiscal periods retrieved', periods));
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to get fiscal periods', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
 
-//       return res.json(
-//         successResponse('GL balance history retrieved', {
-//           coaId,
-//           history: history.map((h) => ({
-//             day: h.day,
-//             balance: h.reporting_currency_balance,
-//           })),
-//           count: history.length,
-//         }),
-//       );
-//     } catch (error) {
-//       return res.status(500).json(
-//         errorResponse('Failed to retrieve GL balance history', {
-//           error: error instanceof Error ? error.message : 'Unknown error',
-//         }),
-//       );
-//     }
-//   }
+/**
+ * Close a fiscal period
+ */
+export async function closeFiscalPeriodController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const { fiscalYear, fiscalPeriod, periodType = 'monthly' } = req.body;
+    const { id: userId } = req.user!;
 
-//   /**
-//    * Get bank balance history for a bank account
-//    */
-//   async getBankBalanceHistory(req: Request, res: Response) {
-//     try {
-//       const { companyId } = req.company!;
-//       const { bankAccountId } = req.params;
-//       const { fromDate, toDate, limit = 30 } = req.query;
+    if (!fiscalYear || !fiscalPeriod) {
+      return res
+        .status(400)
+        .json(errorResponse('fiscalYear and fiscalPeriod are required', {}));
+    }
 
-//       let query = db('bank_account_daily_native_snapshots')
-//         .where('company_id', companyId)
-//         .where('bank_account_id', bankAccountId)
-//         .orderBy('day', 'desc')
-//         .limit(Number(limit));
+    const result = await closeFiscalPeriod(
+      companyId,
+      Number(fiscalYear),
+      Number(fiscalPeriod),
+      userId,
+      periodType as 'monthly',
+    );
 
-//       if (fromDate) {
-//         query = query.where('day', '>=', String(fromDate));
-//       }
-//       if (toDate) {
-//         query = query.where('day', '<=', String(toDate));
-//       }
+    return result.success
+      ? res.json(successResponse(result.message, { warnings: result.warnings }))
+      : res
+          .status(400)
+          .json(errorResponse(result.message, { warnings: result.warnings }));
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to close fiscal period', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
 
-//       const history = await query;
+/**
+ * Reopen a fiscal period
+ */
+export async function reopenFiscalPeriodController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = req.company!.id;
+    const {
+      fiscalYear,
+      fiscalPeriod,
+      periodType = 'monthly',
+      reason,
+    } = req.body;
+    const { id: userId } = req.user!;
 
-//       return res.json(
-//         successResponse('Bank balance history retrieved', {
-//           bankAccountId,
-//           history: history.map((h) => ({
-//             day: h.day,
-//             balance: h.native_balance,
-//           })),
-//           count: history.length,
-//         }),
-//       );
-//     } catch (error) {
-//       return res.status(500).json(
-//         errorResponse('Failed to retrieve bank balance history', {
-//           error: error instanceof Error ? error.message : 'Unknown error',
-//         }),
-//       );
-//     }
-//   }
-// }
+    if (!fiscalYear || !fiscalPeriod || !reason) {
+      return res
+        .status(400)
+        .json(
+          errorResponse(
+            'fiscalYear, fiscalPeriod, and reason are required',
+            {},
+          ),
+        );
+    }
 
-// // Export singleton instance
-// export const balancesController = new BalancesController();
+    const result = await reopenFiscalPeriod(
+      companyId,
+      Number(fiscalYear),
+      Number(fiscalPeriod),
+      userId,
+      reason,
+      periodType as 'monthly',
+    );
+
+    return result.success
+      ? res.json(successResponse(result.message, {}))
+      : res.status(400).json(errorResponse(result.message, {}));
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to reopen fiscal period', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}

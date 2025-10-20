@@ -69,12 +69,13 @@ export const createCoa = async ({
   userId: string;
   companyId: string;
   trx?: Knex.Transaction;
-}) => {
+}): Promise<ApiResponse<{ coaIds: string[] } | null>> => {
   // Validate input
   const snakeData = camelToSnake(data);
   const validate = newCoaInput.array().safeParse(snakeData);
-  if (!validate.success)
-    return errorResponse(`Invalid input`, validate.error?.message);
+  if (!validate.success) {
+    return errorResponse('Invalid input', validate.error?.message);
+  }
   const coaRecords = validate.data;
 
   const query = async (tx: Knex.Transaction) => {
@@ -99,6 +100,7 @@ export const createCoa = async ({
     const accountMeta = await getFullAccountMeta();
     const typeMap = accountMeta.accountTypesByKey;
 
+    // Validate all account types upfront
     const missingTypes = coaRecords
       .filter((record) => !typeMap.get(record.account_type_key))
       .map((record) => record.account_type_key);
@@ -109,6 +111,7 @@ export const createCoa = async ({
       });
     }
 
+    // Build records to insert
     for (const record of coaRecords) {
       const type = typeMap.get(record.account_type_key);
       if (!type || !type.id) {
@@ -118,8 +121,8 @@ export const createCoa = async ({
 
       recordsToInsert.push({
         name: record.name,
-        locked: record.locked,
-        source: record.source,
+        locked: record.locked ?? false,
+        source: record.source ?? 'user',
         created_by_id: userId,
         updated_by_id: userId,
         company_id: companyUUID,
@@ -130,35 +133,42 @@ export const createCoa = async ({
       });
     }
 
-    if (errors.length)
+    if (errors.length) {
       return errorResponse('Failed to create chart of accounts', errors);
-
-    // Invalidate coa cache
-    // await invalidateCoaCache({ companyUUID });
-
-    // Batch and insert
-    const batchedRecords = chunkArray(recordsToInsert, 500); // Split into chunks of 500
-    let totalInserted = 0;
-
-    for (const batch of batchedRecords) {
-      const res = await tx('coa').insert(batch);
-      totalInserted += res.length;
     }
 
+    if (recordsToInsert.length === 0) {
+      return errorResponse('No valid records to insert');
+    }
+
+    // Batch and insert records, returning IDs
+    const batchedRecords = chunkArray(recordsToInsert, 500);
+    const allInsertedIds: string[] = [];
+
+    for (const batch of batchedRecords) {
+      const insertedRecords = await tx('coa').insert(batch).returning('id');
+
+      allInsertedIds.push(...insertedRecords.map((record) => record.id));
+    }
+
+    // Invalidate cache after successful insert
     await invalidateCoaCache({ companyUUID });
 
     return successResponse(
-      `Successfully created ${totalInserted} account${totalInserted > 1 ? 's' : ''}`,
-      totalInserted,
+      `Successfully created ${allInsertedIds.length} account${allInsertedIds.length > 1 ? 's' : ''}`,
+      { coaIds: allInsertedIds },
     );
   };
 
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
-
     return result;
   } catch (error) {
-    return errorResponse('Failed to create chart of accounts', error);
+    console.error('Error in createCoa:', error);
+    return errorResponse(
+      'Failed to create chart of accounts',
+      error instanceof Error ? error.message : String(error),
+    );
   }
 };
 
@@ -248,6 +258,7 @@ export const fetchCompanyCoa = async ({
           'at.key as accountTypeKey',
           'at.label as accountTypeLabel',
           'at.report_code as reportCode',
+          'at.default_monetary as defaultMonetary',
 
           // "ae.id as accountElementId",
           'ae.key as accountElementKey',

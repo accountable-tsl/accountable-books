@@ -47,6 +47,8 @@ export const newBankAccountInput = z.object({
   accountNumber: z.string().min(1, 'Account number is required'),
   accountCode: z.string().optional(),
   source: coaSource.prefault('user').optional(),
+  openingBalance: z.number().optional(),
+  openingBalanceDate: z.string().optional(),
 });
 export type NewBankAccountInput = z.infer<typeof newBankAccountInput>;
 

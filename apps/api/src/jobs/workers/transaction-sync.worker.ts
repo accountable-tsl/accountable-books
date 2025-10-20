@@ -1,4 +1,4 @@
-import { Worker } from 'bullmq';
+import { Worker, JobScheduler } from 'bullmq';
 import { redis } from '../../lib/redis.js';
 import type { Job } from 'bullmq';
 import pino from 'pino';
@@ -11,6 +11,9 @@ import {
 import { ENV } from '../../config/env.js';
 
 const logger = pino();
+
+// Shared scheduler instance to drive repeatable jobs (cron-based daily scans)
+let transactionSyncScheduler: JobScheduler | null = null;
 
 // Transaction sync job data interfaces
 export interface TransactionSyncJobData {
@@ -297,6 +300,23 @@ async function dailySyncScan(job: Job) {
 
 // Worker startup function
 export function startTransactionSyncWorker(concurrency = 3) {
+  // Start the BullMQ scheduler to handle repeatable jobs
+  if (!transactionSyncScheduler) {
+    transactionSyncScheduler = new JobScheduler('transaction-sync', {
+      connection: redis,
+    });
+
+    transactionSyncScheduler
+      .waitUntilReady()
+      .then(() => logger.info('Transaction sync scheduler ready'))
+      .catch((error) =>
+        logger.error(
+          { error: error instanceof Error ? error.message : String(error) },
+          'Failed to initialise transaction sync scheduler',
+        ),
+      );
+  }
+
   const worker = new Worker(
     'transaction-sync',
     processTransactionSyncJob,
@@ -367,6 +387,11 @@ export function startTransactionSyncWorker(concurrency = 3) {
   const gracefulShutdown = async () => {
     logger.info('Shutting down transaction sync worker...');
     await worker.close();
+    if (transactionSyncScheduler) {
+      logger.info('Shutting down transaction sync scheduler...');
+      await transactionSyncScheduler.close();
+      transactionSyncScheduler = null;
+    }
   };
 
   process.on('SIGTERM', gracefulShutdown);

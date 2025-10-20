@@ -106,6 +106,7 @@ export class MonoProvider extends BankingProvider {
         customer: any;
         meta: any;
       } = response.data.data;
+      const timestamp = response.data.timestamp;
       const accountData = accountsResponse.account;
       const institutionData: {
         name: string;
@@ -199,6 +200,8 @@ export class MonoProvider extends BankingProvider {
           type: mapMonoAccountType(accountData.type),
           mask: accountData.account_number?.slice(-4),
           rawData: accountData,
+          balance: accountData.balance,
+          balanceDate: new Date(timestamp),
         },
       ];
 
@@ -278,8 +281,13 @@ export class MonoProvider extends BankingProvider {
       const data = response.data.data;
       const meta = response.data.meta || {};
 
+      const sortedData = (data || []).sort(
+        (a: any, b: any) =>
+          new Date(a.date).getTime() - new Date(b.date).getTime(),
+      );
+
       // Map Mono transactions to our format
-      const transactions = (data || []).map(
+      const transactions = sortedData.map(
         (txn: any): ProviderTransaction => ({
           transactionId: txn._id,
           providerBankAccountId: accessToken,
@@ -297,6 +305,9 @@ export class MonoProvider extends BankingProvider {
           rawData: txn,
         }),
       );
+
+      const earliestBalance = sortedData[0]?.balance;
+      const latestBalance = sortedData[sortedData.length - 1]?.balance;
 
       // Mono uses page-based pagination (pages are NOT stable cursors!)
       const currentPage = meta.page || page;

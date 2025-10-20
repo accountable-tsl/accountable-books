@@ -29,9 +29,10 @@ import { useBanks } from '@/modules/banking/institutions/model/hooks';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { createNewBankAccount } from '@/domains-pending-migration/bankConnection/shared/api';
 import { useSession } from '@session';
+import { TooltipHelper } from '@/components/TooltipHelper';
 
 export default function AddBankAccount({
   onSuccess,
@@ -43,6 +44,8 @@ export default function AddBankAccount({
   const [createdAccount, setCreatedAccount] =
     useState<BankAccountWithMeta | null>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
+  const [displayValue, setDisplayValue] = useState('');
 
   // Hooks
   const { data: currenciesData, isLoading: isLoadingCurrencies } =
@@ -74,6 +77,39 @@ export default function AddBankAccount({
     mode: 'onChange',
   });
 
+  // Currency formatting
+  const formatCurrency = (value: string) => {
+    // Allow negative values by preserving the minus sign
+    const isNegative = value.startsWith('-');
+    const numeric = value.replace(/[^\d]/g, '');
+    const num = Number(numeric);
+    if (isNaN(num)) return '';
+
+    const selectedCurrency = currencies.find(
+      (c) => c.id === getValues('currencyId'),
+    );
+    if (!selectedCurrency) return num.toLocaleString();
+
+    const formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: selectedCurrency.code,
+      maximumFractionDigits: 2,
+    }).format((isNegative ? -num : num) / 100);
+
+    return formatted;
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    const isNegative = input.startsWith('-');
+    const numeric = input.replace(/[^\d]/g, ''); // strip non-digits
+    const numValue = Number(numeric);
+    const finalValue = isNegative ? -numValue : numValue;
+
+    setDisplayValue(formatCurrency(input));
+    setValue('openingBalance', finalValue / 100);
+  };
+
   // Handle country selection
   const handleCountryChange = (countryId: string) => {
     setHasUserInteracted(true);
@@ -97,6 +133,31 @@ export default function AddBankAccount({
         setCountryError('Please select a country');
         toast.error('Please select a country');
         return;
+      }
+
+      // Validate opening balance fields
+      const hasBalance =
+        data.openingBalance !== undefined && data.openingBalance !== null;
+      const hasDate =
+        data.openingBalanceDate && data.openingBalanceDate.trim() !== '';
+
+      if (hasBalance && !hasDate) {
+        toast.error('Please select a date for the opening balance');
+        return;
+      }
+      if (hasDate && !hasBalance) {
+        toast.error('Please enter an opening balance amount');
+        return;
+      }
+
+      // Double confirmation for zero opening balance
+      if (hasBalance && hasDate && data.openingBalance === 0) {
+        const confirmed = window.confirm(
+          'You are setting the opening balance to $0.00. This means the account will start with no balance on the selected date. Is this correct?',
+        );
+        if (!confirmed) {
+          return;
+        }
       }
 
       const res = await createNewBankAccount({
@@ -191,7 +252,7 @@ export default function AddBankAccount({
   }
 
   return (
-    <div className="flex flex-col gap-4 py-4 max-w-md mx-auto w-full">
+    <div className="flex flex-col gap-4 py-4 max-w-md mx-auto w-full relative">
       <div className="text-lg font-semibold">Add Bank Account</div>
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
         <div className="flex w-full gap-2">
@@ -306,57 +367,135 @@ export default function AddBankAccount({
           <Input {...register('accountNumber')} placeholder="0011223344" />
         </FormField>
 
-        <div className="grid grid-cols-2 gap-2">
-          <FormField
-            id="accountType"
-            label="Account Type"
-            className="flex-1"
-            error={formErrors.accountType?.message}
+        {/* Optional Fields Toggle */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowOptionalFields(!showOptionalFields)}
+            className="flex items-center justify-between w-full p-3 text-left bg-muted/50 hover:bg-muted rounded-lg border transition-colors"
           >
-            <Controller
-              name="accountType"
-              control={control}
-              defaultValue={bankAccountType.enum.checkings_current}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select account type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankAccountType.options
-                      .filter((b) => ['checkings_current'].includes(b))
-                      .map((b) => (
-                        <SelectItem key={b} value={b}>
-                          {toTitleCase(b, {
-                            delimiter: '_',
-                            joinWith: ' / ',
-                          })}
-                        </SelectItem>
-                      ))}
-                    {bankAccountType.options
-                      .filter((b) => !['checkings_current'].includes(b))
-                      .map((b) => (
-                        <SelectItem key={b} value={b}>
-                          {toTitleCase(b, { delimiter: '_' })}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </FormField>
-          {!isIndividual && (
-            <FormField
-              label="Internal Code"
-              helpTooltip="Code for your bank account in coa"
-              error={formErrors.accountCode?.message}
-            >
-              <Input
-                {...register('accountCode')}
-                placeholder="e.g. 123, Bank-001"
-              />
-            </FormField>
-          )}
+            <div>
+              <span className="font-medium text-[0.9rem] text-">
+                Additional Settings
+              </span>
+              <p className="text-xs text-gray-500">
+                Account type, internal code, and opening balance
+              </p>
+            </div>
+            {showOptionalFields ? (
+              <ChevronUp className="h-5 w-5 text-gray-400" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-gray-400" />
+            )}
+          </button>
+
+          {/* Collapsible Content */}
+          <div
+            className={cn(
+              'overflow-hidden transition-all duration-300 ease-in-out',
+              showOptionalFields
+                ? 'max-h-96 opacity-100 mt-3'
+                : 'max-h-0 opacity-0',
+            )}
+          >
+            <div className="rounded-lg py-4 space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <FormField
+                  id="accountType"
+                  label="Account Type"
+                  className="flex-1"
+                  error={formErrors.accountType?.message}
+                >
+                  <Controller
+                    name="accountType"
+                    control={control}
+                    defaultValue={bankAccountType.enum.checkings_current}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select account type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {bankAccountType.options
+                            .filter((b) => ['checkings_current'].includes(b))
+                            .map((b) => (
+                              <SelectItem key={b} value={b}>
+                                {toTitleCase(b, {
+                                  delimiter: '_',
+                                  joinWith: ' / ',
+                                })}
+                              </SelectItem>
+                            ))}
+                          {bankAccountType.options
+                            .filter((b) => !['checkings_current'].includes(b))
+                            .map((b) => (
+                              <SelectItem key={b} value={b}>
+                                {toTitleCase(b, { delimiter: '_' })}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </FormField>
+                {!isIndividual && (
+                  <FormField
+                    label="Internal Code"
+                    helpTooltip="Code for your bank account in coa"
+                    error={formErrors.accountCode?.message}
+                  >
+                    <Input
+                      {...register('accountCode')}
+                      placeholder="e.g. 123, Bank-001"
+                    />
+                  </FormField>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium ">
+                  <TooltipHelper
+                    trigger="Opening Balance "
+                    content="The initial balance on this account at the start of the tracking period (date). Use negative values for debt or overdraft."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <FormField
+                    label="Amount"
+                    error={formErrors.openingBalance?.message}
+                    required={!!getValues('openingBalanceDate')}
+                  >
+                    <Input
+                      value={displayValue}
+                      onChange={handleAmountChange}
+                      placeholder={
+                        currencies.find((c) => c.id === getValues('currencyId'))
+                          ?.symbol + ' 0.00'
+                      }
+                      type="text"
+                      inputMode="numeric"
+                    />
+                  </FormField>
+                  <FormField
+                    label="Date"
+                    error={formErrors.openingBalanceDate?.message}
+                    errorTooltip={true}
+                    errorTooltipStyle="max-w-[10rem] text-center"
+                    required={!!getValues('openingBalance')}
+                  >
+                    <Input
+                      {...register('openingBalanceDate')}
+                      type="date"
+                      placeholder="2025-01-01"
+                    />
+                  </FormField>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div

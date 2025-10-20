@@ -7,6 +7,7 @@ import {
 import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes';
 
 const tableName = 'ledger_transactions';
+const uniqueBankTxnIndex = 'ux_ledger_transactions_bank_txn_date_id_not_null';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
@@ -14,7 +15,7 @@ export async function up(knex: Knex): Promise<void> {
     table.specificType('source', 'transaction_source').notNullable();
     table.string('description', 512).nullable();
     table.string('reference').nullable();
-    table.string('note', 1000).nullable();
+    table.string('note').nullable();
 
     table.uuid('contact_id').nullable().references('id').inTable('contacts');
 
@@ -38,10 +39,17 @@ export async function up(knex: Knex): Promise<void> {
     'reference',
     'note',
   ]);
+
+  // Ensure one-to-one linkage to bank transactions when provided
+  await knex.raw(
+    `CREATE UNIQUE INDEX ${uniqueBankTxnIndex} ON ${tableName} (company_id, bank_transaction_date, bank_transaction_id)
+     WHERE bank_transaction_id IS NOT NULL AND bank_transaction_date IS NOT NULL AND is_deleted = false`,
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {
   await dropTrgmIndexes(knex, tableName);
   await dropUpdateTimestampTrigger(knex, tableName);
+  await knex.raw(`DROP INDEX IF EXISTS ${uniqueBankTxnIndex}`);
   await knex.schema.dropTableIfExists(tableName);
 }

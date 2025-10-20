@@ -11,28 +11,42 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
 
+    table.string('code').nullable();
     table.integer('sequence_number').nullable(); //Raw sequence numnber (increment per company when creating journal. KISS)
     table.timestamp('date', { useTz: true }).notNullable();
-    table.string('description', 512).notNullable();
-    table.string('note', 1000).nullable();
+    table.string('title', 512).notNullable();
+    table.string('description').nullable();
+    table
+      .uuid('contact_id')
+      .nullable()
+      .references('id')
+      .inTable('contacts')
+      .onDelete('RESTRICT');
+    table
+      .uuid('currency_id')
+      .notNullable()
+      .references('id')
+      .inTable('currencies')
+      .onDelete('RESTRICT');
+    table.decimal('exchange_rate', 32, 10).notNullable().defaultTo(1.0);
     table
       .specificType('status', 'journal_status')
       .defaultTo('draft')
       .notNullable();
 
+    table.boolean('is_recurring').notNullable().defaultTo(false);
     table
-      .uuid('generated_from_template_id')
+      .uuid('recurring_template_id')
       .nullable()
       .references('id')
       .inTable('recurring_journal_templates');
 
     table
       .uuid('ledger_transaction_id')
-      .notNullable()
-      .unique()
+      .nullable()
       .references('id')
       .inTable('ledger_transactions')
-      .onDelete('RESTRICT');
+      .onDelete('SET NULL');
 
     table
       .uuid('company_id')
@@ -76,27 +90,43 @@ export async function up(knex: Knex): Promise<void> {
 
   await createUpdateTimestampTrigger(knex, tableName);
 
-  // Create function for sequence_number increment
+  // Create function for sequence_number increment and code generation
   await knex.raw(`
     CREATE OR REPLACE FUNCTION set_journal_batch_sequence_number()
     RETURNS TRIGGER AS $$
+    DECLARE
+      current_year INTEGER;
+      yearly_sequence INTEGER;
     BEGIN
-      NEW.sequence_number := (
+      -- Get current year from creation time
+      current_year := EXTRACT(YEAR FROM NOW());
+      
+      -- Calculate sequence number for this year and company
+      yearly_sequence := (
         SELECT COALESCE(MAX(sequence_number), 0) + 1
         FROM journal_batches
         WHERE company_id = NEW.company_id
+          AND EXTRACT(YEAR FROM created_at) = current_year
       );
+      
+      -- Always set sequence_number (yearly reset per company)
+      NEW.sequence_number := yearly_sequence;
+      
+      -- Auto-generate code if not provided (but allow manual override)
+      IF NEW.code IS NULL THEN
+        NEW.code := 'JE-' || current_year || '-' || LPAD(yearly_sequence::text, 4, '0');
+      END IF;
+      
       RETURN NEW;
     END;
     $$ LANGUAGE plpgsql;
   `);
 
-  // Create trigger to set sequence_number before insert
+  // Create trigger to set sequence_number and code before insert
   await knex.raw(`
     CREATE TRIGGER trigger_set_journal_batch_sequence_number
     BEFORE INSERT ON journal_batches
     FOR EACH ROW
-    WHEN (NEW.sequence_number IS NULL)
     EXECUTE FUNCTION set_journal_batch_sequence_number();
   `);
 }

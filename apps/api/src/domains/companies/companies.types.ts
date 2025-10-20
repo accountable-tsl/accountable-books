@@ -63,10 +63,14 @@ export const newCompany = newCompanyInput
     updated_at: z.date().optional(),
     is_demo_company: z.boolean().prefault(false),
     is_platform: z.boolean().prefault(false).optional(),
+    conversion_date: z.date().nullish(),
   })
   .omit({ slug: true });
 
-export const company = newCompany.merge(dbBaseFields);
+export const company = z.object({
+  ...newCompany.shape,
+  ...dbBaseFields.shape,
+});
 
 export type CompanyType = z.infer<typeof companyType>;
 export type ReportingFramework = z.infer<typeof reportingFramework>;

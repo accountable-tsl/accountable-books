@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dbBaseFields } from '../../../core/types/core.js';
+import { dbBaseFields, zDate } from '../../../core/types/core.js';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
@@ -56,6 +56,8 @@ const manualBankAccountInput = z.object({
     .max(1024, 'Coa description is too long')
     .nullish(),
   source: coaSource.optional(),
+  opening_balance: z.number().optional(),
+  opening_balance_date: zDate.optional(),
 });
 export const manualBankAccountInputCamel = createCamelCaseSchema(
   manualBankAccountInput,

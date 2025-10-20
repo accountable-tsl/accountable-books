@@ -13,4 +13,5 @@ export const publicPaths = [
   '/api/logos/signed-url',
   '/api/email/check',
   '/api/accounting-firms/check-slug',
+  '/admin/queues', // BullMQ Board (protected by basic auth)
 ];
