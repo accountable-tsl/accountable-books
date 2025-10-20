@@ -213,7 +213,7 @@ export class ConnectAccountsService {
               bankId,
               accountMetadata: account.rawData || {},
               openingBalance: account.balance,
-              openingBalanceDate: account.balanceDate.toISOString(),
+              openingBalanceDate: account.balanceDate,
             },
             trx,
           });

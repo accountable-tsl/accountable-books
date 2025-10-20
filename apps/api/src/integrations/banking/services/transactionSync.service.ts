@@ -2,11 +2,7 @@ import type { Knex } from 'knex';
 import { knexClient } from '../../../db/knexClient.js';
 import { providerRegistry } from '../providers/registry.js';
 import { logger } from '../../../shared/utils/logger.js';
-import type {
-  TransactionSyncResult,
-  ProviderTransaction,
-  TransactionSyncBalance,
-} from '../types/base.js';
+import type { ProviderTransaction } from '../types/base.js';
 import { TransactionSyncStrategy } from '../types/base.js';
 import { startOfMonth } from 'date-fns';
 import { randomUUID } from 'crypto';

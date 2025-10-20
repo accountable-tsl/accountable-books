@@ -63,8 +63,8 @@ export const bankTransactionBatchInput = z.object({
   bank_account_id: z.uuid(),
   bank_transactions: z.array(bankTransactionInput),
   // fingerprint: z.string(),
-  opening_balance: z.number().optional(), // Balance before the first transaction
-  closing_balance: z.number().optional(), // Balance after the last transaction
+  // opening_balance: z.number().optional(), // Balance before the first transaction
+  // closing_balance: z.number().optional(), // Balance after the last transaction
   metadata: z.any().nullish(),
   created_by_id: z.uuid().optional(),
   updated_by_id: z.uuid().optional(),
