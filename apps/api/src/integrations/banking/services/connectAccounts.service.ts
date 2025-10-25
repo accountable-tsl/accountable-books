@@ -12,7 +12,6 @@ import { createBankAccountCredential } from '../../../domains/banking/bankAccoun
 import { knexClient } from '../../../db/knexClient.js';
 import type { BusinessOrPersonalAccount } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
 import { transactionSyncQueue } from '../../../jobs/queues/transaction-sync.queue.js';
-import type { ProviderInstitution } from '../types/base.js';
 
 export interface ConnectAccountsParams {
   providerKey: BankProviderKey;
@@ -113,28 +112,6 @@ export class ConnectAccountsService {
         publicToken: params.publicToken,
       });
 
-      // log('item_details', {});
-      // const {
-      //   institutionId,
-      //   metadata: itemMetadata,
-      //   institutionName,
-      // } = await provider.getItemDetails({
-      //   accessToken,
-      // });
-
-      // log('fetch_accounts', {});
-      // const providerAccounts = await provider.fetchBankAccounts({
-      //   accessToken,
-      // });
-      // console.log('providerAccounts fetched', providerAccounts);
-
-      // log('resolve_institution', {});
-      // const resolvedInstitution = await provider.getInstitutionById({
-      //   institutionId,
-      //   countryCodes: providerCountryCodes,
-      // });
-      // const institution = resolvedInstitution[0];
-
       const {
         connection,
         institution,
@@ -211,9 +188,21 @@ export class ConnectAccountsService {
               currencyCode: account.currencyCode,
               businessOrPersonal: 'business', // Default to business
               bankId,
-              accountMetadata: account.rawData || {},
-              openingBalance: account.balance,
-              openingBalanceDate: account.balanceDate,
+              accountMetadata: {
+                connection_source: 'connection',
+                connection_note: `Account connected from ${providerInfo.name}. Opening balance was gotten from the connection.`,
+                ...(account.rawData || {}),
+              },
+              openingBalance: {
+                date: account.balanceDate,
+                amount: account.balance,
+                origin: 'system_snapshot',
+                metadata: {
+                  capture_channel: 'connection',
+                  capture_initiator: 'system',
+                  note: `Account connected from ${providerInfo.name}. Opening balance was gotten from the connection.`,
+                },
+              },
             },
             trx,
           });

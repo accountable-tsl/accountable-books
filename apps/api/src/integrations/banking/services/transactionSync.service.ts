@@ -29,7 +29,13 @@ export class TransactionSyncService {
    * Sync transactions for a specific credential (item)
    * Handles pagination and processes all transactions
    */
-  async syncTransactionsForCredential(credentialId: string): Promise<void> {
+  async syncTransactionsForCredential({
+    credentialId,
+    userId,
+  }: {
+    credentialId: string;
+    userId?: string;
+  }): Promise<void> {
     const traceId = randomUUID();
     const startTime = Date.now();
 
@@ -161,6 +167,32 @@ export class TransactionSyncService {
       let totalProcessingTime = 0;
       let hasAnyFailures = false; // Track failures across ALL batches
 
+      // Track earliest and latest transaction dates per bank account across all batches
+      // This will be used to enqueue balance recalculation after sync completes
+      const accountDateRanges = new Map<
+        string,
+        { earliest: Date; latest: Date }
+      >();
+
+      const trackAccountDateRange = (bankAccountId: string, rawDate: Date) => {
+        if (!bankAccountId) return;
+
+        const date = new Date(rawDate);
+        if (Number.isNaN(date.getTime())) return;
+
+        const current = accountDateRanges.get(bankAccountId);
+        if (!current) {
+          accountDateRanges.set(bankAccountId, {
+            earliest: date,
+            latest: date,
+          });
+          return;
+        }
+
+        if (date < current.earliest) current.earliest = date;
+        if (date > current.latest) current.latest = date;
+      };
+
       while (hasMore) {
         batchCount++;
         totalApiCalls++;
@@ -201,42 +233,27 @@ export class TransactionSyncService {
             result.transactions.modified,
             accountMap,
           );
+
+          // Track dates from modified transactions for balance recalculation
+          for (const txn of result.transactions.modified) {
+            if (txn.pending) continue; // Skip pending transactions
+            const account = accountMap.get(txn.providerBankAccountId);
+            if (!account) continue;
+
+            trackAccountDateRange(account.id, new Date(txn.date));
+          }
         }
 
         // Process removed transactions
         if (result.transactions.removed.length > 0) {
-          await this.processRemovedTransactions(
+          const removedTransactionDates = await this.processRemovedTransactions(
             result.transactions.removed,
             accountMap,
           );
 
-          // Trigger balance recalculation for accounts with soft deleted transactions
-          try {
-            const affectedAccounts = new Set<string>();
-            for (const [, account] of accountMap) {
-              affectedAccounts.add(account.id);
-            }
-
-            for (const bankAccountId of affectedAccounts) {
-              // Use a very early date to ensure we recalculate from the beginning
-              // since soft deletes can affect historical balances
-              await enqueueBankBalance({
-                companyId: companyId,
-                bankAccountId: bankAccountId,
-                recalcFrom: '2020-01-01', // Start from early date for soft deletes
-                triggeredBy: 'sync',
-              });
-            }
-
-            log('balance_recalc_queued_for_deletions', {
-              affectedAccounts: Array.from(affectedAccounts),
-              removedCount: result.transactions.removed.length,
-            });
-          } catch (error) {
-            log('balance_recalc_enqueue_failed', {
-              error: error instanceof Error ? error.message : 'Unknown error',
-              removedCount: result.transactions.removed.length,
-            });
+          // Track dates from removed transactions for balance recalculation
+          for (const { bankAccountId, date } of removedTransactionDates) {
+            trackAccountDateRange(bankAccountId, date);
           }
         }
 
@@ -247,6 +264,15 @@ export class TransactionSyncService {
             accountMap,
             companyId: credential.company_id,
           });
+
+          // Track dates from added transactions for balance recalculation
+          for (const txn of result.transactions.added) {
+            if (txn.pending) continue; // Skip pending transactions
+            const account = accountMap.get(txn.providerBankAccountId);
+            if (!account) continue;
+
+            trackAccountDateRange(account.id, new Date(txn.date));
+          }
         }
 
         // Log batch processing results
@@ -352,6 +378,55 @@ export class TransactionSyncService {
         log('timestamp_not_updated_due_to_failures', {
           hasAnyFailures,
           note: 'Next sync will retry the same date range to recover failed transactions',
+        });
+      }
+
+      // Enqueue balance recalculation for all affected accounts
+      // Only enqueue if sync completed successfully (no failures)
+      if (!hasAnyFailures && accountDateRanges.size > 0) {
+        let user_id = userId;
+        if (!user_id) {
+          const systemUser = await getSystemUser();
+          if (!systemUser) {
+            throw new Error('System user not found');
+          }
+          user_id = systemUser.id;
+        }
+
+        for (const [bankAccountId, dateRange] of accountDateRanges) {
+          try {
+            await enqueueBankBalance({
+              companyId: companyId,
+              bankAccountId: bankAccountId,
+              recalcFrom: dateRange.earliest.toISOString().split('T')[0], // YYYY-MM-DD
+              triggeredBy: 'sync',
+              userId: user_id,
+            });
+          } catch (error) {
+            log('balance_recalc_enqueue_failed', {
+              error: error instanceof Error ? error.message : 'Unknown error',
+              bankAccountId,
+              earliestDate: dateRange.earliest.toISOString(),
+            });
+          }
+        }
+
+        log('balance_recalc_queued', {
+          affectedAccounts: Array.from(accountDateRanges.keys()),
+          accountCount: accountDateRanges.size,
+          dateRanges: Array.from(accountDateRanges.entries()).map(
+            ([accountId, range]) => ({
+              accountId,
+              earliest: range.earliest.toISOString().split('T')[0],
+              latest: range.latest.toISOString().split('T')[0],
+            }),
+          ),
+        });
+      } else if (accountDateRanges.size > 0) {
+        log('balance_recalc_skipped_due_to_failures', {
+          hasAnyFailures,
+          affectedAccountsCount: accountDateRanges.size,
+          note: 'Balance recalc will be queued on next successful sync',
         });
       }
 
@@ -532,15 +607,23 @@ export class TransactionSyncService {
 
   /**
    * Soft delete removed transactions
+   * Returns the bank account ID and date for each removed transaction for balance recalculation
    */
   private async processRemovedTransactions(
     transactionIds: string[],
     accountMap: Map<string, BankAccountForSync>,
-  ): Promise<void> {
-    if (transactionIds.length === 0) return;
+  ): Promise<Array<{ bankAccountId: string; date: Date }>> {
+    if (transactionIds.length === 0) return [];
 
     const accountIds = Array.from(accountMap.values()).map((a) => a.id);
 
+    // First, fetch the transactions to get their dates before soft-deleting
+    const transactionsToRemove = await knexClient('bank_transactions')
+      .whereIn('external_id', transactionIds)
+      .whereIn('bank_account_id', accountIds)
+      .select('bank_account_id', 'date');
+
+    // Then soft delete them
     await knexClient('bank_transactions')
       .whereIn('external_id', transactionIds)
       .whereIn('bank_account_id', accountIds)
@@ -549,6 +632,11 @@ export class TransactionSyncService {
         deleted_at: new Date(),
         updated_at: new Date(),
       });
+
+    return transactionsToRemove.map((txn) => ({
+      bankAccountId: txn.bank_account_id,
+      date: new Date(txn.date),
+    }));
   }
 
   /**

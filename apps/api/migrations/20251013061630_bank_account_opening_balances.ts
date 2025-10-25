@@ -24,16 +24,27 @@ export async function up(knex: Knex): Promise<void> {
       );
     table.decimal('amount', 32, 10).notNullable();
 
-    table.date('coverage_start').notNullable();
-    table.date('coverage_end').notNullable();
+    table
+      .timestamp('coverage_start', { useTz: true })
+      .notNullable()
+      .comment('Precise timestamp of first transaction in coverage window');
+    table
+      .timestamp('coverage_end', { useTz: true })
+      .notNullable()
+      .comment('Precise timestamp of last transaction in coverage window');
 
     table
-      .enu('origin', ['user_conversion', 'system_calculated'], {
+      .enu('origin', ['user_entered', 'system_calculated', 'system_snapshot'], {
         useNative: false,
         enumName: `${tableName}_origin`,
       })
       .notNullable();
-    table.boolean('is_active').notNullable().defaultTo(true);
+    table
+      .enu('role', ['baseline', 'checkpoint', 'archived'], {
+        useNative: false,
+        enumName: `${tableName}_role`,
+      })
+      .notNullable();
 
     table
       .uuid('journal_batch_id')
@@ -62,9 +73,9 @@ export async function up(knex: Knex): Promise<void> {
   await createUpdateTimestampTrigger(knex, tableName);
 
   await knex.raw(`
-    CREATE UNIQUE INDEX ${tableName}_one_active
+    CREATE UNIQUE INDEX ${tableName}_one_baseline
     ON ${tableName} (bank_account_id)
-    WHERE is_active = true AND is_deleted = false;
+    WHERE role = 'baseline' AND is_deleted = false;
   `);
 
   await knex.raw(`
@@ -72,12 +83,20 @@ export async function up(knex: Knex): Promise<void> {
     ON ${tableName} (bank_account_id, created_at DESC)
     WHERE is_deleted = false;
   `);
+
+  await knex.raw(`
+  ALTER TABLE ${tableName}
+    ADD CONSTRAINT ${tableName}_coverage_order_chk
+    CHECK (coverage_start <= coverage_end);
+  `);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP CONSTRAINT IF EXISTS ${tableName}_coverage_order_chk;`);
   await knex.raw(`DROP INDEX IF EXISTS ${tableName}_history;`);
-  await knex.raw(`DROP INDEX IF EXISTS ${tableName}_one_active;`);
+  await knex.raw(`DROP INDEX IF EXISTS ${tableName}_one_baseline;`);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
   await knex.raw(`DROP TYPE IF EXISTS ${tableName}_origin;`);
+  await knex.raw(`DROP TYPE IF EXISTS ${tableName}_role;`);
 }

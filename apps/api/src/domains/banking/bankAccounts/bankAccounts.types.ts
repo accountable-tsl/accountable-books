@@ -5,6 +5,11 @@ import {
   type SnakeToCamelCaseObject,
 } from '../../../shared/utils/formatting.utils.js';
 import { coaSource } from '../../chartOfAccounts/coa.types.js';
+import {
+  bankObMetadata,
+  bankOpeningBalanceOrigin,
+  bankOpeningBalanceRole,
+} from '../../balances/openingBalance/openingBalance.types.js';
 
 export const bankAccountType = z.enum([
   'other',
@@ -43,12 +48,17 @@ const manualBankAccountInput = z.object({
   account_type: bankAccountType.nullish(),
   account_metadata: z.any().nullish(),
   business_or_personal: businessOrPersonalAccount.optional(),
-  connection_status: bankAccountConnectionStatus.extract(['not_connected']), // must be not_connected
+  connection_status: bankAccountConnectionStatus
+    .extract(['not_connected'])
+    .optional(), // must be not_connected, but allow frontend to omit it
   notes: z.string().nullish(),
   bank_id: z.uuid(),
+  // Allow either currency_code or currencyId for frontend compatibility
   currency_code: z
     .string()
-    .length(3, 'Currency code must be exactly 3 characters'),
+    .length(3, 'Currency code must be exactly 3 characters')
+    .optional(),
+  currency_id: z.uuid().optional(),
   coa_code: z.string().optional(),
   coa_name: z.string().max(256, 'Coa name is too long').nullish(),
   coa_description: z
@@ -56,9 +66,17 @@ const manualBankAccountInput = z.object({
     .max(1024, 'Coa description is too long')
     .nullish(),
   source: coaSource.optional(),
-  opening_balance: z.number().optional(),
-  opening_balance_date: zDate.optional(),
+  opening_balance: z
+    .object({
+      amount: z.number(),
+      date: zDate,
+      origin: bankOpeningBalanceOrigin,
+      role: bankOpeningBalanceRole.optional(),
+      metadata: bankObMetadata.optional(),
+    })
+    .optional(),
 });
+
 export const manualBankAccountInputCamel = createCamelCaseSchema(
   manualBankAccountInput,
 );
@@ -106,6 +124,7 @@ export const newBankAccount = newBankAccountInput
     coa_name: true,
     coa_description: true,
     source: true,
+    opening_balance: true,
   })
   .extend({
     company_id: z.uuid(),

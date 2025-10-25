@@ -19,11 +19,14 @@ import {
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
 import type { Knex } from 'knex';
 import { getAccountTypeByKey } from '../../account/account.registry.js';
-import { getCurrency } from '../../../domains/currencies/currencies.utils.js';
+import {
+  getCurrency,
+  getCurrencyById,
+} from '../../../domains/currencies/currencies.utils.js';
 import logger from '../../../shared/utils/logger.js';
 import z from 'zod';
 import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
-import { setOpeningBalance } from '../../balances/openingBalance.service.js';
+import { setBankOpeningBalance } from '../../balances/openingBalance/openingBalance.service.js';
 
 const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields
@@ -243,6 +246,14 @@ export async function getBankAccountsSnapshot(
   }
 }
 
+interface CreateBankAccountRes {
+  coaId: string;
+  bankAccountId: string;
+  wasUpdated: boolean;
+  bankAccountName: string;
+  currencyCode: string;
+  bankName: string;
+}
 async function createBankAccount({
   bankAccountData,
   userId,
@@ -284,7 +295,11 @@ async function createBankAccount({
         .where(isValidUUID(companyId) ? 'id' : 'short_code', companyId)
         .first(),
 
-      getCurrency(v.currency_code),
+      v.currency_id
+        ? getCurrencyById(v.currency_id)
+        : v.currency_code
+          ? getCurrency(v.currency_code)
+          : null,
 
       tx('banks').select('id').where('id', v.bank_id).first(),
 
@@ -475,24 +490,18 @@ async function createBankAccount({
     }
 
     // Handle opening balance if provided
-    if (
-      v.opening_balance !== undefined &&
-      v.opening_balance !== null &&
-      v.opening_balance_date
-    ) {
+    if (v.opening_balance) {
       try {
-        const obDate = new Date(v.opening_balance_date);
-        const obResult = await setOpeningBalance({
+        const obDate = new Date(v.opening_balance.date);
+        const obResult = await setBankOpeningBalance({
           params: {
             bank_account_id: bankAccountId,
-            amount: v.opening_balance,
+            amount: Number(v.opening_balance.amount),
             coverage_start: obDate,
             coverage_end: obDate, // Same day for manual entry
-            origin: 'user_conversion',
-            metadata: {
-              source: 'manual_entry',
-              note: 'User-provided opening balance during account creation',
-            },
+            origin: v.opening_balance.origin ?? 'system_calculated',
+            role: v.opening_balance.role ?? 'checkpoint',
+            metadata: v.opening_balance.metadata,
           },
           userId,
           trx: tx,
@@ -503,8 +512,8 @@ async function createBankAccount({
             {
               error: obResult.message,
               bankAccountId,
-              openingBalance: v.opening_balance,
-              openingBalanceDate: v.opening_balance_date,
+              openingBalance: v.opening_balance.amount,
+              openingBalanceDate: v.opening_balance.date,
             },
             'Failed to create opening balance - continuing without it',
           );
@@ -532,12 +541,15 @@ async function createBankAccount({
       }
     }
 
-    return successResponse(
+    return successResponse<CreateBankAccountRes>(
       'Bank account and associated COA created successfully',
       {
         coaId,
         bankAccountId,
         wasUpdated: !!oldConnectionCredentialId,
+        bankAccountName: v.display_name || v.account_name || '',
+        currencyCode: currency.code,
+        bankName: bank.display_name,
       },
     );
   };
@@ -568,7 +580,15 @@ export async function createManualBankAccount({
     return errorResponse('Invalid input', z.treeifyError(validatedInput.error));
   }
   const { data } = validatedInput;
-  return createBankAccount({ bankAccountData: data, userId, companyId, trx });
+  return createBankAccount({
+    bankAccountData: {
+      ...data,
+      connection_status: data.connection_status ?? 'not_connected',
+    },
+    userId,
+    companyId,
+    trx,
+  });
 }
 
 export async function createBankAccountWithConnection({

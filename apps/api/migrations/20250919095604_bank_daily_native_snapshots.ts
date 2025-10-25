@@ -26,8 +26,8 @@ export async function up(knex: Knex): Promise<void> {
 
     // all in native currency of the bank account
     table.decimal('opening_balance', 32, 10).notNullable().defaultTo(0);
-    table.decimal('day_debits', 32, 10).notNullable().defaultTo(0); // Total money out
-    table.decimal('day_credits', 32, 10).notNullable().defaultTo(0); // Total money in
+    table.decimal('money_out', 32, 10).notNullable().defaultTo(0); // Total money out
+    table.decimal('money_in', 32, 10).notNullable().defaultTo(0); // Total money in
     table.decimal('closing_balance', 32, 10).notNullable().defaultTo(0);
     table.integer('transaction_count').notNullable().defaultTo(0);
 
@@ -57,7 +57,7 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(`
     ALTER TABLE bank_account_daily_native_snapshots
       ADD CONSTRAINT bank_daily_balance_math_check
-      CHECK (closing_balance = opening_balance + day_debits - day_credits);
+      CHECK (closing_balance = opening_balance - money_out + money_in);
   `);
 
   await createUpdateTimestampTrigger(knex, tableName);

@@ -15,6 +15,7 @@ export interface GLBalanceJobData {
   recalcFrom: string;
   recalcTo?: string;
   triggeredBy: 'ledger_entry' | 'backfill' | 'soft_delete' | 'manual';
+  userId?: string;
 }
 
 export interface BankBalanceJobData {
@@ -31,6 +32,7 @@ export interface BankBalanceJobData {
     | 'manual'
     | 'opening_balance_calculated'
     | 'conversion_set';
+  userId?: string;
 }
 
 export type BalanceJobData = GLBalanceJobData | BankBalanceJobData;

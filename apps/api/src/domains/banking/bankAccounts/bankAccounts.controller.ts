@@ -27,6 +27,7 @@ export async function createBankAccountController(
       userId: userId,
       companyId,
     });
+    console.log(JSON.stringify(response));
     return response.success
       ? res.status(200).json(response)
       : res.status(400).json(response);

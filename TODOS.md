@@ -126,6 +126,7 @@ Launch `2025-29-09`
 ### CAN DELAY (Post-Launch)
 
 - [ ] Request company timezone at onboarding
+- [ ] Individuals signing in from UK should have April 5 year end
 - [x] Plaid Webhook implementation
 - [ ] Implement monitoring - grafana, prometheus etc, and maybe versioning too
 - [ ] Add concurrency to deploy-staging.yml : { group: staging, cancel-in-progress: true }

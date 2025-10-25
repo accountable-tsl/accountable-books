@@ -168,6 +168,7 @@ async function processBankBalance(
       recalcFrom: data.recalcFrom,
       recalcTo: data.recalcTo,
       triggeredBy: data.triggeredBy,
+      userId: data.userId,
     });
 
     await job.updateProgress(90);

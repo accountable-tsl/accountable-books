@@ -10,7 +10,6 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   type AddBankAccountProps,
   bankAccountType,
-  type BankAccountWithMeta,
   type NewBankAccountInput,
   newBankAccountInput,
 } from '@/modules/banking/accounts';
@@ -29,8 +28,18 @@ import { useBanks } from '@/modules/banking/institutions/model/hooks';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
-import { CircleCheck, ChevronDown, ChevronUp } from 'lucide-react';
-import { createNewBankAccount } from '@/domains-pending-migration/bankConnection/shared/api';
+import {
+  CircleCheck,
+  ChevronDown,
+  ChevronUp,
+  Wallet,
+  Building2,
+  Coins,
+} from 'lucide-react';
+import {
+  createNewBankAccount,
+  type CreateBankAccountRes,
+} from '@/domains-pending-migration/bankConnection/shared/api';
 import { useSession } from '@session';
 import { TooltipHelper } from '@/components/TooltipHelper';
 
@@ -42,7 +51,7 @@ export default function AddBankAccount({
   const [selectedCountry, setSelectedCountry] = useState<Country | undefined>();
   const [countryError, setCountryError] = useState('');
   const [createdAccount, setCreatedAccount] =
-    useState<BankAccountWithMeta | null>(null);
+    useState<CreateBankAccountRes | null>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showOptionalFields, setShowOptionalFields] = useState(false);
   const [displayValue, setDisplayValue] = useState('');
@@ -122,8 +131,6 @@ export default function AddBankAccount({
   const onSubmit = async (data: NewBankAccountInput) => {
     console.log(data);
     try {
-      // Submit data to your backend API here
-      // Example: await api.addBankAccount(data);
       if (!company?.id) {
         toast.error('Failed to add bank account. Please try again.');
         return;
@@ -160,9 +167,33 @@ export default function AddBankAccount({
         }
       }
 
+      const { openingBalance, openingBalanceDate, ...rest } = data;
+
       const res = await createNewBankAccount({
         companyId: company.id,
-        data,
+        data: {
+          ...rest,
+          ...(openingBalance && openingBalanceDate
+            ? {
+                openingBalance: {
+                  date: new Date(openingBalanceDate),
+                  amount: openingBalance,
+                  origin: 'user_entered',
+                  role: 'checkpoint',
+                  metadata: {
+                    captureChannel: 'user_account_creation',
+                    captureInitiator: 'user',
+                    note: 'User-provided opening balance during bank account creation',
+                  },
+                },
+              }
+            : {}),
+          accountMetadata: {
+            connection_source: 'manual',
+            connection_note:
+              'User-provided opening balance during bank account creation',
+          },
+        },
       });
 
       if (!res.success || !res.data) {
@@ -213,36 +244,80 @@ export default function AddBankAccount({
     return <ErrorPage type="default" />;
   }
 
+  const caf = [
+    {
+      name: 'Account Name',
+      icon: Wallet,
+      value: createdAccount?.bankAccountName,
+    },
+    {
+      name: 'Bank',
+      icon: Building2,
+      value: createdAccount?.bankName,
+    },
+    {
+      name: 'Currency',
+      icon: Coins,
+      value: createdAccount?.currencyCode,
+    },
+  ];
+
   if (createdAccount) {
     return (
-      <div className="flex flex-col gap-4 p-4 max-w-md justify-between mx-auto">
-        <div className="text-green-600 flex flex-col items-center justify-center">
-          <CircleCheck size={50} />
-          <span className="text-lg font-semibold">🎉 Bank Account Added!</span>
+      <div className="flex flex-col gap-4 p-4 min-w-sm max-w-md justify-between mx-auto">
+        <div className="flex flex-col items-center justify-center">
+          <CircleCheck className="h-12 w-12" />
+          <p className="mt-2 text-lg font-medium text-foreground">
+            Bank Account Added!
+          </p>
+          <p className="text-muted-foreground text-sm">
+            Your account has been successfully connected
+          </p>
         </div>
-        <div className="rounded flex-1 border p-4 w-full bg-muted grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-          <div className="">Account Name:</div>
-          <div className="font-semibold">{createdAccount.displayName}</div>
+        {/* <div className="rounded flex-1 border p-4 w-full bg-muted grid grid-cols-[auto_1fr] gap-x-4 gap-y-1"> */}
+        <div className="flex flex-col gap-4 text-sm p-4 rounded-sm bg-muted/80">
+          {caf.map((c) => (
+            <div className="flex gap-3 items-center">
+              <div>
+                <div className="p-2 bg-background rounded-md border border-border/50">
+                  <c.icon className="w-4 h-4 text-muted-foreground" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-muted-foreground text-xs mb-1">
+                  {c.name}
+                </p>
+                <p className="font-medium text-foreground truncate">
+                  {c.value || 'Not specified'}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* <div className="">Account Name:</div>
+          <div className="font-semibold">{createdAccount?.bankAccountName}</div>
           <div className="">Bank:</div>
-          <div>{createdAccount.bankName}</div>
+          <div>{createdAccount?.bankName}</div>
           <div className="">Currency:</div>
-          <div>{`${createdAccount.currencyCode} (${createdAccount.currencySymbol})`}</div>
-        </div>
-        <div className="flex gap-2 w-full justify-end my-4">
+          <div>{`${createdAccount?.currencyCode}`}</div> */}
+        {/* </div> */}
+        <div className="grid grid-cols-2 gap-2 w-full justify-between my-4">
           <Button
             variant="outline"
             onClick={() => {
               setCreatedAccount(null);
               reset();
             }}
+            className="w-full"
           >
             Add Another
           </Button>
           <Button
             onClick={() => {
               setCreatedAccount(null);
-              onSuccess?.(createdAccount);
+              onSuccess?.(createdAccount || undefined);
             }}
+            className="w-full"
           >
             Done
           </Button>
@@ -460,6 +535,7 @@ export default function AddBankAccount({
                   <TooltipHelper
                     trigger="Opening Balance "
                     content="The initial balance on this account at the start of the tracking period (date). Use negative values for debt or overdraft."
+                    triggerWrapperClassName="w-fit flex items-center gap-1"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">

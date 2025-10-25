@@ -127,9 +127,10 @@ async function syncSingleConnection(
 
   try {
     // Use our new transaction sync service
-    await transactionSyncService.syncTransactionsForCredential(
-      data.credentialId,
-    );
+    await transactionSyncService.syncTransactionsForCredential({
+      credentialId: data.credentialId,
+      userId: data.userId,
+    });
 
     await job.updateProgress(100);
 
@@ -178,7 +179,9 @@ async function syncBulkConnections(
     );
 
     try {
-      await transactionSyncService.syncTransactionsForCredential(credentialId);
+      await transactionSyncService.syncTransactionsForCredential({
+        credentialId,
+      });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       errors.push(`${credentialId}: ${errorMsg}`);

@@ -1,4 +1,6 @@
+import type { CreateBankAccountRes } from '@/domains-pending-migration/bankConnection/shared/api';
 import { coaSource } from '@/domains-pending-migration/coa/types';
+import { zDate } from '@/shared/types/core';
 import { z } from 'zod';
 
 export interface BankAccount {
@@ -36,6 +38,13 @@ export const bankAccountType = z.enum([
 ]);
 export type BankAccountType = z.infer<typeof bankAccountType>;
 
+export const bankOpeningBalanceOrigin = z.enum(['user_entered']);
+export const bankOpeningBalanceRole = z.enum([
+  'baseline',
+  'checkpoint',
+  'archived',
+]);
+
 export const newBankAccountInput = z.object({
   displayName: z
     .string()
@@ -49,11 +58,30 @@ export const newBankAccountInput = z.object({
   source: coaSource.prefault('user').optional(),
   openingBalance: z.number().optional(),
   openingBalanceDate: z.string().optional(),
+  accountMetadata: z.record(z.string(), z.any()).optional(),
 });
+
+const openingBalance = z.object({
+  amount: z.number(),
+  date: zDate,
+  origin: bankOpeningBalanceOrigin,
+  role: bankOpeningBalanceRole,
+  metadata: z.object({
+    captureChannel: z.enum(['user_account_creation', 'ui']).optional(),
+    captureInitiator: z.enum(['user']),
+    note: z.string().max(1024).optional(),
+  }),
+});
+const bankAccountForApi = newBankAccountInput
+  .omit({ openingBalance: true, openingBalanceDate: true })
+  .extend({
+    openingBalance: openingBalance.optional(),
+  });
 export type NewBankAccountInput = z.infer<typeof newBankAccountInput>;
+export type BankAccountForApi = z.infer<typeof bankAccountForApi>;
 
 export interface AddBankAccountProps {
-  onSuccess?: (data?: BankAccountWithMeta) => void;
+  onSuccess?: (data?: CreateBankAccountRes) => void;
   onCancel?: () => void;
 }
 

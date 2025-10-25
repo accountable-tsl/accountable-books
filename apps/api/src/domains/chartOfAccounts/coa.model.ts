@@ -83,12 +83,17 @@ export const createCoa = async ({
     const recordsToInsert: NewCoa[] = [];
 
     // Get company details
-    const company: { id: string; reportingCurrencyId: string } = await tx(
-      'companies',
-    )
-      .select('id', 'reporting_currency_id as reportingCurrencyId')
-      .where('short_code', companyId)
+    const company = await tx('companies')
+      .select({
+        id: 'id',
+        reportingCurrencyId: 'reporting_currency_id',
+      })
+      .where((qb) => {
+        qb.where('short_code', companyId).orWhere('id', companyId);
+      })
       .first();
+
+    console.log('company', company);
 
     if (!company || !company.id || !company.reportingCurrencyId) {
       return errorResponse('Company not found');
@@ -133,6 +138,10 @@ export const createCoa = async ({
       });
     }
 
+    console.log({
+      errors: JSON.stringify(errors),
+      recordsToInsert: JSON.stringify(recordsToInsert),
+    });
     if (errors.length) {
       return errorResponse('Failed to create chart of accounts', errors);
     }

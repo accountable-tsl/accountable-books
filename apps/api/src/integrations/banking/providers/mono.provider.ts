@@ -4,7 +4,6 @@ import {
   TransactionSyncStrategy,
   type ProviderError,
   type ProviderAccount,
-  type ProviderInstitution,
   type TransactionSyncResult,
   type ProviderTransaction,
   type ConnectionDetails,

@@ -188,6 +188,9 @@ export const SignupCompanyInfo = forwardRef<
   //   clearErrors("slug");
   // }, [setError, clearErrors]);
 
+  const chosenCompanyType =
+    COMPANY_TYPES.find((t) => t.key === userType)?.type || '';
+
   return (
     <div>
       <div className="flex flex-col gap-4">
@@ -200,7 +203,7 @@ export const SignupCompanyInfo = forwardRef<
         >
           {userType && (
             <div className="text-[0.75rem] text-chart-2 absolute right-3 top-[55%]">
-              {COMPANY_TYPES.find((t) => t.key === userType)?.type || ''}
+              {chosenCompanyType}
             </div>
           )}
           <Input
@@ -225,7 +228,11 @@ export const SignupCompanyInfo = forwardRef<
             id="countryId"
             label="Country"
             required
-            helpTooltip={TOOLTIP.country}
+            helpTooltip={
+              chosenCompanyType.toLowerCase() === 'individual'
+                ? 'This is the primary country you file your taxes in'
+                : TOOLTIP.country
+            }
             tooltipStyle="w-full"
             error={errors.countryId?.message}
             errorTooltip

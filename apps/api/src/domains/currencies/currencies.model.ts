@@ -5,6 +5,7 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { isValidUUID } from '../../shared/utils/formatting.utils.js';
 import { generateCacheKey } from '../../shared/utils/string.utils.js';
 import { type CurrencyRes } from './currencies.types.js';
 
@@ -46,7 +47,7 @@ export async function getAllCurrencies({
   }
 }
 
-export async function getCurrencyByCode(
+export async function getCurrencyByCodeModel(
   code: string,
 ): Promise<ApiResponse<CurrencyRes | null>> {
   try {
@@ -80,6 +81,43 @@ export async function getCurrencyByCode(
     return successResponse('Currency fetched successfully', currency);
   } catch (error) {
     console.error('Error fetching currency by code:', error);
+    return errorResponse('Failed to fetch currency');
+  }
+}
+
+export async function getCurrencyByIdModel(
+  id: string,
+): Promise<ApiResponse<CurrencyRes | null>> {
+  try {
+    // Input validation
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      return errorResponse('Valid currency ID is required');
+    }
+
+    const normalizedId = id.trim();
+
+    if (!isValidUUID(normalizedId)) {
+      return errorResponse('Invalid currency ID format');
+    }
+
+    // Get all currencies (leverages cache from getAllCurrencies)
+    const allCurrenciesRes = await getAllCurrencies();
+
+    if (!allCurrenciesRes.success || !allCurrenciesRes.data) {
+      return errorResponse('Failed to fetch currencies');
+    }
+
+    const currency = allCurrenciesRes.data.find(
+      (c: CurrencyRes) => c.id === normalizedId,
+    );
+
+    if (!currency) {
+      return successResponse('Currency not found', null);
+    }
+
+    return successResponse('Currency fetched successfully', currency);
+  } catch (error) {
+    console.error('Error fetching currency by ID:', error);
     return errorResponse('Failed to fetch currency');
   }
 }

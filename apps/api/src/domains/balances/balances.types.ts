@@ -20,7 +20,7 @@ export interface BalanceSnapshot {
 export interface DailyBalance {
   day: string; // YYYY-MM-DD format
   opening_balance: number;
-  day_debits: number;
+  mon: number;
   day_credits: number;
   closing_balance: number;
   transaction_count: number;
@@ -57,21 +57,22 @@ export interface GLDailySnapshot {
   reportingCurrencyBalance: number;
 }
 
-// Bank-specific types
-export interface BankBalanceRecalcParams {
-  companyId: string;
-  bankAccountId: string;
-  recalcFrom: string; // ISO date string
-  recalcTo?: string; // Optional ISO date string to limit recalculation range
-  triggeredBy:
-    | 'transaction'
-    | 'sync'
-    | 'csv_upload'
-    | 'soft_delete'
-    | 'manual'
-    | 'opening_balance_calculated'
-    | 'conversion_set';
-}
+// // Bank-specific types
+// export interface BankBalanceRecalcParams {
+//   companyId: string;
+//   bankAccountId: string;
+//   recalcFrom: Date;
+//   recalcTo?: Date;
+//   triggeredBy:
+//     | 'transaction'
+//     | 'sync'
+//     | 'csv_upload'
+//     | 'soft_delete'
+//     | 'manual'
+//     | 'opening_balance_calculated'
+//     | 'conversion_set';
+//   userId?: string; // Optional: User ID for checkpoint attribution
+// }
 
 export interface BankCurrentBalance {
   companyId: string;
@@ -128,7 +129,11 @@ export const bankBalanceRecalcParamsSchema = z.object({
     'opening_balance_calculated',
     'conversion_set',
   ]),
+  userId: z.uuid().optional(),
 });
+export type BankBalanceRecalcParams = z.infer<
+  typeof bankBalanceRecalcParamsSchema
+>;
 
 export const glBalanceRecalcParamsSchema = z.object({
   companyId: z.uuid(),
@@ -282,34 +287,3 @@ export interface TrialBalanceResponse {
   accounts: TrialBalanceAccount[];
   totals: TrialBalanceTotals;
 }
-
-const bankOpeningBalanceOrigin = z.enum([
-  'user_conversion',
-  'system_calculated',
-]);
-export const bankOpeningBalanceParams = z.object({
-  bank_account_id: z.uuid(),
-  amount: z.number(),
-  coverage_start: z.date(),
-  coverage_end: z.date(),
-  origin: bankOpeningBalanceOrigin,
-  journal_batch_id: z.uuid().nullish(),
-  metadata: z.record(z.string(), z.any()).nullish(),
-});
-
-export type BankOpeningBalanceParams = z.infer<typeof bankOpeningBalanceParams>;
-
-export const newBankOpeningBalance = z.object({
-  ...bankOpeningBalanceParams.shape,
-  as_of_date: z.date(),
-  created_by_id: z.uuid(),
-  updated_by_id: z.uuid().nullish(),
-  ...dbStandardFields.shape,
-});
-
-const bankAccountOpeningBalances = newBankOpeningBalance.extend({
-  id: z.uuid(),
-});
-export type BankAccountOpeningBalances = z.infer<
-  typeof bankAccountOpeningBalances
->;

@@ -118,13 +118,13 @@ export async function getBankAccountCredential<T extends boolean>({
     throw new Error('Credential ID is required');
   }
   try {
-    const query = knex('bank_account_credentials as bac').where(
+    let query = knex('bank_account_credentials as bac').where(
       'id',
       credentialId,
     );
 
     if (activeStatusOnly) {
-      query.where('status', 'active');
+      query = query.where('status', 'active');
     }
 
     const cred = await query.select('*').first();
@@ -145,6 +145,11 @@ export async function getBankAccountCredential<T extends boolean>({
     }
     return successResponse('Credential retrieved successfully', cred);
   } catch (error) {
+    console.error('Credential lookup failed:', {
+      credentialId,
+      activeStatusOnly,
+      error: error instanceof Error ? error.message : error,
+    });
     return errorResponse('Unable to retrieve credential', error);
   }
 }

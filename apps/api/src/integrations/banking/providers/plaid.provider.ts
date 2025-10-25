@@ -298,7 +298,7 @@ export class PlaidProvider extends BankingProvider {
           },
           balance: (account.balances.current ||
             account.balances.available) as number,
-          balanceDate: timestamp,
+          balanceDate: new Date(timestamp),
         };
       });
   }

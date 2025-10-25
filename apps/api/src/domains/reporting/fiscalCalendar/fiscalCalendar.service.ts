@@ -22,12 +22,17 @@ const logger = pino();
  * // May 15, 2024 → FY2025, Period 1 (May 1-31)
  * // Apr 15, 2024 → FY2024, Period 12 (Apr 1-30)
  */
-function calculateFiscalPeriod(
-  date: Date,
-  yearEndMonth: number,
-  yearEndDay: number,
-  periodType: 'monthly' | 'quarterly' | 'yearly',
-): {
+function calculateFiscalPeriod({
+  date,
+  yearEndMonth,
+  yearEndDay,
+  periodType,
+}: {
+  date: Date;
+  yearEndMonth: number;
+  yearEndDay: number;
+  periodType: 'monthly' | 'quarterly' | 'yearly';
+}): {
   fiscalYear: number;
   periodNumber: number;
   startDate: Date;
@@ -122,12 +127,17 @@ function calculateFiscalPeriod(
 /**
  * Get fiscal period for a given date
  */
-export async function getFiscalPeriodForDate(
-  companyId: string,
-  date: Date | string,
-  periodType: 'monthly' | 'quarterly' | 'yearly' = 'monthly',
-  trx?: Knex.Transaction,
-): Promise<FiscalCalendar | null> {
+export async function getFiscalPeriodForDate({
+  companyId,
+  date,
+  periodType = 'monthly',
+  trx,
+}: {
+  companyId: string;
+  date: Date | string;
+  periodType?: 'monthly' | 'quarterly' | 'yearly';
+  trx?: Knex.Transaction;
+}): Promise<FiscalCalendar | null> {
   const dateStr = typeof date === 'string' ? date : format(date, 'yyyy-MM-dd');
 
   const period = await (trx || db)('fiscal_calendar')
@@ -166,12 +176,12 @@ export async function ensureFiscalPeriodExists(
 
   // Calculate fiscal year and period based on company's year-end
   const { fiscalYear, periodNumber, startDate, endDate } =
-    calculateFiscalPeriod(
-      dateObj,
-      company.year_end_month,
-      company.year_end_day,
+    calculateFiscalPeriod({
+      date: dateObj,
+      yearEndMonth: company.year_end_month,
+      yearEndDay: company.year_end_day,
       periodType,
-    );
+    });
 
   // Check if period already exists
   const existing = await (trx || db)('fiscal_calendar')

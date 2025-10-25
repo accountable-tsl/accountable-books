@@ -24,10 +24,6 @@ import crypto from 'crypto';
 import type { Knex } from 'knex';
 import { randomUUID } from 'crypto';
 import { enqueueBankBalance } from '../../jobs/queues/balance-recalc.queue.js';
-import {
-  getActiveOpeningBalance,
-  setOpeningBalance,
-} from '../balances/openingBalance.service.js';
 
 export async function addNewBankTransactions({
   userId,
