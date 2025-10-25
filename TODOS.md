@@ -122,6 +122,7 @@ Launch `2025-29-09`
 - [ ] Backup database for postgres
 - [ ] Re-enable deployment protection (vercel) once we push to production
 - [ ] Wire enqueueGLBalance into every ledger-entry mutation path so GL snapshots refresh automatically.
+- FX Positions handling
 
 ### CAN DELAY (Post-Launch)
 

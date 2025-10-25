@@ -790,7 +790,7 @@ class BankBalanceService {
    * Update the current balance for the bank account
    * Calculates balance from last snapshot + any transactions after
    */
-  async refreshCurrentBalance({
+  private async refreshCurrentBalance({
     companyId,
     bankAccountId,
     companyTz,
@@ -872,7 +872,7 @@ class BankBalanceService {
    * Update the current balance record for a bank account
    * Uses upsert to handle conflicts
    */
-  private async updateCurrentBalance({
+  async updateCurrentBalance({
     companyId,
     bankAccountId,
     balance,

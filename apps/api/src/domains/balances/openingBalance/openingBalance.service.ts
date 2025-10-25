@@ -305,15 +305,19 @@ export async function setBankOpeningBalance({
         throw e;
       });
 
-    await bankBalanceService.refreshCurrentBalance({
-      companyId: bankAccount.company_id,
-      bankAccountId: bank_account_id,
-      lastSnapshot: null,
-      companyTz: bankAccount.default_timezone ?? undefined,
-      recalcEndDate: formatDateToYMD(coverage_end),
-      trx: tx,
-    });
-
+    const x = await tx('bank_account_current_native_balances')
+      .where({
+        bank_account_id: bank_account_id,
+      })
+      .first();
+    if (!x) {
+      await bankBalanceService.updateCurrentBalance({
+        companyId: bankAccount.company_id,
+        bankAccountId: bank_account_id,
+        balance: amount,
+        client: tx,
+      });
+    }
     const newBalance = inserted[0];
 
     let journalBatchId: string | undefined;
