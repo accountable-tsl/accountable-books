@@ -2,6 +2,7 @@ import { startEmailWorker } from './email.worker.js';
 import { startTransactionSyncWorker } from './transaction-sync.worker.js';
 import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
 import { startBalanceRecalcWorker } from './balance-recalc.worker.js';
+import { startFiscalCalendarWorker } from './fiscal-calendar.worker.js';
 import type { Worker } from 'bullmq';
 
 export interface WorkerConfig {
@@ -15,6 +16,9 @@ export interface WorkerConfig {
     concurrency: number;
   };
   balanceRecalc: {
+    concurrency: number;
+  };
+  fiscalCalendar: {
     concurrency: number;
   };
 }
@@ -32,6 +36,9 @@ const DEFAULT_WORKER_CONFIG: WorkerConfig = {
   },
   balanceRecalc: {
     concurrency: Number(process.env.BALANCE_RECALC_CONCURRENCY) || 5,
+  },
+  fiscalCalendar: {
+    concurrency: Number(process.env.FISCAL_CALENDAR_CONCURRENCY) || 3,
   },
 };
 
@@ -95,6 +102,21 @@ export async function startAllWorkers(
   } catch (error) {
     console.error('❌ Failed to start balance recalculation worker:', error);
     // Balance recalc is core functionality, so throw the error
+    throw error;
+  }
+
+  // Start fiscal calendar worker (core functionality for period management)
+  try {
+    console.log('📅 Starting fiscal calendar worker...');
+    const fiscalCalendarWorker = startFiscalCalendarWorker(
+      workerConfig.fiscalCalendar.concurrency,
+    );
+    activeWorkers.set('fiscalCalendar', fiscalCalendarWorker);
+    workers.push(fiscalCalendarWorker);
+    console.log('✅ Fiscal calendar worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start fiscal calendar worker:', error);
+    // Fiscal calendar is core functionality, so throw the error
     throw error;
   }
 

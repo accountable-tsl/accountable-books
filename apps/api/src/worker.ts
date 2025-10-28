@@ -7,6 +7,7 @@ import {
   stopAllWorkers,
   getWorkersStatus,
 } from './jobs/workers/index.js';
+import { scheduleNightlyAutoExtend } from './jobs/queues/fiscal-calendar.queue.js';
 import { initSentry } from './sentry.bootstrap.js';
 import { NODE_ENV, ENV } from './config/env.js';
 import { initRedisMonitoring, getRedisStats } from './lib/redis-monitor.js';
@@ -50,6 +51,12 @@ async function main() {
 
     // Start all configured workers
     const workers = await startAllWorkers();
+
+    // Schedule nightly fiscal calendar auto-extend job
+    await scheduleNightlyAutoExtend();
+    logger.info(
+      '📅 Scheduled nightly fiscal calendar auto-extend (2 AM daily)',
+    );
 
     // Log worker status
     const status = getWorkersStatus();

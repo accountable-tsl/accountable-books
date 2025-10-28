@@ -11,6 +11,7 @@ const BASE = [
   'vector',
   'citext',
   'unaccent',
+  'btree_gist',
 ];
 
 const CANDIDATE_EXTENSIONS = IS_LOCAL ? [...BASE, 'pg_cron'] : BASE;

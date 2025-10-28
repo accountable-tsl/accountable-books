@@ -13,7 +13,6 @@ import {
 } from './companies.types.js';
 import type { ApiResponse } from '../../core/types/api.types.js';
 import {
-  camelToSnake,
   isValidUUID,
   snakeToCamel,
 } from '../../shared/utils/formatting.utils.js';
@@ -45,6 +44,7 @@ import {
 } from '../../shared/utils/logger.js';
 import { getCurrency } from '../currencies/currencies.utils.js';
 import { getCountry } from '../countries/countries.utils.js';
+import { enqueueFiscalCalendarGeneration } from '../../jobs/queues/fiscal-calendar.queue.js';
 import {
   buildAuthContext,
   generateAuthTokens,
@@ -260,6 +260,21 @@ export const createCompany = async (
       sanitizedData.onboarding_state ||
       createInitialCompanyOnboardingState(sanitizedData.type);
 
+    // Determine fiscal year-end defaults based on country and company type
+    // UK individuals: April 5 (tax year end)
+    // All others: December 31
+    let defaultYearEndMonth = 12;
+    let defaultYearEndDay = 31;
+
+    if (country_code === 'GB' && sanitizedData.type === 'individual') {
+      defaultYearEndMonth = 4;
+      defaultYearEndDay = 5;
+      companyLogger.debug(
+        { countryCode: country_code, companyType: sanitizedData.type },
+        'Using UK individual fiscal year-end (April 5)',
+      );
+    }
+
     const companyData = {
       ...sanitizedData,
       ...(sanitizedData.id ? { id: sanitizedData.id } : {}),
@@ -269,8 +284,8 @@ export const createCompany = async (
       legal_name: sanitizedData.legal_name,
       display_name: sanitizedData.display_name,
       short_code: shortCode,
-      year_end_day: sanitizedData.year_end_day || 31,
-      year_end_month: sanitizedData.year_end_month || 12,
+      year_end_day: sanitizedData.year_end_day || defaultYearEndDay,
+      year_end_month: sanitizedData.year_end_month || defaultYearEndMonth,
       reporting_framework: sanitizedData.reporting_framework || 'ifrs',
       created_by_id: userExists.id,
       last_updated_by_id: userExists.id,
@@ -328,6 +343,32 @@ export const createCompany = async (
       { companyId: company.id, firmId },
       'Company assigned to firm successfully',
     );
+
+    // Enqueue fiscal calendar generation (very fast, ~10ms)
+    // Don't fail company creation if calendar generation fails
+    try {
+      await enqueueFiscalCalendarGeneration({
+        type: 'generate-calendar',
+        companyId: company.id,
+        yearsBack: 2,
+        yearsForward: 10,
+        triggeredBy: 'company_creation',
+        userId: userExists.id,
+      });
+      companyLogger.info(
+        { companyId: company.id },
+        'Fiscal calendar generation job enqueued',
+      );
+    } catch (error) {
+      companyLogger.error(
+        {
+          companyId: company.id,
+          error: error instanceof Error ? error : new Error(String(error)),
+        },
+        'Failed to enqueue fiscal calendar generation (non-critical)',
+      );
+      // Non-critical: Calendar can be generated manually later if needed
+    }
 
     // Validate and return company data
     const companyDataValidation = newCompany.safeParse(company);

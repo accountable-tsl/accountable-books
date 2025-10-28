@@ -11,7 +11,7 @@ export type LedgerTransactionSource = z.infer<typeof ledgerTransactionSource>;
 
 // Ledger Transaction Types
 const baseLedgerTransaction = z.object({
-  date: z.date(),
+  date: z.union([z.date(), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
   source: ledgerTransactionSource,
   description: z.string().nullish(),
   reference: z.string().nullish(),

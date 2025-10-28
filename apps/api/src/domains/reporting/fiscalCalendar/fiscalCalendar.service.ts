@@ -1,13 +1,26 @@
 import { knexClient as db } from '../../../db/knexClient.js';
 import type { Knex } from 'knex';
 import pino from 'pino';
-import type {
-  FiscalCalendar,
-  NewFiscalCalendar,
-  FiscalPeriodValidation,
-  FiscalPeriodResponse,
+import {
+  type FiscalCalendar,
+  type NewFiscalCalendar,
+  type FiscalPeriodValidation,
+  type FiscalPeriodResponse,
+  type FiscalPeriodType,
+  type FiscalCalendarStatus,
+  type FiscalPeriodYMD,
+  type ExtendResult,
+  fiscalPeriodType,
 } from './fiscalCalendar.types.js';
 import { format, addMonths, subMonths, isBefore, isAfter } from 'date-fns';
+import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
+import {
+  addDaysToYMD,
+  addMonthsToYMD,
+  isValidYMD,
+  toDate,
+  toYMD,
+} from '../../../shared/utils/date.utils.js';
 
 const logger = pino();
 
@@ -159,7 +172,7 @@ export async function getFiscalPeriodForDate({
 export async function ensureFiscalPeriodExists(
   companyId: string,
   date: Date | string,
-  periodType: 'monthly' = 'monthly',
+  periodType: FiscalPeriodType = 'monthly',
   trx?: Knex.Transaction,
 ): Promise<FiscalCalendar> {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -487,4 +500,738 @@ export async function getFiscalPeriods(
     closedAt: period.closed_at ? period.closed_at.toISOString() : undefined,
     closedById: period.closed_by_id,
   }));
+}
+
+class FiscalCalendarService {
+  readonly PERIOD_TYPES: FiscalPeriodType[] = [
+    'monthly',
+    'quarterly',
+    'yearly',
+  ];
+
+  readonly ALLOWED_TYPES_SET = new Set<FiscalPeriodType>(this.PERIOD_TYPES);
+
+  private normalizePeriodTypes(types?: FiscalPeriodType[]): FiscalPeriodType[] {
+    const arr = (types && types.length ? types : this.PERIOD_TYPES).filter(
+      (t) => this.ALLOWED_TYPES_SET.has(t),
+    );
+    return Array.from(new Set(arr)).sort(
+      (a, b) => this.PERIOD_TYPES.indexOf(a) - this.PERIOD_TYPES.indexOf(b),
+    );
+  }
+
+  async generateCompanyFiscalCalendar({
+    companyId,
+    options,
+    trx,
+  }: {
+    companyId: string;
+    options?: Partial<{
+      yearsBack: number;
+      yearsForward: number;
+      periodTypes: FiscalPeriodType[];
+      status?: FiscalCalendarStatus;
+    }>;
+    trx?: Knex.Transaction;
+  }): Promise<{ created: number; skipped: number }> {
+    const {
+      yearsBack = 2,
+      yearsForward = 10,
+      periodTypes,
+      status = 'open',
+    } = options ?? {};
+
+    if (yearsBack < 0 || yearsBack > 20) {
+      throw new Error('yearsBack must be 0–20');
+    }
+    if (yearsForward < 1 || yearsForward > 50) {
+      throw new Error('yearsForward must be 1–50');
+    }
+
+    const types = this.normalizePeriodTypes(periodTypes);
+
+    const exec = async (txn: Knex.Transaction) => {
+      const {
+        yearEndMonth,
+        yearEndDay,
+        id: companyUUID,
+      } = await this.getCompanyContext(companyId, txn);
+
+      const todayYMD = toYMD(new Date());
+      const { fiscalYear: currentFY } = this.calculateFiscalPeriodYMD({
+        ymd: todayYMD,
+        yearEndMonth,
+        yearEndDay,
+        periodType: 'yearly',
+      });
+
+      const startFY = currentFY - yearsBack;
+      const endFY = currentFY + yearsForward;
+
+      let totalCreated = 0;
+
+      for (const type of types) {
+        const batchSize = 100;
+        let rows: NewFiscalCalendar[] = [];
+
+        for (let fy = startFY; fy <= endFY; fy++) {
+          const { startYMD: fyStart, endYMD: fyEnd } = this.fiscalYearBounds({
+            fiscalYear: fy,
+            yearEndMonth,
+            yearEndDay,
+          });
+
+          // Walk this fiscal year by periods of the selected type
+          let cursor = fyStart;
+          while (cursor <= fyEnd) {
+            const p = this.calculateFiscalPeriodYMD({
+              ymd: cursor,
+              yearEndMonth,
+              yearEndDay,
+              periodType: type,
+            });
+
+            rows.push({
+              company_id: companyUUID,
+              fiscal_year: p.fiscalYear,
+              period_number: p.periodNumber,
+              period_type: type,
+              start_date: p.startYMD,
+              end_date: p.endYMD,
+              status,
+            });
+
+            // Flush in batches to keep memory bounded
+            if (rows.length >= batchSize) {
+              const res = await txn('fiscal_calendar')
+                .insert(rows)
+                .onConflict([
+                  'company_id',
+                  'fiscal_year',
+                  'period_number',
+                  'period_type',
+                ])
+                .ignore()
+                .returning('company_id');
+              totalCreated += res.length;
+              rows = []; // Reset rows for the next batch
+            }
+
+            // Next period begins the day after the current period's end
+            cursor = addDaysToYMD(p.endYMD, 1);
+          }
+        }
+
+        // Flush any remaining rows
+        if (rows.length > 0) {
+          const res = await txn('fiscal_calendar')
+            .insert(rows)
+            .onConflict([
+              'company_id',
+              'fiscal_year',
+              'period_number',
+              'period_type',
+            ])
+            .ignore()
+            .returning('company_id');
+          totalCreated += res.length;
+        }
+      }
+
+      return { created: totalCreated, skipped: 0 };
+    };
+
+    if (trx) {
+      return await exec(trx);
+    } else {
+      return await db.transaction(exec);
+    }
+  }
+
+  /**
+   * Ensure company has at least N months of future fiscal periods
+   * Extends coverage if needed
+   *
+   * @param companyId - Company UUID
+   * @param minFutureMonths - Minimum months of future coverage (default: 24)
+   * @param trx - Optional transaction
+   */
+  async ensureFutureCoverage({
+    companyId,
+    minFutureMonths = 24,
+    trx,
+  }: {
+    companyId: string;
+    minFutureMonths?: number;
+    trx?: Knex.Transaction;
+  }): Promise<ExtendResult> {
+    if (minFutureMonths < 1 || minFutureMonths > 120) {
+      throw new Error('minFutureMonths must be between 1 and 120');
+    }
+
+    const exec = async (txn: Knex.Transaction): Promise<ExtendResult> => {
+      const {
+        id: companyUUID,
+        yearEndDay,
+        yearEndMonth,
+      } = await this.getCompanyContext(companyId, txn);
+
+      const todayYMD = toYMD(new Date());
+
+      function endOfContainingMonth(ymd: string): string {
+        const dt = toDate(ymd, 'start');
+        const end = new Date(
+          Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 0),
+        );
+        return toYMD(end);
+      }
+
+      const maxYMD = (a: string | null, b: string) => (a ? (a > b ? a : b) : b);
+
+      // Horizon aligns to end of the month, then each type maps that to its own end
+      const horizonEndDate = endOfContainingMonth(
+        addMonthsToYMD(todayYMD, minFutureMonths),
+      );
+
+      let periodsAdded = 0;
+      let coverageEnd: string | null = null;
+      const types = this.normalizePeriodTypes(this.PERIOD_TYPES);
+
+      for (const type of types) {
+        const last = await txn('fiscal_calendar')
+          .where({
+            company_id: companyUUID,
+            period_type: type,
+          })
+          .max<{ max: string }[]>('end_date as max');
+
+        const lastEnd = last[0]?.max || null;
+
+        // Start generating from tomorrow or day after last end, whichever is later
+        const start = lastEnd ? addDaysToYMD(lastEnd, 1) : todayYMD;
+        const startBound = start > todayYMD ? start : todayYMD;
+
+        // Compute the end bound as the end of the period that contains the horizon for this type
+        const endPeriod = this.calculateFiscalPeriodYMD({
+          ymd: horizonEndDate,
+          yearEndMonth,
+          yearEndDay,
+          periodType: type,
+        });
+        const endBound = endPeriod.endYMD;
+
+        if (startBound > endBound) {
+          // already covered
+          coverageEnd = maxYMD(coverageEnd, endBound);
+          continue;
+        }
+
+        // Walk periods from startBound to endBound
+        const rows: NewFiscalCalendar[] = [];
+        let cursor = startBound;
+
+        while (cursor <= endBound) {
+          const p = this.calculateFiscalPeriodYMD({
+            ymd: cursor,
+            yearEndDay,
+            yearEndMonth,
+            periodType: type,
+          });
+
+          rows.push({
+            company_id: companyUUID,
+            fiscal_year: p.fiscalYear,
+            period_number: p.periodNumber,
+            period_type: type,
+            start_date: p.startYMD,
+            end_date: p.endYMD,
+            status: 'open',
+          });
+
+          cursor = addDaysToYMD(p.endYMD, 1);
+        }
+
+        if (rows.length) {
+          const inserted = await this.createFiscalCalendarRecords({
+            data: rows,
+            trx: txn,
+          });
+
+          periodsAdded += inserted.length;
+        }
+        coverageEnd = maxYMD(coverageEnd, endBound);
+      }
+
+      return {
+        extended: periodsAdded > 0,
+        periodsAdded,
+        newCoverageEndDate: coverageEnd,
+      };
+    };
+
+    if (trx) {
+      return await exec(trx);
+    } else {
+      return db.transaction(exec);
+    }
+  }
+
+  /**
+   *  Fill gaps in fiscal calendar coverage for a specific date range
+   * Idempotent - safe to run multiple times
+   * @param companyId - Company UUID
+   * @param startDate - Start date (YYYY-MM-DD)
+   * @param endDate - End date (YYYY-MM-DD)
+   * @param periodTypes - Period types to fill (default: all three)
+   * @param trx - Optional transaction
+   *
+   */
+  async fillCoverageGaps(p: {
+    companyId: string;
+    startDate: string;
+    endDate: string;
+    periodTypes?: FiscalPeriodType[];
+    trx?: Knex.Transaction;
+  }): Promise<{
+    periodsFilled: number;
+    dateRange: { start: string; end: string };
+  }> {
+    const {
+      companyId,
+      startDate,
+      endDate,
+      periodTypes = this.PERIOD_TYPES,
+      trx,
+    } = p;
+
+    if (!isValidYMD(startDate) || !isValidYMD(endDate) || startDate > endDate) {
+      throw new Error(
+        `fillCoverageGaps: invalid range ${startDate}..${endDate}`,
+      );
+    }
+
+    const {
+      id: companyUUID,
+      yearEndMonth,
+      yearEndDay,
+    } = await this.getCompanyContext(companyId, trx);
+
+    const types = this.normalizePeriodTypes(periodTypes);
+
+    let periodsFilled = 0;
+    for (const type of types) {
+      const startPeriod = this.calculateFiscalPeriodYMD({
+        ymd: startDate,
+        yearEndMonth,
+        yearEndDay,
+        periodType: type,
+      });
+
+      const endPeriod = this.calculateFiscalPeriodYMD({
+        ymd: endDate,
+        yearEndMonth,
+        yearEndDay,
+        periodType: type,
+      });
+
+      // Sanity check: reject unreasonably large ranges
+      const fiscalYearSpan = endPeriod.fiscalYear - startPeriod.fiscalYear + 1;
+      const MAX_FISCAL_YEARS = 20; // Reasonable limit
+
+      if (fiscalYearSpan > MAX_FISCAL_YEARS) {
+        throw new Error(
+          `fillCoverageGaps: Range too large (${fiscalYearSpan} fiscal years). ` +
+            `Maximum allowed: ${MAX_FISCAL_YEARS} years. ` +
+            `Range: ${startDate} to ${endDate}`,
+        );
+      }
+
+      const rows: NewFiscalCalendar[] = [];
+
+      let cursor = startDate;
+
+      // Walk periods covering [startDate..endDate]
+      while (cursor <= endDate) {
+        const p = this.calculateFiscalPeriodYMD({
+          ymd: cursor,
+          yearEndMonth,
+          yearEndDay,
+          periodType: type,
+        });
+        rows.push({
+          company_id: companyUUID,
+          fiscal_year: p.fiscalYear,
+          period_number: p.periodNumber,
+          period_type: type,
+          start_date: p.startYMD,
+          end_date: p.endYMD,
+          status: 'open',
+        });
+
+        cursor = addDaysToYMD(p.endYMD, 1);
+      }
+
+      const i = await this.createFiscalCalendarRecords({
+        data: rows,
+        trx,
+      });
+
+      periodsFilled += i.length;
+    }
+
+    return { periodsFilled, dateRange: { start: startDate, end: endDate } };
+  }
+
+  private async getCompanyContext(
+    companyId: string,
+    trx?: Knex.Transaction,
+  ): Promise<{ yearEndMonth: number; yearEndDay: number; id: string }> {
+    const knex = trx ?? db;
+    const company = await knex('companies')
+      .select('year_end_month', 'year_end_day', 'id')
+      .where((b) => b.where('id', companyId).orWhere('short_code', companyId))
+      .first<{ year_end_month: number; year_end_day: number; id: string }>();
+
+    if (!company) {
+      throw new Error(`Company ${companyId} not found`);
+    }
+
+    const yearEndMonth = company.year_end_month;
+    const yearEndDay = company.year_end_day;
+
+    if (!yearEndMonth || !yearEndDay) {
+      throw new Error('Company year end month and day not found');
+    }
+    return {
+      yearEndMonth,
+      yearEndDay,
+      id: company.id,
+    };
+  }
+
+  /**
+   * Given a date in YYYY-MM-DD format, company's fiscal year-end (month/day), and period type,
+   * It computes and return the which fiscal year that date belongs to, which period number within that fiscal year and the inclusive start/end dates of that period
+   *
+   * @param ymd - Date in YYYY-MM-DD format
+   * @param yearEndMonth - Month of the year-end
+   * @param yearEndDay - Day of the year-end
+   * @param periodType - Type of period to calculate the fiscal year range for
+   * @returns { startFiscalYear: number, endFiscalYear: number }
+   *
+   * Edge cases to address:
+   * - Non-existent “year-end” days (e.g., Feb-29 on non-leap years)
+   * - Months have different lengths (30 vs 31 vs 28/29); adding months can “overflow.”
+   * - Inclusive period ends (we want period_span like [start,end] with no off-by-one)
+   */
+  private calculateFiscalPeriodYMD({
+    ymd,
+    yearEndMonth,
+    yearEndDay,
+    periodType,
+  }: {
+    ymd: string;
+    yearEndMonth: number;
+    yearEndDay: number;
+    periodType: FiscalPeriodType;
+  }): FiscalPeriodYMD {
+    if (!isValidYMD(ymd)) {
+      throw new Error(`Invalid ymd: ${ymd}`);
+    }
+
+    if (yearEndMonth < 1 || yearEndMonth > 12) {
+      throw new Error(`Invalid yearEndMonth: ${yearEndMonth}`);
+    }
+
+    if (yearEndDay < 1 || yearEndDay > 31) {
+      throw new Error(`Invalid yearEndDay: ${yearEndDay}`);
+    }
+
+    if (
+      periodType !== 'yearly' &&
+      periodType !== 'monthly' &&
+      periodType !== 'quarterly'
+    ) {
+      throw new Error(`Invalid periodType: ${periodType}`);
+    }
+
+    const date = toDate(ymd, 'start'); // start of day
+    const calendarYear = date.getUTCFullYear();
+
+    const currentYearEndYMD = this.getValidYearEndYMD({
+      year: calendarYear,
+      yearEndMonth,
+      yearEndDay,
+    });
+
+    // If date is after this calendar year's fiscal year-end,
+    // it belongs to next fiscal year
+    const fiscalYear =
+      ymd > currentYearEndYMD ? calendarYear + 1 : calendarYear;
+
+    const fiscalYearEndYMD = this.getValidYearEndYMD({
+      year: fiscalYear,
+      yearEndMonth,
+      yearEndDay,
+    });
+    const previousYearEndYMD = this.getValidYearEndYMD({
+      year: fiscalYear - 1,
+      yearEndMonth,
+      yearEndDay,
+    });
+    const fiscalYearStartYMD = addDaysToYMD(previousYearEndYMD, 1);
+
+    if (periodType === 'yearly') {
+      return {
+        fiscalYear,
+        periodNumber: 1,
+        startYMD: fiscalYearStartYMD,
+        endYMD: fiscalYearEndYMD,
+      };
+    }
+
+    if (periodType === 'monthly') {
+      // Find which month of the fiscal year contains our date
+      for (let month = 0; month < 12; month++) {
+        const periodStart = addMonthsToYMD(fiscalYearStartYMD, month);
+        const periodEnd = addDaysToYMD(addMonthsToYMD(periodStart, 1), -1);
+
+        if (ymd >= periodStart && ymd <= periodEnd) {
+          return {
+            fiscalYear,
+            periodNumber: month + 1,
+            startYMD: periodStart,
+            endYMD: periodEnd,
+          };
+        }
+      }
+
+      throw new Error(`Date ${ymd} outside fiscal year ${fiscalYear}`);
+    }
+
+    // Find which quarter contains our date
+    for (let quarter = 0; quarter < 4; quarter++) {
+      const periodStart = addMonthsToYMD(fiscalYearStartYMD, quarter * 3);
+      const periodEnd = addDaysToYMD(addMonthsToYMD(periodStart, 3), -1);
+
+      if (ymd >= periodStart && ymd <= periodEnd) {
+        return {
+          fiscalYear,
+          periodNumber: quarter + 1,
+          startYMD: periodStart,
+          endYMD: periodEnd,
+        };
+      }
+    }
+
+    throw new Error(`Date ${ymd} outside fiscal year ${fiscalYear}`);
+  }
+
+  // Handles fiscal year-ends on invalid days (e.g., Feb 30)
+  // Falls back to last valid day of the month
+  private getValidYearEndYMD({
+    year,
+    yearEndMonth,
+    yearEndDay,
+  }: {
+    year: number;
+    yearEndMonth: number;
+    yearEndDay: number;
+  }): string {
+    // Attempt exact fiscal year-end date
+    const end = new Date(Date.UTC(year, yearEndMonth - 1, yearEndDay));
+
+    // Month overflow means invalid day (e.g., Feb 30 became Mar 2)
+    if (end.getUTCMonth() + 1 !== yearEndMonth) {
+      const lastDayOfMonth = new Date(Date.UTC(year, yearEndMonth, 0));
+      return toYMD(lastDayOfMonth);
+    }
+
+    return toYMD(end);
+  }
+
+  private fiscalYearBounds({
+    fiscalYear,
+    yearEndMonth,
+    yearEndDay,
+  }: {
+    fiscalYear: number;
+    yearEndMonth: number;
+    yearEndDay: number;
+  }): { startYMD: string; endYMD: string } {
+    const endYMD = this.getValidYearEndYMD({
+      year: fiscalYear,
+      yearEndMonth,
+      yearEndDay,
+    });
+    const prevEndYMD = this.getValidYearEndYMD({
+      year: fiscalYear - 1,
+      yearEndMonth,
+      yearEndDay,
+    });
+    const startYMD = addDaysToYMD(prevEndYMD, 1);
+    return { startYMD, endYMD };
+  }
+
+  async createFiscalCalendarRecords(p: {
+    data: NewFiscalCalendar[];
+    trx?: Knex.Transaction;
+  }) {
+    const { data, trx } = p;
+    const knex = trx ?? db;
+
+    const result = await knex('fiscal_calendar')
+      .insert(data)
+      .onConflict(['company_id', 'fiscal_year', 'period_number', 'period_type'])
+      .ignore()
+      .returning('company_id');
+
+    return result;
+  }
+}
+
+export const fiscalCalendarService = new FiscalCalendarService();
+
+async function createFiscalCalendarRecords(p: {
+  data: NewFiscalCalendar[];
+  trx?: Knex.Transaction;
+}) {
+  const { data, trx } = p;
+  const knex = trx ?? db;
+
+  const result = await knex('fiscal_calendar')
+    .insert(data)
+    .onConflict(['company_id', 'fiscal_year', 'period_number', 'period_type'])
+    .ignore()
+    .returning('company_id');
+
+  return result;
+}
+
+export async function getFiscalCalendar({
+  companyId,
+  startYMD,
+  endYMD,
+  periodTypes,
+  statuses,
+  trx,
+}: {
+  companyId: string;
+  startYMD: string; // YYYY-MM-DD
+  endYMD: string; // YYYY-MM-DD
+  periodTypes?: FiscalPeriodType[];
+  statuses?: FiscalCalendarStatus[];
+  trx?: Knex.Transaction;
+}): Promise<FiscalCalendar[]> {
+  if (!isValidYMD(startYMD) || !isValidYMD(endYMD)) {
+    throw new Error(
+      'Invalid date format: use YYYY-MM-DD (real calendar dates only)',
+    );
+  }
+
+  if (startYMD > endYMD) {
+    throw new Error(`Invalid range: ${startYMD} > ${endYMD}`);
+  }
+  const companyUUID = await getCompanyUUID(companyId, trx);
+
+  const knex = trx ?? db;
+  const query = knex('fiscal_calendar')
+    .select(
+      'company_id',
+      'fiscal_year',
+      'period_number',
+      'period_type',
+      'start_date',
+      'end_date',
+      'status',
+      'closed_at',
+      'closed_by_id',
+      'created_at',
+      'updated_at',
+      'metadata',
+    )
+    .where('company_id', companyUUID)
+    .andWhereRaw("period_span && daterange(?::date, ?::date, '[]')", [
+      startYMD,
+      endYMD,
+    ]);
+
+  if (periodTypes?.length) {
+    query.whereIn('period_type', periodTypes);
+  }
+  if (statuses?.length) {
+    query.whereIn('status', statuses);
+  }
+
+  const periods = await query.orderBy([
+    { column: 'period_type', order: 'asc' },
+    { column: 'fiscal_year', order: 'asc' },
+    { column: 'period_number', order: 'asc' },
+  ]);
+
+  return periods.map((period) => ({
+    ...period,
+    start_date: toYMD(period.start_date),
+    end_date: toYMD(period.end_date),
+  }));
+}
+
+export async function ensureAndFetchFiscalCalendar({
+  companyId,
+  startYMD,
+  endYMD,
+  fetchTypes = ['monthly', 'quarterly', 'yearly'],
+  requireMonthlyOpen = true,
+  trx,
+}: {
+  companyId: string;
+  startYMD: string;
+  endYMD: string;
+  fetchTypes?: FiscalPeriodType[];
+  requireMonthlyOpen?: boolean;
+  trx?: Knex.Transaction;
+}): Promise<{ rows: FiscalCalendar[] }> {
+  if (!isValidYMD(startYMD) || !isValidYMD(endYMD) || startYMD > endYMD) {
+    throw new Error(
+      `ensureAndFetchFiscalCalendar: invalid range ${startYMD}..${endYMD}`,
+    );
+  }
+
+  // Ensure coverage exists (idempotent)
+  await fiscalCalendarService.fillCoverageGaps({
+    companyId,
+    startDate: startYMD,
+    endDate: endYMD,
+    periodTypes: ['monthly', 'quarterly', 'yearly'],
+    trx,
+  });
+
+  // Enforce “no posting into closed/locked monthly periods” if requested
+  if (requireMonthlyOpen) {
+    const blocking = await getFiscalCalendar({
+      companyId,
+      startYMD,
+      endYMD,
+      periodTypes: ['monthly'],
+      statuses: ['closed', 'locked'],
+      trx,
+    });
+    if (blocking.length) {
+      const first = blocking[0];
+      throw new Error(
+        `Cannot post into a closed/locked month: FY${first.fiscal_year}-P${first.period_number} (${first.start_date}..${first.end_date})`,
+      );
+    }
+  }
+
+  // Return whatever types the caller wants to use
+  const rows = await getFiscalCalendar({
+    companyId,
+    startYMD,
+    endYMD,
+    periodTypes: fetchTypes,
+    trx,
+  });
+
+  return { rows };
 }

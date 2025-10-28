@@ -34,6 +34,7 @@ class GLBalanceService {
   async recalculateBalance(
     params: GLBalanceRecalcParams,
   ): Promise<BalanceRecalcResult> {
+    //
     // Validate input parameters with detailed error messages
     const validationResult = glBalanceRecalcParamsSchema.safeParse(params);
     if (!validationResult.success) {

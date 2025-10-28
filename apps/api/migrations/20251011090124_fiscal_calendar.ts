@@ -18,16 +18,30 @@ export async function up(knex: Knex): Promise<void> {
     table.integer('fiscal_year').notNullable();
     table.integer('period_number').notNullable();
     table
-      .enum('period_type', ['monthly', 'quarterly', 'yearly'])
-      .notNullable()
-      .defaultTo('monthly');
+      .enu('period_type', ['monthly', 'quarterly', 'yearly'], {
+        useNative: true,
+        enumName: 'fiscal_period_type',
+      })
+      .notNullable();
 
     table.date('start_date').notNullable();
     table.date('end_date').notNullable();
 
-    table.string('status', 20).notNullable().defaultTo('open');
+    table
+      .enu('status', ['open', 'closed', 'locked'], {
+        useNative: true,
+        enumName: 'fiscal_calendar_status',
+      })
+      .notNullable()
+      .defaultTo('open');
+
     table.timestamp('closed_at', { useTz: true });
-    table.uuid('closed_by_id').references('id').inTable('users');
+    table
+      .uuid('closed_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     table
       .timestamp('created_at', { useTz: true })
@@ -46,20 +60,49 @@ export async function up(knex: Knex): Promise<void> {
     ]);
 
     table.jsonb('metadata').nullable();
+
+    table.check('end_date >= start_date', [], 'fiscal_calendar_dates_valid');
   });
 
-  // Index for date-based lookups (getFiscalPeriodForDate)
+  // Generated daterange with inclusive bounds
   await knex.raw(`
-    CREATE INDEX fiscal_calendar_date_lookup_idx
-      ON ${tableName} (company_id, start_date, end_date)
-      WHERE status != 'deleted';
+    ALTER TABLE ${tableName}
+      ADD COLUMN period_span daterange
+      GENERATED ALWAYS AS (daterange(start_date, end_date, '[]')) STORED;
+  `);
+
+  // GiST index for overlaps
+  await knex.raw(`
+    CREATE INDEX IF NOT EXISTS ${tableName}_span_gist_idx
+      ON ${tableName}
+      USING GIST (company_id, period_type, period_span);
+  `);
+
+  await knex.raw(`
+    CREATE INDEX IF NOT EXISTS ${tableName}_company_type_start_idx
+      ON ${tableName} (company_id, period_type, start_date);
+  `);
+
+  await knex.raw(`
+    ALTER TABLE ${tableName}
+      ADD CONSTRAINT ${tableName}_no_overlap
+      EXCLUDE USING GIST (
+        company_id WITH =,
+        period_type WITH =,
+        period_span WITH &&
+      );
   `);
 
   await createUpdateTimestampTrigger(knex, tableName);
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(`DROP INDEX IF EXISTS fiscal_calendar_date_lookup_idx;`);
+  await knex.raw(
+    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS ${tableName}_no_overlap;`,
+  );
+  await knex.raw(`DROP INDEX IF EXISTS ${tableName}_span_gist_idx;`);
+  await knex.raw(`DROP INDEX IF EXISTS ${tableName}_company_type_start_idx;`);
+  await knex.raw(`DROP INDEX IF EXISTS ${tableName}_date_lookup_idx;`);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

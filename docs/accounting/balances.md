@@ -442,3 +442,7 @@ Daily Snapshots → Period Aggregation → Period Balances
 6. **Reliability**: Handles failures gracefully with retry mechanisms
 
 The system is designed for **accuracy**, **performance**, and **auditability**. Always consider these three aspects when making changes or additions.
+
+Notes to self
+GL balances write these tables - gl_current_balances, gl_daily_balance_snapshots, gl_period_balances, fiscal_calendar; queries - coa, ledger_transactions, ledger_entries.
+We should only enqueue GL balance jobs from ledger models. No need for opening balance management for them (until we create conversion balance feature)

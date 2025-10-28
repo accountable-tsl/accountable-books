@@ -15,6 +15,8 @@ import { ensurePartitionsForDates } from '../../shared/services/partitionManagem
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import { normalizeContactName } from '../contacts/contacts.model.js';
 import { enqueueGLBalance } from '../../jobs/queues/balance-recalc.queue.js';
+import { isValidYMD, toDate, toYMD } from '../../shared/utils/date.utils.js';
+import { ensureAndFetchFiscalCalendar } from '../reporting/fiscalCalendar/fiscalCalendar.service.js';
 
 /**
  * Create a single ledger transaction
@@ -31,20 +33,26 @@ export async function createLedgerRecord({
   trx?: Knex.Transaction;
 }): Promise<ApiResponse<{ ledgerTransactionId: string }>> {
   // Helpers
-  const day = (d: string | Date) =>
-    typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10);
-
-  const toMinor = (amount: number) => Math.round(amount * 100); // 2 decimal places
+  const dayYMD = (d: string | Date) => {
+    const ymd = toYMD(d);
+    if (!isValidYMD(ymd)) throw new Error(`Invalid fs_date: ${String(d)}`);
+    return ymd;
+  };
 
   // Validate payload
   const v = newLedgerTransactionData.safeParse(data);
-  if (!v.success) throw new Error(`Invalid input: ${v.error.message}`);
-  const { transactions, ...ledgerTxInput } = v.data;
+  if (!v.success) {
+    throw new Error(`Invalid input: ${v.error.message}`);
+  }
 
-  // Ledger transaction integrity check: validate zero-sum with epsilon
-  const epsilon = 0.00001;
+  const { transactions, ...ledgerTxInput } = v.data;
+  if (transactions.length === 0) {
+    throw new Error('No entries');
+  }
+
+  // Ledger transaction integrity check: validate zero-sum
   const total = transactions.reduce((sum, t) => sum + t.source_amount, 0);
-  if (Math.abs(total) > epsilon) {
+  if (Math.abs(total) > 0) {
     throw new Error(`Total amount must be 0. Got: ${total}`);
   }
 
@@ -55,11 +63,13 @@ export async function createLedgerRecord({
         .where('is_deleted', false)
         .first('id', 'reporting_currency_id')) ?? null;
 
-    if (!company) {
+    if (!company || !company.reporting_currency_id || !company.id) {
       throw new Error(`Company not found: ${companyId}`);
     }
-    const companyUUID = company.id as string;
-    const reportingCurrencyId = company.reporting_currency_id as string;
+    const companyUUID = company.id;
+    const reportingCurrencyId = company.reporting_currency_id;
+
+    await tx.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [companyUUID]);
 
     // Validate all COAs exist
     // COA validation (+ default monetary flag)
@@ -167,6 +177,28 @@ export async function createLedgerRecord({
       }
     }
 
+    // Fiscal periods
+    // Validate fiscal periods exist and are open
+    let minYMD: string | null = null;
+    let maxYMD: string | null = null;
+    for (const t of transactions) {
+      const d = dayYMD(t.fs_date);
+      if (!minYMD || d < minYMD) minYMD = d;
+      if (!maxYMD || d > maxYMD) maxYMD = d;
+    }
+    if (!minYMD || !maxYMD) {
+      throw new Error('No fs_date(s) provided');
+    }
+
+    await ensureAndFetchFiscalCalendar({
+      companyId: companyUUID,
+      startYMD: minYMD,
+      endYMD: maxYMD,
+      fetchTypes: ['monthly'],
+      requireMonthlyOpen: true,
+      trx: tx,
+    });
+
     // Fetch exchange rates in batch
     // FX prefetch per (day, source_currency)
     const rateKey = (d: string, ccy: string) => `${d}|${ccy}`;
@@ -175,7 +207,7 @@ export async function createLedgerRecord({
     const fxKeySet = new Set<string>();
     for (const t of transactions) {
       if (t.source_currency_id !== reportingCurrencyId) {
-        const d = day(t.fs_date);
+        const d = dayYMD(t.fs_date);
         const k = rateKey(d, t.source_currency_id);
         if (!fxKeySet.has(k)) {
           fxKeySet.add(k);
@@ -206,7 +238,9 @@ export async function createLedgerRecord({
     }
 
     // Ensure partitions for ledger entries exist
-    const transactionDates = transactions.map((t) => t.fs_date);
+    const transactionDates = transactions.map((t) =>
+      toDate(t.fs_date, 'start'),
+    );
     await ensurePartitionsForDates('ledger_entries', transactionDates, tx);
 
     // Idempotent insert of ledger_transaction guarded by unique index
@@ -224,7 +258,7 @@ export async function createLedgerRecord({
           ? {
               bank_transaction_id: ledgerTxInput.bank_transaction_id ?? null,
               bank_transaction_date:
-                day(ledgerTxInput.bank_transaction_date) ?? null,
+                dayYMD(ledgerTxInput.bank_transaction_date) ?? null,
             }
           : {}),
         company_id: companyUUID,
@@ -259,7 +293,9 @@ export async function createLedgerRecord({
           const existing = await tx('ledger_transactions')
             .where({
               company_id: companyUUID,
-              bank_transaction_date: day(ledgerTxInput.bank_transaction_date),
+              bank_transaction_date: dayYMD(
+                ledgerTxInput.bank_transaction_date,
+              ),
               bank_transaction_id: ledgerTxInput.bank_transaction_id,
               is_deleted: false,
             })
@@ -275,7 +311,7 @@ export async function createLedgerRecord({
 
     // Build ledger entries
     const entries = transactions.map((t) => {
-      const d = day(t.fs_date);
+      const d = dayYMD(t.fs_date);
       let systemRate = 1;
       let customRate = 1;
       if (t.source_currency_id !== reportingCurrencyId) {
@@ -318,7 +354,7 @@ export async function createLedgerRecord({
     // Enqueue GL balance recalcs per-COA with min affected day
     const bounds = new Map<string, { min: string; max: string }>();
     for (const t of transactions) {
-      const d = day(t.fs_date);
+      const d = dayYMD(t.fs_date);
       const b = bounds.get(t.coa_id);
       if (!b) bounds.set(t.coa_id, { min: d, max: d });
       else {

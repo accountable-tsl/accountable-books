@@ -34,14 +34,14 @@ export interface BalanceRecalcResult {
   lastProcessedDate: string;
 }
 
-// GL-specific types
-export interface GLBalanceRecalcParams {
-  companyId: string;
-  coaId: string;
-  recalcFrom: string; // ISO date string
-  recalcTo?: string; // Optional ISO date string to limit recalculation range
-  triggeredBy: 'ledger_entry' | 'backfill' | 'soft_delete' | 'manual';
-}
+// // GL-specific types
+// export interface GLBalanceRecalcParams {
+//   companyId: string;
+//   coaId: string;
+//   recalcFrom: string; // ISO date string
+//   recalcTo?: string; // Optional ISO date string to limit recalculation range
+//   triggeredBy: 'ledger_entry' | 'backfill' | 'soft_delete' | 'manual';
+// }
 
 export interface GLCurrentBalance {
   companyId: string;
@@ -147,6 +147,7 @@ export const glBalanceRecalcParamsSchema = z.object({
     .optional(),
   triggeredBy: z.enum(['ledger_entry', 'backfill', 'soft_delete', 'manual']),
 });
+export type GLBalanceRecalcParams = z.infer<typeof glBalanceRecalcParamsSchema>;
 
 export interface GLDailyBalanceSnapshot {
   company_id: string;
