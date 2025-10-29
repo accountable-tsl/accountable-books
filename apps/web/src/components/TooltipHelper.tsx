@@ -49,3 +49,33 @@ export const TooltipHelper = ({
     </Tooltip>
   );
 };
+
+type SimpleTooltipProps = {
+  content: React.ReactNode;
+  children: React.ReactElement; // must be an element for asChild to work
+  ariaLabel?: string;
+  side?: 'top' | 'bottom' | 'left' | 'right';
+  align?: 'start' | 'center' | 'end';
+  contentClassName?: string; // was contentStyle
+};
+
+export const SimpleTooltip: React.FC<SimpleTooltipProps> = ({
+  content,
+  children,
+  ariaLabel = '',
+  side = 'top',
+  align = 'center',
+  contentClassName = '',
+}) => {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild aria-label={ariaLabel}>
+        {children}
+      </TooltipTrigger>
+
+      <TooltipContent side={side} align={align}>
+        <p className={`max-w-[240px] text-sm ${contentClassName}`}>{content}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+};

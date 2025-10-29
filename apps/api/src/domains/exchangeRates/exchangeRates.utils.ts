@@ -15,7 +15,7 @@ export async function determineExchangeRate({
     }
 
     const exr = await fetchExchangeRate(
-      new Date(date as string),
+      date,
       fromCurrencyId as string,
       toCurrencyId as string,
     );

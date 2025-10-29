@@ -27,6 +27,8 @@ import logger from '../../../shared/utils/logger.js';
 import z from 'zod';
 import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
 import { setBankOpeningBalance } from '../../balances/openingBalance/openingBalance.service.js';
+import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
+import { toYMD } from '../../../shared/utils/date.utils.js';
 
 const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields
@@ -69,6 +71,128 @@ const BANK_ACCOUNT_FIELDS = [
   'p.logo_url as providerLogo',
   'ba.connection_credential_id as connectionCredentialId',
 ];
+// export const getBankAccountsWithDetails = async (
+//   companyId: string,
+//   trx?: Knex.Transaction,
+// ): Promise<ApiResponse<BankAccountWithMeta[]>> => {
+//   if (!companyId) return errorResponse('Company ID is required');
+//   const db = trx ?? knexClient;
+
+//   try {
+//     const companyUUID = await getCompanyUUID(companyId);
+//     if (!companyUUID) {
+//       return errorResponse('Invalid company ID');
+//     }
+
+//     const txStatusSubquery = db('bank_transactions as bt')
+//       .select('bt.bank_account_id')
+//       .sum({
+//         uncategorized_count: db.raw(
+//           "CASE WHEN bt.categorization_status = 'uncategorized' THEN 1 ELSE 0 END",
+//         ),
+//         suggested_count: db.raw(
+//           "CASE WHEN bt.categorization_status = 'suggested' THEN 1 ELSE 0 END",
+//         ),
+//       })
+//       .where({
+//         'bt.is_deleted': false,
+//       })
+//       .groupBy('bt.bank_account_id')
+//       .as('tx_stats');
+
+//     const query = db('bank_accounts as ba')
+//       .select(BANK_ACCOUNT_FIELDS)
+//       .select({
+//         lastSyncAt: db.raw('COALESCE(??, ??)', [
+//           'ba.last_sync_at',
+//           'ba.updated_at',
+//         ]),
+//         mask: db.raw('RIGHT(COALESCE(??, ??), 4)', [
+//           'ba.account_number_mask',
+//           'ba.account_number',
+//         ]),
+//         statementBalance: db.raw('COALESCE(bab.native_balance, 0)'),
+//         ledgerBalance: db.raw('COALESCE(glb.reporting_currency_balance, 0)'),
+//         uncategorizedTxCount: db.raw(
+//           'COALESCE(tx_stats.uncategorized_count, 0)::int',
+//         ),
+//         needsReviewTxCount: db.raw(
+//           'COALESCE(tx_stats.suggested_count, 0)::int',
+//         ),
+//         latestExchangeRate: db.raw(
+//           `(SELECT er.rate FROM exchange_rates er
+//             WHERE er.from_currency_id = ba.currency_id
+//               AND er.to_currency_id = c.reporting_currency_id
+//             ORDER BY er.date DESC
+//             LIMIT 1)`,
+//         ),
+//       })
+//       .where('ba.company_id', companyUUID)
+//       .andWhere('ba.is_deleted', false)
+//       .join('banks as b', 'ba.bank_id', 'b.id')
+//       .join('currencies as cur', 'ba.currency_id', 'cur.id')
+//       .join('companies as c', 'ba.company_id', 'c.id')
+//       .join('currencies as rc', 'c.reporting_currency_id', 'rc.id')
+//       .join('coa', 'ba.coa_id', 'coa.id')
+//       .leftJoin('account_types as at', 'coa.account_type_id', 'at.id')
+//       .leftJoin('bank_feed_providers as p', 'ba.provider_id', 'p.id')
+//       .leftJoin('bank_account_current_native_balances as bab', function () {
+//         this.on('bab.bank_account_id', '=', 'ba.id').andOn(
+//           'bab.company_id',
+//           '=',
+//           'ba.company_id',
+//         );
+//       })
+//       .leftJoin('gl_current_balances as glb', function () {
+//         this.on('glb.coa_id', '=', 'ba.coa_id').andOn(
+//           'glb.company_id',
+//           '=',
+//           'ba.company_id',
+//         );
+//       })
+//       .leftJoin(txStatusSubquery, 'tx_stats.bank_account_id', 'ba.id');
+
+//     const result = await query;
+//     if (!result?.length) {
+//       return successResponse('No bank accounts found', []);
+//     }
+
+//     const today = new Date();
+//     const enriched = await Promise.all(
+//       result.map(async (row: any) => {
+//         const { currencyId, reportingCurrencyId } = row;
+
+//         let rateString: string | null = null;
+//         let rate;
+//         if (currencyId && reportingCurrencyId) {
+//           if (currencyId === reportingCurrencyId) {
+//             rate = 1;
+//           } else {
+//             rate = await determineExchangeRate({
+//               date: today,
+//               fromCurrencyId: currencyId,
+//               toCurrencyId: reportingCurrencyId,
+//             });
+//           }
+
+//           if (typeof rate === 'number' && Number.isFinite(rate)) {
+//             rateString = rate.toString();
+//           }
+//         }
+
+//         return {
+//           ...row,
+//           latestExchangeRate: rateString,
+//         };
+//       }),
+//     );
+
+//     return successResponse('Bank accounts fetched successfully', enriched);
+//   } catch (error) {
+//     return errorResponse('Failed to fetch bank accounts', error);
+//   }
+// };
+
 export const getBankAccountsWithDetails = async (
   companyId: string,
   trx?: Knex.Transaction,
@@ -85,14 +209,40 @@ export const getBankAccountsWithDetails = async (
     const query = db('bank_accounts as ba')
       .select(BANK_ACCOUNT_FIELDS)
       .select({
-        lastSyncAt: db.raw('COALESCE(??, ??)', [
-          'ba.last_sync_at',
-          'ba.updated_at',
-        ]),
-        mask: db.raw('RIGHT(COALESCE(??, ??), 4)', [
-          'ba.account_number_mask',
-          'ba.account_number',
-        ]),
+        lastSyncAt: db.raw('COALESCE(ba.last_sync_at, ba.updated_at)'),
+        mask: db.raw(
+          'RIGHT(COALESCE(ba.account_number_mask, ba.account_number), 4)',
+        ),
+        statementBalance: db.raw('COALESCE(bab.native_balance, 0)'),
+        ledgerBalance: db.raw('COALESCE(glb.reporting_currency_balance, 0)'),
+        uncategorizedTxCount: db.raw(`
+          (SELECT COUNT(*)::int 
+           FROM bank_transactions bt 
+           WHERE bt.bank_account_id = ba.id 
+             AND bt.is_deleted = false 
+             AND bt.categorization_status = 'uncategorized')
+        `),
+        needsReviewTxCount: db.raw(`
+          (SELECT COUNT(*)::int 
+           FROM bank_transactions bt 
+           WHERE bt.bank_account_id = ba.id 
+             AND bt.is_deleted = false 
+             AND bt.categorization_status = 'suggested')
+        `),
+        latestExchangeRate: db.raw(`
+          CASE 
+            WHEN ba.currency_id = c.reporting_currency_id THEN '1'
+            ELSE (
+              SELECT er.rate::text 
+              FROM exchange_rates er
+              WHERE er.from_currency_id = ba.currency_id
+                AND er.to_currency_id = c.reporting_currency_id
+                AND er.date <= CURRENT_DATE
+              ORDER BY er.date DESC
+              LIMIT 1
+            )
+          END
+        `),
       })
       .where('ba.company_id', companyUUID)
       .andWhere('ba.is_deleted', false)
@@ -102,10 +252,17 @@ export const getBankAccountsWithDetails = async (
       .join('currencies as rc', 'c.reporting_currency_id', 'rc.id')
       .join('coa', 'ba.coa_id', 'coa.id')
       .leftJoin('account_types as at', 'coa.account_type_id', 'at.id')
-      .leftJoin('bank_feed_providers as p', 'ba.provider_id', 'p.id');
+      .leftJoin('bank_feed_providers as p', 'ba.provider_id', 'p.id')
+      .leftJoin(
+        'bank_account_current_native_balances as bab',
+        'bab.bank_account_id',
+        'ba.id',
+      )
+      .leftJoin('gl_current_balances as glb', 'glb.coa_id', 'ba.coa_id');
 
     const result = await query;
-    return result?.length > 0
+
+    return result?.length
       ? successResponse('Bank accounts fetched successfully', result)
       : successResponse('No bank accounts found', []);
   } catch (error) {

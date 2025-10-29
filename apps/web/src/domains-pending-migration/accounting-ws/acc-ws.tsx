@@ -22,7 +22,14 @@ import { toast } from 'sonner';
 import { useManualTransactionSync } from '@/modules/transactions/sync';
 import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { TooltipHelper } from '@/components/TooltipHelper';
+import { SimpleTooltip, TooltipHelper } from '@/components/TooltipHelper';
+import { FormattedAmount } from '@/components/FormattedAmount';
+import { formatAmount } from '@/shared/utils/formatting-utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface Group {
   bankName: string;
@@ -90,6 +97,43 @@ export function AccountingWorkspace() {
 
   const groupedBankAccounts = Array.from(grouped.values());
 
+  const reportingCurrencyCode = bankAccounts[0]?.reportingCurrencyCode || '';
+  const {
+    totalUncategorizedCount,
+    totalNeedsReviewCount,
+    totalLedgerBalance,
+    totalBankBalanceRep,
+    anyBankAccountWithoutExchangeRate,
+  } = bankAccounts.reduce(
+    (totals, acc) => {
+      const uncat = acc.uncategorizedTxCount;
+      const review = acc.needsReviewTxCount;
+      const ledger = parseFloat(acc.ledgerBalance);
+      const rate = parseFloat(acc.latestExchangeRate ?? '1');
+      const statement = parseFloat(acc.statementBalance) * rate;
+
+      return {
+        totalUncategorizedCount: totals.totalUncategorizedCount + uncat,
+        totalNeedsReviewCount: totals.totalNeedsReviewCount + review,
+        totalLedgerBalance: totals.totalLedgerBalance + ledger,
+        totalBankBalanceRep: totals.totalBankBalanceRep + statement,
+        anyBankAccountWithoutExchangeRate:
+          totals.anyBankAccountWithoutExchangeRate || !acc.latestExchangeRate,
+      };
+    },
+    {
+      totalUncategorizedCount: 0,
+      totalNeedsReviewCount: 0,
+      totalLedgerBalance: 0,
+      totalBankBalanceRep: 0,
+      anyBankAccountWithoutExchangeRate: false,
+    },
+  );
+
+  const showNeedsReview = totalNeedsReviewCount !== 0;
+  const showTotalUncategorized =
+    anyBankAccountWithoutExchangeRate || !showNeedsReview;
+
   const quickActionData: ActionCardProps[] = [
     {
       icon: <Building2 className="w-6 h-6 text-muted-foreground" />,
@@ -146,24 +190,58 @@ export function AccountingWorkspace() {
           <Separator className="mb-4" />
           <div className="grid grid-cols-3 gap-4 min-h-[5rem]">
             <div className="h-full rounded-md border p-4 flex flex-col justify-between gap-2 divide-y overflow-clip">
-              <div className="grid truncate grid-cols-2 gap-2">
-                <div className="text-sm truncate">Cash in Bank</div>
-                <div className="text-right truncate">$ 100,000.00</div>
-              </div>
-              <div className="grid truncate grid-cols-2 gap-2">
-                <div className="text-sm truncate">Ledger Balances</div>
-                <div className="text-right truncate">$ 70,000.00</div>
-              </div>
+              {!anyBankAccountWithoutExchangeRate && (
+                <SimpleTooltip
+                  content="Total native balances from bank feeds converted into reporting currency with today’s rate. Use it to see what the bank statements translate to right now"
+                  contentClassName="text-center"
+                >
+                  <div className="grid truncate grid-cols-2 gap-2">
+                    <div className="text-sm truncate">Cash in Bank</div>
+                    <div className="text-right truncate">
+                      <FormattedAmount
+                        amount={totalBankBalanceRep}
+                        currency={reportingCurrencyCode}
+                        showSymbol
+                      />
+                    </div>
+                  </div>
+                </SimpleTooltip>
+              )}
+              <SimpleTooltip
+                content="Current balances from the GL, stored in your reporting currency. This is the amount that will flow into financial statements"
+                contentClassName="text-center"
+              >
+                <div className="grid truncate grid-cols-2 gap-2">
+                  <div className="text-sm truncate">Ledger Balances</div>
+                  <div className="text-right truncate">
+                    <FormattedAmount
+                      amount={totalLedgerBalance}
+                      currency={reportingCurrencyCode}
+                      showSymbol
+                    />
+                  </div>
+                </div>
+              </SimpleTooltip>
               <div className="grid truncate grid-cols-2 gap-2">
                 <div className="text-sm truncate">No of bank accounts</div>
                 <div className="text-right truncate">{bankAccounts.length}</div>
               </div>
-              <div className="grid truncate grid-cols-2 gap-2">
-                <div className="text-sm truncate">Needs action</div>
-                <div className="text-right truncate">
-                  {/* {bankAccounts.filter((acc) => acc.uncategorisedCount).length} */}
+              {showNeedsReview && (
+                <div className="grid truncate grid-cols-2 gap-2">
+                  <div className="text-sm truncate">Needs review</div>
+                  <div className="text-right truncate">
+                    {totalNeedsReviewCount}
+                  </div>
                 </div>
-              </div>
+              )}
+              {showTotalUncategorized && (
+                <div className="grid truncate grid-cols-2 gap-2">
+                  <div className="text-sm truncate">Total Uncategorized</div>
+                  <div className="text-right truncate">
+                    {totalUncategorizedCount}
+                  </div>
+                </div>
+              )}
             </div>
             {bankAccounts.slice(0, 2).map((acc) => (
               <div
@@ -203,7 +281,11 @@ export function AccountingWorkspace() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="truncate text-[0.9rem] font-medium">
-                        $ 100,000,000,000.00
+                        <FormattedAmount
+                          amount={acc.statementBalance ?? 0}
+                          currency={acc.currencyCode}
+                          showSymbol={true}
+                        />
                       </div>
                       <div className="text-[0.80rem] font-light text-muted-foreground">
                         Statement Balance
@@ -211,7 +293,11 @@ export function AccountingWorkspace() {
                     </div>
                     <div>
                       <div className="truncate text-[0.9rem] font-medium">
-                        $ 100,000,000.00
+                        <FormattedAmount
+                          amount={acc.ledgerBalance}
+                          currency={acc.reportingCurrencyCode}
+                          showSymbol={true}
+                        />
                       </div>
                       <div className="text-[0.80rem] font-light text-muted-foreground">
                         Ledger Balance
@@ -221,7 +307,7 @@ export function AccountingWorkspace() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="truncate text-[0.9rem] font-medium">
-                        205,600
+                        {acc.uncategorizedTxCount}
                       </div>
                       <div className="text-[0.80rem] font-light text-muted-foreground">
                         Uncategorized
@@ -229,7 +315,7 @@ export function AccountingWorkspace() {
                     </div>
                     <div>
                       <div className="truncate text-[0.9rem] font-medium">
-                        100,200
+                        {acc.needsReviewTxCount}
                       </div>
                       <div className="text-[0.80rem] font-light text-muted-foreground">
                         Needs Review
@@ -395,9 +481,9 @@ function MiniBankAccountCard({
   account,
   onRefreshClick,
 }: MiniBankAccountCardProps) {
-  const needsReview = 0;
-  const Uncategorized = 0;
-  const balance = account?.balance;
+  const needsReview = account.needsReviewTxCount ?? 0;
+  const Uncategorized = account.uncategorizedTxCount ?? 0;
+  const balance = formatAmount(account?.statementBalance ?? 0, {});
   const syncAt = account.lastSyncAt
     ? formatDistanceToNowStrict(new Date(account.lastSyncAt))
     : undefined;
@@ -454,8 +540,8 @@ function MiniBankAccountCard({
             content={balance + ' ' + account.currencyCode}
             contentStyle="w-fit"
             trigger={
-              <span className="truncate text-right">
-                <span className="text-muted-foreground text-sm">
+              <span className="truncate text-right text-sm">
+                <span className="text-muted-foreground text-xs">
                   {account.currencyCode}
                 </span>{' '}
                 {balance}
@@ -467,7 +553,7 @@ function MiniBankAccountCard({
         ) : (
           <span className="truncate text-right">
             <span className="text-muted-foreground text-sm">
-              {account.currencyCode}
+              {account.reportingCurrencyCode}
             </span>{' '}
             {balance}
           </span>

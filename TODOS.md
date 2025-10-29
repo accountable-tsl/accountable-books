@@ -125,6 +125,7 @@ Launch `2025-29-09`
 - FX Positions handling
 - [x] UK Users (YE should be Apr 5) - Implemented automatic fiscal year-end defaults
 - Make sure we are not allowing 30 Feb, 31 Sep etc on company signup
+- CBN Exchange Rate up to date
 
 ### CAN DELAY (Post-Launch)
 

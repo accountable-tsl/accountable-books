@@ -80,7 +80,7 @@ const tableName = 'exchange_rates';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
-    table.timestamp('date', { useTz: true }).notNullable();
+    table.date('date').notNullable();
     table
       .uuid('from_currency_id')
       .notNullable()

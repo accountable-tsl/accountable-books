@@ -220,7 +220,8 @@ export async function createLedgerRecord({
       const results = await Promise.all(
         fxPairs.map(async (p) => {
           const rate = await determineExchangeRate({
-            date: new Date(`${p.date}T00:00:00Z`), // stable UTC midnight
+            // date: new Date(`${p.date}T00:00:00Z`), // stable UTC midnight
+            date: p.date,
             fromCurrencyId: p.fromCurrencyId,
             toCurrencyId: reportingCurrencyId,
           });
@@ -311,7 +312,7 @@ export async function createLedgerRecord({
 
     // Build ledger entries
     const entries = transactions.map((t) => {
-      const d = dayYMD(t.fs_date);
+      const d = toYMD(t.fs_date);
       let systemRate = 1;
       let customRate = 1;
       if (t.source_currency_id !== reportingCurrencyId) {

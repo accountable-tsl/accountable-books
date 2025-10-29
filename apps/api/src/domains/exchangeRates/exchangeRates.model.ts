@@ -11,6 +11,7 @@ import {
   type ExchangeRateItem,
   newExchangeRate,
 } from './exchangeRate.types.js';
+import { toYMD } from '../../shared/utils/date.utils.js';
 
 export async function createNewExRates(
   data: ExchangeRateItem[],
@@ -63,7 +64,7 @@ export async function createNewExRates(
  * @returns Promise resolving to exchange rate result
  */
 export async function fetchExchangeRate(
-  date: Date,
+  date: Date | string,
   fromCurrencyId: string,
   toCurrencyId: string,
   knex: Knex = knexClient,
@@ -74,7 +75,7 @@ export async function fetchExchangeRate(
     if (fromCurrencyId === toCurrencyId) {
       return successResponse('Base and target currencies are identical', {
         id: 'SYNTHETIC',
-        date: new Date(date),
+        date: toYMD(date),
         fromCurrencyId,
         toCurrencyId,
         rate: Number(1),
@@ -109,7 +110,7 @@ export async function fetchExchangeRate(
     };
 
     const rateLookbackDays = 5;
-    const searchDate = normalizeDate(date);
+    const searchDate = toYMD(date);
 
     // Create search window: lookback days before to 1 day after target date
     const lookbackStart = new Date(searchDate);
@@ -131,9 +132,7 @@ export async function fetchExchangeRate(
       .first();
 
     if (dbRate) {
-      const isSameDay =
-        dbRate.date.toISOString().slice(0, 10) ===
-        searchDate.toISOString().slice(0, 10);
+      const isSameDay = toYMD(dbRate.date) === searchDate;
 
       return successResponse(
         isSameDay ? 'Exact rate found' : 'Closest available rate found',

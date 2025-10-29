@@ -121,6 +121,11 @@ export const bankAccountWithMeta = z.object({
   coaTypeLabel: z.string().optional(),
   connectionCredentialId: z.string().optional(),
   lastSyncAt: z.date().optional(),
+  statementBalance: z.string(),
+  ledgerBalance: z.string(),
+  uncategorizedTxCount: z.number(),
+  needsReviewTxCount: z.number(),
+  latestExchangeRate: z.string().nullish(),
 });
 export type BankAccountWithMeta = z.infer<typeof bankAccountWithMeta>;
 

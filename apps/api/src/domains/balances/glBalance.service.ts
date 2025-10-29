@@ -251,7 +251,7 @@ class GLBalanceService {
         (await txn('coa')
           .select(['coa.id as id', 'fs.key as key'])
           .join('account_types as at', 'coa.account_type_id', 'at.id')
-          .join('account_element as ae', 'at.account_element_id', 'ae.id')
+          .join('account_elements as ae', 'at.account_element_id', 'ae.id')
           .join(
             'financial_statements as fs',
             'ae.financial_statement_id',
