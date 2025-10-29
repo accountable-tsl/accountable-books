@@ -293,11 +293,12 @@ class BankBalanceService {
         return {
           daysProcessed: snapshots.length,
           snapshotsCreated: snapshots.length,
-          snapshotsUpdated: 0,
           finalBalance:
             snapshots.length > 0
-              ? snapshots[snapshots.length - 1].closingBalance.toFixed(10)
-              : '0',
+              ? Number(
+                  snapshots[snapshots.length - 1].closingBalance.toFixed(10),
+                )
+              : 0,
           lastProcessedDate:
             snapshots.length > 0
               ? snapshots[snapshots.length - 1].day

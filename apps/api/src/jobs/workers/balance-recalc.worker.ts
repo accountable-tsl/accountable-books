@@ -1,4 +1,5 @@
 import { Worker } from 'bullmq';
+import { randomUUID } from 'crypto';
 import { redis } from '../../lib/redis.js';
 import type { Job } from 'bullmq';
 import pino from 'pino';
@@ -6,6 +7,10 @@ import type {
   BalanceJobData,
   GLBalanceJobData,
   BankBalanceJobData,
+} from '../queues/balance-recalc.queue.js';
+import {
+  glBalanceJobDataSchema,
+  bankBalanceJobDataSchema,
 } from '../queues/balance-recalc.queue.js';
 import { glBalanceService } from '../../domains/balances/glBalance.service.js';
 import { bankBalanceService } from '../../domains/balances/bankBalance.service.js';
@@ -30,60 +35,89 @@ const BALANCE_RECALC_WORKER_OPTIONS = {
   lockRenewTime: 30000, // Renew lock every 30 seconds
 };
 
+// Helper to create redacted summary for logging
+function getJobSummary(data: BalanceJobData): Record<string, unknown> {
+  if (data.type === 'gl-balance') {
+    return {
+      type: data.type,
+      companyId: data.companyId,
+      coaId: data.coaId,
+    };
+  }
+  if (data.type === 'bank-balance') {
+    return {
+      type: data.type,
+      companyId: data.companyId,
+      bankAccountId: data.bankAccountId,
+    };
+  }
+  return { type: (data as any)?.type };
+}
+
 // Balance recalculation job processor
 async function processBalanceRecalcJob(job: Job<BalanceJobData>) {
   const startTime = Date.now();
+  const summary = getJobSummary(job.data);
 
   logger.info(
-    {
-      jobId: job.id,
-      jobName: job.name,
-      jobData: job.data,
-    },
+    { jobId: job.id, jobName: job.name, ...summary },
     'Starting balance recalculation job',
   );
 
   try {
-    // Track progress for long-running jobs
     await job.updateProgress(0);
 
-    switch (job.name) {
-      case 'gl-balance': {
-        const data = job.data as GLBalanceJobData;
-        await processGLBalance(job as Job<GLBalanceJobData>, data);
-        break;
+    // Validate and process based on job type using discriminated union
+    if (job.data.type === 'gl-balance') {
+      const v = glBalanceJobDataSchema.safeParse(job.data);
+      if (!v.success) {
+        logger.error(
+          { jobId: job.id, issues: v.error.issues },
+          'GL job validation failed',
+        );
+        throw new Error(
+          v.error.issues
+            .map((i) => `${i.path.join('.')}: ${i.message}`)
+            .join('; '),
+        );
       }
-
-      case 'bank-balance': {
-        const data = job.data as BankBalanceJobData;
-        await processBankBalance(job as Job<BankBalanceJobData>, data);
-        break;
+      await processGLBalance(job as Job<GLBalanceJobData>, v.data);
+    } else if (job.data.type === 'bank-balance') {
+      const v = bankBalanceJobDataSchema.safeParse(job.data);
+      if (!v.success) {
+        logger.error(
+          { jobId: job.id, issues: v.error.issues },
+          'Bank job validation failed',
+        );
+        throw new Error(
+          v.error.issues
+            .map((i) => `${i.path.join('.')}: ${i.message}`)
+            .join('; '),
+        );
       }
-
-      default:
-        throw new Error(`Unknown balance recalc job: ${job.name}`);
+      await processBankBalance(job as Job<BankBalanceJobData>, v.data);
+    } else {
+      throw new Error(
+        `Unknown balance recalc job type: ${(job.data as any).type}`,
+      );
     }
 
-    const duration = Date.now() - startTime;
+    await job.updateProgress(100);
+    const ms = Date.now() - startTime;
     logger.info(
-      {
-        jobId: job.id,
-        jobName: job.name,
-        duration,
-      },
+      { jobId: job.id, jobName: job.name, ms, ...summary },
       'Balance recalculation job completed',
     );
-
-    await job.updateProgress(100);
   } catch (error) {
-    const duration = Date.now() - startTime;
+    const ms = Date.now() - startTime;
     logger.error(
       {
         jobId: job.id,
         jobName: job.name,
-        error: error instanceof Error ? error.message : error,
+        ms,
+        ...summary,
+        error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-        duration,
       },
       'Balance recalculation job failed',
     );
@@ -96,17 +130,21 @@ async function processGLBalance(
   job: Job<GLBalanceJobData>,
   data: GLBalanceJobData,
 ) {
+  const traceId = randomUUID();
+  const range = `${data.recalcFrom}..${data.recalcTo ?? 'open'}`;
+
   logger.info(
     {
+      traceId,
       companyId: data.companyId,
       coaId: data.coaId,
-      recalcFrom: data.recalcFrom,
+      range,
       triggeredBy: data.triggeredBy,
     },
-    'Processing GL balance recalculation',
+    'GL balance recalculation start',
   );
 
-  await job.updateProgress(10);
+  await job.updateProgress(20);
 
   try {
     // Delegate to GL balance service
@@ -122,10 +160,13 @@ async function processGLBalance(
 
     logger.info(
       {
+        traceId,
         companyId: data.companyId,
         coaId: data.coaId,
         daysProcessed: result.daysProcessed,
+        snapshotsCreated: result.snapshotsCreated,
         finalBalance: result.finalBalance,
+        lastProcessedDate: result.lastProcessedDate,
       },
       'GL balance recalculation completed',
     );
@@ -134,9 +175,10 @@ async function processGLBalance(
   } catch (error) {
     logger.error(
       {
+        traceId,
         companyId: data.companyId,
         coaId: data.coaId,
-        error: error instanceof Error ? error.message : error,
+        error: error instanceof Error ? error.message : String(error),
       },
       'GL balance recalculation failed',
     );
@@ -148,17 +190,21 @@ async function processBankBalance(
   job: Job<BankBalanceJobData>,
   data: BankBalanceJobData,
 ) {
+  const traceId = randomUUID();
+  const range = `${data.recalcFrom}..${data.recalcTo ?? 'open'}`;
+
   logger.info(
     {
+      traceId,
       companyId: data.companyId,
       bankAccountId: data.bankAccountId,
-      recalcFrom: data.recalcFrom,
+      range,
       triggeredBy: data.triggeredBy,
     },
-    'Processing bank balance recalculation',
+    'Bank balance recalculation start',
   );
 
-  await job.updateProgress(10);
+  await job.updateProgress(20);
 
   try {
     // Delegate to bank balance service
@@ -175,10 +221,13 @@ async function processBankBalance(
 
     logger.info(
       {
+        traceId,
         companyId: data.companyId,
         bankAccountId: data.bankAccountId,
         daysProcessed: result.daysProcessed,
+        snapshotsCreated: result.snapshotsCreated,
         finalBalance: result.finalBalance,
+        lastProcessedDate: result.lastProcessedDate,
       },
       'Bank balance recalculation completed',
     );
@@ -187,9 +236,10 @@ async function processBankBalance(
   } catch (error) {
     logger.error(
       {
+        traceId,
         companyId: data.companyId,
         bankAccountId: data.bankAccountId,
-        error: error instanceof Error ? error.message : error,
+        error: error instanceof Error ? error.message : String(error),
       },
       'Bank balance recalculation failed',
     );

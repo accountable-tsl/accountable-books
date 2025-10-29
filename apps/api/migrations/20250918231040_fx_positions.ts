@@ -32,7 +32,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('currencies')
       .onDelete('CASCADE');
 
-    table.decimal('open_fx_amount', 32, 10).notNullable();
+    table.decimal('open_fx_amount', 15, 3).notNullable();
 
     table
       .decimal('carrying_rate', 32, 10)
@@ -40,7 +40,7 @@ export async function up(knex: Knex): Promise<void> {
       .comment('Last rate use to set carrying value');
 
     table
-      .decimal('carrying_base_amount', 32, 10)
+      .decimal('carrying_base_amount', 15, 3)
       .notNullable()
       .comment('Base carrying value after last revaluation');
 

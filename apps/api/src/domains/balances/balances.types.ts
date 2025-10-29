@@ -29,8 +29,7 @@ export interface DailyBalance {
 export interface BalanceRecalcResult {
   daysProcessed: number;
   snapshotsCreated: number;
-  snapshotsUpdated: number;
-  finalBalance: string;
+  finalBalance: number;
   lastProcessedDate: string;
 }
 

@@ -10,8 +10,8 @@ CREATE TABLE public.bank_transactions (
     reference               TEXT,
     description             TEXT,
     additional_notes        TEXT,
-    amount                  NUMERIC(32, 10) NOT NULL,
-    absolute_amount         NUMERIC(32, 10) NOT NULL GENERATED ALWAYS AS (abs(amount)) STORED,
+    amount                  NUMERIC(15, 3) NOT NULL,
+    absolute_amount         NUMERIC(15, 3) NOT NULL GENERATED ALWAYS AS (abs(amount)) STORED,
     system_exchange_rate    NUMERIC(32, 10) NOT NULL,
     -- Different from regular accounting convention, this just mirrors user bank statement
     -- transaction_side        debit_credit GENERATED ALWAYS AS (

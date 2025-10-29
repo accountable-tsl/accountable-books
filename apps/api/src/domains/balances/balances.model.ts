@@ -590,13 +590,13 @@ export async function getGLBalanceHistory({
     )
       .select(
         'gbs.day',
-        'gbs.reporting_currency_balance',
+        'gbs.closing_balance',
         knex.raw('COUNT(le.id) as transaction_count'),
       )
       .leftJoin('ledger_entries as le', function (this: any) {
         this.on('le.coa_id', '=', 'gbs.coa_id')
           .andOn('le.company_id', '=', 'gbs.company_id')
-          .andOn(knex.raw('DATE(le.entry_date) = gbs.day'))
+          .andOn(knex.raw('DATE(le.fs_date) = gbs.day'))
           .andOn('le.is_deleted', '=', knex.raw('false'));
       })
       .where({

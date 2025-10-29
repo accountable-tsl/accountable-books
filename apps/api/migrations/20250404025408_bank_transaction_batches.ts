@@ -16,10 +16,6 @@ export async function up(knex: Knex): Promise<void> {
     table.date('start_date').notNullable();
     table.date('end_date').notNullable();
 
-    // Got some reservations on this bit, taking it off for now
-    // table.decimal('balance_before', 32, 10).notNullable();
-    // table.decimal('balance_after', 32, 10).notNullable();
-
     table.specificType('source', 'bank_transaction_source').notNullable();
 
     table.text('fingerprint').notNullable();

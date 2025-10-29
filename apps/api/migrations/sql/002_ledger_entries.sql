@@ -4,12 +4,12 @@ CREATE TABLE public.ledger_entries (
     fs_date                 DATE NOT NULL,
     coa_id                  UUID NOT NULL,
     source_currency_id      UUID NOT NULL,
-    source_amount           NUMERIC(32, 10) NOT NULL,
-    absolute_source_amount  NUMERIC(32, 10) GENERATED ALWAYS AS (abs(source_amount)) STORED,
+    source_amount           NUMERIC(15, 3) NOT NULL,
+    absolute_source_amount  NUMERIC(15, 3) GENERATED ALWAYS AS (abs(source_amount)) STORED,
     system_exchange_rate    NUMERIC(32, 10) NOT NULL,
     custom_exchange_rate    NUMERIC(32, 10) NOT NULL,
-    amount                  NUMERIC(32, 10) GENERATED ALWAYS AS ((source_amount * custom_exchange_rate)::NUMERIC(32, 10)) STORED,
-    absolute_amount         NUMERIC(32, 10) GENERATED ALWAYS AS ((abs(source_amount * custom_exchange_rate))::NUMERIC(32, 10)) STORED,
+    amount                  NUMERIC(15, 3) GENERATED ALWAYS AS ((source_amount * custom_exchange_rate)::NUMERIC(15, 3)) STORED,
+    absolute_amount         NUMERIC(15, 3) GENERATED ALWAYS AS ((abs(source_amount * custom_exchange_rate))::NUMERIC(15, 3)) STORED,
     transaction_side        debit_credit GENERATED ALWAYS AS (
         CASE
             WHEN source_amount > 0 THEN 'debit'::debit_credit

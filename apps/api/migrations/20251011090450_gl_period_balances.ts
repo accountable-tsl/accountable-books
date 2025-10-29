@@ -29,10 +29,10 @@ export async function up(knex: Knex): Promise<void> {
     table.date('period_start_date').notNullable();
     table.date('period_end_date').notNullable();
 
-    table.decimal('opening_balance', 32, 10).notNullable().defaultTo(0);
-    table.decimal('period_debits', 32, 10).notNullable().defaultTo(0);
-    table.decimal('period_credits', 32, 10).notNullable().defaultTo(0);
-    table.decimal('closing_balance', 32, 10).notNullable();
+    table.decimal('opening_balance', 15, 3).notNullable().defaultTo(0);
+    table.decimal('period_debits', 15, 3).notNullable().defaultTo(0);
+    table.decimal('period_credits', 15, 3).notNullable().defaultTo(0);
+    table.decimal('closing_balance', 15, 3).notNullable();
     table.integer('transaction_count').notNullable().defaultTo(0);
 
     table
