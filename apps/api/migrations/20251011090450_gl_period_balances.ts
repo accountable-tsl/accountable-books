@@ -24,7 +24,14 @@ export async function up(knex: Knex): Promise<void> {
 
     table.integer('fiscal_year').notNullable();
     table.integer('fiscal_period').notNullable();
-    table.string('period_type', 10).notNullable().defaultTo('monthly');
+    table
+      .enu('period_type', ['monthly', 'quarterly', 'yearly'], {
+        useNative: true,
+        existingType: true,
+        enumName: 'fiscal_period_type',
+      })
+      .notNullable()
+      .defaultTo('monthly');
 
     table.date('period_start_date').notNullable();
     table.date('period_end_date').notNullable();

@@ -462,25 +462,26 @@ export async function reverseJournalRecord({
 
       log('original_journal_marked_reversed');
 
-      // Enqueue GL balance recalculation for affected COAs
-      const affectedCoas = await tx('ledger_entries')
-        .where('ledger_transaction_id', journalBatch.ledger_transaction_id)
-        .where('is_deleted', false)
-        .select('coa_id', 'fs_date')
-        .distinct();
+      // It'll most likely be handled in the GL so we should let it be
+      // // Enqueue GL balance recalculation for affected COAs
+      // const affectedCoas = await tx('ledger_entries')
+      //   .where('ledger_transaction_id', journalBatch.ledger_transaction_id)
+      //   .where('is_deleted', false)
+      //   .select('coa_id', 'fs_date')
+      //   .distinct();
 
-      for (const entry of affectedCoas) {
-        await enqueueGLBalance({
-          companyId: journalBatch.company_id,
-          coaId: entry.coa_id,
-          recalcFrom: entry.fs_date,
-          triggeredBy: 'manual',
-        });
-      }
+      // for (const entry of affectedCoas) {
+      //   await enqueueGLBalance({
+      //     companyId: journalBatch.company_id,
+      //     coaId: entry.coa_id,
+      //     recalcFrom: entry.fs_date,
+      //     triggeredBy: 'manual',
+      //   });
+      // }
 
-      log('gl_balance_recalc_enqueued', {
-        affectedCoasCount: affectedCoas.length,
-      });
+      // log('gl_balance_recalc_enqueued', {
+      //   affectedCoasCount: affectedCoas.length,
+      // });
 
       // Create audit event
       await tx('audit_events').insert({
