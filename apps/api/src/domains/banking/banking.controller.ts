@@ -1,5 +1,4 @@
 import type { Request, Response } from 'express';
-import { connectAccountsService } from '../../integrations/banking/services/connectAccounts.service.js';
 import {
   errorResponse,
   successResponse,
@@ -7,8 +6,7 @@ import {
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { providerRegistry } from '../../integrations/banking/providers/registry.js';
 import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
-import { transactionSyncQueue } from '../../jobs/queues/transaction-sync.queue.js';
-import { transactionSyncService } from '../../integrations/banking/services/transactionSync.service.js';
+import { connectAccountsService, transactionSyncQueue, transactionSyncService } from '../../integrations/banking/index.js';
 
 export class BankingController {
   async connectBankAccounts(req: AuthRequest, res: Response) {

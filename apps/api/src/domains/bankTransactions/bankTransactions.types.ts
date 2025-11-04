@@ -10,6 +10,8 @@ import {
   type SnakeToCamelCaseObject,
 } from '../../shared/utils/formatting.utils.js';
 import Decimal from 'decimal.js';
+import { bankProviderKey } from '../banking/bankFeedProviders/bankFeedProviders.types.js';
+import { contactType, type ContactType } from '../contacts/index.js';
 
 // ENUMS
 export const bankTransactionSource = z.enum([
@@ -26,6 +28,7 @@ export const bankTransactionInput = z.object({
   amount: z.number(),
   bank_account_id: z.uuid().optional(),
   contact_id: z.uuid().nullish(),
+  contact_type_snapshot: contactType.nullish(),
   description: z.string().nullish(),
   payee: z.string().nullish(),
   reference: z.string().nullish(),
@@ -66,6 +69,7 @@ export const bankTransactionBatchInput = z.object({
   // opening_balance: z.number().optional(), // Balance before the first transaction
   // closing_balance: z.number().optional(), // Balance after the last transaction
   metadata: z.any().nullish(),
+  provider_key: bankProviderKey.nullish(),
   created_by_id: z.uuid().optional(),
   updated_by_id: z.uuid().optional(),
 });

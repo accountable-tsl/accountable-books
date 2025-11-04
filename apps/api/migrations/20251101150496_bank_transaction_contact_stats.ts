@@ -1,0 +1,148 @@
+import type { Knex } from 'knex';
+import {
+  addStandardColumns,
+  createUpdateTimestampTrigger,
+  dropUpdateTimestampTrigger,
+} from './utils/db';
+
+const tableName = 'bank_transaction_contact_stats';
+
+export async function up(knex: Knex): Promise<void> {
+  await knex.schema.createTable(tableName, (table) => {
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+    table.integer('version').notNullable().defaultTo(1); // If we change the aggregation logic, we run a backfill that bumps the version for every row. No pile-up of old rows, just an optimistic concurrency token.
+    table
+      .uuid('company_id')
+      .notNullable()
+      .references('id')
+      .inTable('companies')
+      .onDelete('CASCADE');
+
+    table
+      .uuid('contact_id')
+      .nullable()
+      .references('id')
+      .inTable('contacts')
+      .onDelete('SET NULL')
+      .comment('NULL when contact is not matched/created yet');
+
+    table
+      .string('contact_fingerprint', 256)
+      .notNullable()
+      .comment('SHA256 hash of normalized contact name for grouping unknowns');
+
+    table
+      .string('normalized_name', 256)
+      .notNullable()
+      .comment('Canonical contact name for display');
+
+    table
+      .string('currency_code', 3)
+      .notNullable()
+      .comment('ISO 4217 currency code (USD, GBP, NGN, etc.)');
+
+    // All-time statistics
+    table.bigInteger('total_transactions').notNullable();
+    table.bigInteger('total_amount_native').notNullable();
+    table.bigInteger('total_amount_reporting').notNullable();
+    table.bigInteger('avg_amount_native').notNullable();
+    table.bigInteger('avg_amount_reporting').notNullable();
+    table.bigInteger('std_dev_amount_native').notNullable();
+    table.bigInteger('std_dev_amount_reporting').notNullable();
+
+    // Rolling 30-day window (recent behavior, FX-resilient)
+    table.bigInteger('rolling_30d_txn_count').notNullable().defaultTo(0);
+    table.bigInteger('rolling_30d_total_native').notNullable().defaultTo(0);
+    table.bigInteger('rolling_30d_total_reporting').notNullable().defaultTo(0);
+    table.bigInteger('rolling_30d_avg_native').notNullable().defaultTo(0);
+    table.bigInteger('rolling_30d_avg_reporting').notNullable().defaultTo(0);
+    table.bigInteger('rolling_30d_stddev_native').notNullable().defaultTo(0);
+    table.bigInteger('rolling_30d_stddev_reporting').notNullable().defaultTo(0);
+
+    // Rolling 90-day window (medium-term trends)
+    table.bigInteger('rolling_90d_txn_count').notNullable().defaultTo(0);
+    table.bigInteger('rolling_90d_total_native').notNullable().defaultTo(0);
+    table.bigInteger('rolling_90d_total_reporting').notNullable().defaultTo(0);
+    table.bigInteger('rolling_90d_avg_native').notNullable().defaultTo(0);
+    table.bigInteger('rolling_90d_avg_reporting').notNullable().defaultTo(0);
+    table.bigInteger('rolling_90d_stddev_native').notNullable().defaultTo(0);
+    table.bigInteger('rolling_90d_stddev_reporting').notNullable().defaultTo(0);
+
+    // Last transaction metadata (composite FK to bank_transactions)
+    table
+      .uuid('last_transaction_id')
+      .nullable()
+      .comment('FK to bank_transactions (composite with date)');
+
+    table
+      .date('last_transaction_date')
+      .nullable()
+      .comment('FK to bank_transactions (composite with id)');
+
+    addStandardColumns(knex, table);
+
+    // Composite unique constraint
+    table.unique([
+      'company_id',
+      'currency_code',
+      'contact_fingerprint',
+      'contact_id',
+    ]);
+  });
+
+  await createUpdateTimestampTrigger(knex, tableName);
+
+  // Add composite foreign key to bank_transactions (id, date)
+  await knex.raw(`
+    ALTER TABLE ${tableName}
+    ADD CONSTRAINT fk_contact_stats_last_transaction
+    FOREIGN KEY (last_transaction_id, last_transaction_date)
+    REFERENCES bank_transactions(id, date)
+    ON DELETE SET NULL;
+  `);
+
+  // Partial unique indexes to prevent collision of unknown contacts with NULL contact_ids
+  await knex.raw(`
+    CREATE UNIQUE INDEX idx_contact_stats_known
+    ON ${tableName}(company_id, currency_code, contact_id, contact_fingerprint)
+    WHERE contact_id IS NOT NULL AND is_deleted = FALSE;
+  `);
+
+  await knex.raw(`
+    CREATE UNIQUE INDEX idx_contact_stats_unknown
+    ON ${tableName}(company_id, currency_code, contact_fingerprint)
+    WHERE contact_id IS NULL AND is_deleted = FALSE;
+  `);
+
+  // Query indexes
+  await knex.raw(`
+    CREATE INDEX idx_contact_stats_company
+    ON ${tableName}(company_id)
+    WHERE is_deleted = FALSE;
+  `);
+
+  await knex.raw(`
+    CREATE INDEX idx_contact_stats_company_currency
+    ON ${tableName}(company_id, currency_code)
+    WHERE is_deleted = FALSE;
+  `);
+
+  await knex.raw(`
+    CREATE INDEX idx_contact_stats_fingerprint
+    ON ${tableName}(contact_fingerprint)
+    WHERE is_deleted = FALSE;
+  `);
+}
+
+export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_fingerprint;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_company_currency;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_company;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_unknown;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_known;`);
+  await knex.raw(
+    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS fk_contact_stats_last_transaction;`,
+  );
+  await dropUpdateTimestampTrigger(knex, tableName);
+  await knex.schema.dropTableIfExists(tableName);
+}

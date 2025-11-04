@@ -1,10 +1,10 @@
 import { createBullBoard } from '@bull-board/api';
 import { ExpressAdapter } from '@bull-board/express';
-import { emailQueue } from '../jobs/queues/email.queue.js';
-import { transactionSyncQueue } from '../jobs/queues/transaction-sync.queue.js';
 import { partitionMaintenanceQueue } from '../jobs/queues/partition-maintenance.queue.js';
-import { balanceRecalcQueue } from '../jobs/queues/balance-recalc.queue.js';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { emailQueue } from '../features/communications/email/index.js';
+import { transactionSyncQueue } from '../integrations/banking/index.js';
+import { balanceRecalcQueue } from '../domains/balances/index.js';
 
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queues');

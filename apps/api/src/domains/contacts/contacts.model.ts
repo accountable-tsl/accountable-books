@@ -12,7 +12,7 @@ import {
   type GetContactsParams,
   type UpdateContact,
   updateContactSchema,
-} from './contact.types.js';
+} from './contacts.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {

@@ -11,7 +11,7 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import { emailQueue } from '../../../jobs/queues/email.queue.js';
+import { emailQueue } from './email.queue.js';
 import { type ApiResponse } from '../../../core/types/api.types.js';
 import { ENV } from '../../../config/env.js';
 

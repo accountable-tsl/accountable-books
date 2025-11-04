@@ -19,7 +19,7 @@ import {
   getFiscalPeriods,
   closeFiscalPeriod,
   reopenFiscalPeriod,
-} from '../reporting/fiscalCalendar/fiscalCalendar.service.js';
+} from '../reporting/fiscal-calendar/fiscal-calendar.service.js';
 
 /**
  * Balance management controller

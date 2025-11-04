@@ -20,10 +20,11 @@ import {
 } from './bankTransactions.utils.js';
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
 import { logger } from '../../shared/utils/logger.js';
-import crypto from 'crypto';
 import type { Knex } from 'knex';
 import { randomUUID } from 'crypto';
-import { enqueueBankBalance } from '../../jobs/queues/balance-recalc.queue.js';
+import { generateFingerprintSync } from '../../shared/index.js';
+import { enqueueTransactionEnrichment } from '../categorization/index.js';
+import { enqueueBankBalance } from '../balances/index.js';
 
 export async function addNewBankTransactions({
   userId,
@@ -69,8 +70,13 @@ export async function addNewBankTransactions({
     });
   }
 
-  const { source, bank_account_id, bank_transactions, metadata } =
-    validate.data;
+  const {
+    source,
+    provider_key: batch_provider_key,
+    bank_account_id,
+    bank_transactions,
+    metadata,
+  } = validate.data;
   log('validation_complete');
 
   // const sameBankAccountIds = bank_transactions.every(
@@ -276,11 +282,17 @@ export async function addNewBankTransactions({
             ? contactIdByName.get(tx.payee.trim().toLowerCase())
             : undefined;
 
+          const txSource =
+            (batch_provider_key && source === 'bank_feed'
+              ? batch_provider_key
+              : source) || null;
+
           return {
             ...tx,
             txn_at: tx.txn_at || tx.date,
             bank_account_id,
             contact_id: contactId,
+            contact_type_snapshot: tx.contact_type_snapshot ?? null,
             external_id: tx.external_id || generatedExternalId,
             amount: Number(tx.amount),
             system_exchange_rate: Number(rate),
@@ -288,6 +300,7 @@ export async function addNewBankTransactions({
             bank_transaction_batch_id: batch.id,
             created_by_id: userId,
             updated_by_id: userId,
+            source: txSource,
           };
         },
       );
@@ -344,6 +357,28 @@ export async function addNewBankTransactions({
           // Don't fail the transaction if balance recalc enqueue fails, Log and notify
           // TODO: Add to notification system later
           log('balance_recalc_enqueue_failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            bankAccountId: bank_account_id,
+          });
+        }
+
+        // Trigger transaction enrichment for categorization
+        try {
+          const insertedTransactionIds = insertedTxns.map((txn) => txn.id);
+          await enqueueTransactionEnrichment({
+            companyId: companyUUID,
+            bankAccountId: bank_account_id,
+            bankTransactionIds: insertedTransactionIds,
+            source: 'ingestion',
+          });
+
+          log('enrichment_queued', {
+            bankAccountId: bank_account_id,
+            transactionCount: insertedTransactionIds.length,
+          });
+        } catch (error) {
+          // Don't fail the transaction if enrichment enqueue fails, just log
+          log('enrichment_enqueue_failed', {
             error: error instanceof Error ? error.message : 'Unknown error',
             bankAccountId: bank_account_id,
           });
@@ -485,10 +520,7 @@ function generateExternalId(input: {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return crypto
-    .createHash('sha256')
-    .update(
-      `${formattedDate}|${amountHash}|${payeeNorm}|${descNorm}|${bankAccountId}`,
-    )
-    .digest('hex');
+  return generateFingerprintSync(
+    `${formattedDate}|${amountHash}|${payeeNorm}|${descNorm}|${bankAccountId}`,
+  );
 }

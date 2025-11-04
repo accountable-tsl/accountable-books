@@ -12,7 +12,6 @@ import { logger } from '../../shared/utils/logger.js';
 import { createLedgerRecord } from '../ledgers/ledgers.model.js';
 import { validateDebitCreditBalance } from './journals.utils.js';
 import type { NewLedgerTransactionData } from '../ledgers/ledgers.types.js';
-import { enqueueGLBalance } from '../../jobs/queues/balance-recalc.queue.js';
 
 export async function postJournalRecord({
   data,

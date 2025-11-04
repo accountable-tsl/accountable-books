@@ -92,7 +92,9 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(`DROP CONSTRAINT IF EXISTS ${tableName}_coverage_order_chk;`);
+  await knex.raw(
+    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS ${tableName}_coverage_order_chk;`,
+  );
   await knex.raw(`DROP INDEX IF EXISTS ${tableName}_history;`);
   await knex.raw(`DROP INDEX IF EXISTS ${tableName}_one_baseline;`);
   await dropUpdateTimestampTrigger(knex, tableName);

@@ -1,0 +1,398 @@
+import { Worker } from 'bullmq';
+import { redis } from '../../../lib/redis.js';
+import type { Job } from 'bullmq';
+import pino from 'pino';
+import { knexClient } from '../../../db/knexClient.js';
+import type { Knex } from 'knex';
+import type {
+  EnrichmentJobData,
+  EnrichmentResult,
+  EnrichedTransaction,
+} from './enrichment.types.js';
+import { enrichmentJobDataSchema } from './enrichment.types.js';
+import { enrichTransaction } from './enrichment.service.js';
+import { incrementContactStats } from './contactStats.service.js';
+import { generateEnrichmentChecksum } from './enrichment.utils.js';
+import { ENRICHMENT_QUEUE_NAME } from './enrichment.queue.js';
+
+const logger = pino();
+
+/**
+ * Bank Transaction Enrichment Worker
+ *
+ * Processes bank transactions to generate enriched feature sets
+ * for categorization, ML training, and analytics
+ */
+
+const ENRICHMENT_WORKER_OPTIONS = {
+  connection: redis,
+  concurrency: Number(process.env.ENRICHMENT_WORKER_CONCURRENCY) || 10,
+  drainDelay: 300, // Wait 5 seconds when queue is empty
+  stalledInterval: 60000, // Check stalled jobs every minute
+  maxStalledCount: 2, // Allow 2 retries for stalled jobs
+  lockDuration: 120000, // 2 minute job lock (enrichment can be slow)
+  lockRenewTime: 30000, // Renew lock every 30 seconds
+};
+
+/**
+ * Process enrichment job
+ * Iterates through batch of transaction IDs, enriching each one
+ */
+async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
+  const startTime = Date.now();
+
+  logger.info(
+    {
+      jobId: job.id,
+      companyId: job.data.companyId,
+      transactionCount: job.data.bankTransactionIds.length,
+      source: job.data.source,
+    },
+    'Starting enrichment job',
+  );
+
+  try {
+    // Validate job data
+    const validation = enrichmentJobDataSchema.safeParse(job.data);
+    if (!validation.success) {
+      logger.error(
+        { jobId: job.id, issues: validation.error.issues },
+        'Enrichment job validation failed',
+      );
+      throw new Error(
+        `Invalid job data: ${validation.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ')}`,
+      );
+    }
+
+    const {
+      companyId,
+      bankAccountId,
+      bankTransactionIds: bIds,
+      source,
+    } = validation.data;
+
+    const bankTransactionIdSet = new Set(bIds);
+    const bankTransactionIds = [...bankTransactionIdSet];
+
+    // Track successes and failures
+    const results: {
+      successes: EnrichmentResult[];
+      failures: EnrichmentResult[];
+    } = {
+      successes: [],
+      failures: [],
+    };
+
+    // Legacy unsorted processing retained for reference.
+    // for (...) { ... }
+
+    // Fetch transaction dates for deterministic ordering
+    const transactionRows  = await knexClient('bank_transactions')
+      .select('id', 'date')
+      .whereIn('id', bankTransactionIds);
+
+    const dateLookup = new Map<string, string>();
+    for (const row of transactionRows) {
+      dateLookup.set(row.id, row.date);
+    }
+
+    const sortedTransactionIds = [...bankTransactionIds].sort((a, b) => {
+      const dateA = dateLookup.get(a);
+      const dateB = dateLookup.get(b);
+      if (dateA && dateB) {
+        if (dateA === dateB) {
+          return a.localeCompare(b);
+        }
+        return dateA.localeCompare(dateB);
+      }
+      if (dateA) return -1;
+      if (dateB) return 1;
+      return a.localeCompare(b);
+    });
+
+    // Process each transaction in the batch deterministically
+    const totalTransactions = sortedTransactionIds.length;
+
+    for (let i = 0; i < sortedTransactionIds.length; i++) {
+      const bankTransactionId = sortedTransactionIds[i];
+
+      try {
+        const progress = Math.floor(((i + 1) / totalTransactions) * 100);
+        await job.updateProgress(progress);
+
+        logger.debug(
+          {
+            jobId: job.id,
+            bankTransactionId,
+            progress: `${i + 1}/${totalTransactions}`,
+          },
+          'Processing transaction',
+        );
+
+        const transactionStartTime = Date.now();
+
+        await knexClient.transaction(async (trx) => {
+          const result = await enrichTransaction(bankTransactionId, trx);
+
+          if (!result.success || !result.enrichedTransaction) {
+            throw new Error(
+              result.error ||
+                `Enrichment failed without explicit error for ${bankTransactionId}`,
+            );
+          }
+
+          const checksum = generateEnrichmentChecksum(
+            result.enrichedTransaction,
+          );
+
+          const persistOutcome = await persistEnrichedTransaction(
+            companyId,
+            bankTransactionId,
+            result.enrichedTransaction,
+            source,
+            job.id || undefined,
+            trx,
+            {
+              checksum,
+              statsSnapshotChecksum:
+                result.statsContext?.snapshotChecksum || null,
+            },
+          );
+
+          if (
+            result.enrichedTransaction.normalized.contact_fingerprint &&
+            persistOutcome.didPersist
+          ) {
+            await incrementContactStats(
+              {
+                companyId,
+                contactFingerprint:
+                  result.enrichedTransaction.normalized.contact_fingerprint,
+                normalizedName:
+                  result.enrichedTransaction.normalized.contact_name ||
+                  'Unknown',
+                currencyCode: result.enrichedTransaction.raw.currency_code,
+                contactId: result.enrichedTransaction.ids.contact_id || null,
+                amountNative: result.enrichedTransaction.raw.amount_native,
+                amountReporting:
+                  result.enrichedTransaction.raw.amount_reporting,
+                transactionDate: new Date(result.enrichedTransaction.raw.date),
+                transactionId: bankTransactionId,
+                snapshotChecksum: result.statsContext?.snapshotChecksum || null,
+                snapshotCapturedAt: result.statsContext?.snapshotCapturedAt
+                  ? new Date(result.statsContext.snapshotCapturedAt)
+                  : null,
+                statsReplaySeq: result.statsContext?.statsReplaySeq || 0,
+              },
+              trx,
+            );
+          }
+
+          results.successes.push({
+            ...result,
+            latencyMs: Date.now() - transactionStartTime,
+          });
+
+          logger.debug(
+            {
+              jobId: job.id,
+              bankTransactionId,
+              latencyMs: Date.now() - transactionStartTime,
+              skippedPersist: !persistOutcome.didPersist,
+            },
+            'Transaction enrichment committed',
+          );
+        });
+      } catch (error) {
+        logger.error(
+          {
+            jobId: job.id,
+            bankTransactionId,
+            error,
+          },
+          'Error processing transaction - continuing with batch',
+        );
+
+        results.failures.push({
+          success: false,
+          bankTransactionId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          latencyMs: Date.now() - startTime,
+        });
+      }
+    }
+
+    // Job complete
+    const totalTime = Date.now() - startTime;
+    const avgLatency =
+      results.successes.length > 0
+        ? results.successes.reduce((sum, r) => sum + r.latencyMs, 0) /
+          results.successes.length
+        : 0;
+
+    logger.info(
+      {
+        jobId: job.id,
+        companyId,
+        totalTransactions,
+        successes: results.successes.length,
+        failures: results.failures.length,
+        totalTimeMs: totalTime,
+        avgLatencyMs: Math.round(avgLatency),
+      },
+      'Enrichment job completed',
+    );
+
+    // If all transactions failed, throw error to trigger job retry
+    if (results.failures.length === totalTransactions) {
+      throw new Error(
+        `All ${totalTransactions} transactions failed enrichment`,
+      );
+    }
+
+    return {
+      successes: results.successes.length,
+      failures: results.failures.length,
+      totalTimeMs: totalTime,
+    };
+  } catch (error) {
+    logger.error(
+      {
+        jobId: job.id,
+        error,
+        companyId: job.data.companyId,
+        transactionCount: job.data.bankTransactionIds.length,
+      },
+      'Enrichment job failed',
+    );
+    throw error;
+  }
+}
+
+/**
+ * Persist enriched transaction to database
+ * Upserts to categorization_tasks table
+ */
+async function persistEnrichedTransaction(
+  companyId: string,
+  bankTransactionId: string,
+  enrichedTransaction: EnrichedTransaction,
+  source: string,
+  jobId: string | undefined,
+  trx: Knex.Transaction,
+  options: { checksum: string; statsSnapshotChecksum: string | null },
+): Promise<{ didPersist: boolean; checksum: string }> {
+  const payload = {
+    ...enrichedTransaction,
+  };
+
+  payload.ids.enrichment_job_id = jobId || null;
+
+  try {
+    const existing = await trx('categorization_tasks')
+      .where('bank_transaction_id', bankTransactionId)
+      .where('is_deleted', false)
+      .forUpdate()
+      .first();
+
+    if (existing) {
+      if (existing.checksum === options.checksum) {
+        logger.debug(
+          { bankTransactionId, categorizationTaskId: existing.id },
+          'Categorization task unchanged, skipping persist',
+        );
+        return { didPersist: false, checksum: existing.checksum };
+      }
+
+      await trx('categorization_tasks')
+        .where('id', existing.id)
+        .update({
+          enriched_transaction: JSON.stringify(payload),
+          enrichment_version: payload.version,
+          status: 'enriched',
+          checksum: options.checksum,
+          updated_at: trx.fn.now(),
+        });
+
+      logger.debug(
+        {
+          bankTransactionId,
+          categorizationTaskId: existing.id,
+          statsSnapshotChecksum: options.statsSnapshotChecksum,
+        },
+        'Updated existing categorization task with new snapshot',
+      );
+
+      return { didPersist: true, checksum: options.checksum };
+    }
+
+    await trx('categorization_tasks').insert({
+      bank_transaction_id: bankTransactionId,
+      company_id: companyId,
+      enriched_transaction: JSON.stringify(payload),
+      enrichment_version: payload.version,
+      status: 'enriched',
+      source: source as any,
+      checksum: options.checksum,
+    });
+
+    logger.debug(
+      {
+        bankTransactionId,
+        statsSnapshotChecksum: options.statsSnapshotChecksum,
+      },
+      'Inserted new categorization task',
+    );
+
+    return { didPersist: true, checksum: options.checksum };
+  } catch (error) {
+    logger.error(
+      { error, bankTransactionId },
+      'Failed to persist enriched transaction',
+    );
+    throw error;
+  }
+}
+
+/**
+ * Start enrichment worker
+ * Returns worker instance for graceful shutdown
+ */
+export function startEnrichmentWorker(): Worker<EnrichmentJobData> {
+  const worker = new Worker<EnrichmentJobData>(
+    ENRICHMENT_QUEUE_NAME,
+    processEnrichmentJob,
+    ENRICHMENT_WORKER_OPTIONS,
+  );
+
+  worker.on('completed', (job, returnvalue) => {
+    logger.info(
+      {
+        jobId: job.id,
+        companyId: job.data.companyId,
+        result: returnvalue,
+      },
+      'Enrichment job completed successfully',
+    );
+  });
+
+  worker.on('failed', (job, err) => {
+    logger.error(
+      {
+        jobId: job?.id,
+        companyId: job?.data?.companyId,
+        error: err.message,
+        stack: err.stack,
+      },
+      'Enrichment job failed',
+    );
+  });
+
+  worker.on('error', (err) => {
+    logger.error({ error: err.message }, 'Enrichment worker error');
+  });
+
+  logger.info('Enrichment worker started');
+
+  return worker;
+}

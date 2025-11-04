@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
 import { type BankTransactionFilters } from './bankTransactions.types.js';
-import crypto from 'crypto';
+import { generateFingerprintSync } from '../../shared/index.js';
 
 const bankTransactionQuerySelect = ['bt.*', 'ba.*', 'banks.*', 'currencies.'];
 export function buildBankTransactionQuery({
@@ -69,10 +69,6 @@ function normalizeAmount(a: number | string): string {
   return n.toFixed(10); // matches NUMERIC(32,10) scale
 }
 
-function sha256hex(s: string): string {
-  return crypto.createHash('sha256').update(s).digest('hex');
-}
-
 type Txn = {
   date: string | Date;
   amount: number | string;
@@ -94,12 +90,12 @@ function canonicalTxn(t: Txn): string {
 }
 
 export function generateBatchFingerprint(txns: Txn[]): string {
-  if (txns.length === 0) return sha256hex('empty');
+  if (txns.length === 0) return generateFingerprintSync('empty');
 
   // 1) per-transaction canonical strings -> hashes
-  const perTxn = txns.map((t) => sha256hex(canonicalTxn(t)));
+  const perTxn = txns.map((t) => generateFingerprintSync(canonicalTxn(t)));
 
   // 2) order-independent combine: sort then hash the concatenation
   perTxn.sort(); // lexical sort of hex strings
-  return sha256hex(perTxn.join(''));
+  return generateFingerprintSync(perTxn.join(''));
 }

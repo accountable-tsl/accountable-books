@@ -126,6 +126,7 @@ Launch `2025-29-09`
 - [x] UK Users (YE should be Apr 5) - Implemented automatic fiscal year-end defaults
 - Make sure we are not allowing 30 Feb, 31 Sep etc on company signup
 - CBN Exchange Rate up to date
+- If I could destroy the fly staging app in one command, what stops another sinister dev from doing same. protect
 
 ### CAN DELAY (Post-Launch)
 
@@ -136,6 +137,7 @@ Launch `2025-29-09`
 - [ ] Add concurrency to deploy-staging.yml : { group: staging, cancel-in-progress: true }
 - [ ] Add all ISO 4217 currency codes to currencies table
 - Handling opening balances upon ingesting/connecting user's bank accounts + Opening / Conversion Balances
+- contact and contact type auto handling on insertion or cat of transactions
 
 ---
 

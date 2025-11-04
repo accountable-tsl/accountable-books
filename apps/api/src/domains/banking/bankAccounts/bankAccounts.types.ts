@@ -4,12 +4,12 @@ import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
 } from '../../../shared/utils/formatting.utils.js';
-import { coaSource } from '../../chartOfAccounts/coa.types.js';
+import { coaSource } from '../../chart-of-accounts/coa.types.js';
 import {
   bankObMetadata,
   bankOpeningBalanceOrigin,
   bankOpeningBalanceRole,
-} from '../../balances/openingBalance/openingBalance.types.js';
+} from '../../balances/opening-balance/opening-balance.types.js';
 
 export const bankAccountType = z.enum([
   'other',

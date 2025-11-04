@@ -26,7 +26,7 @@ import {
 import logger from '../../../shared/utils/logger.js';
 import z from 'zod';
 import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
-import { setBankOpeningBalance } from '../../balances/openingBalance/openingBalance.service.js';
+import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
 import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
 import { toYMD } from '../../../shared/utils/date.utils.js';
 

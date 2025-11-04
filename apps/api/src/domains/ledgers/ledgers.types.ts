@@ -1,6 +1,7 @@
 import z from 'zod';
 import { categorizationStatus, dbBaseFields } from '../../core/types/core.js';
 import { debitCredit } from '../../core/types/core.js';
+import { contactType, type ContactType } from '../contacts/index.js';
 
 export const ledgerTransactionSource = z.enum([
   'bank_transaction',
@@ -19,6 +20,7 @@ const baseLedgerTransaction = z.object({
   bank_transaction_id: z.uuid().nullish(),
   bank_transaction_date: z.date().nullish(),
   contact_id: z.uuid().nullish(),
+  contact_type_snapshot: contactType.nullish(),
 });
 
 export const newLedgerTransaction = z.object({

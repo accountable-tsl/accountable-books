@@ -21,14 +21,14 @@ import {
 import {
   CoaTemplate,
   NewCoaTemplateInput,
-} from '../domains/chartOfAccounts/coaTemplate.type.ts';
+} from '../domains/chart-of-accounts/coa-template.type.ts';
 import {
   NewUserDirect,
   NewUserInput,
   User,
 } from '../domains/users/users.types.ts';
 import { Company, NewCompany } from '../domains/companies/companies.types.ts';
-import { Coa, NewCoa } from '../domains/chartOfAccounts/coa.types.ts';
+import { Coa, NewCoa } from '../domains/chart-of-accounts/coa.types.ts';
 import { AccFirm, NewAccFirm } from '../domains/accountingFirms/firms.types.ts';
 import {
   NewUserCompanyRole,
@@ -61,7 +61,7 @@ import {
 } from '../domains/banking/bankProviderMappings/bankProviderMappings.types.ts';
 import { NewToken, Token } from '../domains/tokens/tokens.types.ts';
 import { NewRoleInput, Role } from '../domains/roles/roles.types.ts';
-import { Contact, NewContact } from '../domains/contacts/contact.types.ts';
+import { Contact, NewContact } from '../domains/contacts/contacts.types.ts';
 import { NewProject, Project } from '../domains/projects/projects.types.ts';
 import type {
   BankAccountCredential,
@@ -84,7 +84,7 @@ import type {
 import type {
   FiscalCalendar,
   NewFiscalCalendar,
-} from '../domains/reporting/fiscalCalendar/fiscalCalendar.types.ts';
+} from '../domains/reporting/fiscal-calendar/fiscal-calendar.types.ts';
 import type {
   JournalBatch,
   JournalEntry,

@@ -14,9 +14,9 @@ import {
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import { normalizeContactName } from '../contacts/contacts.model.js';
-import { enqueueGLBalance } from '../../jobs/queues/balance-recalc.queue.js';
 import { isValidYMD, toDate, toYMD } from '../../shared/utils/date.utils.js';
-import { ensureAndFetchFiscalCalendar } from '../reporting/fiscalCalendar/fiscalCalendar.service.js';
+import { ensureAndFetchFiscalCalendar } from '../reporting/fiscal-calendar/fiscal-calendar.service.js';
+import { enqueueGLBalance } from '../balances/index.js';
 
 /**
  * Create a single ledger transaction
@@ -254,6 +254,7 @@ export async function createLedgerRecord({
         reference: ledgerTxInput.reference,
         note: ledgerTxInput.note,
         contact_id: contactId ?? null,
+        contact_type_snapshot: ledgerTxInput.contact_type_snapshot ?? null,
         ...(ledgerTxInput.bank_transaction_date &&
         ledgerTxInput.bank_transaction_id
           ? {

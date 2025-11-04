@@ -7,11 +7,11 @@ import {
   stopAllWorkers,
   getWorkersStatus,
 } from './jobs/workers/index.js';
-import { scheduleNightlyAutoExtend } from './jobs/queues/fiscal-calendar.queue.js';
 import { initSentry } from './sentry.bootstrap.js';
 import { NODE_ENV, ENV } from './config/env.js';
 import { initRedisMonitoring, getRedisStats } from './lib/redis-monitor.js';
 import pino from 'pino';
+import { scheduleNightlyAutoExtend } from './domains/reporting/fiscal-calendar/index.js';
 
 // Initialize logger
 const logger =

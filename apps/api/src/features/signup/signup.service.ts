@@ -13,10 +13,10 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { createCompany } from '../../domains/companies/companies.model.js';
-import { loadCoaTemplateForCompany } from '../../domains/chartOfAccounts/coaTemplate.model.js';
+import { loadCoaTemplateForCompany } from '../../domains/chart-of-accounts/coa-template.model.js';
 import { trackEvent } from '../../shared/utils/analytics.utils.js';
 import { createAccountingFirm } from '../../domains/accountingFirms/firms.model.js';
-import { createDefaultAccounts } from '../../domains/chartOfAccounts/coa.model.js';
+import { createDefaultAccounts } from '../../domains/chart-of-accounts/coa.model.js';
 import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
 import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
 import {
@@ -111,7 +111,7 @@ export const registerNewAccount = async (input: {
     }
 
     await attachChartOfAccounts(knex, {
-      companyId: company.id,
+      companyUUID: company.id,
       reportingCurrencyId: company.reporting_currency_id,
       userId: user.id,
       loadCoaTemplate: companyInput.load_coa_template || true,
@@ -355,24 +355,25 @@ const setupAccountingFirm = async (
 const attachChartOfAccounts = async (
   trx: Knex.Transaction,
   params: {
-    companyId: string;
+    companyUUID: string;
     userId: string;
     reportingCurrencyId: string;
     loadCoaTemplate?: boolean;
   },
 ): Promise<void> => {
+  const { companyUUID, userId, reportingCurrencyId, loadCoaTemplate } = params;
   try {
-    if (params.loadCoaTemplate === false) {
-      await createDefaultAccounts(
+    if (loadCoaTemplate === false) {
+      await createDefaultAccounts({
         trx,
-        params.companyId,
-        params.userId,
-        params.reportingCurrencyId,
-      );
+        companyUUID,
+        userId,
+        reportingCurrencyId,
+      });
     } else {
       await loadCoaTemplateForCompany(trx, {
-        companyId: params.companyId,
-        created_by_id: params.userId,
+        companyId: companyUUID,
+        created_by_id: userId,
         use_code: true, // Default value
       });
     }

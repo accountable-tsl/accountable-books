@@ -44,13 +44,13 @@ import {
 } from '../../shared/utils/logger.js';
 import { getCurrency } from '../currencies/currencies.utils.js';
 import { getCountry } from '../countries/countries.utils.js';
-import { enqueueFiscalCalendarGeneration } from '../../jobs/queues/fiscal-calendar.queue.js';
 import {
   buildAuthContext,
   generateAuthTokens,
 } from '../../features/auth/auth.utils.js';
 import { redis } from '../../lib/redis.js';
 import { countryToTimezone } from '../../core/timezones/countryTimezones.js';
+import { enqueueFiscalCalendarGeneration } from '../reporting/fiscal-calendar/index.js';
 
 /**
  * Generates a unique short code for a company with collision handling

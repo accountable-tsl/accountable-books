@@ -12,4 +12,5 @@
  * - Another scenario: If the transaction was split, there'll be one bank leg and two other accounts, we'll show those two
  *
  * - We need to understand the manual and auto categorization flow properly to be able to complete this
+ * - We should probably use a materialized view (or view) for this and refresh as needed
  */

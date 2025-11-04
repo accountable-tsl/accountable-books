@@ -18,7 +18,7 @@ import bankFeedProvidersRoutes from './domains/banking/bankFeedProviders/bankFee
 import bankingRoutes from './domains/banking/banking.routes.js';
 import plaidWebhookRoutes from './domains/banking/webhooks/plaid.webhook.js';
 import usersCompaniesRolesRoutes from './domains/userRoles/userRoles.routes.js';
-import coaRoutes from './domains/chartOfAccounts/coa.routes.js';
+import coaRoutes from './domains/chart-of-accounts/coa.routes.js';
 import accountRoutes from './domains/account/account.routes.js';
 import contactsRoutes from './domains/contacts/contacts.routes.js';
 import projectsRoutes from './domains/projects/projects.routes.js';

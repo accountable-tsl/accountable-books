@@ -120,4 +120,5 @@ export async function down(knex: Knex): Promise<void> {
   await dropTrgmIndexes(knex, tableName);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
+  await knex.raw(`DROP TYPE IF EXISTS bank_local_code_type;`);
 }

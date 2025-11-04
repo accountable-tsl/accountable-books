@@ -1,9 +1,10 @@
-import { startEmailWorker } from './email.worker.js';
-import { startTransactionSyncWorker } from './transaction-sync.worker.js';
 import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
-import { startBalanceRecalcWorker } from './balance-recalc.worker.js';
-import { startFiscalCalendarWorker } from './fiscal-calendar.worker.js';
 import type { Worker } from 'bullmq';
+import { startEmailWorker } from '../../features/communications/email/index.js';
+import { startTransactionSyncWorker } from '../../integrations/banking/index.js';
+import { startBalanceRecalcWorker } from '../../domains/balances/index.js';
+import { startFiscalCalendarWorker } from '../../domains/reporting/fiscal-calendar/index.js';
+import { startEnrichmentWorker } from '../../domains/categorization/index.js';
 
 export interface WorkerConfig {
   email: {
@@ -19,6 +20,9 @@ export interface WorkerConfig {
     concurrency: number;
   };
   fiscalCalendar: {
+    concurrency: number;
+  };
+  enrichment: {
     concurrency: number;
   };
 }
@@ -39,6 +43,9 @@ const DEFAULT_WORKER_CONFIG: WorkerConfig = {
   },
   fiscalCalendar: {
     concurrency: Number(process.env.FISCAL_CALENDAR_CONCURRENCY) || 3,
+  },
+  enrichment: {
+    concurrency: Number(process.env.ENRICHMENT_WORKER_CONCURRENCY) || 10,
   },
 };
 
@@ -118,6 +125,19 @@ export async function startAllWorkers(
     console.error('❌ Failed to start fiscal calendar worker:', error);
     // Fiscal calendar is core functionality, so throw the error
     throw error;
+  }
+
+  // Start enrichment worker (transaction enrichment for categorization)
+  try {
+    console.log('🔍 Starting enrichment worker...');
+    const enrichmentWorker = startEnrichmentWorker();
+    activeWorkers.set('enrichment', enrichmentWorker);
+    workers.push(enrichmentWorker);
+    console.log('✅ Enrichment worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start enrichment worker:', error);
+    // Enrichment is not critical for core operations, so just log the error
+    console.log('⚠️  Continuing without enrichment worker');
   }
 
   console.log(`✅ Started ${workers.length} workers successfully`);

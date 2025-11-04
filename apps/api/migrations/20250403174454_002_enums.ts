@@ -88,8 +88,13 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists('contact_type', [
       'customer',
-      'supplier',
+      'vendor',
       'employee',
+      'contractor',
+      'director',
+      'owner',
+      'government',
+      'internal',
       'other',
     ]),
   );

@@ -8,10 +8,8 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
-import {
-  enqueueGLBalance,
-  enqueueBankBalance,
-} from '../../jobs/queues/balance-recalc.queue.js';
+import { enqueueBankBalance, enqueueGLBalance } from './balance-recalc.queue.js';
+
 
 // Validation schemas
 const dateStringSchema = z
