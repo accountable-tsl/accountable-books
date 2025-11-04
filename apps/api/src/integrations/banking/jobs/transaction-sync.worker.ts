@@ -1,14 +1,14 @@
 import { Worker, JobScheduler } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+import { redis } from '../../../lib/redis.js';
 import type { Job } from 'bullmq';
 import pino from 'pino';
-import { transactionSyncService } from '../../integrations/banking/services/transactionSync.service.js';
-import { getAllActiveCredentials } from '../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
+import { getAllActiveCredentials } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
 import {
   scheduleTransactionSync,
   scheduleDailySyncScan,
-} from '../queues/transaction-sync.queue.js';
-import { ENV } from '../../config/env.js';
+} from './transaction-sync.queue.js';
+import { ENV } from '../../../config/env.js';
+import { transactionSyncService } from '../services/transaction-sync.service.js';
 
 const logger = pino();
 

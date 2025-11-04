@@ -363,10 +363,7 @@ export class PlaidProvider extends BankingProvider {
       txnAt:
         txn.datetime || txn.date ? new Date(txn.datetime || txn.date) : null,
       merchantName: txn.merchant_name || undefined,
-      description:
-        (txn.merchant_name ?? '') +
-        txn.payment_channel +
-        (txn.original_description ?? ''),
+      description: txn.original_description ?? '',
       // According to plaid, for transactions:
       // -- Positive values when money moves out of the account;
       // -- Negative values when money moves in
@@ -382,6 +379,16 @@ export class PlaidProvider extends BankingProvider {
             txn.personal_finance_category.detailed,
           ].filter(Boolean)
         : [],
+      additionalNotes:
+        (txn.merchant_name ?? '') +
+        txn.payment_channel +
+        txn.personal_finance_category?.detailed +
+        (txn.location?.address ?? '') +
+        (txn.location?.city ?? '') +
+        (txn.location?.region ?? '') +
+        (txn.location?.postal_code ?? '') +
+        (txn.location?.country ?? '') +
+        (txn.location.country ? `country: ${txn.location.country}` : ''),
       rawData: txn,
     }));
   }

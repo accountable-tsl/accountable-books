@@ -1,10 +1,10 @@
 import { Queue } from 'bullmq';
-import { redis } from '../../lib/redis.js';
-import { NODE_ENV, isProd } from '../../config/env.js';
+import { redis } from '../../../lib/redis.js';
+import { isProd } from '../../../config/env.js';
 import type {
   TransactionSyncJobData,
   BulkSyncJobData,
-} from '../workers/transaction-sync.worker.js';
+} from './transaction-sync.worker.js';
 
 export const transactionSyncQueue = new Queue('transaction-sync', {
   connection: redis,

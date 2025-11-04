@@ -749,6 +749,7 @@ export class TransactionSyncService {
         payee: tx.merchantName ?? null,
         raw_data: tx.rawData ?? undefined,
         external_id: tx.transactionId,
+        additional_notes: tx.additionalNotes ?? undefined,
       }));
 
       if (bank_transactions.length === 0) continue;

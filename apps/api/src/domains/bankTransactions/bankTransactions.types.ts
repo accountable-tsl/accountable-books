@@ -32,7 +32,7 @@ export const bankTransactionInput = z.object({
   description: z.string().nullish(),
   payee: z.string().nullish(),
   reference: z.string().nullish(),
-  additional_comments: z.string().nullish(),
+  additional_notes: z.string().nullish(),
   raw_data: z.any().nullish(),
   external_id: z.string().optional(),
   //   id: z.string().uuid().optional(),

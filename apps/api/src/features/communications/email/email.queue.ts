@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
-import { redis } from '../../lib/redis.js';
-import { isProd } from '../../config/env.js';
+import { redis } from '../../../lib/redis.js';
+import { isProd } from '../../../config/env.js';
 
 export const emailQueue = new Queue('email', {
   connection: redis,

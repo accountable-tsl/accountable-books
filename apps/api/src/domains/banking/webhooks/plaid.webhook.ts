@@ -3,9 +3,9 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import { logger, logError } from '../../../shared/utils/logger.js';
 import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';
-import { transactionSyncQueue } from '../../../jobs/queues/transaction-sync.queue.js';
 import { webhookProviders } from '../../../integrations/banking/utils/webhookVerification.js';
 import { randomUUID } from 'crypto';
+import { transactionSyncQueue } from '../../../integrations/banking/index.js';
 
 const router = Router();
 

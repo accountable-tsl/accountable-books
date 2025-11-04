@@ -1,15 +1,15 @@
 import { Worker } from 'bullmq';
-import { ENV } from '../../config/env.js';
+import { ENV } from '../../../config/env.js';
 import {
   type InviteEmailPayload,
   type TokenBasedEmailPayload,
-} from '../../features/communications/email/email.types.js';
-import { redis } from '../../lib/redis.js';
+} from './email.types.js';
+import { redis } from '../../../lib/redis.js';
 import {
   getUserInviteTemplate,
   getVerifyEmailTemplate,
-} from '../../features/communications/email/emailTemplates.js';
-import { sendEmail } from '../../features/communications/email/email.service.js';
+} from './email-templates.js';
+import { sendEmail } from './email.service.js';
 
 const baseUrl = ENV.BACKEND_URL;
 if (!redis) throw new Error('Missing redis connection');

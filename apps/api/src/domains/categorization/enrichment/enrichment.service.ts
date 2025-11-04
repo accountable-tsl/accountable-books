@@ -7,48 +7,32 @@ import type {
   MerchantPatternsFile,
   ContactStats,
   EnrichmentStatsContext,
+  MerchantPattern,
+  MccReferenceFile,
+} from './enrichment.types.js';
+import {
+  merchantPatternsFileSchema,
+  mccReferenceFileSchema,
 } from './enrichment.types.js';
 import { getCompanyContext } from './company-context.service.js';
 import { getContactStats } from './contactStats.service.js';
 import {
-  normalizeDescription,
-  extractContactFromDescription as extractContact,
-  generateContactFingerprint,
-  tokenizeDescription,
   detectPatternSignals,
   computeTemporalFeatures,
   calculateDaysToPeriodClose,
   determineTypicalFrequency,
   generateStatsSnapshotChecksum,
 } from './enrichment.utils.js';
-import { extractContactFromDescription } from './enrichment.utils.js';
 import pino from 'pino';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { contactType, type ContactType } from '../../contacts/index.js';
-
-const logger = pino();
-
-// Load merchant patterns at module initialization
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const merchantPatternsPath = join(__dirname, '../data/merchant-patterns.json');
-let merchantPatterns: MerchantPatternsFile | null = null;
-
-try {
-  const patternsData = readFileSync(merchantPatternsPath, 'utf-8');
-  merchantPatterns = JSON.parse(patternsData) as MerchantPatternsFile;
-  logger.info(
-    { count: merchantPatterns.patterns.length },
-    'Loaded merchant patterns',
-  );
-} catch (error) {
-  logger.warn(
-    { error },
-    'Failed to load merchant patterns - continuing without',
-  );
-}
+import {
+  normalizeDescription,
+  tokenizeDescription,
+} from './utils/clean-desc.js';
+import { resolveContactForEnrichment } from './resolve-contact.service.js';
 
 /**
  * Enrichment version identifier
@@ -65,6 +49,8 @@ const BANK_TX_SELECT_FIELDS = [
   'bt.id as bank_transaction_id',
   'bt.date as date',
   'bt.description as description',
+  'bt.reference as reference',
+  'bt.additional_notes as additional_notes',
   'bt.amount as amount_native',
   'bt.system_exchange_rate as system_exchange_rate',
   'bt.bank_transaction_batch_id as bank_transaction_batch_id',
@@ -92,11 +78,10 @@ export async function enrichTransaction(
   trx?: Knex.Transaction,
 ): Promise<EnrichmentResult> {
   const startTime = Date.now();
-  const db = trx || knexClient;
 
-  try {
-    // Step 1: Load base transaction with minimal joins
-    const txn = await db('bank_transactions as bt')
+  const exec = async (tx: Knex.Transaction) => {
+    // Load base transaction with minimal joins
+    const txn = await tx('bank_transactions as bt')
       .select(BANK_TX_SELECT_FIELDS)
       .leftJoin('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
       .leftJoin('currencies as cur', 'ba.currency_id', 'cur.id')
@@ -108,351 +93,482 @@ export async function enrichTransaction(
       throw new Error(`Bank transaction not found: ${bankTransactionId}`);
     }
 
-    const companyId = txn.company_id;
+    const companyUUID = txn.company_id;
 
     // Load company context (cached via Redis)
-    const companyContext = await getCompanyContext(companyId);
+    const companyContext = await getCompanyContext(companyUUID);
 
-    // Step 2: Normalize description
-    const normalizedDesc = normalizeDescription(txn.description);
+    // Normalize description
+    const description = txn.description + txn.reference + txn.additional_notes;
+    const normalizedDesc = normalizeDescription(description);
     const descriptionTokens = tokenizeDescription(normalizedDesc);
 
-    // Step 3: Contact resolution
-    const contactResolution = await resolveContact({
-      db,
-      companyId,
+    // Contact resolution
+    const contactResolution = await resolveContactForEnrichment({
+      companyUUID,
       contactId: txn.contact_id || null,
       contactTypeSnapshot: txn.contact_type || null,
       payee: txn.payee,
       description: normalizedDesc,
+      trx: tx,
     });
 
-    // Step 4: Calculate amounts in reporting currency
-    const amountNative = Number(txn.amount_native);
-    const systemExRate = Number(txn.system_exchange_rate) || 1;
-    const amountReporting = amountNative * systemExRate;
-
-    // Determine transaction direction
-    const direction: 'inflow' | 'outflow' =
-      amountNative >= 0 ? 'inflow' : 'outflow';
-
-    // Step 5: Fetch historical contact stats
-    const contactStats = contactResolution.contactFingerprint
-      ? await getContactStats({
-          companyId,
-          contactFingerprint: contactResolution.contactFingerprint,
-          currencyCode: txn.transaction_currency_code,
-          contactId: contactResolution.contactId,
-          db,
-        })
-      : null;
-
-    // Step 6: Compute temporal features
-    const txnDate = new Date(txn.date);
-    const temporalFeatures = computeTemporalFeatures({
-      date: txnDate,
-      fiscalYearEnd: companyContext.fiscalYearEnd,
-      timezone: companyContext.defaultTimezone,
-    });
-
-    // Calculate fiscal period boundaries
-    const fiscalPeriod = calculateFiscalPeriodBoundaries({
-      date: txnDate,
-      fiscalYearEnd: companyContext.fiscalYearEnd,
-    });
-
-    // Calculate days to period close
-    const periodEndDate = new Date(fiscalPeriod.month_end);
-    const daysToPeriodClose = calculateDaysToPeriodClose({
-      startDate: txnDate,
-      endDate: periodEndDate,
-    });
-
-    // Step 7: Detect pattern signals
-    const signals = detectPatternSignals({
-      description: normalizedDesc,
-      amount: amountNative,
-      currencyCode: txn.transaction_currency_code,
-    });
-
-    // Step 8: Determine typical frequency (if we have historical data)
-    let typicalFrequency:
-      | 'one_time'
-      | 'weekly'
-      | 'monthly'
-      | 'quarterly'
-      | 'annual'
-      | 'irregular' = 'one_time';
-    if (contactStats && contactStats.totalTransactions > 1) {
-      // Fetch recent transaction dates for this contact
-      const recentDates = await fetchRecentTransactionDates({
-        db,
-        companyId,
-        contactFingerprint: contactResolution.contactFingerprint!,
-        currencyCode: txn.transaction_currency_code,
-      });
-      typicalFrequency = determineTypicalFrequency(recentDates);
-    }
-
-    const snapshotInfo = buildContactStatsSnapshot({
-      contactStats,
-      contactFingerprint: contactResolution.contactFingerprint,
-      transactionId: bankTransactionId,
-      transactionDate: txnDate,
-    });
-    const statsSnapshot = snapshotInfo.snapshot;
-    const statsContext = snapshotInfo.context;
-
-    // Step 9: Build EnrichedTransaction object
-    const enrichedTransaction: EnrichedTransaction = {
-      version: ENRICHMENT_VERSION,
-
-      ids: {
-        bank_transaction_id: txn.bank_transaction_id,
-        bank_transaction_batch_id: txn.bank_transaction_batch_id || null,
-        company_uuid: companyId,
-        bank_account_id: txn.bank_account_id,
-        bank_account_coa_id: txn.bank_account_coa_id,
-        contact_id: contactResolution.contactId,
-        enrichment_job_id: null, // Will be set by worker
-      },
-
-      raw: {
-        date: txn.date,
-        description: txn.description,
-        amount_native: amountNative,
-        system_ex_rate: systemExRate,
-        amount_reporting: amountReporting,
-        currency_code: txn.transaction_currency_code,
-        direction,
-        source: txn.raw_data?.source || 'csv',
-        metadata: txn.raw_data || {},
-      },
-
-      normalized: {
-        description: normalizedDesc,
-        description_tokens: descriptionTokens,
-        contact_name: contactResolution.contactName,
-        contact_fingerprint: contactResolution.contactFingerprint,
-        contact_match_confidence: contactResolution.matchConfidence,
-        contact_type: contactResolution.contactType,
-        normalized_reference: null,
-        global_contact_id: contactResolution.globalContactId,
-        global_contact_category_hints:
-          contactResolution.globalContactCategoryHints,
-      },
-
-      context: {
-        industry: companyContext.industry,
-        company_name: companyContext.companyName,
-        company_description: null,
-        company_website: null,
-        country_id: companyContext.countryId,
-        country_code: companyContext.countryCode,
-        accounting_basis: companyContext.accountingBasis,
-        reporting_framework: companyContext.reportingFramework,
-        reporting_currency_id: companyContext.reportingCurrencyId,
-        reporting_currency_code: companyContext.reportingCurrencyCode,
-        transaction_currency_id: txn.transaction_currency_id,
-        transaction_currency_code: txn.transaction_currency_code,
-        coa_snapshot_version: companyContext.coaSnapshotVersion,
-        coa_snapshot_id: companyContext.coaSnapshotId,
-        company_settings_checksum: companyContext.settingsChecksum,
-      },
-
-      // historical: {
-      //   bank_contact_stats: contactStats
-      //     ? {
-      //         id: contactStats.companyId, // Placeholder - will be set by worker
-      //         version: ENRICHMENT_VERSION,
-      //       }
-      //     : {
-      //         id: companyId,
-      //         version: ENRICHMENT_VERSION,
-      //       },
-      // },
-      historical: {
-        bank_contact_stats_snapshot: statsSnapshot,
-      },
-
-      signals,
-
-      temporal: {
-        ...temporalFeatures,
-        days_to_period_close: daysToPeriodClose,
-        fiscal_period: fiscalPeriod,
-      },
-
-      feedback_summary: undefined, // Not available during initial enrichment
-
-      metadata: {
-        source: 'ingestion',
-        enriched_at: new Date().toISOString(),
-        enrichment_latency_ms: Date.now() - startTime,
-        enrichment_version: ENRICHMENT_VERSION,
-        status: 'enriched',
-        error_message: null,
-        processing_context: 'primary',
-        stats_replay_seq:
-          statsContext.statsReplaySeq > 0
-            ? statsContext.statsReplaySeq
-            : undefined,
-        stats_snapshot_checksum: statsContext.snapshotChecksum || undefined,
-      },
-    };
-
-    const latencyMs = Date.now() - startTime;
-
-    logger.debug(
-      { bankTransactionId, latencyMs },
-      'Transaction enrichment completed',
-    );
-
-    return {
-      success: true,
-      bankTransactionId,
-      enrichedTransaction,
-      latencyMs,
-      statsContext,
-    };
-  } catch (error) {
-    const latencyMs = Date.now() - startTime;
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
-
-    logger.error(
-      { error, bankTransactionId, latencyMs },
-      'Transaction enrichment failed',
-    );
-
-    return {
-      success: false,
-      bankTransactionId,
-      error: errorMessage,
-      latencyMs,
-    };
-  }
-}
-/**
- * Resolve contact from transaction data
- * Multi-step process: existing contact � global patterns � company contacts � fingerprint only
- */
-async function resolveContact({
-  companyId,
-  contactId,
-  contactTypeSnapshot,
-  payee,
-  description,
-  trx,
-}: {
-  db: Knex | Knex.Transaction;
-  companyId: string;
-  contactId: string | null;
-  contactTypeSnapshot?: ContactType | null;
-  payee: string | null;
-  description: string;
-  trx?: Knex.Transaction;
-}): Promise<ContactResolutionResult> {
-  const db = trx || knexClient;
-  // If contact already linked, fetch it
-  const contactObj: ContactResolutionResult = {
-    contact_id: contactId,
-    contact_name: null,
-    contact_fingerprint: null,
-    contact_match_confidence: 'unmatched',
-    contact_type: contactTypeSnapshot ?? 'unknown',
-    global_contact_name: null,
-    global_contact_category_hints: null,
+    const contactStats = '';
   };
 
-  if (contactId) {
-    const existingContact = await db('contacts')
-      .select('id', 'name')
-      .where({ id: contactId, is_deleted: false })
-      .first();
-    if (existingContact) {
-      contactObj.contact_name = existingContact.name;
-      contactObj.contact_match_confidence = 'exact_contact';
-    }
-  }
+  return {} as EnrichmentResult;
+  // try {
+  //   // Step 1: Load base transaction with minimal joins
+  //   const txn = await db('bank_transactions as bt')
+  //     .select(BANK_TX_SELECT_FIELDS)
+  //     .leftJoin('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
+  //     .leftJoin('currencies as cur', 'ba.currency_id', 'cur.id')
+  //     .where('bt.id', bankTransactionId)
+  //     .where('bt.is_deleted', false)
+  //     .first();
 
-  if (!contactObj.contact_name) {
-    // Try to extract contact name from description
-    // const extractedName = extractContact(description) || payee;
-    const extractedName = extractContactFromDescription(description) || payee;
+  //   if (!txn) {
+  //     throw new Error(`Bank transaction not found: ${bankTransactionId}`);
+  //   }
 
-    if (extractedName) {
-      contactObj.contact_name = extractedName;
-      contactObj.contact_match_confidence = 'fingerprint_only';
-    }
-  }
+  //   const companyId = txn.company_id;
 
-  // Check global merchant patterns
-  if (merchantPatterns) {
-    for (const merchantPattern of merchantPatterns.patterns) {
-      const expressions =
-        merchantPattern.patterns && merchantPattern.patterns.length > 0
-          ? merchantPattern.patterns
-          : merchantPattern.pattern
-            ? [merchantPattern.pattern]
-            : [];
+  //   // Load company context (cached via Redis)
+  //   const companyContext = await getCompanyContext(companyId);
 
-      for (const expression of expressions) {
-        let regex: RegExp;
-        try {
-          regex = new RegExp(expression, 'i');
-        } catch (error) {
-          logger.warn(
-            { expression, contact: merchantPattern.contact, error },
-            'Invalid merchant regex skipped',
-          );
-          continue;
-        }
+  //   // Normalize description
+  //   const description = txn.description + txn.reference + txn.additional_notes;
+  //   const normalizedDesc = normalizeDescription(txn.description);
+  //   const descriptionTokens = tokenizeDescription(normalizedDesc);
 
-        if (regex.test(description)) {
-          // Global pattern matched
-          return {
-            contactId: null, // Not linked to company contact yet
-            contactName: merchantPattern.normalized_name,
-            contactFingerprint: generateContactFingerprint(
-              merchantPattern.normalized_name,
-            ),
-            matchConfidence: 'fingerprint_only',
-            contactType: 'vendor',
-            globalContactId: merchantPattern.contact,
-            globalContactCategoryHints: merchantPattern.category_hints,
-          };
-        }
-      }
-    }
-  }
+  //   // // Step 3: Contact resolution
+  //   // const contactResolution = await resolveContact({
+  //   //   companyUUID: companyId,
+  //   //   contactId: txn.contact_id || null,
+  //   //   contactTypeSnapshot: txn.contact_type || null,
+  //   //   payee: txn.payee,
+  //   //   description: normalizedDesc,
+  //   //   trx: db,
+  //   // });
 
-  // Step 4: Match against company contacts
-  const matchedContact = await db('contacts')
-    .where('company_id', companyId)
-    .where('is_deleted', false)
-    .whereRaw('LOWER(name) = ?', [normalizedName])
-    .first();
+  //   // Step 4: Calculate amounts in reporting currency
+  //   const amountNative = Number(txn.amount_native);
+  //   const systemExRate = Number(txn.system_exchange_rate) || 1;
+  //   const amountReporting = amountNative * systemExRate;
 
-  if (matchedContact) {
-    return {
-      contactId: matchedContact.id,
-      contactName: matchedContact.name,
-      contactFingerprint: fingerprint,
-      matchConfidence: 'exact_contact',
-      contactType: matchedContact.type || 'unknown',
-    };
-  }
+  //   // Determine transaction direction
+  //   const direction: 'inflow' | 'outflow' =
+  //     amountNative >= 0 ? 'inflow' : 'outflow';
 
-  // Step 5: Fallback to fingerprint only
-  return {
-    contactId: null,
-    contactName: extractedName,
-    contactFingerprint: fingerprint,
-    matchConfidence: 'fingerprint_only',
-    contactType: 'unknown',
-  };
+  //   // Step 5: Fetch historical contact stats
+  //   const contactStats = contactResolution.contactFingerprint
+  //     ? await getContactStats({
+  //         companyId,
+  //         contactFingerprint: contactResolution.contactFingerprint,
+  //         currencyCode: txn.transaction_currency_code,
+  //         contactId: contactResolution.contactId,
+  //         db,
+  //       })
+  //     : null;
+
+  //   // Step 6: Compute temporal features
+  //   const txnDate = new Date(txn.date);
+  //   const temporalFeatures = computeTemporalFeatures({
+  //     date: txnDate,
+  //     fiscalYearEnd: companyContext.fiscalYearEnd,
+  //     timezone: companyContext.defaultTimezone,
+  //   });
+
+  //   // Calculate fiscal period boundaries
+  //   const fiscalPeriod = calculateFiscalPeriodBoundaries({
+  //     date: txnDate,
+  //     fiscalYearEnd: companyContext.fiscalYearEnd,
+  //   });
+
+  //   // Calculate days to period close
+  //   const periodEndDate = new Date(fiscalPeriod.month_end);
+  //   const daysToPeriodClose = calculateDaysToPeriodClose({
+  //     startDate: txnDate,
+  //     endDate: periodEndDate,
+  //   });
+
+  //   // Step 7: Detect pattern signals
+  //   const signals = detectPatternSignals({
+  //     description: normalizedDesc,
+  //     amount: amountNative,
+  //     currencyCode: txn.transaction_currency_code,
+  //   });
+
+  //   // Step 8: Determine typical frequency (if we have historical data)
+  //   let typicalFrequency:
+  //     | 'one_time'
+  //     | 'weekly'
+  //     | 'monthly'
+  //     | 'quarterly'
+  //     | 'annual'
+  //     | 'irregular' = 'one_time';
+  //   if (contactStats && contactStats.totalTransactions > 1) {
+  //     // Fetch recent transaction dates for this contact
+  //     const recentDates = await fetchRecentTransactionDates({
+  //       db,
+  //       companyId,
+  //       contactFingerprint: contactResolution.contactFingerprint!,
+  //       currencyCode: txn.transaction_currency_code,
+  //     });
+  //     typicalFrequency = determineTypicalFrequency(recentDates);
+  //   }
+
+  //   const snapshotInfo = buildContactStatsSnapshot({
+  //     contactStats,
+  //     contactFingerprint: contactResolution.contactFingerprint,
+  //     transactionId: bankTransactionId,
+  //     transactionDate: txnDate,
+  //   });
+  //   const statsSnapshot = snapshotInfo.snapshot;
+  //   const statsContext = snapshotInfo.context;
+
+  //   // Step 9: Build EnrichedTransaction object
+  //   const enrichedTransaction: EnrichedTransaction = {
+  //     version: ENRICHMENT_VERSION,
+
+  //     ids: {
+  //       bank_transaction_id: txn.bank_transaction_id,
+  //       bank_transaction_batch_id: txn.bank_transaction_batch_id || null,
+  //       company_uuid: companyId,
+  //       bank_account_id: txn.bank_account_id,
+  //       bank_account_coa_id: txn.bank_account_coa_id,
+  //       contact_id: contactResolution.contactId,
+  //       enrichment_job_id: null, // Will be set by worker
+  //     },
+
+  //     raw: {
+  //       date: txn.date,
+  //       description: txn.description,
+  //       amount_native: amountNative,
+  //       system_ex_rate: systemExRate,
+  //       amount_reporting: amountReporting,
+  //       currency_code: txn.transaction_currency_code,
+  //       direction,
+  //       source: txn.raw_data?.source || 'csv',
+  //       metadata: txn.raw_data || {},
+  //     },
+
+  //     normalized: {
+  //       description: normalizedDesc,
+  //       description_tokens: descriptionTokens,
+  //       contact_name: contactResolution.contactName,
+  //       contact_fingerprint: contactResolution.contactFingerprint,
+  //       contact_match_confidence: contactResolution.matchConfidence,
+  //       contact_type: contactResolution.contactType,
+  //       normalized_reference: null,
+  //       global_contact_id: contactResolution.globalContactId,
+  //       global_contact_category_hints:
+  //         contactResolution.globalContactCategoryHints,
+  //     },
+
+  //     context: {
+  //       industry: companyContext.industry,
+  //       company_name: companyContext.companyName,
+  //       company_description: null,
+  //       company_website: null,
+  //       country_id: companyContext.countryId,
+  //       country_code: companyContext.countryCode,
+  //       accounting_basis: companyContext.accountingBasis,
+  //       reporting_framework: companyContext.reportingFramework,
+  //       reporting_currency_id: companyContext.reportingCurrencyId,
+  //       reporting_currency_code: companyContext.reportingCurrencyCode,
+  //       transaction_currency_id: txn.transaction_currency_id,
+  //       transaction_currency_code: txn.transaction_currency_code,
+  //       coa_snapshot_version: companyContext.coaSnapshotVersion,
+  //       coa_snapshot_id: companyContext.coaSnapshotId,
+  //       company_settings_checksum: companyContext.settingsChecksum,
+  //     },
+
+  //     // historical: {
+  //     //   bank_contact_stats: contactStats
+  //     //     ? {
+  //     //         id: contactStats.companyId, // Placeholder - will be set by worker
+  //     //         version: ENRICHMENT_VERSION,
+  //     //       }
+  //     //     : {
+  //     //         id: companyId,
+  //     //         version: ENRICHMENT_VERSION,
+  //     //       },
+  //     // },
+  //     historical: {
+  //       bank_contact_stats_snapshot: statsSnapshot,
+  //     },
+
+  //     signals,
+
+  //     temporal: {
+  //       ...temporalFeatures,
+  //       days_to_period_close: daysToPeriodClose,
+  //       fiscal_period: fiscalPeriod,
+  //     },
+
+  //     feedback_summary: undefined, // Not available during initial enrichment
+
+  //     metadata: {
+  //       source: 'ingestion',
+  //       enriched_at: new Date().toISOString(),
+  //       enrichment_latency_ms: Date.now() - startTime,
+  //       enrichment_version: ENRICHMENT_VERSION,
+  //       status: 'enriched',
+  //       error_message: null,
+  //       processing_context: 'primary',
+  //       stats_replay_seq:
+  //         statsContext.statsReplaySeq > 0
+  //           ? statsContext.statsReplaySeq
+  //           : undefined,
+  //       stats_snapshot_checksum: statsContext.snapshotChecksum || undefined,
+  //     },
+  //   };
+
+  //   const latencyMs = Date.now() - startTime;
+
+  //   logger.debug(
+  //     { bankTransactionId, latencyMs },
+  //     'Transaction enrichment completed',
+  //   );
+
+  //   return {
+  //     success: true,
+  //     bankTransactionId,
+  //     enrichedTransaction,
+  //     latencyMs,
+  //     statsContext,
+  //   };
+  // } catch (error) {
+  //   const latencyMs = Date.now() - startTime;
+  //   const errorMessage =
+  //     error instanceof Error ? error.message : 'Unknown error';
+
+  //   logger.error(
+  //     { error, bankTransactionId, latencyMs },
+  //     'Transaction enrichment failed',
+  //   );
+
+  //   return {
+  //     success: false,
+  //     bankTransactionId,
+  //     error: errorMessage,
+  //     latencyMs,
+  //   };
+  // }
 }
+// /**
+//  * Resolve contact from transaction data.
+//  */
+// async function resolveContact({
+//   companyUUID,
+//   contactId,
+//   contactTypeSnapshot,
+//   payee,
+//   description,
+//   rawData,
+//   trx,
+// }: {
+//   companyUUID: string;
+//   contactId: string | null;
+//   contactTypeSnapshot?: ContactType | null;
+//   payee: string | null;
+//   description: string;
+//   rawData?: unknown;
+//   trx?: Knex.Transaction;
+// }): Promise<ContactResolutionResult> {
+//   const db = trx || knexClient;
+//   const confidenceRank: Record<
+//     ContactResolutionResult['contact_match_confidence'],
+//     number
+//   > = {
+//     high: 3,
+//     medium: 2,
+//     low: 1,
+//     unmatched: 0,
+//   };
+//   const upgradeConfidence = (
+//     next: ContactResolutionResult['contact_match_confidence'],
+//   ) => {
+//     if (
+//       confidenceRank[next] > confidenceRank[contactObj.contact_match_confidence]
+//     ) {
+//       contactObj.contact_match_confidence = next;
+//     }
+//   };
+
+//   const contactObj: ContactResolutionResult = {
+//     contact_id: contactId,
+//     contact_name: null,
+//     contact_fingerprint: null,
+//     contact_match_confidence: 'unmatched',
+//     contact_type: contactTypeSnapshot ?? 'unknown',
+//     global_contact_name: null,
+//     global_contact_category_hints: null,
+//     global_contact_mcc: null,
+//   };
+
+//   if (contactId) {
+//     const existingContact = await loadLinkedContact({
+//       db,
+//       companyUUID,
+//       contactId,
+//     });
+
+//     if (existingContact) {
+//       contactObj.contact_name = existingContact.display_name;
+//       upgradeConfidence('high');
+//     } else {
+//       // Contact was removed after the transaction was recorded
+//       contactObj.contact_id = null;
+//     }
+//   }
+
+//   const categoryHints = new Set<string>();
+
+//   if (!contactObj.contact_name) {
+//     const heuristicName = extractHeuristicContactName({ description, payee });
+//     if (heuristicName) {
+//       contactObj.contact_name = heuristicName;
+//       upgradeConfidence('low');
+//     }
+//   }
+
+//   const merchantMatch = matchGlobalMerchant(description);
+//   if (merchantMatch) {
+//     contactObj.global_contact_name = merchantMatch.merchant.name;
+//     contactObj.global_contact_category_hints =
+//       merchantMatch.merchant.category_hints;
+//     merchantMatch.merchant.category_hints.forEach((hint) =>
+//       categoryHints.add(hint),
+//     );
+//     if (!contactObj.contact_name) {
+//       contactObj.contact_name = merchantMatch.merchant.name;
+//     }
+//     upgradeConfidence('medium');
+//   }
+
+//   const mccInfo = extractMccCode({
+//     description,
+//     rawData,
+//   });
+//   if (mccInfo) {
+//     const reference = lookupMccReference(mccInfo.code);
+//     if (reference) {
+//       reference.category_hints.forEach((hint) => categoryHints.add(hint));
+//       contactObj.global_contact_mcc = reference.mcc;
+//       if (!contactObj.global_contact_name) {
+//         contactObj.global_contact_name = reference.title;
+//       }
+//       upgradeConfidence('medium');
+//     }
+//   }
+
+//   if (categoryHints.size > 0) {
+//     const merged = Array.from(categoryHints);
+//     contactObj.global_contact_category_hints = merged;
+//   }
+
+//   contactObj.contact_fingerprint = contactObj.contact_name
+//     ? generateContactFingerprint(contactObj.contact_name)
+//     : null;
+
+//   return contactObj;
+// }
+
+// function compileMerchantPatterns(
+//   patterns: MerchantPattern[],
+// ): CompiledMerchantPattern[] {
+//   const compiled: CompiledMerchantPattern[] = [];
+
+//   for (const merchant of patterns) {
+//     const regexes: RegExp[] = [];
+
+//     for (const expression of merchant.patterns) {
+//       try {
+//         regexes.push(new RegExp(expression, 'i'));
+//       } catch (error) {
+//         logger.warn(
+//           { expression, merchant: merchant.name, error },
+//           'Failed to compile merchant pattern expression',
+//         );
+//       }
+//     }
+
+//     if (regexes.length === 0) {
+//       logger.warn(
+//         { merchant: merchant.name },
+//         'Skipping merchant pattern without valid expressions',
+//       );
+//       continue;
+//     }
+
+//     compiled.push({ merchant, regexes });
+//   }
+
+//   return compiled;
+// }
+
+// async function loadLinkedContact({
+//   db,
+//   companyUUID,
+//   contactId,
+// }: {
+//   db: Knex | Knex.Transaction;
+//   companyUUID: string;
+//   contactId: string;
+// }): Promise<{ id: string; display_name: string } | null> {
+//   const contact = await db('contacts')
+//     .select('id', 'display_name')
+//     .where({
+//       id: contactId,
+//       company_id: companyUUID,
+//       is_deleted: false,
+//     })
+//     .first();
+
+//   if (!contact) {
+//     logger.warn(
+//       { contactId, companyUUID },
+//       'Linked contact missing during enrichment',
+//     );
+//   }
+
+//   return contact ?? null;
+// }
+
+// function extractHeuristicContactName({
+//   description,
+//   payee,
+// }: {
+//   description: string;
+//   payee: string | null;
+// }): string | null {
+//   const fromDescription = extractContactFromDescription(description);
+//   if (fromDescription) {
+//     return fromDescription;
+//   }
+
+//   return payee?.trim() || null;
+// }
+
+// function matchGlobalMerchant(
+//   description: string,
+// ): CompiledMerchantPattern | null {
+//   if (!description) {
+//     return null;
+//   }
+
+//   for (const pattern of compiledMerchantPatterns) {
+//     for (const regex of pattern.regexes) {
+//       if (regex.test(description)) {
+//         return pattern;
+//       }
+//     }
+//   }
+
+//   return null;
+// }
 
 /**
  * Calculate fiscal period boundaries

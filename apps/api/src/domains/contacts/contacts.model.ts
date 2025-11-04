@@ -179,6 +179,8 @@ export async function addNewContacts({
           'email',
           'status',
           'notes',
+          'created_at as createdAt',
+          'updated_at as updatedAt',
         ]);
 
       contactsLogger.info(

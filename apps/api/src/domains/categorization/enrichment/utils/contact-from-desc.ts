@@ -61,11 +61,15 @@ function scoreCandidate(s: string): number {
   return score;
 }
 
+const SEP_RUN_RE = /[-/]{2,}/;
+const SPLIT_SEP_RE = /[-/|]+/;
 /**
  * Extract a single best-guess contact (person or business) from a normalized description.
  * Returns null when nothing reasonable is found.
  */
-export function extractContactFromDescription(normalized: string): string | null {
+export function extractContactFromDescription(
+  normalized: string,
+): string | null {
   if (!normalized) return null;
 
   const candidates: string[] = [];
@@ -73,13 +77,12 @@ export function extractContactFromDescription(normalized: string): string | null
   for (const re of EXTRACTORS) {
     const m = normalized.match(re);
     if (!m) continue;
-    let captured = m[1] ?? '';
-    captured = cleanCandidate(captured);
+    const captured = cleanCandidate(m[1] ?? '');
 
     // If the capture still contains obvious separators (often banks jam extra info),
     // pick the longest reasonable token chunk.
-    if (/[/-]{2,}/.test(captured)) {
-      const parts = captured.split(/[\/|-]+/).map((p) => cleanCandidate(p));
+    if (SEP_RUN_RE.test(captured)) {
+      const parts = captured.split(SPLIT_SEP_RE).map((p) => cleanCandidate(p));
       const bestPart =
         parts.sort((a, b) => scoreCandidate(b) - scoreCandidate(a))[0] || '';
       if (bestPart) candidates.push(bestPart);

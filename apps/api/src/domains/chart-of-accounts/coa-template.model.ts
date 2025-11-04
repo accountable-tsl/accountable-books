@@ -107,7 +107,7 @@ export const loadCoaTemplateForCompany = async (
       // No valid template could be found? Attempt to create default accounts
       await createDefaultAccounts({
         trx: knex,
-        companyId,
+        companyUUID: companyId,
         userId: input.created_by_id,
         reportingCurrencyId: company.reporting_currency_id,
       });

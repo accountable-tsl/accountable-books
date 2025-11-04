@@ -271,11 +271,7 @@ interface EnrichedTransaction {
     description_tokens: string[];
     contact_name: string | null;
     contact_fingerprint: string | null;
-    contact_match_confidence:
-      | 'exact_contact'
-      | 'alias_match'
-      | 'fingerprint_only'
-      | 'unmatched';
+    contact_match_confidence: 'high' | 'medium' | 'low' | 'unmatched';
     contact_type:
       | 'vendor'
       | 'customer'
@@ -421,26 +417,47 @@ interface EnrichedTransaction {
   "version": "1.0.0",
   "patterns": [
     {
-      "pattern": "UBER\\s*\\*",
-      "contact": "Uber",
-      "normalized_name": "Uber Technologies Inc.",
+      "name": "Uber Technologies Inc.",
+      "patterns": ["\\bUBER\\s*\\*", "\\bUBER\\s+EATS\\b"],
       "category_hints": ["Travel & Transportation", "Meals & Entertainment"],
-      "country": "global"
+      "countries": ["global"]
     },
     {
-      "pattern": "AWS\\s*|AMZN WEB SERVICES",
-      "contact": "AWS",
-      "normalized_name": "Amazon Web Services",
-      "category_hints": ["Cloud Services", "Software & Technology"],
-      "country": "global"
+      "name": "Amazon Web Services",
+      "patterns": [
+        "\\bAMAZON\\s+WEB\\s+SERVICES\\b",
+        "\\bAMZN\\s+WEB\\s+SERVICES\\b",
+        "\\bAMZN\\s*AWS\\b"
+      ],
+      "category_hints": [
+        "Cloud Services",
+        "Software & Technology",
+        "Cloud Computing"
+      ],
+      "countries": ["global"]
     }
   ]
 }
 ```
 
-Loaded at service startup into memory for fast pattern matching.
+Loaded at service startup into memory for fast pattern matching. Fields are strictly validated (see `merchantPatternsFileSchema`) to guarantee consistent regex arrays, category hints, and geography lists.
 
-#### 5.7.2 Company Context Cache
+#### 5.7.2 MCC Reference Catalogue
+
+**Location:** `apps/api/src/domains/categorization/data/mcc-reference.json`
+
+Maintained via `pnpm --filter @accountable-books/api exec tsx scripts/generate-mcc-reference.ts`. The script reconciles Visa’s MCC tables with Stripe Issuing categories and produces normalized entries containing:
+
+- `mcc`, `title`, `description`
+- `category_hints` (aligned with our merchant hint vocabulary)
+- Sample `examples` / `similar_merchants`
+- `stripe_categories` (Stripe Issuing key + human label)
+- `networks` (currently `["visa"]`)
+- Optional metadata (`irs_reportable`, USDA/IRS descriptors)
+
+Load this alongside merchant patterns to supply high-confidence hints when transactions carry raw MCC codes.
+
+#### 5.7.3 Company Context Cache
 
 **Redis Key:** `company:banktx-enrichment:{uuid}`
 **TTL:** 24 hours

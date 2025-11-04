@@ -108,6 +108,7 @@ export interface ProviderTransaction {
   currencyCode: string;
   pending: boolean;
   category?: string[];
+  additionalNotes?: string;
   rawData: Record<string, any>;
 }
 

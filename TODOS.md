@@ -127,6 +127,7 @@ Launch `2025-29-09`
 - Make sure we are not allowing 30 Feb, 31 Sep etc on company signup
 - CBN Exchange Rate up to date
 - If I could destroy the fly staging app in one command, what stops another sinister dev from doing same. protect
+- Contact model refactoring, frontend requests will break since I removed status from db and replaced with is_active... decide to either return contact_status or move to this new approach
 
 ### CAN DELAY (Post-Launch)
 
@@ -138,6 +139,7 @@ Launch `2025-29-09`
 - [ ] Add all ISO 4217 currency codes to currencies table
 - Handling opening balances upon ingesting/connecting user's bank accounts + Opening / Conversion Balances
 - contact and contact type auto handling on insertion or cat of transactions
+- Versioning account types
 
 ---
 
