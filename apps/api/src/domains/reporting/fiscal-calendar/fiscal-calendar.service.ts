@@ -924,7 +924,7 @@ class FiscalCalendarService {
    * - Months have different lengths (30 vs 31 vs 28/29); adding months can “overflow.”
    * - Inclusive period ends (we want period_span like [start,end] with no off-by-one)
    */
-  private calculateFiscalPeriodYMD({
+  calculateFiscalPeriodYMD({
     ymd,
     yearEndMonth,
     yearEndDay,

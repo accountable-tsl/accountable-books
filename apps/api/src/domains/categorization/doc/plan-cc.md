@@ -9,6 +9,7 @@ This document outlines a world-class AI-powered transaction categorization syste
 **Context-Aware Multi-Stage Pipeline**: Enrichment → Rules → ML → Synthesis → Validation → Review
 
 The system combines:
+
 - **Data Enrichment** to transform raw transactions into intelligence-ready formats
 - **Deterministic Rules** for known patterns (tax codes, recurring vendors, account mappings)
 - **Structured ML** (template selector + account mapper + amount allocator) with global models + per-company adapters
@@ -93,6 +94,7 @@ The system combines:
 Transform raw bank transactions into clean, standardized, context-rich `EnrichedTransaction` objects that downstream stages can consume without repetitive queries or complex data fetching.
 
 **Key Objectives:**
+
 - **Normalize** messy provider data into consistent formats
 - **Extract** entities (vendors, amounts, dates, currencies)
 - **Enrich** with company context (COA, accounting basis, industry, framework)
@@ -109,6 +111,7 @@ Transform raw bank transactions into clean, standardized, context-rich `Enriched
 **Event:** `transaction.ingested`
 
 **Flow:**
+
 ```
 Bank Provider Webhook/Poll
   → apps/api/src/domains/bankTransactions/bankTransactions.model.ts
@@ -129,6 +132,7 @@ Bank Provider Webhook/Poll
 **Event:** `company.coa.updated` or `transaction.amended`
 
 **Flow:**
+
 ```
 Company updates COA / User edits transaction description
   → Emit event: { type: 'company.coa.updated', data: { company_id } }
@@ -145,6 +149,7 @@ Company updates COA / User edits transaction description
 **Endpoint:** `POST /api/categorization/enrich/:bank_transaction_id/refresh`
 
 **Flow:**
+
 ```
 Admin UI → API call
   → enrichmentService.refresh(bank_transaction_id)
@@ -199,18 +204,21 @@ categorizationEnrichmentQueue.process(async (job) => {
 import { Queue } from 'bullmq';
 import { redisConnection } from '../../config/redis';
 
-export const categorizationEnrichmentQueue = new Queue('categorization-enrichment', {
-  connection: redisConnection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000
+export const categorizationEnrichmentQueue = new Queue(
+  'categorization-enrichment',
+  {
+    connection: redisConnection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 2000,
+      },
+      removeOnComplete: 100,
+      removeOnFail: 500,
     },
-    removeOnComplete: 100,
-    removeOnFail: 500
-  }
-});
+  },
+);
 ```
 
 ---
@@ -226,7 +234,9 @@ export const categorizationEnrichmentQueue = new Queue('categorization-enrichmen
 ```typescript
 // apps/api/src/domains/categorization/enrichment.service.ts
 
-async function loadBaseTransaction(bankTransactionId: string): Promise<RawTransactionData> {
+async function loadBaseTransaction(
+  bankTransactionId: string,
+): Promise<RawTransactionData> {
   const result = await db('bank_transactions as bt')
     .select(
       'bt.*',
@@ -240,7 +250,7 @@ async function loadBaseTransaction(bankTransactionId: string): Promise<RawTransa
       'c.industry',
       'c.country_id',
       'country.code as country_code',
-      'bt.provider_transaction_data' // JSONB from Plaid/TrueLayer/etc
+      'bt.provider_transaction_data', // JSONB from Plaid/TrueLayer/etc
     )
     .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.bank_account_id')
     .join('companies as c', 'ba.company_id', 'c.company_id')
@@ -281,22 +291,32 @@ interface NormalizedData {
 function normalizeDescription(raw: string): string {
   return raw
     .trim()
-    .replace(/\s+/g, ' ')              // Collapse whitespace
-    .replace(/[<>]/g, '')              // Remove HTML artifacts
-    .toUpperCase();                     // Normalize case
+    .replace(/\s+/g, ' ') // Collapse whitespace
+    .replace(/[<>]/g, '') // Remove HTML artifacts
+    .toUpperCase(); // Normalize case
 }
 
 function tokenizeDescription(normalized: string): string[] {
-  const stopwords = new Set(['THE', 'AND', 'OR', 'FOR', 'TO', 'FROM', 'AT', 'IN', 'ON']);
+  const stopwords = new Set([
+    'THE',
+    'AND',
+    'OR',
+    'FOR',
+    'TO',
+    'FROM',
+    'AT',
+    'IN',
+    'ON',
+  ]);
 
   return normalized
     .split(/\s+/)
-    .filter(token => token.length > 2 && !stopwords.has(token));
+    .filter((token) => token.length > 2 && !stopwords.has(token));
 }
 
 async function extractVendor(
   description: string,
-  companyId: string
+  companyId: string,
 ): Promise<{ vendorName: string | null; vendorId: string | null }> {
   // Strategy 1: Exact match against company vendors table
   const exactMatch = await db('companies_vendors')
@@ -305,18 +325,21 @@ async function extractVendor(
     .first();
 
   if (exactMatch) {
-    return { vendorName: exactMatch.vendor_name, vendorId: exactMatch.vendor_id };
+    return {
+      vendorName: exactMatch.vendor_name,
+      vendorId: exactMatch.vendor_id,
+    };
   }
 
   // Strategy 2: Fuzzy match (Levenshtein distance < 3)
   const fuzzyMatch = await db('companies_vendors')
     .where({ company_id: companyId })
     .select('*')
-    .then(vendors => {
+    .then((vendors) => {
       for (const vendor of vendors) {
         const distance = levenshteinDistance(
           description.substring(0, 100).toUpperCase(),
-          vendor.vendor_name.toUpperCase()
+          vendor.vendor_name.toUpperCase(),
         );
         if (distance < 3) return vendor;
       }
@@ -324,7 +347,10 @@ async function extractVendor(
     });
 
   if (fuzzyMatch) {
-    return { vendorName: fuzzyMatch.vendor_name, vendorId: fuzzyMatch.vendor_id };
+    return {
+      vendorName: fuzzyMatch.vendor_name,
+      vendorId: fuzzyMatch.vendor_id,
+    };
   }
 
   // Strategy 3: Extract from description using NER or patterns
@@ -336,10 +362,10 @@ async function extractVendor(
       .insert({
         company_id: companyId,
         vendor_name: extracted,
-        status: 'pending_review'
+        status: 'pending_review',
       })
       .returning('*')
-      .then(rows => rows[0]);
+      .then((rows) => rows[0]);
 
     return { vendorName: extracted, vendorId: pendingVendor.vendor_id };
   }
@@ -352,7 +378,7 @@ function extractVendorFromDescription(description: string): string | null {
   const patterns = [
     /PAYMENT TO ([A-Z\s]+)/,
     /([A-Z\s]+) INVOICE/,
-    /([A-Z\s]+) \d{2}\/\d{2}/,  // Vendor followed by date
+    /([A-Z\s]+) \d{2}\/\d{2}/, // Vendor followed by date
   ];
 
   for (const pattern of patterns) {
@@ -446,7 +472,7 @@ async function buildCompanyContext(companyId: string): Promise<CompanyContext> {
       'reporting_currency_id',
       'fiscal_year_end',
       'industry',
-      'country_id'
+      'country_id',
     )
     .join('countries', 'companies.country_id', 'countries.country_id')
     .select('countries.code as country_code')
@@ -455,7 +481,13 @@ async function buildCompanyContext(companyId: string): Promise<CompanyContext> {
 
   // Fetch COA
   const coaAccounts = await db('coa')
-    .select('coa_id', 'account_code', 'account_name', 'account_type_key', 'account_element')
+    .select(
+      'coa_id',
+      'account_code',
+      'account_name',
+      'account_type_key',
+      'account_element',
+    )
     .where({ company_id: companyId, active: true })
     .orderBy('account_code');
 
@@ -467,7 +499,7 @@ async function buildCompanyContext(companyId: string): Promise<CompanyContext> {
   // Generate COA snapshot version (hash of COA IDs)
   const coaVersion = crypto
     .createHash('md5')
-    .update(coaAccounts.map(a => a.coa_id).join(','))
+    .update(coaAccounts.map((a) => a.coa_id).join(','))
     .digest('hex')
     .substring(0, 8);
 
@@ -485,8 +517,8 @@ async function buildCompanyContext(companyId: string): Promise<CompanyContext> {
       vat_registered: taxSettings?.vat_registered ?? false,
       vat_rate: taxSettings?.vat_rate ?? 0,
       wht_applicable: taxSettings?.wht_applicable ?? false,
-      wht_rate: taxSettings?.wht_rate ?? 0
-    }
+      wht_rate: taxSettings?.wht_rate ?? 0,
+    },
   };
 }
 
@@ -499,6 +531,7 @@ async function invalidateCompanyContext(companyId: string): Promise<void> {
 ```
 
 **Performance Benefits:**
+
 - **Local cache hit:** <1ms
 - **Redis cache hit:** ~5ms
 - **Database query:** ~50-100ms
@@ -518,18 +551,24 @@ async function invalidateCompanyContext(companyId: string): Promise<void> {
 // apps/api/src/domains/categorization/enrichment.features.ts
 
 interface HistoricalFeatures {
-  vendor_usage_count: number;          // How many times has this vendor appeared?
-  last_seen_at: string | null;         // When was last transaction with this vendor?
+  vendor_usage_count: number; // How many times has this vendor appeared?
+  last_seen_at: string | null; // When was last transaction with this vendor?
   last_categorized_accounts: string[]; // Which COA accounts were used last time?
-  avg_amount: number | null;           // Average transaction amount for this vendor
-  std_dev_amount: number | null;       // Standard deviation (detect anomalies)
-  typical_frequency: 'one_time' | 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'irregular';
+  avg_amount: number | null; // Average transaction amount for this vendor
+  std_dev_amount: number | null; // Standard deviation (detect anomalies)
+  typical_frequency:
+    | 'one_time'
+    | 'weekly'
+    | 'monthly'
+    | 'quarterly'
+    | 'annual'
+    | 'irregular';
 }
 
 async function computeHistoricalFeatures(
   vendorId: string | null,
   companyId: string,
-  description: string
+  description: string,
 ): Promise<HistoricalFeatures> {
   if (!vendorId) {
     // No vendor identified, use description-based matching
@@ -542,12 +581,12 @@ async function computeHistoricalFeatures(
       db.raw('COUNT(*) as usage_count'),
       db.raw('MAX(bt.posted_at) as last_seen'),
       db.raw('AVG(bt.amount) as avg_amount'),
-      db.raw('STDDEV(bt.amount) as std_dev')
+      db.raw('STDDEV(bt.amount) as std_dev'),
     )
     .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.bank_account_id')
     .where({
       'ba.company_id': companyId,
-      'bt.vendor_id': vendorId
+      'bt.vendor_id': vendorId,
     })
     .first();
 
@@ -559,11 +598,11 @@ async function computeHistoricalFeatures(
     .where({
       'ba.company_id': companyId,
       'bt.vendor_id': vendorId,
-      'l.source_type': 'bank_transaction'
+      'l.source_type': 'bank_transaction',
     })
     .orderBy('l.created_at', 'desc')
     .limit(3)
-    .then(rows => rows.map(r => r.coa_id));
+    .then((rows) => rows.map((r) => r.coa_id));
 
   // Determine frequency pattern
   const frequency = await determineFrequency(companyId, vendorId);
@@ -574,20 +613,22 @@ async function computeHistoricalFeatures(
     last_categorized_accounts: lastCategorized,
     avg_amount: stats.avg_amount ? parseFloat(stats.avg_amount) : null,
     std_dev_amount: stats.std_dev ? parseFloat(stats.std_dev) : null,
-    typical_frequency: frequency
+    typical_frequency: frequency,
   };
 }
 
 async function determineFrequency(
   companyId: string,
-  vendorId: string
-): Promise<'one_time' | 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'irregular'> {
+  vendorId: string,
+): Promise<
+  'one_time' | 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'irregular'
+> {
   const dates = await db('bank_transactions as bt')
     .select('bt.posted_at')
     .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.bank_account_id')
     .where({
       'ba.company_id': companyId,
-      'bt.vendor_id': vendorId
+      'bt.vendor_id': vendorId,
     })
     .orderBy('bt.posted_at')
     .limit(10);
@@ -598,8 +639,9 @@ async function determineFrequency(
   const intervals: number[] = [];
   for (let i = 1; i < dates.length; i++) {
     const days = Math.abs(
-      (new Date(dates[i].posted_at).getTime() - new Date(dates[i-1].posted_at).getTime()) /
-      (1000 * 60 * 60 * 24)
+      (new Date(dates[i].posted_at).getTime() -
+        new Date(dates[i - 1].posted_at).getTime()) /
+        (1000 * 60 * 60 * 24),
     );
     intervals.push(days);
   }
@@ -677,7 +719,7 @@ function detectPatterns(
   transaction: RawTransactionData,
   normalized: NormalizedData,
   historical: HistoricalFeatures,
-  context: CompanyContext
+  context: CompanyContext,
 ): PatternSignals {
   const signals: PatternSignals = {
     likely_split: false,
@@ -686,50 +728,77 @@ function detectPatterns(
     likely_prepayment: false,
     is_recurring: false,
     anomaly_detected: false,
-    notes: []
+    notes: [],
   };
 
   // Detect splits
   if (detectSplitKeywords(normalized.description)) {
     signals.likely_split = true;
-    signals.notes.push('Description contains split keywords: "incl tax", "with VAT", "plus fee"');
+    signals.notes.push(
+      'Description contains split keywords: "incl tax", "with VAT", "plus fee"',
+    );
   }
 
   // Detect tax
-  if (context.tax_settings.vat_registered && detectVATAmount(transaction.amount, context.tax_settings.vat_rate)) {
+  if (
+    context.tax_settings.vat_registered &&
+    detectVATAmount(transaction.amount, context.tax_settings.vat_rate)
+  ) {
     signals.likely_tax = true;
-    signals.notes.push(`Amount suggests ${context.tax_settings.vat_rate * 100}% VAT inclusion`);
+    signals.notes.push(
+      `Amount suggests ${context.tax_settings.vat_rate * 100}% VAT inclusion`,
+    );
   }
 
   if (detectTaxKeywords(normalized.description)) {
     signals.likely_tax = true;
-    signals.notes.push('Description contains tax keywords: "VAT", "WHT", "tax"');
+    signals.notes.push(
+      'Description contains tax keywords: "VAT", "WHT", "tax"',
+    );
   }
 
   // Detect FX
   if (transaction.currency_id !== context.reporting_currency_id) {
     signals.likely_fx = true;
-    signals.notes.push(`Transaction currency (${transaction.currency_id}) differs from reporting currency`);
+    signals.notes.push(
+      `Transaction currency (${transaction.currency_id}) differs from reporting currency`,
+    );
   }
 
   // Detect prepayment
-  if (detectPrepaymentPattern(transaction.amount, normalized.description, historical.typical_frequency)) {
+  if (
+    detectPrepaymentPattern(
+      transaction.amount,
+      normalized.description,
+      historical.typical_frequency,
+    )
+  ) {
     signals.likely_prepayment = true;
     signals.notes.push('Large amount + annual pattern suggests prepayment');
   }
 
   // Detect recurring
-  if (['weekly', 'monthly', 'quarterly', 'annual'].includes(historical.typical_frequency)) {
+  if (
+    ['weekly', 'monthly', 'quarterly', 'annual'].includes(
+      historical.typical_frequency,
+    )
+  ) {
     signals.is_recurring = true;
-    signals.notes.push(`Recurring pattern detected: ${historical.typical_frequency}`);
+    signals.notes.push(
+      `Recurring pattern detected: ${historical.typical_frequency}`,
+    );
   }
 
   // Detect anomalies
   if (historical.avg_amount && historical.std_dev_amount) {
-    const zScore = Math.abs((transaction.amount - historical.avg_amount) / historical.std_dev_amount);
+    const zScore = Math.abs(
+      (transaction.amount - historical.avg_amount) / historical.std_dev_amount,
+    );
     if (zScore > 3) {
       signals.anomaly_detected = true;
-      signals.notes.push(`Amount ${transaction.amount} is ${zScore.toFixed(1)} std devs from average ${historical.avg_amount}`);
+      signals.notes.push(
+        `Amount ${transaction.amount} is ${zScore.toFixed(1)} std devs from average ${historical.avg_amount}`,
+      );
     }
   }
 
@@ -738,15 +807,20 @@ function detectPatterns(
 
 function detectSplitKeywords(description: string): boolean {
   const splitKeywords = [
-    'INCL TAX', 'WITH VAT', 'PLUS TAX', 'PLUS FEE',
-    'INCLUDING', 'TOTAL WITH', 'GROSS AMOUNT'
+    'INCL TAX',
+    'WITH VAT',
+    'PLUS TAX',
+    'PLUS FEE',
+    'INCLUDING',
+    'TOTAL WITH',
+    'GROSS AMOUNT',
   ];
-  return splitKeywords.some(keyword => description.includes(keyword));
+  return splitKeywords.some((keyword) => description.includes(keyword));
 }
 
 function detectTaxKeywords(description: string): boolean {
   const taxKeywords = ['VAT', 'WHT', 'TAX', 'WITHHOLDING', 'SALES TAX'];
-  return taxKeywords.some(keyword => description.includes(keyword));
+  return taxKeywords.some((keyword) => description.includes(keyword));
 }
 
 function detectVATAmount(amount: number, vatRate: number): boolean {
@@ -764,10 +838,12 @@ function detectVATAmount(amount: number, vatRate: number): boolean {
 function detectPrepaymentPattern(
   amount: number,
   description: string,
-  frequency: string
+  frequency: string,
 ): boolean {
   const prepaymentKeywords = ['ANNUAL', 'YEARLY', 'SUBSCRIPTION', 'INSURANCE'];
-  const hasKeyword = prepaymentKeywords.some(keyword => description.includes(keyword));
+  const hasKeyword = prepaymentKeywords.some((keyword) =>
+    description.includes(keyword),
+  );
   const isLargeAmount = amount > 1000; // Threshold for considering prepayment
   const isAnnual = frequency === 'annual';
 
@@ -802,34 +878,34 @@ interface EnrichedTransaction {
   // IDS: Entity references for lookups and joins
   // ============================================================================
   ids: {
-    bank_transaction_id: string;         // FROM: bank_transactions.bank_transaction_id
-    company_id: string;                  // FROM: bank_accounts.company_id (JOIN via bank_account_id)
-    bank_account_id: string;             // FROM: bank_transactions.bank_account_id
+    bank_transaction_id: string; // FROM: bank_transactions.bank_transaction_id
+    company_id: string; // FROM: bank_accounts.company_id (JOIN via bank_account_id)
+    bank_account_id: string; // FROM: bank_transactions.bank_account_id
     provider_transaction_id: string | null; // FROM: bank_transactions.provider_transaction_id (Plaid/TrueLayer ID)
-    vendor_id: string | null;            // DERIVED: Lookup in companies_vendors or fuzzy match on description
+    vendor_id: string | null; // DERIVED: Lookup in companies_vendors or fuzzy match on description
   };
 
   // ============================================================================
   // RAW: Unmodified source data from bank provider
   // ============================================================================
   raw: {
-    description: string;                 // FROM: bank_transactions.description (original, untouched)
-    amount: number;                      // FROM: bank_transactions.amount (preserve sign)
-    currency_id: string;                 // FROM: bank_transactions.currency_id
-    posted_at: string;                   // FROM: bank_transactions.posted_at (ISO 8601 string)
-    direction: 'inflow' | 'outflow';     // DERIVED: amount >= 0 ? 'inflow' : 'outflow'
-    provider_data: Record<string, any>;  // FROM: bank_transactions.provider_transaction_data (JSONB passthrough)
+    description: string; // FROM: bank_transactions.description (original, untouched)
+    amount: number; // FROM: bank_transactions.amount (preserve sign)
+    currency_id: string; // FROM: bank_transactions.currency_id
+    posted_at: string; // FROM: bank_transactions.posted_at (ISO 8601 string)
+    direction: 'inflow' | 'outflow'; // DERIVED: amount >= 0 ? 'inflow' : 'outflow'
+    provider_data: Record<string, any>; // FROM: bank_transactions.provider_transaction_data (JSONB passthrough)
   };
 
   // ============================================================================
   // NORMALIZED: Cleaned data for consistent matching
   // ============================================================================
   normalized: {
-    description: string;                 // DERIVED: UPPER(TRIM(REGEXP_REPLACE(raw.description, '\s+', ' ')))
-    description_tokens: string[];        // DERIVED: Split on whitespace, remove stop words ["THE", "INC", "LLC"]
-    vendor_name: string | null;          // DERIVED: Extracted vendor name (from companies_vendors or NER parsing)
+    description: string; // DERIVED: UPPER(TRIM(REGEXP_REPLACE(raw.description, '\s+', ' ')))
+    description_tokens: string[]; // DERIVED: Split on whitespace, remove stop words ["THE", "INC", "LLC"]
+    vendor_name: string | null; // DERIVED: Extracted vendor name (from companies_vendors or NER parsing)
     counterparty_type: 'vendor' | 'customer' | 'employee' | 'unknown'; // DERIVED: Infer from direction + keywords
-    inferred_category: string | null;    // DERIVED: Best-guess category from keyword patterns (e.g., "SOFTWARE", "MEALS")
+    inferred_category: string | null; // DERIVED: Best-guess category from keyword patterns (e.g., "SOFTWARE", "MEALS")
   };
 
   // ============================================================================
@@ -838,17 +914,17 @@ interface EnrichedTransaction {
   context: {
     accounting_basis: 'modified_cash_basis' | 'modified_accrual_basis'; // FROM: companies.accounting_basis
     reporting_framework: 'ifrs' | 'us_gaap'; // FROM: companies.reporting_framework
-    reporting_currency_id: string;       // FROM: companies.reporting_currency_id
-    fiscal_year_end: string;             // FROM: companies.fiscal_year_end (MM-DD format, e.g., "12-31")
-    industry: string;                    // FROM: companies.industry (e.g., "Technology", "Healthcare")
-    country_code: string;                // FROM: countries.code (JOIN via companies.country_id)
-    bank_coa_account_id: string;         // FROM: bank_accounts.coa_id (bank account's ledger account)
-    coa_snapshot_version: string;        // FROM: companies.coa_version or timestamp (for invalidation when COA changes)
+    reporting_currency_id: string; // FROM: companies.reporting_currency_id
+    fiscal_year_end: string; // FROM: companies.fiscal_year_end (MM-DD format, e.g., "12-31")
+    industry: string; // FROM: companies.industry (e.g., "Technology", "Healthcare")
+    country_code: string; // FROM: countries.code (JOIN via companies.country_id)
+    bank_coa_account_id: string; // FROM: bank_accounts.coa_id (bank account's ledger account)
+    coa_snapshot_version: string; // FROM: companies.coa_version or timestamp (for invalidation when COA changes)
     tax_settings: {
-      vat_registered: boolean;           // FROM: companies.vat_registered (or tax_settings table)
-      vat_rate: number;                  // FROM: companies.default_vat_rate (e.g., 16 for 16%)
-      wht_applicable: boolean;           // FROM: companies.wht_applicable (withholding tax flag)
-      wht_rate: number;                  // FROM: companies.default_wht_rate (e.g., 5 for 5%)
+      vat_registered: boolean; // FROM: companies.vat_registered (or tax_settings table)
+      vat_rate: number; // FROM: companies.default_vat_rate (e.g., 16 for 16%)
+      wht_applicable: boolean; // FROM: companies.wht_applicable (withholding tax flag)
+      wht_rate: number; // FROM: companies.default_wht_rate (e.g., 5 for 5%)
     };
   };
 
@@ -856,49 +932,67 @@ interface EnrichedTransaction {
   // HISTORICAL: Past transaction patterns for this vendor (for ML features)
   // ============================================================================
   historical: {
-    vendor_usage_count: number;          // FROM: COUNT(*) WHERE vendor_id = X AND company_id = Y
-    last_seen_at: string | null;         // FROM: MAX(posted_at) WHERE vendor_id = X
+    vendor_usage_count: number; // FROM: COUNT(*) WHERE vendor_id = X AND company_id = Y
+    last_seen_at: string | null; // FROM: MAX(posted_at) WHERE vendor_id = X
     last_categorized_accounts: string[]; // FROM: ledgers.coa_id WHERE source_id IN (past bank_transaction_ids with same vendor)
-    avg_amount: number | null;           // FROM: AVG(amount) WHERE vendor_id = X (for anomaly detection)
-    std_dev_amount: number | null;       // FROM: STDDEV(amount) WHERE vendor_id = X (for Z-score calculation)
-    typical_frequency: 'one_time' | 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'irregular'; // DERIVED: Analyze date gaps between transactions
+    avg_amount: number | null; // FROM: AVG(amount) WHERE vendor_id = X (for anomaly detection)
+    std_dev_amount: number | null; // FROM: STDDEV(amount) WHERE vendor_id = X (for Z-score calculation)
+    typical_frequency:
+      | 'one_time'
+      | 'weekly'
+      | 'monthly'
+      | 'quarterly'
+      | 'annual'
+      | 'irregular'; // DERIVED: Analyze date gaps between transactions
   };
 
   // ============================================================================
   // SIGNALS: Detected patterns requiring special treatment
   // ============================================================================
   signals: {
-    likely_split: boolean;               // DERIVED: Description has "incl", "with tax", "+" OR round amount + suspected tax
-    likely_tax: boolean;                 // DERIVED: Keywords "VAT", "GST", "TAX" OR amount ~= prev_amount * tax_rate
-    likely_fx: boolean;                  // DERIVED: currency_id != reporting_currency_id OR keywords "FX", "EXCHANGE"
-    likely_prepayment: boolean;          // DERIVED: Large amount + annual frequency + keywords "annual", "subscription"
-    is_recurring: boolean;               // DERIVED: vendor_usage_count > 3 AND typical_frequency != 'one_time'
-    anomaly_detected: boolean;           // DERIVED: |amount - avg_amount| / std_dev_amount > 3 (Z-score outlier)
-    notes: string[];                     // DERIVED: Human-readable explanations ["New vendor", "Unusually large amount"]
+    likely_split: boolean; // DERIVED: Description has "incl", "with tax", "+" OR round amount + suspected tax
+    likely_tax: boolean; // DERIVED: Keywords "VAT", "GST", "TAX" OR amount ~= prev_amount * tax_rate
+    likely_fx: boolean; // DERIVED: currency_id != reporting_currency_id OR keywords "FX", "EXCHANGE"
+    likely_prepayment: boolean; // DERIVED: Large amount + annual frequency + keywords "annual", "subscription"
+    is_recurring: boolean; // DERIVED: vendor_usage_count > 3 AND typical_frequency != 'one_time'
+    anomaly_detected: boolean; // DERIVED: |amount - avg_amount| / std_dev_amount > 3 (Z-score outlier)
+    notes: string[]; // DERIVED: Human-readable explanations ["New vendor", "Unusually large amount"]
   };
   // ============================================================================
   // TEMPORAL: Time-based features for seasonality and period-close logic
   // ============================================================================
   temporal: {
-    day_of_week: number;                 // DERIVED: new Date(posted_at).getDay() (0=Sunday, 6=Saturday)
-    day_of_month: number;                // DERIVED: new Date(posted_at).getDate() (1-31)
-    month: number;                       // DERIVED: new Date(posted_at).getMonth() + 1 (1-12)
-    quarter: number;                     // DERIVED: Math.ceil(month / 3) (1-4)
-    is_month_end: boolean;               // DERIVED: day_of_month >= 28 (last 3 days count as month-end)
-    is_quarter_end: boolean;             // DERIVED: month in [3,6,9,12] AND is_month_end
-    is_year_end: boolean;                // DERIVED: month == fiscal_year_end.month AND day_of_month == fiscal_year_end.day
-    days_to_period_close: number;        // DERIVED: Days until next month-end (for accrual urgency)
+    day_of_week: number; // 0=Sunday .. 6=Saturday
+    day_of_month: number; // 1-31
+    calendar_month: number; // 1-12
+    calendar_quarter: number; // 1-4
+    fiscal_month: number; // 1-12 relative to fiscal year
+    fiscal_quarter: number; // 1-4 relative to fiscal year
+    is_month_end: boolean; // true when txn date == fiscal period month_end
+    is_year_end: boolean; // true when txn date == fiscal year_end
+    fiscal_period: {
+      year_start: string; // YYYY-MM-DD
+      year_end: string; // YYYY-MM-DD
+      quarter_start: string; // YYYY-MM-DD
+      quarter_end: string; // YYYY-MM-DD
+      month_start: string; // YYYY-MM-DD
+      month_end: string; // YYYY-MM-DD
+    };
   };
 
   // ============================================================================
   // METADATA: Processing info for debugging and monitoring
   // ============================================================================
   metadata: {
-    enriched_at: string;                 // DERIVED: new Date().toISOString() (timestamp when enrichment ran)
-    enrichment_latency_ms: number;       // DERIVED: performance.now() delta (for SLA monitoring)
-    enrichment_version: string;          // Hard-coded: "1.0.0" (semantic version of enrichment logic)
-    status: 'enriched' | 'partial' | 'error'; // DERIVED: 'enriched' if all data populated, 'partial' if optional fields missing
-    error_message: string | null;        // DERIVED: Error details if status != 'enriched'
+    source: 'ingestion' | 'backfill' | 'manual';
+    enriched_at: string; // ISO timestamp
+    enrichment_latency_ms: number; // Wall-clock duration
+    enrichment_version: string; // Semantic version
+    status: 'enriched' | 'partial' | 'error';
+    error_message: string | null;
+    processing_context?: 'primary' | 'shadow';
+    stats_replay_seq?: number; // >0 when replay rebuilt stats
+    stats_snapshot_checksum?: string; // Hash of historical snapshot payload
   };
 }
 
@@ -909,7 +1003,7 @@ async function buildEnrichedTransaction(
   normalized: NormalizedData,
   context: CompanyContext,
   historical: HistoricalFeatures,
-  signals: PatternSignals
+  signals: PatternSignals,
 ): Promise<EnrichedTransaction> {
   const startTime = Date.now();
 
@@ -923,8 +1017,9 @@ async function buildEnrichedTransaction(
       bank_transaction_id: raw.bank_transaction_id,
       company_id: raw.company_id,
       bank_account_id: raw.bank_account_id,
-      provider_transaction_id: raw.provider_transaction_data?.transaction_id || null,
-      vendor_id: normalized.vendorId
+      provider_transaction_id:
+        raw.provider_transaction_data?.transaction_id || null,
+      vendor_id: normalized.vendorId,
     },
 
     raw: {
@@ -933,7 +1028,7 @@ async function buildEnrichedTransaction(
       currency_id: raw.currency_id,
       posted_at: raw.posted_at,
       direction: raw.amount >= 0 ? 'inflow' : 'outflow',
-      provider_data: raw.provider_transaction_data || {}
+      provider_data: raw.provider_transaction_data || {},
     },
 
     normalized: {
@@ -941,7 +1036,7 @@ async function buildEnrichedTransaction(
       description_tokens: normalized.descriptionTokens,
       vendor_name: normalized.vendorName,
       counterparty_type: normalized.counterpartyType,
-      inferred_category: normalized.inferredCategory
+      inferred_category: normalized.inferredCategory,
     },
 
     context: {
@@ -953,7 +1048,7 @@ async function buildEnrichedTransaction(
       country_code: context.country_code,
       bank_coa_account_id: raw.bank_coa_id,
       coa_snapshot_version: context.coa_snapshot_version,
-      tax_settings: context.tax_settings
+      tax_settings: context.tax_settings,
     },
 
     historical: {
@@ -962,7 +1057,7 @@ async function buildEnrichedTransaction(
       last_categorized_accounts: historical.last_categorized_accounts,
       avg_amount: historical.avg_amount,
       std_dev_amount: historical.std_dev_amount,
-      typical_frequency: historical.typical_frequency
+      typical_frequency: historical.typical_frequency,
     },
 
     signals,
@@ -974,9 +1069,13 @@ async function buildEnrichedTransaction(
       quarter: Math.floor(postedDate.getMonth() / 3) + 1,
       is_month_end: isLastDayOfMonth(postedDate),
       is_quarter_end: isLastDayOfQuarter(postedDate),
-      is_year_end: postedDate.getMonth() === fiscalYearEnd.getMonth() &&
-                   postedDate.getDate() === fiscalYearEnd.getDate(),
-      days_to_period_close: calculateDaysToPeriodClose(postedDate, fiscalYearEnd)
+      is_year_end:
+        postedDate.getMonth() === fiscalYearEnd.getMonth() &&
+        postedDate.getDate() === fiscalYearEnd.getDate(),
+      days_to_period_close: calculateDaysToPeriodClose(
+        postedDate,
+        fiscalYearEnd,
+      ),
     },
 
     metadata: {
@@ -984,8 +1083,8 @@ async function buildEnrichedTransaction(
       enrichment_latency_ms: Date.now() - startTime,
       enrichment_version: process.env.GIT_COMMIT || 'dev',
       status: 'enriched',
-      error_message: null
-    }
+      error_message: null,
+    },
   };
 
   return enriched;
@@ -999,6 +1098,7 @@ async function buildEnrichedTransaction(
 **Purpose:** Return the computed `EnrichedTransaction` object for immediate use by downstream stages.
 
 **Design Decision:** EnrichedTransaction is **NOT persisted** to avoid:
+
 - Data duplication (all fields are derivable from existing tables)
 - Storage bloat (30+ fields × millions of transactions)
 - Cache staleness (if source data changes, enriched cache becomes invalid)
@@ -1015,7 +1115,7 @@ async function buildEnrichedTransaction(
  * @returns EnrichedTransaction object (in-memory only, not persisted)
  */
 export async function enrichTransaction(
-  bankTransactionId: string
+  bankTransactionId: string,
 ): Promise<EnrichedTransaction> {
   const startTime = performance.now();
 
@@ -1033,7 +1133,7 @@ export async function enrichTransaction(
     const historical = await computeHistoricalFeatures(
       normalized.vendorId,
       raw.company_id,
-      raw.description
+      raw.description,
     );
 
     // Step 5: Detect patterns
@@ -1045,7 +1145,7 @@ export async function enrichTransaction(
       normalized,
       context,
       historical,
-      signals
+      signals,
     );
 
     // Track metrics
@@ -1054,16 +1154,15 @@ export async function enrichTransaction(
     metrics.increment('categorization.enrichment.success');
 
     return enriched;
-
   } catch (error) {
     metrics.increment('categorization.enrichment.error', {
-      error_type: error.constructor.name
+      error_type: error.constructor.name,
     });
 
     logger.error('Enrichment failed', {
       bank_transaction_id: bankTransactionId,
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
 
     // Return partial enrichment or throw based on severity
@@ -1084,7 +1183,7 @@ export async function enrichTransaction(
 import Queue from 'bullmq';
 
 const categorizationQueue = new Queue('categorization', {
-  connection: { host: process.env.REDIS_HOST, port: 6379 }
+  connection: { host: process.env.REDIS_HOST, port: 6379 },
 });
 
 categorizationQueue.process(async (job) => {
@@ -1097,9 +1196,8 @@ categorizationQueue.process(async (job) => {
   const ruleCandidates = await evaluateRules(enriched);
 
   // Stage 3: ML (if rules didn't match)
-  const mlCandidates = ruleCandidates.length === 0
-    ? await runMLInference(enriched)
-    : [];
+  const mlCandidates =
+    ruleCandidates.length === 0 ? await runMLInference(enriched) : [];
 
   // Stage 4: Synthesize & Rank
   const ranked = await rankCandidates([...ruleCandidates, ...mlCandidates]);
@@ -1119,6 +1217,7 @@ categorizationQueue.process(async (job) => {
 **Design Decision:** We do **NOT** create a `categorization_tasks` table for storing enriched transactions.
 
 **Rationale:**
+
 1. **EnrichedTransaction is ephemeral** - computed on-demand, not state that needs persistence
 2. **BullMQ provides job tracking** - handles idempotency, retries, and status
 3. **Avoid data duplication** - all enriched fields are derivable from existing tables
@@ -1165,6 +1264,7 @@ CREATE INDEX idx_categorization_tasks_status ON categorization_tasks(status) WHE
 ```
 
 **When to use Option B:**
+
 - Users need real-time progress indicators ("Categorizing... Stage 2/6")
 - We need operational metrics ("10% of tasks failing at Stage 3")
 - We implement partial failure recovery (retry from Stage N, not Stage 1)
@@ -1177,18 +1277,19 @@ CREATE INDEX idx_categorization_tasks_status ON categorization_tasks(status) WHE
 
 ### Performance Targets
 
-| Metric | Target | Notes |
-|--------|--------|-------|
-| Enrichment latency (p50) | <300ms | Typical case with warm cache |
-| Enrichment latency (p95) | <500ms | Cold cache or complex queries |
-| Enrichment latency (p99) | <1000ms | Worst case |
-| Cache hit rate | >90% | Company context cache |
-| Throughput | 100 txns/sec | Single worker instance |
-| Error rate | <0.1% | Retry-able errors excluded |
+| Metric                   | Target       | Notes                         |
+| ------------------------ | ------------ | ----------------------------- |
+| Enrichment latency (p50) | <300ms       | Typical case with warm cache  |
+| Enrichment latency (p95) | <500ms       | Cold cache or complex queries |
+| Enrichment latency (p99) | <1000ms      | Worst case                    |
+| Cache hit rate           | >90%         | Company context cache         |
+| Throughput               | 100 txns/sec | Single worker instance        |
+| Error rate               | <0.1%        | Retry-able errors excluded    |
 
 ### Optimization Strategies
 
 **1. Caching (Already Implemented)**
+
 - Local in-memory cache (1 hour TTL)
 - Redis cache (1 hour TTL)
 - Database as last resort
@@ -1197,7 +1298,9 @@ CREATE INDEX idx_categorization_tasks_status ON categorization_tasks(status) WHE
 
 ```typescript
 // Process multiple transactions in batch
-async function enrichBatch(bankTransactionIds: string[]): Promise<EnrichedTransaction[]> {
+async function enrichBatch(
+  bankTransactionIds: string[],
+): Promise<EnrichedTransaction[]> {
   // Load all transactions in single query
   const rawTransactions = await db('bank_transactions')
     .whereIn('bank_transaction_id', bankTransactionIds)
@@ -1232,8 +1335,11 @@ Already implemented for `mv_vendor_transaction_stats`. Refresh nightly:
 
 import { scheduleJob } from 'node-schedule';
 
-scheduleJob('0 2 * * *', async () => { // 2 AM daily
-  await db.raw('REFRESH MATERIALIZED VIEW CONCURRENTLY mv_vendor_transaction_stats');
+scheduleJob('0 2 * * *', async () => {
+  // 2 AM daily
+  await db.raw(
+    'REFRESH MATERIALIZED VIEW CONCURRENTLY mv_vendor_transaction_stats',
+  );
   logger.info('Refreshed mv_vendor_transaction_stats');
 });
 ```
@@ -1271,6 +1377,7 @@ BullMQ distributes jobs across workers automatically.
 ### Retry Strategy
 
 **BullMQ Configuration:**
+
 ```typescript
 {
   attempts: 3,
@@ -1282,6 +1389,7 @@ BullMQ distributes jobs across workers automatically.
 ```
 
 **Retry Schedule:**
+
 - Attempt 1: Immediate
 - Attempt 2: After 2 seconds
 - Attempt 3: After 4 seconds
@@ -1289,14 +1397,14 @@ BullMQ distributes jobs across workers automatically.
 
 ### Error Categories
 
-| Error Type | Retry? | Action |
-|------------|--------|--------|
-| Database connection lost | Yes | Retry with backoff |
-| Vendor extraction failed | No | Continue with null vendor |
-| Cache unavailable | Yes | Fall back to DB |
-| Context query timeout | Yes | Retry with increased timeout |
-| Invalid transaction data | No | Flag for manual review |
-| Concurrent modification | Yes | Retry with fresh data |
+| Error Type               | Retry? | Action                       |
+| ------------------------ | ------ | ---------------------------- |
+| Database connection lost | Yes    | Retry with backoff           |
+| Vendor extraction failed | No     | Continue with null vendor    |
+| Cache unavailable        | Yes    | Fall back to DB              |
+| Context query timeout    | Yes    | Retry with increased timeout |
+| Invalid transaction data | No     | Flag for manual review       |
+| Concurrent modification  | Yes    | Retry with fresh data        |
 
 ### Partial Enrichment
 
@@ -1313,7 +1421,7 @@ try {
       bank_transaction_id: bankTransactionId,
       enriched_transaction: error.partialData,
       enrichment_status: 'partial',
-      enrichment_error: error.message
+      enrichment_error: error.message,
     });
   }
 }
@@ -1344,7 +1452,9 @@ export const enrichmentMetrics = {
   },
 
   recordError: (errorType: string) => {
-    metrics.increment('categorization.enrichment.error', { error_type: errorType });
+    metrics.increment('categorization.enrichment.error', {
+      error_type: errorType,
+    });
   },
 
   // Cache performance
@@ -1358,12 +1468,14 @@ export const enrichmentMetrics = {
 
   // Data quality
   recordVendorExtracted: (method: 'exact' | 'fuzzy' | 'ner' | 'none') => {
-    metrics.increment('categorization.enrichment.vendor_extraction', { method });
+    metrics.increment('categorization.enrichment.vendor_extraction', {
+      method,
+    });
   },
 
   recordSignalDetection: (signal: string) => {
     metrics.increment('categorization.enrichment.signal_detected', { signal });
-  }
+  },
 };
 ```
 
@@ -1375,7 +1487,7 @@ import { logger } from '../../lib/logger';
 logger.info('Enrichment started', {
   bank_transaction_id: bankTransactionId,
   company_id: companyId,
-  trace_id: req.traceId
+  trace_id: req.traceId,
 });
 
 logger.info('Enrichment completed', {
@@ -1385,18 +1497,20 @@ logger.info('Enrichment completed', {
   latency_ms: enriched.metadata.enrichment_latency_ms,
   vendor_extracted: !!enriched.ids.vendor_id,
   signals_detected: enriched.signals.notes.length,
-  cache_hit: cacheHit
+  cache_hit: cacheHit,
 });
 ```
 
 ### Dashboards (Grafana)
 
 **Panel 1: Enrichment Throughput**
+
 ```promql
 rate(categorization_enrichment_success_total[5m])
 ```
 
 **Panel 2: Latency Percentiles**
+
 ```promql
 histogram_quantile(0.50, categorization_enrichment_latency_ms_bucket)  # p50
 histogram_quantile(0.95, categorization_enrichment_latency_ms_bucket)  # p95
@@ -1404,11 +1518,13 @@ histogram_quantile(0.99, categorization_enrichment_latency_ms_bucket)  # p99
 ```
 
 **Panel 3: Error Rate**
+
 ```promql
 rate(categorization_enrichment_error_total[5m])
 ```
 
 **Panel 4: Cache Hit Rate**
+
 ```promql
 sum(rate(categorization_enrichment_cache_hit_total[5m])) /
 (sum(rate(categorization_enrichment_cache_hit_total[5m])) + sum(rate(categorization_enrichment_cache_miss_total[5m])))
@@ -1447,7 +1563,9 @@ describe('Enrichment Service', () => {
 
     it('should find fuzzy match', async () => {
       db.mockResolvedValueOnce([]) // No exact match
-        .mockResolvedValueOnce([{ vendor_id: '456', vendor_name: 'AMAZON WEB SERVICES' }]);
+        .mockResolvedValueOnce([
+          { vendor_id: '456', vendor_name: 'AMAZON WEB SERVICES' },
+        ]);
 
       const result = await extractVendor('AWS', 'company-1');
       expect(result.vendorId).toBe('456');
@@ -1460,7 +1578,7 @@ describe('Enrichment Service', () => {
         { amount: 120, currency_id: 'GBP' },
         { description: 'PURCHASE WITH VAT' },
         {},
-        { tax_settings: { vat_registered: true, vat_rate: 0.20 } }
+        { tax_settings: { vat_registered: true, vat_rate: 0.2 } },
       );
 
       expect(signals.likely_tax).toBe(true);
@@ -1476,12 +1594,15 @@ describe('Enrichment Service', () => {
 describe('Enrichment Integration', () => {
   it('should enrich transaction end-to-end', async () => {
     // Setup: Create test transaction
-    const txn = await db('bank_transactions').insert({
-      description: 'PAYMENT TO AWS',
-      amount: -250.00,
-      bank_account_id: testBankAccount.bank_account_id,
-      posted_at: '2025-01-15'
-    }).returning('*').then(rows => rows[0]);
+    const txn = await db('bank_transactions')
+      .insert({
+        description: 'PAYMENT TO AWS',
+        amount: -250.0,
+        bank_account_id: testBankAccount.bank_account_id,
+        posted_at: '2025-01-15',
+      })
+      .returning('*')
+      .then((rows) => rows[0]);
 
     // Execute
     const enriched = await enrichmentService.enrich(txn.bank_transaction_id);
@@ -1520,7 +1641,7 @@ describe('Enrichment Load Tests', () => {
     const txnIds = Array.from({ length: 100 }, () => generateTestTransaction());
 
     const start = performance.now();
-    await Promise.all(txnIds.map(id => enrichmentService.enrich(id)));
+    await Promise.all(txnIds.map((id) => enrichmentService.enrich(id)));
     const duration = performance.now() - start;
 
     expect(duration).toBeLessThan(30000); // 30 seconds
@@ -1567,23 +1688,23 @@ describe('Enrichment Load Tests', () => {
 
 ### Success Criteria
 
-| Criterion | Target | Measurement |
-|-----------|--------|-------------|
-| **Performance** | | |
-| Enrichment latency (p95) | <500ms | Prometheus metrics |
-| Throughput | >100 txns/sec | Load tests |
-| Cache hit rate | >90% | Metrics dashboard |
-| **Quality** | | |
-| Vendor extraction accuracy | >85% | Manual review of 100 samples |
-| Pattern detection precision | >90% | Confusion matrix on test set |
-| Error rate | <0.1% | Error logs |
-| **Operations** | | |
-| Worker uptime | >99.9% | Monitoring alerts |
-| Failed job retry success | >95% | BullMQ dashboard |
-| **Testing** | | |
-| Unit test coverage | >80% | Jest coverage report |
-| Integration tests passing | 100% | CI/CD pipeline |
-| Load tests passing | 100% | CI/CD pipeline |
+| Criterion                   | Target        | Measurement                  |
+| --------------------------- | ------------- | ---------------------------- |
+| **Performance**             |               |                              |
+| Enrichment latency (p95)    | <500ms        | Prometheus metrics           |
+| Throughput                  | >100 txns/sec | Load tests                   |
+| Cache hit rate              | >90%          | Metrics dashboard            |
+| **Quality**                 |               |                              |
+| Vendor extraction accuracy  | >85%          | Manual review of 100 samples |
+| Pattern detection precision | >90%          | Confusion matrix on test set |
+| Error rate                  | <0.1%         | Error logs                   |
+| **Operations**              |               |                              |
+| Worker uptime               | >99.9%        | Monitoring alerts            |
+| Failed job retry success    | >95%          | BullMQ dashboard             |
+| **Testing**                 |               |                              |
+| Unit test coverage          | >80%          | Jest coverage report         |
+| Integration tests passing   | 100%          | CI/CD pipeline               |
+| Load tests passing          | 100%          | CI/CD pipeline               |
 
 ---
 
@@ -1634,6 +1755,7 @@ Stage 1: enrichmentService.enrich(bank_transaction_id)
 ```
 
 **Timing:**
+
 - **Latency Target**: <50ms (p95)
 - **Mode**: Synchronous within categorization pipeline (async from user perspective)
 - **Parallelism**: Can run concurrently with Stage 3 (ML) in "shadow mode" for learning
@@ -1641,17 +1763,20 @@ Stage 1: enrichmentService.enrich(bank_transaction_id)
 ### Three Execution Modes
 
 #### Mode 1: Standard (Default)
+
 - Stage 2 runs first
 - If rule matches → Stage 3 skipped
 - If no match → Stage 3 (ML) runs
 
 #### Mode 2: Shadow Inference (Learning Mode)
+
 - Stage 2 and Stage 3 run in parallel
 - Rule result shown to user
 - ML result logged for comparison and training
 - Enables ML to learn from rule-based decisions
 
 #### Mode 3: Manual Re-evaluation
+
 - Endpoint: `POST /api/categorization/rules/evaluate/:task_id`
 - Used when user updates rules and wants to re-categorize historical transactions
 
@@ -1784,24 +1909,33 @@ interface Rule {
 }
 
 interface RuleConditions {
-  operator: 'AND' | 'OR';  // How to combine multiple conditions
+  operator: 'AND' | 'OR'; // How to combine multiple conditions
   conditions: Condition[];
 }
 
 interface Condition {
-  field: string;                    // e.g., "normalized.description", "raw.amount"
-  operator: ConditionOperator;      // e.g., "CONTAINS", "EQUALS", "GREATER_THAN"
-  value: any;                       // e.g., "AWS", 1000
-  case_sensitive?: boolean;         // For string comparisons
-  negate?: boolean;                 // For NOT conditions
+  field: string; // e.g., "normalized.description", "raw.amount"
+  operator: ConditionOperator; // e.g., "CONTAINS", "EQUALS", "GREATER_THAN"
+  value: any; // e.g., "AWS", 1000
+  case_sensitive?: boolean; // For string comparisons
+  negate?: boolean; // For NOT conditions
 }
 
 type ConditionOperator =
-  | 'EQUALS' | 'NOT_EQUALS'
-  | 'CONTAINS' | 'NOT_CONTAINS' | 'STARTS_WITH' | 'ENDS_WITH'
-  | 'GREATER_THAN' | 'LESS_THAN' | 'GREATER_THAN_OR_EQUAL' | 'LESS_THAN_OR_EQUAL'
-  | 'IN' | 'NOT_IN'
-  | 'IS_NULL' | 'IS_NOT_NULL'
+  | 'EQUALS'
+  | 'NOT_EQUALS'
+  | 'CONTAINS'
+  | 'NOT_CONTAINS'
+  | 'STARTS_WITH'
+  | 'ENDS_WITH'
+  | 'GREATER_THAN'
+  | 'LESS_THAN'
+  | 'GREATER_THAN_OR_EQUAL'
+  | 'LESS_THAN_OR_EQUAL'
+  | 'IN'
+  | 'NOT_IN'
+  | 'IS_NULL'
+  | 'IS_NOT_NULL'
   | 'REGEX_MATCH'
   | 'DATE_BETWEEN';
 
@@ -1812,22 +1946,23 @@ interface RuleActions {
 }
 
 interface JournalEntryTemplate {
-  coa_id?: string;                  // Can be explicit or computed
-  coa_selector?: {                  // Alternative: select account dynamically
+  coa_id?: string; // Can be explicit or computed
+  coa_selector?: {
+    // Alternative: select account dynamically
     type: 'VENDOR_DEFAULT' | 'INDUSTRY_STANDARD' | 'QUERY';
     params?: Record<string, any>;
   };
   direction: 'DEBIT' | 'CREDIT';
   amount: AmountStrategy;
-  memo?: string;                    // Template string with variables
+  memo?: string; // Template string with variables
   tax_code?: string;
   tracking_categories?: Record<string, string>;
 }
 
 interface AmountStrategy {
   type: 'PERCENTAGE' | 'FIXED' | 'CALCULATED';
-  value?: number;                   // For PERCENTAGE (0-100) or FIXED
-  formula?: string;                 // For CALCULATED: e.g., "raw.amount * 0.16" (for VAT)
+  value?: number; // For PERCENTAGE (0-100) or FIXED
+  formula?: string; // For CALCULATED: e.g., "raw.amount * 0.16" (for VAT)
 }
 
 async function getCompanyRules(companyId: string): Promise<Rule[]> {
@@ -1850,8 +1985,8 @@ async function getCompanyRules(companyId: string): Promise<Rule[]> {
     .where({ company_id: companyId, is_active: true })
     .whereNull('deleted_at')
     .orderBy([
-      { column: 'layer', order: 'asc' },     // system < firm < company < user
-      { column: 'priority', order: 'asc' }   // Lower number runs first
+      { column: 'layer', order: 'asc' }, // system < firm < company < user
+      { column: 'priority', order: 'asc' }, // Lower number runs first
     ])
     .select('*');
 
@@ -1879,7 +2014,7 @@ For each rule, the engine evaluates its conditions against the enriched transact
 ```typescript
 // apps/api/src/domains/categorization/rules.conditions.ts
 
-import { get } from 'lodash';  // For safe nested property access
+import { get } from 'lodash'; // For safe nested property access
 
 export class ConditionEvaluator {
   /**
@@ -1887,7 +2022,7 @@ export class ConditionEvaluator {
    */
   static evaluate(
     condition: Condition,
-    enrichedTxn: EnrichedTransaction
+    enrichedTxn: EnrichedTransaction,
   ): boolean {
     // Extract the field value from enriched transaction
     const fieldValue = get(enrichedTxn, condition.field);
@@ -1897,7 +2032,7 @@ export class ConditionEvaluator {
       condition.operator,
       fieldValue,
       condition.value,
-      condition.case_sensitive
+      condition.case_sensitive,
     );
 
     // Apply negation if specified
@@ -1913,16 +2048,16 @@ export class ConditionEvaluator {
    */
   static evaluateGroup(
     ruleConditions: RuleConditions,
-    enrichedTxn: EnrichedTransaction
+    enrichedTxn: EnrichedTransaction,
   ): boolean {
-    const results = ruleConditions.conditions.map(cond =>
-      this.evaluate(cond, enrichedTxn)
+    const results = ruleConditions.conditions.map((cond) =>
+      this.evaluate(cond, enrichedTxn),
     );
 
     if (ruleConditions.operator === 'AND') {
-      return results.every(r => r === true);
+      return results.every((r) => r === true);
     } else {
-      return results.some(r => r === true);
+      return results.some((r) => r === true);
     }
   }
 
@@ -1933,7 +2068,7 @@ export class ConditionEvaluator {
     operator: ConditionOperator,
     fieldValue: any,
     conditionValue: any,
-    caseSensitive: boolean = false
+    caseSensitive: boolean = false,
   ): boolean {
     // Handle null checks first
     if (operator === 'IS_NULL') return fieldValue == null;
@@ -1946,32 +2081,42 @@ export class ConditionEvaluator {
       case 'EQUALS':
         return caseSensitive
           ? fieldValue === conditionValue
-          : String(fieldValue).toLowerCase() === String(conditionValue).toLowerCase();
+          : String(fieldValue).toLowerCase() ===
+              String(conditionValue).toLowerCase();
 
       case 'NOT_EQUALS':
         return caseSensitive
           ? fieldValue !== conditionValue
-          : String(fieldValue).toLowerCase() !== String(conditionValue).toLowerCase();
+          : String(fieldValue).toLowerCase() !==
+              String(conditionValue).toLowerCase();
 
       case 'CONTAINS':
         return caseSensitive
           ? String(fieldValue).includes(String(conditionValue))
-          : String(fieldValue).toLowerCase().includes(String(conditionValue).toLowerCase());
+          : String(fieldValue)
+              .toLowerCase()
+              .includes(String(conditionValue).toLowerCase());
 
       case 'NOT_CONTAINS':
         return caseSensitive
           ? !String(fieldValue).includes(String(conditionValue))
-          : !String(fieldValue).toLowerCase().includes(String(conditionValue).toLowerCase());
+          : !String(fieldValue)
+              .toLowerCase()
+              .includes(String(conditionValue).toLowerCase());
 
       case 'STARTS_WITH':
         return caseSensitive
           ? String(fieldValue).startsWith(String(conditionValue))
-          : String(fieldValue).toLowerCase().startsWith(String(conditionValue).toLowerCase());
+          : String(fieldValue)
+              .toLowerCase()
+              .startsWith(String(conditionValue).toLowerCase());
 
       case 'ENDS_WITH':
         return caseSensitive
           ? String(fieldValue).endsWith(String(conditionValue))
-          : String(fieldValue).toLowerCase().endsWith(String(conditionValue).toLowerCase());
+          : String(fieldValue)
+              .toLowerCase()
+              .endsWith(String(conditionValue).toLowerCase());
 
       case 'GREATER_THAN':
         return Number(fieldValue) > Number(conditionValue);
@@ -1986,10 +2131,14 @@ export class ConditionEvaluator {
         return Number(fieldValue) <= Number(conditionValue);
 
       case 'IN':
-        return Array.isArray(conditionValue) && conditionValue.includes(fieldValue);
+        return (
+          Array.isArray(conditionValue) && conditionValue.includes(fieldValue)
+        );
 
       case 'NOT_IN':
-        return Array.isArray(conditionValue) && !conditionValue.includes(fieldValue);
+        return (
+          Array.isArray(conditionValue) && !conditionValue.includes(fieldValue)
+        );
 
       case 'REGEX_MATCH':
         const regex = new RegExp(conditionValue, caseSensitive ? '' : 'i');
@@ -1997,7 +2146,7 @@ export class ConditionEvaluator {
 
       case 'DATE_BETWEEN':
         const date = new Date(fieldValue);
-        const [start, end] = conditionValue;  // Expected: [startDate, endDate]
+        const [start, end] = conditionValue; // Expected: [startDate, endDate]
         return date >= new Date(start) && date <= new Date(end);
 
       default:
@@ -2022,21 +2171,23 @@ const rule: Rule = {
         field: 'normalized.description',
         operator: 'CONTAINS',
         value: 'AWS',
-        case_sensitive: false
+        case_sensitive: false,
       },
       {
         field: 'raw.amount',
         operator: 'GREATER_THAN',
-        value: 100
-      }
-    ]
+        value: 100,
+      },
+    ],
   },
-  actions: { /* ... */ }
+  actions: {
+    /* ... */
+  },
 };
 
 const enrichedTxn: EnrichedTransaction = {
   normalized: { description: 'AWS WEB SERVICES' },
-  raw: { amount: 250.00 }
+  raw: { amount: 250.0 },
   // ...
 };
 
@@ -2056,8 +2207,8 @@ When a rule's conditions match, the engine executes its actions to generate a `L
 interface LedgerEntryCandidate {
   candidate_id: string;
   source: 'UserRule' | 'CompanyRule' | 'FirmRule' | 'SystemRule';
-  source_id: string;  // rule_id
-  confidence: number;  // Always 1.0 for rules
+  source_id: string; // rule_id
+  confidence: number; // Always 1.0 for rules
   explanation: string;
 
   journal_entries: LedgerEntry[];
@@ -2087,7 +2238,7 @@ export class ActionExecutor {
   static async execute(
     rule: Rule,
     enrichedTxn: EnrichedTransaction,
-    companyContext: CompanyContext
+    companyContext: CompanyContext,
   ): Promise<LedgerEntryCandidate> {
     const startTime = performance.now();
 
@@ -2098,7 +2249,7 @@ export class ActionExecutor {
       const entry = await this.processEntryTemplate(
         template,
         enrichedTxn,
-        companyContext
+        companyContext,
       );
       journalEntries.push(entry);
     }
@@ -2120,8 +2271,8 @@ export class ActionExecutor {
         rule_name: rule.name,
         rule_layer: rule.layer,
         matched_conditions: this.extractMatchedFields(rule.conditions),
-        generation_latency_ms: performance.now() - startTime
-      }
+        generation_latency_ms: performance.now() - startTime,
+      },
     };
   }
 
@@ -2131,20 +2282,22 @@ export class ActionExecutor {
   private static async processEntryTemplate(
     template: JournalEntryTemplate,
     enrichedTxn: EnrichedTransaction,
-    companyContext: CompanyContext
+    companyContext: CompanyContext,
   ): Promise<LedgerEntry> {
     // Resolve COA ID (either explicit or dynamic)
-    const coaId = template.coa_id || await this.resolveDynamicCoa(
-      template.coa_selector,
-      enrichedTxn,
-      companyContext
-    );
+    const coaId =
+      template.coa_id ||
+      (await this.resolveDynamicCoa(
+        template.coa_selector,
+        enrichedTxn,
+        companyContext,
+      ));
 
     // Calculate amount
     const amount = this.calculateAmount(
       template.amount,
       enrichedTxn.raw.amount,
-      enrichedTxn
+      enrichedTxn,
     );
 
     // Resolve memo template variables
@@ -2159,7 +2312,7 @@ export class ActionExecutor {
       currency_id: enrichedTxn.raw.currency_id,
       memo,
       tax_code: template.tax_code,
-      tracking_categories: template.tracking_categories
+      tracking_categories: template.tracking_categories,
     };
   }
 
@@ -2169,7 +2322,7 @@ export class ActionExecutor {
   private static calculateAmount(
     strategy: AmountStrategy,
     baseAmount: number,
-    enrichedTxn: EnrichedTransaction
+    enrichedTxn: EnrichedTransaction,
   ): number {
     switch (strategy.type) {
       case 'PERCENTAGE':
@@ -2192,13 +2345,13 @@ export class ActionExecutor {
    */
   private static evaluateFormula(
     formula: string,
-    enrichedTxn: EnrichedTransaction
+    enrichedTxn: EnrichedTransaction,
   ): number {
     // Create safe context for formula evaluation
     const context = {
       amount: enrichedTxn.raw.amount,
       vat_rate: enrichedTxn.context.tax_settings.vat_rate,
-      wht_rate: enrichedTxn.context.tax_settings.wht_rate
+      wht_rate: enrichedTxn.context.tax_settings.wht_rate,
     };
 
     // Example formulas:
@@ -2220,7 +2373,7 @@ export class ActionExecutor {
   private static async resolveDynamicCoa(
     selector: JournalEntryTemplate['coa_selector'],
     enrichedTxn: EnrichedTransaction,
-    companyContext: CompanyContext
+    companyContext: CompanyContext,
   ): Promise<string> {
     if (!selector) {
       throw new Error('No COA ID or selector provided');
@@ -2245,7 +2398,7 @@ export class ActionExecutor {
         // e.g., "Software subscription" -> COA type "Software Expense"
         return this.findIndustryStandardAccount(
           selector.params.category,
-          companyContext
+          companyContext,
         );
 
       case 'QUERY':
@@ -2262,11 +2415,11 @@ export class ActionExecutor {
    */
   private static validateBalance(entries: LedgerEntry[]): void {
     const debits = entries
-      .filter(e => e.direction === 'DEBIT')
+      .filter((e) => e.direction === 'DEBIT')
       .reduce((sum, e) => sum + e.amount, 0);
 
     const credits = entries
-      .filter(e => e.direction === 'CREDIT')
+      .filter((e) => e.direction === 'CREDIT')
       .reduce((sum, e) => sum + e.amount, 0);
 
     const diff = Math.abs(debits - credits);
@@ -2274,7 +2427,7 @@ export class ActionExecutor {
     // Allow for minor rounding errors (<1 cent)
     if (diff > 0.01) {
       throw new Error(
-        `Journal entries do not balance. Debits: ${debits}, Credits: ${credits}, Diff: ${diff}`
+        `Journal entries do not balance. Debits: ${debits}, Credits: ${credits}, Diff: ${diff}`,
       );
     }
   }
@@ -2284,10 +2437,10 @@ export class ActionExecutor {
    */
   private static generateExplanation(
     rule: Rule,
-    enrichedTxn: EnrichedTransaction
+    enrichedTxn: EnrichedTransaction,
   ): string {
     const conditions = rule.conditions.conditions
-      .map(c => {
+      .map((c) => {
         const value = get(enrichedTxn, c.field);
         return `${c.field} ${c.operator} ${c.value} (actual: ${value})`;
       })
@@ -2296,18 +2449,20 @@ export class ActionExecutor {
     return `Matched ${rule.layer} rule "${rule.name}": ${conditions}`;
   }
 
-  private static mapLayerToSource(layer: string): LedgerEntryCandidate['source'] {
+  private static mapLayerToSource(
+    layer: string,
+  ): LedgerEntryCandidate['source'] {
     const mapping = {
-      'system': 'SystemRule',
-      'firm': 'FirmRule',
-      'company': 'CompanyRule',
-      'user': 'UserRule'
+      system: 'SystemRule',
+      firm: 'FirmRule',
+      company: 'CompanyRule',
+      user: 'UserRule',
     };
     return mapping[layer] || 'UserRule';
   }
 
   private static extractMatchedFields(conditions: RuleConditions): string[] {
-    return conditions.conditions.map(c => c.field);
+    return conditions.conditions.map((c) => c.field);
   }
 }
 ```
@@ -2325,8 +2480,12 @@ const rule: Rule = {
   conditions: {
     operator: 'AND',
     conditions: [
-      { field: 'normalized.description', operator: 'CONTAINS', value: 'STARBUCKS' }
-    ]
+      {
+        field: 'normalized.description',
+        operator: 'CONTAINS',
+        value: 'STARBUCKS',
+      },
+    ],
   },
   actions: {
     action_type: 'CREATE_JOURNAL',
@@ -2335,16 +2494,16 @@ const rule: Rule = {
         // Debit: Meals & Entertainment
         coa_id: 'coa-meals-uuid',
         direction: 'DEBIT',
-        amount: { type: 'PERCENTAGE', value: 100 }
+        amount: { type: 'PERCENTAGE', value: 100 },
       },
       {
         // Credit: Bank Account (automatic)
         coa_id: enrichedTxn.context.bank_coa_account_id,
         direction: 'CREDIT',
-        amount: { type: 'PERCENTAGE', value: 100 }
-      }
-    ]
-  }
+        amount: { type: 'PERCENTAGE', value: 100 },
+      },
+    ],
+  },
 };
 
 // Execution Result:
@@ -2353,23 +2512,24 @@ const candidate: LedgerEntryCandidate = {
   source: 'UserRule',
   source_id: 'rule-starbucks',
   confidence: 1.0,
-  explanation: 'Matched user rule "Starbucks Expenses": normalized.description CONTAINS STARBUCKS',
+  explanation:
+    'Matched user rule "Starbucks Expenses": normalized.description CONTAINS STARBUCKS',
   journal_entries: [
     {
       coa_id: 'coa-meals-uuid',
       direction: 'DEBIT',
-      amount: 15.50,
+      amount: 15.5,
       currency_id: 'USD',
-      memo: 'STARBUCKS #1234'
+      memo: 'STARBUCKS #1234',
     },
     {
       coa_id: 'coa-bank-uuid',
       direction: 'CREDIT',
-      amount: 15.50,
+      amount: 15.5,
       currency_id: 'USD',
-      memo: 'STARBUCKS #1234'
-    }
-  ]
+      memo: 'STARBUCKS #1234',
+    },
+  ],
 };
 ```
 
@@ -2386,8 +2546,12 @@ const rule: Rule = {
     conditions: [
       { field: 'normalized.description', operator: 'CONTAINS', value: 'AWS' },
       { field: 'raw.amount', operator: 'GREATER_THAN', value: 1000 },
-      { field: 'context.tax_settings.vat_registered', operator: 'EQUALS', value: true }
-    ]
+      {
+        field: 'context.tax_settings.vat_registered',
+        operator: 'EQUALS',
+        value: true,
+      },
+    ],
   },
   actions: {
     action_type: 'CREATE_JOURNAL',
@@ -2396,23 +2560,23 @@ const rule: Rule = {
         // Debit: Cloud Hosting (net amount)
         coa_id: 'coa-cloud-hosting-uuid',
         direction: 'DEBIT',
-        amount: { type: 'CALCULATED', formula: 'amount / 1.16' },  // Remove VAT
-        tax_code: 'VAT-STD'
+        amount: { type: 'CALCULATED', formula: 'amount / 1.16' }, // Remove VAT
+        tax_code: 'VAT-STD',
       },
       {
         // Debit: VAT Input (tax amount)
         coa_id: 'coa-vat-input-uuid',
         direction: 'DEBIT',
-        amount: { type: 'CALCULATED', formula: 'amount * 0.16 / 1.16' }
+        amount: { type: 'CALCULATED', formula: 'amount * 0.16 / 1.16' },
       },
       {
         // Credit: Bank Account
         coa_id: enrichedTxn.context.bank_coa_account_id,
         direction: 'CREDIT',
-        amount: { type: 'PERCENTAGE', value: 100 }
-      }
-    ]
-  }
+        amount: { type: 'PERCENTAGE', value: 100 },
+      },
+    ],
+  },
 };
 
 // For a $1,160 transaction, this generates:
@@ -2437,7 +2601,7 @@ export class RulesEngine {
    */
   static async evaluate(
     taskId: string,
-    executionMode: 'standard' | 'shadow' | 'all' = 'standard'
+    executionMode: 'standard' | 'shadow' | 'all' = 'standard',
   ): Promise<LedgerEntryCandidate[]> {
     const startTime = performance.now();
 
@@ -2461,7 +2625,7 @@ export class RulesEngine {
         // Evaluate conditions
         const matches = ConditionEvaluator.evaluateGroup(
           rule.conditions,
-          enrichedTxn
+          enrichedTxn,
         );
 
         if (matches) {
@@ -2469,7 +2633,7 @@ export class RulesEngine {
           const candidate = await ActionExecutor.execute(
             rule,
             enrichedTxn,
-            companyContext
+            companyContext,
           );
 
           candidates.push(candidate);
@@ -2490,7 +2654,7 @@ export class RulesEngine {
         logger.error('Rule evaluation error', {
           rule_id: rule.rule_id,
           task_id: taskId,
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -2498,7 +2662,10 @@ export class RulesEngine {
     // Emit metrics
     const duration = performance.now() - startTime;
     metrics.histogram('categorization.rules.evaluation_latency_ms', duration);
-    metrics.histogram('categorization.rules.candidates_generated', candidates.length);
+    metrics.histogram(
+      'categorization.rules.candidates_generated',
+      candidates.length,
+    );
 
     return candidates;
   }
@@ -2509,16 +2676,16 @@ export class RulesEngine {
   private static async recordRuleMatch(
     taskId: string,
     ruleId: string,
-    candidate: LedgerEntryCandidate
+    candidate: LedgerEntryCandidate,
   ): Promise<void> {
     await db('categorization_rule_matches').insert({
       task_id: taskId,
       rule_id: ruleId,
-      bank_transaction_id: (await db('categorization_tasks')
-        .where({ task_id: taskId })
-        .first()).bank_transaction_id,
+      bank_transaction_id: (
+        await db('categorization_tasks').where({ task_id: taskId }).first()
+      ).bank_transaction_id,
       confidence: candidate.confidence,
-      matched_at: new Date()
+      matched_at: new Date(),
     });
   }
 
@@ -2548,8 +2715,9 @@ await db('categorization_tasks')
   .update({
     rule_candidates: JSON.stringify(candidates),
     rule_evaluation_completed_at: new Date(),
-    categorization_status: candidates.length > 0 ? 'rules_matched' : 'rules_no_match',
-    updated_at: new Date()
+    categorization_status:
+      candidates.length > 0 ? 'rules_matched' : 'rules_no_match',
+    updated_at: new Date(),
   });
 
 // Emit event for next stage
@@ -2557,13 +2725,13 @@ if (candidates.length > 0) {
   await eventBus.emit('categorization.rules.matched', {
     task_id: taskId,
     bank_transaction_id: enrichedTxn.ids.bank_transaction_id,
-    candidate_count: candidates.length
+    candidate_count: candidates.length,
   });
 } else {
   // No rule matched, proceed to ML stage
   await eventBus.emit('categorization.rules.no_match', {
     task_id: taskId,
-    bank_transaction_id: enrichedTxn.ids.bank_transaction_id
+    bank_transaction_id: enrichedTxn.ids.bank_transaction_id,
   });
 }
 ```
@@ -2583,42 +2751,62 @@ export const SYSTEM_RULE_PACKS = {
    */
   BANK_FEES: {
     name: 'Bank Fees',
-    description: 'Automatically categorize bank service fees and interest charges',
+    description:
+      'Automatically categorize bank service fees and interest charges',
     rules: [
       {
         name: 'Bank Service Fee',
         conditions: {
           operator: 'OR',
           conditions: [
-            { field: 'normalized.description', operator: 'CONTAINS', value: 'BANK FEE' },
-            { field: 'normalized.description', operator: 'CONTAINS', value: 'SERVICE CHARGE' },
-            { field: 'normalized.description', operator: 'CONTAINS', value: 'MONTHLY FEE' }
-          ]
+            {
+              field: 'normalized.description',
+              operator: 'CONTAINS',
+              value: 'BANK FEE',
+            },
+            {
+              field: 'normalized.description',
+              operator: 'CONTAINS',
+              value: 'SERVICE CHARGE',
+            },
+            {
+              field: 'normalized.description',
+              operator: 'CONTAINS',
+              value: 'MONTHLY FEE',
+            },
+          ],
         },
         actions: {
           action_type: 'CREATE_JOURNAL',
           journal_entries: [
             {
-              coa_selector: { type: 'INDUSTRY_STANDARD', params: { category: 'Bank Fees' } },
+              coa_selector: {
+                type: 'INDUSTRY_STANDARD',
+                params: { category: 'Bank Fees' },
+              },
               direction: 'DEBIT',
-              amount: { type: 'PERCENTAGE', value: 100 }
+              amount: { type: 'PERCENTAGE', value: 100 },
             },
             {
-              coa_id: '{{bank_account_coa_id}}',  // Template variable
+              coa_id: '{{bank_account_coa_id}}', // Template variable
               direction: 'CREDIT',
-              amount: { type: 'PERCENTAGE', value: 100 }
-            }
-          ]
-        }
+              amount: { type: 'PERCENTAGE', value: 100 },
+            },
+          ],
+        },
       },
       {
         name: 'Interest Income',
         conditions: {
           operator: 'AND',
           conditions: [
-            { field: 'normalized.description', operator: 'CONTAINS', value: 'INTEREST' },
-            { field: 'raw.direction', operator: 'EQUALS', value: 'inflow' }
-          ]
+            {
+              field: 'normalized.description',
+              operator: 'CONTAINS',
+              value: 'INTEREST',
+            },
+            { field: 'raw.direction', operator: 'EQUALS', value: 'inflow' },
+          ],
         },
         actions: {
           action_type: 'CREATE_JOURNAL',
@@ -2626,17 +2814,20 @@ export const SYSTEM_RULE_PACKS = {
             {
               coa_id: '{{bank_account_coa_id}}',
               direction: 'DEBIT',
-              amount: { type: 'PERCENTAGE', value: 100 }
+              amount: { type: 'PERCENTAGE', value: 100 },
             },
             {
-              coa_selector: { type: 'INDUSTRY_STANDARD', params: { category: 'Interest Income' } },
+              coa_selector: {
+                type: 'INDUSTRY_STANDARD',
+                params: { category: 'Interest Income' },
+              },
               direction: 'CREDIT',
-              amount: { type: 'PERCENTAGE', value: 100 }
-            }
-          ]
-        }
-      }
-    ]
+              amount: { type: 'PERCENTAGE', value: 100 },
+            },
+          ],
+        },
+      },
+    ],
   },
 
   /**
@@ -2651,28 +2842,39 @@ export const SYSTEM_RULE_PACKS = {
         conditions: {
           operator: 'OR',
           conditions: [
-            { field: 'normalized.description', operator: 'CONTAINS', value: 'GUSTO' },
-            { field: 'normalized.vendor_name', operator: 'EQUALS', value: 'Gusto' }
-          ]
+            {
+              field: 'normalized.description',
+              operator: 'CONTAINS',
+              value: 'GUSTO',
+            },
+            {
+              field: 'normalized.vendor_name',
+              operator: 'EQUALS',
+              value: 'Gusto',
+            },
+          ],
         },
         actions: {
           action_type: 'CREATE_JOURNAL',
           journal_entries: [
             {
-              coa_selector: { type: 'INDUSTRY_STANDARD', params: { category: 'Payroll Expense' } },
+              coa_selector: {
+                type: 'INDUSTRY_STANDARD',
+                params: { category: 'Payroll Expense' },
+              },
               direction: 'DEBIT',
-              amount: { type: 'PERCENTAGE', value: 100 }
+              amount: { type: 'PERCENTAGE', value: 100 },
             },
             {
               coa_id: '{{bank_account_coa_id}}',
               direction: 'CREDIT',
-              amount: { type: 'PERCENTAGE', value: 100 }
-            }
-          ]
-        }
-      }
+              amount: { type: 'PERCENTAGE', value: 100 },
+            },
+          ],
+        },
+      },
       // Similar rules for ADP, Paychex, QuickBooks Payroll, etc.
-    ]
+    ],
   },
 
   /**
@@ -2690,28 +2892,31 @@ export const SYSTEM_RULE_PACKS = {
             {
               field: 'normalized.description',
               operator: 'REGEX_MATCH',
-              value: '(HMRC|VAT|GST|TAX AUTHORITY)'
+              value: '(HMRC|VAT|GST|TAX AUTHORITY)',
             },
-            { field: 'signals.likely_tax', operator: 'EQUALS', value: true }
-          ]
+            { field: 'signals.likely_tax', operator: 'EQUALS', value: true },
+          ],
         },
         actions: {
           action_type: 'CREATE_JOURNAL',
           journal_entries: [
             {
-              coa_selector: { type: 'INDUSTRY_STANDARD', params: { category: 'VAT Payable' } },
+              coa_selector: {
+                type: 'INDUSTRY_STANDARD',
+                params: { category: 'VAT Payable' },
+              },
               direction: 'DEBIT',
-              amount: { type: 'PERCENTAGE', value: 100 }
+              amount: { type: 'PERCENTAGE', value: 100 },
             },
             {
               coa_id: '{{bank_account_coa_id}}',
               direction: 'CREDIT',
-              amount: { type: 'PERCENTAGE', value: 100 }
-            }
-          ]
-        }
-      }
-    ]
+              amount: { type: 'PERCENTAGE', value: 100 },
+            },
+          ],
+        },
+      },
+    ],
   },
 
   /**
@@ -2721,36 +2926,50 @@ export const SYSTEM_RULE_PACKS = {
     name: 'SaaS Subscriptions',
     description: 'Common software subscription services',
     rules: [
-      'AWS', 'Google Cloud', 'Microsoft Azure',
-      'GitHub', 'Slack', 'Zoom', 'Dropbox',
-      'Adobe', 'Salesforce', 'HubSpot'
-    ].map(vendor => ({
+      'AWS',
+      'Google Cloud',
+      'Microsoft Azure',
+      'GitHub',
+      'Slack',
+      'Zoom',
+      'Dropbox',
+      'Adobe',
+      'Salesforce',
+      'HubSpot',
+    ].map((vendor) => ({
       name: `${vendor} Subscription`,
       conditions: {
         operator: 'AND',
         conditions: [
-          { field: 'normalized.description', operator: 'CONTAINS', value: vendor.toUpperCase() },
-          { field: 'historical.is_recurring', operator: 'EQUALS', value: true }
-        ]
+          {
+            field: 'normalized.description',
+            operator: 'CONTAINS',
+            value: vendor.toUpperCase(),
+          },
+          { field: 'historical.is_recurring', operator: 'EQUALS', value: true },
+        ],
       },
       actions: {
         action_type: 'CREATE_JOURNAL',
         journal_entries: [
           {
-            coa_selector: { type: 'INDUSTRY_STANDARD', params: { category: 'Software Expense' } },
+            coa_selector: {
+              type: 'INDUSTRY_STANDARD',
+              params: { category: 'Software Expense' },
+            },
             direction: 'DEBIT',
             amount: { type: 'PERCENTAGE', value: 100 },
-            memo: `${vendor} subscription - {{raw.posted_at | format:'MMM YYYY'}}`
+            memo: `${vendor} subscription - {{raw.posted_at | format:'MMM YYYY'}}`,
           },
           {
             coa_id: '{{bank_account_coa_id}}',
             direction: 'CREDIT',
-            amount: { type: 'PERCENTAGE', value: 100 }
-          }
-        ]
-      }
-    }))
-  }
+            amount: { type: 'PERCENTAGE', value: 100 },
+          },
+        ],
+      },
+    })),
+  },
 };
 
 /**
@@ -2758,7 +2977,7 @@ export const SYSTEM_RULE_PACKS = {
  */
 export async function installSystemRulePacks(
   companyId: string,
-  packs: string[] = Object.keys(SYSTEM_RULE_PACKS)
+  packs: string[] = Object.keys(SYSTEM_RULE_PACKS),
 ): Promise<void> {
   for (const packKey of packs) {
     const pack = SYSTEM_RULE_PACKS[packKey];
@@ -2769,11 +2988,11 @@ export async function installSystemRulePacks(
         name: ruleTemplate.name,
         description: pack.description,
         layer: 'system',
-        priority: 1000,  // System rules have lower priority than user rules
+        priority: 1000, // System rules have lower priority than user rules
         conditions: ruleTemplate.conditions,
         actions: ruleTemplate.actions,
         is_active: true,
-        is_system: true
+        is_system: true,
       });
     }
   }
@@ -2810,7 +3029,7 @@ router.get('/rules', authenticate, async (req, res) => {
     .whereNull('deleted_at')
     .orderBy([
       { column: 'layer', order: 'asc' },
-      { column: 'priority', order: 'asc' }
+      { column: 'priority', order: 'asc' },
     ])
     .select('*');
 
@@ -2838,7 +3057,7 @@ router.post('/rules', authenticate, validateRuleSchema, async (req, res) => {
       priority: priority || 100,
       conditions,
       actions,
-      is_active: true
+      is_active: true,
     })
     .returning('rule_id');
 
@@ -2852,44 +3071,48 @@ router.post('/rules', authenticate, validateRuleSchema, async (req, res) => {
  * PUT /api/categorization/rules/:ruleId
  * Update existing rule
  */
-router.put('/rules/:ruleId', authenticate, validateRuleSchema, async (req, res) => {
-  const { companyId } = req.user;
-  const { ruleId } = req.params;
-  const updates = req.body;
+router.put(
+  '/rules/:ruleId',
+  authenticate,
+  validateRuleSchema,
+  async (req, res) => {
+    const { companyId } = req.user;
+    const { ruleId } = req.params;
+    const updates = req.body;
 
-  // Verify ownership
-  const rule = await db('categorization_rules')
-    .where({ rule_id: ruleId, company_id: companyId })
-    .first();
+    // Verify ownership
+    const rule = await db('categorization_rules')
+      .where({ rule_id: ruleId, company_id: companyId })
+      .first();
 
-  if (!rule) {
-    return res.status(404).json({ error: 'Rule not found' });
-  }
+    if (!rule) {
+      return res.status(404).json({ error: 'Rule not found' });
+    }
 
-  if (rule.is_system) {
-    return res.status(403).json({ error: 'Cannot modify system rules' });
-  }
+    if (rule.is_system) {
+      return res.status(403).json({ error: 'Cannot modify system rules' });
+    }
 
-  // Create new version (for audit trail)
-  await db('categorization_rules')
-    .insert({
+    // Create new version (for audit trail)
+    await db('categorization_rules').insert({
       ...rule,
-      rule_id: undefined,  // Generate new ID
+      rule_id: undefined, // Generate new ID
       parent_rule_id: ruleId,
       version: rule.version + 1,
       ...updates,
-      updated_at: new Date()
+      updated_at: new Date(),
     });
 
-  // Soft-delete old version
-  await db('categorization_rules')
-    .where({ rule_id: ruleId })
-    .update({ deleted_at: new Date() });
+    // Soft-delete old version
+    await db('categorization_rules')
+      .where({ rule_id: ruleId })
+      .update({ deleted_at: new Date() });
 
-  await invalidateRuleCache(companyId);
+    await invalidateRuleCache(companyId);
 
-  res.json({ success: true });
-});
+    res.json({ success: true });
+  },
+);
 
 /**
  * POST /api/categorization/rules/:ruleId/test
@@ -2920,13 +3143,17 @@ router.post('/rules/:ruleId/test', authenticate, async (req, res) => {
     // Test condition matching
     const matches = ConditionEvaluator.evaluateGroup(
       rule.conditions,
-      enrichedTxn
+      enrichedTxn,
     );
 
     let candidate = null;
     if (matches) {
       const companyContext = await getCompanyContext(companyId);
-      candidate = await ActionExecutor.execute(rule, enrichedTxn, companyContext);
+      candidate = await ActionExecutor.execute(
+        rule,
+        enrichedTxn,
+        companyContext,
+      );
     }
 
     results.push({
@@ -2934,7 +3161,7 @@ router.post('/rules/:ruleId/test', authenticate, async (req, res) => {
       description: enrichedTxn.raw.description,
       amount: enrichedTxn.raw.amount,
       matched: matches,
-      candidate
+      candidate,
     });
   }
 
@@ -2947,7 +3174,7 @@ router.post('/rules/:ruleId/test', authenticate, async (req, res) => {
  */
 router.post('/rules/install-packs', authenticate, async (req, res) => {
   const { companyId } = req.user;
-  const { packs } = req.body;  // e.g., ['BANK_FEES', 'PAYROLL']
+  const { packs } = req.body; // e.g., ['BANK_FEES', 'PAYROLL']
 
   await installSystemRulePacks(companyId, packs);
 
@@ -2963,12 +3190,12 @@ export default router;
 
 ### Latency Targets
 
-| Metric | Target | P50 | P95 | P99 |
-|--------|--------|-----|-----|-----|
-| Rule loading (cached) | <5ms | 2ms | 4ms | 8ms |
-| Condition evaluation | <10ms | 5ms | 15ms | 30ms |
-| Action execution | <30ms | 15ms | 40ms | 80ms |
-| End-to-end (Stage 2) | <50ms | 25ms | 60ms | 120ms |
+| Metric                | Target | P50  | P95  | P99   |
+| --------------------- | ------ | ---- | ---- | ----- |
+| Rule loading (cached) | <5ms   | 2ms  | 4ms  | 8ms   |
+| Condition evaluation  | <10ms  | 5ms  | 15ms | 30ms  |
+| Action execution      | <30ms  | 15ms | 40ms | 80ms  |
+| End-to-end (Stage 2)  | <50ms  | 25ms | 60ms | 120ms |
 
 ### Optimization Strategies
 
@@ -2995,7 +3222,10 @@ export default router;
 // Graceful degradation: if a rule fails, continue to next rule
 
 try {
-  const matches = ConditionEvaluator.evaluateGroup(rule.conditions, enrichedTxn);
+  const matches = ConditionEvaluator.evaluateGroup(
+    rule.conditions,
+    enrichedTxn,
+  );
   // ...
 } catch (error) {
   logger.error('Rule condition evaluation failed', {
@@ -3003,13 +3233,13 @@ try {
     rule_name: rule.name,
     task_id: taskId,
     error: error.message,
-    stack: error.stack
+    stack: error.stack,
   });
 
   // Emit metric for monitoring
   metrics.increment('categorization.rules.evaluation_errors', {
     rule_id: rule.rule_id,
-    error_type: error.constructor.name
+    error_type: error.constructor.name,
   });
 
   // Continue to next rule
@@ -3023,13 +3253,17 @@ try {
 // If action execution fails, do not generate candidate
 
 try {
-  const candidate = await ActionExecutor.execute(rule, enrichedTxn, companyContext);
+  const candidate = await ActionExecutor.execute(
+    rule,
+    enrichedTxn,
+    companyContext,
+  );
   candidates.push(candidate);
 } catch (error) {
   logger.error('Rule action execution failed', {
     rule_id: rule.rule_id,
     task_id: taskId,
-    error: error.message
+    error: error.message,
   });
 
   // Alert user if their custom rule is broken
@@ -3039,8 +3273,8 @@ try {
       type: 'rule_execution_failed',
       data: {
         rule_name: rule.name,
-        error_message: error.message
-      }
+        error_message: error.message,
+      },
     });
   }
 }
@@ -3065,29 +3299,33 @@ try {
 // Rule evaluation performance
 metrics.histogram('categorization.rules.evaluation_latency_ms', duration, {
   company_id: companyId,
-  execution_mode: 'standard'
+  execution_mode: 'standard',
 });
 
 // Rule match rate
 metrics.increment('categorization.rules.matches', 1, {
   rule_id: rule.rule_id,
-  rule_layer: rule.layer
+  rule_layer: rule.layer,
 });
 
 // Rule execution errors
 metrics.increment('categorization.rules.errors', 1, {
   rule_id: rule.rule_id,
-  error_type: 'condition_evaluation_failed'
+  error_type: 'condition_evaluation_failed',
 });
 
 // Candidate generation
-metrics.histogram('categorization.rules.candidates_generated', candidates.length, {
-  company_id: companyId
-});
+metrics.histogram(
+  'categorization.rules.candidates_generated',
+  candidates.length,
+  {
+    company_id: companyId,
+  },
+);
 
 // Cache performance
 metrics.increment('categorization.rules.cache_hit', 1, {
-  cache_level: 'local' | 'redis' | 'db'
+  cache_level: 'local' | 'redis' | 'db',
 });
 ```
 
@@ -3100,7 +3338,7 @@ logger.info('Rule evaluation started', {
   task_id: taskId,
   company_id: companyId,
   transaction_amount: enrichedTxn.raw.amount,
-  active_rules_count: rules.length
+  active_rules_count: rules.length,
 });
 
 logger.info('Rule matched', {
@@ -3109,14 +3347,14 @@ logger.info('Rule matched', {
   rule_name: rule.name,
   rule_layer: rule.layer,
   confidence: candidate.confidence,
-  journal_entries_count: candidate.journal_entries.length
+  journal_entries_count: candidate.journal_entries.length,
 });
 
 logger.warn('No rules matched', {
   task_id: taskId,
   company_id: companyId,
   description: enrichedTxn.normalized.description,
-  amount: enrichedTxn.raw.amount
+  amount: enrichedTxn.raw.amount,
 });
 ```
 
@@ -3146,11 +3384,11 @@ describe('ConditionEvaluator', () => {
       const condition: Condition = {
         field: 'normalized.description',
         operator: 'CONTAINS',
-        value: 'AWS'
+        value: 'AWS',
       };
 
       const txn: EnrichedTransaction = {
-        normalized: { description: 'aws web services' }
+        normalized: { description: 'aws web services' },
       };
 
       expect(ConditionEvaluator.evaluate(condition, txn)).toBe(true);
@@ -3161,11 +3399,11 @@ describe('ConditionEvaluator', () => {
         field: 'normalized.description',
         operator: 'CONTAINS',
         value: 'AWS',
-        case_sensitive: true
+        case_sensitive: true,
       };
 
       const txn: EnrichedTransaction = {
-        normalized: { description: 'aws web services' }
+        normalized: { description: 'aws web services' },
       };
 
       expect(ConditionEvaluator.evaluate(condition, txn)).toBe(false);
@@ -3178,13 +3416,17 @@ describe('ConditionEvaluator', () => {
         operator: 'AND',
         conditions: [
           { field: 'raw.amount', operator: 'GREATER_THAN', value: 100 },
-          { field: 'normalized.description', operator: 'CONTAINS', value: 'AWS' }
-        ]
+          {
+            field: 'normalized.description',
+            operator: 'CONTAINS',
+            value: 'AWS',
+          },
+        ],
       };
 
       const txn: EnrichedTransaction = {
         raw: { amount: 250 },
-        normalized: { description: 'AWS WEB SERVICES' }
+        normalized: { description: 'AWS WEB SERVICES' },
       };
 
       expect(ConditionEvaluator.evaluateGroup(conditions, txn)).toBe(true);
@@ -3197,24 +3439,32 @@ describe('ActionExecutor', () => {
     const rule: Rule = {
       actions: {
         journal_entries: [
-          { coa_id: 'expense-uuid', direction: 'DEBIT', amount: { type: 'PERCENTAGE', value: 100 } },
-          { coa_id: 'bank-uuid', direction: 'CREDIT', amount: { type: 'PERCENTAGE', value: 100 } }
-        ]
-      }
+          {
+            coa_id: 'expense-uuid',
+            direction: 'DEBIT',
+            amount: { type: 'PERCENTAGE', value: 100 },
+          },
+          {
+            coa_id: 'bank-uuid',
+            direction: 'CREDIT',
+            amount: { type: 'PERCENTAGE', value: 100 },
+          },
+        ],
+      },
     };
 
     const txn: EnrichedTransaction = {
-      raw: { amount: 150, currency_id: 'USD' }
+      raw: { amount: 150, currency_id: 'USD' },
     };
 
     const candidate = await ActionExecutor.execute(rule, txn, mockContext);
 
     const debits = candidate.journal_entries
-      .filter(e => e.direction === 'DEBIT')
+      .filter((e) => e.direction === 'DEBIT')
       .reduce((sum, e) => sum + e.amount, 0);
 
     const credits = candidate.journal_entries
-      .filter(e => e.direction === 'CREDIT')
+      .filter((e) => e.direction === 'CREDIT')
       .reduce((sum, e) => sum + e.amount, 0);
 
     expect(debits).toBe(credits);
@@ -3228,32 +3478,32 @@ describe('ActionExecutor', () => {
           {
             coa_id: 'expense-uuid',
             direction: 'DEBIT',
-            amount: { type: 'CALCULATED', formula: 'amount / 1.16' }
+            amount: { type: 'CALCULATED', formula: 'amount / 1.16' },
           },
           {
             coa_id: 'vat-uuid',
             direction: 'DEBIT',
-            amount: { type: 'CALCULATED', formula: 'amount * 0.16 / 1.16' }
+            amount: { type: 'CALCULATED', formula: 'amount * 0.16 / 1.16' },
           },
           {
             coa_id: 'bank-uuid',
             direction: 'CREDIT',
-            amount: { type: 'PERCENTAGE', value: 100 }
-          }
-        ]
-      }
+            amount: { type: 'PERCENTAGE', value: 100 },
+          },
+        ],
+      },
     };
 
     const txn: EnrichedTransaction = {
       raw: { amount: 116, currency_id: 'GBP' },
-      context: { tax_settings: { vat_rate: 16 } }
+      context: { tax_settings: { vat_rate: 16 } },
     };
 
     const candidate = await ActionExecutor.execute(rule, txn, mockContext);
 
-    expect(candidate.journal_entries[0].amount).toBeCloseTo(100, 2);  // Net
-    expect(candidate.journal_entries[1].amount).toBeCloseTo(16, 2);   // VAT
-    expect(candidate.journal_entries[2].amount).toBe(116);            // Gross
+    expect(candidate.journal_entries[0].amount).toBeCloseTo(100, 2); // Net
+    expect(candidate.journal_entries[1].amount).toBeCloseTo(16, 2); // VAT
+    expect(candidate.journal_entries[2].amount).toBe(116); // Gross
   });
 });
 ```
@@ -3272,22 +3522,34 @@ describe('Rules Engine Integration', () => {
       conditions: {
         operator: 'AND',
         conditions: [
-          { field: 'normalized.description', operator: 'CONTAINS', value: 'AWS' }
-        ]
+          {
+            field: 'normalized.description',
+            operator: 'CONTAINS',
+            value: 'AWS',
+          },
+        ],
       },
       actions: {
         journal_entries: [
-          { coa_id: 'cloud-expense-uuid', direction: 'DEBIT', amount: { type: 'PERCENTAGE', value: 100 } },
-          { coa_id: 'bank-uuid', direction: 'CREDIT', amount: { type: 'PERCENTAGE', value: 100 } }
-        ]
-      }
+          {
+            coa_id: 'cloud-expense-uuid',
+            direction: 'DEBIT',
+            amount: { type: 'PERCENTAGE', value: 100 },
+          },
+          {
+            coa_id: 'bank-uuid',
+            direction: 'CREDIT',
+            amount: { type: 'PERCENTAGE', value: 100 },
+          },
+        ],
+      },
     });
 
     const taskId = await createTestTask(companyId, {
       enriched_transaction: {
         normalized: { description: 'AWS WEB SERVICES' },
-        raw: { amount: 250, currency_id: 'USD' }
-      }
+        raw: { amount: 250, currency_id: 'USD' },
+      },
     });
 
     // Execute
@@ -3306,8 +3568,8 @@ describe('Rules Engine Integration', () => {
     const taskId = await createTestTask(companyId, {
       enriched_transaction: {
         normalized: { description: 'UNKNOWN VENDOR' },
-        raw: { amount: 50 }
-      }
+        raw: { amount: 50 },
+      },
     });
 
     const candidates = await RulesEngine.evaluate(taskId, 'standard');
@@ -3346,25 +3608,25 @@ describe('Rules Engine Integration', () => {
 
 ### Success Criteria
 
-| Criterion | Target | Measurement |
-|-----------|--------|-------------|
-| **Performance** | | |
-| Rule evaluation latency (p95) | <50ms | Prometheus metrics |
-| Throughput | >200 rules/sec | Load tests |
-| Cache hit rate | >95% | Metrics dashboard |
-| **Quality** | | |
-| Rule match accuracy | 100% | By definition (deterministic) |
-| Balance validation pass rate | 100% | Automated tests |
-| User acceptance rate | >90% | User feedback tracking |
-| **Coverage** | | |
-| System rule pack coverage | >50 common patterns | Manual review |
-| Transactions categorized by rules | >40% | Analytics dashboard |
-| **Operations** | | |
-| Worker uptime | >99.9% | Monitoring alerts |
-| Rule execution error rate | <0.5% | Error logs |
-| **Testing** | | |
-| Unit test coverage | >85% | Jest coverage report |
-| Integration tests passing | 100% | CI/CD pipeline |
+| Criterion                         | Target              | Measurement                   |
+| --------------------------------- | ------------------- | ----------------------------- |
+| **Performance**                   |                     |                               |
+| Rule evaluation latency (p95)     | <50ms               | Prometheus metrics            |
+| Throughput                        | >200 rules/sec      | Load tests                    |
+| Cache hit rate                    | >95%                | Metrics dashboard             |
+| **Quality**                       |                     |                               |
+| Rule match accuracy               | 100%                | By definition (deterministic) |
+| Balance validation pass rate      | 100%                | Automated tests               |
+| User acceptance rate              | >90%                | User feedback tracking        |
+| **Coverage**                      |                     |                               |
+| System rule pack coverage         | >50 common patterns | Manual review                 |
+| Transactions categorized by rules | >40%                | Analytics dashboard           |
+| **Operations**                    |                     |                               |
+| Worker uptime                     | >99.9%              | Monitoring alerts             |
+| Rule execution error rate         | <0.5%               | Error logs                    |
+| **Testing**                       |                     |                               |
+| Unit test coverage                | >85%                | Jest coverage report          |
+| Integration tests passing         | 100%                | CI/CD pipeline                |
 
 ---
 

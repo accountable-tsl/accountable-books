@@ -23,6 +23,9 @@ export const enrichmentJobDataSchema = z.object({
 
 export type EnrichmentJobData = z.infer<typeof enrichmentJobDataSchema>;
 
+const enrichmentProcessingType = z.enum(['primary', 'shadow']);
+export type EnrichmentProcessingType = z.infer<typeof enrichmentProcessingType>;
+
 // ============================================
 // CONTACT RESOLUTION
 // ============================================
@@ -59,7 +62,7 @@ export type ContactMatchConfidence = z.infer<typeof contactMatchConfidence>;
 export const contactResolutionResult = z.object({
   contact_id: z.string().nullable(),
   contact_name: z.string().nullable(),
-  contact_fingerprint: z.string().nullable(),
+  contact_fingerprint: z.string(),
   contact_match_confidence: contactMatchConfidence,
   contact_type: enrichmentContactType,
   global_contact_name: z.string().nullish(),
@@ -92,10 +95,20 @@ export const companyContextCache = z.object({
   coa_snapshot_version: z.string(),
   coa_snapshot_id: z.string(),
   coa_snapshot_checksum: z.string().optional(),
-  cached_at: z.iso.datetime(),
+  cached_at: z.date(),
 });
 
 export type CompanyContextCache = z.infer<typeof companyContextCache>;
+const enrichmentCompanyContext = companyContextCache
+  .omit({
+    display_name: true,
+    legal_name: true,
+    year_end_month: true,
+    year_end_day: true,
+  })
+  .extend({
+    company_name: z.string(),
+  });
 
 // export interface CompanyContextCache {
 //   companyId: string;
@@ -123,41 +136,68 @@ export type CompanyContextCache = z.infer<typeof companyContextCache>;
 //   companyId: string;
 //  ...
 // }
+const baseRollingStats = z.object({
+  transaction_count: z.number().int().nonnegative(),
+  amount_native_sum: z.number(),
+  amount_reporting_sum: z.number(),
+  avg_amount_native: z.number(),
+  avg_amount_reporting: z.number(),
+  stddev_amount_native: z.number(),
+  stddev_amount_reporting: z.number(),
+});
 
-export interface ContactStats {
-  id: string;
-  companyId: string;
-  contactId: string | null;
-  contactFingerprint: string;
-  normalizedName: string;
-  currencyCode: string;
-  totalTransactions: number;
-  totalAmountNative: number;
-  totalAmountReporting: number;
-  avgAmountNative: number;
-  avgAmountReporting: number;
-  stdDevAmountNative: number;
-  stdDevAmountReporting: number;
-  rolling30dTxnCount: number;
-  rolling30dTotalNative: number;
-  rolling30dTotalReporting: number;
-  rolling30dAvgNative: number;
-  rolling30dAvgReporting: number;
-  rolling30dStddevNative: number;
-  rolling30dStddevReporting: number;
-  rolling90dTxnCount: number;
-  rolling90dTotalNative: number;
-  rolling90dTotalReporting: number;
-  rolling90dAvgNative: number;
-  rolling90dAvgReporting: number;
-  rolling90dStddevNative: number;
-  rolling90dStddevReporting: number;
-  lastTransactionId: string | null;
-  lastTransactionDate: string | null;
-  statsSnapshotChecksum: string | null;
-  statsReplaySeq: number;
-  snapshotCapturedAt: string | null;
-}
+export const baseContactStats = z.object({
+  stats_row_id: z.string().nullable(),
+  stats_replay_seq: z.number().int().nonnegative(),
+  totals: baseRollingStats,
+  rolling_30d: baseRollingStats,
+  rolling_90d: baseRollingStats,
+  last_transaction_id: z.string().nullable(),
+  last_transaction_date: z.iso.date().nullable(),
+});
+export type BaseContactStats = z.infer<typeof baseContactStats>;
+
+export const contactStats = baseContactStats.extend({
+  checksum: z.string(),
+  as_of_transaction_id: z.string().nullable(),
+  as_of_transaction_date: z.iso.date().nullable(),
+});
+export type ContactStats = z.infer<typeof contactStats>;
+
+// export interface ContactStats {
+//   id: string;
+//   companyId: string;
+//   contactId: string | null;
+//   contactFingerprint: string;
+//   normalizedName: string;
+//   currencyCode: string;
+//   totalTransactions: number;
+//   totalAmountNative: number;
+//   totalAmountReporting: number;
+//   avgAmountNative: number;
+//   avgAmountReporting: number;
+//   stdDevAmountNative: number;
+//   stdDevAmountReporting: number;
+//   rolling30dTxnCount: number;
+//   rolling30dTotalNative: number;
+//   rolling30dTotalReporting: number;
+//   rolling30dAvgNative: number;
+//   rolling30dAvgReporting: number;
+//   rolling30dStddevNative: number;
+//   rolling30dStddevReporting: number;
+//   rolling90dTxnCount: number;
+//   rolling90dTotalNative: number;
+//   rolling90dTotalReporting: number;
+//   rolling90dAvgNative: number;
+//   rolling90dAvgReporting: number;
+//   rolling90dStddevNative: number;
+//   rolling90dStddevReporting: number;
+//   lastTransactionId: string | null;
+//   lastTransactionDate: string | null;
+//   statsSnapshotChecksum: string | null;
+//   statsReplaySeq: number;
+//   snapshotCapturedAt: string | null;
+// }
 
 // ============================================
 // MERCHANT PATTERNS
@@ -251,10 +291,27 @@ export interface PatternSignals {
   requires_fx_review?: boolean;
 }
 
+const temporalSchema = z.object({
+  day_of_week: z.int().min(0).max(6),
+  day_of_month: z.int().min(1).max(31),
+  calendar_month: z.int().min(1).max(12),
+  calendar_quarter: z.int().min(1).max(4),
+  fiscal_month: z.int().min(1).max(12),
+  fiscal_quarter: z.int().min(1).max(4),
+  fiscal_period: z.object({
+    year_start: z.iso.date(),
+    year_end: z.iso.date(),
+    quarter_start: z.iso.date(),
+    quarter_end: z.iso.date(),
+    month_start: z.iso.date(),
+    month_end: z.iso.date(),
+  }),
+});
+export type Temporal = z.infer<typeof temporalSchema>;
 // ============================================
 // ENRICHED TRANSACTION SCHEMA
 // ============================================
-
+// Date format: YYYY-MM-DD for transaction dates, ISO Date String for time
 export const enrichedTransactionSchema = z.object({
   version: z.string(), // v240601-01-1.0.0
 
@@ -269,7 +326,7 @@ export const enrichedTransactionSchema = z.object({
   }),
 
   raw: z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    date: z.iso.date(),
     description: z.string().nullable(),
     amount_native: z.number(),
     system_ex_rate: z.number(),
@@ -292,23 +349,7 @@ export const enrichedTransactionSchema = z.object({
     global_contact_category_hints: z.array(z.string()).nullish(),
   }),
 
-  context: z.object({
-    industry: z.string().nullish(),
-    company_name: z.string(),
-    company_description: z.string().nullish(),
-    company_website: z.string().nullish(),
-    country_id: z.uuid(),
-    country_code: z.string(),
-    accounting_basis: accountingBasis,
-    reporting_framework: z.union([reportingFramework, z.literal('other')]),
-    reporting_currency_id: z.uuid(),
-    reporting_currency_code: z.string().length(3),
-    transaction_currency_id: z.uuid(),
-    transaction_currency_code: z.string().length(3),
-    coa_snapshot_version: z.string(),
-    coa_snapshot_id: z.uuid(),
-    company_settings_checksum: z.string().nullish(),
-  }),
+  context: enrichmentCompanyContext,
 
   // historical: z.object({
   //   // Houses bank transaction contact rolling window and count stats
@@ -318,83 +359,23 @@ export const enrichedTransactionSchema = z.object({
   //   }),
   // }),
   historical: z.object({
-    bank_contact_stats_snapshot: z
-      .object({
-        stats_row_id: z.uuid().nullable(),
-        captured_at: z.string().datetime(),
-        as_of_transaction_id: z.uuid().nullable(),
-        as_of_transaction_date: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/)
-          .nullable(),
-        stats_replay_seq: z.number().int().nonnegative(),
-        checksum: z.string(),
-        totals: z.object({
-          transaction_count: z.number().int().nonnegative(),
-          amount_native_sum: z.number(),
-          amount_reporting_sum: z.number(),
-          avg_amount_native: z.number(),
-          avg_amount_reporting: z.number(),
-          stddev_amount_native: z.number(),
-          stddev_amount_reporting: z.number(),
-        }),
-        rolling_30d: z.object({
-          transaction_count: z.number().int().nonnegative(),
-          amount_native_sum: z.number(),
-          amount_reporting_sum: z.number(),
-          avg_amount_native: z.number(),
-          avg_amount_reporting: z.number(),
-          stddev_amount_native: z.number(),
-          stddev_amount_reporting: z.number(),
-        }),
-        rolling_90d: z.object({
-          transaction_count: z.number().int().nonnegative(),
-          amount_native_sum: z.number(),
-          amount_reporting_sum: z.number(),
-          avg_amount_native: z.number(),
-          avg_amount_reporting: z.number(),
-          stddev_amount_native: z.number(),
-          stddev_amount_reporting: z.number(),
-        }),
-        last_transaction_id: z.uuid().nullable(),
-        last_transaction_date: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/)
-          .nullable(),
-      })
-      .nullable(),
+    bank_contact_stats_snapshot: contactStats.nullish(),
   }),
 
   signals: z.object({
-    likely_split: z.boolean(),
+    likely_split: z.boolean().optional(),
     likely_trf_btw_accounts: z.boolean(),
     notes: z.array(z.string()),
     requires_vat_check: z.boolean().optional(),
     requires_fx_review: z.boolean().optional(),
   }),
 
-  temporal: z.object({
-    day_of_week: z.int().min(1).max(7),
-    day_of_month: z.int().min(1).max(31),
-    month: z.int().min(1).max(12),
-    quarter: z.int().min(1).max(4),
-    fiscal_quarter: z.int().min(1).max(4),
-    days_to_period_close: z.int().nonnegative(),
-    is_month_end: z.boolean(), // few days to end of acc month
-    is_year_end: z.boolean(), // few days to end of fiscal year
-    fiscal_period: z.object({
-      year_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      year_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      quarter_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      quarter_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      month_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      month_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    }),
-  }),
+  temporal: temporalSchema.optional(),
 
+  // TODO: Stage 1 leaves this undefined; populate once feedback stats flow feeds enrichment
   feedback_summary: z
     .object({
-      last_posted_at: z.string().datetime().nullable(),
+      last_posted_at: z.iso.date(),
       last_posted_coa_id: z.uuid().nullable(),
       acceptance_ratio_90d: z.number().min(0).max(1).nullable(),
       custom_exchange_rate: z.number().positive().nullish(),
@@ -405,15 +386,15 @@ export const enrichedTransactionSchema = z.object({
 
   metadata: z.object({
     source: categorizationTaskSource,
-    enriched_at: z.string().datetime(),
+    enriched_at: z.iso.datetime(),
     enrichment_latency_ms: z.int().nonnegative(),
     enrichment_version: z.string(),
     status: categorizationTaskStatus,
     error_message: z.string().nullish(),
-    processing_context: z.enum(['primary', 'shadow']).optional(),
+    processing_context: enrichmentProcessingType.optional(),
     stats_replay_seq: z.number().int().nonnegative().optional(),
     replay_reason: z.string().optional(),
-    recomputed_at: z.string().datetime().optional(),
+    recomputed_at: z.iso.datetime().optional(),
     stats_snapshot_checksum: z.string().optional(),
   }),
 });

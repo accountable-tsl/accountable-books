@@ -369,14 +369,12 @@ interface EnrichedTransaction {
     requires_fx_review?: boolean;
   };
   temporal: {
-    day_of_week: number;
+    day_of_week: number; // 0 = Sunday
     day_of_month: number;
-    month: number;
-    quarter: number;
+    calendar_month: number;
+    calendar_quarter: number;
+    fiscal_month: number;
     fiscal_quarter: number;
-    days_to_period_close: number;
-    is_month_end: boolean;
-    is_year_end: boolean;
     fiscal_period: {
       year_start: string; // YYYY-MM-DD
       year_end: string; // YYYY-MM-DD
@@ -397,11 +395,13 @@ interface EnrichedTransaction {
   metadata: {
     source: 'ingestion' | 'backfill' | 'manual';
     enriched_at: string;
-    enrichment_latency_ms: number; // for SLA monitoring
-    enrichment_version: string; // Hard coded
+    enrichment_latency_ms: number;
+    enrichment_version: string;
     status: 'enriched' | 'partial' | 'error';
     error_message?: string | null;
     processing_context?: 'primary' | 'shadow';
+    stats_replay_seq?: number;
+    stats_snapshot_checksum?: string;
   };
 }
 ```

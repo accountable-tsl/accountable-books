@@ -1,7 +1,8 @@
 import { knexClient } from '../../../db/knexClient.js';
 import type { Knex } from 'knex';
-import type { ContactStats } from './enrichment.types.js';
+import type { BaseContactStats } from './enrichment.types.js';
 import pino from 'pino';
+import { toYMD } from '../../../shared/index.js';
 
 const logger = pino();
 
@@ -10,22 +11,22 @@ const logger = pino();
  * Returns null if no stats exist for this contact
  */
 export async function getContactStats({
-  companyId,
+  companyUUID,
   contactFingerprint,
   currencyCode,
   contactId,
-  db,
+  trx,
 }: {
-  companyId: string;
+  companyUUID: string;
   contactFingerprint: string;
   currencyCode: string;
   contactId?: string | null;
-  db?: Knex | Knex.Transaction;
-}): Promise<ContactStats | null> {
-  const database = db || knexClient;
+  trx?: Knex.Transaction;
+}): Promise<BaseContactStats | null> {
+  const db = trx || knexClient;
 
-  const query = database('bank_transaction_contact_stats')
-    .where('company_id', companyId)
+  const query = db('bank_transaction_contact_stats')
+    .where('company_id', companyUUID)
     .where('contact_fingerprint', contactFingerprint)
     .where('currency_code', currencyCode)
     .where('is_deleted', false)
@@ -43,39 +44,39 @@ export async function getContactStats({
   if (!row) return null;
 
   return {
-    id: row.id,
-    companyId: row.company_id,
-    contactId: row.contact_id,
-    contactFingerprint: row.contact_fingerprint,
-    normalizedName: row.normalized_name,
-    currencyCode: row.currency_code,
-    totalTransactions: Number(row.total_transactions),
-    totalAmountNative: Number(row.total_amount_native),
-    totalAmountReporting: Number(row.total_amount_reporting),
-    avgAmountNative: Number(row.avg_amount_native),
-    avgAmountReporting: Number(row.avg_amount_reporting),
-    stdDevAmountNative: Number(row.std_dev_amount_native),
-    stdDevAmountReporting: Number(row.std_dev_amount_reporting),
-    rolling30dTxnCount: Number(row.rolling_30d_txn_count),
-    rolling30dTotalNative: Number(row.rolling_30d_total_native),
-    rolling30dTotalReporting: Number(row.rolling_30d_total_reporting),
-    rolling30dAvgNative: Number(row.rolling_30d_avg_native),
-    rolling30dAvgReporting: Number(row.rolling_30d_avg_reporting),
-    rolling30dStddevNative: Number(row.rolling_30d_stddev_native),
-    rolling30dStddevReporting: Number(row.rolling_30d_stddev_reporting),
-    rolling90dTxnCount: Number(row.rolling_90d_txn_count),
-    rolling90dTotalNative: Number(row.rolling_90d_total_native),
-    rolling90dTotalReporting: Number(row.rolling_90d_total_reporting),
-    rolling90dAvgNative: Number(row.rolling_90d_avg_native),
-    rolling90dAvgReporting: Number(row.rolling_90d_avg_reporting),
-    rolling90dStddevNative: Number(row.rolling_90d_stddev_native),
-    rolling90dStddevReporting: Number(row.rolling_90d_stddev_reporting),
-    lastTransactionId: row.last_transaction_id,
-    lastTransactionDate: row.last_transaction_date,
-    statsSnapshotChecksum: row.stats_snapshot_checksum || null,
-    statsReplaySeq: Number(row.stats_replay_seq || 0),
-    snapshotCapturedAt: row.snapshot_captured_at
-      ? new Date(row.snapshot_captured_at).toISOString()
+    stats_row_id: row.id,
+    stats_replay_seq: Number(row.stats_replay_seq) || 0,
+    totals: {
+      transaction_count: Number(row.total_transactions),
+      amount_native_sum: Number(row.total_amount_native),
+      amount_reporting_sum: Number(row.total_amount_reporting),
+      avg_amount_native: Number(row.avg_amount_native),
+      avg_amount_reporting: Number(row.avg_amount_reporting),
+      stddev_amount_native: Number(row.std_dev_amount_native),
+      stddev_amount_reporting: Number(row.std_dev_amount_reporting),
+    },
+    rolling_30d: {
+      transaction_count: Number(row.rolling_30d_txn_count),
+      amount_native_sum: Number(row.rolling_30d_total_native),
+      amount_reporting_sum: Number(row.rolling_30d_total_reporting),
+      avg_amount_native: Number(row.rolling_30d_avg_native),
+      avg_amount_reporting: Number(row.rolling_30d_avg_reporting),
+      stddev_amount_native: Number(row.rolling_30d_stddev_native),
+      stddev_amount_reporting: Number(row.rolling_30d_stddev_reporting),
+    },
+    rolling_90d: {
+      transaction_count: Number(row.rolling_90d_txn_count),
+      amount_native_sum: Number(row.rolling_90d_total_native),
+      amount_reporting_sum: Number(row.rolling_90d_total_reporting),
+      avg_amount_native: Number(row.rolling_90d_avg_native),
+      avg_amount_reporting: Number(row.rolling_90d_avg_reporting),
+      stddev_amount_native: Number(row.rolling_90d_stddev_native),
+      stddev_amount_reporting: Number(row.rolling_90d_stddev_reporting),
+    },
+
+    last_transaction_id: row.last_transaction_id,
+    last_transaction_date: row.last_transaction_date
+      ? toYMD(row.last_transaction_date)
       : null,
   };
 }

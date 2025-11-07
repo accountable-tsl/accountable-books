@@ -2,37 +2,27 @@ import { knexClient } from '../../../db/knexClient.js';
 import type { Knex } from 'knex';
 import type {
   EnrichedTransaction,
+  EnrichmentProcessingType,
   EnrichmentResult,
-  ContactResolutionResult,
-  MerchantPatternsFile,
-  ContactStats,
-  EnrichmentStatsContext,
-  MerchantPattern,
-  MccReferenceFile,
-} from './enrichment.types.js';
-import {
-  merchantPatternsFileSchema,
-  mccReferenceFileSchema,
 } from './enrichment.types.js';
 import { getCompanyContext } from './company-context.service.js';
 import { getContactStats } from './contact-stats.service.js';
 import {
   detectPatternSignals,
   computeTemporalFeatures,
-  calculateDaysToPeriodClose,
-  determineTypicalFrequency,
-  generateStatsSnapshotChecksum,
 } from './enrichment.utils.js';
 import pino from 'pino';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { contactType, type ContactType } from '../../contacts/index.js';
+
+const logger = pino({
+  name: 'enrichment-service',
+});
 import {
   normalizeDescription,
   tokenizeDescription,
 } from './utils/clean-desc.js';
 import { resolveContactForEnrichment } from './resolve-contact.service.js';
+import { generateChecksumSync, toYMD } from '../../../shared/index.js';
+import type { CategorizationTaskSource } from '../tasks/tasks.types.js';
 
 /**
  * Enrichment version identifier
@@ -58,6 +48,7 @@ const BANK_TX_SELECT_FIELDS = [
   'bt.payee as payee',
   'bt.contact_type_snapshot as contact_type',
   'bt.raw_data as raw_data',
+  'bt.source as source',
 
   // Bank account
   'ba.id as bank_account_id',
@@ -80,10 +71,17 @@ const BANK_TX_SELECT_FIELDS = [
  * Enrich a single bank transaction
  * This is the core enrichment function that produces an EnrichedTransaction object
  */
-export async function enrichTransaction(
-  bankTransactionId: string,
-  trx?: Knex.Transaction,
-): Promise<EnrichmentResult> {
+export async function enrichTransaction({
+  bankTransactionId,
+  processingContext,
+  taskSource,
+  trx,
+}: {
+  bankTransactionId: string;
+  processingContext?: EnrichmentProcessingType;
+  taskSource?: CategorizationTaskSource;
+  trx?: Knex.Transaction;
+}): Promise<EnrichmentResult> {
   const startTime = Date.now();
 
   const exec = async (tx: Knex.Transaction) => {
@@ -106,11 +104,22 @@ export async function enrichTransaction(
 
     // Load company context (cached via Redis)
     const companyContext = await getCompanyContext(companyUUID);
+    const {
+      legal_name,
+      display_name,
+      year_end_day,
+      year_end_month,
+      ...enrichmentContext
+    } = companyContext;
 
     // Normalize description
     const description = txn.description + txn.reference + txn.additional_notes;
     const normalizedDesc = normalizeDescription(description);
     const descriptionTokens = tokenizeDescription(normalizedDesc);
+    const normalizedReference = normalizeDescription(txn.reference);
+    const amountNative = Number(txn.amount_native);
+    const systemExRate = Number(txn.system_exchange_rate) || 1;
+    const amountReporting = amountNative * systemExRate;
 
     // Contact resolution
     const contactResolution = await resolveContactForEnrichment({
@@ -134,10 +143,145 @@ export async function enrichTransaction(
       trx: tx,
     });
 
-    const contactStats = '';
+    const contactStats = await getContactStats({
+      companyUUID,
+      contactFingerprint: contactResolution.contact_fingerprint,
+      currencyCode: txn.transaction_currency_code,
+      contactId: contactResolution.contact_id || null,
+      trx: tx,
+    });
+    let snapshot:
+      | (typeof contactStats & {
+          checksum: string;
+          as_of_transaction_id: string;
+          as_of_transaction_date: string;
+        })
+      | null = null;
+    if (contactStats) {
+      const checksum = generateChecksumSync(contactStats);
+      snapshot = {
+        ...contactStats,
+        checksum,
+        as_of_transaction_id: txn.bank_transaction_id,
+        as_of_transaction_date: toYMD(txn.date),
+      };
+    }
+
+    const signals = detectPatternSignals({
+      description: normalizedDesc,
+      amount: amountNative,
+      currencyCode: txn.transaction_currency_code,
+    });
+
+    const txnDateStr = toYMD(txn.date);
+    const temporals = computeTemporalFeatures({
+      txnDate: txnDateStr,
+      yearEndDay: Number(companyContext.year_end_day),
+      yearEndMonth: Number(companyContext.year_end_month),
+    });
+
+    const enrichedAt = new Date().toISOString();
+    const latencyMs = Date.now() - startTime;
+
+    const result: EnrichedTransaction = {
+      version: ENRICHMENT_VERSION,
+      ids: {
+        bank_transaction_id: txn.bank_transaction_id,
+        bank_transaction_batch_id: txn.bank_transaction_batch_id,
+        company_uuid: companyUUID,
+        bank_account_id: txn.bank_account_id,
+        bank_account_coa_id: txn.bank_account_coa_id,
+        contact_id: contactResolution.contact_id,
+        enrichment_job_id: null,
+      },
+      raw: {
+        date: txnDateStr,
+        description: description,
+        amount_native: amountNative,
+        system_ex_rate: systemExRate,
+        amount_reporting: amountReporting,
+        currency_code: txn.transaction_currency_code,
+        direction: amountNative > 0 ? 'inflow' : 'outflow',
+        source: txn.source ?? 'ingestion',
+        metadata: txn.raw_data,
+      },
+
+      normalized: {
+        description: normalizedDesc,
+        description_tokens: descriptionTokens,
+        contact_name: contactResolution.contact_name,
+        contact_fingerprint: contactResolution.contact_fingerprint,
+        contact_match_confidence: contactResolution.contact_match_confidence,
+        contact_type: contactResolution.contact_type,
+        normalized_reference: normalizedReference,
+        global_contact_name: contactResolution.global_contact_name,
+        global_contact_category_hints:
+          contactResolution.global_contact_category_hints,
+      },
+
+      context: {
+        company_name: legal_name ?? display_name,
+        ...enrichmentContext,
+      },
+
+      historical: {
+        bank_contact_stats_snapshot: snapshot,
+      },
+      signals: signals,
+      temporal: temporals,
+      feedback_summary: undefined, // TODO: populate once feedback stats are connected to enrichment
+      metadata: {
+        source: taskSource ?? 'ingestion',
+        enriched_at: enrichedAt,
+        enrichment_latency_ms: latencyMs,
+        enrichment_version: ENRICHMENT_VERSION,
+        status: 'enriched',
+        error_message: null,
+        processing_context: processingContext ?? 'primary',
+        stats_replay_seq:
+          snapshot && snapshot.stats_replay_seq > 0
+            ? snapshot.stats_replay_seq
+            : undefined,
+        stats_snapshot_checksum: snapshot?.checksum,
+      },
+    };
+
+    logger.debug(
+      { bankTransactionId, latencyMs },
+      'Transaction enrichment completed',
+    );
+
+    return {
+      success: true,
+      bankTransactionId,
+      enrichedTransaction: result,
+      latencyMs,
+    };
   };
 
-  return {} as EnrichmentResult;
+  try {
+    if (trx) {
+      return await exec(trx);
+    } else {
+      return await knexClient.transaction(exec);
+    }
+  } catch (error) {
+    const latencyMs = Date.now() - startTime;
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+
+    logger.error(
+      { error, bankTransactionId, latencyMs },
+      'Transaction enrichment failed',
+    );
+
+    return {
+      success: false,
+      bankTransactionId,
+      error: errorMessage,
+      latencyMs,
+    };
+  }
   // try {
   //   // Step 1: Load base transaction with minimal joins
   //   const txn = await db('bank_transactions as bt')
@@ -242,8 +386,8 @@ export async function enrichTransaction(
   //   const snapshotInfo = buildContactStatsSnapshot({
   //     contactStats,
   //     contactFingerprint: contactResolution.contactFingerprint,
-  //     transactionId: bankTransactionId,
-  //     transactionDate: txnDate,
+  //     asOfTransactionId: bankTransactionId,
+  //     asOfTransactionDate: toYMD(txnDate),
   //   });
   //   const statsSnapshot = snapshotInfo.snapshot;
   //   const statsContext = snapshotInfo.context;
@@ -655,109 +799,6 @@ function calculateFiscalPeriodBoundaries({
     month_start: monthStart,
     month_end: monthEnd,
   };
-}
-
-function buildContactStatsSnapshot({
-  contactStats,
-  contactFingerprint,
-  transactionId,
-  transactionDate,
-}: {
-  contactStats: ContactStats | null;
-  contactFingerprint: string | null;
-  transactionId: string;
-  transactionDate: Date;
-}): {
-  snapshot: EnrichedTransaction['historical']['bank_contact_stats_snapshot'];
-  context: EnrichmentStatsContext;
-} {
-  if (!contactStats) {
-    const baseContext: EnrichmentStatsContext = {
-      contactFingerprint,
-      statsRowId: null,
-      snapshotChecksum: null,
-      statsReplaySeq: 0,
-      snapshotCapturedAt: null,
-    };
-
-    return {
-      snapshot: null,
-      context: baseContext,
-    };
-  }
-
-  const asOfTransactionId =
-    contactStats.lastTransactionId ?? transactionId ?? null;
-  const asOfTransactionDate =
-    contactStats.lastTransactionDate ??
-    transactionDate.toISOString().slice(0, 10);
-
-  const payload = {
-    totals: {
-      transaction_count: contactStats.totalTransactions,
-      amount_native_sum: contactStats.totalAmountNative,
-      amount_reporting_sum: contactStats.totalAmountReporting,
-      avg_amount_native: contactStats.avgAmountNative,
-      avg_amount_reporting: contactStats.avgAmountReporting,
-      stddev_amount_native: contactStats.stdDevAmountNative,
-      stddev_amount_reporting: contactStats.stdDevAmountReporting,
-    },
-    rolling_30d: {
-      transaction_count: contactStats.rolling30dTxnCount,
-      amount_native_sum: contactStats.rolling30dTotalNative,
-      amount_reporting_sum: contactStats.rolling30dTotalReporting,
-      avg_amount_native: contactStats.rolling30dAvgNative,
-      avg_amount_reporting: contactStats.rolling30dAvgReporting,
-      stddev_amount_native: contactStats.rolling30dStddevNative,
-      stddev_amount_reporting: contactStats.rolling30dStddevReporting,
-    },
-    rolling_90d: {
-      transaction_count: contactStats.rolling90dTxnCount,
-      amount_native_sum: contactStats.rolling90dTotalNative,
-      amount_reporting_sum: contactStats.rolling90dTotalReporting,
-      avg_amount_native: contactStats.rolling90dAvgNative,
-      avg_amount_reporting: contactStats.rolling90dAvgReporting,
-      stddev_amount_native: contactStats.rolling90dStddevNative,
-      stddev_amount_reporting: contactStats.rolling90dStddevReporting,
-    },
-    last_transaction_id: contactStats.lastTransactionId,
-    last_transaction_date: contactStats.lastTransactionDate,
-  };
-
-  const checksum =
-    contactStats.statsSnapshotChecksum ||
-    generateStatsSnapshotChecksum({
-      stats_id: contactStats.id,
-      payload,
-    });
-
-  const capturedAt =
-    contactStats.snapshotCapturedAt || new Date().toISOString();
-
-  const snapshot: EnrichedTransaction['historical']['bank_contact_stats_snapshot'] =
-    {
-      stats_row_id: contactStats.id,
-      captured_at: capturedAt,
-      as_of_transaction_id: asOfTransactionId,
-      as_of_transaction_date: asOfTransactionDate,
-      stats_replay_seq: contactStats.statsReplaySeq ?? 0,
-      checksum,
-      totals: payload.totals,
-      rolling_30d: payload.rolling_30d,
-      rolling_90d: payload.rolling_90d,
-      last_transaction_id: contactStats.lastTransactionId,
-      last_transaction_date: contactStats.lastTransactionDate,
-    };
-
-  const context: EnrichmentStatsContext = {
-    contactFingerprint,
-    statsRowId: contactStats.id,
-    snapshotChecksum: checksum,
-    statsReplaySeq: contactStats.statsReplaySeq ?? 0,
-    snapshotCapturedAt: capturedAt,
-  };
-
-  return { snapshot, context };
 }
 
 /**

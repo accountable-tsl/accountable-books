@@ -1,5 +1,11 @@
-import { generateChecksumSync } from '../../../shared/index.js';
-import type { PatternSignals } from './enrichment.types.js';
+import {
+  dateDiff,
+  generateChecksumSync,
+  toDate,
+  toYMD,
+} from '../../../shared/index.js';
+import { fiscalCalendarService } from '../../reporting/fiscal-calendar/fiscal-calendar.service.js';
+import type { PatternSignals, Temporal } from './enrichment.types.js';
 
 /**
  * Detect pattern signals from transaction description and amount
@@ -115,31 +121,61 @@ export function detectPatternSignals({
   };
 }
 
+const calculateFiscalPeriod = fiscalCalendarService.calculateFiscalPeriodYMD;
+
 /**
- * Compute temporal features for a transaction date
+ * Compute temporal features for a transaction date.
+ * Conventions:
+ * - day_of_week: 0–6 (Sunday = 0, JS default)
+ * - day_of_month: 1–31
+ * - month: 1–12 (calendar month number)
+ * - quarter: 1–4 (calendar quarter)
+ * - fiscal_quarter: 1–4 relative to the company’s fiscal year
  */
 export function computeTemporalFeatures({
-  date,
-  fiscalYearEnd,
-  timezone,
+  txnDate,
+  yearEndDay,
+  yearEndMonth,
 }: {
-  date: Date;
-  fiscalYearEnd: string; // MM-DD format like "12-31"
-  timezone: string;
-}): {
-  day_of_week: number;
-  day_of_month: number;
-  month: number;
-  quarter: number;
-  fiscal_quarter: number;
-  is_month_end: boolean;
-  is_year_end: boolean;
-} {
-  // Convert to company timezone
-  const dateStr = date.toLocaleDateString('en-CA', { timeZone: timezone }); // YYYY-MM-DD
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const tzDate = new Date(year, month - 1, day);
+  txnDate: string;
+  yearEndDay: number;
+  yearEndMonth: number;
+}): Temporal {
+  const fy = calculateFiscalPeriod({
+    ymd: txnDate,
+    yearEndDay,
+    yearEndMonth,
+    periodType: 'yearly',
+  });
+  const { periodNumber: fyNum, startYMD: fyStart, endYMD: fyEnd } = fy;
 
+  const fyMonth = calculateFiscalPeriod({
+    ymd: txnDate,
+    yearEndDay,
+    yearEndMonth,
+    periodType: 'monthly',
+  });
+  const {
+    periodNumber: fyMonthNum,
+    startYMD: fyMonthStart,
+    endYMD: fyMonthEnd,
+  } = fyMonth;
+
+  const fyQuarter = calculateFiscalPeriod({
+    ymd: txnDate,
+    yearEndDay,
+    yearEndMonth,
+    periodType: 'quarterly',
+  });
+  const {
+    periodNumber: fyQuarterNum,
+    startYMD: fyQuarterStart,
+    endYMD: fyQuarterEnd,
+  } = fyQuarter;
+
+  const tzDate = toDate(txnDate, 'start'); // Use TZ later
+
+  // Calendar dates
   const day_of_week = tzDate.getDay(); // 0 = Sunday
   const day_of_month = tzDate.getDate();
   const monthNum = tzDate.getMonth() + 1; // 1-12
@@ -147,35 +183,21 @@ export function computeTemporalFeatures({
   // Calendar quarter
   const quarter = Math.ceil(monthNum / 3);
 
-  // Check if month end
-  const lastDayOfMonth = new Date(year, monthNum, 0).getDate();
-  const is_month_end = day === lastDayOfMonth;
-
-  // Check if year end (calendar)
-  const is_year_end = monthNum === 12 && day === 31;
-
-  // Fiscal quarter calculation
-  const [fyEndMonth, fyEndDay] = fiscalYearEnd.split('-').map(Number);
-
-  // Determine fiscal year start month
-  const fyStartMonth = fyEndMonth === 12 ? 1 : fyEndMonth + 1;
-
-  // Calculate months since fiscal year start
-  let monthsSinceFYStart = monthNum - fyStartMonth;
-  if (monthsSinceFYStart < 0) {
-    monthsSinceFYStart += 12;
-  }
-
-  const fiscal_quarter = Math.ceil((monthsSinceFYStart + 1) / 3);
-
   return {
     day_of_week,
     day_of_month,
-    month: monthNum,
-    quarter,
-    fiscal_quarter,
-    is_month_end,
-    is_year_end,
+    calendar_month: monthNum,
+    calendar_quarter: quarter,
+    fiscal_month: fyMonthNum,
+    fiscal_quarter: fyQuarterNum,
+    fiscal_period: {
+      year_start: fyStart,
+      year_end: fyEnd,
+      quarter_start: fyQuarterStart,
+      quarter_end: fyQuarterEnd,
+      month_start: fyMonthStart,
+      month_end: fyMonthEnd,
+    },
   };
 }
 

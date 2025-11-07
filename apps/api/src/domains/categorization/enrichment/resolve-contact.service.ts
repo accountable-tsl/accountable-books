@@ -186,9 +186,7 @@ export async function resolveContactForEnrichment({
 
     const fingerprintSource =
       fingerprintSeed ?? contactName?.toLowerCase()?.trim() ?? null;
-    const contact_fingerprint = contactName
-      ? generateFingerprintSync(fingerprintSource)
-      : null;
+    const contact_fingerprint = generateFingerprintSync(fingerprintSource);
 
     return {
       contact_id: resolvedContactId,

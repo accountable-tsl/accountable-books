@@ -132,7 +132,11 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
         const transactionStartTime = Date.now();
 
         await knexClient.transaction(async (trx) => {
-          const result = await enrichTransaction(bankTransactionId, trx);
+          const result = await enrichTransaction({
+            bankTransactionId,
+            taskSource: source,
+            trx,
+          });
 
           if (!result.success || !result.enrichedTransaction) {
             throw new Error(

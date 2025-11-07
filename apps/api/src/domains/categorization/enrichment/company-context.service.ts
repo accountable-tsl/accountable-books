@@ -140,7 +140,7 @@ async function loadCompanyContextFromDB({
     coa_snapshot_version,
     coa_snapshot_id,
     coa_snapshot_checksum,
-    cached_at: new Date().toISOString(),
+    cached_at: new Date(),
   };
 
   return context;

@@ -79,6 +79,14 @@ export async function up(knex: Knex): Promise<void> {
       .nullable()
       .comment('FK to bank_transactions (composite with id)');
 
+    table
+      .integer('stats_replay_seq')
+      .notNullable()
+      .defaultTo(0)
+      .comment(
+        'Incremented whenever we rebuild this row during a replay/backfill so downstream consumers know the context changed',
+      );
+
     addStandardColumns(knex, table);
 
     // Composite unique constraint
