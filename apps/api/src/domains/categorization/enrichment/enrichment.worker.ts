@@ -11,7 +11,7 @@ import type {
 } from './enrichment.types.js';
 import { enrichmentJobDataSchema } from './enrichment.types.js';
 import { enrichTransaction } from './enrichment.service.js';
-import { incrementContactStats } from './contactStats.service.js';
+import { incrementContactStats } from './contact-stats.service.js';
 import { generateEnrichmentChecksum } from './enrichment.utils.js';
 import { ENRICHMENT_QUEUE_NAME } from './enrichment.queue.js';
 
@@ -87,7 +87,7 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
     // for (...) { ... }
 
     // Fetch transaction dates for deterministic ordering
-    const transactionRows  = await knexClient('bank_transactions')
+    const transactionRows = await knexClient('bank_transactions')
       .select('id', 'date')
       .whereIn('id', bankTransactionIds);
 

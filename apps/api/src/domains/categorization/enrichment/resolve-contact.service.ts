@@ -19,6 +19,12 @@ import { readFileSync } from 'fs';
 import { generateFingerprintSync, logger } from '../../../shared/index.js';
 import { extractMccFromDescription } from './utils/mcc-from-desc.js';
 import { knexClient } from '../../../db/knexClient.js';
+import {
+  buildAliasMatcher,
+  resolveDescriptionHeuristics,
+  extendAliasMatcher,
+  type AliasMatcher,
+} from './resolve-contact-heuristics.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -31,6 +37,8 @@ let mccReferenceFile: MccReferenceFile | null = null;
 let merchantPatterns: CompiledMerchantPattern[] = [];
 let mccReference: MccReference[] = [];
 const mccByCode = new Map<string, MccReference>();
+
+const aliasCache = new Map<string, AliasMatcher>();
 
 const loadMerchants = async () => {
   try {
@@ -68,23 +76,41 @@ const loadMerchants = async () => {
 await loadMerchants();
 
 export async function resolveContactForEnrichment({
-  companyUUID,
+  company,
+  bankAccount,
   contactId,
   contactTypeSnapshot,
   payee,
   description,
+  transactionAmount,
   trx,
 }: {
-  companyUUID: string;
+  company: {
+    uuid: string;
+    displayName: string;
+    legalName?: string;
+    countryCode?: string | null;
+  };
+  bankAccount: {
+    accountName?: string;
+    displayName?: string;
+    aliases?: string[];
+  } | null;
   contactId: string | null;
   contactTypeSnapshot?: ContactType | null;
   payee: string | null;
   description: string;
+  transactionAmount?: number | null;
   trx?: Knex.Transaction;
 }): Promise<ContactResolutionResult> {
+  const companyUUID = company.uuid;
+
   const exec = async (tx: Knex.Transaction) => {
+    let resolvedContactId: string | null = contactId;
     let contactName: string | null = null;
     let confidence: ContactMatchConfidence = 'unmatched';
+    let contactType: EnrichmentContactType = contactTypeSnapshot ?? 'unknown';
+    let fingerprintSeed: string | null = null;
 
     // If contact id is provided, get the contact from db
     if (contactId || payee) {
@@ -95,23 +121,50 @@ export async function resolveContactForEnrichment({
           is_deleted: false,
         })
         .where((b) => {
-          b.where('id', contactId).orWhere('display_name', payee);
+          if (contactId) {
+            b.orWhere('id', contactId);
+          }
+          if (payee) {
+            b.orWhere('display_name', payee);
+          }
         })
+
         .first();
 
       if (existingContact) {
+        resolvedContactId = existingContact.id;
         contactName = existingContact.normalized_name;
         confidence = 'high';
+        fingerprintSeed = existingContact.normalized_name.toLowerCase();
       }
     }
 
     // If contact id is not provided or contact is not found, get the contact from heuristics
     if (!contactName) {
-      const heuristicName = extractContactFromDescription(description);
-      if (heuristicName) {
-        contactName = heuristicName;
-        confidence = 'low';
-      }
+      // Get company alias matcher
+      const bankAccountAliases = bankAccount?.aliases;
+      const aliasInfo = getCompanyAliasMatcher(company, bankAccount);
+
+      const enrichedAliasInfo =
+        bankAccountAliases && bankAccountAliases.length > 0
+          ? extendAliasMatcher(aliasInfo, bankAccountAliases)
+          : aliasInfo;
+      const heuristic = resolveDescriptionHeuristics({
+        companyId: companyUUID,
+        description,
+        aliasInfo: enrichedAliasInfo,
+        preferredContactType: contactType,
+        countryCode: company?.countryCode,
+        transactionAmount,
+      });
+
+      contactName = heuristic.contactName;
+      contactType = heuristic.contactType;
+      confidence = heuristic.confidence;
+      fingerprintSeed =
+        heuristic.fingerprintSeed ??
+        heuristic.contactName?.toLowerCase() ??
+        null;
     }
 
     // Regardless of state, attempt to search for any fuzzy matches in the global merchant or MCC registry
@@ -124,26 +177,29 @@ export async function resolveContactForEnrichment({
 
     const global_contact_name =
       merchantMatch?.merchant.name ?? mccMatch?.obj.title ?? null;
-    const global_contact_category_hints = [
-      ...(mccMatch?.obj.category_hints ?? []),
-      ...(merchantMatch?.merchant.category_hints ?? []),
-    ];
+    const global_category_hints = Array.from(
+      new Set([
+        ...(mccMatch?.obj.category_hints ?? []),
+        ...(merchantMatch?.merchant.category_hints ?? []),
+      ]),
+    );
 
+    const fingerprintSource =
+      fingerprintSeed ?? contactName?.toLowerCase()?.trim() ?? null;
     const contact_fingerprint = contactName
-      ? generateFingerprintSync(contactName.toLowerCase().trim())
+      ? generateFingerprintSync(fingerprintSource)
       : null;
 
-    const contact_type: EnrichmentContactType =
-      contactTypeSnapshot ?? 'unknown';
     return {
-      contact_id: contactId,
+      contact_id: resolvedContactId,
       contact_name: contactName,
       contact_fingerprint,
       contact_match_confidence: confidence,
       global_contact_name,
-      global_contact_category_hints,
-      contact_type,
-      mcc: mccMatch?.code,
+      global_contact_category_hints:
+        global_category_hints.length > 0 ? global_category_hints : null,
+      contact_type: contactType,
+      mcc: mccMatch?.code ?? null,
     };
   };
 
@@ -153,6 +209,8 @@ export async function resolveContactForEnrichment({
     return await knexClient.transaction(exec);
   }
 }
+
+type ResolveContactParams = Parameters<typeof resolveContactForEnrichment>[0];
 
 export function matchGlobalMerchant(
   description: string,
@@ -204,4 +262,34 @@ function compileMerchantPatterns(
   }
 
   return compiled;
+}
+
+function getCompanyAliasMatcher(
+  company: ResolveContactParams['company'],
+  bankAccount: ResolveContactParams['bankAccount'],
+): AliasMatcher {
+  const cached = aliasCache.get(company.uuid);
+  if (cached) {
+    const extended = extendAliasMatcher(cached, [
+      bankAccount?.displayName,
+      bankAccount?.accountName,
+    ]);
+    aliasCache.set(company.uuid, extended);
+    return extended;
+  }
+
+  const aliasValues = [
+    company?.displayName,
+    company?.legalName,
+    bankAccount?.displayName,
+    bankAccount?.accountName,
+  ].filter((value): value is string => Boolean(value));
+
+  const matcher = buildAliasMatcher({
+    aliases: aliasValues,
+    primaryDisplayName: company?.displayName ?? company?.legalName ?? null,
+  });
+
+  aliasCache.set(company.uuid, matcher);
+  return matcher;
 }

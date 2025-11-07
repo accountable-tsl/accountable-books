@@ -95,6 +95,7 @@ export async function up(knex: Knex): Promise<void> {
       'owner',
       'government',
       'internal',
+      'banker',
       'other',
     ]),
   );

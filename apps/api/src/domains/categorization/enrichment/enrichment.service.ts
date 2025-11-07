@@ -15,7 +15,7 @@ import {
   mccReferenceFileSchema,
 } from './enrichment.types.js';
 import { getCompanyContext } from './company-context.service.js';
-import { getContactStats } from './contactStats.service.js';
+import { getContactStats } from './contact-stats.service.js';
 import {
   detectPatternSignals,
   computeTemporalFeatures,
@@ -63,10 +63,17 @@ const BANK_TX_SELECT_FIELDS = [
   'ba.id as bank_account_id',
   'ba.company_id as company_id',
   'ba.coa_id as bank_account_coa_id',
+  'ba.account_name as bank_account_name',
+  'ba.display_name as bank_account_display_name',
+  'ba.currency_id as transaction_currency_id',
 
-  // Transaction currency
-  'cur.id as transaction_currency_id',
+  // Bank
+  'b.id as bank_id',
+  'b.currency_id as bank_currency_id',
+
+  // Currency
   'cur.code as transaction_currency_code',
+  'bank_currency.code as bank_currency_code',
 ];
 
 /**
@@ -85,6 +92,8 @@ export async function enrichTransaction(
       .select(BANK_TX_SELECT_FIELDS)
       .leftJoin('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
       .leftJoin('currencies as cur', 'ba.currency_id', 'cur.id')
+      .leftJoin('banks as b', 'ba.bank_id', 'b.id')
+      .join('currencies as bank_currency', 'b.currency_id', 'bank_currency.id')
       .where('bt.id', bankTransactionId)
       .where('bt.is_deleted', false)
       .first();
@@ -105,11 +114,23 @@ export async function enrichTransaction(
 
     // Contact resolution
     const contactResolution = await resolveContactForEnrichment({
-      companyUUID,
+      company: {
+        uuid: companyUUID,
+        legalName: companyContext.legal_name || '',
+        displayName: companyContext.display_name || '',
+        countryCode: txn.bank_currency_code || companyContext.country_code,
+      },
+      bankAccount: {
+        accountName: txn.bank_account_name,
+        displayName: txn.bank_account_display_name,
+      },
       contactId: txn.contact_id || null,
       contactTypeSnapshot: txn.contact_type || null,
       payee: txn.payee,
       description: normalizedDesc,
+      transactionAmount: txn.amount_native
+        ? Math.abs(Number(txn.amount_native))
+        : null,
       trx: tx,
     });
 

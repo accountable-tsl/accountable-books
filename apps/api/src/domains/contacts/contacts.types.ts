@@ -19,6 +19,7 @@ export const contactType = z.enum([
   'owner', // equity holders or principal partners
   'government', // tax authorities, regulators, statutory bodies, etc
   'internal', // company-controlled accounts/entities
+  'banker',
   'other',
 ]);
 export type ContactType = z.infer<typeof contactType>;

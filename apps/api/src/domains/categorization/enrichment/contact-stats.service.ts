@@ -215,7 +215,8 @@ export async function incrementContactStats(
         amount_native_abs: absAmountNative,
         amount_reporting_abs: absAmountReporting,
         snapshot_checksum: snapshotChecksum || null,
-        stats_replay_seq: statsReplaySeq ?? Number(statsRow.stats_replay_seq || 0),
+        stats_replay_seq:
+          statsReplaySeq ?? Number(statsRow.stats_replay_seq || 0),
         is_deleted: false,
       })
       .onConflict('transaction_id')
@@ -229,7 +230,8 @@ export async function incrementContactStats(
         amount_native_abs: absAmountNative,
         amount_reporting_abs: absAmountReporting,
         snapshot_checksum: snapshotChecksum || null,
-        stats_replay_seq: statsReplaySeq ?? Number(statsRow.stats_replay_seq || 0),
+        stats_replay_seq:
+          statsReplaySeq ?? Number(statsRow.stats_replay_seq || 0),
         is_deleted: false,
         updated_at: db.fn.now(),
       });
@@ -257,18 +259,14 @@ export async function incrementContactStats(
     const totalsNativeSq = Number(totals?.total_native_sq || 0);
     const totalsReportingSq = Number(totals?.total_reporting_sq || 0);
 
-    const aggregateAvgNative =
-      totalsCount > 0 ? totalsNative / totalsCount : 0;
+    const aggregateAvgNative = totalsCount > 0 ? totalsNative / totalsCount : 0;
     const aggregateAvgReporting =
       totalsCount > 0 ? totalsReporting / totalsCount : 0;
 
     const aggregateStdDevNative =
       totalsCount > 0
         ? Math.sqrt(
-            Math.max(
-              totalsNativeSq / totalsCount - aggregateAvgNative ** 2,
-              0,
-            ),
+            Math.max(totalsNativeSq / totalsCount - aggregateAvgNative ** 2, 0),
           )
         : 0;
     const aggregateStdDevReporting =
@@ -322,8 +320,10 @@ export async function incrementContactStats(
         rolling_90d_stddev_reporting: rolling90d.stddevReporting,
         last_transaction_id: transactionId,
         last_transaction_date: transactionDate,
-        stats_snapshot_checksum: snapshotChecksum || statsRow.stats_snapshot_checksum || null,
-        stats_replay_seq: statsReplaySeq ?? Number(statsRow.stats_replay_seq || 0),
+        stats_snapshot_checksum:
+          snapshotChecksum || statsRow.stats_snapshot_checksum || null,
+        stats_replay_seq:
+          statsReplaySeq ?? Number(statsRow.stats_replay_seq || 0),
         snapshot_captured_at:
           snapshotCapturedAt || statsRow.snapshot_captured_at || null,
         updated_at: db.fn.now(),
