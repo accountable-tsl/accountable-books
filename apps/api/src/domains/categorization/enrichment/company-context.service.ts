@@ -3,6 +3,7 @@ import { knexClient } from '../../../db/knexClient.js';
 import type { CompanyContextCache } from './enrichment.types.js';
 import pino from 'pino';
 import type { Knex } from 'knex';
+import { generateChecksumSync } from '../../../shared/index.js';
 
 const logger = pino();
 
@@ -119,6 +120,20 @@ async function loadCompanyContextFromDB({
   const coa_snapshot_id = coaSnapshot.id;
   const coa_snapshot_version = coaSnapshot.snapshot_version;
   const coa_snapshot_checksum = coaSnapshot.checksum;
+  const companySettingsChecksum = generateChecksumSync(
+    {
+      accounting_basis: company.accounting_basis,
+      reporting_framework: company.reporting_framework,
+      reporting_currency_id: company.reporting_currency_id,
+      reporting_currency_code: company.reporting_currency_code,
+      year_end_day: company.year_end_day,
+      year_end_month: company.year_end_month,
+      default_timezone: company.default_timezone,
+      country_code: company.country_code,
+      type: company.type,
+    },
+    { sortKeys: true },
+  );
 
   const context: CompanyContextCache = {
     company_uuid: companyUUID || company.id,
@@ -137,6 +152,7 @@ async function loadCompanyContextFromDB({
     year_end_day: company.year_end_day,
     year_end_month: company.year_end_month,
     default_timezone: company.default_timezone,
+    company_settings_checksum: companySettingsChecksum,
     coa_snapshot_version,
     coa_snapshot_id,
     coa_snapshot_checksum,

@@ -352,7 +352,9 @@ export const safeChecksum = safeFingerprint;
 
 export const createFingerprint = (fingerprint: string): Fingerprint => {
   if (!isValidFingerprint(fingerprint)) {
-    throw new Error(`Cannot create fingerprint from invalid string: ${fingerprint}`);
+    throw new Error(
+      `Cannot create fingerprint from invalid string: ${fingerprint}`,
+    );
   }
   return fingerprint as Fingerprint;
 };

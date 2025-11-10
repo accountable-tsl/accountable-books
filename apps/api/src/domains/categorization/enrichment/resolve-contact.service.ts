@@ -185,8 +185,17 @@ export async function resolveContactForEnrichment({
     );
 
     const fingerprintSource =
-      fingerprintSeed ?? contactName?.toLowerCase()?.trim() ?? null;
-    const contact_fingerprint = generateFingerprintSync(fingerprintSource);
+      fingerprintSeed ?? contactName?.toLowerCase()?.trim();
+
+    const fallbackSeed =
+      fingerprintSource && fingerprintSource.length > 0
+        ? fingerprintSource
+        : payee
+          ? payee
+          : description.trim().length > 0
+            ? description.toLowerCase().trim()
+            : `${companyUUID}:unknown-contact`;
+    const contact_fingerprint = generateFingerprintSync(fallbackSeed);
 
     return {
       contact_id: resolvedContactId,

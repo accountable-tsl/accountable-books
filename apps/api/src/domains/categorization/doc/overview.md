@@ -783,3 +783,41 @@ ML explanations must never mention other tenants' data. Similarity evidence is s
 ### Consider how to handle changes to account_types
 
 ---
+
+### The Flow
+
+#### Stage 1 Batch Walkthrough (5 Transactions)
+
+- Job intake (enrichment.queue.ts → enrichment.worker.ts:41-205): a BullMQ job arrives with 5 bankTransactionIds. The worker dedupes, sorts by date for deterministic processing, and iterates one ID at a time. This ordering keeps stats monotonic—rolling windows make sense only if transactions are replayed in chronological order.
+
+- Per-transaction transaction block (enrichment.worker.ts:134-205 + enrichment.service.ts:74-284):
+  - Open a DB tx. The service loads the raw bank transaction, account, currency, and cached company context; normalizes text (enrichment.utils.ts) and resolves contact heuristics (resolve-contact.service.ts). Output is the EnrichedTransaction DTO plus a statsContext snapshot of whatever contact stats existed before this transaction.
+  - The worker persists the DTO into categorization_tasks (insert or update). This table is the authoritative store of the enriched payload so downstream Stages 2/3 don’t need to hit bank_transactions again; it also keeps audit history and feeds ML training.
+
+- Contact stats contribution (enrichment.worker.ts:152-193 → contact-stats.service.ts:142-308):
+  - Still inside the same DB tx, we call incrementContactStats. This locks/creates the aggregate row in bank_transaction_contact_stats (per company + currency + contact fingerprint), computes a checksum on the pre-update state, and inserts/merges one row into bank_transaction_contact_stats_entries.
+  - bank_transaction_contact_stats_entries is the immutable ledger: one record per bank transaction carrying absolute amounts, transaction date, and the stats replay sequence/checksum at the time of insertion. With 5 transactions you get 5 entry rows. They let us recompute totals deterministically, undo a transaction by flipping is_deleted, and detect replays (because the equivalent of journal lines is stored explicitly).
+  - After inserting the entry, we aggregate over that table (counts, sums, squared sums for variance, 30/90‑day windows filtered by date) and update the main stats row. Fields stats_snapshot_checksum and snapshot_captured_at are set to the checksum/timestamp of this new aggregate state, so future enrichments—and downstream consumers—can tell whether their cached snapshot is stale. stats_replay_seq increments when we run a chronological replay; each DTO stores the value it saw, so mismatches flag that the historical context changed.
+
+- Commit + event: once DTO persistence and stats increment succeed we commit the DB tx. At this point categorization_tasks, bank_transaction_contact_stats, and bank_transaction_contact_stats_entries have all been updated atomically for that transaction. Only then do we emit (or enqueue) transaction.enriched so Stage 2 rules/ML know there’s new work. This sequencing is important: downstream stages must never see an enrichment event if the snapshot or stats didn’t persist.
+
+- Repeat for remaining items: continue through the sorted IDs. Each iteration reuses cached company context but recalculates everything else. Because transactions are processedsequentially within the batch, each contact’s rolling stats reflect the new transaction before the next one runs, ensuring accurate streaks/seasonality even inside a single job.
+
+Why this matters
+
+- categorization_tasks provides idempotent enrichment storage, versioning, and replay: re-enriching the same bank transaction just updates the JSON and checksum instead of regenerating features downstream.
+- bank_transaction_contact_stats holds the current aggregates that Stage 2 can read quickly (contact frequency, 30/90 d amounts, last seen, etc.). It’s the feature store for deterministic rules and ML alike.
+- bank_transaction_contact_stats_entries is the source of truth for how those aggregates were built. Without it we can’t:
+  1. Delete/reverse a transaction cleanly.
+  2. Recompute rolling windows without re-reading bank_transactions.
+  3. Prove to auditors exactly which bank lines contributed to a stat row.
+- The checksum/snapshot metadata ties DTOs to the stats state they were built from. When a replay or manual correction mutates stats later, you can flag all previously enriched transactions whose historical.bank_contact_stats_snapshot.checksum differs from the row’s current checksum and decide whether to re-run Stage 2 for them.
+
+So in a 5-transaction batch the worker will touch:
+
+- categorization_tasks (5 rows insert/update),
+- bank_transaction_contact_stats_entries (5 contributions),
+- bank_transaction_contact_stats (the rows for each distinct contact fingerprint in those transactions, updated after every contribution),
+- plus the BullMQ job metadata and whatever event bridge you use for transaction.enriched.
+
+That’s the “ledger → aggregate → snapshot” trio the plan relies on: entries keep the detailed ledger, stats are the summarized view, and the DTO snapshot captures the exact version used for downstream reasoning.

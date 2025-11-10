@@ -11,9 +11,14 @@ import type {
 } from './enrichment.types.js';
 import { enrichmentJobDataSchema } from './enrichment.types.js';
 import { enrichTransaction } from './enrichment.service.js';
-import { incrementContactStats } from './contact-stats.service.js';
-import { generateEnrichmentChecksum } from './enrichment.utils.js';
+import { incrementContactStats } from '../stats/stats.service.js';
 import { ENRICHMENT_QUEUE_NAME } from './enrichment.queue.js';
+import type { CategorizationTaskSource } from '../tasks/tasks.types.js';
+import { upsertCategorizationTask } from '../tasks/tasks.service.js';
+import {
+  emitTxnEnrichedEvent,
+  type TransactionEnrichedEventData,
+} from '../events/transaction-events.service.js';
 
 const logger = pino();
 
@@ -115,6 +120,7 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
 
     for (let i = 0; i < sortedTransactionIds.length; i++) {
       const bankTransactionId = sortedTransactionIds[i];
+      const bankTransactionDate = dateLookup.get(bankTransactionId);
 
       try {
         const progress = Math.floor(((i + 1) / totalTransactions) * 100);
@@ -131,6 +137,8 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
 
         const transactionStartTime = Date.now();
 
+        let pendingEvent: TransactionEnrichedEventData | null = null;
+
         await knexClient.transaction(async (trx) => {
           const result = await enrichTransaction({
             bankTransactionId,
@@ -145,51 +153,89 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
             );
           }
 
-          const checksum = generateEnrichmentChecksum(
-            result.enrichedTransaction,
-          );
+          const enrichedTransaction = result.enrichedTransaction;
+          const companyUUID = enrichedTransaction.context.company_uuid;
+          const bankTransactionDate = enrichedTransaction.raw.date;
+          const contactFingerprint =
+            result.enrichedTransaction.normalized.contact_fingerprint;
 
           const persistOutcome = await persistEnrichedTransaction(
-            companyId,
-            bankTransactionId,
-            result.enrichedTransaction,
-            source,
-            job.id || undefined,
-            trx,
             {
-              checksum,
-              statsSnapshotChecksum:
-                result.statsContext?.snapshotChecksum || null,
+              company_uuid: result.enrichedTransaction.context.company_uuid,
+              bank_transaction_id: bankTransactionId,
+              bank_transaction_date: bankTransactionDate,
+              enriched_transaction: enrichedTransaction,
+              enrichment_version: enrichedTransaction.version,
+              status: enrichedTransaction.metadata.status,
+              source,
+              checksum: result.checksum,
+              jobId: job.id || undefined,
+              trx,
             },
+
+            // “didPersist” ensures we only revisit stats when the enriched payload actually changed,
+            // stats entries table ensures that reprocessing the same bank transaction can’t inflate counts or amounts
+
+            // companyId,
+            // bankTransactionId,
+            // result.enrichedTransaction,
+            // source,
+            // job.id || undefined,
+            // trx,
+            // {
+            //   checksum,
+            //   statsSnapshotChecksum:
+            //     result.statsContext?.snapshotChecksum || null,
+            // },
           );
 
-          if (
-            result.enrichedTransaction.normalized.contact_fingerprint &&
-            persistOutcome.didPersist
-          ) {
+          if (contactFingerprint && persistOutcome.didPersist) {
             await incrementContactStats(
               {
-                companyId,
-                contactFingerprint:
-                  result.enrichedTransaction.normalized.contact_fingerprint,
-                normalizedName:
-                  result.enrichedTransaction.normalized.contact_name ||
-                  'Unknown',
-                currencyCode: result.enrichedTransaction.raw.currency_code,
-                contactId: result.enrichedTransaction.ids.contact_id || null,
-                amountNative: result.enrichedTransaction.raw.amount_native,
-                amountReporting:
-                  result.enrichedTransaction.raw.amount_reporting,
-                transactionDate: new Date(result.enrichedTransaction.raw.date),
-                transactionId: bankTransactionId,
-                snapshotChecksum: result.statsContext?.snapshotChecksum || null,
-                snapshotCapturedAt: result.statsContext?.snapshotCapturedAt
-                  ? new Date(result.statsContext.snapshotCapturedAt)
-                  : null,
-                statsReplaySeq: result.statsContext?.statsReplaySeq || 0,
+                ...result.enrichedTransaction.raw,
+                ...result.enrichedTransaction.normalized,
+                company_uuid: companyUUID,
+                contact_fingerprint: contactFingerprint,
+                bank_transaction_id: bankTransactionId,
+                bank_transaction_date: bankTransactionDate,
+                stats_replay_seq: result.statsContext?.stats_replay_seq || 0,
+                stats_snapshot_checksum:
+                  result.statsContext?.stats_snapshot_checksum,
               },
               trx,
             );
+            // await incrementContactStats(
+            //   {
+            //     companyId,
+            //     contactFingerprint:
+            //       result.enrichedTransaction.normalized.contact_fingerprint,
+            //     normalizedName:
+            //       result.enrichedTransaction.normalized.contact_name ||
+            //       'Unknown',
+            //     currencyCode: result.enrichedTransaction.raw.currency_code,
+            //     contactId: result.enrichedTransaction.ids.contact_id || null,
+            //     amountNative: result.enrichedTransaction.raw.amount_native,
+            //     amountReporting:
+            //       result.enrichedTransaction.raw.amount_reporting,
+            //     transactionDate: new Date(result.enrichedTransaction.raw.date),
+            //     transactionId: bankTransactionId,
+            //     snapshotChecksum: result.statsContext?.snapshotChecksum || null,
+            //     snapshotCapturedAt: result.statsContext?.snapshotCapturedAt
+            //       ? new Date(result.statsContext.snapshotCapturedAt)
+            //       : null,
+            //     statsReplaySeq: result.statsContext?.statsReplaySeq || 0,
+            //   },
+            //   trx,
+            // );
+          }
+
+          if (persistOutcome.didPersist) {
+            pendingEvent = {
+              company_uuid: companyUUID,
+              bank_transaction_id: bankTransactionId,
+              categorization_task_id: persistOutcome.taskId,
+              enriched_transaction: enrichedTransaction,
+            };
           }
 
           results.successes.push({
@@ -207,6 +253,10 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
             'Transaction enrichment committed',
           );
         });
+
+        if (pendingEvent) {
+          await emitTxnEnrichedEvent(pendingEvent);
+        }
       } catch (error) {
         logger.error(
           {
@@ -222,6 +272,7 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
           bankTransactionId,
           error: error instanceof Error ? error.message : 'Unknown error',
           latencyMs: Date.now() - startTime,
+          checksum: '',
         });
       }
     }
@@ -277,86 +328,78 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
  * Persist enriched transaction to database
  * Upserts to categorization_tasks table
  */
-async function persistEnrichedTransaction(
-  companyId: string,
-  bankTransactionId: string,
-  enrichedTransaction: EnrichedTransaction,
-  source: string,
-  jobId: string | undefined,
-  trx: Knex.Transaction,
-  options: { checksum: string; statsSnapshotChecksum: string | null },
-): Promise<{ didPersist: boolean; checksum: string }> {
-  const payload = {
-    ...enrichedTransaction,
-  };
+const persistEnrichedTransaction = upsertCategorizationTask;
+//   const payload = {
+//     ...enrichedTransaction,
+//   };
 
-  payload.ids.enrichment_job_id = jobId || null;
+//   payload.ids.enrichment_job_id = jobId || null;
 
-  try {
-    const existing = await trx('categorization_tasks')
-      .where('bank_transaction_id', bankTransactionId)
-      .where('is_deleted', false)
-      .forUpdate()
-      .first();
+//   try {
+//     const existing = await trx('categorization_tasks')
+//       .where('bank_transaction_id', bankTransactionId)
+//       .where('is_deleted', false)
+//       .forUpdate()
+//       .first();
 
-    if (existing) {
-      if (existing.checksum === options.checksum) {
-        logger.debug(
-          { bankTransactionId, categorizationTaskId: existing.id },
-          'Categorization task unchanged, skipping persist',
-        );
-        return { didPersist: false, checksum: existing.checksum };
-      }
+//     if (existing) {
+//       if (existing.checksum === options.checksum) {
+//         logger.debug(
+//           { bankTransactionId, categorizationTaskId: existing.id },
+//           'Categorization task unchanged, skipping persist',
+//         );
+//         return { didPersist: false, checksum: existing.checksum };
+//       }
 
-      await trx('categorization_tasks')
-        .where('id', existing.id)
-        .update({
-          enriched_transaction: JSON.stringify(payload),
-          enrichment_version: payload.version,
-          status: 'enriched',
-          checksum: options.checksum,
-          updated_at: trx.fn.now(),
-        });
+//       await trx('categorization_tasks')
+//         .where('id', existing.id)
+//         .update({
+//           enriched_transaction: JSON.stringify(payload),
+//           enrichment_version: payload.version,
+//           status: 'enriched',
+//           checksum: options.checksum,
+//           updated_at: trx.fn.now(),
+//         });
 
-      logger.debug(
-        {
-          bankTransactionId,
-          categorizationTaskId: existing.id,
-          statsSnapshotChecksum: options.statsSnapshotChecksum,
-        },
-        'Updated existing categorization task with new snapshot',
-      );
+//       logger.debug(
+//         {
+//           bankTransactionId,
+//           categorizationTaskId: existing.id,
+//           statsSnapshotChecksum: options.statsSnapshotChecksum,
+//         },
+//         'Updated existing categorization task with new snapshot',
+//       );
 
-      return { didPersist: true, checksum: options.checksum };
-    }
+//       return { didPersist: true, checksum: options.checksum };
+//     }
 
-    await trx('categorization_tasks').insert({
-      bank_transaction_id: bankTransactionId,
-      company_id: companyId,
-      enriched_transaction: JSON.stringify(payload),
-      enrichment_version: payload.version,
-      status: 'enriched',
-      source: source as any,
-      checksum: options.checksum,
-    });
+//     await trx('categorization_tasks').insert({
+//       bank_transaction_id: bankTransactionId,
+//       company_id: companyId,
+//       enriched_transaction: JSON.stringify(payload),
+//       enrichment_version: payload.version,
+//       status: 'enriched',
+//       source: source as any,
+//       checksum: options.checksum,
+//     });
 
-    logger.debug(
-      {
-        bankTransactionId,
-        statsSnapshotChecksum: options.statsSnapshotChecksum,
-      },
-      'Inserted new categorization task',
-    );
+//     logger.debug(
+//       {
+//         bankTransactionId,
+//         statsSnapshotChecksum: options.statsSnapshotChecksum,
+//       },
+//       'Inserted new categorization task',
+//     );
 
-    return { didPersist: true, checksum: options.checksum };
-  } catch (error) {
-    logger.error(
-      { error, bankTransactionId },
-      'Failed to persist enriched transaction',
-    );
-    throw error;
-  }
-}
+//     return { didPersist: true, checksum: options.checksum };
+//   } catch (error) {
+//     logger.error(
+//       { error, bankTransactionId },
+//       'Failed to persist enriched transaction',
+//     );
+//     throw error;
+//   }
+// }
 
 /**
  * Start enrichment worker

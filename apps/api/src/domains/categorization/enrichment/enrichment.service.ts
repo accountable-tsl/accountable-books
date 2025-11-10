@@ -4,9 +4,10 @@ import type {
   EnrichedTransaction,
   EnrichmentProcessingType,
   EnrichmentResult,
+  EnrichmentStatsContext,
 } from './enrichment.types.js';
 import { getCompanyContext } from './company-context.service.js';
-import { getContactStats } from './contact-stats.service.js';
+import { getContactStats } from '../stats/stats.service.js';
 import {
   detectPatternSignals,
   computeTemporalFeatures,
@@ -91,7 +92,11 @@ export async function enrichTransaction({
       .leftJoin('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
       .leftJoin('currencies as cur', 'ba.currency_id', 'cur.id')
       .leftJoin('banks as b', 'ba.bank_id', 'b.id')
-      .join('currencies as bank_currency', 'b.currency_id', 'bank_currency.id')
+      .leftJoin(
+        'currencies as bank_currency',
+        'b.currency_id',
+        'bank_currency.id',
+      )
       .where('bt.id', bankTransactionId)
       .where('bt.is_deleted', false)
       .first();
@@ -113,7 +118,10 @@ export async function enrichTransaction({
     } = companyContext;
 
     // Normalize description
-    const description = txn.description + txn.reference + txn.additional_notes;
+    const description = [txn.description, txn.reference, txn.additional_notes]
+      .filter((part): part is string => Boolean(part))
+      .join(' ')
+      .trim();
     const normalizedDesc = normalizeDescription(description);
     const descriptionTokens = tokenizeDescription(normalizedDesc);
     const normalizedReference = normalizeDescription(txn.reference);
@@ -150,27 +158,31 @@ export async function enrichTransaction({
       contactId: contactResolution.contact_id || null,
       trx: tx,
     });
-    let snapshot:
-      | (typeof contactStats & {
-          checksum: string;
-          as_of_transaction_id: string;
-          as_of_transaction_date: string;
-        })
-      | null = null;
-    if (contactStats) {
-      const checksum = generateChecksumSync(contactStats);
-      snapshot = {
-        ...contactStats,
-        checksum,
-        as_of_transaction_id: txn.bank_transaction_id,
-        as_of_transaction_date: toYMD(txn.date),
-      };
-    }
+
+    const snapshot = contactStats
+      ? {
+          ...contactStats,
+          as_of_transaction_id: txn.bank_transaction_id,
+          as_of_transaction_date: toYMD(txn.date),
+        }
+      : null;
+    // let snapshot:
+    //   | (typeof contactStats & {
+    //       checksum: string;
+    //       as_of_transaction_id: string;
+    //       as_of_transaction_date: string;
+    //     })
+    //   | null = null;
+    // if (contactStats) {
+    //   snapshot = {
+    //   };
+    // }
 
     const signals = detectPatternSignals({
       description: normalizedDesc,
       amount: amountNative,
-      currencyCode: txn.transaction_currency_code,
+      transactionCurrencyCode: txn.transaction_currency_code,
+      bankAccountCurrencyCode: txn.bank_currency_code,
     });
 
     const txnDateStr = toYMD(txn.date);
@@ -182,6 +194,17 @@ export async function enrichTransaction({
 
     const enrichedAt = new Date().toISOString();
     const latencyMs = Date.now() - startTime;
+
+    const statsContext =
+      snapshot && contactResolution.contact_fingerprint
+        ? {
+            contact_fingerprint: contactResolution.contact_fingerprint,
+            stats_row_id: snapshot.stats_row_id || null,
+            stats_replay_seq: snapshot.stats_replay_seq,
+            stats_snapshot_checksum: snapshot.stats_snapshot_checksum || null,
+            snapshot_captured_at: snapshot.snapshot_captured_at || null,
+          }
+        : null;
 
     const result: EnrichedTransaction = {
       version: ENRICHMENT_VERSION,
@@ -238,13 +261,14 @@ export async function enrichTransaction({
         status: 'enriched',
         error_message: null,
         processing_context: processingContext ?? 'primary',
-        stats_replay_seq:
-          snapshot && snapshot.stats_replay_seq > 0
-            ? snapshot.stats_replay_seq
-            : undefined,
-        stats_snapshot_checksum: snapshot?.checksum,
+        stats_replay_seq: snapshot?.stats_replay_seq,
+        stats_snapshot_checksum: snapshot?.stats_snapshot_checksum,
       },
     };
+
+    const DTOChecksum = generateChecksumSync(result, {
+      sortKeys: true,
+    });
 
     logger.debug(
       { bankTransactionId, latencyMs },
@@ -255,6 +279,8 @@ export async function enrichTransaction({
       success: true,
       bankTransactionId,
       enrichedTransaction: result,
+      statsContext: statsContext ?? undefined,
+      checksum: DTOChecksum,
       latencyMs,
     };
   };
@@ -280,6 +306,7 @@ export async function enrichTransaction({
       bankTransactionId,
       error: errorMessage,
       latencyMs,
+      checksum: '',
     };
   }
   // try {
@@ -446,7 +473,6 @@ export async function enrichTransaction({
   //       transaction_currency_code: txn.transaction_currency_code,
   //       coa_snapshot_version: companyContext.coaSnapshotVersion,
   //       coa_snapshot_id: companyContext.coaSnapshotId,
-  //       company_settings_checksum: companyContext.settingsChecksum,
   //     },
 
   //     // historical: {

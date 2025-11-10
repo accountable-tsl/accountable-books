@@ -38,7 +38,7 @@ export async function up(knex: Knex): Promise<void> {
       .comment('Full EnrichedTransaction snapshot with all features');
 
     table
-      .string('version', 20)
+      .string('enrichment_version', 30)
       .notNullable()
       .comment('Schema version for tracking enrichment evolution');
 
@@ -61,6 +61,8 @@ export async function up(knex: Knex): Promise<void> {
       .string('checksum', 64)
       .nullable()
       .comment('SHA256 hash for change detection');
+
+    table.jsonb('metadata').nullable();
 
     addStandardColumns(knex, table);
   });

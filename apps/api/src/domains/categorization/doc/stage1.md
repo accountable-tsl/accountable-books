@@ -249,9 +249,6 @@ interface EnrichedTransaction {
     bank_account_coa_id: string;
     contact_id?: string | null;
     enrichment_job_id?: string | null;
-    coa_snapshot_version: string; // -pending
-    coa_snapshot_id: string;
-    company_settings_checksum?: string | null; // -pending
   };
 
   raw: {
@@ -297,6 +294,10 @@ interface EnrichedTransaction {
     reporting_currency_code: string;
     transaction_currency_id: string;
     transaction_currency_code: string;
+    company_settings_checksum: string;
+    coa_snapshot_version: string;
+    coa_snapshot_id: string;
+    coa_snapshot_checksum?: string;
   };
 
   historical: {
@@ -510,3 +511,22 @@ If we ever hit a point where the model genuinely needs raw DB access, we’d tre
 as a new service tier with strict read-only projections (e.g., a denormalized feature
 store). Until then, keeping the inference layer stateless keeps us safer, faster to
 iterate, and ready for externalization.
+
+#### Stage 1 flow summarized
+
+Worker Flow
+
+- startEnrichmentWorker boots a BullMQ worker on the ENRICHMENT_QUEUE_NAME queue with concurrency, stall, and lock settings, so jobs from ingestion hit a single entry point.
+- For each job, processEnrichmentJob first schema-validates the payload, dedupes transaction IDs, and sorts them by (date, id) to guarantee deterministic processing even if the queue was unordered
+- The worker iterates the sorted IDs, tracks per-txn progress, and opens a DB transaction to keep enrichment, persistence, and stat updates atomic. Failures are logged but we don’t halt the batch unless every txn fails
+
+Per-Transaction Enrichment
+
+- Inside the DB transaction we call enrichTransaction, which loads the raw bank transaction plus bank account/currency joins
+
+- We pull the latest company context (which carries COA snapshot + settings) via the Redis-backed cache and normalize the description
+  text
+- Contact resolution tries to match the payee to an internal or global contact and gives us fingerprints and confidence. With that
+  fingerprint we fetch prior contact stats so the DTO can include historical context
+- We detect heuristic signals (splits, transfers) and compute temporal features (calendar/fiscal periods) to round out the feature set
+- Finally we assemble the EnrichedTransaction DTO—raw, normalized, context (which now has the COA snapshot metadata), historical snapshot, pattern signals, optional temporal, placeholder feedback_summary, and metadata (latency, version, replay info). We checksum the DTO so replays can skip rework when nothing changed

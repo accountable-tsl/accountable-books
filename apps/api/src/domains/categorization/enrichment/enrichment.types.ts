@@ -91,7 +91,7 @@ export const companyContextCache = z.object({
   year_end_day: z.number(),
   year_end_month: z.number(),
   default_timezone: z.string(),
-  company_settings_checksum: z.string().optional(),
+  company_settings_checksum: z.string(),
   coa_snapshot_version: z.string(),
   coa_snapshot_id: z.string(),
   coa_snapshot_checksum: z.string().optional(),
@@ -148,17 +148,18 @@ const baseRollingStats = z.object({
 
 export const baseContactStats = z.object({
   stats_row_id: z.string().nullable(),
-  stats_replay_seq: z.number().int().nonnegative(),
   totals: baseRollingStats,
   rolling_30d: baseRollingStats,
   rolling_90d: baseRollingStats,
   last_transaction_id: z.string().nullable(),
   last_transaction_date: z.iso.date().nullable(),
+  stats_replay_seq: z.number().int().nonnegative(),
+  stats_snapshot_checksum: z.string().nullish(),
+  snapshot_captured_at: z.iso.date().nullable(),
 });
 export type BaseContactStats = z.infer<typeof baseContactStats>;
 
 export const contactStats = baseContactStats.extend({
-  checksum: z.string(),
   as_of_transaction_id: z.string().nullable(),
   as_of_transaction_date: z.iso.date().nullable(),
 });
@@ -258,11 +259,11 @@ export type CompiledMerchantPattern = {
 // ============================================
 
 export interface EnrichmentStatsContext {
-  contactFingerprint: string | null;
-  statsRowId: string | null;
-  snapshotChecksum: string | null;
-  statsReplaySeq: number;
-  snapshotCapturedAt: string | null;
+  contact_fingerprint: string | null;
+  stats_row_id: string | null;
+  stats_replay_seq: number;
+  stats_snapshot_checksum: string | null;
+  snapshot_captured_at: string | null;
 }
 
 export interface EnrichmentResult {
@@ -272,6 +273,7 @@ export interface EnrichmentResult {
   error?: string;
   latencyMs: number;
   statsContext?: EnrichmentStatsContext;
+  checksum: string;
 }
 
 // ============================================
@@ -308,6 +310,32 @@ const temporalSchema = z.object({
   }),
 });
 export type Temporal = z.infer<typeof temporalSchema>;
+
+export const enrichedTxRaw = z.object({
+  date: z.iso.date(),
+  description: z.string().nullable(),
+  amount_native: z.number(),
+  system_ex_rate: z.number(),
+  amount_reporting: z.number(),
+  currency_code: z.string().length(3),
+  direction: z.enum(['inflow', 'outflow']),
+  source: z.string(),
+  metadata: z.any(),
+});
+export type EnrichedTxRaw = z.infer<typeof enrichedTxRaw>;
+
+export const enrichedTxNormalized = z.object({
+  description: z.string(),
+  description_tokens: z.array(z.string()),
+  contact_name: z.string().nullable(),
+  contact_fingerprint: z.string().nullable(),
+  contact_match_confidence: contactMatchConfidence,
+  contact_type: contactType.or(z.literal('unknown')),
+  normalized_reference: z.string().nullish(),
+  global_contact_name: z.string().nullish(),
+  global_contact_category_hints: z.array(z.string()).nullish(),
+});
+export type EnrichedTxNormalized = z.infer<typeof enrichedTxNormalized>;
 // ============================================
 // ENRICHED TRANSACTION SCHEMA
 // ============================================
@@ -325,29 +353,8 @@ export const enrichedTransactionSchema = z.object({
     enrichment_job_id: z.string().nullish(),
   }),
 
-  raw: z.object({
-    date: z.iso.date(),
-    description: z.string().nullable(),
-    amount_native: z.number(),
-    system_ex_rate: z.number(),
-    amount_reporting: z.number(),
-    currency_code: z.string().length(3),
-    direction: z.enum(['inflow', 'outflow']),
-    source: z.string(),
-    metadata: z.any(),
-  }),
-
-  normalized: z.object({
-    description: z.string(),
-    description_tokens: z.array(z.string()),
-    contact_name: z.string().nullable(),
-    contact_fingerprint: z.string().nullable(),
-    contact_match_confidence: contactMatchConfidence,
-    contact_type: contactType.or(z.literal('unknown')),
-    normalized_reference: z.string().nullish(),
-    global_contact_name: z.string().nullish(),
-    global_contact_category_hints: z.array(z.string()).nullish(),
-  }),
+  raw: enrichedTxRaw,
+  normalized: enrichedTxNormalized,
 
   context: enrichmentCompanyContext,
 
@@ -395,7 +402,7 @@ export const enrichedTransactionSchema = z.object({
     stats_replay_seq: z.number().int().nonnegative().optional(),
     replay_reason: z.string().optional(),
     recomputed_at: z.iso.datetime().optional(),
-    stats_snapshot_checksum: z.string().optional(),
+    stats_snapshot_checksum: z.string().nullish(),
   }),
 });
 

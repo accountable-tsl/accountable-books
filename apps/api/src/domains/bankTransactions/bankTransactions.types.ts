@@ -143,3 +143,11 @@ export const bankTransactionsFilters = z.object({
   offset: z.number().optional(),
 });
 export type BankTransactionFilters = z.infer<typeof bankTransactionsFilters>;
+
+export const deleteBankTransactionsInput = z.object({
+  bankTransactionIds: z.array(z.string().uuid()).min(1),
+  reason: z.string().max(256).optional(),
+});
+export type DeleteBankTransactionsInput = z.infer<
+  typeof deleteBankTransactionsInput
+>;

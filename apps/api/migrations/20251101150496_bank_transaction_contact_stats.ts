@@ -42,27 +42,33 @@ export async function up(knex: Knex): Promise<void> {
       .comment('ISO 4217 currency code (USD, GBP, NGN, etc.)');
 
     // All-time statistics
-    table.bigInteger('total_transactions').notNullable();
-    table.bigInteger('total_amount_native').notNullable();
-    table.bigInteger('total_amount_reporting').notNullable();
-    table.bigInteger('avg_amount_native').notNullable();
-    table.bigInteger('avg_amount_reporting').notNullable();
-    table.bigInteger('std_dev_amount_native').notNullable();
-    table.bigInteger('std_dev_amount_reporting').notNullable();
+    table.integer('total_transactions').notNullable().defaultTo(0);
+    table.bigInteger('total_amount_native').notNullable().defaultTo(0);
+    table.bigInteger('total_amount_reporting').notNullable().defaultTo(0);
+    table.bigInteger('total_sumsq_native').notNullable().defaultTo(0);
+    table.bigInteger('total_sumsq_reporting').notNullable().defaultTo(0);
+    table.bigInteger('avg_amount_native').notNullable().defaultTo(0);
+    table.bigInteger('avg_amount_reporting').notNullable().defaultTo(0);
+    table.bigInteger('std_dev_amount_native').notNullable().defaultTo(0);
+    table.bigInteger('std_dev_amount_reporting').notNullable().defaultTo(0);
 
     // Rolling 30-day window (recent behavior, FX-resilient)
-    table.bigInteger('rolling_30d_txn_count').notNullable().defaultTo(0);
+    table.integer('rolling_30d_txn_count').notNullable().defaultTo(0);
     table.bigInteger('rolling_30d_total_native').notNullable().defaultTo(0);
     table.bigInteger('rolling_30d_total_reporting').notNullable().defaultTo(0);
+    table.bigInteger('rolling_30d_sumsq_native').notNullable().defaultTo(0);
+    table.bigInteger('rolling_30d_sumsq_reporting').notNullable().defaultTo(0);
     table.bigInteger('rolling_30d_avg_native').notNullable().defaultTo(0);
     table.bigInteger('rolling_30d_avg_reporting').notNullable().defaultTo(0);
     table.bigInteger('rolling_30d_stddev_native').notNullable().defaultTo(0);
     table.bigInteger('rolling_30d_stddev_reporting').notNullable().defaultTo(0);
 
     // Rolling 90-day window (medium-term trends)
-    table.bigInteger('rolling_90d_txn_count').notNullable().defaultTo(0);
+    table.integer('rolling_90d_txn_count').notNullable().defaultTo(0);
     table.bigInteger('rolling_90d_total_native').notNullable().defaultTo(0);
     table.bigInteger('rolling_90d_total_reporting').notNullable().defaultTo(0);
+    table.bigInteger('rolling_90d_sumsq_native').notNullable().defaultTo(0);
+    table.bigInteger('rolling_90d_sumsq_reporting').notNullable().defaultTo(0);
     table.bigInteger('rolling_90d_avg_native').notNullable().defaultTo(0);
     table.bigInteger('rolling_90d_avg_reporting').notNullable().defaultTo(0);
     table.bigInteger('rolling_90d_stddev_native').notNullable().defaultTo(0);
@@ -85,6 +91,20 @@ export async function up(knex: Knex): Promise<void> {
       .defaultTo(0)
       .comment(
         'Incremented whenever we rebuild this row during a replay/backfill so downstream consumers know the context changed',
+      );
+
+    table
+      .string('stats_snapshot_checksum', 64)
+      .nullable()
+      .comment(
+        'SHA256 (hex) of the last snapshot payload used to dedupe replay output and detect drift',
+      );
+
+    table
+      .timestamp('snapshot_captured_at', { useTz: true })
+      .nullable()
+      .comment(
+        'When we last captured this row into an EnrichedTransaction snapshot; separate from updated_at for replay audits',
       );
 
     addStandardColumns(knex, table);

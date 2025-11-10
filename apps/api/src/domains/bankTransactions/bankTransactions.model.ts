@@ -11,6 +11,8 @@ import {
   bankTransactionsFilters,
   type NewBankTransaction,
   type BankTransactionBatchInput,
+  deleteBankTransactionsInput,
+  type DeleteBankTransactionsInput,
 } from './bankTransactions.types.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import { categorizationStatus } from '../../core/types/core.js';
@@ -23,7 +25,11 @@ import { logger } from '../../shared/utils/logger.js';
 import type { Knex } from 'knex';
 import { randomUUID } from 'crypto';
 import { generateFingerprintSync } from '../../shared/index.js';
-import { enqueueTransactionEnrichment } from '../categorization/index.js';
+import {
+  enqueueTransactionEnrichment,
+  handleTransactionsDeleted,
+  emitTxnDeletedEvent,
+} from '../categorization/index.js';
 import { enqueueBankBalance } from '../balances/index.js';
 
 export async function addNewBankTransactions({
@@ -475,6 +481,91 @@ export async function getBankTransactions(
     });
   } catch (error) {
     return errorResponse('Failed to get retrieve bank transactions', error);
+  }
+}
+
+export async function deleteBankTransactions({
+  companyId,
+  userId,
+  input,
+  trx,
+}: {
+  companyId: string;
+  userId: string;
+  input: DeleteBankTransactionsInput;
+  trx?: Knex.Transaction;
+}) {
+  const validate = deleteBankTransactionsInput.safeParse(input);
+  if (!validate.success) {
+    return errorResponse('Invalid request body', validate.error.flatten());
+  }
+
+  const { bankTransactionIds, reason } = validate.data;
+
+  try {
+    const execute = async (txn: Knex.Transaction) => {
+      const companyUUID = await getCompanyUUID(companyId, txn);
+      if (!companyUUID) {
+        return {
+          response: errorResponse('Company not found'),
+        };
+      }
+
+      const deletedRows = await txn('bank_transactions')
+        .where('company_id', companyUUID)
+        .whereIn('id', bankTransactionIds)
+        .andWhere('is_deleted', false)
+        .update({
+          is_deleted: true,
+          deleted_at: txn.fn.now(),
+          updated_at: txn.fn.now(),
+          updated_by_id: userId,
+        })
+        .returning('id');
+
+      const deletedIds = deletedRows.map((row) => row.id);
+
+      if (deletedIds.length > 0) {
+        await handleTransactionsDeleted({
+          bankTransactionIds: deletedIds,
+          reason,
+          trx: txn,
+        });
+      }
+
+      return {
+        response: successResponse('Transactions deleted', {
+          deleted: deletedIds.length,
+        }),
+        companyUUID,
+        deletedIds,
+      };
+    };
+
+    const result = trx
+      ? await execute(trx)
+      : await knexClient.transaction(execute);
+
+    if ('companyUUID' in result && (result.deletedIds?.length ?? 0) > 0) {
+      await emitTxnDeletedEvent({
+        company_uuid: result.companyUUID!,
+        bank_transaction_ids: result.deletedIds || [],
+        reason: reason ?? null,
+      });
+    }
+
+    return result.response;
+  } catch (error) {
+    logger.error(
+      {
+        companyId,
+        userId,
+        bankTransactionIds,
+        error,
+      },
+      'Failed to delete bank transactions',
+    );
+    return errorResponse('Failed to delete bank transactions');
   }
 }
 
