@@ -4,9 +4,9 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import { accountElementIds, financialStatementIds } from './data/ids';
-import { isDev } from '../config/env-loader';
+} from './utils/db.js';
+import { accountElementIds, financialStatementIds } from './data/ids.js';
+import { isDev } from '../config/env-loader.js';
 
 const parentAccountElements = [
   {

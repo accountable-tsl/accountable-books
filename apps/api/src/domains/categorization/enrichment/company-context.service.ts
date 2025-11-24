@@ -130,6 +130,10 @@ async function loadCompanyContextFromDB({
       year_end_month: company.year_end_month,
       default_timezone: company.default_timezone,
       country_code: company.country_code,
+      ...(company?.region_code ? { region_code: company.region_code } : {}),
+      ...(company?.subregion_code
+        ? { subregion_code: company.subregion_code }
+        : {}),
       type: company.type,
     },
     { sortKeys: true },
@@ -147,6 +151,10 @@ async function loadCompanyContextFromDB({
     reporting_framework: company.reporting_framework,
     country_id: company.country_id,
     country_code: company.country_code,
+    ...(company?.region_code ? { region_code: company.region_code } : {}),
+    ...(company?.subregion_code
+      ? { subregion_code: company.subregion_code }
+      : {}),
     reporting_currency_id: company.reporting_currency_id,
     reporting_currency_code: company.reporting_currency_code,
     year_end_day: company.year_end_day,

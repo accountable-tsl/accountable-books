@@ -119,7 +119,6 @@ async function main() {
       logger.error({ error }, '🚨 Uncaught exception in worker process');
       Sentry.captureException(error);
 
-      // For uncaught exceptions, shut down gracefully
       stopAllWorkers().finally(() => {
         process.exit(1);
       });

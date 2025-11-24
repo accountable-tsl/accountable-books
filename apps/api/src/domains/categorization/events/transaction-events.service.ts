@@ -1,6 +1,7 @@
 import { redis } from '../../../lib/redis.js';
 import { logger } from '../../../shared/index.js';
 import type { EnrichedTransaction } from '../enrichment/enrichment.types.js';
+import { enqueueRuleRunJob } from '../rules/rule-runner.queue.js';
 
 export const TRANSACTION_ENRICHED_EVENT = 'transaction-enriched';
 export type TransactionEnrichedEventData = {
@@ -30,22 +31,16 @@ export type TransactionDeletedEvent = {
 export async function emitTxnEnrichedEvent(
   data: TransactionEnrichedEventData,
 ): Promise<void> {
-  const payload: TransactionEnrichedEvent = {
-    type: TRANSACTION_ENRICHED_EVENT,
-    emittedAt: new Date().toISOString(),
-    data,
-  };
-
   try {
-    await redis.publish(TRANSACTION_ENRICHED_EVENT, JSON.stringify(payload));
+    await enqueueRuleRunJob(data);
     logger.debug({
       bankTransactionId: data.bank_transaction_id,
-      message: 'transaction-enriched event emitted',
+      message: 'transaction-enriched job enqueued',
     });
   } catch (error) {
     logger.error({
       bankTransactionId: data.bank_transaction_id,
-      message: 'Failed to emit transaction-enriched event',
+      message: 'Failed to enqueue transaction-enriched job',
       error,
     });
 

@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import { DemoFilter } from '../shared/config.js';
+import type { DemoFilter } from '../shared/config.js';
 import {
   createDemoCompaniesAndUsers,
   deleteDemoCompanies,

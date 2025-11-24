@@ -4,14 +4,23 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import data from './data/countries.json';
+} from './utils/db.js';
 import { randomUUID } from 'crypto';
-import { isDev } from '../config/env-loader';
+import { isDev } from '../config/env-loader.js';
 import z from 'zod';
 
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { readFileSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const filePath = join(__dirname, './data/countries.json');
+const raw = readFileSync(filePath, 'utf-8');
+const data = JSON.parse(raw) as NewCountryInput[];
+
 const newCountry = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   code: z
     .string()
     .min(2)

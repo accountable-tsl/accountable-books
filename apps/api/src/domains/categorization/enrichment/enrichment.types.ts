@@ -2,7 +2,7 @@ import { z } from 'zod';
 import {
   categorizationTaskSource,
   categorizationTaskStatus,
-} from '../tasks/tasks.types.js';
+} from '../tasks/tasks.enums.js';
 import {
   accountingBasis,
   companyType,
@@ -83,6 +83,8 @@ export const companyContextCache = z.object({
   website: z.string().nullish(),
   country_id: z.string(),
   country_code: z.string(),
+  region_code: z.string().nullish(),
+  subregion_code: z.string().nullish(),
   industry: z.string().optional(),
   accounting_basis: accountingBasis,
   reporting_framework: z.union([reportingFramework, z.literal('other')]),

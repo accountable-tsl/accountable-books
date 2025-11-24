@@ -3,10 +3,18 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import bankData from './data/banks.json';
-import { adminUser } from './20250403184441_users';
-import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes';
+} from './utils/db.js';
+import { adminUser } from './20250403184441_users.js';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { readFileSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const filePath = join(__dirname, './data/banks.json');
+const raw = readFileSync(filePath, 'utf-8');
+const bankData = JSON.parse(raw) as any[];
 
 const tableName = 'banks';
 

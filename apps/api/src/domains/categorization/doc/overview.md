@@ -545,7 +545,7 @@ Use this dataset to seed MCC-based hints before or alongside regex contact match
 
 **What Happens:**
 
-- Evaluate layered rules (user → company → firm → system) against the enriched transaction
+- Evaluate layered rules against the enriched transaction
 - Rules output full journal proposals (all legs, memos, basis awareness) plus provenance
 - Each rule tags its proposal with the matching semantic account type so downstream ranking stays consistent
 - Ships with curated system/industry rule packs and supports user-authored rules

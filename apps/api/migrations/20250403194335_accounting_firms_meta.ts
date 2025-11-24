@@ -3,8 +3,8 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { createPlatformCompany } from './20250403194332_companies';
+} from './utils/db.js';
+import { createPlatformCompany } from './20250403194332_companies.js';
 
 export const buildPlatformAccountingFirm = (platformCompany: {
   id: string;

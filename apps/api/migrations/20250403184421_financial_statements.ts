@@ -4,13 +4,13 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import { financialStatementIds } from './data/ids';
-import { isDev } from '../config/env-loader';
+} from './utils/db.js';
+import { financialStatementIds } from './data/ids.js';
+import { isDev } from '../config/env-loader.js';
 import z from 'zod';
 
 const financialStatement = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   key: z.string(),
   us_gaap_label: z.string(),
   ifrs_label: z.string(),

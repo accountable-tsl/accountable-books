@@ -61,9 +61,9 @@ export async function setupTestDatabase(): Promise<void> {
     } else {
       console.log(`✓ Test database ${testDbName} already exists`);
     }
-  } catch (error) {
+  } catch (error: unknown) {
     // If database already exists, that's fine (race condition handling)
-    if (!error.message?.includes('already exists')) {
+    if (error instanceof Error && !error.message?.includes('already exists')) {
       console.warn(`Database creation check failed: ${error}`);
     }
   } finally {
@@ -183,7 +183,7 @@ export async function setupTestDatabaseWithoutMigrations(): Promise<void> {
     }
   } catch (error) {
     // If database already exists, that's fine (race condition handling)
-    if (!error.message?.includes('already exists')) {
+    if (error instanceof Error && !error.message?.includes('already exists')) {
       console.warn(`Database creation check failed: ${error}`);
     }
   } finally {

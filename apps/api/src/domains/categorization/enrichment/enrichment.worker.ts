@@ -13,7 +13,6 @@ import { enrichmentJobDataSchema } from './enrichment.types.js';
 import { enrichTransaction } from './enrichment.service.js';
 import { incrementContactStats } from '../stats/stats.service.js';
 import { ENRICHMENT_QUEUE_NAME } from './enrichment.queue.js';
-import type { CategorizationTaskSource } from '../tasks/tasks.types.js';
 import { upsertCategorizationTask } from '../tasks/tasks.service.js';
 import {
   emitTxnEnrichedEvent,

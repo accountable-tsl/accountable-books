@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
 import bcrypt from 'bcrypt';
-import { ENV, isProd } from '../../config/env-loader';
-import { createUser } from '../20250403184441_users';
+import { ENV, isProd } from '../../config/env-loader.js';
+import { createUser } from '../20250403184441_users.js';
 
 export async function up(knex: Knex.Transaction): Promise<void> {
   if (isProd && (!ENV.ADMIN_PASSWORD || !ENV.ADMIN_EMAIL)) {

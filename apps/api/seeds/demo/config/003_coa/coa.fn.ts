@@ -1,11 +1,11 @@
 import type { Knex } from 'knex';
-import { DemoFilter, COMPANY_TYPES } from '../../shared/config';
+import { type DemoFilter, COMPANY_TYPES } from '../../shared/config.js';
 import {
   deleteDemoData,
   getCompanyIdMap,
   getDemoUserMap,
-} from '../../shared/utils';
-import { generateDemoCompaniesMap } from '../002_companies/companies.data';
+} from '../../shared/utils.js';
+import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
 
 // Template options for business companies
 const BUSINESS_TEMPLATES = [

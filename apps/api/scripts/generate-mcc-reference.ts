@@ -272,7 +272,7 @@ async function main(): Promise<void> {
 
     const hints: HintEntry[] = [];
     const addHint = (hint?: string | null) => {
-      const cleaned = normaliseHint(hint);
+      const cleaned = normaliseHint(hint ?? '');
       if (!cleaned) {
         return;
       }

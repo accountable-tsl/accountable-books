@@ -8,8 +8,8 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import { isDev } from '../config/env-loader';
+} from './utils/db.js';
+import { isDev } from '../config/env-loader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -50,7 +50,7 @@
     "coa_snapshot_version": "snapshot-v1",
     "coa_snapshot_id": "coa-snap-1",
     "coa_snapshot_checksum": null,
-    "cached_at": "2025-11-09T13:18:40.606Z"
+    "cached_at": "2025-11-11T12:30:13.499Z"
   },
   "historical": {
     "bank_contact_stats_snapshot": {
@@ -113,7 +113,7 @@
   },
   "metadata": {
     "source": "ingestion",
-    "enriched_at": "2025-11-09T13:18:40.611Z",
+    "enriched_at": "2025-11-11T12:30:13.504Z",
     "enrichment_latency_ms": 0,
     "enrichment_version": "v251102-01-1.0.0",
     "status": "enriched",

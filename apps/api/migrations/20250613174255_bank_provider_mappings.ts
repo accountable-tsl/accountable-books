@@ -3,11 +3,11 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { adminUser } from './20250403184441_users';
-import { ENV } from '../config/env-loader';
+} from './utils/db.js';
+import { adminUser } from './20250403184441_users.js';
+import { ENV } from '../config/env-loader.js';
 import axios from 'axios';
-import { countryMap } from './20250404021752_banks';
+import { countryMap } from './20250404021752_banks.js';
 
 interface MonoInstitution {
   id: string;

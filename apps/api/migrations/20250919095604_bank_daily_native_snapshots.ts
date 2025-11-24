@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
 
 const tableName = 'bank_account_daily_native_snapshots';
 

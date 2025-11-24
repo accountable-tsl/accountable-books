@@ -2,21 +2,10 @@ import z, { check } from 'zod';
 import { dbBaseFields, zDateYMD } from '../../../core/index.js';
 import { enrichedTransactionSchema } from '../enrichment/enrichment.types.js';
 import type { Knex } from 'knex';
-
-export const categorizationTaskStatus = z.enum([
-  'enriched',
-  'partial',
-  'failed',
-  'pending',
-]);
-export type CategorizationTaskStatus = z.infer<typeof categorizationTaskStatus>;
-
-export const categorizationTaskSource = z.enum([
-  'ingestion',
-  'backfill',
-  'manual',
-]);
-export type CategorizationTaskSource = z.infer<typeof categorizationTaskSource>;
+import {
+  categorizationTaskSource,
+  categorizationTaskStatus,
+} from './tasks.enums.js';
 
 export const newCategorizationTask = z.object({
   company_id: z.uuid(),

@@ -63,6 +63,22 @@ import { NewToken, Token } from '../domains/tokens/tokens.types.ts';
 import { NewRoleInput, Role } from '../domains/roles/roles.types.ts';
 import { Contact, NewContact } from '../domains/contacts/contacts.types.ts';
 import { NewProject, Project } from '../domains/projects/projects.types.ts';
+import {
+  NewRule,
+  RuleActions,
+  RuleConditions,
+  RuleLogs,
+  Rules,
+} from '../domains/categorization/rules/rules-db.types.ts';
+import {
+  CategorizationCandidate,
+  CategorizationCandidateLine,
+  CategorizationConstraintViolation,
+} from '../domains/categorization/candidates/candidates.types.ts';
+import {
+  CategorizationPrediction,
+  CategorizationPredictionLine,
+} from '../domains/categorization/predictions/predictions.types.ts';
 import type {
   BankAccountCredential,
   NewBankAccountCredential,
@@ -252,6 +268,57 @@ declare module 'knex/types/tables' {
       Project,
       NewProject,
       Partial<Omit<Project, 'id'>>
+    >;
+
+    // Categorization rules tables
+    rules: Knex.CompositeTableType<Rules, NewRule, Partial<Omit<Rules, 'id'>>>;
+
+    rule_conditions: Knex.CompositeTableType<
+      RuleConditions,
+      Omit<RuleConditions, 'id'>,
+      Partial<Omit<RuleConditions, 'id'>>
+    >;
+
+    rule_actions: Knex.CompositeTableType<
+      RuleActions,
+      Omit<RuleActions, 'id'>,
+      Partial<Omit<RuleActions, 'id'>>
+    >;
+
+    rule_logs: Knex.CompositeTableType<
+      RuleLogs,
+      Omit<RuleLogs, 'id'>,
+      Partial<Omit<RuleLogs, 'id'>>
+    >;
+
+    categorization_predictions: Knex.CompositeTableType<
+      CategorizationPrediction,
+      Omit<CategorizationPrediction, 'id'>,
+      Partial<Omit<CategorizationPrediction, 'id'>>
+    >;
+
+    categorization_prediction_lines: Knex.CompositeTableType<
+      CategorizationPredictionLine,
+      Omit<CategorizationPredictionLine, 'id'>,
+      Partial<Omit<CategorizationPredictionLine, 'id'>>
+    >;
+
+    categorization_candidates: Knex.CompositeTableType<
+      CategorizationCandidate,
+      Omit<CategorizationCandidate, 'id'>,
+      Partial<Omit<CategorizationCandidate, 'id'>>
+    >;
+
+    categorization_candidate_lines: Knex.CompositeTableType<
+      CategorizationCandidateLine,
+      Omit<CategorizationCandidateLine, 'id'>,
+      Partial<Omit<CategorizationCandidateLine, 'id'>>
+    >;
+
+    categorization_constraint_violations: Knex.CompositeTableType<
+      CategorizationConstraintViolation,
+      Omit<CategorizationConstraintViolation, 'id'>,
+      Partial<Omit<CategorizationConstraintViolation, 'id'>>
     >;
 
     // Balance system tables

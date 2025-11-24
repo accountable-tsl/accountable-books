@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import { DemoFilter, DEMO_CURRENCIES } from '../../shared/config.js';
+import { type DemoFilter, DEMO_CURRENCIES } from '../../shared/config.js';
 import {
   deleteDemoData,
   getAccountTypeByKey,
@@ -9,7 +9,7 @@ import {
 } from '../../shared/utils.js';
 import {
   getRawBankAccountsForInsertion,
-  RawBankAccount,
+  type RawBankAccount,
 } from './bank-accounts.data.js';
 
 /**

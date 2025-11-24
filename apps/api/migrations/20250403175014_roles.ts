@@ -4,23 +4,29 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import { ROLES } from './data/roles';
-import { isDev } from '../config/env-loader';
+} from './utils/db.js';
+import { ROLES } from './data/roles.js';
+import { isDev } from '../config/env-loader.js';
 
 const tableName = 'roles';
 const { PLATFORM_ROLES, FIRM_ROLES, COMPANY_ROLES } = ROLES;
+
+interface RoleType {
+  key: string;
+  name: string;
+  description: string;
+}
 
 const seedRoles = async function seed(knex: Knex): Promise<void> {
   try {
     // Validate and prepare data
     const seedData = [
-      ...PLATFORM_ROLES.map((role) => ({
+      ...PLATFORM_ROLES.map((role: RoleType) => ({
         ...role,
         scope: 'platform',
       })),
-      ...FIRM_ROLES.map((role) => ({ ...role, scope: 'firm' })),
-      ...COMPANY_ROLES.map((role) => ({
+      ...FIRM_ROLES.map((role: RoleType) => ({ ...role, scope: 'firm' })),
+      ...COMPANY_ROLES.map((role: RoleType) => ({
         ...role,
         scope: 'company',
       })),

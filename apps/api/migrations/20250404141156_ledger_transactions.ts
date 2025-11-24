@@ -3,8 +3,8 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes';
+} from './utils/db.js';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
 
 const tableName = 'ledger_transactions';
 const uniqueBankTxnIndex = 'ux_ledger_transactions_bank_txn_date_id_not_null';
@@ -18,9 +18,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('note').nullable();
 
     table.uuid('contact_id').nullable().references('id').inTable('contacts');
-    table
-      .specificType('contact_type_snapshot', 'contact_type')
-      .nullable();
+    table.specificType('contact_type_snapshot', 'contact_type').nullable();
 
     table.uuid('bank_transaction_id').nullable();
     table.date('bank_transaction_date').nullable();

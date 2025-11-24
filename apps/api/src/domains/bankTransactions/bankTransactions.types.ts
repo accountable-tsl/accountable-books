@@ -35,7 +35,7 @@ export const bankTransactionInput = z.object({
   additional_notes: z.string().nullish(),
   raw_data: z.any().nullish(),
   external_id: z.string().optional(),
-  //   id: z.string().uuid().optional(),
+  //   id: z.uuid().optional(),
 });
 export type BankTransactionInput = z.infer<typeof bankTransactionInput>;
 
@@ -145,7 +145,7 @@ export const bankTransactionsFilters = z.object({
 export type BankTransactionFilters = z.infer<typeof bankTransactionsFilters>;
 
 export const deleteBankTransactionsInput = z.object({
-  bankTransactionIds: z.array(z.string().uuid()).min(1),
+  bankTransactionIds: z.array(z.uuid()).min(1),
   reason: z.string().max(256).optional(),
 });
 export type DeleteBankTransactionsInput = z.infer<

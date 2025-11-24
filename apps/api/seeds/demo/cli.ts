@@ -4,10 +4,10 @@ import knex from 'knex';
 import { createDemoSeedRunner } from './engine/runner.js';
 import { runtimeKnexConfig } from '../../knexfile.js';
 import {
-  DemoFilter,
+  type DemoFilter,
   COUNTRY_CODES,
   COMPANY_TYPES,
-  DemoCompanyType,
+  type DemoCompanyType,
 } from './shared/config.js';
 
 // Create knex instance for the CLI

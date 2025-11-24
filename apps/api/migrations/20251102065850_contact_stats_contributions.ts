@@ -3,13 +3,12 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
 
 // If we had to replay
 
 const statsTable = 'bank_transaction_contact_stats';
 const entriesTable = 'bank_transaction_contact_stats_entries';
-const replaysTable = 'contact_stats_replays';
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(entriesTable, (table) => {
@@ -51,34 +50,7 @@ export async function up(knex: Knex): Promise<void> {
     addStandardColumns(knex, table);
   });
 
-  await knex.schema.createTable(replaysTable, (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
-    table
-      .uuid('company_id')
-      .notNullable()
-      .references('id')
-      .inTable('companies')
-      .onDelete('CASCADE');
-    table
-      .uuid('contact_id')
-      .nullable()
-      .references('id')
-      .inTable('contacts')
-      .onDelete('SET NULL');
-    table.string('contact_fingerprint', 256).notNullable();
-    table.string('currency_code', 3).notNullable();
-    table.date('start_date').notNullable();
-    table.date('end_date').notNullable();
-    table.text('triggered_by').notNullable();
-    table.text('replay_reason').nullable();
-    table.string('previous_snapshot_checksum', 64).nullable();
-    table.string('new_snapshot_checksum', 64).nullable();
-    table.integer('stats_replay_seq').notNullable().defaultTo(0);
-    addStandardColumns(knex, table);
-  });
-
   await createUpdateTimestampTrigger(knex, entriesTable);
-  await createUpdateTimestampTrigger(knex, replaysTable);
 
   await knex.raw(
     `CREATE INDEX idx_contact_stats_entries_stats ON ${entriesTable}(stats_id, bank_transaction_date) WHERE is_deleted = FALSE`,
@@ -86,21 +58,11 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     `CREATE INDEX idx_contact_stats_entries_company ON ${entriesTable}(company_id) WHERE is_deleted = FALSE`,
   );
-  await knex.raw(
-    `CREATE INDEX idx_contact_stats_replays_company ON ${replaysTable}(company_id, contact_fingerprint) WHERE is_deleted = FALSE`,
-  );
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_replays_company;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_entries_company;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_entries_stats;`);
-  await knex.raw(`
-    ALTER TABLE ${entriesTable}
-    DROP CONSTRAINT IF EXISTS bank_transaction_contact_stats_entries_stats_id_foreign;
-  `);
-  await dropUpdateTimestampTrigger(knex, replaysTable);
   await dropUpdateTimestampTrigger(knex, entriesTable);
-  await knex.schema.dropTableIfExists(replaysTable);
   await knex.schema.dropTableIfExists(entriesTable);
 }

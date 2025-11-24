@@ -3,7 +3,7 @@ import {
   DEMO_COMPANIES,
   DEMO_COMPANIES_IDS,
 } from '../config/002_companies/companies.data.js';
-import { DemoFilter } from './config.js';
+import { type DemoFilter } from './config.js';
 
 // In-memory cache for company data
 let demoCompaniesCache: CompanyRecord[] | null = null;

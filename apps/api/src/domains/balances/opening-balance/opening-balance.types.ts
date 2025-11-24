@@ -49,10 +49,10 @@ export const bankObMetadata = z
       .optional(),
 
     // Linkage for replace actions
-    supersedes_opening_balance_id: z.string().uuid().optional(),
+    supersedes_opening_balance_id: z.uuid().optional(),
     journal: z
       .object({
-        reversed_journal_batch_id: z.string().uuid().optional(),
+        reversed_journal_batch_id: z.uuid().optional(),
       })
       .optional(),
 

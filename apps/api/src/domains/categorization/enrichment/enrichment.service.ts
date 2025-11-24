@@ -23,7 +23,7 @@ import {
 } from './utils/clean-desc.js';
 import { resolveContactForEnrichment } from './resolve-contact.service.js';
 import { generateChecksumSync, toYMD } from '../../../shared/index.js';
-import type { CategorizationTaskSource } from '../tasks/tasks.types.js';
+import type { CategorizationTaskSource } from '../tasks/tasks.enums.js';
 
 /**
  * Enrichment version identifier

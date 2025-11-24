@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
 
-const createEnumIfNotExists = (typeName: string, values: string[]) => {
+export const createEnumIfNotExists = (typeName: string, values: string[]) => {
   const formattedValues = values.map((v) => `'${v}'`).join(', ');
   return `
     DO $$

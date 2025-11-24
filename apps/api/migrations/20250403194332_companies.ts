@@ -3,9 +3,9 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { ENV, isProd } from '../config/env-loader';
-import { adminUser } from './20250403184441_users';
+} from './utils/db.js';
+import { ENV, isProd } from '../config/env-loader.js';
+import { adminUser } from './20250403184441_users.js';
 
 const completeOnbState = {
   steps: {

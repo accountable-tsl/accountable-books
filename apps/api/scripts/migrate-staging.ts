@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { knexClient as knex } from '../dist/db/knexClient.js';
-import { logger } from '../dist/shared/utils/logger.js';
+import { knexClient as knex } from '../src/db/knexClient.js';
+import { logger } from '../src/shared/utils/logger.js';
 
 async function runStagingMigrations() {
   try {
@@ -20,14 +20,14 @@ async function runStagingMigrations() {
       logger.info('Database is already up to date');
     } else {
       logger.info(`Batch ${batchNo} run: ${migrationFiles.length} migrations`);
-      migrationFiles.forEach((file) => {
+      migrationFiles.forEach((file: string) => {
         logger.info(`- ${file}`);
       });
     }
 
     logger.info('Staging migrations completed successfully');
   } catch (error) {
-    logger.error('Staging migration failed:', error);
+    logger.error({ err: error as Error }, 'Staging migration failed');
     process.exit(1);
   } finally {
     await knex.destroy();

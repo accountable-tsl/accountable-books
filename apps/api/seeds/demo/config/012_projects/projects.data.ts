@@ -21,7 +21,7 @@ export type DemoProjectData = SeedProject;
 
 export type CompanyProjectsMap<T = DemoProject> = {
   company: { id: string; shortCode: string; companyType: DemoCompanyType };
-  user: { id: string };
+  user: { id: string; email?: string };
   country: { code: DemoCountryCode };
   projects: T[];
 };

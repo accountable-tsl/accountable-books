@@ -4,7 +4,10 @@ import { startEmailWorker } from '../../features/communications/email/index.js';
 import { startTransactionSyncWorker } from '../../integrations/banking/index.js';
 import { startBalanceRecalcWorker } from '../../domains/balances/index.js';
 import { startFiscalCalendarWorker } from '../../domains/reporting/fiscal-calendar/index.js';
-import { startEnrichmentWorker } from '../../domains/categorization/index.js';
+import {
+  startEnrichmentWorker,
+  startRuleRunnerWorker,
+} from '../../domains/categorization/index.js';
 
 export interface WorkerConfig {
   email: {
@@ -23,6 +26,9 @@ export interface WorkerConfig {
     concurrency: number;
   };
   enrichment: {
+    concurrency: number;
+  };
+  ruleRunner: {
     concurrency: number;
   };
 }
@@ -46,6 +52,9 @@ const DEFAULT_WORKER_CONFIG: WorkerConfig = {
   },
   enrichment: {
     concurrency: Number(process.env.ENRICHMENT_WORKER_CONCURRENCY) || 10,
+  },
+  ruleRunner: {
+    concurrency: Number(process.env.RULE_RUNNER_CONCURRENCY) || 5,
   },
 };
 
@@ -138,6 +147,20 @@ export async function startAllWorkers(
     console.error('❌ Failed to start enrichment worker:', error);
     // Enrichment is not critical for core operations, so just log the error
     console.log('⚠️  Continuing without enrichment worker');
+  }
+
+  // Start rule runner worker (required for categorization automation)
+  try {
+    console.log('⚙️  Starting rule runner worker...');
+    const ruleRunnerWorker = startRuleRunnerWorker(
+      workerConfig.ruleRunner.concurrency,
+    );
+    activeWorkers.set('ruleRunner', ruleRunnerWorker);
+    workers.push(ruleRunnerWorker);
+    console.log('✅ Rule runner worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start rule runner worker:', error);
+    throw error;
   }
 
   console.log(`✅ Started ${workers.length} workers successfully`);

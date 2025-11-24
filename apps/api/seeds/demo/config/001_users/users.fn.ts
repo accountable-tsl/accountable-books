@@ -1,8 +1,8 @@
 import type { Knex } from 'knex';
 import { DEMO_USERS, NG_USER, US_USER } from './users.data.js';
 import { faker } from '@faker-js/faker';
-import { DemoFilter } from '../../shared/config.js';
-import { createUser } from '../../../../migrations/20250403184441_users.ts';
+import { type DemoFilter } from '../../shared/config.js';
+import { createUser } from '../../../../migrations/20250403184441_users.js';
 
 export const createDemoUsers = async (
   trx: Knex.Transaction,

@@ -113,7 +113,7 @@ export const createDemoProjects = async (
     );
 
     // Create projects
-    const userId = getUserId(user.email);
+    const userId = getUserId(user.email ?? '');
     const res = await addNewProjects({
       input: withContacts,
       trx,

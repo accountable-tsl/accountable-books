@@ -316,6 +316,7 @@ describe('DemoSeedRunner', () => {
       // Replace the existing mockKnex properties with the function version
       Object.setPrototypeOf(mockKnex, mockKnexFn);
       for (const key in mockKnexFn) {
+        // @ts-expect-error quick note as to why
         mockKnex[key] = mockKnexFn[key];
       }
       mockKnex.transaction = vi.fn().mockImplementation(async (callback) => {

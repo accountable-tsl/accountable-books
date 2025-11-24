@@ -1,16 +1,24 @@
 import type { Knex } from 'knex';
-import data from './data/currencies.json';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import { isDev } from '../config/env-loader';
+} from './utils/db.js';
+import { isDev } from '../config/env-loader.js';
 import z from 'zod';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { readFileSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const filePath = join(__dirname, './data/currencies.json');
+const raw = readFileSync(filePath, 'utf-8');
+const data = JSON.parse(raw) as NewCurrencyWithId[];
 
 const currencyWithId = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string(),
   code: z.string(),
   symbol: z.string(),
