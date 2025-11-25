@@ -1,5 +1,5 @@
 import z from 'zod';
-import { dbBaseFields } from '../../../core/index.js';
+import { dbBaseFields, debitCredit } from '../../../core/index.js';
 
 export const candidateStatus = z.enum([
   'proposed',
@@ -10,9 +10,6 @@ export const candidateStatus = z.enum([
 ]);
 export type CandidateStatus = z.infer<typeof candidateStatus>;
 
-export const candidateEntryType = z.enum(['debit', 'credit']);
-export type CandidateEntryType = z.infer<typeof candidateEntryType>;
-
 export const candidateSplitType = z.enum([
   'bank',
   'amount',
@@ -22,6 +19,7 @@ export const candidateSplitType = z.enum([
 export type CandidateSplitType = z.infer<typeof candidateSplitType>;
 
 export const categorizationCandidate = z.object({
+  source: z.enum(['rule', 'ml']),
   prediction_id: z.uuid(),
   categorization_task_id: z.uuid(),
   bank_transaction_id: z.uuid(),
@@ -42,14 +40,14 @@ export type CategorizationCandidate = z.infer<typeof categorizationCandidate>;
 
 export const categorizationCandidateLine = z.object({
   candidate_id: z.uuid(),
-  line_rank: z.number(),
-  entry_type: candidateEntryType,
+  entry_type: debitCredit,
   coa_id: z.uuid(),
   project_id: z.uuid().nullable(),
   amount_native: z.number(),
   amount_reporting: z.number().nullable(),
   currency_code: z.string().length(3),
   description: z.string().nullable(),
+  is_bank_leg: z.boolean(),
   split_type: candidateSplitType,
   split_value: z.number().nullable(),
   metadata: z.record(z.string(), z.any()).nullable(),

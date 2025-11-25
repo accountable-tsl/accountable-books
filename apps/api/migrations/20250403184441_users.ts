@@ -5,8 +5,8 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
-import { ENV, isProd } from '../config/env-loader.js';
+} from './utils/db.ts';
+import { ENV, isProd } from '../config/env-loader.ts';
 
 export async function createUser({
   user: input,

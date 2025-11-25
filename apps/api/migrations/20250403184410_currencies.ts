@@ -4,8 +4,8 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.js';
-import { isDev } from '../config/env-loader.js';
+} from './utils/db.ts';
+import { isDev } from '../config/env-loader.ts';
 import z from 'zod';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';

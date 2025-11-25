@@ -4,9 +4,9 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.js';
-import { ROLES } from './data/roles.js';
-import { isDev } from '../config/env-loader.js';
+} from './utils/db.ts';
+import { ROLES } from './data/roles.ts';
+import { isDev } from '../config/env-loader.ts';
 
 const tableName = 'roles';
 const { PLATFORM_ROLES, FIRM_ROLES, COMPANY_ROLES } = ROLES;

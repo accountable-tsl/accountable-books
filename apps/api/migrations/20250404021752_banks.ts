@@ -3,9 +3,9 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
-import { adminUser } from './20250403184441_users.js';
-import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
+} from './utils/db.ts';
+import { adminUser } from './20250403184441_users.ts';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.ts';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';

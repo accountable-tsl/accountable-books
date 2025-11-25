@@ -1,5 +1,5 @@
 import z from 'zod';
-import { dbBaseFields } from '../../../core/index.js';
+import { dbBaseFields, debitCredit } from '../../../core/index.js';
 
 export const predictionSource = z.enum(['rule', 'ml']);
 export type PredictionSource = z.infer<typeof predictionSource>;
@@ -11,9 +11,6 @@ export const predictionStatus = z.enum([
   'superseded',
 ]);
 export type PredictionStatus = z.infer<typeof predictionStatus>;
-
-export const predictionEntryType = z.enum(['debit', 'credit']);
-export type PredictionEntryType = z.infer<typeof predictionEntryType>;
 
 export const predictionSplitType = z.enum([
   'bank',
@@ -44,14 +41,14 @@ export type CategorizationPrediction = z.infer<typeof categorizationPrediction>;
 
 export const categorizationPredictionLine = z.object({
   prediction_id: z.uuid(),
-  line_rank: z.number().int(),
-  entry_type: predictionEntryType,
+  entry_type: debitCredit,
   coa_id: z.uuid(),
   project_id: z.uuid().nullable(),
   amount_native: z.number(),
   amount_reporting: z.number().nullable(),
   currency_code: z.string().length(3),
   description: z.string().nullable(),
+  is_bank_leg: z.boolean(),
   split_type: predictionSplitType,
   split_value: z.number().nullable(),
   metadata: z.record(z.string(), z.any()).nullable(),

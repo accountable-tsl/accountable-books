@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
+} from './utils/db.ts';
 
 const tableName = 'fiscal_calendar';
 

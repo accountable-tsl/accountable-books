@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
+} from './utils/db.ts';
 
 const tableName = 'gl_daily_balance_snapshots';
 

@@ -1,24 +1,24 @@
 import type { Knex } from 'knex';
 import { knexClient } from '../../../db/knexClient.js';
 import type {
-  PredictionEntryType,
   PredictionSource,
   PredictionSplitType,
   PredictionStatus,
 } from './predictions.types.js';
+import type { DebitCredit } from '../../../core/index.js';
 
 const PREDICTIONS_TABLE = 'categorization_predictions';
 const PREDICTION_LINES_TABLE = 'categorization_prediction_lines';
 
 export interface PredictionLineDraft {
-  lineRank: number;
-  entryType: PredictionEntryType;
+  entryType: DebitCredit;
   coaId: string;
   projectId?: string | null;
   amountNative: number;
   amountReporting?: number | null;
   currencyCode: string;
   description?: string | null;
+  isBankLeg?: boolean;
   splitType: PredictionSplitType;
   splitValue?: number | null;
   metadata?: Record<string, unknown> | null;
@@ -90,7 +90,6 @@ export class PredictionRepository {
       if (params.lines.length) {
         const rows = params.lines.map((line) => ({
           prediction_id: prediction.id,
-          line_rank: line.lineRank,
           entry_type: line.entryType,
           coa_id: line.coaId,
           project_id: line.projectId ?? null,
@@ -98,6 +97,7 @@ export class PredictionRepository {
           amount_reporting: line.amountReporting ?? null,
           currency_code: line.currencyCode,
           description: line.description ?? null,
+          is_bank_leg: line.isBankLeg ?? false,
           split_type: line.splitType,
           split_value: line.splitValue ?? null,
           metadata: line.metadata ?? null,

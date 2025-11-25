@@ -1,23 +1,23 @@
 import type { Knex } from 'knex';
 import { knexClient } from '../../../db/knexClient.js';
 import type {
-  CandidateEntryType,
   CandidateSplitType,
   CandidateStatus,
 } from './candidates.types.js';
+import type { DebitCredit } from '../../../core/index.js';
 
 const CANDIDATES_TABLE = 'categorization_candidates';
 const CANDIDATE_LINES_TABLE = 'categorization_candidate_lines';
 
 export interface CandidateLineDraft {
-  lineRank: number;
-  entryType: CandidateEntryType;
+  entryType: DebitCredit;
   coaId: string;
   projectId?: string | null;
   amountNative: number;
   amountReporting?: number | null;
   currencyCode: string;
   description?: string | null;
+  isBankLeg?: boolean;
   splitType: CandidateSplitType;
   splitValue?: number | null;
   metadata?: Record<string, unknown> | null;
@@ -25,6 +25,7 @@ export interface CandidateLineDraft {
 
 export interface CreateCandidateParams {
   predictionId: string;
+  source: 'rule' | 'ml';
   categorizationTaskId: string;
   bankTransactionId: string;
   bankTransactionDate: string;
@@ -58,6 +59,32 @@ export class CandidateRepository {
       });
   }
 
+  async softDeleteByIds(ids: string[]): Promise<number> {
+    if (!ids.length) {
+      return 0;
+    }
+    return await this.knex(CANDIDATES_TABLE)
+      .whereIn('id', ids)
+      .andWhere({ is_deleted: false })
+      .update({
+        is_deleted: true,
+        updated_at: this.knex.fn.now(),
+      });
+  }
+
+  async findActiveByTask(params: {
+    categorizationTaskId: string;
+  }): Promise<
+    Array<{ id: string; status: CandidateStatus; source: 'rule' | 'ml' }>
+  > {
+    return await this.knex(CANDIDATES_TABLE)
+      .where({
+        categorization_task_id: params.categorizationTaskId,
+        is_deleted: false,
+      })
+      .select('id', 'status', 'source');
+  }
+
   async createCandidateWithLines(
     params: CreateCandidateParams,
   ): Promise<string> {
@@ -65,6 +92,7 @@ export class CandidateRepository {
       const [candidate] = await trx(CANDIDATES_TABLE)
         .insert({
           prediction_id: params.predictionId,
+          source: params.source,
           categorization_task_id: params.categorizationTaskId,
           bank_transaction_id: params.bankTransactionId,
           bank_transaction_date: params.bankTransactionDate,
@@ -84,7 +112,6 @@ export class CandidateRepository {
       if (params.lines.length) {
         const rows = params.lines.map((line) => ({
           candidate_id: candidate.id,
-          line_rank: line.lineRank,
           entry_type: line.entryType,
           coa_id: line.coaId,
           project_id: line.projectId ?? null,
@@ -92,6 +119,7 @@ export class CandidateRepository {
           amount_reporting: line.amountReporting ?? null,
           currency_code: line.currencyCode,
           description: line.description ?? null,
+          is_bank_leg: line.isBankLeg ?? false,
           split_type: line.splitType,
           split_value: line.splitValue ?? null,
           metadata: line.metadata ?? null,

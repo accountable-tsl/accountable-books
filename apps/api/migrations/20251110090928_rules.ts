@@ -3,8 +3,8 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
-import { createEnumIfNotExists } from './20250403174454_002_enums.js';
+} from './utils/db.ts';
+import { createEnumIfNotExists } from './20250403174454_002_enums.ts';
 
 const tableName = 'rules';
 export const RULES_TABLE = tableName;
@@ -98,7 +98,18 @@ export async function up(knex: Knex): Promise<void> {
     table.specificType(
       'order_weight',
       `integer generated always as (
-        (tier_rank * 1000) + COALESCE(priority, 0)
+        (
+          (
+            CASE scope
+              WHEN 'global' THEN 1
+              WHEN 'region' THEN 2
+              WHEN 'country' THEN 3
+              WHEN 'subregion' THEN 4
+              WHEN 'company' THEN 5
+              ELSE 99
+            END
+          ) * 1000
+        ) + COALESCE(priority, 0)
       ) stored`,
     );
     table.specificType(
@@ -183,23 +194,23 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(`DROP INDEX IF EXISTS idx_rules_scope_key;`);
-  await knex.raw(`DROP INDEX IF EXISTS idx_rules_scope_geo;`);
-  await knex.raw(`DROP INDEX IF EXISTS rules_name_company_version_unique;`);
-  await knex.raw(`DROP INDEX IF EXISTS idx_rules_company;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_rules_scope_key`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_rules_scope_geo`);
+  await knex.raw(`DROP INDEX IF EXISTS rules_name_company_version_unique`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_rules_company`);
   await knex.raw(`DROP INDEX IF EXISTS idx_rules_scope_priority;`);
   await knex.raw(
-    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS rules_priority_soft_range;`,
+    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS rules_priority_soft_range`,
   );
   await knex.raw(
-    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS rules_bank_scope_check;`,
+    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS rules_bank_scope_check`,
   );
   await knex.raw(
-    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS rules_scope_location_check;`,
+    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS rules_scope_location_check`,
   );
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
-  await knex.raw(`DROP TYPE IF EXISTS rule_direction_filter;`);
-  await knex.raw(`DROP TYPE IF EXISTS rule_bank_scope;`);
-  await knex.raw(`DROP TYPE IF EXISTS rule_scope;`);
+  await knex.raw(`DROP TYPE IF EXISTS rule_direction_filter`);
+  await knex.raw(`DROP TYPE IF EXISTS rule_bank_scope`);
+  await knex.raw(`DROP TYPE IF EXISTS rule_scope`);
 }

@@ -4,9 +4,9 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.js';
-import { financialStatementIds } from './data/ids.js';
-import { isDev } from '../config/env-loader.js';
+} from './utils/db.ts';
+import { financialStatementIds } from './data/ids.ts';
+import { isDev } from '../config/env-loader.ts';
 import z from 'zod';
 
 const financialStatement = z.object({

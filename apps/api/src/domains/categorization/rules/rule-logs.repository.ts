@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 import { knexClient } from '../../../db/knexClient.js';
+import { logger } from '../../../shared/index.js';
 import type { RuleLogs } from './rules-db.types.js';
 import type { RuleLogDraft, RuleLogPersistContext } from './rule-logs.types.js';
 
@@ -29,6 +30,39 @@ export class RuleLogRepository implements RuleLogWriter {
 
     if (rows.length === 0) {
       return;
+    }
+
+    // Detect if this transaction already has runs recorded (different run ids).
+    // We don't prevent duplicates here, but log a warning so pilots can detect
+    // if the same transaction has been processed multiple times.
+    try {
+      const existingRunIds: Array<{ engine_run_id: string }> = await this.knex
+        .from(RULE_LOGS_TABLE)
+        .select('engine_run_id')
+        .where({
+          company_id: context.companyId,
+          transaction_id: context.transactionId,
+        })
+        .groupBy('engine_run_id');
+
+      const otherRunIds = existingRunIds
+        .map((r) => r.engine_run_id)
+        .filter((id) => id !== context.runId);
+
+      if (otherRunIds.length > 0) {
+        logger.warn(
+          {
+            companyId: context.companyId,
+            transactionId: context.transactionId,
+            runId: context.runId,
+            previousRunIds: otherRunIds,
+          },
+          'Rule engine: transaction has previous run logs',
+        );
+      }
+    } catch (err) {
+      // Non-fatal: if detection query fails, continue to insert logs.
+      logger.debug({ err }, 'RuleLogRepository: previous-run detection failed');
     }
 
     await this.knex<RuleLogs>(RULE_LOGS_TABLE).insert(rows);

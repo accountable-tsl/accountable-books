@@ -4,7 +4,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.js';
+} from './utils/db.ts';
 import path from 'path';
 import fs from 'fs';
 import csv from 'csv-parser';

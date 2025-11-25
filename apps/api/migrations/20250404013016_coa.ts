@@ -3,8 +3,8 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
-import { createPlatformCompany } from './20250403194332_companies.js';
+} from './utils/db.ts';
+import { createPlatformCompany } from './20250403194332_companies.ts';
 
 const tableName = 'coa';
 

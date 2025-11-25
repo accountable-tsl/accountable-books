@@ -1,4 +1,5 @@
 import { toYMD } from '../../../shared/index.js';
+import { LRUCache } from 'lru-cache';
 import {
   actionDefinition,
   conditionDefinition,
@@ -21,8 +22,15 @@ import {
 } from './rules.types.js';
 import { getActionTemplate } from './rules.templates.js';
 
-const MAX_CACHE_ENTRIES = 1000;
 const FLOAT_TOLERANCE = 1e-6;
+
+// Quick note: keep compiled rules in-memory (LRU) because:
+// - Speed: calling a local function (no network) is far faster than a Redis lookup.
+// - Not serializable: compiled conditions/actions are JS functions (closures)
+//   and cannot be reliably serialized and restored from Redis.
+// - Staleness risk: storing executable state in Redis makes invalidation
+//   harder when rules change. Use Redis only for small, serializable data
+//   (e.g. parsed JSON), not for executable closures.
 
 /**
  * Custom error class for RuleCompiler specific errors.
@@ -129,8 +137,14 @@ interface ActionNodeExecutor {
  * It uses caching to avoid recompiling frequently used rules.
  */
 export class RuleCompiler {
-  private readonly conditionCache = new Map<string, CompiledCondition>();
-  private readonly actionCache = new Map<string, CompiledAction>();
+  private readonly conditionCache = new LRUCache<string, CompiledCondition>({
+    max: 1000,
+    ttl: 1000 * 60 * 60, // 1 hour
+  });
+  private readonly actionCache = new LRUCache<string, CompiledAction>({
+    max: 1000,
+    ttl: 1000 * 60 * 60,
+  });
 
   /**
    * Compiles a condition definition into an executable `CompiledCondition`.
@@ -171,7 +185,6 @@ export class RuleCompiler {
     }
     const compiled = this.buildConditionEvaluator(parsed, fingerprint);
     this.conditionCache.set(cacheKey, compiled);
-    this.enforceCacheSize(this.conditionCache);
     return compiled;
   }
 
@@ -200,7 +213,6 @@ export class RuleCompiler {
       allowTemplates,
     });
     this.actionCache.set(cacheKey, compiled);
-    this.enforceCacheSize(this.actionCache);
     return compiled;
   }
 
@@ -649,16 +661,7 @@ export class RuleCompiler {
   /**
    * Enforces a maximum size for the cache, removing the oldest entry if the limit is exceeded.
    */
-  private enforceCacheSize<T>(cache: Map<string, T>): void {
-    if (cache.size <= MAX_CACHE_ENTRIES) {
-      return;
-    }
-    // Remove the oldest entry (first one in insertion order).
-    const firstKey = cache.keys().next().value;
-    if (firstKey) {
-      cache.delete(firstKey);
-    }
-  }
+  // Eviction is handled by the in-process LRU cache (lru-cache).
 
   /**
    * Generates a cache key for a compiled condition, incorporating whether regex/signals are allowed.

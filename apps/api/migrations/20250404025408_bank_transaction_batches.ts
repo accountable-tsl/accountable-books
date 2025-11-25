@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
+} from './utils/db.ts';
 
 const tableName = 'bank_transaction_batches';
 export async function up(knex: Knex): Promise<void> {

@@ -3,9 +3,9 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
-import { createPlatformCompany } from './20250403194332_companies.js';
-import { seedSystemUser } from './20250403184441_users.js';
+} from './utils/db.ts';
+import { createPlatformCompany } from './20250403194332_companies.ts';
+import { seedSystemUser } from './20250403184441_users.ts';
 
 export const assignAdminRole = async (knex: Knex) => {
   const platformCompany = await createPlatformCompany(knex);

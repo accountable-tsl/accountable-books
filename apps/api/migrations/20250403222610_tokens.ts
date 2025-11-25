@@ -1,12 +1,12 @@
 import type { Knex } from 'knex';
-import { seedAdminUser, seedSystemUser } from './20250403184441_users.js';
-import { createPlatformCompany } from './20250403194332_companies.js';
-import { createPlatformFirm } from './20250403194335_accounting_firms_meta.js';
-import { insertPlatformFirmCompany } from './20250403222519_client_firm_assignments.js';
+import { seedAdminUser, seedSystemUser } from './20250403184441_users.ts';
+import { createPlatformCompany } from './20250403194332_companies.ts';
+import { createPlatformFirm } from './20250403194335_accounting_firms_meta.ts';
+import { insertPlatformFirmCompany } from './20250403222519_client_firm_assignments.ts';
 import {
   assignAdminRole,
   assignSystemUserRole,
-} from './20250403222517_user_company_roles.js';
+} from './20250403222517_user_company_roles.ts';
 
 const tableName = 'tokens';
 export async function up(knex: Knex): Promise<void> {

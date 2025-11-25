@@ -16,6 +16,13 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Cap worker threads to avoid a large number of node:vitest processes.
+    poolOptions: {
+      threads: {
+        minThreads: 1,
+        maxThreads: 2,
+      },
+    },
     // Load test environment variables from .env.test
     env: {
       NODE_ENV: 'test',

@@ -8,6 +8,10 @@ import type { RuleEngineResult } from './rules.engine.js';
 import type { CandidateRepository } from '../candidates/candidates.repository.js';
 import type { PredictionRepository } from '../predictions/predictions.repository.js';
 
+vi.mock('../ml/ml-prediction.queue.js', () => ({
+  enqueueMLPredictionJob: vi.fn().mockResolvedValue(undefined),
+}));
+
 const baseEvent: TransactionEnrichedEventData = {
   company_uuid: 'company-1',
   bank_transaction_id: 'txn-1',
@@ -105,6 +109,12 @@ describe('rule-runner.service', () => {
     const knexStub = createKnexStub();
     const candidateRepo = createCandidateRepoStub();
     const predictionRepo = createPredictionRepoStub();
+    const processPredictionToCandidate = vi.fn().mockResolvedValue({
+      predictionId: 'pred-1',
+      candidateId: 'candidate-1',
+      violations: [],
+      skipped: false,
+    });
     const fakeResult: RuleEngineResult = {
       runId: 'run-1',
       transactionId: 'txn-1',
@@ -132,6 +142,7 @@ describe('rule-runner.service', () => {
       knex: knexStub.knex,
       candidateRepository: candidateRepo,
       predictionRepository: predictionRepo,
+      processPredictionToCandidate,
     });
 
     expect(knexStub.transaction).toHaveBeenCalled();
@@ -140,20 +151,28 @@ describe('rule-runner.service', () => {
     const updatePayload = knexStub.update.mock.calls[0][0];
     expect(updatePayload.status).toBe('pending');
     expect(updatePayload.metadata.sql).toContain('jsonb_set');
-    expect(predictionRepo.softDeleteByTask).toHaveBeenCalled();
-    expect(predictionRepo.createPredictionWithLines).toHaveBeenCalledTimes(1);
-    expect(candidateRepo.softDeleteByTask).toHaveBeenCalled();
-    expect(candidateRepo.createCandidateWithLines).toHaveBeenCalledTimes(1);
-    const candidatePayload = (
-      candidateRepo.createCandidateWithLines as ReturnType<typeof vi.fn>
-    ).mock.calls[0][0];
-    expect(candidatePayload.lines).toHaveLength(2); // bank + expense
+    expect(processPredictionToCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        categorizationTaskId: 'task-1',
+        source: 'rule',
+      }),
+    );
+    expect(predictionRepo.softDeleteByTask).not.toHaveBeenCalled();
+    expect(predictionRepo.createPredictionWithLines).not.toHaveBeenCalled();
+    expect(candidateRepo.findActiveByTask).not.toHaveBeenCalled();
+    expect(candidateRepo.createCandidateWithLines).not.toHaveBeenCalled();
   });
 
   it('skips candidate creation when engine has no categorize lines', async () => {
     const knexStub = createKnexStub();
     const candidateRepo = createCandidateRepoStub();
     const predictionRepo = createPredictionRepoStub();
+    const processPredictionToCandidate = vi.fn().mockResolvedValue({
+      predictionId: 'pred-1',
+      candidateId: 'candidate-1',
+      violations: [],
+      skipped: false,
+    });
     const fakeResult: RuleEngineResult = {
       runId: 'run-2',
       transactionId: 'txn-1',
@@ -171,8 +190,60 @@ describe('rule-runner.service', () => {
       knex: knexStub.knex,
       candidateRepository: candidateRepo,
       predictionRepository: predictionRepo,
+      processPredictionToCandidate,
     });
 
+    expect(processPredictionToCandidate).not.toHaveBeenCalled();
+    expect(predictionRepo.createPredictionWithLines).not.toHaveBeenCalled();
+    expect(candidateRepo.createCandidateWithLines).not.toHaveBeenCalled();
+  });
+
+  it('keeps posted candidate and skips creating a new one', async () => {
+    const knexStub = createKnexStub();
+    const candidateRepo = createCandidateRepoStub({
+      findActiveByTaskReturn: [
+        { id: 'cand-1', status: 'posted', source: 'rule' },
+      ],
+    });
+    const predictionRepo = createPredictionRepoStub();
+    const processPredictionToCandidate = vi.fn().mockResolvedValue({
+      predictionId: 'pred-1',
+      candidateId: undefined,
+      violations: [],
+      skipped: true,
+      skipReason: 'posted_candidate_exists',
+    });
+    const fakeResult: RuleEngineResult = {
+      runId: 'run-3',
+      transactionId: 'txn-1',
+      transactionDate: '2025-01-15',
+      logs: [],
+      finalState: {
+        description: 'Office Rent',
+        categorize: [
+          {
+            split_type: 'amount',
+            description: 'Office Rent',
+            coa_id: 'coa-expense',
+            value: 1200,
+          },
+        ],
+      },
+      status: 'applied',
+      needsReview: false,
+      winningRuleId: 'rule-1',
+      conflictingField: null,
+    };
+
+    await runRulesForEnrichedTransaction(baseEvent, {
+      runEngine: vi.fn().mockResolvedValue(fakeResult),
+      knex: knexStub.knex,
+      candidateRepository: candidateRepo,
+      predictionRepository: predictionRepo,
+      processPredictionToCandidate,
+    });
+
+    expect(processPredictionToCandidate).toHaveBeenCalled();
     expect(predictionRepo.createPredictionWithLines).not.toHaveBeenCalled();
     expect(candidateRepo.createCandidateWithLines).not.toHaveBeenCalled();
   });
@@ -181,12 +252,14 @@ describe('rule-runner.service', () => {
     const knexStub = createKnexStub();
     const candidateRepo = createCandidateRepoStub();
     const predictionRepo = createPredictionRepoStub();
+    const processPredictionToCandidate = vi.fn();
     await expect(
       runRulesForEnrichedTransaction(baseEvent, {
         runEngine: vi.fn().mockRejectedValue(new Error('boom')),
         knex: knexStub.knex,
         candidateRepository: candidateRepo,
         predictionRepository: predictionRepo,
+        processPredictionToCandidate,
       }),
     ).rejects.toThrow('boom');
 
@@ -216,9 +289,22 @@ function createKnexStub() {
   return { knex: knexFn, update, where, raw, now, transaction };
 }
 
-function createCandidateRepoStub() {
+function createCandidateRepoStub(
+  options: {
+    findActiveByTaskReturn?: Array<{
+      id: string;
+      status: string;
+      source: 'rule' | 'ml';
+    }>;
+  } = {},
+) {
+  const findActiveByTask = vi
+    .fn()
+    .mockResolvedValue(options.findActiveByTaskReturn ?? []);
+  const softDeleteByIds = vi.fn().mockResolvedValue(0);
   return {
-    softDeleteByTask: vi.fn().mockResolvedValue(0),
+    findActiveByTask,
+    softDeleteByIds,
     createCandidateWithLines: vi.fn().mockResolvedValue('candidate-1'),
   } as unknown as CandidateRepository;
 }

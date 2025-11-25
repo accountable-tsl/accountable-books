@@ -3,8 +3,8 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
-import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
+} from './utils/db.ts';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.ts';
 
 const tableName = 'contacts';
 export async function up(knex: Knex): Promise<void> {

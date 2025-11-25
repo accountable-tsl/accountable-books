@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
+} from './utils/db.ts';
 
 const tableName = 'journal_batches';
 
@@ -136,7 +136,7 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(
     'DROP TRIGGER IF EXISTS trigger_set_journal_batch_sequence_number ON journal_batches;',
   );
-  await knex.raw('DROP FUNCTION IF EXISTS set_journal_batch_sequence_number;');
+  await knex.raw('DROP FUNCTION IF EXISTS set_journal_batch_sequence_number');
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

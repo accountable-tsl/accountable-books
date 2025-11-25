@@ -25,5 +25,17 @@ export const ruleRunnerQueue = new Queue<TransactionEnrichedEventData>(
 export async function enqueueRuleRunJob(
   data: TransactionEnrichedEventData,
 ): Promise<void> {
-  await ruleRunnerQueue.add('run-rule', data);
+  // Build a deterministic job id so the queue can deduplicate/recover retries.
+  // Prefer `categorization_task_id` (per-task id), fallback to `bank_transaction_id`.
+  const jobIdBase =
+    data.categorization_task_id ?? data.bank_transaction_id ?? undefined;
+  const jobId = jobIdBase
+    ? `${data.company_uuid ?? 'company'}:${jobIdBase}`
+    : undefined;
+
+  const jobOptions: JobsOptions = jobId
+    ? { ...defaultJobOptions, jobId }
+    : defaultJobOptions;
+
+  await ruleRunnerQueue.add('run-rule', data, jobOptions);
 }

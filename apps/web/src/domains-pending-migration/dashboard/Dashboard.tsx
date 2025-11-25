@@ -8,6 +8,7 @@ export default function Dashboard() {
     <>
       Dashboard
       <ConnectBankAccount />
+      {/* Show users how they're succeeding with the product as soon as they login */}
     </>
   );
 }

@@ -3,15 +3,15 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
-import { adminUser } from './20250403184441_users.js';
+} from './utils/db.ts';
+import { adminUser } from './20250403184441_users.ts';
 import {
   MONO_COUNTRIES,
   PLAID_COUNTRIES,
   SEED_BANK_FEED_PROVIDERS,
   STRIPE_COUNTRIES,
-} from './data/feed_providers.js';
-import { countryMap } from './20250404021752_banks.js';
+} from './data/feed_providers.ts';
+import { countryMap } from './20250404021752_banks.ts';
 
 function mapProviderToCountry(
   providerKey: string,

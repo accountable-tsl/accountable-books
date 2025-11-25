@@ -2,8 +2,18 @@ import type { Knex } from 'knex';
 import { knexClient } from '../../../db/knexClient.js';
 import { logger } from '../../../shared/index.js';
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
-import { rulesEngine, type RuleEngineResult } from './rules.engine.js';
+import {
+  rulesEngine,
+  RulesEngine,
+  type RuleEngineResult,
+} from './rules.engine.js';
 import type { RuleEngineInput } from './rules.engine.types.js';
+import { RuleRepository } from './rules.repository.js';
+import {
+  RuleLogRepository,
+  type RuleLogWriter,
+} from './rule-logs.repository.js';
+import { RuleCompiler } from './rules.compiler.js';
 import type { EnrichedTransaction } from '../enrichment/enrichment.types.js';
 import {
   CandidateRepository,
@@ -11,11 +21,13 @@ import {
 } from '../candidates/candidates.repository.js';
 import type { CandidateSplitType } from '../candidates/candidates.types.js';
 import type { CategorizeLine } from './rules-def.types.js';
-import {
-  PredictionRepository,
-  type PredictionLineDraft,
-} from '../predictions/predictions.repository.js';
+import { PredictionRepository } from '../predictions/predictions.repository.js';
 import type { CategorizationTaskStatus } from '../tasks/tasks.enums.js';
+import { enqueueMLPredictionJob } from '../ml/ml-prediction.queue.js';
+import {
+  processPredictionToCandidate,
+  type ProcessPredictionToCandidateParams,
+} from '../processing/prediction-pipeline.service.js';
 
 const CATEGORIZATION_TASKS_TABLE = 'categorization_tasks';
 
@@ -24,6 +36,18 @@ export interface RuleRunnerDependencies {
   knex?: Knex;
   candidateRepository?: CandidateRepository;
   predictionRepository?: PredictionRepository;
+  ruleRepository?: RuleRepository;
+  ruleLogWriter?: RuleLogWriter;
+  compiler?: RuleCompiler;
+  processPredictionToCandidate?: (
+    params: ProcessPredictionToCandidateParams,
+  ) => Promise<{
+    predictionId: string;
+    candidateId?: string;
+    violations: unknown[];
+    skipped: boolean;
+    skipReason?: string;
+  }>;
 }
 
 export async function runRulesForEnrichedTransaction(
@@ -32,39 +56,94 @@ export async function runRulesForEnrichedTransaction(
 ): Promise<void> {
   const runEngine = deps.runEngine ?? ((input) => rulesEngine.run(input));
   const db = deps.knex ?? knexClient;
+  let ruleResult: RuleEngineResult | null = null;
+
   try {
     const input = buildRuleEngineInput(event);
-    const result = await runEngine(input);
-    await db.transaction(async (trx) => {
-      const scopedCandidateRepository =
-        deps.candidateRepository ?? new CandidateRepository(trx);
-      const scopedPredictionRepository =
-        deps.predictionRepository ?? new PredictionRepository(trx);
 
-      await persistRuleRunOutcome(
-        {
-          taskId: event.categorization_task_id,
+    // If a custom runEngine is provided (tests), keep using it and then
+    // persist outcome in a transaction. Otherwise run the engine inside
+    // the DB transaction so logs and outcome are atomic.
+    if (deps.runEngine) {
+      const result = await runEngine(input);
+      ruleResult = result;
+      await db.transaction(async (trx) => {
+        const scopedCandidateRepository =
+          deps.candidateRepository ?? new CandidateRepository(trx);
+        const scopedPredictionRepository =
+          deps.predictionRepository ?? new PredictionRepository(trx);
+
+        // Serialize candidate/prediction writes per task
+        await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+          event.categorization_task_id,
+        ]);
+
+        await persistRuleRunOutcome(
+          {
+            taskId: event.categorization_task_id,
+            result,
+            enrichedTransaction: event.enriched_transaction,
+          },
+          trx,
+        );
+        await persistRulePredictionAndCandidate({
+          event,
           result,
-          enrichedTransaction: event.enriched_transaction,
-        },
-        trx,
-      );
-      await persistRulePredictionAndCandidate({
-        event,
-        result,
-        predictionRepository: scopedPredictionRepository,
-        candidateRepository: scopedCandidateRepository,
+          predictionRepository: scopedPredictionRepository,
+          candidateRepository: scopedCandidateRepository,
+          processPredictionToCandidateFn: deps.processPredictionToCandidate,
+          trx,
+        });
       });
-    });
+    } else {
+      await db.transaction(async (trx) => {
+        const ruleRepo = deps.ruleRepository ?? new RuleRepository(trx);
+        const logWriter = deps.ruleLogWriter ?? new RuleLogRepository(trx);
+        const compiler = deps.compiler ?? new RuleCompiler();
+
+        const engine = new RulesEngine(ruleRepo, compiler, logWriter);
+        const result = await engine.run(input);
+        ruleResult = result;
+
+        const scopedCandidateRepository =
+          deps.candidateRepository ?? new CandidateRepository(trx);
+        const scopedPredictionRepository =
+          deps.predictionRepository ?? new PredictionRepository(trx);
+
+        // Serialize candidate/prediction writes per task
+        await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+          event.categorization_task_id,
+        ]);
+
+        await persistRuleRunOutcome(
+          {
+            taskId: event.categorization_task_id,
+            result,
+            enrichedTransaction: event.enriched_transaction,
+          },
+          trx,
+        );
+        await persistRulePredictionAndCandidate({
+          event,
+          result,
+          predictionRepository: scopedPredictionRepository,
+          candidateRepository: scopedCandidateRepository,
+          processPredictionToCandidateFn: deps.processPredictionToCandidate,
+          trx,
+        });
+      });
+    }
+
     logger.info(
       {
         bankTransactionId: event.bank_transaction_id,
         companyId: event.company_uuid,
-        status: result.status,
-        needsReview: result.needsReview,
       },
       'Rule engine run completed',
     );
+
+    // Check if ML prediction should be enqueued after rule run
+    await enqueueMlIfNeeded(event, ruleResult);
   } catch (error) {
     logger.error(
       {
@@ -75,6 +154,10 @@ export async function runRulesForEnrichedTransaction(
       'Rule engine run failed',
     );
     await persistRuleRunFailure(event.categorization_task_id, error, db);
+
+    // Enqueue ML even on rule failure to get fallback predictions
+    await enqueueMlIfNeeded(event, null);
+
     throw error;
   }
 }
@@ -195,8 +278,25 @@ async function persistRulePredictionAndCandidate(params: {
   result: RuleEngineResult;
   predictionRepository: PredictionRepository;
   candidateRepository: CandidateRepository;
+  processPredictionToCandidateFn?: (
+    params: ProcessPredictionToCandidateParams,
+  ) => Promise<{
+    predictionId: string;
+    candidateId?: string;
+    violations: unknown[];
+    skipped: boolean;
+    skipReason?: string;
+  }>;
+  trx: Knex;
 }): Promise<void> {
-  const { event, result, candidateRepository, predictionRepository } = params;
+  const {
+    event,
+    result,
+    candidateRepository,
+    predictionRepository,
+    processPredictionToCandidateFn,
+    trx,
+  } = params;
   const categorizeLines = result.finalState.categorize;
   if (!categorizeLines?.length || result.status !== 'applied') {
     return;
@@ -223,51 +323,31 @@ async function persistRulePredictionAndCandidate(params: {
   }
 
   const explanation = buildCandidateExplanation(result);
-  await predictionRepository.softDeleteByTask({
-    categorizationTaskId: event.categorization_task_id,
-    source: 'rule',
-  });
-
-  const predictionId = await predictionRepository.createPredictionWithLines({
+  const processFn =
+    processPredictionToCandidateFn ?? processPredictionToCandidate;
+  await processFn({
     categorizationTaskId: event.categorization_task_id,
     bankTransactionId: event.bank_transaction_id,
     bankTransactionDate: event.enriched_transaction.raw.date,
     companyId: event.company_uuid,
     source: 'rule',
+    lines: journalLines,
+    confidence: 1,
     rank: 1,
     isPrimary: true,
-    confidence: 1,
     modelVersion: null,
     predictionGroupId: null,
-    status: 'pending',
-    inputChecksum: null,
     explanation,
     metadata: {
       run_id: result.runId,
       rule_id: result.winningRuleId,
+      provenance: 'rule_engine',
     },
-    lines: toPredictionLines(journalLines),
-  });
-
-  await candidateRepository.softDeleteByTask({
-    categorizationTaskId: event.categorization_task_id,
-  });
-
-  await candidateRepository.createCandidateWithLines({
-    predictionId,
-    categorizationTaskId: event.categorization_task_id,
-    bankTransactionId: event.bank_transaction_id,
-    bankTransactionDate: event.enriched_transaction.raw.date,
-    companyId: event.company_uuid,
-    status: 'proposed',
-    confidence: 1,
-    contactId: event.enriched_transaction.ids.contact_id ?? null,
-    description: event.enriched_transaction.raw.description ?? null,
-    reference:
-      event.enriched_transaction.normalized.normalized_reference ?? null,
-    solverNotes: 'rule_engine_auto',
-    metadata: { provenance: 'rule_engine' },
-    lines: journalLines,
+    enrichedTransaction: event.enriched_transaction,
+    predictionRepository,
+    candidateRepository,
+    knex: trx,
+    softDeleteExistingPredictions: false,
   });
 }
 
@@ -329,30 +409,29 @@ function buildJournalLines(params: {
 
   const lines: CandidateLineDraft[] = [];
   lines.push({
-    lineRank: 0,
     entryType: bankEntryType,
     coaId: bankCoaId,
     amountNative: toCurrency(transactionAmount),
     amountReporting: toCurrency(transactionAmount * reportingRatio),
     currencyCode,
     description: 'Bank leg',
+    isBankLeg: true,
     splitType: 'bank',
     metadata: { direction },
   });
 
-  let rank = 1;
   for (const item of computed) {
     if (!item.line.coa_id) {
       continue;
     }
     lines.push({
-      lineRank: rank++,
       entryType: counterpartEntryType,
       coaId: item.line.coa_id,
       amountNative: toCurrency(item.amount),
       amountReporting: toCurrency(item.amount * reportingRatio),
       currencyCode,
       description: item.line.description ?? null,
+      isBankLeg: false,
       splitType: item.line.split_type as CandidateSplitType,
       splitValue: getSplitValue(item.line),
       metadata: item.line as unknown as Record<string, unknown>,
@@ -422,18 +501,118 @@ function getSplitValue(line: CategorizeLine): number | null {
   return null;
 }
 
-function toPredictionLines(lines: CandidateLineDraft[]): PredictionLineDraft[] {
-  return lines.map((line) => ({
-    lineRank: line.lineRank,
-    entryType: line.entryType,
-    coaId: line.coaId,
-    projectId: line.projectId ?? null,
-    amountNative: line.amountNative,
-    amountReporting: line.amountReporting ?? null,
-    currencyCode: line.currencyCode,
-    description: line.description ?? null,
-    splitType: line.splitType,
-    splitValue: line.splitValue ?? null,
-    metadata: line.metadata ?? null,
-  }));
+/**
+ * Determine if ML prediction should be enqueued based on:
+ * 1. Shadow mode (processing_context === 'shadow') - always run ML
+ * 2. Rule failure or no match - run ML as fallback
+ * 3. Rule conflict - run ML for alternative suggestions
+ *
+ * @param event - Transaction enriched event data
+ * @param ruleResult - Result from rule engine (null if rules failed)
+ */
+async function enqueueMlIfNeeded(
+  event: TransactionEnrichedEventData,
+  ruleResult: RuleEngineResult | null,
+): Promise<void> {
+  try {
+    const enrichedTxn = event.enriched_transaction;
+    const processingContext = enrichedTxn.metadata.processing_context;
+
+    // Check if we should run ML
+    const shouldRunML = shouldEnqueueML(processingContext, ruleResult);
+
+    if (!shouldRunML) {
+      logger.debug(
+        {
+          bankTransactionId: event.bank_transaction_id,
+          processingContext,
+          ruleStatus: ruleResult?.status,
+        },
+        'Skipping ML prediction - rules applied successfully',
+      );
+      return;
+    }
+
+    logger.info(
+      {
+        bankTransactionId: event.bank_transaction_id,
+        processingContext,
+        ruleStatus: ruleResult?.status ?? 'error',
+      },
+      'Enqueueing ML prediction job',
+    );
+
+    // Enqueue ML prediction job
+    await enqueueMLPredictionJob({
+      categorizationTaskId: event.categorization_task_id,
+      bankTransactionId: event.bank_transaction_id,
+      companyId: event.company_uuid,
+      enrichedTransaction: enrichedTxn,
+    });
+
+    logger.debug(
+      {
+        bankTransactionId: event.bank_transaction_id,
+        categorizationTaskId: event.categorization_task_id,
+      },
+      'ML prediction job enqueued successfully',
+    );
+  } catch (error) {
+    // Log error but don't throw - ML is optional enhancement
+    logger.error(
+      {
+        bankTransactionId: event.bank_transaction_id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      'Failed to enqueue ML prediction job',
+    );
+  }
+}
+
+/**
+ * Determine if ML should run based on processing context and rule result
+ *
+ * @param processingContext - 'shadow' or 'primary' from enrichment metadata
+ * @param ruleResult - Result from rule engine execution
+ * @returns true if ML should be enqueued
+ */
+function shouldEnqueueML(
+  processingContext: 'shadow' | 'primary' | undefined,
+  ruleResult: RuleEngineResult | null,
+): boolean {
+  // Shadow mode: always run ML for training/validation
+  if (processingContext === 'shadow') {
+    return true;
+  }
+
+  // Primary mode: run ML only if rules didn't resolve successfully
+  if (processingContext === 'primary') {
+    // Rules failed to execute
+    if (ruleResult === null) {
+      return true;
+    }
+
+    // Rules executed but didn't match anything
+    if (ruleResult.status === 'no_match') {
+      return true;
+    }
+
+    // Rules had an error during execution
+    if (ruleResult.status === 'error') {
+      return true;
+    }
+
+    // Rules had conflicts between multiple matching rules
+    if (ruleResult.status === 'conflict') {
+      return true;
+    }
+
+    // Rules applied successfully - no need for ML
+    if (ruleResult.status === 'applied') {
+      return false;
+    }
+  }
+
+  // Default: run ML if processing context is undefined (safety fallback)
+  return true;
 }

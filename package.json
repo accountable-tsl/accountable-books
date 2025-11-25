@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
-    "test": "turbo run test",
+    "test": "turbo run test --concurrency=1",
     "typecheck": "turbo run typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -66,5 +66,8 @@
       "eslint": "9.33.0",
       "prettier": "3.6.2"
     }
+  },
+  "dependencies": {
+    "lru-cache": "^11.2.2"
   }
 }

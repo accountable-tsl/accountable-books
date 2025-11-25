@@ -3,7 +3,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
+} from './utils/db.ts';
 
 // If we had to replay
 
@@ -34,12 +34,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('contact_fingerprint', 256).notNullable();
     table.string('currency_code', 3).notNullable();
 
-    table
-      .uuid('bank_transaction_id')
-      .notNullable()
-      .references('id')
-      .inTable('bank_transactions')
-      .onDelete('CASCADE');
+    table.uuid('bank_transaction_id').notNullable();
     table.date('bank_transaction_date').notNullable();
     table.unique(['bank_transaction_id', 'bank_transaction_date']);
 
@@ -51,6 +46,15 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, entriesTable);
+
+  // Composite FK from entries to bank_transactions (id + date)
+  await knex.raw(`
+    ALTER TABLE ${entriesTable}
+    ADD CONSTRAINT bank_transaction_contact_stats_entries_bank_transaction_id_foreign
+    FOREIGN KEY (bank_transaction_id, bank_transaction_date)
+    REFERENCES bank_transactions (id, date)
+    ON DELETE CASCADE;
+  `);
 
   await knex.raw(
     `CREATE INDEX idx_contact_stats_entries_stats ON ${entriesTable}(stats_id, bank_transaction_date) WHERE is_deleted = FALSE`,

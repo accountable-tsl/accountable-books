@@ -4,9 +4,9 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.js';
-import { accountElementIds } from './data/ids.js';
-import { isDev } from '../config/env-loader.js';
+} from './utils/db.ts';
+import { accountElementIds } from './data/ids.ts';
+import { isDev } from '../config/env-loader.ts';
 import z from 'zod';
 
 export const newAccountType = z.object({

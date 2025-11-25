@@ -7,6 +7,7 @@ import { startFiscalCalendarWorker } from '../../domains/reporting/fiscal-calend
 import {
   startEnrichmentWorker,
   startRuleRunnerWorker,
+  startMLPredictionWorker,
 } from '../../domains/categorization/index.js';
 
 export interface WorkerConfig {
@@ -29,6 +30,9 @@ export interface WorkerConfig {
     concurrency: number;
   };
   ruleRunner: {
+    concurrency: number;
+  };
+  mlPrediction: {
     concurrency: number;
   };
 }
@@ -55,6 +59,9 @@ const DEFAULT_WORKER_CONFIG: WorkerConfig = {
   },
   ruleRunner: {
     concurrency: Number(process.env.RULE_RUNNER_CONCURRENCY) || 5,
+  },
+  mlPrediction: {
+    concurrency: Number(process.env.ML_WORKER_CONCURRENCY) || 5,
   },
 };
 
@@ -161,6 +168,21 @@ export async function startAllWorkers(
   } catch (error) {
     console.error('❌ Failed to start rule runner worker:', error);
     throw error;
+  }
+
+  // Start ML prediction worker (ML-based transaction categorization)
+  try {
+    console.log('🤖 Starting ML prediction worker...');
+    const mlPredictionWorker = startMLPredictionWorker(
+      workerConfig.mlPrediction.concurrency,
+    );
+    activeWorkers.set('mlPrediction', mlPredictionWorker);
+    workers.push(mlPredictionWorker);
+    console.log('✅ ML prediction worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start ML prediction worker:', error);
+    // ML is not critical for core operations, so just log the error
+    console.log('⚠️  Continuing without ML prediction worker');
   }
 
   console.log(`✅ Started ${workers.length} workers successfully`);

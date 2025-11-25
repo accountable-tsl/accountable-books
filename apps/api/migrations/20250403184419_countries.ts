@@ -4,9 +4,9 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.js';
+} from './utils/db.ts';
 import { randomUUID } from 'crypto';
-import { isDev } from '../config/env-loader.js';
+import { isDev } from '../config/env-loader.ts';
 import z from 'zod';
 
 import { fileURLToPath } from 'url';

@@ -45,9 +45,9 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-  // Only drop extensions in local environments
-  if (!IS_LOCAL) {
-    console.log('Skipping extension removal in non-local environment');
+  // Only drop extensions in local and test environments
+  if (!IS_LOCAL && !IS_TEST) {
+    console.log('Skipping extension removal in non-local/non-test environment');
     return;
   }
 

@@ -4,7 +4,7 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.js';
+} from './utils/db.ts';
 const tableName = 'permissions';
 
 export async function up(knex: Knex): Promise<void> {

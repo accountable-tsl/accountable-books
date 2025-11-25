@@ -1,4 +1,4 @@
-import './config/env-loader.js';
+import './config/env-loader.ts';
 import type { Knex } from 'knex';
 
 // Environment detection

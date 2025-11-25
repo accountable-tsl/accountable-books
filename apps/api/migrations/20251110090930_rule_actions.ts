@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import { RULES_TABLE } from './20251110090928_rules.js';
+import { RULES_TABLE } from './20251110090928_rules.ts';
 
 const tableName = 'rule_actions';
 

@@ -3,8 +3,8 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
-import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
+} from './utils/db.ts';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.ts';
 
 const tableName = 'ledger_transactions';
 const uniqueBankTxnIndex = 'ux_ledger_transactions_bank_txn_date_id_not_null';

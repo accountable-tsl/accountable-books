@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import { preventUpdateOrDelete } from './utils/db.js';
+import { preventUpdateOrDelete } from './utils/db.ts';
 
 const tableName = 'role_permissions';
 
