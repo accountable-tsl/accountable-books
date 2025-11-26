@@ -17,6 +17,10 @@ import {
   deleteDemoBankAccounts,
 } from '../config/015_bank_accounts/bank-accounts.fn.js';
 import {
+  createDemoBankTransactions,
+  deleteDemoBankTransactions,
+} from '../config/016_bank_transactions/bank-transactions.fn.js';
+import {
   createDemoUsers,
   deleteDemoUsers,
 } from '../config/001_users/users.fn.js';
@@ -66,5 +70,12 @@ export const SEED_STEPS: SeedStep[] = [
     order: 6,
     createFn: createDemoBankAccounts,
     deleteFn: deleteDemoBankAccounts,
+  },
+  {
+    name: 'bank-transactions',
+    order: 7,
+    // Depends on bank accounts + contacts existing
+    createFn: createDemoBankTransactions,
+    deleteFn: deleteDemoBankTransactions,
   },
 ];

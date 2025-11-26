@@ -1,4 +1,4 @@
-import { setupTestDatabase, teardownTestDatabase } from '../config/test-db.js';
+import { setupTestDatabase, closeTestDbConnection } from '../config/test-db.js';
 
 /**
  * Runs once per Vitest suite (main thread), ensuring migrations happen a single time
@@ -8,6 +8,6 @@ export default async function globalSetup() {
   await setupTestDatabase();
 
   return async () => {
-    await teardownTestDatabase();
+    await closeTestDbConnection();
   };
 }

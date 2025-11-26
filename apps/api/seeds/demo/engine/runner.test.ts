@@ -8,7 +8,7 @@ import {
 } from './runner.js';
 import type { DemoFilter } from '../shared/config.js';
 
-// Mock the registry with complete 6-step registry matching reality
+// Mock the registry with complete 7-step registry matching reality
 vi.mock('./registry.js', () => {
   // Create mock functions inside the factory to avoid hoisting issues
   const mockCreateFns = {
@@ -18,6 +18,7 @@ vi.mock('./registry.js', () => {
     contacts: vi.fn().mockResolvedValue(undefined),
     projects: vi.fn().mockResolvedValue(undefined),
     'bank-accounts': vi.fn().mockResolvedValue(undefined),
+    'bank-transactions': vi.fn().mockResolvedValue(undefined),
   };
 
   const mockDeleteFns = {
@@ -27,6 +28,7 @@ vi.mock('./registry.js', () => {
     contacts: vi.fn().mockResolvedValue(undefined),
     projects: vi.fn().mockResolvedValue(undefined),
     'bank-accounts': vi.fn().mockResolvedValue(undefined),
+    'bank-transactions': vi.fn().mockResolvedValue(undefined),
   };
 
   return {
@@ -67,6 +69,12 @@ vi.mock('./registry.js', () => {
         createFn: mockCreateFns['bank-accounts'],
         deleteFn: mockDeleteFns['bank-accounts'],
       },
+      {
+        name: 'bank-transactions',
+        order: 7,
+        createFn: mockCreateFns['bank-transactions'],
+        deleteFn: mockDeleteFns['bank-transactions'],
+      },
     ],
   };
 });
@@ -84,11 +92,14 @@ describe('DemoSeedRunner', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    mockTransaction = vi.fn();
+    mockTransaction = {
+      raw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
+    };
     mockKnex = {
       transaction: vi.fn().mockImplementation(async (callback) => {
         return callback(mockTransaction);
       }),
+      raw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
     };
 
     runner = new DemoSeedRunner(mockKnex);
@@ -101,7 +112,7 @@ describe('DemoSeedRunner', () => {
       expect(mockKnex.transaction).toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith('🌱 Applying demo seeds...');
       expect(console.log).toHaveBeenCalledWith(
-        '   Steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts',
+        '   Steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts, bank-transactions',
       );
       expect(console.log).toHaveBeenCalledWith('   Filters:', 'none');
       expect(console.log).toHaveBeenCalledWith('   Mode: sequential');
@@ -193,7 +204,7 @@ describe('DemoSeedRunner', () => {
       expect(mockKnex.transaction).toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith('🧹 Reversing demo seeds...');
       expect(console.log).toHaveBeenCalledWith(
-        '   Steps: bank-accounts, projects, contacts, chart-of-accounts, companies, user',
+        '   Steps: bank-transactions, bank-accounts, projects, contacts, chart-of-accounts, companies, user',
       );
       expect(console.log).toHaveBeenCalledWith('   Filters:', 'none');
       expect(console.log).toHaveBeenCalledWith('   Mode: sequential');
@@ -322,6 +333,7 @@ describe('DemoSeedRunner', () => {
       mockKnex.transaction = vi.fn().mockImplementation(async (callback) => {
         return callback(mockTransaction);
       });
+      mockKnex.raw = vi.fn().mockResolvedValue([{ '?column?': 1 }]);
 
       runner = new DemoSeedRunner(mockKnex);
     });
@@ -347,6 +359,9 @@ describe('DemoSeedRunner', () => {
       );
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('   bank-accounts'),
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('   bank-transactions'),
       );
     });
 
@@ -393,7 +408,7 @@ describe('DemoSeedRunner', () => {
       await runner.apply(undefined, options);
 
       expect(console.log).toHaveBeenCalledWith(
-        '   Steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts',
+        '   Steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts, bank-transactions',
       );
     });
 
@@ -410,7 +425,7 @@ describe('DemoSeedRunner', () => {
       const options: RunnerOptions = { steps: ['unknown-step'] };
 
       await expect(runner.apply(undefined, options)).rejects.toThrow(
-        'Unknown step: unknown-step. Available steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts',
+        'Unknown step: unknown-step. Available steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts, bank-transactions',
       );
     });
   });
@@ -437,6 +452,7 @@ describe('DemoSeedRunner', () => {
         'contacts',
         'projects',
         'bank-accounts',
+        'bank-transactions',
       ]);
     });
 
@@ -483,10 +499,14 @@ describe('Runner Options', () => {
   let runner: DemoSeedRunner;
 
   beforeEach(() => {
+    const mockTrx = {
+      raw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
+    };
     const mockKnex = {
       transaction: vi
         .fn()
-        .mockImplementation(async (callback) => callback(vi.fn())),
+        .mockImplementation(async (callback) => callback(mockTrx)),
+      raw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
     };
     runner = new DemoSeedRunner(mockKnex as any);
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -527,11 +547,14 @@ describe('Error Handling', () => {
   // Note: Transaction rollback behavior is already tested via "should handle step execution errors" test
 
   test('should provide detailed error messages', async () => {
+    const mockTrx = {
+      raw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
+    };
     const mockKnex = {
       transaction: vi.fn().mockImplementation(async (callback) => {
-        const mockTrx = vi.fn();
         return callback(mockTrx);
       }),
+      raw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
     };
 
     const runner = new DemoSeedRunner(mockKnex as any);

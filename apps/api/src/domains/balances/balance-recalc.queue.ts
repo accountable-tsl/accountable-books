@@ -3,6 +3,11 @@ import { createHash } from 'crypto';
 import { z } from 'zod';
 import { redis } from '../../lib/redis.js';
 import { isValidYMD } from '../../shared/utils/date.utils.js';
+import type { Job } from 'bullmq';
+import {
+  executeQueueOperation,
+  QueueName,
+} from '../../jobs/queues/queue-broker.js';
 
 /**
  * Queue for balance recalculation jobs
@@ -159,8 +164,11 @@ const isMergeableState = (s: string) => MERGEABLE_STATES.has(s);
 /**
  * Enqueue GL balance recalculation with deduplication
  * Uses jobId to ensure only one job per (company, coa) pair
+ * Returns null if queues are disabled
  */
-export async function enqueueGLBalance(data: Omit<GLBalanceJobData, 'type'>) {
+export async function enqueueGLBalance(
+  data: Omit<GLBalanceJobData, 'type'>,
+): Promise<Job<GLBalanceJobData> | null> {
   // Add type field for validation
   const dataWithType = { ...data, type: 'gl-balance' as const };
   const v = glBalanceJobDataSchema.safeParse(dataWithType);
@@ -197,7 +205,7 @@ export async function enqueueGLBalance(data: Omit<GLBalanceJobData, 'type'>) {
       // The updateData method creates an impossible intersection type for union types
       await (existing as any).updateData(updatedData);
 
-      return existing;
+      return existing as Job<GLBalanceJobData>;
     }
 
     if (state === 'active') {
@@ -219,38 +227,44 @@ export async function enqueueGLBalance(data: Omit<GLBalanceJobData, 'type'>) {
         const hash = rangeHash(merged.from, merged.to);
         const followupId = `gl:${companyId}:${coaId}:followup:${hash}`;
 
-        return balanceRecalcQueue.add(
-          'gl-balance',
-          {
-            ...data,
-            type: 'gl-balance',
-            recalcFrom: merged.from,
-            recalcTo: merged.to,
-          },
-          { jobId: followupId, priority: priorityForGL(v.data.triggeredBy) },
+        const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
+          balanceRecalcQueue.add(
+            'gl-balance',
+            {
+              ...data,
+              type: 'gl-balance',
+              recalcFrom: merged.from,
+              recalcTo: merged.to,
+            },
+            { jobId: followupId, priority: priorityForGL(v.data.triggeredBy) },
+          ),
         );
+        return job as Job<GLBalanceJobData> | null;
       }
-      return existing; // already covered by the running job
+      return existing as Job<GLBalanceJobData>; // already covered by the running job
     }
 
     // For completed/failed/unknown states, fall through to create new job
   }
 
-  const job = await balanceRecalcQueue.add(
-    'gl-balance',
-    { ...data, type: 'gl-balance', recalcFrom, recalcTo },
-    { jobId, priority: priorityForGL(v.data.triggeredBy) },
+  const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
+    balanceRecalcQueue.add(
+      'gl-balance',
+      { ...data, type: 'gl-balance', recalcFrom, recalcTo },
+      { jobId, priority: priorityForGL(v.data.triggeredBy) },
+    ),
   );
-  return job;
+  return job as Job<GLBalanceJobData> | null;
 }
 
 /**
  * Enqueue bank balance recalculation with deduplication
  * Uses jobId to ensure only one job per (company, bank_account) pair
+ * Returns null if queues are disabled
  */
 export async function enqueueBankBalance(
   data: Omit<BankBalanceJobData, 'type'>,
-) {
+): Promise<Job<BankBalanceJobData> | null> {
   // Add type field for validation
   const dataWithType = { ...data, type: 'bank-balance' as const };
   const v = bankBalanceJobDataSchema.safeParse(dataWithType);
@@ -285,7 +299,7 @@ export async function enqueueBankBalance(
       // The updateData method creates an impossible intersection type for union types
       await (existing as any).updateData(updatedData);
 
-      return existing;
+      return existing as Job<BankBalanceJobData>;
     }
 
     if (state === 'active') {
@@ -307,29 +321,37 @@ export async function enqueueBankBalance(
         const hash = rangeHash(merged.from, merged.to);
         const followupId = `bank:${companyId}:${bankAccountId}:followup:${hash}`;
 
-        return balanceRecalcQueue.add(
-          'bank-balance',
-          {
-            ...data,
-            type: 'bank-balance',
-            recalcFrom: merged.from,
-            recalcTo: merged.to,
-          },
-          { jobId: followupId, priority: priorityForBank(v.data.triggeredBy) },
+        const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
+          balanceRecalcQueue.add(
+            'bank-balance',
+            {
+              ...data,
+              type: 'bank-balance',
+              recalcFrom: merged.from,
+              recalcTo: merged.to,
+            },
+            {
+              jobId: followupId,
+              priority: priorityForBank(v.data.triggeredBy),
+            },
+          ),
         );
+        return job as Job<BankBalanceJobData> | null;
       }
-      return existing; // already covered by the running job
+      return existing as Job<BankBalanceJobData>; // already covered by the running job
     }
 
     // For completed/failed/unknown states, fall through to create new job
   }
 
-  const job = await balanceRecalcQueue.add(
-    'bank-balance',
-    { ...data, type: 'bank-balance', recalcFrom, recalcTo },
-    { jobId, priority: priorityForBank(v.data.triggeredBy) },
+  const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
+    balanceRecalcQueue.add(
+      'bank-balance',
+      { ...data, type: 'bank-balance', recalcFrom, recalcTo },
+      { jobId, priority: priorityForBank(v.data.triggeredBy) },
+    ),
   );
-  return job;
+  return job as Job<BankBalanceJobData> | null;
 }
 
 /**

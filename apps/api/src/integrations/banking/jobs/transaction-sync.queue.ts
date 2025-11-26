@@ -5,6 +5,11 @@ import type {
   TransactionSyncJobData,
   BulkSyncJobData,
 } from './transaction-sync.worker.js';
+import {
+  executeQueueOperation,
+  QueueName,
+} from '../../../jobs/queues/queue-broker.js';
+import type { Job } from 'bullmq';
 
 export const transactionSyncQueue = new Queue('transaction-sync', {
   connection: redis,
@@ -19,6 +24,7 @@ export const transactionSyncQueue = new Queue('transaction-sync', {
 
 /**
  * Schedule a one-time transaction sync for a specific connection
+ * Returns null if queues are disabled
  */
 export async function scheduleTransactionSync(
   data: TransactionSyncJobData,
@@ -26,28 +32,35 @@ export async function scheduleTransactionSync(
     delay?: number;
     priority?: number;
   } = {},
-) {
-  return await transactionSyncQueue.add('sync-transactions', data, {
-    delay: options.delay,
-    priority: options.priority || 0,
-    // Override default attempts for manual syncs
-    attempts: data.syncType === 'manual' ? 3 : 5,
-  });
+): Promise<Job<TransactionSyncJobData> | null> {
+  const job = await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
+    transactionSyncQueue.add('sync-transactions', data, {
+      delay: options.delay,
+      priority: options.priority || 0,
+      // Override default attempts for manual syncs
+      attempts: data.syncType === 'manual' ? 3 : 5,
+    }),
+  );
+  return job;
 }
 
 /**
  * Schedule bulk transaction sync for multiple connections
+ * Returns null if queues are disabled
  */
 export async function scheduleBulkTransactionSync(
   data: BulkSyncJobData,
   options: {
     delay?: number;
   } = {},
-) {
-  return await transactionSyncQueue.add('bulk-sync-transactions', data, {
-    delay: options.delay,
-    priority: 1, // Higher priority for bulk syncs
-  });
+): Promise<Job<BulkSyncJobData> | null> {
+  const job = await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
+    transactionSyncQueue.add('bulk-sync-transactions', data, {
+      delay: options.delay,
+      priority: 1, // Higher priority for bulk syncs
+    }),
+  );
+  return job;
 }
 
 /**
@@ -59,22 +72,24 @@ export async function scheduleDailySyncScan(cronPattern = '0 2 * * *') {
 
   // Use modern Job Schedulers API (BullMQ v5.16.0+)
   // Calling upsertJobScheduler with same ID updates existing scheduler (atomic operation)
-  return await transactionSyncQueue.upsertJobScheduler(
-    schedulerId,
-    {
-      pattern: cronPattern, // Cron expression (e.g., '0 2 * * *' for 2 AM UTC daily)
-    },
-    {
-      name: 'daily-sync-scan',
-      data: {
-        syncType: 'periodic' as const,
+  await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
+    transactionSyncQueue.upsertJobScheduler(
+      schedulerId,
+      {
+        pattern: cronPattern, // Cron expression (e.g., '0 2 * * *' for 2 AM UTC daily)
       },
-      opts: {
-        priority: -1, // Lower priority for periodic syncs
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 30000 },
+      {
+        name: 'daily-sync-scan',
+        data: {
+          syncType: 'periodic' as const,
+        },
+        opts: {
+          priority: -1, // Lower priority for periodic syncs
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 30000 },
+        },
       },
-    },
+    ),
   );
 }
 

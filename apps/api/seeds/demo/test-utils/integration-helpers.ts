@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import {
   setupTestDatabase,
   getTestDb,
-  teardownTestDatabase,
+  closeTestDbConnection,
   assertTestEnvironment,
 } from '../../../config/test-db.js';
 
@@ -169,6 +169,7 @@ export async function cleanupIntegrationTest(
   helper: SeedIntegrationTestHelper,
 ): Promise<void> {
   await helper.cleanup();
+  await closeTestDbConnection();
 }
 
 /**

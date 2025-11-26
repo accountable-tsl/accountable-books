@@ -1,6 +1,10 @@
 import { Queue, type JobsOptions } from 'bullmq';
 import { redis } from '../../../lib/redis.js';
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
+import {
+  executeQueueOperation,
+  QueueName,
+} from '../../../jobs/queues/queue-broker.js';
 
 export const RULE_RUNNER_QUEUE_NAME = 'rule-runner';
 
@@ -37,5 +41,7 @@ export async function enqueueRuleRunJob(
     ? { ...defaultJobOptions, jobId }
     : defaultJobOptions;
 
-  await ruleRunnerQueue.add('run-rule', data, jobOptions);
+  await executeQueueOperation(QueueName.RULE_RUNNER, () =>
+    ruleRunnerQueue.add('run-rule', data, jobOptions),
+  );
 }

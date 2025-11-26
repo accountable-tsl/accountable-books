@@ -5,6 +5,10 @@ import {
   type EnrichmentJobData,
 } from './enrichment.types.js';
 import pino from 'pino';
+import {
+  executeQueueOperation,
+  QueueName,
+} from '../../../jobs/queues/queue-broker.js';
 
 const logger = pino();
 
@@ -91,15 +95,17 @@ export async function enqueueTransactionEnrichment(
     const jobId = `enrichment:${companyId}:${Date.now()}`;
 
     try {
-      await enrichmentQueue.add('enrich-transactions', batchJob, {
-        jobId,
-        priority:
-          firstJob.source === 'manual'
-            ? 1
-            : firstJob.source === 'ingestion'
-              ? 2
-              : 3,
-      });
+      await executeQueueOperation(QueueName.ENRICHMENT, () =>
+        enrichmentQueue.add('enrich-transactions', batchJob, {
+          jobId,
+          priority:
+            firstJob.source === 'manual'
+              ? 1
+              : firstJob.source === 'ingestion'
+                ? 2
+                : 3,
+        }),
+      );
 
       logger.info(
         {

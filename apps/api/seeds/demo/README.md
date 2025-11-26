@@ -7,7 +7,7 @@ Idempotent demo seeding system for 6 companies (3 US, 3 Nigeria) with comprehens
 - **Countries**: US and Nigeria
 - **Company Types**: Individual, Business, Accounting Firm (per country)
 - **Demo Companies**: bizDemoUS, firmDemoUS, indDemoUS, bizDemoNG, firmDemoNG, indDemoNG
-- **Steps**: User → Companies → Chart-of-Accounts → Contacts → Projects → Bank Accounts
+- **Steps**: User → Companies → Chart-of-Accounts → Contacts → Projects → Bank Accounts → Bank Transactions
 
 ## Quick Start
 
@@ -22,6 +22,9 @@ tsx seeds/demo/cli.ts apply --country US
 tsx seeds/demo/cli.ts apply --type business
 tsx seeds/demo/cli.ts apply --company bizDemoUS
 
+# Apply without bank transactions (faster setup)
+tsx seeds/demo/cli.ts apply --exclude bank-transactions
+
 # Delete demo data
 tsx seeds/demo/cli.ts reverse --country NG
 tsx seeds/demo/cli.ts reverse --all
@@ -33,14 +36,40 @@ tsx seeds/demo/cli.ts reset --type individual
 tsx seeds/demo/cli.ts status
 ```
 
+### Queue Operations During Seeding
+
+By default, queue operations (balance recalculation, enrichment, ML prediction, etc.) are **disabled** during seeding to:
+
+- Speed up seed execution
+- Prevent unnecessary async processing
+- Avoid Redis clutter
+
+To enable queues during seeding:
+
+```bash
+DISABLE_QUEUES=false tsx seeds/demo/cli.ts apply
+```
+
+Queue operations will be logged when skipped (you'll see a warning message).
+
 ### Workspace Commands (from project root)
 
 ```bash
 pnpm demo:apply --all
 pnpm demo:apply --country US
+pnpm demo:apply:basic              # Apply without bank transactions
 pnpm demo:reverse --company bizDemoUS
 pnpm demo:reset --type business
 pnpm demo:status
+```
+
+Or use Makefile targets:
+
+```bash
+make demo              # Apply all demo data
+make demo-basic        # Apply without bank transactions
+make demo-status       # Show status
+make demo-reverse      # Remove demo data
 ```
 
 ## System Architecture
@@ -61,6 +90,7 @@ pnpm demo:status
 4. **`010_contacts`** - Business contacts (customers, vendors, employees)
 5. **`012_projects`** - Sample projects (business/firm specific)
 6. **`015_bank_accounts`** - Bank accounts with linked COA entries
+7. **`016_bank_transactions`** - Synthetic bank transactions per company/account
 
 ### Key Features
 
@@ -97,7 +127,33 @@ pnpm demo:status
 Creates demo data for specified targets.
 
 ```bash
-tsx seeds/demo/cli.ts apply [--country US,NG] [--type business,individual,accounting_firm] [--company shortCode]
+tsx seeds/demo/cli.ts apply [--country US,NG] [--type business,individual,accounting_firm] [--company shortCode] [--exclude step1,step2] [--steps step1,step2]
+```
+
+**Options:**
+
+- `--country`: Filter by country codes (US, NG)
+- `--type`: Filter by company types
+- `--company`: Filter by company short codes
+- `--steps`: Only run specific steps (e.g., `--steps user,companies`)
+- `--exclude`: Exclude specific steps from execution (e.g., `--exclude bank-transactions`)
+- `--parallel`: Run steps in parallel (dangerous, may break dependencies)
+- `--dry-run`: Show what would happen without executing
+
+**Examples:**
+
+```bash
+# Apply all demo data
+tsx seeds/demo/cli.ts apply
+
+# Apply without bank transactions (faster)
+tsx seeds/demo/cli.ts apply --exclude bank-transactions
+
+# Apply only specific steps
+tsx seeds/demo/cli.ts apply --steps user,companies,contacts
+
+# Combine filters and exclusions
+tsx seeds/demo/cli.ts apply --country US --exclude bank-transactions
 ```
 
 ### reverse
@@ -123,6 +179,31 @@ Shows current demo data counts.
 ```bash
 tsx seeds/demo/cli.ts status
 ```
+
+## Convenience Scripts
+
+For faster setup when bank transactions aren't needed, use these convenience scripts:
+
+**From API directory:**
+
+```bash
+pnpm demo:apply:basic              # Apply all seeds except bank-transactions (local)
+pnpm demo:apply:no-transactions    # Same as above
+pnpm demo:apply:no-transactions:test  # Apply without transactions (test env)
+```
+
+**From project root:**
+
+```bash
+pnpm demo:apply:basic              # Apply without transactions
+make demo-basic                    # Same as above via Makefile
+```
+
+These scripts are useful when:
+
+- Testing UI features that don't require transaction data
+- Faster seed application during development
+- Setting up demo environments for non-transaction features
 
 ## Development
 

@@ -83,7 +83,7 @@ export async function setupTestDatabase(): Promise<void> {
 /**
  * Teardown function to call after all tests
  */
-export async function teardownTestDatabase(): Promise<void> {
+export async function closeTestDbConnection(): Promise<void> {
   if (testKnex) {
     await testKnex.destroy();
     testKnex = null;
@@ -104,4 +104,14 @@ export function assertTestEnvironment(): void {
   if (!isTestEnvironment()) {
     throw new Error('This function should only be called in test environment');
   }
+}
+
+/**
+ * Creates a test transaction that automatically rolls back
+ * Use this in your tests for perfect isolation - start transaction in beforeEach,
+ * rollback in afterEach to keep test database clean
+ */
+export async function createTestTransaction(): Promise<Knex.Transaction> {
+  const db = getTestDb();
+  return await db.transaction();
 }

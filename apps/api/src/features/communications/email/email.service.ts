@@ -11,7 +11,10 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import { emailQueue } from './email.queue.js';
+import {
+  enqueueVerificationEmail,
+  enqueueUserInviteEmail,
+} from './email.queue.js';
 import { type ApiResponse } from '../../../core/types/api.types.js';
 import { ENV } from '../../../config/env.js';
 
@@ -148,7 +151,7 @@ export async function sendVerificationEmail(
     throw new AppError('Missing token and url...', payload, true);
   }
 
-  await emailQueue.add('send_verification_email', { ...payload, url });
+  await enqueueVerificationEmail({ ...payload, url });
   return successResponse('Verification email sent', payload.to);
 }
 
@@ -159,5 +162,5 @@ export async function sendUserInviteEmail(payload: InviteEmailPayload) {
     throw new Error('Missing token and url... ');
   }
 
-  emailQueue.add('send_user_invite_email', { ...payload, url });
+  await enqueueUserInviteEmail({ ...payload, url });
 }

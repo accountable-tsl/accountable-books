@@ -8,8 +8,10 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
-import { enqueueBankBalance, enqueueGLBalance } from './balance-recalc.queue.js';
-
+import {
+  enqueueBankBalance,
+  enqueueGLBalance,
+} from './balance-recalc.queue.js';
 
 // Validation schemas
 const dateStringSchema = z
@@ -1026,7 +1028,7 @@ export async function recalculateBankBalances({
       jobs.push({
         companyId: account.company_id,
         bankAccountId: account.id,
-        jobId: job.id || '',
+        jobId: job?.id || '',
       });
     }
 
@@ -1098,7 +1100,7 @@ export async function recalculateGLBalance({
     });
 
     return successResponse('GL balance recalculation queued', {
-      jobId: job.id || '',
+      jobId: job?.id || '',
       coaId,
       recalcFrom,
       recalcTo,
@@ -1162,7 +1164,7 @@ export async function recalculateBankBalance({
     });
 
     return successResponse('Bank balance recalculation queued', {
-      jobId: job.id || '',
+      jobId: job?.id || '',
       bankAccountId,
       recalcFrom,
       recalcTo,
@@ -1313,7 +1315,7 @@ export async function recalculateGLBalances({
       jobs.push({
         companyId: coa.company_id,
         coaId: coa.id,
-        jobId: job.id || '',
+        jobId: job?.id || '',
       });
     }
 

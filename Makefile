@@ -70,6 +70,10 @@ demo: ## Apply demo data
 demo-status: ## Show demo data status
 	@pnpm -F @accountable-books/api run demo:status
 
+demo-basic: ## Apply demo data without bank transactions
+	@echo "$(GREEN)🌱 Applying demo data (without transactions)...$(RESET)"
+	@pnpm -F @accountable-books/api run demo:apply:basic
+
 demo-reverse: guard-nonprod ## Remove demo data
 	@echo "$(YELLOW)🗑️ Removing demo data...$(RESET)"
 	@pnpm -F @accountable-books/api run demo:reverse

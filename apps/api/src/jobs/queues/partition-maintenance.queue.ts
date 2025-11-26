@@ -1,5 +1,7 @@
 import { Queue } from 'bullmq';
 import { redis } from '../../lib/redis.js';
+import { executeQueueOperation, QueueName } from './queue-broker.js';
+import type { Job } from 'bullmq';
 
 /**
  * Queue for partition maintenance jobs
@@ -47,6 +49,7 @@ export const partitionMaintenanceQueue = new Queue<PartitionMaintenanceJobData>(
 /**
  * Schedule smart partition maintenance
  * Creates partitions for future years and handles volume-based transitions
+ * Returns null if queues are disabled
  */
 export async function scheduleSmartPartitionMaintenance(
   options: {
@@ -54,41 +57,48 @@ export async function scheduleSmartPartitionMaintenance(
     monthlyThreshold?: number;
     drainDefaults?: boolean;
   } = {},
-) {
-  return partitionMaintenanceQueue.add(
-    'smart-maintenance',
-    {
-      type: 'smart_maintenance',
-      options,
-    },
-    {
-      // Run once per day at 2 AM
-      repeat: {
-        pattern: '0 2 * * *',
+): Promise<Job<PartitionMaintenanceJobData> | null> {
+  const job = await executeQueueOperation(QueueName.PARTITION_MAINTENANCE, () =>
+    partitionMaintenanceQueue.add(
+      'smart-maintenance',
+      {
+        type: 'smart_maintenance',
+        options,
       },
-      jobId: 'daily-partition-maintenance', // Prevent duplicates
-    },
+      {
+        // Run once per day at 2 AM
+        repeat: {
+          pattern: '0 2 * * *',
+        },
+        jobId: 'daily-partition-maintenance', // Prevent duplicates
+      },
+    ),
   );
+  return job;
 }
 
 /**
  * Schedule default partition draining
  * Moves records from default partitions to proper partitions
+ * Returns null if queues are disabled
  */
-export async function scheduleDefaultPartitionDraining() {
-  return partitionMaintenanceQueue.add(
-    'drain-defaults',
-    {
-      type: 'drain_defaults',
-    },
-    {
-      // Run every 4 hours
-      repeat: {
-        pattern: '0 */4 * * *',
+export async function scheduleDefaultPartitionDraining(): Promise<Job<PartitionMaintenanceJobData> | null> {
+  const job = await executeQueueOperation(QueueName.PARTITION_MAINTENANCE, () =>
+    partitionMaintenanceQueue.add(
+      'drain-defaults',
+      {
+        type: 'drain_defaults',
       },
-      jobId: 'drain-default-partitions', // Prevent duplicates
-    },
+      {
+        // Run every 4 hours
+        repeat: {
+          pattern: '0 */4 * * *',
+        },
+        jobId: 'drain-default-partitions', // Prevent duplicates
+      },
+    ),
   );
+  return job;
 }
 
 /**
@@ -98,15 +108,18 @@ export async function scheduleManualYearPartition(
   tableName: 'bank_transactions' | 'ledger_entries',
   year: number,
 ) {
-  return partitionMaintenanceQueue.add(
-    'manual-year-creation',
-    {
-      type: 'manual_year_creation',
-      tableName,
-      year,
-    },
-    {
-      priority: 10, // High priority for manual requests
-    },
+  const job = await executeQueueOperation(QueueName.PARTITION_MAINTENANCE, () =>
+    partitionMaintenanceQueue.add(
+      'manual-year-creation',
+      {
+        type: 'manual_year_creation',
+        tableName,
+        year,
+      },
+      {
+        priority: 10, // High priority for manual requests
+      },
+    ),
   );
+  return job;
 }

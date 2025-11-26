@@ -67,7 +67,9 @@ export async function runRulesForEnrichedTransaction(
     if (deps.runEngine) {
       const result = await runEngine(input);
       ruleResult = result;
-      await db.transaction(async (trx) => {
+
+      // Helper function to handle persistence
+      const persist = async (trx: Knex.Transaction) => {
         const scopedCandidateRepository =
           deps.candidateRepository ?? new CandidateRepository(trx);
         const scopedPredictionRepository =
@@ -94,7 +96,16 @@ export async function runRulesForEnrichedTransaction(
           processPredictionToCandidateFn: deps.processPredictionToCandidate,
           trx,
         });
-      });
+      };
+
+      // Check if db is already a transaction (has isTransaction property)
+      if ('isTransaction' in db && db.isTransaction) {
+        // Use the existing transaction directly
+        await persist(db as Knex.Transaction);
+      } else {
+        // Create a new transaction
+        await db.transaction(persist);
+      }
     } else {
       await db.transaction(async (trx) => {
         const ruleRepo = deps.ruleRepository ?? new RuleRepository(trx);
@@ -259,7 +270,7 @@ async function persistRuleRunFailure(
     });
 }
 
-function mapResultToTaskStatus(
+export function mapResultToTaskStatus(
   result: RuleEngineResult,
 ): CategorizationTaskStatus | null {
   switch (result.status) {
@@ -351,7 +362,7 @@ async function persistRulePredictionAndCandidate(params: {
   });
 }
 
-function buildCandidateExplanation(
+export function buildCandidateExplanation(
   result: RuleEngineResult,
 ): Record<string, unknown> | null {
   if (!result.logs.length) {
@@ -370,7 +381,7 @@ function buildCandidateExplanation(
   };
 }
 
-function deriveReportingRatio(enriched: EnrichedTransaction): number {
+export function deriveReportingRatio(enriched: EnrichedTransaction): number {
   const native = Math.abs(enriched.raw.amount_native);
   const reporting = Math.abs(enriched.raw.amount_reporting ?? 0);
   if (!native || !reporting) {
@@ -379,7 +390,7 @@ function deriveReportingRatio(enriched: EnrichedTransaction): number {
   return reporting / native;
 }
 
-function buildJournalLines(params: {
+export function buildJournalLines(params: {
   categorizeLines: CategorizeLine[];
   transactionAmount: number;
   direction: 'inflow' | 'outflow' | 'transfer';
@@ -441,7 +452,7 @@ function buildJournalLines(params: {
   return lines;
 }
 
-function computeCategorizeAmounts(
+export function computeCategorizeAmounts(
   lines: CategorizeLine[],
   totalAmount: number,
 ): Array<{ line: CategorizeLine; amount: number }> {
@@ -490,11 +501,11 @@ function computeCategorizeAmounts(
   return computed.filter((item) => item.amount > 0);
 }
 
-function toCurrency(value: number): number {
+export function toCurrency(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function getSplitValue(line: CategorizeLine): number | null {
+export function getSplitValue(line: CategorizeLine): number | null {
   if ('value' in line && typeof line.value === 'number') {
     return line.value;
   }
@@ -576,7 +587,7 @@ async function enqueueMlIfNeeded(
  * @param ruleResult - Result from rule engine execution
  * @returns true if ML should be enqueued
  */
-function shouldEnqueueML(
+export function shouldEnqueueML(
   processingContext: 'shadow' | 'primary' | undefined,
   ruleResult: RuleEngineResult | null,
 ): boolean {

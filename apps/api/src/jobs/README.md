@@ -202,6 +202,10 @@ export function startMyNewWorker() {
 
 ```typescript
 // src/jobs/queues/my-new.queue.ts
+import { Queue } from 'bullmq';
+import { redis } from '../../lib/redis.js';
+import { executeQueueOperation, QueueName } from '../../lib/queue-broker.js';
+
 export const myNewQueue = new Queue('my-queue', {
   connection: redis,
   defaultJobOptions: {
@@ -211,6 +215,17 @@ export const myNewQueue = new Queue('my-queue', {
     removeOnFail: { age: 86400, count: 500 },
   },
 });
+
+// Wrap enqueue function with queue broker
+export async function enqueueMyNewJob(data: MyJobData) {
+  await executeQueueOperation(
+    QueueName.MY_NEW_QUEUE, // Add to QueueName enum in queue-broker.ts
+    () => myNewQueue.add('process', data),
+    {
+      /* metadata for logging */
+    },
+  );
+}
 ```
 
 ### 3. Update Worker Manager
@@ -239,6 +254,39 @@ const queues = [
   new BullMQAdapter(myNewQueue), // <- Add here
 ];
 ```
+
+## 🔒 Queue Broker
+
+The queue broker system allows disabling queue operations for tests, seeds, or other scenarios.
+
+### Usage
+
+All queue enqueue operations are wrapped with the queue broker:
+
+```typescript
+import { executeQueueOperation, QueueName } from '../../lib/queue-broker.js';
+
+// Wrap queue.add() calls
+await executeQueueOperation(
+  QueueName.EMAIL,
+  () => emailQueue.add('send-email', data),
+  { to: data.to, type: 'verification' }, // metadata for logging
+);
+```
+
+### Configuration
+
+- **Test Environment**: Queues are automatically disabled when `NODE_ENV=test`
+- **Seeds**: Queues are disabled by default during seeding (set `DISABLE_QUEUES=false` to enable)
+- **Environment Variables**:
+  - `DISABLE_QUEUES=true` - Disable all queues
+  - `DISABLED_QUEUES=email,ml-prediction` - Disable specific queues
+
+### Adding New Queues
+
+1. Add queue name to `QueueName` enum in `src/lib/queue-broker.ts`
+2. Wrap all `queue.add()` calls with `executeQueueOperation()`
+3. Return appropriate defaults when disabled (null for Job, "" for string, void for void)
 
 ## 🚨 Important Notes
 

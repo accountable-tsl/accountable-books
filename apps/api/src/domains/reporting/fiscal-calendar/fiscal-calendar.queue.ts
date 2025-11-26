@@ -1,4 +1,8 @@
 import { Queue, type JobsOptions } from 'bullmq';
+import {
+  executeQueueOperation,
+  QueueName,
+} from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
 import type {
   AutoExtendJobData,
@@ -126,28 +130,34 @@ export async function enqueueFiscalCalendarGeneration(
     return jobId;
   }
 
-  const job = await fiscalCalendarQueue.add(
-    'generate-calendar',
-    {
-      type: 'generate-calendar',
-      companyId,
-      yearsBack,
-      yearsForward,
-      periodTypes: normalizeTypes(periodTypes),
-      triggeredBy,
-      userId,
-    },
-    {
-      jobId,
-      priority:
-        triggeredBy === 'company_creation' ? PRIORITIES.COMPANY_CREATION : 5, // Higher priority for new companies
-    } satisfies JobsOptions,
+  const job = await executeQueueOperation(QueueName.FISCAL_CALENDAR, () =>
+    fiscalCalendarQueue.add(
+      'generate-calendar',
+      {
+        type: 'generate-calendar',
+        companyId,
+        yearsBack,
+        yearsForward,
+        periodTypes: normalizeTypes(periodTypes),
+        triggeredBy,
+        userId,
+      },
+      {
+        jobId,
+        priority:
+          triggeredBy === 'company_creation' ? PRIORITIES.COMPANY_CREATION : 5, // Higher priority for new companies
+      } satisfies JobsOptions,
+    ),
   );
 
-  console.log(
-    `📅 Enqueued fiscal calendar generation for company ${companyId} (job: ${job.id})`,
-  );
-  return job.id!;
+  if (job) {
+    console.log(
+      `📅 Enqueued fiscal calendar generation for company ${companyId} (job: ${job.id})`,
+    );
+    return job.id!;
+  }
+
+  return 'disabled-job-id';
 }
 
 /**
@@ -179,25 +189,31 @@ export async function enqueueAutoExtend(p: AutoExtendJobData): Promise<string> {
     return jobId;
   }
 
-  const job = await fiscalCalendarQueue.add(
-    'auto-extend',
-    {
-      type: 'auto-extend',
-      companyId,
-      minFutureMonths,
-      triggeredBy,
-      userId,
-    },
-    {
-      jobId,
-      priority: PRIORITIES.AUTO_EXTEND,
-    },
+  const job = await executeQueueOperation(QueueName.FISCAL_CALENDAR, () =>
+    fiscalCalendarQueue.add(
+      'auto-extend',
+      {
+        type: 'auto-extend',
+        companyId,
+        minFutureMonths,
+        triggeredBy,
+        userId,
+      },
+      {
+        jobId,
+        priority: PRIORITIES.AUTO_EXTEND,
+      },
+    ),
   );
 
-  console.log(
-    `📅 Enqueued auto-extend for company ${companyId} (job: ${job.id})`,
-  );
-  return job.id!;
+  if (job) {
+    console.log(
+      `📅 Enqueued auto-extend for company ${companyId} (job: ${job.id})`,
+    );
+    return job.id!;
+  }
+
+  return 'disabled-job-id';
 }
 
 /**
@@ -243,27 +259,33 @@ export async function enqueueFillCoverageGaps(
     return jobId;
   }
 
-  const job = await fiscalCalendarQueue.add(
-    'fill-coverage-gaps',
-    {
-      type: 'fill-coverage-gaps',
-      companyId,
-      startDate,
-      endDate,
-      periodTypes: norm,
-      triggeredBy,
-      userId,
-    },
-    {
-      jobId,
-      priority: PRIORITIES.DATA_IMPORT,
-    },
+  const job = await executeQueueOperation(QueueName.FISCAL_CALENDAR, () =>
+    fiscalCalendarQueue.add(
+      'fill-coverage-gaps',
+      {
+        type: 'fill-coverage-gaps',
+        companyId,
+        startDate,
+        endDate,
+        periodTypes: norm,
+        triggeredBy,
+        userId,
+      },
+      {
+        jobId,
+        priority: PRIORITIES.DATA_IMPORT,
+      },
+    ),
   );
 
-  console.log(
-    `📅 Enqueued fill-coverage-gaps for company ${companyId}, ${startDate} to ${endDate} (job: ${job.id})`,
-  );
-  return job.id!;
+  if (job) {
+    console.log(
+      `📅 Enqueued fill-coverage-gaps for company ${companyId}, ${startDate} to ${endDate} (job: ${job.id})`,
+    );
+    return job.id!;
+  }
+
+  return 'disabled-job-id';
 }
 
 /**
@@ -271,22 +293,24 @@ export async function enqueueFillCoverageGaps(
  */
 export async function scheduleNightlyAutoExtend(): Promise<void> {
   // Add repeatable job that runs nightly at 2 AM
-  await fiscalCalendarQueue.add(
-    'nightly-auto-extend-all',
-    {
-      type: 'auto-extend',
-      companyId: 'all',
-      minFutureMonths: 24,
-      triggeredBy: 'scheduled',
-    } satisfies AutoExtendJobData,
-    {
-      repeat: {
-        pattern: '0 2 * * *', // Cron: 2 AM daily
-        tz: 'UTC', // Use UTC to avoid timezone confusion
+  await executeQueueOperation(QueueName.FISCAL_CALENDAR, () =>
+    fiscalCalendarQueue.add(
+      'nightly-auto-extend-all',
+      {
+        type: 'auto-extend',
+        companyId: 'all',
+        minFutureMonths: 24,
+        triggeredBy: 'scheduled',
+      } satisfies AutoExtendJobData,
+      {
+        repeat: {
+          pattern: '0 2 * * *', // Cron: 2 AM daily
+          tz: 'UTC', // Use UTC to avoid timezone confusion
+        },
+        jobId: 'nightly-auto-extend-scheduler',
+        priority: PRIORITIES.AUTO_EXTEND,
       },
-      jobId: 'nightly-auto-extend-scheduler',
-      priority: PRIORITIES.AUTO_EXTEND,
-    },
+    ),
   );
 
   console.log('📅 Scheduled nightly auto-extend job (2 AM daily)');

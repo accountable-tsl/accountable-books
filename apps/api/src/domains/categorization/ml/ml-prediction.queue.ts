@@ -1,6 +1,10 @@
 import { Queue, type JobsOptions } from 'bullmq';
 import { redis } from '../../../lib/redis.js';
 import type { MLPredictionJobData } from './ml-prediction.types.js';
+import {
+  executeQueueOperation,
+  QueueName,
+} from '../../../jobs/queues/queue-broker.js';
 
 export const ML_PREDICTION_QUEUE_NAME = 'ml-prediction';
 
@@ -39,5 +43,7 @@ export async function enqueueMLPredictionJob(
     jobId,
   };
 
-  await mlPredictionQueue.add('predict', data, jobOptions);
+  await executeQueueOperation(QueueName.ML_PREDICTION, () =>
+    mlPredictionQueue.add('predict', data, jobOptions),
+  );
 }

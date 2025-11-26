@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate-env": "pnpm -r -F \"@accountable-books/api\" -F \"@accountable-books/web\" run generate-env",
+    "demo:apply:basic": "pnpm -F @accountable-books/api run demo:apply:basic",
     "clean": "turbo run clean",
     "prepare": "is-ci || husky"
   },
