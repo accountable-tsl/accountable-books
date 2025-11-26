@@ -17,19 +17,24 @@
   },
   "files": [
     "generated",
-    "zod"
+    "schema",
+    "pyproject.toml"
   ],
   "scripts": {
     "clean": "rm -rf generated",
     "gen": "buf generate && touch generated/py/__init__.py",
-    "build": "pnpm gen",
+    "gen:pydantic": "tsx scripts/generate-pydantic.ts",
+    "gen:pydantic:no-clean": "tsx scripts/generate-pydantic.ts --no-clean",
+    "gen:all": "pnpm gen && pnpm gen:pydantic",
+    "build": "pnpm gen:all",
     "format:check": "buf format --diff",
     "format": "buf format -w",
     "lint": "buf lint"
   },
   "devDependencies": {
     "@bufbuild/buf": "^1.61.0",
-    "ts-proto": "^2.8.3"
+    "ts-proto": "^2.8.3",
+    "tsx": "^4.20.5"
   },
   "dependencies": {
     "zod": "^4.1.5"

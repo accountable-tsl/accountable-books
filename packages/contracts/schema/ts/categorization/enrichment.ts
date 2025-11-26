@@ -4,8 +4,8 @@ import {
   companyType,
   contactType,
   reportingFramework,
-} from '../enums.js';
-import { categorizationTaskSource, categorizationTaskStatus } from './task.js';
+} from '../common/index.js';
+import { categorizationTaskSource, categorizationTaskStatus } from './tasks.js';
 
 const enrichmentProcessingType = z.enum(['primary', 'shadow']);
 
@@ -61,7 +61,7 @@ export const companyContext = z.object({
   coa_snapshot_version: z.string(),
   coa_snapshot_id: z.string(),
   coa_snapshot_checksum: z.string().optional(),
-  cached_at: z.date(),
+  cached_at: z.iso.datetime(),
 });
 export type CompanyContext = z.infer<typeof companyContext>;
 

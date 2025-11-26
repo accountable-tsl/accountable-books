@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "contactType",
+  "type": "string",
+  "enum": [
+    "customer",
+    "vendor",
+    "employee",
+    "contractor",
+    "director",
+    "owner",
+    "government",
+    "internal",
+    "banker",
+    "other"
+  ]
+}

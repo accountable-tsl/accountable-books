@@ -1,2 +1,2 @@
-export * from './enums.js';
+export * from './common/index.js';
 export * from './categorization/index.js';

@@ -5,13 +5,16 @@ export const companyType = z.enum([
   'individual',
   'accounting_firm',
 ]);
+export type CompanyType = z.infer<typeof companyType>;
 
 export const reportingFramework = z.enum(['ifrs', 'us_gaap']);
+export type ReportingFramework = z.infer<typeof reportingFramework>;
 
 export const accountingBasis = z.enum([
   'modified_cash_basis',
   'modified_accrual_basis',
 ]);
+export type AccountingBasis = z.infer<typeof accountingBasis>;
 
 export const contactType = z.enum([
   'customer', // anyone you invoice/collect money from; AR
