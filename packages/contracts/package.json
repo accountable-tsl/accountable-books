@@ -3,37 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "generated/ts/index.js",
-  "types": "generated/ts/index.d.ts",
   "exports": {
     ".": {
-      "types": "./generated/ts/index.d.ts",
-      "import": "./generated/ts/index.js"
+      "import": "./schema/ts/index.js",
+      "types": "./schema/ts/index.d.ts"
     },
-    "./schema": {
-      "import": "./schema/index.js",
-      "types": "./schema/index.d.ts"
+    "./pydantic": {
+      "import": "./schema/py/index.js",
+      "types": "./schema/py/index.d.ts"
     }
   },
   "files": [
-    "generated",
     "schema",
     "pyproject.toml"
   ],
   "scripts": {
-    "clean": "rm -rf generated",
-    "gen": "buf generate && touch generated/py/__init__.py",
     "gen:pydantic": "tsx scripts/generate-pydantic.ts",
     "gen:pydantic:no-clean": "tsx scripts/generate-pydantic.ts --no-clean",
-    "gen:all": "pnpm gen && pnpm gen:pydantic",
-    "build": "pnpm gen:all",
-    "format:check": "buf format --diff",
-    "format": "buf format -w",
-    "lint": "buf lint"
+    "build": "pnpm gen:pydantic"
   },
   "devDependencies": {
-    "@bufbuild/buf": "^1.61.0",
-    "ts-proto": "^2.8.3",
     "tsx": "^4.20.5"
   },
   "dependencies": {

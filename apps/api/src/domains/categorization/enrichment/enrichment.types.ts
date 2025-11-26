@@ -9,7 +9,13 @@ import {
   reportingFramework,
 } from '../../companies/companies.types.js';
 import { contactType } from '../../contacts/index.js';
-import { enrichedTransactionSchema as enrichedTxSchema } from '@accountable-books/contracts/schema';
+import {
+  enrichedTransactionSchema,
+  type EnrichedTransactionSchema as EnrichedTransaction,
+} from '@accountable-books/contracts';
+
+export { type EnrichedTransaction };
+export { enrichedTransactionSchema };
 
 // ============================================
 // ENRICHMENT JOB DATA
@@ -343,6 +349,3 @@ export type EnrichedTxNormalized = z.infer<typeof enrichedTxNormalized>;
 //     stats_snapshot_checksum: z.string().nullish(),
 //   }),
 // });
-
-const enrichedTransactionSchema = enrichedTxSchema;
-export type EnrichedTransaction = z.infer<typeof enrichedTransactionSchema>;

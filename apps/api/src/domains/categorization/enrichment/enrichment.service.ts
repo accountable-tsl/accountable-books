@@ -243,7 +243,10 @@ export async function enrichTransaction({
 
       context: {
         company_name: legal_name ?? display_name,
+        year_end_day: Number(year_end_day),
+        year_end_month: Number(year_end_month),
         ...enrichmentContext,
+        cached_at: enrichmentContext.cached_at.toISOString(),
       },
 
       historical: {

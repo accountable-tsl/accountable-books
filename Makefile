@@ -32,8 +32,13 @@ setup: guard-nonprod ## One-command setup: infra + deps + db + demo
 	@$(MAKE) db-up
 	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
 	@$(MAKE) db-migrate
-	@echo "$(YELLOW)📦 Installing dependencies...$(RESET)"
+	@echo "$(YELLOW)📦 Installing Node.js dependencies...$(RESET)"
 	@pnpm install
+	@echo "$(YELLOW)🔨 Building shared packages (utils + contracts)...$(RESET)"
+	@pnpm -F @accountable-books/utils run build
+	@pnpm -F @accountable-books/contracts run build
+	@echo "$(YELLOW)🐍 Installing Python dependencies (ML Engine)...$(RESET)"
+	@cd apps/ml-engine && poetry install --no-interaction --no-ansi || echo "$(YELLOW)⚠ Poetry not found, skipping Python deps. Install Poetry: https://python-poetry.org/docs/#installation$(RESET)"
 	@echo "$(YELLOW)🌱 Applying demo data...$(RESET)"
 	@$(MAKE) db-seed
 	@echo "$(GREEN)✅ Setup complete!$(RESET)"
@@ -43,6 +48,7 @@ dev: guard-nonprod ## Start all apps in development mode (Turbo)
 	@echo "$(GREEN)🎯 Starting development environment...$(RESET)"
 	@echo "$(YELLOW)🔨 Ensuring dependencies are built...$(RESET)"
 	@pnpm -F @accountable-books/utils run build
+	@pnpm -F @accountable-books/contracts run build
 	@pnpm dev
 
 ##@ 🚀 Combined Workflows
@@ -52,6 +58,7 @@ dev-full: guard-nonprod ## Start development with infrastructure (db + redis + t
 	@$(MAKE) db-up
 	@echo "$(YELLOW)🔨 Ensuring dependencies are built...$(RESET)"
 	@pnpm -F @accountable-books/utils run build
+	@pnpm -F @accountable-books/contracts run build
 	@echo "$(YELLOW)⚡ Starting apps via Turbo...$(RESET)"
 	@pnpm dev
 
@@ -89,6 +96,10 @@ check: ## Run all quality checks (lint + typecheck + format)
 build: ## Build all packages
 	@echo "$(GREEN)🔨 Building all packages...$(RESET)"
 	@pnpm build
+
+contracts-build: ## Build contracts package explicitly
+	@echo "$(GREEN)🔨 Building contracts package...$(RESET)"
+	@pnpm -F @accountable-books/contracts run build
 
 test: ## Run all tests
 	@echo "$(GREEN)🧪 Running tests...$(RESET)"

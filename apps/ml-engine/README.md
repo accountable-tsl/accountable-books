@@ -18,7 +18,7 @@ AI-native machine learning service for Accountable Books platform.
 poetry install
 
 # Run development server
-poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8002
+poetry run uvicorn ml_engine.main:app --reload --host 0.0.0.0 --port 8000
 
 # Run tests
 poetry run pytest

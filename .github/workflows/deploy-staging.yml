@@ -1,7 +1,7 @@
 name: Deploy Staging
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ['CI']
     types:
       - completed
     branches:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       skip_demo_seed:
-        description: "Skip demo data seeding"
+        description: 'Skip demo data seeding'
         required: false
         default: false
         type: boolean
@@ -44,7 +44,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -52,14 +52,8 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter @accountable-books/utils build
 
-      - name: Setup Buf
-        uses: bufbuild/buf-setup-action@v1
-        with:
-          buf_version: 1.61.0
-
-      - name: "Contracts: Validate and check generation status"
-        run: |
-          pnpm --filter @accountable-books/contracts lint
+      - name: 'Contracts: Generate Pydantic models'
+        run: pnpm --filter @accountable-books/contracts build
 
       - name: Generate environment files
         run: pnpm --filter @accountable-books/api generate-env
@@ -99,7 +93,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -107,16 +101,8 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter @accountable-books/utils build
 
-      - name: Setup Buf
-        uses: bufbuild/buf-setup-action@v1
-        with:
-          buf_version: 1.61.0
-
-      - name: "Contracts: Validate and check generation status"
-        run: |
-          pnpm --filter @accountable-books/contracts format:check
-          pnpm --filter @accountable-books/contracts lint
-          pnpm --filter @accountable-books/contracts gen
+      - name: 'Contracts: Generate Pydantic models'
+        run: pnpm --filter @accountable-books/contracts build
 
       - name: Generate environment files
         run: pnpm --filter @accountable-books/api generate-env
@@ -180,7 +166,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -198,7 +184,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ./
-          vercel-args: "--prod"
+          vercel-args: '--prod'
 
   # Step 4: Apply demo data only after both API and frontend are deployed
   apply-demo-data:
@@ -226,7 +212,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

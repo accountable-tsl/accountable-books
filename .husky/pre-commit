@@ -14,8 +14,6 @@ fi
 
 make db-up
 
-pnpm contracts:gen
-
 # Run lint-staged for changed files (includes linting, formatting, contract validation)
 pnpm lint-staged
 

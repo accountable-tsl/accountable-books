@@ -1,9 +1,8 @@
 """Test health endpoints."""
 
-import pytest
 from fastapi.testclient import TestClient
 
-from main import app
+from ml_engine.main import app
 
 client = TestClient(app)
 

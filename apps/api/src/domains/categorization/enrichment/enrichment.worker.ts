@@ -164,7 +164,7 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
               bank_transaction_id: bankTransactionId,
               bank_transaction_date: bankTransactionDate,
               enriched_transaction: enrichedTransaction,
-              enrichment_version: enrichedTransaction.version,
+              enrichment_version: String(enrichedTransaction.version),
               status: enrichedTransaction.metadata.status,
               source,
               checksum: result.checksum,

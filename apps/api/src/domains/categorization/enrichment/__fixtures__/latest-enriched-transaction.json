@@ -24,21 +24,14 @@
   },
   "normalized": {
     "description": "ACH PAYMENT TO VENDOR INV-001",
-    "description_tokens": [
-      "ACH",
-      "PAYMENT",
-      "VENDOR",
-      "INV-001"
-    ],
+    "description_tokens": ["ACH", "PAYMENT", "VENDOR", "INV-001"],
     "contact_name": "Vendor Inc",
     "contact_fingerprint": "fingerprint-123",
     "contact_match_confidence": "high",
     "contact_type": "vendor",
     "normalized_reference": "INV-001",
     "global_contact_name": "Vendor Global",
-    "global_contact_category_hints": [
-      "software"
-    ]
+    "global_contact_category_hints": ["software"]
   },
   "context": {
     "company_name": "Acme Corp",
@@ -57,7 +50,7 @@
     "coa_snapshot_version": "snapshot-v1",
     "coa_snapshot_id": "coa-snap-1",
     "coa_snapshot_checksum": null,
-    "cached_at": "2025-11-26T03:21:43.081Z"
+    "cached_at": "2025-11-26T21:44:32.880Z"
   },
   "historical": {
     "bank_contact_stats_snapshot": {
@@ -120,7 +113,7 @@
   },
   "metadata": {
     "source": "ingestion",
-    "enriched_at": "2025-11-26T03:21:43.084Z",
+    "enriched_at": "2025-11-26T21:44:32.884Z",
     "enrichment_latency_ms": 0,
     "enrichment_version": "v251102-01-1.0.0",
     "status": "enriched",

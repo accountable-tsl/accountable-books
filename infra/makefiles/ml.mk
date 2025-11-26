@@ -26,7 +26,13 @@ ml-staging-logs: ## View staging ML Engine logs
 # ML-specific development commands
 ml-only: guard-nonprod ## Start only ML Engine in development (not via Turbo)
 	@echo "$(GREEN)🎯 Starting ML Engine only...$(RESET)"
-	@cd apps/ml-engine && poetry run python main.py
+	@echo "$(YELLOW)🔨 Ensuring contracts are built...$(RESET)"
+	@pnpm -F @accountable-books/contracts run build || true
+	@cd apps/ml-engine && poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8002
+
+ml-install: ## Install ML Engine Python dependencies
+	@echo "$(GREEN)🐍 Installing ML Engine Python dependencies...$(RESET)"
+	@cd apps/ml-engine && poetry install --no-interaction --no-ansi
 
 ml-build-local: ## Build ML Engine locally (not for containers)
 	@echo "$(GREEN)🔨 Building ML Engine locally...$(RESET)"
