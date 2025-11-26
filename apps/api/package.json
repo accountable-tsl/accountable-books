@@ -59,6 +59,7 @@
   "description": "",
   "dependencies": {
     "@accountable-books/utils": "workspace:*",
+    "@accountable-books/contracts": "workspace:*",
     "@aws-sdk/client-s3": "^3.883.0",
     "@aws-sdk/s3-request-presigner": "^3.883.0",
     "@bull-board/api": "^6.12.7",

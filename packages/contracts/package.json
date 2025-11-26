@@ -1,0 +1,37 @@
+{
+  "name": "@accountable-books/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "generated/ts/index.js",
+  "types": "generated/ts/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./generated/ts/index.d.ts",
+      "import": "./generated/ts/index.js"
+    },
+    "./schema": {
+      "import": "./schema/index.js",
+      "types": "./schema/index.d.ts"
+    }
+  },
+  "files": [
+    "generated",
+    "zod"
+  ],
+  "scripts": {
+    "clean": "rm -rf generated",
+    "gen": "buf generate && touch generated/py/__init__.py",
+    "build": "pnpm gen",
+    "format:check": "buf format --diff",
+    "format": "buf format -w",
+    "lint": "buf lint"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "^1.61.0",
+    "ts-proto": "^2.8.3"
+  },
+  "dependencies": {
+    "zod": "^4.1.5"
+  }
+}

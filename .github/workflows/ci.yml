@@ -24,13 +24,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install deps (workspace)
         run: pnpm install --frozen-lockfile
 
       - name: Build shared packages for typecheck
         run: pnpm --filter @accountable-books/utils build
+
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          buf_version: 1.61.0
+
+      # Contracts validation and generation check
+      - name: "Contracts: Validate and check generation status"
+        run: |
+          pnpm --filter @accountable-books/contracts format:check
+          pnpm --filter @accountable-books/contracts lint
+          pnpm --filter @accountable-books/contracts gen
 
       - name: Lint workspace
         run: pnpm run lint
@@ -85,7 +97,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install deps (workspace)
         run: pnpm install --frozen-lockfile
@@ -132,7 +144,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Poetry
         run: |

@@ -139,6 +139,17 @@ export const API_ENV_SCHEMA: EnvSchema = {
   },
 
   // ============================================================================
+  // ML ENGINE CONFIGURATION
+  // ============================================================================
+  ML_ENGINE_URL: {
+    description: 'ML Engine API URL for transaction categorization',
+    type: 'url',
+    local: 'http://localhost:8000',
+    staging: 'http://localhost:8000',
+    production: 'https://ml-engine.getaccountable.com',
+  },
+
+  // ============================================================================
   // SECURITY CONFIGURATION
   // ============================================================================
   CSRF_SECRET: {

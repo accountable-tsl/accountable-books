@@ -9,6 +9,7 @@ import {
   reportingFramework,
 } from '../../companies/companies.types.js';
 import { contactType } from '../../contacts/index.js';
+import { enrichedTransactionSchema as enrichedTxSchema } from '@accountable-books/contracts/schema';
 
 // ============================================
 // ENRICHMENT JOB DATA
@@ -112,32 +113,6 @@ const enrichmentCompanyContext = companyContextCache
     company_name: z.string(),
   });
 
-// export interface CompanyContextCache {
-//   companyId: string;
-//   companyName: string;
-//   countryId: string;
-//   countryCode: string;
-//   industry?: string;
-//   accountingBasis: 'modified_cash_basis' | 'modified_accrual_basis';
-//   reportingFramework: 'ifrs' | 'us_gaap' | 'other';
-//   reportingCurrencyId: string;
-//   reportingCurrencyCode: string;
-//   fiscalYearEnd: string; // MM-DD format
-//   defaultTimezone: string;
-//   coaSnapshotVersion: string;
-//   coaSnapshotId: string;
-//   settingsChecksum: string;
-//   cachedAt: string;
-// }
-
-// ============================================
-// CONTACT STATS
-// ============================================
-
-// export interface ContactStats {
-//   companyId: string;
-//  ...
-// }
 const baseRollingStats = z.object({
   transaction_count: z.number().int().nonnegative(),
   amount_native_sum: z.number(),
@@ -166,45 +141,6 @@ export const contactStats = baseContactStats.extend({
   as_of_transaction_date: z.iso.date().nullable(),
 });
 export type ContactStats = z.infer<typeof contactStats>;
-
-// export interface ContactStats {
-//   id: string;
-//   companyId: string;
-//   contactId: string | null;
-//   contactFingerprint: string;
-//   normalizedName: string;
-//   currencyCode: string;
-//   totalTransactions: number;
-//   totalAmountNative: number;
-//   totalAmountReporting: number;
-//   avgAmountNative: number;
-//   avgAmountReporting: number;
-//   stdDevAmountNative: number;
-//   stdDevAmountReporting: number;
-//   rolling30dTxnCount: number;
-//   rolling30dTotalNative: number;
-//   rolling30dTotalReporting: number;
-//   rolling30dAvgNative: number;
-//   rolling30dAvgReporting: number;
-//   rolling30dStddevNative: number;
-//   rolling30dStddevReporting: number;
-//   rolling90dTxnCount: number;
-//   rolling90dTotalNative: number;
-//   rolling90dTotalReporting: number;
-//   rolling90dAvgNative: number;
-//   rolling90dAvgReporting: number;
-//   rolling90dStddevNative: number;
-//   rolling90dStddevReporting: number;
-//   lastTransactionId: string | null;
-//   lastTransactionDate: string | null;
-//   statsSnapshotChecksum: string | null;
-//   statsReplaySeq: number;
-//   snapshotCapturedAt: string | null;
-// }
-
-// ============================================
-// MERCHANT PATTERNS
-// ============================================
 
 export const merchantPattern = z.object({
   name: z.string(),
@@ -342,70 +278,71 @@ export type EnrichedTxNormalized = z.infer<typeof enrichedTxNormalized>;
 // ENRICHED TRANSACTION SCHEMA
 // ============================================
 // Date format: YYYY-MM-DD for transaction dates, ISO Date String for time
-export const enrichedTransactionSchema = z.object({
-  version: z.string(), // v240601-01-1.0.0
+// export const enrichedTransactionSchema = z.object({
+//   version: z.string(), // v240601-01-1.0.0
 
-  ids: z.object({
-    bank_transaction_id: z.uuid(),
-    bank_transaction_batch_id: z.uuid().nullish(),
-    company_uuid: z.uuid(),
-    bank_account_id: z.uuid(),
-    bank_account_coa_id: z.uuid(),
-    contact_id: z.uuid().nullish(),
-    enrichment_job_id: z.string().nullish(),
-  }),
+//   ids: z.object({
+//     bank_transaction_id: z.uuid(),
+//     bank_transaction_batch_id: z.uuid().nullish(),
+//     company_uuid: z.uuid(),
+//     bank_account_id: z.uuid(),
+//     bank_account_coa_id: z.uuid(),
+//     contact_id: z.uuid().nullish(),
+//     enrichment_job_id: z.string().nullish(),
+//   }),
 
-  raw: enrichedTxRaw,
-  normalized: enrichedTxNormalized,
+//   raw: enrichedTxRaw,
+//   normalized: enrichedTxNormalized,
 
-  context: enrichmentCompanyContext,
+//   context: enrichmentCompanyContext,
 
-  // historical: z.object({
-  //   // Houses bank transaction contact rolling window and count stats
-  //   bank_contact_stats: z.object({
-  //     id: z.uuid(),
-  //     version: z.string(),
-  //   }),
-  // }),
-  historical: z.object({
-    bank_contact_stats_snapshot: contactStats.nullish(),
-  }),
+//   // historical: z.object({
+//   //   // Houses bank transaction contact rolling window and count stats
+//   //   bank_contact_stats: z.object({
+//   //     id: z.uuid(),
+//   //     version: z.string(),
+//   //   }),
+//   // }),
+//   historical: z.object({
+//     bank_contact_stats_snapshot: contactStats.nullish(),
+//   }),
 
-  signals: z.object({
-    likely_split: z.boolean().optional(),
-    likely_trf_btw_accounts: z.boolean(),
-    notes: z.array(z.string()),
-    requires_vat_check: z.boolean().optional(),
-    requires_fx_review: z.boolean().optional(),
-  }),
+//   signals: z.object({
+//     likely_split: z.boolean().optional(),
+//     likely_trf_btw_accounts: z.boolean(),
+//     notes: z.array(z.string()),
+//     requires_vat_check: z.boolean().optional(),
+//     requires_fx_review: z.boolean().optional(),
+//   }),
 
-  temporal: temporalSchema.optional(),
+//   temporal: temporalSchema.optional(),
 
-  // TODO: Stage 1 leaves this undefined; populate once feedback stats flow feeds enrichment
-  feedback_summary: z
-    .object({
-      last_posted_at: z.iso.date(),
-      last_posted_coa_id: z.uuid().nullable(),
-      acceptance_ratio_90d: z.number().min(0).max(1).nullable(),
-      custom_exchange_rate: z.number().positive().nullish(),
-      user_override_contact_id: z.uuid().nullish(),
-      user_override_notes: z.string().nullish(),
-    })
-    .optional(),
+//   // TODO: Stage 1 leaves this undefined; populate once feedback stats flow feeds enrichment
+//   feedback_summary: z
+//     .object({
+//       last_posted_at: z.iso.date(),
+//       last_posted_coa_id: z.uuid().nullable(),
+//       acceptance_ratio_90d: z.number().min(0).max(1).nullable(),
+//       custom_exchange_rate: z.number().positive().nullish(),
+//       user_override_contact_id: z.uuid().nullish(),
+//       user_override_notes: z.string().nullish(),
+//     })
+//     .optional(),
 
-  metadata: z.object({
-    source: categorizationTaskSource,
-    enriched_at: z.iso.datetime(),
-    enrichment_latency_ms: z.int().nonnegative(),
-    enrichment_version: z.string(),
-    status: categorizationTaskStatus,
-    error_message: z.string().nullish(),
-    processing_context: enrichmentProcessingType.optional(),
-    stats_replay_seq: z.number().int().nonnegative().optional(),
-    replay_reason: z.string().optional(),
-    recomputed_at: z.iso.datetime().optional(),
-    stats_snapshot_checksum: z.string().nullish(),
-  }),
-});
+//   metadata: z.object({
+//     source: categorizationTaskSource,
+//     enriched_at: z.iso.datetime(),
+//     enrichment_latency_ms: z.int().nonnegative(),
+//     enrichment_version: z.string(),
+//     status: categorizationTaskStatus,
+//     error_message: z.string().nullish(),
+//     processing_context: enrichmentProcessingType.optional(),
+//     stats_replay_seq: z.number().int().nonnegative().optional(),
+//     replay_reason: z.string().optional(),
+//     recomputed_at: z.iso.datetime().optional(),
+//     stats_snapshot_checksum: z.string().nullish(),
+//   }),
+// });
 
+const enrichedTransactionSchema = enrichedTxSchema;
 export type EnrichedTransaction = z.infer<typeof enrichedTransactionSchema>;
