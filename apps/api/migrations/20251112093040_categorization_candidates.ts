@@ -50,7 +50,7 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo('pending');
     table.string('input_checksum', 64).nullable();
-    table.jsonb('explanation').nullable();
+    table.text('explanation').nullable();
     table.jsonb('metadata').nullable();
     addStandardColumns(knex, table);
   });
@@ -87,6 +87,7 @@ export async function up(knex: Knex): Promise<void> {
       })
       .notNullable();
     table.decimal('split_value', 20, 10).nullable();
+    table.text('explanation').nullable();
     table.jsonb('metadata').nullable();
     addStandardColumns(knex, table);
   });
@@ -164,6 +165,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('reference', 255).nullable();
     table.text('solver_notes').nullable();
     table.uuid('assignee_id').nullable();
+    table.text('explanation').nullable();
     table.jsonb('metadata').nullable();
     addStandardColumns(knex, table);
   });
@@ -204,6 +206,7 @@ export async function up(knex: Knex): Promise<void> {
       })
       .notNullable();
     table.decimal('split_value', 20, 10).nullable();
+    table.text('explanation').nullable();
     table.jsonb('metadata').nullable();
     addStandardColumns(knex, table);
   });

@@ -13,8 +13,8 @@ import type {
   MLPredictionRequest,
   MLPrediction,
 } from './ml-prediction.types.js';
-import type { EnrichedTransaction } from '../enrichment/enrichment.types.js';
 import { processPredictionToCandidate } from '../processing/prediction-pipeline.service.js';
+import type { MLPredictionMetadata } from '../predictions/predictions.types.js';
 
 const CATEGORIZATION_TASKS_TABLE = 'categorization_tasks';
 const PREDICTIONS_TABLE = 'categorization_predictions';
@@ -67,11 +67,6 @@ export async function processMLPrediction(
     // Build ML Engine API request
     const mlRequest: MLPredictionRequest = {
       enrichedTransaction: enrichedTransaction,
-      companyContext: {
-        companyId: enrichedTransaction.ids.company_uuid,
-        coaSnapshotId: enrichedTransaction.context.coa_snapshot_id,
-        coaSnapshotVersion: enrichedTransaction.context.coa_snapshot_version,
-      },
     };
 
     // Call ML Engine API
@@ -133,6 +128,30 @@ export async function processMLPrediction(
         const actualRank = baseRank + i; // Offset by baseRank
         const isPrimary = isPrimaryByDefault && i === 0; // First ML prediction is primary if no rules exist
 
+        // Store overallExplanation as string, and structured data in metadata
+        const explanation: string | null =
+          mlPrediction.overallExplanation ?? null;
+
+        // Build typed metadata for ML prediction
+        // Start with base ML metadata structure
+        const baseMetadata: MLPredictionMetadata = {
+          provenance: 'ml_engine',
+          ...(mlPrediction.overallExplanationTokens
+            ? {
+                overallExplanationTokens: mlPrediction.overallExplanationTokens,
+              }
+            : {}),
+          ...(mlResponse.modelVersion
+            ? { model_version: mlResponse.modelVersion }
+            : {}),
+        };
+
+        // Merge with any additional metadata from ML engine response
+        const metadata: MLPredictionMetadata = {
+          ...baseMetadata,
+          ...(mlPrediction.metadata ?? {}),
+        };
+
         const pipelineResult = await processPredictionToCandidate({
           categorizationTaskId,
           bankTransactionId,
@@ -145,8 +164,9 @@ export async function processMLPrediction(
           isPrimary,
           modelVersion: mlResponse.modelVersion,
           predictionGroupId,
-          explanation: mlPrediction.explanation ?? null,
-          metadata: mlPrediction.metadata ?? null,
+          predictionId: mlPrediction.id, // Use Python-generated ID
+          explanation,
+          metadata,
           enrichedTransaction,
           predictionRepository: predictionRepo,
           candidateRepository: candidateRepo,
@@ -255,6 +275,7 @@ function toCandidateLines(lines: MLPrediction['lines']): CandidateLineDraft[] {
     isBankLeg: line.isBankLeg ?? false,
     splitType: line.splitType,
     splitValue: line.splitValue ?? null,
+    explanation: line.explanation ?? null,
     metadata: line.metadata ?? null,
   }));
 }

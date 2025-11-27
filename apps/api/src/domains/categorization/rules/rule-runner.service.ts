@@ -28,6 +28,7 @@ import {
   processPredictionToCandidate,
   type ProcessPredictionToCandidateParams,
 } from '../processing/prediction-pipeline.service.js';
+import type { RulePredictionMetadata } from '../predictions/predictions.types.js';
 
 const CATEGORIZATION_TASKS_TABLE = 'categorization_tasks';
 
@@ -331,6 +332,35 @@ async function persistRulePredictionAndCandidate(params: {
   }
 
   const explanation = buildCandidateExplanation(result);
+
+  // Find winning rule log for metadata
+  // winningRuleId should exist when status is 'applied', but TypeScript doesn't know that
+  if (!result.winningRuleId) {
+    throw new Error(
+      'Cannot create rule prediction metadata: winningRuleId is missing',
+    );
+  }
+
+  const winningLog = result.logs.find(
+    (log) => log.ruleId === result.winningRuleId,
+  );
+
+  // Build typed metadata for rule prediction
+  const metadata: RulePredictionMetadata = {
+    provenance: 'rule_engine',
+    run_id: result.runId,
+    rule_id: result.winningRuleId,
+    ...(winningLog?.ruleName ? { rule_name: winningLog.ruleName } : {}),
+    ...(winningLog
+      ? {
+          rule_details: {
+            matched_conditions: winningLog.matchedConditions ?? [],
+            applied_actions: winningLog.appliedActions ?? [],
+          },
+        }
+      : {}),
+  };
+
   const processFn =
     processPredictionToCandidateFn ?? processPredictionToCandidate;
   await processFn({
@@ -346,11 +376,7 @@ async function persistRulePredictionAndCandidate(params: {
     modelVersion: null,
     predictionGroupId: null,
     explanation,
-    metadata: {
-      run_id: result.runId,
-      rule_id: result.winningRuleId,
-      provenance: 'rule_engine',
-    },
+    metadata,
     enrichedTransaction: event.enriched_transaction,
     predictionRepository,
     candidateRepository,
@@ -361,7 +387,7 @@ async function persistRulePredictionAndCandidate(params: {
 
 export function buildCandidateExplanation(
   result: RuleEngineResult,
-): Record<string, unknown> | null {
+): string | null {
   if (!result.logs.length) {
     return null;
   }
@@ -371,11 +397,61 @@ export function buildCandidateExplanation(
   if (!winning) {
     return null;
   }
-  return {
-    rule_id: winning.ruleId,
-    matched_conditions: winning.matchedConditions ?? [],
-    applied_actions: winning.appliedActions ?? [],
-  };
+  // Build human-readable explanation string using rule name
+  const ruleName = winning.ruleName || `Rule ${winning.ruleId}`;
+  const conditions = winning.matchedConditions ?? [];
+  const actions = winning.appliedActions ?? [];
+  const parts: string[] = [];
+
+  // Start with the rule name
+  parts.push(`Rule "${ruleName}" applied`);
+
+  // Add condition details if available
+  if (conditions.length > 0) {
+    const conditionDescriptions = conditions
+      .filter((cond) => cond.success)
+      .map((cond) => {
+        // Build human-readable condition description
+        const field = cond.field || 'field';
+        const operator = cond.operator || 'matches';
+        if (cond.kind === 'amount' && cond.actual !== undefined) {
+          return `${field} ${operator} ${cond.actual}`;
+        }
+        if (cond.kind === 'string' && cond.actual !== undefined) {
+          return `${field} ${operator} "${cond.actual}"`;
+        }
+        if (cond.kind === 'date' && cond.actual !== undefined) {
+          return `${field} ${operator} ${cond.actual}`;
+        }
+        return `${field} ${operator}`;
+      });
+
+    if (conditionDescriptions.length > 0) {
+      parts.push(`Matched: ${conditionDescriptions.join(', ')}`);
+    }
+  }
+
+  // Add action details if available
+  if (actions.length > 0) {
+    const actionDescriptions = actions.map((action) => {
+      if (action.type === 'categorize' && action.lineCount) {
+        return `categorized into ${action.lineCount} journal line${action.lineCount > 1 ? 's' : ''}`;
+      }
+      if (action.type === 'set' && action.target && action.value) {
+        return `set ${action.target} to ${action.value}`;
+      }
+      if (action.type === 'template' && action.template) {
+        return `applied template "${action.template}"`;
+      }
+      return action.type;
+    });
+
+    if (actionDescriptions.length > 0) {
+      parts.push(`Actions: ${actionDescriptions.join(', ')}`);
+    }
+  }
+
+  return parts.join('. ');
 }
 
 export function buildJournalLines(params: {

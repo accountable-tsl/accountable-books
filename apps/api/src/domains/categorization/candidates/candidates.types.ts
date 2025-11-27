@@ -33,6 +33,7 @@ export const categorizationCandidate = z.object({
   reference: z.string().nullable(),
   solver_notes: z.string().nullable(),
   assignee_id: z.uuid().nullable(),
+  explanation: z.string().nullish(),
   metadata: z.record(z.string(), z.any()).nullable(),
   ...dbBaseFields.shape,
 });
@@ -49,6 +50,7 @@ export const categorizationCandidateLine = z.object({
   is_bank_leg: z.boolean(),
   split_type: candidateSplitType,
   split_value: z.number().nullable(),
+  explanation: z.string().nullish(),
   metadata: z.record(z.string(), z.any()).nullable(),
   ...dbBaseFields.shape,
 });

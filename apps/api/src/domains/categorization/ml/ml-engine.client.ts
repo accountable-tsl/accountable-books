@@ -52,13 +52,13 @@ export class MLEngineClient {
     try {
       logger.debug(
         {
-          companyId: request.companyContext?.companyId,
+          companyId: request.enrichedTransaction.context.company_uuid,
         },
-        'Calling ML Engine /predict endpoint',
+        'Calling ML Engine /api/v1/predict endpoint',
       );
 
       const response = await this.client.post<MLPredictionResponse>(
-        '/predict',
+        '/api/v1/predict',
         request,
       );
 
@@ -66,7 +66,7 @@ export class MLEngineClient {
 
       logger.info(
         {
-          companyId: request.companyContext?.companyId,
+          companyId: request.enrichedTransaction.context.company_uuid,
           predictionsCount: response.data.predictions?.length ?? 0,
           modelVersion: response.data.modelVersion,
           latencyMs,
@@ -83,7 +83,7 @@ export class MLEngineClient {
 
       logger.error(
         {
-          companyId: request.companyContext?.companyId,
+          companyId: request.enrichedTransaction.context.company_uuid,
           error: error instanceof Error ? error.message : 'Unknown error',
           latencyMs,
         },

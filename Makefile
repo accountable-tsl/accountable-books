@@ -44,6 +44,11 @@ setup: guard-nonprod ## One-command setup: infra + deps + db + demo
 	@echo "$(GREEN)✅ Setup complete!$(RESET)"
 	@echo "$(BLUE)💡 Run 'make dev' to start developing$(RESET)"
 
+install: guard-nonprod ## Install dependencies
+	@echo "$(GREEN)📦 Installing Node.js dependencies...$(RESET)"
+	@pnpm install
+	@cd apps/ml-engine && poetry install --no-interaction --no-ansi
+
 dev: guard-nonprod ## Start all apps in development mode (Turbo)
 	@echo "$(GREEN)🎯 Starting development environment...$(RESET)"
 	@echo "$(YELLOW)🔨 Ensuring dependencies are built...$(RESET)"

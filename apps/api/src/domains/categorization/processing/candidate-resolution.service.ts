@@ -29,6 +29,7 @@ export interface CandidateCreationParams {
   confidence: number;
   enrichedTransaction: EnrichedTransaction;
   solverNotes?: string;
+  explanation?: string | null;
   metadata?: Record<string, unknown> | null;
   candidateRepository: CandidateRepository;
 }
@@ -148,6 +149,7 @@ export async function createCandidate(
     confidence,
     enrichedTransaction,
     solverNotes,
+    explanation,
     metadata,
     candidateRepository: providedCandidateRepository,
   } = params;
@@ -174,6 +176,7 @@ export async function createCandidate(
       categorizationTaskId,
       bankTransactionId,
       bankTransactionDate,
+      explanation,
       companyId,
       status: 'proposed',
       confidence,

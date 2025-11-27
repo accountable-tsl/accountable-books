@@ -19,6 +19,7 @@ export interface CandidateLineDraft {
   isBankLeg?: boolean;
   splitType: CandidateSplitType;
   splitValue?: number | null;
+  explanation?: string | null;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -37,6 +38,7 @@ export interface CreateCandidateParams {
   reference?: string | null;
   solverNotes?: string | null;
   assigneeId?: string | null;
+  explanation?: string | null;
   metadata?: Record<string, unknown> | null;
   lines: CandidateLineDraft[];
 }
@@ -104,6 +106,7 @@ export class CandidateRepository {
           reference: params.reference ?? null,
           solver_notes: params.solverNotes ?? null,
           assignee_id: params.assigneeId ?? null,
+          explanation: params.explanation ?? null,
           metadata: params.metadata ?? null,
         })
         .returning(['id']);
@@ -120,6 +123,7 @@ export class CandidateRepository {
           is_bank_leg: line.isBankLeg ?? false,
           split_type: line.splitType,
           split_value: line.splitValue ?? null,
+          explanation: line.explanation ?? null,
           metadata: line.metadata ?? null,
         }));
         await trx(CANDIDATE_LINES_TABLE).insert(rows);

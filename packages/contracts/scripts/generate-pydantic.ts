@@ -367,7 +367,7 @@ async function main() {
     const jsonSchemaFiles = writeJsonSchemaFiles(schemas);
     console.log(`Generated ${jsonSchemaFiles.length} JSON Schema files\n`);
 
-    // Step 3: Generate Pydantic models
+    // Step 3: Generate Pydantic models (includes __init__.py generation)
     generatePydanticModels(jsonSchemaFiles);
 
     console.log('\n✅ Generation complete!');

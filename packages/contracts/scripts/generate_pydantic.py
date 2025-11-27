@@ -8,7 +8,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 try:
     from datamodel_code_generator import generate, InputFileType, DataModelType
@@ -49,6 +49,109 @@ def generate_pydantic_from_json_schema(
         sys.exit(1)
 
 
+def extract_main_class_name(json_schema_path: Path) -> Optional[str]:
+    """Extract the main class name from a JSON schema file.
+    
+    Reads the 'title' field from the JSON schema (camelCase) and converts
+    it to PascalCase for the Python class name.
+    
+    Args:
+        json_schema_path: Path to the JSON schema file
+        
+    Returns:
+        The class name in PascalCase, or None if title is not found
+    """
+    try:
+        with open(json_schema_path, "r", encoding="utf-8") as f:
+            schema_data = json.load(f)
+        
+        title = schema_data.get("title")
+        if not title:
+            return None
+        
+        # Convert camelCase to PascalCase
+        # e.g., "mlPredictionResponse" -> "MlPredictionResponse"
+        return title[0].upper() + title[1:] if title else None
+    except Exception as e:
+        print(f"Warning: Could not read JSON schema {json_schema_path}: {e}", file=sys.stderr)
+        return None
+
+
+def generate_init_files(output_dir: Path, json_schema_files: list[Path]) -> None:
+    """Generate __init__.py files with all model exports.
+    
+    Generates two __init__.py files:
+    1. schema/py/__init__.py - imports from individual modules
+    2. schema/__init__.py - re-exports from schema.py
+    
+    Args:
+        output_dir: Directory containing generated Python files
+        json_schema_files: List of JSON schema files that were processed
+    """
+    # Build mapping of filename -> class name
+    class_mappings: list[tuple[str, str]] = []
+    
+    for json_schema_path in json_schema_files:
+        if not json_schema_path.exists():
+            continue
+        
+        # Get the Python filename (same as JSON filename stem)
+        filename = json_schema_path.stem
+        
+        # Extract class name from JSON schema title
+        class_name = extract_main_class_name(json_schema_path)
+        if class_name:
+            class_mappings.append((filename, class_name))
+    
+    if not class_mappings:
+        print("Warning: No class mappings found for __init__.py generation", file=sys.stderr)
+        return
+    
+    # Sort by class name for consistent output
+    class_mappings.sort(key=lambda x: x[1])
+    
+    # Generate schema/py/__init__.py
+    py_init_path = output_dir / "__init__.py"
+    py_imports = "\n".join(
+        f"from .{filename} import {class_name}"
+        for filename, class_name in class_mappings
+    )
+    py_all_exports = ",\n    ".join(f'"{class_name}"' for _, class_name in class_mappings)
+    
+    py_init_content = f'''"""Generated Pydantic models from Zod schemas."""
+
+{py_imports}
+
+__all__ = [
+    {py_all_exports},
+]
+'''
+    
+    py_init_path.write_text(py_init_content, encoding="utf-8")
+    print(f"✓ Generated {py_init_path} with {len(class_mappings)} exports")
+    
+    # Generate schema/__init__.py
+    schema_init_path = output_dir.parent / "__init__.py"
+    schema_imports = "\n".join(
+        f"from .py import {class_name}"
+        for _, class_name in class_mappings
+    )
+    schema_all_exports = ",\n    ".join(f'"{class_name}"' for _, class_name in class_mappings)
+    
+    schema_init_content = f'''"""Schema definitions and generated models."""
+
+# Re-export all Pydantic models from py submodule
+{schema_imports}
+
+__all__ = [
+    {schema_all_exports},
+]
+'''
+    
+    schema_init_path.write_text(schema_init_content, encoding="utf-8")
+    print(f"✓ Generated {schema_init_path} with {len(class_mappings)} exports")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate Pydantic models from JSON Schema files"
@@ -84,18 +187,9 @@ def main():
 
         generate_pydantic_from_json_schema(json_schema_path, output_path, json_schema_path.stem)
 
-    # Create __init__.py files for proper Python package structure
-    # Create __init__.py in output directory
-    init_file = args.output_dir / "__init__.py"
-    if not init_file.exists():
-        init_file.write_text('"""Generated Pydantic models from Zod schemas."""\n')
-        print(f"✓ Created {init_file}")
-
-    # Create __init__.py in parent schema directory if it doesn't exist
-    schema_init = args.output_dir.parent / "__init__.py"
-    if not schema_init.exists():
-        schema_init.write_text('"""Schema definitions and generated models."""\n')
-        print(f"✓ Created {schema_init}")
+    # Generate __init__.py files with exports
+    print("\n📦 Generating __init__.py files with exports...")
+    generate_init_files(args.output_dir, args.json_schema_files)
 
     print(f"\n✓ All Pydantic models generated in {args.output_dir}")
 

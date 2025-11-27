@@ -41,7 +41,8 @@ export interface ProcessPredictionToCandidateParams {
   // Metadata
   modelVersion?: string | null;
   predictionGroupId?: string | null;
-  explanation?: Record<string, unknown> | null;
+  predictionId?: string; // Optional: use provided ID (e.g., from ML engine) instead of generating one
+  explanation?: string | null;
   metadata?: Record<string, unknown> | null;
 
   // Enriched transaction context (for candidate creation)
@@ -88,6 +89,7 @@ export async function processPredictionToCandidate(
     isPrimary,
     modelVersion,
     predictionGroupId,
+    predictionId: providedPredictionId,
     explanation,
     metadata,
     enrichedTransaction,
@@ -127,6 +129,7 @@ export async function processPredictionToCandidate(
       isBankLeg: line.isBankLeg ?? false,
       splitType: line.splitType as PredictionLineDraft['splitType'],
       splitValue: line.splitValue ?? null,
+      explanation: line.explanation ?? null,
       metadata: line.metadata ?? null,
     }));
 
@@ -148,6 +151,7 @@ export async function processPredictionToCandidate(
       isPrimary: validationResult.isValid ? isPrimary : false,
       modelVersion,
       predictionGroupId,
+      predictionId: providedPredictionId,
       explanation,
       metadata,
       predictionRepository,
@@ -234,6 +238,7 @@ export async function processPredictionToCandidate(
         lines,
         confidence,
         enrichedTransaction,
+        explanation,
         metadata,
         candidateRepository,
       };

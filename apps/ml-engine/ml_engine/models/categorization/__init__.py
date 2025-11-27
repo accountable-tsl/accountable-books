@@ -1,1 +1,0 @@
-# Categorization models package placeholder.

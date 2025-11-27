@@ -73,16 +73,6 @@
           "amountNative": {
             "type": "number"
           },
-          "amountReporting": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "currencyCode": {
             "type": "string",
             "minLength": 3,

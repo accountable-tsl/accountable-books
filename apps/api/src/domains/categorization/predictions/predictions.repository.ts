@@ -20,6 +20,7 @@ export interface PredictionLineDraft {
   isBankLeg?: boolean;
   splitType: PredictionSplitType;
   splitValue?: number | null;
+  explanation?: string | null;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -34,9 +35,10 @@ export interface CreatePredictionParams {
   confidence: number;
   modelVersion?: string | null;
   predictionGroupId?: string | null;
+  predictionId?: string; // Optional: use provided ID (e.g., from ML engine) instead of generating one
   status: PredictionStatus;
   inputChecksum?: string | null;
-  explanation?: Record<string, unknown> | null;
+  explanation?: string | null;
   metadata?: Record<string, unknown> | null;
   lines: PredictionLineDraft[];
 }
@@ -67,23 +69,30 @@ export class PredictionRepository {
     params: CreatePredictionParams,
   ): Promise<string> {
     return await this.knex.transaction(async (trx) => {
+      const insertData: Record<string, unknown> = {
+        categorization_task_id: params.categorizationTaskId,
+        bank_transaction_id: params.bankTransactionId,
+        bank_transaction_date: params.bankTransactionDate,
+        company_id: params.companyId,
+        source: params.source,
+        rank: params.rank,
+        is_primary: params.isPrimary,
+        confidence: params.confidence,
+        model_version: params.modelVersion ?? null,
+        prediction_group_id: params.predictionGroupId ?? null,
+        status: params.status,
+        input_checksum: params.inputChecksum ?? null,
+        explanation: params.explanation ?? null,
+        metadata: params.metadata ?? null,
+      };
+
+      // Use provided ID if available (e.g., from ML engine), otherwise let database generate it
+      if (params.predictionId) {
+        insertData.id = params.predictionId;
+      }
+
       const [prediction] = await trx(PREDICTIONS_TABLE)
-        .insert({
-          categorization_task_id: params.categorizationTaskId,
-          bank_transaction_id: params.bankTransactionId,
-          bank_transaction_date: params.bankTransactionDate,
-          company_id: params.companyId,
-          source: params.source,
-          rank: params.rank,
-          is_primary: params.isPrimary,
-          confidence: params.confidence,
-          model_version: params.modelVersion ?? null,
-          prediction_group_id: params.predictionGroupId ?? null,
-          status: params.status,
-          input_checksum: params.inputChecksum ?? null,
-          explanation: params.explanation ?? null,
-          metadata: params.metadata ?? null,
-        })
+        .insert(insertData)
         .returning(['id']);
 
       if (params.lines.length) {
@@ -98,6 +107,7 @@ export class PredictionRepository {
           is_bank_leg: line.isBankLeg ?? false,
           split_type: line.splitType,
           split_value: line.splitValue ?? null,
+          explanation: line.explanation ?? null,
           metadata: line.metadata ?? null,
         }));
         await trx(PREDICTION_LINES_TABLE).insert(rows);

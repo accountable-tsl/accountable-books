@@ -19,7 +19,8 @@ export interface PersistPredictionParams {
   isPrimary?: boolean; // Optional, will be determined if not provided
   modelVersion?: string | null;
   predictionGroupId?: string | null;
-  explanation?: Record<string, unknown> | null;
+  predictionId?: string; // Optional: use provided ID (e.g., from ML engine) instead of generating one
+  explanation?: string | null;
   metadata?: Record<string, unknown> | null;
   predictionRepository?: PredictionRepository;
   knex: Knex;
@@ -116,6 +117,7 @@ export async function persistPrediction(
     isPrimary: providedIsPrimary,
     modelVersion,
     predictionGroupId,
+    predictionId: providedPredictionId,
     explanation,
     metadata,
     predictionRepository: providedPredictionRepository,
@@ -173,6 +175,7 @@ export async function persistPrediction(
     confidence,
     modelVersion: modelVersion ?? null,
     predictionGroupId: predictionGroupId ?? null,
+    predictionId: providedPredictionId,
     status: params.status ?? 'pending',
     inputChecksum: null,
     explanation: explanation ?? null,
