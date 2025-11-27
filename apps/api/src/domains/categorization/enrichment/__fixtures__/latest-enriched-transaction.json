@@ -6,17 +6,16 @@
     "company_uuid": "company-1",
     "bank_account_id": "acct-1",
     "bank_account_coa_id": "coa-1",
+    "bank_account_currency_code": "USD",
     "contact_id": "contact-1",
     "enrichment_job_id": null
   },
   "raw": {
     "date": "2025-01-01",
     "description": "ACH PAYMENT TO VENDOR INV-001",
-    "amount_native": 250,
-    "system_ex_rate": 1,
-    "amount_reporting": 250,
+    "amount": 250,
     "currency_code": "USD",
-    "direction": "inflow",
+    "reference": "INV-001",
     "source": "ingestion",
     "metadata": {
       "origin": "test"
@@ -35,12 +34,15 @@
   },
   "context": {
     "company_name": "Acme Corp",
+    "year_end_day": 31,
+    "year_end_month": 12,
     "type": "operating_company",
     "description": null,
     "website": null,
     "country_id": "country-1",
     "country_code": "US",
     "industry": "technology",
+    "tags": [],
     "accounting_basis": "modified_accrual_basis",
     "reporting_framework": "ifrs",
     "reporting_currency_id": "currency-1",
@@ -50,7 +52,7 @@
     "coa_snapshot_version": "snapshot-v1",
     "coa_snapshot_id": "coa-snap-1",
     "coa_snapshot_checksum": null,
-    "cached_at": "2025-11-26T21:44:32.880Z"
+    "cached_at": "2025-11-26T21:53:47.085Z"
   },
   "historical": {
     "bank_contact_stats_snapshot": {
@@ -61,29 +63,20 @@
       "totals": {
         "transaction_count": 5,
         "amount_native_sum": 1000,
-        "amount_reporting_sum": 1000,
         "avg_amount_native": 200,
-        "avg_amount_reporting": 200,
-        "stddev_amount_native": 0,
-        "stddev_amount_reporting": 0
+        "stddev_amount_native": 0
       },
       "rolling_30d": {
         "transaction_count": 2,
         "amount_native_sum": 400,
-        "amount_reporting_sum": 400,
         "avg_amount_native": 200,
-        "avg_amount_reporting": 200,
-        "stddev_amount_native": 0,
-        "stddev_amount_reporting": 0
+        "stddev_amount_native": 0
       },
       "rolling_90d": {
         "transaction_count": 5,
         "amount_native_sum": 1000,
-        "amount_reporting_sum": 1000,
         "avg_amount_native": 200,
-        "avg_amount_reporting": 200,
-        "stddev_amount_native": 0,
-        "stddev_amount_reporting": 0
+        "stddev_amount_native": 0
       },
       "last_transaction_id": "txn-prev",
       "last_transaction_date": "2024-12-15",
@@ -113,8 +106,8 @@
   },
   "metadata": {
     "source": "ingestion",
-    "enriched_at": "2025-11-26T21:44:32.884Z",
-    "enrichment_latency_ms": 0,
+    "enriched_at": "2025-11-26T21:53:47.090Z",
+    "enrichment_latency_ms": 1,
     "enrichment_version": "v251102-01-1.0.0",
     "status": "enriched",
     "error_message": null,

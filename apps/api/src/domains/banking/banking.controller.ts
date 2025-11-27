@@ -6,7 +6,11 @@ import {
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { providerRegistry } from '../../integrations/banking/providers/registry.js';
 import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
-import { connectAccountsService, transactionSyncQueue, transactionSyncService } from '../../integrations/banking/index.js';
+import {
+  connectAccountsService,
+  transactionSyncQueue,
+  transactionSyncService,
+} from '../../integrations/banking/index.js';
 
 export class BankingController {
   async connectBankAccounts(req: AuthRequest, res: Response) {

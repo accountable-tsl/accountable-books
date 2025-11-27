@@ -1,8 +1,5 @@
 import { z } from 'zod';
-import {
-  categorizationTaskSource,
-  categorizationTaskStatus,
-} from '../tasks/tasks.enums.js';
+import { categorizationTaskSource } from '../tasks/tasks.enums.js';
 import {
   accountingBasis,
   companyType,
@@ -12,7 +9,7 @@ import { contactType } from '../../contacts/index.js';
 import {
   enrichedTransactionSchema,
   type EnrichedTransactionSchema as EnrichedTransaction,
-} from '@accountable-books/contracts';
+} from '@accountable-books/contracts/schema';
 
 export { type EnrichedTransaction };
 export { enrichedTransactionSchema };
@@ -32,30 +29,6 @@ export type EnrichmentJobData = z.infer<typeof enrichmentJobDataSchema>;
 
 const enrichmentProcessingType = z.enum(['primary', 'shadow']);
 export type EnrichmentProcessingType = z.infer<typeof enrichmentProcessingType>;
-
-// ============================================
-// CONTACT RESOLUTION
-// ============================================
-
-// export interface ContactResolutionResult {
-//   contactId: string | null;
-//   contactName: string | null;
-//   contactFingerprint: string | null;
-//   matchConfidence:
-//     | 'exact_contact'
-//     | 'alias_match'
-//     | 'fingerprint_only'
-//     | 'unmatched';
-//   contactType:
-//     | 'vendor'
-//     | 'customer'
-//     | 'employee'
-//     | 'business_owner'
-//     | 'individual_self'
-//     | 'unknown';
-//   globalContactId?: string | null;
-//   globalContactCategoryHints?: string[] | null;
-// }
 
 export const enrichmentContactType = contactType.or(z.literal('unknown'));
 export type EnrichmentContactType = z.infer<typeof enrichmentContactType>;
@@ -93,6 +66,8 @@ export const companyContextCache = z.object({
   region_code: z.string().nullish(),
   subregion_code: z.string().nullish(),
   industry: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  company_size: z.string().optional(),
   accounting_basis: accountingBasis,
   reporting_framework: z.union([reportingFramework, z.literal('other')]),
   reporting_currency_id: z.string(),
@@ -108,24 +83,25 @@ export const companyContextCache = z.object({
 });
 
 export type CompanyContextCache = z.infer<typeof companyContextCache>;
-const enrichmentCompanyContext = companyContextCache
-  .omit({
-    display_name: true,
-    legal_name: true,
-    year_end_month: true,
-    year_end_day: true,
-  })
-  .extend({
-    company_name: z.string(),
-  });
+// const enrichmentCompanyContext = companyContextCache
+//   .omit({
+//     display_name: true,
+//     legal_name: true,
+//     year_end_month: true,
+//     year_end_day: true,
+//   })
+//   .extend({
+//     company_name: z.string(),
+//   });
 
 const baseRollingStats = z.object({
   transaction_count: z.number().int().nonnegative(),
   amount_native_sum: z.number(),
-  amount_reporting_sum: z.number(),
   avg_amount_native: z.number(),
-  avg_amount_reporting: z.number(),
   stddev_amount_native: z.number(),
+
+  amount_reporting_sum: z.number(), // Remove from enrichment... legacy
+  avg_amount_reporting: z.number(),
   stddev_amount_reporting: z.number(),
 });
 
@@ -208,6 +184,9 @@ export interface EnrichmentStatsContext {
   stats_replay_seq: number;
   stats_snapshot_checksum: string | null;
   snapshot_captured_at: string | null;
+  // Exchange rate metadata for stats calculation (from bank transaction's system_exchange_rate)
+  exchange_rate: number;
+  amount_reporting: number;
 }
 
 export interface EnrichmentResult {
@@ -261,8 +240,8 @@ export const enrichedTxRaw = z.object({
   amount_native: z.number(),
   system_ex_rate: z.number(),
   amount_reporting: z.number(),
+  reference: z.string().nullish(),
   currency_code: z.string().length(3),
-  direction: z.enum(['inflow', 'outflow']),
   source: z.string(),
   metadata: z.any(),
 });
@@ -280,72 +259,3 @@ export const enrichedTxNormalized = z.object({
   global_contact_category_hints: z.array(z.string()).nullish(),
 });
 export type EnrichedTxNormalized = z.infer<typeof enrichedTxNormalized>;
-// ============================================
-// ENRICHED TRANSACTION SCHEMA
-// ============================================
-// Date format: YYYY-MM-DD for transaction dates, ISO Date String for time
-// export const enrichedTransactionSchema = z.object({
-//   version: z.string(), // v240601-01-1.0.0
-
-//   ids: z.object({
-//     bank_transaction_id: z.uuid(),
-//     bank_transaction_batch_id: z.uuid().nullish(),
-//     company_uuid: z.uuid(),
-//     bank_account_id: z.uuid(),
-//     bank_account_coa_id: z.uuid(),
-//     contact_id: z.uuid().nullish(),
-//     enrichment_job_id: z.string().nullish(),
-//   }),
-
-//   raw: enrichedTxRaw,
-//   normalized: enrichedTxNormalized,
-
-//   context: enrichmentCompanyContext,
-
-//   // historical: z.object({
-//   //   // Houses bank transaction contact rolling window and count stats
-//   //   bank_contact_stats: z.object({
-//   //     id: z.uuid(),
-//   //     version: z.string(),
-//   //   }),
-//   // }),
-//   historical: z.object({
-//     bank_contact_stats_snapshot: contactStats.nullish(),
-//   }),
-
-//   signals: z.object({
-//     likely_split: z.boolean().optional(),
-//     likely_trf_btw_accounts: z.boolean(),
-//     notes: z.array(z.string()),
-//     requires_vat_check: z.boolean().optional(),
-//     requires_fx_review: z.boolean().optional(),
-//   }),
-
-//   temporal: temporalSchema.optional(),
-
-//   // TODO: Stage 1 leaves this undefined; populate once feedback stats flow feeds enrichment
-//   feedback_summary: z
-//     .object({
-//       last_posted_at: z.iso.date(),
-//       last_posted_coa_id: z.uuid().nullable(),
-//       acceptance_ratio_90d: z.number().min(0).max(1).nullable(),
-//       custom_exchange_rate: z.number().positive().nullish(),
-//       user_override_contact_id: z.uuid().nullish(),
-//       user_override_notes: z.string().nullish(),
-//     })
-//     .optional(),
-
-//   metadata: z.object({
-//     source: categorizationTaskSource,
-//     enriched_at: z.iso.datetime(),
-//     enrichment_latency_ms: z.int().nonnegative(),
-//     enrichment_version: z.string(),
-//     status: categorizationTaskStatus,
-//     error_message: z.string().nullish(),
-//     processing_context: enrichmentProcessingType.optional(),
-//     stats_replay_seq: z.number().int().nonnegative().optional(),
-//     replay_reason: z.string().optional(),
-//     recomputed_at: z.iso.datetime().optional(),
-//     stats_snapshot_checksum: z.string().nullish(),
-//   }),
-// });

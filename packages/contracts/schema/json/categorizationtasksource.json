@@ -2,9 +2,5 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "categorizationTaskSource",
   "type": "string",
-  "enum": [
-    "ingestion",
-    "backfill",
-    "manual"
-  ]
+  "enum": ["ingestion", "backfill", "manual"]
 }

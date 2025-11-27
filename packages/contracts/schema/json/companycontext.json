@@ -11,11 +11,7 @@
     },
     "type": {
       "type": "string",
-      "enum": [
-        "business",
-        "individual",
-        "accounting_firm"
-      ]
+      "enum": ["business", "individual", "accounting_firm"]
     },
     "description": {
       "anyOf": [
@@ -66,30 +62,28 @@
     "industry": {
       "type": "string"
     },
+    "tags": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "accounting_basis": {
       "type": "string",
-      "enum": [
-        "modified_cash_basis",
-        "modified_accrual_basis"
-      ]
+      "enum": ["modified_cash_basis", "modified_accrual_basis"]
     },
     "reporting_framework": {
       "anyOf": [
         {
           "type": "string",
-          "enum": [
-            "ifrs",
-            "us_gaap"
-          ]
+          "enum": ["ifrs", "us_gaap"]
         },
         {
           "type": "string",
           "const": "other"
         }
       ]
-    },
-    "reporting_currency_id": {
-      "type": "string"
     },
     "reporting_currency_code": {
       "type": "string",
@@ -129,9 +123,9 @@
     "type",
     "country_id",
     "country_code",
+    "tags",
     "accounting_basis",
     "reporting_framework",
-    "reporting_currency_id",
     "reporting_currency_code",
     "year_end_day",
     "year_end_month",

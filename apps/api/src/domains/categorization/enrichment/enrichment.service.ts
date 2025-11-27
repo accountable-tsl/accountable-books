@@ -202,6 +202,9 @@ export async function enrichTransaction({
             stats_replay_seq: snapshot.stats_replay_seq,
             stats_snapshot_checksum: snapshot.stats_snapshot_checksum || null,
             snapshot_captured_at: snapshot.snapshot_captured_at || null,
+            // Exchange rate metadata from bank transaction (for stats calculation)
+            exchange_rate: systemExRate,
+            amount_reporting: amountReporting,
           }
         : null;
 
@@ -213,17 +216,20 @@ export async function enrichTransaction({
         company_uuid: companyUUID,
         bank_account_id: txn.bank_account_id,
         bank_account_coa_id: txn.bank_account_coa_id,
+        bank_account_currency_code: txn.bank_currency_code,
         contact_id: contactResolution.contact_id,
         enrichment_job_id: null,
       },
       raw: {
         date: txnDateStr,
         description: description,
-        amount_native: amountNative,
-        system_ex_rate: systemExRate,
-        amount_reporting: amountReporting,
-        currency_code: txn.transaction_currency_code,
-        direction: amountNative > 0 ? 'inflow' : 'outflow',
+        amount: amountNative,
+        currency_code: txn.transaction_currency_code, // should be the same as txn.bank_currency_code, otherwise this is a bug
+        reference: txn.reference ?? null,
+        // Removed from schema: system_ex_rate, amount_reporting, direction
+        // system_ex_rate: systemExRate,
+        // amount_reporting: amountReporting,
+        // direction: amountNative > 0 ? 'inflow' : 'outflow',
         source: txn.source ?? 'ingestion',
         metadata: txn.raw_data,
       },
@@ -246,6 +252,7 @@ export async function enrichTransaction({
         year_end_day: Number(year_end_day),
         year_end_month: Number(year_end_month),
         ...enrichmentContext,
+        tags: enrichmentContext.tags ?? [], // Default to empty array if not available
         cached_at: enrichmentContext.cached_at.toISOString(),
       },
 

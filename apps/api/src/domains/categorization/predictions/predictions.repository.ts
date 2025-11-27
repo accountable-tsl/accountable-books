@@ -15,7 +15,6 @@ export interface PredictionLineDraft {
   coaId: string;
   projectId?: string | null;
   amountNative: number;
-  amountReporting?: number | null;
   currencyCode: string;
   description?: string | null;
   isBankLeg?: boolean;
@@ -94,7 +93,6 @@ export class PredictionRepository {
           coa_id: line.coaId,
           project_id: line.projectId ?? null,
           amount_native: line.amountNative,
-          amount_reporting: line.amountReporting ?? null,
           currency_code: line.currencyCode,
           description: line.description ?? null,
           is_bank_leg: line.isBankLeg ?? false,

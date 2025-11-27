@@ -45,7 +45,6 @@ export const categorizationPredictionLine = z.object({
   coa_id: z.uuid(),
   project_id: z.uuid().nullable(),
   amount_native: z.number(),
-  amount_reporting: z.number().nullable(),
   currency_code: z.string().length(3),
   description: z.string().nullable(),
   is_bank_leg: z.boolean(),

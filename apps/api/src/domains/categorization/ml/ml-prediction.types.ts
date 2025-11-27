@@ -38,7 +38,6 @@ export interface MLPredictedLine {
   coaId: string;
   projectId?: string | null;
   amountNative: number;
-  amountReporting?: number | null;
   currencyCode: string;
   description?: string | null;
   isBankLeg?: boolean;

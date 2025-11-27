@@ -39,6 +39,11 @@
           "format": "uuid",
           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
+        "bank_account_currency_code": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3
+        },
         "contact_id": {
           "anyOf": [
             {
@@ -66,7 +71,8 @@
         "bank_transaction_id",
         "company_uuid",
         "bank_account_id",
-        "bank_account_coa_id"
+        "bank_account_coa_id",
+        "bank_account_currency_code"
       ],
       "additionalProperties": false
     },
@@ -88,13 +94,7 @@
             }
           ]
         },
-        "amount_native": {
-          "type": "number"
-        },
-        "system_ex_rate": {
-          "type": "number"
-        },
-        "amount_reporting": {
+        "amount": {
           "type": "number"
         },
         "currency_code": {
@@ -102,11 +102,14 @@
           "minLength": 3,
           "maxLength": 3
         },
-        "direction": {
-          "type": "string",
-          "enum": [
-            "inflow",
-            "outflow"
+        "reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "source": {
@@ -117,11 +120,8 @@
       "required": [
         "date",
         "description",
-        "amount_native",
-        "system_ex_rate",
-        "amount_reporting",
+        "amount",
         "currency_code",
-        "direction",
         "source",
         "metadata"
       ],
@@ -161,12 +161,7 @@
         },
         "contact_match_confidence": {
           "type": "string",
-          "enum": [
-            "high",
-            "medium",
-            "low",
-            "unmatched"
-          ]
+          "enum": ["high", "medium", "low", "unmatched"]
         },
         "contact_type": {
           "anyOf": [
@@ -246,11 +241,7 @@
         },
         "type": {
           "type": "string",
-          "enum": [
-            "business",
-            "individual",
-            "accounting_firm"
-          ]
+          "enum": ["business", "individual", "accounting_firm"]
         },
         "description": {
           "anyOf": [
@@ -301,30 +292,28 @@
         "industry": {
           "type": "string"
         },
+        "tags": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "accounting_basis": {
           "type": "string",
-          "enum": [
-            "modified_cash_basis",
-            "modified_accrual_basis"
-          ]
+          "enum": ["modified_cash_basis", "modified_accrual_basis"]
         },
         "reporting_framework": {
           "anyOf": [
             {
               "type": "string",
-              "enum": [
-                "ifrs",
-                "us_gaap"
-              ]
+              "enum": ["ifrs", "us_gaap"]
             },
             {
               "type": "string",
               "const": "other"
             }
           ]
-        },
-        "reporting_currency_id": {
-          "type": "string"
         },
         "reporting_currency_code": {
           "type": "string",
@@ -364,9 +353,9 @@
         "type",
         "country_id",
         "country_code",
+        "tags",
         "accounting_basis",
         "reporting_framework",
-        "reporting_currency_id",
         "reporting_currency_code",
         "year_end_day",
         "year_end_month",
@@ -407,30 +396,18 @@
                     "amount_native_sum": {
                       "type": "number"
                     },
-                    "amount_reporting_sum": {
-                      "type": "number"
-                    },
                     "avg_amount_native": {
                       "type": "number"
                     },
-                    "avg_amount_reporting": {
-                      "type": "number"
-                    },
                     "stddev_amount_native": {
-                      "type": "number"
-                    },
-                    "stddev_amount_reporting": {
                       "type": "number"
                     }
                   },
                   "required": [
                     "transaction_count",
                     "amount_native_sum",
-                    "amount_reporting_sum",
                     "avg_amount_native",
-                    "avg_amount_reporting",
-                    "stddev_amount_native",
-                    "stddev_amount_reporting"
+                    "stddev_amount_native"
                   ],
                   "additionalProperties": false
                 },
@@ -445,30 +422,18 @@
                     "amount_native_sum": {
                       "type": "number"
                     },
-                    "amount_reporting_sum": {
-                      "type": "number"
-                    },
                     "avg_amount_native": {
                       "type": "number"
                     },
-                    "avg_amount_reporting": {
-                      "type": "number"
-                    },
                     "stddev_amount_native": {
-                      "type": "number"
-                    },
-                    "stddev_amount_reporting": {
                       "type": "number"
                     }
                   },
                   "required": [
                     "transaction_count",
                     "amount_native_sum",
-                    "amount_reporting_sum",
                     "avg_amount_native",
-                    "avg_amount_reporting",
-                    "stddev_amount_native",
-                    "stddev_amount_reporting"
+                    "stddev_amount_native"
                   ],
                   "additionalProperties": false
                 },
@@ -483,30 +448,18 @@
                     "amount_native_sum": {
                       "type": "number"
                     },
-                    "amount_reporting_sum": {
-                      "type": "number"
-                    },
                     "avg_amount_native": {
                       "type": "number"
                     },
-                    "avg_amount_reporting": {
-                      "type": "number"
-                    },
                     "stddev_amount_native": {
-                      "type": "number"
-                    },
-                    "stddev_amount_reporting": {
                       "type": "number"
                     }
                   },
                   "required": [
                     "transaction_count",
                     "amount_native_sum",
-                    "amount_reporting_sum",
                     "avg_amount_native",
-                    "avg_amount_reporting",
-                    "stddev_amount_native",
-                    "stddev_amount_reporting"
+                    "stddev_amount_native"
                   ],
                   "additionalProperties": false
                 },
@@ -626,10 +579,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "likely_trf_btw_accounts",
-        "notes"
-      ],
+      "required": ["likely_trf_btw_accounts", "notes"],
       "additionalProperties": false
     },
     "temporal": {
@@ -799,11 +749,7 @@
       "properties": {
         "source": {
           "type": "string",
-          "enum": [
-            "ingestion",
-            "backfill",
-            "manual"
-          ]
+          "enum": ["ingestion", "backfill", "manual"]
         },
         "enriched_at": {
           "type": "string",
@@ -820,12 +766,7 @@
         },
         "status": {
           "type": "string",
-          "enum": [
-            "enriched",
-            "partial",
-            "failed",
-            "pending"
-          ]
+          "enum": ["enriched", "partial", "failed", "pending"]
         },
         "error_message": {
           "anyOf": [
@@ -839,10 +780,7 @@
         },
         "processing_context": {
           "type": "string",
-          "enum": [
-            "primary",
-            "shadow"
-          ]
+          "enum": ["primary", "shadow"]
         },
         "stats_replay_seq": {
           "type": "integer",

@@ -147,6 +147,7 @@ async function loadCompanyContextFromDB({
     description: company.description,
     website: company.website,
     industry: company.industry,
+    tags: [], // Default to empty array - tags column not yet in companies table
     accounting_basis: company.accounting_basis,
     reporting_framework: company.reporting_framework,
     country_id: company.country_id,

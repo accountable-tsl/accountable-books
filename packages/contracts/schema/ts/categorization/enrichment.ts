@@ -14,11 +14,11 @@ export const enrichmentVersionPattern = /^v\d{6}-\d{2}-\d+\.\d+\.\d+$/;
 export const baseRollingStats = z.object({
   transaction_count: z.number().int().nonnegative(),
   amount_native_sum: z.number(),
-  amount_reporting_sum: z.number(),
   avg_amount_native: z.number(),
-  avg_amount_reporting: z.number(),
   stddev_amount_native: z.number(),
-  stddev_amount_reporting: z.number(),
+  // amount_reporting_sum: z.number(),
+  // avg_amount_reporting: z.number(),
+  // stddev_amount_reporting: z.number(),
 });
 
 export const temporalSchema = z.object({
@@ -50,9 +50,9 @@ export const companyContext = z.object({
   region_code: z.string().nullish(),
   subregion_code: z.string().nullish(),
   industry: z.string().optional(),
+  tags: z.array(z.string()).default([]),
   accounting_basis: accountingBasis,
   reporting_framework: z.union([reportingFramework, z.literal('other')]),
-  reporting_currency_id: z.string(),
   reporting_currency_code: z.string().length(3),
   year_end_day: z.number(),
   year_end_month: z.number(),
@@ -90,6 +90,9 @@ export const enrichedTransactionSchema = z.object({
     company_uuid: z.uuid(),
     bank_account_id: z.uuid(),
     bank_account_coa_id: z.uuid(),
+
+    bank_account_currency_code: z.string().length(3),
+
     contact_id: z.uuid().nullish(),
     enrichment_job_id: z.string().nullish(),
   }),
@@ -97,11 +100,12 @@ export const enrichedTransactionSchema = z.object({
   raw: z.object({
     date: z.iso.date(),
     description: z.string().nullable(),
-    amount_native: z.number(),
-    system_ex_rate: z.number(),
-    amount_reporting: z.number(),
+    amount: z.number(), // signed amount in the bank account currency
+    // system_ex_rate: z.number(),
+    // amount_reporting: z.number(),
     currency_code: z.string().length(3),
-    direction: z.enum(['inflow', 'outflow']),
+    reference: z.string().nullish(),
+    // direction: z.enum(['inflow', 'outflow']), - forces the model to learn two separate fields that are 100% mathematically linked.
     source: z.string(),
     metadata: z.any(),
   }),
@@ -119,13 +123,6 @@ export const enrichedTransactionSchema = z.object({
 
   context: companyContext,
 
-  // historical: z.object({
-  //   // Houses bank transaction contact rolling window and count stats
-  //   bank_contact_stats: z.object({
-  //     id: z.uuid(),
-  //     version: z.string(),
-  //   }),
-  // }),
   historical: z.object({
     bank_contact_stats_snapshot: bankContactStatsSnapshot.nullish(),
   }),

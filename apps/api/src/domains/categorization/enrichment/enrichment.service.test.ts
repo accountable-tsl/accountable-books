@@ -75,6 +75,7 @@ const fakeCompanyContext = {
   country_id: 'country-1',
   country_code: 'US',
   industry: 'technology',
+  tags: [],
   accounting_basis: 'modified_accrual_basis',
   reporting_framework: 'ifrs',
   reporting_currency_id: 'currency-1',
@@ -108,29 +109,23 @@ const fakeContactStats = {
   totals: {
     transaction_count: 5,
     amount_native_sum: 1000,
-    amount_reporting_sum: 1000,
+    // Removed from schema: reporting currency fields
     avg_amount_native: 200,
-    avg_amount_reporting: 200,
     stddev_amount_native: 0,
-    stddev_amount_reporting: 0,
   },
   rolling_30d: {
     transaction_count: 2,
     amount_native_sum: 400,
-    amount_reporting_sum: 400,
+    // Removed from schema: reporting currency fields
     avg_amount_native: 200,
-    avg_amount_reporting: 200,
     stddev_amount_native: 0,
-    stddev_amount_reporting: 0,
   },
   rolling_90d: {
     transaction_count: 5,
     amount_native_sum: 1000,
-    amount_reporting_sum: 1000,
+    // Removed from schema: reporting currency fields
     avg_amount_native: 200,
-    avg_amount_reporting: 200,
     stddev_amount_native: 0,
-    stddev_amount_reporting: 0,
   },
   last_transaction_id: 'txn-prev',
   last_transaction_date: '2024-12-15',

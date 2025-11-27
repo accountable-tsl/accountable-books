@@ -76,7 +76,6 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('coa_id').notNullable();
     table.uuid('project_id').nullable();
     table.decimal('amount_native', 20, 6).notNullable();
-    table.decimal('amount_reporting', 20, 6).nullable();
     table.string('currency_code', 3).notNullable();
     table.string('description', 255).nullable();
     // Marks deterministic bank leg so UI can hide it for the owning bank account
@@ -194,7 +193,6 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('coa_id').notNullable();
     table.uuid('project_id').nullable();
     table.decimal('amount_native', 20, 6).notNullable();
-    table.decimal('amount_reporting', 20, 6).nullable();
     table.string('currency_code', 3).notNullable();
     table.string('description', 255).nullable();
     // Marks deterministic bank leg so UI can hide it for the owning bank account

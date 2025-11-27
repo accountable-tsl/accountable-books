@@ -183,8 +183,8 @@ export function buildRuleEngineInput(
       transactionId: enriched.ids.bank_transaction_id,
       transactionDate: enriched.raw.date,
       bankAccountId: enriched.ids.bank_account_id,
-      amount: enriched.raw.amount_native,
-      direction: enriched.raw.direction,
+      amount: enriched.raw.amount,
+      direction: enriched.raw.amount > 0 ? 'inflow' : 'outflow',
       description: enriched.raw.description ?? undefined,
       reference: enriched.normalized.normalized_reference ?? undefined,
       payee: enriched.normalized.contact_name ?? undefined,
@@ -313,9 +313,7 @@ async function persistRulePredictionAndCandidate(params: {
     return;
   }
 
-  const transactionAmount = Math.abs(
-    event.enriched_transaction.raw.amount_native,
-  );
+  const transactionAmount = Math.abs(event.enriched_transaction.raw.amount);
   if (transactionAmount === 0) {
     return;
   }
@@ -323,10 +321,9 @@ async function persistRulePredictionAndCandidate(params: {
   const journalLines = buildJournalLines({
     categorizeLines,
     transactionAmount,
-    direction: event.enriched_transaction.raw.direction,
+    direction: event.enriched_transaction.raw.amount > 0 ? 'inflow' : 'outflow',
     currencyCode: event.enriched_transaction.raw.currency_code,
     bankCoaId: event.enriched_transaction.ids.bank_account_coa_id,
-    reportingRatio: deriveReportingRatio(event.enriched_transaction),
   });
 
   if (journalLines.length === 0) {
@@ -381,22 +378,12 @@ export function buildCandidateExplanation(
   };
 }
 
-export function deriveReportingRatio(enriched: EnrichedTransaction): number {
-  const native = Math.abs(enriched.raw.amount_native);
-  const reporting = Math.abs(enriched.raw.amount_reporting ?? 0);
-  if (!native || !reporting) {
-    return 1;
-  }
-  return reporting / native;
-}
-
 export function buildJournalLines(params: {
   categorizeLines: CategorizeLine[];
   transactionAmount: number;
   direction: 'inflow' | 'outflow' | 'transfer';
   currencyCode: string;
   bankCoaId: string | null;
-  reportingRatio: number;
 }): CandidateLineDraft[] {
   const {
     categorizeLines,
@@ -404,7 +391,6 @@ export function buildJournalLines(params: {
     direction,
     currencyCode,
     bankCoaId,
-    reportingRatio,
   } = params;
   if (!bankCoaId) {
     return [];
@@ -423,7 +409,6 @@ export function buildJournalLines(params: {
     entryType: bankEntryType,
     coaId: bankCoaId,
     amountNative: toCurrency(transactionAmount),
-    amountReporting: toCurrency(transactionAmount * reportingRatio),
     currencyCode,
     description: 'Bank leg',
     isBankLeg: true,
@@ -439,7 +424,6 @@ export function buildJournalLines(params: {
       entryType: counterpartEntryType,
       coaId: item.line.coa_id,
       amountNative: toCurrency(item.amount),
-      amountReporting: toCurrency(item.amount * reportingRatio),
       currencyCode,
       description: item.line.description ?? null,
       isBankLeg: false,

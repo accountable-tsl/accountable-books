@@ -16,12 +16,12 @@ export interface ConstraintValidationResult {
  * Validate a prediction against accounting constraints.
  *
  * Blocking rules (severity=error):
- * - Amounts must be positive
+ * - Amounts must be positive (native currency only)
  * - Debit/credit must balance on native amounts
  * - Must include exactly one bank leg
  *
- * Warning rules (severity=warning):
- * - Missing reporting amount on non-bank legs
+ * Note: Exchange rate conversion (amountReporting) is not validated here.
+ * Exchange rates are calculated at posting time when creating ledger entries.
  *
  * Future enhancements:
  * - Validate COA existence/active status
@@ -53,18 +53,7 @@ export async function validateConstraints(
         metadata: { index, amountNative: line.amountNative },
       });
     }
-    if (
-      line.amountReporting !== null &&
-      line.amountReporting !== undefined &&
-      (line.amountReporting <= 0 || Number.isNaN(line.amountReporting))
-    ) {
-      violations.push({
-        type: 'amount_reporting_non_positive',
-        severity: 'error',
-        message: `Line ${index + 1} has non-positive amount_reporting`,
-        metadata: { index, amountReporting: line.amountReporting },
-      });
-    }
+    // Note: amountReporting is not validated here - exchange rate conversion happens at posting time
   }
 
   // Debit/credit must balance on native amounts
@@ -95,20 +84,7 @@ export async function validateConstraints(
     });
   }
 
-  // Warn if reporting amount missing on non-bank legs (data quality)
-  lines.forEach((line, index) => {
-    if (
-      !line.isBankLeg &&
-      (line.amountReporting === null || line.amountReporting === undefined)
-    ) {
-      violations.push({
-        type: 'missing_reporting_amount',
-        severity: 'warning',
-        message: `Line ${index + 1} missing amount_reporting`,
-        metadata: { index },
-      });
-    }
-  });
+  // Note: amountReporting validation removed - exchange rate conversion happens at posting time, not during prediction
 
   const hasError = violations.some((v) => v.severity === 'error');
 

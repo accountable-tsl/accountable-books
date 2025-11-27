@@ -188,44 +188,29 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
             // },
           );
 
-          if (contactFingerprint && persistOutcome.didPersist) {
+          if (
+            result.success &&
+            contactFingerprint &&
+            persistOutcome.didPersist &&
+            result.statsContext
+          ) {
             await incrementContactStats(
               {
                 ...result.enrichedTransaction.raw,
+                amount_native: result.enrichedTransaction.raw.amount,
+                system_ex_rate: result.statsContext.exchange_rate,
+                amount_reporting: result.statsContext.amount_reporting,
                 ...result.enrichedTransaction.normalized,
                 company_uuid: companyUUID,
                 contact_fingerprint: contactFingerprint,
                 bank_transaction_id: bankTransactionId,
                 bank_transaction_date: bankTransactionDate,
-                stats_replay_seq: result.statsContext?.stats_replay_seq || 0,
+                stats_replay_seq: result.statsContext.stats_replay_seq,
                 stats_snapshot_checksum:
-                  result.statsContext?.stats_snapshot_checksum,
+                  result.statsContext.stats_snapshot_checksum,
               },
               trx,
             );
-            // await incrementContactStats(
-            //   {
-            //     companyId,
-            //     contactFingerprint:
-            //       result.enrichedTransaction.normalized.contact_fingerprint,
-            //     normalizedName:
-            //       result.enrichedTransaction.normalized.contact_name ||
-            //       'Unknown',
-            //     currencyCode: result.enrichedTransaction.raw.currency_code,
-            //     contactId: result.enrichedTransaction.ids.contact_id || null,
-            //     amountNative: result.enrichedTransaction.raw.amount_native,
-            //     amountReporting:
-            //       result.enrichedTransaction.raw.amount_reporting,
-            //     transactionDate: new Date(result.enrichedTransaction.raw.date),
-            //     transactionId: bankTransactionId,
-            //     snapshotChecksum: result.statsContext?.snapshotChecksum || null,
-            //     snapshotCapturedAt: result.statsContext?.snapshotCapturedAt
-            //       ? new Date(result.statsContext.snapshotCapturedAt)
-            //       : null,
-            //     statsReplaySeq: result.statsContext?.statsReplaySeq || 0,
-            //   },
-            //   trx,
-            // );
           }
 
           if (persistOutcome.didPersist) {

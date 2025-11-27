@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": {
+    "./schema": {
       "import": "./schema/ts/index.js",
       "types": "./schema/ts/index.d.ts"
+    },
+    "./data": {
+      "import": "./data/index.js",
+      "types": "./data/index.d.ts"
     },
     "./pydantic": {
       "import": "./schema/py/index.js",
@@ -15,17 +19,21 @@
   },
   "files": [
     "schema",
+    "data",
     "pyproject.toml"
   ],
   "scripts": {
+    "gen:data": "tsx scripts/generate-data.ts",
+    "gen:data:no-clean": "tsx scripts/generate-data.ts --no-clean",
     "gen:pydantic": "tsx scripts/generate-pydantic.ts",
     "gen:pydantic:no-clean": "tsx scripts/generate-pydantic.ts --no-clean",
-    "build": "pnpm gen:pydantic"
+    "build": "pnpm gen:data && pnpm gen:pydantic"
   },
   "devDependencies": {
     "tsx": "^4.20.5"
   },
   "dependencies": {
+    "papaparse": "^5.5.3",
     "zod": "^4.1.5"
   }
 }

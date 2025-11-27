@@ -2,8 +2,5 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "reportingFramework",
   "type": "string",
-  "enum": [
-    "ifrs",
-    "us_gaap"
-  ]
+  "enum": ["ifrs", "us_gaap"]
 }

@@ -2,8 +2,5 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "accountingBasis",
   "type": "string",
-  "enum": [
-    "modified_cash_basis",
-    "modified_accrual_basis"
-  ]
+  "enum": ["modified_cash_basis", "modified_accrual_basis"]
 }

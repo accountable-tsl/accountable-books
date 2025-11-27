@@ -122,7 +122,6 @@ export async function processPredictionToCandidate(
       coaId: line.coaId,
       projectId: line.projectId ?? null,
       amountNative: line.amountNative,
-      amountReporting: line.amountReporting ?? null,
       currencyCode: line.currencyCode,
       description: line.description ?? null,
       isBankLeg: line.isBankLeg ?? false,

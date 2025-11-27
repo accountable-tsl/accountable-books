@@ -24,30 +24,18 @@
         "amount_native_sum": {
           "type": "number"
         },
-        "amount_reporting_sum": {
-          "type": "number"
-        },
         "avg_amount_native": {
           "type": "number"
         },
-        "avg_amount_reporting": {
-          "type": "number"
-        },
         "stddev_amount_native": {
-          "type": "number"
-        },
-        "stddev_amount_reporting": {
           "type": "number"
         }
       },
       "required": [
         "transaction_count",
         "amount_native_sum",
-        "amount_reporting_sum",
         "avg_amount_native",
-        "avg_amount_reporting",
-        "stddev_amount_native",
-        "stddev_amount_reporting"
+        "stddev_amount_native"
       ],
       "additionalProperties": false
     },
@@ -62,30 +50,18 @@
         "amount_native_sum": {
           "type": "number"
         },
-        "amount_reporting_sum": {
-          "type": "number"
-        },
         "avg_amount_native": {
           "type": "number"
         },
-        "avg_amount_reporting": {
-          "type": "number"
-        },
         "stddev_amount_native": {
-          "type": "number"
-        },
-        "stddev_amount_reporting": {
           "type": "number"
         }
       },
       "required": [
         "transaction_count",
         "amount_native_sum",
-        "amount_reporting_sum",
         "avg_amount_native",
-        "avg_amount_reporting",
-        "stddev_amount_native",
-        "stddev_amount_reporting"
+        "stddev_amount_native"
       ],
       "additionalProperties": false
     },
@@ -100,30 +76,18 @@
         "amount_native_sum": {
           "type": "number"
         },
-        "amount_reporting_sum": {
-          "type": "number"
-        },
         "avg_amount_native": {
           "type": "number"
         },
-        "avg_amount_reporting": {
-          "type": "number"
-        },
         "stddev_amount_native": {
-          "type": "number"
-        },
-        "stddev_amount_reporting": {
           "type": "number"
         }
       },
       "required": [
         "transaction_count",
         "amount_native_sum",
-        "amount_reporting_sum",
         "avg_amount_native",
-        "avg_amount_reporting",
-        "stddev_amount_native",
-        "stddev_amount_reporting"
+        "stddev_amount_native"
       ],
       "additionalProperties": false
     },
