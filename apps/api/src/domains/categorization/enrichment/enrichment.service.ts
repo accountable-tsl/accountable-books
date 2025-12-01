@@ -32,7 +32,7 @@ import type { CategorizationTaskSource } from '../tasks/tasks.enums.js';
  * Third part is semantic version for logic changes
  * E.g v240601-01-1.0.0
  */
-const ENRICHMENT_VERSION = 'v251102-01-1.0.0';
+const ENRICHMENT_VERSION = 'v260101-01-1.0.0';
 
 const BANK_TX_SELECT_FIELDS = [
   // Bank transaction

@@ -1,5 +1,5 @@
 {
-  "version": "v251102-01-1.0.0",
+  "version": "v260101-01-1.0.0",
   "ids": {
     "bank_transaction_id": "txn-123",
     "bank_transaction_batch_id": null,
@@ -52,7 +52,7 @@
     "coa_snapshot_version": "snapshot-v1",
     "coa_snapshot_id": "coa-snap-1",
     "coa_snapshot_checksum": null,
-    "cached_at": "2025-11-27T14:07:50.894Z"
+    "cached_at": "2025-11-27T18:27:28.739Z"
   },
   "historical": {
     "bank_contact_stats_snapshot": {
@@ -106,9 +106,9 @@
   },
   "metadata": {
     "source": "ingestion",
-    "enriched_at": "2025-11-27T14:07:50.897Z",
+    "enriched_at": "2025-11-27T18:27:28.745Z",
     "enrichment_latency_ms": 0,
-    "enrichment_version": "v251102-01-1.0.0",
+    "enrichment_version": "v260101-01-1.0.0",
     "status": "enriched",
     "error_message": null,
     "processing_context": "primary",

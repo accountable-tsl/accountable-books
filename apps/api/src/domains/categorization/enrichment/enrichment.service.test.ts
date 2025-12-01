@@ -242,6 +242,6 @@ describe('enrichTransaction', () => {
 
     const persisted = JSON.parse(readFileSync(fixturePath, 'utf8'));
     expect(persisted.raw.date).toBe('2025-01-01');
-    expect(persisted.metadata.enrichment_version).toBe('v251102-01-1.0.0');
+    expect(persisted.metadata.enrichment_version).toBe('v260101-01-1.0.0');
   });
 });

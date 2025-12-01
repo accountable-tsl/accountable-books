@@ -600,7 +600,7 @@ Use this dataset to seed MCC-based hints before or alongside regex contact match
 
 **Sample explainability artifact persisted per candidate**
 
-```json
+<!-- ```json
 {
   "rule_hits": [
     {
@@ -637,7 +637,7 @@ Use this dataset to seed MCC-based hints before or alongside regex contact match
     "Accrual basis selected"
   ]
 }
-```
+``` -->
 
 ---
 

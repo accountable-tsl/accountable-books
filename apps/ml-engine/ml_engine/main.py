@@ -7,7 +7,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from ml_engine.domains.prediction.routes import router as prediction_router
-from schema import MlPredictionResponse
 
 from . import __version__
 
@@ -20,9 +19,12 @@ app = FastAPI(
 )
 
 BACKEND_URL = os.getenv("BACKEND_URL", "").strip()
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
 
 if not BACKEND_URL:
     raise RuntimeError("BACKEND_URL environment variable is required")
+if not REDIS_URL:
+    raise RuntimeError("REDIS_URL environment variable is required")
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,12 +42,40 @@ def root():
 
 
 @app.get("/health")
-def health():
+async def health():
     """Health check endpoint."""
-    return {"status": "healthy", "service": "ml-engine", "version": __version__}
+    try:
+        from ml_engine.core.redis_client import get_redis_client
+
+        client = get_redis_client()
+        await client.ping()
+        redis_status = "connected"
+    except Exception as e:  # noqa: BLE001
+        redis_status = f"error: {str(e)}"
+
+    return {
+        "status": "healthy",
+        "service": "ml-engine",
+        "version": __version__,
+        "redis": redis_status,
+    }
 
 
 app.include_router(prediction_router, prefix="/api/v1")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Validate Redis connection on startup."""
+    try:
+        from ml_engine.core.redis_client import get_redis_client
+
+        client = get_redis_client()
+        await client.ping()
+        logger.info("Redis connection validated on startup")
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Redis connection failed on startup: {e}")
+        # Optionally raise to fail fast; currently we log and continue.
 
 def main():
     """Entry point for running the server."""

@@ -6,6 +6,7 @@ Called by the TypeScript generation script.
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -18,13 +19,38 @@ except ImportError:
     sys.exit(1)
 
 
+def normalize_generated_file(file_path: Path) -> None:
+    """Normalize a generated file to ensure consistent formatting.
+    
+    - Ensures LF line endings
+    - Normalizes timestamp to a deterministic value (removes timestamp to avoid spurious diffs)
+    """
+    try:
+        # Read file content
+        content = file_path.read_text(encoding="utf-8")
+        
+        # Normalize line endings to LF (remove any CRLF)
+        content = content.replace("\r\n", "\n").replace("\r", "\n")
+        
+        # Remove or normalize timestamp in header comments
+        # Replace timestamp with a placeholder to avoid spurious diffs
+        # Pattern: #   timestamp: YYYY-MM-DDTHH:MM:SS+00:00
+        timestamp_pattern = r"#\s+timestamp:\s+\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}"
+        content = re.sub(timestamp_pattern, "#   timestamp: <generated>", content)
+        
+        # Write back with explicit LF line endings
+        file_path.write_text(content, encoding="utf-8", newline="\n")
+    except Exception as e:
+        print(f"Warning: Could not normalize {file_path}: {e}", file=sys.stderr)
+
+
 def generate_pydantic_from_json_schema(
     json_schema_path: Path, output_path: Path, module_name: str
 ) -> None:
     """Generate Pydantic models from a JSON Schema file."""
     try:
         # Read and validate JSON Schema
-        with open(json_schema_path, "r") as f:
+        with open(json_schema_path, "r", encoding="utf-8") as f:
             schema_data = json.load(f)
 
         # Generate Pydantic models
@@ -42,6 +68,9 @@ def generate_pydantic_from_json_schema(
             snake_case_field=True,
             strip_default_none=True,
         )
+        
+        # Normalize the generated file (line endings and timestamp)
+        normalize_generated_file(output_path)
 
         print(f"✓ Generated Pydantic models from {json_schema_path.name} -> {output_path}")
     except Exception as e:
@@ -77,48 +106,122 @@ def extract_main_class_name(json_schema_path: Path) -> Optional[str]:
         return None
 
 
-def generate_init_files(output_dir: Path, json_schema_files: list[Path]) -> None:
-    """Generate __init__.py files with all model exports.
-    
-    Generates two __init__.py files:
-    1. schema/py/__init__.py - imports from individual modules
-    2. schema/__init__.py - re-exports from schema.py
+def extract_all_classes_and_enums(py_file_path: Path) -> list[str]:
+    """Extract all class and enum names from a generated Python file.
     
     Args:
-        output_dir: Directory containing generated Python files
-        json_schema_files: List of JSON schema files that were processed
+        py_file_path: Path to the generated Python file
+        
+    Returns:
+        List of class and enum names found in the file
     """
-    # Build mapping of filename -> class name
-    class_mappings: list[tuple[str, str]] = []
+    classes_and_enums: list[str] = []
     
-    for json_schema_path in json_schema_files:
-        if not json_schema_path.exists():
-            continue
+    if not py_file_path.exists():
+        return classes_and_enums
+    
+    try:
+        content = py_file_path.read_text(encoding="utf-8")
         
-        # Get the Python filename (same as JSON filename stem)
-        filename = json_schema_path.stem
+        # Match class definitions: class ClassName(...):
+        class_pattern = r"^class\s+(\w+)\s*(?:\(|:)"
+        # Match enum definitions: class EnumName(Enum):
+        enum_pattern = r"^class\s+(\w+)\s*\(.*Enum.*\):"
         
-        # Extract class name from JSON schema title
-        class_name = extract_main_class_name(json_schema_path)
-        if class_name:
-            class_mappings.append((filename, class_name))
+        for line in content.split("\n"):
+            # Check for enum first (more specific)
+            enum_match = re.match(enum_pattern, line.strip())
+            if enum_match:
+                classes_and_enums.append(enum_match.group(1))
+                continue
+            
+            # Check for class
+            class_match = re.match(class_pattern, line.strip())
+            if class_match:
+                classes_and_enums.append(class_match.group(1))
     
-    if not class_mappings:
-        print("Warning: No class mappings found for __init__.py generation", file=sys.stderr)
-        return
+    except Exception as e:
+        print(f"Warning: Could not parse {py_file_path}: {e}", file=sys.stderr)
     
-    # Sort by class name for consistent output
-    class_mappings.sort(key=lambda x: x[1])
+    return classes_and_enums
+
+
+# def generate_init_files(output_dir: Path, json_schema_files: list[Path]) -> None:
+#     """Generate __init__.py files with all model exports.
     
-    # Generate schema/py/__init__.py
-    py_init_path = output_dir / "__init__.py"
-    py_imports = "\n".join(
-        f"from .{filename} import {class_name}"
-        for filename, class_name in class_mappings
-    )
-    py_all_exports = ",\n    ".join(f'"{class_name}"' for _, class_name in class_mappings)
+#     Generates two __init__.py files:
+#     1. schema/py/__init__.py - imports from individual modules
+#     2. schema/__init__.py - re-exports from schema.py
     
-    py_init_content = f'''"""Generated Pydantic models from Zod schemas."""
+#     Args:
+#         output_dir: Directory containing generated Python files
+#         json_schema_files: List of JSON schema files that were processed
+#     """
+#     # Build mapping of (filename, class_name) -> all exports from that file
+#     # This includes nested classes and enums, not just the main class
+#     all_exports: dict[tuple[str, str], list[str]] = {}
+    
+#     for json_schema_path in json_schema_files:
+#         if not json_schema_path.exists():
+#             continue
+        
+#         # Get the Python filename (same as JSON filename stem)
+#         filename = json_schema_path.stem
+#         py_file_path = output_dir / f"{filename}.py"
+        
+#         # Extract all classes and enums from the generated Python file
+#         all_classes = extract_all_classes_and_enums(py_file_path)
+        
+#         if all_classes:
+#             # Use the main class name as the key (for backward compatibility)
+#             main_class = extract_main_class_name(json_schema_path)
+#             if main_class:
+#                 all_exports[(filename, main_class)] = all_classes
+    
+#     if not all_exports:
+#         print("Warning: No class mappings found for __init__.py generation", file=sys.stderr)
+#         return
+    
+#     # Collect all unique exports (flatten the nested lists)
+#     all_class_names: set[str] = set()
+#     for exports in all_exports.values():
+#         all_class_names.update(exports)
+    
+#     # Sort for consistent output
+#     sorted_exports = sorted(all_class_names)
+    
+#     # Build imports - need to import from the correct module
+#     # Map each class to its module
+#     class_to_module: dict[str, str] = {}
+#     for (filename, main_class), exports in all_exports.items():
+#         for export_name in exports:
+#             # If multiple modules have the same class name, prefer the one from the main schema
+#             if export_name not in class_to_module:
+#                 class_to_module[export_name] = filename
+#             # Special handling: prefer exports from files where they're the main class
+#             elif export_name == main_class:
+#                 class_to_module[export_name] = filename
+    
+#     # Generate schema/py/__init__.py
+#     py_init_path = output_dir / "__init__.py"
+    
+#     # Group imports by module to avoid duplicate imports
+#     imports_by_module: dict[str, list[str]] = {}
+#     for class_name in sorted_exports:
+#         module = class_to_module.get(class_name)
+#         if module:
+#             if module not in imports_by_module:
+#                 imports_by_module[module] = []
+#             imports_by_module[module].append(class_name)
+    
+#     # Generate imports
+#     py_imports = "\n".join(
+#         f"from .{module} import {', '.join(sorted(classes))}"
+#         for module, classes in sorted(imports_by_module.items())
+#     )
+#     py_all_exports = ",\n    ".join(f'"{name}"' for name in sorted_exports)
+    
+#     py_init_content = f'''"""Generated Pydantic models from Zod schemas."""
 
 {py_imports}
 
@@ -127,16 +230,55 @@ __all__ = [
 ]
 '''
     
-    py_init_path.write_text(py_init_content, encoding="utf-8")
-    print(f"✓ Generated {py_init_path} with {len(class_mappings)} exports")
+    py_init_path.write_text(py_init_content, encoding="utf-8", newline="\n")
+    print(f"✓ Generated {py_init_path} with {len(sorted_exports)} exports")
     
     # Generate schema/__init__.py
     schema_init_path = output_dir.parent / "__init__.py"
-    schema_imports = "\n".join(
-        f"from .py import {class_name}"
-        for _, class_name in class_mappings
-    )
-    schema_all_exports = ",\n    ".join(f'"{class_name}"' for _, class_name in class_mappings)
+    
+    # For schema/__init__.py, we need to import from the specific modules
+    # when classes come from different modules (e.g., Key from globalintentclassifier)
+    schema_imports_list: list[str] = []
+    
+    # First, add simple imports for classes that come from their main module
+    simple_imports: dict[str, list[str]] = {}
+    for class_name in sorted_exports:
+        module = class_to_module.get(class_name)
+        if module:
+            # Check if this is the main class for this module
+            main_class_for_module = next(
+                (main for (fname, main), _ in all_exports.items() if fname == module),
+                None
+            )
+            if class_name == main_class_for_module or class_name not in [m for _, m in class_to_module.items() if m != module]:
+                if module not in simple_imports:
+                    simple_imports[module] = []
+                simple_imports[module].append(class_name)
+    
+    # Add simple imports
+    for module, classes in sorted(simple_imports.items()):
+        schema_imports_list.append(f"from .py import {', '.join(sorted(classes))}")
+    
+    # Add specific imports for nested classes/enums that need explicit module paths
+    nested_imports: dict[str, list[str]] = {}
+    for class_name in sorted_exports:
+        module = class_to_module.get(class_name)
+        if module:
+            main_class_for_module = next(
+                (main for (fname, main), _ in all_exports.items() if fname == module),
+                None
+            )
+            # If it's not the main class, use explicit import
+            if class_name != main_class_for_module:
+                if module not in nested_imports:
+                    nested_imports[module] = []
+                nested_imports[module].append(class_name)
+    
+    for module, classes in sorted(nested_imports.items()):
+        schema_imports_list.append(f"from .py.{module} import {', '.join(sorted(classes))}")
+    
+    schema_imports = "\n".join(schema_imports_list)
+    schema_all_exports = ",\n    ".join(f'"{name}"' for name in sorted_exports)
     
     schema_init_content = f'''"""Schema definitions and generated models."""
 
@@ -148,8 +290,8 @@ __all__ = [
 ]
 '''
     
-    schema_init_path.write_text(schema_init_content, encoding="utf-8")
-    print(f"✓ Generated {schema_init_path} with {len(class_mappings)} exports")
+    schema_init_path.write_text(schema_init_content, encoding="utf-8", newline="\n")
+    print(f"✓ Generated {schema_init_path} with {len(sorted_exports)} exports")
 
 
 def main():

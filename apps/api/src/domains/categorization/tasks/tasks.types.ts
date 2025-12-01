@@ -1,6 +1,6 @@
 import z, { check } from 'zod';
 import { dbBaseFields, zDateYMD } from '../../../core/index.js';
-import { enrichedTransactionSchema } from '../enrichment/enrichment.types.js';
+import { enrichedTransaction } from '../enrichment/enrichment.types.js';
 import type { Knex } from 'knex';
 import {
   categorizationTaskSource,
@@ -11,7 +11,7 @@ export const newCategorizationTask = z.object({
   company_id: z.uuid(),
   bank_transaction_id: z.uuid(),
   bank_transaction_date: zDateYMD,
-  enriched_transaction: enrichedTransactionSchema,
+  enriched_transaction: enrichedTransaction,
   enrichment_version: z.string(),
   status: categorizationTaskStatus,
   source: categorizationTaskSource,

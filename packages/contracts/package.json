@@ -5,16 +5,16 @@
   "type": "module",
   "exports": {
     "./schema": {
-      "import": "./schema/ts/index.js",
-      "types": "./schema/ts/index.d.ts"
+      "import": "./accountable_contracts/schema/source/index.js",
+      "types": "./accountable_contracts/schema/source/index.d.ts"
     },
     "./data": {
-      "import": "./data/index.js",
-      "types": "./data/index.d.ts"
+      "import": "./accountable_contracts/data/index.js",
+      "types": "./accountable_contracts/data/index.d.ts"
     },
     "./pydantic": {
-      "import": "./schema/py/index.js",
-      "types": "./schema/py/index.d.ts"
+      "import": "./accountable_contracts/schema/py/index.js",
+      "types": "./accountable_contracts/schema/py/index.d.ts"
     }
   },
   "files": [
@@ -27,6 +27,7 @@
     "gen:data:no-clean": "tsx scripts/generate-data.ts --no-clean",
     "gen:pydantic": "tsx scripts/generate-pydantic.ts",
     "gen:pydantic:no-clean": "tsx scripts/generate-pydantic.ts --no-clean",
+    "generate": "pnpm gen:data && pnpm gen:pydantic",
     "build": "pnpm gen:data && pnpm gen:pydantic"
   },
   "devDependencies": {
@@ -34,6 +35,7 @@
   },
   "dependencies": {
     "papaparse": "^5.5.3",
+    "schemabridge": "^0.3.1",
     "zod": "^4.1.5"
   }
 }

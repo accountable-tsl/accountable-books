@@ -15,12 +15,13 @@ scikit-learn = "^1.5.0"
 pandas = "^2.2.0"
 numpy = "^2.0.0"
 joblib = "^1.4.0"
-accountable-contracts = { path = "../../packages/contracts", develop = true }
+redis = "^7.1.0"
+sentence-transformers = "^5.1.2"
+accountable-contracts = {path = "../../packages/contracts", develop = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
 pytest-asyncio = "^0.24.0"
-httpx = "^0.27.0"
 black = "^24.0.0"
 ruff = "^0.6.0"
 
@@ -39,7 +40,7 @@ target-version = ['py311']
 [tool.ruff]
 target-version = "py311"
 line-length = 88
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "UP", "PTH"]
 
 [build-system]
 requires = ["poetry-core>=1.8.0"]

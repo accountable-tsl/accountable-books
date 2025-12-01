@@ -10,7 +10,6 @@
  * 5. Generates TypeScript re-exports in data/generated/ts/ when appropriate
  */
 
-import { execSync } from 'child_process';
 import {
   existsSync,
   mkdirSync,
@@ -31,13 +30,18 @@ const __dirname = dirname(__filename);
 const PACKAGE_ROOT = resolve(__dirname, '..');
 
 // Paths
-const DATA_ROOT = join(PACKAGE_ROOT, 'data');
+const DATA_ROOT = join(PACKAGE_ROOT, 'accountable_contracts', 'data');
 const SOURCE_DIR = join(DATA_ROOT, 'source');
 const GENERATED_DIR = join(DATA_ROOT, 'generated');
 const JSON_OUTPUT_DIR = join(GENERATED_DIR, 'json');
 const TS_OUTPUT_DIR = join(GENERATED_DIR, 'ts');
 const CONFIG_PATH = join(DATA_ROOT, 'config.ts');
-const SCHEMA_TS_DIR = join(PACKAGE_ROOT, 'schema', 'ts');
+const SCHEMA_TS_DIR = join(
+  PACKAGE_ROOT,
+  'accountable_contracts',
+  'schema',
+  'source',
+);
 
 // Large file threshold (1MB)
 const LARGE_FILE_THRESHOLD = 1_000_000;
@@ -45,7 +49,7 @@ const LARGE_FILE_THRESHOLD = 1_000_000;
 interface MinimalConfig {
   source: string; // Relative to data/source/
   schema?: {
-    path: string; // Relative to schema/ts/
+    path: string; // Relative to schema/source/
     exportName: string;
   };
   typescript?: {
@@ -154,6 +158,17 @@ function pascalCase(str: string): string {
 }
 
 /**
+ * Convert kebab-case or mixed case to Python snake_case
+ */
+function toSnakeCase(str: string): string {
+  return str
+    .replace(/([A-Z])/g, '_$1') // Insert underscore before capitals
+    .replace(/[-_]+/g, '_') // Replace hyphens and multiple underscores with single underscore
+    .toLowerCase()
+    .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+}
+
+/**
  * Infer export name from TS file content
  */
 async function inferTSExportName(tsPath: string): Promise<string> {
@@ -174,6 +189,36 @@ async function inferTSExportName(tsPath: string): Promise<string> {
   }
 
   return `default${pascalCase(basename(tsPath, '.ts'))}`;
+}
+
+/**
+ * Discover all export const declarations from a TS file
+ */
+async function discoverTSExports(tsPath: string): Promise<string[]> {
+  const fullPath = join(SOURCE_DIR, tsPath);
+  if (!existsSync(fullPath)) {
+    return [];
+  }
+
+  try {
+    // Dynamically import the module to get all exports
+    const module = await import(fullPath.replace(/\.ts$/, '.js'));
+
+    // Filter to only export const declarations (not types, functions, default exports)
+    const exports: string[] = [];
+    for (const [exportName, exportValue] of Object.entries(module)) {
+      // Skip default exports, types, and functions
+      if (exportName === 'default') continue;
+      if (typeof exportValue === 'function') continue;
+      // Include all const exports (arrays, objects, primitives)
+      exports.push(exportName);
+    }
+
+    return exports;
+  } catch (error) {
+    console.warn(`⚠ Could not discover exports from ${tsPath}: ${error}`);
+    return [];
+  }
 }
 
 /**
@@ -202,7 +247,7 @@ async function loadConfig(): Promise<Map<string, MinimalConfig>> {
 }
 
 /**
- * Load Zod schema from schema/ts/
+ * Load Zod schema from schema/source/
  */
 async function loadSchema(
   schemaPath: string,
@@ -214,7 +259,9 @@ async function loadSchema(
       return null;
     }
 
-    const schemaModule = await import(`../schema/ts/${schemaPath}.js`);
+    const schemaModule = await import(
+      `../accountable_contracts/schema/source/${schemaPath}.js`
+    );
     const schema = schemaModule[exportName];
 
     if (!schema) {
@@ -233,50 +280,126 @@ async function loadSchema(
 
 /**
  * Resolve config with defaults and auto-detection
+ * For TS files, returns multiple configs (one per export)
  */
-async function resolveConfig(
+async function resolveConfigs(
   minimalConfig: MinimalConfig | undefined,
   sourcePath: string,
-): Promise<ResolvedConfig> {
+): Promise<ResolvedConfig[]> {
   const format = detectFormat(sourcePath);
   const domain = detectDomain(sourcePath);
   const fileBasename = basename(sourcePath, extname(sourcePath));
 
-  // Infer export name
+  // For TS files, discover all exports and create a config for each
+  if (format === 'ts') {
+    // If explicit exports are specified in config, use those
+    if (minimalConfig?.exports && minimalConfig.exports.length > 0) {
+      return minimalConfig.exports.map((exportName) => {
+        const typeName =
+          minimalConfig?.typescript?.typeName || pascalCase(exportName);
+        const hasSchema = minimalConfig?.schema !== undefined;
+        const defaultEnabled = true; // TS files always enabled
+        const enabled = minimalConfig?.typescript?.enabled ?? defaultEnabled;
+        const validate = minimalConfig?.typescript?.validate ?? hasSchema;
+
+        return {
+          source: sourcePath,
+          format,
+          domain,
+          schema: minimalConfig?.schema,
+          typescript: {
+            enabled,
+            exportName,
+            typeName,
+            validate,
+          },
+          exports: [exportName],
+        };
+      });
+    }
+
+    // Auto-discover all exports
+    const discoveredExports = await discoverTSExports(sourcePath);
+
+    if (discoveredExports.length === 0) {
+      // Fallback to filename-based export if no exports found
+      const fallbackExport = camelCase(fileBasename);
+      const typeName =
+        minimalConfig?.typescript?.typeName || pascalCase(fallbackExport);
+      const hasSchema = minimalConfig?.schema !== undefined;
+      const enabled = minimalConfig?.typescript?.enabled ?? true;
+      const validate = minimalConfig?.typescript?.validate ?? hasSchema;
+
+      return [
+        {
+          source: sourcePath,
+          format,
+          domain,
+          schema: minimalConfig?.schema,
+          typescript: {
+            enabled,
+            exportName: fallbackExport,
+            typeName,
+            validate,
+          },
+        },
+      ];
+    }
+
+    // Create a config for each discovered export
+    return discoveredExports.map((exportName) => {
+      const typeName =
+        minimalConfig?.typescript?.typeName || pascalCase(exportName);
+      const hasSchema = minimalConfig?.schema !== undefined;
+      const enabled = minimalConfig?.typescript?.enabled ?? true;
+      const validate = minimalConfig?.typescript?.validate ?? hasSchema;
+
+      return {
+        source: sourcePath,
+        format,
+        domain,
+        schema: minimalConfig?.schema,
+        typescript: {
+          enabled,
+          exportName,
+          typeName,
+          validate,
+        },
+        exports: [exportName],
+      };
+    });
+  }
+
+  // For non-TS files, return single config (existing behavior)
   let exportName: string;
   if (minimalConfig?.typescript?.exportName) {
     exportName = minimalConfig.typescript.exportName;
-  } else if (format === 'ts') {
-    exportName = await inferTSExportName(sourcePath);
   } else {
     exportName = camelCase(fileBasename);
   }
 
-  // Infer type name
   const typeName =
     minimalConfig?.typescript?.typeName || pascalCase(exportName);
-
-  // Determine if TS generation should be enabled
   const hasSchema = minimalConfig?.schema !== undefined;
   const defaultEnabled = format === 'ts' || hasSchema;
   const enabled = minimalConfig?.typescript?.enabled ?? defaultEnabled;
-
-  // Determine if validation should be enabled
   const validate = minimalConfig?.typescript?.validate ?? hasSchema;
 
-  return {
-    source: sourcePath,
-    format,
-    domain,
-    schema: minimalConfig?.schema,
-    typescript: {
-      enabled,
-      exportName,
-      typeName,
-      validate,
+  return [
+    {
+      source: sourcePath,
+      format,
+      domain,
+      schema: minimalConfig?.schema,
+      typescript: {
+        enabled,
+        exportName,
+        typeName,
+        validate,
+      },
+      exports: minimalConfig?.exports,
     },
-    exports: minimalConfig?.exports,
-  };
+  ];
 }
 
 /**
@@ -340,13 +463,26 @@ function processCSVFile(config: ResolvedConfig): any[] {
 
 /**
  * Generate JSON output
+ * JSON filenames are always in snake_case for consistency
  */
-function generateJSON(config: ResolvedConfig, data: any): void {
+function generateJSON(
+  config: ResolvedConfig,
+  data: any,
+  exportName?: string,
+): void {
   const outputDir = join(JSON_OUTPUT_DIR, config.domain);
-  const outputFile = join(
-    outputDir,
-    `${basename(config.source, extname(config.source))}.json`,
-  );
+
+  // All JSON files use snake_case for consistency
+  let outputFilename: string;
+  if (config.format === 'ts' && exportName) {
+    outputFilename = `${toSnakeCase(exportName)}.json`;
+  } else {
+    // Convert original filename to snake_case
+    const originalBasename = basename(config.source, extname(config.source));
+    outputFilename = `${toSnakeCase(originalBasename)}.json`;
+  }
+
+  const outputFile = join(outputDir, outputFilename);
 
   // Ensure directory exists
   mkdirSync(outputDir, { recursive: true });
@@ -369,45 +505,79 @@ function generateJSON(config: ResolvedConfig, data: any): void {
 
 /**
  * Generate TypeScript re-export
+ * For TS sources: imports directly from TS source (no JSON dependency)
+ * For JSON/CSV sources: imports from generated JSON
+ * Uses modern ESM with { type: 'json' } syntax
  */
 async function generateTSReExport(
   config: ResolvedConfig,
   data: any,
+  exportName?: string,
 ): Promise<void> {
   const outputDir = join(TS_OUTPUT_DIR, config.domain);
-  const outputFile = join(
-    outputDir,
-    `${basename(config.source, extname(config.source))}.ts`,
-  );
+
+  // For TS files with specific export, use export name as filename
+  // For other files, use original filename
+  let outputFilename: string;
+  if (config.format === 'ts' && exportName) {
+    outputFilename = `${exportName}.ts`;
+  } else {
+    outputFilename = `${basename(config.source, extname(config.source))}.ts`;
+  }
+
+  const outputFile = join(outputDir, outputFilename);
 
   // Ensure directory exists
   mkdirSync(outputDir, { recursive: true });
 
-  const jsonRelativePath = `../../json/${config.domain}/${basename(
-    config.source,
-    extname(config.source),
-  )}.json`;
-
   let tsContent: string;
 
-  if (config.typescript.validate && config.schema) {
-    // Generate with schema validation
-    const schemaPath = config.schema.path;
-    const schemaExport = config.schema.exportName;
+  if (config.format === 'ts') {
+    // For TS sources: import directly from source file
+    const sourceRelativePath = `../../../source/${config.source.replace(/\.ts$/, '.js')}`;
 
-    tsContent = `import { ${schemaExport} } from '../../../schema/ts/${schemaPath}.js';
-import data from '${jsonRelativePath}' assert { type: 'json' };
+    if (config.typescript.validate && config.schema) {
+      // Generate with schema validation
+      const schemaPath = config.schema.path;
+      const schemaExport = config.schema.exportName;
+
+      tsContent = `import { ${schemaExport} } from '../../schema/source/${schemaPath}.js';
+import { ${exportName || config.typescript.exportName} as rawData } from '${sourceRelativePath}';
+
+export const ${config.typescript.exportName} = ${schemaExport}.parse(rawData);
+export type ${config.typescript.typeName} = typeof ${config.typescript.exportName}[number];
+`;
+    } else {
+      // Generate without validation - direct re-export
+      tsContent = `export { ${exportName || config.typescript.exportName} as ${config.typescript.exportName} } from '${sourceRelativePath}';
+`;
+    }
+  } else {
+    // For JSON/CSV sources: import from generated JSON (snake_case filename)
+    const jsonBasename = toSnakeCase(
+      basename(config.source, extname(config.source)),
+    );
+    const jsonRelativePath = `../../json/${config.domain}/${jsonBasename}.json`;
+
+    if (config.typescript.validate && config.schema) {
+      // Generate with schema validation
+      const schemaPath = config.schema.path;
+      const schemaExport = config.schema.exportName;
+
+      tsContent = `import { ${schemaExport} } from '../../schema/source/${schemaPath}.js';
+import data from '${jsonRelativePath}' with { type: 'json' };
 
 export const ${config.typescript.exportName} = ${schemaExport}.parse(data);
 export type ${config.typescript.typeName} = typeof ${config.typescript.exportName}[number];
 `;
-  } else {
-    // Generate without validation
-    tsContent = `import data from '${jsonRelativePath}' assert { type: 'json' };
+    } else {
+      // Generate without validation
+      tsContent = `import data from '${jsonRelativePath}' with { type: 'json' };
 
 export const ${config.typescript.exportName} = data;
 // Note: No type safety - add schema to config.ts to enable validation
 `;
+    }
   }
 
   writeFileSync(outputFile, tsContent, 'utf-8');
@@ -421,7 +591,7 @@ async function processFile(config: ResolvedConfig): Promise<void> {
   try {
     // Step 1: Process source file to get data
     let data: any;
-    let exportName: string;
+    let exportName: string | undefined;
 
     switch (config.format) {
       case 'ts': {
@@ -432,14 +602,16 @@ async function processFile(config: ResolvedConfig): Promise<void> {
       }
       case 'json':
         data = processJSONFile(config);
+        exportName = config.typescript.exportName;
         break;
       case 'csv':
         data = processCSVFile(config);
+        exportName = config.typescript.exportName;
         break;
     }
 
     // Step 2: Generate JSON (always)
-    generateJSON(config, data);
+    generateJSON(config, data, exportName);
 
     // Step 3: Generate TS if enabled
     if (config.typescript.enabled) {
@@ -459,7 +631,7 @@ async function processFile(config: ResolvedConfig): Promise<void> {
         }
       }
 
-      await generateTSReExport(config, data);
+      await generateTSReExport(config, data, exportName);
     }
   } catch (error) {
     console.error(`✗ Error processing ${config.source}: ${error}`);
@@ -478,6 +650,8 @@ function cleanGenerated(): void {
 
 /**
  * Ensure Python __init__.py files exist for package structure
+ * Note: These are minimal placeholders. generatePythonDataHelpers() will overwrite
+ * data/generated/json/__init__.py and data/__init__.py with full implementations.
  */
 function ensurePythonInitFiles(domains: string[]): void {
   const initFiles = [
@@ -485,13 +659,9 @@ function ensurePythonInitFiles(domains: string[]): void {
       path: join(GENERATED_DIR, '__init__.py'),
       content: '"""Generated data files."""\n',
     },
-    {
-      path: join(JSON_OUTPUT_DIR, '__init__.py'),
-      content: '"""JSON data files."""\n',
-    },
   ];
 
-  // Add domain-specific __init__.py files
+  // Add domain-specific __init__.py files (these won't be overwritten)
   for (const domain of domains) {
     initFiles.push({
       path: join(JSON_OUTPUT_DIR, domain, '__init__.py'),
@@ -499,18 +669,7 @@ function ensurePythonInitFiles(domains: string[]): void {
     });
   }
 
-  // Ensure data/__init__.py exists (outside generated, so not cleaned)
-  const dataInitPath = join(DATA_ROOT, '__init__.py');
-  if (!existsSync(dataInitPath)) {
-    writeFileSync(
-      dataInitPath,
-      '"""Data files shared between TypeScript and Python."""\n',
-      'utf-8',
-    );
-    console.log(`✓ Created ${relative(PACKAGE_ROOT, dataInitPath)}`);
-  }
-
-  // Create all __init__.py files
+  // Create all __init__.py files (only if they don't exist)
   for (const { path, content } of initFiles) {
     // Ensure parent directory exists
     const parentDir = dirname(path);
@@ -524,6 +683,169 @@ function ensurePythonInitFiles(domains: string[]): void {
       console.log(`✓ Created ${relative(PACKAGE_ROOT, path)}`);
     }
   }
+}
+
+/**
+ * Discover all JSON files recursively in data/generated/json/
+ */
+function discoverJSONFiles(): Array<{
+  domain: string;
+  filename: string;
+  path: string;
+}> {
+  const jsonFiles: Array<{ domain: string; filename: string; path: string }> =
+    [];
+
+  function scanDir(dir: string, domain: string = '') {
+    if (!existsSync(dir)) {
+      return;
+    }
+
+    const entries = readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        // Domain directory
+        scanDir(fullPath, entry.name);
+      } else if (entry.name.endsWith('.json')) {
+        // JSON file
+        const currentDomain = domain || 'root';
+        jsonFiles.push({
+          domain: currentDomain,
+          filename: entry.name,
+          path: fullPath,
+        });
+      }
+    }
+  }
+
+  scanDir(JSON_OUTPUT_DIR);
+  return jsonFiles;
+}
+
+/**
+ * Generate Python helper functions for loading JSON data files
+ */
+function generatePythonDataHelpers(): void {
+  const jsonFiles = discoverJSONFiles();
+
+  if (jsonFiles.length === 0) {
+    console.log('⚠ No JSON files found to generate helpers for');
+    return;
+  }
+
+  // Build helper functions for each JSON file
+  const helpers: Array<{
+    name: string;
+    getterName: string;
+    domain: string;
+    filename: string;
+  }> = [];
+
+  for (const { domain, filename } of jsonFiles) {
+    const fileBasename = basename(filename, '.json');
+    const pythonName = toSnakeCase(fileBasename);
+    const getterName = `get_${pythonName}`;
+
+    helpers.push({
+      name: pythonName,
+      getterName,
+      domain,
+      filename,
+    });
+  }
+
+  // Sort by name for consistent output
+  helpers.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Generate data/generated/json/__init__.py
+  const jsonInitPath = join(JSON_OUTPUT_DIR, '__init__.py');
+  const jsonFunctions: string[] = [];
+  const jsonCacheVars: string[] = [];
+  const jsonCacheFuncs: string[] = [];
+
+  for (const helper of helpers) {
+    const domainPath = helper.domain === 'root' ? '' : `${helper.domain}/`;
+    const cacheVarName = `_${helper.name}_cache`;
+
+    // Generate getter function
+    jsonFunctions.push(`
+def ${helper.getterName}() -> list[dict[str, Any]] | dict[str, Any]:
+    """Load ${helper.filename} data."""
+    from importlib.resources import files
+    import json
+    json_file = files("accountable_contracts.data.generated.json") / "${domainPath}${helper.filename}"
+    return json.loads(json_file.read_text(encoding="utf-8"))`);
+
+    // Generate cache variable
+    jsonCacheVars.push(
+      `${cacheVarName}: list[dict[str, Any]] | dict[str, Any] | None = None`,
+    );
+
+    // Generate cached accessor function
+    jsonCacheFuncs.push(`
+def ${helper.name}() -> list[dict[str, Any]] | dict[str, Any]:
+    """Get ${helper.filename} data (cached)."""
+    global ${cacheVarName}
+    if ${cacheVarName} is None:
+        ${cacheVarName} = ${helper.getterName}()
+    return ${cacheVarName}`);
+  }
+
+  const jsonInitContent = `"""JSON data files with helper functions."""
+
+from importlib.resources import files
+import json
+from typing import Any
+
+# Cache variables
+${jsonCacheVars.join('\n')}
+
+# Getter functions (always return fresh data)
+${jsonFunctions.join('\n')}
+
+# Cached accessor functions (load once, reuse)
+${jsonCacheFuncs.join('\n')}
+
+__all__ = [
+${helpers.map((h) => `    "${h.getterName}",\n    "${h.name}",`).join('\n')}
+]
+`;
+
+  writeFileSync(jsonInitPath, jsonInitContent, 'utf-8');
+  console.log(
+    `✓ Generated ${relative(PACKAGE_ROOT, jsonInitPath)} with ${helpers.length} data helpers`,
+  );
+
+  // Generate data/__init__.py
+  const dataInitPath = join(DATA_ROOT, '__init__.py');
+  const imports: string[] = [];
+  const exports: string[] = [];
+
+  for (const helper of helpers) {
+    imports.push(`    ${helper.getterName},`);
+    imports.push(`    ${helper.name},`);
+    exports.push(`    "${helper.getterName}",`);
+    exports.push(`    "${helper.name}",`);
+  }
+
+  const dataInitContent = `"""Data files shared between TypeScript and Python."""
+
+from .generated.json import (
+${imports.join('\n')}
+)
+
+__all__ = [
+${exports.join('\n')}
+]
+`;
+
+  writeFileSync(dataInitPath, dataInitContent, 'utf-8');
+  console.log(
+    `✓ Generated ${relative(PACKAGE_ROOT, dataInitPath)} with ${helpers.length} data exports`,
+  );
 }
 
 /**
@@ -553,15 +875,17 @@ function generateDataIndex(generatedFiles: GeneratedFile[]): void {
           `export * from './generated/ts/${domain}/${file.basename}.js';`,
         );
 
-        // JSON export (direct access)
+        // JSON export (direct access) - use snake_case for filename
+        const jsonFilename = toSnakeCase(file.basename);
         jsonExports.push(
-          `export { default as ${file.tsExportName}Json } from './generated/json/${domain}/${file.basename}.json' assert { type: 'json' };`,
+          `export { default as ${file.tsExportName}Json } from './generated/json/${domain}/${jsonFilename}.json' with { type: 'json' };`,
         );
       } else {
         // Only JSON export (no TS file generated)
         const jsonExportName = camelCase(file.basename);
+        const jsonFilename = toSnakeCase(file.basename);
         jsonExports.push(
-          `export { default as ${jsonExportName}Json } from './generated/json/${domain}/${file.basename}.json' assert { type: 'json' };`,
+          `export { default as ${jsonExportName}Json } from './generated/json/${domain}/${jsonFilename}.json' with { type: 'json' };`,
         );
       }
     }
@@ -613,11 +937,18 @@ async function main() {
 
   for (const sourcePath of discoveredFiles) {
     const explicit = explicitConfig.get(sourcePath);
-    const resolved = await resolveConfig(explicit, sourcePath);
-    resolvedConfigs.push(resolved);
+    const configs = await resolveConfigs(explicit, sourcePath);
+    resolvedConfigs.push(...configs);
 
     if (!explicit) {
-      console.log(`ℹ Auto-discovered: ${sourcePath} (using defaults)`);
+      const exportCount = configs.length;
+      if (exportCount > 1) {
+        console.log(
+          `ℹ Auto-discovered: ${sourcePath} (${exportCount} exports)`,
+        );
+      } else {
+        console.log(`ℹ Auto-discovered: ${sourcePath} (using defaults)`);
+      }
     }
   }
 
@@ -630,7 +961,14 @@ async function main() {
     domains.add(config.domain);
 
     // Track generated files for index
-    const fileBasename = basename(config.source, extname(config.source));
+    // For TS files, use export name as basename; for others, use original filename
+    let fileBasename: string;
+    if (config.format === 'ts' && config.typescript.exportName) {
+      fileBasename = config.typescript.exportName;
+    } else {
+      fileBasename = basename(config.source, extname(config.source));
+    }
+
     if (config.typescript.enabled) {
       generatedFiles.push({
         domain: config.domain,
@@ -650,6 +988,9 @@ async function main() {
 
   console.log('Ensuring Python __init__.py files...');
   ensurePythonInitFiles(Array.from(domains));
+
+  console.log('Generating Python data helpers...');
+  generatePythonDataHelpers();
 
   console.log('Generating index file...');
   generateDataIndex(generatedFiles);

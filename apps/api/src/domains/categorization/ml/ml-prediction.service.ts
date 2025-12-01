@@ -10,11 +10,12 @@ import { ConstraintViolationRepository } from '../candidates/constraint-violatio
 import { getMLEngineClient } from './ml-engine.client.js';
 import type {
   MLPredictionJobData,
-  MLPredictionRequest,
-  MLPrediction,
+  EnrichedTransaction,
+  MLPredictionOutput,
 } from './ml-prediction.types.js';
 import { processPredictionToCandidate } from '../processing/prediction-pipeline.service.js';
 import type { MLPredictionMetadata } from '../predictions/predictions.types.js';
+import { ensureCoaSnapshotCachedForML } from '../../chart-of-accounts/coa.model.js';
 
 const CATEGORIZATION_TASKS_TABLE = 'categorization_tasks';
 const PREDICTIONS_TABLE = 'categorization_predictions';
@@ -61,44 +62,80 @@ export async function processMLPrediction(
       'Processing ML prediction',
     );
 
+    await ensureCoaSnapshotCachedForML({
+      companyUUID: enrichedTransaction.context.company_uuid,
+      snapshotVersion: enrichedTransaction.context.coa_snapshot_version,
+    });
+
     // Get ML Engine client
     const mlClient = getMLEngineClient();
 
     // Build ML Engine API request
-    const mlRequest: MLPredictionRequest = {
-      enrichedTransaction: enrichedTransaction,
-    };
+    const mlRequest: EnrichedTransaction = enrichedTransaction;
 
     // Call ML Engine API
     const mlResponse = await mlClient.predict(mlRequest);
 
-    // Handle ML Engine errors gracefully
-    if (!mlResponse.success || !mlResponse.predictions.length) {
+    // Extract transaction details for journal line assembly
+    const transactionAmount = Math.abs(enrichedTransaction.raw.amount);
+    if (transactionAmount === 0) {
       logger.warn(
         {
           categorizationTaskId,
           bankTransactionId,
-          error: mlResponse.error,
         },
-        'ML Engine returned no predictions or failed',
-      );
-
-      // Update task metadata to reflect ML attempted but failed
-      await updateTaskMetadata(
-        {
-          taskId: categorizationTaskId,
-          status: 'attempted',
-          error: mlResponse.error,
-          modelVersion: mlResponse.modelVersion,
-          latencyMs: mlResponse.latencyMs,
-        },
-        db,
+        'Transaction amount is zero, skipping ML prediction',
       );
       return;
     }
 
+    const direction = enrichedTransaction.raw.amount > 0 ? 'inflow' : 'outflow';
+    const currencyCode = enrichedTransaction.raw.currency_code;
+    const bankCoaId = enrichedTransaction.ids.bank_account_coa_id;
+
+    if (!bankCoaId) {
+      logger.warn(
+        {
+          categorizationTaskId,
+          bankTransactionId,
+        },
+        'Bank COA ID is missing, cannot assemble journal lines',
+      );
+      return;
+    }
+
+    // Assemble journal lines from ML prediction output
+    const journalLines = assembleJournalLinesFromMLOutput({
+      mlOutput: mlResponse,
+      transactionAmount,
+      direction,
+      currencyCode,
+      bankCoaId,
+    });
+
+    if (journalLines.length === 0) {
+      logger.warn(
+        {
+          categorizationTaskId,
+          bankTransactionId,
+        },
+        'No journal lines assembled from ML output',
+      );
+      return;
+    }
+
+    // Extract model outputs for metadata
+    const confidence = mlResponse.tenant_account_ranker.selected_account_score;
+    const explanation =
+      mlResponse.tenant_account_ranker.explanation.message ?? null;
+    const modelVersion = String(
+      mlResponse.global_intent_classifier.model_version ??
+        mlResponse.tenant_account_ranker.model_version,
+    );
+
     // Generate prediction group ID for this ML run (ties all predictions together)
     const predictionGroupId = crypto.randomUUID();
+    const predictionId = crypto.randomUUID();
 
     // Persist ML predictions and candidates in transaction
     await db.transaction(async (trx) => {
@@ -121,73 +158,44 @@ export async function processMLPrediction(
         trx,
       );
 
-      // Persist each ML prediction and create corresponding candidate
-      let mlCandidateCreated = false;
-      for (let i = 0; i < mlResponse.predictions.length; i++) {
-        const mlPrediction = mlResponse.predictions[i];
-        const actualRank = baseRank + i; // Offset by baseRank
-        const isPrimary = isPrimaryByDefault && i === 0; // First ML prediction is primary if no rules exist
+      // Build typed metadata for ML prediction
+      const metadata: MLPredictionMetadata = {
+        provenance: 'ml_engine',
+        model_version: modelVersion,
+        global_intent_classifier: mlResponse.global_intent_classifier,
+        tenant_account_ranker: mlResponse.tenant_account_ranker,
+      };
 
-        // Store overallExplanation as string, and structured data in metadata
-        const explanation: string | null =
-          mlPrediction.overallExplanation ?? null;
-
-        // Build typed metadata for ML prediction
-        // Start with base ML metadata structure
-        const baseMetadata: MLPredictionMetadata = {
-          provenance: 'ml_engine',
-          ...(mlPrediction.overallExplanationTokens
-            ? {
-                overallExplanationTokens: mlPrediction.overallExplanationTokens,
-              }
-            : {}),
-          ...(mlResponse.modelVersion
-            ? { model_version: mlResponse.modelVersion }
-            : {}),
-        };
-
-        // Merge with any additional metadata from ML engine response
-        const metadata: MLPredictionMetadata = {
-          ...baseMetadata,
-          ...(mlPrediction.metadata ?? {}),
-        };
-
-        const pipelineResult = await processPredictionToCandidate({
-          categorizationTaskId,
-          bankTransactionId,
-          bankTransactionDate: enrichedTransaction.raw.date,
-          companyId,
-          source: 'ml',
-          lines: toCandidateLines(mlPrediction.lines),
-          confidence: mlPrediction.confidence,
-          rank: actualRank,
-          isPrimary,
-          modelVersion: mlResponse.modelVersion,
-          predictionGroupId,
-          predictionId: mlPrediction.id, // Use Python-generated ID
-          explanation,
-          metadata,
-          enrichedTransaction,
-          predictionRepository: predictionRepo,
-          candidateRepository: candidateRepo,
-          constraintViolationRepository: violationRepo,
-          knex: trx,
-          softDeleteExistingPredictions: false,
-        });
-
-        if (pipelineResult.candidateId) {
-          mlCandidateCreated = true;
-        }
-      }
+      const pipelineResult = await processPredictionToCandidate({
+        categorizationTaskId,
+        bankTransactionId,
+        bankTransactionDate: enrichedTransaction.raw.date,
+        companyId,
+        source: 'ml',
+        lines: journalLines,
+        confidence,
+        rank: baseRank,
+        isPrimary: isPrimaryByDefault,
+        modelVersion,
+        predictionGroupId,
+        predictionId,
+        explanation,
+        metadata,
+        enrichedTransaction,
+        predictionRepository: predictionRepo,
+        candidateRepository: candidateRepo,
+        constraintViolationRepository: violationRepo,
+        knex: trx,
+        softDeleteExistingPredictions: false,
+      });
 
       // Update task metadata
       await updateTaskMetadata(
         {
           taskId: categorizationTaskId,
           status: 'completed',
-          modelVersion: mlResponse.modelVersion,
-          predictionsCount: mlResponse.predictions.length,
-          latencyMs: mlResponse.latencyMs,
+          modelVersion,
+          predictionsCount: 1,
         },
         trx,
       );
@@ -197,8 +205,8 @@ export async function processMLPrediction(
       {
         categorizationTaskId,
         bankTransactionId,
-        predictionsCount: mlResponse.predictions.length,
-        modelVersion: mlResponse.modelVersion,
+        accountId: mlResponse.final_posting.account_id,
+        modelVersion,
         predictionGroupId,
       },
       'ML prediction completed successfully',
@@ -264,20 +272,69 @@ async function determineMLPredictionRank(
   return { baseRank: maxRank + 1, isPrimaryByDefault: false };
 }
 
-function toCandidateLines(lines: MLPrediction['lines']): CandidateLineDraft[] {
-  return lines.map((line) => ({
-    entryType: line.entryType,
-    coaId: line.coaId,
-    projectId: line.projectId ?? null,
-    amountNative: line.amountNative,
-    currencyCode: line.currencyCode,
-    description: line.description ?? null,
-    isBankLeg: line.isBankLeg ?? false,
-    splitType: line.splitType,
-    splitValue: line.splitValue ?? null,
-    explanation: line.explanation ?? null,
-    metadata: line.metadata ?? null,
-  }));
+/**
+ * Assemble journal lines from ML prediction output
+ *
+ * Creates a balanced journal entry with:
+ * - Bank leg (debit for inflow, credit for outflow)
+ * - Counterpart leg using the predicted account (credit for inflow, debit for outflow)
+ */
+function assembleJournalLinesFromMLOutput(params: {
+  mlOutput: MLPredictionOutput;
+  transactionAmount: number;
+  direction: 'inflow' | 'outflow';
+  currencyCode: string;
+  bankCoaId: string;
+}): CandidateLineDraft[] {
+  const { mlOutput, transactionAmount, direction, currencyCode, bankCoaId } =
+    params;
+
+  const counterpartAccountId = mlOutput.final_posting.account_id;
+
+  // Determine entry types based on transaction direction
+  const bankEntryType = direction === 'inflow' ? 'debit' : 'credit';
+  const counterpartEntryType = direction === 'inflow' ? 'credit' : 'debit';
+
+  const lines: CandidateLineDraft[] = [];
+
+  // Bank leg
+  lines.push({
+    entryType: bankEntryType,
+    coaId: bankCoaId,
+    amountNative: toCurrency(transactionAmount),
+    currencyCode,
+    description: 'Bank leg',
+    isBankLeg: true,
+    splitType: 'bank',
+    metadata: { direction },
+  });
+
+  // Counterpart leg using predicted account
+  lines.push({
+    entryType: counterpartEntryType,
+    coaId: counterpartAccountId,
+    amountNative: toCurrency(transactionAmount),
+    currencyCode,
+    description: mlOutput.final_posting.account_label ?? null,
+    isBankLeg: false,
+    splitType: 'bank',
+    metadata: {
+      account_label: mlOutput.final_posting.account_label,
+      global_intent: mlOutput.global_intent_classifier.semantic_top1,
+      intent_confidence: mlOutput.global_intent_classifier.semantic_top1_prob,
+      ranker_score: mlOutput.tenant_account_ranker.selected_account_score,
+      ranker_reason: mlOutput.tenant_account_ranker.explanation.reason,
+    },
+  });
+
+  return lines;
+}
+
+/**
+ * Round amount to 2 decimal places (currency precision)
+ */
+function toCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 /**

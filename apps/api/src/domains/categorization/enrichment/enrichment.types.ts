@@ -7,12 +7,12 @@ import {
 } from '../../companies/companies.types.js';
 import { contactType } from '../../contacts/index.js';
 import {
-  enrichedTransactionSchema,
-  type EnrichedTransactionSchema as EnrichedTransaction,
+  enrichedTransaction,
+  type EnrichedTransaction,
 } from '@accountable-books/contracts/schema';
 
 export { type EnrichedTransaction };
-export { enrichedTransactionSchema };
+export { enrichedTransaction };
 
 // ============================================
 // ENRICHMENT JOB DATA

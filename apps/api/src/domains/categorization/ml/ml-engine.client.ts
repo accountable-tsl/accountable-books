@@ -1,10 +1,8 @@
 import axios, { type AxiosInstance } from 'axios';
 import { ENV } from '../../../config/env.js';
 import { logger } from '../../../shared/index.js';
-import type {
-  MLPredictionRequest,
-  MLPredictionResponse,
-} from './ml-prediction.types.js';
+import type { MLPredictionOutput } from './ml-prediction.types.js';
+import type { EnrichedTransaction } from '../enrichment/enrichment.types.js';
 
 /**
  * HTTP client for the ML Engine API
@@ -43,21 +41,21 @@ export class MLEngineClient {
    * Request transaction categorization predictions from ML Engine
    *
    * @param request - Enriched transaction data and company context
-   * @returns ML predictions with confidence scores and explanations
+   * @returns ML prediction output with model results
    * @throws Error if API call fails or times out
    */
-  async predict(request: MLPredictionRequest): Promise<MLPredictionResponse> {
+  async predict(request: EnrichedTransaction): Promise<MLPredictionOutput> {
     const startTime = Date.now();
 
     try {
       logger.debug(
         {
-          companyId: request.enrichedTransaction.context.company_uuid,
+          companyId: request.context.company_uuid,
         },
         'Calling ML Engine /api/v1/predict endpoint',
       );
 
-      const response = await this.client.post<MLPredictionResponse>(
+      const response = await this.client.post<MLPredictionOutput>(
         '/api/v1/predict',
         request,
       );
@@ -66,39 +64,29 @@ export class MLEngineClient {
 
       logger.info(
         {
-          companyId: request.enrichedTransaction.context.company_uuid,
-          predictionsCount: response.data.predictions?.length ?? 0,
-          modelVersion: response.data.modelVersion,
+          companyId: request.context.company_uuid,
+          accountId: response.data.final_posting.account_id,
+          modelVersion: response.data.global_intent_classifier.model_version,
           latencyMs,
         },
         'ML Engine prediction completed',
       );
 
-      return {
-        ...response.data,
-        latencyMs,
-      };
+      return response.data;
     } catch (error) {
       const latencyMs = Date.now() - startTime;
 
       logger.error(
         {
-          companyId: request.enrichedTransaction.context.company_uuid,
+          companyId: request.context.company_uuid,
           error: error instanceof Error ? error.message : 'Unknown error',
           latencyMs,
         },
         'ML Engine prediction failed',
       );
 
-      // Return error response instead of throwing
-      // This allows the worker to handle gracefully
-      return {
-        success: false,
-        predictions: [],
-        modelVersion: 'unknown',
-        latencyMs,
-        error: error instanceof Error ? error.message : 'ML Engine API error',
-      };
+      // Re-throw error to let the worker handle it
+      throw error;
     }
   }
 

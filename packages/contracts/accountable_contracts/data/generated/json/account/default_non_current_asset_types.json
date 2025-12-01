@@ -1,0 +1,122 @@
+[
+  {
+    "id": "645e5c04-7638-49ed-aabd-6bce8b089a17",
+    "key": "nca_land",
+    "label": "Land",
+    "account_element_id": "80049a94-3793-4d9a-9781-eaf063787e66",
+    "description": "Freehold or leasehold land held for operations or investment; not depreciated",
+    "report_code": "BS.ASS.NCA.LND",
+    "label_role": "semantic",
+    "trainable": true,
+    "is_contra": false,
+    "is_postable_control": false
+  },
+  {
+    "id": "9d8e5ec9-e9b7-43d6-8dde-b80a552fb64e",
+    "key": "nca_ppe",
+    "label": "Property, Plant, Equipment",
+    "account_element_id": "80049a94-3793-4d9a-9781-eaf063787e66",
+    "description": "Tangible long-term assets used in operations (e.g., buildings, machinery, vehicles)",
+    "report_code": "BS.ASS.NCA.PPE",
+    "label_role": "semantic",
+    "trainable": true,
+    "is_contra": false,
+    "is_postable_control": false
+  },
+  {
+    "id": "276ef71c-10b1-44d2-a6ce-23752b047949",
+    "key": "nca_ppe_contra",
+    "label": "Contra Property, Plant, Equipment",
+    "account_element_id": "e1165fbf-2326-4d67-a92e-de95ac2a9cde",
+    "description": "Accumulated depreciation reducing the carrying amount of PPE",
+    "report_code": "BS.ASS.NCA.PPE.CTR",
+    "label_role": "mechanical",
+    "trainable": false,
+    "is_contra": true,
+    "is_postable_control": false
+  },
+  {
+    "id": "f3e9e2a4-6b0a-4d1d-8c9e-3f6f6c1b3c4d",
+    "key": "nca_investment_property",
+    "label": "Investment Property",
+    "account_element_id": "80049a94-3793-4d9a-9781-eaf063787e66",
+    "description": "Property (land or a building or part of a building or both) held to earn rentals or for capital appreciation or both",
+    "report_code": "BS.ASS.NCA.IVP",
+    "label_role": "semantic",
+    "trainable": true,
+    "is_contra": false,
+    "is_postable_control": false
+  },
+  {
+    "id": "20be47b9-6069-4143-ae72-266f6e0f2f84",
+    "key": "nca_investment_property_contra",
+    "label": "Contra Investment Property",
+    "account_element_id": "e1165fbf-2326-4d67-a92e-de95ac2a9cde",
+    "description": "Accumulated depreciation/amortization/fair-value adjustments contra to Investment Property",
+    "report_code": "BS.ASS.NCA.IVP.CTR",
+    "label_role": "mechanical",
+    "trainable": false,
+    "is_contra": true,
+    "is_postable_control": false
+  },
+  {
+    "id": "620cb7cb-6283-48d7-840b-81f4b23419f4",
+    "key": "nca_rou_asset",
+    "label": "Right-of-Use Assets",
+    "account_element_id": "80049a94-3793-4d9a-9781-eaf063787e66",
+    "description": "Right-of-use assets from long-term leases (IFRS 16 or ASC 842)",
+    "report_code": "BS.ASS.NCA.ROU",
+    "label_role": "semantic",
+    "trainable": true,
+    "is_contra": false,
+    "is_postable_control": false
+  },
+  {
+    "id": "4d6d0cb4-66de-4285-9eb4-eec81de03cfc",
+    "key": "nca_rou_asset_contra",
+    "label": "Contra Right-of-Use Assets",
+    "account_element_id": "e1165fbf-2326-4d67-a92e-de95ac2a9cde",
+    "description": "Accumulated depreciation or amortization of right of use assets",
+    "report_code": "BS.ASS.NCA.ROU.CTR",
+    "label_role": "mechanical",
+    "trainable": false,
+    "is_contra": true,
+    "is_postable_control": false
+  },
+  {
+    "id": "50a5d1ca-5219-4d43-903e-8d926067a0f1",
+    "key": "nca_intangible_asset",
+    "label": "Intangible Assets",
+    "account_element_id": "80049a94-3793-4d9a-9781-eaf063787e66",
+    "description": "Identifiable non-physical assets (e.g., software, patents, trademarks)",
+    "report_code": "BS.ASS.NCA.INT",
+    "label_role": "semantic",
+    "trainable": true,
+    "is_contra": false,
+    "is_postable_control": false
+  },
+  {
+    "id": "7aac324c-1205-477e-a084-112de81c4152",
+    "key": "nca_intangible_asset_contra",
+    "label": "Contra Intangible Assets",
+    "account_element_id": "e1165fbf-2326-4d67-a92e-de95ac2a9cde",
+    "description": "Accumulated amortization reducing the carrying amount of intangibles",
+    "report_code": "BS.ASS.NCA.INT.CTR",
+    "label_role": "mechanical",
+    "trainable": false,
+    "is_contra": true,
+    "is_postable_control": false
+  },
+  {
+    "id": "0bbb12c0-ebe3-4ad6-879f-c277ed862ad2",
+    "key": "nca_other",
+    "label": "Other Non-current Assets",
+    "account_element_id": "80049a94-3793-4d9a-9781-eaf063787e66",
+    "description": "Long-term assets not classified elsewhere, including deferred tax assets and long-term investments",
+    "report_code": "BS.ASS.NCA.OTH",
+    "label_role": "fallback",
+    "trainable": false,
+    "is_contra": false,
+    "is_postable_control": false
+  }
+]

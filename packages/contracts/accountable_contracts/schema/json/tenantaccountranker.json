@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tenantAccountRanker",
+  "type": "object",
+  "properties": {
+    "model_name": {
+      "type": "string",
+      "const": "tenant_account_ranker"
+    },
+    "model_version": {},
+    "latency_ms": {
+      "type": "number"
+    },
+    "selected_account_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "selected_account_label": {
+      "type": "string"
+    },
+    "selected_account_score": {
+      "type": "number"
+    },
+    "ranking_top_k": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "account_label": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string",
+            "enum": ["history", "embedding_match", "semantic_intent"]
+          }
+        },
+        "required": ["account_id", "account_label", "score", "reason"],
+        "additionalProperties": false
+      }
+    },
+    "explanation": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": ["history", "embedding_match", "semantic_intent"]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": ["reason", "message"],
+      "additionalProperties": false
+    },
+    "shap_values": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "feature_mapping_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "model_name",
+    "model_version",
+    "latency_ms",
+    "selected_account_id",
+    "selected_account_label",
+    "selected_account_score",
+    "ranking_top_k",
+    "explanation",
+    "shap_values",
+    "feature_mapping_version"
+  ],
+  "additionalProperties": false
+}

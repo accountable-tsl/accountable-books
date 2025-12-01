@@ -12,9 +12,9 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["schema*", "data*"]
-exclude = ["node_modules*", "schema/ts*", "schema/json*", "data/source*", "data/generated/ts*"]
+include = ["accountable_contracts*"]
+exclude = ["node_modules*", "accountable_contracts.schema/source*", "accountable_contracts.schema/json*", "accountable_contracts.data/source*", "accountable_contracts.data/generated/ts*"]
 
 # Include JSON files as package data
 [tool.setuptools.package-data]
-"data.generated.json" = ["**/*.json"]
+"accountable_contracts.data.generated.json" = ["**/*.json"]

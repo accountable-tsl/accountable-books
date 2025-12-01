@@ -1,0 +1,125 @@
+{
+  "version": "v260101-01-1.0.0",
+  "ids": {
+    "bank_transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+    "bank_transaction_batch_id": null,
+    "company_uuid": "550e8400-e29b-41d4-a716-446655440001",
+    "bank_account_id": "550e8400-e29b-41d4-a716-446655440002",
+    "bank_account_coa_id": "550e8400-e29b-41d4-a716-446655440003",
+    "bank_account_currency_code": "USD",
+    "contact_id": "550e8400-e29b-41d4-a716-446655440004",
+    "enrichment_job_id": null
+  },
+  "raw": {
+    "date": "2025-01-01",
+    "description": "ACH PAYMENT TO VENDOR INV-001",
+    "amount": 250,
+    "currency_code": "USD",
+    "reference": "INV-001",
+    "source": "ingestion",
+    "metadata": {
+      "origin": "test"
+    }
+  },
+  "normalized": {
+    "description": "ACH PAYMENT TO VENDOR INV-001",
+    "description_tokens": [
+      "ACH",
+      "PAYMENT",
+      "VENDOR",
+      "INV-001"
+    ],
+    "contact_name": "Vendor Inc",
+    "contact_fingerprint": "fingerprint-123",
+    "contact_match_confidence": "high",
+    "contact_type": "vendor",
+    "normalized_reference": "INV-001",
+    "global_contact_name": "Vendor Global",
+    "global_contact_category_hints": [
+      "software"
+    ]
+  },
+  "context": {
+    "company_uuid": "550e8400-e29b-41d4-a716-446655440001",
+    "company_name": "Acme Corp",
+    "year_end_day": 31,
+    "year_end_month": 12,
+    "type": "business",
+    "description": null,
+    "website": null,
+    "country_id": "country-1",
+    "country_code": "US",
+    "industry": "technology",
+    "tags": [],
+    "accounting_basis": "modified_accrual_basis",
+    "reporting_framework": "ifrs",
+    "reporting_currency_code": "USD",
+    "default_timezone": "UTC",
+    "company_settings_checksum": "checksum-company-settings",
+    "coa_snapshot_version": "snapshot-v1",
+    "coa_snapshot_id": "coa-snap-1",
+    "coa_snapshot_checksum": null,
+    "cached_at": "2025-11-27T18:27:28.739Z"
+  },
+  "historical": {
+    "bank_contact_stats_snapshot": {
+      "stats_row_id": "stats-1",
+      "stats_replay_seq": 0,
+      "stats_snapshot_checksum": "pre-snapshot",
+      "snapshot_captured_at": "2024-12-15",
+      "totals": {
+        "transaction_count": 5,
+        "amount_native_sum": 1000,
+        "avg_amount_native": 200,
+        "stddev_amount_native": 0
+      },
+      "rolling_30d": {
+        "transaction_count": 2,
+        "amount_native_sum": 400,
+        "avg_amount_native": 200,
+        "stddev_amount_native": 0
+      },
+      "rolling_90d": {
+        "transaction_count": 5,
+        "amount_native_sum": 1000,
+        "avg_amount_native": 200,
+        "stddev_amount_native": 0
+      },
+      "last_transaction_id": "550e8400-e29b-41d4-a716-446655440005",
+      "last_transaction_date": "2024-12-15",
+      "as_of_transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+      "as_of_transaction_date": "2025-01-01"
+    }
+  },
+  "signals": {
+    "likely_trf_btw_accounts": false,
+    "notes": []
+  },
+  "temporal": {
+    "day_of_week": 3,
+    "day_of_month": 1,
+    "calendar_month": 1,
+    "calendar_quarter": 1,
+    "fiscal_month": 1,
+    "fiscal_quarter": 1,
+    "fiscal_period": {
+      "year_start": "2024-01-01",
+      "year_end": "2024-12-31",
+      "quarter_start": "2024-01-01",
+      "quarter_end": "2024-03-31",
+      "month_start": "2025-01-01",
+      "month_end": "2025-01-31"
+    }
+  },
+  "metadata": {
+    "source": "ingestion",
+    "enriched_at": "2025-11-27T18:27:28.745Z",
+    "enrichment_latency_ms": 0,
+    "enrichment_version": "v260101-01-1.0.0",
+    "status": "enriched",
+    "error_message": null,
+    "processing_context": "primary",
+    "stats_replay_seq": 0,
+    "stats_snapshot_checksum": "pre-snapshot"
+  }
+}

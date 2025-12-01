@@ -11,7 +11,9 @@ AI-native machine learning service for Accountable Books platform.
 
 ## Development
 
-### Local Development (without Docker)
+### Local Development
+
+Development is handled locally using Poetry. Ensure you have Redis running locally (via Docker Compose at the project root or standalone).
 
 ```bash
 # Install dependencies
@@ -19,6 +21,9 @@ poetry install
 
 # Run development server
 poetry run uvicorn ml_engine.main:app --reload --host 0.0.0.0 --port 8000
+
+# Or use the npm script
+pnpm dev
 
 # Run tests
 poetry run pytest
@@ -28,39 +33,7 @@ poetry run black .
 poetry run ruff check .
 ```
 
-### Docker Development
-
-#### Using Root Docker Compose (Recommended)
-
-For development, use the root-level `docker-compose.dev.yml`:
-
-```bash
-# From the project root directory
-docker-compose -f docker-compose.dev.yml up ml-engine
-
-# Run the full development stack
-docker-compose -f docker-compose.dev.yml up
-
-# View logs
-docker-compose -f docker-compose.dev.yml logs -f ml-engine
-
-# Stop the service
-docker-compose -f docker-compose.dev.yml down
-```
-
-#### Using Docker directly
-
-```bash
-# Build development image
-docker build -f infra/docker/Dockerfile.dev -t ml-engine-dev .
-
-# Run development container with hot reload
-docker run -p 8002:8002 -v $(pwd):/app ml-engine-dev
-
-# Or for production build
-docker build -t ml-engine .
-docker run -p 8002:8002 ml-engine
-```
+**Note**: Infrastructure (PostgreSQL, Redis) should be running via Docker Compose at the project root. The ML Engine itself runs locally for faster iteration.
 
 ### Production Deployment
 
@@ -80,3 +53,47 @@ docker run -p 8002:8002 --env ENV=production ml-engine:latest
 - **scikit-learn**: Machine learning models
 - **Pydantic**: Data validation and serialization
 - **Poetry**: Dependency management
+
+## Model Versioning System
+
+The ML engine uses a versioning system with three components:
+
+### Config Files (`models/registry/configs/`)
+
+JSON metadata files that describe each model version. They specify:
+
+- Model version number
+- Which feature map version to use
+- Path to the model artifact file (or `null` for code-based models)
+- Status (active/deprecated/experimental)
+- Additional metadata (description, creation date, etc.)
+
+**Example:** `configs/global_intent_classifier/v260101-01-1.0.0.json`
+
+### Artifacts (`models/registry/artifacts/`)
+
+Binary files containing trained model parameters (`.pkl` or `.joblib` files).
+Currently empty since models are code-based. Will contain actual trained models (e.g., LightGBM) in the future.
+
+**Example:** `artifacts/global_intent_classifier/2024.12.01.01.pkl` (future)
+
+### Feature Maps (`models/feature_maps/versions/`)
+
+JSON files that define exactly which features (inputs) each model version uses.
+Enables reproducibility and explainability by tracking which transaction fields were used for predictions.
+
+**Example:** `feature_maps/versions/fmap_a_1.0.json` lists all features used by Model A version 1.0.
+
+### Environment Variables for Model Versioning
+
+You can override the active model version using environment variables:
+
+- `MODEL_VERSION_GLOBAL_INTENT_CLASSIFIER`: Version to use for Model A
+- `MODEL_VERSION_TENANT_ACCOUNT_RANKER`: Version to use for Model B
+
+If not set, the system uses the latest version in the registry.
+
+## Environment Variables
+
+- `REDIS_URL`: Redis connection URL (required)
+- `BACKEND_URL`: Backend API URL (required)

@@ -35,7 +35,7 @@ import {
   getAccountTypeByKey,
   getFullAccountMeta,
 } from '../account/account.registry.js';
-import { generateChecksum } from '../../shared/index.js';
+import { generateChecksum, logger } from '../../shared/index.js';
 import z from 'zod';
 import { invalidateCompanyContext } from '../categorization/index.js';
 
@@ -48,6 +48,16 @@ const generateCoaCacheKey = ({ companyUUID }: { companyUUID: string }) =>
 async function invalidateCoaCache({ companyUUID }: { companyUUID: string }) {
   const cacheKey = generateCoaCacheKey({ companyUUID });
   await redis.del(cacheKey);
+}
+
+async function invalidateAllCoaCaches({
+  companyUUID,
+}: {
+  companyUUID: string;
+}) {
+  await invalidateCoaCache({ companyUUID });
+  await invalidateCompanyContext(companyUUID);
+  await invalidateCoaSnapshotCacheForML({ companyUUID });
 }
 
 /**
@@ -167,9 +177,8 @@ export const createCoa = async ({
       trx: tx,
     });
 
-    // Invalidate cache after successful insert
-    await invalidateCoaCache({ companyUUID });
-    await invalidateCompanyContext(companyUUID);
+    // Invalidate caches after successful insert
+    await invalidateAllCoaCaches({ companyUUID });
 
     return successResponse(
       `Successfully created ${allInsertedIds.length} account${allInsertedIds.length > 1 ? 's' : ''}`,
@@ -254,6 +263,7 @@ export const createDefaultAccounts = async ({
   if (!inserted || inserted.length === 0) {
     return errorResponse('Failed to insert default chart of accounts records');
   }
+  await invalidateAllCoaCaches({ companyUUID });
   return successResponse('Must-have accounts successfully inserted', inserted);
 };
 
@@ -265,7 +275,7 @@ export const fetchCompanyCoa = async ({
   accountTypeKeys: keys,
   includeDeleted = false,
   trx,
-}: FetchCoaInput): Promise<ApiResponse<CoaResponse>> => {
+}: FetchCoaInput): Promise<ApiResponse<CoaResponse[]>> => {
   if (!receivedCompanyId) return errorResponse('Company ID is required');
 
   const ids = accountIds || [];
@@ -549,10 +559,6 @@ const updateChartOfAccounts = async ({
     return errorResponse('Invalid company ID');
   }
 
-  const cacheKey = generateCoaCacheKey({ companyUUID });
-  await invalidateCoaCache({ companyUUID });
-  await invalidateCompanyContext(companyUUID);
-
   // Validate input
   const validatedInput = coaUpdateInput.array().safeParse(updates);
   if (!validatedInput.success) {
@@ -650,7 +656,9 @@ const updateChartOfAccounts = async ({
     }
 
     // Perform bulk update if there are valid updates
-    if (validUpdates.length > 0) {
+    const hasUpdates = validUpdates.length > 0;
+
+    if (hasUpdates) {
       await performBulkUpdate({
         validUpdates,
         updatedById,
@@ -663,19 +671,20 @@ const updateChartOfAccounts = async ({
         id: u.id,
         name: u.name,
       }));
-
-      // Invalidate cache after successful update
-      await invalidateCoaCache({ companyUUID });
-      await invalidateCompanyContext(companyUUID);
     }
 
     return results;
   };
 
   try {
-    const result = trx
-      ? await executeWithTransaction(trx)
-      : await knexClient.transaction(executeWithTransaction);
+    const result = await (trx
+      ? executeWithTransaction(trx)
+      : knexClient.transaction(executeWithTransaction));
+
+    // Only invalidate caches after a successful, committed transaction we control
+    if (!trx && result.updatedAccounts.length > 0) {
+      await invalidateAllCoaCaches({ companyUUID });
+    }
 
     return successResponse('Chart of accounts updated successfully', result);
   } catch (error) {
@@ -830,13 +839,27 @@ export async function updateCoaVersions({
   });
 
   // Upsert coa snapshot version
-  await upsertCoaSnapshotVersions({
+  const snapshotResult = await upsertCoaSnapshotVersions({
     coaVersionIds: coaVersionIds,
     companyUUID,
     notes,
     userId,
     trx,
   });
+
+  // When running inside a caller-provided transaction, invalidate after commit
+  if (trx && snapshotResult.oldSnapshotVersion !== undefined) {
+    trx.on('commit', async () => {
+      try {
+        await invalidateCoaSnapshotCacheForML({ companyUUID });
+      } catch (error) {
+        logger.error(
+          { error, companyUUID },
+          'Failed to invalidate COA snapshot cache after transaction commit',
+        );
+      }
+    });
+  }
 }
 
 async function upsertCoaVersions({
@@ -957,7 +980,7 @@ async function upsertCoaSnapshotVersions({
   notes?: string;
   userId: string;
   trx?: Knex.Transaction;
-}): Promise<void> {
+}): Promise<{ oldSnapshotVersion?: string | bigint }> {
   const checksum = generateChecksum(coaVersionIds, { sortArrays: true });
 
   const exec = async (tx: Knex.Transaction) => {
@@ -994,6 +1017,9 @@ async function upsertCoaSnapshotVersions({
           },
           updated_by_id: userId,
         });
+
+      // Return old version to invalidate after transaction commits
+      return { oldSnapshotVersion: existing.snapshot_version };
     } else {
       await tx('coa_snapshot_versions').insert({
         company_id: companyUUID,
@@ -1007,12 +1033,139 @@ async function upsertCoaSnapshotVersions({
         created_by_id: userId,
         updated_by_id: userId,
       });
+      return { oldSnapshotVersion: undefined };
     }
   };
 
   if (trx) {
     return await exec(trx);
   } else {
-    return await knexClient.transaction(exec);
+    const result = await knexClient.transaction(exec);
+    // Invalidate cache after transaction commits
+    await invalidateCoaSnapshotCacheForML({ companyUUID });
+    return result;
+  }
+}
+
+/**
+ * Generate Redis cache key for COA snapshot (for ML Engine)
+ */
+function generateCoaSnapshotCacheKey(
+  companyUUID: string,
+  snapshotVersion: string | bigint,
+): string {
+  return `coa:snapshot:${companyUUID}:${snapshotVersion}`;
+}
+
+const COA_SNAPSHOT_CACHE_TTL = 60 * 60 * 24; // 24 hours
+
+/**
+ * Ensure COA snapshot is cached in Redis for ML Engine
+ *
+ * This function:
+ * 1. Checks if COA is already cached with the given snapshot version
+ * 2. If not, fetches from DB and caches it
+ * 3. Uses the snapshot version from the database (deterministic)
+ *
+ * @param companyUUID - Company UUID
+ * @param snapshotVersion - COA snapshot version (from coa_snapshot_versions table)
+ */
+export async function ensureCoaSnapshotCachedForML({
+  companyUUID,
+  snapshotVersion,
+}: {
+  companyUUID: string;
+  snapshotVersion: string | bigint;
+}): Promise<void> {
+  const cacheKey = generateCoaSnapshotCacheKey(companyUUID, snapshotVersion);
+
+  try {
+    // Check if already cached
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      logger.debug(
+        { companyUUID, snapshotVersion, cacheKey },
+        'COA snapshot cache hit for ML',
+      );
+      return;
+    }
+
+    // Cache miss - fetch and cache
+    logger.debug(
+      { companyUUID, snapshotVersion, cacheKey },
+      'COA snapshot cache miss - fetching from DB for ML',
+    );
+
+    const coaResponse = await fetchCompanyCoa({
+      companyId: companyUUID,
+      includeDeleted: false, // ML only needs active accounts
+    });
+
+    if (!coaResponse.success || !coaResponse.data) {
+      throw new Error(
+        `Failed to fetch COA for company ${companyUUID}: ${coaResponse.message}`,
+      );
+    }
+
+    // Cache the COA data with versioned key
+    await redis.setex(
+      cacheKey,
+      COA_SNAPSHOT_CACHE_TTL,
+      JSON.stringify(coaResponse.data),
+    );
+
+    logger.info(
+      {
+        companyUUID,
+        snapshotVersion,
+        cacheKey,
+        accountCount: coaResponse.data.length ?? 0,
+      },
+      'COA snapshot cached for ML Engine',
+    );
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        companyUUID,
+        snapshotVersion,
+        cacheKey: generateCoaSnapshotCacheKey(companyUUID, snapshotVersion),
+      },
+      'Failed to ensure COA snapshot cached for ML',
+    );
+    throw error;
+  }
+}
+
+/**
+ * Invalidate COA snapshot cache when COA changes
+ * Called automatically when snapshot version increments
+ */
+export async function invalidateCoaSnapshotCacheForML({
+  companyUUID,
+  snapshotVersion,
+}: {
+  companyUUID: string;
+  snapshotVersion?: string | bigint;
+}): Promise<void> {
+  if (snapshotVersion) {
+    // Invalidate specific version
+    const cacheKey = generateCoaSnapshotCacheKey(companyUUID, snapshotVersion);
+    await redis.del(cacheKey);
+    logger.info(
+      { companyUUID, snapshotVersion },
+      'COA snapshot cache invalidated for ML',
+    );
+  } else {
+    // Invalidate all versions for company (pattern match)
+    const pattern = `coa:snapshot:${companyUUID}:*`;
+    const keys = await redis.keys(pattern);
+    if (keys.length > 0) {
+      await redis.del(...keys);
+      logger.info(
+        { companyUUID, keysCount: keys.length },
+        'All COA snapshot caches invalidated for ML',
+      );
+    }
   }
 }

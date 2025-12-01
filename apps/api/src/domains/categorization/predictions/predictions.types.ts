@@ -98,6 +98,8 @@ export interface MLPredictionMetadata extends BasePredictionMetadata {
   provenance: 'ml_engine';
   overallExplanationTokens?: string[]; // Tokenized explanation for analysis
   model_version?: string; // Model version (also in main table, but useful for queries)
+  global_intent_classifier?: unknown; // Full Model A output for explainability
+  tenant_account_ranker?: unknown; // Full Model B output for explainability
   // Future fields can include:
   // - confidence_breakdown?: Record<string, number>;
   // - feature_importance?: Record<string, number>;

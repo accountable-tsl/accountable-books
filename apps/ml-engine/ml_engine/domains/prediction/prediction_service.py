@@ -2,12 +2,20 @@
 
 import logging
 import time
-from uuid import uuid4
 
 from ml_engine.core.exceptions import PredictionServiceError
-from schema import (
-    MlPredictionRequest,
-    MlPredictionResponse,
+from ml_engine.models.categorization.global_intent_classifier import (
+    get_global_intent_classifier,
+)
+from ml_engine.models.categorization.tenant_account_ranker import (
+    get_tenant_account_ranker,
+)
+from ml_engine.models.registry import get_model_registry
+from ml_engine.services.coa_client import fetch_company_coa
+from accountable_contracts.schema import (
+    MlPredictionOutput,
+    EnrichedTransaction,
+    FinalPosting,
 )
 
 logger = logging.getLogger(__name__)
@@ -17,95 +25,83 @@ class PredictionService:
     """Service for generating ML predictions for transaction categorization."""
 
     def __init__(self):
-        """Initialize the prediction service."""
-        # TODO: Load ML model here when implemented
-        # self.model = load_model()
-        # self.model_version = get_model_version()
-        self.model_version = "placeholder-v0.0.0"
+        registry = get_model_registry()
 
-    async def predict(
-        self, request: MlPredictionRequest
-    ) -> MlPredictionResponse:
-        """
-        Generate predictions for transaction categorization.
-
-        Args:
-            request: ML prediction request containing enriched transaction
-
-        Returns:
-            ML prediction response with categorized journal entries
-
-        Raises:
-            PredictionServiceError: If prediction fails
-        """
-        start_time = time.time()
-        company_id = request.enriched_transaction.ids.company_uuid
-        bank_transaction_id = (
-            request.enriched_transaction.ids.bank_transaction_id
+        self.intent_classifier = get_global_intent_classifier(
+            model_config=registry.get_model_config("global_intent_classifier")
         )
+        self.tenant_ranker = get_tenant_account_ranker(
+            model_config=registry.get_model_config("tenant_account_ranker")
+        )
+        self.model_version = self.intent_classifier.model_version
+
+    async def predict(self, request: EnrichedTransaction) -> MlPredictionOutput:
+        start = time.time()
+        etx = request
+
+        company_id = etx.ids.company_uuid
+        bank_txn_id = etx.ids.bank_transaction_id
 
         logger.info(
-            {
-                "company_id": company_id,
-                "bank_transaction_id": bank_transaction_id,
-            },
-            "Processing ML prediction request",
+            "Processing ML prediction",
+            extra={"company_id": company_id, "bank_transaction_id": bank_txn_id},
         )
 
+        snapshot_version = etx.context.coa_snapshot_version
         try:
-            # TODO: Implement actual ML model prediction
-            # Steps:
-            # 1. Prepare features from enriched transaction
-            # 2. Load/use ML model
-            # 3. Generate predictions
-            # 4. Format predictions into response structure
-            # 5. Calculate confidence scores and explanations
-
-            # Placeholder: Return empty predictions for now
-            # This will be replaced with actual model inference
-            predictions = []
-
-            latency_ms = int((time.time() - start_time) * 1000)
-
-            response = MlPredictionResponse(
-                success=True,
-                predictions=predictions,
-                model_version=self.model_version,
-                latency_ms=latency_ms,
-                error=None,
-                debug=None,
-            )
-
-            logger.info(
-                {
+            company_coa = await fetch_company_coa(company_id, snapshot_version)
+        except Exception as err:
+            logger.warning(
+                "COA fetch failed, using defaults",
+                extra={
                     "company_id": company_id,
-                    "bank_transaction_id": bank_transaction_id,
-                    "predictions_count": len(predictions),
-                    "latency_ms": latency_ms,
+                    "snapshot_version": snapshot_version,
+                    "error": str(err),
                 },
-                "ML prediction completed successfully",
+            )
+            company_coa = None
+
+        try:
+            global_intent = self.intent_classifier.predict(etx)
+
+            ranker_output = self.tenant_ranker.predict(
+                etx,
+                global_intent,
+                company_coa=company_coa,
             )
 
-            return response
+            latency = int((time.time() - start) * 1000)
+            logger.info(
+                "ML prediction completed",
+                extra={
+                    "company_id": company_id,
+                    "bank_transaction_id": bank_txn_id,
+                    "latency_ms": latency,
+                },
+            )
+
+            return MlPredictionOutput(
+                final_posting=FinalPosting(
+                    account_id=ranker_output.selected_account_id,
+                    account_label=ranker_output.selected_account_label,
+                ),
+                global_intent_classifier=global_intent,
+                tenant_account_ranker=ranker_output,
+            )
 
         except Exception as e:
-            latency_ms = int((time.time() - start_time) * 1000)
-
+            latency = int((time.time() - start) * 1000)
             logger.error(
-                {
-                    "error": str(e),
-                    "company_id": company_id,
-                    "bank_transaction_id": bank_transaction_id,
-                    "latency_ms": latency_ms,
-                },
                 "ML prediction failed",
+                extra={
+                    "company_id": company_id,
+                    "bank_transaction_id": bank_txn_id,
+                    "latency_ms": latency,
+                    "error": str(e),
+                },
                 exc_info=True,
             )
-
-            # Raise exception - let global exception handler format the response
-            raise PredictionServiceError(
-                f"ML prediction failed: {str(e)}"
-            ) from e
+            raise PredictionServiceError("ML prediction failed") from e
 
 
 # Singleton instance
@@ -113,14 +109,7 @@ _prediction_service: PredictionService | None = None
 
 
 def get_prediction_service() -> PredictionService:
-    """
-    Get or create the prediction service singleton.
-
-    Returns:
-        PredictionService instance
-    """
     global _prediction_service
     if _prediction_service is None:
         _prediction_service = PredictionService()
     return _prediction_service
-

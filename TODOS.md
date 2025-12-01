@@ -141,6 +141,7 @@ Launch `2025-29-09`
 - Handling opening balances upon ingesting/connecting user's bank accounts + Opening / Conversion Balances
 - contact and contact type auto handling on insertion or cat of transactions
 - Versioning account types
+- Add tag field to companies and bank transaction tables. It should be an array of string. It'll be helpful to ml... for bank transactions, things like the categories provided by plaid can be added here which will make it useful for ml instead of being hidden in metadata that noone can access
 
 ---
 
