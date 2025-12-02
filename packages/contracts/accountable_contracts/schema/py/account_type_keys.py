@@ -1,8 +1,6 @@
-from pydantic import BaseModel
-from typing import Any, List, Literal
 from enum import Enum
 
-class SemanticTopKItemKeyEnum(str, Enum):
+class AccountTypeKeys(str, Enum):
     NCA_LAND = "nca_land"
     NCA_PPE = "nca_ppe"
     NCA_PPE_CONTRA = "nca_ppe_contra"
@@ -71,23 +69,3 @@ class SemanticTopKItemKeyEnum(str, Enum):
     EXP_NOPEX_FINANCE_COSTS = "exp_nopex_finance_costs"
     EXP_NOPEX_OTHER = "exp_nopex_other"
     EXP_NOPEX_TAX = "exp_nopex_tax"
-
-class SemanticTopKItemLabelRoleEnum(str, Enum):
-    SEMANTIC = "semantic"
-    MECHANICAL = "mechanical"
-    CONTROL = "control"
-    FALLBACK = "fallback"
-
-class GlobalIntentClassifierSchema(BaseModel):
-    class SemanticTopKItem(BaseModel):
-        key: SemanticTopKItemKeyEnum
-        prob: float
-        label_role: SemanticTopKItemLabelRoleEnum
-    model_name: Literal["global_intent_classifier"]
-    model_version: Any
-    latency_ms: float
-    semantic_top1: str
-    semantic_top1_prob: float
-    semantic_top_k: List[SemanticTopKItem]
-    shap_values: Any
-    feature_mapping_version: str

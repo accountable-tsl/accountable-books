@@ -22,12 +22,11 @@ import numpy as np
 from accountable_contracts.data import default_account_types
 from accountable_contracts.schema import (
     EnrichedTransaction,
-    Explanation,
+    RankerExplanation,
     GlobalIntentClassifier,
-    RankingTopKItem,
-    Reason,
+    RankerEntry as RankingTopKItem,
+    ReasonEnum as Reason,
     TenantAccountRanker,
-    NewAccountType,
 )
 from ml_engine.models.registry import ModelConfig, get_model_registry
 from ml_engine.models.feature_maps import get_feature_map_loader
@@ -329,14 +328,14 @@ class TenantRanker:
         """Index catalogued account types by key (placeholder for COA)."""
         return {a["key"]: a for a in default_account_types()}
 
-    def _build_explanation(self, selected: RankingTopKItem) -> Explanation:
+    def _build_explanation(self, selected: RankingTopKItem) -> RankerExplanation:
         reason = selected.reason
         message = {
             Reason.history: "Previously used for this vendor.",
             Reason.embedding_match: "Highest text similarity to account label.",
             Reason.semantic_intent: "Aligned with Model A semantic intent.",
         }.get(reason, "Aligned with semantic intent.")
-        return Explanation(reason=reason, message=message)
+        return RankerExplanation(reason=reason, message=message)
 
 # Singleton
 _TENANT_RANKER: TenantRanker | None = None

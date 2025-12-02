@@ -24,9 +24,9 @@ import numpy as np
 from accountable_contracts.schema import (
     EnrichedTransaction,
     GlobalIntentClassifier as GlobalIntentClassifierOutput,
-    Key,
+    AccountTypeKeys as Key,
     LabelRole,
-    SemanticTopKItem,
+    IntentSemanticEntry,
 )
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -59,7 +59,6 @@ class AccountType:
             label_role=data["label_role"],
             trainable=bool(data.get("trainable", False)),
         )
-
 
 class IntentClassifier:
     """Simple text-similarity based global intent classifier (Model A)."""
@@ -181,14 +180,14 @@ class IntentClassifier:
 
     def _build_ranked_predictions(
         self, probabilities: np.ndarray
-    ) -> List[SemanticTopKItem]:
+    ) -> List[IntentSemanticEntry]:
         """Construct top-k prediction list with optional fallback appended."""
         ranked_indices = probabilities.argsort()[::-1]
-        entries: List[SemanticTopKItem] = []
+        entries: List[IntentSemanticEntry] = []
         for idx in ranked_indices[: TOP_K - 1]:
             account = self.semantic_accounts[idx]
             entries.append(
-                SemanticTopKItem(
+                IntentSemanticEntry(
                     key=Key(account.key),
                     prob=float(probabilities[idx]),
                     label_role=LabelRole(account.label_role),
@@ -197,7 +196,7 @@ class IntentClassifier:
 
         if self.fallback_account:
             entries.append(
-                SemanticTopKItem(
+                IntentSemanticEntry(
                     key=Key(self.fallback_account.key),
                     prob=0.0,
                     label_role=LabelRole(self.fallback_account.label_role),
@@ -207,7 +206,7 @@ class IntentClassifier:
         # Ensure we never return an empty list
         if not entries:
             entries.append(
-                SemanticTopKItem(
+                IntentSemanticEntry(
                     key=Key("exp_opex_other"),
                     prob=0.0,
                     label_role=LabelRole.semantic,

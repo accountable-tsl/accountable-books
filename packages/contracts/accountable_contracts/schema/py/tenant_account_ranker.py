@@ -8,7 +8,7 @@ class RankingTopKItemReasonEnum(str, Enum):
     EMBEDDING_MATCH = "embedding_match"
     SEMANTIC_INTENT = "semantic_intent"
 
-class TenantAccountRankerSchema(BaseModel):
+class TenantAccountRanker(BaseModel):
     class RankingTopKItem(BaseModel):
         account_id: UUID
         account_label: str

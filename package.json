@@ -13,6 +13,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate-env": "pnpm -r -F \"@accountable-books/api\" -F \"@accountable-books/web\" run generate-env",
+    "gen:pydantic": "pnpm -F @accountable-books/contracts run gen:pydantic && pnpm build",
+    "gen:data": "pnpm -F @accountable-books/contracts run gen:data && pnpm build",
+    "gen:contracts": "pnpm -F @accountable-books/contracts run gen:pydantic && pnpm -F @accountable-books/contracts run gen:data && pnpm build",
+    "contracts": "pnpm gen:contracts",
     "demo:apply:basic": "pnpm -F @accountable-books/api run demo:apply:basic",
     "clean": "turbo run clean",
     "prepare": "is-ci || husky"

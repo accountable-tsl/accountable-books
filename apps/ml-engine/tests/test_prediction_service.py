@@ -6,7 +6,6 @@ from ml_engine.domains.prediction.prediction_service import PredictionService
 from ml_engine.core.exceptions import PredictionServiceError
 from accountable_contracts.schema import (
     EnrichedTransaction,
-    EnrichedTransaction,
     MlPredictionOutput,
 )
 from accountable_contracts.data import latest_enriched_transaction as test_data
@@ -19,7 +18,7 @@ def enriched_txn():
 
 @pytest.fixture
 def prediction_request(enriched_txn):
-    return EnrichedTransaction(enriched_txn)
+    return enriched_txn
 
 
 @pytest.fixture
@@ -35,7 +34,7 @@ async def test_prediction_service_happy_path(service, prediction_request):
     with (
         patch.object(service.intent_classifier, "predict") as mock_model_A,
         patch.object(service.tenant_ranker, "predict") as mock_model_B,
-        patch("ml_engine.services.prediction_service.fetch_company_coa") as mock_fetch_coa,
+        patch("ml_engine.services.coa_client.fetch_company_coa") as mock_fetch_coa,
     ):
         # Mock outputs
         mock_model_A.return_value = {"intent": "software", "score": 0.9}
@@ -70,7 +69,7 @@ async def test_prediction_service_fallback_when_coa_fails(service, prediction_re
     with (
         patch.object(service.intent_classifier, "predict") as mock_model_A,
         patch.object(service.tenant_ranker, "predict") as mock_model_B,
-        patch("ml_engine.services.prediction_service.fetch_company_coa", side_effect=Exception("redis down")),
+        patch("ml_engine.services.coa_client.fetch_company_coa", side_effect=Exception("redis down")),
     ):
         mock_model_A.return_value = {"intent": "bank_fee", "score": 0.8}
 
@@ -96,7 +95,7 @@ async def test_prediction_service_fallback_when_coa_fails(service, prediction_re
 async def test_prediction_service_raises_on_failure(service, prediction_request):
     with (
         patch.object(service.intent_classifier, "predict", side_effect=RuntimeError("model crashed")),
-        patch("ml_engine.services.prediction_service.fetch_company_coa", return_value=None),
+        patch("ml_engine.services.coa_client.fetch_company_coa", return_value=None),
     ):
         with pytest.raises(PredictionServiceError):
             await service.predict(prediction_request)

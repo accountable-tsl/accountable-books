@@ -1,15 +1,17 @@
 import { z } from 'zod';
-import { enrichedTransaction, versionPattern } from './enrichment.js';
+import { versionPattern } from './enrichment.js';
 import { labelRole } from '../common/enums.js';
-import { accountTypeKeys } from '../../../data/source/account/account-types.js';
+import { accountTypeKeys as accountTypeKeysData } from '../../../data/source/account/account-types.js';
+
+export const accountTypeKeys = z.enum(accountTypeKeysData);
 
 export const intentSemanticEntry = z.object({
-  key: z.enum(accountTypeKeys), // account_type_key - type-safe to actual account type keys
+  key: accountTypeKeys, // account_type_key - type-safe to actual account type keys
   prob: z.number(), // probability
   label_role: labelRole, // type-safe to valid label role values
 });
 
-export const globalIntentClassifierSchema = z.object({
+export const globalIntentClassifier = z.object({
   model_name: z.literal('global_intent_classifier'),
   model_version: z.regex(versionPattern),
   latency_ms: z.number(),
@@ -23,23 +25,26 @@ export const globalIntentClassifierSchema = z.object({
 
   feature_mapping_version: z.string(),
 });
-export type GlobalIntentClassifierOutput = z.infer<
-  typeof globalIntentClassifierSchema
->;
+export type GlobalIntentClassifier = z.infer<typeof globalIntentClassifier>;
 
+export const reasonEnum = z.enum([
+  'history',
+  'embedding_match',
+  'semantic_intent',
+]);
 export const rankerEntry = z.object({
   account_id: z.uuid(),
   account_label: z.string(),
   score: z.number(),
-  reason: z.enum(['history', 'embedding_match', 'semantic_intent']),
+  reason: reasonEnum,
 });
 
 export const rankerExplanation = z.object({
-  reason: z.enum(['history', 'embedding_match', 'semantic_intent']),
+  reason: reasonEnum,
   message: z.string(),
 });
 
-export const tenantAccountRankerSchema = z.object({
+export const tenantAccountRanker = z.object({
   model_name: z.literal('tenant_account_ranker'),
   model_version: z.regex(versionPattern),
   latency_ms: z.number(),
@@ -54,18 +59,16 @@ export const tenantAccountRankerSchema = z.object({
   feature_mapping_version: z.string(),
 });
 
-export type TenantAccountRankerOutput = z.infer<
-  typeof tenantAccountRankerSchema
->;
+export type TenantAccountRankerOutput = z.infer<typeof tenantAccountRanker>;
 
-export const finalPostingSchema = z.object({
+export const finalPosting = z.object({
   account_id: z.uuid(),
   account_label: z.string(),
 });
 export const mlPredictionOutput = z.object({
-  final_posting: finalPostingSchema,
-  global_intent_classifier: globalIntentClassifierSchema,
-  tenant_account_ranker: tenantAccountRankerSchema,
+  final_posting: finalPosting,
+  global_intent_classifier: globalIntentClassifier,
+  tenant_account_ranker: tenantAccountRanker,
 });
 
 export type MLPredictionOutput = z.infer<typeof mlPredictionOutput>;
