@@ -2,6 +2,7 @@
 
 import logging
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,10 +13,32 @@ from . import __version__
 
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    try:
+        from ml_engine.core.redis_client import get_redis_client
+
+        client = get_redis_client()
+        await client.ping()
+        logger.info("Redis connection validated on startup")
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Redis connection failed on startup: {e}")
+        # Optionally raise to fail fast; currently we log and continue.
+    
+    yield
+    
+    # Shutdown (if needed in the future)
+    # Add cleanup code here if necessary
+
+
 app = FastAPI(
     title="Accountable Books ML Engine",
     description="AI-native transaction categorization and financial insights",
     version=__version__,
+    lifespan=lifespan,
 )
 
 BACKEND_URL = os.getenv("BACKEND_URL", "").strip()
@@ -63,19 +86,6 @@ async def health():
 
 app.include_router(prediction_router, prefix="/api/v1")
 
-
-@app.on_event("startup")
-async def startup_event():
-    """Validate Redis connection on startup."""
-    try:
-        from ml_engine.core.redis_client import get_redis_client
-
-        client = get_redis_client()
-        await client.ping()
-        logger.info("Redis connection validated on startup")
-    except Exception as e:  # noqa: BLE001
-        logger.error(f"Redis connection failed on startup: {e}")
-        # Optionally raise to fail fast; currently we log and continue.
 
 def main():
     """Entry point for running the server."""

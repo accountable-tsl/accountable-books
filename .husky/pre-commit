@@ -23,6 +23,9 @@ pnpm typecheck
 
 # Run tests only for affected packages
 echo "🧪 Running affected tests..."
-pnpm test --affected -- --run
+pnpm --filter "{!@accountable-books/ml-engine}" test --affected -- --run
+
+# Run ML engine tests separately (pytest doesn't support --affected)
+pnpm --filter @accountable-books/ml-engine test --testmon
 
 echo "✅ Pre-commit checks passed!"

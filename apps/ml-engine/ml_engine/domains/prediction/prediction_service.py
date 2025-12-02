@@ -81,12 +81,12 @@ class PredictionService:
             )
 
             return MlPredictionOutput(
-                final_posting=FinalPosting(
-                    account_id=ranker_output.selected_account_id,
-                    account_label=ranker_output.selected_account_label,
-                ),
-                global_intent_classifier=global_intent,
-                tenant_account_ranker=ranker_output,
+                final_posting={
+                    "account_id": ranker_output.selected_account_id,
+                    "account_label": ranker_output.selected_account_label,
+                },
+                global_intent_classifier=global_intent.model_dump() if hasattr(global_intent, 'model_dump') else global_intent,
+                tenant_account_ranker=ranker_output.model_dump() if hasattr(ranker_output, 'model_dump') else ranker_output,
             )
 
         except Exception as e:
