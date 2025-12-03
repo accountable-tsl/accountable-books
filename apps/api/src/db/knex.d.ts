@@ -78,7 +78,7 @@ import {
 import {
   CategorizationPrediction,
   CategorizationPredictionLine,
-} from '../domains/categorization/predictions/predictions.types.ts';
+} from '../domains/categorization/post-prediction/predictions/predictions.types.ts';
 import type {
   BankAccountCredential,
   NewBankAccountCredential,

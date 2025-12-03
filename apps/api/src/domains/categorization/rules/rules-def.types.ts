@@ -1,6 +1,24 @@
 import z from 'zod';
 
-// Conditions
+/**
+ * ============================================================
+ * Rule Definitions - Pure Type Definitions
+ * - Condition definitions (WHEN a rule fires)
+ * - Action definitions (WHAT a rule does)
+ * - Trace types (Explainability for logs)
+ * ============================================================
+ * This file has NO imports from other rules files to break circular deps.
+ * Only imports: Zod for schemas
+ */
+
+/**
+ * ============================================================
+ * Condition definitions (WHEN a rule fires)
+ * - User-facing + system-only condition schemas
+ * ============================================================
+ */
+
+// String conditions (description, reference, payee, etc.)
 const stringOperators = z.enum([
   'equals',
   'contains',
@@ -21,6 +39,7 @@ const stringCondition = z.object({
   value: z.string(),
 });
 
+// Amount conditions (numeric comparisons on amount)
 const amountOperators = z.enum(['equals', 'gt', 'lt', 'gte', 'lte']);
 const amountCondition = z.object({
   type: z.literal('amount'),
@@ -29,6 +48,7 @@ const amountCondition = z.object({
   value: z.number(),
 });
 
+// Date conditions (date equals/after/between)
 const dateOperators = z.enum(['equals', 'after', 'between']);
 const dateCondition = z.discriminatedUnion('operator', [
   z.object({
@@ -46,6 +66,7 @@ const dateCondition = z.discriminatedUnion('operator', [
   }),
 ]);
 
+// Signal conditions (boolean-like enrichment flags)
 const signalFields = z.enum([
   'likely_split',
   'likely_trf_btw_accounts',
@@ -58,12 +79,7 @@ const signalCondition = z.object({
   operator: z.enum(['is_true', 'is_false']).default('is_true'),
 });
 
-// export const conditionOperators = z.union([
-//   amountOperators,
-//   stringOperators,
-//   dateOperators,
-// ]);
-
+// Union of all condition types
 const conditions = z.discriminatedUnion('type', [
   stringCondition,
   amountCondition,
@@ -76,17 +92,24 @@ export const conditionDefinition = z.object({
   conditions: z.array(conditions).min(1, 'At least one condition is required'),
 });
 
+// Condition type exports
 export type StringCondition = z.infer<typeof stringCondition>;
 export type AmountCondition = z.infer<typeof amountCondition>;
 export type DateCondition = z.infer<typeof dateCondition>;
 export type ConditionDefinition = z.infer<typeof conditionDefinition>;
 export type SignalCondition = z.infer<typeof signalCondition>;
 
-const actionTypes = z.enum(['set', 'categorize', 'apply_template']); // maybe rename categorize to split
-const setActionTargets = z.enum([
+/**
+ * ============================================================
+ * Action definitions (WHAT a rule does)
+ * - set, categorize, apply_template
+ * ============================================================
+ */
+export const actionTypes = z.enum(['set', 'categorize', 'apply_template']); // maybe rename categorize to split
+export const setActionTargets = z.enum([
   'contact',
   'reference',
-  'description',
+  'description', // description is a special field that can be set by a rule
   'ledger_date',
 ]);
 
@@ -96,6 +119,8 @@ const setAction = z.object({
   value: z.string(),
 });
 
+// Categorize: defines journal split logic
+
 // For categorize line, if split_type is amount or percentage<1, we must have at least two categorize objs
 // and for percentage, sum must equal 1
 const categorizeLine = z.discriminatedUnion('split_type', [
@@ -104,17 +129,20 @@ const categorizeLine = z.discriminatedUnion('split_type', [
     description: z.string(),
     coa_id: z.uuid(),
     value: z.number().positive().max(1),
+    // explanation: z.string().optional(),
   }),
   z.object({
     split_type: z.literal('amount'),
     description: z.string(),
     coa_id: z.uuid(),
     value: z.number().positive(),
+    // explanation: z.string().optional(),
   }),
   z.object({
     split_type: z.literal('remainder'),
     description: z.string(),
     coa_id: z.uuid(),
+    // explanation: z.string().optional(),
   }),
 ]);
 
@@ -179,6 +207,7 @@ const categorizeAction = z
     }
   });
 
+// Template-based actions (system-defined patterns)
 const templateNames = z.enum(['vat_split']);
 
 const applyTemplateAction = z.object({
@@ -187,6 +216,7 @@ const applyTemplateAction = z.object({
   params: z.record(z.string(), z.any()).optional(),
 });
 
+// Full action definition
 export const actionDefinition = z.object({
   actions: z
     .array(
@@ -198,6 +228,8 @@ export const actionDefinition = z.object({
     )
     .min(1),
 });
+
+// Action type exports
 export type SetAction = z.infer<typeof setAction>;
 export type SetActionTarget = z.infer<typeof setActionTargets>;
 export type CategorizeLine = z.infer<typeof categorizeLine>;
@@ -205,3 +237,33 @@ export type CategorizeAction = z.infer<typeof categorizeAction>;
 export type ActionDefinition = z.infer<typeof actionDefinition>;
 export type ApplyTemplateAction = z.infer<typeof applyTemplateAction>;
 export type TemplateName = z.infer<typeof templateNames>;
+
+/**
+ * ============================================================
+ * Trace types (explainability)
+ * - Per-condition and per-action traces used in logs & metadata
+ * ============================================================
+ */
+
+// How each condition was evaluated
+export const conditionTraceNode = z.object({
+  index: z.number(), // The position of the condition in the rule's condition list.
+  kind: z.enum(['string', 'amount', 'date', 'signal']),
+  field: z.string(), // The field that was evaluated.
+  operator: z.string(), // The comparison operator that was used (e.g equals, greater_than, etc).
+  expected: z.any().nullish(), // The expected value from the rule
+  actual: z.any().nullish(), // The actual value from the transaction
+  success: z.boolean(), // Whether the condition matched or not
+});
+
+// How each action was executed
+export const actionTraceNode = z.object({
+  type: z.enum(['set', 'categorize', 'template']),
+  target: setActionTargets.optional(),
+  value: z.string().nullish(),
+  lineCount: z.number().optional(),
+  template: templateNames.optional(),
+});
+
+export type ConditionTraceNode = z.infer<typeof conditionTraceNode>;
+export type ActionTraceNode = z.infer<typeof actionTraceNode>;

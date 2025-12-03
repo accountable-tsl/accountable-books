@@ -8,6 +8,7 @@ export const accountTypeDto = z.object({
   description: z.string().nullable(),
   reportCode: z.string().nullable(),
   elementKey: z.string(),
+  accrualTargets: z.array(z.string()).nullish(),
 });
 export type AccountTypeDTO = z.infer<typeof accountTypeDto>;
 

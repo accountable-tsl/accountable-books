@@ -105,6 +105,7 @@ async function fetchAccountTypes(
       'at.label',
       'at.description',
       'at.report_code as reportCode',
+      'at.accrual_targets as accrualTargets',
 
       'ae.id as elementId',
       'ae.key as elementKey',
@@ -136,6 +137,7 @@ async function fetchAccountTypes(
         description: r.description,
         reportCode: r.reportCode,
         elementKey: r.elementKey,
+        accrualTargets: r.accrualTargets,
       }) satisfies AccountTypeDTO,
   );
 

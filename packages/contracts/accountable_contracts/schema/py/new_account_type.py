@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, constr
-from typing import Optional
+from typing import List, Optional
 from enum import Enum
 from uuid import UUID
 
@@ -23,3 +23,4 @@ class NewAccountType(BaseModel):
     is_contra: Optional[bool] = Field(default=False)
     is_postable_control: Optional[bool] = Field(default=False)
     label_role: LabelRoleEnum
+    accrual_targets: Optional[List[constr(max_length=64)]] = None

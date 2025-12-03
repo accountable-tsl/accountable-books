@@ -4,7 +4,7 @@ import {
   companyType,
   contactType,
   reportingFramework,
-} from '../common/index.js';
+} from '../common/enums.js';
 import { categorizationTaskSource, categorizationTaskStatus } from './tasks.js';
 
 const enrichmentProcessingType = z.enum(['primary', 'shadow']);

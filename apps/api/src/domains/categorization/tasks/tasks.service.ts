@@ -52,7 +52,6 @@ export async function upsertCategorizationTask(
         .update({
           enriched_transaction: JSON.stringify(payload),
           enrichment_version: p.enrichment_version,
-          status: p.status || existing.status || 'enriched',
           checksum,
           updated_at: txn.fn.now(),
           metadata: { ...existing?.metadata, ...p.metadata },
@@ -74,7 +73,6 @@ export async function upsertCategorizationTask(
         bank_transaction_date: p.bank_transaction_date,
         enriched_transaction: JSON.stringify(payload),
         enrichment_version: p.enrichment_version,
-        status: p.status || 'enriched',
         source: p.source,
         checksum,
         created_at: txn.fn.now(),

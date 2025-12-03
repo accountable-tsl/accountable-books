@@ -3,11 +3,9 @@ import { redis } from '../../../lib/redis.js';
 import type { Job } from 'bullmq';
 import pino from 'pino';
 import { knexClient } from '../../../db/knexClient.js';
-import type { Knex } from 'knex';
 import type {
   EnrichmentJobData,
   EnrichmentResult,
-  EnrichedTransaction,
 } from './enrichment.types.js';
 import { enrichmentJobDataSchema } from './enrichment.types.js';
 import { enrichTransaction } from './enrichment.service.js';
@@ -18,6 +16,8 @@ import {
   emitTxnEnrichedEvent,
   type TransactionEnrichedEventData,
 } from '../events/transaction-events.service.js';
+import { randomUUID } from 'crypto';
+import { logTaskEventSafe } from '../tasks/task-events.service.js';
 
 const logger = pino();
 
@@ -136,7 +136,8 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
 
         const transactionStartTime = Date.now();
 
-        let pendingEvent: TransactionEnrichedEventData | null = null;
+        let eventData: TransactionEnrichedEventData | null = null;
+        const runId = randomUUID();
 
         await knexClient.transaction(async (trx) => {
           const result = await enrichTransaction({
@@ -165,7 +166,6 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
               bank_transaction_date: bankTransactionDate,
               enriched_transaction: enrichedTransaction,
               enrichment_version: String(enrichedTransaction.version),
-              status: enrichedTransaction.metadata.status,
               source,
               checksum: result.checksum,
               jobId: job.id || undefined,
@@ -214,13 +214,23 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
           }
 
           if (persistOutcome.didPersist) {
-            pendingEvent = {
+            eventData = {
               company_uuid: companyUUID,
               bank_transaction_id: bankTransactionId,
               categorization_task_id: persistOutcome.taskId,
               enriched_transaction: enrichedTransaction,
+              run_id: runId,
             };
           }
+
+          await logTaskEventSafe({
+            categorization_task_id: persistOutcome.taskId,
+            run_id: runId,
+            source: 'enrichment',
+            event_type: 'categorization_task_started',
+            event_timestamp: new Date(),
+            metadata: null,
+          });
 
           results.successes.push({
             ...result,
@@ -230,6 +240,7 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
           logger.debug(
             {
               jobId: job.id,
+              runId,
               bankTransactionId,
               latencyMs: Date.now() - transactionStartTime,
               skippedPersist: !persistOutcome.didPersist,
@@ -237,9 +248,8 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
             'Transaction enrichment committed',
           );
         });
-
-        if (pendingEvent) {
-          await emitTxnEnrichedEvent(pendingEvent);
+        if (eventData) {
+          await emitTxnEnrichedEvent(eventData);
         }
       } catch (error) {
         logger.error(

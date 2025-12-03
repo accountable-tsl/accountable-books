@@ -1,12 +1,7 @@
 import type { Knex } from 'knex';
+import { randomUUID } from 'crypto';
 import { knexClient } from '../../../db/knexClient.js';
 import { logger } from '../../../shared/index.js';
-import { PredictionRepository } from '../predictions/predictions.repository.js';
-import {
-  CandidateRepository,
-  type CandidateLineDraft,
-} from '../candidates/candidates.repository.js';
-import { ConstraintViolationRepository } from '../candidates/constraint-violations.repository.js';
 import { getMLEngineClient } from './ml-engine.client.js';
 import type {
   MLPredictionJobData,
@@ -14,7 +9,7 @@ import type {
   MLPredictionOutput,
 } from './ml-prediction.types.js';
 import { processPredictionToCandidate } from '../processing/prediction-pipeline.service.js';
-import type { MLPredictionMetadata } from '../predictions/predictions.types.js';
+import type { MLPredictionMetadata } from '../post-prediction/predictions/predictions.types.js';
 import { ensureCoaSnapshotCachedForML } from '../../chart-of-accounts/coa.model.js';
 
 const CATEGORIZATION_TASKS_TABLE = 'categorization_tasks';
@@ -22,7 +17,6 @@ const PREDICTIONS_TABLE = 'categorization_predictions';
 
 export interface MLPredictionDependencies {
   knex?: Knex;
-  predictionRepository?: PredictionRepository;
   candidateRepository?: CandidateRepository;
   constraintViolationRepository?: ConstraintViolationRepository;
 }
@@ -32,7 +26,7 @@ export interface MLPredictionDependencies {
  *
  * Main orchestration function that:
  * 1. Calls ML Engine API with enriched transaction
- * 2. Determines appropriate rank based on existing rule predictions
+ * 2. Generates run ID for tracking this execution
  * 3. Persists predictions to database
  * 4. Creates candidates for each prediction
  * 5. Updates categorization task metadata
@@ -133,14 +127,12 @@ export async function processMLPrediction(
         mlResponse.tenant_account_ranker.model_version,
     );
 
-    // Generate prediction group ID for this ML run (ties all predictions together)
-    const predictionGroupId = crypto.randomUUID();
-    const predictionId = crypto.randomUUID();
+    // Generate run ID for this ML execution
+    const runId = randomUUID();
+    const predictionId = randomUUID();
 
     // Persist ML predictions and candidates in transaction
     await db.transaction(async (trx) => {
-      const predictionRepo =
-        deps.predictionRepository ?? new PredictionRepository(trx);
       const candidateRepo =
         deps.candidateRepository ?? new CandidateRepository(trx);
       const violationRepo =
@@ -152,18 +144,14 @@ export async function processMLPrediction(
         categorizationTaskId,
       ]);
 
-      // Determine starting rank and isPrimary based on existing predictions
-      const { baseRank, isPrimaryByDefault } = await determineMLPredictionRank(
-        categorizationTaskId,
-        trx,
-      );
-
       // Build typed metadata for ML prediction
       const metadata: MLPredictionMetadata = {
         provenance: 'ml_engine',
-        model_version: modelVersion,
         global_intent_classifier: mlResponse.global_intent_classifier,
         tenant_account_ranker: mlResponse.tenant_account_ranker,
+        final_posting: mlResponse.final_posting,
+        explanation: mlResponse.tenant_account_ranker.explanation,
+        accrual_resolver: mlResponse.accrual_resolver ?? undefined,
       };
 
       const pipelineResult = await processPredictionToCandidate({
@@ -172,17 +160,14 @@ export async function processMLPrediction(
         bankTransactionDate: enrichedTransaction.raw.date,
         companyId,
         source: 'ml',
+        runId,
         lines: journalLines,
         confidence,
-        rank: baseRank,
-        isPrimary: isPrimaryByDefault,
         modelVersion,
-        predictionGroupId,
         predictionId,
         explanation,
         metadata,
         enrichedTransaction,
-        predictionRepository: predictionRepo,
         candidateRepository: candidateRepo,
         constraintViolationRepository: violationRepo,
         knex: trx,
@@ -207,7 +192,7 @@ export async function processMLPrediction(
         bankTransactionId,
         accountId: mlResponse.final_posting.account_id,
         modelVersion,
-        predictionGroupId,
+        runId,
       },
       'ML prediction completed successfully',
     );
@@ -234,42 +219,6 @@ export async function processMLPrediction(
 
     throw error;
   }
-}
-
-/**
- * Determine the appropriate rank and isPrimary for ML predictions
- * based on existing rule predictions
- *
- * Logic:
- * - If no predictions exist: ML gets rank=1, isPrimary=true
- * - If rule predictions exist: ML gets rank=2+, isPrimary=false (rules win)
- * - Future: Compare confidences dynamically
- *
- * @param categorizationTaskId - Task ID to check
- * @param trx - Database transaction
- * @returns Base rank and isPrimary flag for ML predictions
- */
-async function determineMLPredictionRank(
-  categorizationTaskId: string,
-  trx: Knex,
-): Promise<{ baseRank: number; isPrimaryByDefault: boolean }> {
-  const existingPredictions = await trx(PREDICTIONS_TABLE)
-    .where({
-      categorization_task_id: categorizationTaskId,
-      is_deleted: false,
-    })
-    .orderBy('rank', 'asc')
-    .select('source', 'rank', 'confidence');
-
-  if (existingPredictions.length === 0) {
-    // No predictions yet - ML is primary
-    return { baseRank: 1, isPrimaryByDefault: true };
-  }
-
-  // Rule predictions exist - ML is secondary
-  // Rules have confidence=1.0 (deterministic), so they win
-  const maxRank = Math.max(...existingPredictions.map((p) => p.rank));
-  return { baseRank: maxRank + 1, isPrimaryByDefault: false };
 }
 
 /**

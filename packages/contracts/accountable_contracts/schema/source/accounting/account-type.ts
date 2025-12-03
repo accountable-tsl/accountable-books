@@ -19,5 +19,7 @@ export const newAccountType = z.object({
   is_contra: z.boolean().default(false).optional(),
   is_postable_control: z.boolean().default(false).optional(),
   label_role: labelRole,
+  accrual_targets: z.array(z.string().max(64)).optional(), // Would be nice if there was a way to make sure these are valid account type keys. They're in order of preference though
 });
+
 export type AccountTypeWithRequiredReportCode = z.infer<typeof newAccountType>;

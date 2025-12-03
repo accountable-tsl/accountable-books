@@ -55,3 +55,18 @@ Execution Flow
     - Detect conflicts, if any
     - Persist logs  
 
+
+
+----
+
+File Structure
+
+- rules.def.* - Rule JSON schema (conditions, actions, templates)
+- rules.types.ts - Shared TypeScript types (RuleEntity, RuleDraftState, etc.)
+- rules.compiler.ts - Compiles rule JSON → executable functions (CompiledCondition, CompiledAction)
+- rules.engine.ts - Pure engine: runs compiled rules against transaction, returns RuleEngineResult
+- rules.repository.ts - DB access: fetches applicable rules by scope/priority
+- rule-logs.* - Persists execution logs (RuleLogDraft → DB) for audit/debugging
+- rule-runner.* - Job orchestration: event → engine → persist outcome → create predictions
+- rules.txt - Design notes and architecture decisions
+

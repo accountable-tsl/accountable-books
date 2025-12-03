@@ -6,23 +6,13 @@ import {
 import { dbStandardFields } from '../../core/types/core.js';
 import type { Knex } from 'knex';
 import { type Pagination } from '../../shared/types/random.js';
+import type { contactType } from '@accountable-books/contracts/schema';
+
+export { contactType } from '@accountable-books/contracts/schema';
+export type ContactType = z.infer<typeof contactType>;
 
 export const contactStatus = z.enum(['active', 'inactive']);
 export type ContactStatus = z.infer<typeof contactStatus>;
-
-export const contactType = z.enum([
-  'customer', // anyone you invoice/collect money from; AR
-  'vendor', // suppliers, service providers, card networks, AP;
-  'employee', // payroll beneficiaries; distinct from contractors for compliance.
-  'contractor', // freelancers/consultants you pay but who aren’t employees.
-  'director', // board/management contacts tied to governance (minutes, approvals)
-  'owner', // equity holders or principal partners
-  'government', // tax authorities, regulators, statutory bodies, etc
-  'internal', // company-controlled accounts/entities
-  'banker',
-  'other',
-]);
-export type ContactType = z.infer<typeof contactType>;
 
 const contactInput = z.object({
   id: z.uuid().optional(),

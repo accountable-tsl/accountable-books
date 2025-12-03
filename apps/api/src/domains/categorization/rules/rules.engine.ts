@@ -5,9 +5,11 @@ import { RuleCompiler } from './rules.compiler.js';
 import type {
   CompiledAction,
   CompiledCondition,
-  ConditionTraceNode,
-  ActionTraceNode,
 } from './rules.compiler.js';
+import type {
+  ActionTraceNode,
+  ConditionTraceNode,
+} from './rules-def.types.js';
 import {
   type RuleEntity,
   type RuleDraftState,
@@ -16,6 +18,7 @@ import {
 import { RuleRepository as DefaultRuleRepository } from './rules.repository.js';
 import type {
   RuleEngineInput,
+  RuleEngineResult,
   RuleTransactionContext,
 } from './rules.engine.types.js';
 import { ruleDirectionFilter, type RuleLogStatus } from './rules-db.types.js';
@@ -24,19 +27,6 @@ import {
   RuleLogRepository as DefaultRuleLogRepository,
   type RuleLogWriter,
 } from './rule-logs.repository.js';
-
-export interface RuleEngineResult {
-  runId: string;
-  transactionId: string;
-  transactionDate: string;
-  logs: RuleLogDraft[];
-  finalState: RuleDraftState;
-  status: 'no_match' | 'applied' | 'conflict' | 'error';
-  winningRuleId?: string;
-  needsReview: boolean;
-  conflictingField?: string | null;
-  debugLogs?: RuleLogDraft[];
-}
 
 /**
  * The RulesEngine is responsible for processing a single transaction against a
@@ -95,7 +85,7 @@ export class RulesEngine {
     const exclusiveClaims = new Map<string, string>();
     let status: RuleEngineResult['status'] = 'no_match';
     let needsReview = false;
-    let winningRuleId: string | undefined;
+    const appliedRuleIds: string[] = [];
     let conflictingField: string | null = null;
 
     // Evaluate the rules in a deterministic order.
@@ -242,7 +232,7 @@ export class RulesEngine {
           entity.actions.protected_action_fields ?? [],
         );
 
-        winningRuleId = entity.id;
+        appliedRuleIds.push(entity.id);
         status = 'applied';
         logs.push(
           this.buildLogDraft({
@@ -294,7 +284,7 @@ export class RulesEngine {
       logs,
       finalState,
       status,
-      winningRuleId,
+      appliedRuleIds,
       needsReview,
       conflictingField,
       debugLogs: debugMode ? debugLogs : undefined,

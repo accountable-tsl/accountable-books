@@ -9,6 +9,7 @@ export type TransactionEnrichedEventData = {
   bank_transaction_id: string;
   categorization_task_id: string;
   enriched_transaction: EnrichedTransaction;
+  run_id: string;
 };
 export type TransactionEnrichedEvent = {
   type: typeof TRANSACTION_ENRICHED_EVENT;

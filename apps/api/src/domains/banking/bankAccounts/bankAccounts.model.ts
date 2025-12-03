@@ -227,7 +227,7 @@ export const getBankAccountsWithDetails = async (
            FROM bank_transactions bt 
            WHERE bt.bank_account_id = ba.id 
              AND bt.is_deleted = false 
-             AND bt.categorization_status = 'suggested')
+             AND bt.categorization_status = 'proposed')
         `),
         latestExchangeRate: db.raw(`
           CASE 

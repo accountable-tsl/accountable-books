@@ -1,4 +1,7 @@
-import type { ConditionTraceNode, ActionTraceNode } from './rules.compiler.js';
+import type {
+  ConditionTraceNode,
+  ActionTraceNode,
+} from './rules-def.types.js';
 import type {
   RuleDraftState,
   RuleEntity,

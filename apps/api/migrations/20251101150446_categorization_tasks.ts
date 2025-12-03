@@ -42,12 +42,12 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .comment('Schema version for tracking enrichment evolution');
 
-    table
-      .enu('status', ['enriched', 'partial', 'failed', 'pending'], {
-        useNative: false,
-        enumName: 'categorization_task_status',
-      })
-      .notNullable();
+    // table
+    //   .enu('status', ['enriched', 'partial', 'failed', 'pending'], {
+    //     useNative: false,
+    //     enumName: 'categorization_task_status',
+    //   })
+    //   .notNullable();
 
     table
       .enu('source', ['ingestion', 'backfill', 'manual'], {

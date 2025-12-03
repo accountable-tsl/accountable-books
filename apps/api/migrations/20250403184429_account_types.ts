@@ -993,6 +993,7 @@ export async function up(knex: Knex): Promise<void> {
     table.boolean('trainable').notNullable();
     table.boolean('is_contra').notNullable().defaultTo(false);
     table.boolean('is_postable_control').notNullable().defaultTo(false);
+    table.specificType('accrual_targets', 'TEXT[]').nullable();
 
     addStandardColumns(knex, table);
 

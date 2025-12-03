@@ -1,11 +1,8 @@
-import z, { check } from 'zod';
+import z from 'zod';
 import { dbBaseFields, zDateYMD } from '../../../core/index.js';
 import { enrichedTransaction } from '../enrichment/enrichment.types.js';
 import type { Knex } from 'knex';
-import {
-  categorizationTaskSource,
-  categorizationTaskStatus,
-} from './tasks.enums.js';
+import { categorizationTaskSource } from './tasks.enums.js';
 
 export const newCategorizationTask = z.object({
   company_id: z.uuid(),
@@ -13,7 +10,6 @@ export const newCategorizationTask = z.object({
   bank_transaction_date: zDateYMD,
   enriched_transaction: enrichedTransaction,
   enrichment_version: z.string(),
-  status: categorizationTaskStatus,
   source: categorizationTaskSource,
   checksum: z.string().max(64),
   metadata: z.any().nullish(),

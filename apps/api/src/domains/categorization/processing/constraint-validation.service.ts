@@ -1,4 +1,4 @@
-import type { PredictionLineDraft } from '../predictions/predictions.repository.js';
+import type { PredictionLineDraft } from '../post-prediction/predictions/predictions.service.js';
 
 export interface ConstraintViolation {
   type: string;

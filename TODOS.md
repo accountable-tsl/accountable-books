@@ -129,6 +129,8 @@ Launch `2025-29-09`
 - If I could destroy the fly staging app in one command, what stops another sinister dev from doing same. protect
 - Contact model refactoring, frontend requests will break since I removed status from db and replaced with is_active... decide to either return contact_status or move to this new approach
 - Once we are ready to launch, versioning is important. Stote, tag properly
+- Default to modified cash basis
+- Consider removing input_checksum
 
 ### CAN DELAY (Post-Launch)
 

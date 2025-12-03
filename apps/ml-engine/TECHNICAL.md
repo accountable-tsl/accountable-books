@@ -1,5 +1,7 @@
 # The Autonomous Bookkeeper: ML System Design
 
+> **Note:** This is the detailed technical design document. For a quick start guide, see [README.md](README.md).
+
 ## 1. THE GOAL
 
 Build an "Autonomous Bookkeeper." Our objective is to take a raw bank transaction and automatically generate a valid, balanced, double-entry journal entry. The system must not only predict the correct account but also explain why it made that prediction, building trust with our users. Accountants have very low threshold for errors.

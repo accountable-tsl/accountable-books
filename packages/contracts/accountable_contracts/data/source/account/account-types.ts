@@ -608,6 +608,7 @@ export const defaultIncomeTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true, // bank receipts can map here if no AR flow
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_contract_liabilities', 'ca_trade_receivable'], // customer prepayments -> deferred revenue, AR collections -> receivables; industry or history might help here.
   },
   {
     id: '89028f2e-2935-4d6f-add6-bed5354d2f50',
@@ -646,6 +647,11 @@ export const defaultIncomeTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: false,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: [
+      'ca_other_receivable',
+      'ca_trade_receivable',
+      'cl_contract_liabilities',
+    ], // most other income are payments companies expect from say investments, tax refunds, etc.
   },
 ];
 export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
@@ -661,6 +667,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_trade_payable'], // Postings should mostly not touch cos though. But if they do, payables is the most likely accrual target.
   },
   {
     id: 'a1a658a0-7b31-4f2b-b5d0-978da055763c',
@@ -674,6 +681,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_payroll_payables'],
   },
   {
     id: '23b862cb-00cd-463b-8efb-b1e68ee3c3fa',
@@ -687,6 +695,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_opex'],
   },
   {
     id: '9458fa43-3c15-4e63-918d-8c54ad1b3fcd',
@@ -700,6 +709,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['ca_prepayment'], // rent is often prepaid
   },
   {
     id: '5e00bbdf-a6a0-4c4a-b0d8-9d7117138b8e',
@@ -713,6 +723,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['ca_prepayment'], // insurance is often prepaid
   },
   {
     id: '161369ce-aebb-48b6-b350-0f097d252895',
@@ -726,6 +737,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_opex'], // utilities are often accrued
   },
   {
     id: '7b683e39-579b-475f-bed6-0313735b8082',
@@ -738,6 +750,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_opex'],
   },
   {
     id: '27d0095c-b6d9-436e-889e-28a336a60227',
@@ -751,6 +764,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_professional_fees', 'cl_accrued_opex'], // specific first, then fallback
   },
   {
     id: '9a03e2e3-9b78-4cc7-ba42-54125ea61d3b',
@@ -764,6 +778,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['ca_prepayment', 'cl_accrued_opex'], // most telecoms are on the fly, maybe we look at the value to determine. smes often pay in advance though.
   },
   {
     id: '57b361b5-4a6e-4f28-ad1f-be9bf615066b',
@@ -777,6 +792,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['ca_prepayment'], // many software subscriptions are prepaid
   },
   {
     id: '9261acd9-ab25-4804-bc89-7581223b1fb8',
@@ -790,6 +806,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_opex'], // typically reimbursed or accrued
   },
   {
     id: '79b38f3a-a0b0-41c9-96e6-2e0acbce35ab',
@@ -803,6 +820,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true, // very common bank memo class
     is_contra: false,
     is_postable_control: false,
+    // no accruals here; bank fees are posted on the fly
   },
   {
     id: '053b1052-4a70-42c6-98ab-8f55c95f6595',
@@ -816,6 +834,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_opex', 'cl_accrued_misc'],
   },
   {
     id: '79170de2-df5f-4ef3-ab13-9260e0d5fe0d',
@@ -829,6 +848,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: false,
     is_contra: false,
     is_postable_control: false,
+    // Mechanical only
   },
   {
     id: '1c06789d-ccd5-407e-af5f-abbec6c5745a',
@@ -842,6 +862,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['ca_prepayment', 'cl_accrued_opex'], // many memberships are prepaid but people owe too
   },
   {
     id: 'ea13393e-62f4-4a6b-8bcc-2a08b6d76974',
@@ -856,6 +877,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_opex'],
   },
   {
     id: '3e93c880-c39e-4fb0-9e63-20955e3e1f52',
@@ -869,6 +891,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: true,
     is_contra: false,
     is_postable_control: false,
+    // No meaningful deterministic accrual treatment
   },
   {
     id: 'dfd8c5bb-3b03-4466-88c7-c4075c419d86',
@@ -882,6 +905,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: false,
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_opex', 'cl_accrued_misc'],
   },
 
   {
@@ -893,9 +917,10 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
       'Costs incurred from borrowing funds, including interest and other charges',
     report_code: 'IS.EXP.NOP.FIN',
     label_role: 'semantic',
-    trainable: false, // interest accruals don’t come from bank text; handle via schedules
+    trainable: false, // interest accruals don't come from bank text; handle via schedules
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_finance_cost'],
   },
   {
     id: 'cfcd5b51-348b-4b92-8045-dc6485bca69e',
@@ -908,6 +933,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: false, // too heterogeneous
     is_contra: false,
     is_postable_control: false,
+    accrual_targets: ['cl_accrued_misc'],
   },
   {
     id: '26d7dc5c-e1f7-4159-8786-dac74a0f20d1',
@@ -920,6 +946,7 @@ export const defaultExpenseTypes: AccountTypeWithRequiredReportCode[] = [
     trainable: false,
     is_contra: false,
     is_postable_control: false,
+    // mechanical, (provisions not bank-posted)
   },
 ];
 

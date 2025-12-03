@@ -4,6 +4,7 @@ import { labelRole } from '../common/enums.js';
 import { accountTypeKeys as accountTypeKeysData } from '../../../data/source/account/account-types.js';
 
 export const accountTypeKeys = z.enum(accountTypeKeysData);
+export type AccountTypeKeys = z.infer<typeof accountTypeKeys>;
 
 export const intentSemanticEntry = z.object({
   key: accountTypeKeys, // account_type_key - type-safe to actual account type keys
@@ -65,10 +66,36 @@ export const finalPosting = z.object({
   account_id: z.uuid(),
   account_label: z.string(),
 });
+
+// Accrual Resolver schemas
+export const accrualRecommendation = z.object({
+  account_id: z.uuid(),
+  account_label: z.string(),
+  score: z.number().min(0).max(1),
+  reasoning: z.string(),
+  method: z.string(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type AccrualRecommendation = z.infer<typeof accrualRecommendation>;
+
+export const accrualResolverOutput = z.object({
+  should_accrue: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  top_n_recommendations: z.array(accrualRecommendation),
+  top_1_recommendation: accrualRecommendation.nullable(),
+  fallback_used: z.boolean(),
+  explanation: z.string(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type AccrualResolverOutput = z.infer<typeof accrualResolverOutput>;
+
 export const mlPredictionOutput = z.object({
   final_posting: finalPosting,
   global_intent_classifier: globalIntentClassifier,
   tenant_account_ranker: tenantAccountRanker,
+  accrual_resolver: accrualResolverOutput.optional(),
 });
 
 export type MLPredictionOutput = z.infer<typeof mlPredictionOutput>;

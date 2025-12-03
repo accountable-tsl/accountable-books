@@ -4,15 +4,16 @@ import {
   actionDefinition,
   conditionDefinition,
   type ActionDefinition,
+  type ActionTraceNode,
   type AmountCondition,
   type ApplyTemplateAction,
   type CategorizeLine,
   type ConditionDefinition,
+  type ConditionTraceNode,
   type DateCondition,
   type SetActionTarget,
   type SignalCondition,
   type StringCondition,
-  type TemplateName,
 } from './rules-def.types.js';
 import type { RuleTransactionContext } from './rules.engine.types.js';
 import {
@@ -43,20 +44,6 @@ export class RuleCompilerError extends Error {
 }
 
 /**
- * Represents a single node in the condition evaluation trace, providing
- * details about how a specific condition was evaluated.
- */
-export interface ConditionTraceNode {
-  index: number;
-  kind: 'string' | 'amount' | 'date' | 'signal';
-  field: string;
-  operator: string;
-  expected?: unknown;
-  actual?: unknown;
-  success: boolean;
-}
-
-/**
  * The result of evaluating a compiled condition, including whether it matched
  * and a detailed trace of the evaluation.
  */
@@ -72,18 +59,6 @@ export interface ConditionEvaluationResult {
 export interface CompiledCondition {
   fingerprint: string;
   evaluate(txn: RuleTransactionContext): ConditionEvaluationResult;
-}
-
-/**
- * Represents a single node in the action execution trace, providing
- * details about a specific action that was executed.
- */
-export interface ActionTraceNode {
-  type: 'set' | 'categorize' | 'template';
-  target?: SetActionTarget;
-  value?: string;
-  lineCount?: number;
-  template?: TemplateName;
 }
 
 /**

@@ -40,7 +40,7 @@ const baseLedgerEntry = z.object({
   coa_id: z.uuid(),
   source_currency_id: z.uuid(),
   source_amount: z.number(),
-  categorization_status: categorizationStatus.default('suggested'),
+  categorization_status: categorizationStatus.default('proposed'),
   description: z.string().nullable(),
   is_monetary: z.boolean().optional(),
   fx_transaction_id: z.string().nullish(),

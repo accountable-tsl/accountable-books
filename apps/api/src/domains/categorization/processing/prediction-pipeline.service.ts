@@ -1,15 +1,12 @@
 import type { Knex } from 'knex';
 import { logger } from '../../../shared/index.js';
-import {
-  PredictionRepository,
-  type PredictionLineDraft,
-} from '../predictions/predictions.repository.js';
+import { type PredictionLineDraft } from '../post-prediction/predictions/predictions.service.js';
 import {
   CandidateRepository,
   type CandidateLineDraft,
 } from '../candidates/candidates.repository.js';
 import { ConstraintViolationRepository } from '../candidates/constraint-violations.repository.js';
-import type { PredictionSource } from '../predictions/predictions.types.js';
+import type { PredictionSource } from '../post-prediction/predictions/predictions.types.js';
 import type { EnrichedTransaction } from '../enrichment/enrichment.types.js';
 import { persistPrediction } from './prediction-persistence.service.js';
 import {
@@ -33,14 +30,12 @@ export interface ProcessPredictionToCandidateParams {
 
   // Prediction data
   source: PredictionSource;
+  runId: string;
   lines: CandidateLineDraft[];
   confidence: number;
-  rank?: number; // Optional, will be determined if not provided
-  isPrimary?: boolean; // Optional, will be determined if not provided
 
   // Metadata
   modelVersion?: string | null;
-  predictionGroupId?: string | null;
   predictionId?: string; // Optional: use provided ID (e.g., from ML engine) instead of generating one
   explanation?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -49,7 +44,6 @@ export interface ProcessPredictionToCandidateParams {
   enrichedTransaction: EnrichedTransaction;
 
   // Dependencies (for testing)
-  predictionRepository?: PredictionRepository;
   candidateRepository?: CandidateRepository;
   constraintViolationRepository?: ConstraintViolationRepository;
   knex: Knex;
@@ -83,24 +77,19 @@ export async function processPredictionToCandidate(
     bankTransactionDate,
     companyId,
     source,
+    runId,
     lines,
     confidence,
-    rank,
-    isPrimary,
     modelVersion,
-    predictionGroupId,
     predictionId: providedPredictionId,
     explanation,
     metadata,
     enrichedTransaction,
-    predictionRepository: providedPredictionRepository,
     candidateRepository: providedCandidateRepository,
     knex,
     softDeleteExistingPredictions,
   } = params;
 
-  const predictionRepository =
-    providedPredictionRepository ?? new PredictionRepository(knex);
   const candidateRepository =
     providedCandidateRepository ?? new CandidateRepository(knex);
   const constraintViolationRepository =
@@ -127,8 +116,6 @@ export async function processPredictionToCandidate(
       currencyCode: line.currencyCode,
       description: line.description ?? null,
       isBankLeg: line.isBankLeg ?? false,
-      splitType: line.splitType as PredictionLineDraft['splitType'],
-      splitValue: line.splitValue ?? null,
       explanation: line.explanation ?? null,
       metadata: line.metadata ?? null,
     }));
@@ -138,23 +125,20 @@ export async function processPredictionToCandidate(
       predictionLines,
     );
 
-    // Step 2: Persist prediction (mark rejected when invalid and never primary)
+    // Step 2: Persist prediction (mark rejected when invalid)
     const predictionId = await persistPrediction({
       categorizationTaskId,
       bankTransactionId,
       bankTransactionDate,
+      runId,
       companyId,
       source,
       lines: predictionLines,
       confidence,
-      rank,
-      isPrimary: validationResult.isValid ? isPrimary : false,
       modelVersion,
-      predictionGroupId,
       predictionId: providedPredictionId,
       explanation,
       metadata,
-      predictionRepository,
       knex,
       softDeleteExisting: softDeleteExistingPredictions,
       status: validationResult.isValid ? 'pending' : 'rejected',

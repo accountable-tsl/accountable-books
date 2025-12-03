@@ -1,4 +1,14 @@
+import type { RuleDraftState } from './rules.types.js';
 import type { RuleDirectionFilter, RuleScope } from './rules-db.types.js';
+import type { RuleLogDraft } from './rule-logs.types.js';
+
+/**
+ * ============================================================
+ * Engine-level types (engine I/O)
+ * - Input/output types for the rules engine
+ * - Runtime options and results
+ * ============================================================
+ */
 
 export interface RuleTransactionContext {
   companyId: string;
@@ -16,9 +26,15 @@ export interface RuleTransactionContext {
 
 export interface CompanyScopeContext {
   companyId: string;
-  regionCode?: string | null;
-  countryCode?: string | null;
-  subregionCode?: string | null;
+  regionCode: string | null;
+  countryCode: string | null;
+  subregionCode: string | null;
+}
+
+export interface RuleEngineInput {
+  transaction: RuleTransactionContext;
+  company: CompanyScopeContext;
+  options?: RuleEngineRunOptions;
 }
 
 export interface RuleEngineRunOptions {
@@ -27,8 +43,16 @@ export interface RuleEngineRunOptions {
   includeDisabledRules?: boolean;
   scopes?: RuleScope[];
 }
-export interface RuleEngineInput {
-  transaction: RuleTransactionContext;
-  company: CompanyScopeContext;
-  options?: RuleEngineRunOptions;
+
+export interface RuleEngineResult {
+  runId: string;
+  transactionId: string;
+  transactionDate: string;
+  logs: RuleLogDraft[];
+  finalState: RuleDraftState;
+  status: 'no_match' | 'applied' | 'conflict' | 'error';
+  appliedRuleIds: string[]; // All rules that successfully applied (in evaluation order).
+  needsReview: boolean;
+  conflictingField?: string | null;
+  debugLogs?: RuleLogDraft[];
 }

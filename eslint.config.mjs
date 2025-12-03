@@ -1,62 +1,36 @@
-import eslint from '@eslint/js';
+import js from '@eslint/js';
+import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import pluginReact from 'eslint-plugin-react';
+import { defineConfig } from 'eslint/config';
+import simpleImportSort from 'eslint-plugin-simple-import-sort';
 
-export default tseslint.config(
-  eslint.configs.recommended,
-  ...tseslint.configs.recommended,
+export default defineConfig([
+  // Global config
   {
-    ignores: [
-      '**/dist/**',
-      '**/build/**',
-      '**/.turbo/**',
-      '**/node_modules/**',
-      '**/coverage/**',
-      '**/generated/**',
-    ],
-  },
-  {
-    files: ['**/*.ts', '**/*.tsx'],
+    files: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    plugins: {
+      js,
+      'simple-import-sort': simpleImportSort,
+    },
+    extends: ['js/recommended'],
     languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-      },
+      globals: { ...globals.browser, ...globals.node },
     },
     rules: {
-      'no-console': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
-      '@typescript-eslint/no-empty-object-type': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
-      // Prevent cross-app imports
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['../../apps/*', '../../../apps/*', '../../../../apps/*'],
-              message:
-                'Direct imports from other apps are not allowed. Use workspace packages instead.',
-            },
-          ],
-        },
-      ],
+      'simple-import-sort/imports': 'error',
+      'simple-import-sort/exports': 'error',
     },
   },
+
+  // React-only config
   {
-    files: ['**/*.cjs'],
-    languageOptions: {
-      globals: {
-        module: 'readonly',
-        require: 'readonly',
-        __dirname: 'readonly',
-        process: 'readonly',
-        console: 'readonly',
-      },
-      sourceType: 'commonjs',
+    files: ['apps/web/**/*.{jsx,tsx}'],
+    plugins: {
+      react: pluginReact,
     },
-    rules: {
-      '@typescript-eslint/no-require-imports': 'off',
-    },
+    ...pluginReact.configs.flat.recommended,
   },
-);
+
+  tseslint.configs.recommended,
+]);

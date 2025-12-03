@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Any, List, Literal
+from pydantic import BaseModel, confloat
+from typing import Any, List, Literal, Optional
 from enum import Enum
 from uuid import UUID
 
@@ -120,6 +120,29 @@ class MlPredictionOutput(BaseModel):
         explanation: TenantAccountRankerExplanation
         shap_values: Any
         feature_mapping_version: str
+    class AccrualResolver(BaseModel):
+        class AccrualResolverTopNRecommendationsItem(BaseModel):
+            account_id: UUID
+            account_label: str
+            score: confloat(ge=0, le=1)
+            reasoning: str
+            method: str
+            metadata: Optional[Any] = None
+        class AccrualResolverTop1Recommendation(BaseModel):
+            account_id: UUID
+            account_label: str
+            score: confloat(ge=0, le=1)
+            reasoning: str
+            method: str
+            metadata: Optional[Any] = None
+        should_accrue: bool
+        confidence: confloat(ge=0, le=1)
+        top_n_recommendations: List[AccrualResolverTopNRecommendationsItem]
+        top_1_recommendation: Optional[AccrualResolverTop1Recommendation]
+        fallback_used: bool
+        explanation: str
+        metadata: Optional[Any] = None
     final_posting: FinalPosting
     global_intent_classifier: GlobalIntentClassifier
     tenant_account_ranker: TenantAccountRanker
+    accrual_resolver: Optional[AccrualResolver] = None

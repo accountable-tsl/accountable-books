@@ -8,6 +8,8 @@ export {
 export * from './rule-logs.types.js';
 export * from './rules.types.js';
 export * from './rules-db.types.js';
+export * from './rules-def.types.js';
+export * from './rules.engine.types.js';
 export {
   enqueueRuleRunJob,
   RULE_RUNNER_QUEUE_NAME,

@@ -1,99 +1,142 @@
-# ML Engine
+# ML Engine for Accountable Books
 
-AI-native machine learning service for Accountable Books platform.
+## What This Does
 
-## Features
+Automatically suggests which account to use when categorizing bank transactions.
 
-- Transaction categorization using machine learning
-- Financial insights and predictions
-- Model versioning and explainability
-- RESTful API built with FastAPI
+**Example:** You have a $500 transaction from "Legal Services Inc" - the ML engine suggests:
+- Account: "Professional Fees"
+- Confidence: 85%
+- Accrual suggestion: "Accrued Professional Fees" (if needed)
 
-## Development
+## How It Works (Simple Explanation)
 
-### Local Development
+1. **Model A (Intent Classifier):** Figures out what type of expense/revenue this is
+   - "Is this professional fees, travel, or utilities?"
 
-Development is handled locally using Poetry. Ensure you have Redis running locally (via Docker Compose at the project root or standalone).
+2. **Model B (Account Ranker):** Picks the specific account from your chart
+   - "Which account in your books matches this best?"
 
+3. **Accrual Resolver:** Suggests if you need an accrual account
+   - "Should this be prepaid or accrued?"
+
+## Current Status: Phase 0 (Baseline)
+
+**What's Live:**
+- ✅ Text matching using embeddings (AI-powered similarity)
+- ✅ Historical pattern learning (remembers past choices)
+- ✅ Confidence scores and explanations
+- ✅ Accrual recommendations (cash vs accrual basis)
+
+**What's Not Yet:**
+- ❌ Machine learning training (using heuristics now)
+- ❌ Accuracy metrics (no evaluation yet)
+- ❌ Multi-account splits (one account per transaction only)
+
+## Technology Stack
+
+- **Language:** Python 3.12
+- **Framework:** FastAPI
+- **AI Model:** MiniLM (384-dimension embeddings)
+- **Database:** Redis (for caching)
+- **Packages:** sentence-transformers, scikit-learn, pydantic
+
+## Local Development
+
+**Start the server:**
 ```bash
-# Install dependencies
+cd apps/ml-engine
 poetry install
-
-# Run development server
-poetry run uvicorn ml_engine.main:app --reload --host 0.0.0.0 --port 8000
-
-# Or use the npm script
-pnpm dev
-
-# Run tests
-poetry run pytest
-
-# Format code
-poetry run black .
-poetry run ruff check .
+poetry run uvicorn ml_engine.main:app --reload --port 8001
 ```
 
-**Note**: Infrastructure (PostgreSQL, Redis) should be running via Docker Compose at the project root. The ML Engine itself runs locally for faster iteration.
-
-### Production Deployment
-
-The production Dockerfile uses a multi-stage build for optimized image size:
-
+**Run tests:**
 ```bash
-# Build production image
-docker build -t ml-engine:latest .
-
-# Run production container
-docker run -p 8002:8002 --env ENV=production ml-engine:latest
+poetry run pytest
 ```
 
-## Architecture
+**Check API docs:**
+```
+http://localhost:8001/docs
+```
 
-- **FastAPI**: Modern Python web framework
-- **scikit-learn**: Machine learning models
-- **Pydantic**: Data validation and serialization
-- **Poetry**: Dependency management
+## Project Structure
 
-## Model Versioning System
+```
+ml_engine/
+├── domains/
+│   ├── prediction/          # Main prediction pipeline
+│   └── accrual/             # Accrual resolver logic
+├── models/
+│   ├── categorization/      # Model A & Model B
+│   └── registry/            # Model versioning
+├── core/                    # Embeddings, utilities
+└── main.py                  # FastAPI app
+```
 
-The ML engine uses a versioning system with three components:
+## Known Limitations & TODOs
 
-### Config Files (`models/registry/configs/`)
+### High Priority
 
-JSON metadata files that describe each model version. They specify:
+1. **No ML training yet** - Using heuristic baselines (TF-IDF, cosine similarity)
+   - Need to collect labeled training data
+   - Plan: Switch to LightGBM after collecting 1000+ labeled transactions
 
-- Model version number
-- Which feature map version to use
-- Path to the model artifact file (or `null` for code-based models)
-- Status (active/deprecated/experimental)
-- Additional metadata (description, creation date, etc.)
+2. **No evaluation framework** - Can't measure accuracy
+   - Need test set with ground truth labels
+   - Plan: Build evaluation pipeline with precision/recall metrics
 
-**Example:** `configs/global_intent_classifier/v260101-01-1.0.0.json`
+3. **Single account only** - Can't split transactions
+   - Example: Can't split $1000 into $800 rent + $200 utilities
+   - Plan: Add split logic after Phase 1
 
-### Artifacts (`models/registry/artifacts/`)
+### Medium Priority
 
-Binary files containing trained model parameters (`.pkl` or `.joblib` files).
-Currently empty since models are code-based. Will contain actual trained models (e.g., LightGBM) in the future.
+4. **Company size missing** - Accrual resolver assumes all companies are "small"
+   - Need `company_size` field in companies table
+   - Affects materiality thresholds
 
-**Example:** `artifacts/global_intent_classifier/2024.12.01.01.pkl` (future)
+5. **Historical patterns incomplete** - Missing frequency and recurring flags
+   - `typical_frequency`: Should come from historical patterns
+   - `is_recurring`: Should come from transaction signals
 
-### Feature Maps (`models/feature_maps/versions/`)
+6. **No A/B testing** - Can't test model improvements safely
+   - Need model version deployment strategy
+   - Plan: Use model registry versions for gradual rollout
 
-JSON files that define exactly which features (inputs) each model version uses.
-Enables reproducibility and explainability by tracking which transaction fields were used for predictions.
+### Low Priority
 
-**Example:** `feature_maps/versions/fmap_a_1.0.json` lists all features used by Model A version 1.0.
+7. **String matching could be better** - Currently uses simple token matching
+   - Could use `rapidfuzz` for fuzzy matching
+   - Or n-grams for better similarity
 
-### Environment Variables for Model Versioning
+8. **Embeddings not cached** - Computing on every request
+   - Pre-compute account embeddings
+   - Store in Redis with COA snapshot
 
-You can override the active model version using environment variables:
+## Performance Notes
 
-- `MODEL_VERSION_GLOBAL_INTENT_CLASSIFIER`: Version to use for Model A
-- `MODEL_VERSION_TENANT_ACCOUNT_RANKER`: Version to use for Model B
+- **Typical latency:** 200-500ms per prediction
+- **Accrual resolver adds:** ~20-50ms overhead (10-15%)
+- **Bottleneck:** Embedding computation (can cache)
 
-If not set, the system uses the latest version in the registry.
+## What's Next: Roadmap
 
-## Environment Variables
+**Phase 1: Training** (After collecting data)
+- Train Model A on labeled account types
+- Use LightGBM classifier
+- Add SHAP explanations
 
-- `REDIS_URL`: Redis connection URL (required)
-- `BACKEND_URL`: Backend API URL (required)
+**Phase 2: Ranking** (After 30-50 companies)
+- Train Model B with LambdaRank
+- Learn tenant-specific patterns
+- Improve historical matching
+
+**Phase 3: Evaluation** (Ongoing)
+- Build test framework
+- Track accuracy over time
+- Set up monitoring
+
+## Questions?
+
+See [TECHNICAL.md](TECHNICAL.md) for detailed technical design.

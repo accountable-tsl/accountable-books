@@ -1,5 +1,5 @@
 import z from 'zod';
-import { dbBaseFields, dbStandardFields } from '../../../core/index.js';
+import { dbBaseFields } from '../../../core/index.js';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,

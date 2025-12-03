@@ -49,8 +49,10 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists('categorization_status', [
       'uncategorized',
-      'suggested',
-      'reviewed',
+      'proposed',
+      'accepted',
+      'rejected',
+      'posted',
     ]),
   );
   await knex.raw(
@@ -131,9 +133,28 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists('contact_status', ['active', 'inactive']),
   );
+
+  await knex.raw(
+    createEnumIfNotExists('txn_categorization_source', [
+      'rule',
+      'ml',
+      'ml_heuristic',
+      'manual',
+      'enrichment',
+    ]),
+  );
+
+  await knex.raw(
+    createEnumIfNotExists('categorization_line_split_type', [
+      'amount',
+      'percentage',
+      'remainder',
+    ]),
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP TYPE IF EXISTS txn_categorization_source`);
   await knex.raw(`DROP TYPE IF EXISTS contact_status`);
   await knex.raw(`DROP TYPE IF EXISTS role_scope`);
   await knex.raw(`DROP TYPE IF EXISTS token_type`);

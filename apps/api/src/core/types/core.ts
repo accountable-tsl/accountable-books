@@ -53,7 +53,9 @@ export type DebitCredit = z.infer<typeof debitCredit>;
 
 export const categorizationStatus = z.enum([
   'uncategorized',
-  'suggested',
-  'reviewed',
+  'proposed',
+  'accepted',
+  'rejected',
+  'posted',
 ]);
 export type CategorizationStatus = z.infer<typeof categorizationStatus>;

@@ -17,7 +17,7 @@ CREATE TABLE public.ledger_entries (
             ELSE NULL::debit_credit
         END
     ) STORED,
-    categorization_status   categorization_status NOT NULL DEFAULT 'suggested',
+    categorization_status   categorization_status NOT NULL DEFAULT 'proposed',
     description             TEXT,
     project_id              UUID,
     is_monetary             BOOLEAN NOT NULL DEFAULT false,

@@ -20,6 +20,7 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('categorization_tasks')
       .onDelete('CASCADE');
+    table.uuid('run_id').notNullable();
     table.uuid('bank_transaction_id').notNullable();
     table.date('bank_transaction_date').notNullable();
     table
@@ -28,30 +29,24 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('companies')
       .onDelete('CASCADE');
-    table
-      .enu('source', ['rule', 'ml'], {
-        useNative: false,
-        enumName: 'categorization_prediction_source',
-      })
-      .notNullable();
-    // rank orders predictions within a single run/group; not globally across replays
-    table.integer('rank').notNullable().defaultTo(1);
-    // is_primary marks the currently selected prediction across runs (enforce one per task)
-    table.boolean('is_primary').notNullable().defaultTo(true);
+    table.specificType('source', 'txn_categorization_source').notNullable();
+    table.uuid('contact_id').nullable().references('id').inTable('contacts');
+    table.specificType('contact_type', 'contact_type').nullable();
+    table.string('description').nullable();
+    table.string('reference').nullable();
+    table.date('ledger_date').nullable();
     table.decimal('confidence', 5, 4).notNullable().defaultTo(0);
     table.string('model_version', 64).nullable();
-    // prediction_group_id groups predictions produced in the same replay/run
-    table.uuid('prediction_group_id').nullable();
-    table
-      .enu('status', ['pending', 'accepted', 'rejected', 'superseded'], {
-        useNative: false,
-        enumName: 'categorization_prediction_status',
-      })
-      .notNullable()
-      .defaultTo('pending');
     table.string('input_checksum', 64).nullable();
     table.text('explanation').nullable();
+    table.specificType('explanation_tokens', 'TEXT[]').nullable();
     table.jsonb('metadata').nullable();
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
     addStandardColumns(knex, table);
   });
 
@@ -71,21 +66,15 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable(PREDICTIONS_TABLE)
       .onDelete('CASCADE');
-    // Reuse global debit_credit enum for consistency with ledger entries
-    table.specificType('entry_type', 'debit_credit').notNullable();
     table.uuid('coa_id').notNullable();
     table.uuid('project_id').nullable();
-    table.decimal('amount_native', 20, 6).notNullable();
-    table.string('currency_code', 3).notNullable();
+
+    table.decimal('signed_native_amount', 20, 6).notNullable();
     table.string('description', 255).nullable();
-    // Marks deterministic bank leg so UI can hide it for the owning bank account
     table.boolean('is_bank_leg').notNullable().defaultTo(false);
     table
-      .enu('split_type', ['bank', 'amount', 'percentage', 'remainder'], {
-        useNative: false,
-        enumName: 'categorization_prediction_split_type',
-      })
-      .notNullable();
+      .specificType('split_type', 'categorization_prediction_split_type')
+      .nullable();
     table.decimal('split_value', 20, 10).nullable();
     table.text('explanation').nullable();
     table.jsonb('metadata').nullable();
@@ -110,17 +99,26 @@ export async function up(knex: Knex): Promise<void> {
     ON DELETE CASCADE;
   `);
 
-  // Enforce a single primary prediction per task (ignoring deleted rows)
+  // Indexes for run tracking
   await knex.raw(
-    `CREATE UNIQUE INDEX idx_cat_predictions_primary_per_task ON ${PREDICTIONS_TABLE}(categorization_task_id) WHERE is_primary = TRUE AND is_deleted = FALSE;`,
+    `CREATE INDEX idx_cat_predictions_task_run ON ${PREDICTIONS_TABLE}(categorization_task_id, run_id, created_at DESC) WHERE is_deleted = FALSE;`,
   );
 
   await knex.raw(
-    `CREATE INDEX idx_cat_predictions_task_rank ON ${PREDICTIONS_TABLE}(categorization_task_id, prediction_group_id, rank) WHERE is_deleted = FALSE;`,
+    `CREATE INDEX idx_cat_predictions_run ON ${PREDICTIONS_TABLE}(run_id) WHERE is_deleted = FALSE;`,
   );
 
   await knex.schema.createTable(CANDIDATES_TABLE, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+    table
+      .uuid('categorization_task_id')
+      .notNullable()
+      .references('id')
+      .inTable('categorization_tasks')
+      .onDelete('CASCADE');
+    table.uuid('run_id').notNullable();
+    table.uuid('bank_transaction_id').notNullable();
+    table.date('bank_transaction_date').notNullable();
     table
       .uuid('prediction_id')
       .notNullable()
@@ -128,45 +126,28 @@ export async function up(knex: Knex): Promise<void> {
       .inTable(PREDICTIONS_TABLE)
       .onDelete('CASCADE');
     table
-      .enu('source', ['rule', 'ml'], {
-        useNative: false,
-        enumName: 'categorization_candidate_source',
-      })
-      .notNullable();
-    table
-      .uuid('categorization_task_id')
-      .notNullable()
-      .references('id')
-      .inTable('categorization_tasks')
-      .onDelete('CASCADE');
-    table.uuid('bank_transaction_id').notNullable();
-    table.date('bank_transaction_date').notNullable();
-    table
       .uuid('company_id')
       .notNullable()
       .references('id')
       .inTable('companies')
       .onDelete('CASCADE');
-    table
-      .enu(
-        'status',
-        ['proposed', 'validated', 'rejected', 'posted', 'superseded'],
-        {
-          useNative: false,
-          enumName: 'categorization_candidate_status',
-        },
-      )
-      .notNullable()
-      .defaultTo('proposed');
-    table.date('posting_date').nullable();
+    table.specificType('source', 'txn_categorization_source').notNullable();
+    table.uuid('contact_id').nullable().references('id').inTable('contacts');
+    table.specificType('contact_type', 'contact_type').nullable();
+    table.string('description').nullable();
+    table.string('reference').nullable();
     table.decimal('confidence', 5, 4).notNullable().defaultTo(0);
-    table.uuid('contact_id').nullable();
-    table.string('description', 255).nullable();
-    table.string('reference', 255).nullable();
     table.text('solver_notes').nullable();
     table.uuid('assignee_id').nullable();
     table.text('explanation').nullable();
+    table.specificType('explanation_tokens', 'TEXT[]').nullable();
     table.jsonb('metadata').nullable();
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
     addStandardColumns(knex, table);
   });
 
@@ -190,21 +171,27 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable(CANDIDATES_TABLE)
       .onDelete('CASCADE');
-    // Reuse global debit_credit enum for consistency with ledger entries
-    table.specificType('entry_type', 'debit_credit').notNullable();
+    table.date('fs_date').notNullable();
+    table
+      .uuid('source_currency_id')
+      .references('id')
+      .inTable('currencies')
+      .notNullable();
+    table.decimal('signed_native_amount', 15, 3).notNullable();
+    table.bigint('system_exchange_rate').notNullable();
+
+    table.specificType('status', 'categorization_status').notNullable();
+    table.specificType('transaction_side', 'debit_credit').notNullable();
     table.uuid('coa_id').notNullable();
+    table.string('description').nullable();
     table.uuid('project_id').nullable();
-    table.decimal('amount_native', 20, 6).notNullable();
-    table.string('currency_code', 3).notNullable();
-    table.string('description', 255).nullable();
+    // table.decimal('amount_native', 20, 6).notNullable();
+    // table.string('currency_code', 3).notNullable();
     // Marks deterministic bank leg so UI can hide it for the owning bank account
     table.boolean('is_bank_leg').notNullable().defaultTo(false);
     table
-      .enu('split_type', ['bank', 'amount', 'percentage', 'remainder'], {
-        useNative: false,
-        enumName: 'categorization_candidate_split_type',
-      })
-      .notNullable();
+      .specificType('split_type', 'categorization_line_split_type')
+      .nullable();
     table.decimal('split_value', 20, 10).nullable();
     table.text('explanation').nullable();
     table.jsonb('metadata').nullable();
@@ -272,8 +259,8 @@ export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, PREDICTION_LINES_TABLE);
   await knex.schema.dropTableIfExists(PREDICTION_LINES_TABLE);
 
-  await knex.raw(`DROP INDEX IF EXISTS idx_cat_predictions_primary_per_task;`);
-  await knex.raw(`DROP INDEX IF EXISTS idx_cat_predictions_task_rank;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_cat_predictions_run;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_cat_predictions_task_run;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_predictions_bank_tx;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_predictions_company;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_predictions_task;`);

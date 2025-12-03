@@ -12,13 +12,19 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
     table.timestamp('date', { useTz: true }).notNullable();
-    table.specificType('source', 'transaction_source').notNullable();
+    table
+      .specificType('transaction_source', 'transaction_source')
+      .notNullable();
+    table
+      .specificType('categorization_source', 'txn_categorization_source')
+      .notNullable();
+    table.boolean('is_trainable').notNullable().defaultTo(false);
     table.string('description', 512).nullable();
     table.string('reference').nullable();
     table.string('note').nullable();
 
     table.uuid('contact_id').nullable().references('id').inTable('contacts');
-    table.specificType('contact_type_snapshot', 'contact_type').nullable();
+    table.specificType('contact_type', 'contact_type').nullable();
 
     table.uuid('bank_transaction_id').nullable();
     table.date('bank_transaction_date').nullable();

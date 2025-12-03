@@ -2,7 +2,7 @@ import {
   CandidateRepository,
   type CandidateLineDraft,
 } from '../candidates/candidates.repository.js';
-import type { PredictionSource } from '../predictions/predictions.types.js';
+import type { PredictionSource } from '../post-prediction/predictions/predictions.types.js';
 import type { EnrichedTransaction } from '../enrichment/enrichment.types.js';
 
 export interface CandidateResolutionResult {
