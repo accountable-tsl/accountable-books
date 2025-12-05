@@ -1,20 +1,21 @@
-import { useCallback, useMemo, useState } from 'react';
-import { getProjectColumns } from '@/domains-pending-migration/projects/projects-columns';
-import { useFetchProjects } from '@/domains-pending-migration/projects/projects-hooks';
 import { useSession } from '@session';
-import type { Project } from '@/domains-pending-migration/projects/projects-types';
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
-import { useDataTable } from '@/components/data-table/use-data-table';
+import { Plus } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+
+import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
 import {
   DataTableToolbar,
   type DataTableToolbarConfig,
 } from '@/components/data-table/toolbar';
-import { CenteredLoader } from '@/components/CenteredLoader';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import { useDataTable } from '@/components/data-table/use-data-table';
 import ErrorPage from '@/components/ErrorPage';
-import { AddProjectDialog } from '@/domains-pending-migration/projects/projects-add';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { AddProjectDialog } from '@/domains-pending-migration/projects/projects-add';
+import { getProjectColumns } from '@/domains-pending-migration/projects/projects-columns';
+import { useFetchProjects } from '@/domains-pending-migration/projects/projects-hooks';
+import type { Project } from '@/domains-pending-migration/projects/projects-types';
 
 export const Projects = () => {
   const [page, setPage] = useState(1);

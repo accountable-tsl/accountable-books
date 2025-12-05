@@ -6,7 +6,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'seeds/**/*.test.ts'],
     globals: true,
     // Run DB migrations once before the suite and tear down once after.
-    globalSetup: './test/global-setup.ts',
+    globalSetup: './test/global-setup.js',
     // Keep worker count small to avoid many node:vitest processes eating RAM.
     poolOptions: {
       threads: {

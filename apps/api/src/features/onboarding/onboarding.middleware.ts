@@ -1,9 +1,10 @@
 import { type NextFunction, type Response } from 'express';
-import { type AuthRequest } from '../auth/auth.types.js';
-import { ErrorCode, errorResponse } from '../../shared/utils/response.utils.js';
+
 import { getSingleCompany } from '../../domains/companies/companies.model.js';
-import { redis } from '../../lib/redis.js';
 import { getUserDetails } from '../../domains/users/users.model.js';
+import { redis } from '../../lib/redis.js';
+import { ErrorCode, errorResponse } from '../../shared/utils/response.utils.js';
+import { type AuthRequest } from '../auth/auth.types.js';
 
 export const checkOnboardingStatus = async (
   req: AuthRequest,

@@ -1,5 +1,6 @@
 import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+
 import type { UserData } from './types';
 
 export const getUserDetails = async (

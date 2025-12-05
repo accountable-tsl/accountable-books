@@ -8,7 +8,7 @@
  * - ENV.VARIABLE_NAME - Access any environment variable
  */
 
-import { nodeEnv, type NodeEnv } from '../core/types/core.js';
+import { type NodeEnv, nodeEnv } from '../core/types/core.js';
 
 // Get current environment
 export const NODE_ENV: NodeEnv = nodeEnv.parse(process.env.NODE_ENV || 'local');

@@ -1,5 +1,6 @@
 import z from 'zod';
-import { debitCredit, type DebitCredit } from '../../core/types/core.js';
+
+import { type DebitCredit, debitCredit } from '../../core/types/core.js';
 
 export const accountTypeDto = z.object({
   id: z.string().optional(),

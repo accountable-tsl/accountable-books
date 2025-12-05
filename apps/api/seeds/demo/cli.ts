@@ -1,15 +1,16 @@
 #!/usr/bin/env tsx
 
 import knex from 'knex';
-import { createDemoSeedRunner } from './engine/runner.js';
+
 import { runtimeKnexConfig } from '../../knexfile.js';
-import {
-  type DemoFilter,
-  COUNTRY_CODES,
-  COMPANY_TYPES,
-  type DemoCompanyType,
-} from './shared/config.js';
 import { queueBroker } from '../../src/jobs/queues';
+import { createDemoSeedRunner } from './engine/runner.js';
+import {
+  COMPANY_TYPES,
+  COUNTRY_CODES,
+  type DemoCompanyType,
+  type DemoFilter,
+} from './shared/config.js';
 
 // Apply conservative per-session Postgres timeouts for seeds to avoid stuck backends
 if (!process.env.PGOPTIONS) {

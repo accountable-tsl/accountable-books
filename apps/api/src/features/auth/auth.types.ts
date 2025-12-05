@@ -1,7 +1,8 @@
 import { type Request } from 'express';
 import { type JwtPayload } from 'jsonwebtoken';
-import { type AccessibleCompanies } from '../../domains/userRoles/userRoles.types.js';
+
 import { type RoleKey } from '../../domains/roles/roles.types.js';
+import { type AccessibleCompanies } from '../../domains/userRoles/userRoles.types.js';
 import {
   type OnboardingStateResult,
   type UserOnboardingState,

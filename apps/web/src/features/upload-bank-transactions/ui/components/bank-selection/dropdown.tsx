@@ -1,10 +1,11 @@
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
-import { FormField } from '@/components/FormField';
-import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
-import { maskDigits } from '@/shared/utils/formatting-utils';
 import { Plus } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { FormField } from '@/components/FormField';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
+import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
+import { maskDigits } from '@/shared/utils/formatting-utils';
 
 export function BankDropdown({
   bankAccounts,

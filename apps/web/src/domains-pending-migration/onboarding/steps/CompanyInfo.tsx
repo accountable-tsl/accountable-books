@@ -1,7 +1,21 @@
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useSession } from '@session';
+import { useEffect, useRef, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { FormField } from '@/components/FormField';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,32 +41,19 @@ import {
   getCompanyTypeDisplay,
   getDefaultCompanyData,
 } from '@/domains-pending-migration/company/utils';
+import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
 import {
   deleteObject,
   uploadObject,
 } from '@/domains-pending-migration/objects/api';
 import { ImageUploader } from '@/domains-pending-migration/objects/ImageUploader';
 import { TOOLTIP } from '@/features/auth-signup/model/constants';
+import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useIndustries } from '@/shared/hooks/useIndustries';
-import { cn } from '@/lib/utils';
-import { useEffect, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
-import { useSession } from '@session';
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { useNavigate } from 'react-router';
 import { routes } from '@/shared/routes/routes';
 
 export const CompanyInfo = () => {

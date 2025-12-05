@@ -12,23 +12,75 @@ Bank Transaction Added
     ↓
 [4] Rules Engine:
     - Run deterministic rules
-    - If match → processPredictionToCandidate()
+    - If match → handlePostPrediction() → processPredictionsToCandidates()
     - Check if ML should run
     ↓
 [5] ML Prediction (if needed):
     - Call ML Engine API
     - Assemble journal lines
-    - processPredictionToCandidate()
+    - processPredictionsToCandidates() (to be implemented)
     ↓
-[6] Constraint Resolver (processPredictionToCandidate):
-    - Validate constraints (balance, amounts, bank leg)
-    - Persist prediction
-    - Resolve candidate creation (check for posted/rule candidates)
-    - Cleanup stale candidates
-    - Create candidate (if allowed)
-    - Persist violations (if any)
+[6] Post-Prediction Processing (processPredictionsToCandidates):
+    - Validate data consistency (company IDs, bank transaction IDs)
+    - Persist prediction (what rule/ML engine decided, WITHOUT bank leg)
+    - Validate bank transaction exists and belongs to company
+    - Validate all COA IDs exist, are active, and belong to company
+    - Build bank leg (counterpart to prediction lines)
+    - Build complete journal entry (bank leg + prediction lines)
+    - Run constraint validation on complete journal entry
+    - If valid: persist candidate (with conflict resolution)
+    - If invalid: log event and throw error (prediction still persisted for audit)
     ↓
 [7] Candidate Ready for Review
     - Status: 'proposed'
     - Waiting for user approval/posting
 ```
+
+## Design Decisions
+
+### Late Constraint Validation
+
+**Decision**: Constraints are validated AFTER persisting predictions, not before.
+
+**Rationale**:
+
+- Provides complete auditability - we store what rules/ML actually returned, even if invalid
+- Enables debugging and analysis of prediction quality
+- Allows tracking of constraint violations over time
+- Predictions serve as a record of engine decisions regardless of validity
+
+**Trade-off**: Less efficient (writes invalid predictions to DB), but prioritizes auditability and debugging capability.
+
+### No Bank Legs in Predictions
+
+**Decision**: Predictions do NOT include bank legs. Bank legs are only added when building candidates.
+
+**Rationale**:
+
+- Predictions represent what the rule/ML engine decided (the categorization)
+- Bank legs are deterministic - they're always the counterpart to the transaction
+- Separating predictions (engine output) from complete journal entries (candidates) provides clearer separation of concerns
+- Allows us to audit what the engine predicted vs. the final journal entry
+
+**Implementation**:
+
+- `buildPredictionFromRuleResult()` creates predictions without bank legs
+- `processPredictionsToCandidates()` adds the bank leg when building the complete journal entry
+
+### Simplified Flow with Built-in Conflict Resolution
+
+**Decision**: The new flow uses `persistCategorizationCandidate()` which handles candidate conflicts automatically.
+
+**Rationale**:
+
+- Simpler, more linear flow that's easier to understand and maintain
+- Conflict resolution logic is centralized in one place
+- Automatic handling of source priority (rule > ml > ml_heuristic) and confidence comparison
+- Events are logged automatically for candidate_created, candidate_replaced, or candidate_ignored
+
+**Flow**:
+
+1. `handlePostPrediction()` routes to appropriate handler based on source
+2. `handleRulePrediction()` logs events and calls `processPredictionsToCandidates()` if rules applied
+3. `processPredictionsToCandidates()` validates, persists prediction, builds journal entry, validates constraints, and persists candidate
+4. `persistCategorizationCandidate()` handles conflicts and persistence automatically

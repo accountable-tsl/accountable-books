@@ -1,9 +1,11 @@
+import './Popup.scss';
+
+import { faCircleXmark } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { RefObject, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircleXmark } from '@fortawesome/free-solid-svg-icons';
+
 import { usePopup } from '../../contexts/PopupContext';
-import './Popup.scss';
 
 interface PopupProps {
   popupId: string;

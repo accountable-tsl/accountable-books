@@ -1,13 +1,14 @@
 import { type NextFunction, type Response } from 'express';
-import { csrfProtection, JWT_CONFIG } from './auth.utils.js';
 import jwt from 'jsonwebtoken';
+
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { publicPaths } from './auth.constants.js';
 import {
   type AuthRequest,
   type BaseAuthRequest,
   type DecodedToken,
 } from './auth.types.js';
-import { errorResponse } from '../../shared/utils/response.utils.js';
-import { publicPaths } from './auth.constants.js';
+import { csrfProtection, JWT_CONFIG } from './auth.utils.js';
 
 export const verifyAccessToken = async (
   req: BaseAuthRequest,

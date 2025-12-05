@@ -1,6 +1,6 @@
+import type { RuleLogDraft } from './rule-logs.types.js';
 import type { RuleDraftState } from './rules.types.js';
 import type { RuleDirectionFilter, RuleScope } from './rules-db.types.js';
-import type { RuleLogDraft } from './rule-logs.types.js';
 
 /**
  * ============================================================
@@ -34,11 +34,11 @@ export interface CompanyScopeContext {
 export interface RuleEngineInput {
   transaction: RuleTransactionContext;
   company: CompanyScopeContext;
-  options?: RuleEngineRunOptions;
+  options: RuleEngineRunOptions;
 }
 
 export interface RuleEngineRunOptions {
-  runId?: string;
+  runId: string;
   debug?: boolean;
   includeDisabledRules?: boolean;
   scopes?: RuleScope[];

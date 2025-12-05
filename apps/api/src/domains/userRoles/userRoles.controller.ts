@@ -1,8 +1,9 @@
 import { type Response } from 'express';
+
 import { type AuthRequest } from '../../features/auth/auth.types.js';
-import { grantDirectAccess } from './userRoles.model.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 import { roleKey as roleKeyEnum } from '../roles/roles.types.js';
+import { grantDirectAccess } from './userRoles.model.js';
 
 export async function grantAccessToCompanyController(
   req: AuthRequest,

@@ -1,28 +1,29 @@
-import { knexClient } from '../../../db/knexClient.js';
 import type { Knex } from 'knex';
+import pino from 'pino';
+
+import { knexClient } from '../../../db/knexClient.js';
+import { getContactStats } from '../stats/stats.service.js';
+import { getCompanyContext } from './company-context.service.js';
 import type {
   EnrichedTransaction,
   EnrichmentProcessingType,
   EnrichmentResult,
 } from './enrichment.types.js';
-import { getCompanyContext } from './company-context.service.js';
-import { getContactStats } from '../stats/stats.service.js';
 import {
-  detectPatternSignals,
   computeTemporalFeatures,
+  detectPatternSignals,
 } from './enrichment.utils.js';
-import pino from 'pino';
 
 const logger = pino({
   name: 'enrichment-service',
 });
+import { generateChecksumSync, toYMD } from '../../../shared/index.js';
+import type { CategorizationTaskSource } from '../tasks/tasks.enums.js';
+import { resolveContactForEnrichment } from './resolve-contact.service.js';
 import {
   normalizeDescription,
   tokenizeDescription,
 } from './utils/clean-desc.js';
-import { resolveContactForEnrichment } from './resolve-contact.service.js';
-import { generateChecksumSync, toYMD } from '../../../shared/index.js';
-import type { CategorizationTaskSource } from '../tasks/tasks.enums.js';
 
 /**
  * Enrichment version identifier

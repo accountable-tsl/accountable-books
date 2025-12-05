@@ -1,11 +1,12 @@
 import type { Knex } from 'knex';
+
+import { ENV, isProd } from '../config/env-loader.js';
+import { adminUser } from './20250403184441_users.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
-import { ENV, isProd } from '../config/env-loader.ts';
-import { adminUser } from './20250403184441_users.ts';
+} from './utils/db.js';
 
 const completeOnbState = {
   steps: {

@@ -1,5 +1,6 @@
-import { ENV, isProd } from '../../config/env.js';
 import crypto from 'crypto';
+
+import { ENV, isProd } from '../../config/env.js';
 
 export const splitIntoWords = (input: string | string[]): string[] => {
   const text = Array.isArray(input) ? input.join(' ') : input;

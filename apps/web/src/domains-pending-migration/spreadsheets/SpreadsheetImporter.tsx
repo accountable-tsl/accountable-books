@@ -1,3 +1,14 @@
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from '@/components/CustomTable';
+import { FileUploader } from '@/components/FileUploader';
+import { SkeletonBlock } from '@/components/SkeletonBlock';
 import {
   Dialog,
   DialogContent,
@@ -6,9 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
-import { FileUploader } from '@/components/FileUploader';
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { FILE_TYPE_MAP } from '@/domains-pending-migration/spreadsheets/constants';
 import {
   type FileCardExtraProps,
   type ParsedCsvResult,
@@ -21,15 +30,7 @@ import {
   parseSpreadsheetFile,
   validateHeaders as validateFileHeaders,
 } from '@/domains-pending-migration/spreadsheets/utils';
-import { FILE_TYPE_MAP } from '@/domains-pending-migration/spreadsheets/constants';
-import { SkeletonBlock } from '@/components/SkeletonBlock';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableRow,
-} from '@/components/CustomTable';
+import { cn } from '@/lib/utils';
 
 export const SpreadsheetImporter = ({
   fields,

@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { type AccessibleCompaniesResponse } from './userRoles.types.js';
+import { describe, expect, it } from 'vitest';
+
 import { getAccessibleCompaniesForUser } from './userRoles.model.js';
+import { type AccessibleCompaniesResponse } from './userRoles.types.js';
 
 // Simple unit tests for the core business logic
 // Following the "simplicity over everything" principle

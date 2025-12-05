@@ -2,16 +2,17 @@
 import '../config/env-loader.js';
 
 import * as Sentry from '@sentry/node';
+import pino from 'pino';
+
+import { ENV, NODE_ENV } from './config/env.js';
+import { scheduleNightlyAutoExtend } from './domains/reporting/fiscal-calendar/index.js';
 import {
+  getWorkersStatus,
   startAllWorkers,
   stopAllWorkers,
-  getWorkersStatus,
 } from './jobs/workers/index.js';
+import { getRedisStats, initRedisMonitoring } from './lib/redis-monitor.js';
 import { initSentry } from './sentry.bootstrap.js';
-import { NODE_ENV, ENV } from './config/env.js';
-import { initRedisMonitoring, getRedisStats } from './lib/redis-monitor.js';
-import pino from 'pino';
-import { scheduleNightlyAutoExtend } from './domains/reporting/fiscal-calendar/index.js';
 
 // Initialize logger
 const logger =

@@ -1,15 +1,5 @@
-import type { Row } from '@tanstack/react-table';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Controller, useForm, useWatch } from 'react-hook-form';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import {
-  type CoaResponse,
-  editCoaRequest,
-  type EditCoaRequest,
-} from '@/domains-pending-migration/coa/types';
-import { useCallback, useMemo, useState } from 'react';
+import type { Row } from '@tanstack/react-table';
 import {
   Archive,
   ArrowLeft,
@@ -22,25 +12,37 @@ import {
   Lock,
   Trash2,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useMediaQuery } from '@/shared/hooks/use-media-query';
+import { useCallback, useMemo, useState } from 'react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import { FormField } from '@/components/FormField';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { useAccountMeta } from '@/domains-pending-migration/account-classification/hooks';
+import {
+  ACCOUNT_TYPE_BLACKLIST,
+  type BlacklistedType,
+} from '@/domains-pending-migration/coa/constants';
 import {
   useArchiveCoa,
   useDeleteCoa,
   useEditCoa,
   useUnarchiveCoa,
 } from '@/domains-pending-migration/coa/hooks';
-import { getChangedFields } from './utils';
-import { FormField } from '@/components/FormField';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
-import { useAccountMeta } from '@/domains-pending-migration/account-classification/hooks';
-import { CenteredLoader } from '@/components/CenteredLoader';
 import {
-  ACCOUNT_TYPE_BLACKLIST,
-  type BlacklistedType,
-} from '@/domains-pending-migration/coa/constants';
+  type CoaResponse,
+  type EditCoaRequest,
+  editCoaRequest,
+} from '@/domains-pending-migration/coa/types';
+import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/shared/hooks/use-media-query';
+
+import { getChangedFields } from './utils';
 
 // Constants
 const STYLES = {

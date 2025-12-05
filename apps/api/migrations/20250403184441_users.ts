@@ -1,12 +1,13 @@
-import type { Knex } from 'knex';
-import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+import type { Knex } from 'knex';
+
+import { ENV, isProd } from '../config/env-loader.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
-import { ENV, isProd } from '../config/env-loader.ts';
+} from './utils/db.js';
 
 export async function createUser({
   user: input,
@@ -19,7 +20,7 @@ export async function createUser({
     firstname: string;
     lastname?: string | null;
     is_demo_user?: boolean;
-    onboarding_state?: any;
+    onboarding_state?: Record<string, unknown> | null;
     avatar_url?: string;
     email_verified_at: Date;
   };

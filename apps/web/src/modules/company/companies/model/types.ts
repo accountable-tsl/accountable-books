@@ -1,5 +1,6 @@
-import { dateOrStringNullish } from '@/shared/types/core';
 import { z } from 'zod';
+
+import { dateOrStringNullish } from '@/shared/types/core';
 
 export const companyType = z.enum([
   'business',

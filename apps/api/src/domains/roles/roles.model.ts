@@ -1,6 +1,6 @@
 import { knexClient } from '../../db/knexClient.js';
 import { AppError } from '../../shared/utils/response.utils.js';
-import { type RoleInfo, roleKey, type RoleKey } from './roles.types.js';
+import { type RoleInfo, type RoleKey, roleKey } from './roles.types.js';
 
 let rolesLoaded = false;
 

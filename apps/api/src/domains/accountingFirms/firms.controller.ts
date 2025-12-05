@@ -1,10 +1,11 @@
 import { type Request, type Response } from 'express';
+
+import { errorResponse } from '../../shared/utils/response.utils.js';
 import {
   checkSlugAvailability,
   checkSlugForCompany,
   getCompanySlug,
 } from './firms.model.js';
-import { errorResponse } from '../../shared/utils/response.utils.js';
 
 export const checkSlugController = async (req: Request, res: Response) => {
   const slug = String(req.query.slug);

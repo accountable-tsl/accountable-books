@@ -1,9 +1,10 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
 import {
   createDemoProjects,
-  getOrCreateDemoProjectsMap,
   deleteDemoProjects,
+  getOrCreateDemoProjectsMap,
 } from './projects.fn.js';
 import { demoProjectsByCompanyMap } from './projects.state.js';
 

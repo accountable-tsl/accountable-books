@@ -1,7 +1,8 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+import { DEMO_USERS, NG_USER, US_USER } from './users.data.js';
 import { createDemoUsers, deleteDemoUsers } from './users.fn.js';
-import { DEMO_USERS, US_USER, NG_USER } from './users.data.js';
 
 // Mock the createUser function from the migration file
 vi.mock('../../../../migrations/20250403184441_users.ts', () => ({

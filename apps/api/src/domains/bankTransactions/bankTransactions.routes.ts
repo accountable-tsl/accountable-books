@@ -1,4 +1,5 @@
 import express from 'express';
+
 import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
 import {
   handleTransactionDeletion,

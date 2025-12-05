@@ -1,17 +1,19 @@
+import { Search, X } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
+
+import { DataTableViewOptions } from '@/components/data-table/filter-components/view-options';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Search, X } from 'lucide-react';
-import { DataTableViewOptions } from '@/components/data-table/filter-components/view-options';
-import {
-  generateSearchPlaceholder,
-  categorizeColumns,
-  resolveToolbarItems,
-  mergeConfigs,
-} from './utils';
-import type { DataTableToolbarProps, ToolbarItem } from './types';
+
 import { DataTableToolbarFilter } from './DataTableToolbarFilter';
+import type { DataTableToolbarProps, ToolbarItem } from './types';
+import {
+  categorizeColumns,
+  generateSearchPlaceholder,
+  mergeConfigs,
+  resolveToolbarItems,
+} from './utils';
 
 export function DataTableToolbar<TData>({
   table,

@@ -1,43 +1,47 @@
 import type { Knex } from 'knex';
-import {
-  type Coa,
-  type CoaResponse,
-  type CoaSnapshotVersion,
-  coaUpdateInput,
-  type CoaUpdateInput,
-  type CoaUpdateOptions,
-  type FetchCoaInput,
-  newCoa,
-  type NewCoa,
-  newCoaInput,
-  type NewCoaInputCamel,
-  type ResolvedCoaUpdateInput,
-  type SimpleCoaRecord,
-  updateCoaAction,
-  type UpdateCoaAction,
-  type UpdateCoaResponse,
-} from './coa.types.js';
+import z from 'zod';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
+import { redis } from '../../lib/redis.js';
+import { generateChecksum, logger } from '../../shared/index.js';
+import {
+  camelToSnake,
+  removeNullsShallow,
+} from '../../shared/utils/formatting.utils.js';
+import { chunkArray, getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   AppError,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from './coa.constants.js';
-import { chunkArray, getCompanyUUID } from '../../shared/utils/random.utils.js';
-import {
-  camelToSnake,
-  removeNullsShallow,
-} from '../../shared/utils/formatting.utils.js';
-import { knexClient } from '../../db/knexClient.js';
-import { redis } from '../../lib/redis.js';
 import {
   getAccountTypeByKey,
   getFullAccountMeta,
 } from '../account/account.registry.js';
-import { generateChecksum, logger } from '../../shared/index.js';
-import z from 'zod';
 import { invalidateCompanyContext } from '../categorization/index.js';
+import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from './coa.constants.js';
+import {
+  type Coa,
+  type CoaResponse,
+  type CoaSnapshotVersion,
+  type CoaUpdateInput,
+  coaUpdateInput,
+  type CoaUpdateOptions,
+  type CoaValidationResponse,
+  type CoaValidationResult,
+  type CoaValidationStatus,
+  type FetchCoaInput,
+  type NewCoa,
+  newCoa,
+  newCoaInput,
+  type NewCoaInputCamel,
+  type ResolvedCoaUpdateInput,
+  type SimpleCoaRecord,
+  type UpdateCoaAction,
+  updateCoaAction,
+  type UpdateCoaResponse,
+} from './coa.types.js';
 
 // TODO: Invalidate coa cache on mutations
 const coaCacheTTL = 60 * 60 * 2;
@@ -1167,5 +1171,129 @@ export async function invalidateCoaSnapshotCacheForML({
         'All COA snapshot caches invalidated for ML',
       );
     }
+  }
+}
+
+/**
+ * Validate COA IDs and check their status
+ *
+ * This helper function takes one or more COA IDs and a company ID,
+ * then returns detailed information about each account's existence and status.
+ * Leverages fetchCompanyCoa for caching and consistent data retrieval.
+ *
+ * @param coaIds - Single COA ID or array of COA IDs to validate
+ * @param companyId - Company ID or UUID
+ * @param trx - Optional Knex transaction
+ * @returns Validation response with valid/invalid accounts and their statuses
+ *
+ * @example
+ * ```typescript
+ * // Single COA ID
+ * const result = await validateCoaIds({ coaIds: 'coa-uuid', companyId: 'company-uuid' });
+ * if (result.success && result.data?.allValid) {
+ *   console.log('All accounts are active');
+ * }
+ *
+ * // Multiple COA IDs
+ * const result = await validateCoaIds({ coaIds: ['coa-1', 'coa-2'], companyId: 'company-uuid' });
+ * if (result.success) {
+ *   result.data.valid.forEach(coa => console.log(`${coa.name} is ${coa.status}`));
+ *   result.data.invalid.forEach(coa => console.log(`${coa.id} - ${coa.status}`));
+ * }
+ * ```
+ */
+export async function validateCoaIds({
+  coaIds,
+  companyId,
+  trx,
+}: {
+  coaIds: string | string[];
+  companyId: string;
+  trx?: Knex.Transaction;
+}): Promise<ApiResponse<CoaValidationResponse>> {
+  try {
+    // Normalize input to array
+    const ids = Array.isArray(coaIds) ? coaIds : [coaIds];
+
+    if (ids.length === 0) {
+      return errorResponse('No COA IDs provided');
+    }
+
+    // Fetch COA records using existing function (with caching, etc.)
+    const coaResponse = await fetchCompanyCoa({
+      companyId,
+      ids,
+      includeDeleted: true, // Include all statuses for validation
+      trx,
+    });
+
+    if (!coaResponse.success || !coaResponse.data) {
+      return errorResponse(
+        'Failed to fetch COA records',
+        coaResponse.message || 'Unknown error',
+      );
+    }
+
+    // Create a map of found records and track which IDs were found
+    const foundMap = new Map<string, CoaResponse>();
+    coaResponse.data.forEach((record) => foundMap.set(record.id, record));
+
+    const requestedIds = new Set(ids);
+    const valid: CoaValidationResult[] = [];
+    const invalid: CoaValidationResult[] = [];
+
+    // Process each requested ID
+    for (const id of requestedIds) {
+      const record = foundMap.get(id);
+
+      if (!record) {
+        // Account not found
+        invalid.push({
+          id,
+          exists: false,
+          status: 'not_found',
+        });
+      } else {
+        // Determine status
+        let status: CoaValidationStatus;
+        if (record.isDeleted) {
+          status = 'deleted';
+        } else if (!record.isActive) {
+          status = 'inactive';
+        } else {
+          status = 'active';
+        }
+
+        const validationResult: CoaValidationResult = {
+          id: record.id,
+          exists: true,
+          status,
+          name: record.name,
+          code: record.code,
+          isLocked: record.isLocked,
+          accountTypeKey: record.accountTypeKey,
+        };
+
+        // Categorize as valid (active) or invalid (inactive/deleted)
+        if (status === 'active') {
+          valid.push(validationResult);
+        } else {
+          invalid.push(validationResult);
+        }
+      }
+    }
+
+    const response: CoaValidationResponse = {
+      valid,
+      invalid,
+      allValid: invalid.length === 0,
+    };
+
+    return successResponse('COA validation completed', response);
+  } catch (error) {
+    return errorResponse(
+      'Failed to validate COA IDs',
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }

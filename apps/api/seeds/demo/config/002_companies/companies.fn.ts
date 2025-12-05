@@ -1,14 +1,15 @@
 import type { Knex } from 'knex';
-import {
-  DEMO_COMPANIES_IDS,
-  generateDemoCompaniesMap,
-} from './companies.data.js';
+
 import {
   COMPANY_TYPES,
   type DemoCompanyType,
   type DemoFilter,
 } from '../../shared/config.js';
-import { resolveFiltersToIds, getDemoUserMap } from '../../shared/utils.js';
+import { getDemoUserMap, resolveFiltersToIds } from '../../shared/utils.js';
+import {
+  DEMO_COMPANIES_IDS,
+  generateDemoCompaniesMap,
+} from './companies.data.js';
 
 const completeOnbState = (companyType: DemoCompanyType) => {
   return {

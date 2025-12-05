@@ -1,12 +1,13 @@
-import z from 'zod';
-import { dbBaseFields, zDateYMD } from '../../../../core/index.js';
-import { actionTraceNode, conditionTraceNode } from '../../rules/index.js';
-import { txnCategorizationSource } from '../../categorization.types.js';
-import { contactType } from '../../../contacts/contacts.types.js';
 import {
   mlPredictionOutput,
   tenantAccountRanker,
 } from '@accountable-books/contracts/schema';
+import z from 'zod';
+
+import { dbBaseFields, zDateYMD } from '../../../../core/index.js';
+import { contactType } from '../../../contacts/contacts.types.js';
+import { txnCategorizationSource } from '../../categorization.types.js';
+import { actionTraceNode, conditionTraceNode } from '../../rules/index.js';
 
 export const predictionStatus = z.enum([
   'pending',

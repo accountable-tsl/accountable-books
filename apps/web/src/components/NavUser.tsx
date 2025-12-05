@@ -1,3 +1,4 @@
+import { useSession } from '@session';
 import {
   BellIcon,
   CreditCardIcon,
@@ -5,6 +6,7 @@ import {
   MoreVerticalIcon,
   UserCircleIcon,
 } from 'lucide-react';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -21,7 +23,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { useSession } from '@session';
 
 export function NavUser({
   user,

@@ -1,5 +1,13 @@
+import { doubleCsrf } from 'csrf-csrf';
+import { type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
+
 import { ENV, isProd } from '../../config/env.js';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
+import { getAccessibleCompaniesForUser } from '../../domains/userRoles/userRoles.model.js';
+import { getOnboardingState } from '../../features/onboarding/onboarding.service.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   AppError,
   errorResponse,
@@ -12,13 +20,6 @@ import {
   type TokenConfig,
   TokenExpiration,
 } from './auth.types.js';
-import { type Request, type Response } from 'express';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { getAccessibleCompaniesForUser } from '../../domains/userRoles/userRoles.model.js';
-import { getOnboardingState } from '../../features/onboarding/onboarding.service.js';
-import { doubleCsrf } from 'csrf-csrf';
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throw new AppError('JWT secrets must be defined in .env');

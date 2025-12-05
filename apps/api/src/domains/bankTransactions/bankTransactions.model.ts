@@ -1,36 +1,37 @@
+import { randomUUID } from 'crypto';
+import type { Knex } from 'knex';
+
+import { categorizationStatus } from '../../core/types/core.js';
 import { knexClient } from '../../db/knexClient.js';
+import { generateFingerprintSync } from '../../shared/index.js';
+import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
+import { logger } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { enqueueBankBalance } from '../balances/index.js';
 import {
+  emitTxnDeletedEvent,
+  enqueueTransactionEnrichment,
+  handleTransactionsDeleted,
+} from '../categorization/index.js';
+import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
+import {
+  type BankTransactionBatchInput,
   bankTransactionBatchInput,
   type BankTransactionFilters,
   type BankTransactionInput,
   bankTransactionsFilters,
-  type NewBankTransaction,
-  type BankTransactionBatchInput,
-  deleteBankTransactionsInput,
   type DeleteBankTransactionsInput,
+  deleteBankTransactionsInput,
+  type NewBankTransaction,
 } from './bankTransactions.types.js';
-import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
-import { categorizationStatus } from '../../core/types/core.js';
 import {
   buildBankTransactionQuery,
   generateBatchFingerprint,
 } from './bankTransactions.utils.js';
-import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
-import { logger } from '../../shared/utils/logger.js';
-import type { Knex } from 'knex';
-import { randomUUID } from 'crypto';
-import { generateFingerprintSync } from '../../shared/index.js';
-import {
-  enqueueTransactionEnrichment,
-  handleTransactionsDeleted,
-  emitTxnDeletedEvent,
-} from '../categorization/index.js';
-import { enqueueBankBalance } from '../balances/index.js';
 
 export async function addNewBankTransactions({
   userId,

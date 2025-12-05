@@ -1,7 +1,8 @@
 import { type Response } from 'express';
-import { getAccountClassificationMeta } from './account.model.js';
-import { errorResponse } from '../../shared/utils/response.utils.js';
+
 import type { AuthRequest } from '../../features/auth/auth.types.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { getAccountClassificationMeta } from './account.model.js';
 
 export async function accountMetaController(req: AuthRequest, res: Response) {
   try {

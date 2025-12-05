@@ -1,27 +1,29 @@
-import { useState } from 'react';
 import { useSession } from '@session';
-import { WelcomeStep } from '../ui/steps/welcome-step';
-import { CountrySelectStep } from '../ui/steps/country-select-step';
-import { ProviderSelectStep } from '../ui/steps/provider-select-step';
-import { ProviderWidget } from '../ui/provider-widget';
-import { ClassifyAccountStep } from '../ui/steps/classify-account-step';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
+
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import { useNavigate } from 'react-router';
-import type {
-  BankProvider,
-  ProviderSelectionResult,
-} from '@/modules/banking/providers';
+import { Button } from '@/components/ui/button';
 import {
+  type ConnectAccountsResponse,
+  type CountryDisplay,
   useBanking,
   useConnectAccounts,
   useCountrySelection,
   useCreateLinkToken,
-  type ConnectAccountsResponse,
-  type CountryDisplay,
 } from '@/modules/banking/connections';
+import type {
+  BankProvider,
+  ProviderSelectionResult,
+} from '@/modules/banking/providers';
+
+import { ProviderWidget } from '../ui/provider-widget';
+import { ClassifyAccountStep } from '../ui/steps/classify-account-step';
+import { CountrySelectStep } from '../ui/steps/country-select-step';
+import { ProviderSelectStep } from '../ui/steps/provider-select-step';
+import { WelcomeStep } from '../ui/steps/welcome-step';
 
 type FlowStep =
   | 'welcome'

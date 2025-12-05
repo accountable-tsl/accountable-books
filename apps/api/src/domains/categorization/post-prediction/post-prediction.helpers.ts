@@ -2,9 +2,8 @@
  * Build candidate explanation from rule result
  */
 
-import type { CategorizeLine } from '../rules/rules-def.types.js';
 import type { RuleEngineResult } from '../rules/rules.engine.types.js';
-import type { PersistPredictionParams } from './predictions/predictions.types.js';
+import type { CategorizeLine } from '../rules/rules-def.types.js';
 
 /**
  * Escape quotes in rule names to prevent double-quoting when wrapping in quotes
@@ -154,7 +153,9 @@ function toCurrency(value: number): number {
 
 /**
  * Get split value from categorize line
+ * @deprecated Currently unused, kept for future split functionality
  */
+
 function getSplitValue(line: CategorizeLine): number | null {
   if ('value' in line && typeof line.value === 'number') {
     return line.value;
@@ -262,65 +263,3 @@ export function computeCategorizeAmounts(
 export const allEqual = (...values: string[]): boolean => {
   return values.every((v) => v === values[0]);
 };
-/**
- * Build journal lines from categorize lines
- */
-function buildJournalLines(params: {
-  categorizeLines: CategorizeLine[];
-  transactionAmount: number;
-  direction: 'inflow' | 'outflow' | 'transfer';
-  currencyCode: string;
-  bankCoaId: string | null;
-}): CandidateLineDraft[] {
-  const {
-    categorizeLines,
-    transactionAmount,
-    direction,
-    currencyCode,
-    bankCoaId,
-  } = params;
-  if (!bankCoaId) {
-    return [];
-  }
-
-  const computed = computeCategorizeAmounts(categorizeLines, transactionAmount);
-  if (!computed.length) {
-    return [];
-  }
-
-  const counterpartEntryType = direction === 'inflow' ? 'credit' : 'debit';
-  const bankEntryType = direction === 'inflow' ? 'debit' : 'credit';
-
-  const lines: CandidateLineDraft[] = [];
-  lines.push({
-    entryType: bankEntryType,
-    coaId: bankCoaId,
-    amountNative: toCurrency(transactionAmount),
-    currencyCode,
-    description: 'Bank leg',
-    isBankLeg: true,
-    splitType: 'bank',
-    metadata: { direction },
-  });
-
-  for (const item of computed) {
-    if (!item.line.coa_id) {
-      continue;
-    }
-    lines.push({
-      entryType: counterpartEntryType,
-      coaId: item.line.coa_id,
-      amountNative: toCurrency(item.amount),
-      currencyCode,
-      description: item.line.description ?? null,
-      isBankLeg: false,
-      splitType: item.line.split_type as CandidateSplitType,
-      splitValue: getSplitValue(item.line),
-      metadata: item.line as unknown as Record<string, unknown>,
-    });
-  }
-
-  return lines;
-}
-
-export function runAccountingModifiers() {}

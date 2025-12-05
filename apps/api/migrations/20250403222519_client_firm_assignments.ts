@@ -1,11 +1,12 @@
 import type { Knex } from 'knex';
+
+import { createPlatformCompany } from './20250403194332_companies.js';
+import { createPlatformFirm } from './20250403194335_accounting_firms_meta.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
-import { createPlatformCompany } from './20250403194332_companies.ts';
-import { createPlatformFirm } from './20250403194335_accounting_firms_meta.ts';
+} from './utils/db.js';
 
 // This table maps which business is assigned to which accounting firm. Think of it like:
 // Business A is being managed by Accounting Firm X.

@@ -1,8 +1,10 @@
-import type { Country } from '@/shared/types/core';
+import { format, isValid, parse } from 'date-fns';
 import Decimal from 'decimal.js';
-import { getUserLocale } from './random-utils';
-import { format, parse, isValid } from 'date-fns';
 import z from 'zod';
+
+import type { Country } from '@/shared/types/core';
+
+import { getUserLocale } from './random-utils';
 
 const DEFAULT_DATE_FORMAT = 'dd MMM yyyy';
 const possibleDateFormats = z.enum([

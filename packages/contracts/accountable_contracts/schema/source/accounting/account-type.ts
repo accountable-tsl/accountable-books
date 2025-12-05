@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { labelRole } from '../common/enums.js';
 
 export const newAccountType = z.object({

@@ -1,34 +1,35 @@
-import {
-  errorResponse,
-  successResponse,
-} from '../../../shared/utils/response.utils.js';
-import { knexClient } from '../../../db/knexClient.js';
-import type { ApiResponse } from '../../../core/types/api.types.js';
-import {
-  bankAccountWithConnectionInput,
-  type BankAccountWithConnectionInput,
-  type BankAccountWithMeta,
-  type CompanyBankingSnapshot,
-  type ManualBankAccountInput,
-  manualBankAccountInputCamel,
-  newBankAccountInput,
-  type NewBankAccountInput,
-  updateBankAccount,
-  type UpdateBankAccount,
-} from './bankAccounts.types.js';
-import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
 import type { Knex } from 'knex';
-import { getAccountTypeByKey } from '../../account/account.registry.js';
+import z from 'zod';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import { knexClient } from '../../../db/knexClient.js';
 import {
   getCurrency,
   getCurrencyById,
 } from '../../../domains/currencies/currencies.utils.js';
-import logger from '../../../shared/utils/logger.js';
-import z from 'zod';
+import { toYMD } from '../../../shared/utils/date.utils.js';
 import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
+import logger from '../../../shared/utils/logger.js';
+import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
+import { getAccountTypeByKey } from '../../account/account.registry.js';
 import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
 import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
-import { toYMD } from '../../../shared/utils/date.utils.js';
+import {
+  type BankAccountWithConnectionInput,
+  bankAccountWithConnectionInput,
+  type BankAccountWithMeta,
+  type CompanyBankingSnapshot,
+  type ManualBankAccountInput,
+  manualBankAccountInputCamel,
+  type NewBankAccountInput,
+  newBankAccountInput,
+  type UpdateBankAccount,
+  updateBankAccount,
+} from './bankAccounts.types.js';
 
 const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields

@@ -1,28 +1,33 @@
+import type { AccrualResolverOutput } from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
-import { logger } from '../../../shared/index.js';
+
+import { knexClient } from '../../../db/knexClient.js';
+import { logger, toYMD } from '../../../shared/index.js';
+import { runConstraints } from '../../constraints/constraint-runner.js';
+import type { TxnCategorizationSource } from '../categorization.types.js';
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
-import type { RuleEngineResult } from '../rules/rules.engine.types.js';
-import { logTaskEventSafe } from '../tasks/task-events.service.js';
-import type {
-  PersistPredictionParams,
-  RulePredictionMetadata,
-} from './predictions/predictions.types.js';
-import type {
-  HandlePostPredictionParams,
-  HandleRulePredictionParams,
-} from './post-prediction.types.js';
 import { enqueueMLPredictionJob } from '../ml/ml-prediction.queue.js';
+import type { MLPredictionOutput } from '../ml/ml-prediction.types.js';
+import type { RuleEngineResult } from '../rules/rules.engine.types.js';
 import type { TaskEventType } from '../tasks/index.js';
-import { persistPrediction } from './predictions/predictions.service.js';
+import { logTaskEventSafe } from '../tasks/task-events.service.js';
+import { persistCategorizationCandidate } from './candidates/candidates.service.js';
+import type { CandidateLineDraft } from './candidates/candidates.types.js';
 import {
   allEqual,
   buildExplanationFromRuleResult,
   computeCategorizeAmounts,
 } from './post-prediction.helpers.js';
-import type { CandidateLineDraft } from './candidates/candidates.types.js';
-import { getCurrency } from '../../currencies/currencies.utils.js';
-
-const CATEGORIZATION_TASKS_TABLE = 'categorization_tasks';
+import type {
+  HandlePostPredictionParams,
+  HandleRulePredictionParams,
+} from './post-prediction.types.js';
+import { persistPrediction } from './predictions/predictions.service.js';
+import type {
+  MLPredictionMetadata,
+  PersistPredictionParams,
+  RulePredictionMetadata,
+} from './predictions/predictions.types.js';
 
 // Map status to specific event type
 const eventTypeMap: Record<RuleEngineResult['status'], TaskEventType> = {
@@ -42,30 +47,51 @@ const eventTypeMap: Record<RuleEngineResult['status'], TaskEventType> = {
 export async function handlePostPrediction(
   params: HandlePostPredictionParams,
 ): Promise<void> {
+  let predictionData: PersistPredictionParams | null = null;
+  let accrualOutput: AccrualResolverOutput | null = null;
+
   if (params.source === 'rule') {
-    await handleRulePrediction({
+    predictionData = await handleRulePrediction({
       event: params.event,
-      ruleResult: params.result,
+      ruleResult: params.ruleResult,
+      source: params.source,
       runId: params.runId,
       error: params.error,
       trx: params.trx,
     });
+  }
 
-    // Schedule ML enqueueing to happen after transaction commits
-    // Use setImmediate to ensure it runs after the current transaction completes
-    if (params.result) {
-      setImmediate(async () => {
-        await enqueueMlIfNeeded(params.event, params.result);
-      });
-    } else if (params.error) {
-      // Even on error, we might want to enqueue ML as fallback
-      setImmediate(async () => {
-        await enqueueMlIfNeeded(params.event, null);
-      });
-    }
-  } else {
-    // ML prediction handling will be implemented later
-    throw new Error('ML prediction handling not yet implemented');
+  if (params.source === 'ml' || params.source === 'ml_heuristic') {
+    accrualOutput = params.mlResult.accrual_resolver ?? null;
+
+    // Build prediction with accrual logic applied (if applicable)
+    // This ensures prediction reflects accrual account, not just candidate
+    predictionData = buildPredictionFromMlOutput({
+      event: params.event,
+      mlResult: params.mlResult,
+      source: params.source,
+      runId: params.runId,
+      accrualOutput, // Pass accrual output to apply in prediction
+    });
+  }
+
+  if (predictionData) {
+    // Step 1: Persist prediction in separate transaction (always succeeds, even if validation fails)
+    const predictionId = await persistPredictionOnly(predictionData);
+
+    // Step 2: Validate and create candidate in transaction
+    // If this fails, prediction is still persisted (for auditability)
+    await processPredictionToCandidate({
+      source: params.source,
+      event: params.event,
+      predictionData,
+      runId: params.runId,
+      predictionId,
+      trx: params.trx,
+    });
+
+    // Calculate post-prediction processing latency
+    // const postPredictionLatencyMs = Date.now() - postPredictionStartTime;
   }
 }
 
@@ -75,8 +101,8 @@ export async function handlePostPrediction(
  */
 async function handleRulePrediction(
   params: HandleRulePredictionParams,
-): Promise<void> {
-  const { event, ruleResult, runId, error, trx } = params;
+): Promise<PersistPredictionParams | null> {
+  const { event, ruleResult, runId, error, rulesLatencyMs, trx } = params;
 
   // Use the provided transaction (assumes it's already in a transaction)
   // Serialize candidate/prediction writes per task
@@ -95,11 +121,12 @@ async function handleRulePrediction(
       metadata: {
         error_message:
           error instanceof Error ? error.message : 'rule_runner_unknown_error',
+        ...(rulesLatencyMs !== undefined ? { latency_ms: rulesLatencyMs } : {}),
       },
       trx,
     });
 
-    return;
+    return null;
   }
 
   await logTaskEventSafe({
@@ -111,185 +138,32 @@ async function handleRulePrediction(
     metadata: {
       status: ruleResult.status,
       applied_rule_ids: ruleResult.appliedRuleIds,
+      ...(rulesLatencyMs !== undefined ? { latency_ms: rulesLatencyMs } : {}),
     },
     trx,
   });
 
   // If rules applied successfully, create prediction and candidate
   if (ruleResult.status === 'applied') {
-    // await createPredictionAndCandidateFromRuleResult(
-    //   event,
-    //   ruleResult,
-    //   runId,
-    //   trx,
-    // );
-
     // Build prediction data
-    const predictionData = buildPredictionFromRuleResult(event, ruleResult);
-
-    // Persist prediction data
-    await persistPrediction(predictionData, trx);
-  }
-}
-
-/**
- * Map rule engine result status to task status
- * Note: This function is currently unused - task status updates have been removed
- */
-function mapResultToTaskStatus(result: RuleEngineResult): string | null {
-  switch (result.status) {
-    case 'applied':
-      return 'pending';
-    case 'conflict':
-    case 'error':
-      return 'partial';
-    default:
-      return null;
-  }
-}
-
-/**
- * Create prediction and candidate from rule result
- */
-async function createPredictionAndCandidateFromRuleResult(
-  event: TransactionEnrichedEventData,
-  result: RuleEngineResult,
-  runId: string,
-  knex: Knex.Transaction,
-): Promise<void> {
-  const categorizeLines = result.finalState.categorize;
-  if (!categorizeLines?.length) {
-    return;
-  }
-
-  const transactionAmount = Math.abs(event.enriched_transaction.raw.amount);
-  if (transactionAmount === 0) {
-    return;
-  }
-
-  const journalLines = buildJournalLines({
-    categorizeLines,
-    transactionAmount,
-    direction: event.enriched_transaction.raw.amount > 0 ? 'inflow' : 'outflow',
-    currencyCode: event.enriched_transaction.raw.currency_code,
-    bankCoaId: event.enriched_transaction.ids.bank_account_coa_id,
-  });
-
-  if (journalLines.length === 0) {
-    return;
-  }
-
-  const explanation = buildExplanationFromRuleResult(result);
-
-  // Get all applied rule logs
-  const appliedRuleLogs = result.logs.filter(
-    (log) =>
-      log.status === 'success' && result.appliedRuleIds.includes(log.ruleId),
-  );
-
-  if (appliedRuleLogs.length === 0) {
-    throw new Error(
-      'Cannot create rule prediction metadata: no applied rules found',
-    );
-  }
-
-  // Build typed metadata for rule prediction with all applied rules
-  const metadata: RulePredictionMetadata = {
-    provenance: 'rule_engine',
-    run_id: result.runId,
-    rule_ids: result.appliedRuleIds,
-    rules: appliedRuleLogs.map((log) => ({
-      rule_id: log.ruleId,
-      ...(log.ruleName ? { rule_name: log.ruleName } : {}),
-      ...(log.matchedConditions || log.appliedActions
-        ? {
-            rule_details: {
-              matched_conditions: log.matchedConditions ?? [],
-              applied_actions: log.appliedActions ?? [],
-            },
-          }
-        : {}),
-    })),
-  };
-
-  await processPredictionToCandidate({
-    categorizationTaskId: event.categorization_task_id,
-    bankTransactionId: event.bank_transaction_id,
-    bankTransactionDate: event.enriched_transaction.raw.date,
-    companyId: event.company_uuid,
-    source: 'rule',
-    runId,
-    lines: journalLines,
-    confidence: 1,
-    explanation,
-    metadata,
-    enrichedTransaction: event.enriched_transaction,
-    knex,
-    softDeleteExistingPredictions: false,
-  });
-}
-
-/**
- * Determine if ML prediction should be enqueued and enqueue if needed
- * Note: ML enqueueing happens after transaction commits to avoid blocking
- */
-export async function enqueueMlIfNeeded(
-  event: TransactionEnrichedEventData,
-  ruleResult: RuleEngineResult | null,
-): Promise<void> {
-  try {
-    const enrichedTxn = event.enriched_transaction;
-    const processingContext = enrichedTxn.metadata.processing_context;
-
-    // Check if we should run ML
-    const shouldRunML = shouldEnqueueML(processingContext, ruleResult);
-
-    if (!shouldRunML) {
-      logger.debug(
-        {
-          bankTransactionId: event.bank_transaction_id,
-          processingContext,
-          ruleStatus: ruleResult?.status,
-        },
-        'Skipping ML prediction - rules applied successfully',
-      );
-      return;
-    }
-
-    logger.info(
-      {
-        bankTransactionId: event.bank_transaction_id,
-        processingContext,
-        ruleStatus: ruleResult?.status ?? 'error',
-      },
-      'Enqueueing ML prediction job',
+    const predictionData = buildPredictionFromRuleResult(
+      event,
+      ruleResult,
+      runId,
     );
 
-    // Enqueue ML prediction job (after transaction commits)
-    await enqueueMLPredictionJob({
-      categorizationTaskId: event.categorization_task_id,
-      bankTransactionId: event.bank_transaction_id,
-      companyId: event.company_uuid,
-      enrichedTransaction: enrichedTxn,
-    });
+    return predictionData;
 
-    logger.debug(
-      {
-        bankTransactionId: event.bank_transaction_id,
-        categorizationTaskId: event.categorization_task_id,
-      },
-      'ML prediction job enqueued successfully',
-    );
-  } catch (error) {
-    // Log error but don't throw - ML is optional enhancement
-    logger.error(
-      {
-        bankTransactionId: event.bank_transaction_id,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      'Failed to enqueue ML prediction job',
-    );
+    // await processPredictionsToCandidates({
+    //   source: 'rule',
+    //   event,
+    //   runId,
+    //   predictionData,
+    //   trx,
+    // });
   }
+
+  return null;
 }
 
 /**
@@ -333,16 +207,102 @@ function shouldEnqueueML(
   }
 
   // Default: run ML if processing context is undefined (safety fallback)
+  // To return to false later
   return true;
 }
 
 /**
- * Builds prediction object from rule result
- * Note: This function builds predictions WITHOUT bank leg (only what rules predicted)
+ * Determine if ML prediction should be enqueued and enqueue if needed
+ * Note: ML enqueueing happens after transaction commits to avoid blocking
+ */
+export async function enqueueMlIfNeeded({
+  event,
+  ruleResult,
+}: {
+  event: TransactionEnrichedEventData;
+  ruleResult: RuleEngineResult | null;
+}): Promise<void> {
+  try {
+    const enrichedTxn = event.enriched_transaction;
+    const processingContext = enrichedTxn.metadata.processing_context;
+
+    // Check if we should run ML
+    const shouldRunML = shouldEnqueueML(processingContext, ruleResult);
+
+    if (!shouldRunML) {
+      logger.debug(
+        {
+          bankTransactionId: event.bank_transaction_id,
+          processingContext,
+          ruleStatus: ruleResult?.status,
+        },
+        'Skipping ML prediction - rules applied successfully',
+      );
+      return;
+    }
+
+    logger.info(
+      {
+        bankTransactionId: event.bank_transaction_id,
+        processingContext,
+        ruleStatus: ruleResult?.status ?? 'error',
+      },
+      'Enqueueing ML prediction job',
+    );
+
+    // Enqueue ML prediction job (after transaction commits)
+    await enqueueMLPredictionJob({
+      categorizationTaskId: event.categorization_task_id,
+      bankTransactionId: event.bank_transaction_id,
+      companyId: event.company_uuid,
+      enrichedTransaction: enrichedTxn,
+      runId: event.run_id,
+    });
+
+    await logTaskEventSafe({
+      categorization_task_id: event.categorization_task_id,
+      run_id: event.run_id,
+      source: 'ml',
+      event_type: 'ml_started',
+      event_timestamp: new Date(),
+      metadata: null,
+    });
+
+    logger.debug(
+      {
+        bankTransactionId: event.bank_transaction_id,
+        categorizationTaskId: event.categorization_task_id,
+      },
+      'ML prediction job enqueued successfully',
+    );
+  } catch (error) {
+    // Log error but don't throw - ML is optional enhancement
+    logger.error(
+      {
+        bankTransactionId: event.bank_transaction_id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      'Failed to enqueue ML prediction job',
+    );
+  }
+}
+
+/**
+ * Builds prediction object from rule result.
+ *
+ * Design Decision: Predictions do NOT include bank legs.
+ * - Predictions represent what the rule/ML engine decided (the categorization)
+ * - Bank legs are added later when building candidates (complete journal entries)
+ * - This separation allows us to audit what the engine predicted vs. the final journal entry
+ *
+ * @param event - Enriched transaction event data
+ * @param result - Rule engine result with final state
+ * @returns Prediction data ready for persistence
  */
 function buildPredictionFromRuleResult(
   event: TransactionEnrichedEventData,
   result: RuleEngineResult,
+  runId: string,
 ): PersistPredictionParams {
   // Rules engine final state fields
   const description = result.finalState.description; // Means rule has resolved to set this description
@@ -405,7 +365,7 @@ function buildPredictionFromRuleResult(
   // Build metadata
   const metadata: RulePredictionMetadata = {
     provenance: 'rule_engine',
-    run_id: result.runId,
+    run_id: runId,
     rule_ids: result.appliedRuleIds,
     rules: appliedRuleLogs.map((log) => ({
       rule_id: log.ruleId,
@@ -429,14 +389,14 @@ function buildPredictionFromRuleResult(
       categorization_task_id: event.categorization_task_id,
       bank_transaction_id: event.bank_transaction_id,
       bank_transaction_date: event.enriched_transaction.raw.date,
-      run_id: result.runId,
+      run_id: runId,
       company_id: event.company_uuid,
       source: 'rule',
       ...(contactId ? { contact_id: contactId } : {}),
       ...(contactType ? { contact_type: contactType } : {}),
       ...(description ? { description } : {}),
       ...(reference ? { reference } : {}),
-      ...(ledgerDate ? { ledger_date: ledgerDate } : {}),
+      ...(ledgerDate ? { ledger_date: toYMD(ledgerDate) } : {}),
       confidence: 1,
       model_version: null,
       explanation,
@@ -446,26 +406,198 @@ function buildPredictionFromRuleResult(
   };
 }
 
-async function processPredictionsToCandidates(
-  event: TransactionEnrichedEventData,
-  prediction: PersistPredictionParams,
-  trx?: Knex.Transaction,
-) {
-  // Ignore anything or everything that has been done
-  // Verify bank transaction belongs to the said company
-  // Verify all coa ids exist and belong to the company
-  // Build bank leg
-  // Build journal entries
-  // Run constraints solver
-  // -- Validate that all amounts resolve to zero
-  // -- Debits must equal credits
-  // -- Consider company accounting basis
-  //      -- modified_cash stays same
-  //      -- be build simple rules to handle this without - this must make sense
-  //
+function buildPredictionFromMlOutput({
+  event,
+  mlResult,
+  source,
+  runId,
+  accrualOutput,
+}: {
+  event: TransactionEnrichedEventData;
+  mlResult: MLPredictionOutput;
+  source: 'ml' | 'ml_heuristic';
+  runId: string;
+  accrualOutput?: AccrualResolverOutput | null;
+}): PersistPredictionParams {
+  // Note: ML output structure is validated using Zod schema in ml-prediction.service.ts
+  // before this function is called, so we can assume valid input here
+
+  const { global_intent_classifier, tenant_account_ranker, final_posting } =
+    mlResult;
+
+  // Check if accrual should be applied BEFORE building prediction lines
+  // This ensures the prediction itself reflects the accrual account, not just the candidate
+  const enrichedTxn = event.enriched_transaction;
+  const shouldUseAccrual =
+    accrualOutput?.should_accrue === true &&
+    enrichedTxn.context.accounting_basis === 'modified_accrual_basis' &&
+    accrualOutput.top_1_recommendation !== null;
+
+  // Use accrual account if applicable, otherwise use original prediction account
+  const accountId = shouldUseAccrual
+    ? accrualOutput.top_1_recommendation!.account_id
+    : final_posting.account_id;
+
+  // Store original account in metadata for audit trail
+  const originalAccountId = final_posting.account_id;
+
+  const transactionAmount = enrichedTxn.raw.amount;
+  const counterpartAmount = -transactionAmount;
+
+  const contactTypeValue =
+    enrichedTxn.normalized.contact_type &&
+    enrichedTxn.normalized.contact_type !== 'unknown'
+      ? enrichedTxn.normalized.contact_type
+      : null;
+
+  /**
+   * Design Decision: ML Output Field Sources
+   *
+   * - Confidence: Model A (global_intent_classifier.semantic_top1_prob) - calibrated probability
+   * - Model Version: Model A (global_intent_classifier.model_version)
+   * - Explanation: Model B (tenant_account_ranker.explanation.message)
+   *
+   * Model B's selected_account_score is NOT used for confidence because it is a ranking score,
+   * not a calibrated probability. Ranking scores are relative and not directly interpretable
+   * as probabilities.
+   *
+   * Note: All structure and value validation happens in ml-prediction.service.ts via Zod schema.
+   */
+
+  const confidence = global_intent_classifier.semantic_top1_prob;
+  const explanation =
+    tenant_account_ranker.explanation.message ?? 'This is just a guess';
+  const modelVersion: string = String(global_intent_classifier.model_version);
+
+  const metadata: MLPredictionMetadata = {
+    provenance: 'ml_engine',
+    global_intent_classifier: mlResult.global_intent_classifier,
+    tenant_account_ranker: mlResult.tenant_account_ranker,
+    final_posting: mlResult.final_posting,
+    explanation: tenant_account_ranker.explanation,
+    ...(mlResult.accrual_resolver
+      ? { accrual_resolver: mlResult.accrual_resolver }
+      : {}),
+  };
+
+  return {
+    prediction: {
+      categorization_task_id: event.categorization_task_id,
+      bank_transaction_id: event.bank_transaction_id,
+      bank_transaction_date: enrichedTxn.raw.date,
+      run_id: runId,
+      company_id: event.company_uuid,
+      source,
+      contact_id: enrichedTxn.ids.contact_id ?? null,
+      ...(contactTypeValue ? { contact_type: contactTypeValue } : {}),
+      description: enrichedTxn.raw.description ?? null,
+      reference: enrichedTxn.raw.reference ?? null,
+      ledger_date: enrichedTxn.raw.date,
+      confidence,
+      model_version: modelVersion,
+      explanation,
+      metadata,
+    },
+    // Only one prediction line for now
+    // Use accrual account label if accrual was applied, otherwise use original
+    predictionLines: (() => {
+      const accountLabel = shouldUseAccrual
+        ? (accrualOutput?.top_1_recommendation?.account_label ??
+          mlResult.final_posting.account_label)
+        : mlResult.final_posting.account_label;
+
+      return [
+        {
+          coa_id: accountId,
+          signed_native_amount: counterpartAmount,
+          description: accountLabel ?? enrichedTxn.raw.description ?? null,
+          is_bank_leg: false,
+          metadata: {
+            account_label: accountLabel,
+            ...(shouldUseAccrual
+              ? {
+                  accrual_applied: true,
+                  original_account_id: originalAccountId,
+                  original_account_label: mlResult.final_posting.account_label,
+                }
+              : {}),
+          },
+        },
+      ];
+    })(),
+  };
+}
+
+/**
+ * Persist prediction in a separate transaction.
+ * This ensures predictions are stored even if constraint validation fails later.
+ *
+ * Design Decision: Predictions are persisted in a separate transaction BEFORE constraint validation.
+ * - This ensures we have an audit trail of what rules/ML returned, even if validation fails
+ * - Invalid predictions are still stored for debugging and analysis
+ * - This is separate from candidate creation to prevent rollback of predictions
+ */
+async function persistPredictionOnly(
+  predictionData: PersistPredictionParams,
+): Promise<string> {
+  return await knexClient.transaction(async (trx) => {
+    logger.debug(
+      {
+        bankTransactionId: predictionData.prediction.bank_transaction_id,
+        categorizationTaskId: predictionData.prediction.categorization_task_id,
+        source: predictionData.prediction.source,
+        predictionLinesCount: predictionData.predictionLines.length,
+      },
+      'Persisting prediction in separate transaction',
+    );
+    return await persistPrediction(predictionData, trx);
+  });
+}
+
+/**
+ * Process prediction to candidate: validate, build journal entries, run constraints, persist.
+ *
+ * Design Decision: Constraints are validated AFTER persisting predictions (in separate transaction).
+ * - Predictions are already persisted (via persistPredictionOnly)
+ * - This function validates and creates candidates
+ * - If constraint validation fails, prediction is still persisted (for auditability)
+ *
+ * Flow:
+ * - Validate company/bank transaction IDs match across all sources
+ * - Fetch bank transaction and validate it exists and belongs to company
+ * - Validate all predicted COA IDs exist, are active, and belong to company
+ * - Build bank leg (counterpart to the prediction lines)
+ * - Build complete journal entry (bank leg + prediction lines)
+ * - Run constraint validation on complete journal entry
+ * - If valid, persist candidate; if invalid, log event and throw error
+ *
+ * @param source - Source of prediction (rule, ml, ml_heuristic)
+ * @param event - Enriched transaction event data
+ * @param runId - Run ID for tracking this categorization attempt
+ * @param predictionData - Prediction data from rule/ML engine (without bank leg)
+ * @param predictionId - ID of already-persisted prediction
+ * @param trx - Database transaction (must already be in transaction with advisory lock)
+ */
+async function processPredictionToCandidate({
+  source,
+  event,
+  predictionData,
+  runId,
+  predictionId,
+  trx,
+}: {
+  source: TxnCategorizationSource;
+  event: TransactionEnrichedEventData;
+  runId: string;
+  predictionData: PersistPredictionParams;
+  predictionId: string;
+  trx?: Knex.Transaction;
+}) {
+  // Validate data consistency across all sources
+  // This ensures we're working with consistent data before proceeding
 
   const enrichedTransaction = event.enriched_transaction;
-  const { prediction: p, predictionLines } = prediction;
+  const { prediction: p, predictionLines } = predictionData;
 
   const companyUUID = event.company_uuid;
   const companyIdFromEnrichedTxn = enrichedTransaction.ids.company_uuid;
@@ -474,8 +606,19 @@ async function processPredictionsToCandidates(
   if (
     !allEqual(companyUUID, companyIdFromEnrichedTxn, companyIdFromPrediction)
   ) {
-    // Log and throw
-    throw new Error('');
+    logger.error(
+      {
+        companyUUID,
+        companyIdFromEnrichedTxn,
+        companyIdFromPrediction,
+        bankTransactionId: event.bank_transaction_id,
+        categorizationTaskId: event.categorization_task_id,
+      },
+      'Company UUID mismatch between event, enriched transaction, and prediction',
+    );
+    throw new Error(
+      `Company UUID mismatch: event=${companyUUID}, enriched=${companyIdFromEnrichedTxn}, prediction=${companyIdFromPrediction}`,
+    );
   }
 
   const bankTxnId = event.bank_transaction_id;
@@ -483,12 +626,34 @@ async function processPredictionsToCandidates(
   const bankTxnIdFromPrediction = p.bank_transaction_id;
 
   if (!allEqual(bankTxnId, bankTxnIdFromEnrichedTxn, bankTxnIdFromPrediction)) {
-    // Log and throw
+    logger.error(
+      {
+        bankTxnId,
+        bankTxnIdFromEnrichedTxn,
+        bankTxnIdFromPrediction,
+        companyUUID,
+        categorizationTaskId: event.categorization_task_id,
+      },
+      'Bank transaction ID mismatch between event, enriched transaction, and prediction',
+    );
+    throw new Error(
+      `Bank transaction ID mismatch: event=${bankTxnId}, enriched=${bankTxnIdFromEnrichedTxn}, prediction=${bankTxnIdFromPrediction}`,
+    );
   }
 
   const bankTxnDate = enrichedTransaction.raw.date;
 
   const exec = async (txn: Knex.Transaction) => {
+    // Serialize candidate writes per task to prevent race conditions
+    // This ensures only one candidate is processed at a time for a given task
+    // Critical for ML path where multiple jobs might be enqueued concurrently
+    await txn.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+      event.categorization_task_id,
+    ]);
+
+    // Prediction is already persisted (via persistPredictionOnly)
+    // Now we validate and create candidate
+
     // Does this transaction belong to the said company?
     const bankTxn = await txn('bank_transactions as bt')
       .select([
@@ -514,12 +679,28 @@ async function processPredictionsToCandidates(
       !bankAccountCurrencyId
     ) {
       // If this ever happens, something is fundamentally wrong
-      // Log and throw
-      logger;
-      throw new Error('');
+      logger.error(
+        {
+          bankTransactionId: bankTxnId,
+          bankTransactionDate: bankTxnDate,
+          companyUUID,
+          bankTxnFound: !!bankTxn,
+          bankAccountCoaId,
+          expectedBankCoaId: enrichedTransaction.ids.bank_account_coa_id,
+          bankAccountCurrencyId,
+          categorizationTaskId: event.categorization_task_id,
+        },
+        'Bank transaction validation failed: transaction not found, missing COA, or COA mismatch',
+      );
+      throw new Error(
+        `Bank transaction validation failed for transaction ${bankTxnId}: ` +
+          `transaction=${!!bankTxn}, coaId=${bankAccountCoaId}, ` +
+          `expectedCoaId=${enrichedTransaction.ids.bank_account_coa_id}, currencyId=${!!bankAccountCurrencyId}`,
+      );
     }
 
-    // Verify all predicted coa_ids belong to this company and are active
+    // Validate all predicted COA IDs exist, are active, and belong to company
+    // This prevents creating candidates with invalid account references
     const predictedCoaIds = predictionLines.map((p) => p.coa_id);
     const coas = await txn('coa')
       .whereIn('id', predictedCoaIds)
@@ -529,10 +710,40 @@ async function processPredictionsToCandidates(
       .select('id');
 
     if (coas.length !== predictedCoaIds.length) {
-      // Find out what happened, then log and throw
+      const foundCoaIds = coas.map((c) => c.id);
+      const missingCoaIds = predictedCoaIds.filter(
+        (id) => !foundCoaIds.includes(id),
+      );
+      logger.error(
+        {
+          companyUUID,
+          bankTransactionId: bankTxnId,
+          predictedCoaIds,
+          foundCoaIds,
+          missingCoaIds,
+          expectedCount: predictedCoaIds.length,
+          foundCount: coas.length,
+          categorizationTaskId: event.categorization_task_id,
+        },
+        'COA validation failed: some predicted COA IDs do not exist, are inactive, or belong to a different company',
+      );
+      throw new Error(
+        `COA validation failed: ${missingCoaIds.length} of ${predictedCoaIds.length} COA IDs are invalid. ` +
+          `Missing/invalid COA IDs: ${missingCoaIds.join(', ')}`,
+      );
     }
 
-    // Build bank leg
+    // Build bank leg (counterpart to prediction lines)
+    // Bank leg represents the bank account side of the transaction
+    // Note: Bank leg is NOT in predictions, only added here for complete journal entry
+    logger.debug(
+      {
+        bankTransactionId: bankTxnId,
+        bankAccountCoaId,
+        bankTransactionAmount: bankTxn.amount,
+      },
+      'Building bank leg for candidate',
+    );
     const bankLeg: CandidateLineDraft = {
       fs_date: p.ledger_date ?? bankTxn.date,
       status: 'proposed',
@@ -546,7 +757,10 @@ async function processPredictionsToCandidates(
       explanation: '', // Add later
     };
 
-    // Build other entries
+    // Build other journal entries from prediction lines
+    // These represent what the rule/ML engine categorized the transaction as
+    // Note: Accrual logic is now applied in buildPredictionFromMlOutput, so prediction lines
+    // already reflect the accrual account if applicable
     const otherEntries: CandidateLineDraft[] = predictionLines
       .filter((l) => !l.is_bank_leg)
       .map((l) => {
@@ -566,12 +780,129 @@ async function processPredictionsToCandidates(
         };
       });
 
+    // Complete journal entry: bank leg + prediction lines (or accrual lines)
     const journalLines: CandidateLineDraft[] = [bankLeg, ...otherEntries];
 
-    if (source === "ml" || source === "ml_heuristic" ){
-        applyAccountingModifiers(journalLines);
+    // Run constraint validation on complete journal entry
+    // Design Decision: Validate AFTER persisting prediction to ensure auditability
+    // This validates the complete double-entry journal (debits = credits, valid accounts, etc.)
+    logger.debug(
+      {
+        bankTransactionId: bankTxnId,
+        journalLinesCount: journalLines.length,
+        companyUUID,
+      },
+      'Running constraint validation on journal entry',
+    );
+    // Map CandidateLineDraft to constraint context entries format
+    // Note: Constraint runner expects entries with: id, amount, coa_id, fs_date (optional),
+    //       project_id (optional), is_bank_leg (optional), system_exchange_rate (optional)
+    // All required fields are present in CandidateLineDraft and mapped correctly here
+    const constraintEntries = journalLines.map((line, index) => ({
+      id: `${index}`, // String identifier for the entry
+      amount: line.signed_native_amount, // Signed amount (positive = debit, negative = credit)
+      coa_id: line.coa_id, // Chart of Account ID (UUID as string)
+      fs_date: line.fs_date, // Financial statement date (YYYY-MM-DD format)
+      project_id: line.project_id ?? null, // Optional project ID
+      is_bank_leg: line.is_bank_leg, // Whether this is the bank account leg
+      system_exchange_rate: line.system_exchange_rate, // Exchange rate for currency conversion
+    }));
+
+    const constraintResult = await runConstraints({
+      companyUUID,
+      entries: constraintEntries,
+      transaction_date: p.ledger_date ?? bankTxn.date,
+    });
+
+    if (!constraintResult.isValid) {
+      // Constraint validation failed - log event and throw error
+      // Note: Prediction is already persisted (for auditability), but candidate is not created
+      await logTaskEventSafe({
+        categorization_task_id: event.categorization_task_id,
+        run_id: runId,
+        source,
+        event_type: 'constraint_validation_failed',
+        event_timestamp: new Date(),
+        metadata: {
+          prediction_id: predictionId,
+          violations: constraintResult.violations,
+          errors: constraintResult.errors,
+          warnings: constraintResult.warnings,
+        },
+        trx: txn,
+      });
+      logger.error(
+        {
+          companyUUID,
+          bankTransactionId: bankTxnId,
+          predictionId,
+          categorizationTaskId: event.categorization_task_id,
+          violations: constraintResult.violations,
+          errors: constraintResult.errors,
+          warnings: constraintResult.warnings,
+        },
+        'Constraint validation failed for candidate - prediction persisted but candidate not created',
+      );
+
+      // Throw error to prevent candidate creation
+      // Future: Consider auto-fixing certain violations or allowing warnings
+      throw new Error(
+        `Constraint validation failed: ${constraintResult.errors.map((e) => e.message).join('; ')}`,
+      );
     }
-    const currencyCode = enrichedTransaction.raw?.currency_code;
-    const transactionAmount = enrichedTransaction.raw?.amount;
+
+    logger.debug(
+      {
+        bankTransactionId: bankTxnId,
+        predictionId,
+        journalLinesCount: journalLines.length,
+      },
+      'Constraint validation passed, creating candidate',
+    );
+
+    // Build candidate object with complete journal entry
+    // Candidate includes: prediction reference, transaction metadata, and complete journal lines
+    const candidateObj = {
+      source,
+      categorization_task_id: event.categorization_task_id,
+      prediction_id: predictionId, // Persisted prediction must have ID
+      bank_transaction_id: bankTxnId,
+      bank_transaction_date: bankTxn.date,
+      company_id: companyUUID,
+      contact_id: p.contact_id ?? bankTxn.contact_id ?? null,
+      contact_type: p.contact_type ?? bankTxn.contact_type ?? null,
+      reference: p.reference ?? bankTxn.reference ?? null,
+      description: p.description ?? bankTxn.description,
+      confidence: p.confidence,
+      explanation: p.explanation,
+      metadata: p.metadata ?? {},
+      candidate_lines: journalLines, // Complete journal entry: bank leg + prediction lines
+    };
+
+    // Persist candidate (handles conflict resolution automatically)
+    // If a candidate already exists, persistCategorizationCandidate will:
+    // - Compare sources and confidence
+    // - Replace if new candidate is better (rule > ml > ml_heuristic, or higher confidence)
+    // - Log events for candidate_created, candidate_replaced, or candidate_ignored
+    await persistCategorizationCandidate({
+      candidate: candidateObj,
+      runId,
+      trx,
+    });
+
+    logger.debug(
+      {
+        bankTransactionId: bankTxnId,
+        predictionId,
+        source,
+      },
+      'Candidate persisted successfully',
+    );
   };
+
+  if (trx) {
+    await exec(trx);
+  } else {
+    await knexClient.transaction(exec);
+  }
 }

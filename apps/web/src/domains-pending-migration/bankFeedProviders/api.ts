@@ -1,5 +1,5 @@
-import api from '@/lib/axios';
 import type { BankFeedProvider } from '@/domains-pending-migration/bankFeedProviders/types';
+import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
 
 export const fetchBankFeedProviders = async ({

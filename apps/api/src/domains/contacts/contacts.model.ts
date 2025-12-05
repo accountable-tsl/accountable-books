@@ -1,31 +1,32 @@
 import type { Knex } from 'knex';
+import z from 'zod';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
+import {
+  logDatabaseOperation,
+  logError,
+  logger,
+  logTiming,
+} from '../../shared/utils/logger.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import {
-  type ContactInput,
-  contactInputSchema,
-  type ContactResponse,
-  getContactsParams,
-  type GetContactsParams,
-  type UpdateContact,
-  updateContactSchema,
-} from './contacts.types.js';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import {
   createHybridSearch,
   defineSearchableColumns,
 } from '../../shared/utils/search.utils.js';
 import {
-  logger,
-  logError,
-  logDatabaseOperation,
-  logTiming,
-} from '../../shared/utils/logger.js';
-import z from 'zod';
+  type ContactInput,
+  contactInputSchema,
+  type ContactResponse,
+  type GetContactsParams,
+  getContactsParams,
+  type UpdateContact,
+  updateContactSchema,
+} from './contacts.types.js';
 
 export const normalizeContactName = (name: string) => name.trim().toLowerCase();
 

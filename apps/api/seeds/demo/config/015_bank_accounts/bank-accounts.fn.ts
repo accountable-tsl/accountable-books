@@ -1,11 +1,12 @@
 import type { Knex } from 'knex';
-import { type DemoFilter, DEMO_CURRENCIES } from '../../shared/config.js';
+
+import { DEMO_CURRENCIES, type DemoFilter } from '../../shared/config.js';
 import {
   deleteDemoData,
   getAccountTypeByKey,
   getBankMap,
-  resolveFiltersToIds,
   getDemoUserMap,
+  resolveFiltersToIds,
 } from '../../shared/utils.js';
 import {
   getRawBankAccountsForInsertion,

@@ -1,20 +1,21 @@
 import type { Knex } from 'knex';
+
 import type {
   DemoCompanyType,
-  DemoFilter,
   DemoCountryCode,
+  DemoFilter,
 } from '../../shared/config.js';
 import { getDemoCompanies } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
 import {
-  demoProjectsByCompanyMap,
   type DemoProject,
+  demoProjectsByCompanyMap,
 } from './projects.state.js';
 import {
-  type SeedProject,
   generateRandomProjects,
   getBusinessProjects,
   getFirmProjects,
+  type SeedProject,
 } from './projects.utils.js';
 
 export type DemoProjectData = SeedProject;

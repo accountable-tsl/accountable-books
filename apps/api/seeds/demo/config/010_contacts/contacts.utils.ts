@@ -1,4 +1,5 @@
 import { faker } from '@faker-js/faker';
+
 import type { DemoContactData } from './contacts.data.js';
 
 /**

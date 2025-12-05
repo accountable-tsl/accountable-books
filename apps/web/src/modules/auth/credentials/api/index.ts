@@ -1,8 +1,10 @@
+import { isAxiosError } from 'axios';
+
+import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+
 import type { AuthUserContext } from '../../session/model/types';
 import type { LoginForm, NewCompany, NewFirm, NewUser } from '../model/types';
-import api from '@/lib/axios';
-import { isAxiosError } from 'axios';
 
 export const handleLogin = async (
   data: LoginForm,

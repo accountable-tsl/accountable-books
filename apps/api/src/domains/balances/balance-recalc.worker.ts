@@ -1,19 +1,20 @@
+import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
 import { randomUUID } from 'crypto';
-import { redis } from '../../lib/redis.js';
-import type { Job } from 'bullmq';
 import pino from 'pino';
+
+import { redis } from '../../lib/redis.js';
 import type {
   BalanceJobData,
-  GLBalanceJobData,
   BankBalanceJobData,
+  GLBalanceJobData,
 } from './balance-recalc.queue.js';
 import {
-  glBalanceJobDataSchema,
   bankBalanceJobDataSchema,
+  glBalanceJobDataSchema,
 } from './balance-recalc.queue.js';
-import { glBalanceService } from './gl-balance.service.js';
 import { bankBalanceService } from './bank-balance.service.js';
+import { glBalanceService } from './gl-balance.service.js';
 
 const logger = pino();
 

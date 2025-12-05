@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 import pino from 'pino';
+
 import { knexClient } from '../../../db/knexClient.js';
 import { decrementContactStats } from '../stats/stats.service.js';
 import { softDeleteCategorizationTasks } from '../tasks/tasks.service.js';

@@ -1,5 +1,6 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
 import { createDemoCoa, deleteDemoCoa } from './coa.fn.js';
 
 // Mock shared utilities - handle company/user lookups and data deletion

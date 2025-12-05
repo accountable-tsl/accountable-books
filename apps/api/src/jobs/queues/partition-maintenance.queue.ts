@@ -1,7 +1,8 @@
+import type { Job } from 'bullmq';
 import { Queue } from 'bullmq';
+
 import { redis } from '../../lib/redis.js';
 import { executeQueueOperation, QueueName } from './queue-broker.js';
-import type { Job } from 'bullmq';
 
 /**
  * Queue for partition maintenance jobs

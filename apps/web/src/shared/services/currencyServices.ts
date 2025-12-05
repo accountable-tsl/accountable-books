@@ -1,5 +1,5 @@
 import axios from '@/lib/axios';
-import type { CurrencyList, ApiResponse } from '@/shared/types/core';
+import type { ApiResponse, CurrencyList } from '@/shared/types/core';
 
 export const fetchCurrencies = async (): Promise<
   ApiResponse<CurrencyList[]>

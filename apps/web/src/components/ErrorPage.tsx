@@ -1,8 +1,10 @@
+import { useSession } from '@session';
 import { useNavigate } from 'react-router';
-import { AuthHeader } from './AuthHeader';
+
 import { cn } from '@/lib/utils';
 import { routes } from '@/shared/routes/routes';
-import { useSession } from '@session';
+
+import { AuthHeader } from './AuthHeader';
 
 type ErrorType = '404' | '403' | 'default';
 // | "500"

@@ -1,11 +1,12 @@
 import * as React from 'react';
 
-import { cn } from '@/lib/utils';
-import { DataTableBody, MemoizedDataTableBody } from './data-table-body';
-import { DataTableHeader } from '@/components/data-table/data-table-header';
 import { Table } from '@/components/CustomTable';
-import type { DataTableProps } from '@/components/data-table/types/data-table';
+import { DataTableHeader } from '@/components/data-table/data-table-header';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import type { DataTableProps } from '@/components/data-table/types/data-table';
+import { cn } from '@/lib/utils';
+
+import { DataTableBody, MemoizedDataTableBody } from './data-table-body';
 
 /**
  * Generic, flexible data table wrapper built with TanStack Table v8.

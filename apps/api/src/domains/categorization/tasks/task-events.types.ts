@@ -1,8 +1,9 @@
 import z from 'zod';
+
 import { dbBaseFields } from '../../../core/index.js';
 import {
-  txnCategorizationSource,
   type TxnCategorizationSource,
+  txnCategorizationSource,
 } from '../categorization.types.js';
 
 export const taskEventType = z.enum([
@@ -13,11 +14,15 @@ export const taskEventType = z.enum([
   'rules_conflict',
   'rules_error',
   'rules_failed',
+  'ml_enqueued',
   'ml_started',
   'ml_completed',
   'ml_failed',
   'prediction_created',
+  'constraint_validation_failed',
   'candidate_created',
+  'candidate_ignored',
+  'candidate_replaced',
 ]);
 export type TaskEventType = z.infer<typeof taskEventType>;
 

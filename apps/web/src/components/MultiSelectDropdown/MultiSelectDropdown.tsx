@@ -1,11 +1,13 @@
+import './MultiSelectDropdown.scss';
+
+import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+
 import {
   GroupableOption,
   MultiSelectOption,
   MultiSelectProps,
 } from '../../shared/types/core';
-import './MultiSelectDropdown.scss';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
 
 export default function MultiSelectDropdown({
   options,

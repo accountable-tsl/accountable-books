@@ -1,7 +1,8 @@
 import type { Knex } from 'knex';
-import type { NewCategorizationTaskInput } from './tasks.types.js';
-import { logger } from '../../../shared/index.js';
+
 import { knexClient } from '../../../db/knexClient.js';
+import { logger } from '../../../shared/index.js';
+import type { NewCategorizationTaskInput } from './tasks.types.js';
 
 /**
  * Right now, we only store the most recent enrichment DTO

@@ -1,17 +1,18 @@
+import axios from 'axios';
 import type { Knex } from 'knex';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
+import { toYMD } from '../../shared/utils/date.utils.js';
 import {
   ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import axios from 'axios';
-import { knexClient } from '../../db/knexClient.js';
 import {
   type ExchangeRateItem,
   newExchangeRate,
 } from './exchangeRate.types.js';
-import { toYMD } from '../../shared/utils/date.utils.js';
 
 export async function createNewExRates(
   data: ExchangeRateItem[],

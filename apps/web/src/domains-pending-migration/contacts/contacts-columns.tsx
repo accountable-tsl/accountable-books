@@ -1,10 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table';
+import { Mail, MailX } from 'lucide-react';
+
 import type {
   Contacts,
   ContactStatus,
 } from '@/domains-pending-migration/contacts/contacts-types';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
-import { Mail, MailX } from 'lucide-react';
 
 export function getContactColumns(): ColumnDef<Contacts>[] {
   return [

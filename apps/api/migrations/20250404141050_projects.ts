@@ -1,10 +1,11 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
-import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.ts';
+} from './utils/db.js';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
 
 const tableName = 'projects';
 export async function up(knex: Knex): Promise<void> {

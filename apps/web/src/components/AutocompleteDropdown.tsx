@@ -1,5 +1,15 @@
+import type { VariantProps } from 'class-variance-authority';
 import { Check, ChevronsUpDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { BeatLoader } from 'react-spinners';
+
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Command,
@@ -14,16 +24,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import type { VariantProps } from 'class-variance-authority';
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
+
 import {
   Drawer,
   DrawerContent,
@@ -31,7 +34,6 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from './ui/drawer';
-import { BeatLoader } from 'react-spinners';
 
 type Item =
   | string

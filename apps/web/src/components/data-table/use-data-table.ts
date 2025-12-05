@@ -1,32 +1,34 @@
 import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type RowSelectionState,
   type ColumnFiltersState,
+  type FilterFnOption,
+  getCoreRowModel,
+  getFacetedMinMaxValues,
   getFacetedRowModel,
   getFacetedUniqueValues,
-  getFacetedMinMaxValues,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
   type Row,
-  type FilterFnOption,
+  type RowSelectionState,
+  useReactTable,
 } from '@tanstack/react-table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
+
+import { createSelectionColumn } from '@/components/data-table/utils/select-column';
+
+import { createMultiColumnFilter } from './toolbar';
 import type {
+  DataTableExtras,
   GlobalSearch,
   PaginationOptions,
   RowSelectionOptions,
   SortingOptions,
-  DataTableExtras,
   UseDataTableProps,
   UseDataTableReturn,
 } from './types/data-table';
-import { createSelectionColumn } from '@/components/data-table/utils/select-column';
 import type { RowClickBehavior } from './types/row-click';
 import { isInternalUrl } from './utils/table';
-import { useNavigate } from 'react-router';
-import { createMultiColumnFilter } from './toolbar';
 
 /**
  * TODO: Initializing column filters at table start

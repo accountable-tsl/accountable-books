@@ -1,4 +1,6 @@
+import Decimal from 'decimal.js';
 import { z } from 'zod';
+
 import {
   categorizationStatus,
   dbBaseFields,
@@ -9,9 +11,8 @@ import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
 } from '../../shared/utils/formatting.utils.js';
-import Decimal from 'decimal.js';
 import { bankProviderKey } from '../banking/bankFeedProviders/bankFeedProviders.types.js';
-import { contactType, type ContactType } from '../contacts/index.js';
+import { type ContactType, contactType } from '../contacts/index.js';
 
 // ENUMS
 export const bankTransactionSource = z.enum([

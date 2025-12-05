@@ -1,30 +1,31 @@
+import { readFileSync } from 'fs';
 import type { Knex } from 'knex';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+import { knexClient } from '../../../db/knexClient.js';
+import { generateFingerprintSync, logger } from '../../../shared/index.js';
 import type { ContactType } from '../../contacts/index.js';
 import {
-  mccReferenceFileSchema,
-  merchantPatternsFileSchema,
   type CompiledMerchantPattern,
   type ContactMatchConfidence,
   type ContactResolutionResult,
   type EnrichmentContactType,
   type MccReference,
   type MccReferenceFile,
+  mccReferenceFileSchema,
   type MerchantPattern,
   type MerchantPatternsFile,
+  merchantPatternsFileSchema,
 } from './enrichment.types.js';
-import { extractContactFromDescription } from './utils/contact-from-desc.js';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
-import { generateFingerprintSync, logger } from '../../../shared/index.js';
-import { extractMccFromDescription } from './utils/mcc-from-desc.js';
-import { knexClient } from '../../../db/knexClient.js';
 import {
-  buildAliasMatcher,
-  resolveDescriptionHeuristics,
-  extendAliasMatcher,
   type AliasMatcher,
+  buildAliasMatcher,
+  extendAliasMatcher,
+  resolveDescriptionHeuristics,
 } from './resolve-contact-heuristics.js';
+import { extractContactFromDescription } from './utils/contact-from-desc.js';
+import { extractMccFromDescription } from './utils/mcc-from-desc.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

@@ -1,4 +1,6 @@
+import { contactType } from '@accountable-books/contracts/schema';
 import z from 'zod';
+
 import {
   dbBaseFields,
   dbStandardFields,
@@ -6,7 +8,6 @@ import {
 } from '../../../../core/index.js';
 import { categorizationStatus } from '../../../../core/index.js';
 import { txnCategorizationSource } from '../../categorization.types.js';
-import { contactType } from '../../../../../../../packages/contracts/accountable_contracts/schema/source/common/index.js';
 
 export const candidateSplitType = z.enum(['amount', 'percentage', 'remainder']);
 export type CandidateSplitType = z.infer<typeof candidateSplitType>;
@@ -17,7 +18,6 @@ const candidateLineDraft = z.object({
   transaction_side: debitCredit,
   coa_id: z.uuid(),
   project_id: z.uuid().nullish(),
-  // currency_code: z.string().length(3).optional(),
   source_currency_id: z.uuid(),
   system_exchange_rate: z.number(),
   signed_native_amount: z.number(),
@@ -43,7 +43,7 @@ export type CategorizationCandidateLine = z.infer<
   typeof categorizationCandidateLine
 >;
 
-const candidateInput = z.object({
+export const candidateInput = z.object({
   source: txnCategorizationSource,
   categorization_task_id: z.uuid(),
   prediction_id: z.uuid(),
@@ -55,12 +55,15 @@ const candidateInput = z.object({
   reference: z.string().nullish(),
   description: z.string().nullish(),
   confidence: z.number().min(0).max(1),
-  solver_notes: z.string().nullish(),
-  assignee_id: z.uuid().nullable(),
   explanation: z.string().nullish(),
   metadata: z.record(z.string(), z.any()).nullable(),
+
   candidate_lines: z.array(candidateLineDraft).min(2),
+
+  solver_notes: z.string().nullish(),
+  assignee_id: z.uuid().nullish(),
 });
+export type CandidateInput = z.infer<typeof candidateInput>;
 
 const newCandidate = z.object({
   ...candidateInput.omit({ candidate_lines: true }).shape,

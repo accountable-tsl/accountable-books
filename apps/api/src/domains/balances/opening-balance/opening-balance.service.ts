@@ -1,31 +1,32 @@
-import { knexClient as db } from '../../../db/knexClient.js';
 import type { Knex } from 'knex';
-import {
-  bankOpeningBalanceParams,
-  type BankAccountOpeningBalances,
-  type BankOpeningBalanceParams,
-  type BankOpeningBalanceRole,
-} from './opening-balance.types.js';
+import z from 'zod';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import { knexClient as db } from '../../../db/knexClient.js';
 import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import z from 'zod';
-import type { ApiResponse } from '../../../core/types/api.types.js';
+import { createCoa } from '../../chart-of-accounts/coa.model.js';
 import {
   postJournalRecord,
   reverseJournalRecord,
 } from '../../journals/journals.model.js';
-import { createCoa } from '../../chart-of-accounts/coa.model.js';
+import {
+  bankBalanceService,
+  formatDateToYMD,
+} from '../bank-balance.service.js';
+import {
+  type BankAccountOpeningBalances,
+  type BankOpeningBalanceParams,
+  bankOpeningBalanceParams,
+  type BankOpeningBalanceRole,
+} from './opening-balance.types.js';
 import {
   asOfDateYmdFromCoverageStart,
   journalDateFromCoverageStart,
   ymdUtc,
 } from './opening-balance.utils.js';
-import {
-  bankBalanceService,
-  formatDateToYMD,
-} from '../bank-balance.service.js';
 
 /**
  * Sets or updates the opening balance for a bank account.

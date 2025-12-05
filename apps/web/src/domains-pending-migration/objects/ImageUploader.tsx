@@ -1,3 +1,4 @@
+import { Loader2, Upload, X } from 'lucide-react';
 import {
   type ChangeEvent,
   forwardRef,
@@ -6,15 +7,16 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Button } from '../../components/ui/button';
-import { Loader2, Upload, X } from 'lucide-react';
-import { extractPath } from '@/shared/utils/formatting-utils';
+
 import {
   type ImageUploaderProps,
   type ImageUploaderRef,
 } from '@/domains-pending-migration/objects/types';
-import { matchesType } from './utils';
 import { cn } from '@/lib/utils';
+import { extractPath } from '@/shared/utils/formatting-utils';
+
+import { Button } from '../../components/ui/button';
+import { matchesType } from './utils';
 
 export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
   (

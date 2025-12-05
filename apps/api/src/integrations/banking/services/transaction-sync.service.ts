@@ -1,22 +1,23 @@
-import type { Knex } from 'knex';
-import { knexClient } from '../../../db/knexClient.js';
-import { providerRegistry } from '../providers/registry.js';
-import { logger } from '../../../shared/utils/logger.js';
-import type { ProviderTransaction } from '../types/base.js';
-import { TransactionSyncStrategy } from '../types/base.js';
-import { startOfMonth } from 'date-fns';
 import { randomUUID } from 'crypto';
+import { startOfMonth } from 'date-fns';
+import type { Knex } from 'knex';
+
+import { knexClient } from '../../../db/knexClient.js';
+import { enqueueBankBalance } from '../../../domains/balances/index.js';
 import { getBankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
 import type { BankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
+import type { BankProviderKey } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
+import { addNewBankTransactions } from '../../../domains/bankTransactions/bankTransactions.model.js';
 import type {
   BankTransactionBatchInput,
   BankTransactionInput,
 } from '../../../domains/bankTransactions/bankTransactions.types.js';
-import { addNewBankTransactions } from '../../../domains/bankTransactions/bankTransactions.model.js';
 import { getSystemUser } from '../../../domains/users/users.model.js';
 import { redis as redisClient } from '../../../lib/redis.js';
-import { enqueueBankBalance } from '../../../domains/balances/index.js';
-import type { BankProviderKey } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
+import { logger } from '../../../shared/utils/logger.js';
+import { providerRegistry } from '../providers/registry.js';
+import type { ProviderTransaction } from '../types/base.js';
+import { TransactionSyncStrategy } from '../types/base.js';
 
 interface BankAccountForSync {
   id: string;

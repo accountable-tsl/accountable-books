@@ -1,5 +1,6 @@
-import { Button } from '@/components/ui/button';
 import { ArrowRight, Loader, MapPin, Shield } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
 import { TrustIndicators } from '@/features/connect-bank/ui/components/trust-signals';
 import type { Country } from '@/shared/types/core';

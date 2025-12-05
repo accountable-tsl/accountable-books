@@ -1,18 +1,19 @@
-import { FormField } from '@/components/FormField';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
-import { Controller, useForm, useWatch } from 'react-hook-form';
-import type { Contacts } from '@/domains-pending-migration/contacts/contacts-types';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useSession } from '@session';
+import { Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  newProject,
-  type NewProject,
-} from '@/domains-pending-migration/projects/projects-types';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
+
+import type { ActionItem } from '@/components/AutocompleteDropdown';
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import { DatePicker } from '@/components/date-picker/date-picker';
+import ErrorPage from '@/components/ErrorPage';
+import { FormField } from '@/components/FormField';
+import { SimpleSelect } from '@/components/SimpleSelect';
 import { Success } from '@/components/Success';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -20,18 +21,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { ActionItem } from '@/components/AutocompleteDropdown';
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useContacts } from '@/domains-pending-migration/contacts/contacts-hooks';
-import { useSession } from '@session';
+import type { Contacts } from '@/domains-pending-migration/contacts/contacts-types';
 import { useCreateProjects } from '@/domains-pending-migration/projects/projects-hooks';
-import { SimpleSelect } from '@/components/SimpleSelect';
-import { projectStatusOptions } from './projects-constants';
-import { DatePicker } from '@/components/date-picker/date-picker';
-import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
+import {
+  type NewProject,
+  newProject,
+} from '@/domains-pending-migration/projects/projects-types';
+import { cn } from '@/lib/utils';
+
 import { AddContactDialog } from '../contacts/contacts-add';
-import { Plus } from 'lucide-react';
+import { projectStatusOptions } from './projects-constants';
 
 export function AddProject({
   onCancel,

@@ -1,7 +1,8 @@
 import type { Knex } from 'knex';
+
 import {
-  COUNTRY_CODES,
   COMPANY_TYPES,
+  COUNTRY_CODES,
   type DemoCompanyType,
   type DemoCountryCode,
   type DemoFilter,

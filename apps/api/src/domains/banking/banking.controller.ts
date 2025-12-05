@@ -1,16 +1,17 @@
 import type { Request, Response } from 'express';
-import {
-  errorResponse,
-  successResponse,
-} from '../../shared/utils/response.utils.js';
+
 import type { AuthRequest } from '../../features/auth/auth.types.js';
-import { providerRegistry } from '../../integrations/banking/providers/registry.js';
-import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
 import {
   connectAccountsService,
   transactionSyncQueue,
   transactionSyncService,
 } from '../../integrations/banking/index.js';
+import { providerRegistry } from '../../integrations/banking/providers/registry.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
 
 export class BankingController {
   async connectBankAccounts(req: AuthRequest, res: Response) {

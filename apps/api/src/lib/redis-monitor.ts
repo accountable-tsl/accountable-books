@@ -1,5 +1,6 @@
-import { redis } from './redis.js';
 import pino from 'pino';
+
+import { redis } from './redis.js';
 
 const logger = pino();
 

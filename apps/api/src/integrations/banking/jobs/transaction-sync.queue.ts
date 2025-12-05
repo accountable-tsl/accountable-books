@@ -1,15 +1,16 @@
+import type { Job } from 'bullmq';
 import { Queue } from 'bullmq';
-import { redis } from '../../../lib/redis.js';
+
 import { isProd } from '../../../config/env.js';
-import type {
-  TransactionSyncJobData,
-  BulkSyncJobData,
-} from './transaction-sync.worker.js';
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
-import type { Job } from 'bullmq';
+import { redis } from '../../../lib/redis.js';
+import type {
+  BulkSyncJobData,
+  TransactionSyncJobData,
+} from './transaction-sync.worker.js';
 
 export const transactionSyncQueue = new Queue('transaction-sync', {
   connection: redis,

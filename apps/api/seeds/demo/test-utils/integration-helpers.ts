@@ -1,9 +1,10 @@
 import type { Knex } from 'knex';
+
 import {
-  setupTestDatabase,
-  getTestDb,
-  closeTestDbConnection,
   assertTestEnvironment,
+  closeTestDbConnection,
+  getTestDb,
+  setupTestDatabase,
 } from '../../../config/test-db.js';
 
 /**

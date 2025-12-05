@@ -1,4 +1,5 @@
 import type { Knex } from 'knex';
+
 import {
   AccountElement,
   AccountType,
@@ -17,96 +18,96 @@ import {
   NewPermissionInput,
   Permission,
   RolePermission,
-} from '../core/types/db.types.ts';
-import {
-  CoaTemplate,
-  NewCoaTemplateInput,
-} from '../domains/chart-of-accounts/coa-template.type.ts';
-import {
-  NewUserDirect,
-  NewUserInput,
-  User,
-} from '../domains/users/users.types.ts';
-import { Company, NewCompany } from '../domains/companies/companies.types.ts';
-import { Coa, NewCoa } from '../domains/chart-of-accounts/coa.types.ts';
-import { AccFirm, NewAccFirm } from '../domains/accountingFirms/firms.types.ts';
-import {
-  NewUserCompanyRole,
-  UserCompanyRole,
-} from '../domains/userRoles/userRoles.types.ts';
-import {
-  BankAccount,
-  NewBankAccount,
-} from '../domains/banking/bankAccounts/bankAccounts.types.ts';
-import {
-  ExchangeRate,
-  NewExchangeRateInput,
-} from '../domains/exchangeRates/exchangeRate.types.ts';
-import { Bank, NewBank } from '../domains/banking/banks/banks.types.ts';
-import {
-  BankTransaction,
-  BankTransactionBatches,
-  NewBankTransaction,
-  NewBankTransactionBatches,
-} from '../domains/bankTransactions/bankTransactions.types.ts';
+} from '../core/types/db.types.js';
+import { AccFirm, NewAccFirm } from '../domains/accountingFirms/firms.types.js';
+import type {
+  BankCurrentBalance,
+  BankDailyBalanceSnapshot,
+  FiscalCalendar,
+  GLCurrentBalance,
+  GLDailyBalanceSnapshot,
+  GLPeriodBalance,
+  NewBankCurrentBalance,
+  NewBankDailyBalanceSnapshot,
+  NewFiscalCalendar,
+  NewGLCurrentBalance,
+  NewGLDailyBalanceSnapshot,
+  NewGLPeriodBalance,
+} from '../domains/balances/balances.types.js';
 import {
   BankFeedProvider,
   BankFeedProviderCountries,
   NewBankFeedProvider,
   NewBankFeedProviderCountry,
-} from '../domains/bankFeedProviders/bankFeedProviders.types.ts';
+} from '../domains/bankFeedProviders/bankFeedProviders.types.js';
+import type {
+  BankAccountCredential,
+  NewBankAccountCredential,
+} from '../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
+import {
+  BankAccount,
+  NewBankAccount,
+} from '../domains/banking/bankAccounts/bankAccounts.types.js';
 import {
   BankProviderMapping,
   NewBankProviderMapping,
-} from '../domains/banking/bankProviderMappings/bankProviderMappings.types.ts';
-import { NewToken, Token } from '../domains/tokens/tokens.types.ts';
-import { NewRoleInput, Role } from '../domains/roles/roles.types.ts';
-import { Contact, NewContact } from '../domains/contacts/contacts.types.ts';
-import { NewProject, Project } from '../domains/projects/projects.types.ts';
+} from '../domains/banking/bankProviderMappings/bankProviderMappings.types.js';
+import { Bank, NewBank } from '../domains/banking/banks/banks.types.js';
+import {
+  BankTransaction,
+  BankTransactionBatches,
+  NewBankTransaction,
+  NewBankTransactionBatches,
+} from '../domains/bankTransactions/bankTransactions.types.js';
+import {
+  CategorizationCandidate,
+  CategorizationCandidateLine,
+  CategorizationConstraintViolation,
+} from '../domains/categorization/candidates/candidates.types.js';
+import {
+  CategorizationPrediction,
+  CategorizationPredictionLine,
+} from '../domains/categorization/post-prediction/predictions/predictions.types.js';
 import {
   NewRule,
   RuleActions,
   RuleConditions,
   RuleLogs,
   Rules,
-} from '../domains/categorization/rules/rules-db.types.ts';
+} from '../domains/categorization/rules/rules-db.types.js';
+import { Coa, NewCoa } from '../domains/chart-of-accounts/coa.types.js';
 import {
-  CategorizationCandidate,
-  CategorizationCandidateLine,
-  CategorizationConstraintViolation,
-} from '../domains/categorization/candidates/candidates.types.ts';
+  CoaTemplate,
+  NewCoaTemplateInput,
+} from '../domains/chart-of-accounts/coa-template.type.js';
+import { Company, NewCompany } from '../domains/companies/companies.types.js';
+import { Contact, NewContact } from '../domains/contacts/contacts.types.js';
 import {
-  CategorizationPrediction,
-  CategorizationPredictionLine,
-} from '../domains/categorization/post-prediction/predictions/predictions.types.ts';
-import type {
-  BankAccountCredential,
-  NewBankAccountCredential,
-} from '../domains/banking/bankAccountCredentials/bankAccountCredentials.types.ts';
-import type {
-  GLDailyBalanceSnapshot,
-  NewGLDailyBalanceSnapshot,
-  BankDailyBalanceSnapshot,
-  NewBankDailyBalanceSnapshot,
-  FiscalCalendar,
-  NewFiscalCalendar,
-  GLPeriodBalance,
-  NewGLPeriodBalance,
-  GLCurrentBalance,
-  NewGLCurrentBalance,
-  BankCurrentBalance,
-  NewBankCurrentBalance,
-} from '../domains/balances/balances.types.ts';
-import type {
-  FiscalCalendar,
-  NewFiscalCalendar,
-} from '../domains/reporting/fiscal-calendar/fiscal-calendar.types.ts';
+  ExchangeRate,
+  NewExchangeRateInput,
+} from '../domains/exchangeRates/exchangeRate.types.js';
 import type {
   JournalBatch,
   JournalEntry,
   NewJournalBatch,
   NewJournalEntry,
-} from '../domains/journals/journals.types.ts';
+} from '../domains/journals/journals.types.js';
+import { NewProject, Project } from '../domains/projects/projects.types.js';
+import type {
+  FiscalCalendar,
+  NewFiscalCalendar,
+} from '../domains/reporting/fiscal-calendar/fiscal-calendar.types.js';
+import { NewRoleInput, Role } from '../domains/roles/roles.types.js';
+import { NewToken, Token } from '../domains/tokens/tokens.types.js';
+import {
+  NewUserCompanyRole,
+  UserCompanyRole,
+} from '../domains/userRoles/userRoles.types.js';
+import {
+  NewUserDirect,
+  NewUserInput,
+  User,
+} from '../domains/users/users.types.js';
 
 declare module 'knex/types/tables' {
   interface Tables {

@@ -1,7 +1,9 @@
-import { zEmail } from '@/shared/types/core';
 import z from 'zod';
-import { sanitizeInput, sanitizeOptionalInput, validateSlug } from '../utils';
+
 import { companyType } from '@/modules/company/companies';
+import { zEmail } from '@/shared/types/core';
+
+import { sanitizeInput, sanitizeOptionalInput, validateSlug } from '../utils';
 
 export const loginForm = z.object({
   email: zEmail,

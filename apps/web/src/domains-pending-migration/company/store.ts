@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { CompanyStore } from './types';
+
 import { getCompanyDetails } from './api';
+import type { CompanyStore } from './types';
 
 export const companyStore = create<CompanyStore>()(
   persist(

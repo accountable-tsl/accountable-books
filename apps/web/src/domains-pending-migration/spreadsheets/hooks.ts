@@ -1,5 +1,6 @@
 import * as Papa from 'papaparse';
 import React from 'react';
+
 import type { ParseCsvOptions, ParsedCsvResult } from './types';
 import { parseCsvFile } from './utils';
 

@@ -1,7 +1,7 @@
-import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
 // import { UploadBankTransactions } from './upload';
 import { BankTransactionImporter } from '@/domains-pending-migration/bankConnection/manualUpload/BankTransactionImporter';
+import { useMediaQuery } from '@/shared/hooks/use-media-query';
 
 export function AddBankTransaction() {
   const is1024 = useMediaQuery('(max-width: 1023px)');
@@ -28,6 +28,7 @@ export function AddBankTransaction() {
                   href="https://docs.google.com/spreadsheets/d/1esQsP0H9gAZy_JAsz9CRVVYKlbHI7YGbofXJE5y6WAc"
                   target="_blank"
                   className="text-blue-600 hover:underline"
+                  rel="noreferrer"
                 >
                   Open Google Sheets Template
                 </a>{' '}

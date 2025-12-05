@@ -1,4 +1,6 @@
 import express from 'express';
+
+import { authLimiter } from '../../core/middlewares/rateLimiter.middleware.js';
 import {
   loginController,
   logoutController,
@@ -8,7 +10,6 @@ import {
   verifyEmailController,
 } from './auth.controller.js';
 import { verifyRefreshToken } from './auth.middleware.js';
-import { authLimiter } from '../../core/middlewares/rateLimiter.middleware.js';
 import { csrfProtection, generateCsrfToken } from './auth.utils.js';
 const router = express.Router({ mergeParams: true });
 

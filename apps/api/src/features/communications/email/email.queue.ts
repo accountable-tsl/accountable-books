@@ -1,13 +1,14 @@
-import { Queue, type Job } from 'bullmq';
-import { redis } from '../../../lib/redis.js';
+import { type Job, Queue } from 'bullmq';
+
 import { isProd } from '../../../config/env.js';
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
+import { redis } from '../../../lib/redis.js';
 import type {
-  TokenBasedEmailPayload,
   InviteEmailPayload,
+  TokenBasedEmailPayload,
 } from './email.types.js';
 
 export const emailQueue = new Queue('email', {

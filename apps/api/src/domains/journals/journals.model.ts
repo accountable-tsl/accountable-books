@@ -1,17 +1,18 @@
-import type { Knex } from 'knex';
-import { journalBatchData, type JournalBatchData } from './journals.types.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { randomUUID } from 'crypto';
+import type { Knex } from 'knex';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
+import { logger } from '../../shared/utils/logger.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { knexClient } from '../../db/knexClient.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
-import { logger } from '../../shared/utils/logger.js';
 import { createLedgerRecord } from '../ledgers/ledgers.model.js';
-import { validateDebitCreditBalance } from './journals.utils.js';
 import type { NewLedgerTransactionData } from '../ledgers/ledgers.types.js';
+import { type JournalBatchData, journalBatchData } from './journals.types.js';
+import { validateDebitCreditBalance } from './journals.utils.js';
 
 export async function postJournalRecord({
   data,
@@ -241,7 +242,7 @@ export async function postJournalRecord({
           ...(exchange_rate
             ? { custom_exchange_rate: customExchangeRate }
             : {}),
-          categorization_status: 'reviewed',
+          categorization_status: 'accepted',
           description: t.description ?? null,
           project_id: t.project_id ?? null,
           project_name: t.project_name ?? null,

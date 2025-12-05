@@ -1,14 +1,15 @@
-import { Queue, type JobsOptions } from 'bullmq';
-import { redis } from '../../../lib/redis.js';
-import {
-  enrichmentJobDataSchema,
-  type EnrichmentJobData,
-} from './enrichment.types.js';
+import { type JobsOptions, Queue } from 'bullmq';
 import pino from 'pino';
+
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
+import { redis } from '../../../lib/redis.js';
+import {
+  type EnrichmentJobData,
+  enrichmentJobDataSchema,
+} from './enrichment.types.js';
 
 const logger = pino();
 

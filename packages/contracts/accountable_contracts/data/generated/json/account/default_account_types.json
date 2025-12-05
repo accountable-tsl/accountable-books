@@ -545,7 +545,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_contract_liabilities", "ca_trade_receivable"]
   },
   {
     "id": "89028f2e-2935-4d6f-add6-bed5354d2f50",
@@ -581,7 +582,12 @@
     "label_role": "semantic",
     "trainable": false,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": [
+      "ca_other_receivable",
+      "ca_trade_receivable",
+      "cl_contract_liabilities"
+    ]
   },
   {
     "id": "605362fc-58e5-436d-805e-008d6313f4bb",
@@ -593,7 +599,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_trade_payable"]
   },
   {
     "id": "a1a658a0-7b31-4f2b-b5d0-978da055763c",
@@ -605,7 +612,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_payroll_payables"]
   },
   {
     "id": "23b862cb-00cd-463b-8efb-b1e68ee3c3fa",
@@ -617,7 +625,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_opex"]
   },
   {
     "id": "9458fa43-3c15-4e63-918d-8c54ad1b3fcd",
@@ -629,7 +638,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["ca_prepayment"]
   },
   {
     "id": "5e00bbdf-a6a0-4c4a-b0d8-9d7117138b8e",
@@ -641,7 +651,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["ca_prepayment"]
   },
   {
     "id": "161369ce-aebb-48b6-b350-0f097d252895",
@@ -653,7 +664,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_opex"]
   },
   {
     "id": "7b683e39-579b-475f-bed6-0313735b8082",
@@ -665,7 +677,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_opex"]
   },
   {
     "id": "27d0095c-b6d9-436e-889e-28a336a60227",
@@ -677,7 +690,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_professional_fees", "cl_accrued_opex"]
   },
   {
     "id": "9a03e2e3-9b78-4cc7-ba42-54125ea61d3b",
@@ -689,7 +703,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["ca_prepayment", "cl_accrued_opex"]
   },
   {
     "id": "57b361b5-4a6e-4f28-ad1f-be9bf615066b",
@@ -701,7 +716,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["ca_prepayment"]
   },
   {
     "id": "9261acd9-ab25-4804-bc89-7581223b1fb8",
@@ -713,7 +729,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_opex"]
   },
   {
     "id": "79b38f3a-a0b0-41c9-96e6-2e0acbce35ab",
@@ -739,7 +756,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_opex", "cl_accrued_misc"]
   },
   {
     "id": "79170de2-df5f-4ef3-ab13-9260e0d5fe0d",
@@ -763,7 +781,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["ca_prepayment", "cl_accrued_opex"]
   },
   {
     "id": "ea13393e-62f4-4a6b-8bcc-2a08b6d76974",
@@ -776,7 +795,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_opex"]
   },
   {
     "id": "3e93c880-c39e-4fb0-9e63-20955e3e1f52",
@@ -801,7 +821,8 @@
     "label_role": "fallback",
     "trainable": false,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_opex", "cl_accrued_misc"]
   },
   {
     "id": "3a2a0a25-cd2c-4b9b-baf2-b3a46d78c2be",
@@ -813,7 +834,8 @@
     "label_role": "semantic",
     "trainable": false,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_finance_cost"]
   },
   {
     "id": "cfcd5b51-348b-4b92-8045-dc6485bca69e",
@@ -825,7 +847,8 @@
     "label_role": "fallback",
     "trainable": false,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_accrued_misc"]
   },
   {
     "id": "26d7dc5c-e1f7-4159-8786-dac74a0f20d1",

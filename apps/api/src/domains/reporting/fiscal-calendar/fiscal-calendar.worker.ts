@@ -1,15 +1,16 @@
-import { Worker, Job } from 'bullmq';
+import { Job, Worker } from 'bullmq';
+import type { Knex } from 'knex';
+
+import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
+import { isValidYMD } from '../../../shared/utils/date.utils.js';
+import logger from '../../../shared/utils/logger.js';
+import { enqueueAutoExtend } from './fiscal-calendar.queue.js';
+import { fiscalCalendarService } from './fiscal-calendar.service.js';
 import type {
   FiscalCalendarJobData,
   FiscalPeriodType,
 } from './fiscal-calendar.types.js';
-import { fiscalCalendarService } from './fiscal-calendar.service.js';
-import { knexClient } from '../../../db/knexClient.js';
-import { enqueueAutoExtend } from './fiscal-calendar.queue.js';
-import { isValidYMD } from '../../../shared/utils/date.utils.js';
-import type { Knex } from 'knex';
-import logger from '../../../shared/utils/logger.js';
 
 const WORKER_CONCURRENCY = Number(process.env.FISCAL_CALENDAR_CONCURRENCY) || 3;
 const PAGE_SIZE = 200;

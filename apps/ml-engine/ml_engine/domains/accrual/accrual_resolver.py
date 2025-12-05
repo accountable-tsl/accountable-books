@@ -2,6 +2,7 @@
 
 import logging
 from typing import Optional
+import time
 
 from ml_engine.core.embeddings import embed_text
 from ml_engine.domains.accrual.types import (
@@ -37,6 +38,7 @@ class AccrualResolver:
         self.embedding_model = embedding_model
         logger.info("AccrualResolver initialized")
 
+
     async def resolve(self, input_data: AccrualResolverInput) -> AccrualResolverOutput:
         """
         Resolve accrual account recommendations for a transaction.
@@ -47,6 +49,7 @@ class AccrualResolver:
         Returns:
             AccrualResolverOutput with recommendations
         """
+        start = time.time()
         logger.info(
             f"Resolving accrual for semantic_type_key: {input_data.semantic_type_key}, "
             f"accounting_basis: {input_data.accounting_basis}"
@@ -57,6 +60,7 @@ class AccrualResolver:
             return self._create_empty_output(
                 input_data,
                 explanation="Cash basis accounting - no accruals needed",
+                start_time=start,
             )
 
         # 2. EARLY EXIT: Only handle income/expense account types
@@ -67,6 +71,7 @@ class AccrualResolver:
             return self._create_empty_output(
                 input_data,
                 explanation="Accrual resolution only applies to income/expense accounts",
+                start_time=start,
             )
 
         # 3. EARLY EXIT: Check if selected account has accrual targets
@@ -75,6 +80,7 @@ class AccrualResolver:
             return self._create_empty_output(
                 input_data,
                 explanation="No accrual logic needed for this account type",
+                start_time=start,
             )
 
         # 4. Extract transaction context
@@ -99,6 +105,7 @@ class AccrualResolver:
                 input_data,
                 explanation=f"Amount ({txn_currency} {txn_amount_native:.2f}) below materiality threshold ({txn_currency} {materiality_threshold:.2f})",
                 metadata={"materiality_threshold": materiality_threshold},
+                start_time=start,
             )
 
         # 6. Filter COA for accrual target accounts
@@ -111,6 +118,7 @@ class AccrualResolver:
                 input_data,
                 explanation="No active accrual accounts in company COA",
                 metadata={"accrual_targets": accrual_targets},
+                start_time=start,
             )
 
         # 7. Score each candidate using multiple signals
@@ -174,6 +182,8 @@ class AccrualResolver:
             input_data, top_1, should_accrue, confidence_threshold
         )
 
+        latency_ms = int((time.time() - start) * 1000)
+
         return AccrualResolverOutput(
             should_accrue=should_accrue,
             confidence=top_1.score if top_1 else 0.0,
@@ -181,6 +191,7 @@ class AccrualResolver:
             top_1_recommendation=top_1 if should_accrue else None,
             fallback_used=False,
             explanation=explanation,
+            latency_ms=latency_ms,
             metadata={
                 "num_candidates": len(candidate_accounts),
                 "threshold": confidence_threshold,
@@ -196,8 +207,12 @@ class AccrualResolver:
         input_data: AccrualResolverInput,
         explanation: str,
         metadata: Optional[dict] = None,
+        start_time: Optional[float] = None,
     ) -> AccrualResolverOutput:
         """Create an empty output (no accrual recommended)."""
+
+        latency_ms = int((time.time() - start_time) * 1000) if start_time else 0
+
         return AccrualResolverOutput(
             should_accrue=False,
             confidence=1.0,
@@ -206,6 +221,7 @@ class AccrualResolver:
             top_1_recommendation=None,
             fallback_used=False,
             metadata=metadata or {},
+            latency_ms=latency_ms,
         )
 
     def _filter_candidate_accounts(

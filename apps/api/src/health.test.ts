@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { expect, test } from 'vitest';
+
 import { app } from './app.js';
 
 test('GET /health returns ok', async () => {

@@ -1,33 +1,35 @@
-import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 import { useSession } from '@session';
-import { BankDropdown } from '@/features/upload-bank-transactions/ui/components/bank-selection/dropdown';
+import { Send, Upload, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { SelectedBankAccount } from './components/bank-selection/selected-account';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
+import { CenteredLoader } from '@/components/CenteredLoader';
+import { DataTable } from '@/components/data-table/data-table';
+import { useDataTable } from '@/components/data-table/use-data-table';
+import ErrorPage from '@/components/ErrorPage';
+import { FormattedAmount } from '@/components/FormattedAmount';
+import { Success } from '@/components/Success';
+import { Button } from '@/components/ui/button';
 import { SpreadsheetImporter } from '@/domains-pending-migration/spreadsheets/SpreadsheetImporter';
-import { cn } from '@/lib/utils';
 import type { ParsedCsvResult } from '@/domains-pending-migration/spreadsheets/types';
+import { BankDropdown } from '@/features/upload-bank-transactions/ui/components/bank-selection/dropdown';
+import { FailedRowsDisplay } from '@/features/upload-bank-transactions/ui/components/failed-rows';
+import { fields } from '@/features/upload-bank-transactions/ui/config/import-fields';
+import { getBankTxnFields } from '@/features/upload-bank-transactions/ui/config/table-columns';
+import { cn } from '@/lib/utils';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
+import { useCompanyBankAccounts } from '@/modules/banking/accounts';
+import { generateSourceMetadata } from '@/modules/banking/csv-upload';
+import { useUploadBankTransactions } from '@/modules/banking/csv-upload';
 import {
-  bankTransactionSource,
   type BankTransactionBatchInsert,
+  bankTransactionSource,
 } from '@/modules/banking/csv-upload/model/types';
 import { transformParsedData } from '@/modules/banking/csv-upload/utils/transaction-parsers';
-import { FailedRowsDisplay } from '@/features/upload-bank-transactions/ui/components/failed-rows';
-import { useDataTable } from '@/components/data-table/use-data-table';
-import { DataTable } from '@/components/data-table/data-table';
-import { getBankTxnFields } from '@/features/upload-bank-transactions/ui/config/table-columns';
-import { generateSourceMetadata } from '@/modules/banking/csv-upload';
-import { FormattedAmount } from '@/components/FormattedAmount';
-import { Button } from '@/components/ui/button';
-import { Send, Upload, X } from 'lucide-react';
-import { Success } from '@/components/Success';
-import { useNavigate } from 'react-router';
 import { sleep } from '@/shared/utils/random-utils';
-import { fields } from '@/features/upload-bank-transactions/ui/config/import-fields';
-import { useUploadBankTransactions } from '@/modules/banking/csv-upload';
-import { useCompanyBankAccounts } from '@/modules/banking/accounts';
-import { toast } from 'sonner';
+
+import { SelectedBankAccount } from './components/bank-selection/selected-account';
 
 export function UploadBankTransactions() {
   const [selectedBankAccount, setSelectedBankAccount] =
@@ -220,6 +222,7 @@ export function UploadBankTransactions() {
                     href="https://docs.google.com/spreadsheets/d/1odReHXPWoO6epMO11qMvdUL2FbXv4Qks9RVE08-4lDU"
                     target="_blank"
                     className="text-blue-600 hover:underline"
+                    rel="noreferrer"
                   >
                     Open Google Sheets Template
                   </a>{' '}

@@ -1,4 +1,5 @@
 import type { Knex } from 'knex';
+
 import {
   DEMO_COMPANIES,
   DEMO_COMPANIES_IDS,

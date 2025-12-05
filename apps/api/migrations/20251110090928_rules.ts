@@ -1,10 +1,11 @@
 import type { Knex } from 'knex';
+
+import { createEnumIfNotExists } from './20250403174454_002_enums.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
-import { createEnumIfNotExists } from './20250403174454_002_enums.ts';
+} from './utils/db.js';
 
 const tableName = 'rules';
 export const RULES_TABLE = tableName;

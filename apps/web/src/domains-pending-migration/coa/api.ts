@@ -1,4 +1,3 @@
-import api from '@/lib/axios';
 import type {
   CoaResponse,
   CoaUpdateResponse,
@@ -6,6 +5,7 @@ import type {
   EditCoaRequest,
   FetchCoaInput,
 } from '@/domains-pending-migration/coa/types';
+import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
 
 export const fetchChartOfAccounts = async (

@@ -1,7 +1,8 @@
 import Decimal from 'decimal.js';
 import { z } from 'zod';
-import { debitCredit } from '@/shared/types/core';
+
 import type { BankAccountWithMeta } from '@/modules/bank-accounts/ba-types';
+import { debitCredit } from '@/shared/types/core';
 
 export type TransactionsStat = {
   totalPositive: number;

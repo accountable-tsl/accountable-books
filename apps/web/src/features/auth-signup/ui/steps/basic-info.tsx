@@ -1,14 +1,15 @@
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
-import { usePasswordRules } from '@/shared/hooks/usePasswordRules';
-import { newUser, type NewUser } from '@/modules/auth';
-import { useForm } from 'react-hook-form';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { FormField } from '@/components/FormField';
 import type { AxiosError } from 'axios';
+import { Eye, EyeOff } from 'lucide-react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { useForm } from 'react-hook-form';
+
+import { FormField } from '@/components/FormField';
+import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { type NewUser, newUser } from '@/modules/auth';
+import { usePasswordRules } from '@/shared/hooks/usePasswordRules';
 
 export interface SignupBasicInfoHandle {
   validate: () => Promise<boolean>;

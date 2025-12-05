@@ -1,19 +1,20 @@
+import { XCircle } from 'lucide-react';
+import { useCallback, useState } from 'react';
+
 import { Button } from '@/components/ui/button';
+import type { EnrichedAccountType } from '@/domains-pending-migration/account-classification/types';
+import { useCompanyCoa } from '@/domains-pending-migration/coa/hooks';
+import {
+  type CreateCoa,
+  createCoaSchema,
+} from '@/domains-pending-migration/coa/types';
 import { SpreadsheetImporter } from '@/domains-pending-migration/spreadsheets/SpreadsheetImporter';
 import type {
   ParsedCsvResult,
   SpreadsheetImporterField,
 } from '@/domains-pending-migration/spreadsheets/types';
-import { cn } from '@/lib/utils';
-import { useCallback, useState } from 'react';
-import {
-  type CreateCoa,
-  createCoaSchema,
-} from '@/domains-pending-migration/coa/types';
-import { useCompanyCoa } from '@/domains-pending-migration/coa/hooks';
-import type { EnrichedAccountType } from '@/domains-pending-migration/account-classification/types';
-import { XCircle } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
+import { cn } from '@/lib/utils';
 
 const CSV_FIELDS: Array<SpreadsheetImporterField> = [
   {
@@ -258,6 +259,7 @@ export function CoaImportCsv({
           href="https://docs.google.com/spreadsheets/d/1esQsP0H9gAZy_JAsz9CRVVYKlbHI7YGbofXJE5y6WAc"
           target="_blank"
           className="text-blue-600 hover:underline"
+          rel="noreferrer"
         >{`[Open Google Sheets Template]`}</a>
 
         <ul className="list-disc pl-4 pt-4">

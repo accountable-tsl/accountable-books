@@ -1,6 +1,5 @@
 import './Header.scss';
-import { Link } from 'react-router';
-import logo from '../../assets/images/mainlogo.png';
+
 import {
   faBars,
   faBell,
@@ -9,10 +8,14 @@ import {
   faMagnifyingGlass,
   faSun,
 } from '@fortawesome/free-solid-svg-icons';
-import Button from '../Button/Button';
-import { useSideBarContext } from '../../contexts/SideBarContext';
 import { LoaderPinwheel } from 'lucide-react';
+import { Link } from 'react-router';
+
 import { useCompany } from '@/domains-pending-migration/company/store';
+
+import logo from '../../assets/images/mainlogo.png';
+import { useSideBarContext } from '../../contexts/SideBarContext';
+import Button from '../Button/Button';
 export default function Header() {
   const { toggle } = useSideBarContext();
   const { companyId } = useCompany();

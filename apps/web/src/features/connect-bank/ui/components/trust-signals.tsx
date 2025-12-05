@@ -1,4 +1,4 @@
-import { Shield, Lock, Eye, CheckCircle } from 'lucide-react';
+import { CheckCircle, Eye, Lock, Shield } from 'lucide-react';
 
 export function SecurityBadge({ className = '' }: { className?: string }) {
   return (

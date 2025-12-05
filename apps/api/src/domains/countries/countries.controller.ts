@@ -1,6 +1,7 @@
 import { type Request, type Response } from 'express';
-import { getCountries } from './countries.model.js';
+
 import { errorResponse } from '../../shared/utils/response.utils.js';
+import { getCountries } from './countries.model.js';
 
 export async function getCountryList(req: Request, res: Response) {
   try {

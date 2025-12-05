@@ -1,11 +1,12 @@
+import { useSession } from '@session';
+import { Info } from 'lucide-react';
+import { useMemo } from 'react';
+
+import { CenteredLoader } from '@/components/CenteredLoader';
+import ErrorPage from '@/components/ErrorPage';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Info } from 'lucide-react';
-import { useSession } from '@session';
-import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
-import { useMemo } from 'react';
 import { generateDateRange } from '@/shared/utils/date-utils';
 
 const TOOLTIP = {

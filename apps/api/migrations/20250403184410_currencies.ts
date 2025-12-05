@@ -1,15 +1,16 @@
+import { readFileSync } from 'fs';
 import type { Knex } from 'knex';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import z from 'zod';
+
+import { isDev } from '../config/env-loader.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
 } from './utils/db.js';
-import { isDev } from '../config/env-loader.js';
-import z from 'zod';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

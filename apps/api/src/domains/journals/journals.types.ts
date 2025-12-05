@@ -1,4 +1,5 @@
 import z from 'zod';
+
 import { debitCredit } from '../../core/types/core.js';
 import {
   createCamelCaseSchema,

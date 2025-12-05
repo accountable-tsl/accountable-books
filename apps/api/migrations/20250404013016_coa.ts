@@ -1,10 +1,11 @@
 import type { Knex } from 'knex';
+
+import { createPlatformCompany } from './20250403194332_companies.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
-import { createPlatformCompany } from './20250403194332_companies.ts';
+} from './utils/db.js';
 
 const tableName = 'coa';
 

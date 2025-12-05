@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
-import { preventUpdateOrDelete } from './utils/db.ts';
-import { RULES_TABLE } from './20251110090928_rules.ts';
+
+import { RULES_TABLE } from './20251110090928_rules.js';
+import { preventUpdateOrDelete } from './utils/db.js';
 
 const tableName = 'rule_logs';
 

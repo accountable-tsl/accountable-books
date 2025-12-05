@@ -1,6 +1,7 @@
+import type { ColumnDef } from '@tanstack/react-table';
+
 import { FormattedAmount } from '@/components/FormattedAmount';
 import { cn } from '@/lib/utils';
-import type { ColumnDef } from '@tanstack/react-table';
 import type { ParsedBankTxn } from '@/modules/banking/csv-upload/model/types';
 
 export function getBankTxnFields(

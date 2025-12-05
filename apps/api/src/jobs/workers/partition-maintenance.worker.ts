@@ -1,11 +1,12 @@
-import { Worker, type Job } from 'bullmq';
+import { type Job, Worker } from 'bullmq';
+
 import { redis } from '../../lib/redis.js';
-import { type PartitionMaintenanceJobData } from '../queues/partition-maintenance.queue.js';
 import {
-  runPartitionMaintenance,
   drainDefaultPartition,
   ensureYearPartition,
+  runPartitionMaintenance,
 } from '../../shared/services/partitionManagement.service.js';
+import { type PartitionMaintenanceJobData } from '../queues/partition-maintenance.queue.js';
 
 /**
  * Partition Maintenance Worker

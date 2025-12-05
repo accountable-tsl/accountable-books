@@ -1,23 +1,24 @@
 import { type Knex } from 'knex';
-import { knexClient } from '../../db/knexClient.js';
+
 import { type ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
+import { logger } from '../../shared/utils/logger.js';
 import {
+  AppError,
   errorResponse,
   successResponse,
-  AppError,
 } from '../../shared/utils/response.utils.js';
-import { type RoleKey, type RoleScope, roleKey } from '../roles/roles.types.js';
+import { type RoleKey, roleKey, type RoleScope } from '../roles/roles.types.js';
 import type {
   AccessibleCompanies,
   AccessibleCompaniesResponse,
+  CompanyBaseFields,
   GrantAccessResponse,
   GrantAccessToFirmClient,
   GrantDirectAccess,
   UserCompanyRoleAssignmentRes,
   UserCompanyRoleWithDetails,
-  CompanyBaseFields,
 } from './userRoles.types.js';
-import { logger } from '../../shared/utils/logger.js';
 
 /**
  * Get roles where user is directly assigned to companies

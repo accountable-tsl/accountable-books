@@ -1,4 +1,4 @@
-import { type Request, type Response, type NextFunction } from 'express';
+import { type NextFunction, type Request, type Response } from 'express';
 
 export function basicAuth(username: string, password: string) {
   return function (req: Request, res: Response, next: NextFunction) {

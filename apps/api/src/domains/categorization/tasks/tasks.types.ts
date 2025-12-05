@@ -1,7 +1,8 @@
+import type { Knex } from 'knex';
 import z from 'zod';
+
 import { dbBaseFields, zDateYMD } from '../../../core/index.js';
 import { enrichedTransaction } from '../enrichment/enrichment.types.js';
-import type { Knex } from 'knex';
 import { categorizationTaskSource } from './tasks.enums.js';
 
 export const newCategorizationTask = z.object({

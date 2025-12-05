@@ -4,7 +4,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
 
+import type { DataTableProps } from '@/components/data-table/types/data-table';
+import { getPageSizeOptions } from '@/components/data-table/utils/pagination-utils';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -13,9 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { DataTableProps } from '@/components/data-table/types/data-table';
-import { getPageSizeOptions } from '@/components/data-table/utils/pagination-utils';
-import { useCallback, useMemo } from 'react';
 
 interface DataTablePaginationProps<TData> {
   table: DataTableProps<TData>['table'];

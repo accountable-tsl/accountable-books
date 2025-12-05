@@ -1,11 +1,12 @@
-import { extractContactFromDescription } from './utils/contact-from-desc.js';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
 import type {
   ContactMatchConfidence,
   EnrichmentContactType,
 } from './enrichment.types.js';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
+import { extractContactFromDescription } from './utils/contact-from-desc.js';
 
 type HeuristicReason =
   | 'bank_fee'

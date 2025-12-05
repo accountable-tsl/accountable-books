@@ -1,14 +1,15 @@
 import type { Knex } from 'knex';
+
 import {
-  US_USER,
   NG_USER,
-  US_USER_EMAIL,
   NG_USER_EMAIL,
+  US_USER,
+  US_USER_EMAIL,
 } from '../seeds/demo/config/001_users/users.data.js';
 import {
   getCompanyId,
-  getDemoUserByEmail,
   getCompanyIdMap,
+  getDemoUserByEmail,
   getDemoUserMap,
 } from '../seeds/demo/shared/utils.js';
 
@@ -20,7 +21,7 @@ import {
  */
 
 // Re-export demo data constants for easy access
-export { US_USER, NG_USER, US_USER_EMAIL, NG_USER_EMAIL };
+export { NG_USER, NG_USER_EMAIL, US_USER, US_USER_EMAIL };
 
 /**
  * Get demo company ID by short code (e.g., 'bizDemoUS', 'firmDemoNG')

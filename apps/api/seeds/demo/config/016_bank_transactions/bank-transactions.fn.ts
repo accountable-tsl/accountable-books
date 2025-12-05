@@ -1,6 +1,8 @@
 import type { Knex } from 'knex';
-import { generateFingerprintSync } from '../../../../src/shared/index.js';
+
 import { generateBatchFingerprint } from '../../../../src/domains/bankTransactions/bankTransactions.utils.js';
+import { determineExchangeRate } from '../../../../src/domains/exchangeRates/exchangeRates.utils.js';
+import { generateFingerprintSync } from '../../../../src/shared/index.js';
 import { type DemoFilter } from '../../shared/config.js';
 import {
   getDemoCompanies,
@@ -9,7 +11,6 @@ import {
 } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
 import { generateBankTransactions } from './bank-transactions.data.js';
-import { determineExchangeRate } from '../../../../src/domains/exchangeRates/exchangeRates.utils.js';
 
 /**
  * NOTE: Partition creation is skipped for seed to avoid DDL locks within transaction context.

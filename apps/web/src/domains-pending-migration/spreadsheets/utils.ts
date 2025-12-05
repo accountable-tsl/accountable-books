@@ -1,5 +1,6 @@
-import * as XLSX from 'xlsx';
 import Papa, { type ParseResult } from 'papaparse';
+import * as XLSX from 'xlsx';
+
 import type {
   ParseCsvOptions,
   ParsedCsvResult,
@@ -8,6 +9,7 @@ import type {
   ValidateHeadersOptions,
   ValidateHeadersResult,
 } from '@/domains-pending-migration/spreadsheets/types';
+
 import { FILE_TYPE_MAP } from './constants';
 export function isSpreadsheetFile(file: File) {
   const spreadsheetTypes = [

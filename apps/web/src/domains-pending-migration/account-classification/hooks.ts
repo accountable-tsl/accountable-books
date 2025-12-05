@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+
 import { getAccountMeta } from '@/domains-pending-migration/account-classification/api';
 
 export const useAccountMeta = () => {

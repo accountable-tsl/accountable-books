@@ -1,15 +1,15 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
+} from './utils/db.js';
 
 const PREDICTIONS_TABLE = 'categorization_predictions';
 const PREDICTION_LINES_TABLE = 'categorization_prediction_lines';
 const CANDIDATES_TABLE = 'categorization_candidates';
 const CANDIDATE_LINES_TABLE = 'categorization_candidate_lines';
-const CONSTRAINT_VIOLATIONS_TABLE = 'categorization_constraint_violations';
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(PREDICTIONS_TABLE, (table) => {
@@ -73,7 +73,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('description', 255).nullable();
     table.boolean('is_bank_leg').notNullable().defaultTo(false);
     table
-      .specificType('split_type', 'categorization_prediction_split_type')
+      .specificType('split_type', 'categorization_line_split_type')
       .nullable();
     table.decimal('split_value', 20, 10).nullable();
     table.text('explanation').nullable();
@@ -211,39 +211,10 @@ export async function up(knex: Knex): Promise<void> {
     REFERENCES bank_transactions (id, date)
     ON DELETE CASCADE;
   `);
-
-  await knex.schema.createTable(CONSTRAINT_VIOLATIONS_TABLE, (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
-    table
-      .uuid('candidate_id')
-      .notNullable()
-      .references('id')
-      .inTable(CANDIDATES_TABLE)
-      .onDelete('CASCADE');
-    table.string('violation_type', 64).notNullable();
-    table
-      .enu('severity', ['info', 'warning', 'error'], {
-        useNative: false,
-        enumName: 'categorization_violation_severity',
-      })
-      .notNullable()
-      .defaultTo('error');
-    table.text('message').notNullable();
-    table.boolean('resolved').notNullable().defaultTo(false);
-    table.jsonb('metadata').nullable();
-    addStandardColumns(knex, table);
-  });
-
-  await createUpdateTimestampTrigger(knex, CONSTRAINT_VIOLATIONS_TABLE);
-  await knex.raw(
-    `CREATE INDEX idx_cat_constraint_candidate ON ${CONSTRAINT_VIOLATIONS_TABLE}(candidate_id);`,
-  );
 }
 
 export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_constraint_candidate;`);
-  await dropUpdateTimestampTrigger(knex, CONSTRAINT_VIOLATIONS_TABLE);
-  await knex.schema.dropTableIfExists(CONSTRAINT_VIOLATIONS_TABLE);
 
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidate_lines_candidate;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidates_bank_tx;`);

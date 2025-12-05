@@ -1,9 +1,10 @@
-import { CenteredLoader } from '@/components/CenteredLoader';
 import { useSession } from '@session';
-import { routes } from '@/shared/routes/routes';
-import { isPublicRoute } from '@/shared/routes/utils';
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router';
+
+import { CenteredLoader } from '@/components/CenteredLoader';
+import { routes } from '@/shared/routes/routes';
+import { isPublicRoute } from '@/shared/routes/utils';
 
 export function RootRedirector() {
   const { loading, companyId, hasAppAccess } = useSession();

@@ -9,7 +9,8 @@
     "label_role": "semantic",
     "trainable": true,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": ["cl_contract_liabilities", "ca_trade_receivable"]
   },
   {
     "id": "89028f2e-2935-4d6f-add6-bed5354d2f50",
@@ -45,6 +46,11 @@
     "label_role": "semantic",
     "trainable": false,
     "is_contra": false,
-    "is_postable_control": false
+    "is_postable_control": false,
+    "accrual_targets": [
+      "ca_other_receivable",
+      "ca_trade_receivable",
+      "cl_contract_liabilities"
+    ]
   }
 ]

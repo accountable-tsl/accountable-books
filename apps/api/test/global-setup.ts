@@ -1,4 +1,4 @@
-import { setupTestDatabase, closeTestDbConnection } from '../config/test-db.js';
+import { closeTestDbConnection, setupTestDatabase } from '../config/test-db.js';
 
 /**
  * Runs once per Vitest suite (main thread), ensuring migrations happen a single time

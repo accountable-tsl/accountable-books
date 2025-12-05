@@ -1,21 +1,22 @@
 import { type Request, type Response } from 'express';
+
+import { type AuthRequest } from '../../features/auth/auth.types.js';
+import {
+  generateCsrfToken,
+  setAuthCookies,
+} from '../../features/auth/auth.utils.js';
 import {
   AppError,
   ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { type AuthRequest } from '../../features/auth/auth.types.js';
 import {
   getCompanies,
   getSingleCompany,
   switchCompany,
   updateCompany,
 } from './companies.model.js';
-import {
-  generateCsrfToken,
-  setAuthCookies,
-} from '../../features/auth/auth.utils.js';
 
 export const switchCompanyController = async (
   req: AuthRequest,

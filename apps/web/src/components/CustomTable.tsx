@@ -1,5 +1,7 @@
 import * as React from 'react';
+
 import { cn } from '@/lib/utils';
+
 import { getColumnStyle } from './data-table/utils/column-sizing';
 
 const Table = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
@@ -132,4 +134,4 @@ const TableCell = React.forwardRef<
   );
 });
 
-export { Table, TableHeader, TableBody, TableFooter, TableRow, TableCell };
+export { Table, TableBody, TableCell, TableFooter, TableHeader, TableRow };

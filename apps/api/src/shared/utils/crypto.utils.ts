@@ -1,5 +1,6 @@
-import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+
 import { loadKeyRegistry } from '../../config/enc-config.js';
 
 export function generateRandomToken(length = 48): string {

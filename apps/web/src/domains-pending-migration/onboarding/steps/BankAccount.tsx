@@ -1,14 +1,15 @@
+import { useSession } from '@session';
+import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConnectBankAccount from '@/domains-pending-migration/bankConnection/connectViaFeed/ConnectBankAccount';
 import { BankTransactionImporter } from '@/domains-pending-migration/bankConnection/manualUpload/BankTransactionImporter';
 import type { BankTransactionImportOptions } from '@/domains-pending-migration/bankConnection/manualUpload/types';
-import { useCallback, useState } from 'react';
 import { useCompany } from '@/domains-pending-migration/company/store';
-import { toast } from 'sonner';
 import type { OnboardingStatus } from '@/domains-pending-migration/company/types';
-import { useSession } from '@session';
-import { useNavigate } from 'react-router';
 
 export const BankAccount = ({
   onBankAccountComplete,

@@ -1,16 +1,16 @@
+import { readFileSync } from 'fs';
 import type { Knex } from 'knex';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
 import type { DemoCompanyType, DemoFilter } from '../../shared/config.js';
 import { getDemoCompanies } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
 import {
-  demoContactsByCompanyMap,
   type DemoContact,
+  demoContactsByCompanyMap,
 } from './contacts.state.js';
 import { generateRandomContacts } from './contacts.utils.js';
-
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

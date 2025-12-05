@@ -1,14 +1,15 @@
-import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
 import type { Worker } from 'bullmq';
-import { startEmailWorker } from '../../features/communications/email/index.js';
-import { startTransactionSyncWorker } from '../../integrations/banking/index.js';
+
 import { startBalanceRecalcWorker } from '../../domains/balances/index.js';
-import { startFiscalCalendarWorker } from '../../domains/reporting/fiscal-calendar/index.js';
 import {
   startEnrichmentWorker,
-  startRuleRunnerWorker,
   startMLPredictionWorker,
+  startRuleRunnerWorker,
 } from '../../domains/categorization/index.js';
+import { startFiscalCalendarWorker } from '../../domains/reporting/fiscal-calendar/index.js';
+import { startEmailWorker } from '../../features/communications/email/index.js';
+import { startTransactionSyncWorker } from '../../integrations/banking/index.js';
+import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
 
 export interface WorkerConfig {
   email: {

@@ -1,4 +1,5 @@
 import { QueryClient, useQuery } from '@tanstack/react-query';
+
 import { getCompanyDetails } from '../api';
 
 const invalidateCache = (queryClient: QueryClient, companyId: string) => {

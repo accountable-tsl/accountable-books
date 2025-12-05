@@ -1,8 +1,9 @@
-import { knexClient } from '../../../db/knexClient.js';
 import type { Knex } from 'knex';
-import { type BaseContactStats } from '../enrichment/enrichment.types.js';
 import pino from 'pino';
+
+import { knexClient } from '../../../db/knexClient.js';
 import { generateChecksumSync, toDate, toYMD } from '../../../shared/index.js';
+import { type BaseContactStats } from '../enrichment/enrichment.types.js';
 import type {
   BankTransactionContactStat,
   IncrementStats,

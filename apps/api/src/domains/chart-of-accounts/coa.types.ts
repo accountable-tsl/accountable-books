@@ -1,7 +1,8 @@
+import type { Knex } from 'knex';
 import { z } from 'zod';
+
 import { dbBaseFields } from '../../core/types/core.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
-import type { Knex } from 'knex';
 
 export const coaSource = z.enum(['user', 'system', 'template']);
 export type CoaSource = z.infer<typeof coaSource>;
@@ -159,4 +160,26 @@ export type CoaSnapshotVersion = {
   updated_at: Date;
   deleted_at?: Date | null;
   is_deleted: boolean;
+};
+
+export type CoaValidationStatus =
+  | 'active'
+  | 'inactive'
+  | 'deleted'
+  | 'not_found';
+
+export type CoaValidationResult = {
+  id: string;
+  exists: boolean;
+  status: CoaValidationStatus;
+  name?: string;
+  code?: string;
+  isLocked?: boolean;
+  accountTypeKey?: string;
+};
+
+export type CoaValidationResponse = {
+  valid: CoaValidationResult[];
+  invalid: CoaValidationResult[];
+  allValid: boolean;
 };

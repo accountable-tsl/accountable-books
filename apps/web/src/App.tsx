@@ -1,36 +1,39 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import './styles/App.scss';
-import { PopupProvider, usePopup } from './contexts/PopupContext';
-import Popup from './components/Popup/Popup';
-import ThemeProvider from './theme/themeProvider';
-import AppLayout from '@/layouts/AppLayout';
+
+import { SessionProvider } from '@session';
 import { QueryClientProvider } from '@tanstack/react-query';
-import Welcome from '@/domains-pending-migration/onboarding/Welcome';
-import { SignupForm } from '@/features/auth-signup';
-import { LoginForm } from '@/features/auth-login';
-import Dashboard from '@/domains-pending-migration/dashboard/Dashboard';
-import ErrorPage from '@/components/ErrorPage';
-import OnboardingLayout from '@/layouts/OnboardingLayout';
-import { OnboardingStepPage } from '@/domains-pending-migration/onboarding/Onboarding';
-import { Toaster } from '@/components/ui/sonner';
-import { routes } from '@/shared/routes/routes';
-import { queryClient } from '@/lib/queryClient';
-import { OnboardingRouter } from '@/domains-pending-migration/onboarding/OnboardingRouter';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+
 import {
   RequireAuth,
   RequireOnboardingComplete,
   RootRedirector,
 } from '@/app/router/guards';
-import BlankLayout from './layouts/BlankLayout';
-import { AccountingWorkspaceSetup } from './domains-pending-migration/accounting-setup/AccountingSetup';
 import { Table } from '@/components/data-table/fake';
+import ErrorPage from '@/components/ErrorPage';
+import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { AccountingWorkspace } from '@/domains-pending-migration/accounting-ws/acc-ws';
 import { CatEngine } from '@/domains-pending-migration/cat-engine/cat-engine';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import Dashboard from '@/domains-pending-migration/dashboard/Dashboard';
+import { OnboardingStepPage } from '@/domains-pending-migration/onboarding/Onboarding';
+import { OnboardingRouter } from '@/domains-pending-migration/onboarding/OnboardingRouter';
+import Welcome from '@/domains-pending-migration/onboarding/Welcome';
+import { LoginForm } from '@/features/auth-login';
+import { SignupForm } from '@/features/auth-signup';
 import { ConnectBank } from '@/features/connect-bank';
-import { SessionProvider } from '@session';
-import { UploadBankTransactions } from '@/features/upload-bank-transactions';
 import { PlaidOAuthCallback } from '@/features/connect-bank/ui/plaid-oauth-callback';
+import { UploadBankTransactions } from '@/features/upload-bank-transactions';
+import AppLayout from '@/layouts/AppLayout';
+import OnboardingLayout from '@/layouts/OnboardingLayout';
+import { queryClient } from '@/lib/queryClient';
+import { routes } from '@/shared/routes/routes';
+
+import Popup from './components/Popup/Popup';
+import { PopupProvider, usePopup } from './contexts/PopupContext';
+import { AccountingWorkspaceSetup } from './domains-pending-migration/accounting-setup/AccountingSetup';
+import BlankLayout from './layouts/BlankLayout';
+import ThemeProvider from './theme/themeProvider';
 
 function App() {
   return (

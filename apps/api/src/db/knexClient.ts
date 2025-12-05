@@ -1,7 +1,8 @@
-import knex from 'knex';
 import type { Knex } from 'knex';
-import { NODE_ENV } from '../config/env.js';
+import knex from 'knex';
+
 import { runtimeKnexConfig } from '../../knexfile.js';
+import { NODE_ENV } from '../config/env.js';
 
 export const knexClient: Knex = knex(runtimeKnexConfig);
 

@@ -1,14 +1,15 @@
+import csv from 'csv-parser';
+import fs from 'fs';
 import type { Knex } from 'knex';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.ts';
-import path from 'path';
-import fs from 'fs';
-import csv from 'csv-parser';
-import { fileURLToPath } from 'url';
+} from './utils/db.js';
 
 type NewCoaTemplateInput = {
   template_name: string;

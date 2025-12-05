@@ -2,21 +2,22 @@ import {
   createContext,
   useCallback,
   useContext,
-  useMemo,
   useEffect,
+  useMemo,
 } from 'react';
-import { routes } from '@/shared/routes/routes';
 import { useLocation, useNavigate } from 'react-router';
-import { createTenantRoutes, isPublicRoute } from '@/shared/routes/utils';
+
+import { useCompanyDetails } from '@/domains-pending-migration/company/hooks';
 import {
   authStore,
   clearSessionFn,
   handleLogout,
-  useSessionQuery,
   type LogoutOptions,
   type SessionContextType,
+  useSessionQuery,
 } from '@/modules/auth';
-import { useCompanyDetails } from '@/domains-pending-migration/company/hooks';
+import { routes } from '@/shared/routes/routes';
+import { createTenantRoutes, isPublicRoute } from '@/shared/routes/utils';
 
 const defaultContext = {
   loading: true,

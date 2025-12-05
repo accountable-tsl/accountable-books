@@ -1,23 +1,24 @@
-import { Worker } from 'bullmq';
-import { redis } from '../../../lib/redis.js';
 import type { Job } from 'bullmq';
+import { Worker } from 'bullmq';
+import { randomUUID } from 'crypto';
 import pino from 'pino';
+
 import { knexClient } from '../../../db/knexClient.js';
+import { redis } from '../../../lib/redis.js';
+import {
+  emitTxnEnrichedEvent,
+  type TransactionEnrichedEventData,
+} from '../events/transaction-events.service.js';
+import { incrementContactStats } from '../stats/stats.service.js';
+import { logTaskEventSafe } from '../tasks/task-events.service.js';
+import { upsertCategorizationTask } from '../tasks/tasks.service.js';
+import { ENRICHMENT_QUEUE_NAME } from './enrichment.queue.js';
+import { enrichTransaction } from './enrichment.service.js';
 import type {
   EnrichmentJobData,
   EnrichmentResult,
 } from './enrichment.types.js';
 import { enrichmentJobDataSchema } from './enrichment.types.js';
-import { enrichTransaction } from './enrichment.service.js';
-import { incrementContactStats } from '../stats/stats.service.js';
-import { ENRICHMENT_QUEUE_NAME } from './enrichment.queue.js';
-import { upsertCategorizationTask } from '../tasks/tasks.service.js';
-import {
-  emitTxnEnrichedEvent,
-  type TransactionEnrichedEventData,
-} from '../events/transaction-events.service.js';
-import { randomUUID } from 'crypto';
-import { logTaskEventSafe } from '../tasks/task-events.service.js';
 
 const logger = pino();
 
@@ -68,12 +69,7 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
       );
     }
 
-    const {
-      companyId,
-      bankAccountId,
-      bankTransactionIds: bIds,
-      source,
-    } = validation.data;
+    const { companyId, bankTransactionIds: bIds, source } = validation.data;
 
     const bankTransactionIdSet = new Set(bIds);
     const bankTransactionIds = [...bankTransactionIdSet];
@@ -119,7 +115,6 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
 
     for (let i = 0; i < sortedTransactionIds.length; i++) {
       const bankTransactionId = sortedTransactionIds[i];
-      const bankTransactionDate = dateLookup.get(bankTransactionId);
 
       try {
         const progress = Math.floor(((i + 1) / totalTransactions) * 100);
@@ -227,7 +222,7 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
             categorization_task_id: persistOutcome.taskId,
             run_id: runId,
             source: 'enrichment',
-            event_type: 'categorization_task_started',
+            event_type: 'categorization_task_created',
             event_timestamp: new Date(),
             metadata: null,
           });

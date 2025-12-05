@@ -1,1 +1,4 @@
-export { handlePostPrediction } from './post-prediction.service.js';
+export {
+  enqueueMlIfNeeded,
+  handlePostPrediction,
+} from './post-prediction.service.js';

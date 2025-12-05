@@ -1,18 +1,11 @@
-import { FormField } from '@/components/FormField';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
-import { useForm } from 'react-hook-form';
-import {
-  type NewContact,
-  newContact,
-} from '@/domains-pending-migration/contacts/contacts-types';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { useCreateContacts } from '@/domains-pending-migration/contacts/contacts-hooks';
 import { useCallback, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+
+import { FormField } from '@/components/FormField';
 import { Success } from '@/components/Success';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useCreateContacts } from '@/domains-pending-migration/contacts/contacts-hooks';
+import {
+  type NewContact,
+  newContact,
+} from '@/domains-pending-migration/contacts/contacts-types';
+import { cn } from '@/lib/utils';
 
 export function AddContact({
   companyId,

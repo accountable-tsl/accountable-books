@@ -1,4 +1,12 @@
 import { type Request, type Response } from 'express';
+
+import { ENV, isProd } from '../../config/env.js';
+import { redis } from '../../lib/redis.js';
+import {
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import {
   loginService,
   meService,
@@ -6,19 +14,12 @@ import {
   resendVerificationEmailService,
   verifyEmailService,
 } from './auth.service.js';
-import {
-  ErrorCode,
-  errorResponse,
-  successResponse,
-} from '../../shared/utils/response.utils.js';
 import { type AuthRequest } from './auth.types.js';
 import {
   clearCsrfCookie,
   generateCsrfToken,
   setAuthCookies,
 } from './auth.utils.js';
-import { redis } from '../../lib/redis.js';
-import { ENV, isProd } from '../../config/env.js';
 
 export async function loginController(req: AuthRequest, res: Response) {
   try {

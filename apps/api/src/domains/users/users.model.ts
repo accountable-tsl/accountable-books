@@ -1,32 +1,33 @@
+import dayjs from 'dayjs';
 import type { Knex } from 'knex';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
+import { knexClient } from '../../db/knexClient.js';
 import {
   type CreateUserResponse,
   type NewUserDirect,
   newUserDirect,
   type UserResponseCamel,
 } from '../../domains/users/users.types.js';
-import {
-  errorResponse,
-  successResponse,
-} from '../../shared/utils/response.utils.js';
+import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
+import { redis } from '../../lib/redis.js';
 import {
   generateRandomToken,
   hashPassword,
   hashToken,
 } from '../../shared/utils/crypto.utils.js';
-import dayjs from 'dayjs';
-import { knexClient } from '../../db/knexClient.js';
-import { addNewToken } from '../tokens/tokens.model.js';
-import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
+import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
 import {
-  logger,
-  logError,
   logDatabaseOperation,
+  logError,
+  logger,
   logTiming,
 } from '../../shared/utils/logger.js';
-import { redis } from '../../lib/redis.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import { addNewToken } from '../tokens/tokens.model.js';
 
 /**
  * Options for creating a user directly

@@ -1,4 +1,5 @@
 import { Redis } from 'ioredis';
+
 import { ENV, isLocalStaging } from '../config/env.js';
 
 const url = isLocalStaging ? ENV.LOCAL_STAGING_REDIS_URL : ENV.REDIS_URL;

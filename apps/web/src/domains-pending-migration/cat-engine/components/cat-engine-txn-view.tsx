@@ -1,38 +1,40 @@
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  Edit,
+  Eye,
+  Landmark,
+  Lightbulb,
+  Split,
+} from 'lucide-react';
+import { memo, useCallback, useMemo, useState } from 'react';
+
+import { FormattedAmount } from '@/components/FormattedAmount';
+import { TooltipHelper } from '@/components/TooltipHelper';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  ChevronDown,
-  Landmark,
-  Edit,
-  Check,
-  Eye,
-  AlertTriangle,
-  Split,
-  Lightbulb,
-} from 'lucide-react';
 import { accordionItems } from '@/domains-pending-migration/cat-engine/cat-engine';
 import { cn } from '@/lib/utils';
-import { FormattedAmount } from '@/components/FormattedAmount';
 import { safeFormatDate } from '@/shared/utils/formatting-utils';
-import { TooltipHelper } from '@/components/TooltipHelper';
-import { useState, memo, useCallback, useMemo } from 'react';
+
 import {
-  type TransactionData,
-  type CatEngineTxnViewProps,
-  type TransactionFormData,
-} from '../types';
-import {
-  DESCRIPTION_TRUNCATE_LENGTH,
-  DEFAULT_CURRENCY,
-  DEFAULT_FALLBACK_TEXT,
-  DEFAULT_EMPTY_VALUE,
   DEFAULT_ACCOUNT_TEXT,
+  DEFAULT_CURRENCY,
+  DEFAULT_EMPTY_VALUE,
+  DEFAULT_FALLBACK_TEXT,
+  DESCRIPTION_TRUNCATE_LENGTH,
   TOOLTIPS,
 } from '../constants';
 import { useTransactionForm } from '../hooks/use-transaction-form';
+import {
+  type CatEngineTxnViewProps,
+  type TransactionData,
+  type TransactionFormData,
+} from '../types';
 import { ErrorBoundary } from './error-boundary';
 import { LoadingState, TransactionSkeleton } from './loading-state';
 
@@ -833,18 +835,18 @@ const ExplanationSection = memo(({ explanation }: { explanation?: string }) => {
 
 // Export sub-components for potential reuse
 export {
-  TransactionHeader,
-  TransactionView,
-  TransactionActions,
-  JournalEntriesSection,
   AmountDisplay,
   BankLogo,
-  DateField,
-  TruncatedText,
   CategoryDisplay,
-  ExplanationSection,
-  TransactionForm,
+  DateField,
   ErrorBoundary,
+  ExplanationSection,
+  JournalEntriesSection,
   LoadingState,
+  TransactionActions,
+  TransactionForm,
+  TransactionHeader,
   TransactionSkeleton,
+  TransactionView,
+  TruncatedText,
 };

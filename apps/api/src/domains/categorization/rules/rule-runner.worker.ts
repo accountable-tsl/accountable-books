@@ -1,4 +1,5 @@
 import { Worker } from 'bullmq';
+
 import { redis } from '../../../lib/redis.js';
 import { logger } from '../../../shared/index.js';
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';

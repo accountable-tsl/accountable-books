@@ -1,5 +1,15 @@
 import type { Knex } from 'knex';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
+import { redis } from '../../lib/redis.js';
+import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import {
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import {
   type AccFirmCamelResponse,
   type AccFirmWithId,
@@ -7,19 +17,10 @@ import {
   newAccFirm,
 } from './firms.types.js';
 import {
-  ErrorCode,
-  errorResponse,
-  successResponse,
-} from '../../shared/utils/response.utils.js';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { redis } from '../../lib/redis.js';
-import {
   firmSlugRedisKey,
   isReservedSlug,
   isValidSlug,
 } from './firms.utils.js';
-import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
 
 export const resolveFirm = async (
   trx: Knex.Transaction,

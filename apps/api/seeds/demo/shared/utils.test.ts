@@ -1,31 +1,32 @@
-import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import type { Knex } from 'knex';
-import {
-  resolveFiltersToIds,
-  deleteDemoData,
-  loadDemoCompanies,
-  getCompanyIdMap,
-  getCompanyId,
-  getFilteredCompanyIds,
-  getDemoCompanies,
-  clearCompanyCache,
-  loadAccountTypes,
-  getAccountTypeByKey,
-  getAccountTypeMap,
-  clearAccountTypesCache,
-  loadBanks,
-  getBankMap,
-  clearBanksCache,
-  loadDemoUsers,
-  getDemoUserByEmail,
-  getDemoUserMap,
-  clearDemoUsersCache,
-  clearAllCaches,
-} from './utils.js';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
 import {
   DEMO_COMPANIES,
   US_DEMO_COMPANIES,
 } from '../config/002_companies/companies.data.js';
+import {
+  clearAccountTypesCache,
+  clearAllCaches,
+  clearBanksCache,
+  clearCompanyCache,
+  clearDemoUsersCache,
+  deleteDemoData,
+  getAccountTypeByKey,
+  getAccountTypeMap,
+  getBankMap,
+  getCompanyId,
+  getCompanyIdMap,
+  getDemoCompanies,
+  getDemoUserByEmail,
+  getDemoUserMap,
+  getFilteredCompanyIds,
+  loadAccountTypes,
+  loadBanks,
+  loadDemoCompanies,
+  loadDemoUsers,
+  resolveFiltersToIds,
+} from './utils.js';
 
 // Mock transaction and query builders
 let mockTransaction: any;

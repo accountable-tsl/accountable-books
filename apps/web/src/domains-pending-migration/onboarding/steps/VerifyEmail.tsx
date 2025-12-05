@@ -1,19 +1,20 @@
-import icon from '@/assets/images/email-file.gif';
-import { Button } from '@/components/ui/button';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useSession } from '@session';
+import { TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { routes } from '@/shared/routes/routes';
-import { CenteredLoader } from '@/components/CenteredLoader';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
+
+import icon from '@/assets/images/email-file.gif';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import { Button } from '@/components/ui/button';
+import type { OnboardingStatus } from '@/domains-pending-migration/company/types';
 import {
   handleEmailVerification,
   resendVerificationEmail,
 } from '@/domains-pending-migration/onboarding/api';
-import type { OnboardingStatus } from '@/domains-pending-migration/company/types';
-import { cn } from '@/lib/utils';
-import { TriangleAlert } from 'lucide-react';
 import type { VerifyEmailFnResponse } from '@/domains-pending-migration/onboarding/types';
-import { useSession } from '@session';
+import { cn } from '@/lib/utils';
+import { routes } from '@/shared/routes/routes';
 
 export const VerifyEmail = ({
   className,

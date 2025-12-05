@@ -1,9 +1,10 @@
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { Card } from '@/components/ui/card';
-import type { CompanyType } from '@/shared/types/core';
-import { TOOLTIP } from '../../model/constants';
-import { cn } from '@/lib/utils';
 import { COMPANY_TYPES } from '@/domains-pending-migration/company/constants';
+import { cn } from '@/lib/utils';
+import type { CompanyType } from '@/shared/types/core';
+
+import { TOOLTIP } from '../../model/constants';
 
 export function SignupSelector({
   selectCompanyType,

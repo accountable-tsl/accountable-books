@@ -1,11 +1,12 @@
+import { randomUUID } from 'crypto';
+import type { Request, Response } from 'express';
 import { Router } from 'express';
 import express from 'express';
-import type { Request, Response } from 'express';
-import { logger, logError } from '../../../shared/utils/logger.js';
+
+import { transactionSyncQueue } from '../../../integrations/banking/index.js';
 import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';
 import { webhookProviders } from '../../../integrations/banking/utils/webhookVerification.js';
-import { randomUUID } from 'crypto';
-import { transactionSyncQueue } from '../../../integrations/banking/index.js';
+import { logError, logger } from '../../../shared/utils/logger.js';
 
 const router = Router();
 

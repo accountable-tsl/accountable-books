@@ -1,8 +1,9 @@
-import { knexClient as knex, knexClient } from '../../db/knexClient.js';
-import { z } from 'zod';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import type { Knex } from 'knex';
+import { z } from 'zod';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient as knex, knexClient } from '../../db/knexClient.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   errorResponse,
   successResponse,

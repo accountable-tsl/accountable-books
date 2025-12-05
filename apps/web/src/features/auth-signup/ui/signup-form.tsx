@@ -1,3 +1,13 @@
+import type { AxiosError } from 'axios';
+import { XIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { PuffLoader } from 'react-spinners';
+import { toast } from 'sonner';
+
+import { AuthHeader } from '@/components/AuthHeader';
+import { StepProgress } from '@/components/StepProgress/StepProgress';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -5,37 +15,29 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { StepProgress } from '@/components/StepProgress/StepProgress';
-import { useEffect, useRef, useState } from 'react';
+import { getDefaultCurrencyCodeForCountry } from '@/constants/countryCurrencyMap';
+import { performLoginFlow } from '@/features/auth-login/model/use-login-flow';
+import { authStore } from '@/modules/auth';
+import { useCheckEmail } from '@/shared/hooks/useCheckEmail';
+import { useCountries } from '@/shared/hooks/useCountries';
+import { useCurrencies } from '@/shared/hooks/useCurrencies';
+import { routes } from '@/shared/routes/routes';
 import { type CompanyType, type Country, zEmail } from '@/shared/types/core';
-import { Button } from '@/components/ui/button';
+
+import { submitSignup } from '../../../domains-pending-migration/signup/signupService';
 import {
   type NewCompany,
   type NewUser,
 } from '../../../domains-pending-migration/signup/signupTypes';
-import { useNavigate, useSearchParams } from 'react-router';
-import { useCountries } from '@/shared/hooks/useCountries';
-import { getDefaultCurrencyCodeForCountry } from '@/constants/countryCurrencyMap';
-import { useCurrencies } from '@/shared/hooks/useCurrencies';
-import { SignupSelector } from './steps/selector';
 import {
   SignupBasicInfo,
   type SignupBasicInfoHandle,
 } from './steps/basic-info';
-import { useCheckEmail } from '@/shared/hooks/useCheckEmail';
 import {
   SignupCompanyInfo,
   type SignupCompanyInfoHandle,
 } from './steps/company-info';
-import { toast } from 'sonner';
-import { submitSignup } from '../../../domains-pending-migration/signup/signupService';
-import { PuffLoader } from 'react-spinners';
-import { XIcon } from 'lucide-react';
-import { AuthHeader } from '@/components/AuthHeader';
-import { routes } from '@/shared/routes/routes';
-import { performLoginFlow } from '@/features/auth-login/model/use-login-flow';
-import { authStore } from '@/modules/auth';
-import type { AxiosError } from 'axios';
+import { SignupSelector } from './steps/selector';
 
 //TODO: Refactor whole signup flow later
 export function Signup() {

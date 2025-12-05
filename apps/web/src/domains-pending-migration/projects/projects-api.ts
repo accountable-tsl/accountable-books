@@ -1,9 +1,9 @@
-import api from '@/lib/axios';
 import type {
   FetchProjectsParams,
   NewProject,
   ProjectsResponse,
 } from '@/domains-pending-migration/projects/projects-types';
+import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
 
 export async function fetchProjects(

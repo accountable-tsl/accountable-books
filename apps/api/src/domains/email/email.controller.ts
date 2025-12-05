@@ -1,7 +1,8 @@
 import { type Request, type Response } from 'express';
+
+import { knexClient } from '../../db/knexClient.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 import { checkEmail } from './email.model.js';
-import { knexClient } from '../../db/knexClient.js';
 
 export async function checkEmailController(req: Request, res: Response) {
   try {

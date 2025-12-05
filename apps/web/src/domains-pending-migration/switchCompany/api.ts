@@ -1,7 +1,8 @@
-import api from '@/lib/axios';
-import type { ApiResponse } from '@/shared/types/core';
-import type { AuthUserContext } from '@/modules/auth/types';
 import { isAxiosError } from 'axios';
+
+import api from '@/lib/axios';
+import type { AuthUserContext } from '@/modules/auth/types';
+import type { ApiResponse } from '@/shared/types/core';
 
 export const switchCompanyApi = async (
   companyId: string,

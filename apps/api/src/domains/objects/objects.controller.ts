@@ -1,11 +1,12 @@
 import { type Request, type Response } from 'express';
+
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { deleteObject, uploadObject } from './objects.model.js';
-import { objectTypeHandlers } from './objects.utils.js';
 import { type ObjectType } from './objects.types.js';
+import { objectTypeHandlers } from './objects.utils.js';
 export async function uploadObjectController(req: Request, res: Response) {
   try {
     if (!req.file) {

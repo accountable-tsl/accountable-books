@@ -1,15 +1,16 @@
 import { z } from 'zod';
+
 import { dbBaseFields, zDate } from '../../../core/types/core.js';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
 } from '../../../shared/utils/formatting.utils.js';
-import { coaSource } from '../../chart-of-accounts/coa.types.js';
 import {
   bankObMetadata,
   bankOpeningBalanceOrigin,
   bankOpeningBalanceRole,
 } from '../../balances/opening-balance/opening-balance.types.js';
+import { coaSource } from '../../chart-of-accounts/coa.types.js';
 
 export const bankAccountType = z.enum([
   'other',

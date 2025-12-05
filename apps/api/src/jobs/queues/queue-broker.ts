@@ -1,5 +1,6 @@
-import { isTest } from '../../config/env.js';
 import pino from 'pino';
+
+import { isTest } from '../../config/env.js';
 
 const logger = pino({ name: 'queue-broker' });
 

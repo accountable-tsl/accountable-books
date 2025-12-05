@@ -1,6 +1,7 @@
 import express from 'express';
-import { clientSignup } from './signup.controller.js';
+
 import { authLimiter } from '../../core/middlewares/rateLimiter.middleware.js';
+import { clientSignup } from './signup.controller.js';
 
 const router = express.Router({ mergeParams: true });
 

@@ -1,7 +1,5 @@
-import { SmallScreenMessage } from '@/components/SmallScreenMessage';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
-import { useIsMobile, useMediaQuery } from '@/shared/hooks/use-media-query';
+import { useSession } from '@session';
+import { formatDistanceToNowStrict } from 'date-fns';
 import {
   Brain,
   Building,
@@ -13,23 +11,26 @@ import {
   NotepadText,
   Upload,
 } from 'lucide-react';
-import { useSession } from '@session';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
-import { toast } from 'sonner';
-import { useManualTransactionSync } from '@/modules/transactions/sync';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
-import { formatDistanceToNowStrict } from 'date-fns';
-import { SimpleTooltip, TooltipHelper } from '@/components/TooltipHelper';
 import { FormattedAmount } from '@/components/FormattedAmount';
-import { formatAmount } from '@/shared/utils/formatting-utils';
+import { SmallScreenMessage } from '@/components/SmallScreenMessage';
+import { SimpleTooltip, TooltipHelper } from '@/components/TooltipHelper';
+import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
+import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
+import { useManualTransactionSync } from '@/modules/transactions/sync';
+import { useIsMobile, useMediaQuery } from '@/shared/hooks/use-media-query';
+import { formatAmount } from '@/shared/utils/formatting-utils';
 
 interface Group {
   bankName: string;

@@ -1,7 +1,8 @@
-import type { Knex } from 'knex';
 import bcrypt from 'bcrypt';
-import { ENV, isProd } from '../../config/env-loader.ts';
-import { createUser } from '../20250403184441_users.ts';
+import type { Knex } from 'knex';
+
+import { ENV, isProd } from '../../config/env-loader.js';
+import { createUser } from '../20250403184441_users.js';
 
 export async function up(knex: Knex.Transaction): Promise<void> {
   if (isProd && (!ENV.ADMIN_PASSWORD || !ENV.ADMIN_EMAIL)) {
@@ -43,4 +44,4 @@ export async function up(knex: Knex.Transaction): Promise<void> {
   }
 }
 
-export async function down(_knex: Knex): Promise<void> {}
+export async function down(): Promise<void> {}

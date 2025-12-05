@@ -1,14 +1,15 @@
 import type { Knex } from 'knex';
-import { knexClient } from '../../../../db/knexClient.js';
-import {
-  persistPredictionParams,
-  updatePredictionParams,
-  type PersistPredictionParams,
-  type UpdatePredictionParams,
-} from './predictions.types.js';
 import z from 'zod';
+
+import { knexClient } from '../../../../db/knexClient.js';
 import { logger } from '../../../../shared/index.js';
-import type { DebitCredit } from '../../../../core/index.js';
+import { logTaskEventSafe } from '../../tasks/task-events.service.js';
+import {
+  type PersistPredictionParams,
+  persistPredictionParams,
+  type UpdatePredictionParams,
+  updatePredictionParams,
+} from './predictions.types.js';
 
 // Persist predictions to the database
 
@@ -141,7 +142,14 @@ const PREDICTION_LINES_TABLE = 'categorization_prediction_lines';
  *
  */
 
-// Insert prediction (head and lines)
+/**
+ * Inserts a prediction and its associated lines into the database.
+ *
+ * @param {PersistPredictionParams} params - The parameters for persisting the prediction.
+ * @param {Knex.Transaction} [trx] - An optional transaction object for database operations.
+ * @returns {Promise<string>} - A promise that resolves to the ID of the inserted prediction.
+ * @throws {Error} - If the inputs are invalid.
+ */
 export async function persistPrediction(
   params: PersistPredictionParams,
   trx?: Knex.Transaction,
@@ -172,6 +180,21 @@ export async function persistPrediction(
     }));
     await trx(PREDICTION_LINES_TABLE).insert(linesToInsert);
 
+    // Log prediction created event
+    await logTaskEventSafe({
+      categorization_task_id: predictionHead.categorization_task_id,
+      run_id: predictionHead.run_id,
+      source: predictionHead.source,
+      event_type: 'prediction_created',
+      event_timestamp: new Date(),
+      metadata: {
+        prediction_id: predictionId,
+        prediction_lines_count: predictionLines.length,
+        confidence: predictionHead.confidence,
+      },
+      trx,
+    });
+
     return predictionId;
   };
 
@@ -185,7 +208,6 @@ export async function persistPrediction(
 // Update prediction (e.g update prediction status)
 export async function updatePrediction(
   params: UpdatePredictionParams,
-  trx?: Knex.Transaction,
 ): Promise<void> {
   // Validate inputs
   const validationResult = updatePredictionParams.safeParse(params);
@@ -200,21 +222,22 @@ export async function updatePrediction(
   const { predictionId, status, statusReason, metadata, metadataAction } =
     validationResult.data;
 
-  const exec = async (trx: Knex.Transaction) => {
+  const exec = async (tx: Knex.Transaction) => {
     let newMetadata: Record<string, unknown> | null = null;
 
     if (metadata) {
       if (metadataAction === 'update') {
-        const row = await trx(PREDICTIONS_TABLE)
+        const row = await tx(PREDICTIONS_TABLE)
           .where({ id: predictionId })
           .select('metadata')
           .first();
 
-        const oldMeta = (row?.metadata ?? {}) as Record<string, any>;
-        const changes: any[] = oldMeta.changes ?? [];
+        const oldMeta = (row?.metadata ?? {}) as Record<string, unknown>;
+        const changes: Array<Record<string, unknown>> =
+          (oldMeta.changes as Array<Record<string, unknown>>) ?? [];
 
         const patch = metadata ?? {};
-        const auditEntries: any[] = [];
+        const auditEntries: Array<Record<string, unknown>> = [];
 
         for (const [key, newVal] of Object.entries(patch)) {
           const oldVal = oldMeta[key];
@@ -251,11 +274,13 @@ export async function updatePrediction(
       ...(status && { status }),
       ...(statusReason && { status_reason: statusReason }),
       ...(newMetadata && { metadata: newMetadata }),
-      updated_at: trx.fn.now(),
+      updated_at: tx.fn.now(),
     };
 
-    await trx(PREDICTIONS_TABLE)
+    await tx(PREDICTIONS_TABLE)
       .where({ id: predictionId })
       .update(updatePayload);
   };
+
+  await knexClient.transaction(exec);
 }

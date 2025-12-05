@@ -1,23 +1,25 @@
-import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/shared/hooks/use-media-query';
-import { useEffect, useMemo, useState } from 'react';
-import { useChartOfAccountsQuery } from '@/domains-pending-migration/coa/hooks';
 import { useSession } from '@session';
+import { useEffect, useMemo, useState } from 'react';
+
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
-import { useDataTable } from '@/components/data-table/use-data-table';
-import { getCoaTableColumns } from './coa-columns';
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
 import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import { useDataTable } from '@/components/data-table/use-data-table';
+import ErrorPage from '@/components/ErrorPage';
+import { SmallScreenMessage } from '@/components/SmallScreenMessage';
+import { Button } from '@/components/ui/button';
+import { CoaActionBar } from '@/domains-pending-migration/coa/coa-action-bar';
 import { AddAccountSelection } from '@/domains-pending-migration/coa/coa-add-selection';
 import { QuickFilter } from '@/domains-pending-migration/coa/coa-quickfilter';
-import { getAccountElementOptions } from '@/domains-pending-migration/coa/utils';
-import { CoaActionBar } from '@/domains-pending-migration/coa/coa-action-bar';
-import { SmallScreenMessage } from '@/components/SmallScreenMessage';
 import { CoaViewer } from '@/domains-pending-migration/coa/coa-viewer';
+import { useChartOfAccountsQuery } from '@/domains-pending-migration/coa/hooks';
 import type { CoaResponse } from '@/domains-pending-migration/coa/types';
-import ErrorPage from '@/components/ErrorPage';
+import { getAccountElementOptions } from '@/domains-pending-migration/coa/utils';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+
+import { getCoaTableColumns } from './coa-columns';
 
 export const ChartOfAccounts: React.FC = () => {
   const isMobile = useIsMobile();

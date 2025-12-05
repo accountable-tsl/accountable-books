@@ -1,4 +1,6 @@
 import type { Response } from 'express';
+import z from 'zod';
+
 import type { AuthRequest } from '../../../features/auth/auth.types.js';
 import { errorResponse } from '../../../shared/utils/response.utils.js';
 import {
@@ -8,7 +10,6 @@ import {
   updateBankAccounts,
 } from './bankAccounts.model.js';
 import { updateBankAccount } from './bankAccounts.types.js';
-import z from 'zod';
 
 export async function createBankAccountController(
   req: AuthRequest,

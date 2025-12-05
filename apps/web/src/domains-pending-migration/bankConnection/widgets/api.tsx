@@ -1,7 +1,9 @@
+import { isAxiosError } from 'axios';
+
 import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+
 import type { ConnectionResponse } from '../connectViaFeed/types';
-import { isAxiosError } from 'axios';
 
 export const handleBankAccountConnection = async ({
   companyId,

@@ -1,13 +1,14 @@
+// import { accountTypes as defaultAccountTypes } from './data/accountTypes.js';
+import { defaultAccountTypes } from '@accountable-books/contracts/data';
 import type { Knex } from 'knex';
+
+import { isDev } from '../config/env-loader.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.ts';
-import { isDev } from '../config/env-loader.ts';
-import { defaultAccountTypes } from '@accountable-books/contracts/data';
-
+} from './utils/db.js';
 // export const newAccountType = z.object({
 //   id: z.uuid(),
 //   key: z.string().max(64),

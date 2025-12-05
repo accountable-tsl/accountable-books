@@ -1,6 +1,7 @@
-import type { Row, Column } from '@tanstack/react-table';
-import type { ToolbarItem, DataTableToolbarConfig } from './types';
+import type { Column, Row } from '@tanstack/react-table';
+
 import { DEFAULT_CONFIG } from './config';
+import type { DataTableToolbarConfig, ToolbarItem } from './types';
 
 // Multi-column filter function
 export function createMultiColumnFilter<TData>(columnIds: string[]) {

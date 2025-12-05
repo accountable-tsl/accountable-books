@@ -6,8 +6,9 @@ import {
 } from '@tanstack/react-table';
 import { type Table as TanstackTable } from '@tanstack/react-table';
 import { type TableOptions } from '@tanstack/react-table';
-import { type DataTableConfig, type FilterItemSchema } from '../utils/config';
 import { type Dispatch, type SetStateAction } from 'react';
+
+import { type DataTableConfig, type FilterItemSchema } from '../utils/config';
 import { type ResolvedRowClick, type RowClickBehavior } from './row-click';
 
 // --- Module Augmentation (No Change Here) ---

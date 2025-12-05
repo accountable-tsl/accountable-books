@@ -1,3 +1,7 @@
+import type { Row } from '@tanstack/react-table';
+import { Archive, Trash2 } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
+
 import {
   DataTableActionBar,
   DataTableActionBarAction,
@@ -8,9 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import type { CoaResponse } from '@/domains-pending-migration/coa/types';
 import { analyzeSelectedAccounts } from '@/domains-pending-migration/coa/utils';
 import { cn } from '@/lib/utils';
-import type { Row } from '@tanstack/react-table';
-import { Archive, Trash2 } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
+
 import { useArchiveCoa, useDeleteCoa } from './hooks';
 
 // TODO: BULK EXPORT

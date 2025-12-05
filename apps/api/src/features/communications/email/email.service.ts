@@ -1,22 +1,23 @@
 import nodemailer from 'nodemailer';
 import { type Transporter } from 'nodemailer';
 import postmark from 'postmark';
-import {
-  type EmailPayload,
-  type InviteEmailPayload,
-  type TokenBasedEmailPayload,
-} from './email.types.js';
+
+import { ENV } from '../../../config/env.js';
+import { type ApiResponse } from '../../../core/types/api.types.js';
 import {
   AppError,
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
 import {
-  enqueueVerificationEmail,
   enqueueUserInviteEmail,
+  enqueueVerificationEmail,
 } from './email.queue.js';
-import { type ApiResponse } from '../../../core/types/api.types.js';
-import { ENV } from '../../../config/env.js';
+import {
+  type EmailPayload,
+  type InviteEmailPayload,
+  type TokenBasedEmailPayload,
+} from './email.types.js';
 
 // Union type for email sender - can be either nodemailer Transporter or Postmark ServerClient
 type EmailSender = Transporter | postmark.ServerClient;

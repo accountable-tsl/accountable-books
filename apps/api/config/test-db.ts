@@ -1,6 +1,8 @@
-import './env-loader.ts';
-import knex from 'knex';
+import './env-loader.js';
+
 import type { Knex } from 'knex';
+import knex from 'knex';
+
 import knexConfig from '../knexfile.js';
 
 /**

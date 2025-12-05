@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
+
 import { ENV, isDev, NODE_ENV } from './config/env.js';
 
 export function initSentry() {

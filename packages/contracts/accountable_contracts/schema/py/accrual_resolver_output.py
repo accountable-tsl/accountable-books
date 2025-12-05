@@ -23,4 +23,5 @@ class AccrualResolverOutput(BaseModel):
     top_1_recommendation: Optional[Top1Recommendation]
     fallback_used: bool
     explanation: str
+    latency_ms: float
     metadata: Optional[Any] = None

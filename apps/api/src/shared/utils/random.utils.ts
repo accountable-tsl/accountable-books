@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
-import { getCompanyIdentifiers } from '../../domains/companies/companies.utils.js';
 import { z } from 'zod';
+
+import { getCompanyIdentifiers } from '../../domains/companies/companies.utils.js';
 
 export const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 

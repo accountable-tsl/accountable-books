@@ -1,12 +1,13 @@
-import { BodyHead } from '@/components/AppHeader';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calculator, FolderOpen, Settings, Users } from 'lucide-react';
 import { useState } from 'react';
+
+import { BodyHead } from '@/components/AppHeader';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChartOfAccounts } from '@/domains-pending-migration/coa/coa';
+import { Contacts } from '@/domains-pending-migration/contacts/Contacts';
 import { FinancialSettings } from '@/domains-pending-migration/financial-settings/FinancialSettings';
 import { Projects } from '@/domains-pending-migration/projects/Projects';
 import { cn } from '@/lib/utils';
-import { Contacts } from '@/domains-pending-migration/contacts/Contacts';
 
 const tabsConfig = [
   {

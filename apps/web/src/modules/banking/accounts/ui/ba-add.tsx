@@ -1,22 +1,24 @@
-import { useEffect, useState } from 'react';
-import { FormField } from '@/components/FormField';
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
-import { useCurrencies } from '@/shared/hooks/useCurrencies';
-import { useCountries } from '@/shared/hooks/useCountries';
-import ErrorPage from '@/components/ErrorPage';
-import { getDefaultCountryAndCurrency } from '@/shared/utils/random-utils';
-import { companyType, type Country } from '@/shared/types/core';
-import { Controller, useForm } from 'react-hook-form';
-import {
-  type AddBankAccountProps,
-  bankAccountType,
-  type NewBankAccountInput,
-  newBankAccountInput,
-} from '@/modules/banking/accounts';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { Input } from '@/components/ui/input';
-import { toTitleCase } from '@/shared/utils/formatting-utils';
+import { useSession } from '@session';
+import {
+  Building2,
+  ChevronDown,
+  ChevronUp,
+  CircleCheck,
+  Coins,
+  Wallet,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import ErrorPage from '@/components/ErrorPage';
+import { FormField } from '@/components/FormField';
+import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { TooltipHelper } from '@/components/TooltipHelper';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -24,24 +26,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useBanks } from '@/modules/banking/institutions/model/hooks';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import { SkeletonBlock } from '@/components/SkeletonBlock';
 import {
-  CircleCheck,
-  ChevronDown,
-  ChevronUp,
-  Wallet,
-  Building2,
-  Coins,
-} from 'lucide-react';
-import {
-  createNewBankAccount,
   type CreateBankAccountRes,
+  createNewBankAccount,
 } from '@/domains-pending-migration/bankConnection/shared/api';
-import { useSession } from '@session';
-import { TooltipHelper } from '@/components/TooltipHelper';
+import { cn } from '@/lib/utils';
+import {
+  type AddBankAccountProps,
+  bankAccountType,
+  type NewBankAccountInput,
+  newBankAccountInput,
+} from '@/modules/banking/accounts';
+import { useBanks } from '@/modules/banking/institutions/model/hooks';
+import { useCountries } from '@/shared/hooks/useCountries';
+import { useCurrencies } from '@/shared/hooks/useCurrencies';
+import { companyType, type Country } from '@/shared/types/core';
+import { toTitleCase } from '@/shared/utils/formatting-utils';
+import { getDefaultCountryAndCurrency } from '@/shared/utils/random-utils';
 
 export default function AddBankAccount({
   onSuccess,

@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
-import { knexClient } from '../../db/knexClient.js';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
 import {
   errorResponse,
   successResponse,

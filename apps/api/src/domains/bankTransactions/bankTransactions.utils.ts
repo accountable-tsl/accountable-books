@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
-import { type BankTransactionFilters } from './bankTransactions.types.js';
+
 import { generateFingerprintSync } from '../../shared/index.js';
+import { type BankTransactionFilters } from './bankTransactions.types.js';
 
 const bankTransactionQuerySelect = ['bt.*', 'ba.*', 'banks.*', 'currencies.'];
 export function buildBankTransactionQuery({

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { dbStandardFields } from '../../../core/types/core.js';
 
 export const bankOpeningBalanceOrigin = z.enum([

@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
+
 import type { Project } from '@/domains-pending-migration/projects/projects-types';
 import { formatDate } from '@/shared/utils/formatting-utils';
 

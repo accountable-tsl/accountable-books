@@ -1,4 +1,8 @@
+import { Building2Icon, BuildingIcon, UserIcon } from 'lucide-react';
 import React, { useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -7,9 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { BuildingIcon, UserIcon, Building2Icon } from 'lucide-react';
 import type { AuthCompanyContext } from '@/modules/auth/types';
 
 interface SwitchConfirmModalProps {

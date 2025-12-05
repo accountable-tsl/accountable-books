@@ -1,4 +1,45 @@
 import type { Knex } from 'knex';
+
+import { countryToTimezone } from '../../core/timezones/countryTimezones.js';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
+import {
+  type AuthUserContext,
+  type DecodedToken,
+} from '../../features/auth/auth.types.js';
+import {
+  buildAuthContext,
+  generateAuthTokens,
+} from '../../features/auth/auth.utils.js';
+import {
+  createInitialCompanyOnboardingState,
+  markCompanyOnboardingStepComplete,
+} from '../../features/onboarding/onboarding.utils.js';
+import { redis } from '../../lib/redis.js';
+import generateSecureShortCode, {
+  shortCodelooksWeird,
+} from '../../shared/utils/crypto.utils.js';
+import {
+  isValidUUID,
+  snakeToCamel,
+} from '../../shared/utils/formatting.utils.js';
+import {
+  logDatabaseOperation,
+  logError,
+  logger,
+  logTiming,
+} from '../../shared/utils/logger.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import {
+  AppError,
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import { updateFirm } from '../accountingFirms/firms.model.js';
+import { getCountry } from '../countries/countries.utils.js';
+import { getCurrency } from '../currencies/currencies.utils.js';
+import { enqueueFiscalCalendarGeneration } from '../reporting/fiscal-calendar/index.js';
 import {
   companyType,
   type FetchCompaniesOptions,
@@ -6,51 +47,11 @@ import {
   type GetCompanyResponse,
   type NewCompany,
   newCompany,
-  newCompanyInput,
   type NewCompanyInput,
+  newCompanyInput,
   type UpdateCompanySchema,
   updateCompanySchema,
 } from './companies.types.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import {
-  isValidUUID,
-  snakeToCamel,
-} from '../../shared/utils/formatting.utils.js';
-import {
-  AppError,
-  ErrorCode,
-  errorResponse,
-  successResponse,
-} from '../../shared/utils/response.utils.js';
-import generateSecureShortCode, {
-  shortCodelooksWeird,
-} from '../../shared/utils/crypto.utils.js';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { updateFirm } from '../accountingFirms/firms.model.js';
-import {
-  type AuthUserContext,
-  type DecodedToken,
-} from '../../features/auth/auth.types.js';
-import {
-  createInitialCompanyOnboardingState,
-  markCompanyOnboardingStepComplete,
-} from '../../features/onboarding/onboarding.utils.js';
-import {
-  logger,
-  logError,
-  logDatabaseOperation,
-  logTiming,
-} from '../../shared/utils/logger.js';
-import { getCurrency } from '../currencies/currencies.utils.js';
-import { getCountry } from '../countries/countries.utils.js';
-import {
-  buildAuthContext,
-  generateAuthTokens,
-} from '../../features/auth/auth.utils.js';
-import { redis } from '../../lib/redis.js';
-import { countryToTimezone } from '../../core/timezones/countryTimezones.js';
-import { enqueueFiscalCalendarGeneration } from '../reporting/fiscal-calendar/index.js';
 
 /**
  * Generates a unique short code for a company with collision handling

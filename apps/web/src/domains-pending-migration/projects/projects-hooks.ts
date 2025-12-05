@@ -1,14 +1,15 @@
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
+
+import {
+  addNewProjects,
+  fetchProjects,
+} from '@/domains-pending-migration/projects/projects-api';
 import type {
   FetchProjectsParams,
   NewProject,
 } from '@/domains-pending-migration/projects/projects-types';
 import { queryClient } from '@/lib/queryClient';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import {
-  addNewProjects,
-  fetchProjects,
-} from '@/domains-pending-migration/projects/projects-api';
-import { toast } from 'sonner';
 
 const CACHE_TIMES = {
   STALE: 1000 * 60 * 30, // 30mins

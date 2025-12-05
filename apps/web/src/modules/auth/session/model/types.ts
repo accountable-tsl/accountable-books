@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import type {
   CompanyData,
   CompanyOnboardingState,
@@ -6,6 +7,7 @@ import type {
   OnboardingState,
 } from '@/modules/company/companies';
 import type { TenantRoutes } from '@/shared/routes/types';
+
 import type { LogoutOptions } from '../../credentials';
 
 export interface AuthState {

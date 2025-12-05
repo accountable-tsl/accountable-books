@@ -1,9 +1,10 @@
 import Slack from '@slack/bolt';
-import { ENV } from '../../../config/env.js';
-import { userCallbackRequestBlock } from './slackTemplates.js';
-import type { SlackMessageInput } from './slack.types.js';
-import { errorResponse } from '../../../shared/utils/response.utils.js';
 import type { KnownBlock } from '@slack/types';
+
+import { ENV } from '../../../config/env.js';
+import { errorResponse } from '../../../shared/utils/response.utils.js';
+import type { SlackMessageInput } from './slack.types.js';
+import { userCallbackRequestBlock } from './slackTemplates.js';
 
 const slackApp = new Slack.App({
   token: ENV.SLACK_BOT_TOKEN,

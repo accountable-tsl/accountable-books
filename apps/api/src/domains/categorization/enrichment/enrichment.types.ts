@@ -1,15 +1,16 @@
+import {
+  type EnrichedTransaction,
+  enrichedTransaction,
+} from '@accountable-books/contracts/schema';
 import { z } from 'zod';
-import { categorizationTaskSource } from '../tasks/tasks.enums.js';
+
 import {
   accountingBasis,
   companyType,
   reportingFramework,
 } from '../../companies/companies.types.js';
 import { contactType } from '../../contacts/index.js';
-import {
-  enrichedTransaction,
-  type EnrichedTransaction,
-} from '@accountable-books/contracts/schema';
+import { categorizationTaskSource } from '../tasks/tasks.enums.js';
 
 export { type EnrichedTransaction };
 export { enrichedTransaction };

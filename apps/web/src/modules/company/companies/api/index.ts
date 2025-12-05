@@ -1,6 +1,7 @@
 import api from '@/lib/axios';
-import type { CompanyData, UpdateCompanyVitalsData } from '../model/types';
 import type { ApiResponse } from '@/shared/types/core';
+
+import type { CompanyData, UpdateCompanyVitalsData } from '../model/types';
 
 export const getCompanyDetails = async (
   companyId: string,

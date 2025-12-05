@@ -1,6 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { FormField } from '@/components/FormField';
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { useSession } from '@session';
 import {
   Activity,
   Building,
@@ -10,13 +8,18 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { PuffLoader } from 'react-spinners';
 import { toast } from 'sonner';
-import { addNewBankTransactions } from '@/domains-pending-migration/bankConnection/shared/api';
-import { maskDigits, parseDateString } from '@/shared/utils/formatting-utils';
-import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
-import { useIsMobile } from '@/shared/hooks/use-media-query';
+
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import { Failed } from '@/components/Failed';
 import { FormattedAmount } from '@/components/FormattedAmount';
-import { SpreadsheetImporter } from '@/domains-pending-migration/spreadsheets/SpreadsheetImporter';
+import { FormField } from '@/components/FormField';
+import { Success } from '@/components/Success';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   type BankTransactionBatchInput,
   type BankTransactionImporterProps,
@@ -24,21 +27,19 @@ import {
   bankTransactionSource,
   type FileTransaction,
 } from '@/domains-pending-migration/bankConnection/manualUpload/types';
-import { type ParsedCsvResult } from '../../spreadsheets/types';
-import { Button } from '@/components/ui/button';
-
+import { addNewBankTransactions } from '@/domains-pending-migration/bankConnection/shared/api';
+import { SpreadsheetImporter } from '@/domains-pending-migration/spreadsheets/SpreadsheetImporter';
 import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
-import { computeStats } from './utils';
-import { getDisplayFields } from '../../spreadsheets/utils';
-import { bankTransactionImporterfields } from './constants';
-import { CenteredLoader } from '@/components/CenteredLoader';
-import { PuffLoader } from 'react-spinners';
-import { Success } from '@/components/Success';
-import { Failed } from '@/components/Failed';
 import { type BankAccountWithMeta } from '@/modules/banking/accounts';
 import { getBankAccountsForCompany } from '@/modules/banking/accounts/api';
-import { useSession } from '@session';
+import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { maskDigits, parseDateString } from '@/shared/utils/formatting-utils';
+
+import { type ParsedCsvResult } from '../../spreadsheets/types';
+import { getDisplayFields } from '../../spreadsheets/utils';
+import { bankTransactionImporterfields } from './constants';
+import { computeStats } from './utils';
 
 export const BankTransactionImporter = ({
   onImportSuccess,

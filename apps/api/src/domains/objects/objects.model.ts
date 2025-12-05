@@ -3,13 +3,14 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
-import { r2Client } from '../../lib/r2Client.js';
-import { type ObjectType } from './objects.types.js';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
+import { r2Client } from '../../lib/r2Client.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { type ObjectType } from './objects.types.js';
 import { objectTypeHandlers } from './objects.utils.js';
 
 export async function uploadObject(

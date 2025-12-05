@@ -1,5 +1,6 @@
-import { knexClient } from '../../db/knexClient.js';
 import type { Knex } from 'knex';
+
+import { knexClient } from '../../db/knexClient.js';
 
 /**
  * Partition Management Service

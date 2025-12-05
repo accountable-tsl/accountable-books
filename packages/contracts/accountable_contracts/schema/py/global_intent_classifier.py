@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, confloat
 from typing import Any, List, Literal
 from enum import Enum
 
@@ -87,7 +87,7 @@ class GlobalIntentClassifier(BaseModel):
     model_version: Any
     latency_ms: float
     semantic_top1: str
-    semantic_top1_prob: float
+    semantic_top1_prob: confloat(ge=0, le=1)
     semantic_top_k: List[SemanticTopKItem]
     shap_values: Any
     feature_mapping_version: str

@@ -1,6 +1,7 @@
+import { GripVertical } from 'lucide-react';
+
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { GripVertical } from 'lucide-react';
 
 export function DataTableResizer({ header }: { header: any }) {
   const isResizing = header.column.getIsResizing();

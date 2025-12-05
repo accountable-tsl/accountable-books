@@ -1,5 +1,6 @@
-import { ENV } from '../config/env-loader.js';
 import pg from 'pg';
+
+import { ENV } from '../config/env-loader.js';
 import { isProd } from '../src/config/env.js';
 import { redis } from '../src/lib/redis.js';
 

@@ -1,5 +1,6 @@
-import { type DebitCredit, debitCredit } from '@/shared/types/core';
 import z from 'zod';
+
+import { type DebitCredit, debitCredit } from '@/shared/types/core';
 
 export const accountType = z.object({
   key: z.string(),

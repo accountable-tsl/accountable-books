@@ -1,40 +1,41 @@
-import express from 'express';
+import cookieParser from 'cookie-parser';
 // Load env solely via config/env to avoid duplicate dotenv loads
 import cors from 'cors';
-import currencyRoutes from './domains/currencies/currencies.routes.js';
-import countryRoutes from './domains/countries/countries.routes.js';
-import emailRoutes from './domains/email/email.routes.js';
-import onboardingRoutes from './features/onboarding/onboarding.routes.js';
-import signupRoutes from './features/signup/signup.routes.js';
-import usersRoutes from './domains/users/users.routes.js';
-import authRoutes from './features/auth/auth.routes.js';
-import companiesRoutes from './domains/companies/companies.routes.js';
-import objectRoutes from './domains/objects/objects.routes.js';
+import express from 'express';
+import pino from 'pino';
+import { pinoHttp } from 'pino-http';
+
+import { ENV, isDev, NODE_ENV } from './config/env.js';
+import { basicAuth } from './core/middlewares/basicAuth.middleware.js';
+import { specs, swaggerUi } from './docs/swagger.js';
+import { loadAccountMeta } from './domains/account/account.registry.js';
+import accountRoutes from './domains/account/account.routes.js';
 import firmRoutes from './domains/accountingFirms/firms.routes.js';
-import bankRoutes from './domains/banking/banks/banks.routes.js';
 import bankAccountsRoutes from './domains/banking/bankAccounts/bankAccounts.routes.js';
-import bankTransactionRoutes from './domains/bankTransactions/bankTransactions.routes.js';
 import bankFeedProvidersRoutes from './domains/banking/bankFeedProviders/bankFeedProviders.routes.js';
 import bankingRoutes from './domains/banking/banking.routes.js';
+import bankRoutes from './domains/banking/banks/banks.routes.js';
 import plaidWebhookRoutes from './domains/banking/webhooks/plaid.webhook.js';
-import usersCompaniesRolesRoutes from './domains/userRoles/userRoles.routes.js';
+import bankTransactionRoutes from './domains/bankTransactions/bankTransactions.routes.js';
 import coaRoutes from './domains/chart-of-accounts/coa.routes.js';
-import accountRoutes from './domains/account/account.routes.js';
+import companiesRoutes from './domains/companies/companies.routes.js';
 import contactsRoutes from './domains/contacts/contacts.routes.js';
+import countryRoutes from './domains/countries/countries.routes.js';
+import currencyRoutes from './domains/currencies/currencies.routes.js';
+import emailRoutes from './domains/email/email.routes.js';
+import objectRoutes from './domains/objects/objects.routes.js';
 import projectsRoutes from './domains/projects/projects.routes.js';
-import { swaggerUi, specs } from './docs/swagger.js';
-import { serverAdapter } from './lib/bullboard.js';
-import { basicAuth } from './core/middlewares/basicAuth.middleware.js';
-import { ENV, isDev, NODE_ENV } from './config/env.js';
 import { loadRoles } from './domains/roles/roles.model.js';
-import cookieParser from 'cookie-parser';
+import usersCompaniesRolesRoutes from './domains/userRoles/userRoles.routes.js';
+import usersRoutes from './domains/users/users.routes.js';
 import {
   conditionalCsrf,
   verifyRefreshToken,
 } from './features/auth/auth.middleware.js';
-import { loadAccountMeta } from './domains/account/account.registry.js';
-import pino from 'pino';
-import { pinoHttp } from 'pino-http';
+import authRoutes from './features/auth/auth.routes.js';
+import onboardingRoutes from './features/onboarding/onboarding.routes.js';
+import signupRoutes from './features/signup/signup.routes.js';
+import { serverAdapter } from './lib/bullboard.js';
 
 export const FRONTEND_URL = ENV.FRONTEND_URL!;
 

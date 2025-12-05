@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useEffect, useState } from 'react';
+
 import { getCompanyDetails as fetchCompany } from '@/domains-pending-migration/company/api';
 import type { CompanyData } from '@/domains-pending-migration/company/types';
 

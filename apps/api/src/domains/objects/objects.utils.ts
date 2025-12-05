@@ -1,10 +1,11 @@
-import multer from 'multer';
-import { errorResponse } from '../../shared/utils/response.utils.js';
-import { type NextFunction, type Request, type Response } from 'express';
-import { logoUploadParams, type ObjectType } from './objects.types.js';
-import { ENV } from '../../config/env.js';
 import { randomUUID } from 'crypto';
+import { type NextFunction, type Request, type Response } from 'express';
+import multer from 'multer';
 import { type ZodSchema } from 'zod';
+
+import { ENV } from '../../config/env.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { logoUploadParams, type ObjectType } from './objects.types.js';
 
 export const imageFilter = (
   allowedTypes: string[] = [

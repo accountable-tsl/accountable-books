@@ -1,4 +1,5 @@
 import mixpanel from 'mixpanel';
+
 import { ENV } from '../config/env.js';
 
 if (!ENV.MIXPANEL_TOKEN) {

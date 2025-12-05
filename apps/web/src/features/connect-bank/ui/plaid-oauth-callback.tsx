@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
 import { useNavigate } from 'react-router';
-import { plaidOAuthStorage } from '../utils/oauth-storage';
-import { useConnectAccounts } from '@/modules/banking/connections';
+import { toast } from 'sonner';
+
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { useConnectAccounts } from '@/modules/banking/connections';
+
+import { plaidOAuthStorage } from '../utils/oauth-storage';
 
 interface OAuthState {
   linkToken: string;

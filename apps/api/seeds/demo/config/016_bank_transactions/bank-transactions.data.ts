@@ -1,4 +1,5 @@
 import { fakerEN_NG as fakerNG, fakerEN_US as fakerUS } from '@faker-js/faker';
+
 import type { DemoCompanyType, DemoCountryCode } from '../../shared/config.js';
 
 export const BUSINESS = [

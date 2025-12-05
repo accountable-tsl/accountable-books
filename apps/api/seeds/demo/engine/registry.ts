@@ -1,9 +1,14 @@
 import type { Knex } from 'knex';
-import type { DemoFilter } from '../shared/config.js';
+
+import {
+  createDemoUsers,
+  deleteDemoUsers,
+} from '../config/001_users/users.fn.js';
 import {
   createDemoCompaniesAndUsers,
   deleteDemoCompanies,
 } from '../config/002_companies/companies.fn.js';
+import { createDemoCoa, deleteDemoCoa } from '../config/003_coa/coa.fn.js';
 import {
   createDemoContacts,
   deleteDemoContacts,
@@ -20,11 +25,7 @@ import {
   createDemoBankTransactions,
   deleteDemoBankTransactions,
 } from '../config/016_bank_transactions/bank-transactions.fn.js';
-import {
-  createDemoUsers,
-  deleteDemoUsers,
-} from '../config/001_users/users.fn.js';
-import { createDemoCoa, deleteDemoCoa } from '../config/003_coa/coa.fn.js';
+import type { DemoFilter } from '../shared/config.js';
 
 export type SeedStep = {
   name: string;

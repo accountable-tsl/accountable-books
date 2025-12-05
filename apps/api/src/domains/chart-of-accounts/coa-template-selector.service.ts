@@ -1,4 +1,8 @@
 import type { Knex } from 'knex';
+
+import { escapeRegExp } from '../../shared/utils/random.utils.js';
+import { splitIntoWords } from '../../shared/utils/string.utils.js';
+import { type CompanyType } from '../companies/companies.types.js';
 import {
   type CoaTemplateCompanyType,
   type CoaTemplateIndustry,
@@ -7,9 +11,6 @@ import {
   type IndustryKeywordConfig,
   type SelectBestCoa,
 } from './coa-template.type.js';
-import { type CompanyType } from '../companies/companies.types.js';
-import { splitIntoWords } from '../../shared/utils/string.utils.js';
-import { escapeRegExp } from '../../shared/utils/random.utils.js';
 export const selectBestCoaTemplate = async (
   knex: Knex,
   input: SelectBestCoa,

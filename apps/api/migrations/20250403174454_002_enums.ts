@@ -151,9 +151,32 @@ export async function up(knex: Knex): Promise<void> {
       'remainder',
     ]),
   );
+
+  await knex.raw(
+    createEnumIfNotExists('categorization_task_event_type', [
+      'categorization_task_created',
+      'rules_started',
+      'rules_applied',
+      'rules_no_match',
+      'rules_conflict',
+      'rules_error',
+      'rules_failed',
+      'ml_enqueued',
+      'ml_started',
+      'ml_completed',
+      'ml_failed',
+      'prediction_created',
+      'constraint_validation_failed',
+      'candidate_created',
+      'candidate_ignored',
+      'candidate_replaced',
+    ]),
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP TYPE IF EXISTS categorization_task_event_type`);
+  await knex.raw(`DROP TYPE IF EXISTS categorization_line_split_type`);
   await knex.raw(`DROP TYPE IF EXISTS txn_categorization_source`);
   await knex.raw(`DROP TYPE IF EXISTS contact_status`);
   await knex.raw(`DROP TYPE IF EXISTS role_scope`);

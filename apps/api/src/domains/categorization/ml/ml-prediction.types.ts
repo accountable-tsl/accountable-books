@@ -11,6 +11,7 @@ export const mlPredictionJobDataSchema = z.object({
   bankTransactionId: z.uuid(),
   companyId: z.uuid(),
   enrichedTransaction: enrichedTransaction,
+  runId: z.string(),
 });
 
 export type MLPredictionJobData = z.infer<typeof mlPredictionJobDataSchema>;

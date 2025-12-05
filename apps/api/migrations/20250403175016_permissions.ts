@@ -1,10 +1,11 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.ts';
+} from './utils/db.js';
 const tableName = 'permissions';
 
 export async function up(knex: Knex): Promise<void> {

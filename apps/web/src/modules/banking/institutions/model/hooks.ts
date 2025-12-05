@@ -1,8 +1,9 @@
+import { useQuery } from '@tanstack/react-query';
+
 import {
   fetchBanksByCountryCode,
   fetchBanksByCountryId,
 } from '@/modules/banking/institutions/api';
-import { useQuery } from '@tanstack/react-query';
 import { type BankQueryType } from '@/modules/banking/institutions/model/types';
 
 export const useBanks = (type: BankQueryType, value?: string) => {

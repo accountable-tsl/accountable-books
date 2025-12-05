@@ -1,10 +1,11 @@
+import { z } from 'zod';
+
 import { roleKey } from '../../domains/roles/roles.types.js';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
 } from '../../shared/utils/formatting.utils.js';
 import { dbBaseFields, debitCredit } from './core.js';
-import { z } from 'zod';
 
 // permission
 export const newPermissionInput = z.object({

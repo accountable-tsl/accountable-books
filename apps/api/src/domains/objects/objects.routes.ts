@@ -1,9 +1,10 @@
 import express from 'express';
-import { createMulter } from './objects.utils.js';
+
 import {
   deleteObjectController,
   uploadObjectController,
 } from './objects.controller.js';
+import { createMulter } from './objects.utils.js';
 
 const router = express.Router({ mergeParams: true });
 const upload = createMulter();

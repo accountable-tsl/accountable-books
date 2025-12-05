@@ -4,12 +4,14 @@ import {
   MailCheckIcon,
   Settings,
 } from 'lucide-react';
-import type { OnboardingSidebarItem, OnboardingStepKey } from './types';
+
 import { routes } from '@/shared/routes/routes';
-import { VerifyEmail } from './steps/VerifyEmail';
-import { CompanyInfo } from './steps/CompanyInfo';
+
 import { BankAccount } from './steps/BankAccount';
+import { CompanyInfo } from './steps/CompanyInfo';
 import { Miscellaneous } from './steps/Miscellaneous';
+import { VerifyEmail } from './steps/VerifyEmail';
+import type { OnboardingSidebarItem, OnboardingStepKey } from './types';
 
 export type OnboardingPathKey =
   | 'verify-email'

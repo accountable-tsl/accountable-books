@@ -1,4 +1,6 @@
+import { ChevronDown, Plus } from 'lucide-react';
 import React, { useState } from 'react';
+
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -6,10 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, ChevronDown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
 import { AddNewCoaDialog } from '@/domains-pending-migration/coa/coa-add-new';
+import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
 
 export function AddAccountSelection() {
   const [isAddCoaDialogOpen, setIsAddCoaDialogOpen] = useState(false);

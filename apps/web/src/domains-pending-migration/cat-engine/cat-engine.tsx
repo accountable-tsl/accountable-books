@@ -1,31 +1,33 @@
-import { cn } from '@/lib/utils';
 import { useCallback, useMemo, useState } from 'react';
-import { useDataTable } from '@/components/data-table/use-data-table';
+
 import { DataTable } from '@/components/data-table/data-table';
-import { getCatEngineColumns } from '@/domains-pending-migration/cat-engine/config/table-columns';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import { useDataTable } from '@/components/data-table/use-data-table';
+import { DateRangePicker } from '@/components/date-picker/date-range-picker';
+import { SmallScreenMessage } from '@/components/SmallScreenMessage';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import {
-  LeftCatEngineToolbar,
-  RightCatEngineToolbar,
-} from '@/domains-pending-migration/cat-engine/components/cat-engine-toolbar';
-import { useMediaQuery } from '@/shared/hooks/use-media-query';
-import { SmallScreenMessage } from '@/components/SmallScreenMessage';
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { Badge } from '@/components/ui/badge';
-import { CatEngineAdvFilter } from '@/domains-pending-migration/cat-engine/components/cat-engine-adv-filter';
 import { Input } from '@/components/ui/input';
-import { DateRangePicker } from '@/components/date-picker/date-range-picker';
-import { CatEngineTxnView } from './components/cat-engine-txn-view';
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
+import { CatEngineAdvFilter } from '@/domains-pending-migration/cat-engine/components/cat-engine-adv-filter';
+import {
+  LeftCatEngineToolbar,
+  RightCatEngineToolbar,
+} from '@/domains-pending-migration/cat-engine/components/cat-engine-toolbar';
+import { getCatEngineColumns } from '@/domains-pending-migration/cat-engine/config/table-columns';
+import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/shared/hooks/use-media-query';
+
+import { CatEngineTxnView } from './components/cat-engine-txn-view';
 
 export const accordionItems = [
   {

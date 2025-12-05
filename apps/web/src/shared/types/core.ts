@@ -1,7 +1,8 @@
-import type { BankTransactionSource } from '@/modules/bank-transactions/manual-upload/types';
 import dayjs from 'dayjs';
 import Decimal from 'decimal.js';
 import z from 'zod';
+
+import type { BankTransactionSource } from '@/modules/bank-transactions/manual-upload/types';
 
 export const zEmail = z
   .email('Please enter a valid email address')

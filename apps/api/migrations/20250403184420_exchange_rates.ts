@@ -1,15 +1,16 @@
+import csv from 'csv-parser';
+import fs from 'fs';
 import type { Knex } from 'knex';
 import path from 'path';
-import fs from 'fs';
-import csv from 'csv-parser';
 import { fileURLToPath } from 'url';
+
+import { isDev } from '../config/env-loader.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db.ts';
-import { isDev } from '../config/env-loader.ts';
+} from './utils/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -1,16 +1,17 @@
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
-import { FormField } from '@/components/FormField';
-import { useMemo, useState } from 'react';
-import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
-import { useCompany } from '@/domains-pending-migration/company/store';
-import { type BankAccountWithMeta } from '@/modules/banking/accounts';
-import { maskDigits } from '@/shared/utils/formatting-utils';
-import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { Plus } from 'lucide-react';
-import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
+import { useMemo, useState } from 'react';
+
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
+import { FormField } from '@/components/FormField';
+import { useCompany } from '@/domains-pending-migration/company/store';
 import { cn } from '@/lib/utils';
+import { type BankAccountWithMeta } from '@/modules/banking/accounts';
+import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
+import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { maskDigits } from '@/shared/utils/formatting-utils';
 
 export default function BankAccountSelector({
   value,

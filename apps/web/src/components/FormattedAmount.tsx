@@ -1,5 +1,6 @@
-import { getUserLocale } from '@/shared/utils/random-utils';
 import Decimal from 'decimal.js';
+
+import { getUserLocale } from '@/shared/utils/random-utils';
 
 /**
  * FormattedAmount

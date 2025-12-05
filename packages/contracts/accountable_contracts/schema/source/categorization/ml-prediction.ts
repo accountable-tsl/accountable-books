@@ -1,7 +1,8 @@
-import { z } from 'zod';
-import { versionPattern } from './enrichment.js';
-import { labelRole } from '../common/enums.js';
+import z from 'zod';
+
 import { accountTypeKeys as accountTypeKeysData } from '../../../data/source/account/account-types.js';
+import { labelRole } from '../common/enums.js';
+import { versionPattern } from './enrichment.js';
 
 export const accountTypeKeys = z.enum(accountTypeKeysData);
 export type AccountTypeKeys = z.infer<typeof accountTypeKeys>;
@@ -18,7 +19,7 @@ export const globalIntentClassifier = z.object({
   latency_ms: z.number(),
 
   semantic_top1: z.string(),
-  semantic_top1_prob: z.number(),
+  semantic_top1_prob: z.number().min(0).max(1),
 
   semantic_top_k: z.array(intentSemanticEntry),
 
@@ -86,6 +87,7 @@ export const accrualResolverOutput = z.object({
   top_1_recommendation: accrualRecommendation.nullable(),
   fallback_used: z.boolean(),
   explanation: z.string(),
+  latency_ms: z.number(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

@@ -1,12 +1,13 @@
+import type { contactType } from '@accountable-books/contracts/schema';
+import type { Knex } from 'knex';
 import z from 'zod';
+
+import { dbStandardFields } from '../../core/types/core.js';
+import { type Pagination } from '../../shared/types/random.js';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
 } from '../../shared/utils/formatting.utils.js';
-import { dbStandardFields } from '../../core/types/core.js';
-import type { Knex } from 'knex';
-import { type Pagination } from '../../shared/types/random.js';
-import type { contactType } from '@accountable-books/contracts/schema';
 
 export { contactType } from '@accountable-books/contracts/schema';
 export type ContactType = z.infer<typeof contactType>;

@@ -1,4 +1,5 @@
 import type { Knex } from 'knex';
+
 import { knexClient } from '../../db/knexClient.js';
 
 type SearchableColumn = {

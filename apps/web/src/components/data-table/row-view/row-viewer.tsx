@@ -1,5 +1,5 @@
-import type { RowViewerProps } from '@/components/data-table/types/row-click';
 import { RowViewerSheet } from '@/components/data-table/row-view/row-viewer-sheet';
+import type { RowViewerProps } from '@/components/data-table/types/row-click';
 
 export function RowViewer<TData>({
   rowViewerInfo,

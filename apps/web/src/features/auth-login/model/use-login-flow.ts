@@ -1,14 +1,15 @@
+import { isAxiosError } from 'axios';
+import { toast } from 'sonner';
+
 import {
   authStore,
+  type AuthUserContext,
   clearLogoutReason,
   clearSessionFn,
   handleLogin,
-  type AuthUserContext,
 } from '@/modules/auth';
 import { routes } from '@/shared/routes/routes';
 import { buildCanonicalUrl } from '@/shared/routes/utils';
-import { isAxiosError } from 'axios';
-import { toast } from 'sonner';
 
 export const performLoginFlow = async ({
   email,

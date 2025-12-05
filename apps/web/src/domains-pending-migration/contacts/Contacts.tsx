@@ -1,19 +1,20 @@
-import { useDataTable } from '@/components/data-table/use-data-table';
-import { DataTable } from '@/components/data-table/data-table';
-import { getContactColumns } from '@/domains-pending-migration/contacts/contacts-columns';
-import { useCallback, useMemo, useState } from 'react';
-import { useContacts } from '@/domains-pending-migration/contacts/contacts-hooks';
 import { useSession } from '@session';
-import ErrorPage from '@/components/ErrorPage';
-import { CenteredLoader } from '@/components/CenteredLoader';
-import type { Contacts as ContactResponse } from '@/domains-pending-migration/contacts/contacts-types';
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
-import { Separator } from '@/components/ui/separator';
-import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
-import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+
+import { CenteredLoader } from '@/components/CenteredLoader';
+import { DataTable } from '@/components/data-table/data-table';
+import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import { useDataTable } from '@/components/data-table/use-data-table';
+import ErrorPage from '@/components/ErrorPage';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { AddContactDialog } from '@/domains-pending-migration/contacts/contacts-add';
+import { getContactColumns } from '@/domains-pending-migration/contacts/contacts-columns';
+import { useContacts } from '@/domains-pending-migration/contacts/contacts-hooks';
+import type { Contacts as ContactResponse } from '@/domains-pending-migration/contacts/contacts-types';
 
 export const Contacts = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);

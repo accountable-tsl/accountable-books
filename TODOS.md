@@ -131,6 +131,7 @@ Launch `2025-29-09`
 - Once we are ready to launch, versioning is important. Stote, tag properly
 - Default to modified cash basis
 - Consider removing input_checksum
+- Make sure generate pydantic in contracts cleans up the /py folder first before generateing new stuff
 
 ### CAN DELAY (Post-Launch)
 
@@ -144,6 +145,7 @@ Launch `2025-29-09`
 - contact and contact type auto handling on insertion or cat of transactions
 - Versioning account types
 - Add tag field to companies and bank transaction tables. It should be an array of string. It'll be helpful to ml... for bank transactions, things like the categories provided by plaid can be added here which will make it useful for ml instead of being hidden in metadata that noone can access
+- REVIEW CONSTRAINTS AND THEIR TEST e.g Projects check is not fully setup etc
 
 ---
 

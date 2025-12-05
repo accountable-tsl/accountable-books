@@ -1,18 +1,20 @@
-import { useCountries } from '@/shared/hooks/useCountries';
-import React, { useCallback, useMemo, useState } from 'react';
-import CountrySelection from '@/domains-pending-migration/bankConnection/connectViaFeed/steps/CountrySelection';
-import { type Country } from '@/shared/types/core';
-import { Dot, EyeOff, Lock, Shield } from 'lucide-react';
-import { ProviderSelection } from './steps/ProviderSelection';
-import { type BankFeedProvider } from '@/domains-pending-migration/bankFeedProviders/types';
-import { useBankFeedProviders } from '@/domains-pending-migration/bankFeedProviders/hooks';
-import { type UnsupportedCountryProps } from '@/domains-pending-migration/bankConnection/shared/types';
-import { type ConnectBankAccountProps, type ConnectionResponse } from './types';
-import { cn } from '@/lib/utils';
-import { AccountLinked } from './steps/AccountLinked';
-import { handleMonoConnection } from '../widgets/api';
-import { toast } from 'sonner';
 import { useSession } from '@session';
+import { Dot, EyeOff, Lock, Shield } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+
+import CountrySelection from '@/domains-pending-migration/bankConnection/connectViaFeed/steps/CountrySelection';
+import { type UnsupportedCountryProps } from '@/domains-pending-migration/bankConnection/shared/types';
+import { useBankFeedProviders } from '@/domains-pending-migration/bankFeedProviders/hooks';
+import { type BankFeedProvider } from '@/domains-pending-migration/bankFeedProviders/types';
+import { cn } from '@/lib/utils';
+import { useCountries } from '@/shared/hooks/useCountries';
+import { type Country } from '@/shared/types/core';
+
+import { handleMonoConnection } from '../widgets/api';
+import { AccountLinked } from './steps/AccountLinked';
+import { ProviderSelection } from './steps/ProviderSelection';
+import { type ConnectBankAccountProps, type ConnectionResponse } from './types';
 
 export default function ConnectBankAccount({
   onSuccess,

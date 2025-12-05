@@ -1,8 +1,9 @@
 import type { Knex } from 'knex';
+
 import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
+} from './utils/db.js';
 
 const tableName = 'bank_feed_providers';
 

@@ -1,13 +1,14 @@
-import { z } from 'zod';
-import { dbBaseFields } from '../../core/types/core.js';
-import { type RoleKey, type RoleScope } from '../roles/roles.types.js';
 import { type Knex } from 'knex';
+import { z } from 'zod';
+
+import { dbBaseFields } from '../../core/types/core.js';
+import { type CompanyOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
 } from '../../shared/utils/formatting.utils.js';
-import { type CompanyOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import { type CompanyType } from '../companies/companies.types.js';
+import { type RoleKey, type RoleScope } from '../roles/roles.types.js';
 
 export const userCompanyRoleBase = z.object({
   user_id: z.uuid(),

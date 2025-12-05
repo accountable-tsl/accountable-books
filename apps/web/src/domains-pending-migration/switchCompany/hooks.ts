@@ -1,12 +1,14 @@
-import { useNavigate } from 'react-router';
-import type { SwitchCompanyOpts } from '@/domains-pending-migration/switchCompany/types';
-import { useCompany } from '@/domains-pending-migration/company/store';
-import { useRef } from 'react';
-import { toast } from 'sonner';
-import { switchCompanyApi } from './api';
-import { authStore } from '@/modules/auth';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@session';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
+import { useCompany } from '@/domains-pending-migration/company/store';
+import type { SwitchCompanyOpts } from '@/domains-pending-migration/switchCompany/types';
+import { authStore } from '@/modules/auth';
+
+import { switchCompanyApi } from './api';
 
 export function useCompanySwitch() {
   const navigate = useNavigate();

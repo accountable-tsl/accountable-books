@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
 import type { Column } from '@tanstack/react-table';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { DataTableSliderFilter } from '@/components/data-table/filter-components/slider';
+import { useCallback } from 'react';
+
 import { DataTableDateFilter } from '@/components/data-table/filter-components/date';
 import { DataTableFacetedFilter } from '@/components/data-table/filter-components/faceted';
+import { DataTableSliderFilter } from '@/components/data-table/filter-components/slider';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 export interface DataTableToolbarFilterProps<TData> {
   column: Column<TData>;

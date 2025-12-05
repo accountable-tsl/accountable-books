@@ -1,31 +1,14 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
+} from './utils/db.js';
 
 const tableName = 'categorization_task_events';
 
 export async function up(knex: Knex): Promise<void> {
-  // Create enum type for event types
-  await knex.raw(`
-    CREATE TYPE categorization_task_event_type AS ENUM (
-      'categorization_task_created',
-      'rules_started',
-      'rules_applied',
-      'rules_no_match',
-      'rules_conflict',
-      'rules_error',
-      'rules_failed',
-      'ml_started',
-      'ml_completed',
-      'ml_failed',
-      'prediction_created',
-      'candidate_created'
-    );
-  `);
-
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
     table
@@ -63,5 +46,4 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP INDEX IF EXISTS idx_task_events_task;`);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
-  await knex.raw(`DROP TYPE IF EXISTS categorization_task_event_type;`);
 }

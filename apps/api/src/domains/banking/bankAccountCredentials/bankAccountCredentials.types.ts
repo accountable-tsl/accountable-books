@@ -1,8 +1,9 @@
+import z from 'zod';
+
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
 } from '../../../shared/utils/formatting.utils.js';
-import z from 'zod';
 
 export const bankAccountCredentialStatus = z.enum([
   'active',

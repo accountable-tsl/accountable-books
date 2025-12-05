@@ -1,5 +1,5 @@
-import { Separator } from '@/components/ui/separator';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import React from 'react';
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,12 +8,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import React from 'react';
-import { ThemeToggle } from './ThemeToggle';
-import { cn } from '@/lib/utils';
-import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
+import { Separator } from '@/components/ui/separator';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { CompanySwitcher } from '@/domains-pending-migration/switchCompany/CompanySwitcher';
+import { cn } from '@/lib/utils';
 import type { CompanyData } from '@/modules/company/companies';
+import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
+
+import { ThemeToggle } from './ThemeToggle';
 
 type BreadcrumbItem = {
   label: string;

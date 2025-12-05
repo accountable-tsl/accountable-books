@@ -1,9 +1,8 @@
-import { Button } from '@/components/ui/button';
 import { BadgeAlert, Check, TriangleAlert, Waypoints } from 'lucide-react';
 import React, { useState } from 'react';
-import type { ConnectionResponse } from '../types';
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
-import { maskDigits } from '@/shared/utils/formatting-utils';
+import { useNavigate } from 'react-router';
+
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -11,8 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useNavigate } from 'react-router';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { routes } from '@/shared/routes/routes';
+import { maskDigits } from '@/shared/utils/formatting-utils';
+
+import type { ConnectionResponse } from '../types';
 
 export const AccountLinked = ({
   connections,

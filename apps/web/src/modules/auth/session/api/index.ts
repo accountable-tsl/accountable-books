@@ -1,9 +1,11 @@
-import api from '@/lib/axios';
 import { isAxiosError } from 'axios';
+
+import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
-import type { AuthUserContext } from '../model/types';
-import { authStore } from '../model/store';
+
 import { setLogoutReason } from '../../credentials';
+import { authStore } from '../model/store';
+import type { AuthUserContext } from '../model/types';
 
 export const handleLogout = async () => {
   await api.post('/auth/logout').catch(() => {});

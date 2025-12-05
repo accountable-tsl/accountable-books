@@ -1,8 +1,9 @@
-import { cn } from '@/lib/utils';
-import type { EnrichedOnboardingStep } from '@/domains-pending-migration/onboarding/types';
 import { Check, X } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { OnboardingFormFooter } from '@/domains-pending-migration/onboarding/shared/Footer';
+import type { EnrichedOnboardingStep } from '@/domains-pending-migration/onboarding/types';
+import { cn } from '@/lib/utils';
 
 export function OnboardingSidebar({
   steps,

@@ -1,4 +1,5 @@
 import { type NextFunction, type Response } from 'express';
+
 import { knexClient } from '../../db/knexClient.js';
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 

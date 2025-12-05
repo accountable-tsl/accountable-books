@@ -1,23 +1,24 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+
+import { invalidateBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import {
-  createLinkToken,
   connectAccounts,
+  createLinkToken,
 } from '@/modules/banking/connections/api';
-import { useState, useMemo } from 'react';
-import type { Country } from '@/shared/types/core';
-import { useCountries } from '@/shared/hooks/useCountries';
-import { getCountryFromLocale } from '@/shared/utils/random-utils';
 import {
   categorizeCountries,
-  isCountrySupported,
   type CountryCategories,
+  isCountrySupported,
 } from '@/modules/banking/connections/utils/utils';
-import { invalidateBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import {
   getProviderSelectionStrategy,
   getProvidersForCountry,
   getSupportedCountries,
 } from '@/modules/banking/providers';
+import { useCountries } from '@/shared/hooks/useCountries';
+import type { Country } from '@/shared/types/core';
+import { getCountryFromLocale } from '@/shared/utils/random-utils';
 
 export const useCreateLinkToken = () => {
   return useMutation({

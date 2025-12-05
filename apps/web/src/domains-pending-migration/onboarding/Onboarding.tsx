@@ -1,29 +1,30 @@
-import { useIsMobile } from '@/shared/hooks/use-media-query';
-import { OnboardingHeader } from '@/domains-pending-migration/onboarding/shared/Header';
+import { useSession } from '@session';
 import { Menu } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useEffect, useMemo, useState } from 'react';
+import { Navigate, useLocation, useParams } from 'react-router';
+
+import { CenteredLoader } from '@/components/CenteredLoader';
+import ErrorPage from '@/components/ErrorPage';
+import { MockSidebar } from '@/components/SideBar';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { OnboardingHeader } from '@/domains-pending-migration/onboarding/shared/Header';
+import {
+  MobileOnboardingSidebar,
+  OnboardingSidebar,
+} from '@/domains-pending-migration/onboarding/shared/Sidebar';
+import type {
+  EnrichedOnboardingStep,
+  OnboardingState,
+} from '@/domains-pending-migration/onboarding/types';
 import {
   getPathByStepKey,
   type OnboardingPathKey,
   onboardingSteps,
   onboardingStepsConfig,
 } from '@/domains-pending-migration/onboarding/utils';
-import { Navigate, useLocation, useParams } from 'react-router';
-import type {
-  EnrichedOnboardingStep,
-  OnboardingState,
-} from '@/domains-pending-migration/onboarding/types';
-import { CenteredLoader } from '@/components/CenteredLoader';
+import { cn } from '@/lib/utils';
 import type { CompanyData } from '@/modules/company/companies';
-import ErrorPage from '@/components/ErrorPage';
-import { SidebarProvider } from '@/components/ui/sidebar';
-import { MockSidebar } from '@/components/SideBar';
-import { useEffect, useMemo, useState } from 'react';
-import {
-  MobileOnboardingSidebar,
-  OnboardingSidebar,
-} from '@/domains-pending-migration/onboarding/shared/Sidebar';
-import { useSession } from '@session';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { routes } from '@/shared/routes/routes';
 
 export function OnboardingStepPage() {

@@ -97,7 +97,7 @@ class MlPredictionOutput(BaseModel):
         model_version: Any
         latency_ms: float
         semantic_top1: str
-        semantic_top1_prob: float
+        semantic_top1_prob: confloat(ge=0, le=1)
         semantic_top_k: List[GlobalIntentClassifierSemanticTopKItem]
         shap_values: Any
         feature_mapping_version: str
@@ -141,6 +141,7 @@ class MlPredictionOutput(BaseModel):
         top_1_recommendation: Optional[AccrualResolverTop1Recommendation]
         fallback_used: bool
         explanation: str
+        latency_ms: float
         metadata: Optional[Any] = None
     final_posting: FinalPosting
     global_intent_classifier: GlobalIntentClassifier

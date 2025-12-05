@@ -1,4 +1,5 @@
 import { Queue } from 'bullmq';
+
 import { redis } from '../src/lib/redis.js';
 
 const testQueue = new Queue('email', { connection: redis });

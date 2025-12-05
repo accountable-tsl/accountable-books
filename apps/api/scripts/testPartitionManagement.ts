@@ -7,9 +7,9 @@
 
 import { knexClient } from '../src/db/knexClient.js';
 import {
+  drainDefaultPartition,
   ensurePartitionsForDates,
   runPartitionMaintenance,
-  drainDefaultPartition,
 } from '../src/shared/services/partitionManagement.service.js';
 
 async function testPartitionManagement() {

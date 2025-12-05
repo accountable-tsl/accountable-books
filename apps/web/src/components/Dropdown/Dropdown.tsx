@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
 import './Dropdown.scss';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+
 import { faCaretDown } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useEffect, useRef, useState } from 'react';
 
 type Option = {
   value: string;

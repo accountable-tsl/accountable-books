@@ -1,10 +1,11 @@
+import { useSession } from '@session';
 import { useLocation } from 'react-router';
+
 import {
   findMatchingRouteSmart,
   flatRoutes,
   routeIndex,
 } from '@/shared/routes/utils';
-import { useSession } from '@session';
 
 export function useBreadcrumbs() {
   const location = useLocation();

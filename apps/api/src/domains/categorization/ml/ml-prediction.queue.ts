@@ -1,10 +1,11 @@
-import { Queue, type JobsOptions } from 'bullmq';
-import { redis } from '../../../lib/redis.js';
-import type { MLPredictionJobData } from './ml-prediction.types.js';
+import { type JobsOptions, Queue } from 'bullmq';
+
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
+import { redis } from '../../../lib/redis.js';
+import type { MLPredictionJobData } from './ml-prediction.types.js';
 
 export const ML_PREDICTION_QUEUE_NAME = 'ml-prediction';
 

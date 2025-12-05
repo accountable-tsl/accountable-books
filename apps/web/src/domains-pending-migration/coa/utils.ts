@@ -1,10 +1,10 @@
-import { toTitleCase } from '@/shared/utils/formatting-utils';
 import type {
   ActionSummary,
   AnalyzeSelectionResponse,
   CoaResponse,
   QuickFilterOptions,
 } from '@/domains-pending-migration/coa/types';
+import { toTitleCase } from '@/shared/utils/formatting-utils';
 
 export const hardcodedParentAccountElements = [
   { label: 'All', value: 'all' },

@@ -1,5 +1,6 @@
-import { forwardRef, useMemo, useState } from 'react';
 import { ChevronDownIcon } from 'lucide-react';
+import { forwardRef, useMemo, useState } from 'react';
+
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
@@ -8,8 +9,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { safeFormatDate } from '@/shared/utils/formatting-utils';
 import { cn } from '@/lib/utils';
+import { safeFormatDate } from '@/shared/utils/formatting-utils';
 
 export interface DatePickerProps {
   value?: Date;

@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+
 import { normalizedReservedSlugs } from './constants';
 
 export const isValidSlug = (slug: string): boolean => {

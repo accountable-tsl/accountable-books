@@ -1,12 +1,13 @@
 /* eslint-disable prefer-spread */
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+import type { DemoFilter } from '../shared/config.js';
 import {
-  DemoSeedRunner,
   createDemoSeedRunner,
+  DemoSeedRunner,
   type RunnerOptions,
 } from './runner.js';
-import type { DemoFilter } from '../shared/config.js';
 
 // Mock the registry with complete 7-step registry matching reality
 vi.mock('./registry.js', () => {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { dbBaseFields } from '../../../core/types/core.js';
 import { type SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
 

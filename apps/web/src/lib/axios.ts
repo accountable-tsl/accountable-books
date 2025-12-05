@@ -1,6 +1,7 @@
-import { isPublicRoute } from '@/shared/routes/utils';
 import axios, { type AxiosError, type AxiosRequestConfig } from 'axios';
+
 import { authStore, refreshToken } from '@/modules/auth';
+import { isPublicRoute } from '@/shared/routes/utils';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,

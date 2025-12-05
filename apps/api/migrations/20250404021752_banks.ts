@@ -1,24 +1,42 @@
+import { readFileSync } from 'fs';
 import type { Knex } from 'knex';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+import { adminUser } from './20250403184441_users.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
-import { adminUser } from './20250403184441_users.ts';
-import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.ts';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
+} from './utils/db.js';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const filePath = join(__dirname, './data/banks.json');
 const raw = readFileSync(filePath, 'utf-8');
-const bankData = JSON.parse(raw) as any[];
+interface BankData {
+  id: string;
+  key: string;
+  country: string;
+  display_name: string;
+  official_name: string;
+  swift_code?: string | null;
+  local_code?: string | null;
+  local_code_type?: string | null;
+  secondary_reference?: string | null;
+  website?: string | null;
+  logo_url?: string | null;
+}
+const bankData = JSON.parse(raw) as BankData[];
 
 const tableName = 'banks';
 
-export const countryMap = new Map<string, any>();
+interface CountryData {
+  id: string;
+  code: string;
+}
+export const countryMap = new Map<string, CountryData>();
 
 const seedBanks = async function seed(knex: Knex): Promise<void> {
   const adminUserId = adminUser.id;
@@ -49,7 +67,7 @@ const seedBanks = async function seed(knex: Knex): Promise<void> {
     };
   });
 
-  const res = await knex.batchInsert(tableName, banks, 100);
+  await knex.batchInsert(tableName, banks, 100);
   console.log(`Successfully created ${banks.length} banks`);
 };
 

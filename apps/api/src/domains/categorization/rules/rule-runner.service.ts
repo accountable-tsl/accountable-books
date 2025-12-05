@@ -1,18 +1,21 @@
 import type { Knex } from 'knex';
-import { randomUUID } from 'crypto';
+
 import { knexClient } from '../../../db/knexClient.js';
 import { logger } from '../../../shared/index.js';
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
+import {
+  enqueueMlIfNeeded,
+  handlePostPrediction,
+} from '../post-prediction/index.js';
+import { logTaskEventSafe } from '../tasks/index.js';
+import { RuleLogRepository } from './rule-logs.repository.js';
+import { RuleCompiler } from './rules.compiler.js';
 import { RulesEngine } from './rules.engine.js';
 import type {
   RuleEngineInput,
   RuleEngineResult,
 } from './rules.engine.types.js';
 import { RuleRepository } from './rules.repository.js';
-import { RuleLogRepository } from './rule-logs.repository.js';
-import { RuleCompiler } from './rules.compiler.js';
-import { handlePostPrediction } from '../post-prediction/index.js';
-import { logTaskEventSafe } from '../tasks/index.js';
 
 export interface RuleRunnerDependencies {
   runEngine?: (input: RuleEngineInput) => Promise<RuleEngineResult>;
@@ -34,6 +37,9 @@ export async function runRulesForEnrichedTransaction(
   let ruleResult: RuleEngineResult | null = null;
   let error: unknown = null;
 
+  // Track rules processing start time for latency measurement
+  const rulesStartTime = Date.now();
+
   // Run everything in a single transaction for atomicity
   await db.transaction(async (trx) => {
     // Log rules_started event
@@ -46,6 +52,7 @@ export async function runRulesForEnrichedTransaction(
       metadata: null,
       trx,
     });
+
     try {
       const input = buildRuleEngineInput(event);
 
@@ -81,14 +88,18 @@ export async function runRulesForEnrichedTransaction(
       );
     }
 
+    // Calculate rules processing latency
+    const rulesLatencyMs = Date.now() - rulesStartTime;
+
     // Handle post-prediction processing in the same transaction
     // (task updates, prediction/candidate creation)
     await handlePostPrediction({
       source: 'rule',
       event,
-      result: ruleResult,
+      ruleResult,
       runId,
       error,
+      rulesLatencyMs, // Pass latency for event logging
       trx,
     });
 
@@ -97,6 +108,16 @@ export async function runRulesForEnrichedTransaction(
       throw error;
     }
   });
+
+  // After transaction commits successfully, enqueue ML if needed
+  // This ensures ML is only enqueued if rules transaction succeeded
+  // Note: This happens AFTER transaction commits, preventing ML from running on rolled-back transactions
+  if (!error) {
+    await enqueueMlIfNeeded({
+      event,
+      ruleResult,
+    });
+  }
 }
 
 /**
@@ -132,6 +153,9 @@ export function buildRuleEngineInput(
       regionCode: enriched.context.region_code ?? null,
       countryCode: enriched.context.country_code ?? null,
       subregionCode: enriched.context.subregion_code ?? null,
+    },
+    options: {
+      runId: event.run_id,
     },
   };
 }

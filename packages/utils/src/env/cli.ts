@@ -7,8 +7,9 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { Environment, EnvSchema } from './types.js';
+
 import { generateEnvFiles } from './generator.js';
+import type { Environment, EnvSchema } from './types.js';
 
 /**
  * Preserve existing values from a file if it exists

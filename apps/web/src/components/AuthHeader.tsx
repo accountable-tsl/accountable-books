@@ -1,9 +1,11 @@
 import { Link } from 'react-router';
-import { useThemeToggle } from '@/theme/useThemeToggle';
-import { ThemeToggle } from './ThemeToggle';
+
 import { Button } from '@/components/ui/button';
-import { routes } from '@/shared/routes/routes';
 import { cn } from '@/lib/utils';
+import { routes } from '@/shared/routes/routes';
+import { useThemeToggle } from '@/theme/useThemeToggle';
+
+import { ThemeToggle } from './ThemeToggle';
 
 export function AuthHeader({ className }: { className?: string }) {
   const { theme } = useThemeToggle();

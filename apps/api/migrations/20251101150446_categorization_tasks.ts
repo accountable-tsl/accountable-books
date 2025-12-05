@@ -1,9 +1,10 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.ts';
+} from './utils/db.js';
 
 const tableName = 'categorization_tasks';
 
@@ -41,14 +42,6 @@ export async function up(knex: Knex): Promise<void> {
       .string('enrichment_version', 30)
       .notNullable()
       .comment('Schema version for tracking enrichment evolution');
-
-    // table
-    //   .enu('status', ['enriched', 'partial', 'failed', 'pending'], {
-    //     useNative: false,
-    //     enumName: 'categorization_task_status',
-    //   })
-    //   .notNullable();
-
     table
       .enu('source', ['ingestion', 'backfill', 'manual'], {
         useNative: false,
@@ -71,28 +64,22 @@ export async function up(knex: Knex): Promise<void> {
 
   // Add composite foreign key to bank_transactions (id, date)
   await knex.raw(`
-    ALTER TABLE ${tableName}
-    ADD CONSTRAINT fk_categorization_tasks_bank_transaction
-    FOREIGN KEY (bank_transaction_id, bank_transaction_date)
-    REFERENCES bank_transactions(id, date)
-    ON DELETE CASCADE;
-  `);
+      ALTER TABLE ${tableName}
+      ADD CONSTRAINT fk_categorization_tasks_bank_transaction
+      FOREIGN KEY (bank_transaction_id, bank_transaction_date)
+      REFERENCES bank_transactions(id, date)
+      ON DELETE CASCADE;
+    `);
 
-  // Create indexes
+  // Create indexes (idempotent - IF NOT EXISTS)
   await knex.raw(`
-    CREATE INDEX idx_cat_tasks_company
+    CREATE INDEX IF NOT EXISTS idx_cat_tasks_company
     ON ${tableName}(company_id)
     WHERE is_deleted = FALSE;
   `);
 
   await knex.raw(`
-    CREATE INDEX idx_cat_tasks_status
-    ON ${tableName}(status)
-    WHERE is_deleted = FALSE;
-  `);
-
-  await knex.raw(`
-    CREATE INDEX idx_cat_tasks_bank_txn
+    CREATE INDEX IF NOT EXISTS idx_cat_tasks_bank_txn
     ON ${tableName}(bank_transaction_id)
     WHERE is_deleted = FALSE;
   `);

@@ -1,11 +1,17 @@
-import { useIsMobile } from '@/shared/hooks/use-media-query';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useSession } from '@session';
+import { Info } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { toast } from 'sonner';
+
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import ErrorPage from '@/components/ErrorPage';
+import { FormField } from '@/components/FormField';
+import { Success } from '@/components/Success';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -13,35 +19,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { FormField } from '@/components/FormField';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Info } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  useAccountMeta,
+  useAccountTypeByKey,
+} from '@/domains-pending-migration/account-classification/hooks';
 import {
   useCompanyCoa,
   useCreateCoa,
 } from '@/domains-pending-migration/coa/hooks';
 import {
-  useAccountMeta,
-  useAccountTypeByKey,
-} from '@/domains-pending-migration/account-classification/hooks';
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
-import { Controller, useForm, useWatch } from 'react-hook-form';
-import {
   type CreateCoa,
   createCoaSchema,
 } from '@/domains-pending-migration/coa/types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
-import { toast } from 'sonner';
-import { Success } from '@/components/Success';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+
 import { CoaImportCsv } from './coa-import-csv';
-import { useSession } from '@session';
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 
 export function AddNewCoa({
   onSuccess,

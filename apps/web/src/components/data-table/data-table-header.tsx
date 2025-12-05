@@ -1,10 +1,12 @@
-import type { DataTableProps } from '@/components/data-table/types/data-table';
-import { TableHeader, TableRow, TableCell } from '@/components/CustomTable';
 import { flexRender } from '@tanstack/react-table';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+
+import { TableCell, TableHeader, TableRow } from '@/components/CustomTable';
 import { DataTableResizer } from '@/components/data-table/data-table-resizer';
-import { getColumnStyle } from './utils/column-sizing';
+import type { DataTableProps } from '@/components/data-table/types/data-table';
 import { cn } from '@/lib/utils';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+
+import { getColumnStyle } from './utils/column-sizing';
 
 export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
   const { tableHeader, tableHeaderRow, tableHeaderCell } =

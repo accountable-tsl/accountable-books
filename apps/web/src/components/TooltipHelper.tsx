@@ -1,9 +1,10 @@
+import { CircleHelp } from 'lucide-react';
+
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { CircleHelp } from 'lucide-react';
 
 type HelpTooltipProps = {
   content?: string;

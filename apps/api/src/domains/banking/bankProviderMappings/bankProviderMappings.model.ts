@@ -1,29 +1,30 @@
 import axios from 'axios';
-import { knexClient } from '../../../db/knexClient.js';
+import type { Knex } from 'knex';
+
+import { ENV } from '../../../config/env.js';
 import type { ApiResponse } from '../../../core/types/api.types.js';
+import { knexClient } from '../../../db/knexClient.js';
+import { redis } from '../../../lib/redis.js';
+import {
+  logDatabaseOperation,
+  logError,
+  logger,
+  logTiming,
+} from '../../../shared/utils/logger.js';
+import { retryAxios } from '../../../shared/utils/random.utils.js';
 import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import {
-  logger,
-  logError,
-  logDatabaseOperation,
-  logTiming,
-} from '../../../shared/utils/logger.js';
+import type {
+  GetBankProviderMappingInput,
+  GetBankProviderMappingResponse,
+} from './bankProviderMappings.types.js';
 import {
   type CreateBankProviderMappings,
   type MonoBankCoverage,
   type NewBankProviderMapping,
   newBankProviderMappingCamel,
-} from './bankProviderMappings.types.js';
-import { ENV } from '../../../config/env.js';
-import type { Knex } from 'knex';
-import { retryAxios } from '../../../shared/utils/random.utils.js';
-import { redis } from '../../../lib/redis.js';
-import type {
-  GetBankProviderMappingInput,
-  GetBankProviderMappingResponse,
 } from './bankProviderMappings.types.js';
 
 export async function createBankProviderMappings({

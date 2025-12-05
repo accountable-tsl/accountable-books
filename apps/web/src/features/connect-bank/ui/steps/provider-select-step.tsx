@@ -1,12 +1,13 @@
-import { Button } from '@/components/ui/button';
 import { ArrowLeft, Building } from 'lucide-react';
-import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
+
+import { Button } from '@/components/ui/button';
 import { ProviderCard } from '@/features/connect-bank/ui/components/provider-card';
-import type { Country } from '@/shared/types/core';
+import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
 import type {
   BankProvider,
   ProviderSelectionResult,
 } from '@/modules/banking/providers/model/types';
+import type { Country } from '@/shared/types/core';
 
 interface ProviderSelectStepProps {
   selectionStrategy: ProviderSelectionResult;

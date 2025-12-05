@@ -1,32 +1,26 @@
-import { randomUUID } from 'crypto';
 import { performance } from 'node:perf_hooks';
-import type { RuleRepository } from './rules.repository.js';
-import { RuleCompiler } from './rules.compiler.js';
-import type {
-  CompiledAction,
-  CompiledCondition,
-} from './rules.compiler.js';
-import type {
-  ActionTraceNode,
-  ConditionTraceNode,
-} from './rules-def.types.js';
+
 import {
-  type RuleEntity,
-  type RuleDraftState,
-  type RuleMutationField,
-} from './rules.types.js';
-import { RuleRepository as DefaultRuleRepository } from './rules.repository.js';
+  RuleLogRepository as DefaultRuleLogRepository,
+  type RuleLogWriter,
+} from './rule-logs.repository.js';
+import type { RuleLogDraft } from './rule-logs.types.js';
+import type { CompiledAction, CompiledCondition } from './rules.compiler.js';
+import { RuleCompiler } from './rules.compiler.js';
 import type {
   RuleEngineInput,
   RuleEngineResult,
   RuleTransactionContext,
 } from './rules.engine.types.js';
-import { ruleDirectionFilter, type RuleLogStatus } from './rules-db.types.js';
-import type { RuleLogDraft } from './rule-logs.types.js';
+import type { RuleRepository } from './rules.repository.js';
+import { RuleRepository as DefaultRuleRepository } from './rules.repository.js';
 import {
-  RuleLogRepository as DefaultRuleLogRepository,
-  type RuleLogWriter,
-} from './rule-logs.repository.js';
+  type RuleDraftState,
+  type RuleEntity,
+  type RuleMutationField,
+} from './rules.types.js';
+import { ruleDirectionFilter, type RuleLogStatus } from './rules-db.types.js';
+import type { ActionTraceNode, ConditionTraceNode } from './rules-def.types.js';
 
 /**
  * The RulesEngine is responsible for processing a single transaction against a
@@ -64,7 +58,7 @@ export class RulesEngine {
    */
   async run(input: RuleEngineInput): Promise<RuleEngineResult> {
     const { transaction, company, options } = input;
-    const runId = options?.runId ?? randomUUID();
+    const runId = options.runId;
     const debugMode = options?.debug ?? false;
 
     // Fetch all rules that could possibly apply to this transaction.

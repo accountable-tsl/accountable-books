@@ -1,14 +1,15 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+
 import {
   addNewContacts,
   fetchContacts,
 } from '@/domains-pending-migration/contacts/contacts-api';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type GetContactsParams,
-  newContact,
   type NewContact,
+  newContact,
 } from '@/domains-pending-migration/contacts/contacts-types';
-import { toast } from 'sonner';
 
 const CACHE_TIMES = {
   STALE: 1000 * 60 * 15, // 15 mins

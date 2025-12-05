@@ -1,13 +1,5 @@
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
-import { newCompany, type NewCompany, type NewUser } from '@/modules/auth';
-import { useIndustries } from '@/shared/hooks/useIndustries';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import DOMPurify from 'dompurify';
 import {
   forwardRef,
   useEffect,
@@ -16,23 +8,33 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
-import { useCountries } from '@/shared/hooks/useCountries';
-import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { Controller, useForm } from 'react-hook-form';
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FormField } from '@/components/FormField';
-import { TOOLTIP } from '../../model/constants';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { TooltipHelper } from '@/components/TooltipHelper';
-import DOMPurify from 'dompurify';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import {
   COMPANY_SIZE,
   COMPANY_TYPES,
 } from '@/domains-pending-migration/company/constants';
 import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
+import { cn } from '@/lib/utils';
+import { type NewCompany, newCompany, type NewUser } from '@/modules/auth';
+import { useCountries } from '@/shared/hooks/useCountries';
+import { useCurrencies } from '@/shared/hooks/useCurrencies';
+import { useIndustries } from '@/shared/hooks/useIndustries';
+
+import { TOOLTIP } from '../../model/constants';
 
 export interface SignupCompanyInfoHandle {
   validate: () => Promise<boolean>;

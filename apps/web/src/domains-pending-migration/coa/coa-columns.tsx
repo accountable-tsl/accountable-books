@@ -1,8 +1,9 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import type { CoaResponse } from '@/domains-pending-migration/coa/types';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import { Text } from 'lucide-react';
+
+import { Badge } from '@/components/ui/badge';
+import type { CoaResponse } from '@/domains-pending-migration/coa/types';
+import { cn } from '@/lib/utils';
 
 export function getCoaTableColumns(): ColumnDef<CoaResponse>[] {
   return [

@@ -1,48 +1,48 @@
-import type { Knex } from 'knex';
 import * as Sentry from '@sentry/node';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import {
-  camelToSnake,
-  snakeToCamel,
-} from '../../shared/utils/formatting.utils.js';
+import type { Knex } from 'knex';
 
-import { createUserDirect } from '../../domains/users/users.model.js';
-import {
-  AppError,
-  errorResponse,
-  successResponse,
-} from '../../shared/utils/response.utils.js';
-import { createCompany } from '../../domains/companies/companies.model.js';
-import { loadCoaTemplateForCompany } from '../../domains/chart-of-accounts/coa-template.model.js';
-import { trackEvent } from '../../shared/utils/analytics.utils.js';
+import type { ApiResponse } from '../../core/types/api.types.js';
+import { knexClient } from '../../db/knexClient.js';
 import { createAccountingFirm } from '../../domains/accountingFirms/firms.model.js';
+import { newAccFirm } from '../../domains/accountingFirms/firms.types.js';
 import { createDefaultAccounts } from '../../domains/chart-of-accounts/coa.model.js';
-import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
-import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
+import { loadCoaTemplateForCompany } from '../../domains/chart-of-accounts/coa-template.model.js';
+import { createCompany } from '../../domains/companies/companies.model.js';
 import {
   type CompanyType,
   type NewCompanyInput,
   type NewCompanyInputCamel,
 } from '../../domains/companies/companies.types.js';
-import { newAccFirm } from '../../domains/accountingFirms/firms.types.js';
+import { type RoleKey } from '../../domains/roles/roles.types.js';
+import { grantDirectAccess } from '../../domains/userRoles/userRoles.model.js';
+import { createUserDirect } from '../../domains/users/users.model.js';
+import {
+  type CreateUserResponse,
+  type NewUserDirect,
+  type NewUserInputCamel,
+} from '../../domains/users/users.types.js';
+import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
+import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
+import { trackEvent } from '../../shared/utils/analytics.utils.js';
+import {
+  camelToSnake,
+  snakeToCamel,
+} from '../../shared/utils/formatting.utils.js';
+import {
+  AppError,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import {
+  createCompleteCompanyOnboardingState,
+  createCompleteUserOnboardingState,
+} from '../onboarding/onboarding.utils.js';
 import {
   type CreateUserDirectResponse,
   type NewCompanyRes,
   type NewCompanyResCamel,
   newSignup,
 } from './signup.types.js';
-import {
-  type CreateUserResponse,
-  type NewUserDirect,
-  type NewUserInputCamel,
-} from '../../domains/users/users.types.js';
-import { grantDirectAccess } from '../../domains/userRoles/userRoles.model.js';
-import { type RoleKey } from '../../domains/roles/roles.types.js';
-import { knexClient } from '../../db/knexClient.js';
-import {
-  createCompleteCompanyOnboardingState,
-  createCompleteUserOnboardingState,
-} from '../onboarding/onboarding.utils.js';
 
 /**
  * Registers a new user and company.

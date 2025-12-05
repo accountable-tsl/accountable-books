@@ -1,5 +1,6 @@
 import type { CompanyData } from '@/domains-pending-migration/company/types';
 import type { AuthUserContext } from '@/modules/auth';
+
 import { MonoWidget } from '../widgets/MonoWidget';
 import type { MonoConnectCustomer } from '../widgets/types';
 
