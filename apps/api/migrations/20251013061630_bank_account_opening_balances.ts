@@ -23,7 +23,7 @@ export async function up(knex: Knex): Promise<void> {
       .comment(
         'Balance as of end of day (opening balance for transactions starting the next day)',
       );
-    table.decimal('amount', 15, 3).notNullable();
+    table.decimal('amount', 18, 3).notNullable();
 
     table
       .timestamp('coverage_start', { useTz: true })

@@ -1,10 +1,15 @@
 import z from 'zod';
 
 import { dbBaseFields } from '../../../core/index.js';
-import {
-  type TxnCategorizationSource,
-  txnCategorizationSource,
-} from '../categorization.types.js';
+
+const taskEventStage = z.enum([
+  'workflow',
+  'enrichment',
+  'rule_engine',
+  'ml_engine',
+  'validation',
+  'candidate',
+]);
 
 export const taskEventType = z.enum([
   'categorization_task_created',
@@ -23,15 +28,19 @@ export const taskEventType = z.enum([
   'candidate_created',
   'candidate_ignored',
   'candidate_replaced',
+
+  'candidate_accepted',
+  'candidate_rejected',
 ]);
 export type TaskEventType = z.infer<typeof taskEventType>;
 
 export const newTaskEvent = z.object({
   categorization_task_id: z.uuid(),
   run_id: z.uuid(),
-  source: txnCategorizationSource,
+  event_stage: taskEventStage,
   event_type: taskEventType,
   event_timestamp: z.date(),
+  comment: z.string().nullish(),
   metadata: z.record(z.string(), z.any()).nullish(),
 });
 export type NewTaskEvent = z.infer<typeof newTaskEvent>;

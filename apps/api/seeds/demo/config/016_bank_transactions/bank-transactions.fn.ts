@@ -39,7 +39,7 @@ async function getCompanyUUID(
 /**
  * Categorization status constant (inline to avoid imports)
  */
-const CATEGORIZATION_STATUS_UNCATEGORIZED = 'uncategorized';
+// const CATEGORIZATION_STATUS_UNCATEGORIZED = 'uncategorized';
 
 /**
  * Helper: Generate external ID for transaction deduplication
@@ -327,7 +327,7 @@ export const createDemoBankTransactions = async (
           raw_data: tx.metadata ?? null,
           external_id: generatedExternalId,
           system_exchange_rate: Number(rate),
-          categorization_status: CATEGORIZATION_STATUS_UNCATEGORIZED,
+          // categorization_status: CATEGORIZATION_STATUS_UNCATEGORIZED,
           bank_transaction_batch_id: batchRecord.id,
           source: batch.source || 'manual_entry',
           created_by_id: userId,

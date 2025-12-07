@@ -46,10 +46,13 @@ export async function runRulesForEnrichedTransaction(
     await logTaskEventSafe({
       categorization_task_id: event.categorization_task_id,
       run_id: runId,
-      source: 'rule',
+      event_stage: 'rule_engine',
       event_type: 'rules_started',
       event_timestamp: new Date(),
-      metadata: null,
+      metadata: {
+        bank_transaction_id: event.bank_transaction_id,
+        company_id: event.company_uuid,
+      },
       trx,
     });
 

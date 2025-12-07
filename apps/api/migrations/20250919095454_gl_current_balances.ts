@@ -24,7 +24,7 @@ export async function up(knex: Knex): Promise<void> {
       .defaultTo(knex.fn.now());
 
     table
-      .decimal('reporting_currency_balance', 15, 3)
+      .decimal('reporting_currency_balance', 18, 3)
       .notNullable()
       .defaultTo(0);
 

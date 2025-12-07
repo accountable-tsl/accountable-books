@@ -40,6 +40,7 @@ import { updateFirm } from '../accountingFirms/firms.model.js';
 import { getCountry } from '../countries/countries.utils.js';
 import { getCurrency } from '../currencies/currencies.utils.js';
 import { enqueueFiscalCalendarGeneration } from '../reporting/fiscal-calendar/index.js';
+import { initializeCompanySettings } from '../settings/settings.service.js';
 import {
   companyType,
   type FetchCompaniesOptions,
@@ -290,11 +291,7 @@ export const createCompany = async (
       reporting_framework: sanitizedData.reporting_framework || 'ifrs',
       created_by_id: userExists.id,
       last_updated_by_id: userExists.id,
-      accounting_basis:
-        sanitizedData.accounting_basis ??
-        (sanitizedData.type === 'individual'
-          ? 'modified_cash_basis'
-          : 'modified_accrual_basis'),
+      accounting_basis: sanitizedData.accounting_basis ?? 'modified_cash_basis',
       is_demo_company: sanitizedData.is_demo_company || false,
       industry:
         sanitizedData.industry || sanitizedData.type === 'accounting_firm'
@@ -369,6 +366,37 @@ export const createCompany = async (
         'Failed to enqueue fiscal calendar generation (non-critical)',
       );
       // Non-critical: Calendar can be generated manually later if needed
+    }
+
+    // Initialize default company settings
+    // Don't fail company creation if settings initialization fails
+    try {
+      const settingsResult = await initializeCompanySettings({
+        companyId: company.id,
+        userId: userExists.id,
+        trx,
+      });
+
+      if (settingsResult.success) {
+        companyLogger.info(
+          { companyId: company.id },
+          'Default company settings initialized',
+        );
+      } else {
+        companyLogger.warn(
+          { companyId: company.id, error: settingsResult.message },
+          'Settings initialization returned error (non-critical)',
+        );
+      }
+    } catch (error) {
+      companyLogger.error(
+        {
+          companyId: company.id,
+          error: error instanceof Error ? error : new Error(String(error)),
+        },
+        'Failed to initialize company settings (non-critical)',
+      );
+      // Non-critical: Settings will use defaults from registry until explicitly set
     }
 
     // Validate and return company data

@@ -6,7 +6,7 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
     table.string('description', 512).notNullable();
-    table.decimal('amount', 15, 3).notNullable();
+    table.decimal('amount', 18, 3).notNullable();
     table.specificType('transaction_side', 'debit_credit').notNullable();
     table.string('placeholder_description_var').nullable();
     table

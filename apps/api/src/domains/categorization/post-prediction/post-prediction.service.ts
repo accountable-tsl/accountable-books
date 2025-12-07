@@ -4,6 +4,8 @@ import type { Knex } from 'knex';
 import { knexClient } from '../../../db/knexClient.js';
 import { logger, toYMD } from '../../../shared/index.js';
 import { runConstraints } from '../../constraints/constraint-runner.js';
+import { persistCategorizationCandidate } from '../candidates/candidates.service.js';
+import type { CandidateLineDraft } from '../candidates/candidates.types.js';
 import type { TxnCategorizationSource } from '../categorization.types.js';
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 import { enqueueMLPredictionJob } from '../ml/ml-prediction.queue.js';
@@ -11,8 +13,6 @@ import type { MLPredictionOutput } from '../ml/ml-prediction.types.js';
 import type { RuleEngineResult } from '../rules/rules.engine.types.js';
 import type { TaskEventType } from '../tasks/index.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
-import { persistCategorizationCandidate } from './candidates/candidates.service.js';
-import type { CandidateLineDraft } from './candidates/candidates.types.js';
 import {
   allEqual,
   buildExplanationFromRuleResult,
@@ -115,7 +115,7 @@ async function handleRulePrediction(
     await logTaskEventSafe({
       categorization_task_id: event.categorization_task_id,
       run_id: runId,
-      source: 'rule',
+      event_stage: 'rule_engine',
       event_type: 'rules_failed', // Exception before completion
       event_timestamp: new Date(),
       metadata: {
@@ -132,7 +132,7 @@ async function handleRulePrediction(
   await logTaskEventSafe({
     categorization_task_id: event.categorization_task_id,
     run_id: runId,
-    source: 'rule',
+    event_stage: 'rule_engine',
     event_type: eventTypeMap[ruleResult.status],
     event_timestamp: new Date(),
     metadata: {
@@ -262,10 +262,12 @@ export async function enqueueMlIfNeeded({
     await logTaskEventSafe({
       categorization_task_id: event.categorization_task_id,
       run_id: event.run_id,
-      source: 'ml',
-      event_type: 'ml_started',
+      event_stage: 'ml_engine',
+      event_type: 'ml_enqueued',
       event_timestamp: new Date(),
-      metadata: null,
+      metadata: {
+        processing_context: enrichedTxn.metadata.processing_context,
+      },
     });
 
     logger.debug(
@@ -746,15 +748,15 @@ async function processPredictionToCandidate({
     );
     const bankLeg: CandidateLineDraft = {
       fs_date: p.ledger_date ?? bankTxn.date,
-      status: 'proposed',
       transaction_side: bankTxn.amount > 0 ? 'debit' : 'credit',
       coa_id: bankAccountCoaId,
       source_currency_id: bankAccountCurrencyId,
       system_exchange_rate: bankTxn.system_exchange_rate,
+      custom_exchange_rate: bankTxn.custom_exchange_rate,
       signed_native_amount: bankTxn.amount,
       description: p.description ?? bankTxn.description,
       is_bank_leg: true,
-      explanation: '', // Add later
+      explanation: 'Represents the bank account side of the double-entry', // Add later
     };
 
     // Build other journal entries from prediction lines
@@ -772,6 +774,7 @@ async function processPredictionToCandidate({
           project_id: l.project_id,
           source_currency_id: bankAccountCurrencyId,
           system_exchange_rate: bankTxn.system_exchange_rate,
+          custom_exchange_rate: bankTxn.custom_exchange_rate,
           signed_native_amount: l.signed_native_amount,
           description: l.description ?? p.description ?? bankTxn.description,
           is_bank_leg: false,
@@ -817,14 +820,23 @@ async function processPredictionToCandidate({
     if (!constraintResult.isValid) {
       // Constraint validation failed - log event and throw error
       // Note: Prediction is already persisted (for auditability), but candidate is not created
+      // Determine event stage based on source
+      const eventStage =
+        source === 'rule'
+          ? 'rule_engine'
+          : source === 'ml' || source === 'ml_heuristic'
+            ? 'ml_engine'
+            : 'validation';
+
       await logTaskEventSafe({
         categorization_task_id: event.categorization_task_id,
         run_id: runId,
-        source,
+        event_stage: eventStage,
         event_type: 'constraint_validation_failed',
         event_timestamp: new Date(),
         metadata: {
           prediction_id: predictionId,
+          source,
           violations: constraintResult.violations,
           errors: constraintResult.errors,
           warnings: constraintResult.warnings,
@@ -898,11 +910,15 @@ async function processPredictionToCandidate({
       },
       'Candidate persisted successfully',
     );
+
+    // Now, we need to determine if we should post this to the ledger based on company's auto-post settings
+    // Also matters if this is a rule- or ml- generated candidate. For ML, we might need to enqueue if auto-post delay is set
+    // But that also means we need to be checking just in case user reviews this candidate and posts before autopost triggers
   };
 
   if (trx) {
-    await exec(trx);
+    return await exec(trx);
   } else {
-    await knexClient.transaction(exec);
+    return await knexClient.transaction(exec);
   }
 }

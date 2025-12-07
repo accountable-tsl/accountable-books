@@ -26,6 +26,7 @@ import emailRoutes from './domains/email/email.routes.js';
 import objectRoutes from './domains/objects/objects.routes.js';
 import projectsRoutes from './domains/projects/projects.routes.js';
 import { loadRoles } from './domains/roles/roles.model.js';
+import settingsRoutes from './domains/settings/settings.routes.js';
 import usersCompaniesRolesRoutes from './domains/userRoles/userRoles.routes.js';
 import usersRoutes from './domains/users/users.routes.js';
 import {
@@ -165,6 +166,7 @@ export async function setupApp() {
   app.use('/api/:companyId/coa', coaRoutes);
   app.use('/api/:companyId/contacts', contactsRoutes);
   app.use('/api/:companyId/projects', projectsRoutes);
+  app.use('/api/:companyId/settings', settingsRoutes);
 
   app.use('/admin/queues', basicAuth(bullboardUser, bullboardPass));
   app.use('/admin/queues', serverAdapter.getRouter());

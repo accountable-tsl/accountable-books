@@ -18,10 +18,11 @@ export async function logTaskEvent(
     const eventData = {
       categorization_task_id: params.categorization_task_id,
       run_id: params.run_id,
-      source: params.source,
+      event_stage: params.event_stage,
       event_type: params.event_type,
       event_timestamp: params.event_timestamp ?? new Date(),
-      metadata: params.metadata,
+      comment: params.comment ?? null,
+      metadata: params.metadata ?? null,
     };
 
     // Validate
@@ -31,9 +32,10 @@ export async function logTaskEvent(
       .insert({
         categorization_task_id: validated.categorization_task_id,
         run_id: validated.run_id,
-        source: validated.source,
+        event_stage: validated.event_stage,
         event_type: validated.event_type,
         event_timestamp: validated.event_timestamp,
+        comment: validated.comment,
         metadata: validated.metadata,
       })
       .returning(['id']);

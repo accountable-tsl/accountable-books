@@ -84,7 +84,7 @@ export async function processMLPrediction(
       await logTaskEventSafe({
         categorization_task_id: categorizationTaskId,
         run_id: runId,
-        source: 'ml',
+        event_stage: 'ml_engine',
         event_type: 'ml_failed',
         event_timestamp: new Date(),
         metadata: {
@@ -115,7 +115,7 @@ export async function processMLPrediction(
     await logTaskEventSafe({
       categorization_task_id: categorizationTaskId,
       run_id: runId,
-      source: 'ml',
+      event_stage: 'ml_engine',
       event_type: 'ml_completed',
       event_timestamp: new Date(),
       metadata: {
@@ -157,7 +157,7 @@ export async function processMLPrediction(
       await logTaskEventSafe({
         categorization_task_id: categorizationTaskId,
         run_id: runId,
-        source: 'ml',
+        event_stage: 'ml_engine',
         event_type: 'ml_failed',
         event_timestamp: new Date(),
         metadata: {
@@ -202,7 +202,7 @@ export async function processMLPrediction(
       await logTaskEventSafe({
         categorization_task_id: categorizationTaskId,
         run_id: runId,
-        source: 'ml',
+        event_stage: 'ml_engine',
         event_type: 'ml_failed',
         event_timestamp: new Date(),
         metadata: {
@@ -303,7 +303,7 @@ export async function processMLPrediction(
   //       bankTransactionId,
   //       bankTransactionDate: enrichedTransaction.raw.date,
   //       companyId,
-  //       source: 'ml',
+  //       event_stage: 'ml_engine',
   //       runId,
   //       lines: journalLines,
   //       confidence,

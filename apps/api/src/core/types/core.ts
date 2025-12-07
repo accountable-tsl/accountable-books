@@ -52,11 +52,11 @@ export const zEmail = () =>
 export const debitCredit = z.enum(['debit', 'credit']);
 export type DebitCredit = z.infer<typeof debitCredit>;
 
-export const categorizationStatus = z.enum([
-  'uncategorized',
-  'proposed',
-  'accepted',
-  'rejected',
-  'posted',
-]);
-export type CategorizationStatus = z.infer<typeof categorizationStatus>;
+// export const categorizationStatus = z.enum([
+//   'uncategorized',
+//   'proposed',
+//   'accepted',
+//   'rejected',
+//   'posted',
+// ]);
+// export type CategorizationStatus = z.infer<typeof categorizationStatus>;

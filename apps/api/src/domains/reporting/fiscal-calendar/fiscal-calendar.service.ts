@@ -331,6 +331,12 @@ async function validatePeriodClose(
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  const hasLedgerEntry = trx('ledger_transaction')
+    .whereRaw('ledger_transaction.source_transaction_id = bt.id')
+    .where('ledger_transaction.source', 'bank_transaction')
+    .where('ledger_transaction.is_deleted', false)
+    .limit(1);
+
   // Check for pending transactions in the period
   const pendingTransactions = await trx('bank_transactions as bt')
     .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
@@ -339,7 +345,8 @@ async function validatePeriodClose(
     })
     .whereBetween('bt.txn_at', [period.start_date, period.end_date])
     .where('bt.is_deleted', false)
-    .where('bt.categorization_status', 'uncategorized')
+    // .where('bt.categorization_status', 'uncategorized')
+    .whereNotExists(hasLedgerEntry)
     .count('* as count')
     .first();
 

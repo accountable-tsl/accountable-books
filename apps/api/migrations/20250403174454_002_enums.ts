@@ -36,32 +36,32 @@ export async function up(knex: Knex): Promise<void> {
     createEnumIfNotExists('reporting_framework', ['ifrs', 'us_gaap']),
   );
   await knex.raw(createEnumIfNotExists('debit_credit', ['debit', 'credit']));
-  await knex.raw(
-    createEnumIfNotExists('bank_transaction_source', [
-      'file_import',
-      'bank_feed',
-      'manual_entry',
-    ]),
-  );
+  // await knex.raw(
+  //   createEnumIfNotExists('bank_transaction_source', [
+  //     'file_import',
+  //     'bank_feed',
+  //     'manual_entry',
+  //   ]),
+  // );
   await knex.raw(
     createEnumIfNotExists('coa_source', ['user', 'template', 'system']),
   );
-  await knex.raw(
-    createEnumIfNotExists('categorization_status', [
-      'uncategorized',
-      'proposed',
-      'accepted',
-      'rejected',
-      'posted',
-    ]),
-  );
-  await knex.raw(
-    createEnumIfNotExists('transaction_source', [
-      'bank_transaction',
-      'manual_journal',
-      'system',
-    ]),
-  );
+  // await knex.raw(
+  //   createEnumIfNotExists('categorization_status', [
+  //     'uncategorized',
+  //     'proposed',
+  //     'accepted',
+  //     'rejected',
+  //     'posted',
+  //   ]),
+  // );
+  // await knex.raw(
+  //   createEnumIfNotExists('transaction_source', [
+  //     'bank_transaction',
+  //     'manual_journal',
+  //     'system',
+  //   ]),
+  // );
   await knex.raw(
     createEnumIfNotExists('journal_status', ['draft', 'posted', 'voided']),
   );
@@ -140,7 +140,6 @@ export async function up(knex: Knex): Promise<void> {
       'ml',
       'ml_heuristic',
       'manual',
-      'enrichment',
     ]),
   );
 
@@ -151,31 +150,9 @@ export async function up(knex: Knex): Promise<void> {
       'remainder',
     ]),
   );
-
-  await knex.raw(
-    createEnumIfNotExists('categorization_task_event_type', [
-      'categorization_task_created',
-      'rules_started',
-      'rules_applied',
-      'rules_no_match',
-      'rules_conflict',
-      'rules_error',
-      'rules_failed',
-      'ml_enqueued',
-      'ml_started',
-      'ml_completed',
-      'ml_failed',
-      'prediction_created',
-      'constraint_validation_failed',
-      'candidate_created',
-      'candidate_ignored',
-      'candidate_replaced',
-    ]),
-  );
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(`DROP TYPE IF EXISTS categorization_task_event_type`);
   await knex.raw(`DROP TYPE IF EXISTS categorization_line_split_type`);
   await knex.raw(`DROP TYPE IF EXISTS txn_categorization_source`);
   await knex.raw(`DROP TYPE IF EXISTS contact_status`);
@@ -188,10 +165,10 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP TYPE IF EXISTS recurrence_frequency`);
   await knex.raw(`DROP TYPE IF EXISTS journal_reversal_reason`);
   await knex.raw(`DROP TYPE IF EXISTS journal_status`);
-  await knex.raw(`DROP TYPE IF EXISTS transaction_source`);
-  await knex.raw(`DROP TYPE IF EXISTS categorization_status`);
+  // await knex.raw(`DROP TYPE IF EXISTS transaction_source`);
+  // await knex.raw(`DROP TYPE IF EXISTS categorization_status`);
   await knex.raw(`DROP TYPE IF EXISTS coa_source`);
-  await knex.raw(`DROP TYPE IF EXISTS bank_transaction_source`);
+  // await knex.raw(`DROP TYPE IF EXISTS bank_transaction_source`);
   await knex.raw(`DROP TYPE IF EXISTS debit_credit`);
   await knex.raw(`DROP TYPE IF EXISTS reporting_framework`);
   await knex.raw(`DROP TYPE IF EXISTS fs_key`);

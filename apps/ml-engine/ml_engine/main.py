@@ -3,6 +3,9 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +13,12 @@ from fastapi.responses import JSONResponse
 from ml_engine.domains.prediction.routes import router as prediction_router
 
 from . import __version__
+
+# Load environment variables from .env file
+# .env is in apps/ml-engine/.env (2 levels up from this file)
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
+load_dotenv()  # Try loading from current working directory as fallback
 
 logger = logging.getLogger(__name__)
 

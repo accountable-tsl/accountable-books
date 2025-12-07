@@ -4,12 +4,12 @@ CREATE TABLE public.ledger_entries (
     fs_date                 DATE NOT NULL,
     coa_id                  UUID NOT NULL,
     source_currency_id      UUID NOT NULL,
-    source_amount           NUMERIC(15, 3) NOT NULL,
-    absolute_source_amount  NUMERIC(15, 3) GENERATED ALWAYS AS (abs(source_amount)) STORED,
+    source_amount           NUMERIC(18, 3) NOT NULL,
+    absolute_source_amount  NUMERIC(18, 3) GENERATED ALWAYS AS (abs(source_amount)) STORED,
     system_exchange_rate    NUMERIC(32, 10) NOT NULL,
     custom_exchange_rate    NUMERIC(32, 10) NOT NULL,
-    amount                  NUMERIC(15, 3) GENERATED ALWAYS AS ((source_amount * custom_exchange_rate)::NUMERIC(15, 3)) STORED,
-    absolute_amount         NUMERIC(15, 3) GENERATED ALWAYS AS ((abs(source_amount * custom_exchange_rate))::NUMERIC(15, 3)) STORED,
+    amount                  NUMERIC(18, 3) GENERATED ALWAYS AS ((source_amount * custom_exchange_rate)::NUMERIC(18, 3)) STORED,
+    absolute_amount         NUMERIC(18, 3) GENERATED ALWAYS AS ((abs(source_amount * custom_exchange_rate))::NUMERIC(18, 3)) STORED,
     transaction_side        debit_credit GENERATED ALWAYS AS (
         CASE
             WHEN source_amount > 0 THEN 'debit'::debit_credit
@@ -17,11 +17,15 @@ CREATE TABLE public.ledger_entries (
             ELSE NULL::debit_credit
         END
     ) STORED,
-    categorization_status   categorization_status NOT NULL DEFAULT 'proposed',
+    -- categorization_status   categorization_status NOT NULL DEFAULT 'proposed',
+    contact_id              UUID,
+    contact_type            contact_type,
     description             TEXT,
     project_id              UUID,
     is_monetary             BOOLEAN NOT NULL DEFAULT false,
+    is_bank_leg             BOOLEAN NOT NULL DEFAULT false,
     fx_transaction_id       TEXT,
+    metadata                JSONB,
     updated_by_id           UUID,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -40,9 +44,9 @@ CREATE TABLE public.ledger_entries (
 ) PARTITION BY RANGE (fs_date);
 
 -- Partitioned indexes on the parent (partitioned and later attached on leaves)
-CREATE INDEX IF NOT EXISTS le_live_status_date_idx
-  ON ledger_entries (is_deleted, categorization_status, fs_date DESC)
-  INCLUDE (amount, description);
+-- CREATE INDEX IF NOT EXISTS le_live_status_date_idx
+--   ON ledger_entries (is_deleted, categorization_status, fs_date DESC)
+--   INCLUDE (amount, description);
 
 CREATE INDEX IF NOT EXISTS le_live_coa_date_idx
   ON ledger_entries (is_deleted, coa_id, fs_date DESC)
@@ -113,12 +117,12 @@ BEGIN
   END IF;
 
   -- BTREEs that mirror the parent partitioned indexes
-  BEGIN
-    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, fs_date DESC) INCLUDE (amount, description)', idx_live_status, leaf);
-    PERFORM safe_attach_partition_index('le_live_status_date_idx', idx_live_status);
-  EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
-  END;
+  -- BEGIN
+  --   EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, fs_date DESC) INCLUDE (amount, description)', idx_live_status, leaf);
+  --   PERFORM safe_attach_partition_index('le_live_status_date_idx', idx_live_status);
+  -- EXCEPTION WHEN OTHERS THEN
+  --   RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
+  -- END;
 
   BEGIN
     EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, coa_id, fs_date DESC) INCLUDE (amount, description)', idx_live_coa, leaf);
@@ -177,12 +181,12 @@ BEGIN
   END IF;
 
   -- Use the safe_attach_partition_index function for all indexes
-  BEGIN
-    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, fs_date DESC) INCLUDE (amount, description)', idx_live_status, leaf);
-    PERFORM safe_attach_partition_index('le_live_status_date_idx', idx_live_status);
-  EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
-  END;
+  -- BEGIN
+  --   EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, fs_date DESC) INCLUDE (amount, description)', idx_live_status, leaf);
+  --   PERFORM safe_attach_partition_index('le_live_status_date_idx', idx_live_status);
+  -- EXCEPTION WHEN OTHERS THEN
+  --   RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
+  -- END;
 
   BEGIN
     EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, coa_id, fs_date DESC) INCLUDE (amount, description)', idx_live_coa, leaf);
@@ -351,14 +355,16 @@ BEGIN
       INSERT INTO ledger_entries (
         id, ledger_transaction_id, fs_date, coa_id, source_currency_id,
         source_amount, system_exchange_rate, custom_exchange_rate,
-        categorization_status, description, project_id, updated_by_id,
-        created_at, updated_at, deleted_at, is_deleted
+        description, project_id, contact_id, contact_type, is_monetary,
+        is_bank_leg, fx_transaction_id, metadata, updated_by_id, created_at, updated_at,
+        deleted_at, is_deleted
       )
       SELECT
         id, ledger_transaction_id, fs_date, coa_id, source_currency_id,
         source_amount, system_exchange_rate, custom_exchange_rate,
-        categorization_status, description, project_id, updated_by_id,
-        created_at, updated_at, deleted_at, is_deleted
+        description, project_id, contact_id, contact_type, is_monetary,
+        is_bank_leg, fx_transaction_id, metadata, updated_by_id, created_at, updated_at,
+        deleted_at, is_deleted
       FROM ledger_entries_default
       WHERE fs_date >= make_date(y,1,1) AND fs_date < make_date(y+1,1,1)
       ON CONFLICT DO NOTHING
@@ -398,15 +404,17 @@ BEGIN
   IF (NEW.is_deleted IS DISTINCT FROM OLD.is_deleted)
      OR (NEW.deleted_at IS DISTINCT FROM OLD.deleted_at)
      OR (NEW.updated_by_id IS DISTINCT FROM OLD.updated_by_id)
-     OR (NEW.categorization_status IS DISTINCT FROM OLD.categorization_status)
+    --  OR (NEW.categorization_status IS DISTINCT FROM OLD.categorization_status)
      OR (NEW.description IS DISTINCT FROM OLD.description)
      OR (NEW.project_id IS DISTINCT FROM OLD.project_id)
+     OR (NEW.contact_id IS DISTINCT FROM OLD.contact_id)
+     OR (NEW.contact_type IS DISTINCT FROM OLD.contact_type)
   THEN
     RETURN NEW;
   END IF;
 
   IF ROW(NEW.*) IS DISTINCT FROM ROW(OLD.*) THEN
-    RAISE EXCEPTION 'Ledger entries are immutable. Only is_deleted, deleted_at, updated_by_id, categorization_status, description, project_id may change.';
+    RAISE EXCEPTION 'Ledger entries are immutable. Only is_deleted, deleted_at, updated_by_id, description, project_id, contact_id, contact_type may change.';
   END IF;
 
   RETURN NEW;
@@ -455,6 +463,14 @@ BEGIN
       FOREIGN KEY (source_currency_id) REFERENCES currencies (id)
       ON DELETE RESTRICT;
   EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_entry_currency exists, skipping';
+  END;
+
+  BEGIN
+    ALTER TABLE ledger_entries
+      ADD CONSTRAINT fk_ledger_entry_contact
+      FOREIGN KEY (contact_id) REFERENCES contacts (id)
+      ON DELETE SET NULL;
+  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_entry_contact exists, skipping';
   END;
 
   BEGIN

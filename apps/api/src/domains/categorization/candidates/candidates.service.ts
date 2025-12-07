@@ -1,10 +1,16 @@
 import type { Knex } from 'knex';
 import { z } from 'zod';
 
-import { knexClient } from '../../../../db/knexClient.js';
-import { logger } from '../../../../shared/index.js';
-import { logTaskEventSafe } from '../../tasks/task-events.service.js';
-import { type CandidateInput, candidateInput } from './candidates.types.js';
+import { knexClient } from '../../../db/knexClient.js';
+import { logger } from '../../../shared/index.js';
+import type { ContactType } from '../../contacts/contacts.types.js';
+import { logTaskEventSafe } from '../tasks/task-events.service.js';
+import {
+  type CandidateInput,
+  candidateInput,
+  type UpdateCandidateInput,
+  updateCandidateInput,
+} from './candidates.types.js';
 
 const SOURCE_RANK: Record<'rule' | 'ml' | 'ml_heuristic', number> = {
   rule: 3,
@@ -65,7 +71,7 @@ function getReplaceReason(
 
 export async function persistCategorizationCandidate({
   runId,
-  candidate: candidateHead,
+  candidate: candidateObj,
   trx,
 }: {
   candidate: CandidateInput;
@@ -77,7 +83,7 @@ export async function persistCategorizationCandidate({
   // If there's a tie between multiple candidates,
   // - prefer rules over ML; rule > ml > ml_heuristic
   // - Still a tie, use the latest one
-  const v = candidateInput.safeParse(candidateHead);
+  const v = candidateInput.safeParse(candidateObj);
   if (!v.success) {
     logger.error({
       message: 'Attempted to persist candidate with invalid inputs',
@@ -105,7 +111,7 @@ export async function persistCategorizationCandidate({
       await logTaskEventSafe({
         run_id: runId,
         categorization_task_id: c.categorization_task_id,
-        source: c.source,
+        event_stage: 'candidate',
         event_type: 'candidate_ignored',
         event_timestamp: new Date(),
         metadata: {
@@ -133,7 +139,7 @@ export async function persistCategorizationCandidate({
       await logTaskEventSafe({
         run_id: runId,
         categorization_task_id: c.categorization_task_id,
-        source: c.source,
+        event_stage: 'candidate',
         event_type: 'candidate_replaced',
         event_timestamp: new Date(),
         metadata: {
@@ -160,11 +166,13 @@ export async function persistCategorizationCandidate({
     await logTaskEventSafe({
       run_id: runId,
       categorization_task_id: c.categorization_task_id,
-      source: c.source,
+      event_stage: 'candidate',
       event_type: 'candidate_created',
       event_timestamp: new Date(),
       metadata: {
+        candidate_id: candidateId,
         replaced_existing: existing ? true : false,
+        previous_candidate_id: existing?.id ?? null,
         previous_source: existing?.source ?? null,
         previous_confidence: existing?.confidence ?? null,
         new_source: c.source,
@@ -172,7 +180,7 @@ export async function persistCategorizationCandidate({
         reason: existing
           ? getReplaceReason(existing, c as CandidateConflictInput)
           : 'first_candidate',
-        candidate_id: candidateId, // the new one we just inserted
+        lines_count: candidate_lines.length,
       },
       trx: txn,
     });
@@ -180,6 +188,62 @@ export async function persistCategorizationCandidate({
 
   if (trx) {
     await exec(trx);
+  } else {
+    await knexClient.transaction(exec);
+  }
+}
+
+// For now, I'll just keep it simple
+// Need to decide if I want to allow updating contacts here or whether they should do that in a modal and only the ID just comes here
+// Not so comfortable adding contact logic here, but happy to implement it in contact service and just call it here
+// I think this will be called from the UI when the user makes updates to candidate but hasn't saved yet
+// But is that even reasonable? If they make update and we want to save automatically as ui suggests, shouldn't we just post to legder instead and update ledger if anything changes?
+export async function updateCategorizationCandidate(
+  p: UpdateCandidateInput & { trx?: Knex.Transaction },
+) {
+  const v = updateCandidateInput.safeParse(p);
+  if (!v.success) {
+    logger.error({
+      message: 'Attempted to update candidate with invalid inputs',
+      errors: z.flattenError(v.error),
+    });
+    throw new Error('Invalid inputs (@updateCategorizationCandidate)');
+  }
+
+  const exec = async (txn: Knex.Transaction) => {
+    const {
+      contact_name,
+      contact_id,
+      contact_type,
+      candidate_id,
+      ...updateData
+    } = v.data;
+
+    let contactId: string | undefined = undefined;
+    let contactType: ContactType | undefined = undefined;
+    if (contact_name && !contact_id) {
+      // TODO: Create contact
+      // If contact_type, confirm that this contact is linked to the type otherwise link
+    }
+
+    if (contact_id && contact_type) {
+      // TODO: Confirm that this contact is linked to the type otherwise link
+    }
+
+    contactId = contact_id;
+    contactType = contact_type;
+
+    await txn('categorization_candidates')
+      .where({ id: candidate_id })
+      .update({
+        ...updateData,
+        ...(contactId ? { contact_id: contactId } : {}),
+        ...(contactType ? { contact_type: contactType } : {}),
+      });
+  };
+
+  if (p.trx) {
+    await exec(p.trx);
   } else {
     await knexClient.transaction(exec);
   }

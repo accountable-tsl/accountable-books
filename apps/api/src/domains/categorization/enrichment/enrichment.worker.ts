@@ -221,10 +221,15 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
           await logTaskEventSafe({
             categorization_task_id: persistOutcome.taskId,
             run_id: runId,
-            source: 'enrichment',
+            event_stage: 'enrichment',
             event_type: 'categorization_task_created',
             event_timestamp: new Date(),
-            metadata: null,
+            metadata: {
+              bank_transaction_id: bankTransactionId,
+              company_id: companyId,
+              enrichment_version: enrichedTransaction.version,
+              checksum: result.checksum,
+            },
           });
 
           results.successes.push({

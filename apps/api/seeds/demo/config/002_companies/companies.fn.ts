@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 
+import { initializeCompanySettings } from '../../../../src/domains/settings/settings.service.js';
 import {
   COMPANY_TYPES,
   type DemoCompanyType,
@@ -72,7 +73,7 @@ export const createDemoCompaniesAndUsers = async (
         type: c.companyType,
         year_end_day: 31,
         year_end_month: 12,
-        accounting_basis: c.accountingBasis ?? 'modified_accrual_basis',
+        accounting_basis: c.accountingBasis ?? 'modified_cash_basis',
         reporting_framework: c.country.code === 'US' ? 'us_gaap' : 'ifrs',
         onboarding_state: completeOnbState(c.companyType),
         onboarding_completed_at: new Date(),
@@ -215,6 +216,29 @@ export const createDemoCompaniesAndUsers = async (
       .insert(userCompanyRoles)
       .onConflict(['user_id', 'company_id'])
       .ignore();
+  }
+
+  // Initialize default settings for all created/existing companies
+  for (const company of existingCompanies) {
+    const originalCompany = data.find(
+      (d) => d.c.short_code === company.short_code,
+    );
+    if (!originalCompany) continue;
+
+    try {
+      await initializeCompanySettings({
+        companyId: company.id,
+        userId: originalCompany.c.created_by_id,
+        trx,
+      });
+      console.log(`Settings initialized: ${company.short_code}`);
+    } catch (error) {
+      console.warn(
+        `Settings init failed for ${company.short_code} (non-critical):`,
+        error,
+      );
+      // Continue with other companies
+    }
   }
 
   console.log(

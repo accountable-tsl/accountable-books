@@ -5,21 +5,20 @@ import {
   dbBaseFields,
   dbStandardFields,
   debitCredit,
-} from '../../../../core/index.js';
-import { categorizationStatus } from '../../../../core/index.js';
-import { txnCategorizationSource } from '../../categorization.types.js';
+} from '../../../core/index.js';
+import { txnCategorizationSource } from '../categorization.types.js';
 
 export const candidateSplitType = z.enum(['amount', 'percentage', 'remainder']);
 export type CandidateSplitType = z.infer<typeof candidateSplitType>;
 
 const candidateLineDraft = z.object({
   fs_date: z.string(),
-  status: categorizationStatus,
   transaction_side: debitCredit,
   coa_id: z.uuid(),
   project_id: z.uuid().nullish(),
   source_currency_id: z.uuid(),
   system_exchange_rate: z.number(),
+  custom_exchange_rate: z.number(),
   signed_native_amount: z.number(),
   description: z.string().nullish(),
   is_bank_leg: z.boolean(),
@@ -73,19 +72,35 @@ const newCandidate = z.object({
 export const categorizationCandidate = z.object({
   ...newCandidate.shape,
   id: z.uuid(),
+  signed_reporting_amount: z.number(),
 });
 
 export type CategorizationCandidate = z.infer<typeof categorizationCandidate>;
 
-export const categorizationConstraintViolation = z.object({
-  candidate_id: z.uuid(),
-  violation_type: z.string(),
-  severity: z.enum(['info', 'warning', 'error']),
-  message: z.string(),
-  resolved: z.boolean(),
-  metadata: z.record(z.string(), z.any()).nullable(),
-  ...dbBaseFields.shape,
-});
-export type CategorizationConstraintViolation = z.infer<
-  typeof categorizationConstraintViolation
->;
+// export const categorizationConstraintViolation = z.object({
+//   candidate_id: z.uuid(),
+//   violation_type: z.string(),
+//   severity: z.enum(['info', 'warning', 'error']),
+//   message: z.string(),
+//   resolved: z.boolean(),
+//   metadata: z.record(z.string(), z.any()).nullable(),
+//   ...dbBaseFields.shape,
+// });
+// export type CategorizationConstraintViolation = z.infer<
+//   typeof categorizationConstraintViolation
+// >;
+
+export const updateCandidateInput = z
+  .object({
+    contact_id: z.uuid(),
+    contact_name: z.string(),
+    contact_type: contactType,
+    description: z.string(),
+    solver_notes: z.string(),
+    assignee_id: z.uuid(),
+  })
+  .partial()
+  .extend({
+    candidate_id: z.uuid(),
+  });
+export type UpdateCandidateInput = z.infer<typeof updateCandidateInput>;

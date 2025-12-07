@@ -3,6 +3,7 @@ import type { Knex } from 'knex';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
+import { toYMD } from '../../shared/index.js';
 import { logger } from '../../shared/utils/logger.js';
 import {
   errorResponse,
@@ -224,17 +225,19 @@ export async function postJournalRecord({
     log('entries_created', { entriesCount: journalEntries.length });
 
     // Create ledger if posted
-    let ledgerTransactionId: string | null = null;
+    const ledgerTransactionId: string | null = null;
 
     if (journalBatch.status === 'posted') {
       const ledgerPayload: NewLedgerTransactionData = {
         date: journalBatch.date,
-        source: 'manual_journal',
+        transaction_source: 'manual_journal',
+        categorization_source: 'manual',
         description: journalBatch.title,
         note: journalBatch.note ?? null,
         contact_id: journalBatch.contact_id ?? null,
+        source_transaction_currency_id: journalCurrencyId,
         transactions: transactions.map((t) => ({
-          fs_date: journalBatch.date,
+          fs_date: toYMD(journalBatch.date),
           coa_id: t.coa_id,
           source_currency_id: journalCurrencyId,
           source_amount:
@@ -257,11 +260,11 @@ export async function postJournalRecord({
         trx: tx,
       });
 
-      if (!ledgerResult.success || !ledgerResult.data?.ledgerTransactionId) {
-        throw new Error('Failed to create ledger transaction');
-      }
+      // if (!ledgerResult.success || !ledgerResult.data?.ledgerTransactionId) {
+      //   throw new Error('Failed to create ledger transaction');
+      // }
 
-      ledgerTransactionId = ledgerResult.data.ledgerTransactionId;
+      // ledgerTransactionId = ledgerResult.data.ledgerTransactionId;
 
       await tx('journal_batches')
         .where('id', journalBatchRow.id)

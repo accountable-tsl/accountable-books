@@ -129,11 +129,12 @@ Launch `2025-29-09`
 - If I could destroy the fly staging app in one command, what stops another sinister dev from doing same. protect
 - Contact model refactoring, frontend requests will break since I removed status from db and replaced with is_active... decide to either return contact_status or move to this new approach
 - Once we are ready to launch, versioning is important. Stote, tag properly
-- Default to modified cash basis
+- Default to modified cash basis on company creation. Also add default settings
 - Consider removing input_checksum
 - Make sure generate pydantic in contracts cleans up the /py folder first before generateing new stuff
+-
 
-### CAN DELAY (Post-Launch)
+### CAN DELAY (Post-Launch or future versions)
 
 - [ ] Request company timezone at onboarding
 - [ ] Individuals signing in from UK should have April 5 year end
@@ -146,6 +147,17 @@ Launch `2025-29-09`
 - Versioning account types
 - Add tag field to companies and bank transaction tables. It should be an array of string. It'll be helpful to ml... for bank transactions, things like the categories provided by plaid can be added here which will make it useful for ml instead of being hidden in metadata that noone can access
 - REVIEW CONSTRAINTS AND THEIR TEST e.g Projects check is not fully setup etc
+- Strenghten exchange rate system and properly document exchange rate convention (e.g we always represent exchange rate in price/base and reporting currency is always the base)
+- Detect transfers between own accounts
+- Effect of an individual account marking an account as business; or vice versa; and how that affects accounting
+- View raw bank transactions, delete batches
+- Consider unifying timezone stuff. Just use UTC all through in the db... maybe even do this before launch
+- Tracking user actions and trails across the app
+- Consider: Improve categorization UI and make it more gamified and interactable with human language
+- What if for personal finance, snapping and keeping receipts, people can get points
+- Invoice to auto journals
+- Auto generating depreciation journals etc
+- Handling Monetary and FX Positions
 
 ---
 

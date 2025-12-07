@@ -181,14 +181,17 @@ export async function persistPrediction(
     await trx(PREDICTION_LINES_TABLE).insert(linesToInsert);
 
     // Log prediction created event
+    // Event stage depends on source - determined by caller context
+    // This is a workflow-level event that occurs after rule/ml processing
     await logTaskEventSafe({
       categorization_task_id: predictionHead.categorization_task_id,
       run_id: predictionHead.run_id,
-      source: predictionHead.source,
+      event_stage: 'workflow',
       event_type: 'prediction_created',
       event_timestamp: new Date(),
       metadata: {
         prediction_id: predictionId,
+        source: predictionHead.source,
         prediction_lines_count: predictionLines.length,
         confidence: predictionHead.confidence,
       },

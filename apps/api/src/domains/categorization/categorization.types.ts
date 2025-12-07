@@ -5,6 +5,6 @@ export const txnCategorizationSource = z.enum([
   'ml',
   'ml_heuristic',
   'manual',
-  'enrichment',
+  // 'enrichment',
 ]);
 export type TxnCategorizationSource = z.infer<typeof txnCategorizationSource>;

@@ -5,6 +5,11 @@ import {
   dropUpdateTimestampTrigger,
 } from './utils/db.js';
 
+/**
+ * Foreign exchange positions
+ * Tracks foreign currency exposure lots. One position per fx transaction per company
+ *
+ */
 const tableName = 'fx_positions';
 
 export async function up(knex: Knex): Promise<void> {
@@ -33,7 +38,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('currencies')
       .onDelete('CASCADE');
 
-    table.decimal('open_fx_amount', 15, 3).notNullable();
+    table.decimal('open_fx_amount', 18, 3).notNullable();
 
     table
       .decimal('carrying_rate', 32, 10)
@@ -41,7 +46,7 @@ export async function up(knex: Knex): Promise<void> {
       .comment('Last rate use to set carrying value');
 
     table
-      .decimal('carrying_base_amount', 15, 3)
+      .decimal('carrying_base_amount', 18, 3)
       .notNullable()
       .comment('Base carrying value after last revaluation');
 

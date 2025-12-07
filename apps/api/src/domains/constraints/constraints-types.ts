@@ -14,7 +14,7 @@ export const constraintScope = z.enum(['entry', 'head']);
 export const constraintSeverity = z.enum(['warning', 'error']);
 
 const entryObj = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   amount: z.number(),
   coa_id: z.string(),
   fs_date: z.string().optional(), // YYYY-MM-DD format

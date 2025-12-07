@@ -1,18 +1,12 @@
-import Decimal from 'decimal.js';
 import { z } from 'zod';
 
-import {
-  categorizationStatus,
-  dbBaseFields,
-  debitCredit,
-  zDate,
-} from '../../core/types/core.js';
+import { dbBaseFields, debitCredit, zDate } from '../../core/types/core.js';
 import {
   createCamelCaseSchema,
   type SnakeToCamelCaseObject,
 } from '../../shared/utils/formatting.utils.js';
 import { bankProviderKey } from '../banking/bankFeedProviders/bankFeedProviders.types.js';
-import { type ContactType, contactType } from '../contacts/index.js';
+import { contactType } from '../contacts/index.js';
 
 // ENUMS
 export const bankTransactionSource = z.enum([
@@ -49,7 +43,6 @@ export type BankTransactionInputCamel = SnakeToCamelCaseObject<
 export const newBankTransaction = bankTransactionInput.extend({
   bank_account_id: z.uuid(),
   system_exchange_rate: z.number(),
-  categorization_status: categorizationStatus.default('uncategorized'),
   bank_transaction_batch_id: z.uuid().nullish(),
   external_id: z.string().max(256),
   ledger_transaction_id: z.uuid().nullish(),
@@ -134,7 +127,7 @@ export const bankTransactionsFilters = z.object({
   endDate: z.date().optional(),
   bankAccountIds: z.array(z.uuid()).optional(),
   transactionSide: debitCredit.optional(),
-  categorizationStatus: categorizationStatus.optional(),
+  // categorizationStatus: categorizationStatus.optional(),
   isDeleted: z.boolean().optional(),
   searchQuery: z.string().optional(),
   minAmount: z.number().optional(),

@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { Knex } from 'knex';
 
-import { categorizationStatus } from '../../core/types/core.js';
 import { knexClient } from '../../db/knexClient.js';
 import { generateFingerprintSync } from '../../shared/index.js';
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
@@ -303,7 +302,6 @@ export async function addNewBankTransactions({
             external_id: tx.external_id || generatedExternalId,
             amount: Number(tx.amount),
             system_exchange_rate: Number(rate),
-            categorization_status: categorizationStatus.enum.uncategorized,
             bank_transaction_batch_id: batch.id,
             created_by_id: userId,
             updated_by_id: userId,

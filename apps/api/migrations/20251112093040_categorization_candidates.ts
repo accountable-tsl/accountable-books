@@ -30,7 +30,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('CASCADE');
     table.specificType('source', 'txn_categorization_source').notNullable();
-    table.uuid('contact_id').nullable().references('id').inTable('contacts');
+    table
+      .uuid('contact_id')
+      .nullable()
+      .references('id')
+      .inTable('contacts')
+      .onDelete('SET NULL');
     table.specificType('contact_type', 'contact_type').nullable();
     table.string('description').nullable();
     table.string('reference').nullable();
@@ -132,7 +137,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('CASCADE');
     table.specificType('source', 'txn_categorization_source').notNullable();
-    table.uuid('contact_id').nullable().references('id').inTable('contacts');
+    table
+      .uuid('contact_id')
+      .nullable()
+      .references('id')
+      .inTable('contacts')
+      .onDelete('SET NULL');
     table.specificType('contact_type', 'contact_type').nullable();
     table.string('description').nullable();
     table.string('reference').nullable();
@@ -177,10 +187,16 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('currencies')
       .notNullable();
-    table.decimal('signed_native_amount', 15, 3).notNullable();
-    table.bigint('system_exchange_rate').notNullable();
+    table.decimal('signed_native_amount', 18, 3).notNullable();
+    table.decimal('system_exchange_rate', 32, 10).notNullable();
+    table.decimal('custom_exchange_rate', 32, 10).notNullable();
+    table
+      .specificType(
+        'signed_reporting_amount',
+        'numeric(18, 3) GENERATED ALWAYS AS (signed_native_amount * custom_exchange_rate) STORED',
+      )
+      .notNullable();
 
-    table.specificType('status', 'categorization_status').notNullable();
     table.specificType('transaction_side', 'debit_credit').notNullable();
     table.uuid('coa_id').notNullable();
     table.string('description').nullable();
@@ -211,9 +227,24 @@ export async function up(knex: Knex): Promise<void> {
     REFERENCES bank_transactions (id, date)
     ON DELETE CASCADE;
   `);
+
+  // FK from ledger_transactions to categorization_candidates
+  await knex.raw(`
+    ALTER TABLE ledger_transactions
+    ADD CONSTRAINT ledger_transactions_categorization_candidate_id_foreign
+    FOREIGN KEY (categorization_candidate_id)
+    REFERENCES ${CANDIDATES_TABLE} (id)
+    ON DELETE SET NULL;
+  `);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  // Drop FK from ledger_transactions to categorization_candidates
+  await knex.raw(`
+    ALTER TABLE ledger_transactions
+    DROP CONSTRAINT IF EXISTS ledger_transactions_categorization_candidate_id_foreign;
+  `);
+
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_constraint_candidate;`);
 
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidate_lines_candidate;`);
