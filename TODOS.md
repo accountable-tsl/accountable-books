@@ -157,7 +157,16 @@ Launch `2025-29-09`
 - What if for personal finance, snapping and keeping receipts, people can get points
 - Invoice to auto journals
 - Auto generating depreciation journals etc
-- Handling Monetary and FX Positions
+- Handling Monetary and FX Positions!!
+- Caching of company settings
+- is_trainable flag on ledger transactions
+- Admin, metrics and support dashboards for admin, metrics and support stuff
+- What's the limit of the infrastructure we launch on?
+- Firm manager dashboard - total transactions categorized value and count, they can see per client, total time saved, %automatically handled, etc... helps them see value
+- Client dashboard should also have something similar
+- Collaborative mode for categorization... multiple bookkeepers can work on a client's book per time. Imagine as A is working on it, B can see where A is on the file. Like sheets but even more elegant and/or gamified
+- Future feature... messaging and chat interactions: messaging clients directly, messaging other bookkeepers. Using chat to categorize or handle bulk actions
+- Adding tags to transactions. BNot that creaat
 
 ---
 

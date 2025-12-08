@@ -235,7 +235,7 @@ const createUserAndCompany = async (
   const userResponse = await createUserDirect({
     input: {
       ...userInput,
-      ...(userInput.is_demo_user
+      ...(userInput.user_type === 'demo'
         ? {
             email_verified_at: now,
             onboarding_state: createCompleteUserOnboardingState(),

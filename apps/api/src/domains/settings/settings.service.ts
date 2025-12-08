@@ -161,7 +161,6 @@ export async function setCompanySettings<K extends SettingKey>(params: {
   settings: Array<{
     key: K;
     value: SettingValue<K>;
-    description?: string;
   }>;
   userId: string;
   trx?: Knex.Transaction;
@@ -178,7 +177,6 @@ export async function setCompanySettings({
   settings: Array<{
     key: SettingKey;
     value: unknown;
-    description?: string;
   }>;
   userId: string;
   trx?: Knex.Transaction;
@@ -209,12 +207,10 @@ export async function setCompanySettings({
     // 3. Prepare rows for upsert
     const rows = validated.map((setting) => {
       const schema = settingRegistry[setting.key];
-      const description = setting.description ?? schema.description ?? '';
 
       return {
         company_id: companyUUID,
         key: setting.key,
-        description,
         ...toStorageRow(setting.key, setting.value),
         created_by_id: userId,
         updated_by_id: userId,
@@ -230,9 +226,6 @@ export async function setCompanySettings({
         int_value: txn.raw('excluded.int_value'),
         string_value: txn.raw('excluded.string_value'),
         json_value: txn.raw('excluded.json_value'),
-        description: txn.raw(
-          'COALESCE(excluded.description, company_settings.description)',
-        ),
         updated_by_id: txn.raw('excluded.updated_by_id'),
         // Note: created_by_id is NOT updated on conflict (preserves original creator)
       });
@@ -283,12 +276,10 @@ export async function initializeCompanySettings({
     (key) => {
       const schema = settingRegistry[key];
       const defaultValue = schema.parse(undefined); // Extracts default value
-      const description = schema.description ?? '';
 
       return {
         key,
         value: defaultValue,
-        description,
       };
     },
   );

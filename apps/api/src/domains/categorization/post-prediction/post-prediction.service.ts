@@ -4,6 +4,13 @@ import type { Knex } from 'knex';
 import { knexClient } from '../../../db/knexClient.js';
 import { logger, toYMD } from '../../../shared/index.js';
 import { runConstraints } from '../../constraints/constraint-runner.js';
+import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
+import { getSystemUser } from '../../users/users.model.js';
+import {
+  checkAutopostEligibility,
+  enqueueDelayedAutopost,
+  postCandidateToLedger,
+} from '../autopost/index.js';
 import { persistCategorizationCandidate } from '../candidates/candidates.service.js';
 import type { CandidateLineDraft } from '../candidates/candidates.types.js';
 import type { TxnCategorizationSource } from '../categorization.types.js';
@@ -674,6 +681,7 @@ async function processPredictionToCandidate({
 
     const bankAccountCoaId = bankTxn?.bank_coa_id;
     const bankAccountCurrencyId = bankTxn?.bank_account_currency_id;
+    const bankTransactionAmount = bankTxn?.amount;
     if (
       !bankTxn ||
       !bankAccountCoaId ||
@@ -750,13 +758,15 @@ async function processPredictionToCandidate({
       fs_date: p.ledger_date ?? bankTxn.date,
       transaction_side: bankTxn.amount > 0 ? 'debit' : 'credit',
       coa_id: bankAccountCoaId,
+      contact_id: p.contact_id ?? bankTxn.contact_id ?? null,
+      contact_type: p.contact_type ?? bankTxn.contact_type ?? null,
       source_currency_id: bankAccountCurrencyId,
       system_exchange_rate: bankTxn.system_exchange_rate,
       custom_exchange_rate: bankTxn.custom_exchange_rate,
       signed_native_amount: bankTxn.amount,
       description: p.description ?? bankTxn.description,
       is_bank_leg: true,
-      explanation: 'Represents the bank account side of the double-entry', // Add later
+      explanation: 'Represents the bank account side of the double-entry',
     };
 
     // Build other journal entries from prediction lines
@@ -896,11 +906,15 @@ async function processPredictionToCandidate({
     // - Compare sources and confidence
     // - Replace if new candidate is better (rule > ml > ml_heuristic, or higher confidence)
     // - Log events for candidate_created, candidate_replaced, or candidate_ignored
-    await persistCategorizationCandidate({
+    const { candidateId } = await persistCategorizationCandidate({
       candidate: candidateObj,
       runId,
       trx,
     });
+
+    if (!candidateId) {
+      throw new Error('Failed to persist candidate');
+    }
 
     logger.debug(
       {
@@ -911,9 +925,104 @@ async function processPredictionToCandidate({
       'Candidate persisted successfully',
     );
 
-    // Now, we need to determine if we should post this to the ledger based on company's auto-post settings
-    // Also matters if this is a rule- or ml- generated candidate. For ML, we might need to enqueue if auto-post delay is set
-    // But that also means we need to be checking just in case user reviews this candidate and posts before autopost triggers
+    // Check autopost eligibility and handle accordingly
+    // Rules: Post immediately if autopost_rules is true
+    // ML: Post immediately if delay is 0, otherwise enqueue delayed job
+
+    const eligibility = await checkAutopostEligibility({
+      source,
+      confidence: p.confidence,
+      companyId: companyUUID,
+      trx: txn,
+    });
+
+    if (eligibility.shouldAutopost) {
+      if (eligibility.isImmediate) {
+        // Post immediately within the same transaction
+        try {
+          const result = await postCandidateToLedger({
+            candidateInput: candidateObj,
+            bankTransaction: {
+              id: bankTxnId,
+              bankAccountCurrencyId,
+              transactionValue: bankTxn.amount,
+            },
+            candidateId,
+            companyId: companyUUID,
+            runId,
+            trx: txn,
+          });
+
+          if (result.success) {
+            logger.info(
+              {
+                candidateId,
+                bankTransactionId: bankTxnId,
+                source,
+                ledgerTransactionId: result.ledgerTransactionId,
+              },
+              'Candidate autoposted immediately to ledger',
+            );
+          } else {
+            logger.warn(
+              {
+                candidateId,
+                bankTransactionId: bankTxnId,
+                source,
+                error: result.error,
+              },
+              'Failed to autopost candidate immediately, but candidate was persisted',
+            );
+            // Don't throw - candidate is persisted, autopost failure shouldn't block it
+          }
+        } catch (error) {
+          logger.error(
+            {
+              candidateId,
+              bankTransactionId: bankTxnId,
+              source,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            },
+            'Error during immediate autopost, but candidate was persisted',
+          );
+          // Don't throw - candidate is persisted, autopost failure shouldn't block it
+        }
+      } else if (eligibility.delayMs) {
+        // Enqueue delayed autopost job (after transaction commits)
+        // Use setImmediate to ensure transaction commits first
+        setImmediate(async () => {
+          try {
+            await enqueueDelayedAutopost({
+              candidateId,
+              companyId: companyUUID,
+              runId,
+              delayMs: eligibility.delayMs!,
+            });
+            logger.info(
+              {
+                candidateId,
+                bankTransactionId: bankTxnId,
+                source,
+                delayMs: eligibility.delayMs,
+                delayMinutes: Math.round(eligibility.delayMs! / 60000),
+              },
+              'Delayed autopost job enqueued',
+            );
+          } catch (error) {
+            logger.error(
+              {
+                candidateId,
+                bankTransactionId: bankTxnId,
+                source,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              },
+              'Failed to enqueue delayed autopost job',
+            );
+            // Don't throw - this is async, errors are logged
+          }
+        });
+      }
+    }
   };
 
   if (trx) {

@@ -250,7 +250,7 @@ export class DemoSeedRunner {
         switch (step.name) {
           case 'user':
             count = await this.knex('users')
-              .where('is_demo_user', true)
+              .where('user_type', 'demo')
               .count('* as count')
               .first()
               .then((r) => Number(r?.count) || 0);

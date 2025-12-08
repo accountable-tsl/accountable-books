@@ -26,7 +26,7 @@ describe('Users Data', () => {
       lastname: 'Doe',
       email: 'demo.us@example.com',
       password: 'StrongDemoPass!',
-      is_demo_user: true,
+      user_type: 'demo',
     });
   });
 
@@ -36,7 +36,7 @@ describe('Users Data', () => {
       lastname: 'Doe',
       email: 'demo.ng@example.com',
       password: 'StrongDemoPass!',
-      is_demo_user: true,
+      user_type: 'demo',
     });
   });
 
@@ -139,14 +139,14 @@ describe('createDemoUsers', () => {
     expect(mockCreateUser).toHaveBeenCalledWith({
       user: expect.objectContaining({
         email: 'demo.us@example.com',
-        is_demo_user: true,
+        user_type: 'demo',
       }),
       trx: mockTransaction,
     });
     expect(mockCreateUser).toHaveBeenCalledWith({
       user: expect.objectContaining({
         email: 'demo.ng@example.com',
-        is_demo_user: true,
+        user_type: 'demo',
       }),
       trx: mockTransaction,
     });
@@ -228,7 +228,7 @@ describe('deleteDemoUsers', () => {
     // When no filters provided, should delete all demo users
     await deleteDemoUsers(transaction);
 
-    expect(mockWhere).toHaveBeenCalledWith('is_demo_user', true);
+    expect(mockWhere).toHaveBeenCalledWith('user_type', 'demo');
     expect(mockDelete).toHaveBeenCalled();
   });
 

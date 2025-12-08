@@ -3,7 +3,6 @@ import z from 'zod';
 export const settingTableInput = z.object({
   company_id: z.uuid(),
   key: z.string(),
-  description: z.string().optional(),
   bool_value: z.boolean().nullish(),
   int_value: z.number().nullish(),
   string_value: z.string().nullish(),

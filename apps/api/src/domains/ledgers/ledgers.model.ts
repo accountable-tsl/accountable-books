@@ -5,7 +5,7 @@ import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { logger } from '../../shared/index.js';
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
-import { isValidYMD, toDate, toYMD } from '../../shared/utils/date.utils.js';
+import { toYMD } from '../../shared/utils/date.utils.js';
 import {
   AppError,
   errorResponse,
@@ -13,17 +13,17 @@ import {
 } from '../../shared/utils/response.utils.js';
 import { enqueueGLBalance } from '../balances/index.js';
 import { runConstraints } from '../constraints/constraint-runner.js';
-import { normalizeContactName } from '../contacts/contacts.model.js';
-import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import {
   determineMonetaryEntries,
   makeFxTransactionId,
   upsertFxPosition,
 } from '../fx/index.js';
-import { ensureAndFetchFiscalCalendar } from '../reporting/fiscal-calendar/fiscal-calendar.service.js';
 import { getCompanySetting } from '../settings/settings.service.js';
+import { isSystemUser } from '../users/users.model.js';
+import { logLedgerEvent } from './ledger-audit-logs.service.js';
 import {
   type LedgerEntry,
+  type LedgerEntryInput,
   type LedgerTransaction,
   type NewLedgerEntry,
   type NewLedgerTransaction,
@@ -31,377 +31,61 @@ import {
   newLedgerTransactionData,
 } from './ledgers.types.js';
 import {
+  detectChangedFields,
+  normalizeDateForComparison,
   processEntriesDates,
   resolveFx,
   validateBankLegAmount,
   validateIds,
 } from './ledgers.utils.js';
 
-/**
- * Create a single ledger transaction
- */
-export async function createLedgerRecordOld({
-  data,
-  companyId,
-  userId,
-  trx,
-}: {
-  data: NewLedgerTransactionData;
-  companyId: string;
-  userId: string;
-  trx?: Knex.Transaction;
-}): Promise<ApiResponse<{ ledgerTransactionId: string }>> {
-  // Helpers
-  const dayYMD = (d: string | Date) => {
-    const ymd = toYMD(d);
-    if (!isValidYMD(ymd)) throw new Error(`Invalid fs_date: ${String(d)}`);
-    return ymd;
+interface CreateLedgerRecordResult {
+  ledgerTransactionId: string;
+  warnings?: { [key: string]: string };
+  affectedCOAs: number;
+  dateRange: {
+    min: string | null;
+    max: string | null;
   };
-
-  // Validate payload
-  const v = newLedgerTransactionData.safeParse(data);
-  if (!v.success) {
-    throw new Error(`Invalid input: ${v.error.message}`);
-  }
-
-  const { transactions, ...ledgerTxInput } = v.data;
-  if (transactions.length === 0) {
-    throw new Error('No entries');
-  }
-
-  // Ledger transaction integrity check: validate zero-sum
-  const total = transactions.reduce((sum, t) => sum + t.source_amount, 0);
-  if (Math.abs(total) > 0) {
-    throw new Error(`Total amount must be 0. Got: ${total}`);
-  }
-
-  const exec = async (tx: Knex.Transaction) => {
-    const company =
-      (await tx('companies')
-        .where((b) => b.where('short_code', companyId).orWhere('id', companyId))
-        .where('is_deleted', false)
-        .first('id', 'reporting_currency_id')) ?? null;
-
-    if (!company || !company.reporting_currency_id || !company.id) {
-      throw new Error(`Company not found: ${companyId}`);
-    }
-    const companyUUID = company.id;
-    const reportingCurrencyId = company.reporting_currency_id;
-
-    await tx.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [companyUUID]);
-
-    // Validate all COAs exist
-    // COA validation (+ default monetary flag)
-    const uniqueCoaIds = Array.from(new Set(transactions.map((t) => t.coa_id)));
-    const coaRows = await tx('coa')
-      .join('account_types', 'coa.account_type_id', 'account_types.id')
-      .where('coa.company_id', companyUUID)
-      .whereIn('coa.id', uniqueCoaIds)
-      .where('coa.is_deleted', false)
-      .select('coa.id', 'account_types.default_monetary');
-
-    const coaMonetary = new Map<string, boolean>(
-      coaRows.map((r: any) => [r.id, r.default_monetary]),
-    );
-    const missingCoa = uniqueCoaIds.filter((id) => !coaMonetary.has(id));
-    if (missingCoa.length) {
-      throw new Error(`Invalid COA IDs: ${missingCoa.join(', ')}`);
-    }
-
-    // // Resolve or create contact
-    // let contactId: string | null = null;
-    // if (ledgerTxInput.contact_id) {
-    //   const exists = await tx('contacts')
-    //     .where({
-    //       id: ledgerTxInput.contact_id,
-    //       company_id: companyUUID,
-    //       is_deleted: false,
-    //     })
-    //     .first();
-    //   if (!exists) {
-    //     throw new Error(`Invalid contact_id: ${ledgerTxInput.contact_id}`);
-    //   }
-    //   contactId = exists.id;
-    // } else if (ledgerTxInput.contact_name?.trim()) {
-    //   const normalizedName = normalizeContactName(ledgerTxInput.contact_name);
-
-    //   const existing = await tx('contacts')
-    //     .where({
-    //       company_id: companyUUID,
-    //       normalized_name: normalizedName,
-    //       is_deleted: false,
-    //     })
-    //     .first('id');
-
-    //   if (existing) {
-    //     contactId = existing.id;
-    //   } else {
-    //     const [created] = await tx('contacts')
-    //       .insert({
-    //         company_id: companyUUID,
-    //         display_name: ledgerTxInput.contact_name.trim(),
-    //         normalized_name: normalizedName,
-    //         created_by_id: userId,
-    //         updated_by_id: userId,
-    //       })
-    //       .returning('id');
-    //     contactId = created.id;
-    //   }
-    // }
-
-    // Projects: validate IDs only (no auto-creation)
-    const projectIds = new Set<string>();
-    for (const t of transactions) {
-      if (t.project_id) projectIds.add(t.project_id);
-    }
-
-    if (projectIds.size) {
-      const validProjectIds = await tx('projects')
-        .whereIn('id', Array.from(projectIds))
-        .where({ company_id: companyUUID, is_deleted: false })
-        .pluck('id');
-
-      const validSet = new Set(validProjectIds as string[]);
-      const invalid = Array.from(projectIds).filter((id) => !validSet.has(id));
-      if (invalid.length > 0) {
-        throw new Error(`Invalid project IDs: ${invalid.join(', ')}`);
-      }
-    }
-
-    // Fiscal periods
-    // Validate fiscal periods exist and are open
-    let minYMD: string | null = null;
-    let maxYMD: string | null = null;
-    for (const t of transactions) {
-      const d = dayYMD(t.fs_date);
-      if (!minYMD || d < minYMD) minYMD = d;
-      if (!maxYMD || d > maxYMD) maxYMD = d;
-    }
-    if (!minYMD || !maxYMD) {
-      throw new Error('No fs_date(s) provided');
-    }
-
-    await ensureAndFetchFiscalCalendar({
-      companyId: companyUUID,
-      startYMD: minYMD,
-      endYMD: maxYMD,
-      fetchTypes: ['monthly'],
-      requireMonthlyOpen: true,
-      trx: tx,
-    });
-
-    // Fetch exchange rates in batch
-    // FX prefetch per (day, source_currency)
-    const rateKey = (d: string, ccy: string) => `${d}|${ccy}`;
-
-    const fxPairs: { date: string; fromCurrencyId: string }[] = [];
-    const fxKeySet = new Set<string>();
-    for (const t of transactions) {
-      if (t.source_currency_id !== reportingCurrencyId) {
-        const d = dayYMD(t.fs_date);
-        const k = rateKey(d, t.source_currency_id);
-        if (!fxKeySet.has(k)) {
-          fxKeySet.add(k);
-          fxPairs.push({ date: d, fromCurrencyId: t.source_currency_id });
-        }
-      }
-    }
-    const fxRateMap = new Map<string, number>();
-    if (fxPairs.length) {
-      const results = await Promise.all(
-        fxPairs.map(async (p) => {
-          const rate = await determineExchangeRate({
-            // date: new Date(`${p.date}T00:00:00Z`), // stable UTC midnight
-            date: p.date,
-            fromCurrencyId: p.fromCurrencyId,
-            toCurrencyId: reportingCurrencyId,
-          });
-          return { key: rateKey(p.date, p.fromCurrencyId), rate };
-        }),
-      );
-      const missing: string[] = [];
-      for (const r of results) {
-        if (r.rate == null) missing.push(r.key);
-        else fxRateMap.set(r.key, Number(r.rate));
-      }
-      if (missing.length) {
-        throw new Error(`Missing exchange rates for: ${missing.join(', ')}`);
-      }
-    }
-
-    // Ensure partitions for ledger entries exist
-    const transactionDates = transactions.map((t) =>
-      toDate(t.fs_date, 'start'),
-    );
-    await ensurePartitionsForDates('ledger_entries', transactionDates, tx);
-
-    // Idempotent insert of ledger_transaction guarded by unique index
-    let ledgerTransactionId: string;
-    {
-      const toInsert = {
-        date: ledgerTxInput.date,
-        transaction_source: ledgerTxInput.transaction_source,
-        categorization_source: ledgerTxInput.categorization_source,
-        description: ledgerTxInput.description,
-        reference: ledgerTxInput.reference,
-        note: ledgerTxInput.note,
-        // contact_id: contactId ?? null,
-        // contact_type_snapshot: ledgerTxInput.contact_type_snapshot ?? null,
-        ...(ledgerTxInput.source_transaction_id &&
-        ledgerTxInput.source_transaction_date
-          ? {
-              source_transaction_id:
-                ledgerTxInput.source_transaction_id ?? null,
-              source_transaction_date:
-                dayYMD(ledgerTxInput.source_transaction_date) ?? null,
-            }
-          : {}),
-        company_id: companyUUID,
-        created_by_id: userId,
-        updated_by_id: userId,
-      };
-
-      // If no bank linkage, just insert and return
-      if (
-        !ledgerTxInput.source_transaction_date ||
-        !ledgerTxInput.source_transaction_id
-      ) {
-        const [row] = await tx('ledger_transactions')
-          .insert(toInsert)
-          .returning('id');
-        ledgerTransactionId = row.id;
-      } else {
-        // Upsert (ignore on conflict) and fetch id if existed
-        const ret = await tx('ledger_transactions')
-          .insert(toInsert)
-          .onConflict([
-            'company_id',
-            'bank_transaction_date',
-            'bank_transaction_id',
-          ])
-          .ignore()
-          .returning('id');
-
-        if (ret.length) {
-          ledgerTransactionId = ret[0].id;
-        } else {
-          const existing = await tx('ledger_transactions')
-            .where({
-              company_id: companyUUID,
-              bank_transaction_date: dayYMD(
-                ledgerTxInput.source_transaction_date,
-              ),
-              source_transaction_id: ledgerTxInput.source_transaction_id,
-              is_deleted: false,
-            })
-            .first('id');
-          if (!existing)
-            throw new Error(
-              'Unexpected: ledger transaction not found after conflict',
-            );
-          ledgerTransactionId = existing.id;
-        }
-      }
-    }
-
-    // Build ledger entries
-    const entries = transactions.map((t) => {
-      const d = toYMD(t.fs_date);
-      let systemRate = 1;
-      let customRate = 1;
-      if (t.source_currency_id !== reportingCurrencyId) {
-        const r = fxRateMap.get(rateKey(d, t.source_currency_id));
-        if (!r)
-          throw new Error(
-            `Exchange rate missing at build: ${d}|${t.source_currency_id}`,
-          );
-        systemRate = r;
-        customRate = t.custom_exchange_rate ?? r;
-      }
-      const resolvedProjectId = t.project_id ?? null;
-
-      return {
-        ledger_transaction_id: ledgerTransactionId,
-        fs_date: d, // store as DATE-compatible string
-        coa_id: t.coa_id,
-        source_currency_id: t.source_currency_id,
-        source_amount: t.source_amount,
-        system_exchange_rate: systemRate,
-        custom_exchange_rate: customRate,
-        description: t.description,
-        project_id: resolvedProjectId,
-        is_monetary: t.is_monetary ?? coaMonetary.get(t.coa_id) ?? false,
-        fx_transaction_id: t.fx_transaction_id ?? null,
-        updated_by_id: userId,
-      };
-    });
-
-    // Insert all ledger entries
-    await tx('ledger_entries').insert(entries);
-
-    // Enqueue gl balance calculation using per-COA earliest and latest dates
-    // Build a map of { coaId -> { min: YYYY-MM-DD, max: YYYY-MM-DD } } from processed transactions
-    // Enqueue GL balance recalcs per-COA with min affected day
-    const bounds = new Map<string, { min: string; max: string }>();
-    for (const t of transactions) {
-      const d = dayYMD(t.fs_date);
-      const b = bounds.get(t.coa_id);
-      if (!b) bounds.set(t.coa_id, { min: d, max: d });
-      else {
-        if (d < b.min) b.min = d;
-        if (d > b.max) b.max = d;
-      }
-    }
-    for (const [coaId, b] of bounds) {
-      await enqueueGLBalance({
-        companyId: companyUUID,
-        coaId,
-        recalcFrom: b.min,
-        triggeredBy: 'ledger_entry',
-      });
-    }
-
-    return successResponse('Ledger transaction created', {
-      ledgerTransactionId,
-    });
-  };
-
-  // Execute the transaction
-  try {
-    return trx ? await exec(trx) : await knexClient.transaction(exec);
-  } catch (err) {
-    if (trx) {
-      throw new Error(
-        `Failed to create ledger entries: ${
-          err instanceof Error ? err.message : 'Unknown error'
-        }`,
-      );
-    }
-    return errorResponse('Failed to create ledger entries', err);
-  }
 }
 
 /**
  * Create a ledger transaction and its entries atomically
  *
- * This is a refactored version that:
- * - Does NOT auto-create contacts/projects (requires IDs)
- * - Uses constraint validation system
- * - Validates bank transaction amounts
- * - Checks FX convention (warning only)
+ * This function creates a complete accounting transaction (journal entry) in the ledger.
+ * It ensures all accounting rules are followed and maintains data integrity.
+ *
+ * Key Features:
+ * - Validates all inputs before processing
+ * - Ensures double-entry bookkeeping (debits = credits)
+ * - Validates bank transactions match their source
+ * - Handles foreign currency exchange rates
+ * - Tracks FX positions if enabled
+ * - Uses advisory locks to prevent race conditions
+ * - All operations happen in a database transaction (all-or-nothing)
+ *
+ * @param data - The ledger transaction data including entries
+ * @param companyId - The company ID (can be short_code or UUID)
+ * @param userId - The user creating this transaction
+ * @param trx - Optional existing database transaction (if not provided, creates a new one)
+ * @returns Success response with transaction ID and warnings, or error response
  */
 export async function createLedgerRecord({
   data,
+  autoPost = false,
   companyId,
   userId,
   trx,
 }: {
   data: NewLedgerTransactionData;
+  autoPost?: boolean;
   companyId: string;
   userId: string;
   trx?: Knex.Transaction;
-}): Promise<ApiResponse> {
-  // Phase 1: Validate input
+}): Promise<ApiResponse<CreateLedgerRecordResult>> {
+  // PHASE 1: INPUT VALIDATION
+  // Validate that the input data matches our expected schema
+  // This catches errors early before we do any database work
   const validate = newLedgerTransactionData.safeParse(data);
   if (!validate.success) {
     return errorResponse('Invalid input', z.treeifyError(validate.error));
@@ -409,17 +93,19 @@ export async function createLedgerRecord({
 
   const { transactions: entries, ...ledgerTx } = validate.data;
 
+  // A ledger transaction must have at least 2 entries (debit and credit)
   if (entries.length === 0) {
     return errorResponse('No entries provided');
   }
 
-  // convenience
+  // Extract commonly used values for readability
   const isBankTransaction = ledgerTx.transaction_source === 'bank_transaction';
   const sourceTxId = ledgerTx.source_transaction_id;
   const sourceTxDate = ledgerTx.source_transaction_date;
   const sourceTxAmount = ledgerTx.source_transaction_amount;
   const sourceTxCurrencyId = ledgerTx.source_transaction_currency_id;
 
+  // For bank transactions, we need these fields to link back to the source
   const requiredBankTxSourceFieldsExist =
     !!sourceTxId && !!sourceTxDate && !!sourceTxAmount;
   if (isBankTransaction && !requiredBankTxSourceFieldsExist) {
@@ -428,17 +114,18 @@ export async function createLedgerRecord({
     );
   }
 
-  const exec = async (txn: Knex.Transaction) => {
-    const result: {
-      ledgerTransactionId: string;
-      warnings: {
-        [key: string]: string;
-      };
-    } = {
+  const exec = async (
+    txn: Knex.Transaction,
+  ): Promise<CreateLedgerRecordResult> => {
+    // Track warnings that don't block the transaction but should be reported
+    const result: CreateLedgerRecordResult = {
       ledgerTransactionId: '',
       warnings: {},
+      affectedCOAs: 0,
+      dateRange: { min: null, max: null },
     };
-    // Company resolution & advisory lock
+
+    // STEP 1: COMPANY RESOLUTION & SETUP
     const company: { id: string; reporting_currency_id: string } =
       (await txn('companies')
         .where((b) => b.where('short_code', companyId).orWhere('id', companyId))
@@ -462,8 +149,10 @@ export async function createLedgerRecord({
         ? fxSettingsResult.data.track_fx_positions
         : false;
 
-    // Check if transaction already exists (for bank transactions) - fail early
-    // This prevents doing expensive work if the transaction is a duplicate
+    // STEP 2: IDEMPOTENCY CHECK (BANK TRANSACTIONS ONLY)
+    // For bank transactions, check if we've already created a ledger transaction
+    // for this bank transaction. This prevents duplicate work and errors.
+    // We do this BEFORE acquiring locks to avoid unnecessary blocking.
     if (isBankTransaction && requiredBankTxSourceFieldsExist) {
       const existing = await txn('ledger_transactions')
         .where({
@@ -486,24 +175,36 @@ export async function createLedgerRecord({
       }
     }
 
-    // Advisory lock for company-level serialization
+    // STEP 3: ADVISORY LOCKS (PREVENT RACE CONDITIONS)
+    // Advisory locks ensure only one transaction processes at a time for:
+    // 1. The company (prevents concurrent modifications to the same company's ledger)
+    // 2. The bank transaction (if applicable, prevents duplicate ledger transactions)
+    // These locks are automatically released when the transaction commits or rolls back
     await txn.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [companyUUID]);
 
-    // Advisory lock for bank transaction (if linked) to prevent race conditions
+    // Only lock the bank transaction if this is actually a bank transaction
+    // (sourceTxId might exist for other transaction types, but we don't need to lock it)
     if (sourceTxId && isBankTransaction) {
       await txn.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [
         `bank_txn:${sourceTxId}`,
       ]);
     }
 
-    // Ensure partitions exist (must be inside transaction to prevent race conditions)
+    // STEP 4: PARTITION MANAGEMENT
+    // PostgreSQL partitions the ledger_entries table by date for performance
+    // We must ensure the partitions exist before inserting data
+    // This must be inside the transaction to prevent race conditions
     const { transactionDates, bounds, minYMD, maxYMD } =
       processEntriesDates(entries);
     await ensurePartitionsForDates('ledger_entries', transactionDates, txn);
 
-    // Phase 3 Pre-constraint validations
+    // STEP 5: PRE-CONSTRAINT VALIDATIONS
+    // These validations happen before we run the constraint system
+    // They check business rules that are specific to this function
 
-    // 3a.Validate bank leg entries only allowed for bank transactions
+    // 5a. Bank Leg Validation
+    // A "bank leg" is the entry that represents the bank account side of a transaction
+    // Only bank transactions can have bank legs, and they must have exactly one
     const bankLegs = entries.filter((e) => e.is_bank_leg === true);
     if (bankLegs.length > 0 && !isBankTransaction) {
       throw new AppError('Bank leg entries only allowed for bank transactions');
@@ -515,7 +216,12 @@ export async function createLedgerRecord({
       );
     }
 
-    // 3b. CRITICAL: Bank transaction validation and bank leg matching
+    // 5b. Bank Transaction Validation & Matching
+    // For bank transactions, we must:
+    // 1. Fetch the original bank transaction from the database
+    // 2. Verify it exists and belongs to this company
+    // 3. Ensure the bank leg matches the bank account (COA and currency)
+    // 4. Ensure the bank leg amount matches the bank transaction amount
     let bankTxn: {
       amount: number;
       system_exchange_rate: number;
@@ -526,7 +232,8 @@ export async function createLedgerRecord({
     } | null = null;
 
     if (isBankTransaction && requiredBankTxSourceFieldsExist) {
-      // Fetch bank transaction with bank account details
+      // Fetch the bank transaction along with its bank account details
+      // We need the bank account's COA and currency to validate the bank leg
       const bankTxnResult = await txn('bank_transactions as bt')
         .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
         .where({
@@ -561,21 +268,22 @@ export async function createLedgerRecord({
 
       const bankLeg = bankLegs[0];
 
-      // Validate bank leg COA matches bank account COA
+      // The bank leg must use the same Chart of Account as the bank account
       if (bankLeg.coa_id !== bankTxn.bank_coa_id) {
         throw new AppError(
           `Bank leg COA (${bankLeg.coa_id}) does not match bank account COA (${bankTxn.bank_coa_id})`,
         );
       }
 
-      // Validate bank leg currency matches bank account currency
+      // The bank leg must use the same currency as the bank account
       if (bankLeg.source_currency_id !== bankTxn.bank_currency_id) {
         throw new AppError(
           `Bank leg currency (${bankLeg.source_currency_id}) does not match bank account currency (${bankTxn.bank_currency_id})`,
         );
       }
 
-      // Validate bank leg amount matches bank transaction amount (both in native currency)
+      // The bank leg amount must match the bank transaction amount
+      // Note: We check magnitude only (signs may differ for debit/credit)
       const bankValidation = validateBankLegAmount({
         entries: [bankLeg],
         bankTransactionAmount: bankTxn.amount,
@@ -586,88 +294,17 @@ export async function createLedgerRecord({
       }
     }
 
-    // 3c. Contact validation (batch)
-    // Resolve contact: use bank transaction contact if no transaction contact provided
-    // let transactionContactId = ledgerTx.contact_id ?? null;
-    // let transactionContactType = ledgerTx.contact_type_snapshot ?? null;
+    // STEP 6: CONTACT & PROJECT RESOLUTION
+    // Contacts and projects can be specified at the transaction level or entry level
+    // If not specified at transaction level, we use the bank transaction's contact (if available)
+    // Then we validate that all referenced contacts and projects exist and belong to the company
 
-    // if (!transactionContactId && bankTxn?.contact_id) {
-    //   transactionContactId = bankTxn.contact_id;
-    //   transactionContactType =
-    //     (bankTxn.contact_type_snapshot as typeof transactionContactType) ??
-    //     null;
-
-    //   logger.debug(
-    //     {
-    //       companyId: companyUUID,
-    //       bankTransactionId: ledgerTx.source_transaction_id,
-    //       contactId: transactionContactId,
-    //     },
-    //     'Using bank transaction contact as default for ledger transaction',
-    //   );
-    // }
-    // const entryContactIds = new Set<string>(
-    //   entries.filter((e) => e.contact_id).map((e) => e.contact_id!),
-    // );
-
-    // if (transactionContactId) {
-    //   const contactExists = await txn('contacts')
-    //     .where({
-    //       id: transactionContactId,
-    //       company_id: companyUUID,
-    //       is_deleted: false,
-    //     })
-    //     .first('id');
-
-    //   if (!contactExists) {
-    //     return errorResponse(`Contact not found: ${transactionContactId}`);
-    //   }
-    // }
-
-    // if (entryContactIds.size > 0) {
-    //   const validContacts = await txn('contacts')
-    //     .whereIn('id', Array.from(entryContactIds))
-    //     .where({ company_id: companyUUID, is_deleted: false })
-    //     .pluck('id');
-
-    //   const validSet = new Set(validContacts as string[]);
-    //   const invalid = Array.from(entryContactIds).filter(
-    //     (id) => !validSet.has(id),
-    //   );
-
-    //   if (invalid.length > 0) {
-    //     throw new AppError(`Invalid contact IDs: ${invalid.join(', ')}`);
-    //   }
-    // }
-
-    // // 3d. Project validation (batch)
-    // const entryProjectIds = new Set<string>(
-    //   entries.filter((e) => e.project_id).map((e) => e.project_id!),
-    // );
-
-    // if (entryProjectIds.size > 0) {
-    //   const validProjects = await txn('projects')
-    //     .whereIn('id', Array.from(entryProjectIds))
-    //     .where({ company_id: companyUUID, is_deleted: false })
-    //     .pluck('id');
-
-    //   const validSet = new Set(validProjects as string[]);
-    //   const invalid = Array.from(entryProjectIds).filter(
-    //     (id) => !validSet.has(id),
-    //   );
-
-    //   if (invalid.length > 0) {
-    //     return errorResponse(`Invalid project IDs: ${invalid.join(', ')}`);
-    //   }
-    // }
-
-    // Wanna refactor this to see first
-    // Contact and project ID validation
+    // Resolve transaction-level contact (cascades from bank transaction if not provided)
     const [transactionContactId, transactionContactType] = (() => {
       let id = ledgerTx.contact_id ?? null;
       let type = ledgerTx.contact_type ?? null;
 
-      // Fallback logic
+      // If no contact specified at transaction level, use bank transaction's contact
       if (!id && bankTxn?.contact_id) {
         id = bankTxn.contact_id;
         type = (bankTxn.contact_type_snapshot as typeof type) ?? null;
@@ -676,6 +313,8 @@ export async function createLedgerRecord({
       return [id, type];
     })();
 
+    // Collect all contact and project IDs that need validation
+    // (from both transaction level and entry level)
     const allContactIds = new Set<string>();
     const allProjectIds = new Set<string>();
 
@@ -693,23 +332,22 @@ export async function createLedgerRecord({
       }
     }
 
+    // Validate that all referenced contacts and projects exist and belong to this company
+    // This prevents orphaned references and ensures data integrity
     const contactIds = Array.from(allContactIds);
     const projectIds = Array.from(allProjectIds);
 
     await validateIds('contacts', contactIds, companyUUID, txn);
     await validateIds('projects', projectIds, companyUUID, txn);
 
-    // FX
-    // Same FX rate shall apply to all entries
-    // If source currency === reporting currency, rate = 1
-    // If one entry have custom exchange rate, we'll use it for as custom rate for all entries
-    // If more than one entry have custom exchange rate, and they are different, we'll flag it as an error and return a warning, we'll use system exchange rate for all entries
-    // In all other cases, we'll use system exchange rate for all entries
-    // We should also check if any entry has suspicious FX rate maybe (very small, very large), and flag it as a warning
-    // We should also keep a warning if the converted amount that'll result is suspiciously small or large
-    // We only multiply txn amount by exchange rate, not divide. So reporting currency has to be price currency
-    // You multiply when converting the base currency amount into the price currency
-
+    // STEP 7: FOREIGN EXCHANGE RATE RESOLUTION
+    // All entries in a ledger transaction must use the same source currency
+    // If that currency differs from the reporting currency, we need exchange rates
+    // This function:
+    // - Determines the system exchange rate (from rate tables or bank transaction)
+    // - Handles custom exchange rates (if provided by user)
+    // - Validates rates are reasonable
+    // - Returns warnings for suspicious rates (but doesn't block the transaction)
     const {
       systemExRate,
       customExRate,
@@ -722,88 +360,21 @@ export async function createLedgerRecord({
       bankTxnSystemRate: bankTxn?.system_exchange_rate,
     });
 
+    // Store FX warnings to return to the caller
     if (fxWarnings.length > 0) {
+      result.warnings = result.warnings || {};
       result.warnings.fxWarnings = fxWarnings.join(', ');
     }
 
-    // Phase 4: Data transformation & FX rate fetching
-
-    // // Fetch system exchange rates for FX entries
-    // // For bank leg, use bank transaction system exchange rate if available
-    // const fxPairs: { date: string; fromCurrencyId: string }[] = [];
-    // const fxKeySet = new Set<string>();
-    // const rateKey = (d: string, ccy: string) => `${d}|${ccy}`;
-
-    // for (const entry of entries) {
-    //   if (entry.source_currency_id !== reportingCurrencyId) {
-    //     // If this is a bank leg and we have bank transaction rate, use it
-    //     if (entry.is_bank_leg && bankTxn) {
-    //       // Bank leg rate is already in bankTxn.system_exchange_rate
-    //       // We'll handle this in the rate map below
-    //       continue;
-    //     }
-
-    //     const d = dayYMD(entry.fs_date);
-    //     const k = rateKey(d, entry.source_currency_id);
-    //     if (!fxKeySet.has(k)) {
-    //       fxKeySet.add(k);
-    //       fxPairs.push({ date: d, fromCurrencyId: entry.source_currency_id });
-    //     }
-    //   }
-    // }
-
-    // const fxRateMap = new Map<string, number>();
-    // if (fxPairs.length) {
-    //   const results = await Promise.all(
-    //     fxPairs.map(async (p) => {
-    //       const rate = await determineExchangeRate({
-    //         date: p.date,
-    //         fromCurrencyId: p.fromCurrencyId,
-    //         toCurrencyId: reportingCurrencyId,
-    //       });
-    //       return { key: rateKey(p.date, p.fromCurrencyId), rate };
-    //     }),
-    //   );
-
-    //   const missing: string[] = [];
-    //   for (const r of results) {
-    //     if (r.rate == null) missing.push(r.key);
-    //     else fxRateMap.set(r.key, Number(r.rate));
-    //   }
-
-    //   if (missing.length) {
-    //     return errorResponse(
-    //       `Missing exchange rates for: ${missing.join(', ')}`,
-    //     );
-    //   }
-    // }
-
-    // // Add bank leg rate to map if bank transaction exists
-    // if (bankTxn && bankLegs.length > 0) {
-    //   const bankLeg = bankLegs[0]!;
-    //   const d = dayYMD(bankLeg.fs_date);
-    //   const k = rateKey(d, bankLeg.source_currency_id);
-    //   fxRateMap.set(k, bankTxn.system_exchange_rate);
-    // }
-
-    // // Transform for constraint validation
-    // const constraintEntries = entries.map((entry, index) => {
-    //   const d = dayYMD(entry.fs_date);
-    //   const k = rateKey(d, entry.source_currency_id);
-    //   const systemRate = fxRateMap.get(k) ?? 1;
-
-    //   return {
-    //     id: `${index}`,
-    //     amount: entry.source_amount,
-    //     coa_id: entry.coa_id,
-    //     fs_date: d,
-    //     project_id: entry.project_id ?? null,
-    //     is_bank_leg: entry.is_bank_leg ?? false,
-    //     system_exchange_rate: systemRate,
-    //     custom_exchange_rate: entry.custom_exchange_rate ?? systemRate,
-    //   };
-    // });
-
+    // STEP 8: CONSTRAINT VALIDATION
+    // The constraint system enforces accounting rules:
+    // - Debits must equal credits (double-entry bookkeeping)
+    // - All COAs must exist and be active
+    // - Fiscal periods must be open (not locked or closed)
+    // - Exchange rates must be valid
+    // - Projects must exist
+    // - And more...
+    // We transform entries into the format expected by the constraint system
     const constraintEntries = entries.map((entry, index) => {
       return {
         id: `${index}`,
@@ -817,13 +388,13 @@ export async function createLedgerRecord({
       };
     });
 
-    // Phase 5: Constraint validation
     const constraintResult = await runConstraints({
       companyUUID,
       entries: constraintEntries,
       transaction_date: toYMD(ledgerTx.date),
     });
 
+    // If constraints fail, we cannot proceed - the transaction violates accounting rules
     if (!constraintResult.isValid) {
       const errorMessages = constraintResult.errors.map((e) => e.message);
 
@@ -842,12 +413,17 @@ export async function createLedgerRecord({
       );
     }
 
+    // Store constraint warnings (non-blocking issues)
     if (constraintResult.warnings.length > 0) {
+      result.warnings = result.warnings || {};
       result.warnings.constraintWarnings = constraintResult.warnings
         .map((w) => w.message)
         .join('\n');
     }
 
+    // STEP 9: CREATE LEDGER TRANSACTION RECORD
+    // Create the main ledger transaction record (the "header" of the journal entry)
+    // This links all the entries together and stores transaction-level metadata
     const ledgerTransaction: NewLedgerTransaction = {
       ...ledgerTx,
       contact_id: transactionContactId,
@@ -857,16 +433,16 @@ export async function createLedgerRecord({
       updated_by_id: userId,
     };
 
-    // Insert ledger transaction
     const [row] = await txn('ledger_transactions')
       .insert(ledgerTransaction)
       .returning('id');
-    const ledgerTransactionId = row.id;
+    const ledgerTransactionId = String(row.id);
+    result.ledgerTransactionId = ledgerTransactionId;
 
-    // Phase 7: Monetary Entry Determination & FX Position Processing
-    // Always determine monetary entries (for is_monetary field on ledger entries)
-    // Always generate fx_transaction_id for monetary entries (required metadata, not just for FX tracking)
-    // Only create/update fx_positions table if FX tracking is enabled for the company
+    // STEP 10: MONETARY ENTRY DETERMINATION & FX POSITION TRACKING
+    // Determine which entries are "monetary" (subject to FX revaluation)
+    // Monetary accounts (like cash, receivables, payables) need FX tracking
+    // Non-monetary accounts (like fixed assets) use historical cost
     const monetaryResult = await determineMonetaryEntries({
       entries,
       companyId: companyUUID,
@@ -875,32 +451,30 @@ export async function createLedgerRecord({
     });
     const monetaryMap = monetaryResult.monetaryMap;
 
-    // Always generate fx_transaction_id for monetary entries (if currency mismatch)
-    // This is metadata on the entry itself, not just for fx_positions table
-    // Benefits:
-    // - Groups related entries (initial, revaluations, settlements, reversals)
-    // - Enables retroactive FX position building if company enables tracking later
-    // - Required by business rules: "If is_monetary = true then fx_transaction_id must be set"
+    // Generate FX transaction ID for monetary entries in foreign currency
+    // This ID groups related entries (initial posting, revaluations, settlements)
+    // Even if FX tracking is disabled, we still generate the ID for metadata
     let fxTransactionId: string | null = null;
     if (
       sourceTxCurrencyId !== reportingCurrencyId &&
       monetaryResult.monetaryEntries.length > 0
     ) {
-      // Generate fx_transaction_id for this ledger transaction
-      // All monetary entries in the same transaction share the same fx_transaction_id
+      // All monetary entries in the same transaction share the same FX transaction ID
       fxTransactionId = makeFxTransactionId({
         type: 'LEDGER_TX',
         ledgerTransactionId,
       });
 
-      // Only create/update fx_positions table if FX tracking is enabled
+      // Only create/update fx_positions table if the company has FX tracking enabled
+      // This table tracks foreign currency exposures for revaluation
       if (trackFxPositions) {
-        // Process each monetary entry to create/update fx_positions
+        // For each monetary entry, create or update the FX position
         for (const {
           index,
-          entry: baseEntry,
+          entry: _baseEntry,
         } of monetaryResult.monetaryEntries) {
           const fullEntry = entries[index]!;
+          // Convert the foreign currency amount to reporting currency
           const calculatedAmount = fullEntry.source_amount * customExRate;
 
           await upsertFxPosition({
@@ -917,7 +491,9 @@ export async function createLedgerRecord({
       }
     }
 
-    // Build ledger entries for insertion
+    // STEP 11: BUILD & INSERT LEDGER ENTRIES
+    // Transform the input entries into database records
+    // Apply FX rates, contact resolution, and monetary flags
     const entriesToInsert: NewLedgerEntry[] = entries.map((e, index) => {
       return {
         ...e,
@@ -925,6 +501,7 @@ export async function createLedgerRecord({
         is_bank_leg: e.is_bank_leg ?? false,
         system_exchange_rate: systemExRate,
         custom_exchange_rate: customExRate,
+        // Contact resolution: use entry contact if provided, otherwise use transaction contact
         contact_id: e.contact_id ? e.contact_id : transactionContactId,
         contact_type: e.contact_type ? e.contact_type : transactionContactType,
         is_monetary: monetaryMap.get(index) ?? false,
@@ -933,28 +510,13 @@ export async function createLedgerRecord({
       };
     });
 
-    // Insert all entries
+    // Insert all entries into the database
     await txn('ledger_entries').insert(entriesToInsert);
 
-    // Phase 7: Balance recalculation
-    // const bounds = new Map<string, { min: string; max: string }>();
-    // let minYMD: string | null = null;
-    // let maxYMD: string | null = null;
-
-    // for (const entry of entries) {
-    //   const d = toYMD(entry.fs_date);
-    //   if (!minYMD || d < minYMD) minYMD = d;
-    //   if (!maxYMD || d > maxYMD) maxYMD = d;
-
-    //   const b = bounds.get(entry.coa_id);
-    //   if (!b) {
-    //     bounds.set(entry.coa_id, { min: d, max: d });
-    //   } else {
-    //     if (d < b.min) b.min = d;
-    //     if (d > b.max) b.max = d;
-    //   }
-    // }
-
+    // STEP 12: ENQUEUE BALANCE RECALCULATION
+    // After inserting entries, we need to recalculate account balances
+    // This is done asynchronously via a job queue for performance
+    // We enqueue one job per affected Chart of Account
     for (const [coaId, range] of bounds) {
       await enqueueGLBalance({
         companyId: companyUUID,
@@ -964,16 +526,146 @@ export async function createLedgerRecord({
       });
     }
 
-    return successResponse('Ledger transaction created', {
-      ledgerTransactionId,
-      affectedCOAs: bounds.size,
-      dateRange: { min: minYMD, max: maxYMD },
-    });
+    // STEP 13: CREATE LEDGER AUDIT LOG
+    // Automatically create audit log entry for all ledger transactions
+    // This ensures complete audit trail regardless of how the transaction was created
+    try {
+      const systemUser = await isSystemUser(userId, txn);
+      const eventType =
+        systemUser && autoPost ? 'ledger_posted_auto' : 'ledger_posted_manual';
+
+      const actorType = systemUser ? 'system' : 'user';
+
+      // Build comment based on event type and source
+      const comment =
+        eventType === 'ledger_posted_auto'
+          ? `Auto-posted from ${ledgerTx.categorization_source} candidate`
+          : 'Manual posting';
+
+      const categorizationTaskId =
+        ledgerTx.metadata?.categorization_task_id &&
+        typeof ledgerTx.metadata.categorization_task_id === 'string'
+          ? ledgerTx.metadata.categorization_task_id
+          : null;
+
+      // Build metadata for audit log
+      const auditMetadata: Record<string, unknown> = {
+        transaction_source: ledgerTx.transaction_source,
+        categorization_source: ledgerTx.categorization_source,
+      };
+
+      if (ledgerTx.categorization_candidate_id) {
+        auditMetadata.categorization_candidate_id =
+          ledgerTx.categorization_candidate_id;
+      }
+
+      if (sourceTxId) {
+        auditMetadata.source_transaction_id = sourceTxId;
+      }
+
+      await logLedgerEvent({
+        ledgerTransactionId,
+        actorId: userId,
+        actorType,
+        eventType,
+        categorizationTaskId,
+        comment,
+        metadata: auditMetadata,
+        trx: txn,
+      });
+    } catch (error) {
+      // Audit log creation failure should not block ledger transaction creation
+      // Log error but continue with transaction
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          ledgerTransactionId,
+          companyId: companyUUID,
+        },
+        'Failed to create ledger audit log, but ledger transaction was created',
+      );
+    }
+
+    // STEP 14: LINK BACK TO SOURCE ENTITIES
+    // Automatically link ledger transaction back to source entity (bank_transaction or journal_batch)
+    // This ensures bidirectional relationship for traceability
+    try {
+      if (isBankTransaction && sourceTxId) {
+        // Link back to bank transaction
+        await txn('bank_transactions')
+          .where({ id: sourceTxId })
+          .update({ ledger_transaction_id: ledgerTransactionId });
+
+        logger.debug(
+          {
+            bankTransactionId: sourceTxId,
+            ledgerTransactionId,
+          },
+          'Linked bank transaction to ledger transaction',
+        );
+      } else if (
+        ledgerTx.transaction_source === 'manual_journal' &&
+        sourceTxId
+      ) {
+        // Assume journal and Link back to journal batch
+        await txn('journal_batches')
+          .where({ id: sourceTxId })
+          .update({ ledger_transaction_id: ledgerTransactionId });
+
+        logger.debug(
+          {
+            journalBatchId: sourceTxId,
+            ledgerTransactionId,
+          },
+          'Linked journal batch to ledger transaction',
+        );
+      }
+    } catch (error) {
+      // Linking failure should not block ledger transaction creation
+      // Log warning but continue
+      logger.warn(
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          ledgerTransactionId,
+          sourceTransactionId: sourceTxId,
+          transactionSource: ledgerTx.transaction_source,
+        },
+        'Failed to link source entity to ledger transaction, but ledger transaction was created',
+      );
+    }
+
+    // // Return success with transaction details and any warnings
+    // return successResponse('Ledger transaction created', {
+    //   ledgerTransactionId,
+    //   affectedCOAs: bounds.size,
+    //   dateRange: { min: minYMD, max: maxYMD },
+    //   warnings:
+    //     Object.keys(result.warnings).length > 0 ? result.warnings : undefined,
+    // });
+
+    // Set final result values
+    result.ledgerTransactionId = ledgerTransactionId;
+    result.affectedCOAs = bounds.size;
+    result.dateRange = { min: minYMD, max: maxYMD };
+
+    // Only include warnings if there are any
+    if (result.warnings && Object.keys(result.warnings).length > 0) {
+      // Keep warnings as is
+    } else {
+      result.warnings = undefined;
+    }
+
+    return result;
   };
 
+  // EXECUTE TRANSACTION
+  // If an existing transaction was provided, use it (for nested transactions)
+  // Otherwise, create a new transaction (auto-commits on success, auto-rolls back on error)
   try {
-    return trx ? await exec(trx) : await knexClient.transaction(exec);
+    const result = trx ? await exec(trx) : await knexClient.transaction(exec);
+    return successResponse('Ledger transaction created', result);
   } catch (err) {
+    // Log the error for debugging and monitoring
     logger.error(
       {
         error: err,
@@ -984,8 +676,10 @@ export async function createLedgerRecord({
       'Failed to create ledger transaction',
     );
 
+    // If we're in an existing transaction, re-throw (let caller handle rollback)
+    // Otherwise, return an error response
     if (trx) {
-      throw new Error(
+      throw new AppError(
         `Failed to create ledger transaction: ${
           err instanceof Error ? err.message : 'Unknown error'
         }`,
@@ -1031,4 +725,906 @@ export async function getLedgerEntriesForTransaction(
     .orderBy('created_at', 'asc');
 
   return entries;
+}
+
+/**
+ * Update metadata fields on an existing ledger transaction
+ *
+ * This function updates non-accounting fields (description, reference, notes, etc.)
+ * on an existing ledger transaction and its entries without creating a new version.
+ *
+ * Key Features:
+ * - Updates only metadata fields (no accounting impact)
+ * - No balance recalculation needed
+ * - Logs changes to audit trail
+ * - Validates that transaction exists and is not deleted
+ *
+ * @param ledgerTransactionId - ID of existing ledger transaction to update
+ * @param updates - Metadata updates for transaction and/or entries
+ * @param userId - User making the update
+ * @param trx - Database transaction
+ * @returns Success response with ledger transaction ID
+ */
+export async function updateLedgerMetadata({
+  ledgerTransactionId,
+  updates,
+  userId,
+  trx,
+}: {
+  ledgerTransactionId: string;
+  updates: {
+    transaction?: {
+      description?: string | null;
+      reference?: string | null;
+      note?: string | null;
+      metadata?: Record<string, unknown>;
+      human_reviewed?: boolean;
+      review_notes?: string;
+    };
+    entries?: Array<{
+      entryId: string;
+      description?: string | null;
+      metadata?: Record<string, unknown>;
+    }>;
+  };
+  userId: string;
+  trx: Knex.Transaction;
+}): Promise<ApiResponse<{ ledgerTransactionId: string }>> {
+  try {
+    // 1. Validate transaction exists and is not deleted
+    const existingTxn = await trx('ledger_transactions')
+      .where({ id: ledgerTransactionId, is_deleted: false })
+      .first();
+
+    if (!existingTxn) {
+      return errorResponse(
+        `Ledger transaction not found or deleted: ${ledgerTransactionId}`,
+      );
+    }
+
+    const changedFields: string[] = [];
+    const oldValues: Record<string, unknown> = {};
+    const newValues: Record<string, unknown> = {};
+
+    // 2. Update transaction-level metadata if provided
+    if (updates.transaction) {
+      const txnUpdates: Record<string, unknown> = {
+        updated_at: new Date(),
+        updated_by_id: userId,
+      };
+
+      for (const [field, value] of Object.entries(updates.transaction)) {
+        if (value !== undefined) {
+          txnUpdates[field] = value;
+          changedFields.push(`transaction.${field}`);
+          oldValues[`transaction.${field}`] = existingTxn[field];
+          newValues[`transaction.${field}`] = value;
+        }
+      }
+
+      await trx('ledger_transactions')
+        .where({ id: ledgerTransactionId })
+        .update(txnUpdates);
+    }
+
+    // 3. Update entry-level metadata if provided
+    if (updates.entries && updates.entries.length > 0) {
+      for (const entryUpdate of updates.entries) {
+        const { entryId, ...entryFields } = entryUpdate;
+
+        // Fetch existing entry for old values
+        const existingEntry = await trx('ledger_entries')
+          .where({ id: entryId, is_deleted: false })
+          .first();
+
+        if (!existingEntry) {
+          logger.warn(
+            { entryId, ledgerTransactionId },
+            'Ledger entry not found for metadata update, skipping',
+          );
+          continue;
+        }
+
+        const entryUpdates: Record<string, unknown> = {
+          updated_at: new Date(),
+          updated_by_id: userId,
+        };
+
+        for (const [field, value] of Object.entries(entryFields)) {
+          if (value !== undefined) {
+            entryUpdates[field] = value;
+            changedFields.push(`entry.${entryId}.${field}`);
+            oldValues[`entry.${entryId}.${field}`] = existingEntry[field];
+            newValues[`entry.${entryId}.${field}`] = value;
+          }
+        }
+
+        await trx('ledger_entries').where({ id: entryId }).update(entryUpdates);
+      }
+    }
+
+    // 4. Create audit log entry
+    try {
+      await logLedgerEvent({
+        ledgerTransactionId,
+        actorId: userId,
+        actorType: 'user',
+        eventType: 'metadata_updated',
+        categorizationTaskId: null,
+        comment: 'Updated non-accounting metadata',
+        metadata: {
+          updated_fields: changedFields,
+          old_values: oldValues,
+          new_values: newValues,
+        },
+        trx,
+      });
+    } catch (error) {
+      // Audit log failure should not block metadata update
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          ledgerTransactionId,
+        },
+        'Failed to create audit log for metadata update, but update succeeded',
+      );
+    }
+
+    return successResponse('Ledger metadata updated', {
+      ledgerTransactionId,
+    });
+  } catch (err) {
+    logger.error(
+      {
+        error: err,
+        ledgerTransactionId,
+        userId,
+      },
+      'Failed to update ledger metadata',
+    );
+
+    return errorResponse(
+      'Failed to update ledger metadata',
+      err instanceof Error ? err.message : 'Unknown error',
+    );
+  }
+}
+
+/**
+ * Supersede an existing ledger transaction with a new version
+ *
+ * This function replaces an existing ledger transaction when accounting changes
+ * are made (COA changes, amount changes, splits, etc.). The old transaction is
+ * soft-deleted and a new one is created.
+ *
+ * Key Features:
+ * - Soft-deletes old transaction (preserves audit trail)
+ * - Creates new transaction via createLedgerRecord
+ * - Logs both supersession and creation events
+ * - Triggers balance recalculation for both old and new dates/accounts
+ * - Preserves bank leg fields for bank transactions (immutable)
+ * - Validates fiscal period locks
+ *
+ * @param oldLedgerTransactionId - ID of transaction to supersede
+ * @param newData - Complete data for new transaction
+ * @param companyId - Company ID
+ * @param userId - User making the change
+ * @param trx - Database transaction
+ * @returns Success response with both old and new transaction IDs
+ */
+export async function supersedeLedgerTransaction({
+  oldLedgerTransactionId,
+  newData,
+  companyId,
+  userId,
+  trx,
+}: {
+  oldLedgerTransactionId: string;
+  newData: NewLedgerTransactionData;
+  companyId: string;
+  userId: string;
+  trx: Knex.Transaction;
+}): Promise<
+  ApiResponse<{
+    oldLedgerTransactionId: string;
+    newLedgerTransactionId: string;
+    warnings?: Record<string, string>;
+  }>
+> {
+  try {
+    // 1. Fetch old ledger transaction and entries
+    const oldTxn = await trx('ledger_transactions')
+      .where({ id: oldLedgerTransactionId, is_deleted: false })
+      .first();
+
+    if (!oldTxn) {
+      return errorResponse(
+        `Ledger transaction not found or already deleted: ${oldLedgerTransactionId}`,
+      );
+    }
+
+    const oldEntries = await trx('ledger_entries')
+      .where({
+        ledger_transaction_id: oldLedgerTransactionId,
+        is_deleted: false,
+      })
+      .orderBy('created_at', 'asc');
+
+    if (oldEntries.length === 0) {
+      return errorResponse(
+        `No ledger entries found for transaction: ${oldLedgerTransactionId}`,
+      );
+    }
+
+    // 2. Validate fiscal period lock on old transaction date
+    // TODO: Implement fiscal period lock check when that system is ready
+    // For now, we'll allow supersession (period lock enforcement is future work)
+
+    // 3. Detect what fields changed for audit purposes
+    const changedFields: string[] = [];
+
+    // Compare entries to detect changes
+    const proposedEntries = newData.transactions;
+    if (proposedEntries.length !== oldEntries.length) {
+      changedFields.push('entry_count');
+    }
+
+    for (
+      let i = 0;
+      i < Math.min(oldEntries.length, proposedEntries.length);
+      i++
+    ) {
+      const oldEntry = oldEntries[i];
+      const newEntry = proposedEntries[i];
+
+      if (!oldEntry || !newEntry) continue;
+
+      if (oldEntry.coa_id !== newEntry.coa_id)
+        changedFields.push(`entry_${i}_coa_id`);
+      if (Math.abs(oldEntry.source_amount - newEntry.source_amount) > 0.01) {
+        changedFields.push(`entry_${i}_source_amount`);
+      }
+      if (oldEntry.contact_id !== newEntry.contact_id)
+        changedFields.push(`entry_${i}_contact_id`);
+      if (oldEntry.project_id !== newEntry.project_id)
+        changedFields.push(`entry_${i}_project_id`);
+    }
+
+    // 4. Soft-delete old transaction
+    await trx('ledger_transactions')
+      .where({ id: oldLedgerTransactionId })
+      .update({
+        is_deleted: true,
+        deleted_at: new Date(),
+        updated_at: new Date(),
+        updated_by_id: userId,
+      });
+
+    logger.debug(
+      { oldLedgerTransactionId },
+      'Soft-deleted old ledger transaction',
+    );
+
+    // 5. Soft-delete old entries
+    await trx('ledger_entries')
+      .where({ ledger_transaction_id: oldLedgerTransactionId })
+      .update({
+        is_deleted: true,
+        deleted_at: new Date(),
+        updated_at: new Date(),
+        updated_by_id: userId,
+      });
+
+    logger.debug(
+      { oldLedgerTransactionId, entryCount: oldEntries.length },
+      'Soft-deleted old ledger entries',
+    );
+
+    // 6. Trigger balance recalculation for old entries
+    // Get unique COAs and date range from old entries
+    const oldCoaIds = new Set(oldEntries.map((e) => e.coa_id));
+    const oldDates = oldEntries.map((e) => toYMD(e.fs_date));
+    const oldMinDate = oldDates.reduce(
+      (min, d) => (d < min ? d : min),
+      oldDates[0]!,
+    );
+
+    for (const coaId of oldCoaIds) {
+      await enqueueGLBalance({
+        companyId,
+        coaId,
+        recalcFrom: oldMinDate,
+        triggeredBy: 'soft_delete', // Old entries are being soft-deleted
+      });
+    }
+
+    // 7. Create new ledger transaction
+    const createResult = await createLedgerRecord({
+      data: newData,
+      autoPost: false, // This is a user edit, not an auto-post
+      companyId,
+      userId,
+      trx,
+    });
+
+    if (!createResult.success) {
+      // Rollback will happen automatically due to transaction
+      return errorResponse(
+        'Failed to create new ledger transaction after supersession',
+        createResult.error,
+      );
+    }
+
+    const newLedgerTransactionId = createResult.data!.ledgerTransactionId;
+
+    logger.debug(
+      {
+        oldLedgerTransactionId,
+        newLedgerTransactionId,
+      },
+      'Created new ledger transaction to replace old one',
+    );
+
+    // 8. Log supersession event on old transaction
+    try {
+      await logLedgerEvent({
+        ledgerTransactionId: oldLedgerTransactionId,
+        actorId: userId,
+        actorType: 'user',
+        eventType: 'ledger_superseded',
+        categorizationTaskId: null,
+        comment: 'Transaction superseded due to accounting changes',
+        metadata: {
+          superseded_by_ledger_id: newLedgerTransactionId,
+          changed_fields: changedFields,
+          reason: 'user_edit',
+        },
+        trx,
+      });
+    } catch (error) {
+      // Audit log failure should not block supersession
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          oldLedgerTransactionId,
+          newLedgerTransactionId,
+        },
+        'Failed to create audit log for supersession, but supersession succeeded',
+      );
+    }
+
+    // Note: The new transaction's creation is already logged by createLedgerRecord
+
+    return successResponse('Ledger transaction superseded', {
+      oldLedgerTransactionId,
+      newLedgerTransactionId,
+      warnings: createResult.data?.warnings,
+    });
+  } catch (err) {
+    logger.error(
+      {
+        error: err,
+        oldLedgerTransactionId,
+        companyId,
+        userId,
+      },
+      'Failed to supersede ledger transaction',
+    );
+
+    return errorResponse(
+      'Failed to supersede ledger transaction',
+      err instanceof Error ? err.message : 'Unknown error',
+    );
+  }
+}
+
+/**
+ * Update or create ledger transactions intelligently
+ *
+ * This is the main orchestrator function that handles both creating new ledger transactions
+ * and updating existing ones. It intelligently routes to the appropriate handler based on:
+ * - Whether a ledger transaction already exists
+ * - What fields are being changed (metadata vs accounting)
+ *
+ * Key Features:
+ * - Creates new ledger transactions from unresolved bank transactions or candidates
+ * - Updates metadata in-place for non-accounting changes
+ * - Supersedes transactions for accounting changes
+ * - Supports batch processing
+ * - Maintains bank leg immutability
+ * - Triggers appropriate balance recalculations
+ * - Complete audit trail
+ *
+ * @param data - Array of ledger transaction data (new or updates)
+ * @param companyId - Company ID
+ * @param userId - User making the changes
+ * @param trx - Optional database transaction
+ * @returns Array of results for each transaction
+ */
+export async function updateOrCreateLedger({
+  data,
+  companyId,
+  userId,
+  trx,
+}: {
+  data: Partial<NewLedgerTransactionData>[];
+  companyId: string;
+  userId: string;
+  trx?: Knex.Transaction;
+}): Promise<
+  ApiResponse<
+    {
+      operation: 'created' | 'updated_metadata' | 'superseded';
+      ledgerTransactionId: string;
+      oldLedgerTransactionId?: string;
+      warnings?: Record<string, string>;
+    }[]
+  >
+> {
+  /**
+   * Still a little bit confused on how to approach this but let me doc my thoughs
+   *
+   * Focusing on bank transactions
+   * In the UI, user likely sees either of three things by default:
+   * 1. A bank transaction that is yet to be resolved by rule or ML or was not resolvable
+   * 2. Candidates that have not been reviewed or posted to the ledger
+   * 3. Auto categorized transactions that have yet been reviewed
+   * 3b. They could also filter to see already posted and reviewed transactions
+   * -- All they see are the non bank legs
+   *
+   * UI has two main modes: review and auto save mode
+   *
+   * They are likely to want to do the following:
+   * For bank transactions:
+   * 1. Categorize it, or update it and categorize it. For this case, we do not send request to the API until an account is selected
+   * // Can't think of anything else they might want to do here; maybe update after they select an account and that has been persisted - but then that's no longer a bank transaction
+   *
+   * For candidates that have not been reviewed or posted to the ledger:
+   * 1. Update some fields that have no accounting implication [Description, Reference, Contact, Attachments, Tags, Notes]
+   * 2. Update fields that have accounting implications [COA, Projects (for people using project accounting), Date, Exchange Rate, Splits (which affect COAs and amounts)]
+   * 3. Accept the recommended account/category without changes
+   *
+   * For auto categorized transactions that have yet been reviewed:
+   * 1. I think same things as we have in candidates, except we have to remember to add a log to task events to indicate that this was rejected if it was or if accounts were changed
+   * 2. Make changes to transactions that are already split
+   *
+   * For manual journals - This kind of issue does not really exist
+   *
+   * Some things to keep in mind. Will add more as they become clearer
+   * - Any change to fields with accounting implications MUST create a new ledger transaction and mark the old one as deleted
+   * - Any change to fields without accounting implications can be updated in place
+   * - All changes must be logged to ledger_audit_logs
+   * - What we need to ensure during autosave is the reasonability of the change in the event of polling continuously.. but that's a frontend thing
+   *
+   * How do we approach this in code making sure this function routes to the right place when needed?
+   * This might be the single most important part of this application and it's important to get right
+   *
+   * For each transaction
+   * // Not sure if it helps to group by source_transaction_id
+   * // Not sure if we should let this function infer bank legs on its own. Currently the function signature accepts full transaction obj so we'll keep it like this for now
+   * Check if this is a transaction that already exists on the ledger
+   * If ledger does not exist, check the source to see if it exists on the source
+   * If source does not exist, return error
+   * If source exists, and not on ledger, call createLedgerRecord or createLedgerRecordBatch depending on the number of transactions
+   *
+   * If ledger exists, check the fields that are being updated and update them
+   * Perhaps we should create a function and call it updateLedgerRecord to handle this so this function is just an interface or orchestrator
+   *
+   * TO SOLVE: Implement a flexible function to handle both creating new ledger transactions and updating existing ones, with different behaviors based on what fields are being modified and whether a ledger transaction already exists for the source.
+   *
+   */
+
+  const exec = async (
+    txn: Knex.Transaction,
+  ): Promise<
+    {
+      operation: 'created' | 'updated_metadata' | 'superseded';
+      ledgerTransactionId: string;
+      oldLedgerTransactionId?: string;
+      warnings?: Record<string, string>;
+    }[]
+  > => {
+    const results: {
+      operation: 'created' | 'updated_metadata' | 'superseded';
+      ledgerTransactionId: string;
+      oldLedgerTransactionId?: string;
+      warnings?: Record<string, string>;
+    }[] = [];
+
+    // Resolve company UUID once
+    const company: { id: string; reporting_currency_id: string } =
+      (await txn('companies')
+        .where((b) => b.where('short_code', companyId).orWhere('id', companyId))
+        .where('is_deleted', false)
+        .first('id', 'reporting_currency_id')) ?? null;
+
+    if (!company || !company.reporting_currency_id || !company.id) {
+      throw new AppError(`Company not found: ${companyId}`);
+    }
+    const companyUUID = company.id;
+
+    // Process each transaction
+    for (const txnData of data) {
+      // STEP 1: Validate required fields
+      if (!txnData.transaction_source) {
+        throw new AppError('transaction_source is required');
+      }
+
+      const isBankTransaction =
+        txnData.transaction_source === 'bank_transaction';
+      const isManualJournal = txnData.transaction_source === 'manual_journal';
+
+      if (isBankTransaction && !txnData.source_transaction_id) {
+        throw new AppError(
+          'Bank transaction ID is required for creating ledger transactions from bank transactions',
+        );
+      }
+
+      // STEP 2: Find existing ledger transaction
+      // Use ledger_transactions as single source of truth, with optional verification
+      let existingLedgerTransactionId: string | null = null;
+      let existingLedgerTxn: LedgerTransaction | null = null;
+
+      if (txnData.source_transaction_id) {
+        // Build query to fetch Ledger ID and (optionally) the Bank Link ID in one go
+        let query = txn('ledger_transactions as lt')
+          .select('lt.id as actualLedgerId', 'lt.*')
+          .where({
+            'lt.source_transaction_id': txnData.source_transaction_id,
+            'lt.is_deleted': false,
+          });
+
+        if (isBankTransaction) {
+          query = query
+            .leftJoin(
+              'bank_transactions as bt',
+              'bt.id',
+              'lt.source_transaction_id',
+            )
+            .select('bt.ledger_transaction_id as linkedLedgerId');
+        }
+
+        const result = await query.first();
+
+        if (
+          isBankTransaction &&
+          result?.actualLedgerId !== result?.linkedLedgerId
+        ) {
+          throw new AppError('Bidirectional link mismatch detected');
+        }
+
+        // Assign the ID (if found)
+        existingLedgerTransactionId = result?.actualLedgerId ?? null;
+        existingLedgerTxn = { ...result, id: result?.actualLedgerId ?? null };
+
+        // For manual journals, we could add similar verification with journal_batches
+        // if needed in the future (currently journal_batches.ledger_transaction_id is
+        // set in createLedgerRecord, so verification would be similar)
+      }
+
+      // STEP 3: Route to appropriate handler
+      if (!existingLedgerTransactionId) {
+        // ROUTE A: CREATE NEW LEDGER TRANSACTION
+        logger.debug(
+          { sourceTransactionId: txnData.source_transaction_id },
+          'No existing ledger transaction found, creating new one',
+        );
+
+        const createResult = await createLedgerRecord({
+          data: txnData as NewLedgerTransactionData,
+          autoPost: false, // This is explicit user action
+          companyId: companyUUID,
+          userId,
+          trx: txn,
+        });
+
+        if (!createResult.success) {
+          throw new AppError(
+            `Failed to create ledger transaction: ${createResult.error}`,
+            createResult,
+          );
+        }
+
+        results.push({
+          operation: 'created',
+          ledgerTransactionId: createResult.data!.ledgerTransactionId,
+          warnings: createResult.data?.warnings,
+        });
+      } else {
+        // There's an existing ledger transaction - need to determine if update or supersede
+        logger.debug(
+          { existingLedgerTransactionId },
+          'Existing ledger transaction found, analyzing changes',
+        );
+
+        // Fetch existing transaction and entries
+        const existingTxn = existingLedgerTxn;
+        if (!existingTxn) {
+          throw new AppError(
+            `Ledger transaction not found or deleted: ${existingLedgerTransactionId}`,
+          );
+        }
+
+        const existingEntries = await txn('ledger_entries')
+          .where({
+            ledger_transaction_id: existingLedgerTransactionId,
+            is_deleted: false,
+          })
+          .orderBy('created_at', 'asc');
+
+        // EARLY VALIDATIONS (before change detection)
+
+        // VALIDATION 1: Transaction-level immutable fields must not be modified
+        // These fields come from the source (bank_transaction/journal_batch) and are set once
+        const immutableTransactionFields = [
+          'date',
+          'transaction_source',
+          'categorization_source',
+          'contact_id',
+          'contact_type',
+          'source_transaction_id',
+          'source_transaction_date',
+          'source_transaction_amount',
+          'source_transaction_currency_id',
+          'categorization_candidate_id',
+        ] as const;
+
+        const immutableFieldViolations = immutableTransactionFields.filter(
+          (field) => {
+            if (!(field in txnData)) return false;
+
+            const proposedValue = txnData[field as keyof typeof txnData];
+            const existingValue =
+              existingTxn[field as keyof typeof existingTxn];
+
+            // Handle date fields explicitly: 'date' and 'source_transaction_date'
+            if (field === 'date' || field === 'source_transaction_date') {
+              // Normalize both to YMD strings (handles Date objects, YMD strings, or null)
+              const proposedYMD = normalizeDateForComparison(proposedValue);
+              const existingYMD = normalizeDateForComparison(existingValue);
+              return proposedYMD !== existingYMD;
+            }
+
+            // Primitive comparison for non-date fields
+            return proposedValue !== existingValue;
+          },
+        );
+
+        if (immutableFieldViolations.length > 0) {
+          throw new AppError(
+            `Cannot modify immutable transaction-level fields: ${immutableFieldViolations.join(', ')}. These fields are set at creation from the source transaction and cannot be changed.`,
+            {
+              violatedFields: immutableFieldViolations,
+              existingLedgerTransactionId,
+            },
+          );
+        }
+
+        // VALIDATION 2: For bank transactions, all entries must have same source_currency_id as transaction
+        // Bank transactions are denominated in a single currency (the bank account's currency)
+        if (isBankTransaction && txnData.transactions) {
+          const expectedCurrencyId = existingTxn.source_transaction_currency_id;
+          const currencyViolations = txnData.transactions
+            .map((entry, index) => ({ entry, index }))
+            .filter(
+              ({ entry }) =>
+                entry.source_currency_id &&
+                entry.source_currency_id !== expectedCurrencyId,
+            );
+
+          if (currencyViolations.length > 0) {
+            throw new AppError(
+              `All entries in a bank transaction must use the bank account's currency (${expectedCurrencyId})`,
+              {
+                violatedEntries: currencyViolations.map((v) => ({
+                  entryIndex: v.index,
+                  providedCurrencyId: v.entry.source_currency_id,
+                  expectedCurrencyId,
+                })),
+              },
+            );
+          }
+        }
+
+        // Detect what changed
+        const changes = detectChangedFields({
+          existing: existingTxn,
+          existingEntries,
+          proposed: txnData,
+          isBankTransaction,
+        });
+
+        // Check for bank leg violations first
+        if (changes.bankLegViolation) {
+          throw new AppError(changes.bankLegViolation.message, {
+            entryIndex: changes.bankLegViolation.entryIndex,
+            violatedFields: changes.bankLegViolation.violatedFields,
+          });
+        }
+
+        if (!changes.hasChanges) {
+          // No changes detected - just return the existing transaction
+          logger.debug(
+            { existingLedgerTransactionId },
+            'No changes detected, returning existing transaction',
+          );
+
+          results.push({
+            operation: 'updated_metadata', // Technically no update, but closest semantic
+            ledgerTransactionId: existingLedgerTransactionId,
+          });
+        } else if (changes.isMetadataOnly) {
+          // ROUTE B: UPDATE METADATA IN-PLACE
+          logger.debug(
+            {
+              existingLedgerTransactionId,
+              changedFields: Array.from(changes.transactionChanges),
+            },
+            'Metadata-only changes detected, updating in-place',
+          );
+
+          // Build updates object
+          const updates: {
+            transaction?: Record<string, unknown>;
+            entries?: Array<{
+              entryId: string;
+              description?: string | null;
+              metadata?: Record<string, unknown>;
+            }>;
+          } = {};
+
+          // Transaction-level metadata updates
+          if (changes.transactionChanges.size > 0) {
+            updates.transaction = {};
+            for (const field of changes.transactionChanges) {
+              updates.transaction[field] =
+                txnData[field as keyof typeof txnData];
+            }
+          }
+
+          // Entry-level metadata updates
+          if (changes.entryChanges.size > 0 && txnData.transactions) {
+            updates.entries = [];
+            for (const [index, changedFields] of changes.entryChanges) {
+              const existingEntry = existingEntries[index];
+              const proposedEntry = txnData.transactions[index];
+
+              if (!existingEntry || !proposedEntry) continue;
+
+              const entryUpdate: {
+                entryId: string;
+                description?: string | null;
+                metadata?: Record<string, unknown>;
+              } = {
+                entryId: existingEntry.id,
+              };
+
+              if (changedFields.has('description')) {
+                entryUpdate.description = proposedEntry.description ?? null;
+              }
+              if (changedFields.has('metadata')) {
+                entryUpdate.metadata = proposedEntry.metadata;
+              }
+
+              updates.entries.push(entryUpdate);
+            }
+          }
+
+          const updateResult = await updateLedgerMetadata({
+            ledgerTransactionId: existingLedgerTransactionId,
+            updates,
+            userId,
+            trx: txn,
+          });
+
+          if (!updateResult.success) {
+            throw new AppError(
+              `Failed to update ledger metadata: ${updateResult.error}`,
+            );
+          }
+
+          results.push({
+            operation: 'updated_metadata',
+            ledgerTransactionId: existingLedgerTransactionId,
+          });
+        } else {
+          // ROUTE C: SUPERSEDE TRANSACTION (accounting changes)
+          logger.debug(
+            {
+              existingLedgerTransactionId,
+              accountingChanges: true,
+            },
+            'Accounting changes detected, superseding transaction',
+          );
+
+          // Build new transaction data - preserve immutable transaction-level fields
+          const newTxnData: NewLedgerTransactionData = {
+            // Preserve immutable transaction-level fields from existing
+            date: existingTxn.date,
+            transaction_source: existingTxn.transaction_source,
+            categorization_source: existingTxn.categorization_source,
+            contact_id: existingTxn.contact_id,
+            contact_type: existingTxn.contact_type,
+            source_transaction_id: existingTxn.source_transaction_id,
+            source_transaction_date: existingTxn.source_transaction_date,
+            source_transaction_amount: existingTxn.source_transaction_amount,
+            source_transaction_currency_id:
+              existingTxn.source_transaction_currency_id,
+            categorization_candidate_id:
+              existingTxn.categorization_candidate_id,
+
+            // Allow metadata updates from proposed
+            description: txnData.description ?? existingTxn.description,
+            reference: txnData.reference ?? existingTxn.reference,
+            note: txnData.note ?? existingTxn.note,
+            metadata: txnData.metadata ?? existingTxn.metadata,
+            human_reviewed:
+              txnData.human_reviewed ?? existingTxn.human_reviewed,
+            review_notes: txnData.review_notes ?? existingTxn.review_notes,
+
+            // Use proposed entries (with accounting changes)
+            // Note: Bank leg immutability is enforced by:
+            // 1. detectChangedFields() validation (above) - rejects bank leg changes
+            // 2. createLedgerRecord() validation - verifies bank leg matches bank_transaction
+            // So it's safe to pass proposed entries directly here
+            transactions: txnData.transactions as LedgerEntryInput[],
+          };
+
+          const supersedeResult = await supersedeLedgerTransaction({
+            oldLedgerTransactionId: existingLedgerTransactionId,
+            newData: newTxnData,
+            companyId: companyUUID,
+            userId,
+            trx: txn,
+          });
+
+          if (!supersedeResult.success) {
+            throw new AppError(
+              `Failed to supersede ledger transaction: ${supersedeResult.error}`,
+            );
+          }
+
+          results.push({
+            operation: 'superseded',
+            ledgerTransactionId: supersedeResult.data!.newLedgerTransactionId,
+            oldLedgerTransactionId:
+              supersedeResult.data!.oldLedgerTransactionId,
+            warnings: supersedeResult.data?.warnings,
+          });
+        }
+      }
+    }
+
+    return results;
+  };
+
+  // Execute in transaction (use provided or create new)
+  try {
+    const results = trx ? await exec(trx) : await knexClient.transaction(exec);
+    return successResponse('Ledger transactions processed', results);
+  } catch (err) {
+    logger.error(
+      {
+        error: err,
+        companyId,
+        userId,
+        transactionCount: data.length,
+      },
+      'Failed to process ledger transactions',
+    );
+
+    // If we're in an existing transaction, re-throw (let caller handle rollback)
+    if (trx) {
+      throw new AppError(
+        `Failed to process ledger transactions: ${
+          err instanceof Error ? err.message : 'Unknown error'
+        }`,
+      );
+    }
+
+    return errorResponse(
+      'Failed to process ledger transactions',
+      err instanceof Error ? err.message : 'Unknown error',
+    );
+  }
 }

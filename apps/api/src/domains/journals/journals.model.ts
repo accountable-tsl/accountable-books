@@ -225,7 +225,7 @@ export async function postJournalRecord({
     log('entries_created', { entriesCount: journalEntries.length });
 
     // Create ledger if posted
-    const ledgerTransactionId: string | null = null;
+    let ledgerTransactionId: string | null = null;
 
     if (journalBatch.status === 'posted') {
       const ledgerPayload: NewLedgerTransactionData = {
@@ -235,6 +235,7 @@ export async function postJournalRecord({
         description: journalBatch.title,
         note: journalBatch.note ?? null,
         contact_id: journalBatch.contact_id ?? null,
+        source_transaction_id: journalBatchRow.id, // Journal batch ID for linking back
         source_transaction_currency_id: journalCurrencyId,
         transactions: transactions.map((t) => ({
           fs_date: toYMD(journalBatch.date),
@@ -245,7 +246,6 @@ export async function postJournalRecord({
           ...(exchange_rate
             ? { custom_exchange_rate: customExchangeRate }
             : {}),
-          categorization_status: 'accepted',
           description: t.description ?? null,
           project_id: t.project_id ?? null,
           project_name: t.project_name ?? null,
@@ -260,15 +260,13 @@ export async function postJournalRecord({
         trx: tx,
       });
 
-      // if (!ledgerResult.success || !ledgerResult.data?.ledgerTransactionId) {
-      //   throw new Error('Failed to create ledger transaction');
-      // }
-
-      // ledgerTransactionId = ledgerResult.data.ledgerTransactionId;
-
-      await tx('journal_batches')
-        .where('id', journalBatchRow.id)
-        .update({ ledger_transaction_id: ledgerTransactionId });
+      if (
+        ledgerResult.success &&
+        ledgerResult.data &&
+        'ledgerTransactionId' in ledgerResult.data
+      ) {
+        ledgerTransactionId = ledgerResult.data.ledgerTransactionId as string;
+      }
     }
 
     return successResponse('Journal posted successfully', {

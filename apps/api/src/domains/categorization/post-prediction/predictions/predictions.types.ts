@@ -47,6 +47,8 @@ export const newPredictionLine = z.object({
   prediction_id: z.uuid(),
   coa_id: z.uuid(),
   project_id: z.uuid().nullish(),
+  contact_id: z.uuid().nullish(),
+  contact_type: contactType.nullish(),
   signed_native_amount: z.number(),
   description: z.string().nullable(),
   is_bank_leg: z.boolean(),

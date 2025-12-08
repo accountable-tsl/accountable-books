@@ -1,6 +1,7 @@
 import type { Worker } from 'bullmq';
 
 import { startBalanceRecalcWorker } from '../../domains/balances/index.js';
+import { startAutopostWorker } from '../../domains/categorization/autopost/autopost.worker.js';
 import {
   startEnrichmentWorker,
   startMLPredictionWorker,
@@ -36,6 +37,9 @@ export interface WorkerConfig {
   mlPrediction: {
     concurrency: number;
   };
+  autopost: {
+    concurrency: number;
+  };
 }
 
 // Default worker configuration
@@ -63,6 +67,9 @@ const DEFAULT_WORKER_CONFIG: WorkerConfig = {
   },
   mlPrediction: {
     concurrency: Number(process.env.ML_WORKER_CONCURRENCY) || 5,
+  },
+  autopost: {
+    concurrency: Number(process.env.AUTOPOST_WORKER_CONCURRENCY) || 5,
   },
 };
 
@@ -184,6 +191,19 @@ export async function startAllWorkers(
     console.error('❌ Failed to start ML prediction worker:', error);
     // ML is not critical for core operations, so just log the error
     console.log('⚠️  Continuing without ML prediction worker');
+  }
+
+  // Start autopost worker (delayed autoposting of candidates)
+  try {
+    console.log('📤 Starting autopost worker...');
+    const autopostWorker = startAutopostWorker();
+    activeWorkers.set('autopost', autopostWorker);
+    workers.push(autopostWorker);
+    console.log('✅ Autopost worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start autopost worker:', error);
+    // Autopost is not critical for core operations, so just log the error
+    console.log('⚠️  Continuing without autopost worker');
   }
 
   console.log(`✅ Started ${workers.length} workers successfully`);

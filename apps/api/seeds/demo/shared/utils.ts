@@ -317,7 +317,7 @@ export const loadDemoUsers = async (
   }
 
   demoUsersCache = (await trx('users')
-    .where('is_demo_user', true)
+    .where('user_type', 'demo')
     .select('id', 'email', 'firstname', 'lastname')) as DemoUserRecord[];
 
   return demoUsersCache;

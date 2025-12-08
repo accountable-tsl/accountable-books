@@ -57,6 +57,8 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('reviewed_by_id').nullable().references('id').inTable('users');
     table.text('review_notes').nullable();
 
+    table.jsonb('metadata').nullable();
+
     table.uuid('created_by_id').notNullable().references('id').inTable('users');
     table.uuid('updated_by_id').nullable().references('id').inTable('users');
 

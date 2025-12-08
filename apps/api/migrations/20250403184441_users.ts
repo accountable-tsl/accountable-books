@@ -19,7 +19,8 @@ export async function createUser({
     password: string;
     firstname: string;
     lastname?: string | null;
-    is_demo_user?: boolean;
+    // is_demo_user?: boolean;
+    user_type?: 'regular' | 'demo' | 'system';
     onboarding_state?: Record<string, unknown> | null;
     avatar_url?: string;
     email_verified_at: Date;
@@ -192,7 +193,12 @@ export async function up(knex: Knex): Promise<void> {
     // .references("id")
     // .inTable("companies"); // Added foreign key after migrating companies talbe
 
-    table.boolean('is_demo_user').defaultTo(false);
+    // table.boolean('is_demo_user').defaultTo(false);
+    table
+      .string('user_type')
+      .checkIn(['demo', 'system', 'regular'])
+      .notNullable()
+      .defaultTo('regular');
 
     addStandardColumns(knex, table);
   });

@@ -16,6 +16,8 @@ const candidateLineDraft = z.object({
   transaction_side: debitCredit,
   coa_id: z.uuid(),
   project_id: z.uuid().nullish(),
+  contact_id: z.uuid().nullish(),
+  contact_type: contactType.nullish(),
   source_currency_id: z.uuid(),
   system_exchange_rate: z.number(),
   custom_exchange_rate: z.number(),
@@ -76,19 +78,6 @@ export const categorizationCandidate = z.object({
 });
 
 export type CategorizationCandidate = z.infer<typeof categorizationCandidate>;
-
-// export const categorizationConstraintViolation = z.object({
-//   candidate_id: z.uuid(),
-//   violation_type: z.string(),
-//   severity: z.enum(['info', 'warning', 'error']),
-//   message: z.string(),
-//   resolved: z.boolean(),
-//   metadata: z.record(z.string(), z.any()).nullable(),
-//   ...dbBaseFields.shape,
-// });
-// export type CategorizationConstraintViolation = z.infer<
-//   typeof categorizationConstraintViolation
-// >;
 
 export const updateCandidateInput = z
   .object({

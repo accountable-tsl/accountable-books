@@ -9,8 +9,13 @@ const __dirname = path.dirname(__filename);
 const sqlDir = path.join(__dirname, 'sql');
 console.log('SQL Dir:', sqlDir); // Verify path
 
+// Files that have their own dedicated migrations and should be excluded
+const EXCLUDED_FILES = ['categorization_engine_view.sql'];
+
 export async function up(knex: Knex): Promise<void> {
-  const files = (await fs.readdir(sqlDir)).filter((f) => f.endsWith('.sql'));
+  const files = (await fs.readdir(sqlDir))
+    .filter((f) => f.endsWith('.sql'))
+    .filter((f) => !EXCLUDED_FILES.includes(f));
   const sorted = files.sort();
 
   for (const file of sorted) {
@@ -21,7 +26,9 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-  const files = (await fs.readdir(sqlDir)).filter((f) => f.endsWith('.sql'));
+  const files = (await fs.readdir(sqlDir))
+    .filter((f) => f.endsWith('.sql'))
+    .filter((f) => !EXCLUDED_FILES.includes(f));
   const sorted = files.sort().reverse(); // reverse order for safe teardown
 
   for (const file of sorted) {

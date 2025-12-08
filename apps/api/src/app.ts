@@ -17,12 +17,14 @@ import bankingRoutes from './domains/banking/banking.routes.js';
 import bankRoutes from './domains/banking/banks/banks.routes.js';
 import plaidWebhookRoutes from './domains/banking/webhooks/plaid.webhook.js';
 import bankTransactionRoutes from './domains/bankTransactions/bankTransactions.routes.js';
+import categorizationRoutes from './domains/categorization/categorization.routes.js';
 import coaRoutes from './domains/chart-of-accounts/coa.routes.js';
 import companiesRoutes from './domains/companies/companies.routes.js';
 import contactsRoutes from './domains/contacts/contacts.routes.js';
 import countryRoutes from './domains/countries/countries.routes.js';
 import currencyRoutes from './domains/currencies/currencies.routes.js';
 import emailRoutes from './domains/email/email.routes.js';
+import ledgersRoutes from './domains/ledgers/ledgers.routes.js';
 import objectRoutes from './domains/objects/objects.routes.js';
 import projectsRoutes from './domains/projects/projects.routes.js';
 import { loadRoles } from './domains/roles/roles.model.js';
@@ -163,7 +165,9 @@ export async function setupApp() {
   app.use('/api/bank-feed-providers', bankFeedProvidersRoutes);
   app.use('/api/:companyId', usersCompaniesRolesRoutes);
 
+  app.use('/api/:companyId/categorization', categorizationRoutes);
   app.use('/api/:companyId/coa', coaRoutes);
+  app.use('/api/:companyId/ledgers', ledgersRoutes);
   app.use('/api/:companyId/contacts', contactsRoutes);
   app.use('/api/:companyId/projects', projectsRoutes);
   app.use('/api/:companyId/settings', settingsRoutes);

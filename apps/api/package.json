@@ -20,7 +20,7 @@
     "migrate:make": "pnpm run knex migrate:make -x ts --knexfile knexfile.ts",
     "migrate:local": "pnpm run knex migrate:latest --env local --knexfile knexfile.ts",
     "migrate:test": "NODE_ENV=test pnpm run knex migrate:latest --env test --knexfile knexfile.ts",
-    "migrate": "pnpm run migrate:local && pnpm run migrate:test",
+    "migrate": "pnpm run migrate:local && tsx scripts/setup-test-db.ts",
     "migrate:staging": "NODE_ENV=staging LOCAL_STAGING=true pnpm run knex migrate:latest --env staging --knexfile knexfile.ts",
     "migrate:staging:remote": "NODE_ENV=staging pnpm run knex migrate:latest --env staging --knexfile knexfile.ts",
     "rollback:local": "pnpm run knex migrate:rollback --env local --knexfile knexfile.ts",

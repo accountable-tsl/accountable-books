@@ -34,6 +34,7 @@ setup: guard-nonprod ## One-command setup: infra + deps + db + demo
 	@$(MAKE) db-migrate
 	@echo "$(YELLOW)📦 Installing Node.js dependencies...$(RESET)"
 	@pnpm install
+	
 	@echo "$(YELLOW)🔨 Building shared packages (utils + contracts)...$(RESET)"
 	@pnpm -F @accountable-books/utils run build
 	@pnpm -F @accountable-books/contracts run build

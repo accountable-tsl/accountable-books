@@ -17,128 +17,6 @@ const PREDICTIONS_TABLE = 'categorization_predictions';
 const PREDICTION_LINES_TABLE = 'categorization_prediction_lines';
 
 /**
- * Draft type for prediction lines (before persistence)
- * Used as intermediate format between candidate lines and database format
- */
-// export interface PredictionLineDraft {
-//   entryType: DebitCredit;
-//   coaId: string;
-//   projectId?: string | null;
-//   amountNative: number;
-//   currencyCode: string;
-//   description?: string | null;
-//   isBankLeg?: boolean;
-//   explanation?: string | null;
-//   metadata?: Record<string, unknown> | null;
-// }
-
-// export interface PredictionLineDraft {
-//   entryType: DebitCredit;
-//   coaId: string;
-//   projectId?: string | null;
-//   amountNative: number;
-//   currencyCode: string;
-//   description?: string | null;
-//   isBankLeg?: boolean;
-//   explanation?: string | null;
-//   metadata?: Record<string, unknown> | null;
-// }
-
-// export interface CreatePredictionParams {
-//   categorizationTaskId: string;
-//   bankTransactionId: string;
-//   bankTransactionDate: string;
-//   runId: string;
-//   contactId?: string | null;
-//   contactType?: string | null;
-//   companyId: string;
-//   source: TxnCategorizationSource;
-//   confidence: number;
-//   modelVersion?: string | null;
-//   predictionId?: string; // Optional: use provided ID (e.g., from ML engine) instead of generating one
-//   status: PredictionStatus;
-//   statusReason?: string | null;
-//   inputChecksum?: string | null;
-//   explanation?: string | null;
-//   metadata?: Record<string, unknown> | null;
-//   lines: PredictionLineDraft[];
-// }
-
-// export class PredictionRepository {
-//   constructor(private readonly knex: Knex = knexClient) {}
-
-//   async softDeleteByTask(params: {
-//     categorizationTaskId: string;
-//     source?: TxnCategorizationSource;
-//   }): Promise<number> {
-//     const query = this.knex(PREDICTIONS_TABLE)
-//       .where({
-//         categorization_task_id: params.categorizationTaskId,
-//         is_deleted: false,
-//       })
-//       .update({
-//         is_deleted: true,
-//         updated_at: this.knex.fn.now(),
-//       });
-//     if (params.source) {
-//       query.andWhere('source', params.source);
-//     }
-//     return await query;
-//   }
-
-//   async createPredictionWithLines(
-//     params: CreatePredictionParams,
-//   ): Promise<string> {
-//     return await this.knex.transaction(async (trx) => {
-//       const insertData: Record<string, unknown> = {
-//         categorization_task_id: params.categorizationTaskId,
-//         bank_transaction_id: params.bankTransactionId,
-//         bank_transaction_date: params.bankTransactionDate,
-//         run_id: params.runId,
-//         contact_id: params.contactId ?? null,
-//         contact_type: params.contactType ?? null,
-//         company_id: params.companyId,
-//         source: params.source,
-//         confidence: params.confidence,
-//         model_version: params.modelVersion ?? null,
-//         status: params.status,
-//         status_reason: params.statusReason ?? null,
-//         input_checksum: params.inputChecksum ?? null,
-//         explanation: params.explanation ?? null,
-//         metadata: params.metadata ?? null,
-//       };
-
-//       // Use provided ID if available (e.g., from ML engine), otherwise let database generate it
-//       if (params.predictionId) {
-//         insertData.id = params.predictionId;
-//       }
-
-//       const [prediction] = await trx(PREDICTIONS_TABLE)
-//         .insert(insertData)
-//         .returning(['id']);
-
-//       if (params.lines.length) {
-//         const rows = params.lines.map((line) => ({
-//           prediction_id: prediction.id,
-//           entry_type: line.entryType,
-//           coa_id: line.coaId,
-//           project_id: line.projectId ?? null,
-//           amount_native: line.amountNative,
-//           currency_code: line.currencyCode,
-//           description: line.description ?? null,
-//           is_bank_leg: line.isBankLeg ?? false,
-//           explanation: line.explanation ?? null,
-//           metadata: line.metadata ?? null,
-//         }));
-//         await trx(PREDICTION_LINES_TABLE).insert(rows);
-//       }
-
-//       return prediction.id;
-//     });
-//   }
-// }
-
-/**
  *
  */
 
@@ -177,6 +55,8 @@ export async function persistPrediction(
     const linesToInsert = predictionLines.map((line) => ({
       ...line,
       prediction_id: predictionId,
+      contact_id: line.contact_id ?? predictionHead.contact_id ?? null,
+      contact_type: line.contact_type ?? predictionHead.contact_type ?? null,
     }));
     await trx(PREDICTION_LINES_TABLE).insert(linesToInsert);
 

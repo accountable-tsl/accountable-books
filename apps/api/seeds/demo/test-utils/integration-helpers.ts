@@ -142,7 +142,7 @@ export class SeedIntegrationTestHelper {
     coa: number;
   }> {
     return {
-      users: await this.countRecords('users', { is_demo_user: true }),
+      users: await this.countRecords('users', { user_type: 'demo' }),
       companies: await this.countRecords('companies', {
         is_demo_company: true,
       }),
@@ -185,7 +185,7 @@ export const TestDataFactories = {
     lastname: 'User',
     email: 'test@example.com',
     password: 'testpass',
-    is_demo_user: true,
+    user_type: 'demo',
     ...overrides,
   }),
 
@@ -217,7 +217,7 @@ export const SeedTestAssertions = {
     helper: SeedIntegrationTestHelper,
     expectedCount: number,
   ): Promise<void> {
-    const count = await helper.countRecords('users', { is_demo_user: true });
+    const count = await helper.countRecords('users', { user_type: 'demo' });
     if (count !== expectedCount) {
       throw new Error(`Expected ${expectedCount} demo users, found ${count}`);
     }
@@ -299,7 +299,7 @@ export const SeedTestAssertions = {
 
     // All demo users should have demo emails
     const invalidEmails = await trx('users')
-      .where('is_demo_user', true)
+      .where('user_type', 'demo')
       .whereNot('email', 'like', '%demo%')
       .select('id', 'email');
 

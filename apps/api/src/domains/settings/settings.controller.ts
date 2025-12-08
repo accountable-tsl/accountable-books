@@ -38,7 +38,7 @@ export async function getSettingsController(req: AuthRequest, res: Response) {
 
 /**
  * PUT /api/:companyId/settings
- * Body: { settings: [{ key: string, value: any, description?: string }] }
+ * Body: { settings: [{ key: string, value: any }] }
  */
 export async function updateSettingsController(
   req: AuthRequest,

@@ -25,7 +25,7 @@ export const newUser = z.object({
   last_active_company_id: z.uuid().nullish(),
   onboarding_state: userOnboardingState,
 
-  is_demo_user: z.boolean().prefault(false).optional(),
+  user_type: z.enum(['regular', 'demo', 'system']).default('regular'),
 });
 
 export const newUserDirect = newUser.extend({

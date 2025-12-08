@@ -3,7 +3,12 @@ import type { Knex } from 'knex';
 import { AppError, logger, toDate, toYMD } from '../../shared/index.js';
 import { getCurrencyById } from '../currencies/currencies.utils.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
-import type { LedgerEntryInput } from './ledgers.types.js';
+import type {
+  LedgerEntry,
+  LedgerEntryInput,
+  LedgerTransaction,
+  NewLedgerTransactionData,
+} from './ledgers.types.js';
 
 /**
  * Helper: Validate bank leg amount matches bank transaction native amount
@@ -38,7 +43,10 @@ export function validateBankLegAmount({
   }
 
   const bankLeg = bankLegs[0]!;
-  const diff = Math.abs(bankLeg.source_amount) - Math.abs(expectedAmount);
+  // Check magnitude only, as per user feedback (signs might differ for debit/credit)
+  const diff = Math.abs(
+    Math.abs(bankLeg.source_amount) - Math.abs(expectedAmount),
+  );
 
   if (diff > 0.01) {
     return {
@@ -260,4 +268,328 @@ export function processEntriesDates(entries: LedgerEntryInput[]) {
   // Now all variables (transactionDates, bounds, minYMD, maxYMD) are populated.
   // ... continue with the rest of your function logic ...
   return { transactionDates, bounds, minYMD, maxYMD };
+}
+
+/**
+ * Field classifications for ledger transactions and entries
+ *
+ * These define which fields can be updated in-place vs require new transactions
+ */
+
+// Transaction-level metadata fields (can be updated in-place)
+export const TRANSACTION_METADATA_FIELDS = new Set([
+  'description',
+  'reference',
+  'note',
+  'metadata',
+  'human_reviewed',
+  'review_notes',
+] as const);
+
+// Transaction-level fields that are immutable (cannot be changed)
+export const TRANSACTION_IMMUTABLE_FIELDS = new Set([
+  'date',
+  'transaction_source',
+  'categorization_source',
+  'source_transaction_id',
+  'source_transaction_date',
+  'source_transaction_amount',
+  'source_transaction_currency_id',
+  'categorization_candidate_id',
+] as const);
+
+// Entry-level metadata fields (can be updated in-place)
+export const ENTRY_METADATA_FIELDS = new Set([
+  'description',
+  'metadata',
+] as const);
+
+// Entry-level accounting fields (require new transaction)
+export const ENTRY_ACCOUNTING_FIELDS = new Set([
+  'coa_id',
+  'custom_exchange_rate',
+  'source_amount', // Immutable for bank leg of bank transaction
+  'source_currency_id', // Immutable for bank transactions
+  'project_id',
+  'fs_date',
+  'contact_id',
+  'contact_type',
+] as const);
+
+/**
+ * Safely normalize a date value to YMD string for comparison
+ * Handles Date objects, YMD strings, or null/undefined
+ * Returns null if input is null/undefined or invalid
+ */
+export function normalizeDateForComparison(value: unknown): string | null {
+  if (value == null) return null;
+
+  try {
+    return toYMD(value as string | Date);
+  } catch {
+    // toYMD failed (invalid format or null/undefined)
+    return null;
+  }
+}
+
+/**
+ * Detect what fields have changed between existing ledger transaction and proposed changes
+ *
+ * This function compares the existing ledger transaction and its entries with the proposed
+ * changes to determine:
+ * 1. Whether any changes exist
+ * 2. What specific fields changed at transaction and entry levels
+ * 3. Whether changes are metadata-only or accounting changes
+ * 4. Whether bank leg immutability rules are violated (if isBankTransaction = true)
+ *
+ * Transaction-level fields like date, contact_id are IMMUTABLE and should never appear
+ * in proposed changes.
+ *
+ * Bank Leg Immutability: For bank transactions, the bank leg (is_bank_leg = true) must have
+ * immutable coa_id, source_currency_id, and source_amount. Any attempt to change these
+ * fields will result in bankLegViolation being populated.
+ *
+ * @param existing - Existing ledger transaction from database
+ * @param existingEntries - Existing ledger entries from database
+ * @param proposed - Proposed changes to the transaction
+ * @param isBankTransaction - Whether this is a bank transaction (enables bank leg validation)
+ * @returns Change detection result including bank leg violation info
+ */
+export function detectChangedFields({
+  existing,
+  existingEntries,
+  proposed,
+  isBankTransaction = false,
+}: {
+  existing: LedgerTransaction;
+  existingEntries: LedgerEntry[];
+  proposed: Partial<NewLedgerTransactionData>;
+  isBankTransaction?: boolean;
+}): {
+  hasChanges: boolean;
+  transactionChanges: Set<string>;
+  entryChanges: Map<number, Set<string>>; // Map of entry index -> changed fields
+  isMetadataOnly: boolean;
+  isAccountingChange: boolean;
+  bankLegViolation?: {
+    entryIndex: number;
+    violatedFields: string[];
+    message: string;
+  };
+} {
+  const transactionChanges = new Set<string>();
+  const entryChanges = new Map<number, Set<string>>();
+
+  // // Define which fields are metadata vs accounting
+  // const TRANSACTION_METADATA_FIELDS = new Set([
+  //   'description',
+  //   'reference',
+  //   'note',
+  //   'metadata',
+  //   'human_reviewed',
+  //   'review_notes',
+  // ]);
+
+  // const ENTRY_METADATA_FIELDS = new Set(['description', 'metadata']);
+
+  // const ENTRY_ACCOUNTING_FIELDS = new Set([
+  //   'coa_id',
+  //   'source_amount',
+  //   'source_currency_id', // Not editable for bank transactions
+  //   'custom_exchange_rate',
+  //   'project_id',
+  //   'fs_date',
+  //   'contact_id',
+  //   'contact_type',
+  // ]);
+
+  // Helper to compare values with epsilon for numbers
+  const areValuesEqual = (a: unknown, b: unknown): boolean => {
+    // Null/undefined equivalence
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+
+    // Date comparison: handle Date objects or YMD strings
+    // Check if either value looks like a date (Date object or YMD string pattern)
+    const aIsDateLike =
+      a instanceof Date ||
+      (typeof a === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a));
+    const bIsDateLike =
+      b instanceof Date ||
+      (typeof b === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b));
+
+    if (aIsDateLike || bIsDateLike) {
+      const aYMD = normalizeDateForComparison(a);
+      const bYMD = normalizeDateForComparison(b);
+      return aYMD === bYMD;
+    }
+
+    // Number comparison with epsilon
+    if (typeof a === 'number' && typeof b === 'number') {
+      return Math.abs(a - b) < 0.01;
+    }
+
+    // Object comparison (for metadata)
+    if (typeof a === 'object' && typeof b === 'object') {
+      return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    // String comparison
+    return String(a) === String(b);
+  };
+
+  // 1. Check transaction-level changes
+  for (const field of TRANSACTION_METADATA_FIELDS) {
+    if (field in proposed) {
+      const proposedValue = proposed[field as keyof typeof proposed];
+      const existingValue = existing[field as keyof LedgerTransaction];
+
+      if (!areValuesEqual(existingValue, proposedValue)) {
+        transactionChanges.add(field);
+      }
+    }
+  }
+
+  // 2. Check entry-level changes (structural + field changes)
+  const proposedEntries = proposed.transactions ?? [];
+
+  // Structural change: entry count mismatch
+  if (proposedEntries.length !== existingEntries.length) {
+    // This is a structural change - always accounting
+    return {
+      hasChanges: true,
+      transactionChanges,
+      entryChanges,
+      isMetadataOnly: false,
+      isAccountingChange: true,
+    };
+  }
+
+  // Compare each entry by position
+  for (let i = 0; i < existingEntries.length; i++) {
+    const existingEntry = existingEntries[i]!;
+    const proposedEntry = proposedEntries[i];
+
+    if (!proposedEntry) continue;
+
+    const changedFields = new Set<string>();
+
+    // Check metadata fields
+    for (const field of ENTRY_METADATA_FIELDS) {
+      if (field in proposedEntry) {
+        const proposedValue =
+          proposedEntry[field as keyof typeof proposedEntry];
+        const existingValue = existingEntry[field as keyof LedgerEntry];
+
+        if (!areValuesEqual(existingValue, proposedValue)) {
+          changedFields.add(field);
+        }
+      }
+    }
+
+    // Check accounting fields
+    for (const field of ENTRY_ACCOUNTING_FIELDS) {
+      if (field in proposedEntry) {
+        const proposedValue =
+          proposedEntry[field as keyof typeof proposedEntry];
+        const existingValue = existingEntry[field as keyof LedgerEntry];
+
+        if (!areValuesEqual(existingValue, proposedValue)) {
+          changedFields.add(field);
+        }
+      }
+    }
+
+    if (changedFields.size > 0) {
+      entryChanges.set(i, changedFields);
+    }
+  }
+
+  // 2a. Bank Leg Immutability Validation (if bank transaction)
+  let bankLegViolation:
+    | {
+        entryIndex: number;
+        violatedFields: string[];
+        message: string;
+      }
+    | undefined;
+
+  if (isBankTransaction) {
+    // Find the bank leg in existing entries
+    const bankLegIndex = existingEntries.findIndex(
+      (e) => e.is_bank_leg === true,
+    );
+
+    if (bankLegIndex !== -1) {
+      const existingBankLeg = existingEntries[bankLegIndex]!;
+      const proposedBankLeg = proposedEntries[bankLegIndex];
+
+      if (proposedBankLeg) {
+        // Check immutable fields: coa_id, source_currency_id, source_amount
+        const immutableBankLegFields = [
+          'coa_id',
+          'source_currency_id',
+          'source_amount',
+        ] as const;
+        const violatedFields: string[] = [];
+
+        for (const field of immutableBankLegFields) {
+          if (field in proposedBankLeg) {
+            const proposedValue =
+              proposedBankLeg[field as keyof typeof proposedBankLeg];
+            const existingValue = existingBankLeg[field as keyof LedgerEntry];
+
+            if (!areValuesEqual(existingValue, proposedValue)) {
+              violatedFields.push(field);
+            }
+          }
+        }
+
+        if (violatedFields.length > 0) {
+          bankLegViolation = {
+            entryIndex: bankLegIndex,
+            violatedFields,
+            message: `Bank leg immutability violation: Cannot change ${violatedFields.join(', ')} on bank leg. These fields must always match the source bank transaction.`,
+          };
+        }
+      }
+    }
+  }
+
+  // 3. Determine if any changes exist
+  const hasChanges = transactionChanges.size > 0 || entryChanges.size > 0;
+
+  // 4. Classify changes
+  let hasAccountingChange = false;
+  let hasMetadataChange = false;
+
+  // Transaction-level changes are always metadata (accounting fields are immutable)
+  if (transactionChanges.size > 0) {
+    hasMetadataChange = true;
+  }
+
+  // Entry-level changes need classification
+  for (const changedFields of entryChanges.values()) {
+    for (const field of changedFields) {
+      if (ENTRY_ACCOUNTING_FIELDS.has(field as never)) {
+        hasAccountingChange = true;
+      }
+      if (ENTRY_METADATA_FIELDS.has(field as never)) {
+        hasMetadataChange = true;
+      }
+    }
+  }
+
+  const isMetadataOnly =
+    hasChanges && hasMetadataChange && !hasAccountingChange;
+  const isAccountingChange = hasAccountingChange;
+
+  return {
+    hasChanges,
+    transactionChanges,
+    entryChanges,
+    isMetadataOnly,
+    isAccountingChange,
+    ...(bankLegViolation && { bankLegViolation }),
+  };
 }

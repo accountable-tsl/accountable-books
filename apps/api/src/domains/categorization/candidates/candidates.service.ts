@@ -77,7 +77,7 @@ export async function persistCategorizationCandidate({
   candidate: CandidateInput;
   trx?: Knex.Transaction;
   runId: string;
-}) {
+}): Promise<{ candidateId: string }> {
   // Check if there's a candidate for this transaction/task
   // find the candidate with the highest confidence
   // If there's a tie between multiple candidates,
@@ -97,7 +97,9 @@ export async function persistCategorizationCandidate({
     throw new Error(`Invalid source - ${c.source}`);
   }
 
-  const exec = async (txn: Knex.Transaction) => {
+  const exec = async (
+    txn: Knex.Transaction,
+  ): Promise<{ candidateId: string }> => {
     // Any existing candidate for this transaction/task?
     const existing = await txn('categorization_candidates')
       .select(['id', 'source', 'confidence'])
@@ -124,10 +126,12 @@ export async function persistCategorizationCandidate({
         },
         trx: txn,
       });
-      return;
+
+      return { candidateId: existing.id };
     }
 
     if (existing) {
+      // Soft delete the existing candidate
       await txn('categorization_candidates')
         .where({ id: existing.id })
         .update({ is_deleted: true, deleted_at: txn.fn.now() });
@@ -184,12 +188,14 @@ export async function persistCategorizationCandidate({
       },
       trx: txn,
     });
+
+    return { candidateId };
   };
 
   if (trx) {
-    await exec(trx);
+    return await exec(trx);
   } else {
-    await knexClient.transaction(exec);
+    return await knexClient.transaction(exec);
   }
 }
 

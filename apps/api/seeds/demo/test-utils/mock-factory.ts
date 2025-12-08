@@ -169,14 +169,14 @@ export class KnexMockFactory {
         email: 'demo.us@example.com',
         firstname: 'Demo',
         lastname: 'User',
-        is_demo_user: true,
+        user_type: 'demo',
       },
       {
         id: 'user-2',
         email: 'demo.ng@example.com',
         firstname: 'Demo',
         lastname: 'User',
-        is_demo_user: true,
+        user_type: 'demo',
       },
     ];
 

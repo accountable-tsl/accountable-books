@@ -74,6 +74,14 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('coa_id').notNullable();
     table.uuid('project_id').nullable();
 
+    table
+      .uuid('contact_id')
+      .nullable()
+      .references('id')
+      .inTable('contacts')
+      .onDelete('SET NULL');
+    table.specificType('contact_type', 'contact_type').nullable();
+
     table.decimal('signed_native_amount', 20, 6).notNullable();
     table.string('description', 255).nullable();
     table.boolean('is_bank_leg').notNullable().defaultTo(false);
@@ -201,6 +209,15 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('coa_id').notNullable();
     table.string('description').nullable();
     table.uuid('project_id').nullable();
+
+    table
+      .uuid('contact_id')
+      .nullable()
+      .references('id')
+      .inTable('contacts')
+      .onDelete('SET NULL');
+    table.specificType('contact_type', 'contact_type').nullable();
+
     // table.decimal('amount_native', 20, 6).notNullable();
     // table.string('currency_code', 3).notNullable();
     // Marks deterministic bank leg so UI can hide it for the owning bank account
