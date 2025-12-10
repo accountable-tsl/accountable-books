@@ -96,16 +96,37 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     // Get or create a bank account for the demo company (within transaction)
     let bankAccount = await trx('bank_accounts')
-      .where({ company_id: testCompanyId })
+      .where({ company_id: testCompanyId, is_deleted: false })
       .first();
 
     if (!bankAccount) {
+      // Get or create a bank first
+      let bank = await trx('banks').where({ key: 'us_chase_bank' }).first();
+
+      if (!bank) {
+        [bank] = await trx('banks')
+          .insert({
+            key: 'us_chase_bank',
+            display_name: 'Chase Bank',
+            country_code: 'US',
+          })
+          .returning('*');
+      }
+
       [bankAccount] = await trx('bank_accounts')
         .insert({
           company_id: testCompanyId,
-          name: 'Test Bank Account',
+          display_name: 'Test Bank Account',
+          account_name: 'Test Bank Account',
+          account_type: 'checkings_current',
+          account_number: '1234567890',
+          business_or_personal: 'business',
+          bank_id: bank.id,
           currency_id: testCurrencyId,
           coa_id: cashCoa.id,
+          connection_status: 'not_connected',
+          created_by_id: testUserId,
+          updated_by_id: testUserId,
         })
         .returning('*');
     }

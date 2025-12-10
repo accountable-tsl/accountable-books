@@ -241,6 +241,7 @@ export async function createLedgerRecord({
           'bt.date': toYMD(sourceTxDate),
           'ba.company_id': companyUUID,
           'bt.is_deleted': false,
+          'ba.is_deleted': false,
         })
         .first(
           'bt.amount',
@@ -675,7 +676,6 @@ export async function createLedgerRecord({
       },
       'Failed to create ledger transaction',
     );
-
     // If we're in an existing transaction, re-throw (let caller handle rollback)
     // Otherwise, return an error response
     if (trx) {

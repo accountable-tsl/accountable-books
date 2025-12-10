@@ -396,12 +396,13 @@ BEGIN
      OR (NEW.updated_by_id IS DISTINCT FROM OLD.updated_by_id)
     --  OR (NEW.categorization_status IS DISTINCT FROM OLD.categorization_status)
      OR (NEW.system_exchange_rate IS DISTINCT FROM OLD.system_exchange_rate)
+     OR (NEW.ledger_transaction_id IS DISTINCT FROM OLD.ledger_transaction_id)
   THEN
     RETURN NEW;
   END IF;
 
   IF ROW(NEW.*) IS DISTINCT FROM ROW(OLD.*) THEN
-    RAISE EXCEPTION 'Bank transactions are immutable. Only is_deleted, deleted_at, updated_by_id, system_exchange_rate may change.';
+    RAISE EXCEPTION 'Bank transactions are immutable. Only is_deleted, deleted_at, updated_by_id, system_exchange_rate, ledger_transaction_id may change.';
   END IF;
   RETURN NEW;
 END;
