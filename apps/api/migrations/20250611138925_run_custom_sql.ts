@@ -10,7 +10,7 @@ const sqlDir = path.join(__dirname, 'sql');
 console.log('SQL Dir:', sqlDir); // Verify path
 
 // Files that have their own dedicated migrations and should be excluded
-const EXCLUDED_FILES = ['categorization_engine_view.sql'];
+const EXCLUDED_FILES = [''];
 
 export async function up(knex: Knex): Promise<void> {
   const files = (await fs.readdir(sqlDir))

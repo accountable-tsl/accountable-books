@@ -95,12 +95,12 @@ export const getColumnStyle = ({
   explicitSize?: boolean;
 }) => {
   return {
-    flex: explicitSize ? 0 : 1,
+    flex: explicitSize ? '0 0 auto' : '1 0 auto',
     ...(column
       ? { width: `calc(var(--col-${column.column.id}-size) * 1px)` }
       : {}),
     ...(column
-      ? { flexBasis: `calc(var(--col-${column.column.id}-size))` }
+      ? { minWidth: `calc(var(--col-${column.column.id}-size) * 1px)` }
       : {}),
   };
 };

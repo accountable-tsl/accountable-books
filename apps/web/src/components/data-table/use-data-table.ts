@@ -207,14 +207,24 @@ export function useDataTable<TData>({
     enableRowSelection: rowSelection.enabled,
     enableMultiRowSelection: rowSelection.enableMultiRowSelection,
 
+    // Enable pinning if columnPinning is provided in state or initialState
+    enablePinning: !!(
+      tableOptions?.state?.columnPinning ||
+      tableOptions.initialState?.columnPinning
+    ),
+
     state: {
       ...tableOptions?.state,
       rowSelection: rowSelection.rowSelectionState,
       columnFilters,
       columnVisibility,
+      // Ensure columnPinning always has a default value
+      columnPinning: tableOptions?.state?.columnPinning ??
+        tableOptions.initialState?.columnPinning ?? { left: [], right: [] },
     },
     onRowSelectionChange: rowSelection.setRowSelectionState,
     onColumnVisibilityChange: setColumnVisibility,
+    onColumnPinningChange: tableOptions.onColumnPinningChange,
 
     // Column resizing is opt-in and configurable
     enableColumnResizing: columnResize?.enabled ?? true,

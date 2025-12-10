@@ -84,8 +84,13 @@ export async function getCategorizationTransactions(
 
     // Apply pagination and ordering
     const transactions = await query
+      .orderBy('bank_display_name', 'asc') // Order by bank name first
+      .orderBy('bank_account_id', 'asc') // Then by bank account
       .orderBy('date', 'desc')
-      .orderBy('id')
+      .orderByRaw('coa_name ASC NULLS LAST')
+      .orderByRaw('contact_name ASC NULLS LAST')
+      .orderByRaw('confidence DESC NULLS LAST')
+      .orderBy('id') // Final tie-breaker
       .limit(actualLimit)
       .offset(offset);
 
@@ -104,11 +109,17 @@ export async function getCategorizationTransactions(
           contact_id: tx.contact_id,
           contact_type: tx.contact_type,
           bank_account_id: tx.bank_account_id,
+          bank_account_display_name: tx.bank_account_display_name,
           bank_currency_id: tx.bank_currency_id,
           bank_currency_code: tx.bank_currency_code,
+          bank_id: tx.bank_id,
+          bank_display_name: tx.bank_display_name,
+          bank_logo: tx.bank_logo,
           coa_id: tx.coa_id,
           coa_name: tx.coa_name,
           coa_code: tx.coa_code,
+          project_id: tx.project_id,
+          project_name: tx.project_name,
           system_exchange_rate: Number(tx.system_exchange_rate),
           custom_exchange_rate: Number(tx.custom_exchange_rate),
           native_amount: Number(tx.native_amount),

@@ -43,6 +43,10 @@ export function DataTable<TData>({
     return colSizes;
   }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
+  const hasPinnedColumns =
+    (table.getState().columnPinning?.left?.length ?? 0) > 0 ||
+    (table.getState().columnPinning?.right?.length ?? 0) > 0;
+
   const BodyComponent = table.getState().columnSizingInfo.isResizingColumn
     ? MemoizedDataTableBody
     : DataTableBody;
@@ -61,8 +65,11 @@ export function DataTable<TData>({
       {/* Main table */}
       <Table
         className={cn(
-          'min-w-full rounded-md overflow-clip border',
+          'min-w-full w-full rounded-md overflow-clip border',
           tableClass || '',
+          hasPinnedColumns
+            ? 'overflow-x-auto overflow-y-visible scrollbar-thin-2px'
+            : '',
         )}
         style={{
           ...columnSizeVars,

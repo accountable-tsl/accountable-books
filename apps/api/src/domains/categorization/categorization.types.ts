@@ -52,11 +52,17 @@ export interface CategorizationTransaction {
    */
   contact_type: string | null;
   bank_account_id: string;
+  bank_account_display_name: string;
   bank_currency_id: string;
   bank_currency_code: string;
+  bank_id: string;
+  bank_display_name: string;
+  bank_logo: string | null;
   coa_id: string | null;
   coa_name: string | null;
   coa_code: string | null;
+  project_id: string | null;
+  project_name: string | null;
   /**
    * System exchange rate - The system-determined exchange rate
    */

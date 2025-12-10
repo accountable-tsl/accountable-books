@@ -16,11 +16,17 @@ WITH uncategorized_txns AS (
     bt.contact_id,
     bt.contact_type_snapshot as contact_type,
     bt.bank_account_id,
+    ba.display_name as bank_account_display_name,
+    b.id as bank_id,
+    b.display_name as bank_display_name,
     ba.currency_id as bank_currency_id,
     cur.code as bank_currency_code,
+    b.logo_url as bank_logo,
     NULL::uuid as coa_id,
     NULL::text as coa_name,
     NULL::text as coa_code,
+    NULL::uuid as project_id,
+    NULL::text as project_name,
 
     -- NULL::decimal as amount,
     -- NULL::decimal as exchange_rate,
@@ -49,6 +55,7 @@ WITH uncategorized_txns AS (
 
   FROM bank_transactions bt
   JOIN bank_accounts ba ON bt.bank_account_id = ba.id
+  JOIN banks b ON ba.bank_id = b.id
   JOIN currencies cur ON ba.currency_id = cur.id
   WHERE bt.is_deleted = false
     AND bt.ledger_transaction_id IS NULL
@@ -73,12 +80,18 @@ candidate_txns AS (
     ccl.contact_type as contact_type,
 
     bt.bank_account_id,
+    ba.display_name as bank_account_display_name,
+    b.id as bank_id,
+    b.display_name as bank_display_name,
     ba.currency_id as bank_currency_id,
     cur.code as bank_currency_code,
+    b.logo_url as bank_logo,
 
     ccl.coa_id,
     coa.name as coa_name,
     coa.code as coa_code,
+    ccl.project_id,
+    projects.name as project_name,
     ccl.system_exchange_rate as system_exchange_rate,
     ccl.custom_exchange_rate as custom_exchange_rate,
 
@@ -105,11 +118,13 @@ candidate_txns AS (
 
   FROM bank_transactions bt
   JOIN bank_accounts ba ON bt.bank_account_id = ba.id
+  JOIN banks b ON ba.bank_id = b.id
   JOIN currencies cur ON ba.currency_id = cur.id
   JOIN categorization_candidates cc ON cc.bank_transaction_id = bt.id
   JOIN categorization_candidate_lines ccl ON ccl.candidate_id = cc.id
   LEFT JOIN contacts ON ccl.contact_id = contacts.id
   LEFT JOIN coa ON ccl.coa_id = coa.id
+  LEFT JOIN projects ON ccl.project_id = projects.id
   WHERE bt.is_deleted = false
     AND cc.is_deleted = false
     AND ccl.is_deleted = false
@@ -130,11 +145,17 @@ posted_txns AS (
     le.contact_id as contact_id,
     le.contact_type as contact_type,
     bt.bank_account_id,
+    ba.display_name as bank_account_display_name,
+    b.id as bank_id,
+    b.display_name as bank_display_name,
     ba.currency_id as bank_currency_id,
     cur.code as bank_currency_code,
+    b.logo_url as bank_logo,
     le.coa_id,
     coa.name as coa_name,
     coa.code as coa_code,
+    le.project_id,
+    projects.name as project_name,
 
     le.system_exchange_rate as system_exchange_rate,
     le.custom_exchange_rate as custom_exchange_rate,
@@ -159,11 +180,13 @@ posted_txns AS (
     ) as is_editable
   FROM bank_transactions bt
   JOIN bank_accounts ba ON bt.bank_account_id = ba.id
+  JOIN banks b ON ba.bank_id = b.id
   JOIN currencies cur ON ba.currency_id = cur.id
   JOIN ledger_transactions lt ON lt.source_transaction_id = bt.id
   JOIN ledger_entries le ON le.ledger_transaction_id = lt.id
   LEFT JOIN contacts ON le.contact_id = contacts.id
   LEFT JOIN coa ON le.coa_id = coa.id
+  LEFT JOIN projects ON le.project_id = projects.id
   WHERE bt.is_deleted = false
     AND lt.is_deleted = false
     AND le.is_deleted = false

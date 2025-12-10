@@ -7,6 +7,7 @@ import { RowViewer } from '@/components/data-table/row-view/row-viewer';
 import type { CustomTable } from '@/components/data-table/types/data-table';
 import type { RowViewerProps } from '@/components/data-table/types/row-click';
 import { isClickInsideExcludedElement } from '@/components/data-table/utils/table';
+import { cn } from '@/lib/utils';
 
 import { getColumnStyle } from './utils/column-sizing';
 
@@ -58,6 +59,11 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const rowClickEnabled = !!rowClick || false;
   const viewedRow = rowClick?.viewedRow;
   const shouldShowViewer = rowClick?.mode === 'view' && !!viewedRow;
+  // Check if any columns are pinned
+
+  const hasPinnedColumns =
+    (table.getState().columnPinning?.left?.length ?? 0) > 0 ||
+    (table.getState().columnPinning?.right?.length ?? 0) > 0;
 
   const rowViewerInfo: RowViewerProps<TData> | undefined =
     rowClick?.mode === 'view' && viewedRow
@@ -81,49 +87,113 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const renderRow = (row: Row<TData>) => {
     // Use stable row key based on original data rather than sorted position
     const stableRowKey = row.id;
+
+    // Extract key separately to pass directly to JSX (React requirement)
+    const rowProps = {
+      'data-index': stableRowKey,
+      ref: (node: HTMLDivElement | null) => {
+        if (node && enableVirtual) {
+          virtualizer.measureElement(node);
+        }
+      },
+      'data-state': row.getIsSelected() ? 'selected' : '',
+      className: tableBodyRow,
+      onClick: (e: React.MouseEvent) => onRowClick(e, row),
+      style: {
+        cursor: rowClickEnabled ? 'pointer' : 'default',
+      } as React.CSSProperties,
+    };
+
+    // Extract cell rendering - used by both pinned and non-pinned paths
+    const renderCell = (
+      cell: Cell<TData, unknown>,
+      isPinned: 'left' | 'right' | false = false,
+      needsBorder: 'right' | 'left' | false = false,
+    ) => {
+      const columnDef = table
+        ._getColumnDefs()
+        .find((c) => c.id === cell.column.id);
+      const explicitSize = !!columnDef?.size;
+      const colStyle = getColumnStyle({ column: cell, explicitSize });
+
+      // Calculate pinned position
+      // let pinnedStyle: React.CSSProperties = {};
+      // if (isPinned) {
+      //   const totalOffset =
+      //     isPinned === 'left'
+      //       ? cell.column.getStart('left')
+      //       : cell.column.getAfter('right');
+
+      //   pinnedStyle = {
+      //     position: 'sticky',
+      //     zIndex: 2,
+      //     backgroundColor: 'var(--background)',
+      //     [isPinned]: totalOffset,
+      //   };
+      // }
+
+      const cellClassName = cn(
+        tableBodyCell,
+        needsBorder === 'right' ? 'border-r' : '',
+        needsBorder === 'left' ? 'border-l' : '',
+      );
+
+      return (
+        <TableCell
+          key={cell.id}
+          style={{ ...colStyle }}
+          data-pinned={isPinned || undefined}
+          className={cellClassName}
+        >
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </TableCell>
+      );
+    };
+
+    if (hasPinnedColumns) {
+      // Use TanStack's built-in methods to get cells
+      const leftCells = row.getLeftVisibleCells();
+      const centerCells = row.getCenterVisibleCells();
+      const rightCells = row.getRightVisibleCells();
+
+      return (
+        <TableRow
+          key={stableRowKey}
+          {...rowProps}
+          className={cn(hasPinnedColumns ? '!min-w-full' : '')}
+        >
+          {/* Left pinned cells */}
+          <div className="flex flex-row items-center justify-center sticky left-0 z-10 bg-background border-r h-full">
+            {leftCells.map((cell) => renderCell(cell, 'left'))}
+          </div>
+
+          <div className="flex-1 overflow-y-visible h-full">
+            <div className="flex flex-row flex-nowrap whitespace-nowrap items-center h-full">
+              {centerCells.map((cell) => renderCell(cell, false))}
+            </div>
+          </div>
+
+          <div className="flex flex-row items-center justify-center sticky right-0 z-10 bg-background border-l h-full">
+            {rightCells.map((cell) => renderCell(cell, 'right'))}
+          </div>
+        </TableRow>
+      );
+    }
+
+    // Default rendering when pinning is disabled
     return (
-      <TableRow
-        key={stableRowKey}
-        data-index={stableRowKey}
-        ref={(node) => {
-          if (node && enableVirtual) {
-            virtualizer.measureElement(node);
-          }
-        }}
-        data-state={row.getIsSelected() ? 'selected' : ''}
-        className={tableBodyRow}
-        onClick={(e) => onRowClick(e, row)}
-        style={{ cursor: rowClickEnabled ? 'pointer' : 'default' }}
-      >
-        {row.getVisibleCells().map((cell: Cell<TData, unknown>) => {
-          // const hasCheckbox = cell.getValue() === 'checkbox' || cell.column.id === 'select';
-
-          const columnDef = table
-            ._getColumnDefs()
-            .find((c) => c.id === cell.column.id);
-          const explicitSize = !!columnDef?.size;
-
-          const colStyle = getColumnStyle({ column: cell, explicitSize });
-
-          return (
-            <TableCell
-              key={cell.id}
-              // style={hasCheckbox ? {} : colStyle}
-              style={colStyle}
-              className={tableBodyCell}
-            >
-              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              {/* Can also use cell.renderValue<any>(). Renders the value for a cell the same as getValue, but will return the renderFallbackValue if no value is found. */}
-            </TableCell>
-          );
-        })}
+      <TableRow key={stableRowKey} {...rowProps}>
+        {row.getVisibleCells().map((cell) => renderCell(cell))}
       </TableRow>
     );
   };
 
   if (enableVirtual && virtualizer) {
     return (
-      <TableBody ref={scrollRef} className={tableBody}>
+      <TableBody
+        ref={scrollRef}
+        className={cn(tableBody, hasPinnedColumns ? 'overflow-y-visible' : '')}
+      >
         <div
           style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
         >
@@ -134,7 +204,9 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                width: '100%',
+                ...(hasPinnedColumns
+                  ? { minWidth: 'max-content' }
+                  : { width: '100%' }),
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
@@ -148,7 +220,12 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
 
   return (
     <>
-      <TableBody className={tableBody}>
+      <TableBody
+        className={cn(
+          tableBody,
+          hasPinnedColumns ? 'min-w-max overflow-y-visible' : '',
+        )}
+      >
         {rows?.length ? (
           rows.map((row) => renderRow(row))
         ) : (

@@ -12,7 +12,7 @@ const Table = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
         data-slot="table"
         role="table"
         className={cn(
-          'flex flex-col w-full caption-bottom text-sm relative min-h-0',
+          'flex flex-col w-full caption-bottom text-sm relative min-h-0 overflow-x-auto',
           className,
         )}
         {...props}

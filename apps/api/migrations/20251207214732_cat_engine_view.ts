@@ -9,7 +9,7 @@ const __dirname = dirname(__filename);
 export async function up(knex: Knex): Promise<void> {
   // Read and execute VIEW SQL
   const viewSql = readFileSync(
-    join(__dirname, 'sql/categorization_engine_view.sql'),
+    join(__dirname, 'views-sql/categorization_engine_view.sql'),
     'utf-8',
   );
   await knex.raw(viewSql);

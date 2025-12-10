@@ -1,0 +1,402 @@
+Some of the tables needed,,,
+Table Name,Purpose,Business Area,
+tenants,Represents each business using our platform. Defines multi-tenant boundary and ownership of all CRM + assessment data.,Platform / Identity,"We'll have to adapt this to fit firms, coz this bit of the app is for firms.. so maybe accounting firms table will be this"
+users,"Represents individual users (SDRs, managers, admins, etc.) with login credentials and profile info.",Platform / Identity,We already have this setup somehow
+tenant_users,"Join table linking users to tenants, with role-based access (admin, manager, SDR). Supports users belonging to multiple tenants.",Platform / Identity,Same as above
+contacts,Represents PEOPLE (both B2B and B2C). Holds personal info and links to a company when applicable.,CRM,maybe we call this crm_contacts
+companies,Represents BUSINESSES (B2B accounts). B2C leads have no company record. Stores organization-level attributes.,CRM,"maybe we call this crm_companies, if we can't use same contacts table"
+leads,Represents the SALES LEAD. Links to a contact and optionally a company. Tracks lead stage/status and source.,CRM / Pre-Sales,
+assessment_forms,Defines the structure of an assessment. Acts as both templates (tenant_id = NULL) and tenant-specific forms (tenant_id != NULL). Can clone from templates via template_id.,Fit Assessment / Prequalification,Assessment forms and related should follow EAV/key-value design
+assessment_questions,"Stores structured questions belonging to a form (or template). Defines label, data type, requirement, and ordering.",Fit Assessment / Prequalification,
+assessment_scoring_rules,"Stores rules that map answers to outputs. Defines how a form turns input values into bands, categories, or numeric scores.",Fit Assessment / Prequalification,
+assessments,A single completed (or in-progress) assessment instance for a lead. References which form was used.,Fit Assessment / Prequalification,
+assessment_answers,Stores each answer for each question during an assessment. Supports multiple data types (text/number/boolean/json).,Fit Assessment / Prequalification,
+assessment_scores,"Stores computed results from scoring rules for a given assessment (e.g. workload_band, complexity_band).",Fit Assessment / Prequalification,
+service_order_templates,"Service order templates definition e.g discovery template, cleanup template, ongoing bookkeeping, CFO advisory, etc",,"Could have these fields: id, tenant id (nullable for preloaded opinionated ones), type (discovery etc), name, default price, default currency, default duration days, billing cycle, terms (json), is default (whether this is the default for the accounting firm)"
+service_orders,This represents any billable or contractual engagement.,,"Could have these fields - id, tenant_id, lead_id, client_company_id, client_contact_id, type, status, price, currency, billing_cycle, start_date, end_date, terms_json, pdf_url"
+engagements,,,Assigned team could stay here as json or we can decide if a join table is needed
+workflow_templates,"It describes what a given service type should do. steps, tasks, categories, deliverables, duration, what data is required, what documents to collect, what internal forms to complete... all stored as tenant configurable templates",,We must account for concurrent tasks and dependency chains
+engagement_tasks,,,
+engagement_data,,,
+pricing_profiles,Each tenant can build their own pricing profiles for each service and each can have it's own pricing engine. Although we'll build an opinionated first one and store it in configs. Defaults will me marked,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+"A service is a type of engagement with a defined workflow, a defined pricing model, a defined service-order template and a defined outcome",,,
+,,,
+Opinionated template,,,
+assessment_forms,,,
+id: <uuid>,,,
+tenant_id: NULL,,,
+template_id: NULL,,,
+"name: ""Accounting Client Fit Assessment""",,,
+"description: ""Template for assessing bookkeeping workload, complexity, and advisory needs.""",,,
+version: 1,,,
+,,,
+assessment_questions (Template Questions),,,
+Workload Predictors,,,
+label,key,data_type,
+How many bank and credit card accounts do you use?,bank_acct_count,number,
+Approx. how many transactions hit all accounts monthly?,monthly_tx_count,number,
+Do you issue invoices? Roughly how many monthly?,invoice_count,number,
+Do you receive bills/pay vendors? Roughly how many monthly?,bill_count,number,
+"Do you have payroll? If yes, how many employees/contractors?",payroll_headcount,number,
+,,,
+,,,
+Complexity Predictors,,,
+label,key,data_type,
+How many currencies do you operate in?,multi_currency_count,number,
+"How many legal entities do you operate? (e.g., subsidiaries, holding companies, SPVs)",entity_count,number,
+"How frequent are your equity, loan, or investor-related transactions?",equity_activity_level,enum,
+Which advanced accounting features apply to your business?,advanced_accounting_features,json or text[],
+How many states or countries do you run payroll in?,payroll_jurisdiction_count,number,
+Will we also handle the business owner’s personal books or filings?,include_personal_books,boolean,
+,,,
+,,,
+,,,
+,,,
+Advisory Predictors,,,
+label,key,data_type,
+What is your current annual revenue or monthly run rate?,revenue_run_rate,number,
+"Have you raised funds, or are you planning to? How much?",funds_raised,number,
+"Do you need monthly reporting, forecasts, budgeting, or board packages?",advisory_reporting_needs,boolean,
+,,,
+assessment_scoring_rules,,,
+"There are three scoring outputs: workload_band, complexity_band, advisory_band",,,
+,,,
+Workload rules (example thresholds),,,
+"form id, score_key = workload_band",,,
+operator,question_key,value,output
+>,monthly_tx_count,1000,heavy
+>,payroll_headcount,35,heavy
+>,bank_acct_count,10,heavy
+>,bill_count,100,heavy
+>,invoice_count,100,heavy
+>,monthly_tx_count,150,medium
+>,payroll_headcount,5,medium
+>,bank_acct_count,5,medium
+>,bill_count,15,medium
+>,invoice_count,15,medium
+engine picks the highest matching band,,,
+,,,
+Complexity rules,,,
+Structural Complexity,,,
+operator,question_key,value,output (score)
+== ,multi_currency_count,1,+0
+== ,multi_currency_count,2,+1
+>=,multi_currency_count,3,+2
+== ,entity_count,1,+0
+== ,entity_count,2,+1
+>=,entity_count,3,+2
+== ,equity_activity_level,none,+0
+== ,equity_activity_level,occasional,+1
+== ,equity_activity_level,recurring,+2
+== ,equity_activity_level,frequent,+3
+,,,
+Operational complexity,,,
+operator,question_key,value,output
+contains,advanced_accounting_features,inventory,+1
+contains,advanced_accounting_features,revenue_recognition,+1
+contains,advanced_accounting_features,project_accounting,+1
+contains,advanced_accounting_features,deferred_revenue,+1
+contains,advanced_accounting_features,job_costing,+1
+contains,advanced_accounting_features,department_allocations,+1
+,,,
+Compliance complexity,,,
+operator,question_key,value,output
+== ,payroll_jurisdiction_count,1,+0
+between,payroll_jurisdiction_count,2–3,+1
+>=,payroll_jurisdiction_count,4,+2
+== ,include_personal_books,TRUE,1
+,,,
+Final Complexity Band Rule,,,
+operator,question_key,value,output
+>=,total_complexity_score,5,high
+between,total_complexity_score,2–4,medium
+<=,total_complexity_score,1,low
+,,,
+Advisory Rules,,,
+"form id, score_key = ""advisory_band""",,,
+operator,question_key,value,output
+>,revenue_run_rate_usd,300000,high
+>,funds_raised_usd,1000000,high
+>,revenue_run_rate_usd,50000,medium
+>,funds_raised_usd,0,medium
+== ,advisory_reporting_needs,TRUE,medium
+,,,
+,,,
+Thoughs on lead status enum,"new, fit_assessment_pending, fit_assessment_complete, qualified_for_discovery_offer, discovery_offer_sent, discovery_accepted, discovery_active, discovery_complete, proposal_sent, active_client, lost",,
+"When a fit assessment is completed, for assessments.lead_id = lead.id, we store store the outputs from the assessment, and set the fit rating of the lead",,,
+User can have settings to auto send discovery offer under certain conditions; or they click send discovery offer,,,
+"Then we find the firm's default service_order_template, create a service order, with status draft and ui modal to edit price, start date etc, and then they can click send after which we update status. All these happens automatically, if auto send discovery offer is true",,,
+"What gets sent... I think we might use a third party for this in the interim, an e-sign platform (until we build our own), and then we send the agreement. If firm already has a preferred one we might consider integrations but v1 should be simple, maybe even just email delivery copying the appropriate persons",,,
+Clients accepts and pays: we update service_order status to accepted and create an engagement linked to the service order. We can also update lead status. Here we should hande cases where client views but doesn't accept or accepts but doesn't pay or payment fails and all that. We should probably also consider the different payment modes etc,,,
+,,,
+"When an engagement starts, ux should have overview (status, next task or tasks in case there are independent tasks, progress indicator, timeline, assigned team members), another tab for tasks, data, files, pricing (maybe not all the time)",,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+"CRM dashboard thoughts. Action driven. We'll need to show every user what they need to do, and what happened since they left",,,
+,,,
+During firm onboarding,,,
+Firm profile questions,,,
+What currencies do you bill in?,,,
+What time zone is your firm located in?,,,
+"What is your firm’s accounting basis? (accrual, cash, mixed)",,,
+What countries or jurisdictions do you serve?,,,
+,,,
+Services Offered,,,
+"Which services does your firm provide? cleanup, discovery month, CFO/advisory, tax, payroll, custom, audit in the future",,,
+Do you want us to auto-enable Discovery Month by default for qualified leads?,,,
+,,,
+Pricing Defaults,,,
+Default Discovery Fee,,,
+"Default Cleanup Rate. Fixed, Per month or bands",,,
+Default bookkeeping pricing bands. We provide opinionated defaults,,,
+,,,
+Integration and tools,,,
+What accounting platforms do you use?,,,
+Do you require bank-feed automation?,,,
+Do you use any tax or payroll systems?,,,
+,,,
+Service Order Templates,,,
+Do you want to use our default service order templates or create your own?,,,
+,,,
+,,,
+How it all connects,,,
+Firm signs up → answers onboarding questions,,,
+App generates:,"Service order templates, Default pricing bands, Default discovery fee, Default workflows",,
+SDR evaluates lead with your Fit Assessment,,,
+"App calculates workload, complexity, advisory bands",,,
+SDR hits Send Discovery Offer,,,
+Offer is created using the firm’s template,,,
+Client pays,,,
+Discovery Month begins,,,
+Discovery produces:,"final workload band, cleanup scope, pricing",,
+App generates Ongoing Bookkeeping Service Order,,,
+Client accepts,,,
+Engagement goes live,,,
+,,,
+,,,
+Pricing,,,
+Base Price,"Say $300 a month. Firms can set their own base. This base assumes: simple business, low transactions, no complexity, minimal reporting",,
+Size Multiplier,"based on volue + revenue, use the actual data collected during discovery",,
+,Monthly Revenue,Transactions,Size Multiplier
+,< $50k,< 100,1.0×
+,$50k–$250k,100–400,1.5×
+,$250k–$1m,"400–1,000",2.0×
+,> $1m,"> 1,000",3.0×
+Complexity Multiplier,"Based on true accounting complexity: multi-entity, multi-currency, equity activity, inventory, accrual heavy, compliance heavy",,
+,Complexity Level,Complexity Triggers,Multiplier
+,Low,0–1 triggers,1.0×
+,Medium,2–3 triggers,1.3×
+,High,4+ triggers,1.6×
+,,,
+Advisory Multiplier,Based on reporting needs,,
+,Advisory Need,Multiplier,
+,None,1.0×,
+,Basic (monthly reporting),1.2×,
+,Advanced (CFO-level),1.5×,
+,,,
+,,,
+,,,
+"A pricing profile = a full pricing rule for a service (bookkeeping, tax, audit). E.g. Default Bookkeeping Pricing; Advisory Retainer Pricing; Enterprise Bookkeeping Pricing; Standard Tax Pricing",,,
+Sample config,"Bookkeeing Default Pricing
+{
+  ""base_price"": 300,
+  ""size_breakpoints"": [
+    { ""min_revenue"": 0, ""max_revenue"": 50000, ""multiplier"": 1.0 },
+    { ""min_revenue"": 50000, ""max_revenue"": 250000, ""multiplier"": 1.5 },
+    { ""min_revenue"": 250000, ""max_revenue"": 1000000, ""multiplier"": 2.0 },
+    { ""min_revenue"": 1000000, ""max_revenue"": null, ""multiplier"": 3.0 }
+  ],
+  ""complexity_breakpoints"": [
+    { ""min_triggers"": 0, ""max_triggers"": 1, ""multiplier"": 1.0 },
+    { ""min_triggers"": 2, ""max_triggers"": 3, ""multiplier"": 1.3 },
+    { ""min_triggers"": 4, ""max_triggers"": null, ""multiplier"": 1.6 }
+  ],
+  ""advisory_levels"": {
+    ""none"": 1.0,
+    ""basic"": 1.2,
+    ""advanced"": 1.5
+  },
+  ""minimum_fee"": 300
+}","Sample Tax
+{
+  ""base_cit_fee"": 500,
+  ""entity_multiplier"": 300,
+  ""jurisdiction_fee"": 150,
+  ""complexity_addon"": {
+    ""multi_currency"": 200,
+    ""audit_risk"": 300
+  },
+  ""minimum_fee"": 500
+}
+","Audit
+{
+  ""revenue_tiers"": [
+    { ""max"": 1000000, ""base_fee"": 5000 },
+    { ""max"": 5000000, ""base_fee"": 10000 },
+    { ""max"": null, ""base_fee"": 20000 }
+  ],
+  ""risk_surcharge"": {
+    ""low"": 0,
+    ""medium"": 2000,
+    ""high"": 5000
+  },
+  ""entity_fee"": 1000,
+  ""minimum_fee"": 5000
+}
+"
+,,,
+,,,
+,,,
+Let me try and walk through the process. I'll use the names of tables defined in this doc for now,,,
+SECTION 1 — FIRM CREATES AN ACCOUNT (Tenant Onboarding),,,
+"When a new accounting firm signs up, the system must walk them through 5 setup items.",,,
+Each item has a default and a place in the DB.,,,
+STEP 1: FIRM PROFILE,,,
+What they provide:,"firm name, firm locale (country/timezone), currencies they bill in, contact person",,
+Where stored,"something like tenants, and tenant_settings",,
+Defaults applied,"Billing currency USD, timezone UTC, other locale defaults",,
+,,,
+STEP 2: FIRM USERS,,,
+They add team members (optional at start),,,
+Stored in:,tenant_users,,
+Defaults applied,"owner is assigned admin role, no other users added",,
+,,,
+STEP 3: SERVICES OFFERED,,,
+"Firm chooses which services they provide: bookkeeping, cleanup, discovery, tax, advisory, audit, payroll",,,
+Stored in:,tenant_services (tenant_id + service_type),,
+Defaults applied,"bookkeeping, disscovery, and cleanup enabled by default, all else disabled. Firms can toggle later",,
+,,,
+STEP 4: WORKFLOW TEMPLATES,,,
+"Each service requires a default workflow... and we ship opinionated default templates for discovery, cleanup and monthly bookkeeping, tax compliance (optional), CFO Advisory (optional)",,,
+Stored in:,workflow_templates with tenant_id=null for our defaults and a copy with tenant_id=firm.id. firm can customize later,,
+Defaults applied,"Discovery Workflow Template is marked is_default = true; Bookkeeping Workflow Template is marked is_default = true. Each template contains steps_json, tasks, deliverables",,
+,,,
+STEP 5: PRICING PROFILES,,,
+Firms choose to either use our default pricing or create their own pricing profile,,,
+"For defaults, we attach our preloaded profiles: Default bookkeeping pricing profile, Default cleanup pricing profile, default discovery fee, default tax pricing profile (if enabled)",,,
+"For custom, they can edit base price, multipliers, breakpoints, tax rules, audit formula, cleanup formula, min fees, industry overrides ets",,,
+"All stored in pricing_profiles, linked to the firm. Our defaults leave in the table too, copied to each company per time",,,
+,,,
+STEP 6: Discovery fee setup,,,
+"Simple screen, flat fee or tiered fee; currency, and whether discovery is mandatory for all new clients",,,
+Defaults applied,"Flat fee, Mandatory YES",,
+,,,
+"After Step 6, the firm is fully configured and ready to onboard clients. Now the system is setup to automatically generate service orders, workflows, compute pricing, assign tasks and start engagements",,,
+,,,
+SECTION 2 — WHEN THE FIRM GETS A NEW LEAD,,,
+STEP 1: Lead Created,,,
+"Where manual or api entry, stored in leads, status = ""new"", tags = empty",,,
+,,,
+STEP 2: Fit Assessment,,,
+Client either fills the fit assessment themselves or we complete it via our call with them,,,
+"We store this in assessments, assessment_answers and assessment_scores",,,
+"Outputs (default template): workload_estimate, complexity_estimate, advisory_estimate, fit rating",,,
+These outputs do not determine pricing — they only determine whether the client qualifies for Discovery.,,,
+Defaults,"our opinionated fit assessment template is used, scoring rules are preloaded",,
+Lead status becomes ,fit_assessment_complete,,
+,,,
+STEP 3: Discovery Offer Generation,,,
+SDR clicks “Send Discovery Offer” or firm sets up auto send (later in app),,,
+"System reads the discovery pricing profile, applies fee rules, creates a service_order (draft), prefills price, service_type, default terms, templace from service_order_templates",,,
+"Stored in: service_order_templates (default discovery template), service_orders. Lead status -> discovery_offer_sent",,,
+,,,
+STEP 4: Client Accepts + Pays,,,
+Client signs + pays through your integrated checkout.,,,
+Stored in: service_orders.status = accepted,,,
+"Then system creates engagement, copies default Discovery Workflow Template to engagement_tasks, Initializes engagement_data for structured findings",,,
+Lead status -> discovery_active; Engagement status -> active; Everything is automatic,,,
+,,,
+STEP 5: Discovery Work Begins,,,
+"Work is driven by: engagement, workflow_templates, engagement_tasks",,,
+"All data captured goes into: engagement_data (for structured fields), engagement_tasks.data_json (per-task work). And of course relevant object store",,,
+Deliverable: Discovery Report + Pricing Inputs,,,
+,,,
+STEP 6: Calculate Pricing for Bookkeeping + Cleanup,,,
+"System runs: calculate_price( selected_pricing_profile.config_json,  discovery_inputs)",,,
+"Where discovery_inputs come from: engagement_data, assessment_scores, collected data",,,
+"Output: monthly_bookkeeping_fee, cleanup_fee, tax_fee (if applicable)",,,
+"Stored in: service_orders (new proposal for bookkeeping), service_orders (new cleanup order)",,,
+Lead status -> proposal_ready,,,
+,,,
+STEP 7: Client Accepts Bookkeeping Proposal,,,
+Creates Bookkeeping Engagement:,,,
+"Stored in: service_orders (accepted), engagements, engagement_tasks (bookkeeping workflow tasks copied)",,,
+Lead status -> active_client,,,
+,,,
+FINAL SUMMARY (One-Line Per Stage),,,
+FIRM ONBOARDING,,,
+Tenant created → tenants,,,
+Users added → tenant_users,,,
+Services enabled → tenant_services,,,
+Workflow templates cloned → workflow_templates,,,
+Pricing profiles created → pricing_profiles,,,
+Discovery fee set → pricing_profiles,,,
+,,,
+CLIENT ONBOARDING,,,
+Lead created → leads,,,
+"Fit assessment → assessments, answers, scores",,,
+Discovery offer → service_orders,,,
+Client acceptance → service_orders.status,,,
+"Discovery engagement → engagements, engagement_tasks, engagement_data",,,
+Pricing computed → pricing_profiles applied,,,
+Bookkeeping proposal → service_orders,,,
+Acceptance → engagements (bookkeeping),,,
+Start work → engagement_tasks,,,
+,,,
+,,,
+"FOR EVERY SERVICE A FIRM PROVIDES, WE'LL HAVE A PRODUCT THAT HELPS THEM IN OUR ECO SYSTEM. FOR SIMPLE BOOKKEEPING CLIENTS, THEY CAN USE ACCOUNTABLE BOOKS, BUT THEY CAN ALSO INTEGRATE WITH OTHER APPS",,,
+"FOR CLIENTS THAT USE AN ACCOUNTING SOFTWARE QBO, ETC, WE'LL CREATE OUR VERSION LATER, BUT CLIENTS CAN SETUP THEIR WORKFLOWS AND MANAGE THOSE TASKS FROM HERE. WE'LL CREATE OPINIONATED DEFAULTS",,,
+EVEN FOR AUDITS. WE'LL BUILD OUT THE WHOLE ECOSYSTEM AND MAKE IT ALL AI-NATIVE,,,
