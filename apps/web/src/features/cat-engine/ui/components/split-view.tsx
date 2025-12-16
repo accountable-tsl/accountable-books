@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { Split } from 'lucide-react';
 
 import { FormattedAmount } from '@/components/FormattedAmount';
 import {
@@ -16,10 +17,13 @@ export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
     <Dialog>
       <DialogTrigger asChild>
         <div
-          className="cursor-pointer font-light hover:underline decoration-current"
+          className="flex items-center gap-1 cursor-pointer font-light hover:underline decoration-current"
           onClick={(e) => e.stopPropagation()}
         >
-          <span>View entries ({txn.summary.splitCount})</span>
+          <Split className="w-3 h-3 text-muted-foreground" />
+          <span className="text-blue-500">
+            View entries ({txn.summary.splitCount})
+          </span>
         </div>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">

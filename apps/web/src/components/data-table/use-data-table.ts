@@ -2,6 +2,7 @@ import {
   type ColumnFiltersState,
   type FilterFnOption,
   getCoreRowModel,
+  getExpandedRowModel,
   getFacetedMinMaxValues,
   getFacetedRowModel,
   getFacetedUniqueValues,
@@ -46,6 +47,7 @@ export function useDataTable<TData>({
     pagination: pg,
     globalSearch: gs,
     rowClick: rc,
+    expandableRows: expRows,
   } = customOptions || {};
   // Virtualization options
   const virtualization = {
@@ -122,12 +124,13 @@ export function useDataTable<TData>({
   const rowSelection = getRowSelectionOptions();
 
   const checkBoxColumn = createSelectionColumn<TData>();
+  const checkboxColumnId = checkBoxColumn.id as string;
 
   const columns = useMemo(() => {
     return rowSelection.addCheckboxes
       ? [checkBoxColumn, ...tableOptions.columns]
       : tableOptions.columns;
-  }, [rowSelection.addCheckboxes, tableOptions.columns]);
+  }, [rowSelection.addCheckboxes, tableOptions.columns, checkBoxColumn]);
 
   const globalFilterFn: FilterFnOption<TData> | undefined = useMemo(() => {
     if (!globalSearch.enabled || globalSearchColumnIds.length === 0) {
@@ -199,6 +202,36 @@ export function useDataTable<TData>({
   const setColumnVisibility =
     controlledSetColumnVisibility ?? setInternalColumnVisibility;
 
+  // Memoize column pinning to ensure checkbox column is first when row selection is enabled
+  const columnPinning = useMemo(() => {
+    const existingPinning = tableOptions?.state?.columnPinning ??
+      tableOptions.initialState?.columnPinning ?? { left: [], right: [] };
+
+    const leftPinned = existingPinning.left ?? [];
+
+    // If row selection is enabled and there are pinned columns, ensure checkbox is first
+    if (rowSelection.addCheckboxes && leftPinned.length > 0) {
+      // Remove checkbox column if it exists elsewhere in the array
+      const filteredLeft = leftPinned.filter((id) => id !== checkboxColumnId);
+      // Add checkbox column as the first item
+      return {
+        ...existingPinning,
+        left: [checkboxColumnId, ...filteredLeft],
+        right: existingPinning.right ?? [],
+      };
+    }
+
+    return {
+      left: leftPinned,
+      right: existingPinning.right ?? [],
+    };
+  }, [
+    rowSelection.addCheckboxes,
+    checkboxColumnId,
+    tableOptions?.state?.columnPinning,
+    tableOptions.initialState?.columnPinning,
+  ]);
+
   const reactTable = useReactTable({
     ...tableOptions,
     data: stableData,
@@ -218,9 +251,10 @@ export function useDataTable<TData>({
       rowSelection: rowSelection.rowSelectionState,
       columnFilters,
       columnVisibility,
-      // Ensure columnPinning always has a default value
-      columnPinning: tableOptions?.state?.columnPinning ??
-        tableOptions.initialState?.columnPinning ?? { left: [], right: [] },
+      // // Ensure columnPinning always has a default value
+      // columnPinning: tableOptions?.state?.columnPinning ??
+      //   tableOptions.initialState?.columnPinning ?? { left: [], right: [] },
+      columnPinning,
     },
     onRowSelectionChange: rowSelection.setRowSelectionState,
     onColumnVisibilityChange: setColumnVisibility,
@@ -265,6 +299,13 @@ export function useDataTable<TData>({
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
+
+    // Expanded rows
+    getExpandedRowModel:
+      expRows?.enabled || expRows?.canExpand
+        ? getExpandedRowModel()
+        : undefined,
+    ...(expRows?.canExpand ? { getRowCanExpand: expRows.canExpand } : {}),
 
     debugTable: false,
 

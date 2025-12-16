@@ -84,6 +84,8 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
     }
   }
 
+  console.log(table.getCanSomeRowsExpand());
+
   const renderRow = (row: Row<TData>) => {
     // Use stable row key based on original data rather than sorted position
     const stableRowKey = row.id;
@@ -101,6 +103,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
       onClick: (e: React.MouseEvent) => onRowClick(e, row),
       style: {
         cursor: rowClickEnabled ? 'pointer' : 'default',
+        minHeight: estimatedRowHeight + 'px',
       } as React.CSSProperties,
     };
 
@@ -134,6 +137,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
 
       const cellClassName = cn(
         tableBodyCell,
+        cell.column.columnDef.meta?.cellClassName,
         needsBorder === 'right' ? 'border-r' : '',
         needsBorder === 'left' ? 'border-l' : '',
       );
@@ -163,7 +167,10 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
           className={cn(hasPinnedColumns ? '!min-w-full' : '')}
         >
           {/* Left pinned cells */}
-          <div className="flex flex-row items-center justify-center sticky left-0 z-10 bg-background border-r h-full">
+          <div
+            className="flex flex-row items-center justify-center sticky left-0 z-10 bg-background border-r h-full"
+            style={{ backgroundColor: 'inherit' }}
+          >
             {leftCells.map((cell) => renderCell(cell, 'left'))}
           </div>
 
@@ -173,7 +180,10 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
             </div>
           </div>
 
-          <div className="flex flex-row items-center justify-center sticky right-0 z-10 bg-background border-l h-full">
+          <div
+            className="flex flex-row items-center justify-center sticky right-0 z-10 bg-background border-l h-full"
+            style={{ backgroundColor: 'inherit' }}
+          >
             {rightCells.map((cell) => renderCell(cell, 'right'))}
           </div>
         </TableRow>

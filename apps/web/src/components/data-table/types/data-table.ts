@@ -1,4 +1,5 @@
 import {
+  type ColumnDef,
   type ColumnSort,
   type Row,
   type RowData,
@@ -27,6 +28,7 @@ declare module '@tanstack/react-table' {
     icon?: React.FC<React.SVGProps<SVGSVGElement>>;
     separateFilter?: boolean;
     hidden?: boolean;
+    cellClassName?: string; // For custom cell styling
     // Use type parameters to satisfy linter
     _dataType?: TData;
     _valueType?: TValue;
@@ -104,6 +106,7 @@ export interface BaseDataTableOptions {
 export type DataTableInputOptions<TData = any> = BaseDataTableOptions & {
   rowClick?: RowClickBehavior<TData>;
   uniqueRowIdentifierKey?: string;
+  expandableRows?: ExpandableRowsOptions<TData>;
 };
 
 export type DataTableExtras<TData = any> = BaseDataTableOptions & {
@@ -167,4 +170,34 @@ export interface ExtendedColumnFilter<TData> extends FilterItemSchema {
 export interface DataTableRowAction<TData> {
   row: Row<TData>;
   variant: 'update' | 'delete';
+}
+
+export interface ExpandableRowsOptions<TData> {
+  enabled?: boolean;
+  /**
+   * Function to determine if a row can be expanded
+   */
+  canExpand?: (row: Row<TData>) => boolean;
+  /**
+   * Function to get the expanded content data for a row
+   * This allows different data structures (e.g., lines, children, subItems)
+   */
+  getExpandedData?: (row: TData) => any[] | undefined;
+  /**
+   * Render function for expanded content
+   * Receives the parent row and expanded data items
+   */
+  renderExpandedContent?: (props: {
+    row: Row<TData>;
+    expandedData: any[];
+    columns: ColumnDef<TData>[];
+  }) => React.ReactNode;
+  /**
+   * Optional styling for expanded rows
+   */
+  expandedRowClassName?: string;
+  /**
+   * Indentation for expanded rows (in rem or px)
+   */
+  indentSize?: string;
 }

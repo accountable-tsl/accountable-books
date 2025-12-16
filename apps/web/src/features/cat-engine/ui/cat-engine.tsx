@@ -21,6 +21,7 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import { useCategorizationTransactions } from '@/modules/accounting/categorization/model/hooks';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
@@ -140,7 +141,6 @@ export function CatEngine() {
     bankAccounts.forEach((acc) => map.set(acc.id, acc));
     return map;
   }, [bankAccounts]);
-  console.log(bankAccountMap);
 
   // Fetch categorization transactions
   const {
@@ -158,7 +158,7 @@ export function CatEngine() {
   });
 
   // Use test data for development - set to false to use real API data
-  const USE_TEST_DATA = false;
+  const USE_TEST_DATA = true;
 
   const rawTransactions = USE_TEST_DATA
     ? testCategorizationTransactions
@@ -166,8 +166,6 @@ export function CatEngine() {
   const transactions = useMemo(() => {
     return rawTransactions;
   }, [rawTransactions]);
-
-  console.log(txnData);
 
   const columns = useMemo(() => getCatEngineColumns(), []);
 
@@ -182,12 +180,15 @@ export function CatEngine() {
     }
   }, [rowHeight]);
 
-  const customOptions: DataTableInputOptions<any> = useMemo(() => {
+  const customOptions = useMemo(() => {
     return {
       virtualization: {
         enabled: true,
         estimatedRowHeight,
         overscan: 8,
+      },
+      rowSelection: {
+        enabled: true,
       },
       customClassNames: {
         wrapper: `gap-0`,
@@ -205,7 +206,11 @@ export function CatEngine() {
         }`,
         emptyTableRow: 'h-full',
       },
-    };
+      expandableRows: {
+        enabled: true,
+        canExpand: (row) => row.original.lines.length > 1,
+      },
+    } satisfies DataTableInputOptions<any>;
   }, [view, openAccordionItem, rowHeight, estimatedRowHeight]);
 
   // DataTable Hook
@@ -219,6 +224,7 @@ export function CatEngine() {
         right: ['spent', 'received', 'account'],
       },
     },
+    // getSubRows: (row) => row.lines,
   });
 
   const handleAccordionItemChange = useCallback((value: string) => {

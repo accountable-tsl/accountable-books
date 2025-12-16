@@ -88,7 +88,7 @@ const TableRow = React.forwardRef<
         'flex flex-nowrap border-collapse w-full items-center border-b transition-all relative',
         variant === 'header'
           ? 'min-h-10 h-10 bg-muted/40 data-[state=selected]:bg-muted'
-          : 'hover:bg-muted/50 data-[state=selected]:bg-muted',
+          : 'bg-background hover:bg-muted data-[state=selected]:bg-muted',
         className,
       )}
       {...props}

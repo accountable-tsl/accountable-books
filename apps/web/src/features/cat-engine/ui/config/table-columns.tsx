@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
-import { Building } from 'lucide-react';
+import { Building, HelpCircle } from 'lucide-react';
 
 import { FormattedAmount } from '@/components/FormattedAmount';
 import {
@@ -82,6 +82,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
 
         if (multipleLines) {
           displayText = 'Transaction has multiple entries';
+          showTooltip = true;
         } else {
           const description = txn.lines[0]?.description;
           if (description) {
@@ -93,7 +94,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
         }
 
         return (
-          <Tooltip>
+          <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <div
                 className={cn(
@@ -105,9 +106,13 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
                 {displayText}
               </div>
             </TooltipTrigger>
-            {showTooltip && !multipleLines && (
+            {showTooltip && (
               <TooltipContent className="max-w-md">
-                <p className="break-words">{displayText}</p>
+                <p className="break-words">
+                  {multipleLines
+                    ? `${displayText} - (Click row to view)`
+                    : displayText}
+                </p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -233,9 +238,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
           />
         );
       },
-      size: 175,
-      minSize: 175,
-      maxSize: 175,
+      size: 120,
       enableResizing: false,
     },
     {
@@ -291,9 +294,9 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
           />
         );
       },
-      size: 100,
-      minSize: 100,
-      maxSize: 100,
+      size: 120,
+      minSize: 120,
+      maxSize: 120,
       enableResizing: false,
     },
     {
@@ -326,9 +329,9 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
           />
         );
       },
-      size: 100,
-      minSize: 100,
-      maxSize: 100,
+      size: 120,
+      minSize: 120,
+      maxSize: 120,
       enableResizing: false,
     },
     {
@@ -343,28 +346,50 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
           return <SplitViewDialog txn={txn} />;
         }
 
+        // if (txn.summary.isSplit) {
+        //   return (
+        //     <div className="flex items-center gap-1 p-1 rounded bg-muted/20 border border-muted">
+        //       <Split className="w-4 h-4 text-muted-foreground" />
+        //       <SplitViewDialog txn={txn} />
+        //     </div>
+        //   );
+        // }
         const displayName = accountName || 'Uncategorized';
         const accountCode = txn.lines[0]?.coa_code;
+        const isUncategorized = !accountName;
 
         return (
-          <Tooltip>
+          <Tooltip delayDuration={500}>
             <TooltipTrigger asChild>
-              <div className="text-sm truncate font-light max-w-[150px] cursor-help">
+              <div
+                className={cn(
+                  'text-sm truncate max-w-[150px] cursor-help flex items-center gap-1',
+                  isUncategorized && 'font-light text-muted-foreground',
+                )}
+              >
+                {isUncategorized && (
+                  <HelpCircle className="w-4 h-4 flex-shrink-0" />
+                )}
                 {displayName}
               </div>
             </TooltipTrigger>
             <TooltipContent>
               <div>
-                <p className="font-medium">{displayName}</p>
                 {accountCode && (
-                  <p className="text-xs text-muted-foreground">{accountCode}</p>
+                  <span className="text-xs text-muted-foreground mr-1">
+                    {accountCode}
+                  </span>
                 )}
+                <span className="font-medium">{displayName}</span>
               </div>
             </TooltipContent>
           </Tooltip>
         );
       },
-      minSize: 150,
+      minSize: 175,
+      meta: {
+        cellClassName: 'p-0 px-1',
+      },
     },
     {
       id: 'confidence',
