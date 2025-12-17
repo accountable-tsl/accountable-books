@@ -1,5 +1,6 @@
 import {
   type ColumnFiltersState,
+  type ExpandedState,
   type FilterFnOption,
   getCoreRowModel,
   getExpandedRowModel,
@@ -49,6 +50,7 @@ export function useDataTable<TData>({
     rowClick: rc,
     expandableRows: expRows,
   } = customOptions || {};
+
   // Virtualization options
   const virtualization = {
     enabled: virt?.enabled ?? false,
@@ -166,6 +168,9 @@ export function useDataTable<TData>({
 
   const [viewedRowId, setViewedRowId] = useState<string | null>(null);
 
+  const [internalExpandedRows, setInternalExpandedRows] =
+    useState<ExpandedState>({});
+
   const handleRowClick = useCallback(
     (row: Row<TData>) => {
       const rcb = rowClickBehavior;
@@ -232,6 +237,30 @@ export function useDataTable<TData>({
     tableOptions.initialState?.columnPinning,
   ]);
 
+  const getSubRowsFunction = useMemo(() => {
+    if (!expRows?.enabled) return undefined;
+
+    // If custom function provided, use it
+    if (expRows.getSubRows) {
+      return expRows.getSubRows;
+    }
+
+    // Otherwise, use the property name (default: 'subRows')
+    const propertyName = expRows.subRowsProperty ?? 'subRows';
+
+    return (row: TData) => {
+      const data = row as Record<string, unknown>;
+      const subRows = data[propertyName];
+
+      // Return undefined if not an array or empty
+      if (!Array.isArray(subRows) || subRows.length === 0) {
+        return undefined;
+      }
+
+      return subRows as TData[];
+    };
+  }, [expRows?.enabled, expRows?.getSubRows, expRows?.subRowsProperty]);
+
   const reactTable = useReactTable({
     ...tableOptions,
     data: stableData,
@@ -255,10 +284,14 @@ export function useDataTable<TData>({
       // columnPinning: tableOptions?.state?.columnPinning ??
       //   tableOptions.initialState?.columnPinning ?? { left: [], right: [] },
       columnPinning,
+      ...(expRows?.enabled || expRows?.canExpand
+        ? { expanded: tableOptions.state?.expanded ?? internalExpandedRows }
+        : {}),
     },
     onRowSelectionChange: rowSelection.setRowSelectionState,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnPinningChange: tableOptions.onColumnPinningChange,
+    onExpandedChange: tableOptions.onExpandedChange ?? setInternalExpandedRows,
 
     // Column resizing is opt-in and configurable
     enableColumnResizing: columnResize?.enabled ?? true,
@@ -306,6 +339,10 @@ export function useDataTable<TData>({
         ? getExpandedRowModel()
         : undefined,
     ...(expRows?.canExpand ? { getRowCanExpand: expRows.canExpand } : {}),
+    ...(expRows?.enabled && {
+      enableExpanding: true,
+      getSubRows: getSubRowsFunction,
+    }),
 
     debugTable: false,
 
@@ -349,6 +386,7 @@ export function useDataTable<TData>({
           handleRowClick,
         }
       : undefined,
+    expandableRows: expRows,
   };
 
   const table = {

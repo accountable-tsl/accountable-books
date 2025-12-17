@@ -63,7 +63,7 @@ export interface TransactionSummary {
  * Grouped transaction structure
  * Groups all non-bank legs by bank_transaction_id
  */
-export interface GroupedTransaction {
+export interface GroupedTransactionOld {
   id: string; // bank_transaction_id
   lines: CategorizationTransaction[]; // All non-bank legs
   summary: TransactionSummary;
@@ -101,4 +101,43 @@ export interface GetCategorizationTransactionsResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+export interface GroupedTransaction {
+  // Flags
+  hasMultipleEntries?: boolean;
+  entryCount?: number;
+  rowType: 'parent' | 'subRow';
+
+  // Bank info
+  id: string;
+  bankTransactionId: string;
+  bankName: string;
+  bankLogo: string | null;
+  bankAccountName: string;
+  bankAccountCurrencyCode: string;
+
+  // Transaction details
+  date: string;
+  fsDate: string | null;
+  description: string | null;
+  contactName: string | null;
+  reference: string | null;
+  projectName: string | null;
+
+  // Amounts
+  totalBankAmount: number;
+  exchangeRate: string;
+  spent: number;
+  received: number;
+
+  // Categorization
+  confidence: number | null;
+  status: CategorizationTransactionStatus;
+  coaId: string | null;
+  coaCode: string | null;
+  coaName: string | null;
+
+  // Raw entries
+  entries?: GroupedTransaction[];
 }

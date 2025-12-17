@@ -1,4 +1,3 @@
-import type { GroupedTransaction } from '@modules/accounting/categorization';
 import type { ColumnDef } from '@tanstack/react-table';
 import {
   Landmark,
@@ -22,12 +21,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import type { GroupedTransactionOld } from '@/modules/accounting/categorization';
 import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 
 export const getCatEngineColumns = (
   bankAccountMap: Map<string, BankAccountWithMeta>,
-  onSplit?: (transaction: GroupedTransaction) => void,
-): ColumnDef<GroupedTransaction>[] => {
+  onSplit?: (transaction: GroupedTransactionOld) => void,
+): ColumnDef<GroupedTransactionOld>[] => {
   return [
     {
       id: 'split',

@@ -21,8 +21,8 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
-import { useCategorizationTransactions } from '@/modules/accounting/categorization';
+import type { GroupedTransactionOld as GroupedTransaction } from '@/modules/accounting/categorization';
+import { useCategorizationTransactionsOld as useCategorizationTransactions } from '@/modules/accounting/categorization';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 

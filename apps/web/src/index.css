@@ -150,6 +150,7 @@
       'Open Sans',
       'Helvetica Neue',
       sans-serif;
+    overscroll-behavior: none;
   }
 
   body {

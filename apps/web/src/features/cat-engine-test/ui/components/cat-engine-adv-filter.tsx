@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import type { GroupedTransactionOld as GroupedTransaction } from '@/modules/accounting/categorization';
 import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 
 import { ToggleButton } from './toggle-button';

@@ -113,6 +113,7 @@ export type DataTableExtras<TData = any> = BaseDataTableOptions & {
   stableData?: any[];
   setGlobalSearchColumns?: Dispatch<SetStateAction<string[]>>;
   rowClick?: ResolvedRowClick<TData>;
+  expandableRows?: ExpandableRowsOptions<TData>;
 };
 
 // --- UseDataTable Props (Hook Input) ---
@@ -173,31 +174,59 @@ export interface DataTableRowAction<TData> {
 }
 
 export interface ExpandableRowsOptions<TData> {
+  /**
+   * Enable expandable rows feature
+   * @default false
+   */
   enabled?: boolean;
+
+  /**
+   * Property name on your data that contains sub-rows
+   *
+   * @example
+   * // If your data has: { id: 1, name: 'Parent', children: [...] }
+   * subRowsProperty: 'children'
+   *
+   * @default 'subRows'
+   */
+  subRowsProperty?: string;
+
+  /**
+   * Custom function to extract sub-rows (overrides subRowsProperty)
+   * Use this for complex data structures or computed sub-rows
+   *
+   * @example
+   * getSubRows: (row) => row.items?.filter(item => item.active)
+   */
+  getSubRows?: (row: TData) => TData[] | undefined;
+
   /**
    * Function to determine if a row can be expanded
+   * If not provided, rows with sub-rows are automatically expandable
+   *
+   * @example
+   * canExpand: (row) => row.original.hasChildren && row.original.isActive
    */
   canExpand?: (row: Row<TData>) => boolean;
+
   /**
-   * Function to get the expanded content data for a row
-   * This allows different data structures (e.g., lines, children, subItems)
-   */
-  getExpandedData?: (row: TData) => any[] | undefined;
-  /**
-   * Render function for expanded content
-   * Receives the parent row and expanded data items
+   * Custom render function for expanded content
+   * If not provided, sub-rows are rendered as regular table rows
    */
   renderExpandedContent?: (props: {
     row: Row<TData>;
-    expandedData: any[];
+    subRows: TData[];
     columns: ColumnDef<TData>[];
   }) => React.ReactNode;
+
   /**
-   * Optional styling for expanded rows
+   * CSS class name for expanded content row
    */
   expandedRowClassName?: string;
+
   /**
-   * Indentation for expanded rows (in rem or px)
+   * Indentation size for nested rows in rem or px
+   * @default '1.5rem'
    */
   indentSize?: string;
 }

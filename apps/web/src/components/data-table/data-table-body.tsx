@@ -16,21 +16,30 @@ interface DataTableBodyProps<TData> {
 }
 export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
-  const { virtualization, customClassNames } = table.customOptions || {};
+  const { virtualization, customClassNames, expandableRows } =
+    table.customOptions || {};
   const { tableBody, tableBodyCell, tableBodyRow, emptyTableRow } =
     customClassNames || {};
 
-  const rows = React.useMemo(
-    () => table.getRowModel().rows,
-    [table.getRowModel().rows],
-  );
+  // Determine which row model to use based on expandable rows setting
+  // Use getExpandedRowModel().flatRows when expandable rows are enabled
+  // This automatically includes all visible rows (parent + expanded sub-rows)
+  const rowsToRender = React.useMemo(() => {
+    return table.getRowModel().rows;
+  }, [
+    expandableRows?.enabled,
+    table.getRowModel().rows,
+    table.getState().expanded, // Critical: react to expansion state changes
+  ]);
 
   const enableVirtual = virtualization?.enabled ?? false;
   const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 60;
   const overscan = virtualization?.overscan ?? 5;
 
+  // Virtualizer count must match the number of rows we'll actually render
+  // This updates automatically when rows expand/collapse
   const virtualizer = useVirtualizer<HTMLDivElement, Element>({
-    count: rows.length,
+    count: rowsToRender.length, // Updates automatically when expansion state changes
     estimateSize: () => estimatedRowHeight,
     getScrollElement: () => scrollRef.current,
     enabled: enableVirtual,
@@ -84,26 +93,50 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
     }
   }
 
-  console.log(table.getCanSomeRowsExpand());
+  // Helper function to calculate indentation
+  const calculateIndent = (depth: number, indentSize: string): string => {
+    const num = parseFloat(indentSize);
+    const unit = indentSize.includes('rem')
+      ? 'rem'
+      : indentSize.includes('px')
+        ? 'px'
+        : 'rem';
+    return `${depth * num}${unit}`;
+  };
 
   const renderRow = (row: Row<TData>) => {
     // Use stable row key based on original data rather than sorted position
     const stableRowKey = row.id;
+    const isSubRow = row.depth > 0; // TanStack provides depth automatically
+    const indentSize = expandableRows?.indentSize ?? '1.5rem';
 
     // Extract key separately to pass directly to JSX (React requirement)
     const rowProps = {
       'data-index': stableRowKey,
+      'data-depth': row.depth,
       ref: (node: HTMLDivElement | null) => {
         if (node && enableVirtual) {
           virtualizer.measureElement(node);
         }
       },
       'data-state': row.getIsSelected() ? 'selected' : '',
-      className: tableBodyRow,
+      className: cn(
+        'min-w-max',
+        tableBodyRow,
+        isSubRow
+          ? cn(
+              'relative conditional opacity-70 hover:opacity-100',
+              expandableRows?.expandedRowClassName,
+            )
+          : '',
+      ),
       onClick: (e: React.MouseEvent) => onRowClick(e, row),
       style: {
         cursor: rowClickEnabled ? 'pointer' : 'default',
         minHeight: estimatedRowHeight + 'px',
+        // paddingLeft: isSubRow
+        //   ? calculateIndent(row.depth, indentSize)
+        //   : undefined, // Indent sub-rows using configured size
       } as React.CSSProperties,
     };
 
@@ -118,22 +151,6 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
         .find((c) => c.id === cell.column.id);
       const explicitSize = !!columnDef?.size;
       const colStyle = getColumnStyle({ column: cell, explicitSize });
-
-      // Calculate pinned position
-      // let pinnedStyle: React.CSSProperties = {};
-      // if (isPinned) {
-      //   const totalOffset =
-      //     isPinned === 'left'
-      //       ? cell.column.getStart('left')
-      //       : cell.column.getAfter('right');
-
-      //   pinnedStyle = {
-      //     position: 'sticky',
-      //     zIndex: 2,
-      //     backgroundColor: 'var(--background)',
-      //     [isPinned]: totalOffset,
-      //   };
-      // }
 
       const cellClassName = cn(
         tableBodyCell,
@@ -156,41 +173,62 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
 
     if (hasPinnedColumns) {
       // Use TanStack's built-in methods to get cells
-      const leftCells = row.getLeftVisibleCells();
-      const centerCells = row.getCenterVisibleCells();
-      const rightCells = row.getRightVisibleCells();
+      const renderTableRow = (rowData: Row<TData>) => {
+        const leftCells = rowData.getLeftVisibleCells();
+        const centerCells = rowData.getCenterVisibleCells();
+        const rightCells = rowData.getRightVisibleCells();
 
-      return (
-        <TableRow
-          key={stableRowKey}
-          {...rowProps}
-          className={cn(hasPinnedColumns ? '!min-w-full' : '')}
-        >
-          {/* Left pinned cells */}
-          <div
-            className="flex flex-row items-center justify-center sticky left-0 z-10 bg-background border-r h-full"
-            style={{ backgroundColor: 'inherit' }}
+        return (
+          <TableRow
+            key={rowData.id}
+            {...rowProps}
+            className={cn(
+              hasPinnedColumns ? '!min-w-full' : '',
+              rowProps.className,
+            )}
           >
-            {leftCells.map((cell) => renderCell(cell, 'left'))}
-          </div>
-
-          <div className="flex-1 overflow-y-visible h-full">
-            <div className="flex flex-row flex-nowrap whitespace-nowrap items-center h-full">
-              {centerCells.map((cell) => renderCell(cell, false))}
+            {/* Left pinned cells */}
+            <div
+              className={cn(
+                'flex flex-row items-center justify-center sticky left-0 z-10 bg-background border-r h-full',
+                isSubRow ? 'border-r-0' : '',
+              )}
+              style={{ backgroundColor: 'inherit' }}
+            >
+              {leftCells.map((cell) => renderCell(cell, 'left'))}
             </div>
-          </div>
 
-          <div
-            className="flex flex-row items-center justify-center sticky right-0 z-10 bg-background border-l h-full"
-            style={{ backgroundColor: 'inherit' }}
-          >
-            {rightCells.map((cell) => renderCell(cell, 'right'))}
-          </div>
-        </TableRow>
-      );
+            <div className="flex-1 overflow-y-visible h-full">
+              <div className="flex flex-row flex-nowrap whitespace-nowrap items-center h-full">
+                {centerCells.map((cell) => renderCell(cell, false))}
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                'flex flex-row items-center justify-center sticky right-0 z-10 bg-background border-l h-full',
+                isSubRow ? 'border-l-0' : '',
+              )}
+              style={{ backgroundColor: 'inherit' }}
+            >
+              {rightCells.map((cell) => renderCell(cell, 'right'))}
+            </div>
+
+            {isSubRow && (
+              <div className="absolute inset-0 pointer-events-none bg-muted/40 z-10" />
+            )}
+          </TableRow>
+        );
+      };
+
+      // CRITICAL: Don't render sub-rows manually
+      // flatRows already includes them, and they're already in the array
+      return <>{renderTableRow(row)}</>;
     }
 
     // Default rendering when pinning is disabled
+    // CRITICAL: Don't render sub-rows manually
+    // flatRows already includes them, and they're already in the array
     return (
       <TableRow key={stableRowKey} {...rowProps}>
         {row.getVisibleCells().map((cell) => renderCell(cell))}
@@ -214,13 +252,11 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                ...(hasPinnedColumns
-                  ? { minWidth: 'max-content' }
-                  : { width: '100%' }),
+                width: 'max-content',
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
-              {renderRow(rows[virtualRow.index])}
+              {renderRow(rowsToRender[virtualRow.index])}
             </div>
           ))}
         </div>
@@ -236,8 +272,8 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
           hasPinnedColumns ? 'min-w-max overflow-y-visible' : '',
         )}
       >
-        {rows?.length ? (
-          rows.map((row) => renderRow(row))
+        {rowsToRender?.length ? (
+          rowsToRender.map((row) => renderRow(row))
         ) : (
           <TableRow className={emptyTableRow}>
             <TableCell className="min-h-24 w-full flex items-center justify-center">

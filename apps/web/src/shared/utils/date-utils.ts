@@ -286,3 +286,71 @@ export function generateDateRange(options: DateRangeOptions = {}) {
     throw new Error('Date range generation failed: Unknown error');
   }
 }
+
+/** Strict pattern for 'YYYY-MM-DD' */
+export const YMD_REGEX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+/** Strict ISO-8601 instant with timezone (Z or ±hh:mm) */
+export const ISO_INSTANT_REGEX =
+  /^\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * Validate a string is a real calendar date in 'YYYY-MM-DD' form.
+ * Rejects impossible dates like 2025-02-31.
+ */
+export function isValidYMD(ymd: string): boolean {
+  if (!YMD_REGEX.test(ymd)) return false;
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
+}
+
+/**
+ * Convert any reasonable input into a strict 'YYYY-MM-DD' string (UTC date).
+ *
+ * Accepts:
+ *  - YMD string (e.g. '2025-03-04')
+ *  - ISO-8601 instant with timezone (e.g. '2025-03-04T23:30:00Z')
+ *  - JS Date object
+ *  - Epoch milliseconds (number)
+ *
+ * Rejects:
+ *  - Ambiguous strings without timezone info (e.g. '2025-03-04T12:00:00')
+ *  - Invalid or impossible dates
+ */
+export function toYMD(input: string | number | Date): string {
+  if (input == null) throw new Error('toYMD: input is null or undefined');
+
+  // 1. Already a valid YMD string
+  if (typeof input === 'string' && isValidYMD(input)) return input;
+
+  // 2. ISO instant with explicit timezone
+  if (typeof input === 'string' && ISO_INSTANT_REGEX.test(input)) {
+    const dt = new Date(input);
+    if (Number.isNaN(dt.getTime()))
+      throw new Error(`Invalid ISO instant: ${input}`);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  // 3. Epoch number (milliseconds)
+  if (typeof input === 'number') {
+    const dt = new Date(input);
+    if (Number.isNaN(dt.getTime())) throw new Error(`Invalid epoch: ${input}`);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  // 4. JS Date object
+  if (input instanceof Date) {
+    if (Number.isNaN(input.getTime())) throw new Error('Invalid Date object');
+    const y = input.getUTCFullYear();
+    const m = String(input.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(input.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  throw new Error(`Unsupported date input: ${input}`);
+}

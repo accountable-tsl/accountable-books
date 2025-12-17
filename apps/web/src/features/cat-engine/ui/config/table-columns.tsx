@@ -1,6 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { format } from 'date-fns';
-import { Building, HelpCircle } from 'lucide-react';
+import {
+  Building,
+  ChevronDown,
+  ChevronRight,
+  HelpCircle,
+  Split,
+} from 'lucide-react';
 
 import { FormattedAmount } from '@/components/FormattedAmount';
 import {
@@ -28,23 +33,416 @@ function getUnifiedValue(values: (string | null)[], label: string): string {
   return `Multiple ${label}`;
 }
 
-export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
+// export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
+//   return [
+//     {
+//       id: 'bank',
+//       header: 'Bank',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         const logo = txn.bank_logo;
+//         const bankAccountName = txn.bank_account_display_name;
+//         const bankAccountTitle = `${txn.bank_display_name} - ${bankAccountName}`;
+//         return (
+//           <div className="flex items-center gap-2" title={bankAccountTitle}>
+//             <div className="flex-shrink-0 w-5 h-5 overflow-hidden rounded-full flex items-center justify-center border bg-white/80 dark:opacity-50">
+//               {logo ? (
+//                 <img
+//                   src={logo}
+//                   alt={`${txn.bank_display_name} logo`}
+//                   className="w-4 h-4 object-contain"
+//                 />
+//               ) : (
+//                 <Building className="w-4 h-4" />
+//               )}
+//             </div>
+
+//             <p className="text-sm truncate text-muted-foreground">
+//               {bankAccountName}
+//             </p>
+//           </div>
+//         );
+//       },
+//       size: 100,
+//     },
+//     {
+//       id: 'date',
+//       header: 'Date',
+//       accessorKey: 'date',
+//       accessorFn: (row) => format(new Date(row.date), 'dd MMM yyyy'),
+//       size: 100,
+//       minSize: 100,
+//       maxSize: 100,
+//       enableResizing: false,
+//     },
+//     {
+//       id: 'description',
+//       header: 'Description',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         const multipleLines = txn.lines.length > 1;
+
+//         let displayText: string;
+//         let showTooltip = false;
+
+//         if (multipleLines) {
+//           displayText = 'Transaction has multiple entries';
+//           showTooltip = true;
+//         } else {
+//           const description = txn.lines[0]?.description;
+//           if (description) {
+//             displayText = description;
+//             showTooltip = true;
+//           } else {
+//             displayText = 'No description';
+//           }
+//         }
+
+//         return (
+//           <Tooltip delayDuration={300}>
+//             <TooltipTrigger asChild>
+//               <div
+//                 className={cn(
+//                   'text-sm truncate',
+//                   (!showTooltip || multipleLines) &&
+//                     'text-muted-foreground opacity-50',
+//                 )}
+//               >
+//                 {displayText}
+//               </div>
+//             </TooltipTrigger>
+//             {showTooltip && (
+//               <TooltipContent className="max-w-md">
+//                 <p className="break-words">
+//                   {multipleLines
+//                     ? `${displayText} - (Click row to view)`
+//                     : displayText}
+//                 </p>
+//               </TooltipContent>
+//             )}
+//           </Tooltip>
+//         );
+//       },
+//       minSize: 175,
+//     },
+//     {
+//       id: 'fs_date',
+//       header: 'FS Date',
+//       accessorKey: 'fs_date',
+//       accessorFn: (row) => format(new Date(row.fs_date), 'dd MMM yyyy'),
+//       enableResizing: false,
+//       maxSize: 100,
+//     },
+//     {
+//       id: 'contact',
+//       header: 'Contact',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         const names = txn.lines.map((l) => l.contact_name).filter(Boolean);
+//         const contactName = getUnifiedValue(names, 'contacts');
+
+//         return (
+//           <div
+//             className={cn(
+//               'text-sm truncate font-light',
+//               contactName.startsWith('Multiple')
+//                 ? 'text-muted-foreground opacity-50'
+//                 : '',
+//             )}
+//             title={contactName || ''}
+//           >
+//             {contactName || 'No contact'}
+//           </div>
+//         );
+//       },
+//     },
+//     {
+//       id: 'reference',
+//       header: 'Reference',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         const references = txn.lines.map((l) => l.reference).filter(Boolean);
+//         const reference = getUnifiedValue(references, 'references');
+
+//         return (
+//           <div
+//             title={reference || ''}
+//             className={cn(
+//               'text-sm truncate font-light',
+//               reference.startsWith('Multiple') || !reference
+//                 ? 'text-muted-foreground opacity-50'
+//                 : '',
+//             )}
+//           >
+//             {reference || '-'}
+//           </div>
+//         );
+//       },
+//     },
+//     {
+//       id: 'project',
+//       header: 'Project',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         const projectNames = txn.lines
+//           .map((l) => l.project_name)
+//           .filter(Boolean);
+//         const projectName = getUnifiedValue(projectNames, 'projects');
+
+//         return (
+//           <div
+//             title={projectName || ''}
+//             className={cn(
+//               'text-sm truncate font-light',
+//               projectName.startsWith('Multiple') || !projectName
+//                 ? 'text-muted-foreground opacity-50'
+//                 : '',
+//             )}
+//           >
+//             {projectName || ''}
+//           </div>
+//         );
+//       },
+//     },
+//     {
+//       id: 'currency',
+//       header: 'Curr',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         // Currency is the same for all lines since they're from the same bank account
+//         const currencyCode = txn.bank_currency_code;
+
+//         return (
+//           <div
+//             title={currencyCode}
+//             className="text-sm truncate font-light text-muted-foreground"
+//           >
+//             {currencyCode}
+//           </div>
+//         );
+//       },
+//       size: 60,
+//       minSize: 60,
+//       maxSize: 60,
+//       enableResizing: false,
+//     },
+//     {
+//       id: 'bank_amount',
+//       header: 'Bank Amount',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         return (
+//           <FormattedAmount
+//             amount={txn.bank_amount}
+//             currency={txn.bank_currency_code}
+//             accountingNegatives={false}
+//             className={cn(
+//               'flex justify-end ',
+//               txn.bank_amount < 0 ? 'text-destructive' : '',
+//             )}
+//           />
+//         );
+//       },
+//       size: 120,
+//       enableResizing: false,
+//     },
+//     {
+//       id: 'exchange_rate',
+//       header: 'Exr',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         // Exchange rate is the same for all lines since they're from the same transaction
+//         // Edit to custom exchange rate should affect all lines and user should be notified if they try to make such update
+//         const exchangeRate = txn.lines[0]?.custom_exchange_rate;
+
+//         return (
+//           <div className="text-sm font-light text-muted-foreground text-left">
+//             {exchangeRate ? exchangeRate.toFixed(4) : '1.0000'}
+//           </div>
+//         );
+//       },
+//       size: 80,
+//       minSize: 80,
+//       maxSize: 80,
+//       enableResizing: false,
+//     },
+//     {
+//       id: 'spent',
+//       header: 'Spent',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         // Sum all negative reporting amounts (outflows)
+//         const spent = txn.lines.reduce((sum, line) => {
+//           return line.reporting_amount < 0
+//             ? sum + Math.abs(line.reporting_amount)
+//             : sum;
+//         }, 0);
+
+//         if (spent === 0) {
+//           return (
+//             <div className="text-sm font-light text-center text-muted-foreground">
+//               -
+//             </div>
+//           );
+//         }
+
+//         // Get reporting currency from first line (all lines should have same reporting currency)
+//         // For now, we'll use bank currency as proxy - TODO: add reporting_currency_code to view
+//         return (
+//           <FormattedAmount
+//             amount={spent}
+//             currency={txn.bank_currency_code}
+//             accountingNegatives={false}
+//             className={cn(
+//               'flex justify-end ',
+//               txn.bank_amount < 0 ? 'text-destructive' : 'text-green-600',
+//             )}
+//           />
+//         );
+//       },
+//       size: 120,
+//       minSize: 120,
+//       maxSize: 120,
+//       enableResizing: false,
+//     },
+//     {
+//       id: 'received',
+//       header: 'Received',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         // Sum all positive reporting amounts (inflows)
+//         const received = txn.lines.reduce((sum, line) => {
+//           return line.reporting_amount > 0 ? sum + line.reporting_amount : sum;
+//         }, 0);
+
+//         if (received === 0) {
+//           return (
+//             <div className="text-sm font-light text-center text-muted-foreground">
+//               -
+//             </div>
+//           );
+//         }
+
+//         return (
+//           <FormattedAmount
+//             amount={received}
+//             currency={txn.bank_currency_code}
+//             accountingNegatives={false}
+//             className={cn(
+//               'flex justify-end',
+//               txn.bank_amount < 0 ? 'text-destructive' : 'text-green-600',
+//             )}
+//           />
+//         );
+//       },
+//       size: 120,
+//       minSize: 120,
+//       maxSize: 120,
+//       enableResizing: false,
+//     },
+//     {
+//       id: 'account',
+//       header: 'Account',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         const accountNames = txn.lines.map((l) => l.coa_name).filter(Boolean);
+//         const accountName = getUnifiedValue(accountNames, 'accounts');
+
+//         if (txn.summary.isSplit) {
+//           return <SplitViewDialog txn={txn} />;
+//         }
+
+//         // if (txn.summary.isSplit) {
+//         //   return (
+//         //     <div className="flex items-center gap-1 p-1 rounded bg-muted/20 border border-muted">
+//         //       <Split className="w-4 h-4 text-muted-foreground" />
+//         //       <SplitViewDialog txn={txn} />
+//         //     </div>
+//         //   );
+//         // }
+//         const displayName = accountName || 'Uncategorized';
+//         const accountCode = txn.lines[0]?.coa_code;
+//         const isUncategorized = !accountName;
+
+//         return (
+//           <Tooltip delayDuration={500}>
+//             <TooltipTrigger asChild>
+//               <div
+//                 className={cn(
+//                   'text-sm truncate max-w-[150px] cursor-help flex items-center gap-1',
+//                   isUncategorized && 'font-light text-muted-foreground',
+//                 )}
+//               >
+//                 {isUncategorized && (
+//                   <HelpCircle className="w-4 h-4 flex-shrink-0" />
+//                 )}
+//                 {displayName}
+//               </div>
+//             </TooltipTrigger>
+//             <TooltipContent>
+//               <div>
+//                 {accountCode && (
+//                   <span className="text-xs text-muted-foreground mr-1">
+//                     {accountCode}
+//                   </span>
+//                 )}
+//                 <span className="font-medium">{displayName}</span>
+//               </div>
+//             </TooltipContent>
+//           </Tooltip>
+//         );
+//       },
+//       minSize: 175,
+//       meta: {
+//         cellClassName: 'p-0 px-1',
+//       },
+//     },
+//     {
+//       id: 'confidence',
+//       header: 'Confidence',
+//       cell: ({ row }) => {
+//         const txn = row.original;
+//         const firstLine = txn.lines[0];
+//         if (
+//           firstLine?.confidence !== null &&
+//           firstLine?.confidence !== undefined
+//         ) {
+//           const percentage = Math.round(firstLine.confidence * 100);
+//           return <div className="text-sm font-light">{percentage}%</div>;
+//         }
+//         return (
+//           <div className="text-sm font-light text-muted-foreground">-</div>
+//         );
+//       },
+//       meta: { label: 'Confidence', hidden: true },
+//       size: 100,
+//       minSize: 100,
+//       maxSize: 100,
+//       enableResizing: false,
+//     },
+//   ];
+// };
+export const getCatEngineColumns = ({
+  mode,
+}: {
+  mode: 'review' | 'autosave';
+}): ColumnDef<GroupedTransaction>[] => {
   return [
     {
       id: 'bank',
       header: 'Bank',
       cell: ({ row }) => {
         const txn = row.original;
-        const logo = txn.bank_logo;
-        const bankAccountName = txn.bank_account_display_name;
-        const bankAccountTitle = `${txn.bank_display_name} - ${bankAccountName}`;
+        const logo = txn.bankLogo;
+        const bankAccountName = txn.bankAccountName;
+        const bankAccountTitle = `${txn.bankName} - ${bankAccountName}`;
         return (
           <div className="flex items-center gap-2" title={bankAccountTitle}>
             <div className="flex-shrink-0 w-5 h-5 overflow-hidden rounded-full flex items-center justify-center border bg-white/80 dark:opacity-50">
               {logo ? (
                 <img
                   src={logo}
-                  alt={`${txn.bank_display_name} logo`}
+                  alt={`${txn.bankName} logo`}
                   className="w-4 h-4 object-contain"
                 />
               ) : (
@@ -64,7 +462,6 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       id: 'date',
       header: 'Date',
       accessorKey: 'date',
-      accessorFn: (row) => format(new Date(row.date), 'dd MMM yyyy'),
       size: 100,
       minSize: 100,
       maxSize: 100,
@@ -75,23 +472,10 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       header: 'Description',
       cell: ({ row }) => {
         const txn = row.original;
-        const multipleLines = txn.lines.length > 1;
+        const multipleLines = txn.hasMultipleEntries;
 
-        let displayText: string;
-        let showTooltip = false;
-
-        if (multipleLines) {
-          displayText = 'Transaction has multiple entries';
-          showTooltip = true;
-        } else {
-          const description = txn.lines[0]?.description;
-          if (description) {
-            displayText = description;
-            showTooltip = true;
-          } else {
-            displayText = 'No description';
-          }
-        }
+        const showTooltip = txn.description ? true : false;
+        const displayText = txn.description || 'No description';
 
         return (
           <Tooltip delayDuration={300}>
@@ -108,11 +492,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
             </TooltipTrigger>
             {showTooltip && (
               <TooltipContent className="max-w-md">
-                <p className="break-words">
-                  {multipleLines
-                    ? `${displayText} - (Click row to view)`
-                    : displayText}
-                </p>
+                <p className="break-words">{displayText}</p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -124,7 +504,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       id: 'fs_date',
       header: 'FS Date',
       accessorKey: 'fs_date',
-      accessorFn: (row) => format(new Date(row.fs_date), 'dd MMM yyyy'),
+      accessorFn: (row) => row.fsDate,
       enableResizing: false,
       maxSize: 100,
     },
@@ -133,14 +513,13 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       header: 'Contact',
       cell: ({ row }) => {
         const txn = row.original;
-        const names = txn.lines.map((l) => l.contact_name).filter(Boolean);
-        const contactName = getUnifiedValue(names, 'contacts');
+        const contactName = txn.contactName;
 
         return (
           <div
             className={cn(
               'text-sm truncate font-light',
-              contactName.startsWith('Multiple')
+              contactName?.startsWith('Multiple')
                 ? 'text-muted-foreground opacity-50'
                 : '',
             )}
@@ -156,15 +535,14 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       header: 'Reference',
       cell: ({ row }) => {
         const txn = row.original;
-        const references = txn.lines.map((l) => l.reference).filter(Boolean);
-        const reference = getUnifiedValue(references, 'references');
+        const reference = txn.reference;
 
         return (
           <div
             title={reference || ''}
             className={cn(
               'text-sm truncate font-light',
-              reference.startsWith('Multiple') || !reference
+              reference?.startsWith('Multiple') || !reference
                 ? 'text-muted-foreground opacity-50'
                 : '',
             )}
@@ -179,17 +557,14 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       header: 'Project',
       cell: ({ row }) => {
         const txn = row.original;
-        const projectNames = txn.lines
-          .map((l) => l.project_name)
-          .filter(Boolean);
-        const projectName = getUnifiedValue(projectNames, 'projects');
+        const projectName = txn.projectName;
 
         return (
           <div
             title={projectName || ''}
             className={cn(
               'text-sm truncate font-light',
-              projectName.startsWith('Multiple') || !projectName
+              projectName?.startsWith('Multiple') || !projectName
                 ? 'text-muted-foreground opacity-50'
                 : '',
             )}
@@ -204,8 +579,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       header: 'Curr',
       cell: ({ row }) => {
         const txn = row.original;
-        // Currency is the same for all lines since they're from the same bank account
-        const currencyCode = txn.bank_currency_code;
+        const currencyCode = txn.bankAccountCurrencyCode;
 
         return (
           <div
@@ -228,12 +602,12 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
         const txn = row.original;
         return (
           <FormattedAmount
-            amount={txn.bank_amount}
-            currency={txn.bank_currency_code}
+            amount={txn.totalBankAmount}
+            currency={txn.bankAccountCurrencyCode}
             accountingNegatives={false}
             className={cn(
               'flex justify-end ',
-              txn.bank_amount < 0 ? 'text-destructive' : '',
+              txn.totalBankAmount < 0 ? 'text-destructive' : '',
             )}
           />
         );
@@ -244,17 +618,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
     {
       id: 'exchange_rate',
       header: 'Exr',
-      cell: ({ row }) => {
-        const txn = row.original;
-        // Exchange rate is the same for all lines since they're from the same transaction
-        const exchangeRate = txn.lines[0]?.custom_exchange_rate;
-
-        return (
-          <div className="text-sm font-light text-muted-foreground text-left">
-            {exchangeRate ? exchangeRate.toFixed(4) : '1.0000'}
-          </div>
-        );
-      },
+      accessorKey: 'exchangeRate',
       size: 80,
       minSize: 80,
       maxSize: 80,
@@ -266,11 +630,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       cell: ({ row }) => {
         const txn = row.original;
         // Sum all negative reporting amounts (outflows)
-        const spent = txn.lines.reduce((sum, line) => {
-          return line.reporting_amount < 0
-            ? sum + Math.abs(line.reporting_amount)
-            : sum;
-        }, 0);
+        const spent = txn.spent;
 
         if (spent === 0) {
           return (
@@ -280,16 +640,14 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
           );
         }
 
-        // Get reporting currency from first line (all lines should have same reporting currency)
-        // For now, we'll use bank currency as proxy - TODO: add reporting_currency_code to view
         return (
           <FormattedAmount
             amount={spent}
-            currency={txn.bank_currency_code}
+            currency={txn.bankAccountCurrencyCode}
             accountingNegatives={false}
             className={cn(
               'flex justify-end ',
-              txn.bank_amount < 0 ? 'text-destructive' : 'text-green-600',
+              spent !== 0 ? 'text-destructive' : '',
             )}
           />
         );
@@ -305,9 +663,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       cell: ({ row }) => {
         const txn = row.original;
         // Sum all positive reporting amounts (inflows)
-        const received = txn.lines.reduce((sum, line) => {
-          return line.reporting_amount > 0 ? sum + line.reporting_amount : sum;
-        }, 0);
+        const received = txn.received;
 
         if (received === 0) {
           return (
@@ -320,11 +676,11 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
         return (
           <FormattedAmount
             amount={received}
-            currency={txn.bank_currency_code}
+            currency={txn.bankAccountCurrencyCode}
             accountingNegatives={false}
             className={cn(
               'flex justify-end',
-              txn.bank_amount < 0 ? 'text-destructive' : 'text-green-600',
+              received !== 0 ? 'text-green-600' : '',
             )}
           />
         );
@@ -339,11 +695,40 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       header: 'Account',
       cell: ({ row }) => {
         const txn = row.original;
-        const accountNames = txn.lines.map((l) => l.coa_name).filter(Boolean);
-        const accountName = getUnifiedValue(accountNames, 'accounts');
+        const accountName = txn.coaName;
 
-        if (txn.summary.isSplit) {
-          return <SplitViewDialog txn={txn} />;
+        if (txn.hasMultipleEntries) {
+          if (mode === 'review') {
+            return (
+              <div className="flex items-center gap-1">
+                <Split className="w-3 h-3 text-muted-foreground" />
+                <span className="text-blue-500">Multiple entries</span>
+              </div>
+            );
+          } else {
+            const canExpand = row.getCanExpand();
+            const isExpanded = row.getIsExpanded();
+
+            // return <SplitViewDialog txn={txn} />;
+            return (
+              <div
+                className="flex items-center gap-1 cursor-pointer font-light hover:underline decoration-current"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent row click
+                  row.toggleExpanded();
+                }}
+              >
+                <span className="text-blue-500">
+                  View entries ({txn.entryCount})
+                </span>
+                {isExpanded ? (
+                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                )}
+              </div>
+            );
+          }
         }
 
         // if (txn.summary.isSplit) {
@@ -355,7 +740,7 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
         //   );
         // }
         const displayName = accountName || 'Uncategorized';
-        const accountCode = txn.lines[0]?.coa_code;
+        const accountCode = txn.coaCode;
         const isUncategorized = !accountName;
 
         return (
@@ -396,12 +781,8 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       header: 'Confidence',
       cell: ({ row }) => {
         const txn = row.original;
-        const firstLine = txn.lines[0];
-        if (
-          firstLine?.confidence !== null &&
-          firstLine?.confidence !== undefined
-        ) {
-          const percentage = Math.round(firstLine.confidence * 100);
+        if (txn?.confidence !== null && txn?.confidence !== undefined) {
+          const percentage = Math.round(txn.confidence * 100);
           return <div className="text-sm font-light">{percentage}%</div>;
         }
         return (
@@ -414,5 +795,6 @@ export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
       maxSize: 100,
       enableResizing: false,
     },
+    { id: 'status', meta: { hidden: true } },
   ];
 };

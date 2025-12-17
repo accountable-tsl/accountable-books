@@ -21,9 +21,7 @@ export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
           onClick={(e) => e.stopPropagation()}
         >
           <Split className="w-3 h-3 text-muted-foreground" />
-          <span className="text-blue-500">
-            View entries ({txn.summary.splitCount})
-          </span>
+          <span className="text-blue-500">View entries ({txn.entryCount})</span>
         </div>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -35,8 +33,8 @@ export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
             <p>
               Date: {format(new Date(txn.date), 'dd MMM yyyy')} | Bank Amount:{' '}
               <FormattedAmount
-                amount={txn.bank_amount}
-                currency={txn.bank_currency_code}
+                amount={txn.totalBankAmount}
+                currency={txn.bankAccountCurrencyCode}
                 accountingNegatives={false}
               />
             </p>
@@ -49,27 +47,27 @@ export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
               <div className="col-span-2 text-right">Contact</div>
               <div className="col-span-2 text-right">Project</div>
             </div>
-            {txn.lines.map((line, idx) => (
+            {txn.entries?.map((line, idx) => (
               <div
                 key={idx}
                 className="grid grid-cols-12 gap-2 text-sm border-b last:border-0 pb-2 last:pb-0"
               >
                 <div className="col-span-4">
                   <div className="font-medium">
-                    {line.coa_name || 'Uncategorized'}
+                    {line.coaName || 'Uncategorized'}
                   </div>
-                  {line.coa_code && (
+                  {line.coaCode && (
                     <div className="text-xs text-muted-foreground">
-                      {line.coa_code}
+                      {line.coaCode}
                     </div>
                   )}
                 </div>
                 <div className="col-span-2 text-muted-foreground">
                   {line.description || '-'}
                 </div>
-                <div className="col-span-2 text-right">
+                {/* <div className="col-span-2 text-right">
                   <FormattedAmount
-                    amount={line.reporting_amount}
+                    amount={line.}
                     currency={txn.bank_currency_code}
                     accountingNegatives={false}
                     className={cn(
@@ -84,7 +82,7 @@ export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
                 </div>
                 <div className="col-span-2 text-right text-muted-foreground">
                   {line.project_name || '-'}
-                </div>
+                </div> */}
               </div>
             ))}
           </div>

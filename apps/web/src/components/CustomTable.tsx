@@ -12,7 +12,7 @@ const Table = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
         data-slot="table"
         role="table"
         className={cn(
-          'flex flex-col w-full caption-bottom text-sm relative min-h-0 overflow-x-auto',
+          'flex flex-col w-full caption-bottom text-sm relative min-h-0',
           className,
         )}
         {...props}
@@ -30,10 +30,7 @@ const TableHeader = React.forwardRef<
       ref={ref}
       role="rowgroup"
       data-slot="table-header"
-      className={cn(
-        '[&_[data-slot=table-row]]:border-b flex flex-col flex-shrink-0',
-        className,
-      )}
+      className={cn('[&_[data-slot=table-row]]:border-b relative', className)}
       {...props}
     />
   );

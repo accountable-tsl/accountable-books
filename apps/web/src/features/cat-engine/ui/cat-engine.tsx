@@ -167,7 +167,7 @@ export function CatEngine() {
     return rawTransactions;
   }, [rawTransactions]);
 
-  const columns = useMemo(() => getCatEngineColumns(), []);
+  const columns = useMemo(() => getCatEngineColumns({ mode }), [mode]);
 
   const estimatedRowHeight = useMemo(() => {
     switch (rowHeight) {
@@ -182,11 +182,11 @@ export function CatEngine() {
 
   const customOptions = useMemo(() => {
     return {
-      virtualization: {
-        enabled: true,
-        estimatedRowHeight,
-        overscan: 8,
-      },
+      // virtualization: {
+      //   enabled: true,
+      //   estimatedRowHeight,
+      //   overscan: 8,
+      // },
       rowSelection: {
         enabled: true,
       },
@@ -205,13 +205,17 @@ export function CatEngine() {
             : ''
         }`,
         emptyTableRow: 'h-full',
+        tableBodyRow: '',
       },
       expandableRows: {
         enabled: true,
-        canExpand: (row) => row.original.lines.length > 1,
+        subRowsProperty: 'entries',
+        canExpand: (row) =>
+          (mode === 'autosave' && row.original.hasMultipleEntries) || false,
+        getSubRows: (row) => row.entries,
       },
-    } satisfies DataTableInputOptions<any>;
-  }, [view, openAccordionItem, rowHeight, estimatedRowHeight]);
+    } satisfies DataTableInputOptions<GroupedTransaction>;
+  }, [mode, view, openAccordionItem, rowHeight, estimatedRowHeight]);
 
   // DataTable Hook
   const { table } = useDataTable({
@@ -224,7 +228,6 @@ export function CatEngine() {
         right: ['spent', 'received', 'account'],
       },
     },
-    // getSubRows: (row) => row.lines,
   });
 
   const handleAccordionItemChange = useCallback((value: string) => {
@@ -289,7 +292,7 @@ export function CatEngine() {
               className="h-full min-h-0 flex flex-col"
               wrapperClassName="h-full min-h-0 flex flex-col"
             >
-              <DataTable table={table} />
+              <DataTable key={`${mode}-${item.id}`} table={table} />
             </AccordionContent>
           </AccordionItem>
         ))}
@@ -300,6 +303,7 @@ export function CatEngine() {
     openAccordionItem,
     reorderedAccordionItems,
     handleAccordionItemChange,
+    mode,
   ]);
 
   if (!is1024) return <SmallScreenMessage />;
