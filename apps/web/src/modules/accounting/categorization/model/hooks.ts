@@ -1,10 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { fetchCategorizationTransactions } from '../api';
+import {
+  fetchCategorizationTransactions,
+  sendCategorizationIntent,
+} from '../api';
 import {
   groupCategorizationTransactions,
   groupTransactionsByBankTxnId,
 } from '../lib/transform';
+import type { Intent } from './intent-types';
 import type {
   GetCategorizationTransactionsParams,
   GroupedTransaction,
@@ -85,3 +89,19 @@ export type GroupedTransactionsData = {
   limit: number;
   offset: number;
 };
+
+/**
+ * Hook to send categorization intent
+ * Pure domain hook - no UI concerns, no toasts
+ */
+export function useSendCategorizationIntent() {
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      intent,
+    }: {
+      companyId: string;
+      intent: Intent;
+    }) => sendCategorizationIntent(companyId, intent),
+  });
+}

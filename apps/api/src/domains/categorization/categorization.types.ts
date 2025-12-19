@@ -81,11 +81,23 @@ export interface CategorizationTransaction {
   reporting_amount: number;
   ledger_transaction_id: string | null;
   /**
+   * Ledger entry ID - ID of the ledger_entries record (for posted transactions).
+   * - Set: ID of the ledger_entries record for this specific line
+   * - null: Not applicable (uncategorized or proposed transactions)
+   */
+  ledger_entry_id: string | null;
+  /**
    * Candidate ID - ID of the categorization_candidate (for proposed transactions).
    * - Set: ID of the categorization_candidate that proposes this categorization
    * - null: Not applicable (uncategorized or posted transactions)
    */
   candidate_id: string | null;
+  /**
+   * Candidate line ID - ID of the categorization_candidate_lines record (for proposed transactions).
+   * - Set: ID of the categorization_candidate_lines record for this specific line
+   * - null: Not applicable (uncategorized or posted transactions)
+   */
+  candidate_line_id: string | null;
   confidence: number | null;
   explanation: string | null;
   /**
@@ -136,3 +148,87 @@ export interface GetCategorizationTransactionsResponse {
   limit: number;
   offset: number;
 }
+
+// Intent types for autosave
+export const intentActionType = z.enum([
+  'ASSIGN_ACCOUNT',
+  'UPDATE_DESCRIPTION',
+  'UPDATE_FS_DATE',
+  'UPDATE_CONTACT',
+  'UPDATE_REFERENCE',
+  'UPDATE_PROJECT',
+  'UPDATE_FX_RATE',
+  'POST_TO_LEDGER',
+]);
+export type IntentActionType = z.infer<typeof intentActionType>;
+
+export const intentScope = z.enum(['entry', 'group']);
+export type IntentScope = z.infer<typeof intentScope>;
+
+// Intent payload schemas
+const assignAccountPayloadSchema = z.object({
+  entryId: z.string().min(1),
+  coaId: z.string().min(1),
+});
+
+const updateDescriptionPayloadSchema = z.object({
+  scope: intentScope,
+  entryId: z.string().optional(),
+  value: z.string(),
+});
+
+const updateFsDatePayloadSchema = z.object({
+  scope: intentScope,
+  entryId: z.string().optional(),
+  fsDate: z.string(),
+});
+
+const updateContactPayloadSchema = z.object({
+  scope: intentScope,
+  entryId: z.string().optional(),
+  contactId: z.string().nullable(),
+  contactName: z.string().nullable(),
+});
+
+const updateReferencePayloadSchema = z.object({
+  scope: intentScope,
+  entryId: z.string().optional(),
+  reference: z.string(),
+});
+
+const updateProjectPayloadSchema = z.object({
+  entryId: z.string().min(1),
+  projectId: z.string().nullable(),
+  projectName: z.string().nullable(),
+});
+
+const updateFxRatePayloadSchema = z.object({
+  bankTransactionId: z.string().min(1),
+  rate: z.number().positive(),
+});
+
+const postToLedgerPayloadSchema = z.object({
+  bankTransactionId: z.string().min(1),
+});
+
+// Intent schema
+export const categorizationIntentSchema = z.object({
+  intent_id: z.uuid(),
+  intent_key: z.string(),
+  transaction_id: z.uuid(),
+  action_type: intentActionType,
+  payload: z.union([
+    assignAccountPayloadSchema,
+    updateDescriptionPayloadSchema,
+    updateFsDatePayloadSchema,
+    updateContactPayloadSchema,
+    updateReferencePayloadSchema,
+    updateProjectPayloadSchema,
+    updateFxRatePayloadSchema,
+    postToLedgerPayloadSchema,
+  ]),
+  client_version: z.number().int().positive(),
+  transaction_state: categorizationTransactionStatus,
+});
+
+export type CategorizationIntent = z.infer<typeof categorizationIntentSchema>;

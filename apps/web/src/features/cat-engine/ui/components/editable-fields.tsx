@@ -1,22 +1,51 @@
+import { useEffect, useState } from 'react';
+
 import { DatePicker } from '@/components/date-picker/date-picker';
 
 // For String
 export function EditableTextCell({
-  value,
-  onValueChange,
+  value = '',
+  onCommit,
   placeholder,
+  markDirty,
 }: {
   value?: string;
-  onValueChange?: (value: string) => void;
   placeholder?: string;
+  onCommit: (value: string) => void;
+  markDirty: () => void;
 }) {
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const commitIfDirty = () => {
+    if (localValue !== value) {
+      onCommit?.(localValue);
+    }
+  };
+
+  const handleChange = (value: string | undefined) => {
+    if (value !== localValue) {
+      setLocalValue(value || ''); // UI only
+      markDirty();
+    }
+  };
+
   return (
-    <div className="flex" title={value || ''}>
+    <div className="flex" title={value}>
       <input
         type="text"
         placeholder={placeholder || ''}
-        value={value}
-        onChange={(e) => onValueChange?.(e.target.value)}
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)} // UI only
+        onBlur={commitIfDirty} // intent
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.currentTarget.blur(); // forces commit
+          }
+        }}
         className="focus-within:text-blue-500 focus-within:border-1 p-1 pl-0 focus-within:pl-1 w-full"
       />
     </div>
@@ -24,15 +53,49 @@ export function EditableTextCell({
 }
 
 // For FS Date
-export function EditableDateCell({ value }: { value?: Date }) {
+export function EditableDateCell({
+  value,
+  onCommit,
+  markDirty,
+}: {
+  value?: Date;
+  onCommit: (date: Date | undefined) => void;
+  markDirty: () => void;
+}) {
+  const [localDate, setLocalDate] = useState<Date | undefined>(value);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setLocalDate(value);
+  }, [value]);
+
+  const commitIfDirty = () => {
+    if (localDate?.getTime() !== value?.getTime()) {
+      onCommit?.(localDate);
+    } else {
+      setLocalDate(value); // revert if invalid/no change
+    }
+  };
+
+  const handleChange = (value: Date | undefined) => {
+    if (!value) return;
+    setLocalDate(value); // UI only
+    markDirty();
+  };
   return (
     <DatePicker
       showLabel={false}
-      value={value}
+      value={localDate}
+      onChange={(date) => handleChange(date)} // UI only
       classNames={{
         wrapper: 'contents',
         trigger:
           'border-0 rounded-none shadow-none focus-visible:border-0 focus-visible:ring-0 !pl-0 bg-transparent dark:bg-transparent dark:text-muted-foreground dark:hover:bg-transparent',
+      }}
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) commitIfDirty(); // commit when popover closes
+        setOpen(isOpen);
       }}
     />
   );
@@ -40,55 +103,60 @@ export function EditableDateCell({ value }: { value?: Date }) {
 
 // For Numbers (e.g., Exchange Rate)
 export function EditableNumberCell({
-  value,
-  onValueChange,
+  value = '',
+  onCommit,
+  markDirty,
   placeholder,
   decimals = 4,
   min,
   max,
 }: {
   value?: string | number;
-  onValueChange?: (value: string) => void;
+  onCommit: (value: string) => void;
+  markDirty: () => void;
   placeholder?: string;
   decimals?: number;
   min?: number;
   max?: number;
 }) {
-  const stringValue = value?.toString() || '';
+  const [localValue, setLocalValue] = useState(value?.toString() || '');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    // Allow empty string, numbers, and decimal points
-    if (inputValue === '' || /^\d*\.?\d*$/.test(inputValue)) {
-      onValueChange?.(inputValue);
+  useEffect(() => {
+    setLocalValue(value?.toString() || '');
+  }, [value]);
+
+  const commitIfDirty = () => {
+    const numValue = parseFloat(localValue);
+    if (!isNaN(numValue) && numValue !== Number(value)) {
+      const clamped = Math.min(
+        Math.max(numValue, min ?? numValue),
+        max ?? numValue,
+      );
+      onCommit?.(clamped.toFixed(decimals));
+    } else {
+      setLocalValue(value?.toString() || ''); // revert
     }
   };
 
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const numValue = parseFloat(e.target.value);
-    if (!isNaN(numValue)) {
-      // Clamp to min/max if provided
-      let clampedValue = numValue;
-      if (min !== undefined && clampedValue < min) clampedValue = min;
-      if (max !== undefined && clampedValue > max) clampedValue = max;
-
-      // Format to specified decimal places
-      const formatted = clampedValue.toFixed(decimals);
-      onValueChange?.(formatted);
-    } else if (e.target.value === '') {
-      onValueChange?.('');
+  const handleChange = (value: string | undefined) => {
+    if (value !== localValue) {
+      setLocalValue(value || '');
+      markDirty();
     }
   };
 
   return (
-    <div className="flex" title={stringValue || ''}>
+    <div className="flex" title={localValue}>
       <input
         type="text"
         inputMode="decimal"
         placeholder={placeholder || ''}
-        value={stringValue}
-        onChange={handleChange}
-        onBlur={handleBlur}
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)} // UI only
+        onBlur={commitIfDirty} // commit intent
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur(); // forces commit
+        }}
         className="focus-within:text-blue-500 focus-within:border-1 p-1 w-full text-right"
       />
     </div>

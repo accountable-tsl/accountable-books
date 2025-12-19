@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
@@ -17,6 +17,8 @@ interface EditableDropdownCellProps {
   contactName?: string;
   projectId?: string;
   projectName?: string;
+  onCommit: (id: string, name: string) => void;
+  markDirty: () => void;
 }
 
 export function EditableDropdownCell({
@@ -25,11 +27,15 @@ export function EditableDropdownCell({
   contactName: _contactName,
   projectId,
   projectName: _projectName,
+  onCommit,
+  markDirty,
 }: EditableDropdownCellProps) {
   const { companyId } = useSession();
   const [search, setSearch] = useState('');
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [localId, setLocalId] = useState(contactId || projectId || '');
+  const [open, setOpen] = useState(false);
 
   const currentId = field === 'contact' ? contactId : projectId;
 
@@ -49,9 +55,6 @@ export function EditableDropdownCell({
 
   const query = field === 'contact' ? contactsQuery : projectsQuery;
 
-  // Flatten all pages into a single array of items
-  // placeholderData ensures query.data exists during refetches (like pagination),
-  // preventing the dropdown from unmounting when loading more items
   const items = useMemo(() => {
     if (!query.data?.pages) return [];
 
@@ -113,14 +116,26 @@ export function EditableDropdownCell({
     [field],
   );
 
-  // Always render AutocompleteDropdown - it handles empty/loading states internally
-  // placeholderData ensures query.data exists during refetches (pagination),
-  // preventing the dropdown from unmounting when loading more items
+  const commitIfDirty = () => {
+    if (localId !== currentId) {
+      const selectedItem = items.find((item) => item.value === localId);
+      const name = selectedItem?.label || '';
+      onCommit(localId, name);
+    }
+  };
+
+  const handleValueChange = (value: string) => {
+    setLocalId(value); // UI only
+    markDirty();
+  };
+
+  useEffect(() => setLocalId(currentId || ''), [currentId]);
+
   return (
     <>
       <AutocompleteDropdown
         id={`cat-engine-${field}-list`}
-        value={currentId || ''}
+        value={localId}
         items={items}
         variant="ghost"
         className={cn(
@@ -135,6 +150,12 @@ export function EditableDropdownCell({
         debounceTimeout={300}
         actionItems={actionItem ? [actionItem] : []}
         onAction={handleAction}
+        onValueChange={handleValueChange}
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) commitIfDirty(); // commit when dropdown closes
+          setOpen(isOpen);
+        }}
       />
 
       {companyId && (

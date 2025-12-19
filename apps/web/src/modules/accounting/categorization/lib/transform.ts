@@ -148,6 +148,9 @@ export function groupCategorizationTransactions(
       coaName: hasMultipleEntries ? null : firstLine.coa_name,
       coaCode: hasMultipleEntries ? null : firstLine.coa_code,
 
+      ledgerTransactionId: firstLine.ledger_transaction_id,
+      candidateId: firstLine.candidate_id,
+
       entries: txnsWithRecalculatedAmounts.map((txn) => ({
         id: txn.id,
         bankTransactionId: txn.id,
@@ -174,6 +177,10 @@ export function groupCategorizationTransactions(
         coaName: txn.coa_name,
         coaCode: txn.coa_code,
         rowType: 'subRow',
+        ledgerTransactionId: txn.ledger_transaction_id,
+        ledgerEntryId: txn.ledger_entry_id,
+        candidateId: txn.candidate_id,
+        candidateLineId: txn.candidate_line_id,
       })),
     });
   }

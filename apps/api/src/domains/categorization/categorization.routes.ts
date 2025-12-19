@@ -1,7 +1,10 @@
 import express from 'express';
 
 import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
-import { getCategorizationTransactionsController } from './categorization.controller.js';
+import {
+  getCategorizationTransactionsController,
+  handleCategorizationIntentController,
+} from './categorization.controller.js';
 
 const router = express.Router({ mergeParams: true });
 
@@ -22,5 +25,15 @@ router.get(
   checkCompanyId,
   getCategorizationTransactionsController,
 );
+
+/**
+ * POST /api/:companyId/categorization/intents
+ *
+ * Body: CategorizationIntent
+ *
+ * Processes user intent and posts to ledger
+ * Idempotent via intent_id
+ */
+router.post('/intents', checkCompanyId, handleCategorizationIntentController);
 
 export default router;

@@ -36,7 +36,9 @@ WITH uncategorized_txns AS (
     bt.amount * bt.system_exchange_rate as reporting_amount,
 
     NULL::uuid as ledger_transaction_id,
+    NULL::uuid as ledger_entry_id,
     NULL::uuid as candidate_id,
+    NULL::uuid as candidate_line_id,
     NULL::decimal as confidence,
     NULL::text as explanation,
     NULL::boolean as human_reviewed,
@@ -99,7 +101,9 @@ candidate_txns AS (
     ccl.signed_native_amount * ccl.custom_exchange_rate as reporting_amount,
 
     NULL::uuid as ledger_transaction_id,
+    NULL::uuid as ledger_entry_id,
     cc.id as candidate_id,
+    ccl.id as candidate_line_id,
     cc.confidence,
     cc.explanation,
     NULL::boolean as human_reviewed,
@@ -163,7 +167,9 @@ posted_txns AS (
     le.source_amount * le.custom_exchange_rate as reporting_amount,
     
     lt.id as ledger_transaction_id,
+    le.id as ledger_entry_id,
     NULL::uuid as candidate_id,
+    NULL::uuid as candidate_line_id,
     NULL::decimal as confidence,
     NULL::text as explanation,
     lt.human_reviewed,

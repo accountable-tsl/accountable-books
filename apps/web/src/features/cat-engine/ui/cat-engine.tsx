@@ -24,7 +24,6 @@ import {
 import { cn } from '@/lib/utils';
 import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import { useCategorizationTransactions } from '@/modules/accounting/categorization/model/hooks';
-import { useCompanyBankAccounts } from '@/modules/banking/accounts';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 
 import { CatEngineAdvFilter } from './components/cat-engine-adv-filter';
@@ -112,10 +111,10 @@ export function CatEngine() {
   const [selectedTransactionId, setSelectedTransactionId] = useState<
     string | null
   >(null);
+  // Optimistic exchange rate overrides (Map<bankTransactionId, rate>)
   const [optimisticExchangeRates, setOptimisticExchangeRates] = useState<
     Map<string, number>
   >(new Map());
-  // const [mode, setMode] = useState<'review' | 'autosave'>('review');
   // Mode state with localStorage persistence
   const MODE_STORAGE_KEY = `cat-engine-mode-${companyId || 'default'}`;
   const USER_PREFERENCE_KEY = `cat-engine-user-preference-${companyId || 'default'}`;
@@ -136,6 +135,10 @@ export function CatEngine() {
     }
     return false;
   });
+  const [draftTransactions, setDraftTransactions] = useState<
+    GroupedTransaction[]
+  >([]);
+  const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
 
   // Debounce date range changes
   const dateRangeRef = useRef(dateRange);
@@ -167,13 +170,6 @@ export function CatEngine() {
   const statusFilter = getStatusFromAccordionItem(openAccordionItem);
 
   // Fetch bank accounts for bank name/logo lookup
-  const { data: bankAccountsData } = useCompanyBankAccounts(companyId || '');
-  const bankAccounts = bankAccountsData?.data || [];
-  const bankAccountMap = useMemo(() => {
-    const map = new Map<string, (typeof bankAccounts)[0]>();
-    bankAccounts.forEach((acc) => map.set(acc.id, acc));
-    return map;
-  }, [bankAccounts]);
 
   // Fetch categorization transactions
   const {
@@ -210,26 +206,59 @@ export function CatEngine() {
     setSelectedTransactionId((prevId) => (prevId === id ? null : id));
   }, []);
 
-  const handleExchangeRateChange = useCallback(
-    (transactionId: string, newRate: number) => {
+  // Handler for optimistic FX rate updates
+  const handleFxRateChange = useCallback(
+    (bankTransactionId: string, rate: number) => {
       setOptimisticExchangeRates((prev) => {
         const next = new Map(prev);
-        next.set(transactionId, newRate);
+        next.set(bankTransactionId, rate);
         return next;
       });
-      // TODO: Add mutation to save to backend or handle saving somehow
     },
     [],
   );
+
+  const updateTransaction = useCallback(
+    ({
+      txnId,
+      columnId,
+      value,
+    }: {
+      txnId: string;
+      columnId: string;
+      value: any;
+    }) => {
+      setDraftTransactions((old) =>
+        old.map((txn) =>
+          txn.id === txnId ? { ...txn, [columnId]: value } : txn,
+        ),
+      );
+    },
+    [],
+  );
+
+  const markFieldClean = useCallback((fieldKey: string) => {
+    setDirtyFields((prev) => {
+      const next = new Set(prev);
+      next.delete(fieldKey);
+      return next;
+    });
+  }, []);
+
+  const markFieldDirty = useCallback((fieldKey: string) => {
+    setDirtyFields((prev) => new Set(prev).add(fieldKey));
+  }, []);
 
   const columns = useMemo(
     () =>
       getCatEngineColumns({
         mode,
         reportingCurrency: company?.reportingCurrencyCode,
-        onExchangeRateChange: handleExchangeRateChange,
+        onFxRateChange: handleFxRateChange,
+        markFieldClean,
+        markFieldDirty,
       }),
-    [mode, company, handleExchangeRateChange],
+    [mode, company, handleFxRateChange],
   );
 
   const estimatedRowHeight = useMemo(() => {
@@ -287,7 +316,7 @@ export function CatEngine() {
   // DataTable Hook
   const { table } = useDataTable({
     columns,
-    data: transactions,
+    data: draftTransactions,
     customOptions,
     initialState: {
       columnPinning: {
@@ -405,6 +434,23 @@ export function CatEngine() {
       }
     }
   }, [shouldAutoSave, mode, hasUserPreference, MODE_STORAGE_KEY]);
+
+  useEffect(() => {
+    if (transactions.length > 0) {
+      setDraftTransactions(transactions);
+    }
+  }, [transactions]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (dirtyFields.size > 0) {
+        e.preventDefault();
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [dirtyFields]);
 
   // Handle manual mode changes with preference persistence
   const handleModeChange = useCallback(

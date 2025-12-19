@@ -99,6 +99,9 @@ interface AutocompleteDropdownProps
   debounceTimeout?: number; //in ms
 
   chevron?: 'down' | 'updown';
+
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 // Helper function to get nested property value using dot notation
@@ -200,12 +203,18 @@ export const AutocompleteDropdown = forwardRef<
 
     chevron = 'updown',
 
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
+
     ...rest
   } = props;
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState(value);
   const [searchQuery, setSearchQuery] = useState('');
   const lastItemObserver = useRef<IntersectionObserver | null>(null);
+
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
 
   const isMobile = useMediaQuery('(max-width: 768px)');
   const selectedItemRef = useCallback((node: HTMLDivElement | null) => {

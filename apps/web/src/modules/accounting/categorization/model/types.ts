@@ -37,7 +37,9 @@ export interface CategorizationTransaction {
   native_amount: number;
   reporting_amount: number;
   ledger_transaction_id: string | null;
+  ledger_entry_id: string | null;
   candidate_id: string | null;
+  candidate_line_id: string | null;
   confidence: number | null;
   explanation: string | null;
   human_reviewed: boolean | null;
@@ -141,6 +143,14 @@ export interface GroupedTransaction {
   coaCode: string | null;
   coaName: string | null;
 
+  ledgerTransactionId: string | null;
+  candidateId: string | null;
+
   // Raw entries
-  entries?: GroupedTransaction[];
+  entries?: Array<
+    GroupedTransaction & {
+      ledgerEntryId: string | null;
+      candidateLineId: string | null;
+    }
+  >;
 }

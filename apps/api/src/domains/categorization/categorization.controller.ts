@@ -4,7 +4,9 @@ import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { dateOrString } from '../../shared/utils/random.utils.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 import { getCategorizationTransactions } from './categorization.model.js';
+import { processCategorizationIntent } from './categorization.service.js';
 import {
+  categorizationIntentSchema,
   type GetCategorizationTransactionsParams,
   getCategorizationTransactionsParams,
 } from './categorization.types.js';
@@ -95,6 +97,66 @@ export async function getCategorizationTransactionsController(
       .json(
         errorResponse(
           'An unexpected error occurred while fetching categorization transactions',
+          error,
+        ),
+      );
+  }
+}
+
+/**
+ * Controller for processing categorization intent
+ * Validates intent and calls service function
+ */
+export async function handleCategorizationIntentController(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  const companyId = String(req.company?.id || req.params.companyId);
+  const userId = String(req.user?.id || '');
+
+  if (!companyId) {
+    res.status(400).json(errorResponse('Company ID is required'));
+    return;
+  }
+
+  if (!userId) {
+    res.status(401).json(errorResponse('User ID is required'));
+    return;
+  }
+
+  try {
+    // Validate intent payload
+    const validation = categorizationIntentSchema.safeParse(req.body);
+    if (!validation.success) {
+      res
+        .status(400)
+        .json(
+          errorResponse(
+            `Invalid intent: ${validation.error.issues.map((e) => e.message).join(', ')}`,
+          ),
+        );
+      return;
+    }
+
+    // Process intent
+    const result = await processCategorizationIntent({
+      intent: validation.data,
+      companyId,
+      userId,
+    });
+
+    // Return response
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error: unknown) {
+    res
+      .status(500)
+      .json(
+        errorResponse(
+          'An unexpected error occurred while processing intent',
           error,
         ),
       );

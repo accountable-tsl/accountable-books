@@ -1,5 +1,6 @@
 import api from '@/lib/axios';
 
+import type { Intent } from '../model/intent-types';
 import type {
   GetCategorizationTransactionsParams,
   GetCategorizationTransactionsResponse,
@@ -59,4 +60,39 @@ export async function fetchCategorizationTransactions(
     ...response.data.data,
     transactions,
   };
+}
+
+/**
+ * Send categorization intent to backend
+ * Posts user edits directly to ledger
+ */
+export async function sendCategorizationIntent(
+  companyId: string,
+  intent: Intent,
+): Promise<{
+  success: boolean;
+  data?: {
+    ledgerTransactionId?: string;
+    affected_transaction_ids?: string[];
+    summary_message?: string;
+  };
+  message?: string;
+}> {
+  const response = await api.post<{
+    success: boolean;
+    data?: {
+      ledgerTransactionId?: string;
+      affected_transaction_ids?: string[];
+      summary_message?: string;
+    };
+    message?: string;
+  }>(`/api/${companyId}/categorization/intents`, intent);
+
+  if (!response.data.success) {
+    throw new Error(
+      response.data.message || 'Failed to send categorization intent',
+    );
+  }
+
+  return response.data;
 }

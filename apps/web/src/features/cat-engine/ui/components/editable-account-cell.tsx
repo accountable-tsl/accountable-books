@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
@@ -7,6 +7,8 @@ import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts'
 interface EditableAccountCellProps {
   coaId?: string;
   coaName?: string;
+  onCommit: (coaId: string) => void;
+  markDirty: () => void;
 }
 
 // Define the order for account elements
@@ -31,8 +33,13 @@ const accountElementOrder: string[] = [
 export function EditableAccountCell({
   coaId,
   coaName,
+  onCommit,
+  markDirty,
 }: EditableAccountCellProps) {
   const { companyId, loading } = useSession();
+  const [open, setOpen] = useState(false);
+  const [localId, setLocalId] = useState(coaId || '');
+
   const { data: coaData, isLoading } = useChartOfAccountsQuery({
     companyId: companyId || '',
     active: true,
@@ -76,16 +83,36 @@ export function EditableAccountCell({
     return <div>{coaName || 'Loading...'}</div>;
   }
 
+  const commitIfDirty = () => {
+    if (localId !== coaId) {
+      const selectedItem = coaData?.find((c) => c.id === localId);
+      if (selectedItem) {
+        onCommit?.(selectedItem.id);
+      }
+    }
+  };
+
+  const handleChange = (value: string) => {
+    setLocalId(value); // UI only
+    markDirty();
+  };
+
   return (
-    <div>
+    <div className="flex-1">
       <AutocompleteDropdown
         id="cat-engine-coa-list"
-        value={coaId || ''}
+        value={localId}
         items={[]} // Empty since we're using groups
         variant={'ghost'}
         className="!px-0 font-normal focus-visible:ring-0"
         groups={groupedItems}
         chevron="down"
+        onValueChange={handleChange}
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) commitIfDirty(); // commit when dropdown closes
+          setOpen(isOpen);
+        }}
       />
     </div>
   );

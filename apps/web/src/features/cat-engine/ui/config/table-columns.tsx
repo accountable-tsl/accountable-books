@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import { IntentActionType } from '@/modules/accounting/categorization/model/intent-types';
 
 import { ActionsMenu } from '../components/actions';
 import { EditableAccountCell } from '../components/editable-account-cell';
@@ -24,14 +25,25 @@ import {
   EditableNumberCell,
   EditableTextCell,
 } from '../components/editable-fields';
+import {
+  buildIntentKey,
+  useFieldUpdater,
+  useIntentEmitter,
+} from '../hooks/use-intent-emitter';
+
+const fieldKey = (id: string, columnId: string) => `${id}-${columnId}`;
 export const getCatEngineColumns = ({
   mode,
   reportingCurrency,
-  onExchangeRateChange,
+  onFxRateChange,
+  markFieldClean,
+  markFieldDirty,
 }: {
   mode: 'review' | 'autosave';
   reportingCurrency?: string;
-  onExchangeRateChange?: (transactionId: string, newRate: number) => void;
+  onFxRateChange?: (bankTransactionId: string, rate: number) => void;
+  markFieldClean: (fieldKey: string) => void;
+  markFieldDirty: (fieldKey: string) => void;
 }): ColumnDef<GroupedTransaction>[] => {
   return [
     {
@@ -82,12 +94,23 @@ export const getCatEngineColumns = ({
 
         const showTooltip = txn.description ? true : false;
         const displayText = txn.description || 'No description';
+        const { updateField } = useFieldUpdater(txn);
 
         if (mode === 'autosave' && !multipleLines) {
           return (
             <EditableTextCell
               value={txn.description || ''}
               placeholder="No description"
+              onCommit={(value) => {
+                updateField(IntentActionType.UPDATE_DESCRIPTION, {
+                  scope: 'entry',
+                  entryId: txn.id,
+                  value,
+                });
+
+                markFieldClean(fieldKey(txn.id, 'description'));
+              }}
+              markDirty={() => markFieldDirty(fieldKey(txn.id, 'description'))}
             />
           );
         }
@@ -134,8 +157,25 @@ export const getCatEngineColumns = ({
       cell: ({ row }) => {
         const txn = row.original;
         const fsDate = txn.fsDate;
+        const { updateField } = useFieldUpdater(txn);
         if (mode === 'autosave' && fsDate) {
-          return <EditableDateCell value={new Date(fsDate)} />;
+          return (
+            <EditableDateCell
+              value={new Date(fsDate)}
+              onCommit={(date) => {
+                if (!date) return;
+
+                updateField(IntentActionType.UPDATE_FS_DATE, {
+                  scope: 'entry',
+                  entryId: txn.id,
+                  fsDate: date.toISOString().split('T')[0],
+                });
+
+                markFieldClean(fieldKey(txn.id, 'fsDate'));
+              }}
+              markDirty={() => markFieldDirty(fieldKey(txn.id, 'fsDate'))}
+            />
+          );
         }
         return <div className="">{fsDate || ''}</div>;
       },
@@ -151,12 +191,24 @@ export const getCatEngineColumns = ({
         const contactId = txn.contactId;
         const contactName = txn.contactName;
 
+        const { updateField } = useFieldUpdater(txn);
         if (mode === 'autosave' && !txn.hasMultipleEntries) {
           return (
             <EditableDropdownCell
               field="contact"
               contactId={contactId || undefined}
               contactName={contactName || undefined}
+              onCommit={(id, name) => {
+                updateField(IntentActionType.UPDATE_CONTACT, {
+                  scope: 'entry',
+                  entryId: txn.id,
+                  contactId: id,
+                  contactName: name,
+                });
+
+                markFieldClean(fieldKey(txn.id, 'contact'));
+              }}
+              markDirty={() => markFieldDirty(fieldKey(txn.id, 'contact'))}
             />
           );
         }
@@ -191,12 +243,23 @@ export const getCatEngineColumns = ({
       cell: ({ row }) => {
         const txn = row.original;
         const reference = txn.reference;
+        const { updateField } = useFieldUpdater(txn);
 
         if (mode === 'autosave' && !txn.hasMultipleEntries) {
           return (
             <EditableTextCell
-              value={reference || ''}
-              placeholder="No Reference"
+              value={txn.reference || ''}
+              placeholder="No reference"
+              onCommit={(value) => {
+                updateField(IntentActionType.UPDATE_REFERENCE, {
+                  scope: 'entry',
+                  entryId: txn.id,
+                  reference: value,
+                });
+
+                markFieldClean(fieldKey(txn.id, 'reference'));
+              }}
+              markDirty={() => markFieldDirty(fieldKey(txn.id, 'reference'))}
             />
           );
         }
@@ -234,6 +297,7 @@ export const getCatEngineColumns = ({
       cell: ({ row }) => {
         const txn = row.original;
         const projectName = txn.projectName;
+        const { updateField } = useFieldUpdater(txn);
 
         if (mode === 'autosave' && !txn.hasMultipleEntries) {
           return (
@@ -241,6 +305,16 @@ export const getCatEngineColumns = ({
               field="project"
               projectId={txn.projectId || undefined}
               projectName={projectName || undefined}
+              onCommit={(id, name) => {
+                updateField(IntentActionType.UPDATE_PROJECT, {
+                  entryId: txn.id,
+                  projectId: id,
+                  projectName: name,
+                });
+
+                markFieldClean(fieldKey(txn.id, 'project'));
+              }}
+              markDirty={() => markFieldDirty(fieldKey(txn.id, 'project'))}
             />
           );
         }
@@ -310,7 +384,7 @@ export const getCatEngineColumns = ({
       accessorKey: 'exchangeRate',
       cell: ({ row }) => {
         const txn = row.original;
-
+        const { updateField } = useFieldUpdater(txn);
         // On update, notify using toast or sth that this affects all entries for this transaction if it is a transaction with multiple entries
         if (mode === 'autosave' && !txn.hasMultipleEntries) {
           return (
@@ -318,13 +392,24 @@ export const getCatEngineColumns = ({
               value={txn.exchangeRate}
               placeholder="0.0000"
               decimals={4}
-              min={0.0001}
-              onValueChange={(value) => {
+              min={0.000001}
+              onCommit={(value) => {
                 const numValue = parseFloat(value);
-                if (!isNaN(numValue) && numValue > 0 && onExchangeRateChange) {
-                  onExchangeRateChange(txn.id, numValue);
+                if (!isNaN(numValue) && numValue > 0) {
+                  // Update optimistic state immediately
+                  // Might not need this anymore... we might need to make sure spent/received knows about changes here
+                  onFxRateChange?.(txn.bankTransactionId, numValue);
+
+                  // Emit intent for backend processing
+                  updateField(IntentActionType.UPDATE_FX_RATE, {
+                    bankTransactionId: txn.bankTransactionId,
+                    rate: numValue,
+                  });
+
+                  markFieldClean(fieldKey(txn.id, 'exchangeRate'));
                 }
               }}
+              markDirty={() => markFieldDirty(fieldKey(txn.id, 'exchangeRate'))}
             />
           );
         }
@@ -504,11 +589,35 @@ export const getCatEngineColumns = ({
         const isUncategorized = !accountName;
 
         if (mode === 'autosave') {
+          const { emitDecisionIntent } = useIntentEmitter();
+          // TODO: Get actual status from useTransactionState hook
+          // const status: 'idle' | 'saving' | 'saved' | 'error' = 'idle';
           return (
-            <EditableAccountCell
-              coaId={txn.coaId || undefined}
-              coaName={txn.coaName || undefined}
-            />
+            <div className="flex items-center gap-2">
+              <EditableAccountCell
+                coaId={txn.coaId || undefined}
+                coaName={txn.coaName || undefined}
+                onCommit={(coaId) => {
+                  if (!coaId) return;
+                  emitDecisionIntent({
+                    action: IntentActionType.ASSIGN_ACCOUNT,
+                    payload: {
+                      entryId: txn.id,
+                      coaId,
+                    },
+                    transactionId: txn.bankTransactionId,
+                    transactionState: txn.status,
+                    intentKey: buildIntentKey(
+                      IntentActionType.ASSIGN_ACCOUNT,
+                      txn.id,
+                    ),
+                  });
+                  markFieldClean(fieldKey(txn.id, 'account'));
+                }}
+                markDirty={() => markFieldDirty(fieldKey(txn.id, 'account'))}
+              />
+              {/* <TransactionStatusIndicator status={status} /> */}
+            </div>
           );
         }
 
