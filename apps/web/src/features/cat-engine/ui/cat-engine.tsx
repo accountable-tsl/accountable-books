@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 import { useSession } from '@/app/session';
 import { CenteredLoader } from '@/components/CenteredLoader';
@@ -34,6 +35,7 @@ import {
 import { CatEngineTxnView } from './components/cat-engine-txn-view';
 import { getCatEngineColumns } from './config/table-columns';
 import { testCategorizationTransactions } from './test-data';
+import type { CatEngineMode } from './types';
 
 export const accordionItems = [
   {
@@ -97,8 +99,8 @@ function getStatusFromAccordionItem(
 }
 
 export function CatEngine() {
+  const { companyId, company, loading: isLoadingSession } = useSession();
   const [view, setView] = useState<'table' | 'group'>('table');
-  const [mode, setMode] = useState<'review' | 'autosave'>('review');
   const [rowHeight, setRowHeight] = useState<'min' | 'mid' | 'max'>('mid');
   const [isFullScreen, setIsFullScreen] = useState(false);
   // Default to 'uncategorized' to show the most important transactions first
@@ -107,6 +109,33 @@ export function CatEngine() {
   const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>(
     getInitialDateRange(),
   );
+  const [selectedTransactionId, setSelectedTransactionId] = useState<
+    string | null
+  >(null);
+  const [optimisticExchangeRates, setOptimisticExchangeRates] = useState<
+    Map<string, number>
+  >(new Map());
+  // const [mode, setMode] = useState<'review' | 'autosave'>('review');
+  // Mode state with localStorage persistence
+  const MODE_STORAGE_KEY = `cat-engine-mode-${companyId || 'default'}`;
+  const USER_PREFERENCE_KEY = `cat-engine-user-preference-${companyId || 'default'}`;
+  const [mode, setMode] = useState<CatEngineMode>(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(MODE_STORAGE_KEY);
+      if (saved === 'review' || saved === 'autosave') {
+        return saved;
+      }
+    }
+    return 'review';
+  });
+  const [hasUserPreference, setHasUserPreference] = useState(() => {
+    // Check if user has manually set a preference (separate from auto-switched values)
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(USER_PREFERENCE_KEY) === 'true';
+    }
+    return false;
+  });
 
   // Debounce date range changes
   const dateRangeRef = useRef(dateRange);
@@ -129,8 +158,12 @@ export function CatEngine() {
     [],
   );
 
-  const { companyId, loading: isLoadingSession } = useSession();
   const is1024 = useMediaQuery('(min-width: 1024px)');
+  const is1440 = useMediaQuery('(min-width: 1440px)');
+
+  // Determine if we should auto-switch to autosave (1024px <= width < 1440px)
+  const shouldAutoSave = is1024 && !is1440;
+
   const statusFilter = getStatusFromAccordionItem(openAccordionItem);
 
   // Fetch bank accounts for bank name/logo lookup
@@ -147,27 +180,57 @@ export function CatEngine() {
     data: txnData,
     isLoading,
     error,
-    refetch,
-  } = useCategorizationTransactions({
-    companyId: companyId ?? '',
-    dateFrom: dateRange.from,
-    dateTo: dateRange.to || new Date(),
-    status: statusFilter,
-    limit: 100,
-    offset: 0,
-  });
+  } = useCategorizationTransactions(
+    {
+      companyId: companyId ?? '',
+      dateFrom: dateRange.from,
+      dateTo: dateRange.to || new Date(),
+      status: statusFilter,
+      limit: 100,
+      offset: 0,
+    },
+    optimisticExchangeRates.size > 0 ? optimisticExchangeRates : undefined,
+  );
 
   // Use test data for development - set to false to use real API data
   const USE_TEST_DATA = true;
 
+  const testTxns = useMemo(() => testCategorizationTransactions, []);
   const rawTransactions = USE_TEST_DATA
-    ? testCategorizationTransactions
+    ? testTxns
     : txnData?.transactions || [];
+
   const transactions = useMemo(() => {
     return rawTransactions;
   }, [rawTransactions]);
 
-  const columns = useMemo(() => getCatEngineColumns({ mode }), [mode]);
+  const rowClickHandler = useCallback((row: any) => {
+    const id = row.original.id;
+
+    setSelectedTransactionId((prevId) => (prevId === id ? null : id));
+  }, []);
+
+  const handleExchangeRateChange = useCallback(
+    (transactionId: string, newRate: number) => {
+      setOptimisticExchangeRates((prev) => {
+        const next = new Map(prev);
+        next.set(transactionId, newRate);
+        return next;
+      });
+      // TODO: Add mutation to save to backend or handle saving somehow
+    },
+    [],
+  );
+
+  const columns = useMemo(
+    () =>
+      getCatEngineColumns({
+        mode,
+        reportingCurrency: company?.reportingCurrencyCode,
+        onExchangeRateChange: handleExchangeRateChange,
+      }),
+    [mode, company, handleExchangeRateChange],
+  );
 
   const estimatedRowHeight = useMemo(() => {
     switch (rowHeight) {
@@ -182,11 +245,11 @@ export function CatEngine() {
 
   const customOptions = useMemo(() => {
     return {
-      // virtualization: {
-      //   enabled: true,
-      //   estimatedRowHeight,
-      //   overscan: 8,
-      // },
+      virtualization: {
+        enabled: true,
+        estimatedRowHeight,
+        overscan: 8,
+      },
       rowSelection: {
         enabled: true,
       },
@@ -214,6 +277,10 @@ export function CatEngine() {
           (mode === 'autosave' && row.original.hasMultipleEntries) || false,
         getSubRows: (row) => row.entries,
       },
+      rowClick: {
+        mode: 'custom',
+        onClick: rowClickHandler,
+      },
     } satisfies DataTableInputOptions<GroupedTransaction>;
   }, [mode, view, openAccordionItem, rowHeight, estimatedRowHeight]);
 
@@ -225,7 +292,12 @@ export function CatEngine() {
     initialState: {
       columnPinning: {
         left: ['bank', 'date', 'description'],
-        right: ['spent', 'received', 'account'],
+        right: ['spent', 'received', 'account', '__actions'],
+      },
+    },
+    state: {
+      columnVisibility: {
+        __actions: mode === 'autosave',
       },
     },
   });
@@ -306,6 +378,48 @@ export function CatEngine() {
     mode,
   ]);
 
+  const selectedTransaction = useMemo(() => {
+    if (!selectedTransactionId) return null;
+    return transactions.find((txn) => txn.id === selectedTransactionId) || null;
+  }, [selectedTransactionId, transactions]);
+
+  // Auto-switch mode based on screen size (1024px <= width < 1440px)
+  useEffect(() => {
+    if (shouldAutoSave && mode !== 'autosave' && !hasUserPreference) {
+      // Only auto-switch if user hasn't manually set a preference
+      setMode('autosave');
+      // Save to localStorage but don't mark as user preference
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(MODE_STORAGE_KEY, 'autosave');
+      }
+      toast.info('Switched to Autosave mode', {
+        description:
+          'Optimized for medium screens. You can change this anytime.',
+        duration: 3000,
+      });
+    } else if (!shouldAutoSave && mode === 'autosave' && !hasUserPreference) {
+      // When screen size changes back to large, revert to review mode if it was auto-switched
+      setMode('review');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(MODE_STORAGE_KEY, 'review');
+      }
+    }
+  }, [shouldAutoSave, mode, hasUserPreference, MODE_STORAGE_KEY]);
+
+  // Handle manual mode changes with preference persistence
+  const handleModeChange = useCallback(
+    (newMode: CatEngineMode) => {
+      setMode(newMode);
+      setHasUserPreference(true);
+      // Persist user preference and mark as manually set
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(MODE_STORAGE_KEY, newMode);
+        localStorage.setItem(USER_PREFERENCE_KEY, 'true');
+      }
+    },
+    [MODE_STORAGE_KEY, USER_PREFERENCE_KEY],
+  );
+
   if (!is1024) return <SmallScreenMessage />;
 
   if (isLoading || isLoadingSession) {
@@ -319,7 +433,7 @@ export function CatEngine() {
           <CatEngineAdvFilter />
 
           {/* Review mode: No DB Calls until user triggers action, Autosave mode: DB Calls are made automatically usually when user's focus leaves the box or after a certain time period whichever is later (or should it be sooner). */}
-          <LeftCatEngineToolbar mode={mode} setMode={setMode} />
+          <LeftCatEngineToolbar mode={mode} setMode={handleModeChange} />
 
           <div className="h-full">
             <Input
@@ -354,10 +468,20 @@ export function CatEngine() {
             <ResizablePanel className="min-h-0 h-full flex flex-col gap-4 min-w-0 flex-1 overflow-x-auto">
               {view === 'group' ? accordionView : tableView}
             </ResizablePanel>
-            <ResizableHandle withHandle className="bg-background" />
-            <ResizablePanel className="w-sm !max-w-md">
-              <CatEngineTxnView />
-            </ResizablePanel>
+
+            {selectedTransaction && (
+              <>
+                <ResizableHandle withHandle className="bg-background" />
+                <ResizablePanel className="w-sm !max-w-md">
+                  <CatEngineTxnView
+                    transaction={selectedTransaction}
+                    accordionItemId={openAccordionItem}
+                    isLoading={isLoading}
+                    error={error ? error.message : null}
+                  />
+                </ResizablePanel>
+              </>
+            )}
           </ResizablePanelGroup>
         )}
         {mode === 'autosave' && (

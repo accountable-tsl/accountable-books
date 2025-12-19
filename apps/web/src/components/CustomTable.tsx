@@ -30,7 +30,10 @@ const TableHeader = React.forwardRef<
       ref={ref}
       role="rowgroup"
       data-slot="table-header"
-      className={cn('[&_[data-slot=table-row]]:border-b relative', className)}
+      className={cn(
+        '[&_[data-slot=table-row]]:border-b bg-background sticky top-0 z-20',
+        className,
+      )}
       {...props}
     />
   );

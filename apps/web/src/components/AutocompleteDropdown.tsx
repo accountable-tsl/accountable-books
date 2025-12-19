@@ -1,5 +1,5 @@
 import type { VariantProps } from 'class-variance-authority';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
 import {
   forwardRef,
   useCallback,
@@ -88,6 +88,7 @@ interface AutocompleteDropdownProps
   groupLabel?: string | ((item: any) => string);
   groups?: GroupedItems[];
   ungroupedLabel?: string; // default: "Other"
+  groupOrder?: string[] | ((a: string, b: string) => number); // Custom group ordering
 
   // Async and infinite scroll
   async?: boolean;
@@ -96,6 +97,8 @@ interface AutocompleteDropdownProps
   isLoading?: boolean; // Loading state for async fetches
   hasMore?: boolean;
   debounceTimeout?: number; //in ms
+
+  chevron?: 'down' | 'updown';
 }
 
 // Helper function to get nested property value using dot notation
@@ -186,6 +189,7 @@ export const AutocompleteDropdown = forwardRef<
     groupLabel,
     groups = [],
     ungroupedLabel = 'Other',
+    groupOrder,
 
     async: asyncMode = false,
     onSearchChange,
@@ -193,6 +197,8 @@ export const AutocompleteDropdown = forwardRef<
     isLoading = false,
     hasMore = false,
     debounceTimeout = 300,
+
+    chevron = 'updown',
 
     ...rest
   } = props;
@@ -299,7 +305,25 @@ export const AutocompleteDropdown = forwardRef<
 
     // Handle pre-grouped data
     if (groups?.length) {
-      groups.forEach((group) => {
+      let groupsToProcess = groups;
+
+      // Apply custom ordering if provided
+      if (groupOrder) {
+        if (typeof groupOrder === 'function') {
+          groupsToProcess = [...groups].sort((a, b) => groupOrder(a.id, b.id));
+        } else {
+          // Order by provided array, then append any missing groups
+          const orderedGroups = groupOrder
+            .map((id) => groups.find((g) => g.id === id))
+            .filter((g): g is GroupedItems => g !== undefined);
+          const remainingGroups = groups.filter(
+            (g) => !groupOrder.includes(g.id),
+          );
+          groupsToProcess = [...orderedGroups, ...remainingGroups];
+        }
+      }
+
+      groupsToProcess.forEach((group) => {
         const normalizedGroupItems = group.items
           .map((item) => normalizeItem(item, mapItem))
           .filter((item) => item.value.trim() !== '');
@@ -352,22 +376,31 @@ export const AutocompleteDropdown = forwardRef<
         itemGroups[groupKey].push(item);
       });
 
-      // Convert to GroupedItems format
-      Object.keys(itemGroups)
-        .sort()
-        .forEach((groupKey) => {
-          const normalizedGroupItems = itemGroups[groupKey]
-            .map((item) => normalizeItem(item, mapItem))
-            .filter((item) => item.value.trim() !== '');
+      // Convert to GroupedItems format with custom ordering
+      const groupKeys = Object.keys(itemGroups);
+      const sortedGroupKeys = groupOrder
+        ? typeof groupOrder === 'function'
+          ? groupKeys.sort(groupOrder)
+          : // Order by provided array, then append any missing keys
+            [
+              ...groupOrder.filter((key) => groupKeys.includes(key)),
+              ...groupKeys.filter((key) => !groupOrder.includes(key)),
+            ]
+        : groupKeys.sort(); // Default to alphabetical
 
-          if (normalizedGroupItems.length > 0) {
-            result.push({
-              id: groupKey,
-              label: groupLabels[groupKey],
-              items: normalizedGroupItems,
-            });
-          }
-        });
+      sortedGroupKeys.forEach((groupKey) => {
+        const normalizedGroupItems = itemGroups[groupKey]
+          .map((item) => normalizeItem(item, mapItem))
+          .filter((item) => item.value.trim() !== '');
+
+        if (normalizedGroupItems.length > 0) {
+          result.push({
+            id: groupKey,
+            label: groupLabels[groupKey],
+            items: normalizedGroupItems,
+          });
+        }
+      });
 
       if (ungroupedItems.length > 0) {
         const normalizedUngroupedItems = ungroupedItems
@@ -385,7 +418,7 @@ export const AutocompleteDropdown = forwardRef<
     }
 
     return result;
-  }, [items, groups, groupBy, groupLabel, mapItem, useGrouping]);
+  }, [items, groups, groupBy, groupLabel, mapItem, useGrouping, groupOrder]);
 
   // Filter items based on search query
   const filteredData = useMemo(() => {
@@ -605,7 +638,15 @@ export const AutocompleteDropdown = forwardRef<
           : placeholder}
       </span>
 
-      <ChevronsUpDown className="opacity-50" />
+      {chevron === 'down' ? (
+        open ? (
+          <ChevronUp className="opacity-50" />
+        ) : (
+          <ChevronDown className="opacity-50" />
+        )
+      ) : (
+        <ChevronsUpDown className="opacity-50" />
+      )}
     </Button>
   );
 

@@ -10,6 +10,7 @@ import type {
 
 export function groupCategorizationTransactions(
   raw: CategorizationTransaction[],
+  exchangeRateOverrides?: Map<string, number>,
 ): GroupedTransaction[] {
   if (raw.length === 0) {
     return [];
@@ -40,6 +41,23 @@ export function groupCategorizationTransactions(
     const hasMultipleEntries = txns.length > 1;
     const entryCount = txns.length;
     const firstLine = txns[0];
+
+    // Check if we have an exchange rate override for this transaction
+    const overrideRate = exchangeRateOverrides?.get(id);
+    const effectiveExchangeRate =
+      overrideRate ?? firstLine.custom_exchange_rate;
+
+    // Recalculate reporting_amount if we have an override
+    const txnsWithRecalculatedAmounts = txns.map((txn) => {
+      if (overrideRate !== undefined) {
+        return {
+          ...txn,
+          reporting_amount: txn.native_amount * overrideRate,
+          custom_exchange_rate: overrideRate,
+        };
+      }
+      return txn;
+    });
 
     // Helper to get value or multiple indicator
     const getFieldOrMultiple = <T>(
@@ -75,6 +93,7 @@ export function groupCategorizationTransactions(
         'Transaction has multiple entries',
       ),
 
+      contactId: getFieldOrMultiple((t) => t.contact_id, 'Multiple contacts'),
       contactName: getFieldOrMultiple(
         (t) => t.contact_name,
         'Multiple contacts',
@@ -82,24 +101,31 @@ export function groupCategorizationTransactions(
 
       reference: getFieldOrMultiple((t) => t.reference, 'Multiple references'),
 
+      projectId: getFieldOrMultiple((t) => t.project_id, 'Multiple projects'),
       projectName: getFieldOrMultiple(
         (t) => t.project_name,
         'Multiple projects',
       ),
 
-      totalBankAmount: txns.reduce((sum, txn) => sum + txn.reporting_amount, 0),
+      nativeAmount: txnsWithRecalculatedAmounts.reduce(
+        (sum, txn) => sum + txn.native_amount,
+        0,
+      ),
 
-      // Exchange rate - use first since they should all be the same
-      // // Edit to custom exchange rate should affect all lines and user should be notified if they try to make such update
-      exchangeRate: firstLine.custom_exchange_rate.toFixed(4),
+      reportingAmount: txnsWithRecalculatedAmounts.reduce(
+        (sum, txn) => sum + txn.reporting_amount,
+        0,
+      ),
 
-      spent: txns.reduce((sum, txn) => {
+      exchangeRate: effectiveExchangeRate.toFixed(4),
+
+      spent: txnsWithRecalculatedAmounts.reduce((sum, txn) => {
         return txn.reporting_amount < 0
           ? sum + Math.abs(txn.reporting_amount)
           : sum;
       }, 0),
 
-      received: txns.reduce((sum, txn) => {
+      received: txnsWithRecalculatedAmounts.reduce((sum, txn) => {
         return txn.reporting_amount > 0 ? sum + txn.reporting_amount : sum;
       }, 0),
 
@@ -122,7 +148,7 @@ export function groupCategorizationTransactions(
       coaName: hasMultipleEntries ? null : firstLine.coa_name,
       coaCode: hasMultipleEntries ? null : firstLine.coa_code,
 
-      entries: txns.map((txn) => ({
+      entries: txnsWithRecalculatedAmounts.map((txn) => ({
         id: txn.id,
         bankTransactionId: txn.id,
         bankName: txn.bank_display_name,
@@ -133,9 +159,12 @@ export function groupCategorizationTransactions(
         fsDate: format(new Date(txn.fs_date), 'dd MMM yyyy'),
         description: txn.description,
         contactName: txn.contact_name,
+        contactId: txn.contact_id,
         reference: txn.reference,
+        projectId: txn.project_id,
         projectName: txn.project_name,
-        totalBankAmount: txn.reporting_amount,
+        nativeAmount: txn.native_amount,
+        reportingAmount: txn.reporting_amount,
         exchangeRate: txn.custom_exchange_rate.toFixed(4),
         spent: txn.reporting_amount < 0 ? Math.abs(txn.reporting_amount) : 0,
         received: txn.reporting_amount > 0 ? txn.reporting_amount : 0,
@@ -193,6 +222,10 @@ export function groupCategorizationTransactions(
       if (confB === null || confB === undefined) return -1;
       return confB - confA; // desc
     }
+
+    // // Multiple entries together...
+    // const multipleA = (a.entries && a.entries.length > 1) ?? false;
+    // const multipleB = (b.entries && b.entries.length > 1) ?? false;
 
     // 7. id (final tie-breaker)
     return a.id.localeCompare(b.id);

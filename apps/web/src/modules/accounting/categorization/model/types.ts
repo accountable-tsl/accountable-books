@@ -121,12 +121,15 @@ export interface GroupedTransaction {
   date: string;
   fsDate: string | null;
   description: string | null;
+  contactId: string | null;
   contactName: string | null;
   reference: string | null;
+  projectId: string | null;
   projectName: string | null;
 
   // Amounts
-  totalBankAmount: number;
+  nativeAmount: number;
+  reportingAmount: number;
   exchangeRate: string;
   spent: number;
   received: number;

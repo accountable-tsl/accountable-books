@@ -18,7 +18,7 @@ interface SmallScreenMessageProps {
 const def: SmallScreenMessageProps = {
   title: 'Best Viewed on Larger Screens',
   message:
-    "Our site shines brightest on larger screens for now, but we're crafting a stellar experience for smaller screens soon!",
+    "Our site shines brightest on larger screens for now, we'll craft a stellar experience for smaller screens soon!",
   showIcon: true,
   icon: <LaptopMinimal />,
 };

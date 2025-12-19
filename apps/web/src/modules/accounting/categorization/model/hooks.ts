@@ -42,6 +42,7 @@ export function useCategorizationTransactionsOld(
 }
 export function useCategorizationTransactions(
   params: GetCategorizationTransactionsParams,
+  exchangeRateOverrides?: Map<string, number>,
 ) {
   return useQuery({
     queryKey: [
@@ -52,10 +53,17 @@ export function useCategorizationTransactions(
       params.status,
       params.limit,
       params.offset,
+      // Include overrides in query key - convert to sorted array for stable key
+      exchangeRateOverrides
+        ? Array.from(exchangeRateOverrides.entries()).sort()
+        : undefined,
     ],
     queryFn: async () => {
       const response = await fetchCategorizationTransactions(params);
-      const grouped = groupCategorizationTransactions(response.transactions);
+      const grouped = groupCategorizationTransactions(
+        response.transactions,
+        exchangeRateOverrides,
+      );
       return {
         transactions: grouped,
         total: response.total,

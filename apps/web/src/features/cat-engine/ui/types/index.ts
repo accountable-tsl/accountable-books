@@ -1,3 +1,6 @@
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
+
+export type CatEngineMode = 'review' | 'autosave';
 export interface TransactionData {
   id: string;
   amount: number;
@@ -15,7 +18,7 @@ export interface TransactionData {
 }
 
 export interface CatEngineTxnViewProps {
-  transaction?: TransactionData;
+  transaction?: GroupedTransaction;
   accordionItemId?: string;
   className?: string;
   onEdit?: () => void;

@@ -97,7 +97,6 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
     return (
       <TableHeader
         className={cn(
-          'bg-background sticky top-0 z-20',
           tableHeader,
           hasPinnedColumns ? 'overflow-y-visible' : '',
         )}
@@ -129,7 +128,7 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
   }
   // Default rendering when no pinning
   return (
-    <TableHeader className={cn('bg-background sticky top-0 z-10', tableHeader)}>
+    <TableHeader className={cn(tableHeader)}>
       {table.getHeaderGroups().map((headerGroup) => (
         <TableRow
           key={headerGroup.id}

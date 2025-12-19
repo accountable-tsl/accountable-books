@@ -16,416 +16,22 @@ import {
 import { cn } from '@/lib/utils';
 import type { GroupedTransaction } from '@/modules/accounting/categorization';
 
-import { SplitViewDialog } from '../components/split-view';
-
-/**
- * Extracts a single value from an array of transaction line values.
- * Returns the single value if all are the same, empty string if none,
- * or "Multiple {label}" if there are different values.
- */
-function getUnifiedValue(values: (string | null)[], label: string): string {
-  if (values.length === 0) return '';
-
-  const unique = new Set(values);
-
-  if (unique.size === 1) return values[0]!;
-
-  return `Multiple ${label}`;
-}
-
-// export const getCatEngineColumns = (): ColumnDef<GroupedTransaction>[] => {
-//   return [
-//     {
-//       id: 'bank',
-//       header: 'Bank',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         const logo = txn.bank_logo;
-//         const bankAccountName = txn.bank_account_display_name;
-//         const bankAccountTitle = `${txn.bank_display_name} - ${bankAccountName}`;
-//         return (
-//           <div className="flex items-center gap-2" title={bankAccountTitle}>
-//             <div className="flex-shrink-0 w-5 h-5 overflow-hidden rounded-full flex items-center justify-center border bg-white/80 dark:opacity-50">
-//               {logo ? (
-//                 <img
-//                   src={logo}
-//                   alt={`${txn.bank_display_name} logo`}
-//                   className="w-4 h-4 object-contain"
-//                 />
-//               ) : (
-//                 <Building className="w-4 h-4" />
-//               )}
-//             </div>
-
-//             <p className="text-sm truncate text-muted-foreground">
-//               {bankAccountName}
-//             </p>
-//           </div>
-//         );
-//       },
-//       size: 100,
-//     },
-//     {
-//       id: 'date',
-//       header: 'Date',
-//       accessorKey: 'date',
-//       accessorFn: (row) => format(new Date(row.date), 'dd MMM yyyy'),
-//       size: 100,
-//       minSize: 100,
-//       maxSize: 100,
-//       enableResizing: false,
-//     },
-//     {
-//       id: 'description',
-//       header: 'Description',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         const multipleLines = txn.lines.length > 1;
-
-//         let displayText: string;
-//         let showTooltip = false;
-
-//         if (multipleLines) {
-//           displayText = 'Transaction has multiple entries';
-//           showTooltip = true;
-//         } else {
-//           const description = txn.lines[0]?.description;
-//           if (description) {
-//             displayText = description;
-//             showTooltip = true;
-//           } else {
-//             displayText = 'No description';
-//           }
-//         }
-
-//         return (
-//           <Tooltip delayDuration={300}>
-//             <TooltipTrigger asChild>
-//               <div
-//                 className={cn(
-//                   'text-sm truncate',
-//                   (!showTooltip || multipleLines) &&
-//                     'text-muted-foreground opacity-50',
-//                 )}
-//               >
-//                 {displayText}
-//               </div>
-//             </TooltipTrigger>
-//             {showTooltip && (
-//               <TooltipContent className="max-w-md">
-//                 <p className="break-words">
-//                   {multipleLines
-//                     ? `${displayText} - (Click row to view)`
-//                     : displayText}
-//                 </p>
-//               </TooltipContent>
-//             )}
-//           </Tooltip>
-//         );
-//       },
-//       minSize: 175,
-//     },
-//     {
-//       id: 'fs_date',
-//       header: 'FS Date',
-//       accessorKey: 'fs_date',
-//       accessorFn: (row) => format(new Date(row.fs_date), 'dd MMM yyyy'),
-//       enableResizing: false,
-//       maxSize: 100,
-//     },
-//     {
-//       id: 'contact',
-//       header: 'Contact',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         const names = txn.lines.map((l) => l.contact_name).filter(Boolean);
-//         const contactName = getUnifiedValue(names, 'contacts');
-
-//         return (
-//           <div
-//             className={cn(
-//               'text-sm truncate font-light',
-//               contactName.startsWith('Multiple')
-//                 ? 'text-muted-foreground opacity-50'
-//                 : '',
-//             )}
-//             title={contactName || ''}
-//           >
-//             {contactName || 'No contact'}
-//           </div>
-//         );
-//       },
-//     },
-//     {
-//       id: 'reference',
-//       header: 'Reference',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         const references = txn.lines.map((l) => l.reference).filter(Boolean);
-//         const reference = getUnifiedValue(references, 'references');
-
-//         return (
-//           <div
-//             title={reference || ''}
-//             className={cn(
-//               'text-sm truncate font-light',
-//               reference.startsWith('Multiple') || !reference
-//                 ? 'text-muted-foreground opacity-50'
-//                 : '',
-//             )}
-//           >
-//             {reference || '-'}
-//           </div>
-//         );
-//       },
-//     },
-//     {
-//       id: 'project',
-//       header: 'Project',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         const projectNames = txn.lines
-//           .map((l) => l.project_name)
-//           .filter(Boolean);
-//         const projectName = getUnifiedValue(projectNames, 'projects');
-
-//         return (
-//           <div
-//             title={projectName || ''}
-//             className={cn(
-//               'text-sm truncate font-light',
-//               projectName.startsWith('Multiple') || !projectName
-//                 ? 'text-muted-foreground opacity-50'
-//                 : '',
-//             )}
-//           >
-//             {projectName || ''}
-//           </div>
-//         );
-//       },
-//     },
-//     {
-//       id: 'currency',
-//       header: 'Curr',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         // Currency is the same for all lines since they're from the same bank account
-//         const currencyCode = txn.bank_currency_code;
-
-//         return (
-//           <div
-//             title={currencyCode}
-//             className="text-sm truncate font-light text-muted-foreground"
-//           >
-//             {currencyCode}
-//           </div>
-//         );
-//       },
-//       size: 60,
-//       minSize: 60,
-//       maxSize: 60,
-//       enableResizing: false,
-//     },
-//     {
-//       id: 'bank_amount',
-//       header: 'Bank Amount',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         return (
-//           <FormattedAmount
-//             amount={txn.bank_amount}
-//             currency={txn.bank_currency_code}
-//             accountingNegatives={false}
-//             className={cn(
-//               'flex justify-end ',
-//               txn.bank_amount < 0 ? 'text-destructive' : '',
-//             )}
-//           />
-//         );
-//       },
-//       size: 120,
-//       enableResizing: false,
-//     },
-//     {
-//       id: 'exchange_rate',
-//       header: 'Exr',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         // Exchange rate is the same for all lines since they're from the same transaction
-//         // Edit to custom exchange rate should affect all lines and user should be notified if they try to make such update
-//         const exchangeRate = txn.lines[0]?.custom_exchange_rate;
-
-//         return (
-//           <div className="text-sm font-light text-muted-foreground text-left">
-//             {exchangeRate ? exchangeRate.toFixed(4) : '1.0000'}
-//           </div>
-//         );
-//       },
-//       size: 80,
-//       minSize: 80,
-//       maxSize: 80,
-//       enableResizing: false,
-//     },
-//     {
-//       id: 'spent',
-//       header: 'Spent',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         // Sum all negative reporting amounts (outflows)
-//         const spent = txn.lines.reduce((sum, line) => {
-//           return line.reporting_amount < 0
-//             ? sum + Math.abs(line.reporting_amount)
-//             : sum;
-//         }, 0);
-
-//         if (spent === 0) {
-//           return (
-//             <div className="text-sm font-light text-center text-muted-foreground">
-//               -
-//             </div>
-//           );
-//         }
-
-//         // Get reporting currency from first line (all lines should have same reporting currency)
-//         // For now, we'll use bank currency as proxy - TODO: add reporting_currency_code to view
-//         return (
-//           <FormattedAmount
-//             amount={spent}
-//             currency={txn.bank_currency_code}
-//             accountingNegatives={false}
-//             className={cn(
-//               'flex justify-end ',
-//               txn.bank_amount < 0 ? 'text-destructive' : 'text-green-600',
-//             )}
-//           />
-//         );
-//       },
-//       size: 120,
-//       minSize: 120,
-//       maxSize: 120,
-//       enableResizing: false,
-//     },
-//     {
-//       id: 'received',
-//       header: 'Received',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         // Sum all positive reporting amounts (inflows)
-//         const received = txn.lines.reduce((sum, line) => {
-//           return line.reporting_amount > 0 ? sum + line.reporting_amount : sum;
-//         }, 0);
-
-//         if (received === 0) {
-//           return (
-//             <div className="text-sm font-light text-center text-muted-foreground">
-//               -
-//             </div>
-//           );
-//         }
-
-//         return (
-//           <FormattedAmount
-//             amount={received}
-//             currency={txn.bank_currency_code}
-//             accountingNegatives={false}
-//             className={cn(
-//               'flex justify-end',
-//               txn.bank_amount < 0 ? 'text-destructive' : 'text-green-600',
-//             )}
-//           />
-//         );
-//       },
-//       size: 120,
-//       minSize: 120,
-//       maxSize: 120,
-//       enableResizing: false,
-//     },
-//     {
-//       id: 'account',
-//       header: 'Account',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         const accountNames = txn.lines.map((l) => l.coa_name).filter(Boolean);
-//         const accountName = getUnifiedValue(accountNames, 'accounts');
-
-//         if (txn.summary.isSplit) {
-//           return <SplitViewDialog txn={txn} />;
-//         }
-
-//         // if (txn.summary.isSplit) {
-//         //   return (
-//         //     <div className="flex items-center gap-1 p-1 rounded bg-muted/20 border border-muted">
-//         //       <Split className="w-4 h-4 text-muted-foreground" />
-//         //       <SplitViewDialog txn={txn} />
-//         //     </div>
-//         //   );
-//         // }
-//         const displayName = accountName || 'Uncategorized';
-//         const accountCode = txn.lines[0]?.coa_code;
-//         const isUncategorized = !accountName;
-
-//         return (
-//           <Tooltip delayDuration={500}>
-//             <TooltipTrigger asChild>
-//               <div
-//                 className={cn(
-//                   'text-sm truncate max-w-[150px] cursor-help flex items-center gap-1',
-//                   isUncategorized && 'font-light text-muted-foreground',
-//                 )}
-//               >
-//                 {isUncategorized && (
-//                   <HelpCircle className="w-4 h-4 flex-shrink-0" />
-//                 )}
-//                 {displayName}
-//               </div>
-//             </TooltipTrigger>
-//             <TooltipContent>
-//               <div>
-//                 {accountCode && (
-//                   <span className="text-xs text-muted-foreground mr-1">
-//                     {accountCode}
-//                   </span>
-//                 )}
-//                 <span className="font-medium">{displayName}</span>
-//               </div>
-//             </TooltipContent>
-//           </Tooltip>
-//         );
-//       },
-//       minSize: 175,
-//       meta: {
-//         cellClassName: 'p-0 px-1',
-//       },
-//     },
-//     {
-//       id: 'confidence',
-//       header: 'Confidence',
-//       cell: ({ row }) => {
-//         const txn = row.original;
-//         const firstLine = txn.lines[0];
-//         if (
-//           firstLine?.confidence !== null &&
-//           firstLine?.confidence !== undefined
-//         ) {
-//           const percentage = Math.round(firstLine.confidence * 100);
-//           return <div className="text-sm font-light">{percentage}%</div>;
-//         }
-//         return (
-//           <div className="text-sm font-light text-muted-foreground">-</div>
-//         );
-//       },
-//       meta: { label: 'Confidence', hidden: true },
-//       size: 100,
-//       minSize: 100,
-//       maxSize: 100,
-//       enableResizing: false,
-//     },
-//   ];
-// };
+import { ActionsMenu } from '../components/actions';
+import { EditableAccountCell } from '../components/editable-account-cell';
+import { EditableDropdownCell } from '../components/editable-dropdown-cell';
+import {
+  EditableDateCell,
+  EditableNumberCell,
+  EditableTextCell,
+} from '../components/editable-fields';
 export const getCatEngineColumns = ({
   mode,
+  reportingCurrency,
+  onExchangeRateChange,
 }: {
   mode: 'review' | 'autosave';
+  reportingCurrency?: string;
+  onExchangeRateChange?: (transactionId: string, newRate: number) => void;
 }): ColumnDef<GroupedTransaction>[] => {
   return [
     {
@@ -477,6 +83,15 @@ export const getCatEngineColumns = ({
         const showTooltip = txn.description ? true : false;
         const displayText = txn.description || 'No description';
 
+        if (mode === 'autosave' && !multipleLines) {
+          return (
+            <EditableTextCell
+              value={txn.description || ''}
+              placeholder="No description"
+            />
+          );
+        }
+
         return (
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
@@ -486,6 +101,14 @@ export const getCatEngineColumns = ({
                   (!showTooltip || multipleLines) &&
                     'text-muted-foreground opacity-50',
                 )}
+                {...(mode === 'autosave'
+                  ? {
+                      onClick: (e) => {
+                        e.stopPropagation();
+                        row.toggleExpanded();
+                      },
+                    }
+                  : {})}
               >
                 {displayText}
               </div>
@@ -499,35 +122,67 @@ export const getCatEngineColumns = ({
         );
       },
       minSize: 175,
+      meta: {
+        cellClassName: mode === 'autosave' ? 'py-0' : '', // consider adding !multipleLines or similar to the conditions
+      },
     },
     {
       id: 'fs_date',
       header: 'FS Date',
       accessorKey: 'fs_date',
-      accessorFn: (row) => row.fsDate,
+      // accessorFn: (row) => row.fsDate,
+      cell: ({ row }) => {
+        const txn = row.original;
+        const fsDate = txn.fsDate;
+        if (mode === 'autosave' && fsDate) {
+          return <EditableDateCell value={new Date(fsDate)} />;
+        }
+        return <div className="">{fsDate || ''}</div>;
+      },
       enableResizing: false,
       maxSize: 100,
+      meta: { cellClassName: mode === 'autosave' ? 'py-0' : '' },
     },
     {
       id: 'contact',
       header: 'Contact',
       cell: ({ row }) => {
         const txn = row.original;
+        const contactId = txn.contactId;
         const contactName = txn.contactName;
+
+        if (mode === 'autosave' && !txn.hasMultipleEntries) {
+          return (
+            <EditableDropdownCell
+              field="contact"
+              contactId={contactId || undefined}
+              contactName={contactName || undefined}
+            />
+          );
+        }
 
         return (
           <div
             className={cn(
               'text-sm truncate font-light',
-              contactName?.startsWith('Multiple')
-                ? 'text-muted-foreground opacity-50'
-                : '',
+              txn.hasMultipleEntries ? 'text-muted-foreground opacity-50' : '',
             )}
             title={contactName || ''}
+            {...(mode === 'autosave' && txn.hasMultipleEntries
+              ? {
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    row.toggleExpanded();
+                  },
+                }
+              : {})}
           >
             {contactName || 'No contact'}
           </div>
         );
+      },
+      meta: {
+        cellClassName: mode === 'autosave' ? 'py-0' : '',
       },
     },
     {
@@ -537,21 +192,42 @@ export const getCatEngineColumns = ({
         const txn = row.original;
         const reference = txn.reference;
 
+        if (mode === 'autosave' && !txn.hasMultipleEntries) {
+          return (
+            <EditableTextCell
+              value={reference || ''}
+              placeholder="No Reference"
+            />
+          );
+        }
+
         return (
           <div
             title={reference || ''}
             className={cn(
               'text-sm truncate font-light',
-              reference?.startsWith('Multiple') || !reference
+              txn.hasMultipleEntries || !reference
                 ? 'text-muted-foreground opacity-50'
                 : '',
             )}
+            {...(mode === 'autosave' && txn.hasMultipleEntries
+              ? {
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    row.toggleExpanded();
+                  },
+                }
+              : {})}
           >
             {reference || '-'}
           </div>
         );
       },
+      meta: {
+        cellClassName: mode === 'autosave' ? 'py-0' : '',
+      },
     },
+    // We should consider the relationship between project and contact and how changes to contact should affect project and/or vice versa
     {
       id: 'project',
       header: 'Project',
@@ -559,12 +235,22 @@ export const getCatEngineColumns = ({
         const txn = row.original;
         const projectName = txn.projectName;
 
+        if (mode === 'autosave' && !txn.hasMultipleEntries) {
+          return (
+            <EditableDropdownCell
+              field="project"
+              projectId={txn.projectId || undefined}
+              projectName={projectName || undefined}
+            />
+          );
+        }
+
         return (
           <div
             title={projectName || ''}
             className={cn(
               'text-sm truncate font-light',
-              projectName?.startsWith('Multiple') || !projectName
+              txn.hasMultipleEntries || !projectName
                 ? 'text-muted-foreground opacity-50'
                 : '',
             )}
@@ -572,6 +258,9 @@ export const getCatEngineColumns = ({
             {projectName || ''}
           </div>
         );
+      },
+      meta: {
+        cellClassName: mode === 'autosave' ? 'py-0' : '',
       },
     },
     {
@@ -602,12 +291,12 @@ export const getCatEngineColumns = ({
         const txn = row.original;
         return (
           <FormattedAmount
-            amount={txn.totalBankAmount}
+            amount={txn.nativeAmount}
             currency={txn.bankAccountCurrencyCode}
             accountingNegatives={false}
             className={cn(
               'flex justify-end ',
-              txn.totalBankAmount < 0 ? 'text-destructive' : '',
+              txn.nativeAmount < 0 ? 'text-destructive' : '',
             )}
           />
         );
@@ -619,14 +308,68 @@ export const getCatEngineColumns = ({
       id: 'exchange_rate',
       header: 'Exr',
       accessorKey: 'exchangeRate',
+      cell: ({ row }) => {
+        const txn = row.original;
+
+        // On update, notify using toast or sth that this affects all entries for this transaction if it is a transaction with multiple entries
+        if (mode === 'autosave' && !txn.hasMultipleEntries) {
+          return (
+            <EditableNumberCell
+              value={txn.exchangeRate}
+              placeholder="0.0000"
+              decimals={4}
+              min={0.0001}
+              onValueChange={(value) => {
+                const numValue = parseFloat(value);
+                if (!isNaN(numValue) && numValue > 0 && onExchangeRateChange) {
+                  onExchangeRateChange(txn.id, numValue);
+                }
+              }}
+            />
+          );
+        }
+
+        return (
+          <div
+            title={txn.exchangeRate}
+            className={cn(
+              'text-sm truncate font-light text-muted-foreground text-right',
+              mode === 'autosave' && txn.hasMultipleEntries && 'opacity-50',
+            )}
+            {...(mode === 'autosave' && txn.hasMultipleEntries
+              ? {
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    row.toggleExpanded();
+                  },
+                }
+              : {})}
+          >
+            {txn.exchangeRate}
+          </div>
+        );
+      },
       size: 80,
       minSize: 80,
       maxSize: 80,
       enableResizing: false,
+      meta: {
+        cellClassName: mode === 'autosave' ? 'py-0' : '',
+      },
     },
     {
       id: 'spent',
-      header: 'Spent',
+      // header: `Spent ${reportingCurrency ? `(${reportingCurrency})` : ''}`,
+      header: () => (
+        <div className="text-right">
+          <span>Spent</span>{' '}
+          {reportingCurrency && (
+            <span className="text-xs text-muted-foreground">
+              ({reportingCurrency})
+            </span>
+          )}
+        </div>
+      ),
       cell: ({ row }) => {
         const txn = row.original;
         // Sum all negative reporting amounts (outflows)
@@ -634,32 +377,46 @@ export const getCatEngineColumns = ({
 
         if (spent === 0) {
           return (
-            <div className="text-sm font-light text-center text-muted-foreground">
+            <div className="text-sm font-light text-right text-muted-foreground pr-4 border-r-1 border-border/50">
               -
             </div>
           );
         }
 
         return (
-          <FormattedAmount
-            amount={spent}
-            currency={txn.bankAccountCurrencyCode}
-            accountingNegatives={false}
-            className={cn(
-              'flex justify-end ',
-              spent !== 0 ? 'text-destructive' : '',
-            )}
-          />
+          <div className="pr-2 border-r-1 border-border/50">
+            <FormattedAmount
+              amount={spent}
+              currency={txn.bankAccountCurrencyCode}
+              accountingNegatives={false}
+              className={cn(
+                'flex justify-end',
+                spent !== 0 ? 'text-destructive' : '',
+              )}
+            />
+          </div>
         );
       },
       size: 120,
       minSize: 120,
       maxSize: 120,
       enableResizing: false,
+      meta: {
+        cellClassName: 'pr-0',
+      },
     },
     {
       id: 'received',
-      header: 'Received',
+      header: () => (
+        <div className="text-right">
+          <span>Received</span>{' '}
+          {reportingCurrency && (
+            <span className="text-xs text-muted-foreground">
+              ({reportingCurrency})
+            </span>
+          )}
+        </div>
+      ),
       cell: ({ row }) => {
         const txn = row.original;
         // Sum all positive reporting amounts (inflows)
@@ -667,28 +424,33 @@ export const getCatEngineColumns = ({
 
         if (received === 0) {
           return (
-            <div className="text-sm font-light text-center text-muted-foreground">
+            <div className="text-sm font-light text-right text-muted-foreground pr-4 border-r-1 border-border/50">
               -
             </div>
           );
         }
 
         return (
-          <FormattedAmount
-            amount={received}
-            currency={txn.bankAccountCurrencyCode}
-            accountingNegatives={false}
-            className={cn(
-              'flex justify-end',
-              received !== 0 ? 'text-green-600' : '',
-            )}
-          />
+          <div className="pr-2 border-r-1 border-border/50">
+            <FormattedAmount
+              amount={received}
+              currency={txn.bankAccountCurrencyCode}
+              accountingNegatives={false}
+              className={cn(
+                'flex justify-end',
+                received !== 0 ? 'text-green-600' : '',
+              )}
+            />
+          </div>
         );
       },
       size: 120,
       minSize: 120,
       maxSize: 120,
       enableResizing: false,
+      meta: {
+        cellClassName: 'pr-0',
+      },
     },
     {
       id: 'account',
@@ -706,13 +468,11 @@ export const getCatEngineColumns = ({
               </div>
             );
           } else {
-            const canExpand = row.getCanExpand();
             const isExpanded = row.getIsExpanded();
 
-            // return <SplitViewDialog txn={txn} />;
             return (
               <div
-                className="flex items-center gap-1 cursor-pointer font-light hover:underline decoration-current"
+                className="flex items-center justify-between pr-0.5 gap-1 cursor-pointer font-light hover:underline decoration-1 decoration-blue-200"
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent row click
                   row.toggleExpanded();
@@ -743,6 +503,15 @@ export const getCatEngineColumns = ({
         const accountCode = txn.coaCode;
         const isUncategorized = !accountName;
 
+        if (mode === 'autosave') {
+          return (
+            <EditableAccountCell
+              coaId={txn.coaId || undefined}
+              coaName={txn.coaName || undefined}
+            />
+          );
+        }
+
         return (
           <Tooltip delayDuration={500}>
             <TooltipTrigger asChild>
@@ -771,7 +540,7 @@ export const getCatEngineColumns = ({
           </Tooltip>
         );
       },
-      minSize: 175,
+      minSize: 185,
       meta: {
         cellClassName: 'p-0 px-1',
       },
@@ -796,5 +565,20 @@ export const getCatEngineColumns = ({
       enableResizing: false,
     },
     { id: 'status', meta: { hidden: true } },
+
+    {
+      id: '__actions',
+      header: '',
+      enableResizing: false,
+      cell: () => {
+        return <ActionsMenu />;
+      },
+      size: 28,
+      minSize: 28,
+      maxSize: 28,
+      meta: {
+        cellClassName: 'p-0',
+      },
+    },
   ];
 };

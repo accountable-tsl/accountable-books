@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { CreateBankAccountRes } from '@/domains-pending-migration/bankConnection/shared/api';
-import { coaSource } from '@/domains-pending-migration/coa/types';
+import { coaSource } from '@/modules/accounting/chart-of-accounts';
 import { zDate } from '@/shared/types/core';
 
 export interface BankAccount {

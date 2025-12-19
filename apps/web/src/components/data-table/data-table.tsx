@@ -63,23 +63,28 @@ export function DataTable<TData>({
       {children}
 
       {/* Main table */}
-      <Table
-        className={cn(
-          'min-w-full w-full rounded-md overflow-clip border',
-          tableClass || '',
-          hasPinnedColumns
-            ? 'overflow-x-auto overflow-y-visible scrollbar-thin-2px'
-            : '',
-        )}
-        style={{
-          ...columnSizeVars,
-          width: '100%',
-        }}
-      >
-        <DataTableHeader table={table} />
+      <div className="relative w-full flex-1 border overflow-clip rounded-md">
+        <div className="h-full overflow-x-auto scrollbar-thin-2px">
+          <Table
+            className={cn(
+              // 'min-w-full w-full rounded-md overflow-clip border',
+              // tableClass || '',
+              // hasPinnedColumns
+              //   ? 'overflow-x-auto overflow-y-visible scrollbar-thin-2px'
+              //   : '',
+              'min-w-max',
+            )}
+            style={{
+              ...columnSizeVars,
+              // width: '100%',
+            }}
+          >
+            <DataTableHeader table={table} />
 
-        <BodyComponent table={table} />
-      </Table>
+            <BodyComponent table={table} />
+          </Table>
+        </div>
+      </div>
       <div className="flex flex-col gap-2.5">
         {/* Conditional pagination rendering */}
         {pagination?.enabled && pagination.style === 'standard' && (
