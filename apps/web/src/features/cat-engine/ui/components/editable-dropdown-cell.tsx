@@ -140,7 +140,7 @@ export function EditableDropdownCell({
         variant="ghost"
         className={cn(
           '!pl-0 font-light focus-visible:ring-0',
-          currentId ? '' : 'opacity-50',
+          localId ? '' : 'opacity-50',
         )}
         async
         onSearchChange={handleSearch}

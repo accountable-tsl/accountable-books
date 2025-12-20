@@ -135,9 +135,7 @@ export function CatEngine() {
     }
     return false;
   });
-  const [draftTransactions, setDraftTransactions] = useState<
-    GroupedTransaction[]
-  >([]);
+
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
 
   // Debounce date range changes
@@ -214,25 +212,6 @@ export function CatEngine() {
         next.set(bankTransactionId, rate);
         return next;
       });
-    },
-    [],
-  );
-
-  const updateTransaction = useCallback(
-    ({
-      txnId,
-      columnId,
-      value,
-    }: {
-      txnId: string;
-      columnId: string;
-      value: any;
-    }) => {
-      setDraftTransactions((old) =>
-        old.map((txn) =>
-          txn.id === txnId ? { ...txn, [columnId]: value } : txn,
-        ),
-      );
     },
     [],
   );
@@ -316,7 +295,7 @@ export function CatEngine() {
   // DataTable Hook
   const { table } = useDataTable({
     columns,
-    data: draftTransactions,
+    data: transactions,
     customOptions,
     initialState: {
       columnPinning: {
@@ -434,12 +413,6 @@ export function CatEngine() {
       }
     }
   }, [shouldAutoSave, mode, hasUserPreference, MODE_STORAGE_KEY]);
-
-  useEffect(() => {
-    if (transactions.length > 0) {
-      setDraftTransactions(transactions);
-    }
-  }, [transactions]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {

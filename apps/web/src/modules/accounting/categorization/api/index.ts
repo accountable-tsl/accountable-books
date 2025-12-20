@@ -68,7 +68,7 @@ export async function fetchCategorizationTransactions(
  */
 export async function sendCategorizationIntent(
   companyId: string,
-  intent: Intent,
+  intent: Intent[],
 ): Promise<{
   success: boolean;
   data?: {

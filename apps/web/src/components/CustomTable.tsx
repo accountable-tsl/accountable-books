@@ -66,7 +66,7 @@ const TableFooter = React.forwardRef<
       role="rowgroup"
       data-slot="table-footer"
       className={cn(
-        'flex flex-col bg-muted/50 border-t font-medium [&>div[data-slot=table-row]:last]:border-b-0',
+        'flex flex-col bg-muted/50 border-t font-medium [&>div[data-slot=table-row]:last-child]:border-b-0',
         className,
       )}
       {...props}

@@ -15,7 +15,9 @@ import {
   validateIntentPayload,
 } from '@/modules/accounting/categorization/model/intent-types';
 
-const STATE_INTENT_DEBOUNCE_MS = 1000;
+const TRANSACTION_DEBOUNCE_MS = 1000;
+
+// We'd keep it at one transaction a time. Bulk actions will take a separate explicit mechanism
 
 interface EmitIntentArgs<T extends IntentActionType> {
   action: T;
@@ -29,117 +31,72 @@ export function useIntentEmitter() {
   const { companyId } = useSession();
   const sendIntentMutation = useSendCategorizationIntent();
 
-  const pendingStateIntentsRef = useRef<Map<string, Intent>>(new Map());
+  // Pending state intents grouped by transactionId
+  const pendingTransactionsRef = useRef<Map<string, Map<string, Intent>>>(
+    new Map(),
+  );
 
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
-  const offlineQueueRef = useRef<Intent[]>([]);
 
-  const sendIntent = async (intent: Intent) => {
-    // Offline → queue and exit
-    if (!navigator.onLine) {
-      offlineQueueRef.current.push(intent);
-      return;
-    }
+  // Transactions that failed to send due to offline / error
+  const offlineQueueRef = useRef<Set<string>>(new Set());
 
-    if (!companyId) {
-      toast.error('Company ID is required');
-      return;
-    }
-
-    try {
-      const result = await sendIntentMutation.mutateAsync({
-        companyId,
-        intent,
-      });
-
-      // Handle multi-entry effects (FX rate changes)
-      if (result.data?.affected_transaction_ids?.length) {
-        toast.info(
-          result.data.summary_message || 'Updated multiple transactions',
-          {
-            duration: Infinity, // Persistent until dismissed
-          },
-        );
+  // Send all pending intents for a transaction
+  const sendTransactionIntents = useCallback(
+    async (transactionId: string) => {
+      const fieldIntents = pendingTransactionsRef.current.get(transactionId);
+      if (!fieldIntents || fieldIntents.size === 0) {
+        return;
       }
-    } catch (error) {
-      // Error handling - persistent toast
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Failed to save changes. Please try again.',
-        {
-          duration: Infinity, // Persistent until resolved
-          action: {
-            label: 'Retry',
-            onClick: () => sendIntent(intent),
-          },
-        },
-      );
-      throw error;
-    }
-  };
+
+      const intentsToSend = Array.from(fieldIntents.values());
+
+      // Optimistically clear
+      pendingTransactionsRef.current.delete(transactionId);
+      debounceTimersRef.current.delete(transactionId);
+
+      if (!navigator.onLine) {
+        offlineQueueRef.current.add(transactionId);
+        pendingTransactionsRef.current.set(transactionId, fieldIntents);
+        return;
+      }
+
+      if (!companyId) return;
+
+      try {
+        await sendIntentMutation.mutateAsync({
+          companyId,
+          intent: intentsToSend,
+        });
+      } catch (err) {
+        toast.error('Failed to save transaction updates', {
+          duration: Infinity,
+        });
+        // Keep intents in pending for retry
+        pendingTransactionsRef.current.set(transactionId, fieldIntents);
+        offlineQueueRef.current.add(transactionId);
+      }
+    },
+    [companyId, sendIntentMutation],
+  );
 
   /**
    * Flush queued intents when connection returns.
    */
   const flushOfflineQueue = useCallback(async () => {
     if (!navigator.onLine) return;
-    if (offlineQueueRef.current.length === 0) return;
+    const transactionIds = Array.from(offlineQueueRef.current);
+    offlineQueueRef.current.clear();
 
-    const queue = [...offlineQueueRef.current];
-    offlineQueueRef.current = [];
-
-    for (const intent of queue) {
-      await sendIntent(intent);
+    for (const transactionId of transactionIds) {
+      await sendTransactionIntents(transactionId);
     }
   }, []);
 
-  /**
-   * -----------------------------
-   * Decision intents
-   * -----------------------------
-   *
-   * Example:
-   * - Assign account
-   * - Post to ledger
-   *
-   * Behavior:
-   * - Validate
-   * - Build intent
-   * - POST immediately
-   */
-
-  const emitDecisionIntent = useCallback(
-    <T extends IntentActionType>({
-      action,
-      payload,
-      transactionId,
-      transactionState,
-      intentKey,
-    }: EmitIntentArgs<T>) => {
-      // Validate payload shape
-      if (!validateIntentPayload(action, payload)) {
-        throw new Error(`Invalid payload for action ${action}`);
-      }
-
-      const intent: Intent<T> = {
-        intent_id: uuidv4(),
-        intent_key: intentKey,
-        transaction_id: transactionId,
-        action_type: action,
-        payload,
-        client_version: 1,
-        transaction_state: transactionState,
-      };
-
-      void sendIntent(intent);
-    },
-    [],
-  );
-
-  const emitStateIntent = useCallback(
+  // State intents → debounced per transaction
+  const emitTransactionIntent = useCallback(
     <T extends IntentActionType>({
       action,
       payload,
@@ -149,12 +106,6 @@ export function useIntentEmitter() {
     }: EmitIntentArgs<T>) => {
       if (!validateIntentPayload(action, payload)) {
         throw new Error(`Invalid payload for action ${action}`);
-      }
-
-      // Cancel existing debounce timer (if any)
-      const existingTimer = debounceTimersRef.current.get(intentKey);
-      if (existingTimer) {
-        clearTimeout(existingTimer);
       }
 
       // Build intent (new ID every time; dedupe is semantic)
@@ -168,24 +119,25 @@ export function useIntentEmitter() {
         transaction_state: transactionState,
       };
 
-      // Replace older intent with same key
-      pendingStateIntentsRef.current.set(intentKey, intent);
+      // Add to pending map for the transaction
+      if (!pendingTransactionsRef.current.has(transactionId)) {
+        pendingTransactionsRef.current.set(transactionId, new Map());
+      }
+      pendingTransactionsRef.current.get(transactionId)!.set(intentKey, intent);
 
-      // Schedule send
-      const timer = setTimeout(async () => {
-        const latestIntent = pendingStateIntentsRef.current.get(intentKey);
+      // Debounce sending per transaction
+      const existingTimer = debounceTimersRef.current.get(transactionId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
 
-        if (!latestIntent) return;
-
-        pendingStateIntentsRef.current.delete(intentKey);
-        debounceTimersRef.current.delete(intentKey);
-
-        await sendIntent(latestIntent);
-      }, STATE_INTENT_DEBOUNCE_MS);
-
-      debounceTimersRef.current.set(intentKey, timer);
+      const timer = setTimeout(
+        () => sendTransactionIntents(transactionId),
+        TRANSACTION_DEBOUNCE_MS,
+      );
+      debounceTimersRef.current.set(transactionId, timer);
     },
-    [],
+    [sendTransactionIntents],
   );
 
   // Flush queued intents when connection is restored
@@ -195,8 +147,7 @@ export function useIntentEmitter() {
   }, [flushOfflineQueue]);
 
   return {
-    emitDecisionIntent,
-    emitStateIntent,
+    emitTransactionIntent,
     flushOfflineQueue,
     handleOnline,
   };
@@ -206,23 +157,40 @@ export function buildIntentKey(action: IntentActionType, id: string) {
   return `${action}:${id}`;
 }
 
+/**
+ * Custom hook that provides a function to update fields on a GroupedTransaction
+ * by emitting a state intent through the intent emitter.
+ *
+ * Using this useFieldUpdater hook because we cannot call another hook (useIntentEmitter) inside a plain function like updateField
+ * @param txn - The GroupedTransaction being edited
+ * @returns Object containing updateField function
+ */
 export function useFieldUpdater(txn: GroupedTransaction) {
-  const { emitStateIntent } = useIntentEmitter();
+  const { emitTransactionIntent } = useIntentEmitter();
 
+  /**
+   * Emits an intent to update a specific field/action on the transaction.
+   *
+   * @typeParam T - The specific intent action type
+   * @param action - The type of intent (e.g., 'UPDATE_CATEGORY')
+   * @param payload - The payload data for that intent
+   */
   function updateField<T extends IntentActionType>(
     action: T,
-    payload: IntentPayloadMap[T], // could be more strongly typed per action
+    payload: IntentPayloadMap[T],
   ) {
-    const intentKey = buildIntentKey(
-      action,
+    // Determine the relevant ID for building the intent key
+    const id =
       'entryId' in payload
         ? payload.entryId!
         : 'bankTransactionId' in payload
           ? payload.bankTransactionId
-          : txn.id,
-    );
+          : txn.id;
 
-    emitStateIntent({
+    // Build a unique key for this intent to allow deduplication/optimistic updates
+    const intentKey = buildIntentKey(action, id);
+
+    emitTransactionIntent({
       action,
       payload,
       transactionId: txn.bankTransactionId,
@@ -233,3 +201,5 @@ export function useFieldUpdater(txn: GroupedTransaction) {
 
   return { updateField };
 }
+
+export function canSendTransaction() {}

@@ -8,7 +8,7 @@ import {
   groupCategorizationTransactions,
   groupTransactionsByBankTxnId,
 } from '../lib/transform';
-import type { Intent } from './intent-types';
+import type { Intent, IntentActionType } from './intent-types';
 import type {
   GetCategorizationTransactionsParams,
   GroupedTransaction,
@@ -101,7 +101,7 @@ export function useSendCategorizationIntent() {
       intent,
     }: {
       companyId: string;
-      intent: Intent;
+      intent: Intent<IntentActionType>[];
     }) => sendCategorizationIntent(companyId, intent),
   });
 }
