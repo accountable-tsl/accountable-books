@@ -282,8 +282,6 @@ export const TRANSACTION_METADATA_FIELDS = new Set([
   'reference',
   'note',
   'metadata',
-  'human_reviewed',
-  'review_notes',
 ] as const);
 
 // Transaction-level fields that are immutable (cannot be changed)
@@ -302,6 +300,10 @@ export const TRANSACTION_IMMUTABLE_FIELDS = new Set([
 export const ENTRY_METADATA_FIELDS = new Set([
   'description',
   'metadata',
+  'human_reviewed',
+  'review_notes',
+  'reviewed_by_id',
+  'reviewed_at',
 ] as const);
 
 // Entry-level accounting fields (require new transaction)
@@ -386,8 +388,6 @@ export function detectChangedFields({
   //   'reference',
   //   'note',
   //   'metadata',
-  //   'human_reviewed',
-  //   'review_notes',
   // ]);
 
   // const ENTRY_METADATA_FIELDS = new Set(['description', 'metadata']);
@@ -401,6 +401,8 @@ export function detectChangedFields({
   //   'fs_date',
   //   'contact_id',
   //   'contact_type',
+  //   'human_reviewed',
+  //   'review_notes',
   // ]);
 
   // Helper to compare values with epsilon for numbers

@@ -1,9 +1,10 @@
 import { z } from 'zod';
 
 import type { CategorizationTransactionStatus } from './types';
+import { YMD_REGEX } from '@/shared/utils/date-utils';
 
 export enum IntentActionType {
-  ASSIGN_ACCOUNT = 'ASSIGN_ACCOUNT',
+  ASSIGN_COA = 'ASSIGN_COA',
   UPDATE_DESCRIPTION = 'UPDATE_DESCRIPTION',
   UPDATE_FS_DATE = 'UPDATE_FS_DATE',
   UPDATE_CONTACT = 'UPDATE_CONTACT',
@@ -24,12 +25,12 @@ export enum IntentActionType {
 
 /** Decision intents */
 
-const assignAccountPayloadSchema = z.object({
+const assignCoaPayload = z.object({
   entryId: z.string().min(1),
   coaId: z.string().min(1),
 });
 
-const postToLedgerPayloadSchema = z.object({
+const postToLedgerPayload = z.object({
   bankTransactionId: z.string().min(1),
 });
 
@@ -37,38 +38,38 @@ const postToLedgerPayloadSchema = z.object({
 const intentScope = z.enum(['entry', 'group']);
 export type IntentScope = z.infer<typeof intentScope>;
 
-const updateDescriptionPayloadSchema = z.object({
+const updateDescriptionPayload = z.object({
   scope: intentScope,
   entryId: z.string().optional(),
   value: z.string(),
 });
 
-const updateFsDatePayloadSchema = z.object({
+const updateFsDatePayload = z.object({
   scope: intentScope,
   entryId: z.string().optional(),
-  fsDate: z.string(), // ISO date string
+  fsDate: z.regex(YMD_REGEX), //
 });
 
-const updateContactPayloadSchema = z.object({
+const updateContactPayload = z.object({
   scope: intentScope,
   entryId: z.string().optional(),
   contactId: z.string().nullable(),
   contactName: z.string().nullable(),
 });
 
-const updateReferencePayloadSchema = z.object({
+const updateReferencePayload = z.object({
   scope: intentScope,
   entryId: z.string().optional(),
   reference: z.string(),
 });
 
-const updateProjectPayloadSchema = z.object({
+const updateProjectPayload = z.object({
   entryId: z.string().min(1),
   projectId: z.string().nullable(),
   projectName: z.string().nullable(),
 });
 
-const updateFxRatePayloadSchema = z.object({
+const updateFxRatePayload = z.object({
   bankTransactionId: z.string().min(1),
   rate: z.number().positive(),
 });
@@ -80,25 +81,23 @@ const updateFxRatePayloadSchema = z.object({
  */
 
 export interface IntentPayloadMap {
-  [IntentActionType.ASSIGN_ACCOUNT]: z.infer<typeof assignAccountPayloadSchema>;
+  [IntentActionType.ASSIGN_COA]: z.infer<typeof assignCoaPayload>;
 
   [IntentActionType.UPDATE_DESCRIPTION]: z.infer<
-    typeof updateDescriptionPayloadSchema
+    typeof updateDescriptionPayload
   >;
 
-  [IntentActionType.UPDATE_FS_DATE]: z.infer<typeof updateFsDatePayloadSchema>;
+  [IntentActionType.UPDATE_FS_DATE]: z.infer<typeof updateFsDatePayload>;
 
-  [IntentActionType.UPDATE_CONTACT]: z.infer<typeof updateContactPayloadSchema>;
+  [IntentActionType.UPDATE_CONTACT]: z.infer<typeof updateContactPayload>;
 
-  [IntentActionType.UPDATE_REFERENCE]: z.infer<
-    typeof updateReferencePayloadSchema
-  >;
+  [IntentActionType.UPDATE_REFERENCE]: z.infer<typeof updateReferencePayload>;
 
-  [IntentActionType.UPDATE_PROJECT]: z.infer<typeof updateProjectPayloadSchema>;
+  [IntentActionType.UPDATE_PROJECT]: z.infer<typeof updateProjectPayload>;
 
-  [IntentActionType.UPDATE_FX_RATE]: z.infer<typeof updateFxRatePayloadSchema>;
+  [IntentActionType.UPDATE_FX_RATE]: z.infer<typeof updateFxRatePayload>;
 
-  [IntentActionType.POST_TO_LEDGER]: z.infer<typeof postToLedgerPayloadSchema>;
+  [IntentActionType.POST_TO_LEDGER]: z.infer<typeof postToLedgerPayload>;
 }
 
 /**
@@ -109,14 +108,14 @@ export interface IntentPayloadMap {
  */
 
 export const IntentPayloadSchemaMap = {
-  [IntentActionType.ASSIGN_ACCOUNT]: assignAccountPayloadSchema,
-  [IntentActionType.UPDATE_DESCRIPTION]: updateDescriptionPayloadSchema,
-  [IntentActionType.UPDATE_FS_DATE]: updateFsDatePayloadSchema,
-  [IntentActionType.UPDATE_CONTACT]: updateContactPayloadSchema,
-  [IntentActionType.UPDATE_REFERENCE]: updateReferencePayloadSchema,
-  [IntentActionType.UPDATE_PROJECT]: updateProjectPayloadSchema,
-  [IntentActionType.UPDATE_FX_RATE]: updateFxRatePayloadSchema,
-  [IntentActionType.POST_TO_LEDGER]: postToLedgerPayloadSchema,
+  [IntentActionType.ASSIGN_COA]: assignCoaPayload,
+  [IntentActionType.UPDATE_DESCRIPTION]: updateDescriptionPayload,
+  [IntentActionType.UPDATE_FS_DATE]: updateFsDatePayload,
+  [IntentActionType.UPDATE_CONTACT]: updateContactPayload,
+  [IntentActionType.UPDATE_REFERENCE]: updateReferencePayload,
+  [IntentActionType.UPDATE_PROJECT]: updateProjectPayload,
+  [IntentActionType.UPDATE_FX_RATE]: updateFxRatePayload,
+  [IntentActionType.POST_TO_LEDGER]: postToLedgerPayload,
 } as const;
 
 /**
@@ -128,11 +127,11 @@ export const IntentPayloadSchemaMap = {
 export interface Intent<T extends IntentActionType = IntentActionType> {
   intent_id: string; // UUID, idempotency key
   intent_key: string; // semantic deduplication key
-  transaction_id: string;
+  bank_transaction_id: string;
   action_type: T;
   payload: IntentPayloadMap[T];
   client_version: number;
-  transaction_state: CategorizationTransactionStatus;
+  categorization_status: CategorizationTransactionStatus;
 }
 
 /**

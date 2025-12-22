@@ -131,11 +131,12 @@ export interface CategorizationTransaction {
 // Parameters for getting categorization transactions
 export const getCategorizationTransactionsParams = z.object({
   companyId: z.string(),
-  dateFrom: z.date(),
-  dateTo: z.date(),
+  dateFrom: z.date().optional(),
+  dateTo: z.date().optional(),
   status: categorizationTransactionStatus.optional(),
-  limit: z.number().int().min(1).max(1000).optional().default(100),
-  offset: z.number().int().min(0).optional().default(0),
+  bankTransactionIds: z.array(z.string()).optional(),
+  limit: z.number().int().min(1).max(1000).default(100).optional(),
+  offset: z.number().int().min(0).optional().default(0).optional(),
 });
 export type GetCategorizationTransactionsParams = z.infer<
   typeof getCategorizationTransactionsParams
@@ -148,87 +149,3 @@ export interface GetCategorizationTransactionsResponse {
   limit: number;
   offset: number;
 }
-
-// Intent types for autosave
-export const intentActionType = z.enum([
-  'ASSIGN_ACCOUNT',
-  'UPDATE_DESCRIPTION',
-  'UPDATE_FS_DATE',
-  'UPDATE_CONTACT',
-  'UPDATE_REFERENCE',
-  'UPDATE_PROJECT',
-  'UPDATE_FX_RATE',
-  'POST_TO_LEDGER',
-]);
-export type IntentActionType = z.infer<typeof intentActionType>;
-
-export const intentScope = z.enum(['entry', 'group']);
-export type IntentScope = z.infer<typeof intentScope>;
-
-// Intent payload schemas
-const assignAccountPayloadSchema = z.object({
-  entryId: z.string().min(1),
-  coaId: z.string().min(1),
-});
-
-const updateDescriptionPayloadSchema = z.object({
-  scope: intentScope,
-  entryId: z.string().optional(),
-  value: z.string(),
-});
-
-const updateFsDatePayloadSchema = z.object({
-  scope: intentScope,
-  entryId: z.string().optional(),
-  fsDate: z.string(),
-});
-
-const updateContactPayloadSchema = z.object({
-  scope: intentScope,
-  entryId: z.string().optional(),
-  contactId: z.string().nullable(),
-  contactName: z.string().nullable(),
-});
-
-const updateReferencePayloadSchema = z.object({
-  scope: intentScope,
-  entryId: z.string().optional(),
-  reference: z.string(),
-});
-
-const updateProjectPayloadSchema = z.object({
-  entryId: z.string().min(1),
-  projectId: z.string().nullable(),
-  projectName: z.string().nullable(),
-});
-
-const updateFxRatePayloadSchema = z.object({
-  bankTransactionId: z.string().min(1),
-  rate: z.number().positive(),
-});
-
-const postToLedgerPayloadSchema = z.object({
-  bankTransactionId: z.string().min(1),
-});
-
-// Intent schema
-export const categorizationIntentSchema = z.object({
-  intent_id: z.uuid(),
-  intent_key: z.string(),
-  transaction_id: z.uuid(),
-  action_type: intentActionType,
-  payload: z.union([
-    assignAccountPayloadSchema,
-    updateDescriptionPayloadSchema,
-    updateFsDatePayloadSchema,
-    updateContactPayloadSchema,
-    updateReferencePayloadSchema,
-    updateProjectPayloadSchema,
-    updateFxRatePayloadSchema,
-    postToLedgerPayloadSchema,
-  ]),
-  client_version: z.number().int().positive(),
-  transaction_state: categorizationTransactionStatus,
-});
-
-export type CategorizationIntent = z.infer<typeof categorizationIntentSchema>;

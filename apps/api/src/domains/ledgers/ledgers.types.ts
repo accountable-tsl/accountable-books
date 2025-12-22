@@ -72,9 +72,6 @@ const baseLedgerTransaction = z.object({
 
   categorization_candidate_id: z.uuid().nullish(), // Which candidate is this transaction based on?
 
-  human_reviewed: z.boolean().default(false).optional(),
-  review_notes: z.string().optional(),
-
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -83,7 +80,6 @@ export const newLedgerTransaction = z.object({
   company_id: z.uuid(),
   created_by_id: z.uuid(),
   updated_by_id: z.uuid().nullish(),
-  reviewed_by_id: z.uuid().nullish(),
 });
 export type NewLedgerTransaction = z.infer<typeof newLedgerTransaction>;
 
@@ -96,6 +92,7 @@ export type LedgerTransaction = z.infer<typeof ledgerTransaction>;
 // Ledger Entry Types
 
 const baseLedgerEntry = z.object({
+  id: z.uuid().optional(),
   fs_date: zDateYMD,
   coa_id: z.uuid(),
 
@@ -115,6 +112,9 @@ const baseLedgerEntry = z.object({
 
   ledger_transaction_id: z.uuid().optional(),
   project_id: z.uuid().nullish(),
+
+  human_reviewed: z.boolean().default(false).optional(),
+  review_notes: z.string().nullish(),
 
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
@@ -138,6 +138,8 @@ export const newLedgerEntry = z.object({
   updated_at: z.date().optional(),
 
   updated_by_id: z.uuid().nullish(),
+  reviewed_by_id: z.uuid().nullish(),
+  reviewed_at: z.date().nullish(),
 });
 
 export type NewLedgerEntry = z.infer<typeof newLedgerEntry>;
@@ -180,8 +182,6 @@ export const ledgerTransactionMetadataUpdate = z.object({
   reference: z.string().nullish(),
   note: z.string().nullish(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  human_reviewed: z.boolean().optional(),
-  review_notes: z.string().optional(),
 });
 export type LedgerTransactionMetadataUpdate = z.infer<
   typeof ledgerTransactionMetadataUpdate
@@ -191,6 +191,10 @@ export type LedgerTransactionMetadataUpdate = z.infer<
 export const ledgerEntryMetadataUpdate = z.object({
   description: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  human_reviewed: z.boolean().optional(),
+  review_notes: z.string().optional(),
+  reviewed_by_id: z.uuid().nullish(),
+  reviewed_at: z.date().nullish(),
 });
 export type LedgerEntryMetadataUpdate = z.infer<
   typeof ledgerEntryMetadataUpdate
@@ -206,6 +210,8 @@ export const updateOrCreateLedgerInput = z.object({
 
   // Flag to force supersede even if only metadata changed
   force_new_version: z.boolean().optional(),
+
+  custom_exchange_rate: z.number().optional(),
 });
 export type UpdateOrCreateLedgerInput = z.infer<
   typeof updateOrCreateLedgerInput
@@ -228,3 +234,28 @@ export const updateOrCreateLedgerResult = z.object({
 export type UpdateOrCreateLedgerResult = z.infer<
   typeof updateOrCreateLedgerResult
 >;
+
+// Types for getLedgerTransactionsWithEntries
+export type LedgerTransactionWithEntries = LedgerTransaction & {
+  entries: LedgerEntry[];
+};
+
+export type LedgerTransactionWithEntriesFiltered = Omit<
+  LedgerTransaction,
+  'created_at' | 'updated_at' | 'is_deleted' | 'deleted_at'
+> & {
+  entries: Array<
+    Omit<
+      LedgerEntry,
+      | 'created_at'
+      | 'updated_at'
+      | 'is_deleted'
+      | 'deleted_at'
+      | 'absolute_source_amount'
+      | 'amount'
+      | 'absolute_amount'
+      | 'transaction_side'
+      | 'search_text'
+    >
+  >;
+};

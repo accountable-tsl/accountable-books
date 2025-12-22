@@ -51,7 +51,10 @@ export const newBankTransaction = bankTransactionInput.extend({
 });
 export type NewBankTransaction = z.infer<typeof newBankTransaction>;
 
-export const bankTransaction = newBankTransaction.merge(dbBaseFields);
+export const bankTransaction = z.object({
+  ...newBankTransaction.shape,
+  ...dbBaseFields.shape,
+});
 export type BankTransaction = z.infer<typeof bankTransaction>;
 
 // BANK TRANSACTION BATCHES
@@ -145,3 +148,17 @@ export const deleteBankTransactionsInput = z.object({
 export type DeleteBankTransactionsInput = z.infer<
   typeof deleteBankTransactionsInput
 >;
+
+// Types for getBankTransactionsByIds
+export type BankTransactionWithFilteredFields = Omit<
+  BankTransaction,
+  | 'created_at'
+  | 'updated_at'
+  | 'is_deleted'
+  | 'deleted_at'
+  | 'absolute_amount'
+  | 'search_text'
+> & {
+  bank_account_coa_id: string;
+  bank_account_currency_id: string;
+};

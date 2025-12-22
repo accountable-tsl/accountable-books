@@ -17,7 +17,7 @@
 - Default to modified cash basis on company creation. Also add default settings
 - Consider removing input_checksum
 - Make sure generate pydantic in contracts cleans up the /py folder first before generateing new stuff
--
+- Contact Type in Add new contact dialog
 
 ### CAN DELAY (Post-Launch or future versions)
 

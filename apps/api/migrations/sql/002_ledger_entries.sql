@@ -25,6 +25,10 @@ CREATE TABLE public.ledger_entries (
     is_monetary             BOOLEAN NOT NULL DEFAULT false,
     is_bank_leg             BOOLEAN NOT NULL DEFAULT false,
     fx_transaction_id       TEXT,
+    human_reviewed          BOOLEAN DEFAULT false,
+    review_notes            TEXT,
+    reviewed_by_id          UUID,
+    reviewed_at             TIMESTAMPTZ,
     metadata                JSONB,
     updated_by_id           UUID,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -357,14 +361,14 @@ BEGIN
         source_amount, system_exchange_rate, custom_exchange_rate,
         description, project_id, contact_id, contact_type, is_monetary,
         is_bank_leg, fx_transaction_id, metadata, updated_by_id, created_at, updated_at,
-        deleted_at, is_deleted
+        deleted_at, is_deleted, human_reviewed, review_notes, reviewed_by_id, reviewed_at
       )
       SELECT
         id, ledger_transaction_id, fs_date, coa_id, source_currency_id,
         source_amount, system_exchange_rate, custom_exchange_rate,
         description, project_id, contact_id, contact_type, is_monetary,
         is_bank_leg, fx_transaction_id, metadata, updated_by_id, created_at, updated_at,
-        deleted_at, is_deleted
+        deleted_at, is_deleted, human_reviewed, review_notes, reviewed_by_id, reviewed_at
       FROM ledger_entries_default
       WHERE fs_date >= make_date(y,1,1) AND fs_date < make_date(y+1,1,1)
       ON CONFLICT DO NOTHING
@@ -409,12 +413,16 @@ BEGIN
      OR (NEW.project_id IS DISTINCT FROM OLD.project_id)
      OR (NEW.contact_id IS DISTINCT FROM OLD.contact_id)
      OR (NEW.contact_type IS DISTINCT FROM OLD.contact_type)
+     OR (NEW.human_reviewed IS DISTINCT FROM OLD.human_reviewed)
+     OR (NEW.review_notes IS DISTINCT FROM OLD.review_notes)
+     OR (NEW.reviewed_by_id IS DISTINCT FROM OLD.reviewed_by_id)
+     OR (NEW.reviewed_at IS DISTINCT FROM OLD.reviewed_at)
   THEN
     RETURN NEW;
   END IF;
 
   IF ROW(NEW.*) IS DISTINCT FROM ROW(OLD.*) THEN
-    RAISE EXCEPTION 'Ledger entries are immutable. Only is_deleted, deleted_at, updated_by_id, description, project_id, contact_id, contact_type may change.';
+    RAISE EXCEPTION 'Ledger entries are immutable. Only is_deleted, deleted_at, updated_by_id, description, project_id, contact_id, contact_type, human_reviewed, review_notes, reviewed_by_id, reviewed_at may change.';
   END IF;
 
   RETURN NEW;
@@ -487,6 +495,14 @@ BEGIN
       FOREIGN KEY (updated_by_id) REFERENCES "users" (id)
       ON DELETE SET NULL;
   EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_entry_updated_by exists, skipping';
+  END;
+
+  BEGIN
+    ALTER TABLE ledger_entries
+      ADD CONSTRAINT fk_ledger_entry_reviewed_by
+      FOREIGN KEY (reviewed_by_id) REFERENCES "users" (id)
+      ON DELETE SET NULL;
+  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_entry_reviewed_by exists, skipping';
   END;
 END$$;
 

@@ -28,11 +28,7 @@ router.get(
 
 /**
  * POST /api/:companyId/categorization/intents
- *
  * Body: CategorizationIntent
- *
- * Processes user intent and posts to ledger
- * Idempotent via intent_id
  */
 router.post('/intents', checkCompanyId, handleCategorizationIntentController);
 

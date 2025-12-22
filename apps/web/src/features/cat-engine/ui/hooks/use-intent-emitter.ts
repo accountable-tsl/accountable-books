@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -22,8 +22,8 @@ const TRANSACTION_DEBOUNCE_MS = 1000;
 interface EmitIntentArgs<T extends IntentActionType> {
   action: T;
   payload: IntentPayloadMap[T];
-  transactionId: string;
-  transactionState: CategorizationTransactionStatus;
+  bankTransactionId: string;
+  categorizationStatus: CategorizationTransactionStatus;
   intentKey: string;
 }
 
@@ -43,9 +43,30 @@ export function useIntentEmitter() {
   // Transactions that failed to send due to offline / error
   const offlineQueueRef = useRef<Set<string>>(new Set());
 
+  // Store transaction objects by transactionId for retrieval when sending
+  const transactionsRef = useRef<Map<string, GroupedTransaction>>(new Map());
+
   // Send all pending intents for a transaction
   const sendTransactionIntents = useCallback(
-    async (transactionId: string) => {
+    async (transactionIdOrTxn: string | GroupedTransaction) => {
+      // Support both transactionId (string) and GroupedTransaction for flexibility
+      // Use bankTransactionId as the key to match how intents are stored
+      const transactionId =
+        typeof transactionIdOrTxn === 'string'
+          ? transactionIdOrTxn
+          : transactionIdOrTxn.bankTransactionId;
+      const txn =
+        typeof transactionIdOrTxn === 'string'
+          ? transactionsRef.current.get(transactionIdOrTxn)
+          : transactionIdOrTxn;
+
+      if (!txn) {
+        // Transaction not found - might have been removed, skip sending
+        pendingTransactionsRef.current.delete(transactionId);
+        debounceTimersRef.current.delete(transactionId);
+        return;
+      }
+
       const fieldIntents = pendingTransactionsRef.current.get(transactionId);
       if (!fieldIntents || fieldIntents.size === 0) {
         return;
@@ -53,17 +74,22 @@ export function useIntentEmitter() {
 
       const intentsToSend = Array.from(fieldIntents.values());
 
-      // Optimistically clear
-      pendingTransactionsRef.current.delete(transactionId);
-      debounceTimersRef.current.delete(transactionId);
+      // Validate we can send before clearing
+      if (!canSendTransaction(txn, intentsToSend)) {
+        return;
+      }
 
+      // Check prerequisites before clearing
       if (!navigator.onLine) {
         offlineQueueRef.current.add(transactionId);
-        pendingTransactionsRef.current.set(transactionId, fieldIntents);
         return;
       }
 
       if (!companyId) return;
+
+      // All checks passed - optimistically clear before sending
+      pendingTransactionsRef.current.delete(transactionId);
+      debounceTimersRef.current.delete(transactionId);
 
       try {
         await sendIntentMutation.mutateAsync({
@@ -93,15 +119,15 @@ export function useIntentEmitter() {
     for (const transactionId of transactionIds) {
       await sendTransactionIntents(transactionId);
     }
-  }, []);
+  }, [sendTransactionIntents]);
 
   // State intents → debounced per transaction
   const emitTransactionIntent = useCallback(
     <T extends IntentActionType>({
       action,
       payload,
-      transactionId,
-      transactionState,
+      bankTransactionId,
+      categorizationStatus,
       intentKey,
     }: EmitIntentArgs<T>) => {
       if (!validateIntentPayload(action, payload)) {
@@ -112,33 +138,40 @@ export function useIntentEmitter() {
       const intent: Intent<T> = {
         intent_id: uuidv4(),
         intent_key: intentKey,
-        transaction_id: transactionId,
+        bank_transaction_id: bankTransactionId,
         action_type: action,
         payload,
         client_version: 1,
-        transaction_state: transactionState,
+        categorization_status: categorizationStatus,
       };
 
       // Add to pending map for the transaction
-      if (!pendingTransactionsRef.current.has(transactionId)) {
-        pendingTransactionsRef.current.set(transactionId, new Map());
+      if (!pendingTransactionsRef.current.has(bankTransactionId)) {
+        pendingTransactionsRef.current.set(bankTransactionId, new Map());
       }
-      pendingTransactionsRef.current.get(transactionId)!.set(intentKey, intent);
+      pendingTransactionsRef.current
+        .get(bankTransactionId)!
+        .set(intentKey, intent);
 
       // Debounce sending per transaction
-      const existingTimer = debounceTimersRef.current.get(transactionId);
+      const existingTimer = debounceTimersRef.current.get(bankTransactionId);
       if (existingTimer) {
         clearTimeout(existingTimer);
       }
 
       const timer = setTimeout(
-        () => sendTransactionIntents(transactionId),
+        () => sendTransactionIntents(bankTransactionId),
         TRANSACTION_DEBOUNCE_MS,
       );
-      debounceTimersRef.current.set(transactionId, timer);
+      debounceTimersRef.current.set(bankTransactionId, timer);
     },
     [sendTransactionIntents],
   );
+
+  // Register a transaction for later retrieval when sending intents
+  const registerTransaction = useCallback((txn: GroupedTransaction) => {
+    transactionsRef.current.set(txn.bankTransactionId, txn);
+  }, []);
 
   // Flush queued intents when connection is restored
   // (caller should wire this once globally)
@@ -150,6 +183,7 @@ export function useIntentEmitter() {
     emitTransactionIntent,
     flushOfflineQueue,
     handleOnline,
+    registerTransaction,
   };
 }
 
@@ -166,7 +200,12 @@ export function buildIntentKey(action: IntentActionType, id: string) {
  * @returns Object containing updateField function
  */
 export function useFieldUpdater(txn: GroupedTransaction) {
-  const { emitTransactionIntent } = useIntentEmitter();
+  const { emitTransactionIntent, registerTransaction } = useIntentEmitter();
+
+  // Register the transaction so it can be retrieved when sending intents
+  useEffect(() => {
+    registerTransaction(txn);
+  }, [txn, registerTransaction]);
 
   /**
    * Emits an intent to update a specific field/action on the transaction.
@@ -193,8 +232,8 @@ export function useFieldUpdater(txn: GroupedTransaction) {
     emitTransactionIntent({
       action,
       payload,
-      transactionId: txn.bankTransactionId,
-      transactionState: txn.status,
+      bankTransactionId: txn.bankTransactionId,
+      categorizationStatus: txn.status,
       intentKey,
     });
   }
@@ -202,4 +241,16 @@ export function useFieldUpdater(txn: GroupedTransaction) {
   return { updateField };
 }
 
-export function canSendTransaction() {}
+export function canSendTransaction(
+  txn: GroupedTransaction,
+  intents: Intent[],
+): boolean {
+  // If an uncategorized bank transaction is updated but has no COA selected yet, don't send
+  const hasCoaIntent = intents.some((i) => i.action_type === 'ASSIGN_COA');
+
+  if (txn.status === 'uncategorized' && !txn.coaId && !hasCoaIntent) {
+    return false;
+  }
+
+  return true;
+}

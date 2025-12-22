@@ -3,10 +3,11 @@ import { type Response } from 'express';
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { dateOrString } from '../../shared/utils/random.utils.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
-import { getCategorizationTransactions } from './categorization.model.js';
-import { processCategorizationIntent } from './categorization.service.js';
 import {
-  categorizationIntentSchema,
+  getCategorizationTransactions,
+  processCategorizationIntent,
+} from './categorization.model.js';
+import {
   type GetCategorizationTransactionsParams,
   getCategorizationTransactionsParams,
 } from './categorization.types.js';
@@ -111,36 +112,31 @@ export async function handleCategorizationIntentController(
   req: AuthRequest,
   res: Response,
 ): Promise<void> {
-  const companyId = String(req.company?.id || req.params.companyId);
+  const companyId = String(req.params.companyId);
   const userId = String(req.user?.id || '');
 
-  if (!companyId) {
-    res.status(400).json(errorResponse('Company ID is required'));
+  if (!companyId || !userId) {
+    res.status(400).json(errorResponse('Bad Request'));
     return;
   }
 
-  if (!userId) {
-    res.status(401).json(errorResponse('User ID is required'));
+  // Basic validation: ensure it's an array
+  if (!Array.isArray(req.body)) {
+    res
+      .status(400)
+      .json(errorResponse('Request body must be an array of intents'));
+    return;
+  }
+
+  if (req.body.length === 0) {
+    res.status(400).json(errorResponse('At least one intent is required'));
     return;
   }
 
   try {
-    // Validate intent payload
-    const validation = categorizationIntentSchema.safeParse(req.body);
-    if (!validation.success) {
-      res
-        .status(400)
-        .json(
-          errorResponse(
-            `Invalid intent: ${validation.error.issues.map((e) => e.message).join(', ')}`,
-          ),
-        );
-      return;
-    }
-
-    // Process intent
+    // Process intents
     const result = await processCategorizationIntent({
-      intent: validation.data,
+      intents: req.body,
       companyId,
       userId,
     });

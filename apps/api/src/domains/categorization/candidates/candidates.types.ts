@@ -93,3 +93,20 @@ export const updateCandidateInput = z
     candidate_id: z.uuid(),
   });
 export type UpdateCandidateInput = z.infer<typeof updateCandidateInput>;
+
+// Types for getCategorizationCandidatesWithLines
+export type CategorizationCandidateWithLines = CategorizationCandidate & {
+  lines: CategorizationCandidateLine[];
+};
+
+export type CategorizationCandidateWithLinesFiltered = Omit<
+  CategorizationCandidate,
+  'created_at' | 'updated_at' | 'is_deleted' | 'deleted_at'
+> & {
+  lines: Array<
+    Omit<
+      CategorizationCandidateLine,
+      'created_at' | 'updated_at' | 'is_deleted' | 'deleted_at'
+    >
+  >;
+};

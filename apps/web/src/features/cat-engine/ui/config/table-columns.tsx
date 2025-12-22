@@ -30,6 +30,7 @@ import {
   useFieldUpdater,
   useIntentEmitter,
 } from '../hooks/use-intent-emitter';
+import { toYMD } from '@/shared/utils/date-utils';
 
 const fieldKey = (id: string, columnId: string) => `${id}-${columnId}`;
 export const getCatEngineColumns = ({
@@ -168,7 +169,7 @@ export const getCatEngineColumns = ({
                 updateField(IntentActionType.UPDATE_FS_DATE, {
                   scope: 'entry',
                   entryId: txn.id,
-                  fsDate: date.toISOString().split('T')[0],
+                  fsDate: toYMD(date),
                 });
 
                 markFieldClean(fieldKey(txn.id, 'fsDate'));
@@ -589,8 +590,8 @@ export const getCatEngineColumns = ({
         const isUncategorized = !accountName;
 
         if (mode === 'autosave') {
-          const { emitDecisionIntent } = useIntentEmitter();
-          // TODO: Get actual status from useTransactionState hook
+          const { updateField } = useFieldUpdater(txn);
+          // TODO: Get actual status from useTransactionState hook or find a simpler approach
           // const status: 'idle' | 'saving' | 'saved' | 'error' = 'idle';
           return (
             <div className="flex items-center gap-2">
@@ -599,18 +600,9 @@ export const getCatEngineColumns = ({
                 coaName={txn.coaName || undefined}
                 onCommit={(coaId) => {
                   if (!coaId) return;
-                  emitDecisionIntent({
-                    action: IntentActionType.ASSIGN_ACCOUNT,
-                    payload: {
-                      entryId: txn.id,
-                      coaId,
-                    },
-                    transactionId: txn.bankTransactionId,
-                    transactionState: txn.status,
-                    intentKey: buildIntentKey(
-                      IntentActionType.ASSIGN_ACCOUNT,
-                      txn.id,
-                    ),
+                  updateField(IntentActionType.ASSIGN_COA, {
+                    entryId: txn.id,
+                    coaId,
                   });
                   markFieldClean(fieldKey(txn.id, 'account'));
                 }}

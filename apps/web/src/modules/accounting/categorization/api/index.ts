@@ -5,6 +5,7 @@ import type {
   GetCategorizationTransactionsParams,
   GetCategorizationTransactionsResponse,
 } from '../model/types';
+import type { ApiResponse } from '@/shared/types/core';
 
 /**
  * Fetch categorization transactions from API
@@ -62,6 +63,12 @@ export async function fetchCategorizationTransactions(
   };
 }
 
+interface SendCategorizationIntentResponse {
+  // ledgerTransactionId?: string;
+  affected_transaction_ids?: string[];
+  summary_message?: string;
+}
+
 /**
  * Send categorization intent to backend
  * Posts user edits directly to ledger
@@ -69,24 +76,10 @@ export async function fetchCategorizationTransactions(
 export async function sendCategorizationIntent(
   companyId: string,
   intent: Intent[],
-): Promise<{
-  success: boolean;
-  data?: {
-    ledgerTransactionId?: string;
-    affected_transaction_ids?: string[];
-    summary_message?: string;
-  };
-  message?: string;
-}> {
-  const response = await api.post<{
-    success: boolean;
-    data?: {
-      ledgerTransactionId?: string;
-      affected_transaction_ids?: string[];
-      summary_message?: string;
-    };
-    message?: string;
-  }>(`/api/${companyId}/categorization/intents`, intent);
+): Promise<ApiResponse<SendCategorizationIntentResponse>> {
+  const response = await api.post<
+    ApiResponse<SendCategorizationIntentResponse>
+  >(`/api/${companyId}/categorization/intents`, intent);
 
   if (!response.data.success) {
     throw new Error(

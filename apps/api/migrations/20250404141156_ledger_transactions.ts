@@ -53,9 +53,9 @@ export async function up(knex: Knex): Promise<void> {
     // after the categorization_candidates table is created
     table.uuid('categorization_candidate_id').nullable();
 
-    table.boolean('human_reviewed').notNullable().defaultTo(false);
-    table.uuid('reviewed_by_id').nullable().references('id').inTable('users');
-    table.text('review_notes').nullable();
+    // table.boolean('human_reviewed').notNullable().defaultTo(false);
+    // table.uuid('reviewed_by_id').nullable().references('id').inTable('users');
+    // table.text('review_notes').nullable();
 
     table.jsonb('metadata').nullable();
 

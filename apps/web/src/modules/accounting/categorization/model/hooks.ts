@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   fetchCategorizationTransactions,
@@ -92,9 +92,10 @@ export type GroupedTransactionsData = {
 
 /**
  * Hook to send categorization intent
- * Pure domain hook - no UI concerns, no toasts
  */
 export function useSendCategorizationIntent() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({
       companyId,
@@ -103,5 +104,16 @@ export function useSendCategorizationIntent() {
       companyId: string;
       intent: Intent<IntentActionType>[];
     }) => sendCategorizationIntent(companyId, intent),
+    onSuccess: (res) => {
+      const ids = res.data?.affected_transaction_ids ?? [];
+
+      for (const id of ids) {
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            query.queryKey[0] === 'categorization-transactions' &&
+            query.queryKey.includes(id),
+        });
+      }
+    },
   });
 }

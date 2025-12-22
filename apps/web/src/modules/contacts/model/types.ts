@@ -35,3 +35,18 @@ export type ContactResponse = {
   contacts: Contacts[];
   pagination: Pagination;
 };
+
+export const contactType = z.enum([
+  'customer', // anyone you invoice/collect money from; AR
+  'vendor', // suppliers, service providers, card networks, AP;
+  'employee', // payroll beneficiaries; distinct from contractors for compliance.
+  'contractor', // freelancers/consultants you pay but who aren't employees.
+  'director', // board/management contacts tied to governance (minutes, approvals)
+  'owner', // equity holders or principal partners
+  'government', // tax authorities, regulators, statutory bodies, etc
+  'internal', // company-controlled accounts/entities
+  'banker',
+  'other',
+]);
+
+export type ContactType = z.infer<typeof contactType>;

@@ -1,22 +1,13 @@
 import {
+  Check,
   EllipsisVerticalIcon,
   Paperclip,
   Pencil,
   Send,
   SplitIcon,
 } from 'lucide-react';
-import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,10 +16,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 
 export function ActionsMenu() {
   const option = [
@@ -37,6 +24,7 @@ export function ActionsMenu() {
       icon: SplitIcon,
       onClick: () => {},
     },
+    { label: 'Accept category', icon: Check, onClick: () => {} },
     {
       label: 'Add explanation',
       icon: Pencil,
