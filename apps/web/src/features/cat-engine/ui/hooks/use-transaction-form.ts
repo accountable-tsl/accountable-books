@@ -124,7 +124,7 @@ export function useTransactionForm({
   // Reset form when transaction changes
   useEffect(() => {
     reset({
-      fsDate: transaction.fsDate.toISOString().split('T')[0],
+      fsDate: new Date(transaction.fsDate).toISOString().split('T')[0],
       payee: transaction.payee || '',
       project: transaction.project || '',
       description: transaction.description,

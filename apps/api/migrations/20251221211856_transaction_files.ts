@@ -7,8 +7,22 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
 
-    table.string('file_name', 512).notNullable();
-    table.string('file_id').notNullable();
+    table.string('name', 512).notNullable();
+    table.string('key', 1024).notNullable().unique();
+    table.string('bucket_name').notNullable();
+    table.string('url').notNullable();
+    table.string('type').notNullable();
+    table.bigint('size_bytes').notNullable();
+    table.string('checksum', 64);
+
+    table
+      .string('provider')
+      .notNullable()
+      .defaultTo('cloudflare_r2')
+      .checkIn(['cloudflare_r2', 'aws_s3', 'google_gcs', 'backblaze_b2']);
+
+    table.string('region').nullable();
+    table.string('endpoint').nullable();
 
     table.string('source').checkIn(['ledger', 'journal', 'bank']).notNullable();
     table.uuid('transaction_id').nullable();

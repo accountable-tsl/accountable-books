@@ -293,6 +293,13 @@ export const API_ENV_SCHEMA: EnvSchema = {
     production: 'https://logos.getaccountable.com',
   },
 
+  R2_TRANSACTION_FILES_BUCKET_NAME: {
+    description: 'Cloudflare R2 bucket name for transaction files',
+    type: 'string',
+    required: false,
+    default: 'transaction-files',
+  },
+
   // ============================================================================
   // PLATFORM COMPANY CONFIGURATION
   // ============================================================================

@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { GroupedTransaction } from '@/modules/accounting/categorization';
-import { IntentActionType } from '@/modules/accounting/categorization/model/intent-types';
 
 import { ActionsMenu } from '../components/actions';
 import { EditableAccountCell } from '../components/editable-account-cell';
@@ -25,21 +24,20 @@ import {
   EditableNumberCell,
   EditableTextCell,
 } from '../components/editable-fields';
-import {
-  buildIntentKey,
-  useFieldUpdater,
-  useIntentEmitter,
-} from '../hooks/use-intent-emitter';
+import { useLedgerIntentUpdater } from '../hooks/use-intent-emitter';
 import { toYMD } from '@/shared/utils/date-utils';
+import type { GroupedCoaData } from '../types';
 
 const fieldKey = (id: string, columnId: string) => `${id}-${columnId}`;
 export const getCatEngineColumns = ({
+  groupedCoaData,
   mode,
   reportingCurrency,
   onFxRateChange,
   markFieldClean,
   markFieldDirty,
 }: {
+  groupedCoaData: GroupedCoaData[];
   mode: 'review' | 'autosave';
   reportingCurrency?: string;
   onFxRateChange?: (bankTransactionId: string, rate: number) => void;
@@ -95,7 +93,7 @@ export const getCatEngineColumns = ({
 
         const showTooltip = txn.description ? true : false;
         const displayText = txn.description || 'No description';
-        const { updateField } = useFieldUpdater(txn);
+        const { updateEntry } = useLedgerIntentUpdater(txn);
 
         if (mode === 'autosave' && !multipleLines) {
           return (
@@ -103,11 +101,7 @@ export const getCatEngineColumns = ({
               value={txn.description || ''}
               placeholder="No description"
               onCommit={(value) => {
-                updateField(IntentActionType.UPDATE_DESCRIPTION, {
-                  scope: 'entry',
-                  entryId: txn.id,
-                  value,
-                });
+                updateEntry(txn.id, { description: value || null });
 
                 markFieldClean(fieldKey(txn.id, 'description'));
               }}
@@ -158,7 +152,7 @@ export const getCatEngineColumns = ({
       cell: ({ row }) => {
         const txn = row.original;
         const fsDate = txn.fsDate;
-        const { updateField } = useFieldUpdater(txn);
+        const { updateEntry } = useLedgerIntentUpdater(txn);
         if (mode === 'autosave' && fsDate) {
           return (
             <EditableDateCell
@@ -166,11 +160,7 @@ export const getCatEngineColumns = ({
               onCommit={(date) => {
                 if (!date) return;
 
-                updateField(IntentActionType.UPDATE_FS_DATE, {
-                  scope: 'entry',
-                  entryId: txn.id,
-                  fsDate: toYMD(date),
-                });
+                updateEntry(txn.id, { fs_date: toYMD(date) });
 
                 markFieldClean(fieldKey(txn.id, 'fsDate'));
               }}
@@ -192,20 +182,15 @@ export const getCatEngineColumns = ({
         const contactId = txn.contactId;
         const contactName = txn.contactName;
 
-        const { updateField } = useFieldUpdater(txn);
+        const { updateEntry } = useLedgerIntentUpdater(txn);
         if (mode === 'autosave' && !txn.hasMultipleEntries) {
           return (
             <EditableDropdownCell
               field="contact"
               contactId={contactId || undefined}
               contactName={contactName || undefined}
-              onCommit={(id, name) => {
-                updateField(IntentActionType.UPDATE_CONTACT, {
-                  scope: 'entry',
-                  entryId: txn.id,
-                  contactId: id,
-                  contactName: name,
-                });
+              onCommit={(id) => {
+                updateEntry(txn.id, { contact_id: id || null });
 
                 markFieldClean(fieldKey(txn.id, 'contact'));
               }}
@@ -244,7 +229,7 @@ export const getCatEngineColumns = ({
       cell: ({ row }) => {
         const txn = row.original;
         const reference = txn.reference;
-        const { updateField } = useFieldUpdater(txn);
+        const { updateEntry } = useLedgerIntentUpdater(txn);
 
         if (mode === 'autosave' && !txn.hasMultipleEntries) {
           return (
@@ -252,12 +237,7 @@ export const getCatEngineColumns = ({
               value={txn.reference || ''}
               placeholder="No reference"
               onCommit={(value) => {
-                updateField(IntentActionType.UPDATE_REFERENCE, {
-                  scope: 'entry',
-                  entryId: txn.id,
-                  reference: value,
-                });
-
+                updateEntry(txn.id, { reference: value || null });
                 markFieldClean(fieldKey(txn.id, 'reference'));
               }}
               markDirty={() => markFieldDirty(fieldKey(txn.id, 'reference'))}
@@ -298,7 +278,7 @@ export const getCatEngineColumns = ({
       cell: ({ row }) => {
         const txn = row.original;
         const projectName = txn.projectName;
-        const { updateField } = useFieldUpdater(txn);
+        const { updateEntry } = useLedgerIntentUpdater(txn);
 
         if (mode === 'autosave' && !txn.hasMultipleEntries) {
           return (
@@ -306,12 +286,8 @@ export const getCatEngineColumns = ({
               field="project"
               projectId={txn.projectId || undefined}
               projectName={projectName || undefined}
-              onCommit={(id, name) => {
-                updateField(IntentActionType.UPDATE_PROJECT, {
-                  entryId: txn.id,
-                  projectId: id,
-                  projectName: name,
-                });
+              onCommit={(id) => {
+                updateEntry(txn.id, { project_id: id || null });
 
                 markFieldClean(fieldKey(txn.id, 'project'));
               }}
@@ -364,15 +340,14 @@ export const getCatEngineColumns = ({
       header: 'Bank Amount',
       cell: ({ row }) => {
         const txn = row.original;
+        const amount =
+          txn.rowType === 'subRow' ? txn.nativeAmount : txn.bankAmount;
         return (
           <FormattedAmount
-            amount={txn.nativeAmount}
+            amount={amount}
             currency={txn.bankAccountCurrencyCode}
             accountingNegatives={false}
-            className={cn(
-              'flex justify-end ',
-              txn.nativeAmount < 0 ? 'text-destructive' : '',
-            )}
+            className={cn('flex justify-end ')}
           />
         );
       },
@@ -385,7 +360,7 @@ export const getCatEngineColumns = ({
       accessorKey: 'exchangeRate',
       cell: ({ row }) => {
         const txn = row.original;
-        const { updateField } = useFieldUpdater(txn);
+        const { updateExchangeRate } = useLedgerIntentUpdater(txn);
         // On update, notify using toast or sth that this affects all entries for this transaction if it is a transaction with multiple entries
         if (mode === 'autosave' && !txn.hasMultipleEntries) {
           return (
@@ -397,15 +372,11 @@ export const getCatEngineColumns = ({
               onCommit={(value) => {
                 const numValue = parseFloat(value);
                 if (!isNaN(numValue) && numValue > 0) {
-                  // Update optimistic state immediately
-                  // Might not need this anymore... we might need to make sure spent/received knows about changes here
+                  // Update optimistic UI state immediately (spent/received)
                   onFxRateChange?.(txn.bankTransactionId, numValue);
 
-                  // Emit intent for backend processing
-                  updateField(IntentActionType.UPDATE_FX_RATE, {
-                    bankTransactionId: txn.bankTransactionId,
-                    rate: numValue,
-                  });
+                  // Update exchange rate via intent system
+                  updateExchangeRate(numValue);
 
                   markFieldClean(fieldKey(txn.id, 'exchangeRate'));
                 }
@@ -445,7 +416,6 @@ export const getCatEngineColumns = ({
     },
     {
       id: 'spent',
-      // header: `Spent ${reportingCurrency ? `(${reportingCurrency})` : ''}`,
       header: () => (
         <div className="text-right">
           <span>Spent</span>{' '}
@@ -458,8 +428,8 @@ export const getCatEngineColumns = ({
       ),
       cell: ({ row }) => {
         const txn = row.original;
-        // Sum all negative reporting amounts (outflows)
         const spent = txn.spent;
+        const bankAmount = txn.bankAmount;
 
         if (spent === 0) {
           return (
@@ -473,11 +443,12 @@ export const getCatEngineColumns = ({
           <div className="pr-2 border-r-1 border-border/50">
             <FormattedAmount
               amount={spent}
-              currency={txn.bankAccountCurrencyCode}
+              currency={reportingCurrency}
               accountingNegatives={false}
               className={cn(
                 'flex justify-end',
-                spent !== 0 ? 'text-destructive' : '',
+                // Color matches bank amount direction (negative = red, positive = green)
+                bankAmount < 0 ? 'text-destructive' : 'text-green-600',
               )}
             />
           </div>
@@ -505,8 +476,8 @@ export const getCatEngineColumns = ({
       ),
       cell: ({ row }) => {
         const txn = row.original;
-        // Sum all positive reporting amounts (inflows)
         const received = txn.received;
+        const bankAmount = txn.bankAmount;
 
         if (received === 0) {
           return (
@@ -520,11 +491,12 @@ export const getCatEngineColumns = ({
           <div className="pr-2 border-r-1 border-border/50">
             <FormattedAmount
               amount={received}
-              currency={txn.bankAccountCurrencyCode}
+              currency={reportingCurrency}
               accountingNegatives={false}
               className={cn(
                 'flex justify-end',
-                received !== 0 ? 'text-green-600' : '',
+                // Color matches bank amount direction (positive = green, negative = red)
+                bankAmount > 0 ? 'text-green-600' : 'text-destructive',
               )}
             />
           </div>
@@ -590,7 +562,7 @@ export const getCatEngineColumns = ({
         const isUncategorized = !accountName;
 
         if (mode === 'autosave') {
-          const { updateField } = useFieldUpdater(txn);
+          const { updateEntry } = useLedgerIntentUpdater(txn);
           // TODO: Get actual status from useTransactionState hook or find a simpler approach
           // const status: 'idle' | 'saving' | 'saved' | 'error' = 'idle';
           return (
@@ -598,12 +570,10 @@ export const getCatEngineColumns = ({
               <EditableAccountCell
                 coaId={txn.coaId || undefined}
                 coaName={txn.coaName || undefined}
+                groupedCoaData={groupedCoaData}
                 onCommit={(coaId) => {
                   if (!coaId) return;
-                  updateField(IntentActionType.ASSIGN_COA, {
-                    entryId: txn.id,
-                    coaId,
-                  });
+                  updateEntry(txn.id, { coa_id: coaId });
                   markFieldClean(fieldKey(txn.id, 'account'));
                 }}
                 markDirty={() => markFieldDirty(fieldKey(txn.id, 'account'))}

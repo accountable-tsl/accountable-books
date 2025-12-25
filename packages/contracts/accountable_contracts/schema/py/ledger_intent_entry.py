@@ -21,6 +21,7 @@ class LedgerIntentEntry(BaseModel):
     entry_id: Optional[UUID] = None
     coa_id: UUID
     description: Optional[Optional[str]] = None
+    reference: Optional[Optional[str]] = None
     fs_date: Optional[constr(pattern=FS_DATE_REGEX)] = None
     contact_id: Optional[Optional[UUID]] = None
     contact_type: Optional[Optional[ContactTypeEnum]] = None

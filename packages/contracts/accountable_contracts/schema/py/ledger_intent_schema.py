@@ -18,20 +18,13 @@ class DesiredStateEntriesItemContactTypeEnum(str, Enum):
     BANKER = "banker"
     OTHER = "other"
 
-class ModeEnum(str, Enum):
-    REVIEW = "review"
-    AUTOSAVE = "autosave"
-
-class IntentActionEnum(str, Enum):
-    APPROVE_ONLY = "approve_only"
-    APPLY_AND_APPROVE = "apply_and_approve"
-
 class LedgerIntentSchema(BaseModel):
     class DesiredState(BaseModel):
         class DesiredStateEntriesItem(BaseModel):
             entry_id: Optional[UUID] = None
             coa_id: UUID
             description: Optional[Optional[str]] = None
+            reference: Optional[Optional[str]] = None
             fs_date: Optional[constr(pattern=FS_DATE_REGEX)] = None
             contact_id: Optional[Optional[UUID]] = None
             contact_type: Optional[Optional[DesiredStateEntriesItemContactTypeEnum]] = None
@@ -42,13 +35,11 @@ class LedgerIntentSchema(BaseModel):
             file_id: Optional[Optional[str]] = None
             file_name: Optional[Optional[str]] = None
             metadata: Optional[Any] = None
-        custom_exchange_rate: Optional[confloat(gt=0)] = None
+        custom_exchange_rate: Optional[Optional[confloat(gt=0)]] = None
         entries: Optional[List[DesiredStateEntriesItem]] = None
     intent_id: UUID
     bank_transaction_id: UUID
     ledger_transaction_id: Optional[UUID] = None
     candidate_id: Optional[UUID] = None
-    mode: ModeEnum
-    intent_action: IntentActionEnum
     desired_state: Optional[DesiredState] = None
     timestamp: datetime

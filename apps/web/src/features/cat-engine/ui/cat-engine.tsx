@@ -35,6 +35,11 @@ import { CatEngineTxnView } from './components/cat-engine-txn-view';
 import { getCatEngineColumns } from './config/table-columns';
 import { testCategorizationTransactions } from './test-data';
 import type { CatEngineMode } from './types';
+import { TransactionView } from './components/transaction-view';
+import { accountElementOrder } from './constants';
+import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts';
+import type { GroupedCoaData } from './types';
+import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
 
 export const accordionItems = [
   {
@@ -111,10 +116,10 @@ export function CatEngine() {
   const [selectedTransactionId, setSelectedTransactionId] = useState<
     string | null
   >(null);
-  // Optimistic exchange rate overrides (Map<bankTransactionId, rate>)
-  const [optimisticExchangeRates, setOptimisticExchangeRates] = useState<
-    Map<string, number>
-  >(new Map());
+  // Draft transactions state for optimistic UI updates
+  const [draftTransactions, setDraftTransactions] = useState<
+    GroupedTransaction[]
+  >([]);
   // Mode state with localStorage persistence
   const MODE_STORAGE_KEY = `cat-engine-mode-${companyId || 'default'}`;
   const USER_PREFERENCE_KEY = `cat-engine-user-preference-${companyId || 'default'}`;
@@ -174,17 +179,53 @@ export function CatEngine() {
     data: txnData,
     isLoading,
     error,
-  } = useCategorizationTransactions(
-    {
-      companyId: companyId ?? '',
-      dateFrom: dateRange.from,
-      dateTo: dateRange.to || new Date(),
-      status: statusFilter,
-      limit: 100,
-      offset: 0,
-    },
-    optimisticExchangeRates.size > 0 ? optimisticExchangeRates : undefined,
-  );
+  } = useCategorizationTransactions({
+    companyId: companyId ?? '',
+    dateFrom: dateRange.from,
+    dateTo: dateRange.to || new Date(),
+    status: statusFilter,
+    limit: 100,
+    offset: 0,
+  });
+
+  const { data: coaData, isLoading: isLoadingCoa } = useChartOfAccountsQuery({
+    companyId: companyId || '',
+    active: true,
+    includeDeleted: false,
+  });
+
+  const groupedCoaData = useMemo<GroupedCoaData[]>(() => {
+    if (!coaData) return [];
+
+    const groups = new Map<string, GroupedCoaData['items']>();
+
+    coaData.forEach((c: CoaResponse) => {
+      const key = c.accountElementKey || 'ungrouped';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push({
+        label: c.name,
+        value: c.id,
+        accountElementKey: c.accountElementKey,
+        accountElementLabel: c.accountElementLabel,
+        parentElementKey: c.parentAccountElementKey,
+      });
+    });
+
+    return Array.from(groups.entries())
+      .map(([key, items]) => ({
+        id: key,
+        label: items[0]?.accountElementLabel || key,
+        items,
+      }))
+      .sort((a, b) => {
+        const priA = accountElementOrder.indexOf(a.id);
+        const priB = accountElementOrder.indexOf(b.id);
+        if (priA === -1 && priB === -1) return a.id.localeCompare(b.id);
+        if (priA === -1) return 1;
+        if (priB === -1) return -1;
+        return priA - priB;
+      });
+  }, [coaData]);
 
   // Use test data for development - set to false to use real API data
   const USE_TEST_DATA = true;
@@ -194,9 +235,16 @@ export function CatEngine() {
     ? testTxns
     : txnData?.transactions || [];
 
-  const transactions = useMemo(() => {
-    return rawTransactions;
+  console.log(rawTransactions);
+  // Sync draft transactions with server data
+  useEffect(() => {
+    setDraftTransactions(rawTransactions);
   }, [rawTransactions]);
+
+  // Use draft transactions for display (includes optimistic updates)
+  const transactions = useMemo(() => {
+    return draftTransactions;
+  }, [draftTransactions]);
 
   const rowClickHandler = useCallback((row: any) => {
     const id = row.original.id;
@@ -204,14 +252,65 @@ export function CatEngine() {
     setSelectedTransactionId((prevId) => (prevId === id ? null : id));
   }, []);
 
-  // Handler for optimistic FX rate updates
-  const handleFxRateChange = useCallback(
-    (bankTransactionId: string, rate: number) => {
-      setOptimisticExchangeRates((prev) => {
-        const next = new Map(prev);
-        next.set(bankTransactionId, rate);
-        return next;
-      });
+  // Handler to update exchange rate and recalculate spent/received
+  const handleExchangeRateUpdate = useCallback(
+    (bankTransactionId: string, newRate: number) => {
+      setDraftTransactions((prev) =>
+        prev.map((txn) => {
+          if (txn.bankTransactionId !== bankTransactionId) return txn;
+
+          // For single entry transactions, update the transaction itself
+          if (!txn.hasMultipleEntries) {
+            const newReportingAmount = txn.nativeAmount * newRate;
+            return {
+              ...txn,
+              exchangeRate: newRate.toFixed(4),
+              reportingAmount: newReportingAmount,
+              spent: newReportingAmount > 0 ? newReportingAmount : 0,
+              received:
+                newReportingAmount < 0 ? Math.abs(newReportingAmount) : 0,
+            };
+          }
+
+          // For multiple entries, update each entry
+          const updatedEntries = txn.entries!.map((entry) => {
+            const newReportingAmount = entry.nativeAmount * newRate;
+            return {
+              ...entry,
+              reportingAmount: newReportingAmount,
+              exchangeRate: newRate.toFixed(4),
+              spent: newReportingAmount > 0 ? newReportingAmount : 0,
+              received:
+                newReportingAmount < 0 ? Math.abs(newReportingAmount) : 0,
+            };
+          });
+
+          // Recalculate totals from entries
+          const newSpent = updatedEntries.reduce(
+            (sum, entry) =>
+              sum + (entry.reportingAmount > 0 ? entry.reportingAmount : 0),
+            0,
+          );
+          const newReceived = updatedEntries.reduce(
+            (sum, entry) =>
+              sum +
+              (entry.reportingAmount < 0 ? Math.abs(entry.reportingAmount) : 0),
+            0,
+          );
+
+          return {
+            ...txn,
+            exchangeRate: newRate.toFixed(4),
+            reportingAmount: updatedEntries.reduce(
+              (sum, e) => sum + e.reportingAmount,
+              0,
+            ),
+            spent: newSpent,
+            received: newReceived,
+            entries: updatedEntries,
+          };
+        }),
+      );
     },
     [],
   );
@@ -231,13 +330,14 @@ export function CatEngine() {
   const columns = useMemo(
     () =>
       getCatEngineColumns({
+        groupedCoaData,
         mode,
         reportingCurrency: company?.reportingCurrencyCode,
-        onFxRateChange: handleFxRateChange,
+        onFxRateChange: handleExchangeRateUpdate,
         markFieldClean,
         markFieldDirty,
       }),
-    [mode, company, handleFxRateChange],
+    [mode, company, handleExchangeRateUpdate],
   );
 
   const estimatedRowHeight = useMemo(() => {
@@ -306,6 +406,8 @@ export function CatEngine() {
     state: {
       columnVisibility: {
         __actions: mode === 'autosave',
+        status: false,
+        confidence: false,
       },
     },
   });
@@ -481,22 +583,38 @@ export function CatEngine() {
           />
         </div>
       </div>
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {mode === 'review' && (
-          <ResizablePanelGroup direction="horizontal" className="gap-2">
-            <ResizablePanel className="min-h-0 h-full flex flex-col gap-4 min-w-0 flex-1 overflow-x-auto">
+          <ResizablePanelGroup direction="horizontal" className="gap-2 min-h-0">
+            <ResizablePanel
+              id="main-panel"
+              order={0}
+              minSize={30}
+              className="min-h-0 h-full flex flex-col gap-4 min-w-0 overflow-hidden"
+            >
               {view === 'group' ? accordionView : tableView}
             </ResizablePanel>
 
             {selectedTransaction && (
               <>
                 <ResizableHandle withHandle className="bg-background" />
-                <ResizablePanel className="w-sm !max-w-md">
-                  <CatEngineTxnView
+                <ResizablePanel
+                  id="transaction-panel"
+                  order={1}
+                  // minSize={20}
+                  // maxSize={40}
+                  // defaultSize={30}
+                  className="min-h-0 h-full w-sm !max-w-md overflow-hidden"
+                >
+                  {/* <CatEngineTxnView
                     transaction={selectedTransaction}
                     accordionItemId={openAccordionItem}
                     isLoading={isLoading}
                     error={error ? error.message : null}
+                  /> */}
+                  <TransactionView
+                    transaction={selectedTransaction}
+                    groupedCoaData={groupedCoaData}
                   />
                 </ResizablePanel>
               </>

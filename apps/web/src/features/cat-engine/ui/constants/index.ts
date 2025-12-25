@@ -49,3 +49,21 @@ export const FORM_CONFIG = {
   AUTO_SAVE_DELAY: 5000,
   MAX_RETRIES: 3,
 } as const;
+
+export const accountElementOrder: string[] = [
+  'revenue',
+  'contra_revenue',
+  'cost_of_sales',
+  'other_income',
+  'operating_expenses',
+  'non_operating_expenses',
+  'current_asset',
+  'non_current_asset',
+  'contra_asset',
+  'non_current_liabilities',
+  'current_liabilities',
+  'contra_liabilities',
+  'contributed_capital',
+  'reserves',
+  'other_equity',
+] as const;

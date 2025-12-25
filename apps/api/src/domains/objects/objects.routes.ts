@@ -2,6 +2,8 @@ import express from 'express';
 
 import {
   deleteObjectController,
+  getObjDownloadUrl,
+  getObjUploadUrl,
   uploadObjectController,
 } from './objects.controller.js';
 import { createMulter } from './objects.utils.js';
@@ -16,5 +18,9 @@ router.post(
 );
 
 router.delete('/:objectType/delete', deleteObjectController);
+
+router.post('/:companyId/objects/url/upload', getObjUploadUrl);
+
+router.get('/objects/url/download', getObjDownloadUrl);
 
 export default router;

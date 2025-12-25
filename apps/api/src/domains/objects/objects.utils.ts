@@ -5,7 +5,7 @@ import { type ZodSchema } from 'zod';
 
 import { ENV } from '../../config/env.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
-import { logoUploadParams, type ObjectType } from './objects.types.js';
+import { logoUploadParams, type ObjectBucket } from './objects.types.js';
 
 export const imageFilter = (
   allowedTypes: string[] = [
@@ -55,7 +55,7 @@ export const createMulter = (maxSize: number = 1024 * 1024) => {
 };
 
 export const objectTypeHandlers: Record<
-  ObjectType,
+  string,
   {
     schema: ZodSchema<any>;
     bucket: string;

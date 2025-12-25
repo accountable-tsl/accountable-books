@@ -10,11 +10,11 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { type ObjectType } from './objects.types.js';
+import { type ObjectBucket } from './objects.types.js';
 import { objectTypeHandlers } from './objects.utils.js';
 
 export async function uploadObject(
-  objectType: ObjectType,
+  objectType: string = 'logos',
   params: any,
   client?: S3Client,
 ): Promise<ApiResponse> {
@@ -51,7 +51,7 @@ export async function uploadObject(
 }
 
 export async function deleteObject(
-  objectType: ObjectType,
+  objectType: ObjectBucket,
   key: string,
   client?: S3Client,
 ): Promise<ApiResponse> {
@@ -73,5 +73,13 @@ export async function deleteObject(
     return successResponse('Object deleted', null);
   } catch (error) {
     return errorResponse('Failed to delete object', error);
+  }
+}
+
+// Generate presigned URL
+export async function getPresignedUrl(objectType: ObjectBucket, key: string) {
+  const handler = objectTypeHandlers[objectType];
+  if (!handler) {
+    return errorResponse('Unsupported object type');
   }
 }

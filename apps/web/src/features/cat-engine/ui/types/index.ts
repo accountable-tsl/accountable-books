@@ -15,6 +15,8 @@ export interface TransactionData {
   date: Date;
   fsDate: Date;
   currency?: string;
+  bankAccountName?: string;
+  bankAccountCurrencyCode?: string;
 }
 
 export interface CatEngineTxnViewProps {
@@ -63,4 +65,19 @@ export interface ApiError {
   message: string;
   code?: string;
   details?: Record<string, any>;
+}
+
+// Chart of Accounts grouping types
+export interface GroupedCoaItem {
+  label: string;
+  value: string;
+  accountElementKey: string;
+  accountElementLabel: string;
+  parentElementKey?: string;
+}
+
+export interface GroupedCoaData {
+  id: string;
+  label: string;
+  items: GroupedCoaItem[];
 }

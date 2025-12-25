@@ -7,3 +7,4 @@ export const SUPPORTED_COUNTRIES_CODES = [
   'DE',
   'GH',
 ];
+

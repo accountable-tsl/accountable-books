@@ -8,6 +8,15 @@ import {
 import { ToggleButton } from '@/domains-pending-migration/cat-engine/components/toggle-button';
 
 export function CatEngineAdvFilter() {
+  // TODO: Add toggle for amount display convention
+  // - Store preference in localStorage: 'amount_display_convention' = 'spent_received' | 'debit_credit'
+  // - Default: 'spent_received'
+  // - When 'debit_credit' is selected:
+  //   - Show "Debit" and "Credit" columns instead
+  //   - Debits are positive amounts (expenses/assets)
+  //   - Credits are negative amounts (income/liabilities)
+  //   - Colors: Debit = green, Credit = red (standard accounting colors)
+
   return (
     <Popover>
       <PopoverTrigger asChild>

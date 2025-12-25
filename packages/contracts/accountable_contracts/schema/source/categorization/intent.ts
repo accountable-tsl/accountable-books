@@ -6,6 +6,7 @@ export const ledgerIntentEntry = z
     entry_id: z.uuid().optional(),
     coa_id: z.uuid(),
     description: z.string().nullish(),
+    reference: z.string().nullish(),
     fs_date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -51,33 +52,19 @@ export const ledgerIntentEntry = z
   });
 export type LedgerIntentEntry = z.infer<typeof ledgerIntentEntry>;
 
-export const intentAction = z.enum(['approve_only', 'apply_and_approve']);
-export const ledgerIntentSchema = z
-  .object({
-    intent_id: z.uuid(),
-    bank_transaction_id: z.uuid(),
-    ledger_transaction_id: z.uuid().optional(),
-    candidate_id: z.uuid().optional(),
-    mode: z.enum(['review', 'autosave']),
-    intent_action: intentAction,
-    desired_state: z
-      .object({
-        custom_exchange_rate: z.number().positive().nullish(), // Null to replace custom exchange rate with system exchange rate
+export const ledgerIntentDesiredState = z.object({
+  custom_exchange_rate: z.number().positive().nullish(), // Null to replace custom exchange rate with system exchange rate
+  entries: z.array(ledgerIntentEntry).min(1).optional(), // Not necessarily required for transaction level changes / changes that affect the entire transaction
+});
+export type LedgerIntentDesiredState = z.infer<typeof ledgerIntentDesiredState>;
 
-        // Entry-level fields
-        entries: z.array(ledgerIntentEntry).min(1).optional(), // Not necessarily required for transaction level changes / changes that affect the entire transaction
-      })
-      .optional(),
-    timestamp: z.iso.datetime(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.intent_action === 'apply_and_approve' && !data.desired_state) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'apply_and_approve intent requires desired_state',
-        path: ['desired_state'],
-      });
-    }
-  });
+export const ledgerIntentSchema = z.object({
+  intent_id: z.uuid(),
+  bank_transaction_id: z.uuid(),
+  ledger_transaction_id: z.uuid().optional(),
+  candidate_id: z.uuid().optional(),
+  desired_state: ledgerIntentDesiredState.optional(),
+  timestamp: z.iso.datetime(),
+});
 
 export type LedgerIntent = z.infer<typeof ledgerIntentSchema>;

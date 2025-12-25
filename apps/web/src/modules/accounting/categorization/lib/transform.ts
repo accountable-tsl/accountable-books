@@ -80,6 +80,15 @@ export function groupCategorizationTransactions(
       bankLogo: firstLine.bank_logo,
       bankAccountName: firstLine.bank_account_display_name,
       bankAccountCurrencyCode: firstLine.bank_currency_code,
+      bankAccountCoaId: firstLine.bank_account_coa_id!,
+      bankAccountCoaName: firstLine.bank_account_coa_name!,
+      bankAccountCoaCode: firstLine.bank_account_coa_code,
+      reportingCurrencyId: firstLine.reporting_currency_id ?? undefined,
+      reportingCurrencyCode: firstLine.reporting_currency_code ?? undefined,
+      reportingCurrencyName: firstLine.reporting_currency_name ?? undefined,
+      reportingCurrencySymbol: firstLine.reporting_currency_symbol ?? undefined,
+
+      bankAmount: firstLine.bank_amount,
       date: format(new Date(firstLine.date), 'dd MMM yyyy'),
 
       fsDate:
@@ -119,15 +128,29 @@ export function groupCategorizationTransactions(
 
       exchangeRate: effectiveExchangeRate.toFixed(4),
 
-      spent: txnsWithRecalculatedAmounts.reduce((sum, txn) => {
-        return txn.reporting_amount < 0
-          ? sum + Math.abs(txn.reporting_amount)
-          : sum;
-      }, 0),
+      // For uncategorized transactions, use bank_amount direction
+      // For categorized transactions, use reporting_amount sign (counterpart amount)
+      spent:
+        firstLine.categorization_status === 'uncategorized'
+          ? firstLine.bank_amount < 0
+            ? Math.abs(firstLine.bank_amount * effectiveExchangeRate)
+            : 0
+          : txnsWithRecalculatedAmounts.reduce((sum, txn) => {
+              return txn.reporting_amount > 0
+                ? sum + txn.reporting_amount
+                : sum;
+            }, 0),
 
-      received: txnsWithRecalculatedAmounts.reduce((sum, txn) => {
-        return txn.reporting_amount > 0 ? sum + txn.reporting_amount : sum;
-      }, 0),
+      received:
+        firstLine.categorization_status === 'uncategorized'
+          ? firstLine.bank_amount > 0
+            ? firstLine.bank_amount * effectiveExchangeRate
+            : 0
+          : txnsWithRecalculatedAmounts.reduce((sum, txn) => {
+              return txn.reporting_amount < 0
+                ? sum + Math.abs(txn.reporting_amount)
+                : sum;
+            }, 0),
 
       // Average confidence (nulls treated as 0)
       confidence:
@@ -151,37 +174,65 @@ export function groupCategorizationTransactions(
       ledgerTransactionId: firstLine.ledger_transaction_id,
       candidateId: firstLine.candidate_id,
 
-      entries: txnsWithRecalculatedAmounts.map((txn) => ({
-        id: txn.id,
-        bankTransactionId: txn.id,
-        bankName: txn.bank_display_name,
-        bankLogo: txn.bank_logo,
-        bankAccountName: txn.bank_account_display_name,
-        bankAccountCurrencyCode: txn.bank_currency_code,
-        date: format(new Date(txn.date), 'dd MMM yyyy'),
-        fsDate: format(new Date(txn.fs_date), 'dd MMM yyyy'),
-        description: txn.description,
-        contactName: txn.contact_name,
-        contactId: txn.contact_id,
-        reference: txn.reference,
-        projectId: txn.project_id,
-        projectName: txn.project_name,
-        nativeAmount: txn.native_amount,
-        reportingAmount: txn.reporting_amount,
-        exchangeRate: txn.custom_exchange_rate.toFixed(4),
-        spent: txn.reporting_amount < 0 ? Math.abs(txn.reporting_amount) : 0,
-        received: txn.reporting_amount > 0 ? txn.reporting_amount : 0,
-        confidence: txn.confidence,
-        status: txn.categorization_status,
-        coaId: txn.coa_id,
-        coaName: txn.coa_name,
-        coaCode: txn.coa_code,
-        rowType: 'subRow',
-        ledgerTransactionId: txn.ledger_transaction_id,
-        ledgerEntryId: txn.ledger_entry_id,
-        candidateId: txn.candidate_id,
-        candidateLineId: txn.candidate_line_id,
-      })),
+      // Files: only at parent level for uncategorized transactions (no entries yet)
+      // For proposed/posted transactions, files are at entry level
+      files:
+        firstLine.categorization_status === 'uncategorized'
+          ? firstLine.files
+          : undefined,
+
+      // Only create entries for proposed/posted transactions (they have actual legs)
+      // Uncategorized transactions have no legs yet, so no entries
+      entries:
+        firstLine.categorization_status === 'uncategorized'
+          ? undefined
+          : txnsWithRecalculatedAmounts.map((txn, index) => ({
+              // Use unique identifier: ledgerEntryId or candidateLineId, fallback to composite
+              // This ensures each entry in a split transaction has a unique ID
+              id:
+                txn.ledger_entry_id ||
+                txn.candidate_line_id ||
+                `${txn.id}-${index}`,
+              bankTransactionId: txn.id,
+              bankName: txn.bank_display_name,
+              bankLogo: txn.bank_logo,
+              bankAccountName: txn.bank_account_display_name,
+              bankAccountCurrencyCode: txn.bank_currency_code,
+              reportingCurrencyId: txn.reporting_currency_id ?? undefined,
+              reportingCurrencyCode: txn.reporting_currency_code ?? undefined,
+              reportingCurrencyName: txn.reporting_currency_name ?? undefined,
+              reportingCurrencySymbol:
+                txn.reporting_currency_symbol ?? undefined,
+              bankAmount: firstLine.bank_amount,
+              date: format(new Date(txn.date), 'dd MMM yyyy'),
+              fsDate: format(new Date(txn.fs_date), 'dd MMM yyyy'),
+              description: txn.description,
+              contactName: txn.contact_name,
+              contactId: txn.contact_id,
+              reference: txn.reference,
+              projectId: txn.project_id,
+              projectName: txn.project_name,
+              nativeAmount: txn.native_amount,
+              reportingAmount: txn.reporting_amount,
+              exchangeRate: txn.custom_exchange_rate.toFixed(4),
+              spent: txn.reporting_amount > 0 ? txn.reporting_amount : 0,
+              received:
+                txn.reporting_amount < 0 ? Math.abs(txn.reporting_amount) : 0,
+              confidence: txn.confidence,
+              status: txn.categorization_status,
+              coaId: txn.coa_id,
+              coaName: txn.coa_name,
+              coaCode: txn.coa_code,
+              rowType: 'subRow',
+              ledgerTransactionId: txn.ledger_transaction_id,
+              ledgerEntryId: txn.ledger_entry_id,
+              candidateId: txn.candidate_id,
+              candidateLineId: txn.candidate_line_id,
+              explanation: txn.explanation,
+              reviewNotes: txn.review_notes,
+              // Files are at entry level for proposed/posted transactions
+              files: txn.files,
+            })),
     });
   }
 

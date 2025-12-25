@@ -15,10 +15,10 @@ from .data_mutation_intent import DataMutationIntent
 from .enriched_transaction import EnrichedTransaction
 from .final_posting import FinalPosting
 from .global_intent_classifier import GlobalIntentClassifier
-from .intent_action import IntentAction
 from .intent_action_type import IntentActionType
 from .intent_semantic_entry import IntentSemanticEntry
 from .label_role import LabelRole
+from .ledger_intent_desired_state import LedgerIntentDesiredState
 from .ledger_intent_entry import LedgerIntentEntry
 from .ledger_intent_schema import LedgerIntentSchema
 from .ml_prediction_output import MlPredictionOutput
@@ -30,4 +30,4 @@ from .reporting_framework import ReportingFramework
 from .temporal_schema import TemporalSchema
 from .tenant_account_ranker import TenantAccountRanker
 
-__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GlobalIntentClassifier", "IntentAction", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker"]
+__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker"]

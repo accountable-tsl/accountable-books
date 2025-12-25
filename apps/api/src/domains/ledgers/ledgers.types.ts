@@ -105,6 +105,7 @@ const baseLedgerEntry = z.object({
   contact_type: contactType.nullish(), // Same as contact_id
 
   description: z.string().nullable(),
+  reference: z.string().nullish(),
   is_monetary: z.boolean().optional(),
   is_bank_leg: z.boolean().optional(),
 

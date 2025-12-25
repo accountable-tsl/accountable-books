@@ -60,6 +60,11 @@ interface NormalizedItem {
   label: string;
 }
 
+interface ClassNames {
+  commandList?: string;
+  actionItemsContainer?: string;
+}
+
 interface AutocompleteDropdownProps
   extends Omit<React.ComponentPropsWithoutRef<'input'>, 'value' | 'onChange'> {
   id?: string;
@@ -102,6 +107,8 @@ interface AutocompleteDropdownProps
 
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+
+  classNames?: ClassNames;
 }
 
 // Helper function to get nested property value using dot notation
@@ -205,6 +212,8 @@ export const AutocompleteDropdown = forwardRef<
 
     open: controlledOpen,
     onOpenChange: controlledOnOpenChange,
+
+    classNames = {},
 
     ...rest
   } = props;
@@ -429,6 +438,28 @@ export const AutocompleteDropdown = forwardRef<
     return result;
   }, [items, groups, groupBy, groupLabel, mapItem, useGrouping, groupOrder]);
 
+  // Create a flattened lookup map for O(1) access to all items
+  // This serves as the single source of truth for item lookups
+  const allItemsMap = useMemo(() => {
+    const map = new Map<string, string>();
+
+    // Add items from normalizedItems (for non-grouped or when groupBy is used)
+    normalizedItems.forEach((item) => {
+      map.set(item.value, item.label);
+    });
+
+    // Add items from groups (overwrites if duplicate, which is correct - groups take precedence)
+    if (useGrouping && groupedData) {
+      groupedData.forEach((group) => {
+        group.items.forEach((item) => {
+          map.set(item.value, item.label);
+        });
+      });
+    }
+
+    return map;
+  }, [normalizedItems, useGrouping, groupedData]);
+
   // Filter items based on search query
   const filteredData = useMemo(() => {
     // In async mode, use all items (server handles filtering)
@@ -491,7 +522,7 @@ export const AutocompleteDropdown = forwardRef<
 
   // Shared content for Popover and Drawer
   const dropdownContent = (
-    <Command shouldFilter={false}>
+    <Command shouldFilter={false} className="flex flex-col">
       <CommandInput
         id={id}
         ref={ref}
@@ -500,7 +531,7 @@ export const AutocompleteDropdown = forwardRef<
         value={searchQuery}
         onValueChange={setSearchQuery}
       />
-      <CommandList aria-busy={isLoading}>
+      <CommandList aria-busy={isLoading} className={classNames.commandList}>
         <CommandGroup>
           {!useGrouping && (
             <>
@@ -591,25 +622,6 @@ export const AutocompleteDropdown = forwardRef<
               );
             })()}
 
-          {(hasSearchResults || showEmptyState || showNoResults) &&
-            showActionItems && <CommandSeparator className="my-1" />}
-
-          {/* Action items - always visible regardless of search */}
-          {showActionItems &&
-            actionItems.map((action) => (
-              <CommandItem
-                key={action.id}
-                value={`action-${action.id} |_| ${action.label}`}
-                onSelect={() => handleAction(action.id)}
-                className={cn('cursor-pointer', action.className)}
-                role="button"
-                aria-label={`Action: ${action.label}`}
-              >
-                {action.icon}
-                {action.label}
-              </CommandItem>
-            ))}
-
           {showEmptyState && (
             <div className="py-6 text-center text-sm text-muted-foreground">
               {emptyStateMessage}
@@ -622,8 +634,35 @@ export const AutocompleteDropdown = forwardRef<
           )}
         </CommandGroup>
       </CommandList>
+
+      {/* Action items - fixed at bottom, outside scroll area */}
+      {showActionItems && (
+        <div className={cn('border-t', classNames.actionItemsContainer)}>
+          <CommandGroup>
+            {actionItems.map((action) => (
+              <CommandItem
+                key={action.id}
+                value={`action-${action.id} |_| ${action.label}`}
+                onSelect={() => handleAction(action.id)}
+                className={cn('cursor-pointer', action.className)}
+                role="button"
+                aria-label={`Action: ${action.label}`}
+              >
+                {action.icon}
+                {action.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </div>
+      )}
     </Command>
   );
+
+  // Get the label for the selected value using O(1) lookup
+  const getSelectedLabel = useMemo(() => {
+    if (!selectedValue) return placeholder;
+    return allItemsMap.get(selectedValue) ?? placeholder;
+  }, [selectedValue, allItemsMap, placeholder]);
 
   // Common trigger button
   const triggerButton = (
@@ -642,9 +681,7 @@ export const AutocompleteDropdown = forwardRef<
       <span
         className={`truncate text-left ${selectedValue ? '' : 'text-muted-foreground'}`}
       >
-        {selectedValue
-          ? normalizedItems.find((item) => item.value === selectedValue)?.label
-          : placeholder}
+        {getSelectedLabel}
       </span>
 
       {chevron === 'down' ? (

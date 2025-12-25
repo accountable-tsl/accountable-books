@@ -1,14 +1,18 @@
 import type {
   LedgerIntent,
   LedgerIntentEntry,
+  CategorizationTransaction,
 } from '@accountable-books/contracts/schema';
-import type { CategorizationTransaction } from './categorization.types.js';
 import type {
   LedgerEntryInput,
   NewLedgerTransactionData,
 } from '../ledgers/ledgers.types.js';
 import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
-import type { CategorizationCandidateLine } from './candidates/candidates.types.js';
+import type { ContactType } from '../contacts/index.js';
+import type {
+  CategorizationCandidateLine,
+  CategorizationCandidateWithLines,
+} from './candidates/candidates.types.js';
 import { toDate, toYMD } from '../../shared/utils/date.utils.js';
 
 /**
@@ -148,14 +152,6 @@ export function detectCurrentState(
   throw new Error('Unreachable transaction state');
 }
 
-export function resolveField<T>(
-  intentValue: T | null | undefined,
-  fallback: T | null,
-): T | null {
-  if (intentValue === null) return null;
-  return intentValue ?? fallback ?? null;
-}
-
 /**
  * Resolves a nullable field from intent with proper null vs undefined handling.
  *
@@ -168,7 +164,7 @@ export function resolveField<T>(
  * @param fallback - Fallback value to use if intentValue is undefined
  * @returns Resolved value or null
  */
-export function resolveNullableField<T>(
+function resolveNullableField<T>(
   intentValue: T | null | undefined,
   fallback: T | null | undefined,
 ): T | null {
@@ -232,37 +228,87 @@ export function buildBankLeg(
 }
 
 /**
- * Builds a non-bank leg entry from intent entry with fallbacks.
+ * Builds a non-bank leg entry from bank transaction state.
  *
- * Handles field resolution with proper null vs undefined semantics:
- * - null → explicit clear
- * - undefined → use fallback
- * - value → set/overwrite
+ * Used when creating a new ledger transaction from an uncategorized bank transaction.
  *
  * @param intentEntry - Intent entry with field updates
  * @param bankTransaction - Bank transaction for fallback values
  * @param intent - Ledger intent for exchange rate resolution
- * @param candidateLine - Optional candidate line for fallback values
- * @param candidateBankLeg - Optional candidate bank leg for exchange rate fallback
+ * @param intentEntriesCount - Total count of intent entries (determines if this is a split)
  * @returns Non-bank leg ledger entry input
  */
-export function buildNonBankLegFromIntent(
+export function buildNonBankLegFromBankTransaction(
   intentEntry: LedgerIntentEntry,
   bankTransaction: BankTransactionWithFilteredFields,
   intent: LedgerIntent,
-  candidateLine?: CategorizationCandidateLine | null,
-  candidateBankLeg?: CategorizationCandidateLine | null,
+  intentEntriesCount: number,
 ): LedgerEntryInput {
+  const isSplit = intentEntriesCount > 1;
+
+  if (!intentEntry.source_amount && isSplit) {
+    throw new Error('Split entries require explicit source_amount');
+  }
+
   return {
     is_bank_leg: false,
     coa_id: intentEntry.coa_id,
+    fs_date: intentEntry.fs_date || toYMD(bankTransaction.date),
+    source_currency_id: bankTransaction.bank_account_currency_id,
+    source_amount:
+      intentEntry.source_amount ?? (isSplit ? 0 : bankTransaction.amount),
+    custom_exchange_rate: resolveExchangeRate(intent, null, bankTransaction),
+    contact_id: resolveNullableField(
+      intentEntry.contact_id,
+      bankTransaction.contact_id,
+    ),
+    contact_type: resolveNullableField(
+      intentEntry.contact_type,
+      bankTransaction.contact_type_snapshot,
+    ),
+    description: resolveNullableField(
+      intentEntry.description,
+      bankTransaction.description,
+    ),
+    reference: resolveNullableField(
+      intentEntry.reference,
+      bankTransaction.reference,
+    ),
+    project_id: intentEntry.project_id === null ? null : intentEntry.project_id,
+    human_reviewed: true,
+    review_notes: intentEntry.review_notes,
+    ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
+  };
+}
+
+/**
+ * Builds a non-bank leg entry from candidate state (single entry case).
+ *
+ * Used when updating a candidate that has a single non-bank leg.
+ *
+ * @param intentEntry - Intent entry with field updates
+ * @param bankTransaction - Bank transaction for fallback values
+ * @param intent - Ledger intent for exchange rate resolution
+ * @param candidateLine - Candidate line to use as base for fallback values
+ * @param candidateBankLeg - Candidate bank leg for exchange rate fallback
+ * @returns Non-bank leg ledger entry input
+ */
+export function buildNonBankLegFromCandidateSingle(
+  intentEntry: LedgerIntentEntry,
+  bankTransaction: BankTransactionWithFilteredFields,
+  intent: LedgerIntent,
+  candidateLine: CategorizationCandidateLine | null,
+  candidateBankLeg: CategorizationCandidateLine,
+): LedgerEntryInput {
+  return {
+    is_bank_leg: false,
+    coa_id: intentEntry.coa_id ?? candidateLine?.coa_id,
     fs_date:
       intentEntry.fs_date ??
       candidateLine?.fs_date ??
       toYMD(bankTransaction.date),
     source_currency_id: bankTransaction.bank_account_currency_id,
-    source_amount:
-      intentEntry.source_amount ?? (candidateLine ? bankTransaction.amount : 0),
+    source_amount: bankTransaction.amount,
     custom_exchange_rate: resolveExchangeRate(
       intent,
       candidateBankLeg,
@@ -270,23 +316,221 @@ export function buildNonBankLegFromIntent(
     ),
     contact_id: resolveNullableField(
       intentEntry.contact_id,
-      candidateLine?.contact_id ?? bankTransaction.contact_id,
+      candidateLine?.contact_id ?? bankTransaction.contact_id ?? null,
     ),
     contact_type: resolveNullableField(
       intentEntry.contact_type,
-      candidateLine?.contact_type ?? bankTransaction.contact_type_snapshot,
+      candidateLine?.contact_type ??
+        bankTransaction.contact_type_snapshot ??
+        null,
     ),
     description: resolveNullableField(
       intentEntry.description,
-      candidateLine?.description ?? bankTransaction.description,
+      candidateLine?.description ?? bankTransaction.description ?? null,
+    ),
+    reference: resolveNullableField(
+      intentEntry.reference,
+      bankTransaction.reference ?? null,
     ),
     project_id: resolveNullableField(
       intentEntry.project_id,
       candidateLine?.project_id,
     ),
-    human_reviewed:
-      intentEntry.human_reviewed ??
-      (intentEntry.review_notes ? true : undefined),
+    human_reviewed: intentEntry.human_reviewed ?? true,
+    review_notes: intentEntry.review_notes ?? null,
+    ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
+  };
+}
+
+/**
+ * Builds a non-bank leg entry from candidate state (multiple entries/split case).
+ *
+ * Used when replacing a candidate that has multiple non-bank legs (split transaction).
+ *
+ * @param intentEntry - Intent entry with field updates
+ * @param bankTransaction - Bank transaction for fallback values
+ * @param intent - Ledger intent for exchange rate resolution
+ * @param candidateBankLeg - Candidate bank leg for fallback values
+ * @returns Non-bank leg ledger entry input
+ */
+export function buildNonBankLegFromCandidateSplit(
+  intentEntry: LedgerIntentEntry,
+  bankTransaction: BankTransactionWithFilteredFields,
+  intent: LedgerIntent,
+  candidateBankLeg: CategorizationCandidateLine,
+): LedgerEntryInput {
+  return {
+    is_bank_leg: false,
+    coa_id: intentEntry.coa_id, // Required in intent for splits
+    fs_date:
+      intentEntry.fs_date ??
+      candidateBankLeg.fs_date ??
+      toYMD(bankTransaction.date),
+    source_currency_id: bankTransaction.bank_account_currency_id,
+    source_amount: intentEntry.source_amount ?? 0,
+    custom_exchange_rate: resolveExchangeRate(
+      intent,
+      candidateBankLeg,
+      bankTransaction,
+    ),
+    contact_id: resolveNullableField(
+      intentEntry.contact_id,
+      candidateBankLeg.contact_id ?? bankTransaction.contact_id ?? null,
+    ),
+    contact_type: resolveNullableField(
+      intentEntry.contact_type,
+      candidateBankLeg.contact_type ??
+        bankTransaction.contact_type_snapshot ??
+        null,
+    ),
+    description: resolveNullableField(
+      intentEntry.description,
+      candidateBankLeg.description ?? bankTransaction.description ?? null,
+    ),
+    reference: resolveNullableField(
+      intentEntry.reference,
+      bankTransaction.reference ?? null,
+    ),
+    project_id: resolveNullableField(intentEntry.project_id, undefined),
+    human_reviewed: intentEntry.human_reviewed ?? true,
+    review_notes: intentEntry.review_notes ?? null,
+    ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
+  };
+}
+
+/**
+ * Builds a non-bank leg entry from ledger state (updating existing entry).
+ *
+ * Used when updating an existing ledger entry that was matched by entry_id.
+ *
+ * @param intentEntry - Intent entry with field updates
+ * @param intent - Ledger intent for exchange rate resolution
+ * @param ledgerEntry - Existing ledger entry to use as base
+ * @returns Non-bank leg ledger entry input
+ */
+export function buildNonBankLegFromLedgerUpdate(
+  intentEntry: LedgerIntentEntry,
+  intent: LedgerIntent,
+  ledgerEntry: {
+    id: string;
+    coa_id: string;
+    fs_date: Date;
+    source_currency_id: string;
+    source_amount: number;
+    custom_exchange_rate: number;
+    contact_id: string | null;
+    contact_type: ContactType | null;
+    description: string | null;
+    reference: string | null;
+    project_id: string | null;
+    human_reviewed: boolean | null;
+    review_notes: string | null;
+    metadata?: Record<string, unknown>;
+  },
+): LedgerEntryInput {
+  return {
+    id: ledgerEntry.id,
+    is_bank_leg: false,
+    coa_id: intentEntry.coa_id ?? ledgerEntry.coa_id,
+    fs_date: intentEntry.fs_date ?? toYMD(ledgerEntry.fs_date),
+    source_currency_id: ledgerEntry.source_currency_id,
+    source_amount: intentEntry.source_amount ?? ledgerEntry.source_amount,
+    custom_exchange_rate:
+      intent.desired_state?.custom_exchange_rate ??
+      ledgerEntry.custom_exchange_rate,
+    contact_id: resolveNullableField(
+      intentEntry.contact_id,
+      ledgerEntry.contact_id,
+    ),
+    contact_type: resolveNullableField(
+      intentEntry.contact_type,
+      ledgerEntry.contact_type,
+    ),
+    description: resolveNullableField(
+      intentEntry.description,
+      ledgerEntry.description,
+    ),
+    reference: resolveNullableField(
+      intentEntry.reference,
+      ledgerEntry.reference,
+    ),
+    project_id: resolveNullableField(
+      intentEntry.project_id,
+      ledgerEntry.project_id,
+    ),
+    human_reviewed: intentEntry.human_reviewed ?? true,
+    review_notes: intentEntry.review_notes ?? ledgerEntry.review_notes,
+    ...(intentEntry.metadata
+      ? { metadata: intentEntry.metadata }
+      : ledgerEntry.metadata
+        ? { metadata: ledgerEntry.metadata }
+        : {}),
+  };
+}
+
+/**
+ * Builds a non-bank leg entry from ledger state (adding new entry/split).
+ *
+ * Used when adding a new split entry to an existing ledger transaction.
+ *
+ * @param intentEntry - Intent entry with field updates
+ * @param bankTransaction - Bank transaction for fallback values
+ * @param intent - Ledger intent for exchange rate resolution
+ * @param ledgerTxn - Existing ledger transaction for fallback values
+ * @param templateEntry - Template entry from existing ledger (if available) for fallback values
+ * @returns Non-bank leg ledger entry input
+ */
+export function buildNonBankLegFromLedgerSplit(
+  intentEntry: LedgerIntentEntry,
+  bankTransaction: BankTransactionWithFilteredFields,
+  intent: LedgerIntent,
+  ledgerTxn: {
+    date: Date;
+    source_transaction_currency_id: string;
+    contact_id: string | null;
+    contact_type: ContactType | null;
+    description: string | null;
+  },
+  templateEntry?: {
+    fs_date: Date;
+    source_currency_id: string;
+    custom_exchange_rate: number;
+    contact_id: string | null;
+    contact_type: ContactType | null;
+    description: string | null;
+  } | null,
+): LedgerEntryInput {
+  return {
+    is_bank_leg: false,
+    coa_id: intentEntry.coa_id,
+    fs_date:
+      intentEntry.fs_date ??
+      (templateEntry ? toYMD(templateEntry.fs_date) : toYMD(ledgerTxn.date)),
+    source_currency_id:
+      templateEntry?.source_currency_id ??
+      ledgerTxn.source_transaction_currency_id,
+    source_amount: intentEntry.source_amount!,
+    custom_exchange_rate:
+      intent.desired_state?.custom_exchange_rate ??
+      templateEntry?.custom_exchange_rate,
+    contact_id: resolveNullableField(
+      intentEntry.contact_id,
+      templateEntry?.contact_id ?? ledgerTxn.contact_id ?? null,
+    ),
+    contact_type: resolveNullableField(
+      intentEntry.contact_type,
+      templateEntry?.contact_type ?? ledgerTxn.contact_type ?? null,
+    ),
+    description: resolveNullableField(
+      intentEntry.description,
+      templateEntry?.description ?? ledgerTxn.description ?? null,
+    ),
+    reference: resolveNullableField(
+      intentEntry.reference,
+      (ledgerTxn as { reference?: string | null }).reference ?? null,
+    ),
+    project_id: resolveNullableField(intentEntry.project_id, undefined),
+    human_reviewed: intentEntry.human_reviewed ?? true,
     review_notes: intentEntry.review_notes ?? null,
     ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
   };
@@ -323,5 +567,35 @@ export function buildLedgerTransactionMetadata(
     source_transaction_amount: bankTransaction.amount,
     source_transaction_currency_id: bankTransaction.bank_account_currency_id,
     ...(candidateId ? { categorization_candidate_id: candidateId } : {}),
+  };
+}
+
+/**
+ * Builds ledger transaction metadata from candidate and bank transaction.
+ *
+ * Used when creating new ledger transactions from candidates.
+ *
+ * @param candidate - Candidate data with lines
+ * @param bankTransaction - Bank transaction data
+ * @returns Ledger transaction metadata (without entries)
+ */
+export function buildLedgerTransactionMetadataFromCandidate(
+  candidate: CategorizationCandidateWithLines,
+  bankTransaction: BankTransactionWithFilteredFields,
+): Omit<NewLedgerTransactionData, 'transactions'> {
+  return {
+    date: toDate(bankTransaction.date, 'start'),
+    transaction_source: 'bank_transaction',
+    categorization_source: candidate.source,
+    description: candidate.description ?? null,
+    reference: candidate.reference ?? null,
+    note: bankTransaction.additional_notes ?? null,
+    contact_id: candidate.contact_id,
+    contact_type: candidate.contact_type ?? null,
+    source_transaction_id: candidate.bank_transaction_id,
+    source_transaction_date: toDate(bankTransaction.date, 'start'),
+    source_transaction_amount: bankTransaction.amount,
+    source_transaction_currency_id: bankTransaction.bank_account_currency_id,
+    categorization_candidate_id: candidate.id,
   };
 }
