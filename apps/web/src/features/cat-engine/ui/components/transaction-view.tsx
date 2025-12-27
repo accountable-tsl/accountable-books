@@ -1,10 +1,29 @@
-import { FormattedAmount } from '@/components/FormattedAmount';
-import { TooltipHelper } from '@/components/TooltipHelper';
-import { cn } from '@/lib/utils';
 import type {
   CategorizationTransactionFile,
   GroupedTransaction,
 } from '@/modules/accounting/categorization';
+import type { ContactResponse } from '@/modules/contacts';
+import type { ProjectsResponse } from '@/modules/projects';
+import type {
+  LedgerIntentDesiredState,
+  LedgerIntentEntry,
+} from '@accountable-books/contracts/schema';
+import type { ComponentProps } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSession } from '@/app/session';
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { FilePreviewer } from '@/components/file-previewer';
+import { FormattedAmount } from '@/components/FormattedAmount';
+import { TooltipHelper } from '@/components/TooltipHelper';
+import { Badge } from '@/components/ui/badge';
+import { AddNewCoaDialog } from '@/features/chart-of-accounts/ui/components/coa-add-new';
+import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
+import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
+import { cn } from '@/lib/utils';
+import { useContactsInfinite } from '@/modules/contacts';
+import { getObjectDownloadUrl } from '@/modules/objects/api';
+import { useUploadTransactionFiles } from '@/modules/objects/model/hooks';
+import { useProjectsInfinite } from '@/modules/projects';
 import {
   Check,
   ChevronDown,
@@ -15,27 +34,16 @@ import {
   Upload,
   X,
 } from 'lucide-react';
+import { toast } from 'sonner';
+
 import { TOOLTIPS } from '../constants';
-import { Badge } from '@/components/ui/badge';
-import { useEffect, useMemo, useState, type ComponentProps } from 'react';
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import {
+  createTempEntryId,
+  isTempEntryId,
+  useLedgerIntentUpdater,
+} from '../hooks/use-intent-emitter';
+
 import type { GroupedCoaData } from '../types';
-import { useSession } from '@/app/session';
-import { useContactsInfinite, type ContactResponse } from '@/modules/contacts';
-import { useProjectsInfinite, type ProjectsResponse } from '@/modules/projects';
-import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
-import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
-import { AddNewCoaDialog } from '@/features/chart-of-accounts/ui/components/coa-add-new';
-import { useLedgerIntentUpdater } from '../hooks/use-intent-emitter';
-import type {
-  LedgerIntent,
-  LedgerIntentDesiredState,
-  LedgerIntentEntry,
-} from '@accountable-books/contracts/schema';
-import { Button } from '@/components/ui/button';
-import { FilePreviewer } from '@/components/file-previewer';
-import { formatAmount } from '@/shared/utils/formatting-utils';
-import { compareDeep } from '@/shared/utils/comparison-utils';
 
 // Escape key should close the edit mode and act as cancel
 // Enter key should save the entry and act as save
@@ -54,7 +62,8 @@ export function TransactionView({
   groupedCoaData = [],
 }: TransactionViewProps) {
   const { companyId } = useSession();
-  const { updateEntry, updateExchangeRate } = useLedgerIntentUpdater(txn);
+  const { updateEntry, updateExchangeRate, deleteEntry } =
+    useLedgerIntentUpdater(txn);
 
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(
     new Set(),
@@ -78,7 +87,18 @@ export function TransactionView({
   const [selectedFileIndex, setSelectedFileIndex] = useState<number | null>(
     null,
   );
-  const [isEditingAmount, setIsEditingAmount] = useState(false);
+  const [_isEditingAmount, setIsEditingAmount] = useState(false);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  // Map of file key -> presigned URL for server files
+  const [presignedUrls, setPresignedUrls] = useState<Map<string, string>>(
+    new Map(),
+  );
+  // Map of File object -> blob URL for new files
+  const [blobUrls, setBlobUrls] = useState<Map<File, string>>(new Map());
+  // Track which files have been saved
+  const [savedFiles, setSavedFiles] = useState<Set<File>>(new Set());
+
+  const uploadTxnFilesMutation = useUploadTransactionFiles();
 
   const contactsQuery = useContactsInfinite({
     companyId: companyId || '',
@@ -124,13 +144,13 @@ export function TransactionView({
     });
   }, [projectsQuery.data?.pages]);
 
-  const intent = useMemo(() => {
-    return {
-      // intent_id: uuidv4(),
-      bank_transaction_id: txn.id,
-      desired_state: draftTransactionState,
-    };
-  }, [draftTransactionState, txn.id]);
+  // const intent = useMemo(() => {
+  //   return {
+  //     // intent_id: uuidv4(),
+  //     bank_transaction_id: txn.id,
+  //     desired_state: draftTransactionState,
+  //   };
+  // }, [draftTransactionState, txn.id]);
 
   useEffect(() => {
     if (!txn) return;
@@ -217,9 +237,22 @@ export function TransactionView({
 
   function hasEntryChanged(entryId: string): boolean {
     const draft = getDraftEntry(entryId);
-    const server = txn.entries?.find((e) => e.id === entryId);
+    if (!draft) return false;
 
-    if (!draft || !server) return false;
+    // New entries are always considered changed
+    // Check if entry exists in transaction (more robust than string prefix)
+    const existsInTransaction =
+      txn.hasMultipleEntries && txn.entries
+        ? txn.entries.some((e) => e.id === entryId)
+        : entryId === txn.id;
+
+    if (!existsInTransaction) {
+      return true; // New entry
+    }
+
+    // Compare with server state directly
+    const server = txn.entries?.find((e) => e.id === entryId);
+    if (!server) return false;
 
     return (
       draft.coa_id !== (server.coaId ?? '') ||
@@ -231,38 +264,209 @@ export function TransactionView({
     );
   }
 
+  // Type guard to check if file is a server file
+  function isServerFile(
+    file: CategorizationTransactionFile | File,
+  ): file is CategorizationTransactionFile {
+    return 'id' in file && 'key' in file;
+  }
+
+  // Helper function to get file attachments for FilePreviewer (synchronous - all data is in memory)
+  const getFileAttachments = useCallback(
+    (
+      entryId: string,
+    ): Array<{
+      file_name: string;
+      url: string;
+      type: string;
+      size?: number;
+    }> => {
+      const files = draftEntryFiles.get(entryId) || [];
+      const attachments: Array<{
+        file_name: string;
+        url: string;
+        type: string;
+        size?: number;
+      }> = [];
+
+      for (const file of files) {
+        if (isServerFile(file)) {
+          // Server file - use presigned URL if available
+          const url = presignedUrls.get(file.key);
+          if (!url) {
+            // Fetch presigned URL asynchronously in background
+            getObjectDownloadUrl({
+              bucketType: 'txnFiles',
+              fileKey: file.key,
+              timeout: 3600,
+            }).then((downloadUrlResponse) => {
+              if (downloadUrlResponse.success && downloadUrlResponse.data) {
+                setPresignedUrls((prev) =>
+                  new Map(prev).set(file.key, downloadUrlResponse.data!.url),
+                );
+              }
+            });
+            continue; // Skip for now, will be available on next render
+          }
+          attachments.push({
+            file_name: file.name,
+            url,
+            type: file.type,
+            size: Number(file.size_bytes),
+          });
+        } else {
+          // New file - use blob URL
+          let blobUrl = blobUrls.get(file);
+          if (!blobUrl) {
+            blobUrl = createTypedBlobUrl(file);
+            setBlobUrls((prev) => new Map(prev).set(file, blobUrl!));
+          }
+
+          attachments.push({
+            file_name: file.name,
+            url: blobUrl,
+            type: file.type,
+            size: file.size,
+          });
+        }
+      }
+
+      return attachments;
+    },
+    [draftEntryFiles, presignedUrls, blobUrls],
+  );
+
   function canPersistEntry(entryId: string): boolean {
+    const entry = getDraftEntry(entryId);
+    if (!entry) {
+      console.log('[canPersistEntry] Entry not found', { entryId });
+      return false;
+    }
+
+    // 0. Nothing changed → nothing to do
+    const hasChanged = hasEntryChanged(entryId);
+    if (!hasChanged) {
+      return false;
+    }
+
+    // 1. Entry must be categorizable
+    if (!entry.coa_id) {
+      console.log('[canPersistEntry] Entry missing COA', {
+        entryId,
+        entry: {
+          coa_id: entry.coa_id,
+          contact_id: entry.contact_id,
+          project_id: entry.project_id,
+        },
+      });
+      return false;
+    }
+
+    // 2. Transaction must be balanced
+    const balanceCheck = isTransactionBalanced();
+    if (!balanceCheck.balanced) {
+      const entriesTotal =
+        draftTransactionState?.entries?.reduce(
+          (sum, e) => sum + (e.source_amount ?? 0),
+          0,
+        ) ?? 0;
+      console.log('[canPersistEntry] Transaction not balanced', {
+        entryId,
+        entriesTotal,
+        bankAmount: txn.bankAmount,
+        diff: balanceCheck.diff,
+        expectedTotal: -txn.bankAmount,
+        entries: draftTransactionState?.entries?.map((e) => ({
+          id: e.entry_id,
+          source_amount: e.source_amount,
+        })),
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  // Simpler check for file uploads - doesn't require entry fields to have changed
+  function canAcceptFiles(entryId: string): boolean {
     const entry = getDraftEntry(entryId);
     if (!entry) return false;
 
-    // 0. Nothing changed → nothing to do
-    if (!hasEntryChanged(entryId)) return false;
-
-    // 1. Entry must be categorizable
+    // Entry must be categorizable
     if (!entry.coa_id) return false;
 
-    // 2. Transaction must be balanced
+    // Transaction must be balanced
     if (!isTransactionBalanced()) return false;
 
     return true;
   }
 
-  function isTransactionBalanced(): boolean {
-    if (!draftTransactionState?.entries?.length) return false;
+  function isTransactionBalanced(): { balanced: boolean; diff: number } {
+    if (!draftTransactionState?.entries?.length)
+      return { balanced: false, diff: 0 };
 
     const entriesTotal = draftTransactionState.entries.reduce(
       (sum, e) => sum + (e.source_amount ?? 0),
       0,
     );
 
-    return Math.abs(entriesTotal + txn.bankAmount) < 0.0001;
+    return {
+      balanced: Math.abs(entriesTotal + txn.bankAmount) < 0.0001,
+      diff: entriesTotal + txn.bankAmount,
+    };
   }
 
+  // Auto-save files when entry becomes valid
+  const handleAutoSaveFiles = async (entryId: string) => {
+    if (!companyId || !canAcceptFiles(entryId)) return;
+
+    const files = draftEntryFiles.get(entryId) || [];
+    const newFiles = files.filter(
+      (file) => !isServerFile(file) && !savedFiles.has(file),
+    ) as File[];
+
+    if (newFiles.length === 0) return;
+
+    try {
+      // Determine source type - for entries it should be 'ledger'
+      const source: 'ledger' | 'journal' | 'bank' = 'ledger';
+
+      await uploadTxnFilesMutation.mutateAsync({
+        companyId,
+        files: newFiles,
+        transactionId: txn.bankTransactionId,
+        source,
+        entryId: isTempEntryId(entryId) ? null : entryId,
+      });
+
+      // Mark files as saved
+      setSavedFiles((prev) => {
+        const newSet = new Set(prev);
+        newFiles.forEach((file) => newSet.add(file));
+        return newSet;
+      });
+
+      // Note: The uploaded files will be replaced with server file objects
+      // when the transaction is refetched, but for now we keep them as File objects
+      // until the next data refresh
+    } catch (error) {
+      toast.error('File upload failed. Please try again.');
+      console.error('Failed to auto-save files:', error);
+    }
+  };
+
   const handleSaveEntry = (entryId: string, field: EntryField, value: any) => {
-    if (canPersistEntry(entryId)) {
-      setTimeout(() => {
-        updateEntry(entryId, { [field]: value });
-      }, 300);
+    console.log('handleSaveEntry', { entryId, field, value });
+
+    // Always call updateEntry - let emitter handle accumulation and validation
+    updateEntry(entryId, { [field]: value });
+
+    // Update draft state for UI
+    updateDraftEntry(entryId, { [field]: value });
+
+    // Auto-save files when entry is ready (check canAcceptFiles, not canPersistEntry)
+    if (canAcceptFiles(entryId)) {
+      handleAutoSaveFiles(entryId);
     }
 
     setEditing(null);
@@ -276,7 +480,7 @@ export function TransactionView({
   const handleAddEntry = () => {
     if (!draftTransactionState) return;
 
-    const newEntryId = `temp-entry-${(draftTransactionState.entries?.length || 0) + 1}`;
+    const newEntryId = createTempEntryId();
     const newEntry: LedgerIntentEntry = {
       entry_id: newEntryId,
       coa_id: '' as any,
@@ -304,12 +508,18 @@ export function TransactionView({
   const handleDeleteEntry = (entryId: string) => {
     if (!draftTransactionState?.entries) return;
 
+    // Remove from draft state (UI)
     setDraftTransactionState({
       ...draftTransactionState,
       entries: draftTransactionState.entries.filter(
         (e) => e.entry_id !== entryId,
       ),
     });
+
+    // Always call deleteEntry - it handles both new and existing entries
+    // For new entries: removes from desiredState.entries (prevents sending)
+    // For existing entries: tracks deletion in deleted_entry_ids
+    deleteEntry(entryId);
 
     // Remove files for the deleted entry
     setDraftEntryFiles((prev) => {
@@ -325,6 +535,20 @@ export function TransactionView({
   ) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
+      // Create blob URLs immediately for instant preview
+      const newBlobUrls = new Map<File, string>();
+      newFiles.forEach((file) => {
+        const blobUrl = createTypedBlobUrl(file);
+
+        newBlobUrls.set(file, blobUrl);
+      });
+
+      setBlobUrls((prev) => {
+        const combined = new Map(prev);
+        newBlobUrls.forEach((url, file) => combined.set(file, url));
+        return combined;
+      });
+
       setDraftEntryFiles((prev) => {
         const newFilesMap = new Map(prev);
         const existingFiles = newFilesMap.get(entryId) || [];
@@ -340,6 +564,27 @@ export function TransactionView({
     setDraftEntryFiles((prev) => {
       const newFilesMap = new Map(prev);
       const existingFiles = newFilesMap.get(entryId) || [];
+      const fileToRemove = existingFiles[fileIndex];
+
+      // Clean up blob URL if it's a new file
+      if (fileToRemove && !isServerFile(fileToRemove)) {
+        const blobUrl = blobUrls.get(fileToRemove);
+        if (blobUrl) {
+          URL.revokeObjectURL(blobUrl);
+          setBlobUrls((prevBlob) => {
+            const newBlob = new Map(prevBlob);
+            newBlob.delete(fileToRemove);
+            return newBlob;
+          });
+        }
+        // Remove from saved files tracking
+        setSavedFiles((prevSaved) => {
+          const newSaved = new Set(prevSaved);
+          newSaved.delete(fileToRemove);
+          return newSaved;
+        });
+      }
+
       const updatedFiles = existingFiles.filter(
         (_, index) => index !== fileIndex,
       );
@@ -352,6 +597,35 @@ export function TransactionView({
     });
   };
 
+  // Auto-save files when entry becomes valid or when files are added
+  useEffect(() => {
+    if (!draftTransactionState?.entries || !companyId) return;
+
+    draftTransactionState.entries.forEach((entry) => {
+      if (entry.entry_id && canAcceptFiles(entry.entry_id)) {
+        // Check if there are unsaved files for this entry
+        const files = draftEntryFiles.get(entry.entry_id) || [];
+        const hasUnsavedFiles = files.some(
+          (file) => !isServerFile(file) && !savedFiles.has(file),
+        );
+
+        if (hasUnsavedFiles) {
+          handleAutoSaveFiles(entry.entry_id);
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftTransactionState?.entries, draftEntryFiles, savedFiles, companyId]);
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      blobUrls.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+    };
+  }, []);
+
   const isFxTransaction =
     txn?.bankAccountCurrencyCode !== txn?.reportingCurrencyCode;
 
@@ -362,12 +636,12 @@ export function TransactionView({
   return (
     <div
       className={cn(
-        'min-h-0 h-full text-sm rounded-md flex flex-col gap-4 border overflow-hidden',
+        'flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-md border text-sm',
       )}
     >
       <div
         className={cn(
-          'flex items-center justify-between px-4 py-1 h-10 min-h-10 border-b',
+          'flex h-10 min-h-10 items-center justify-between border-b px-4 py-1',
           //   backgroundClass,
         )}
       >
@@ -379,11 +653,11 @@ export function TransactionView({
         </div>
       </div>
 
-      <div className="divide-y flex-1 flex flex-col min-h-0">
-        <div className="grid grid-cols-2 gap-4 p-4 pt-0 items-center flex-shrink-0">
+      <div className="flex min-h-0 flex-1 flex-col divide-y">
+        <div className="grid flex-shrink-0 grid-cols-2 items-center gap-4 p-4 pt-0">
           {/* Amount */}
           <div className="overflow-hidden">
-            <div className="text-xs text-muted-foreground truncate">
+            <div className="text-muted-foreground truncate text-xs">
               Bank amount
             </div>
             <FormattedAmount
@@ -392,7 +666,7 @@ export function TransactionView({
               showSymbol
               accountingNegatives={false}
               className={cn(
-                'text-xl font-bold truncate',
+                'truncate text-xl font-bold',
                 txn.nativeAmount > 9_999_999_999 ? 'text-lg' : '',
                 txn.nativeAmount < 0
                   ? 'text-red-600 dark:text-red-500'
@@ -411,9 +685,9 @@ export function TransactionView({
             }
             contentStyle="w-fit max-w-xs text-center"
             trigger={
-              <div className="flex gap-2 items-center overflow-hidden">
+              <div className="flex items-center gap-2 overflow-hidden">
                 <div
-                  className="flex-shrink-0 w-8 h-8 overflow-hidden rounded-full bg-muted dark:bg-foreground/70 flex items-center justify-center border"
+                  className="bg-muted dark:bg-foreground/70 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border"
                   role="img"
                   aria-label={`${txn.bankName || TOOLTIPS.BANK_LOGO} logo`}
                 >
@@ -421,14 +695,14 @@ export function TransactionView({
                     <img
                       src={txn.bankLogo}
                       alt={`${txn.bankName || 'Bank'} Logo`}
-                      className="w-8 h-8 object-contain"
+                      className="h-8 w-8 object-contain"
                       loading="lazy"
                     />
                   ) : (
-                    <Landmark className="w-4 h-4" />
+                    <Landmark className="h-4 w-4" />
                   )}
                 </div>
-                <p className="text-muted-foreground text-xs line-clamp-2">
+                <p className="text-muted-foreground line-clamp-2 text-xs">
                   {txn.bankAccountName}
                 </p>
               </div>
@@ -437,7 +711,7 @@ export function TransactionView({
 
           {/* Exchange Rate */}
           <div>
-            <p className="text-xs text-muted-foreground">Exchange Rate</p>
+            <p className="text-muted-foreground text-xs">Exchange Rate</p>
             <p className="">
               {draftTransactionState?.custom_exchange_rate ?? txn.exchangeRate}
             </p>
@@ -455,7 +729,7 @@ export function TransactionView({
 
           {/* Bank Description */}
           <div className="col-span-2">
-            <p className="text-xs text-muted-foreground">Description</p>
+            <p className="text-muted-foreground text-xs">Description</p>
             <TooltipHelper
               icon={false}
               content={txn.description || ''}
@@ -466,13 +740,13 @@ export function TransactionView({
             <>
               {/* Contact */}
               <div>
-                <p className="text-xs text-muted-foreground">Contact</p>
+                <p className="text-muted-foreground text-xs">Contact</p>
                 <p>{txn.contactName}</p>
               </div>
 
               {/* Reference */}
               <div>
-                <p className="text-xs text-muted-foreground">Reference</p>
+                <p className="text-muted-foreground text-xs">Reference</p>
                 <p>{txn.reference || '-'}</p>
               </div>
             </>
@@ -480,10 +754,10 @@ export function TransactionView({
         </div>
 
         {/* Entries Section */}
-        <div className="p-4 flex-1 overflow-y-auto scrollbar-thin-2px min-h-0">
+        <div className="scrollbar-thin-2px min-h-0 flex-1 overflow-y-auto p-4">
           {/* Exchange Rate - Editable */}
           {isFxTransaction && (
-            <div className="space-y-1 mb-4">
+            <div className="mb-4 space-y-1">
               <NumberField
                 label={`Exchange Rate (1 ${txn.bankAccountCurrencyCode} = ?${' '}
                 ${txn.reportingCurrencyCode})`}
@@ -525,35 +799,35 @@ export function TransactionView({
                 inputOnly={false}
                 decimalPlaces={6}
               />
-              <div className="text-xs text-muted-foreground">
+              <div className="text-muted-foreground text-xs">
                 Affects all entries in this transaction
               </div>
             </div>
           )}
 
-          <div className="text-xs text-muted-foreground">Entries</div>
+          <div className="text-muted-foreground text-xs">Entries</div>
 
           <div className="space-y-3">
             {/* Bank Leg Entry */}
-            <div className="p-1 border-2 rounded overflow-clip">
+            <div className="overflow-clip rounded border-2 p-1">
               {/* Entry Header */}
-              <div className="px-2 py-1 bg-muted rounded overflow-clip">
-                <div className="flex justify-between overflow-clip gap-4">
+              <div className="bg-muted overflow-clip rounded px-2 py-1">
+                <div className="flex justify-between gap-4 overflow-clip">
                   <div className="flex min-w-0 items-center gap-1 overflow-clip">
-                    <span className="flex-shrink-0 text-xs text-muted-foreground">
+                    <span className="text-muted-foreground flex-shrink-0 text-xs">
                       {txn.bankAmount < 0 ? 'CR' : 'DR'}
                     </span>
                     <div
-                      className="text-sm truncate"
+                      className="truncate text-sm"
                       title={txn.bankAccountCoaName ?? txn.bankAccountName}
                     >
                       {txn.bankAccountCoaName ?? txn.bankAccountName}
                     </div>
-                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                    <span className="text-muted-foreground flex-shrink-0 text-xs">
                       (Bank Leg)
                     </span>
                   </div>
-                  <div className="flex-shrink-0 flex items-center gap-2">
+                  <div className="flex flex-shrink-0 items-center gap-2">
                     <div
                       className={cn(
                         txn.bankAmount < 0
@@ -593,26 +867,26 @@ export function TransactionView({
               return (
                 <div
                   key={draftEntry.entry_id}
-                  className="border rounded overflow-hidden"
+                  className="overflow-hidden rounded border"
                 >
-                  <div className="px-3 py-2 bg-muted hover:bg-muted/50 transition-colors">
+                  <div className="bg-muted hover:bg-muted/50 px-3 py-2 transition-colors">
                     {/* Entry Header */}
                     <div
                       onClick={() => toggleEntry(draftEntry.entry_id || '')}
-                      className="flex items-center justify-between overflow-clip gap-4 cursor-pointer"
+                      className="flex cursor-pointer items-center justify-between gap-4 overflow-clip"
                     >
                       <div className="flex min-w-0 items-center gap-1 overflow-clip">
-                        <span className="flex-shrink-0 text-xs text-muted-foreground">
+                        <span className="text-muted-foreground flex-shrink-0 text-xs">
                           {sourceAmt < 0 ? 'CR' : 'DR'}
                         </span>
-                        <span className="text-sm truncate">
+                        <span className="truncate text-sm">
                           {groupedCoaData
                             .flatMap((group) => group.items)
                             .find((item) => item.value === draftEntry.coa_id)
                             ?.label ?? 'Not set'}
                         </span>
                       </div>
-                      <div className="flex-shrink-0 flex items-center gap-2">
+                      <div className="flex flex-shrink-0 items-center gap-2">
                         <div
                           className={cn(
                             sourceAmt < 0
@@ -633,9 +907,9 @@ export function TransactionView({
                           />
                         </div>
                         {expandedEntries.has(draftEntry.entry_id || '') ? (
-                          <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                          <ChevronUp className="text-muted-foreground h-4 w-4" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                          <ChevronDown className="text-muted-foreground h-4 w-4" />
                         )}
                       </div>
                     </div>
@@ -643,7 +917,7 @@ export function TransactionView({
 
                   {/* Entry Details - Expanded */}
                   {expandedEntries.has(draftEntry.entry_id || '') && (
-                    <div className="px-3 py-3 space-y-3 border">
+                    <div className="space-y-3 border px-3 py-3">
                       {/* Account */}
                       <EditableSelectField
                         label="Account"
@@ -708,7 +982,7 @@ export function TransactionView({
                       {/* Debit/Credit Placeholders - Improve and handle formatting of what's displayed, when user types in the credit, the debit field should be cleared (0) and vice versa */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">
+                          <label className="text-muted-foreground text-xs">
                             Debit
                             {isFxTransaction
                               ? ` (${txn.bankAccountCurrencyCode})`
@@ -727,11 +1001,10 @@ export function TransactionView({
                               updateDraftEntry(entry.id, { source_amount: v });
                             }}
                             onBlur={() => {
-                              if (canPersistEntry(entry.id)) {
-                                updateEntry(entry.id, {
-                                  source_amount: draftEntry.source_amount,
-                                });
-                              }
+                              // Always call updateEntry - let emitter handle accumulation and validation
+                              updateEntry(entry.id, {
+                                source_amount: draftEntry.source_amount,
+                              });
                             }}
                             className="w-full bg-muted/50 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           /> */}
@@ -743,18 +1016,17 @@ export function TransactionView({
                               })
                             }
                             onCommit={() => {
-                              if (canPersistEntry(draftEntry.entry_id || '')) {
-                                updateEntry(draftEntry.entry_id || '', {
-                                  source_amount: draftEntry.source_amount,
-                                });
-                              }
+                              // Always call updateEntry - let emitter handle accumulation and validation
+                              updateEntry(draftEntry.entry_id || '', {
+                                source_amount: draftEntry.source_amount,
+                              });
                             }}
                             onStartEditing={() => setIsEditingAmount(true)}
                             onEndEditing={() => setIsEditingAmount(false)}
                           />
 
                           {isFxTransaction && (serverEntry?.spent ?? 0) > 0 && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-muted-foreground text-xs">
                               ≃ {txn.reportingCurrencySymbol}{' '}
                               {formatNumber(
                                 Number(
@@ -766,7 +1038,7 @@ export function TransactionView({
                           )}
                         </div>
                         <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">
+                          <label className="text-muted-foreground text-xs">
                             Credit
                             {isFxTransaction
                               ? ` (${txn.bankAccountCurrencyCode})`
@@ -780,7 +1052,14 @@ export function TransactionView({
                               })
                             }
                             onCommit={() => {
+                              console.log('onCommit', { draftEntry });
+                              console.log(
+                                'canPersistEntry',
+                                canPersistEntry(draftEntry.entry_id || ''),
+                              );
+
                               if (canPersistEntry(draftEntry.entry_id || '')) {
+                                // Always call updateEntry - let emitter handle accumulation and validation
                                 updateEntry(draftEntry.entry_id || '', {
                                   source_amount: draftEntry.source_amount,
                                 });
@@ -792,7 +1071,7 @@ export function TransactionView({
 
                           {isFxTransaction &&
                             (serverEntry?.received ?? 0) > 0 && (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-muted-foreground text-xs">
                                 ≃ {txn.reportingCurrencySymbol}{' '}
                                 {formatNumber(
                                   Number(
@@ -1003,11 +1282,11 @@ export function TransactionView({
 
                       {/* Explanation */}
                       {serverEntry?.explanation && (
-                        <div className="bg-muted/50 border rounded px-2 py-1.5 text-sm cursor-pointer hover:bg-muted/10 transition-colors group flex items-center justify-between">
+                        <div className="bg-muted/50 hover:bg-muted/10 group flex cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors">
                           <span className="truncate">
                             {serverEntry.explanation}
                           </span>
-                          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground flex-shrink-0" />
+                          <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
                         </div>
                       )}
 
@@ -1048,7 +1327,7 @@ export function TransactionView({
                     TODO: Limit no of files, size, etc
                      */}
                       <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">
+                        <label className="text-muted-foreground text-xs">
                           Attachments
                         </label>
                         <div className="space-y-2">
@@ -1059,10 +1338,13 @@ export function TransactionView({
                               ?.map((file, fileIndex) => (
                                 <div
                                   key={fileIndex}
-                                  onClick={() => {
+                                  onClick={async () => {
+                                    setSelectedEntryId(
+                                      draftEntry.entry_id || '',
+                                    );
                                     setSelectedFileIndex(fileIndex);
                                   }}
-                                  className="cursor-pointer flex items-center justify-between bg-muted border rounded px-2 py-1.5 text-xs"
+                                  className="bg-muted flex cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-xs"
                                 >
                                   <span className="truncate">{file.name}</span>
                                   <button
@@ -1073,14 +1355,14 @@ export function TransactionView({
                                         fileIndex,
                                       );
                                     }}
-                                    className="ml-2 p-1 hover:bg-muted/70 rounded transition-colors"
+                                    className="hover:bg-muted/70 ml-2 rounded p-1 transition-colors"
                                   >
-                                    <X className="w-2 h-2" />
+                                    <X className="h-2 w-2" />
                                   </button>
                                 </div>
                               ))}
-                          <label className="flex items-center justify-center gap-2 bg-muted/50 border border-dashed rounded px-2 py-1.5 text-xs cursor-pointer hover:bg-muted/50 transition-colors">
-                            <Upload className="w-3 h-3" />
+                          <label className="bg-muted/50 hover:bg-muted/50 flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed px-2 py-1.5 text-xs transition-colors">
+                            <Upload className="h-3 w-3" />
                             <span>Upload files</span>
                             <input
                               type="file"
@@ -1092,13 +1374,6 @@ export function TransactionView({
                             />
                           </label>
                         </div>
-
-                        {/* <FilePreviewer
-                        files={entry.files}
-                        currentIndex={selectedFileIndex}
-                        onClose={() => setSelectedFileIndex(null)}
-                        onNavigate={(index) => setSelectedFileIndex(index)}
-                      /> */}
                       </div>
 
                       {/* Delete Entry */}
@@ -1106,9 +1381,9 @@ export function TransactionView({
                         onClick={() =>
                           handleDeleteEntry(draftEntry.entry_id || '')
                         }
-                        className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                        className="flex w-full items-center justify-center gap-2 rounded px-3 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-500/10"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="h-3 w-3" />
                         <span>Delete Entry</span>
                       </button>
                     </div>
@@ -1119,63 +1394,100 @@ export function TransactionView({
 
             {/* '+ Add Entry' button */}
             <div
-              className="flex items-center justify-center px-2 py-1.5 gap-1 text-sm cursor-pointer border border-dashed rounded w-full"
+              className="flex w-full cursor-pointer items-center justify-center gap-1 rounded border border-dashed px-2 py-1.5 text-sm"
               onClick={handleAddEntry}
             >
-              <Plus className="w-4 h-4" /> <span>Add Entry</span>
+              <Plus className="h-4 w-4" /> <span>Add Entry</span>
             </div>
           </div>
         </div>
 
-        <div className="flex-shrink-0 p-2 space-y-0.5">
-          {/* Add better message here later*/}
-          {!isTransactionBalanced() && (
-            <p className="text-xs text-destructive dark:text-red-300 text-center pb-1 bg-red-50 dark:bg-red-950">
-              Total debit and credit do not match
+        <div className="flex-shrink-0 space-y-0.5 p-2">
+          {/* Add better message here later - maybe even add a message when a new entry is present (whether balanced or not)*/}
+          {!isTransactionBalanced().balanced && (
+            <p className="text-destructive bg-red-50 pb-1 text-center text-xs dark:bg-red-950 dark:text-red-300">
+              Total debit and credit do not match (Diff:{' '}
+              {formatNumber(isTransactionBalanced().diff, 2)})
             </p>
           )}
           {/* Total Debit and Credit */}
-          <div className="grid grid-cols-2 divide-x">
-            <div className="text-center flex flex-col">
-              <label className="text-muted-foreground text-xs">
-                Total Debit
-              </label>
-              <p className="block text-lg">
-                <FormattedAmount
-                  amount={Math.abs(
-                    Math.max(txn.bankAmount, 0) +
-                      (draftTransactionState?.entries?.reduce(
-                        (sum, e) => sum + Math.max(e?.source_amount ?? 0, 0),
-                        0,
-                      ) ?? 0),
-                  )}
-                  currency={txn.bankAccountCurrencyCode}
-                  className="block text-lg"
-                  showSymbol
-                />
-              </p>
-            </div>
-            <div className="text-center">
-              <label className="text-muted-foreground text-xs">
-                Total Credit
-              </label>
-              <p className="block text-lg">
-                <FormattedAmount
-                  amount={Math.abs(
-                    Math.min(txn.bankAmount, 0) +
-                      (draftTransactionState?.entries?.reduce(
-                        (sum, e) => sum + Math.min(e?.source_amount ?? 0, 0),
-                        0,
-                      ) ?? 0),
-                  )}
-                  currency={txn.bankAccountCurrencyCode}
-                  showSymbol
-                />
-              </p>
-            </div>
-          </div>
+          {(() => {
+            const totalDebit = Math.abs(
+              Math.max(txn.bankAmount, 0) +
+                (draftTransactionState?.entries?.reduce(
+                  (sum, e) => sum + Math.max(e?.source_amount ?? 0, 0),
+                  0,
+                ) ?? 0),
+            );
+            const totalCredit = Math.abs(
+              Math.min(txn.bankAmount, 0) +
+                (draftTransactionState?.entries?.reduce(
+                  (sum, e) => sum + Math.min(e?.source_amount ?? 0, 0),
+                  0,
+                ) ?? 0),
+            );
+
+            return (
+              <div className="grid grid-cols-2 divide-x">
+                <div className="text-center">
+                  <label className="text-muted-foreground text-xs">
+                    Total Debit
+                  </label>
+                  <p
+                    className={cn(
+                      'block overflow-hidden truncate text-lg',
+                      totalDebit + totalCredit > 9_999_999_999 ? 'text-sm' : '',
+                    )}
+                  >
+                    <FormattedAmount
+                      amount={totalDebit}
+                      currency={txn.bankAccountCurrencyCode}
+                      showSymbol
+                    />
+                  </p>
+                </div>
+                <div className="text-center">
+                  <label className="text-muted-foreground text-xs">
+                    Total Credit
+                  </label>
+                  <p
+                    className={cn(
+                      'block overflow-hidden truncate text-lg',
+                      totalDebit + totalCredit > 9_999_999_999 ? 'text-sm' : '',
+                    )}
+                  >
+                    <FormattedAmount
+                      amount={totalCredit}
+                      currency={txn.bankAccountCurrencyCode}
+                      showSymbol
+                    />
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
+
+      {/* File Previewer - Render once at transaction level to prevent flicker */}
+      {selectedEntryId &&
+        selectedFileIndex !== null &&
+        (() => {
+          const files = getFileAttachments(selectedEntryId);
+          if (files.length === 0) return null;
+          const safeIndex = Math.min(selectedFileIndex, files.length - 1);
+          return (
+            <FilePreviewer
+              files={files}
+              currentIndex={safeIndex}
+              onClose={() => {
+                setSelectedFileIndex(null);
+                setSelectedEntryId(null);
+              }}
+              onNavigate={(index) => setSelectedFileIndex(index)}
+            />
+          );
+        })()}
 
       {/* Dialogs */}
       {companyId && (
@@ -1266,7 +1578,7 @@ export function EditableSelectField({
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="text-muted-foreground flex items-center justify-between text-xs">
         <label>{label}</label>
         {confidence && (
           <label>
@@ -1282,7 +1594,7 @@ export function EditableSelectField({
       <div>
         {isEditing ? (
           <div
-            className="flex gap-1 items-center"
+            className="flex items-center gap-1"
             onKeyDown={(e) => {
               // Only handle ESC here - Enter is handled by AutocompleteDropdown when open
               if (e.key === 'Escape') {
@@ -1292,7 +1604,7 @@ export function EditableSelectField({
             }}
           >
             <AutocompleteDropdown
-              className="min-w-0 flex-1 font-normal rounded"
+              className="min-w-0 flex-1 rounded font-normal"
               classNames={{
                 commandList: 'scrollbar-thin-2px',
               }}
@@ -1302,32 +1614,32 @@ export function EditableSelectField({
               {...autocompleteProps}
               value={value}
             />
-            <div className="flex-shrink-0 flex gap-0.5">
+            <div className="flex flex-shrink-0 gap-0.5">
               <button
                 onClick={onSave}
-                className="p-1.5 hover:bg-accent rounded transition-colors"
+                className="hover:bg-accent rounded p-1.5 transition-colors"
                 title="Save (Enter)"
                 type="button"
               >
-                <Check className="w-3 h-3 text-green-400" />
+                <Check className="h-3 w-3 text-green-400" />
               </button>
               <button
                 onClick={onCancel}
-                className="p-1.5 hover:bg-accent rounded transition-colors"
+                className="hover:bg-accent rounded p-1.5 transition-colors"
                 title="Cancel (Esc)"
                 type="button"
               >
-                <X className="w-3 h-3 text-red-400" />
+                <X className="h-3 w-3 text-red-400" />
               </button>
             </div>
           </div>
         ) : (
           <div
             onClick={onEdit}
-            className="bg-muted/50 border rounded px-2 py-1.5 text-sm cursor-pointer hover:bg-muted/10 transition-colors group flex items-center justify-between"
+            className="bg-muted/50 hover:bg-muted/10 group flex cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors"
           >
             <span className="truncate">{getDisplayLabel()}</span>
-            <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground flex-shrink-0" />
+            <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
       </div>
@@ -1362,13 +1674,13 @@ export function EditableTextField({
 }: EditableTextFieldProps & Record<string, any>) {
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="text-muted-foreground flex items-center justify-between text-xs">
         <label>{label}</label>
       </div>
 
       <div>
         {isEditing ? (
-          <div className="flex gap-1 items-center">
+          <div className="flex items-center gap-1">
             {textarea ? (
               <textarea
                 rows={textareaRows}
@@ -1384,7 +1696,7 @@ export function EditableTextField({
                     onSave();
                   }
                 }}
-                className="resize-none flex-1 bg-muted/50 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="bg-muted/50 focus:ring-ring flex-1 resize-none rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
               />
             ) : (
               <input
@@ -1401,35 +1713,35 @@ export function EditableTextField({
                     onSave();
                   }
                 }}
-                className="flex-1 bg-muted/50 border rounded px-2 h-9 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="bg-muted/50 focus:ring-ring h-9 flex-1 rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
               />
             )}
-            <div className="flex-shrink-0 flex gap-0.5">
+            <div className="flex flex-shrink-0 gap-0.5">
               <button
                 onClick={onSave}
-                className="p-1.5 hover:bg-accent rounded transition-colors"
+                className="hover:bg-accent rounded p-1.5 transition-colors"
                 title="Save"
                 type="button"
               >
-                <Check className="w-3 h-3 text-green-400" />
+                <Check className="h-3 w-3 text-green-400" />
               </button>
               <button
                 onClick={onCancel}
-                className="p-1.5 hover:bg-accent rounded transition-colors"
+                className="hover:bg-accent rounded p-1.5 transition-colors"
                 title="Cancel"
                 type="button"
               >
-                <X className="w-3 h-3 text-red-400" />
+                <X className="h-3 w-3 text-red-400" />
               </button>
             </div>
           </div>
         ) : (
           <div
             onClick={onEdit}
-            className="bg-muted/50 border rounded px-2 py-1.5 h-9 text-sm cursor-pointer hover:bg-muted/10 transition-colors group flex items-center justify-between"
+            className="bg-muted/50 hover:bg-muted/10 group flex h-9 cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors"
           >
             <span className="truncate">{value}</span>
-            <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground flex-shrink-0" />
+            <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
       </div>
@@ -1465,19 +1777,24 @@ function NumberField({
   decimalPlaces?: number;
 }) {
   const [display, setDisplay] = useState('');
+  // Track internal editing state when inputOnly is true
+  const [internalIsEditing, setInternalIsEditing] = useState(false);
+
+  // Use internal state if inputOnly, otherwise use prop
+  const actuallyEditing = inputOnly ? internalIsEditing : (isEditing ?? false);
 
   // Sync internal display with external amount only when not editing
   // or when the amount changes from an outside source.
   useEffect(() => {
     // Don't sync display while user is editing
-    if (isEditing) return;
+    if (actuallyEditing) return;
 
     if (amount > 0) {
       setDisplay(formatNumber(amount, decimalPlaces));
     } else {
       setDisplay('');
     }
-  }, [amount, isEditing, decimalPlaces]);
+  }, [amount, actuallyEditing, decimalPlaces]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -1491,6 +1808,7 @@ function NumberField({
   };
 
   const handleBlur = () => {
+    setInternalIsEditing(false);
     onEndEditing?.();
     setDisplay(formatNumber(amount, decimalPlaces));
     onCommit();
@@ -1499,15 +1817,23 @@ function NumberField({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
       e.preventDefault();
+      setInternalIsEditing(false);
+      onEndEditing?.();
       onCancel?.();
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      setInternalIsEditing(false);
       onEndEditing?.();
       if (amount > 0) {
         setDisplay(formatNumber(amount, decimalPlaces));
       }
       onCommit();
     }
+  };
+
+  const handleFocus = () => {
+    setInternalIsEditing(true);
+    onStartEditing?.();
   };
 
   const inputEl = (
@@ -1517,11 +1843,11 @@ function NumberField({
       step={step}
       placeholder="0.00"
       value={display}
-      onFocus={() => onStartEditing?.()}
+      onFocus={handleFocus}
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="w-full bg-muted/50 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+      className="bg-muted/50 focus:ring-ring w-full rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
     />
   );
 
@@ -1533,40 +1859,40 @@ function NumberField({
   return (
     <div className="space-y-1">
       {label && (
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="text-muted-foreground flex items-center justify-between text-xs">
           <label>{label}</label>
         </div>
       )}
       <div>
         {isEditing ? (
-          <div className="flex gap-1 items-center">
+          <div className="flex items-center gap-1">
             {inputEl}
-            <div className="flex-shrink-0 flex gap-0.5">
+            <div className="flex flex-shrink-0 gap-0.5">
               <button
                 onClick={onCommit}
-                className="p-1.5 hover:bg-accent rounded transition-colors"
+                className="hover:bg-accent rounded p-1.5 transition-colors"
                 title="Save"
                 type="button"
               >
-                <Check className="w-3 h-3 text-green-400" />
+                <Check className="h-3 w-3 text-green-400" />
               </button>
               <button
                 onClick={onCancel}
-                className="p-1.5 hover:bg-accent rounded transition-colors"
+                className="hover:bg-accent rounded p-1.5 transition-colors"
                 title="Cancel"
                 type="button"
               >
-                <X className="w-3 h-3 text-red-400" />
+                <X className="h-3 w-3 text-red-400" />
               </button>
             </div>
           </div>
         ) : (
           <div
             onClick={onEdit}
-            className="bg-muted/50 border rounded px-2 py-1.5 h-9 text-sm cursor-pointer hover:bg-muted/10 transition-colors group flex items-center justify-between"
+            className="bg-muted/50 hover:bg-muted/10 group flex h-9 cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors"
           >
             <span className="truncate">{display || '0.00'}</span>
-            <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground flex-shrink-0" />
+            <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
       </div>
@@ -1591,4 +1917,15 @@ function isValidNumericInput(v: string, maxDecimalPlaces: number = 2) {
       ? `^[0-9,]*\\.?[0-9]{0,${maxDecimalPlaces}}$`
       : `^[0-9,]*$`;
   return new RegExp(pattern).test(v);
+}
+
+function createTypedBlobUrl(file: File): string {
+  const type =
+    file.type ||
+    (file.name.toLowerCase().endsWith('.pdf')
+      ? 'application/pdf'
+      : 'application/octet-stream');
+
+  const blob = new Blob([file], { type });
+  return URL.createObjectURL(blob);
 }

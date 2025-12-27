@@ -1,6 +1,8 @@
 import type { MimeType } from '@/shared/constants/filetype';
-import { ChevronLeft, ChevronRight, Download, FileText, X } from 'lucide-react';
 import { useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Download, FileText, X } from 'lucide-react';
+
+import { PDFViewer } from './pdf-viewer';
 
 interface FileAttachment {
   file_name: string;
@@ -27,7 +29,6 @@ export function FilePreviewer({
   const isImage = currentFile.type.startsWith('image/');
   const isPDF = currentFile.type === 'application/pdf';
 
-  // Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -42,14 +43,14 @@ export function FilePreviewer({
   }, [currentIndex, files.length, onClose, onNavigate]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-white/95 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="dark:bg-background/50 fixed inset-0 z-[100] flex h-screen flex-col overflow-hidden bg-black/50 backdrop-blur-sm duration-200 dark:backdrop-blur-md">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="bg-background/50 flex h-16 flex-shrink-0 items-center justify-between p-4">
         <div className="flex flex-col">
-          <h3 className="text-sm font-medium text-foreground">
+          <h3 className="text-foreground text-sm font-medium">
             {currentFile.file_name}
           </h3>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             {currentIndex + 1} of {files.length}
           </p>
         </div>
@@ -57,58 +58,60 @@ export function FilePreviewer({
           <a
             href={currentFile.url}
             download
-            className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground"
+            className="text-muted-foreground hover:bg-muted rounded-full p-2 transition-colors"
             title="Download"
           >
-            <Download className="w-5 h-5" />
+            <Download className="h-5 w-5" />
           </a>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground"
+            className="text-muted-foreground hover:bg-muted rounded-full p-2 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 relative flex items-center justify-center p-8">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         {/* Navigation Buttons */}
         {currentIndex > 0 && (
           <button
             onClick={() => onNavigate(currentIndex - 1)}
-            className="absolute left-6 z-10 p-3 bg-white border shadow-sm hover:shadow-md rounded-full transition-all active:scale-95"
+            className="absolute left-6 z-10 rounded-full border bg-white p-3 shadow-sm transition-all hover:shadow-md active:scale-95"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="h-6 w-6" />
           </button>
         )}
 
-        <div className="w-full h-full flex items-center justify-center max-w-5xl overflow-hidden rounded-lg">
+        {/* Content Container - scrollable with max size */}
+        <div className="flex h-full w-full items-center justify-center overflow-auto px-20 py-8">
           {isImage ? (
             <img
               src={currentFile.url}
               alt={currentFile.file_name}
-              className="max-h-full max-w-full object-contain shadow-2xl"
+              className="h-auto max-h-full w-auto max-w-full object-contain shadow-2xl"
             />
           ) : isPDF ? (
-            <iframe
-              src={`${currentFile.url}#toolbar=0`}
-              className="w-full h-full border-none shadow-2xl"
-              title="PDF Preview"
-            />
+            <div className="h-full w-full max-w-5xl">
+              <PDFViewer
+                url={currentFile.url}
+                fileName={currentFile.file_name}
+              />
+            </div>
           ) : (
-            <div className="bg-muted w-full max-w-md p-12 rounded-2xl flex flex-col items-center text-center">
-              <div className="bg-white p-6 rounded-2xl shadow-sm mb-4">
-                <FileText className="w-12 h-12 text-primary" />
+            <div className="bg-muted flex w-full max-w-md flex-col items-center rounded-2xl p-12 text-center">
+              <div className="mb-4 rounded-2xl bg-white p-6 shadow-sm">
+                <FileText className="text-primary h-12 w-12" />
               </div>
               <p className="font-medium">No preview available</p>
-              <p className="text-sm text-muted-foreground mb-6">
+              <p className="text-muted-foreground mb-6 text-sm">
                 Spreadsheets and zip files are better viewed locally.
               </p>
               <a
                 href={currentFile.url}
                 download
-                className="bg-primary text-primary-foreground px-6 py-2 rounded-lg text-sm font-medium"
+                className="bg-primary text-primary-foreground rounded-lg px-6 py-2 text-sm font-medium"
               >
                 Download File
               </a>
@@ -119,9 +122,9 @@ export function FilePreviewer({
         {currentIndex < files.length - 1 && (
           <button
             onClick={() => onNavigate(currentIndex + 1)}
-            className="absolute right-6 z-10 p-3 bg-white border shadow-sm hover:shadow-md rounded-full transition-all active:scale-95"
+            className="absolute right-6 z-10 rounded-full border bg-white p-3 shadow-sm transition-all hover:shadow-md active:scale-95"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="h-6 w-6" />
           </button>
         )}
       </div>

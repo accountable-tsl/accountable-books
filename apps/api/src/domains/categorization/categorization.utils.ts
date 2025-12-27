@@ -1,19 +1,21 @@
 import type {
+  CategorizationTransaction,
   LedgerIntent,
   LedgerIntentEntry,
-  CategorizationTransaction,
 } from '@accountable-books/contracts/schema';
+
+import { toDate, toYMD } from '../../shared/utils/date.utils.js';
+
+import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
+import type { ContactType } from '../contacts/index.js';
 import type {
   LedgerEntryInput,
   NewLedgerTransactionData,
 } from '../ledgers/ledgers.types.js';
-import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
-import type { ContactType } from '../contacts/index.js';
 import type {
   CategorizationCandidateLine,
   CategorizationCandidateWithLines,
 } from './candidates/candidates.types.js';
-import { toDate, toYMD } from '../../shared/utils/date.utils.js';
 
 /**
  * Merges multiple ledger intents for the same bank transaction into a single
@@ -277,7 +279,12 @@ export function buildNonBankLegFromBankTransaction(
     project_id: intentEntry.project_id === null ? null : intentEntry.project_id,
     human_reviewed: true,
     review_notes: intentEntry.review_notes,
-    ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
+    metadata: {
+      ...(intentEntry.metadata || {}),
+      ...(intentEntry.client_ref_id
+        ? { client_ref_id: intentEntry.client_ref_id }
+        : {}),
+    },
   };
 }
 
@@ -338,7 +345,12 @@ export function buildNonBankLegFromCandidateSingle(
     ),
     human_reviewed: intentEntry.human_reviewed ?? true,
     review_notes: intentEntry.review_notes ?? null,
-    ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
+    metadata: {
+      ...(intentEntry.metadata || {}),
+      ...(intentEntry.client_ref_id
+        ? { client_ref_id: intentEntry.client_ref_id }
+        : {}),
+    },
   };
 }
 
@@ -394,7 +406,12 @@ export function buildNonBankLegFromCandidateSplit(
     project_id: resolveNullableField(intentEntry.project_id, undefined),
     human_reviewed: intentEntry.human_reviewed ?? true,
     review_notes: intentEntry.review_notes ?? null,
-    ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
+    metadata: {
+      ...(intentEntry.metadata || {}),
+      ...(intentEntry.client_ref_id
+        ? { client_ref_id: intentEntry.client_ref_id }
+        : {}),
+    },
   };
 }
 
@@ -460,11 +477,13 @@ export function buildNonBankLegFromLedgerUpdate(
     ),
     human_reviewed: intentEntry.human_reviewed ?? true,
     review_notes: intentEntry.review_notes ?? ledgerEntry.review_notes,
-    ...(intentEntry.metadata
-      ? { metadata: intentEntry.metadata }
-      : ledgerEntry.metadata
-        ? { metadata: ledgerEntry.metadata }
+    metadata: {
+      ...(ledgerEntry.metadata || {}),
+      ...(intentEntry.metadata || {}),
+      ...(intentEntry.client_ref_id
+        ? { client_ref_id: intentEntry.client_ref_id }
         : {}),
+    },
   };
 }
 
@@ -532,7 +551,12 @@ export function buildNonBankLegFromLedgerSplit(
     project_id: resolveNullableField(intentEntry.project_id, undefined),
     human_reviewed: intentEntry.human_reviewed ?? true,
     review_notes: intentEntry.review_notes ?? null,
-    ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
+    metadata: {
+      ...(intentEntry.metadata || {}),
+      ...(intentEntry.client_ref_id
+        ? { client_ref_id: intentEntry.client_ref_id }
+        : {}),
+    },
   };
 }
 

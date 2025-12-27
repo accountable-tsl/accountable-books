@@ -1,11 +1,12 @@
+import type { ApiResponse } from '@/shared/types/core';
+import type { LedgerIntent } from '@accountable-books/contracts/schema';
 import api from '@/lib/axios';
 
-import type { Intent } from '../model/intent-types';
 import type {
   GetCategorizationTransactionsParams,
   GetCategorizationTransactionsResponse,
+  SendCategorizationIntentResponse,
 } from '../model/types';
-import type { ApiResponse } from '@/shared/types/core';
 
 /**
  * Fetch categorization transactions from API
@@ -63,19 +64,13 @@ export async function fetchCategorizationTransactions(
   };
 }
 
-interface SendCategorizationIntentResponse {
-  // ledgerTransactionId?: string;
-  affected_transaction_ids?: string[];
-  summary_message?: string;
-}
-
 /**
  * Send categorization intent to backend
  * Posts user edits directly to ledger
  */
 export async function sendCategorizationIntent(
   companyId: string,
-  intent: Intent[],
+  intent: LedgerIntent[],
 ): Promise<ApiResponse<SendCategorizationIntentResponse>> {
   const response = await api.post<
     ApiResponse<SendCategorizationIntentResponse>

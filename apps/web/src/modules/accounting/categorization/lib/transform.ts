@@ -230,6 +230,7 @@ export function groupCategorizationTransactions(
               candidateLineId: txn.candidate_line_id,
               explanation: txn.explanation,
               reviewNotes: txn.review_notes,
+              client_ref_id: txn.client_ref_id ?? undefined,
               // Files are at entry level for proposed/posted transactions
               files: txn.files,
             })),

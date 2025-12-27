@@ -1,16 +1,24 @@
+import type {
+  GetTxnFileInput,
+  NewTxnFile,
+  TransactionFiles,
+  TxnFileInput,
+} from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
-import { knexClient } from '../../../db/knexClient.js';
 import {
+  getTxnFileInput,
   txnFileInput,
-  type NewTxnFile,
-  type TxnFileInput,
-} from './txn-files.types.js';
+} from '@accountable-books/contracts/schema';
+
+import { knexClient } from '../../../db/knexClient.js';
 import {
   errorResponse,
   getCompanyUUID,
   logger,
   successResponse,
 } from '../../../shared/utils/index.js';
+
+import type { ApiResponse } from '../../../core/index.js';
 
 export async function persistTxnFiles(p: {
   data: TxnFileInput[];
@@ -71,6 +79,8 @@ export async function persistTxnFiles(p: {
         'type',
         'bucket_name',
         'size_bytes',
+        'transaction_id',
+        'entry_id',
       ]);
 
     return insertedFiles;
@@ -88,5 +98,61 @@ export async function persistTxnFiles(p: {
       throw error;
     }
     return errorResponse('Failed to persist transaction files', error);
+  }
+}
+
+type GetTxnFilesParams = {
+  data: GetTxnFileInput[];
+  trx?: Knex.Transaction;
+};
+
+export async function getTxnFiles({
+  trx,
+  data,
+}: GetTxnFilesParams): Promise<ApiResponse<TransactionFiles[]>> {
+  const exec = async (txn: Knex.Transaction): Promise<TransactionFiles[]> => {
+    const v = getTxnFileInput.array().parse(data);
+
+    const q = txn('transaction_files as tf')
+      .join('companies as c', 'c.id', 'tf.company_id')
+      .where('tf.is_deleted', false)
+      .andWhere((outer) => {
+        for (const f of v) {
+          outer.orWhere((qb) => {
+            // company resolution (per file)
+            qb.andWhere((cqb) => {
+              cqb
+                .where('c.id', f.companyId)
+                .orWhere('c.short_code', f.companyId);
+            });
+
+            // file identity
+            if (f.id) qb.andWhere('tf.id', f.id);
+            if (f.source) qb.andWhere('tf.source', f.source);
+            if (f.key) qb.andWhere('tf.key', f.key);
+            if (f.transactionId)
+              qb.andWhere('tf.transaction_id', f.transactionId);
+            if (f.entryId) qb.andWhere('tf.entry_id', f.entryId);
+          });
+        }
+      });
+
+    const files = await q.orderBy('created_at', 'desc');
+    return files;
+  };
+
+  try {
+    if (trx) {
+      const result = await exec(trx);
+      return successResponse('Transaction files fetched successfully', result);
+    } else {
+      const result = await knexClient.transaction(exec);
+      return successResponse('Transaction files fetched successfully', result);
+    }
+  } catch (e) {
+    if (trx) {
+      throw e;
+    }
+    return errorResponse('Failed to fetch transaction files', e);
   }
 }

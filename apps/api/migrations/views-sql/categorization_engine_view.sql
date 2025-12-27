@@ -65,6 +65,7 @@ WITH uncategorized_txns AS (
     ) as is_editable,
 
     NULL::text as review_notes,
+    NULL::jsonb as ledger_metadata,  -- No metadata for uncategorized transactions
     COALESCE(
       jsonb_agg(
         jsonb_build_object(
@@ -166,6 +167,7 @@ candidate_txns AS (
     ) as is_editable,
 
     NULL::text as review_notes,
+    NULL::jsonb as ledger_metadata,  -- No metadata for candidate transactions
     '[]'::jsonb as files
 
   FROM bank_transactions bt
@@ -247,6 +249,7 @@ posted_txns AS (
     ) as is_editable,
 
     le.review_notes,
+    le.metadata as ledger_metadata,
     COALESCE(
       jsonb_agg(
         DISTINCT jsonb_build_object(
@@ -293,7 +296,7 @@ posted_txns AS (
     le.contact_type, le.coa_id, coa.name, coa.code, le.project_id, projects.name,
     le.system_exchange_rate, le.custom_exchange_rate, le.source_amount, 
     lt.id, le.id, lt.categorization_candidate_id, lt.company_id, rc.id, rc.code, 
-    rc.name, rc.symbol, le.human_reviewed, le.review_notes
+    rc.name, rc.symbol, le.human_reviewed, le.review_notes, le.metadata
 )
 SELECT * FROM uncategorized_txns
 UNION ALL

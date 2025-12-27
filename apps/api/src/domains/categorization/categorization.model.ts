@@ -1,8 +1,13 @@
+import type {
+  CategorizationTransaction,
+  LedgerIntent,
+  LedgerIntentEntry,
+} from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
+import { ledgerIntentSchema } from '@accountable-books/contracts/schema';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
-import { toDate, toYMD } from '../../shared/utils/date.utils.js';
+import { toYMD } from '../../shared/utils/date.utils.js';
 import { logger } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
@@ -10,43 +15,35 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import {
-  type GetCategorizationTransactionsParams,
-  type GetCategorizationTransactionsResponse,
-} from './categorization.types.js';
 import { getBankTransactionsByIds } from '../bankTransactions/bankTransactions.model.js';
-import { getCategorizationCandidatesWithLines } from './candidates/candidates.service.js';
 import {
   getLedgerTransactionsWithEntries,
   updateOrCreateLedger,
 } from '../ledgers/ledgers.model.js';
-import type {
-  LedgerEntryInput,
-  LedgerTransactionWithEntriesFiltered,
-  NewLedgerTransactionData,
-} from '../ledgers/ledgers.types.js';
-import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
-import type { ContactType } from '../contacts/index.js';
+import { getCategorizationCandidatesWithLines } from './candidates/candidates.service.js';
 import {
-  categorizationIntent,
-  ledgerIntentSchema,
-  type CategorizationIntent,
-  type CategorizationTransaction,
-  type LedgerIntent,
-  type LedgerIntentEntry,
-} from '@accountable-books/contracts/schema';
+  type GetCategorizationTransactionsParams,
+  type GetCategorizationTransactionsResponse,
+} from './categorization.types.js';
 import {
-  mergeIntents,
-  detectCurrentState,
   buildBankLeg,
+  buildLedgerTransactionMetadata,
+  buildLedgerTransactionMetadataFromCandidate,
   buildNonBankLegFromBankTransaction,
   buildNonBankLegFromCandidateSingle,
   buildNonBankLegFromCandidateSplit,
-  buildNonBankLegFromLedgerUpdate,
   buildNonBankLegFromLedgerSplit,
-  buildLedgerTransactionMetadata,
-  buildLedgerTransactionMetadataFromCandidate,
+  buildNonBankLegFromLedgerUpdate,
+  detectCurrentState,
+  mergeIntents,
 } from './categorization.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
+import type {
+  LedgerEntryInput,
+  NewLedgerTransactionData,
+} from '../ledgers/ledgers.types.js';
 
 /**
  * Get categorization transactions for the categorization engine UI
@@ -216,6 +213,14 @@ export async function getCategorizationTransactions(
             : typeof tx.files === 'string'
               ? JSON.parse(tx.files)
               : [],
+          // Extract client_ref_id from metadata (only for posted transactions)
+          client_ref_id:
+            tx.metadata &&
+            typeof tx.metadata === 'object' &&
+            'client_ref_id' in tx.metadata
+              ? ((tx.metadata as { client_ref_id?: string }).client_ref_id ??
+                null)
+              : null,
         };
       });
 
@@ -278,6 +283,7 @@ export async function processCategorizationIntent({
       ledger_transaction_id: string;
       old_ledger_transaction_id?: string;
       warnings?: Record<string, string>;
+      transaction?: CategorizationTransaction[];
     }>;
     skipped: Array<{
       bank_transaction_id: string;
@@ -1121,6 +1127,7 @@ export async function processCategorizationIntent({
       ledger_transaction_id: string;
       old_ledger_transaction_id?: string;
       warnings?: Record<string, string>;
+      transaction?: CategorizationTransaction[];
     }> = [];
 
     // Ensure we don't exceed array bounds when mapping
@@ -1167,6 +1174,38 @@ export async function processCategorizationIntent({
           : {}),
         ...(mergedWarnings ? { warnings: mergedWarnings } : {}),
       });
+    }
+
+    // Fetch updated transactions for all processed bank transactions
+    // This provides authoritative server state to the frontend
+    const processedBankTxnIds = results.map((r) => r.bank_transaction_id);
+    if (processedBankTxnIds.length > 0) {
+      const updatedTxnsRes = await getCategorizationTransactions({
+        companyId: companyUUID,
+        bankTransactionIds: processedBankTxnIds,
+        trx: txn,
+      });
+
+      const updatedTxns = updatedTxnsRes.data?.transactions || [];
+
+      // Group updated transactions by bank_transaction_id
+      const txnsByBankTxnId = new Map<string, CategorizationTransaction[]>();
+      for (const txn of updatedTxns) {
+        const existing = txnsByBankTxnId.get(txn.id);
+        if (existing) {
+          existing.push(txn);
+        } else {
+          txnsByBankTxnId.set(txn.id, [txn]);
+        }
+      }
+
+      // Add transaction data to each result
+      for (const result of results) {
+        const txns = txnsByBankTxnId.get(result.bank_transaction_id);
+        if (txns && txns.length > 0) {
+          result.transaction = txns;
+        }
+      }
     }
 
     // Build summary

@@ -9,7 +9,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
 import type { GroupedTransaction } from '@/modules/accounting/categorization';
 
 export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
@@ -33,7 +32,7 @@ export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
             <p>
               Date: {format(new Date(txn.date), 'dd MMM yyyy')} | Bank Amount:{' '}
               <FormattedAmount
-                amount={txn.totalBankAmount}
+                amount={txn.bankAmount}
                 currency={txn.bankAccountCurrencyCode}
                 accountingNegatives={false}
               />

@@ -58,9 +58,13 @@ export const StorageService = {
         ContentType: contentType,
       });
 
+      console.log({command});
+
       const signedUrl = await getSignedUrl(r2Client, command, {
         expiresIn: 3600,
       });
+
+      console.log({signedUrl});
 
       if (!signedUrl) {
         throw new Error('Failed to generate signed URL');

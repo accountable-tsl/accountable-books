@@ -1,10 +1,10 @@
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
-
 import { useSession } from '@/app/session';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { DateRangePicker } from '@/components/date-picker/date-range-picker';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
@@ -22,24 +22,25 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
-import { useCategorizationTransactions } from '@/modules/accounting/categorization/model/hooks';
+import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
+import { toast } from 'sonner';
 
 import { CatEngineAdvFilter } from './components/cat-engine-adv-filter';
 import {
   LeftCatEngineToolbar,
   RightCatEngineToolbar,
 } from './components/cat-engine-toolbar';
-import { CatEngineTxnView } from './components/cat-engine-txn-view';
-import { getCatEngineColumns } from './config/table-columns';
-import { testCategorizationTransactions } from './test-data';
-import type { CatEngineMode } from './types';
 import { TransactionView } from './components/transaction-view';
+import { getCatEngineColumns } from './config/table-columns';
 import { accountElementOrder } from './constants';
-import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts';
-import type { GroupedCoaData } from './types';
-import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
+import {
+  useCategorizationTransactions,
+  usePendingChangesEmitter,
+} from './hooks/use-intent-emitter';
+import { testCategorizationTransactions } from './test-data';
+
+import type { CatEngineMode, GroupedCoaData } from './types';
 
 export const accordionItems = [
   {
@@ -143,6 +144,11 @@ export function CatEngine() {
 
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
 
+  // Get pending changes summary from emitter
+  const emitter = usePendingChangesEmitter();
+  const getPendingTransactionsSummary = emitter.getPendingTransactionsSummary;
+  const hasAnyPendingChanges = emitter.hasAnyPendingChanges;
+
   // Debounce date range changes
   const dateRangeRef = useRef(dateRange);
   const debounceTimeoutRef = useRef<NodeJS.Timeout>();
@@ -228,7 +234,7 @@ export function CatEngine() {
   }, [coaData]);
 
   // Use test data for development - set to false to use real API data
-  const USE_TEST_DATA = true;
+  const USE_TEST_DATA = false;
 
   const testTxns = useMemo(() => testCategorizationTransactions, []);
   const rawTransactions = USE_TEST_DATA
@@ -431,7 +437,7 @@ export function CatEngine() {
         type="single"
         collapsible
         defaultValue={accordionItems[0].id}
-        className="flex flex-col min-h-0 flex-1"
+        className="flex min-h-0 flex-1 flex-col"
         value={openAccordionItem}
         onValueChange={handleAccordionItemChange}
       >
@@ -439,10 +445,10 @@ export function CatEngine() {
           <AccordionItem
             key={item.id}
             value={item.id}
-            className="flex flex-col [[data-state=open]]:min-h-0 [[data-state=open]]:h-full"
+            className="[[data-state=open]]:min-h-0 [[data-state=open]]:h-full flex flex-col"
           >
             <AccordionTrigger
-              className={cn('p-0 py-1 px-2 hover:no-underline')}
+              className={cn('p-0 px-2 py-1 hover:no-underline')}
             >
               <div className="flex items-center gap-2">
                 <span
@@ -471,7 +477,7 @@ export function CatEngine() {
               </div>
             </AccordionTrigger>
             <AccordionContent
-              className="h-full min-h-0 flex flex-col"
+              className="flex h-full min-h-0 flex-col"
               wrapperClassName="h-full min-h-0 flex flex-col"
             >
               <DataTable key={`${mode}-${item.id}`} table={table} />
@@ -518,14 +524,29 @@ export function CatEngine() {
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (dirtyFields.size > 0) {
+      const hasDirtyFields = dirtyFields.size > 0;
+      const hasPending = hasAnyPendingChanges();
+
+      if (hasDirtyFields || hasPending) {
         e.preventDefault();
-        return '';
+
+        // Provide more informative message
+        if (hasPending) {
+          const summary = getPendingTransactionsSummary();
+          const message =
+            summary.count === 1
+              ? 'You have 1 transaction with unsaved changes. Are you sure you want to leave?'
+              : `You have ${summary.count} transactions with unsaved changes. Are you sure you want to leave?`;
+          return message;
+        }
+
+        return ''; // Browser shows default message for dirtyFields
       }
     };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [dirtyFields]);
+  }, [dirtyFields, hasAnyPendingChanges, getPendingTransactionsSummary]);
 
   // Handle manual mode changes with preference persistence
   const handleModeChange = useCallback(
@@ -548,9 +569,9 @@ export function CatEngine() {
   }
 
   return (
-    <div className="min-h-0 h-full flex flex-col p-4 pb-2 gap-4">
-      <div className="flex justify-between items-center overflow-clip h-8 max-h-8">
-        <div className="flex gap-2 items-center h-7.5">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4 pb-2">
+      <div className="flex h-8 max-h-8 items-center justify-between overflow-clip">
+        <div className="h-7.5 flex items-center gap-2">
           <CatEngineAdvFilter />
 
           {/* Review mode: No DB Calls until user triggers action, Autosave mode: DB Calls are made automatically usually when user's focus leaves the box or after a certain time period whichever is later (or should it be sooner). */}
@@ -560,12 +581,12 @@ export function CatEngine() {
             <Input
               placeholder="Search..."
               aria-label="Search transactions"
-              className="w-60 h-full"
+              className="h-full w-60"
             />
           </div>
         </div>
 
-        <div className="flex gap-2 h-7.5 items-center">
+        <div className="h-7.5 flex items-center gap-2">
           <DateRangePicker
             date={dateRange}
             onDateSelect={handleDateRangeChange}
@@ -583,14 +604,14 @@ export function CatEngine() {
           />
         </div>
       </div>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {mode === 'review' && (
-          <ResizablePanelGroup direction="horizontal" className="gap-2 min-h-0">
+          <ResizablePanelGroup direction="horizontal" className="min-h-0 gap-2">
             <ResizablePanel
               id="main-panel"
               order={0}
               minSize={30}
-              className="min-h-0 h-full flex flex-col gap-4 min-w-0 overflow-hidden"
+              className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
             >
               {view === 'group' ? accordionView : tableView}
             </ResizablePanel>
@@ -604,7 +625,7 @@ export function CatEngine() {
                   // minSize={20}
                   // maxSize={40}
                   // defaultSize={30}
-                  className="min-h-0 h-full w-sm !max-w-md overflow-hidden"
+                  className="w-sm h-full min-h-0 !max-w-md overflow-hidden"
                 >
                   {/* <CatEngineTxnView
                     transaction={selectedTransaction}
@@ -625,7 +646,7 @@ export function CatEngine() {
           <>{view === 'group' ? accordionView : tableView}</>
         )}
 
-        <p className="text-xs text-muted-foreground pt-1">
+        <p className="text-muted-foreground pt-1 text-xs">
           <span>Showing {rawTransactions.length} transactions</span>
           <span> | </span>
           <span>Total uncategorized: 100</span>

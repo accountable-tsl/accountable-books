@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { LedgerIntent } from '@accountable-books/contracts/schema';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import {
   fetchCategorizationTransactions,
@@ -8,7 +9,7 @@ import {
   groupCategorizationTransactions,
   groupTransactionsByBankTxnId,
 } from '../lib/transform';
-import type { Intent, IntentActionType } from './intent-types';
+
 import type {
   GetCategorizationTransactionsParams,
   GroupedTransaction,
@@ -46,7 +47,6 @@ export function useCategorizationTransactionsOld(
 }
 export function useCategorizationTransactions(
   params: GetCategorizationTransactionsParams,
-  exchangeRateOverrides?: Map<string, number>,
 ) {
   return useQuery({
     queryKey: [
@@ -57,17 +57,10 @@ export function useCategorizationTransactions(
       params.status,
       params.limit,
       params.offset,
-      // Include overrides in query key - convert to sorted array for stable key
-      exchangeRateOverrides
-        ? Array.from(exchangeRateOverrides.entries()).sort()
-        : undefined,
     ],
     queryFn: async () => {
       const response = await fetchCategorizationTransactions(params);
-      const grouped = groupCategorizationTransactions(
-        response.transactions,
-        exchangeRateOverrides,
-      );
+      const grouped = groupCategorizationTransactions(response.transactions);
       return {
         transactions: grouped,
         total: response.total,
@@ -94,26 +87,15 @@ export type GroupedTransactionsData = {
  * Hook to send categorization intent
  */
 export function useSendCategorizationIntent() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({
       companyId,
       intent,
     }: {
       companyId: string;
-      intent: Intent<IntentActionType>[];
+      intent: LedgerIntent[];
     }) => sendCategorizationIntent(companyId, intent),
-    onSuccess: (res) => {
-      const ids = res.data?.affected_transaction_ids ?? [];
-
-      for (const id of ids) {
-        queryClient.invalidateQueries({
-          predicate: (query) =>
-            query.queryKey[0] === 'categorization-transactions' &&
-            query.queryKey.includes(id),
-        });
-      }
-    },
+    // Note: Cache updates are handled in sendPendingChanges within usePendingChangesEmitter
+    // to enable intelligent merging with pending changes. No invalidation needed here.
   });
 }

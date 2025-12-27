@@ -1,12 +1,5 @@
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import type { ColumnDef } from '@tanstack/react-table';
-import {
-  Building,
-  ChevronDown,
-  ChevronRight,
-  HelpCircle,
-  Split,
-} from 'lucide-react';
-
 import { FormattedAmount } from '@/components/FormattedAmount';
 import {
   Tooltip,
@@ -14,7 +7,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import { toYMD } from '@/shared/utils/date-utils';
+import {
+  Building,
+  ChevronDown,
+  ChevronRight,
+  HelpCircle,
+  Split,
+} from 'lucide-react';
 
 import { ActionsMenu } from '../components/actions';
 import { EditableAccountCell } from '../components/editable-account-cell';
@@ -25,7 +25,7 @@ import {
   EditableTextCell,
 } from '../components/editable-fields';
 import { useLedgerIntentUpdater } from '../hooks/use-intent-emitter';
-import { toYMD } from '@/shared/utils/date-utils';
+
 import type { GroupedCoaData } from '../types';
 
 const fieldKey = (id: string, columnId: string) => `${id}-${columnId}`;
@@ -55,19 +55,19 @@ export const getCatEngineColumns = ({
         const bankAccountTitle = `${txn.bankName} - ${bankAccountName}`;
         return (
           <div className="flex items-center gap-2" title={bankAccountTitle}>
-            <div className="flex-shrink-0 w-5 h-5 overflow-hidden rounded-full flex items-center justify-center border bg-white/80 dark:opacity-50">
+            <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white/80 dark:opacity-50">
               {logo ? (
                 <img
                   src={logo}
                   alt={`${txn.bankName} logo`}
-                  className="w-4 h-4 object-contain"
+                  className="h-4 w-4 object-contain"
                 />
               ) : (
-                <Building className="w-4 h-4" />
+                <Building className="h-4 w-4" />
               )}
             </div>
 
-            <p className="text-sm truncate text-muted-foreground">
+            <p className="text-muted-foreground truncate text-sm">
               {bankAccountName}
             </p>
           </div>
@@ -115,7 +115,7 @@ export const getCatEngineColumns = ({
             <TooltipTrigger asChild>
               <div
                 className={cn(
-                  'text-sm truncate',
+                  'truncate text-sm',
                   (!showTooltip || multipleLines) &&
                     'text-muted-foreground opacity-50',
                 )}
@@ -202,7 +202,7 @@ export const getCatEngineColumns = ({
         return (
           <div
             className={cn(
-              'text-sm truncate font-light',
+              'truncate text-sm font-light',
               txn.hasMultipleEntries ? 'text-muted-foreground opacity-50' : '',
             )}
             title={contactName || ''}
@@ -249,7 +249,7 @@ export const getCatEngineColumns = ({
           <div
             title={reference || ''}
             className={cn(
-              'text-sm truncate font-light',
+              'truncate text-sm font-light',
               txn.hasMultipleEntries || !reference
                 ? 'text-muted-foreground opacity-50'
                 : '',
@@ -300,7 +300,7 @@ export const getCatEngineColumns = ({
           <div
             title={projectName || ''}
             className={cn(
-              'text-sm truncate font-light',
+              'truncate text-sm font-light',
               txn.hasMultipleEntries || !projectName
                 ? 'text-muted-foreground opacity-50'
                 : '',
@@ -324,7 +324,7 @@ export const getCatEngineColumns = ({
         return (
           <div
             title={currencyCode}
-            className="text-sm truncate font-light text-muted-foreground"
+            className="text-muted-foreground truncate text-sm font-light"
           >
             {currencyCode}
           </div>
@@ -390,7 +390,7 @@ export const getCatEngineColumns = ({
           <div
             title={txn.exchangeRate}
             className={cn(
-              'text-sm truncate font-light text-muted-foreground text-right',
+              'text-muted-foreground truncate text-right text-sm font-light',
               mode === 'autosave' && txn.hasMultipleEntries && 'opacity-50',
             )}
             {...(mode === 'autosave' && txn.hasMultipleEntries
@@ -420,7 +420,7 @@ export const getCatEngineColumns = ({
         <div className="text-right">
           <span>Spent</span>{' '}
           {reportingCurrency && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               ({reportingCurrency})
             </span>
           )}
@@ -433,14 +433,14 @@ export const getCatEngineColumns = ({
 
         if (spent === 0) {
           return (
-            <div className="text-sm font-light text-right text-muted-foreground pr-4 border-r-1 border-border/50">
+            <div className="text-muted-foreground border-r-1 border-border/50 pr-4 text-right text-sm font-light">
               -
             </div>
           );
         }
 
         return (
-          <div className="pr-2 border-r-1 border-border/50">
+          <div className="border-r-1 border-border/50 pr-2">
             <FormattedAmount
               amount={spent}
               currency={reportingCurrency}
@@ -468,7 +468,7 @@ export const getCatEngineColumns = ({
         <div className="text-right">
           <span>Received</span>{' '}
           {reportingCurrency && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               ({reportingCurrency})
             </span>
           )}
@@ -481,14 +481,14 @@ export const getCatEngineColumns = ({
 
         if (received === 0) {
           return (
-            <div className="text-sm font-light text-right text-muted-foreground pr-4 border-r-1 border-border/50">
+            <div className="text-muted-foreground border-r-1 border-border/50 pr-4 text-right text-sm font-light">
               -
             </div>
           );
         }
 
         return (
-          <div className="pr-2 border-r-1 border-border/50">
+          <div className="border-r-1 border-border/50 pr-2">
             <FormattedAmount
               amount={received}
               currency={reportingCurrency}
@@ -521,7 +521,7 @@ export const getCatEngineColumns = ({
           if (mode === 'review') {
             return (
               <div className="flex items-center gap-1">
-                <Split className="w-3 h-3 text-muted-foreground" />
+                <Split className="text-muted-foreground h-3 w-3" />
                 <span className="text-blue-500">Multiple entries</span>
               </div>
             );
@@ -530,7 +530,7 @@ export const getCatEngineColumns = ({
 
             return (
               <div
-                className="flex items-center justify-between pr-0.5 gap-1 cursor-pointer font-light hover:underline decoration-1 decoration-blue-200"
+                className="flex cursor-pointer items-center justify-between gap-1 pr-0.5 font-light decoration-blue-200 decoration-1 hover:underline"
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent row click
                   row.toggleExpanded();
@@ -540,9 +540,9 @@ export const getCatEngineColumns = ({
                   View entries ({txn.entryCount})
                 </span>
                 {isExpanded ? (
-                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                  <ChevronDown className="text-muted-foreground h-3 w-3" />
                 ) : (
-                  <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                  <ChevronRight className="text-muted-foreground h-3 w-3" />
                 )}
               </div>
             );
@@ -569,7 +569,7 @@ export const getCatEngineColumns = ({
             <div className="flex items-center gap-2">
               <EditableAccountCell
                 coaId={txn.coaId || undefined}
-                coaName={txn.coaName || undefined}
+                // coaName={txn.coaName || undefined}
                 groupedCoaData={groupedCoaData}
                 onCommit={(coaId) => {
                   if (!coaId) return;
@@ -588,12 +588,12 @@ export const getCatEngineColumns = ({
             <TooltipTrigger asChild>
               <div
                 className={cn(
-                  'text-sm truncate max-w-[150px] cursor-help flex items-center gap-1',
-                  isUncategorized && 'font-light text-muted-foreground',
+                  'flex max-w-[150px] cursor-help items-center gap-1 truncate text-sm',
+                  isUncategorized && 'text-muted-foreground font-light',
                 )}
               >
                 {isUncategorized && (
-                  <HelpCircle className="w-4 h-4 flex-shrink-0" />
+                  <HelpCircle className="h-4 w-4 flex-shrink-0" />
                 )}
                 {displayName}
               </div>
@@ -601,7 +601,7 @@ export const getCatEngineColumns = ({
             <TooltipContent>
               <div>
                 {accountCode && (
-                  <span className="text-xs text-muted-foreground mr-1">
+                  <span className="text-muted-foreground mr-1 text-xs">
                     {accountCode}
                   </span>
                 )}
@@ -626,7 +626,7 @@ export const getCatEngineColumns = ({
           return <div className="text-sm font-light">{percentage}%</div>;
         }
         return (
-          <div className="text-sm font-light text-muted-foreground">-</div>
+          <div className="text-muted-foreground text-sm font-light">-</div>
         );
       },
       meta: { label: 'Confidence', hidden: true },

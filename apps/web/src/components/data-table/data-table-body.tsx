@@ -252,7 +252,8 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                width: 'max-content',
+                minWidth: 'max-content',
+                width: '100%',
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >

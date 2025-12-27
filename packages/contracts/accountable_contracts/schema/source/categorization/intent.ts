@@ -1,9 +1,11 @@
 import { z } from 'zod';
+
 import { contactType } from '../common/enums.js';
 
 export const ledgerIntentEntry = z
   .object({
     entry_id: z.uuid().optional(),
+    client_ref_id: z.string().optional(), // Client-provided reference ID (e.g., temp-entry-*) for exact matching
     coa_id: z.uuid(),
     description: z.string().nullish(),
     reference: z.string().nullish(),

@@ -151,4 +151,11 @@ export type CategorizationTransaction = {
     type: string;
     size_bytes: number;
   }>;
+  /**
+   * Client reference ID - Client-provided reference ID (e.g., temp-entry-*) for exact matching.
+   * Only applicable for posted transactions (extracted from ledger_entries.metadata).
+   * - Set: Client reference ID from intent (for temp entries)
+   * - null: Not applicable or no client_ref_id in metadata
+   */
+  client_ref_id?: string | null;
 };

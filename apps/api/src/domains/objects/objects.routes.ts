@@ -4,7 +4,9 @@ import {
   deleteObjectController,
   getObjDownloadUrl,
   getObjUploadUrl,
+  getTxnFilesController,
   uploadObjectController,
+  uploadTxnFilesController,
 } from './objects.controller.js';
 import { createMulter } from './objects.utils.js';
 
@@ -22,5 +24,9 @@ router.delete('/:objectType/delete', deleteObjectController);
 router.post('/:companyId/objects/url/upload', getObjUploadUrl);
 
 router.get('/objects/url/download', getObjDownloadUrl);
+
+router.post('/:companyId/objects/txn-files', uploadTxnFilesController);
+
+router.post('/:companyId/objects/get-txn-files', getTxnFilesController);
 
 export default router;

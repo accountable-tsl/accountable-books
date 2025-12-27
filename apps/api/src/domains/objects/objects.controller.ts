@@ -5,11 +5,13 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { deleteObject, uploadObject } from './objects.model.js';
+import { StorageService } from './objects.service.js';
 import { type ObjectBucket } from './objects.types.js';
 import { objectTypeHandlers } from './objects.utils.js';
+import { getTxnFiles, persistTxnFiles } from './txn-files/txn-files.service.js';
+
 import type { AuthRequest } from '../../features/auth/auth.types.js';
-import { StorageService } from './objects.service.js';
-import { persistTxnFiles } from './txn-files/txn-files.service.js';
+
 export async function uploadObjectController(req: Request, res: Response) {
   try {
     if (!req.file) {
@@ -170,5 +172,30 @@ export async function uploadTxnFilesController(
     return res
       .status(500)
       .json(errorResponse('Failed to upload transaction files'));
+  }
+}
+
+export async function getTxnFilesController(req: AuthRequest, res: Response) {
+  if (!req.user?.id) {
+    return res.status(401).json(errorResponse('Unauthorized'));
+  }
+
+  const data = Array.isArray(req.body) ? req.body : [req.body];
+  if (!data.length) {
+    return res.status(400).json(errorResponse('Empty requesst'));
+  }
+
+  try {
+    const result = await getTxnFiles({
+      data,
+    });
+
+    return 'success' in result && result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
+  } catch (error) {
+    return res
+      .status(500)
+      .json(errorResponse('Failed to get transaction files'));
   }
 }

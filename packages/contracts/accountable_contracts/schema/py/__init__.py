@@ -14,6 +14,7 @@ from .contact_type import ContactType
 from .data_mutation_intent import DataMutationIntent
 from .enriched_transaction import EnrichedTransaction
 from .final_posting import FinalPosting
+from .get_txn_files_input import GetTxnFilesInput
 from .global_intent_classifier import GlobalIntentClassifier
 from .intent_action_type import IntentActionType
 from .intent_semantic_entry import IntentSemanticEntry
@@ -29,5 +30,7 @@ from .reason_enum import ReasonEnum
 from .reporting_framework import ReportingFramework
 from .temporal_schema import TemporalSchema
 from .tenant_account_ranker import TenantAccountRanker
+from .txn_file_input import TxnFileInput
+from .txn_file_source import TxnFileSource
 
-__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker"]
+__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GetTxnFilesInput", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker", "TxnFileInput", "TxnFileSource"]

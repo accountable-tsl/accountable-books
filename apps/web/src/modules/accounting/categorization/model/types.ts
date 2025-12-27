@@ -198,6 +198,31 @@ export interface GroupedTransaction {
       // Files attached to this specific entry
       files: Array<CategorizationTransactionFile>;
       explanation: string | null;
+      // Client reference ID for exact matching (from client_ref_id in metadata)
+      client_ref_id?: string | null;
     }
   >;
+}
+
+export interface SendCategorizationIntentResponse {
+  results?: Array<{
+    bank_transaction_id: string;
+    operation: 'created' | 'updated_metadata' | 'superseded';
+    ledger_transaction_id: string;
+    old_ledger_transaction_id?: string;
+    warnings?: Record<string, string>;
+    transaction?: CategorizationTransaction[];
+  }>;
+  skipped?: Array<{
+    bank_transaction_id: string;
+    reason: string;
+  }>;
+  summary?: {
+    total_processed: number;
+    created: number;
+    updated: number;
+    superseded: number;
+    skipped: number;
+    has_warnings: boolean;
+  };
 }
