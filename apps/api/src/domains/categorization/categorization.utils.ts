@@ -175,6 +175,31 @@ function resolveNullableField<T>(
 }
 
 /**
+ * Safely converts a value to a number.
+ * Handles string numbers from PostgreSQL NUMERIC types and frontend inputs.
+ *
+ * @param value - Value to convert (can be number, string, or unknown)
+ * @returns Converted number
+ * @throws Error if value cannot be converted to a number
+ */
+function toNumber(value: unknown): number {
+  if (typeof value === 'number') {
+    if (isNaN(value)) {
+      throw new Error('Cannot convert NaN to number');
+    }
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) {
+      throw new Error(`Cannot convert string "${value}" to number`);
+    }
+    return parsed;
+  }
+  throw new Error(`Cannot convert ${typeof value} to number`);
+}
+
+/**
  * Resolves custom exchange rate with fallback chain.
  *
  * Priority:
@@ -192,11 +217,12 @@ export function resolveExchangeRate(
   candidateBankLeg: CategorizationCandidateLine | null | undefined,
   bankTransaction: BankTransactionWithFilteredFields,
 ): number {
-  return (
+  const rate =
     intent.desired_state?.custom_exchange_rate ??
     candidateBankLeg?.custom_exchange_rate ??
-    bankTransaction.system_exchange_rate
-  );
+    bankTransaction.system_exchange_rate;
+
+  return toNumber(rate);
 }
 
 /**
@@ -217,7 +243,7 @@ export function buildBankLeg(
     fs_date: toYMD(bankTransaction.date),
     coa_id: bankTransaction.bank_account_coa_id,
     source_currency_id: bankTransaction.bank_account_currency_id,
-    source_amount: bankTransaction.amount,
+    source_amount: toNumber(bankTransaction.amount),
     custom_exchange_rate: resolveExchangeRate(
       intent,
       candidateBankLeg,
@@ -252,13 +278,20 @@ export function buildNonBankLegFromBankTransaction(
     throw new Error('Split entries require explicit source_amount');
   }
 
+  // Convert source_amount to number
+  const sourceAmount =
+    intentEntry.source_amount !== undefined
+      ? toNumber(intentEntry.source_amount)
+      : isSplit
+        ? 0
+        : toNumber(bankTransaction.amount);
+
   return {
     is_bank_leg: false,
     coa_id: intentEntry.coa_id,
     fs_date: intentEntry.fs_date || toYMD(bankTransaction.date),
     source_currency_id: bankTransaction.bank_account_currency_id,
-    source_amount:
-      intentEntry.source_amount ?? (isSplit ? 0 : bankTransaction.amount),
+    source_amount: sourceAmount,
     custom_exchange_rate: resolveExchangeRate(intent, null, bankTransaction),
     contact_id: resolveNullableField(
       intentEntry.contact_id,
@@ -315,7 +348,7 @@ export function buildNonBankLegFromCandidateSingle(
       candidateLine?.fs_date ??
       toYMD(bankTransaction.date),
     source_currency_id: bankTransaction.bank_account_currency_id,
-    source_amount: bankTransaction.amount,
+    source_amount: toNumber(bankTransaction.amount),
     custom_exchange_rate: resolveExchangeRate(
       intent,
       candidateBankLeg,
@@ -371,6 +404,12 @@ export function buildNonBankLegFromCandidateSplit(
   intent: LedgerIntent,
   candidateBankLeg: CategorizationCandidateLine,
 ): LedgerEntryInput {
+  // Convert source_amount to number
+  const sourceAmount =
+    intentEntry.source_amount !== undefined
+      ? toNumber(intentEntry.source_amount)
+      : 0;
+
   return {
     is_bank_leg: false,
     coa_id: intentEntry.coa_id, // Required in intent for splits
@@ -379,7 +418,7 @@ export function buildNonBankLegFromCandidateSplit(
       candidateBankLeg.fs_date ??
       toYMD(bankTransaction.date),
     source_currency_id: bankTransaction.bank_account_currency_id,
-    source_amount: intentEntry.source_amount ?? 0,
+    source_amount: sourceAmount,
     custom_exchange_rate: resolveExchangeRate(
       intent,
       candidateBankLeg,
@@ -445,16 +484,28 @@ export function buildNonBankLegFromLedgerUpdate(
     metadata?: Record<string, unknown>;
   },
 ): LedgerEntryInput {
+  // Convert source_amount to number if provided in intent, otherwise use ledger entry value
+  const sourceAmount =
+    intentEntry.source_amount !== undefined
+      ? toNumber(intentEntry.source_amount)
+      : toNumber(ledgerEntry.source_amount);
+
+  // Convert custom_exchange_rate to number
+  const customExchangeRate = (() => {
+    const rate =
+      intent.desired_state?.custom_exchange_rate ??
+      ledgerEntry.custom_exchange_rate;
+    return toNumber(rate);
+  })();
+
   return {
     id: ledgerEntry.id,
     is_bank_leg: false,
     coa_id: intentEntry.coa_id ?? ledgerEntry.coa_id,
     fs_date: intentEntry.fs_date ?? toYMD(ledgerEntry.fs_date),
     source_currency_id: ledgerEntry.source_currency_id,
-    source_amount: intentEntry.source_amount ?? ledgerEntry.source_amount,
-    custom_exchange_rate:
-      intent.desired_state?.custom_exchange_rate ??
-      ledgerEntry.custom_exchange_rate,
+    source_amount: sourceAmount,
+    custom_exchange_rate: customExchangeRate,
     contact_id: resolveNullableField(
       intentEntry.contact_id,
       ledgerEntry.contact_id,
@@ -519,6 +570,24 @@ export function buildNonBankLegFromLedgerSplit(
     description: string | null;
   } | null,
 ): LedgerEntryInput {
+  // Convert source_amount to number
+  if (
+    intentEntry.source_amount === undefined ||
+    intentEntry.source_amount === null
+  ) {
+    throw new Error('source_amount is required for ledger entry');
+  }
+  const sourceAmount = toNumber(intentEntry.source_amount);
+
+  // Convert custom_exchange_rate to number
+  const customExchangeRate = (() => {
+    const rate =
+      intent.desired_state?.custom_exchange_rate ??
+      templateEntry?.custom_exchange_rate;
+    if (rate === null || rate === undefined) return undefined;
+    return toNumber(rate);
+  })();
+
   return {
     is_bank_leg: false,
     coa_id: intentEntry.coa_id,
@@ -528,10 +597,8 @@ export function buildNonBankLegFromLedgerSplit(
     source_currency_id:
       templateEntry?.source_currency_id ??
       ledgerTxn.source_transaction_currency_id,
-    source_amount: intentEntry.source_amount!,
-    custom_exchange_rate:
-      intent.desired_state?.custom_exchange_rate ??
-      templateEntry?.custom_exchange_rate,
+    source_amount: sourceAmount,
+    custom_exchange_rate: customExchangeRate,
     contact_id: resolveNullableField(
       intentEntry.contact_id,
       templateEntry?.contact_id ?? ledgerTxn.contact_id ?? null,
@@ -588,7 +655,7 @@ export function buildLedgerTransactionMetadata(
     contact_type: bankTransaction.contact_type_snapshot,
     source_transaction_id: bankTransaction.id,
     source_transaction_date: toDate(bankTransaction.date, 'start'),
-    source_transaction_amount: bankTransaction.amount,
+    source_transaction_amount: toNumber(bankTransaction.amount),
     source_transaction_currency_id: bankTransaction.bank_account_currency_id,
     ...(candidateId ? { categorization_candidate_id: candidateId } : {}),
   };
@@ -618,7 +685,7 @@ export function buildLedgerTransactionMetadataFromCandidate(
     contact_type: candidate.contact_type ?? null,
     source_transaction_id: candidate.bank_transaction_id,
     source_transaction_date: toDate(bankTransaction.date, 'start'),
-    source_transaction_amount: bankTransaction.amount,
+    source_transaction_amount: toNumber(bankTransaction.amount),
     source_transaction_currency_id: bankTransaction.bank_account_currency_id,
     categorization_candidate_id: candidate.id,
   };

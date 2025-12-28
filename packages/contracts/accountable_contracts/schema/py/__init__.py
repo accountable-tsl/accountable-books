@@ -14,7 +14,7 @@ from .contact_type import ContactType
 from .data_mutation_intent import DataMutationIntent
 from .enriched_transaction import EnrichedTransaction
 from .final_posting import FinalPosting
-from .get_txn_files_input import GetTxnFilesInput
+from .get_txn_file_input import GetTxnFileInput
 from .global_intent_classifier import GlobalIntentClassifier
 from .intent_action_type import IntentActionType
 from .intent_semantic_entry import IntentSemanticEntry
@@ -24,13 +24,16 @@ from .ledger_intent_entry import LedgerIntentEntry
 from .ledger_intent_schema import LedgerIntentSchema
 from .ml_prediction_output import MlPredictionOutput
 from .new_account_type import NewAccountType
+from .new_txn_file import NewTxnFile
+from .obj_storage_provider import ObjStorageProvider
 from .ranker_entry import RankerEntry
 from .ranker_explanation import RankerExplanation
 from .reason_enum import ReasonEnum
 from .reporting_framework import ReportingFramework
 from .temporal_schema import TemporalSchema
 from .tenant_account_ranker import TenantAccountRanker
+from .transaction_files import TransactionFiles
 from .txn_file_input import TxnFileInput
 from .txn_file_source import TxnFileSource
 
-__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GetTxnFilesInput", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker", "TxnFileInput", "TxnFileSource"]
+__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GetTxnFileInput", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "NewTxnFile", "ObjStorageProvider", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker", "TransactionFiles", "TxnFileInput", "TxnFileSource"]

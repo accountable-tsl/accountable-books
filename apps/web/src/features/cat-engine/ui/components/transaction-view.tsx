@@ -9,7 +9,7 @@ import type {
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
 import type { ComponentProps } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FilePreviewer } from '@/components/file-previewer';
@@ -20,6 +20,11 @@ import { AddNewCoaDialog } from '@/features/chart-of-accounts/ui/components/coa-
 import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
 import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
 import { cn } from '@/lib/utils';
+import {
+  createTempEntryId,
+  isTempEntryId,
+  useLedgerIntentUpdater,
+} from '@/modules/accounting/categorization';
 import { useContactsInfinite } from '@/modules/contacts';
 import { getObjectDownloadUrl } from '@/modules/objects/api';
 import { useUploadTransactionFiles } from '@/modules/objects/model/hooks';
@@ -37,11 +42,6 @@ import {
 import { toast } from 'sonner';
 
 import { TOOLTIPS } from '../constants';
-import {
-  createTempEntryId,
-  isTempEntryId,
-  useLedgerIntentUpdater,
-} from '../hooks/use-intent-emitter';
 
 import type { GroupedCoaData } from '../types';
 
@@ -95,8 +95,13 @@ export function TransactionView({
   );
   // Map of File object -> blob URL for new files
   const [blobUrls, setBlobUrls] = useState<Map<File, string>>(new Map());
-  // Track which files have been saved
-  const [savedFiles, setSavedFiles] = useState<Set<File>>(new Set());
+  // Track which files have been saved (keyed by entryId:fileName:fileSize)
+  const [savedFiles, setSavedFiles] = useState<Set<string>>(new Set());
+
+  // Helper function to create file key for savedFiles tracking
+  const getFileKey = useCallback((entryId: string, file: File) => {
+    return `${entryId}:${file.name}:${file.size}`;
+  }, []);
 
   const uploadTxnFilesMutation = useUploadTransactionFiles();
 
@@ -181,6 +186,104 @@ export function TransactionView({
     });
     setDraftEntryFiles(filesByEntryId);
   }, [txn.id]); // Only reset when the transaction ID changes
+
+  useEffect(() => {
+    if (!txn.entries?.length || !draftTransactionState?.entries?.length) {
+      return;
+    }
+
+    const tempToRealEntryIds = new Map<string, string>();
+    txn.entries.forEach((entry) => {
+      if (
+        entry.client_ref_id &&
+        entry.id &&
+        isTempEntryId(entry.client_ref_id)
+      ) {
+        tempToRealEntryIds.set(entry.client_ref_id, entry.id);
+      }
+    });
+
+    if (tempToRealEntryIds.size === 0) {
+      return;
+    }
+
+    setDraftTransactionState((prev) => {
+      if (!prev?.entries) return prev;
+      let updated = false;
+      const entries = prev.entries.map((entry) => {
+        const mappedId = entry.entry_id
+          ? tempToRealEntryIds.get(entry.entry_id)
+          : undefined;
+        if (mappedId && entry.entry_id !== mappedId) {
+          updated = true;
+          return { ...entry, entry_id: mappedId };
+        }
+        return entry;
+      });
+      return updated ? { ...prev, entries } : prev;
+    });
+
+    setDraftEntryFiles((prev) => {
+      let updated = false;
+      const next = new Map(prev);
+      tempToRealEntryIds.forEach((realId, tempId) => {
+        const files = next.get(tempId);
+        if (!files) return;
+        next.delete(tempId);
+        const existing = next.get(realId);
+        next.set(realId, existing ? [...existing, ...files] : files);
+        updated = true;
+      });
+      return updated ? next : prev;
+    });
+
+    setSavedFiles((prev) => {
+      if (tempToRealEntryIds.size === 0) return prev;
+      const next = new Set(prev);
+      tempToRealEntryIds.forEach((realId, tempId) => {
+        const files = draftEntryFiles.get(tempId) || [];
+        files.forEach((file) => {
+          if (isServerFile(file)) return;
+          const oldKey = getFileKey(tempId, file);
+          if (next.has(oldKey)) {
+            next.delete(oldKey);
+            next.add(getFileKey(realId, file));
+          }
+        });
+      });
+      return next;
+    });
+
+    setExpandedEntries((prev) => {
+      const next = new Set(prev);
+      let updated = false;
+      tempToRealEntryIds.forEach((realId, tempId) => {
+        if (next.has(tempId)) {
+          next.delete(tempId);
+          next.add(realId);
+          updated = true;
+        }
+      });
+      return updated ? next : prev;
+    });
+
+    setEditing((prev) => {
+      if (!prev) return prev;
+      const mappedId = tempToRealEntryIds.get(prev.entryId);
+      return mappedId ? { ...prev, entryId: mappedId } : prev;
+    });
+
+    setSelectedEntryId((prev) => {
+      if (!prev) return prev;
+      return tempToRealEntryIds.get(prev) ?? prev;
+    });
+  }, [
+    txn.entries,
+    draftTransactionState?.entries,
+    draftEntryFiles,
+    getFileKey,
+    isServerFile,
+  ]);
 
   const toggleEntry = (entryId: string) => {
     const newExpanded = new Set(expandedEntries);
@@ -294,18 +397,7 @@ export function TransactionView({
           // Server file - use presigned URL if available
           const url = presignedUrls.get(file.key);
           if (!url) {
-            // Fetch presigned URL asynchronously in background
-            getObjectDownloadUrl({
-              bucketType: 'txnFiles',
-              fileKey: file.key,
-              timeout: 3600,
-            }).then((downloadUrlResponse) => {
-              if (downloadUrlResponse.success && downloadUrlResponse.data) {
-                setPresignedUrls((prev) =>
-                  new Map(prev).set(file.key, downloadUrlResponse.data!.url),
-                );
-              }
-            });
+            // URL not yet available - will be fetched by useEffect
             continue; // Skip for now, will be available on next render
           }
           attachments.push({
@@ -363,8 +455,7 @@ export function TransactionView({
     }
 
     // 2. Transaction must be balanced
-    const balanceCheck = isTransactionBalanced();
-    if (!balanceCheck.balanced) {
+    if (!balance.balanced) {
       const entriesTotal =
         draftTransactionState?.entries?.reduce(
           (sum, e) => sum + (e.source_amount ?? 0),
@@ -374,7 +465,7 @@ export function TransactionView({
         entryId,
         entriesTotal,
         bankAmount: txn.bankAmount,
-        diff: balanceCheck.diff,
+        diff: balance.diff,
         expectedTotal: -txn.bankAmount,
         entries: draftTransactionState?.entries?.map((e) => ({
           id: e.entry_id,
@@ -396,12 +487,13 @@ export function TransactionView({
     if (!entry.coa_id) return false;
 
     // Transaction must be balanced
-    if (!isTransactionBalanced()) return false;
+    if (!balance.balanced) return false;
 
     return true;
   }
 
-  function isTransactionBalanced(): { balanced: boolean; diff: number } {
+  // Memoize balance calculation to avoid repeated computation
+  const balance = useMemo(() => {
     if (!draftTransactionState?.entries?.length)
       return { balanced: false, diff: 0 };
 
@@ -414,35 +506,47 @@ export function TransactionView({
       balanced: Math.abs(entriesTotal + txn.bankAmount) < 0.0001,
       diff: entriesTotal + txn.bankAmount,
     };
-  }
+  }, [draftTransactionState?.entries, txn.bankAmount]);
 
   // Auto-save files when entry becomes valid
   const handleAutoSaveFiles = async (entryId: string) => {
+    // Skip temp entries - they'll be uploaded after persistence
+    if (isTempEntryId(entryId)) {
+      return;
+    }
+
+    // No fallback - maintain invariant that files are never uploaded pre-ledger
+    if (!txn.ledgerTransactionId) {
+      return;
+    }
+
     if (!companyId || !canAcceptFiles(entryId)) return;
 
     const files = draftEntryFiles.get(entryId) || [];
     const newFiles = files.filter(
-      (file) => !isServerFile(file) && !savedFiles.has(file),
+      (file) =>
+        !isServerFile(file) && !savedFiles.has(getFileKey(entryId, file)),
     ) as File[];
 
     if (newFiles.length === 0) return;
 
     try {
       // Determine source type - for entries it should be 'ledger'
-      const source: 'ledger' | 'journal' | 'bank' = 'ledger';
+      const entry = txn.entries?.find((e) => e.id === entryId);
+      const ledgerEntryId = entry?.ledgerEntryId || entryId;
 
       await uploadTxnFilesMutation.mutateAsync({
         companyId,
         files: newFiles,
-        transactionId: txn.bankTransactionId,
-        source,
-        entryId: isTempEntryId(entryId) ? null : entryId,
+        transactionId: txn.ledgerTransactionId,
+        source: 'ledger',
+        entryId: ledgerEntryId,
       });
 
       // Mark files as saved
       setSavedFiles((prev) => {
         const newSet = new Set(prev);
-        newFiles.forEach((file) => newSet.add(file));
+        newFiles.forEach((file) => newSet.add(getFileKey(entryId, file)));
         return newSet;
       });
 
@@ -454,6 +558,77 @@ export function TransactionView({
       console.error('Failed to auto-save files:', error);
     }
   };
+
+  // Upload files for newly persisted entries (temp entries that were just persisted)
+  const handleUploadFilesForPersistedEntries = useCallback(
+    async (persistedTransaction: GroupedTransaction) => {
+      // No fallback - maintain invariant that files are never uploaded pre-ledger
+      if (!companyId || !persistedTransaction.ledgerTransactionId) return;
+
+      const tempEntryIds = Array.from(draftEntryFiles.keys()).filter(
+        isTempEntryId,
+      );
+
+      for (const tempEntryId of tempEntryIds) {
+        const persistedEntry = persistedTransaction.entries?.find(
+          (e) => e.client_ref_id === tempEntryId,
+        );
+
+        if (persistedEntry?.ledgerEntryId) {
+          const files = draftEntryFiles.get(tempEntryId) || [];
+          const newFiles = files.filter(
+            (file) =>
+              !isServerFile(file) &&
+              !savedFiles.has(getFileKey(tempEntryId, file)),
+          ) as File[];
+
+          if (newFiles.length > 0) {
+            try {
+              // Upload with ledgerTransactionId (no fallback)
+              await uploadTxnFilesMutation.mutateAsync({
+                companyId,
+                files: newFiles,
+                transactionId: persistedTransaction.ledgerTransactionId,
+                source: 'ledger',
+                entryId: persistedEntry.ledgerEntryId,
+              });
+
+              // Mark files as saved
+              setSavedFiles((prev) => {
+                const newSet = new Set(prev);
+                newFiles.forEach((file) =>
+                  newSet.add(getFileKey(tempEntryId, file)),
+                );
+                return newSet;
+              });
+
+              // Remove temp entry ID from draftEntryFiles
+              setDraftEntryFiles((prev) => {
+                const newMap = new Map(prev);
+                newMap.delete(tempEntryId);
+                return newMap;
+              });
+            } catch (error) {
+              toast.error(
+                `Failed to upload files for entry: ${persistedEntry.ledgerEntryId}`,
+              );
+              console.error(
+                'Failed to upload files for persisted entry:',
+                error,
+              );
+            }
+          }
+        }
+      }
+    },
+    [
+      companyId,
+      draftEntryFiles,
+      savedFiles,
+      uploadTxnFilesMutation,
+      getFileKey,
+    ],
+  );
 
   const handleSaveEntry = (entryId: string, field: EntryField, value: any) => {
     console.log('handleSaveEntry', { entryId, field, value });
@@ -580,7 +755,7 @@ export function TransactionView({
         // Remove from saved files tracking
         setSavedFiles((prevSaved) => {
           const newSaved = new Set(prevSaved);
-          newSaved.delete(fileToRemove);
+          newSaved.delete(getFileKey(entryId, fileToRemove));
           return newSaved;
         });
       }
@@ -602,20 +777,93 @@ export function TransactionView({
     if (!draftTransactionState?.entries || !companyId) return;
 
     draftTransactionState.entries.forEach((entry) => {
-      if (entry.entry_id && canAcceptFiles(entry.entry_id)) {
+      // Skip temp entries - they'll be uploaded after persistence
+      if (
+        entry.entry_id &&
+        !isTempEntryId(entry.entry_id) &&
+        canAcceptFiles(entry.entry_id)
+      ) {
         // Check if there are unsaved files for this entry
-        const files = draftEntryFiles.get(entry.entry_id) || [];
+        const entryId = entry.entry_id; // Type narrowing
+        const files = draftEntryFiles.get(entryId) || [];
         const hasUnsavedFiles = files.some(
-          (file) => !isServerFile(file) && !savedFiles.has(file),
+          (file) =>
+            !isServerFile(file) && !savedFiles.has(getFileKey(entryId, file)),
         );
 
         if (hasUnsavedFiles) {
-          handleAutoSaveFiles(entry.entry_id);
+          handleAutoSaveFiles(entryId);
         }
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftTransactionState?.entries, draftEntryFiles, savedFiles, companyId]);
+  }, [
+    draftTransactionState?.entries,
+    draftEntryFiles,
+    savedFiles,
+    companyId,
+    getFileKey,
+  ]);
+
+  // Fetch presigned URLs for server files that need them
+  useEffect(() => {
+    if (!companyId) return;
+
+    // Find all server files that need presigned URLs
+    const filesNeedingUrls: Array<{ key: string }> = [];
+
+    for (const files of draftEntryFiles.values()) {
+      for (const file of files) {
+        if (isServerFile(file) && !presignedUrls.has(file.key)) {
+          // Avoid duplicate requests for the same key
+          if (!filesNeedingUrls.some((f) => f.key === file.key)) {
+            filesNeedingUrls.push({ key: file.key });
+          }
+        }
+      }
+    }
+
+    // Fetch URLs for files that need them
+    for (const { key } of filesNeedingUrls) {
+      getObjectDownloadUrl({
+        bucketType: 'txnFiles',
+        fileKey: key,
+        timeout: 3600,
+      }).then((downloadUrlResponse) => {
+        if (downloadUrlResponse.success && downloadUrlResponse.data) {
+          setPresignedUrls((prev) =>
+            new Map(prev).set(key, downloadUrlResponse.data!.url),
+          );
+        }
+      });
+    }
+  }, [companyId, draftEntryFiles, presignedUrls]);
+
+  // Detect when transaction is persisted and upload files for temp entries
+  const prevLedgerTransactionIdRef = useRef<string | null>(
+    txn.ledgerTransactionId,
+  );
+  const filesUploadedForTxnRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const prev = prevLedgerTransactionIdRef.current;
+    const current = txn.ledgerTransactionId;
+
+    // Detect transition from null to non-null (entry was persisted)
+    if (!prev && current && txn.entries) {
+      // Guard against double upload on re-renders
+      if (!filesUploadedForTxnRef.current.has(current)) {
+        handleUploadFilesForPersistedEntries(txn);
+        filesUploadedForTxnRef.current.add(current);
+      }
+    }
+
+    prevLedgerTransactionIdRef.current = current;
+  }, [
+    txn.ledgerTransactionId,
+    txn.entries,
+    handleUploadFilesForPersistedEntries,
+  ]);
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -1404,10 +1652,10 @@ export function TransactionView({
 
         <div className="flex-shrink-0 space-y-0.5 p-2">
           {/* Add better message here later - maybe even add a message when a new entry is present (whether balanced or not)*/}
-          {!isTransactionBalanced().balanced && (
+          {!balance.balanced && (
             <p className="text-destructive bg-red-50 pb-1 text-center text-xs dark:bg-red-950 dark:text-red-300">
               Total debit and credit do not match (Diff:{' '}
-              {formatNumber(isTransactionBalanced().diff, 2)})
+              {formatNumber(balance.diff, 2)})
             </p>
           )}
           {/* Total Debit and Credit */}

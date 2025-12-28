@@ -21,6 +21,7 @@ CREATE TABLE public.ledger_entries (
     contact_id              UUID,
     contact_type            contact_type,
     description             TEXT,
+    reference               TEXT,
     project_id              UUID,
     is_monetary             BOOLEAN NOT NULL DEFAULT false,
     is_bank_leg             BOOLEAN NOT NULL DEFAULT false,
@@ -359,14 +360,14 @@ BEGIN
       INSERT INTO ledger_entries (
         id, ledger_transaction_id, fs_date, coa_id, source_currency_id,
         source_amount, system_exchange_rate, custom_exchange_rate,
-        description, project_id, contact_id, contact_type, is_monetary,
+        description, reference, project_id, contact_id, contact_type, is_monetary,
         is_bank_leg, fx_transaction_id, metadata, updated_by_id, created_at, updated_at,
         deleted_at, is_deleted, human_reviewed, review_notes, reviewed_by_id, reviewed_at
       )
       SELECT
         id, ledger_transaction_id, fs_date, coa_id, source_currency_id,
         source_amount, system_exchange_rate, custom_exchange_rate,
-        description, project_id, contact_id, contact_type, is_monetary,
+        description, reference, project_id, contact_id, contact_type, is_monetary,
         is_bank_leg, fx_transaction_id, metadata, updated_by_id, created_at, updated_at,
         deleted_at, is_deleted, human_reviewed, review_notes, reviewed_by_id, reviewed_at
       FROM ledger_entries_default
@@ -410,6 +411,7 @@ BEGIN
      OR (NEW.updated_by_id IS DISTINCT FROM OLD.updated_by_id)
     --  OR (NEW.categorization_status IS DISTINCT FROM OLD.categorization_status)
      OR (NEW.description IS DISTINCT FROM OLD.description)
+     OR (NEW.reference IS DISTINCT FROM OLD.reference)
      OR (NEW.project_id IS DISTINCT FROM OLD.project_id)
      OR (NEW.contact_id IS DISTINCT FROM OLD.contact_id)
      OR (NEW.contact_type IS DISTINCT FROM OLD.contact_type)
@@ -422,7 +424,7 @@ BEGIN
   END IF;
 
   IF ROW(NEW.*) IS DISTINCT FROM ROW(OLD.*) THEN
-    RAISE EXCEPTION 'Ledger entries are immutable. Only is_deleted, deleted_at, updated_by_id, description, project_id, contact_id, contact_type, human_reviewed, review_notes, reviewed_by_id, reviewed_at may change.';
+    RAISE EXCEPTION 'Ledger entries are immutable. Only is_deleted, deleted_at, updated_by_id, description, reference, project_id, contact_id, contact_type, human_reviewed, review_notes, reviewed_by_id, reviewed_at may change.';
   END IF;
 
   RETURN NEW;

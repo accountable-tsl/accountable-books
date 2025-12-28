@@ -1,5 +1,6 @@
 import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import type { ColumnDef } from '@tanstack/react-table';
+import type React from 'react';
 import { FormattedAmount } from '@/components/FormattedAmount';
 import {
   Tooltip,
@@ -7,6 +8,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 import { toYMD } from '@/shared/utils/date-utils';
 import {
   Building,
@@ -24,11 +26,412 @@ import {
   EditableNumberCell,
   EditableTextCell,
 } from '../components/editable-fields';
-import { useLedgerIntentUpdater } from '../hooks/use-intent-emitter';
 
 import type { GroupedCoaData } from '../types';
 
 const fieldKey = (id: string, columnId: string) => `${id}-${columnId}`;
+
+// Wrapper components for cells that need hooks
+function DescriptionCell({
+  txn,
+  mode,
+  markFieldClean,
+  markFieldDirty,
+  row,
+}: {
+  txn: GroupedTransaction;
+  mode: 'review' | 'autosave';
+  markFieldClean: (key: string) => void;
+  markFieldDirty: (key: string) => void;
+  row: { toggleExpanded: () => void };
+}) {
+  const { updateEntry } = useLedgerIntentUpdater(txn);
+  const multipleLines = txn.hasMultipleEntries;
+  const showTooltip = txn.description ? true : false;
+  const displayText = txn.description || 'No description';
+
+  if (mode === 'autosave' && !multipleLines) {
+    return (
+      <EditableTextCell
+        value={txn.description || ''}
+        placeholder="No description"
+        onCommit={(value) => {
+          updateEntry(txn.id, { description: value || null });
+          markFieldClean(fieldKey(txn.id, 'description'));
+        }}
+        markDirty={() => markFieldDirty(fieldKey(txn.id, 'description'))}
+      />
+    );
+  }
+
+  return (
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>
+        <div
+          className={cn(
+            'truncate text-sm',
+            (!showTooltip || multipleLines) &&
+              'text-muted-foreground opacity-50',
+          )}
+          {...(mode === 'autosave'
+            ? {
+                onClick: (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  row.toggleExpanded();
+                },
+              }
+            : {})}
+        >
+          {displayText}
+        </div>
+      </TooltipTrigger>
+      {showTooltip && (
+        <TooltipContent className="max-w-md">
+          <p className="break-words">{displayText}</p>
+        </TooltipContent>
+      )}
+    </Tooltip>
+  );
+}
+
+function FsDateCell({
+  txn,
+  mode,
+  markFieldClean,
+  markFieldDirty,
+}: {
+  txn: GroupedTransaction;
+  mode: 'review' | 'autosave';
+  markFieldClean: (key: string) => void;
+  markFieldDirty: (key: string) => void;
+}) {
+  const { updateEntry } = useLedgerIntentUpdater(txn);
+  const fsDate = txn.fsDate;
+
+  if (mode === 'autosave' && fsDate) {
+    return (
+      <EditableDateCell
+        value={new Date(fsDate)}
+        onCommit={(date) => {
+          if (!date) return;
+          updateEntry(txn.id, { fs_date: toYMD(date) });
+          markFieldClean(fieldKey(txn.id, 'fsDate'));
+        }}
+        markDirty={() => markFieldDirty(fieldKey(txn.id, 'fsDate'))}
+      />
+    );
+  }
+  return <div className="">{fsDate || ''}</div>;
+}
+
+function ContactCell({
+  txn,
+  mode,
+  markFieldClean,
+  markFieldDirty,
+  row,
+}: {
+  txn: GroupedTransaction;
+  mode: 'review' | 'autosave';
+  markFieldClean: (key: string) => void;
+  markFieldDirty: (key: string) => void;
+  row: { toggleExpanded: () => void };
+}) {
+  const { updateEntry } = useLedgerIntentUpdater(txn);
+  const contactId = txn.contactId;
+  const contactName = txn.contactName;
+
+  if (mode === 'autosave' && !txn.hasMultipleEntries) {
+    return (
+      <EditableDropdownCell
+        field="contact"
+        contactId={contactId || undefined}
+        contactName={contactName || undefined}
+        onCommit={(id) => {
+          updateEntry(txn.id, { contact_id: id || null });
+          markFieldClean(fieldKey(txn.id, 'contact'));
+        }}
+        markDirty={() => markFieldDirty(fieldKey(txn.id, 'contact'))}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        'truncate text-sm font-light',
+        txn.hasMultipleEntries ? 'text-muted-foreground opacity-50' : '',
+      )}
+      title={contactName || ''}
+      {...(mode === 'autosave' && txn.hasMultipleEntries
+        ? {
+            onClick: (e: React.MouseEvent) => {
+              e.stopPropagation();
+              row.toggleExpanded();
+            },
+          }
+        : {})}
+    >
+      {contactName || 'No contact'}
+    </div>
+  );
+}
+
+function ReferenceCell({
+  txn,
+  mode,
+  markFieldClean,
+  markFieldDirty,
+  row,
+}: {
+  txn: GroupedTransaction;
+  mode: 'review' | 'autosave';
+  markFieldClean: (key: string) => void;
+  markFieldDirty: (key: string) => void;
+  row: { toggleExpanded: () => void };
+}) {
+  const { updateEntry } = useLedgerIntentUpdater(txn);
+  const reference = txn.reference;
+
+  if (mode === 'autosave' && !txn.hasMultipleEntries) {
+    return (
+      <EditableTextCell
+        value={txn.reference || ''}
+        placeholder="No reference"
+        onCommit={(value) => {
+          updateEntry(txn.id, { reference: value || null });
+          markFieldClean(fieldKey(txn.id, 'reference'));
+        }}
+        markDirty={() => markFieldDirty(fieldKey(txn.id, 'reference'))}
+      />
+    );
+  }
+
+  return (
+    <div
+      title={reference || ''}
+      className={cn(
+        'truncate text-sm font-light',
+        txn.hasMultipleEntries || !reference
+          ? 'text-muted-foreground opacity-50'
+          : '',
+      )}
+      {...(mode === 'autosave' && txn.hasMultipleEntries
+        ? {
+            onClick: (e: React.MouseEvent) => {
+              e.stopPropagation();
+              row.toggleExpanded();
+            },
+          }
+        : {})}
+    >
+      {reference || '-'}
+    </div>
+  );
+}
+
+function ProjectCell({
+  txn,
+  mode,
+  markFieldClean,
+  markFieldDirty,
+}: {
+  txn: GroupedTransaction;
+  mode: 'review' | 'autosave';
+  markFieldClean: (key: string) => void;
+  markFieldDirty: (key: string) => void;
+}) {
+  const { updateEntry } = useLedgerIntentUpdater(txn);
+  const projectName = txn.projectName;
+
+  if (mode === 'autosave' && !txn.hasMultipleEntries) {
+    return (
+      <EditableDropdownCell
+        field="project"
+        projectId={txn.projectId || undefined}
+        projectName={projectName || undefined}
+        onCommit={(id) => {
+          updateEntry(txn.id, { project_id: id || null });
+          markFieldClean(fieldKey(txn.id, 'project'));
+        }}
+        markDirty={() => markFieldDirty(fieldKey(txn.id, 'project'))}
+      />
+    );
+  }
+
+  return (
+    <div
+      title={projectName || ''}
+      className={cn(
+        'truncate text-sm font-light',
+        txn.hasMultipleEntries || !projectName
+          ? 'text-muted-foreground opacity-50'
+          : '',
+      )}
+    >
+      {projectName || ''}
+    </div>
+  );
+}
+
+function ExchangeRateCell({
+  txn,
+  mode,
+  onFxRateChange,
+  markFieldClean,
+  markFieldDirty,
+  row,
+}: {
+  txn: GroupedTransaction;
+  mode: 'review' | 'autosave';
+  onFxRateChange?: (bankTransactionId: string, rate: number) => void;
+  markFieldClean: (key: string) => void;
+  markFieldDirty: (key: string) => void;
+  row: { toggleExpanded: () => void };
+}) {
+  const { updateExchangeRate } = useLedgerIntentUpdater(txn);
+
+  if (mode === 'autosave' && !txn.hasMultipleEntries) {
+    return (
+      <EditableNumberCell
+        value={txn.exchangeRate}
+        placeholder="0.0000"
+        decimals={4}
+        min={0.000001}
+        onCommit={(value) => {
+          const numValue = parseFloat(value);
+          if (!isNaN(numValue) && numValue > 0) {
+            // Update optimistic UI state immediately (spent/received)
+            onFxRateChange?.(txn.bankTransactionId, numValue);
+
+            // Update exchange rate via intent system
+            updateExchangeRate(numValue);
+
+            markFieldClean(fieldKey(txn.id, 'exchangeRate'));
+          }
+        }}
+        markDirty={() => markFieldDirty(fieldKey(txn.id, 'exchangeRate'))}
+      />
+    );
+  }
+
+  return (
+    <div
+      title={txn.exchangeRate}
+      className={cn(
+        'text-muted-foreground truncate text-right text-sm font-light',
+        mode === 'autosave' && txn.hasMultipleEntries && 'opacity-50',
+      )}
+      {...(mode === 'autosave' && txn.hasMultipleEntries
+        ? {
+            onClick: (e: React.MouseEvent) => {
+              e.stopPropagation();
+              row.toggleExpanded();
+            },
+          }
+        : {})}
+    >
+      {txn.exchangeRate}
+    </div>
+  );
+}
+
+function AccountCell({
+  txn,
+  groupedCoaData,
+  mode,
+  markFieldClean,
+  markFieldDirty,
+  row,
+}: {
+  txn: GroupedTransaction;
+  groupedCoaData: GroupedCoaData[];
+  mode: 'review' | 'autosave';
+  markFieldClean: (key: string) => void;
+  markFieldDirty: (key: string) => void;
+  row: { getIsExpanded: () => boolean; toggleExpanded: () => void };
+}) {
+  // Hook must be called unconditionally at the top level
+  const { updateEntry } = useLedgerIntentUpdater(txn);
+  const accountName = txn.coaName;
+
+  if (txn.hasMultipleEntries) {
+    if (mode === 'review') {
+      return (
+        <div className="flex items-center gap-1">
+          <Split className="text-muted-foreground h-3 w-3" />
+          <span className="text-blue-500">Multiple entries</span>
+        </div>
+      );
+    } else {
+      const isExpanded = row.getIsExpanded();
+
+      return (
+        <div
+          className="flex cursor-pointer items-center justify-between gap-1 pr-0.5 font-light decoration-blue-200 decoration-1 hover:underline"
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation(); // Prevent row click
+            row.toggleExpanded();
+          }}
+        >
+          <span className="text-blue-500">View entries ({txn.entryCount})</span>
+          {isExpanded ? (
+            <ChevronDown className="text-muted-foreground h-3 w-3" />
+          ) : (
+            <ChevronRight className="text-muted-foreground h-3 w-3" />
+          )}
+        </div>
+      );
+    }
+  }
+
+  const displayName = accountName || 'Uncategorized';
+  const accountCode = txn.coaCode;
+  const isUncategorized = !accountName;
+
+  if (mode === 'autosave') {
+    return (
+      <div className="flex items-center gap-2">
+        <EditableAccountCell
+          coaId={txn.coaId || undefined}
+          groupedCoaData={groupedCoaData}
+          onCommit={(coaId) => {
+            if (!coaId) return;
+            updateEntry(txn.id, { coa_id: coaId });
+            markFieldClean(fieldKey(txn.id, 'account'));
+          }}
+          markDirty={() => markFieldDirty(fieldKey(txn.id, 'account'))}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <Tooltip delayDuration={500}>
+      <TooltipTrigger asChild>
+        <div
+          className={cn(
+            'flex max-w-[150px] cursor-help items-center gap-1 truncate text-sm',
+            isUncategorized && 'text-muted-foreground font-light',
+          )}
+        >
+          {isUncategorized && <HelpCircle className="h-4 w-4 flex-shrink-0" />}
+          {displayName}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div>
+          {accountCode && (
+            <span className="text-muted-foreground mr-1 text-xs">
+              {accountCode}
+            </span>
+          )}
+          <span className="font-medium">{displayName}</span>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 export const getCatEngineColumns = ({
   groupedCoaData,
   mode,
@@ -89,54 +492,14 @@ export const getCatEngineColumns = ({
       header: 'Description',
       cell: ({ row }) => {
         const txn = row.original;
-        const multipleLines = txn.hasMultipleEntries;
-
-        const showTooltip = txn.description ? true : false;
-        const displayText = txn.description || 'No description';
-        const { updateEntry } = useLedgerIntentUpdater(txn);
-
-        if (mode === 'autosave' && !multipleLines) {
-          return (
-            <EditableTextCell
-              value={txn.description || ''}
-              placeholder="No description"
-              onCommit={(value) => {
-                updateEntry(txn.id, { description: value || null });
-
-                markFieldClean(fieldKey(txn.id, 'description'));
-              }}
-              markDirty={() => markFieldDirty(fieldKey(txn.id, 'description'))}
-            />
-          );
-        }
-
         return (
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <div
-                className={cn(
-                  'truncate text-sm',
-                  (!showTooltip || multipleLines) &&
-                    'text-muted-foreground opacity-50',
-                )}
-                {...(mode === 'autosave'
-                  ? {
-                      onClick: (e) => {
-                        e.stopPropagation();
-                        row.toggleExpanded();
-                      },
-                    }
-                  : {})}
-              >
-                {displayText}
-              </div>
-            </TooltipTrigger>
-            {showTooltip && (
-              <TooltipContent className="max-w-md">
-                <p className="break-words">{displayText}</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
+          <DescriptionCell
+            txn={txn}
+            mode={mode}
+            markFieldClean={markFieldClean}
+            markFieldDirty={markFieldDirty}
+            row={row}
+          />
         );
       },
       minSize: 175,
@@ -151,24 +514,14 @@ export const getCatEngineColumns = ({
       // accessorFn: (row) => row.fsDate,
       cell: ({ row }) => {
         const txn = row.original;
-        const fsDate = txn.fsDate;
-        const { updateEntry } = useLedgerIntentUpdater(txn);
-        if (mode === 'autosave' && fsDate) {
-          return (
-            <EditableDateCell
-              value={new Date(fsDate)}
-              onCommit={(date) => {
-                if (!date) return;
-
-                updateEntry(txn.id, { fs_date: toYMD(date) });
-
-                markFieldClean(fieldKey(txn.id, 'fsDate'));
-              }}
-              markDirty={() => markFieldDirty(fieldKey(txn.id, 'fsDate'))}
-            />
-          );
-        }
-        return <div className="">{fsDate || ''}</div>;
+        return (
+          <FsDateCell
+            txn={txn}
+            mode={mode}
+            markFieldClean={markFieldClean}
+            markFieldDirty={markFieldDirty}
+          />
+        );
       },
       enableResizing: false,
       maxSize: 100,
@@ -179,44 +532,14 @@ export const getCatEngineColumns = ({
       header: 'Contact',
       cell: ({ row }) => {
         const txn = row.original;
-        const contactId = txn.contactId;
-        const contactName = txn.contactName;
-
-        const { updateEntry } = useLedgerIntentUpdater(txn);
-        if (mode === 'autosave' && !txn.hasMultipleEntries) {
-          return (
-            <EditableDropdownCell
-              field="contact"
-              contactId={contactId || undefined}
-              contactName={contactName || undefined}
-              onCommit={(id) => {
-                updateEntry(txn.id, { contact_id: id || null });
-
-                markFieldClean(fieldKey(txn.id, 'contact'));
-              }}
-              markDirty={() => markFieldDirty(fieldKey(txn.id, 'contact'))}
-            />
-          );
-        }
-
         return (
-          <div
-            className={cn(
-              'truncate text-sm font-light',
-              txn.hasMultipleEntries ? 'text-muted-foreground opacity-50' : '',
-            )}
-            title={contactName || ''}
-            {...(mode === 'autosave' && txn.hasMultipleEntries
-              ? {
-                  onClick: (e) => {
-                    e.stopPropagation();
-                    row.toggleExpanded();
-                  },
-                }
-              : {})}
-          >
-            {contactName || 'No contact'}
-          </div>
+          <ContactCell
+            txn={txn}
+            mode={mode}
+            markFieldClean={markFieldClean}
+            markFieldDirty={markFieldDirty}
+            row={row}
+          />
         );
       },
       meta: {
@@ -228,43 +551,14 @@ export const getCatEngineColumns = ({
       header: 'Reference',
       cell: ({ row }) => {
         const txn = row.original;
-        const reference = txn.reference;
-        const { updateEntry } = useLedgerIntentUpdater(txn);
-
-        if (mode === 'autosave' && !txn.hasMultipleEntries) {
-          return (
-            <EditableTextCell
-              value={txn.reference || ''}
-              placeholder="No reference"
-              onCommit={(value) => {
-                updateEntry(txn.id, { reference: value || null });
-                markFieldClean(fieldKey(txn.id, 'reference'));
-              }}
-              markDirty={() => markFieldDirty(fieldKey(txn.id, 'reference'))}
-            />
-          );
-        }
-
         return (
-          <div
-            title={reference || ''}
-            className={cn(
-              'truncate text-sm font-light',
-              txn.hasMultipleEntries || !reference
-                ? 'text-muted-foreground opacity-50'
-                : '',
-            )}
-            {...(mode === 'autosave' && txn.hasMultipleEntries
-              ? {
-                  onClick: (e) => {
-                    e.stopPropagation();
-                    row.toggleExpanded();
-                  },
-                }
-              : {})}
-          >
-            {reference || '-'}
-          </div>
+          <ReferenceCell
+            txn={txn}
+            mode={mode}
+            markFieldClean={markFieldClean}
+            markFieldDirty={markFieldDirty}
+            row={row}
+          />
         );
       },
       meta: {
@@ -277,37 +571,13 @@ export const getCatEngineColumns = ({
       header: 'Project',
       cell: ({ row }) => {
         const txn = row.original;
-        const projectName = txn.projectName;
-        const { updateEntry } = useLedgerIntentUpdater(txn);
-
-        if (mode === 'autosave' && !txn.hasMultipleEntries) {
-          return (
-            <EditableDropdownCell
-              field="project"
-              projectId={txn.projectId || undefined}
-              projectName={projectName || undefined}
-              onCommit={(id) => {
-                updateEntry(txn.id, { project_id: id || null });
-
-                markFieldClean(fieldKey(txn.id, 'project'));
-              }}
-              markDirty={() => markFieldDirty(fieldKey(txn.id, 'project'))}
-            />
-          );
-        }
-
         return (
-          <div
-            title={projectName || ''}
-            className={cn(
-              'truncate text-sm font-light',
-              txn.hasMultipleEntries || !projectName
-                ? 'text-muted-foreground opacity-50'
-                : '',
-            )}
-          >
-            {projectName || ''}
-          </div>
+          <ProjectCell
+            txn={txn}
+            mode={mode}
+            markFieldClean={markFieldClean}
+            markFieldDirty={markFieldDirty}
+          />
         );
       },
       meta: {
@@ -360,50 +630,15 @@ export const getCatEngineColumns = ({
       accessorKey: 'exchangeRate',
       cell: ({ row }) => {
         const txn = row.original;
-        const { updateExchangeRate } = useLedgerIntentUpdater(txn);
-        // On update, notify using toast or sth that this affects all entries for this transaction if it is a transaction with multiple entries
-        if (mode === 'autosave' && !txn.hasMultipleEntries) {
-          return (
-            <EditableNumberCell
-              value={txn.exchangeRate}
-              placeholder="0.0000"
-              decimals={4}
-              min={0.000001}
-              onCommit={(value) => {
-                const numValue = parseFloat(value);
-                if (!isNaN(numValue) && numValue > 0) {
-                  // Update optimistic UI state immediately (spent/received)
-                  onFxRateChange?.(txn.bankTransactionId, numValue);
-
-                  // Update exchange rate via intent system
-                  updateExchangeRate(numValue);
-
-                  markFieldClean(fieldKey(txn.id, 'exchangeRate'));
-                }
-              }}
-              markDirty={() => markFieldDirty(fieldKey(txn.id, 'exchangeRate'))}
-            />
-          );
-        }
-
         return (
-          <div
-            title={txn.exchangeRate}
-            className={cn(
-              'text-muted-foreground truncate text-right text-sm font-light',
-              mode === 'autosave' && txn.hasMultipleEntries && 'opacity-50',
-            )}
-            {...(mode === 'autosave' && txn.hasMultipleEntries
-              ? {
-                  onClick: (e) => {
-                    e.stopPropagation();
-                    row.toggleExpanded();
-                  },
-                }
-              : {})}
-          >
-            {txn.exchangeRate}
-          </div>
+          <ExchangeRateCell
+            txn={txn}
+            mode={mode}
+            onFxRateChange={onFxRateChange}
+            markFieldClean={markFieldClean}
+            markFieldDirty={markFieldDirty}
+            row={row}
+          />
         );
       },
       size: 80,
@@ -515,100 +750,15 @@ export const getCatEngineColumns = ({
       header: 'Account',
       cell: ({ row }) => {
         const txn = row.original;
-        const accountName = txn.coaName;
-
-        if (txn.hasMultipleEntries) {
-          if (mode === 'review') {
-            return (
-              <div className="flex items-center gap-1">
-                <Split className="text-muted-foreground h-3 w-3" />
-                <span className="text-blue-500">Multiple entries</span>
-              </div>
-            );
-          } else {
-            const isExpanded = row.getIsExpanded();
-
-            return (
-              <div
-                className="flex cursor-pointer items-center justify-between gap-1 pr-0.5 font-light decoration-blue-200 decoration-1 hover:underline"
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent row click
-                  row.toggleExpanded();
-                }}
-              >
-                <span className="text-blue-500">
-                  View entries ({txn.entryCount})
-                </span>
-                {isExpanded ? (
-                  <ChevronDown className="text-muted-foreground h-3 w-3" />
-                ) : (
-                  <ChevronRight className="text-muted-foreground h-3 w-3" />
-                )}
-              </div>
-            );
-          }
-        }
-
-        // if (txn.summary.isSplit) {
-        //   return (
-        //     <div className="flex items-center gap-1 p-1 rounded bg-muted/20 border border-muted">
-        //       <Split className="w-4 h-4 text-muted-foreground" />
-        //       <SplitViewDialog txn={txn} />
-        //     </div>
-        //   );
-        // }
-        const displayName = accountName || 'Uncategorized';
-        const accountCode = txn.coaCode;
-        const isUncategorized = !accountName;
-
-        if (mode === 'autosave') {
-          const { updateEntry } = useLedgerIntentUpdater(txn);
-          // TODO: Get actual status from useTransactionState hook or find a simpler approach
-          // const status: 'idle' | 'saving' | 'saved' | 'error' = 'idle';
-          return (
-            <div className="flex items-center gap-2">
-              <EditableAccountCell
-                coaId={txn.coaId || undefined}
-                // coaName={txn.coaName || undefined}
-                groupedCoaData={groupedCoaData}
-                onCommit={(coaId) => {
-                  if (!coaId) return;
-                  updateEntry(txn.id, { coa_id: coaId });
-                  markFieldClean(fieldKey(txn.id, 'account'));
-                }}
-                markDirty={() => markFieldDirty(fieldKey(txn.id, 'account'))}
-              />
-              {/* <TransactionStatusIndicator status={status} /> */}
-            </div>
-          );
-        }
-
         return (
-          <Tooltip delayDuration={500}>
-            <TooltipTrigger asChild>
-              <div
-                className={cn(
-                  'flex max-w-[150px] cursor-help items-center gap-1 truncate text-sm',
-                  isUncategorized && 'text-muted-foreground font-light',
-                )}
-              >
-                {isUncategorized && (
-                  <HelpCircle className="h-4 w-4 flex-shrink-0" />
-                )}
-                {displayName}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <div>
-                {accountCode && (
-                  <span className="text-muted-foreground mr-1 text-xs">
-                    {accountCode}
-                  </span>
-                )}
-                <span className="font-medium">{displayName}</span>
-              </div>
-            </TooltipContent>
-          </Tooltip>
+          <AccountCell
+            txn={txn}
+            groupedCoaData={groupedCoaData}
+            mode={mode}
+            markFieldClean={markFieldClean}
+            markFieldDirty={markFieldDirty}
+            row={row}
+          />
         );
       },
       minSize: 185,

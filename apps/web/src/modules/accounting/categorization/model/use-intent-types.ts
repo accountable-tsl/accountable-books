@@ -1,7 +1,7 @@
+import { YMD_REGEX } from '@/shared/utils/date-utils';
 import { z } from 'zod';
 
 import type { CategorizationTransactionStatus } from './types';
-import { YMD_REGEX } from '@/shared/utils/date-utils';
 
 export enum IntentActionType {
   ASSIGN_COA = 'ASSIGN_COA',

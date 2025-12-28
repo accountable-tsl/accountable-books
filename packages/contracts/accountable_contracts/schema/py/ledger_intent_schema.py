@@ -22,6 +22,7 @@ class LedgerIntentSchema(BaseModel):
     class DesiredState(BaseModel):
         class DesiredStateEntriesItem(BaseModel):
             entry_id: Optional[UUID] = None
+            client_ref_id: Optional[str] = None
             coa_id: UUID
             description: Optional[Optional[str]] = None
             reference: Optional[Optional[str]] = None

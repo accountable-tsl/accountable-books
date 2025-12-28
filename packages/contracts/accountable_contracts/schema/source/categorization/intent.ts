@@ -16,7 +16,7 @@ export const ledgerIntentEntry = z
     contact_id: z.uuid().nullish(),
     contact_type: contactType.nullish(),
     project_id: z.uuid().nullish(),
-    source_amount: z.number().optional(), // for splits
+    source_amount: z.coerce.number().optional(),
     human_reviewed: z.boolean().optional(),
     review_notes: z.string().nullish(),
     file_id: z.string().nullish(), // null to remove file association
@@ -55,7 +55,7 @@ export const ledgerIntentEntry = z
 export type LedgerIntentEntry = z.infer<typeof ledgerIntentEntry>;
 
 export const ledgerIntentDesiredState = z.object({
-  custom_exchange_rate: z.number().positive().nullish(), // Null to replace custom exchange rate with system exchange rate
+  custom_exchange_rate: z.coerce.number().positive().nullish(), // Null to replace custom exchange rate with system exchange rate
   entries: z.array(ledgerIntentEntry).min(1).optional(), // Not necessarily required for transaction level changes / changes that affect the entire transaction
 });
 export type LedgerIntentDesiredState = z.infer<typeof ledgerIntentDesiredState>;

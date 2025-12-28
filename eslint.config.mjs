@@ -1,5 +1,6 @@
 import { defineConfig } from 'eslint/config';
 import pluginReact from 'eslint-plugin-react';
+import pluginReactHooks from 'eslint-plugin-react-hooks';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
@@ -47,11 +48,13 @@ export default defineConfig([
   // React - minimal
   {
     files: ['apps/web/**/*.{jsx,tsx}'],
-    plugins: { react: pluginReact },
+    plugins: { react: pluginReact, 'react-hooks': pluginReactHooks },
     settings: { react: { version: 'detect' } },
     rules: {
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
 ]);

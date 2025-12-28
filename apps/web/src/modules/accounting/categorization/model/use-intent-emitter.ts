@@ -1,18 +1,18 @@
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
-import type { GetCategorizationTransactionsParams } from '@/modules/accounting/categorization/model/types';
 import type {
   LedgerIntent,
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
 import { useCallback, useEffect, useRef } from 'react';
 import { useSession } from '@/app/session';
-import { fetchCategorizationTransactions } from '@/modules/accounting/categorization/api';
-import { groupCategorizationTransactions } from '@/modules/accounting/categorization/lib/transform';
-import { useSendCategorizationIntent } from '@/modules/accounting/categorization/model/hooks';
 import { toYMD } from '@/shared/utils/date-utils';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
+
+import { groupCategorizationTransactions } from '../lib/transform';
+import { useSendCategorizationIntent } from './hooks';
+
+import type { GroupedTransaction } from './types';
 
 const TRANSACTION_DEBOUNCE_MS = 1000;
 
@@ -37,12 +37,20 @@ export function isTempEntryId(entryId: string): boolean {
 }
 
 /**
+ * Pending entry changes with internal tracking metadata.
+ * _touchedAt is used for time-based clearing and is never sent to the backend.
+ */
+type PendingEntryChanges = Partial<LedgerIntentEntry> & {
+  // _touchedAt?: number; // Internal field, not sent to backend
+};
+
+/**
  * Pending desired_state per transaction, tracking partial updates to LedgerIntent.
  * This directly aligns with the backend's LedgerIntent['desired_state'] structure.
  * We use Record for entries instead of array to make updates simpler.
  */
 type PendingDesiredState = {
-  entries?: Record<string, Partial<LedgerIntentEntry>>;
+  entries?: Record<string, PendingEntryChanges>;
   custom_exchange_rate?: number | null;
   deleted_entry_ids?: Set<string>; // Track deleted entry IDs
 };
@@ -87,20 +95,29 @@ function includeIfChanged<K extends string, V>(
 function computeFinalEntries(
   transaction: GroupedTransaction,
   desiredState: PendingDesiredState,
+  entryIdMap: Map<string, string>,
 ): LedgerIntentEntry[] {
+  // Helper to resolve entry ID (temp → real if mapped)
+  const resolveEntryId = (id: string): string => {
+    return entryIdMap.get(id) ?? id;
+  };
+
   const entries: LedgerIntentEntry[] = [];
   const deletedIds = desiredState.deleted_entry_ids || new Set<string>();
 
   // Get all entry IDs from both transaction and desiredState
   const transactionEntryIds = new Set<string>();
   for (const entry of transaction.entries ?? []) {
-    if (!deletedIds.has(entry.id)) {
-      transactionEntryIds.add(entry.id);
+    const resolvedId = resolveEntryId(entry.id);
+    if (!deletedIds.has(resolvedId)) {
+      transactionEntryIds.add(resolvedId);
     }
   }
 
   const desiredStateEntryIds = new Set(
-    desiredState.entries ? Object.keys(desiredState.entries) : [],
+    desiredState.entries
+      ? Object.keys(desiredState.entries).map(resolveEntryId)
+      : [],
   );
 
   // Combine all entry IDs (transaction entries + new entries from desiredState)
@@ -114,7 +131,7 @@ function computeFinalEntries(
     // Find transaction entry if it exists
     const transactionEntry =
       transaction.entries && transaction.entries.length > 0
-        ? transaction.entries.find((e) => e.id === entryId)
+        ? transaction.entries.find((e) => resolveEntryId(e.id) === entryId)
         : null;
 
     // Get pending changes for this entry
@@ -254,8 +271,9 @@ function computeFinalEntries(
 function buildLedgerIntentFromTransaction(
   transaction: GroupedTransaction,
   desiredState: PendingDesiredState,
+  entryIdMap: Map<string, string>,
 ): LedgerIntent {
-  const entries = computeFinalEntries(transaction, desiredState);
+  const entries = computeFinalEntries(transaction, desiredState, entryIdMap);
 
   // Build final desired_state
   const finalDesiredState: LedgerIntent['desired_state'] = {};
@@ -287,6 +305,7 @@ function buildLedgerIntentFromTransaction(
 export function canSendLedgerIntent(
   txn: GroupedTransaction,
   desiredState: PendingDesiredState,
+  entryIdMap: Map<string, string>,
 ): boolean {
   // If an uncategorized bank transaction is updated but has no COA selected yet, don't send
   if (txn.status === 'uncategorized') {
@@ -301,7 +320,7 @@ export function canSendLedgerIntent(
   }
 
   // Use computeFinalEntries as single source of truth
-  const finalEntries = computeFinalEntries(txn, desiredState);
+  const finalEntries = computeFinalEntries(txn, desiredState, entryIdMap);
 
   // Validate all entries have COA (required field)
   for (const entry of finalEntries) {
@@ -385,29 +404,59 @@ export function usePendingChangesEmitter() {
   // Store transaction objects by bankTransactionId for retrieval when sending
   const transactionsRef = useRef<Map<string, GroupedTransaction>>(new Map());
 
-  // OBSOLETE: Track last successfully persisted state per entry
-  // @deprecated No longer needed - server returns authoritative state directly
-  // const lastPersistedStateRef = useRef<
-  //   Map<string, Map<string, Partial<LedgerIntentEntry>>>
-  // >(new Map()); // Map<bankTransactionId, Map<entryId, persistedState>>
+  // Track in-flight requests to prevent concurrent sends for the same transaction
+  const inFlightRequestsRef = useRef<Set<string>>(new Set());
 
-  // OBSOLETE: Store sent state temporarily (cleared after processing)
-  // @deprecated No longer needed - server returns authoritative state directly
-  // const sentStateCache = useRef<
-  //   Map<
-  //     string,
-  //     {
-  //       sentAt: number;
-  //       entries: Record<string, Partial<LedgerIntentEntry>>;
-  //       deletedIds: Set<string>;
-  //       customExchangeRate?: number | null;
-  //     }
-  //   >
-  // >(new Map());
+  // Source of truth for resolving entryIds
+  const entryIdMapRef = useRef<Map<string, string>>(new Map());
+
+  /**
+   * Resolves an entry ID (temp → real if mapped).
+   * This is called at the START of every operation that touches entry IDs.
+   */
+  const resolveEntryId = useCallback((id: string): string => {
+    return entryIdMapRef.current.get(id) ?? id;
+  }, []);
+
+  /**
+   * Normalizes pending state to use resolved IDs.
+   * Call this after updating the ID map to migrate any temp IDs to real IDs.
+   */
+  const normalizePendingState = useCallback(
+    (bankTransactionId: string) => {
+      const desiredState = desiredStateRef.current.get(bankTransactionId);
+      if (!desiredState?.entries) return;
+
+      const normalizedEntries: Record<string, PendingEntryChanges> = {};
+      let hasChanges = false;
+
+      for (const [entryId, changes] of Object.entries(desiredState.entries)) {
+        const resolvedId = resolveEntryId(entryId);
+        if (resolvedId !== entryId) {
+          hasChanges = true;
+        }
+        // Always use resolved ID as key
+        normalizedEntries[resolvedId] = changes;
+      }
+
+      if (hasChanges) {
+        desiredState.entries = normalizedEntries;
+      }
+    },
+    [resolveEntryId],
+  );
 
   // Send pending changes for a transaction
   const sendPendingChanges = useCallback(
     async (bankTransactionId: string) => {
+      // Prevent concurrent sends for the same transaction
+      if (inFlightRequestsRef.current.has(bankTransactionId)) {
+        console.warn(
+          `Skipping sendPendingChanges for ${bankTransactionId} - request already in flight`,
+        );
+        return;
+      }
+
       const txn = transactionsRef.current.get(bankTransactionId);
       const desiredState = desiredStateRef.current.get(bankTransactionId);
 
@@ -423,15 +472,60 @@ export function usePendingChangesEmitter() {
       }
 
       // Validate we can send before clearing
-      if (!canSendLedgerIntent(txn, desiredState)) {
+      // Allow exchange rate changes to send independently if no entry changes
+      const hasEntryChanges =
+        desiredState.entries && Object.keys(desiredState.entries).length > 0;
+      const hasDeletedEntries =
+        desiredState.deleted_entry_ids &&
+        desiredState.deleted_entry_ids.size > 0;
+      const onlyExchangeRateChange =
+        !hasEntryChanges &&
+        !hasDeletedEntries &&
+        desiredState.custom_exchange_rate !== undefined;
+
+      if (
+        !onlyExchangeRateChange &&
+        !canSendLedgerIntent(txn, desiredState, entryIdMapRef.current)
+      ) {
+        // // Option A: Clear invalid state (silent fix)
+        // desiredStateRef.current.delete(bankTransactionId);
+
+        // // Option B: Show error to user
+        toast.error(
+          'Transaction must be balanced and have all required fields',
+          {
+            duration: 5000,
+            closeButton: true,
+          },
+        );
+        // // Keep state for user to fix
+
         console.error('Cannot send ledger intent', { txn, desiredState });
         return;
       }
 
       if (!companyId) return;
 
+      // Mark request as in-flight
+      inFlightRequestsRef.current.add(bankTransactionId);
+
+      const sentEntryFields = new Map<string, Set<keyof LedgerIntentEntry>>();
+      if (desiredState.entries) {
+        for (const [entryId, changes] of Object.entries(desiredState.entries)) {
+          const resolvedId = resolveEntryId(entryId);
+          sentEntryFields.set(
+            resolvedId,
+            new Set(Object.keys(changes) as Array<keyof LedgerIntentEntry>),
+          );
+        }
+      }
+
       // Build LedgerIntent from transaction and pending desired_state
-      const ledgerIntent = buildLedgerIntentFromTransaction(txn, desiredState);
+      const ledgerIntent = buildLedgerIntentFromTransaction(
+        txn,
+        desiredState,
+        entryIdMapRef.current,
+      );
 
       // Track when we send this intent for time-based clearing
       const sendAt = Date.now();
@@ -452,57 +546,225 @@ export function usePendingChangesEmitter() {
           const persistedTransaction = grouped[0]; // Should be single transaction
 
           if (persistedTransaction) {
+            // // Get current pending state (may have new changes made after we sent)
+            // const currentPendingState =
+            //   desiredStateRef.current.get(bankTransactionId);
+
+            // // Clear pending entries using time-based logic
+            // // Keep only entries that were touched after we sent (user made new changes)
+            // if (currentPendingState?.entries) {
+            //   const entriesToKeep: Record<
+            //     string,
+            //     Partial<LedgerIntentEntry>
+            //   > = {};
+
+            //   for (const [entryId, pendingChanges] of Object.entries(
+            //     currentPendingState.entries,
+            //   )) {
+            //     // Extract _touchedAt timestamp (internal field, not sent to backend)
+            //     // Default to 0 if missing (treats missing as "old" - will be cleared)
+            //     const touchedAt = pendingChanges._touchedAt ?? 0;
+            //     if (
+            //       touchedAt === 0 &&
+            //       pendingChanges._touchedAt === undefined
+            //     ) {
+            //       // Log warning if _touchedAt is legitimately missing (shouldn't happen)
+            //       console.warn(
+            //         `Entry ${entryId} missing _touchedAt timestamp - treating as old change`,
+            //         { entryId, pendingChanges },
+            //       );
+            //     }
+
+            //     // Find matching entry in persisted transaction by ID, ledgerEntryId, or client_ref_id
+            //     const matchingEntries =
+            //       persistedTransaction.entries?.filter(
+            //         (e) =>
+            //           e.id === entryId ||
+            //           e.ledgerEntryId === entryId ||
+            //           e.client_ref_id === entryId, // Exact match via client_ref_id
+            //       ) || [];
+
+            //     if (matchingEntries.length > 1) {
+            //       console.warn(
+            //         `Multiple entries matched for ${entryId} in persisted transaction`,
+            //         { entryId, matchingEntries },
+            //       );
+            //     }
+
+            //     const persistedEntry = matchingEntries[0];
+
+            //     if (persistedEntry) {
+            //       // Entry was persisted - use time-based clearing
+            //       // If user touched it before/at send time, clear it (server has authoritative state)
+            //       // If user touched it after send time, keep it (user made new changes after sending)
+            //       if (touchedAt > sendAt) {
+            //         // Keep - user made changes after sending
+            //         // Update entryId to use real ID if it was a temp ID
+            //         const realEntryId =
+            //           persistedEntry.id ||
+            //           persistedEntry.ledgerEntryId ||
+            //           entryId;
+
+            //         // Only migrate if entryId changed (temp to real)
+            //         if (realEntryId !== entryId) {
+            //           // Remove old temp ID key and use real ID
+            //           entriesToKeep[realEntryId] = pendingChanges;
+            //           // Old temp ID key will not be added, effectively removing it
+            //         } else {
+            //           entriesToKeep[entryId] = pendingChanges;
+            //         }
+            //       }
+            //       // If touchedAt <= sendAt, don't add to entriesToKeep (clear it)
+            //     } else {
+            //       // Entry not in persisted transaction - might be a new entry added after sending
+            //       // Log warning if we expected to find it (was a temp ID)
+            //       if (isTempEntryId(entryId)) {
+            //         console.warn(
+            //           `Temp entry ${entryId} not found in persisted transaction - may not have been persisted or client_ref_id matching failed`,
+            //           {
+            //             entryId,
+            //             persistedEntryIds: persistedTransaction.entries?.map(
+            //               (e) => ({
+            //                 id: e.id,
+            //                 ledgerEntryId: e.ledgerEntryId,
+            //                 client_ref_id: e.client_ref_id,
+            //               }),
+            //             ),
+            //           },
+            //         );
+            //       }
+            //       entriesToKeep[entryId] = pendingChanges;
+            //     }
+            //   }
+
+            //   currentPendingState.entries = entriesToKeep;
+
+            //   // Clear deleted_entry_ids after successful persist
+            //   // Backend state is authoritative, deleted entries are already gone
+            //   if (currentPendingState.deleted_entry_ids) {
+            //     currentPendingState.deleted_entry_ids.clear();
+            //   }
+
+            //   // Clear entire pending state if empty
+            //   if (
+            //     Object.keys(entriesToKeep).length === 0 &&
+            //     !currentPendingState.custom_exchange_rate &&
+            //     (!currentPendingState.deleted_entry_ids ||
+            //       currentPendingState.deleted_entry_ids.size === 0)
+            //   ) {
+            //     desiredStateRef.current.delete(bankTransactionId);
+            //   }
+            // } else {
+            //   // No pending state - clear it
+            //   desiredStateRef.current.delete(bankTransactionId);
+            // }
+
+            // // Build ID mapping from server response
+            // for (const entry of persistedTransaction.entries ?? []) {
+            //   if (entry.client_ref_id && entry.id) {
+            //     entryIdMapRef.current.set(entry.client_ref_id, entry.id);
+            //     console.log(
+            //       `Mapped temp ID ${entry.client_ref_id} → real ID ${entry.id}`,
+            //     );
+            //   }
+            // }
+            // Build ID mapping from server response with duplicate detection
+            const clientRefCounts = new Map<string, number>();
+            for (const entry of persistedTransaction.entries ?? []) {
+              if (entry.client_ref_id) {
+                clientRefCounts.set(
+                  entry.client_ref_id,
+                  (clientRefCounts.get(entry.client_ref_id) || 0) + 1,
+                );
+              }
+            }
+
+            for (const entry of persistedTransaction.entries ?? []) {
+              if (entry.client_ref_id && entry.id) {
+                const count = clientRefCounts.get(entry.client_ref_id);
+
+                if (count && count > 1) {
+                  console.error(
+                    `Multiple entries with same client_ref_id: ${entry.client_ref_id}`,
+                    { persistedTransaction },
+                  );
+                  // Use first occurrence (don't overwrite existing mapping)
+                  if (!entryIdMapRef.current.has(entry.client_ref_id)) {
+                    entryIdMapRef.current.set(entry.client_ref_id, entry.id);
+                  }
+                } else {
+                  entryIdMapRef.current.set(entry.client_ref_id, entry.id);
+                  console.log(
+                    `Mapped temp ID ${entry.client_ref_id} → real ID ${entry.id}`,
+                  );
+                }
+              }
+            }
+
+            // Normalize pending state to use resolved IDs
+            normalizePendingState(bankTransactionId);
+
+            // Remap sentEntryFields to resolved IDs after temp→real mapping
+            const resolvedSentEntryFields = new Map<
+              string,
+              Set<keyof LedgerIntentEntry>
+            >();
+            for (const [entryId, fields] of sentEntryFields.entries()) {
+              const resolvedId = resolveEntryId(entryId);
+              const existing = resolvedSentEntryFields.get(resolvedId);
+              if (existing) {
+                fields.forEach((field) => existing.add(field));
+              } else {
+                resolvedSentEntryFields.set(resolvedId, new Set(fields));
+              }
+            }
+
             // Get current pending state (may have new changes made after we sent)
             const currentPendingState =
               desiredStateRef.current.get(bankTransactionId);
 
-            // Clear pending entries using time-based logic
-            // Keep only entries that were touched after we sent (user made new changes)
+            // // Clear pending state deterministically - server is authority
+            // if (currentPendingState?.entries) {
+            //   for (const entry of persistedTransaction.entries ?? []) {
+            //     const resolvedId = resolveEntryId(entry.id);
+            //     if (currentPendingState.entries[resolvedId]) {
+            //       delete currentPendingState.entries[resolvedId];
+            //     }
+            //   }
+            // Clear pending state deterministically - server is authority
+            // Use field-level clearing to preserve concurrent edits
             if (currentPendingState?.entries) {
-              const entriesToKeep: Record<
-                string,
-                Partial<LedgerIntentEntry>
-              > = {};
+              for (const entry of persistedTransaction.entries ?? []) {
+                const resolvedId = resolveEntryId(entry.id);
+                const pendingEntry = currentPendingState.entries[resolvedId];
 
-              for (const [entryId, pendingChanges] of Object.entries(
-                currentPendingState.entries,
-              )) {
-                // Extract _touchedAt timestamp (internal field, not sent to backend)
-                const touchedAt = (pendingChanges as any)?._touchedAt || 0;
+                if (pendingEntry) {
+                  // Only clear fields that were sent (preserves concurrent edits)
+                  const sentFields = resolvedSentEntryFields.get(resolvedId);
+                  if (sentFields) {
+                    for (const field of sentFields) {
+                      delete pendingEntry[field];
+                    }
 
-                // Find matching entry in persisted transaction by ID, ledgerEntryId, or client_ref_id
-                const persistedEntry = persistedTransaction.entries?.find(
-                  (e) =>
-                    e.id === entryId ||
-                    e.ledgerEntryId === entryId ||
-                    e.client_ref_id === entryId, // Exact match via client_ref_id
-                );
-
-                if (persistedEntry) {
-                  // Entry was persisted - use time-based clearing
-                  // If user touched it before/at send time, clear it (server has authoritative state)
-                  // If user touched it after send time, keep it (user made new changes after sending)
-                  if (touchedAt > sendAt) {
-                    // Keep - user made changes after sending
-                    // Update entryId to use real ID if it was a temp ID
-                    const realEntryId =
-                      persistedEntry.id ||
-                      persistedEntry.ledgerEntryId ||
-                      entryId;
-                    entriesToKeep[realEntryId] = pendingChanges;
+                    // If entry is now empty, remove it entirely
+                    if (Object.keys(pendingEntry).length === 0) {
+                      delete currentPendingState.entries[resolvedId];
+                    }
+                  } else {
+                    // No sent fields tracked - delete entire entry (fallback behavior)
+                    delete currentPendingState.entries[resolvedId];
                   }
-                  // If touchedAt <= sendAt, don't add to entriesToKeep (clear it)
-                } else {
-                  // Entry not in persisted transaction - might be a new entry added after sending
-                  entriesToKeep[entryId] = pendingChanges;
                 }
               }
 
-              currentPendingState.entries = entriesToKeep;
+              // Clear deleted_entry_ids after successful persist
+              if (currentPendingState.deleted_entry_ids) {
+                currentPendingState.deleted_entry_ids.clear();
+              }
 
               // Clear entire pending state if empty
               if (
-                Object.keys(entriesToKeep).length === 0 &&
+                Object.keys(currentPendingState.entries).length === 0 &&
                 !currentPendingState.custom_exchange_rate &&
                 (!currentPendingState.deleted_entry_ids ||
                   currentPendingState.deleted_entry_ids.size === 0)
@@ -510,7 +772,6 @@ export function usePendingChangesEmitter() {
                 desiredStateRef.current.delete(bankTransactionId);
               }
             } else {
-              // No pending state - clear it
               desiredStateRef.current.delete(bankTransactionId);
             }
 
@@ -549,9 +810,18 @@ export function usePendingChangesEmitter() {
           closeButton: true,
         });
         // Keep changes in pending for retry (state already exists in desiredStateRef)
+      } finally {
+        // Always remove from in-flight set, even on error
+        inFlightRequestsRef.current.delete(bankTransactionId);
       }
     },
-    [companyId, sendIntentMutation, queryClient],
+    [
+      companyId,
+      sendIntentMutation,
+      queryClient,
+      resolveEntryId,
+      normalizePendingState,
+    ],
   );
 
   /**
@@ -577,6 +847,8 @@ export function usePendingChangesEmitter() {
       entryId: string,
       changes: Partial<LedgerIntentEntry>,
     ) => {
+      const resolvedId = resolveEntryId(entryId);
+
       if (!desiredStateRef.current.has(bankTransactionId)) {
         desiredStateRef.current.set(bankTransactionId, {});
       }
@@ -587,12 +859,12 @@ export function usePendingChangesEmitter() {
       }
 
       // Merge changes into entry and track when it was touched
-      const existing = desiredState.entries[entryId] || {};
-      desiredState.entries[entryId] = {
+      const existing = desiredState.entries[resolvedId] || {};
+      desiredState.entries[resolvedId] = {
         ...existing,
         ...changes,
-        _touchedAt: Date.now(), // Track when touched for time-based clearing
-      } as Partial<LedgerIntentEntry> & { _touchedAt: number };
+        // _touchedAt: Date.now(), // Track when touched for time-based clearing
+      };
 
       // Debounce sending per transaction
       const existingTimer = debounceTimersRef.current.get(bankTransactionId);
@@ -606,7 +878,7 @@ export function usePendingChangesEmitter() {
       );
       debounceTimersRef.current.set(bankTransactionId, timer);
     },
-    [sendPendingChanges],
+    [sendPendingChanges, resolveEntryId],
   );
 
   /**
@@ -639,26 +911,41 @@ export function usePendingChangesEmitter() {
   /**
    * Delete an entry from the pending desired_state.
    * Tracks deleted entry IDs to exclude them from the intent.
+   * Note: Only backend-known entries are tracked in deleted_entry_ids.
+   * Temp entries are simply removed from entries.
    */
   const deleteEntry = useCallback(
     (bankTransactionId: string, entryId: string) => {
+      const resolvedId = resolveEntryId(entryId);
+
       if (!desiredStateRef.current.has(bankTransactionId)) {
         desiredStateRef.current.set(bankTransactionId, {});
       }
 
       const desiredState = desiredStateRef.current.get(bankTransactionId)!;
 
+      // Temp entry never existed on backend — just remove it
+      if (isTempEntryId(resolvedId)) {
+        // Remove from entries if it exists there
+        if (desiredState.entries?.[resolvedId]) {
+          delete desiredState.entries[resolvedId];
+        }
+        // No need to track in deleted_entry_ids since it never existed on backend
+        return;
+      }
+
+      // For backend-known entries, track deletion
       // Initialize deleted_entry_ids if not exists
       if (!desiredState.deleted_entry_ids) {
         desiredState.deleted_entry_ids = new Set<string>();
       }
 
       // Add entry to deleted set
-      desiredState.deleted_entry_ids.add(entryId);
+      desiredState.deleted_entry_ids.add(resolvedId);
 
       // Remove from entries if it exists there
-      if (desiredState.entries?.[entryId]) {
-        delete desiredState.entries[entryId];
+      if (desiredState.entries?.[resolvedId]) {
+        delete desiredState.entries[resolvedId];
       }
 
       // Debounce sending per transaction
@@ -673,7 +960,7 @@ export function usePendingChangesEmitter() {
       );
       debounceTimersRef.current.set(bankTransactionId, timer);
     },
-    [sendPendingChanges],
+    [sendPendingChanges, resolveEntryId],
   );
 
   // Register a transaction for later retrieval when sending
@@ -775,38 +1062,6 @@ export function usePendingChangesEmitter() {
     hasAnyPendingChanges,
     hasPendingChanges,
   };
-}
-
-/**
- * Hook to fetch and group categorization transactions for the categorization engine.
- * This is a local version that keeps the React Query logic co-located with the intent emitter.
- * Other parts of the app can use the version in @/modules/accounting/categorization/model/hooks.
- */
-export function useCategorizationTransactions(
-  params: GetCategorizationTransactionsParams,
-) {
-  return useQuery({
-    queryKey: [
-      'categorization-transactions',
-      params.companyId,
-      params.dateFrom,
-      params.dateTo,
-      params.status,
-      params.limit,
-      params.offset,
-    ],
-    queryFn: async () => {
-      const response = await fetchCategorizationTransactions(params);
-      const grouped = groupCategorizationTransactions(response.transactions);
-      return {
-        transactions: grouped,
-        total: response.total,
-        limit: response.limit,
-        offset: response.offset,
-      };
-    },
-    enabled: !!params.companyId && !!params.dateFrom && !!params.dateTo,
-  });
 }
 
 /**

@@ -45,6 +45,38 @@ export function useCategorizationTransactionsOld(
     enabled: !!params.companyId && !!params.dateFrom && !!params.dateTo,
   });
 }
+// export function useCategorizationTransactions(
+//   params: GetCategorizationTransactionsParams,
+// ) {
+//   return useQuery({
+//     queryKey: [
+//       'categorization-transactions',
+//       params.companyId,
+//       params.dateFrom,
+//       params.dateTo,
+//       params.status,
+//       params.limit,
+//       params.offset,
+//     ],
+//     queryFn: async () => {
+//       const response = await fetchCategorizationTransactions(params);
+//       const grouped = groupCategorizationTransactions(response.transactions);
+//       return {
+//         transactions: grouped,
+//         total: response.total,
+//         limit: response.limit,
+//         offset: response.offset,
+//       };
+//     },
+//     enabled: !!params.companyId && !!params.dateFrom && !!params.dateTo,
+//   });
+// }
+
+/**
+ * Hook to fetch and group categorization transactions for the categorization engine.
+ * This is a local version that keeps the React Query logic co-located with the intent emitter.
+ * Other parts of the app can use the version in @/modules/accounting/categorization/model/hooks.
+ */
 export function useCategorizationTransactions(
   params: GetCategorizationTransactionsParams,
 ) {

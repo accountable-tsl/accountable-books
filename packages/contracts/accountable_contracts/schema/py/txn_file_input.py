@@ -1,6 +1,10 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field, constr
+from typing import Any, Optional
 from enum import Enum
+from uuid import UUID
+
+class ProviderEnum(str, Enum):
+    CLOUDFLARE_R2 = "cloudflare_r2"
 
 class SourceEnum(str, Enum):
     LEDGER = "ledger"
@@ -8,7 +12,17 @@ class SourceEnum(str, Enum):
     BANK = "bank"
 
 class TxnFileInput(BaseModel):
+    id: Optional[UUID] = None
+    name: constr(max_length=512)
+    key: constr(max_length=1024)
+    bucket_name: str
+    url: str
+    type: str
+    size_bytes: Any
+    checksum: Optional[Optional[constr(max_length=64)]] = None
+    provider: Optional[ProviderEnum] = Field(default="cloudflare_r2")
+    region: Optional[Optional[str]] = None
+    endpoint: Optional[Optional[str]] = None
     source: SourceEnum
-    key: Optional[str] = None
-    transactionId: Optional[str] = None
-    entryId: Optional[str] = None
+    transaction_id: UUID
+    entry_id: Optional[Optional[UUID]] = None

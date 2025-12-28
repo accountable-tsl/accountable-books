@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 import z from 'zod';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { logger } from '../../shared/index.js';
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
@@ -21,17 +20,7 @@ import {
 import { getCompanySetting } from '../settings/settings.service.js';
 import { isSystemUser } from '../users/users.model.js';
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
-import {
-  type LedgerEntry,
-  type LedgerEntryInput,
-  type LedgerTransaction,
-  type LedgerTransactionWithEntries,
-  type LedgerTransactionWithEntriesFiltered,
-  type NewLedgerEntry,
-  type NewLedgerTransaction,
-  type NewLedgerTransactionData,
-  newLedgerTransactionData,
-} from './ledgers.types.js';
+import { newLedgerTransactionData } from './ledgers.types.js';
 import {
   detectChangedFields,
   normalizeDateForComparison,
@@ -40,6 +29,18 @@ import {
   validateBankLegAmount,
   validateIds,
 } from './ledgers.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  LedgerEntry,
+  LedgerEntryInput,
+  LedgerTransaction,
+  LedgerTransactionWithEntries,
+  LedgerTransactionWithEntriesFiltered,
+  NewLedgerEntry,
+  NewLedgerTransaction,
+  NewLedgerTransactionData,
+} from './ledgers.types.js';
 
 interface CreateLedgerRecordResult {
   ledgerTransactionId: string;
@@ -1443,8 +1444,13 @@ export async function updateOrCreateLedger({
         });
 
         if (!createResult.success) {
+          const errorMessage =
+            typeof createResult.error === 'object'
+              ? JSON.stringify(createResult.error, null, 2)
+              : String(createResult.error);
+
           throw new AppError(
-            `Failed to create ledger transaction: ${createResult.error}`,
+            `Failed to create ledger transaction: ${errorMessage}`,
             createResult,
           );
         }

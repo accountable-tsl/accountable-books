@@ -22,6 +22,11 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
+import {
+  LedgerIntentManagerV2Provider,
+  useCategorizationTransactions,
+  useLedgerIntentManagerV2,
+} from '@/modules/accounting/categorization';
 import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { toast } from 'sonner';
@@ -31,13 +36,9 @@ import {
   LeftCatEngineToolbar,
   RightCatEngineToolbar,
 } from './components/cat-engine-toolbar';
-import { TransactionView } from './components/transaction-view';
+import { TransactionView } from './components/transaction-view-v2';
 import { getCatEngineColumns } from './config/table-columns';
 import { accountElementOrder } from './constants';
-import {
-  useCategorizationTransactions,
-  usePendingChangesEmitter,
-} from './hooks/use-intent-emitter';
 import { testCategorizationTransactions } from './test-data';
 
 import type { CatEngineMode, GroupedCoaData } from './types';
@@ -144,10 +145,9 @@ export function CatEngine() {
 
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
 
-  // Get pending changes summary from emitter
-  const emitter = usePendingChangesEmitter();
-  const getPendingTransactionsSummary = emitter.getPendingTransactionsSummary;
-  const hasAnyPendingChanges = emitter.hasAnyPendingChanges;
+  const manager = useLedgerIntentManagerV2();
+  const getPendingTransactionsSummary = manager.getPendingTransactionsSummary;
+  const hasAnyPendingChanges = manager.hasAnyPendingChanges;
 
   // Debounce date range changes
   const dateRangeRef = useRef(dateRange);
@@ -569,91 +569,96 @@ export function CatEngine() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-4 pb-2">
-      <div className="flex h-8 max-h-8 items-center justify-between overflow-clip">
-        <div className="h-7.5 flex items-center gap-2">
-          <CatEngineAdvFilter />
+    <LedgerIntentManagerV2Provider value={manager}>
+      <div className="flex h-full min-h-0 flex-col gap-4 p-4 pb-2">
+        <div className="flex h-8 max-h-8 items-center justify-between overflow-clip">
+          <div className="h-7.5 flex items-center gap-2">
+            <CatEngineAdvFilter />
 
-          {/* Review mode: No DB Calls until user triggers action, Autosave mode: DB Calls are made automatically usually when user's focus leaves the box or after a certain time period whichever is later (or should it be sooner). */}
-          <LeftCatEngineToolbar mode={mode} setMode={handleModeChange} />
+            {/* Review mode: No DB Calls until user triggers action, Autosave mode: DB Calls are made automatically usually when user's focus leaves the box or after a certain time period whichever is later (or should it be sooner). */}
+            <LeftCatEngineToolbar mode={mode} setMode={handleModeChange} />
 
-          <div className="h-full">
-            <Input
-              placeholder="Search..."
-              aria-label="Search transactions"
-              className="h-full w-60"
+            <div className="h-full">
+              <Input
+                placeholder="Search..."
+                aria-label="Search transactions"
+                className="h-full w-60"
+              />
+            </div>
+          </div>
+
+          <div className="h-7.5 flex items-center gap-2">
+            <DateRangePicker
+              date={dateRange}
+              onDateSelect={handleDateRangeChange}
+              variant="outline"
+              alignPopover="end"
+              className="h-full rounded"
+            />
+            <RightCatEngineToolbar
+              rowHeight={rowHeight}
+              setRowHeight={setRowHeight}
+              isFullScreen={isFullScreen}
+              setIsFullScreen={setIsFullScreen}
+              view={view}
+              setView={setView}
             />
           </div>
         </div>
-
-        <div className="h-7.5 flex items-center gap-2">
-          <DateRangePicker
-            date={dateRange}
-            onDateSelect={handleDateRangeChange}
-            variant="outline"
-            alignPopover="end"
-            className="h-full rounded"
-          />
-          <RightCatEngineToolbar
-            rowHeight={rowHeight}
-            setRowHeight={setRowHeight}
-            isFullScreen={isFullScreen}
-            setIsFullScreen={setIsFullScreen}
-            view={view}
-            setView={setView}
-          />
-        </div>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {mode === 'review' && (
-          <ResizablePanelGroup direction="horizontal" className="min-h-0 gap-2">
-            <ResizablePanel
-              id="main-panel"
-              order={0}
-              minSize={30}
-              className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {mode === 'review' && (
+            <ResizablePanelGroup
+              direction="horizontal"
+              className="min-h-0 gap-2"
             >
-              {view === 'group' ? accordionView : tableView}
-            </ResizablePanel>
+              <ResizablePanel
+                id="main-panel"
+                order={0}
+                minSize={30}
+                className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
+              >
+                {view === 'group' ? accordionView : tableView}
+              </ResizablePanel>
 
-            {selectedTransaction && (
-              <>
-                <ResizableHandle withHandle className="bg-background" />
-                <ResizablePanel
-                  id="transaction-panel"
-                  order={1}
-                  // minSize={20}
-                  // maxSize={40}
-                  // defaultSize={30}
-                  className="w-sm h-full min-h-0 !max-w-md overflow-hidden"
-                >
-                  {/* <CatEngineTxnView
+              {selectedTransaction && (
+                <>
+                  <ResizableHandle withHandle className="bg-background" />
+                  <ResizablePanel
+                    id="transaction-panel"
+                    order={1}
+                    // minSize={20}
+                    // maxSize={40}
+                    // defaultSize={30}
+                    className="w-sm h-full min-h-0 !max-w-md overflow-hidden"
+                  >
+                    {/* <CatEngineTxnView
                     transaction={selectedTransaction}
                     accordionItemId={openAccordionItem}
                     isLoading={isLoading}
                     error={error ? error.message : null}
                   /> */}
-                  <TransactionView
-                    transaction={selectedTransaction}
-                    groupedCoaData={groupedCoaData}
-                  />
-                </ResizablePanel>
-              </>
-            )}
-          </ResizablePanelGroup>
-        )}
-        {mode === 'autosave' && (
-          <>{view === 'group' ? accordionView : tableView}</>
-        )}
+                    <TransactionView
+                      transaction={selectedTransaction}
+                      groupedCoaData={groupedCoaData}
+                    />
+                  </ResizablePanel>
+                </>
+              )}
+            </ResizablePanelGroup>
+          )}
+          {mode === 'autosave' && (
+            <>{view === 'group' ? accordionView : tableView}</>
+          )}
 
-        <p className="text-muted-foreground pt-1 text-xs">
-          <span>Showing {rawTransactions.length} transactions</span>
-          <span> | </span>
-          <span>Total uncategorized: 100</span>
-          <span> | </span>
-          <span>Total needs review: 100</span>
-        </p>
+          <p className="text-muted-foreground pt-1 text-xs">
+            <span>Showing {rawTransactions.length} transactions</span>
+            <span> | </span>
+            <span>Total uncategorized: 100</span>
+            <span> | </span>
+            <span>Total needs review: 100</span>
+          </p>
+        </div>
       </div>
-    </div>
+    </LedgerIntentManagerV2Provider>
   );
 }
