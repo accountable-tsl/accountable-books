@@ -1614,10 +1614,18 @@ export async function updateOrCreateLedger({
 
           // Entry-level metadata updates
           if (changes.entryChanges.size > 0 && txnData.transactions) {
+            const proposedEntriesById = new Map<string, LedgerEntryInput>();
+            txnData.transactions.forEach((entry) => {
+              if (entry.id) {
+                proposedEntriesById.set(entry.id, entry);
+              }
+            });
             updates.entries = [];
-            for (const [index, changedFields] of changes.entryChanges) {
-              const existingEntry = existingEntries[index];
-              const proposedEntry = txnData.transactions[index];
+            for (const [entryId, changedFields] of changes.entryChanges) {
+              const existingEntry = existingEntries.find(
+                (entry) => entry.id === entryId,
+              );
+              const proposedEntry = proposedEntriesById.get(entryId);
 
               if (!existingEntry || !proposedEntry) continue;
 

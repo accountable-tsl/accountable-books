@@ -1,5 +1,5 @@
 import type { LedgerIntent } from '@accountable-books/contracts/schema';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 
 import {
   fetchCategorizationTransactions,
@@ -114,6 +114,41 @@ export type GroupedTransactionsData = {
   limit: number;
   offset: number;
 };
+
+export type GroupedTransactionsPage = GroupedTransactionsData;
+
+export function useCategorizationTransactionsInfinite(
+  params: Omit<GetCategorizationTransactionsParams, 'offset'>,
+) {
+  return useInfiniteQuery({
+    queryKey: [
+      'categorization-transactions',
+      params.companyId,
+      params.dateFrom,
+      params.dateTo,
+      params.status,
+      params.limit,
+    ],
+    queryFn: async ({ pageParam = 0 }) => {
+      const response = await fetchCategorizationTransactions({
+        ...params,
+        offset: pageParam,
+      });
+      const grouped = groupCategorizationTransactions(response.transactions);
+      return {
+        transactions: grouped,
+        total: response.total,
+        limit: response.limit,
+        offset: response.offset,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.limit;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
+    },
+    enabled: !!params.companyId && !!params.dateFrom && !!params.dateTo,
+  });
+}
 
 /**
  * Hook to send categorization intent

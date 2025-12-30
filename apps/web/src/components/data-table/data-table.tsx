@@ -1,9 +1,8 @@
+import type { DataTableProps } from '@/components/data-table/types/data-table';
 import * as React from 'react';
-
 import { Table } from '@/components/CustomTable';
 import { DataTableHeader } from '@/components/data-table/data-table-header';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import type { DataTableProps } from '@/components/data-table/types/data-table';
 import { cn } from '@/lib/utils';
 
 import { DataTableBody, MemoizedDataTableBody } from './data-table-body';
@@ -54,7 +53,7 @@ export function DataTable<TData>({
   return (
     <div
       className={cn(
-        'flex flex-col w-full h-full min-h-0 gap-2.5',
+        'flex h-full min-h-0 w-full flex-col gap-2.5',
         wrapper || '',
       )}
       {...props}
@@ -63,27 +62,16 @@ export function DataTable<TData>({
       {children}
 
       {/* Main table */}
-      <div className="relative w-full flex-1 border overflow-clip rounded-md">
-        <div className="h-full overflow-x-auto scrollbar-thin-2px">
-          <Table
-            className={cn(
-              // 'min-w-full w-full rounded-md overflow-clip border',
-              // tableClass || '',
-              // hasPinnedColumns
-              //   ? 'overflow-x-auto overflow-y-visible scrollbar-thin-2px'
-              //   : '',
-              'min-w-max',
-            )}
-            style={{
-              ...columnSizeVars,
-              // width: '100%',
-            }}
-          >
-            <DataTableHeader table={table} />
+      <div className="relative flex w-full flex-1 flex-col overflow-hidden rounded-md border">
+        <Table
+          style={{
+            ...columnSizeVars,
+          }}
+        >
+          <DataTableHeader table={table} />
 
-            <BodyComponent table={table} />
-          </Table>
-        </div>
+          <BodyComponent table={table} />
+        </Table>
       </div>
       <div className="flex flex-col gap-2.5">
         {/* Conditional pagination rendering */}

@@ -358,30 +358,33 @@ function updateQueryCacheWithTransaction(
   });
 
   for (const query of relevantQueries) {
-    queryClient.setQueryData(
-      query.queryKey,
-      (
-        oldData:
-          | {
-              transactions: GroupedTransaction[];
-              total: number;
-              limit: number;
-              offset: number;
-            }
-          | undefined,
-      ) => {
-        if (!oldData) return oldData;
+    queryClient.setQueryData(query.queryKey, (oldData: any) => {
+      if (!oldData) return oldData;
 
-        const updatedTransactions = oldData.transactions.map((t) =>
+      const updateTransactions = (transactions: GroupedTransaction[]) =>
+        transactions.map((t) =>
           t.bankTransactionId === bankTransactionId ? persistedTransaction : t,
         );
 
+      if (Array.isArray(oldData.pages)) {
         return {
           ...oldData,
-          transactions: updatedTransactions,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            transactions: updateTransactions(page.transactions || []),
+          })),
         };
-      },
-    );
+      }
+
+      if (Array.isArray(oldData.transactions)) {
+        return {
+          ...oldData,
+          transactions: updateTransactions(oldData.transactions),
+        };
+      }
+
+      return oldData;
+    });
   }
 }
 

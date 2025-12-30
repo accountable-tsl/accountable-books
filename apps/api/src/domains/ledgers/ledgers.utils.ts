@@ -370,7 +370,7 @@ export function detectChangedFields({
 }): {
   hasChanges: boolean;
   transactionChanges: Set<string>;
-  entryChanges: Map<number, Set<string>>; // Map of entry index -> changed fields
+  entryChanges: Map<string, Set<string>>; // Map of entry_id -> changed fields
   isMetadataOnly: boolean;
   isAccountingChange: boolean;
   bankLegViolation?: {
@@ -380,7 +380,7 @@ export function detectChangedFields({
   };
 } {
   const transactionChanges = new Set<string>();
-  const entryChanges = new Map<number, Set<string>>();
+  const entryChanges = new Map<string, Set<string>>();
 
   // // Define which fields are metadata vs accounting
   // const TRANSACTION_METADATA_FIELDS = new Set([
@@ -411,6 +411,13 @@ export function detectChangedFields({
     if (a == null && b == null) return true;
     if (a == null || b == null) return false;
 
+    const isNumericString = (value: unknown): value is string => {
+      if (typeof value !== 'string') return false;
+      const trimmed = value.trim();
+      if (trimmed === '') return false;
+      return !Number.isNaN(Number(trimmed));
+    };
+
     // Date comparison: handle Date objects or YMD strings
     // Check if either value looks like a date (Date object or YMD string pattern)
     const aIsDateLike =
@@ -424,6 +431,20 @@ export function detectChangedFields({
       const aYMD = normalizeDateForComparison(a);
       const bYMD = normalizeDateForComparison(b);
       return aYMD === bYMD;
+    }
+
+    // Number comparison with epsilon (supports numeric strings)
+    if (
+      typeof a === 'number' ||
+      typeof b === 'number' ||
+      isNumericString(a) ||
+      isNumericString(b)
+    ) {
+      const aNum = typeof a === 'number' ? a : Number(a);
+      const bNum = typeof b === 'number' ? b : Number(b);
+      if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
+        return Math.abs(aNum - bNum) < 0.01;
+      }
     }
 
     // Number comparison with epsilon
@@ -455,9 +476,22 @@ export function detectChangedFields({
   // 2. Check entry-level changes (structural + field changes)
   const proposedEntries = proposed.transactions ?? [];
 
-  // Structural change: entry count mismatch
-  if (proposedEntries.length !== existingEntries.length) {
-    // This is a structural change - always accounting
+  const existingBankLegIndex = existingEntries.findIndex(
+    (entry) => entry.is_bank_leg === true,
+  );
+  const proposedBankLegIndex = proposedEntries.findIndex(
+    (entry) => entry.is_bank_leg === true,
+  );
+
+  const existingNonBankEntries = existingEntries.filter(
+    (entry) => !entry.is_bank_leg,
+  );
+  const proposedNonBankEntries = proposedEntries.filter(
+    (entry) => !entry.is_bank_leg,
+  );
+
+  // Structural change: entry count mismatch (non-bank legs)
+  if (proposedNonBankEntries.length !== existingNonBankEntries.length) {
     return {
       hasChanges: true,
       transactionChanges,
@@ -467,16 +501,53 @@ export function detectChangedFields({
     };
   }
 
-  // Compare each entry by position
-  for (let i = 0; i < existingEntries.length; i++) {
-    const existingEntry = existingEntries[i]!;
-    const proposedEntry = proposedEntries[i];
+  // Structural change: bank leg missing on either side
+  if (
+    (existingBankLegIndex === -1 && proposedBankLegIndex !== -1) ||
+    (existingBankLegIndex !== -1 && proposedBankLegIndex === -1)
+  ) {
+    return {
+      hasChanges: true,
+      transactionChanges,
+      entryChanges,
+      isMetadataOnly: false,
+      isAccountingChange: true,
+    };
+  }
 
-    if (!proposedEntry) continue;
+  const existingNonBankById = new Map<string, LedgerEntry>();
+  existingNonBankEntries.forEach((entry) => {
+    existingNonBankById.set(entry.id, entry);
+  });
+
+  const proposedNonBankById = new Map<string, LedgerEntryInput>();
+  for (const entry of proposedNonBankEntries) {
+    if (!entry.id) {
+      return {
+        hasChanges: true,
+        transactionChanges,
+        entryChanges,
+        isMetadataOnly: false,
+        isAccountingChange: true,
+      };
+    }
+    proposedNonBankById.set(entry.id, entry);
+  }
+
+  for (const existingEntry of existingNonBankEntries) {
+    const proposedEntry = proposedNonBankById.get(existingEntry.id);
+    if (!proposedEntry) {
+      return {
+        hasChanges: true,
+        transactionChanges,
+        entryChanges,
+        isMetadataOnly: false,
+        isAccountingChange: true,
+      };
+    }
 
     const changedFields = new Set<string>();
 
-    // Check metadata fields
     for (const field of ENTRY_METADATA_FIELDS) {
       if (field in proposedEntry) {
         const proposedValue =
@@ -489,7 +560,6 @@ export function detectChangedFields({
       }
     }
 
-    // Check accounting fields
     for (const field of ENTRY_ACCOUNTING_FIELDS) {
       if (field in proposedEntry) {
         const proposedValue =
@@ -503,7 +573,20 @@ export function detectChangedFields({
     }
 
     if (changedFields.size > 0) {
-      entryChanges.set(i, changedFields);
+      entryChanges.set(existingEntry.id, changedFields);
+    }
+  }
+
+  for (const proposedEntry of proposedNonBankEntries) {
+    if (!proposedEntry.id) continue;
+    if (!existingNonBankById.has(proposedEntry.id)) {
+      return {
+        hasChanges: true,
+        transactionChanges,
+        entryChanges,
+        isMetadataOnly: false,
+        isAccountingChange: true,
+      };
     }
   }
 
@@ -517,17 +600,11 @@ export function detectChangedFields({
     | undefined;
 
   if (isBankTransaction) {
-    // Find the bank leg in existing entries
-    const bankLegIndex = existingEntries.findIndex(
-      (e) => e.is_bank_leg === true,
-    );
-
-    if (bankLegIndex !== -1) {
-      const existingBankLeg = existingEntries[bankLegIndex]!;
-      const proposedBankLeg = proposedEntries[bankLegIndex];
+    if (existingBankLegIndex !== -1 && proposedBankLegIndex !== -1) {
+      const existingBankLeg = existingEntries[existingBankLegIndex]!;
+      const proposedBankLeg = proposedEntries[proposedBankLegIndex];
 
       if (proposedBankLeg) {
-        // Check immutable fields: coa_id, source_currency_id, source_amount
         const immutableBankLegFields = [
           'coa_id',
           'source_currency_id',
@@ -549,7 +626,7 @@ export function detectChangedFields({
 
         if (violatedFields.length > 0) {
           bankLegViolation = {
-            entryIndex: bankLegIndex,
+            entryIndex: existingBankLegIndex,
             violatedFields,
             message: `Bank leg immutability violation: Cannot change ${violatedFields.join(', ')} on bank leg. These fields must always match the source bank transaction.`,
           };

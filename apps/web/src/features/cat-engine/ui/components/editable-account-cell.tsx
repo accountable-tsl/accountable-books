@@ -1,38 +1,61 @@
-import { useState } from 'react';
-
+import { useEffect, useRef, useState } from 'react';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
+
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import type { GroupedCoaData } from '../types';
+import { resolveEditableEntryId } from '../utils/resolve-editable-entry';
 
 interface EditableAccountCellProps {
   coaId?: string;
+  txn: GroupedTransaction;
   groupedCoaData: GroupedCoaData[];
-  onCommit: (coaId: string) => void;
   markDirty: () => void;
+  onCommitted?: (coaId: string) => void;
 }
 
 export function EditableAccountCell({
   coaId,
+  txn,
   groupedCoaData,
-  onCommit,
   markDirty,
+  onCommitted,
 }: EditableAccountCellProps) {
+  const { updateEntry, addEntry, getEntriesUI } = useLedgerIntentUpdater(txn);
   const [open, setOpen] = useState(false);
   const [localId, setLocalId] = useState(coaId || '');
+  const localIdRef = useRef(localId);
+
+  useEffect(() => {
+    const nextLocalId = coaId || '';
+    setLocalId(nextLocalId);
+    localIdRef.current = nextLocalId;
+  }, [coaId]);
 
   const commitIfDirty = () => {
-    if (localId !== coaId) {
+    const nextLocalId = localIdRef.current;
+    if (nextLocalId !== coaId) {
       // Find the selected item in the grouped data
       const selectedItem = groupedCoaData
         .flatMap((group) => group.items)
-        .find((item) => item.value === localId);
+        .find((item) => item.value === nextLocalId);
       if (selectedItem) {
-        onCommit?.(selectedItem.value);
+        const entryId = resolveEditableEntryId(
+          txn,
+          addEntry,
+          getEntriesUI(),
+        );
+        if (!entryId) return;
+
+        updateEntry(entryId, { coa_id: selectedItem.value });
+        onCommitted?.(selectedItem.value);
       }
     }
   };
 
   const handleChange = (value: string) => {
     setLocalId(value); // UI only
+    localIdRef.current = value;
     markDirty();
   };
 

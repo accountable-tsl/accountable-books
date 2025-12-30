@@ -45,7 +45,7 @@ export function ToggleButton({
     'cursor-pointer hover:bg-background p-0.5 rounded text-muted-foreground border border-muted',
     'flex items-center justify-center',
     active
-      ? activeClasses || 'bg-background text-foreground border-border'
+      ? activeClasses || 'bg-background text-foreground border-border dark:border-white/30'
       : inactiveClasses || 'opacity-50',
   );
 

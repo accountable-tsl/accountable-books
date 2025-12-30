@@ -1055,6 +1055,7 @@ export async function processCategorizationIntent({
           reference: ledgerTxn.reference,
           note: ledgerTxn.note,
           source_transaction_id: bankTxnId,
+          transaction_source: ledgerTxn.transaction_source,
           transactions: mergedEntries,
         };
 

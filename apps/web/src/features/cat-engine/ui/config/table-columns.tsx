@@ -1,6 +1,7 @@
 import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import type { ColumnDef } from '@tanstack/react-table';
 import type React from 'react';
+import { memo, useEffect, useState } from 'react';
 import { FormattedAmount } from '@/components/FormattedAmount';
 import {
   Tooltip,
@@ -9,12 +10,11 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
-import { toYMD } from '@/shared/utils/date-utils';
 import {
-  Building,
   ChevronDown,
   ChevronRight,
   HelpCircle,
+  Landmark,
   Split,
 } from 'lucide-react';
 
@@ -45,7 +45,6 @@ function DescriptionCell({
   markFieldDirty: (key: string) => void;
   row: { toggleExpanded: () => void };
 }) {
-  const { updateEntry } = useLedgerIntentUpdater(txn);
   const multipleLines = txn.hasMultipleEntries;
   const showTooltip = txn.description ? true : false;
   const displayText = txn.description || 'No description';
@@ -55,10 +54,9 @@ function DescriptionCell({
       <EditableTextCell
         value={txn.description || ''}
         placeholder="No description"
-        onCommit={(value) => {
-          updateEntry(txn.id, { description: value || null });
-          markFieldClean(fieldKey(txn.id, 'description'));
-        }}
+        txn={txn}
+        field="description"
+        onCommitted={() => markFieldClean(fieldKey(txn.id, 'description'))}
         markDirty={() => markFieldDirty(fieldKey(txn.id, 'description'))}
       />
     );
@@ -105,18 +103,14 @@ function FsDateCell({
   markFieldClean: (key: string) => void;
   markFieldDirty: (key: string) => void;
 }) {
-  const { updateEntry } = useLedgerIntentUpdater(txn);
   const fsDate = txn.fsDate;
 
   if (mode === 'autosave' && fsDate) {
     return (
       <EditableDateCell
         value={new Date(fsDate)}
-        onCommit={(date) => {
-          if (!date) return;
-          updateEntry(txn.id, { fs_date: toYMD(date) });
-          markFieldClean(fieldKey(txn.id, 'fsDate'));
-        }}
+        txn={txn}
+        onCommitted={() => markFieldClean(fieldKey(txn.id, 'fsDate'))}
         markDirty={() => markFieldDirty(fieldKey(txn.id, 'fsDate'))}
       />
     );
@@ -137,7 +131,6 @@ function ContactCell({
   markFieldDirty: (key: string) => void;
   row: { toggleExpanded: () => void };
 }) {
-  const { updateEntry } = useLedgerIntentUpdater(txn);
   const contactId = txn.contactId;
   const contactName = txn.contactName;
 
@@ -147,10 +140,8 @@ function ContactCell({
         field="contact"
         contactId={contactId || undefined}
         contactName={contactName || undefined}
-        onCommit={(id) => {
-          updateEntry(txn.id, { contact_id: id || null });
-          markFieldClean(fieldKey(txn.id, 'contact'));
-        }}
+        txn={txn}
+        onCommitted={() => markFieldClean(fieldKey(txn.id, 'contact'))}
         markDirty={() => markFieldDirty(fieldKey(txn.id, 'contact'))}
       />
     );
@@ -190,7 +181,6 @@ function ReferenceCell({
   markFieldDirty: (key: string) => void;
   row: { toggleExpanded: () => void };
 }) {
-  const { updateEntry } = useLedgerIntentUpdater(txn);
   const reference = txn.reference;
 
   if (mode === 'autosave' && !txn.hasMultipleEntries) {
@@ -198,10 +188,9 @@ function ReferenceCell({
       <EditableTextCell
         value={txn.reference || ''}
         placeholder="No reference"
-        onCommit={(value) => {
-          updateEntry(txn.id, { reference: value || null });
-          markFieldClean(fieldKey(txn.id, 'reference'));
-        }}
+        txn={txn}
+        field="reference"
+        onCommitted={() => markFieldClean(fieldKey(txn.id, 'reference'))}
         markDirty={() => markFieldDirty(fieldKey(txn.id, 'reference'))}
       />
     );
@@ -241,7 +230,6 @@ function ProjectCell({
   markFieldClean: (key: string) => void;
   markFieldDirty: (key: string) => void;
 }) {
-  const { updateEntry } = useLedgerIntentUpdater(txn);
   const projectName = txn.projectName;
 
   if (mode === 'autosave' && !txn.hasMultipleEntries) {
@@ -250,10 +238,8 @@ function ProjectCell({
         field="project"
         projectId={txn.projectId || undefined}
         projectName={projectName || undefined}
-        onCommit={(id) => {
-          updateEntry(txn.id, { project_id: id || null });
-          markFieldClean(fieldKey(txn.id, 'project'));
-        }}
+        txn={txn}
+        onCommitted={() => markFieldClean(fieldKey(txn.id, 'project'))}
         markDirty={() => markFieldDirty(fieldKey(txn.id, 'project'))}
       />
     );
@@ -351,8 +337,6 @@ function AccountCell({
   markFieldDirty: (key: string) => void;
   row: { getIsExpanded: () => boolean; toggleExpanded: () => void };
 }) {
-  // Hook must be called unconditionally at the top level
-  const { updateEntry } = useLedgerIntentUpdater(txn);
   const accountName = txn.coaName;
 
   if (txn.hasMultipleEntries) {
@@ -394,10 +378,9 @@ function AccountCell({
       <div className="flex items-center gap-2">
         <EditableAccountCell
           coaId={txn.coaId || undefined}
+          txn={txn}
           groupedCoaData={groupedCoaData}
-          onCommit={(coaId) => {
-            if (!coaId) return;
-            updateEntry(txn.id, { coa_id: coaId });
+          onCommitted={() => {
             markFieldClean(fieldKey(txn.id, 'account'));
           }}
           markDirty={() => markFieldDirty(fieldKey(txn.id, 'account'))}
@@ -432,6 +415,63 @@ function AccountCell({
     </Tooltip>
   );
 }
+
+const BankCell = memo(function BankCell({ txn }: { txn: GroupedTransaction }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const { bankLogo, bankName, bankAccountName } = txn;
+  const title = `${bankName} - ${bankAccountName}`;
+
+  // Reset states when bankLogo changes
+  useEffect(() => {
+    if (bankLogo) {
+      setImageLoaded(false);
+      setImageError(false);
+    } else {
+      setImageError(true);
+    }
+  }, [bankLogo]);
+
+  const showImage = bankLogo && imageLoaded && !imageError;
+
+  return (
+    <div className="flex items-center gap-2" title={title}>
+      <div
+        className={cn(
+          'relative flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-hidden',
+          'rounded-full border dark:bg-white',
+          !showImage && 'dark:bg-muted',
+        )}
+      >
+        {/* Always show Landmark icon as background/fallback */}
+        <Landmark
+          strokeWidth={2}
+          className={cn(
+            'text-muted-foreground h-3 w-3',
+            showImage && 'opacity-0', // Hide when image is ready
+          )}
+        />
+
+        {/* Image overlays the icon, only visible when loaded */}
+        {bankLogo && (
+          <img
+            src={bankLogo}
+            alt={`${bankName} logo`}
+            className={cn(
+              'absolute inset-0 h-full w-full object-cover transition-opacity duration-150',
+              showImage ? 'opacity-100' : 'opacity-0',
+            )}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+          />
+        )}
+      </div>
+      <p className="text-muted-foreground truncate text-sm">
+        {bankAccountName}
+      </p>
+    </div>
+  );
+});
 export const getCatEngineColumns = ({
   groupedCoaData,
   mode,
@@ -453,28 +493,7 @@ export const getCatEngineColumns = ({
       header: 'Bank',
       cell: ({ row }) => {
         const txn = row.original;
-        const logo = txn.bankLogo;
-        const bankAccountName = txn.bankAccountName;
-        const bankAccountTitle = `${txn.bankName} - ${bankAccountName}`;
-        return (
-          <div className="flex items-center gap-2" title={bankAccountTitle}>
-            <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white/80 dark:opacity-50">
-              {logo ? (
-                <img
-                  src={logo}
-                  alt={`${txn.bankName} logo`}
-                  className="h-4 w-4 object-contain"
-                />
-              ) : (
-                <Building className="h-4 w-4" />
-              )}
-            </div>
-
-            <p className="text-muted-foreground truncate text-sm">
-              {bankAccountName}
-            </p>
-          </div>
-        );
+        return <BankCell txn={txn} />;
       },
       size: 100,
     },
@@ -791,8 +810,8 @@ export const getCatEngineColumns = ({
       id: '__actions',
       header: '',
       enableResizing: false,
-      cell: () => {
-        return <ActionsMenu />;
+      cell: ({ row }) => {
+        return <ActionsMenu transaction={row.original} />;
       },
       size: 28,
       minSize: 28,

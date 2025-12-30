@@ -1,13 +1,13 @@
-import { type Cell, flexRender, type Row } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import React from 'react';
-
-import { TableBody, TableCell, TableRow } from '@/components/CustomTable';
-import { RowViewer } from '@/components/data-table/row-view/row-viewer';
 import type { CustomTable } from '@/components/data-table/types/data-table';
 import type { RowViewerProps } from '@/components/data-table/types/row-click';
+import type { Cell, Row } from '@tanstack/react-table';
+import React from 'react';
+import { TableBody, TableCell, TableRow } from '@/components/CustomTable';
+import { RowViewer } from '@/components/data-table/row-view/row-viewer';
 import { isClickInsideExcludedElement } from '@/components/data-table/utils/table';
 import { cn } from '@/lib/utils';
+import { flexRender } from '@tanstack/react-table';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { getColumnStyle } from './utils/column-sizing';
 
@@ -16,8 +16,10 @@ interface DataTableBodyProps<TData> {
 }
 export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const fetchLockRef = React.useRef(false);
   const { virtualization, customClassNames, expandableRows } =
     table.customOptions || {};
+  const infiniteScroll = table.customOptions?.infiniteScroll;
   const { tableBody, tableBodyCell, tableBodyRow, emptyTableRow } =
     customClassNames || {};
 
@@ -36,6 +38,41 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 60;
   const overscan = virtualization?.overscan ?? 5;
 
+  React.useEffect(() => {
+    if (!infiniteScroll?.isFetching) {
+      fetchLockRef.current = false;
+    }
+  }, [infiniteScroll?.isFetching]);
+
+  const handleScroll = React.useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (!infiniteScroll?.enabled) return;
+      if (!infiniteScroll?.onEndReached) return;
+      if (infiniteScroll?.isFetching) return;
+      if (infiniteScroll?.hasMore === false) return;
+      if (fetchLockRef.current) return;
+
+      const target = e.currentTarget;
+      if (target.scrollHeight <= target.clientHeight) return;
+      if (target.scrollTop <= 0) return;
+      const threshold = infiniteScroll?.threshold ?? 200;
+      const remaining =
+        target.scrollHeight - target.scrollTop - target.clientHeight;
+
+      if (remaining <= threshold) {
+        fetchLockRef.current = true;
+        infiniteScroll.onEndReached();
+      }
+    },
+    [
+      infiniteScroll?.enabled,
+      infiniteScroll?.onEndReached,
+      infiniteScroll?.isFetching,
+      infiniteScroll?.hasMore,
+      infiniteScroll?.threshold,
+    ],
+  );
+
   // Virtualizer count must match the number of rows we'll actually render
   // This updates automatically when rows expand/collapse
   const virtualizer = useVirtualizer<HTMLDivElement, Element>({
@@ -45,21 +82,6 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
     enabled: enableVirtual,
     overscan,
   });
-
-  // // Reset virtualizer and scroll to top when sorting changes
-  // useEffect(() => {
-  //   if (enableVirtual) {
-  //     virtualizer.scrollToIndex(0);
-  //     virtualizer.measure();
-  //     // Debug: log measured sizes
-  //     if (process.env.NODE_ENV !== "production") {
-  //       // @ts-ignore
-  //       const measurements = virtualizer?.measurementsCache;
-  //       // eslint-disable-next-line no-console
-  //       console.log("[Virtualizer] Measurements after sort:", measurements);
-  //     }
-  //   }
-  // }, [table.getState().sorting, virtualizer, enableVirtual]);
 
   const virtualItems =
     enableVirtual && scrollRef.current ? virtualizer.getVirtualItems() : [];
@@ -121,7 +143,6 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
       },
       'data-state': row.getIsSelected() ? 'selected' : '',
       className: cn(
-        'min-w-max',
         tableBodyRow,
         isSubRow
           ? cn(
@@ -183,14 +204,20 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
             key={rowData.id}
             {...rowProps}
             className={cn(
-              hasPinnedColumns ? '!min-w-full' : '',
               rowProps.className,
+              tableBodyRow,
+              isSubRow
+                ? cn(
+                    'conditional relative opacity-70 hover:opacity-100',
+                    expandableRows?.expandedRowClassName,
+                  )
+                : '',
             )}
           >
             {/* Left pinned cells */}
             <div
               className={cn(
-                'flex flex-row items-center justify-center sticky left-0 z-10 bg-background border-r h-full',
+                'bg-background sticky left-0 z-10 flex h-full flex-row items-center justify-center border-r',
                 isSubRow ? 'border-r-0' : '',
               )}
               style={{ backgroundColor: 'inherit' }}
@@ -198,15 +225,15 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
               {leftCells.map((cell) => renderCell(cell, 'left'))}
             </div>
 
-            <div className="flex-1 overflow-y-visible h-full">
-              <div className="flex flex-row flex-nowrap whitespace-nowrap items-center h-full">
+            <div className="h-full flex-1">
+              <div className="flex h-full flex-row flex-nowrap items-center whitespace-nowrap">
                 {centerCells.map((cell) => renderCell(cell, false))}
               </div>
             </div>
 
             <div
               className={cn(
-                'flex flex-row items-center justify-center sticky right-0 z-10 bg-background border-l h-full',
+                'bg-background sticky right-0 z-10 flex h-full flex-row items-center justify-center border-l',
                 isSubRow ? 'border-l-0' : '',
               )}
               style={{ backgroundColor: 'inherit' }}
@@ -215,7 +242,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
             </div>
 
             {isSubRow && (
-              <div className="absolute inset-0 pointer-events-none bg-muted/40 z-10" />
+              <div className="bg-muted/40 pointer-events-none absolute inset-0 z-10" />
             )}
           </TableRow>
         );
@@ -240,7 +267,8 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
     return (
       <TableBody
         ref={scrollRef}
-        className={cn(tableBody, hasPinnedColumns ? 'overflow-y-visible' : '')}
+        onScroll={handleScroll}
+        className={cn(tableBody)}
       >
         <div
           style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
@@ -252,7 +280,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                minWidth: 'max-content',
+                // minWidth: 'max-content',
                 width: '100%',
                 transform: `translateY(${virtualRow.start}px)`,
               }}
@@ -266,18 +294,18 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   }
 
   return (
+    // <div
+    //   ref={scrollRef}
+    //   onScroll={handleScroll}
+    //   className="scrollbar-thin-2px relative flex min-h-0 flex-[1_1_auto] !flex-row overflow-y-auto"
+    // >
     <>
-      <TableBody
-        className={cn(
-          tableBody,
-          hasPinnedColumns ? 'min-w-max overflow-y-visible' : '',
-        )}
-      >
+      <TableBody className={cn(tableBody)} onScroll={handleScroll}>
         {rowsToRender?.length ? (
           rowsToRender.map((row) => renderRow(row))
         ) : (
           <TableRow className={emptyTableRow}>
-            <TableCell className="min-h-24 w-full flex items-center justify-center">
+            <TableCell className="flex min-h-24 w-full items-center justify-center">
               No results.
             </TableCell>
           </TableRow>
@@ -288,6 +316,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
         <RowViewer rowViewerInfo={rowViewerInfo} />
       )}
     </>
+    // </div>
   );
 }
 

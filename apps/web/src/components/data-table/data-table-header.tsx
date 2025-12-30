@@ -1,10 +1,9 @@
-import { flexRender } from '@tanstack/react-table';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-
+import type { DataTableProps } from '@/components/data-table/types/data-table';
 import { TableCell, TableHeader, TableRow } from '@/components/CustomTable';
 import { DataTableResizer } from '@/components/data-table/data-table-resizer';
-import type { DataTableProps } from '@/components/data-table/types/data-table';
 import { cn } from '@/lib/utils';
+import { flexRender } from '@tanstack/react-table';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 
 import { getColumnStyle } from './utils/column-sizing';
 
@@ -44,7 +43,7 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
           <>
             {canSort ? (
               <div
-                className="flex items-center cursor-pointer select-none"
+                className="flex cursor-pointer select-none items-center"
                 role="button"
                 tabIndex={0}
                 aria-label={`Sort by ${flexRender(
@@ -98,28 +97,29 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
       <TableHeader
         className={cn(
           tableHeader,
-          hasPinnedColumns ? 'overflow-y-visible' : '',
+          'z-30',
+          // hasPinnedColumns ? 'overflow-y-visible' : '',
         )}
       >
         <TableRow
           variant="header"
           className={cn(
             tableHeaderRow,
-            'border-collapse',
+            'relative border-collapse',
             hasPinnedColumns ? 'min-w-max' : '',
           )}
         >
-          <div className="flex flex-row items-center justify-center sticky !left-0 z-30 bg-sidebar-accent min-h-10 h-10 border-r border-b border-collapse">
+          <div className="bg-sidebar-accent sticky !left-0 z-30 flex h-10 min-h-10 border-collapse flex-row items-center justify-center border-b border-r">
             {leftGroups.map((header) => renderHeaderCell(header, 'left'))}
           </div>
 
-          <div className="flex-1 overflow-y-visible h-full">
-            <div className="flex flex-row flex-nowrap whitespace-nowrap items-center bg-sidebar-accent min-h-10 h-10 border-b border-collapse">
+          <div className="h-full flex-1 overflow-y-visible">
+            <div className="bg-sidebar-accent flex h-10 min-h-10 border-collapse flex-row flex-nowrap items-center whitespace-nowrap border-b">
               {centerGroups.map((header) => renderHeaderCell(header, false))}
             </div>
           </div>
 
-          <div className="flex flex-row items-center justify-center sticky right-0 z-30 bg-sidebar-accent min-h-10 h-10 border-l border-b border-collapse">
+          <div className="bg-sidebar-accent sticky !right-0 z-30 flex h-10 min-h-10 border-collapse flex-row items-center justify-center border-b border-l">
             {rightGroups.map((header) => renderHeaderCell(header, 'right'))}
           </div>
         </TableRow>

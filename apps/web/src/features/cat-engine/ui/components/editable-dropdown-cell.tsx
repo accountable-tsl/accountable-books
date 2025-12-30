@@ -1,15 +1,20 @@
 import { Plus } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
 import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
 import { cn } from '@/lib/utils';
+import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 import { useContactsInfinite } from '@/modules/contacts';
 import type { ContactResponse } from '@/modules/contacts/model/types';
 import { useProjectsInfinite } from '@/modules/projects';
 import type { ProjectsResponse } from '@/modules/projects/model/types';
+
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
+
+import { resolveEditableEntryId } from '../utils/resolve-editable-entry';
 
 interface EditableDropdownCellProps {
   field: 'contact' | 'project';
@@ -17,8 +22,9 @@ interface EditableDropdownCellProps {
   contactName?: string;
   projectId?: string;
   projectName?: string;
-  onCommit: (id: string, name: string) => void;
   markDirty: () => void;
+  txn: GroupedTransaction;
+  onCommitted?: (id: string, name: string) => void;
 }
 
 export function EditableDropdownCell({
@@ -27,14 +33,17 @@ export function EditableDropdownCell({
   contactName: _contactName,
   projectId,
   projectName: _projectName,
-  onCommit,
   markDirty,
+  txn,
+  onCommitted,
 }: EditableDropdownCellProps) {
   const { companyId } = useSession();
+  const { updateEntry, addEntry, getEntriesUI } = useLedgerIntentUpdater(txn);
   const [search, setSearch] = useState('');
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [localId, setLocalId] = useState(contactId || projectId || '');
+  const localIdRef = useRef(localId);
   const [open, setOpen] = useState(false);
 
   const currentId = field === 'contact' ? contactId : projectId;
@@ -117,19 +126,31 @@ export function EditableDropdownCell({
   );
 
   const commitIfDirty = () => {
-    if (localId !== currentId) {
-      const selectedItem = items.find((item) => item.value === localId);
+    const nextLocalId = localIdRef.current;
+    if (nextLocalId !== currentId) {
+      const selectedItem = items.find((item) => item.value === nextLocalId);
       const name = selectedItem?.label || '';
-      onCommit(localId, name);
+      const entryId = resolveEditableEntryId(txn, addEntry, getEntriesUI());
+      if (!entryId) return;
+      updateEntry(entryId, {
+        [field === 'contact' ? 'contact_id' : 'project_id']:
+          nextLocalId || null,
+      });
+      onCommitted?.(nextLocalId, name);
     }
   };
 
   const handleValueChange = (value: string) => {
     setLocalId(value); // UI only
+    localIdRef.current = value;
     markDirty();
   };
 
-  useEffect(() => setLocalId(currentId || ''), [currentId]);
+  useEffect(() => {
+    const nextId = currentId || '';
+    setLocalId(nextId);
+    localIdRef.current = nextId;
+  }, [currentId]);
 
   return (
     <>

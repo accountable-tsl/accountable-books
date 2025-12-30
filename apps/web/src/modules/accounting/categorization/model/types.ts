@@ -145,6 +145,7 @@ export interface GroupedTransaction {
   // Bank info
   id: string;
   bankTransactionId: string;
+  bankAccountId: string;
   bankName: string;
   bankLogo: string | null;
   bankAccountName: string;

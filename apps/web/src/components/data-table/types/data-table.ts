@@ -1,13 +1,20 @@
 import {
+  type ComponentProps,
+  type Dispatch,
+  type FC,
+  type ReactNode,
+  type SetStateAction,
+  type SVGProps,
+} from 'react';
+import {
   type ColumnDef,
   type ColumnSort,
   type Row,
   type RowData,
   type RowSelectionState,
+  type TableOptions,
+  type Table as TanstackTable,
 } from '@tanstack/react-table';
-import { type Table as TanstackTable } from '@tanstack/react-table';
-import { type TableOptions } from '@tanstack/react-table';
-import { type Dispatch, type SetStateAction } from 'react';
 
 import { type DataTableConfig, type FilterItemSchema } from '../utils/config';
 import { type ResolvedRowClick, type RowClickBehavior } from './row-click';
@@ -25,7 +32,7 @@ declare module '@tanstack/react-table' {
     options?: Option[];
     range?: [number, number];
     unit?: string;
-    icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+    icon?: FC<SVGProps<SVGSVGElement>>;
     separateFilter?: boolean;
     hidden?: boolean;
     cellClassName?: string; // For custom cell styling
@@ -55,9 +62,7 @@ export interface RowSelectionOptions {
   enableMultiRowSelection?: boolean;
 
   rowSelectionState?: RowSelectionState;
-  setRowSelectionState?: React.Dispatch<
-    React.SetStateAction<RowSelectionState>
-  >;
+  setRowSelectionState?: Dispatch<SetStateAction<RowSelectionState>>;
 }
 
 export interface GlobalSearch {
@@ -72,7 +77,7 @@ export interface Option {
   label: string;
   value: string;
   count?: number;
-  icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+  icon?: FC<SVGProps<SVGSVGElement>>;
 }
 
 // --- Input Configuration for DataTable (Subset of DataTableExtras) ---
@@ -86,6 +91,13 @@ export interface BaseDataTableOptions {
     enabled: boolean;
     estimatedRowHeight?: number;
     overscan?: number;
+  };
+  infiniteScroll?: {
+    enabled?: boolean;
+    onEndReached?: () => void;
+    hasMore?: boolean;
+    isFetching?: boolean;
+    threshold?: number;
   };
   pagination?: PaginationOptions;
   sorting?: SortingOptions;
@@ -151,9 +163,9 @@ export type UseDataTableReturn<TData> = {
 };
 
 // Props for Data table Component
-export interface DataTableProps<TData> extends React.ComponentProps<'div'> {
+export interface DataTableProps<TData> extends ComponentProps<'div'> {
   table: CustomTable<TData>; // TanStack table instance — provides all table state + render info
-  actionBar?: React.ReactNode; // Optional UI element shown if there are selected rows
+  actionBar?: ReactNode; // Optional UI element shown if there are selected rows
 }
 
 export type FilterOperator = DataTableConfig['operators'][number];
@@ -217,7 +229,7 @@ export interface ExpandableRowsOptions<TData> {
     row: Row<TData>;
     subRows: TData[];
     columns: ColumnDef<TData>[];
-  }) => React.ReactNode;
+  }) => ReactNode;
 
   /**
    * CSS class name for expanded content row

@@ -1,5 +1,8 @@
 import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import type {
+  CategorizationTransactionStatus,
+  GroupedTransaction,
+} from '@/modules/accounting/categorization';
 import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/app/session';
@@ -24,15 +27,17 @@ import {
 import { cn } from '@/lib/utils';
 import {
   LedgerIntentManagerV2Provider,
-  useCategorizationTransactions,
+  useCategorizationTransactionsInfinite,
   useLedgerIntentManagerV2,
 } from '@/modules/accounting/categorization';
 import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts';
+import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { toast } from 'sonner';
 
 import { CatEngineAdvFilter } from './components/cat-engine-adv-filter';
 import {
+  CenterCatEngineToolbar,
   LeftCatEngineToolbar,
   RightCatEngineToolbar,
 } from './components/cat-engine-toolbar';
@@ -44,6 +49,13 @@ import { testCategorizationTransactions } from './test-data';
 import type { CatEngineMode, GroupedCoaData } from './types';
 
 export const accordionItems = [
+  {
+    id: 'uncategorized',
+    title: 'Uncategorized',
+    textClass: 'text-gray-700 dark:text-gray-400',
+    borderClass: 'border-gray-300 dark:border-gray-900',
+    backgroundClass: 'bg-gray-50 dark:bg-gray-950',
+  },
   {
     id: 'high-confidence',
     title: 'High Confidence',
@@ -110,8 +122,9 @@ export function CatEngine() {
   const [rowHeight, setRowHeight] = useState<'min' | 'mid' | 'max'>('mid');
   const [isFullScreen, setIsFullScreen] = useState(false);
   // Default to 'uncategorized' to show the most important transactions first
-  const [openAccordionItem, setOpenAccordionItem] =
-    useState<string>('uncategorized');
+  const [openAccordionItem, setOpenAccordionItem] = useState<string>(
+    'uncategorized,proposed',
+  );
   const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>(
     getInitialDateRange(),
   );
@@ -144,6 +157,13 @@ export function CatEngine() {
   });
 
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
+  const [selectedBankAccountIds, setSelectedBankAccountIds] = useState<
+    string[]
+  >([]);
+  // Status filter for table view (separate from accordion status)
+  const [statusFilterForTable, setStatusFilterForTable] = useState<
+    Set<CategorizationTransactionStatus>
+  >(new Set());
 
   const manager = useLedgerIntentManagerV2();
   const getPendingTransactionsSummary = manager.getPendingTransactionsSummary;
@@ -178,20 +198,33 @@ export function CatEngine() {
 
   const statusFilter = getStatusFromAccordionItem(openAccordionItem);
 
-  // Fetch bank accounts for bank name/logo lookup
+  // Fetch bank accounts for bank name/logo lookup and filtering
+  const { data: bankAccountsData } = useCompanyBankAccounts(companyId ?? '');
+  const bankAccounts = useMemo(
+    () => bankAccountsData?.data || [],
+    [bankAccountsData],
+  );
+
+  // Memoize selected bank account IDs for efficient filtering
+  const selectedBankAccountIdsSet = useMemo(() => {
+    if (selectedBankAccountIds.length === 0) return new Set<string>();
+    return new Set(selectedBankAccountIds);
+  }, [selectedBankAccountIds]);
 
   // Fetch categorization transactions
   const {
     data: txnData,
     isLoading,
     error,
-  } = useCategorizationTransactions({
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useCategorizationTransactionsInfinite({
     companyId: companyId ?? '',
-    dateFrom: dateRange.from,
+    // dateFrom: dateRange.from,
+    dateFrom: new Date('2025-01-01'),
     dateTo: dateRange.to || new Date(),
-    status: statusFilter,
     limit: 100,
-    offset: 0,
   });
 
   const { data: coaData, isLoading: isLoadingCoa } = useChartOfAccountsQuery({
@@ -237,20 +270,43 @@ export function CatEngine() {
   const USE_TEST_DATA = false;
 
   const testTxns = useMemo(() => testCategorizationTransactions, []);
-  const rawTransactions = USE_TEST_DATA
-    ? testTxns
-    : txnData?.transactions || [];
+  const rawTransactions = useMemo(() => {
+    if (USE_TEST_DATA) return testTxns;
+    return txnData?.pages?.flatMap((page) => page.transactions) || [];
+  }, [USE_TEST_DATA, testTxns, txnData?.pages]);
 
-  console.log(rawTransactions);
+  console.log(rawTransactions.length);
   // Sync draft transactions with server data
   useEffect(() => {
     setDraftTransactions(rawTransactions);
   }, [rawTransactions]);
 
-  // Use draft transactions for display (includes optimistic updates)
+  // Use draft transactions for display (includes optimistic updates and filtering)
   const transactions = useMemo(() => {
-    return draftTransactions;
-  }, [draftTransactions]);
+    let filtered = draftTransactions;
+
+    // Filter by selected bank accounts if any are selected (O(1) lookup using Set)
+    if (selectedBankAccountIdsSet.size > 0) {
+      filtered = filtered.filter((txn) =>
+        selectedBankAccountIdsSet.has(txn.bankAccountId),
+      );
+    }
+
+    // Filter by status based on current view
+    if (view === 'group' && statusFilter) {
+      filtered = filtered.filter((txn) => txn.status === statusFilter);
+    } else if (view === 'table' && statusFilterForTable.size > 0) {
+      filtered = filtered.filter((txn) => statusFilterForTable.has(txn.status));
+    }
+
+    return filtered;
+  }, [
+    draftTransactions,
+    selectedBankAccountIdsSet,
+    view,
+    statusFilter,
+    statusFilterForTable,
+  ]);
 
   const rowClickHandler = useCallback((row: any) => {
     const id = row.original.id;
@@ -343,7 +399,14 @@ export function CatEngine() {
         markFieldClean,
         markFieldDirty,
       }),
-    [mode, company, handleExchangeRateUpdate],
+    [
+      groupedCoaData,
+      mode,
+      company,
+      handleExchangeRateUpdate,
+      markFieldClean,
+      markFieldDirty,
+    ],
   );
 
   const estimatedRowHeight = useMemo(() => {
@@ -359,23 +422,34 @@ export function CatEngine() {
 
   const customOptions = useMemo(() => {
     return {
-      virtualization: {
-        enabled: true,
-        estimatedRowHeight,
-        overscan: 8,
+      // virtualization: {
+      //   enabled: true,
+      //   estimatedRowHeight,
+      //   overscan: 8,
+      // },
+      infiniteScroll: {
+        enabled: !USE_TEST_DATA,
+        onEndReached: () => {
+          if (hasNextPage) {
+            fetchNextPage();
+          }
+        },
+        hasMore: !!hasNextPage,
+        isFetching: isFetchingNextPage,
+        threshold: 300,
       },
       rowSelection: {
         enabled: true,
       },
       customClassNames: {
         wrapper: `gap-0`,
-        table: `flex-1 h-full ${
+        table: `${
           view === 'group'
             ? accordionItems.find((item) => item.id === openAccordionItem)
                 ?.borderClass
             : ''
         }`,
-        tableHeader: `sticky top-0 z-10 ${
+        tableHeader: `${
           view === 'group'
             ? accordionItems.find((item) => item.id === openAccordionItem)
                 ?.backgroundClass
@@ -396,7 +470,17 @@ export function CatEngine() {
         onClick: rowClickHandler,
       },
     } satisfies DataTableInputOptions<GroupedTransaction>;
-  }, [mode, view, openAccordionItem, rowHeight, estimatedRowHeight]);
+  }, [
+    mode,
+    view,
+    openAccordionItem,
+    rowHeight,
+    estimatedRowHeight,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    USE_TEST_DATA,
+  ]);
 
   // DataTable Hook
   const { table } = useDataTable({
@@ -570,8 +654,8 @@ export function CatEngine() {
 
   return (
     <LedgerIntentManagerV2Provider value={manager}>
-      <div className="flex h-full min-h-0 flex-col gap-4 p-4 pb-2">
-        <div className="flex h-8 max-h-8 items-center justify-between overflow-clip">
+      <div className="flex h-full min-h-0 flex-col p-4 pb-2">
+        <div className="mb-4 flex h-8 max-h-8 items-center justify-between overflow-clip">
           <div className="h-7.5 flex items-center gap-2">
             <CatEngineAdvFilter />
 
@@ -587,6 +671,17 @@ export function CatEngine() {
             </div>
           </div>
 
+          <div className="h-7.5 flex items-center justify-center">
+            <CenterCatEngineToolbar
+              selectedBankAccountIds={selectedBankAccountIds}
+              onBankAccountsChange={setSelectedBankAccountIds}
+              currentStatus={statusFilterForTable}
+              onStatusToggle={setStatusFilterForTable}
+              bankAccounts={bankAccounts}
+              view={view}
+            />
+          </div>
+
           <div className="h-7.5 flex items-center gap-2">
             <DateRangePicker
               date={dateRange}
@@ -595,6 +690,7 @@ export function CatEngine() {
               alignPopover="end"
               className="h-full rounded"
             />
+
             <RightCatEngineToolbar
               rowHeight={rowHeight}
               setRowHeight={setRowHeight}
@@ -605,7 +701,7 @@ export function CatEngine() {
             />
           </div>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-col overflow-hidden">
           {mode === 'review' && (
             <ResizablePanelGroup
               direction="horizontal"
@@ -649,14 +745,13 @@ export function CatEngine() {
           {mode === 'autosave' && (
             <>{view === 'group' ? accordionView : tableView}</>
           )}
-
-          <p className="text-muted-foreground pt-1 text-xs">
-            <span>Showing {rawTransactions.length} transactions</span>
-            <span> | </span>
-            <span>Total uncategorized: 100</span>
-            <span> | </span>
-            <span>Total needs review: 100</span>
-          </p>
+        </div>
+        <div className="text-muted-foreground flex-shrink-0 pt-1 text-xs">
+          <span>Showing {rawTransactions.length} transactions</span>
+          <span> | </span>
+          <span>Total uncategorized: 100</span>
+          <span> | </span>
+          <span>Total needs review: 100</span>
         </div>
       </div>
     </LedgerIntentManagerV2Provider>

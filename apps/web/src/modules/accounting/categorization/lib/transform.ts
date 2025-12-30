@@ -76,6 +76,7 @@ export function groupCategorizationTransactions(
 
       id,
       bankTransactionId: id,
+      bankAccountId: firstLine.bank_account_id,
       bankName: firstLine.bank_display_name,
       bankLogo: firstLine.bank_logo,
       bankAccountName: firstLine.bank_account_display_name,
@@ -194,6 +195,7 @@ export function groupCategorizationTransactions(
                 txn.candidate_line_id ||
                 `${txn.id}-${index}`,
               bankTransactionId: txn.id,
+              bankAccountId: txn.bank_account_id,
               bankName: txn.bank_display_name,
               bankLogo: txn.bank_logo,
               bankAccountName: txn.bank_account_display_name,

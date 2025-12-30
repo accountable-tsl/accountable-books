@@ -437,14 +437,14 @@ function canSendLedgerIntent(
   txn: GroupedTransaction,
   desiredState: PendingDesiredState,
   entries: EntryUI[],
-): boolean {
+): { ok: boolean; missingCoa: boolean } {
   if (txn.status === 'uncategorized') {
     const hasCoaInChanges = desiredState.entries
       ? Object.values(desiredState.entries).some((entry) => entry.coa_id)
       : false;
 
     if (!txn.coaId && !hasCoaInChanges) {
-      return false;
+      return { ok: false, missingCoa: true };
     }
   }
 
@@ -452,7 +452,7 @@ function canSendLedgerIntent(
 
   for (const entry of finalEntries) {
     if (!entry.coa_id) {
-      return false;
+      return { ok: false, missingCoa: false };
     }
   }
 
@@ -463,10 +463,10 @@ function canSendLedgerIntent(
 
   const isBalanced = Math.abs(entriesTotal + txn.bankAmount) < 0.0001;
   if (!isBalanced) {
-    return false;
+    return { ok: false, missingCoa: false };
   }
 
-  return true;
+  return { ok: true, missingCoa: false };
 }
 
 function updateQueryCacheWithTransaction(
@@ -480,30 +480,33 @@ function updateQueryCacheWithTransaction(
   });
 
   for (const query of relevantQueries) {
-    queryClient.setQueryData(
-      query.queryKey,
-      (
-        oldData:
-          | {
-              transactions: GroupedTransaction[];
-              total: number;
-              limit: number;
-              offset: number;
-            }
-          | undefined,
-      ) => {
-        if (!oldData) return oldData;
+    queryClient.setQueryData(query.queryKey, (oldData: any) => {
+      if (!oldData) return oldData;
 
-        const updatedTransactions = oldData.transactions.map((t) =>
+      const updateTransactions = (transactions: GroupedTransaction[]) =>
+        transactions.map((t) =>
           t.bankTransactionId === bankTransactionId ? persistedTransaction : t,
         );
 
+      if (Array.isArray(oldData.pages)) {
         return {
           ...oldData,
-          transactions: updatedTransactions,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            transactions: updateTransactions(page.transactions || []),
+          })),
         };
-      },
-    );
+      }
+
+      if (Array.isArray(oldData.transactions)) {
+        return {
+          ...oldData,
+          transactions: updateTransactions(oldData.transactions),
+        };
+      }
+
+      return oldData;
+    });
   }
 }
 
@@ -800,16 +803,22 @@ export function useLedgerIntentManagerV2() {
 
       const entries = Array.from(entryMap.values());
 
-      if (
-        !onlyExchangeRateChange &&
-        !canSendLedgerIntent(txn, desiredState, entries)
-      ) {
+      const sendCheck = canSendLedgerIntent(txn, desiredState, entries);
+      if (!onlyExchangeRateChange && !sendCheck.ok) {
+        if (txn.status === 'uncategorized' && sendCheck.missingCoa) {
+          return;
+        }
         toast.error(
-          'Transaction must be balanced and have all required fields',
+          // 'Required fields missing. Save your selected account to continue.',
+          // 'Unsaved changes found. Save your changes to continue.',
+          'Unsaved changes found. Select an account to save changes',
           {
             duration: 5000,
             closeButton: true,
           },
+        );
+        console.error(
+          'Transaction must be balanced and have all required fields',
         );
         return;
       }

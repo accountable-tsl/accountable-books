@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 
 import { DatePicker } from '@/components/date-picker/date-picker';
+import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import { toYMD } from '@/shared/utils/date-utils';
+
+import { resolveEditableEntryId } from '../utils/resolve-editable-entry';
 
 // For String
 export function EditableTextCell({
@@ -8,12 +13,19 @@ export function EditableTextCell({
   onCommit,
   placeholder,
   markDirty,
+  txn,
+  field,
+  onCommitted,
 }: {
   value?: string;
   placeholder?: string;
-  onCommit: (value: string) => void;
+  onCommit?: (value: string) => void;
   markDirty: () => void;
+  txn: GroupedTransaction;
+  field: 'description' | 'reference';
+  onCommitted?: () => void;
 }) {
+  const { updateEntry, addEntry, getEntriesUI } = useLedgerIntentUpdater(txn);
   const [localValue, setLocalValue] = useState(value);
 
   useEffect(() => {
@@ -22,7 +34,20 @@ export function EditableTextCell({
 
   const commitIfDirty = () => {
     if (localValue !== value) {
-      onCommit?.(localValue);
+      if (onCommit) {
+        onCommit(localValue);
+      } else {
+        const entryId = resolveEditableEntryId(
+          txn,
+          addEntry,
+          getEntriesUI(),
+        );
+        if (!entryId) return;
+        updateEntry(entryId, {
+          [field as 'description' | 'reference']: localValue || null,
+        });
+        onCommitted?.();
+      }
     }
   };
 
@@ -57,11 +82,16 @@ export function EditableDateCell({
   value,
   onCommit,
   markDirty,
+  txn,
+  onCommitted,
 }: {
   value?: Date;
-  onCommit: (date: Date | undefined) => void;
+  onCommit?: (date: Date | undefined) => void;
   markDirty: () => void;
+  txn: GroupedTransaction;
+  onCommitted?: () => void;
 }) {
+  const { updateEntry, addEntry, getEntriesUI } = useLedgerIntentUpdater(txn);
   const [localDate, setLocalDate] = useState<Date | undefined>(value);
   const [open, setOpen] = useState(false);
 
@@ -71,7 +101,18 @@ export function EditableDateCell({
 
   const commitIfDirty = () => {
     if (localDate?.getTime() !== value?.getTime()) {
-      onCommit?.(localDate);
+      if (onCommit) {
+        onCommit(localDate);
+      } else {
+        const entryId = resolveEditableEntryId(
+          txn,
+          addEntry,
+          getEntriesUI(),
+        );
+        if (!entryId) return;
+        updateEntry(entryId, { fs_date: toYMD(localDate!) });
+        onCommitted?.();
+      }
     } else {
       setLocalDate(value); // revert if invalid/no change
     }
