@@ -2,12 +2,10 @@
 import type { Knex } from 'knex';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { createDemoSeedRunner, DemoSeedRunner } from './runner.js';
+
 import type { DemoFilter } from '../shared/config.js';
-import {
-  createDemoSeedRunner,
-  DemoSeedRunner,
-  type RunnerOptions,
-} from './runner.js';
+import type { RunnerOptions } from './runner.js';
 
 // Mock the registry with complete 7-step registry matching reality
 vi.mock('./registry.js', () => {
@@ -325,16 +323,13 @@ describe('DemoSeedRunner', () => {
         return mockQuery;
       });
 
-      // Replace the existing mockKnex properties with the function version
-      Object.setPrototypeOf(mockKnex, mockKnexFn);
-      for (const key in mockKnexFn) {
-        // @ts-expect-error quick note as to why
-        mockKnex[key] = mockKnexFn[key];
-      }
-      mockKnex.transaction = vi.fn().mockImplementation(async (callback) => {
-        return callback(mockTransaction);
-      });
-      mockKnex.raw = vi.fn().mockResolvedValue([{ '?column?': 1 }]);
+      // Replace mockKnex with a callable function that also has the transaction and raw methods
+      mockKnex = Object.assign(mockKnexFn, {
+        transaction: vi.fn().mockImplementation(async (callback) => {
+          return callback(mockTransaction);
+        }),
+        raw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
+      }) as any;
 
       runner = new DemoSeedRunner(mockKnex);
     });

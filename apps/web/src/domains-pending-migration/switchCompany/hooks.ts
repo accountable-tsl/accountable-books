@@ -1,12 +1,11 @@
-import { useSession } from '@session';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { SwitchCompanyOpts } from '@/domains-pending-migration/switchCompany/types';
 import { useRef } from 'react';
+import { useSession } from '@/app/session';
+import { useCompany } from '@/domains-pending-migration/company/store';
+import { authStore } from '@/modules/auth';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-
-import { useCompany } from '@/domains-pending-migration/company/store';
-import type { SwitchCompanyOpts } from '@/domains-pending-migration/switchCompany/types';
-import { authStore } from '@/modules/auth';
 
 import { switchCompanyApi } from './api';
 
