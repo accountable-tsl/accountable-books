@@ -169,8 +169,10 @@ export const getCategorizationTransactionsParams = z.object({
   companyId: z.string(),
   dateFrom: z.date().optional(),
   dateTo: z.date().optional(),
-  status: categorizationTransactionStatus.optional(),
+  status: categorizationTransactionStatus.array().optional(),
   bankTransactionIds: z.array(z.string()).optional(),
+  bankAccountIds: z.array(z.string()).optional(),
+  searchQuery: z.string().optional(),
   limit: z.number().int().min(1).max(1000).default(100).optional(),
   offset: z.number().int().min(0).optional().default(0).optional(),
 });

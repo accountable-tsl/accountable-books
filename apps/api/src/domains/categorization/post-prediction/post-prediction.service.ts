@@ -12,24 +12,25 @@ import {
   postCandidateToLedger,
 } from '../autopost/index.js';
 import { persistCategorizationCandidate } from '../candidates/candidates.service.js';
-import type { CandidateLineDraft } from '../candidates/candidates.types.js';
-import type { TxnCategorizationSource } from '../categorization.types.js';
-import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 import { enqueueMLPredictionJob } from '../ml/ml-prediction.queue.js';
-import type { MLPredictionOutput } from '../ml/ml-prediction.types.js';
-import type { RuleEngineResult } from '../rules/rules.engine.types.js';
-import type { TaskEventType } from '../tasks/index.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import {
   allEqual,
   buildExplanationFromRuleResult,
   computeCategorizeAmounts,
 } from './post-prediction.helpers.js';
+import { persistPrediction } from './predictions/predictions.service.js';
+
+import type { CandidateLineDraft } from '../candidates/candidates.types.js';
+import type { TxnCategorizationSource } from '../categorization.types.js';
+import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
+import type { MLPredictionOutput } from '../ml/ml-prediction.types.js';
+import type { RuleEngineResult } from '../rules/rules.engine.types.js';
+import type { TaskEventType } from '../tasks/index.js';
 import type {
   HandlePostPredictionParams,
   HandleRulePredictionParams,
 } from './post-prediction.types.js';
-import { persistPrediction } from './predictions/predictions.service.js';
 import type {
   MLPredictionMetadata,
   PersistPredictionParams,
@@ -712,18 +713,22 @@ async function processPredictionToCandidate({
     // Validate all predicted COA IDs exist, are active, and belong to company
     // This prevents creating candidates with invalid account references
     const predictedCoaIds = predictionLines.map((p) => p.coa_id);
+    const coaIdsToFetch = Array.from(
+      new Set([...predictedCoaIds, bankAccountCoaId]),
+    );
     const coas = await txn('coa')
-      .whereIn('id', predictedCoaIds)
+      .whereIn('id', coaIdsToFetch)
       .where('company_id', companyUUID)
       .where('is_deleted', false)
       .where('is_active', true)
-      .select('id');
+      .select('id', 'name');
+    const coaNameById = new Map(coas.map((coa) => [String(coa.id), coa.name]));
 
-    if (coas.length !== predictedCoaIds.length) {
-      const foundCoaIds = coas.map((c) => c.id);
-      const missingCoaIds = predictedCoaIds.filter(
-        (id) => !foundCoaIds.includes(id),
-      );
+    const foundCoaIds = coas.map((c) => c.id);
+    const missingCoaIds = predictedCoaIds.filter(
+      (id) => !foundCoaIds.includes(id),
+    );
+    if (missingCoaIds.length > 0) {
       logger.error(
         {
           companyUUID,
@@ -743,6 +748,40 @@ async function processPredictionToCandidate({
       );
     }
 
+    const projectIds = Array.from(
+      new Set(
+        predictionLines
+          .map((line) => line.project_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const projects = projectIds.length
+      ? await txn('projects')
+          .whereIn('id', projectIds)
+          .where('company_id', companyUUID)
+          .select('id', 'name')
+      : [];
+    const projectNameById = new Map(
+      projects.map((project) => [String(project.id), project.name]),
+    );
+
+    const contactIds = Array.from(
+      new Set(
+        [p.contact_id, bankTxn.contact_id].filter((id): id is string =>
+          Boolean(id),
+        ),
+      ),
+    );
+    const contacts = contactIds.length
+      ? await txn('contacts')
+          .whereIn('id', contactIds)
+          .where('company_id', companyUUID)
+          .select('id', 'display_name')
+      : [];
+    const contactNameById = new Map(
+      contacts.map((contact) => [String(contact.id), contact.display_name]),
+    );
+
     // Build bank leg (counterpart to prediction lines)
     // Bank leg represents the bank account side of the transaction
     // Note: Bank leg is NOT in predictions, only added here for complete journal entry
@@ -754,12 +793,17 @@ async function processPredictionToCandidate({
       },
       'Building bank leg for candidate',
     );
+    const bankLegContactId = p.contact_id ?? bankTxn.contact_id ?? null;
     const bankLeg: CandidateLineDraft = {
       fs_date: p.ledger_date ?? bankTxn.date,
       transaction_side: bankTxn.amount > 0 ? 'debit' : 'credit',
       coa_id: bankAccountCoaId,
-      contact_id: p.contact_id ?? bankTxn.contact_id ?? null,
+      coa_name: coaNameById.get(bankAccountCoaId) ?? null,
+      contact_id: bankLegContactId,
       contact_type: p.contact_type ?? bankTxn.contact_type ?? null,
+      contact_name: bankLegContactId
+        ? (contactNameById.get(bankLegContactId) ?? null)
+        : null,
       source_currency_id: bankAccountCurrencyId,
       system_exchange_rate: bankTxn.system_exchange_rate,
       custom_exchange_rate: bankTxn.custom_exchange_rate,
@@ -776,12 +820,21 @@ async function processPredictionToCandidate({
     const otherEntries: CandidateLineDraft[] = predictionLines
       .filter((l) => !l.is_bank_leg)
       .map((l) => {
+        const lineContactId = l.contact_id ?? null;
         return {
           fs_date: p.ledger_date ?? bankTxn.date,
           status: 'proposed',
           transaction_side: l.signed_native_amount > 0 ? 'debit' : 'credit',
           coa_id: l.coa_id,
           project_id: l.project_id,
+          coa_name: coaNameById.get(l.coa_id) ?? null,
+          project_name: l.project_id
+            ? (projectNameById.get(l.project_id) ?? null)
+            : null,
+          contact_id: lineContactId,
+          contact_name: lineContactId
+            ? (contactNameById.get(lineContactId) ?? null)
+            : null,
           source_currency_id: bankAccountCurrencyId,
           system_exchange_rate: bankTxn.system_exchange_rate,
           custom_exchange_rate: bankTxn.custom_exchange_rate,
@@ -821,11 +874,14 @@ async function processPredictionToCandidate({
       system_exchange_rate: line.system_exchange_rate, // Exchange rate for currency conversion
     }));
 
-    const constraintResult = await runConstraints({
-      companyUUID,
-      entries: constraintEntries,
-      transaction_date: p.ledger_date ?? bankTxn.date,
-    });
+    const constraintResult = await runConstraints(
+      {
+        companyUUID,
+        entries: constraintEntries,
+        transaction_date: p.ledger_date ?? bankTxn.date,
+      },
+      txn, // Pass the transaction to avoid deadlocks and ensure consistency
+    );
 
     if (!constraintResult.isValid) {
       // Constraint validation failed - log event and throw error

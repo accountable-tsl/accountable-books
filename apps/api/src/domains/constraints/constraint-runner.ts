@@ -1,5 +1,8 @@
+import type { Knex } from 'knex';
+
 import { logger } from '../../shared/index.js';
 import { constraintRegistry } from './constraints-registry.js';
+
 import type {
   ConstraintContext,
   ConstraintResult,
@@ -16,11 +19,20 @@ export interface ConstraintValidationResult {
  * Run all enabled constraints against the provided context.
  *
  * @param ctx - The constraint context containing company UUID, entries, and optional transaction date
+ * @param trx - Optional database transaction to use for constraint queries
  * @returns Promise resolving to validation results with all violations collected
  */
 export async function runConstraints(
   ctx: ConstraintContext,
+  trx?: Knex.Transaction,
 ): Promise<ConstraintValidationResult> {
+  // Add transaction to context so constraints can use it
+  // Preserve any existing trx in ctx if the parameter is not provided
+  const contextWithTrx: ConstraintContext = {
+    ...ctx,
+    trx: trx ?? ctx.trx,
+  };
+
   // Get all enabled constraints from registry
   const enabledConstraints = Object.values(constraintRegistry)
     .filter((entry) => entry.enabled)
@@ -31,6 +43,7 @@ export async function runConstraints(
       companyUUID: ctx.companyUUID,
       entriesCount: ctx.entries.length,
       enabledConstraintsCount: enabledConstraints.length,
+      hasTransaction: !!trx,
     },
     'Running constraints validation',
   );
@@ -41,7 +54,7 @@ export async function runConstraints(
   for (const constraint of enabledConstraints) {
     try {
       // Check if constraint applies to this context
-      if (constraint.applies && !constraint.applies(ctx)) {
+      if (constraint.applies && !constraint.applies(contextWithTrx)) {
         logger.debug(
           { constraintCode: constraint.code },
           `Constraint ${constraint.code} does not apply to context`,
@@ -50,7 +63,7 @@ export async function runConstraints(
       }
 
       // Run the constraint validation
-      const constraintViolations = await constraint.validate(ctx);
+      const constraintViolations = await constraint.validate(contextWithTrx);
 
       if (constraintViolations.length > 0) {
         violations.push(...constraintViolations);

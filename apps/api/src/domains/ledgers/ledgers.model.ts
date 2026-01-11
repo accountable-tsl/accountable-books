@@ -23,11 +23,11 @@ import { logLedgerEvent } from './ledger-audit-logs.service.js';
 import { newLedgerTransactionData } from './ledgers.types.js';
 import {
   detectChangedFields,
+  fetchLookupMap,
   normalizeDateForComparison,
   processEntriesDates,
   resolveFx,
   validateBankLegAmount,
-  validateIds,
 } from './ledgers.utils.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
@@ -241,7 +241,7 @@ export async function createLedgerRecord({
         .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
         .where({
           'bt.id': sourceTxId,
-          'bt.date': toYMD(sourceTxDate),
+          // 'bt.date': toYMD(sourceTxDate),
           'ba.company_id': companyUUID,
           'bt.is_deleted': false,
           'ba.is_deleted': false,
@@ -341,8 +341,18 @@ export async function createLedgerRecord({
     const contactIds = Array.from(allContactIds);
     const projectIds = Array.from(allProjectIds);
 
-    await validateIds('contacts', contactIds, companyUUID, txn);
-    await validateIds('projects', projectIds, companyUUID, txn);
+    const contactNameById = await fetchLookupMap({
+      table: 'contacts',
+      ids: contactIds,
+      companyId: companyUUID,
+      txn,
+    });
+    const projectNameById = await fetchLookupMap({
+      table: 'projects',
+      ids: projectIds,
+      companyId: companyUUID,
+      txn,
+    });
 
     // STEP 7: FOREIGN EXCHANGE RATE RESOLUTION
     // All entries in a ledger transaction must use the same source currency
@@ -392,11 +402,14 @@ export async function createLedgerRecord({
       };
     });
 
-    const constraintResult = await runConstraints({
-      companyUUID,
-      entries: constraintEntries,
-      transaction_date: toYMD(ledgerTx.date),
-    });
+    const constraintResult = await runConstraints(
+      {
+        companyUUID,
+        entries: constraintEntries,
+        transaction_date: toYMD(ledgerTx.date),
+      },
+      txn, // Pass the transaction to avoid deadlocks and ensure consistency
+    );
 
     // If constraints fail, we cannot proceed - the transaction violates accounting rules
     if (!constraintResult.isValid) {
@@ -498,21 +511,45 @@ export async function createLedgerRecord({
     // STEP 11: BUILD & INSERT LEDGER ENTRIES
     // Transform the input entries into database records
     // Apply FX rates, contact resolution, and monetary flags
-    const entriesToInsert: NewLedgerEntry[] = entries.map((e, index) => {
-      return {
-        ...e,
-        ledger_transaction_id: ledgerTransactionId,
-        is_bank_leg: e.is_bank_leg ?? false,
-        system_exchange_rate: systemExRate,
-        custom_exchange_rate: customExRate,
-        // Contact resolution: use entry contact if provided, otherwise use transaction contact
-        contact_id: e.contact_id ? e.contact_id : transactionContactId,
-        contact_type: e.contact_type ? e.contact_type : transactionContactType,
-        is_monetary: monetaryMap.get(index) ?? false,
-        fx_transaction_id: monetaryMap.get(index) ? fxTransactionId : null,
-        updated_by_id: userId,
-      };
-    });
+    const resolvedEntries = entries.map((entry) => ({
+      ...entry,
+      contact_id: entry.contact_id ? entry.contact_id : transactionContactId,
+      contact_type: entry.contact_type
+        ? entry.contact_type
+        : transactionContactType,
+    }));
+    const coaIds = Array.from(
+      new Set(resolvedEntries.map((entry) => entry.coa_id)),
+    );
+    const coas = coaIds.length
+      ? await txn('coa')
+          .whereIn('id', coaIds)
+          .where('company_id', companyUUID)
+          .select('id', 'name')
+      : [];
+    const coaNameById = new Map(coas.map((coa) => [String(coa.id), coa.name]));
+
+    const entriesToInsert: NewLedgerEntry[] = resolvedEntries.map(
+      (entry, index) => {
+        return {
+          ...entry,
+          ledger_transaction_id: ledgerTransactionId,
+          is_bank_leg: entry.is_bank_leg ?? false,
+          system_exchange_rate: systemExRate,
+          custom_exchange_rate: customExRate,
+          is_monetary: monetaryMap.get(index) ?? false,
+          fx_transaction_id: monetaryMap.get(index) ? fxTransactionId : null,
+          coa_name: coaNameById.get(entry.coa_id) ?? null,
+          project_name: entry.project_id
+            ? (projectNameById.get(entry.project_id) ?? null)
+            : null,
+          contact_name: entry.contact_id
+            ? (contactNameById.get(entry.contact_id) ?? null)
+            : null,
+          updated_by_id: userId,
+        };
+      },
+    );
 
     // Insert all entries into the database
     await txn('ledger_entries').insert(entriesToInsert);

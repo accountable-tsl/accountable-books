@@ -1,7 +1,6 @@
 import z from 'zod';
 
-import { dbBaseFields, zDateYMD } from '../../core/types/core.js';
-import { debitCredit } from '../../core/types/core.js';
+import { dbBaseFields, debitCredit, zDateYMD } from '../../core/types/core.js';
 import { txnCategorizationSource } from '../categorization/categorization.types.js';
 import { contactType } from '../contacts/index.js';
 
@@ -95,6 +94,7 @@ const baseLedgerEntry = z.object({
   id: z.uuid().optional(),
   fs_date: zDateYMD,
   coa_id: z.uuid(),
+  coa_name: z.string().nullish(),
 
   source_currency_id: z.uuid(),
   source_amount: z.number(),
@@ -103,6 +103,7 @@ const baseLedgerEntry = z.object({
 
   contact_id: z.uuid().nullish(), // Defaults to contact on ledger transaction but can be changed
   contact_type: contactType.nullish(), // Same as contact_id
+  contact_name: z.string().nullish(),
 
   description: z.string().nullable(),
   reference: z.string().nullish(),
@@ -113,6 +114,7 @@ const baseLedgerEntry = z.object({
 
   ledger_transaction_id: z.uuid().optional(),
   project_id: z.uuid().nullish(),
+  project_name: z.string().nullish(),
 
   human_reviewed: z.boolean().default(false).optional(),
   review_notes: z.string().nullish(),

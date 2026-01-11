@@ -19,21 +19,24 @@ import {
 } from '../categorization/index.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import {
-  type BankTransaction,
-  type BankTransactionBatchInput,
   bankTransactionBatchInput,
-  type BankTransactionFilters,
-  type BankTransactionInput,
-  type BankTransactionWithFilteredFields,
   bankTransactionsFilters,
-  type DeleteBankTransactionsInput,
   deleteBankTransactionsInput,
-  type NewBankTransaction,
 } from './bankTransactions.types.js';
 import {
   buildBankTransactionQuery,
   generateBatchFingerprint,
 } from './bankTransactions.utils.js';
+
+import type {
+  BankTransaction,
+  BankTransactionBatchInput,
+  BankTransactionFilters,
+  BankTransactionInput,
+  BankTransactionWithFilteredFields,
+  DeleteBankTransactionsInput,
+  NewBankTransaction,
+} from './bankTransactions.types.js';
 
 export async function addNewBankTransactions({
   userId,
@@ -128,10 +131,13 @@ export async function addNewBankTransactions({
       const bankAccount = await txn('bank_accounts as ba')
         .select(
           'ba.currency_id as bankCurrencyId',
+          'ba.display_name as bankAccountName',
+          'b.display_name as bankName',
           'c.reporting_currency_id as reportingCurrencyId',
           'c.conversion_date as conversionDate',
         )
         .join('companies as c', 'ba.company_id', 'c.id')
+        .join('banks as b', 'ba.bank_id', 'b.id')
         .where({
           'ba.id': bank_account_id,
           'ba.company_id': companyUUID,
@@ -145,7 +151,8 @@ export async function addNewBankTransactions({
           traceId,
         });
       }
-      const { bankCurrencyId, reportingCurrencyId } = bankAccount;
+      const { bankCurrencyId, reportingCurrencyId, bankAccountName, bankName } =
+        bankAccount;
 
       // Build batch insert object
       // Determine start and end dates
@@ -224,6 +231,27 @@ export async function addNewBankTransactions({
         createdContacts.map((r) => [r.normalized_name, r.id as string]),
       );
 
+      const inputContactIds = Array.from(
+        new Set(
+          bank_transactions
+            .map((tx) => tx.contact_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      );
+      const contactNameById = inputContactIds.length
+        ? new Map(
+            (
+              await txn('contacts')
+                .select(['id', 'display_name'])
+                .where({ company_id: companyUUID, is_deleted: false })
+                .whereIn('id', inputContactIds)
+            ).map((contact) => [
+              contact.id as string,
+              contact.display_name as string,
+            ]),
+          )
+        : new Map<string, string>();
+
       const sameCurrency = reportingCurrencyId === bankCurrencyId;
 
       // Pre-fetch all unique exchange rates in one optimized query
@@ -287,9 +315,15 @@ export async function addNewBankTransactions({
             bankAccountId: bank_account_id,
           });
 
-          const contactId = tx.payee
-            ? contactIdByName.get(tx.payee.trim().toLowerCase())
-            : undefined;
+          const normalizedPayee = tx.payee?.trim();
+          const contactId = normalizedPayee
+            ? contactIdByName.get(normalizedPayee.toLowerCase())
+            : (tx.contact_id ?? undefined);
+          const contactName = normalizedPayee
+            ? normalizedPayee
+            : contactId
+              ? (contactNameById.get(contactId) ?? null)
+              : null;
 
           const txSource =
             (batch_provider_key && source === 'bank_feed'
@@ -302,6 +336,9 @@ export async function addNewBankTransactions({
             bank_account_id,
             contact_id: contactId,
             contact_type_snapshot: tx.contact_type_snapshot ?? null,
+            contact_name: contactName,
+            bank_account_name: bankAccountName ?? null,
+            bank_name: bankName ?? null,
             external_id: tx.external_id || generatedExternalId,
             amount: Number(tx.amount),
             system_exchange_rate: Number(rate),
@@ -513,7 +550,7 @@ export async function getBankTransactionsByIds({
     throw new AppError('bankTransactionIds must be a non-empty array');
   }
 
-  let query = client('bank_transactions as bt')
+  const query = client('bank_transactions as bt')
     .whereIn('bt.id', bankTransactionIds)
     .where('bt.is_deleted', false)
     .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')

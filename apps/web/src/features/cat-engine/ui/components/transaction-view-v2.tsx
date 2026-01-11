@@ -9,7 +9,7 @@ import type {
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
 import type { ChangeEvent, ComponentProps, KeyboardEvent } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FilePreviewer } from '@/components/file-previewer';
@@ -98,6 +98,7 @@ export function TransactionView({
   );
   // Map of File object -> blob URL for new files
   const [blobUrls, setBlobUrls] = useState<Map<File, string>>(new Map());
+  const blobUrlsRef = useRef<Map<File, string>>(new Map());
   // Track which files have been saved (keyed by entryId:fileName:fileSize)
   const [savedFiles, setSavedFiles] = useState<Set<string>>(new Set());
 
@@ -107,6 +108,10 @@ export function TransactionView({
   }, []);
 
   const uploadTxnFilesMutation = useUploadTransactionFiles();
+
+  useEffect(() => {
+    blobUrlsRef.current = blobUrls;
+  }, [blobUrls]);
 
   const contactsQuery = useContactsInfinite({
     companyId: companyId || '',
@@ -151,6 +156,14 @@ export function TransactionView({
         }));
     });
   }, [projectsQuery.data?.pages]);
+
+  const coaLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    groupedCoaData.forEach((group) => {
+      group.items.forEach((item) => map.set(item.value, item.label));
+    });
+    return map;
+  }, [groupedCoaData]);
 
   // const intent = useMemo(() => {
   //   return {
@@ -302,6 +315,25 @@ export function TransactionView({
     });
   }, [entriesUI]);
 
+  useEffect(() => {
+    setBlobUrls((prev) => {
+      const next = new Map(prev);
+      let changed = false;
+
+      for (const files of draftEntryFiles.values()) {
+        for (const file of files) {
+          if (isServerFile(file)) continue;
+          if (!next.has(file)) {
+            next.set(file, createTypedBlobUrl(file));
+            changed = true;
+          }
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [draftEntryFiles]);
+
   // Helper function to get file attachments for FilePreviewer (synchronous - all data is in memory)
   const getFileAttachments = useCallback(
     (
@@ -336,11 +368,8 @@ export function TransactionView({
           });
         } else {
           // New file - use blob URL
-          let blobUrl = blobUrls.get(file);
-          if (!blobUrl) {
-            blobUrl = createTypedBlobUrl(file);
-            setBlobUrls((prev) => new Map(prev).set(file, blobUrl!));
-          }
+          const blobUrl = blobUrls.get(file);
+          if (!blobUrl) continue;
 
           attachments.push({
             file_name: file.name,
@@ -656,7 +685,7 @@ export function TransactionView({
   // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
-      blobUrls.forEach((url) => {
+      blobUrlsRef.current.forEach((url) => {
         URL.revokeObjectURL(url);
       });
     };
@@ -915,10 +944,8 @@ export function TransactionView({
                           {sourceAmt < 0 ? 'CR' : 'DR'}
                         </span>
                         <span className="truncate text-sm">
-                          {groupedCoaData
-                            .flatMap((group) => group.items)
-                            .find((item) => item.value === draftEntry.coa_id)
-                            ?.label ?? 'Not set'}
+                          {coaLabelById.get(draftEntry.coa_id ?? '') ??
+                            'Not set'}
                         </span>
                       </div>
                       <div className="flex flex-shrink-0 items-center gap-2">
@@ -1470,7 +1497,7 @@ export function TransactionView({
                   </label>
                   <p
                     className={cn(
-                      'block overflow-hidden truncate text-lg',
+                      'block truncate overflow-hidden text-lg',
                       totalDebit + totalCredit > 9_999_999_999 ? 'text-sm' : '',
                     )}
                   >
@@ -1487,7 +1514,7 @@ export function TransactionView({
                   </label>
                   <p
                     className={cn(
-                      'block overflow-hidden truncate text-lg',
+                      'block truncate overflow-hidden text-lg',
                       totalDebit + totalCredit > 9_999_999_999 ? 'text-sm' : '',
                     )}
                   >
@@ -1731,7 +1758,7 @@ export function EditableTextField({
                     onSave();
                   }
                 }}
-                className="bg-muted/50 focus:ring-ring flex-1 resize-none rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+                className="bg-muted/50 focus:ring-ring flex-1 resize-none rounded border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
               />
             ) : (
               <input
@@ -1748,7 +1775,7 @@ export function EditableTextField({
                     onSave();
                   }
                 }}
-                className="bg-muted/50 focus:ring-ring h-9 flex-1 rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+                className="bg-muted/50 focus:ring-ring h-9 flex-1 rounded border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
               />
             )}
             <div className="flex flex-shrink-0 gap-0.5">
@@ -1882,7 +1909,7 @@ function NumberField({
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="bg-muted/50 focus:ring-ring w-full rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+      className="bg-muted/50 focus:ring-ring w-full rounded border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
     />
   );
 

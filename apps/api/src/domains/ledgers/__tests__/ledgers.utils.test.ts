@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as currencyUtils from '../../currencies/currencies.utils.js';
 import * as exchangeRateUtils from '../../exchangeRates/exchangeRates.utils.js';
-import type { LedgerEntryInput } from '../ledgers.types.js';
 import {
   processEntriesDates,
   resolveFx,
   validateBankLegAmount,
   validateIds,
 } from '../ledgers.utils.js';
+
+import type { LedgerEntryInput } from '../ledgers.types.js';
 
 describe('validateBankLegAmount', () => {
   it('should validate when bank leg matches bank transaction amount (same sign)', () => {
@@ -129,9 +130,14 @@ describe('validateIds', () => {
     const validIds = ['id-1', 'id-2', 'id-3'];
     mockQueryBuilder.pluck.mockResolvedValue(validIds);
 
-    await expect(
-      validateIds('contacts', validIds, 'company-123', mockTxn as any),
-    ).resolves.not.toThrow();
+    const result = await validateIds(
+      'contacts',
+      validIds,
+      'company-123',
+      mockTxn as any,
+    );
+
+    expect(result).toEqual(new Set(validIds));
 
     expect(mockTxn).toHaveBeenCalledWith('contacts');
     expect(mockQueryBuilder.whereIn).toHaveBeenCalledWith('id', validIds);
@@ -162,9 +168,14 @@ describe('validateIds', () => {
   });
 
   it('should not throw when empty array is provided', async () => {
-    await expect(
-      validateIds('contacts', [], 'company-123', mockTxn as any),
-    ).resolves.not.toThrow();
+    const result = await validateIds(
+      'contacts',
+      [],
+      'company-123',
+      mockTxn as any,
+    );
+
+    expect(result).toEqual(new Set());
 
     expect(mockTxn).not.toHaveBeenCalled();
   });

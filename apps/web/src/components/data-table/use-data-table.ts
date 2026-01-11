@@ -1,7 +1,14 @@
+import type {
+  ColumnDef,
+  ColumnFiltersState,
+  ExpandedState,
+  FilterFnOption,
+  Row,
+  RowSelectionState,
+} from '@tanstack/react-table';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createSelectionColumn } from '@/components/data-table/utils/select-column';
 import {
-  type ColumnFiltersState,
-  type ExpandedState,
-  type FilterFnOption,
   getCoreRowModel,
   getExpandedRowModel,
   getFacetedMinMaxValues,
@@ -10,16 +17,13 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  type Row,
-  type RowSelectionState,
   useReactTable,
 } from '@tanstack/react-table';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { createSelectionColumn } from '@/components/data-table/utils/select-column';
-
 import { createMultiColumnFilter } from './toolbar';
+import { isInternalUrl } from './utils/table';
+
 import type {
   DataTableExtras,
   GlobalSearch,
@@ -30,7 +34,110 @@ import type {
   UseDataTableReturn,
 } from './types/data-table';
 import type { RowClickBehavior } from './types/row-click';
-import { isInternalUrl } from './utils/table';
+
+type SelectionColumnPosition = RowSelectionOptions['checkboxColumnPosition'];
+type SelectionColumnObject = Exclude<
+  NonNullable<SelectionColumnPosition>,
+  'start' | 'end'
+>;
+
+const getColumnId = <TData>(column: ColumnDef<TData>): string | undefined => {
+  if ('id' in column && typeof column.id === 'string') {
+    return column.id;
+  }
+  if ('accessorKey' in column && typeof column.accessorKey === 'string') {
+    return column.accessorKey;
+  }
+  return undefined;
+};
+
+const isPositionObject = (
+  position: SelectionColumnPosition,
+): position is SelectionColumnObject =>
+  typeof position === 'object' && position !== null;
+
+const resolveInsertIndex = <TData>(
+  columns: ColumnDef<TData>[],
+  position?: SelectionColumnPosition,
+) => {
+  if (!position || position === 'start') return 0;
+  if (position === 'end') return columns.length;
+  if (!isPositionObject(position)) return 0;
+  if ('index' in position) {
+    return Math.min(Math.max(position.index, 0), columns.length);
+  }
+  if ('beforeColumnId' in position) {
+    const index = columns.findIndex(
+      (column) => getColumnId(column) === position.beforeColumnId,
+    );
+    return index === -1 ? 0 : index;
+  }
+  const index = columns.findIndex(
+    (column) => getColumnId(column) === position.afterColumnId,
+  );
+  return index === -1 ? columns.length : index + 1;
+};
+
+const insertSelectionColumn = <TData>(
+  columns: ColumnDef<TData>[],
+  selectionColumn: ColumnDef<TData>,
+  position?: SelectionColumnPosition,
+) => {
+  const selectionId = getColumnId(selectionColumn);
+  if (!selectionId) {
+    return [selectionColumn, ...columns];
+  }
+  const filteredColumns = columns.filter(
+    (column) => getColumnId(column) !== selectionId,
+  );
+  const insertIndex = resolveInsertIndex(filteredColumns, position);
+  return [
+    ...filteredColumns.slice(0, insertIndex),
+    selectionColumn,
+    ...filteredColumns.slice(insertIndex),
+  ];
+};
+
+const insertSelectionColumnId = (
+  columnIds: string[],
+  selectionId: string,
+  position?: SelectionColumnPosition,
+) => {
+  const filtered = columnIds.filter((id) => id !== selectionId);
+  if (!position || position === 'start') {
+    return [selectionId, ...filtered];
+  }
+  if (position === 'end') {
+    return [...filtered, selectionId];
+  }
+  if (!isPositionObject(position)) {
+    return [selectionId, ...filtered];
+  }
+  if ('index' in position) {
+    const insertIndex = Math.min(Math.max(position.index, 0), filtered.length);
+    return [
+      ...filtered.slice(0, insertIndex),
+      selectionId,
+      ...filtered.slice(insertIndex),
+    ];
+  }
+  if ('beforeColumnId' in position) {
+    const targetIndex = filtered.indexOf(position.beforeColumnId);
+    const insertIndex = targetIndex === -1 ? 0 : targetIndex;
+    return [
+      ...filtered.slice(0, insertIndex),
+      selectionId,
+      ...filtered.slice(insertIndex),
+    ];
+  }
+  const targetIndex = filtered.indexOf(position.afterColumnId);
+  const insertIndex = targetIndex === -1 ? filtered.length : targetIndex + 1;
+  return [
+    ...filtered.slice(0, insertIndex),
+    selectionId,
+    ...filtered.slice(insertIndex),
+  ];
+};
 
 /**
  * TODO: Initializing column filters at table start
@@ -121,18 +228,43 @@ export function useDataTable<TData>({
       rowSelectionState: rs?.rowSelectionState ?? internalRowSelection,
       setRowSelectionState: rs?.setRowSelectionState ?? setInternalRowSelection,
       addCheckboxes: rs?.addCheckboxes ?? isEnabled,
+      checkboxColumnId: rs?.checkboxColumnId,
+      checkboxColumnPosition: rs?.checkboxColumnPosition,
+      checkboxClassNames: rs?.checkboxClassNames,
     };
   };
   const rowSelection = getRowSelectionOptions();
 
-  const checkBoxColumn = createSelectionColumn<TData>();
+  const checkBoxColumn = useMemo(
+    () =>
+      createSelectionColumn<TData>({
+        id: rowSelection.checkboxColumnId,
+        headerCheckboxClassName: rowSelection.checkboxClassNames?.header,
+        cellCheckboxClassName: rowSelection.checkboxClassNames?.cell,
+      }),
+    [
+      rowSelection.checkboxColumnId,
+      rowSelection.checkboxClassNames?.header,
+      rowSelection.checkboxClassNames?.cell,
+    ],
+  );
   const checkboxColumnId = checkBoxColumn.id as string;
 
   const columns = useMemo(() => {
-    return rowSelection.addCheckboxes
-      ? [checkBoxColumn, ...tableOptions.columns]
-      : tableOptions.columns;
-  }, [rowSelection.addCheckboxes, tableOptions.columns, checkBoxColumn]);
+    if (!rowSelection.addCheckboxes) {
+      return tableOptions.columns;
+    }
+    return insertSelectionColumn(
+      tableOptions.columns,
+      checkBoxColumn,
+      rowSelection.checkboxColumnPosition,
+    );
+  }, [
+    rowSelection.addCheckboxes,
+    rowSelection.checkboxColumnPosition,
+    tableOptions.columns,
+    checkBoxColumn,
+  ]);
 
   const globalFilterFn: FilterFnOption<TData> | undefined = useMemo(() => {
     if (!globalSearch.enabled || globalSearchColumnIds.length === 0) {
@@ -152,14 +284,15 @@ export function useDataTable<TData>({
   const controlledSetColumnVisibility = tableOptions.onColumnVisibilityChange;
 
   // Determine columns to hide
-  const initialColumnVisibility = useMemo(() => {
-    return columns.reduce(
-      (acc, col) => {
-        if (col.meta?.hidden) acc[col.id as string] = false;
-        return acc;
-      },
-      {} as Record<string, boolean>,
-    );
+  const initialColumnVisibility = useMemo<Record<string, boolean>>(() => {
+    const visibility: Record<string, boolean> = {};
+    for (const column of columns) {
+      const columnId = getColumnId(column);
+      if (column.meta?.hidden && columnId) {
+        visibility[columnId] = false;
+      }
+    }
+    return visibility;
   }, [columns]);
 
   const [internalColumnVisibility, setInternalColumnVisibility] = useState(
@@ -207,21 +340,22 @@ export function useDataTable<TData>({
   const setColumnVisibility =
     controlledSetColumnVisibility ?? setInternalColumnVisibility;
 
-  // Memoize column pinning to ensure checkbox column is first when row selection is enabled
+  // Memoize column pinning to keep selection column positioned when row selection is enabled
   const columnPinning = useMemo(() => {
     const existingPinning = tableOptions?.state?.columnPinning ??
       tableOptions.initialState?.columnPinning ?? { left: [], right: [] };
 
     const leftPinned = existingPinning.left ?? [];
 
-    // If row selection is enabled and there are pinned columns, ensure checkbox is first
+    // If row selection is enabled and there are pinned columns, place selection column
     if (rowSelection.addCheckboxes && leftPinned.length > 0) {
-      // Remove checkbox column if it exists elsewhere in the array
-      const filteredLeft = leftPinned.filter((id) => id !== checkboxColumnId);
-      // Add checkbox column as the first item
       return {
         ...existingPinning,
-        left: [checkboxColumnId, ...filteredLeft],
+        left: insertSelectionColumnId(
+          leftPinned,
+          checkboxColumnId,
+          rowSelection.checkboxColumnPosition,
+        ),
         right: existingPinning.right ?? [],
       };
     }
@@ -370,29 +504,47 @@ export function useDataTable<TData>({
     );
   }, [viewedRowId, stableData]);
 
-  const options: DataTableExtras<TData> = {
-    ...customOptions,
-    pagination,
-    sorting,
-    virtualization,
-    globalSearch,
-    stableData,
-    setGlobalSearchColumns: setGlobalSearchColumnIds,
-    rowClick: rowClickBehavior
-      ? {
-          ...rowClickBehavior,
-          viewedRow,
-          closeRowView,
-          handleRowClick,
-        }
-      : undefined,
-    expandableRows: expRows,
-  };
+  const options: DataTableExtras<TData> = useMemo(
+    () => ({
+      ...customOptions,
+      pagination,
+      sorting,
+      virtualization,
+      globalSearch,
+      stableData,
+      setGlobalSearchColumns: setGlobalSearchColumnIds,
+      rowClick: rowClickBehavior
+        ? {
+            ...rowClickBehavior,
+            viewedRow,
+            closeRowView,
+            handleRowClick,
+          }
+        : undefined,
+      expandableRows: expRows,
+    }),
+    [
+      customOptions,
+      pagination,
+      sorting,
+      virtualization,
+      globalSearch,
+      stableData,
+      rowClickBehavior,
+      viewedRow,
+      closeRowView,
+      handleRowClick,
+      expRows,
+    ],
+  );
 
-  const table = {
-    ...reactTable,
-    customOptions: options,
-  };
+  const table = useMemo(
+    () => ({
+      ...reactTable,
+      customOptions: options,
+    }),
+    [reactTable, options],
+  );
 
   return { table };
 }

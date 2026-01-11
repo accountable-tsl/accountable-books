@@ -1,5 +1,10 @@
 import type { LedgerIntent } from '@accountable-books/contracts/schema';
-import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+} from '@tanstack/react-query';
 
 import {
   fetchCategorizationTransactions,
@@ -29,6 +34,8 @@ export function useCategorizationTransactionsOld(
       params.dateFrom,
       params.dateTo,
       params.status,
+      params.bankAccountIds,
+      params.searchQuery,
       params.limit,
       params.offset,
     ],
@@ -117,7 +124,7 @@ export type GroupedTransactionsData = {
 
 export type GroupedTransactionsPage = GroupedTransactionsData;
 
-export function useCategorizationTransactionsInfinite(
+export function useInfiniteCategorizationTransactions(
   params: Omit<GetCategorizationTransactionsParams, 'offset'>,
 ) {
   return useInfiniteQuery({
@@ -127,6 +134,8 @@ export function useCategorizationTransactionsInfinite(
       params.dateFrom,
       params.dateTo,
       params.status,
+      params.bankAccountIds,
+      params.searchQuery,
       params.limit,
     ],
     queryFn: async ({ pageParam = 0 }) => {
@@ -146,6 +155,8 @@ export function useCategorizationTransactionsInfinite(
       const nextOffset = lastPage.offset + lastPage.limit;
       return nextOffset < lastPage.total ? nextOffset : undefined;
     },
+    initialPageParam: 0,
+    placeholderData: keepPreviousData,
     enabled: !!params.companyId && !!params.dateFrom && !!params.dateTo,
   });
 }

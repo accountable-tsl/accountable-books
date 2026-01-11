@@ -1,4 +1,5 @@
 import { validateCoaIds } from '../../chart-of-accounts/index.js';
+
 import type { Constraint, ConstraintBase } from '../constraints-types.js';
 
 const coaExistsAndActiveBase: ConstraintBase = {
@@ -20,6 +21,7 @@ export const coaExistsAndActive: Constraint = {
     const x = await validateCoaIds({
       coaIds: uniqueCoaIds,
       companyId: ctx.companyUUID,
+      trx: ctx.trx,
     });
 
     // Handle validation failure (e.g., database error)

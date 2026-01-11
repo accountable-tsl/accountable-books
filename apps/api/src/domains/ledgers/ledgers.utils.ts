@@ -3,6 +3,7 @@ import type { Knex } from 'knex';
 import { AppError, logger, toDate, toYMD } from '../../shared/index.js';
 import { getCurrencyById } from '../currencies/currencies.utils.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
+
 import type {
   LedgerEntry,
   LedgerEntryInput,
@@ -65,7 +66,7 @@ export async function validateIds(
   txn: Knex.Transaction,
 ) {
   if (ids.length === 0) {
-    return;
+    return new Set<string>();
   }
 
   const valid = await txn(table)
@@ -79,6 +80,42 @@ export async function validateIds(
   if (invalidIds.length) {
     throw new Error(`Invalid ${table} IDs: ${invalidIds.join(', ')}`);
   }
+
+  return validIds;
+}
+
+export async function fetchLookupMap({
+  table,
+  ids,
+  companyId,
+  txn,
+}: {
+  table: 'contacts' | 'projects';
+  ids: string[];
+  companyId: string;
+  txn: Knex.Transaction;
+}): Promise<Map<string, string>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+
+  const labelColumn = table === 'contacts' ? 'display_name' : 'name';
+
+  const rows = await txn(table)
+    .whereIn('id', ids)
+    .where({ company_id: companyId, is_deleted: false })
+    .select('id', labelColumn);
+
+  const map = new Map(
+    rows.map((row) => [String(row.id), row[labelColumn] as string]),
+  );
+  const invalidIds = ids.filter((id) => !map.has(id));
+
+  if (invalidIds.length) {
+    throw new Error(`Invalid ${table} IDs: ${invalidIds.join(', ')}`);
+  }
+
+  return map;
 }
 
 export async function resolveFx({

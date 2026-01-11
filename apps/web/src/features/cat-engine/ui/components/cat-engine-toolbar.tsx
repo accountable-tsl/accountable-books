@@ -202,12 +202,12 @@ export function CenterCatEngineToolbar({
   }, [bankAccounts, selectedBankAccountIdsSet]);
 
   return (
-    <div className="h-7.5 flex h-full min-h-0 items-center gap-2">
+    <div className="flex h-7.5 min-h-0 items-center gap-2">
       <MultiSelect
         values={selectedBankAccountNamesForSelect}
         onValuesChange={handleBankAccountsChange}
       >
-        <MultiSelectTrigger className="min-h-7.5 h-7.5 w-48 min-w-48 rounded !px-1 !py-0.5 text-xs">
+        <MultiSelectTrigger className="h-7.5 min-h-7.5 w-48 min-w-48 rounded !px-1 !py-0.5 text-xs">
           <MultiSelectValue
             overflowBehavior="cutoff"
             placeholder="All Banks"
@@ -233,7 +233,7 @@ export function CenterCatEngineToolbar({
                   className="px-1"
                 >
                   <div className="flex items-center gap-1">
-                    <div className="p-0.25 flex h-4 w-4 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-[0.5px] object-contain">
+                    <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-[0.5px] object-contain p-0.25">
                       {account.bankLogo ? (
                         <img
                           src={account.bankLogo}

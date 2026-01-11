@@ -118,6 +118,7 @@ export const createDemoBankTransactions = async (
     // Ensure we have bank accounts with currency information
     const bankAccounts = await trx('bank_accounts as ba')
       .join('companies as c', 'ba.company_id', 'c.id')
+      .join('banks as b', 'ba.bank_id', 'b.id')
       .where({ 'ba.company_id': company.id, 'ba.is_deleted': false })
       .select(
         'ba.id',
@@ -125,6 +126,7 @@ export const createDemoBankTransactions = async (
         'ba.display_name',
         'ba.business_or_personal',
         'ba.company_id',
+        'b.display_name as bankName',
         'ba.currency_id as bankCurrencyId',
         'c.reporting_currency_id as reportingCurrencyId',
       );
@@ -237,8 +239,8 @@ export const createDemoBankTransactions = async (
       // Fetch created contacts for linking
       const createdContacts = uniquePayees.length
         ? await trx('contacts')
-            .select(['id', 'normalized_name'])
-            .where({ company_id: companyUUID })
+            .select(['id', 'normalized_name', 'display_name'])
+            .where({ company_id: companyUUID, is_deleted: false })
             .whereIn(
               'normalized_name',
               uniquePayees.map((p) => p.toLowerCase()),
@@ -247,6 +249,9 @@ export const createDemoBankTransactions = async (
 
       const contactIdByName = new Map(
         createdContacts.map((r) => [r.normalized_name, r.id as string]),
+      );
+      const contactNameById = new Map(
+        createdContacts.map((r) => [r.id as string, r.display_name as string]),
       );
 
       // Get currency information for exchange rate calculation
@@ -310,9 +315,15 @@ export const createDemoBankTransactions = async (
           bankAccountId: bankAccount.id,
         });
 
-        const contactId = tx.payee
-          ? contactIdByName.get(tx.payee.trim().toLowerCase())
-          : undefined;
+        const normalizedPayee = tx.payee?.trim();
+        const contactId = normalizedPayee
+          ? contactIdByName.get(normalizedPayee.toLowerCase())
+          : (tx.contact_id ?? undefined);
+        const contactName = normalizedPayee
+          ? normalizedPayee
+          : contactId
+            ? (contactNameById.get(contactId) ?? null)
+            : null;
 
         return {
           date: tx.date,
@@ -324,6 +335,9 @@ export const createDemoBankTransactions = async (
           bank_account_id: bankAccount.id,
           contact_id: contactId || null,
           contact_type_snapshot: null,
+          contact_name: contactName,
+          bank_account_name: bankAccount.display_name,
+          bank_name: bankAccount.bankName ?? null,
           raw_data: tx.metadata ?? null,
           external_id: generatedExternalId,
           system_exchange_rate: Number(rate),

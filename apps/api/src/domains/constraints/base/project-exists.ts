@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
 import { knexClient as db } from '../../../db/knexClient.js';
+
 import type { Constraint, ConstraintBase } from '../constraints-types.js';
 
 const projectExistsBase: ConstraintBase = {
@@ -26,9 +27,9 @@ export const projectExists: Constraint = {
 
     try {
       // Query projects table to verify they exist and belong to company
-      // Note: We need access to a transaction, but constraints don't have it directly
-      // For now, we'll query without transaction. In production, this should be passed through context
-      const projects = await db('projects')
+      // Use transaction from context if available, otherwise fall back to default connection
+      const queryClient = ctx.trx || db;
+      const projects = await queryClient('projects')
         .whereIn('id', uniqueProjectIds)
         .where('company_id', ctx.companyUUID)
         .where('is_deleted', false)

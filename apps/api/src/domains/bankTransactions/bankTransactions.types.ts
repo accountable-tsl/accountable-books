@@ -1,12 +1,11 @@
 import { z } from 'zod';
 
 import { dbBaseFields, debitCredit, zDate } from '../../core/types/core.js';
-import {
-  createCamelCaseSchema,
-  type SnakeToCamelCaseObject,
-} from '../../shared/utils/formatting.utils.js';
+import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
 import { bankProviderKey } from '../banking/bankFeedProviders/bankFeedProviders.types.js';
 import { contactType } from '../contacts/index.js';
+
+import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 // ENUMS
 export const bankTransactionSource = z.enum([
@@ -46,6 +45,9 @@ export const newBankTransaction = bankTransactionInput.extend({
   bank_transaction_batch_id: z.uuid().nullish(),
   external_id: z.string().max(256),
   ledger_transaction_id: z.uuid().nullish(),
+  contact_name: z.string().nullish(),
+  bank_account_name: z.string().nullish(),
+  bank_name: z.string().nullish(),
   created_by_id: z.uuid(),
   updated_by_id: z.uuid().nullish(),
 });

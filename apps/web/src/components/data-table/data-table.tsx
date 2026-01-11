@@ -24,6 +24,7 @@ export function DataTable<TData>({
 }: DataTableProps<TData>) {
   const { customClassNames, pagination } = table.customOptions || {};
   const { wrapper, table: tableClass } = customClassNames || {};
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   /**
    * Instead of calling `column.getSize()` on every render for every header
@@ -64,14 +65,20 @@ export function DataTable<TData>({
       {/* Main table */}
       <div className="relative flex w-full flex-1 flex-col overflow-hidden rounded-md border">
         <Table
+          ref={scrollRef}
           style={{
             ...columnSizeVars,
           }}
         >
           <DataTableHeader table={table} />
 
-          <BodyComponent table={table} />
+          <BodyComponent table={table} scrollRef={scrollRef} />
         </Table>
+        {table.customOptions?.infiniteScroll?.isFetching && (
+          <div className="bg-background/90 text-muted-foreground pointer-events-none absolute right-2 bottom-2 rounded-full border px-2 py-1 text-xs shadow-sm">
+            Loading more…
+          </div>
+        )}
       </div>
       <div className="flex flex-col gap-2.5">
         {/* Conditional pagination rendering */}

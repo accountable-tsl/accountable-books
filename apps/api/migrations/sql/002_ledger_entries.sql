@@ -3,6 +3,7 @@ CREATE TABLE public.ledger_entries (
     ledger_transaction_id   UUID NOT NULL,
     fs_date                 DATE NOT NULL,
     coa_id                  UUID NOT NULL,
+    coa_name                TEXT,
     source_currency_id      UUID NOT NULL,
     source_amount           NUMERIC(18, 3) NOT NULL,
     absolute_source_amount  NUMERIC(18, 3) GENERATED ALWAYS AS (abs(source_amount)) STORED,
@@ -20,9 +21,11 @@ CREATE TABLE public.ledger_entries (
     -- categorization_status   categorization_status NOT NULL DEFAULT 'proposed',
     contact_id              UUID,
     contact_type            contact_type,
+    contact_name            TEXT,
     description             TEXT,
     reference               TEXT,
     project_id              UUID,
+    project_name            TEXT,
     is_monetary             BOOLEAN NOT NULL DEFAULT false,
     is_bank_leg             BOOLEAN NOT NULL DEFAULT false,
     fx_transaction_id       TEXT,
@@ -37,7 +40,13 @@ CREATE TABLE public.ledger_entries (
     deleted_at              TIMESTAMPTZ,
     is_deleted              BOOLEAN NOT NULL DEFAULT false,
     search_text             TEXT GENERATED ALWAYS AS (
-        trim(both ' ' from lower(coalesce(description, '')))
+        trim(both ' ' from lower(
+            coalesce(description, '') || ' ' ||
+            coalesce(reference, '') || ' ' ||
+            coalesce(contact_name, '') || ' ' ||
+            coalesce(coa_name, '') || ' ' ||
+            coalesce(project_name, '')
+        ))
     ) STORED,
     CONSTRAINT ledger_entries_nonzero_amount_chk CHECK (amount <> 0),
     CONSTRAINT ledger_entries_exchange_rates_positive CHECK (system_exchange_rate > 0 AND custom_exchange_rate > 0),

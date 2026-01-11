@@ -1,5 +1,5 @@
-import { groupCategorizationTransactions } from '@/modules/accounting/categorization';
 import type { CategorizationTransaction } from '@/modules/accounting/categorization/model/types';
+import { groupCategorizationTransactions } from '@/modules/accounting/categorization';
 
 /**
  * Realistic banks from demo data
@@ -329,8 +329,7 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
         id: 'file-prop-single-001',
         name: 'staples-receipt.pdf',
         type: 'application/pdf',
-        url:
-        'https://file-examples.com/storage/fe4481f186694c3e4989334/2017/10/file-example_PDF_500_kB.pdf',
+        url: 'https://file-examples.com/storage/fe4481f186694c3e4989334/2017/10/file-example_PDF_500_kB.pdf',
         size_bytes: 500_000,
       },
     ],

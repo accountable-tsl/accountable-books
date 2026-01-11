@@ -21,6 +21,8 @@ export async function fetchCategorizationTransactions(
     status,
     limit = 100,
     offset = 0,
+    bankAccountIds,
+    searchQuery,
   } = params;
 
   // Format dates as YYYY-MM-DD
@@ -35,8 +37,14 @@ export async function fetchCategorizationTransactions(
     offset: offset.toString(),
   });
 
-  if (status) {
-    queryParams.append('status', status);
+  if (status?.length) {
+    status.forEach((s) => queryParams.append('status', s));
+  }
+  if (bankAccountIds?.length) {
+    bankAccountIds.forEach((id) => queryParams.append('bankAccountIds', id));
+  }
+  if (searchQuery) {
+    queryParams.append('searchQuery', searchQuery);
   }
 
   const response = await api.get<{

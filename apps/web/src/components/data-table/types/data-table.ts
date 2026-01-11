@@ -36,6 +36,7 @@ declare module '@tanstack/react-table' {
     separateFilter?: boolean;
     hidden?: boolean;
     cellClassName?: string; // For custom cell styling
+    headerClassName?: string; // For custom header cell styling
     // Use type parameters to satisfy linter
     _dataType?: TData;
     _valueType?: TValue;
@@ -43,7 +44,7 @@ declare module '@tanstack/react-table' {
 }
 
 // --- Common Base Interfaces for Features ---
-// These remain as you defined them, as they describe the *structure*
+// These remain as defined, as they describe the *structure*
 // of how these features are configured, regardless of input or output context.
 export interface PaginationOptions {
   enabled: boolean;
@@ -63,6 +64,17 @@ export interface RowSelectionOptions {
 
   rowSelectionState?: RowSelectionState;
   setRowSelectionState?: Dispatch<SetStateAction<RowSelectionState>>;
+  checkboxColumnId?: string;
+  checkboxColumnPosition?:
+    | 'start'
+    | 'end'
+    | { beforeColumnId: string }
+    | { afterColumnId: string }
+    | { index: number };
+  checkboxClassNames?: {
+    header?: string;
+    cell?: string;
+  };
 }
 
 export interface GlobalSearch {
@@ -92,13 +104,15 @@ export interface BaseDataTableOptions {
     estimatedRowHeight?: number;
     overscan?: number;
   };
+
   infiniteScroll?: {
-    enabled?: boolean;
-    onEndReached?: () => void;
-    hasMore?: boolean;
+    enabled: boolean;
+    fetchNextPage: () => void;
+    hasNextPage?: boolean;
     isFetching?: boolean;
     threshold?: number;
   };
+
   pagination?: PaginationOptions;
   sorting?: SortingOptions;
   rowSelection?: RowSelectionOptions; // Note: rowSelectionState/setRowSelectionState here are for initial controlled state

@@ -1,4 +1,5 @@
 import { getFiscalCalendar } from '../../reporting/fiscal-calendar/fiscal-calendar.service.js';
+
 import type { FiscalCalendar } from '../../reporting/fiscal-calendar/fiscal-calendar.types.js';
 import type { Constraint, ConstraintBase } from '../constraints-types.js';
 
@@ -38,13 +39,14 @@ export const periodNotLocked: Constraint = {
     const startYMD = sortedDates[0]!;
     const endYMD = sortedDates[sortedDates.length - 1]!;
 
-    // Check for closed or locked periods
+    // Check for closed or locked periods - pass transaction from context if available
     const closedOrLockedPeriods = await getFiscalCalendar({
       companyId: ctx.companyUUID,
       startYMD,
       endYMD,
       periodTypes: ['monthly'],
       statuses: ['closed', 'locked'],
+      trx: ctx.trx,
     });
 
     if (closedOrLockedPeriods.length === 0) {

@@ -1,8 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useParams } from 'react-router';
-
-import { DataTable } from '@/components/data-table/data-table';
 import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import type { GroupedTransactionOld as GroupedTransaction } from '@/modules/accounting/categorization';
+import { useCallback, useMemo, useState } from 'react';
+import { DataTable } from '@/components/data-table/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { DateRangePicker } from '@/components/date-picker/date-range-picker';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
@@ -21,19 +20,13 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
-import type { GroupedTransactionOld as GroupedTransaction } from '@/modules/accounting/categorization';
 import { useCategorizationTransactionsOld as useCategorizationTransactions } from '@/modules/accounting/categorization';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
+import { useParams } from 'react-router';
 
-import {
-  type AdvancedFilters,
-  CatEngineAdvFilter,
-} from './components/cat-engine-adv-filter';
-import {
-  type CatEngineMode,
-  CatEngineModeToggle,
-} from './components/cat-engine-mode-toggle';
+import { CatEngineAdvFilter } from './components/cat-engine-adv-filter';
+import { CatEngineModeToggle } from './components/cat-engine-mode-toggle';
 import {
   LeftCatEngineToolbar,
   RightCatEngineToolbar,
@@ -41,6 +34,9 @@ import {
 import { CatEngineTxnView } from './components/cat-engine-txn-view';
 import { LoadingState } from './components/loading-state';
 import { getCatEngineColumns } from './config/table-columns';
+
+import type { AdvancedFilters } from './components/cat-engine-adv-filter';
+import type { CatEngineMode } from './components/cat-engine-mode-toggle';
 
 export const accordionItems = [
   {
@@ -144,7 +140,11 @@ export function CatEngine() {
     companyId: companyId || '',
     dateFrom: dateRange.from,
     dateTo: dateRange.to || new Date(),
-    status: statusFilter,
+    status: Array.isArray(statusFilter)
+      ? statusFilter
+      : statusFilter
+        ? [statusFilter]
+        : [],
     limit: 100,
     offset: 0,
   });
@@ -301,9 +301,9 @@ export function CatEngine() {
   }
 
   return (
-    <div className="min-h-0 h-full flex flex-col p-4 gap-4">
-      <div className="flex justify-between items-center overflow-clip h-8 max-h-8 gap-2">
-        <div className="flex gap-2 items-center h-7.5">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4">
+      <div className="flex h-8 max-h-8 items-center justify-between gap-2 overflow-clip">
+        <div className="flex h-7.5 items-center gap-2">
           <CatEngineAdvFilter
             filters={advancedFilters}
             onFiltersChange={setAdvancedFilters}
@@ -315,16 +315,16 @@ export function CatEngine() {
             <Input
               placeholder="Search..."
               aria-label="Search transactions"
-              className="w-60 h-full"
+              className="h-full w-60"
             />
           </div>
         </div>
 
-        <div className="flex-1 flex justify-center items-center h-7.5">
+        <div className="flex h-7.5 flex-1 items-center justify-center">
           <CatEngineModeToggle mode={mode} onModeChange={setMode} />
         </div>
 
-        <div className="flex gap-2 h-7.5 items-center">
+        <div className="flex h-7.5 items-center gap-2">
           <DateRangePicker
             date={dateRange}
             onDateSelect={(newRange) => {
@@ -349,14 +349,14 @@ export function CatEngine() {
         </div>
       </div>
       <ResizablePanelGroup direction="horizontal" className="gap-2">
-        <ResizablePanel className="min-h-0 h-full flex flex-col gap-4 min-w-0 flex-1">
+        <ResizablePanel className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
           {isLoading ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-1 items-center justify-center">
               <LoadingState message="Loading transactions..." />
             </div>
           ) : error ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-4">
-              <div className="text-red-500 text-sm">
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 p-4">
+              <div className="text-sm text-red-500">
                 Failed to load transactions: {error.message}
               </div>
               <Button onClick={() => refetch()} variant="outline" size="sm">
@@ -365,14 +365,14 @@ export function CatEngine() {
             </div>
           ) : view === 'table' ? (
             transactions.length === 0 ? (
-              <div className="flex-1 flex flex-col">
+              <div className="flex flex-1 flex-col">
                 <DataTable table={table} />
-                <div className="flex-1 flex items-center justify-center p-4 border-t">
-                  <div className="text-center space-y-2">
-                    <div className="text-sm text-muted-foreground">
+                <div className="flex flex-1 items-center justify-center border-t p-4">
+                  <div className="space-y-2 text-center">
+                    <div className="text-muted-foreground text-sm">
                       No transactions found in this date range
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {data?.total === 0 ? (
                         <span>
                           Try adjusting your date range or check a different
@@ -396,7 +396,7 @@ export function CatEngine() {
             <Accordion
               type="single"
               collapsible
-              className="flex flex-col min-h-0 flex-1"
+              className="flex min-h-0 flex-1 flex-col"
               value={openAccordionItem}
               onValueChange={handleAccordionItemChange}
             >
@@ -411,10 +411,10 @@ export function CatEngine() {
                   <AccordionItem
                     key={item.id}
                     value={item.id}
-                    className="flex flex-col [[data-state=open]]:min-h-0 [[data-state=open]]:h-full"
+                    className="flex flex-col [[data-state=open]]:h-full [[data-state=open]]:min-h-0"
                   >
                     <AccordionTrigger
-                      className={cn('p-0 py-1 px-2 hover:no-underline')}
+                      className={cn('p-0 px-2 py-1 hover:no-underline')}
                     >
                       <div className="flex items-center gap-2">
                         <span
@@ -445,7 +445,7 @@ export function CatEngine() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent
-                      className="h-full min-h-0 flex flex-col"
+                      className="flex h-full min-h-0 flex-col"
                       wrapperClassName="h-full min-h-0 flex flex-col"
                     >
                       <AccordionTableContent
@@ -504,11 +504,11 @@ function AccordionTableContent({
 
   if (transactions.length === 0) {
     return (
-      <div className="flex-1 flex flex-col">
+      <div className="flex flex-1 flex-col">
         <DataTable table={itemTable} />
-        <div className="flex-1 flex items-center justify-center p-4 border-t">
-          <div className="text-center space-y-2">
-            <div className="text-sm text-muted-foreground">
+        <div className="flex flex-1 items-center justify-center border-t p-4">
+          <div className="space-y-2 text-center">
+            <div className="text-muted-foreground text-sm">
               No {itemTitle.toLowerCase()} transactions in this date range
             </div>
           </div>

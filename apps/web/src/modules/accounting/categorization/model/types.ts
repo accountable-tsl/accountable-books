@@ -112,7 +112,9 @@ export interface GetCategorizationTransactionsParams {
   companyId: string;
   dateFrom: Date;
   dateTo: Date;
-  status?: CategorizationTransactionStatus;
+  status?: CategorizationTransactionStatus[];
+  bankAccountIds?: string[];
+  searchQuery?: string;
   limit?: number;
   offset?: number;
 }

@@ -207,8 +207,10 @@ export async function up(knex: Knex): Promise<void> {
 
     table.specificType('transaction_side', 'debit_credit').notNullable();
     table.uuid('coa_id').notNullable();
+    table.string('coa_name').nullable();
     table.string('description').nullable();
     table.uuid('project_id').nullable();
+    table.string('project_name').nullable();
 
     table
       .uuid('contact_id')
@@ -217,6 +219,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('contacts')
       .onDelete('SET NULL');
     table.specificType('contact_type', 'contact_type').nullable();
+    table.string('contact_name').nullable();
 
     // table.decimal('amount_native', 20, 6).notNullable();
     // table.string('currency_code', 3).notNullable();
@@ -228,12 +231,26 @@ export async function up(knex: Knex): Promise<void> {
     table.decimal('split_value', 20, 10).nullable();
     table.text('explanation').nullable();
     table.jsonb('metadata').nullable();
+    table.specificType(
+      'search_text',
+      `TEXT GENERATED ALWAYS AS (
+        trim(both ' ' from lower(
+          coalesce(description, '') || ' ' ||
+          coalesce(contact_name, '') || ' ' ||
+          coalesce(coa_name, '') || ' ' ||
+          coalesce(project_name, '')
+        ))
+      ) STORED`,
+    );
     addStandardColumns(knex, table);
   });
 
   await createUpdateTimestampTrigger(knex, CANDIDATE_LINES_TABLE);
   await knex.raw(
     `CREATE INDEX idx_cat_candidate_lines_candidate ON ${CANDIDATE_LINES_TABLE}(candidate_id);`,
+  );
+  await knex.raw(
+    `CREATE INDEX idx_cat_candidate_lines_search_trgm ON ${CANDIDATE_LINES_TABLE} USING GIN ((CASE WHEN is_deleted = FALSE THEN search_text END) gin_trgm_ops);`,
   );
 
   // Composite FK from candidates to bank_transactions (id + date)
@@ -265,6 +282,7 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_constraint_candidate;`);
 
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidate_lines_candidate;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidate_lines_search_trgm;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidates_bank_tx;`);
   await dropUpdateTimestampTrigger(knex, CANDIDATE_LINES_TABLE);
   await knex.schema.dropTableIfExists(CANDIDATE_LINES_TABLE);

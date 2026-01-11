@@ -11,7 +11,7 @@ const Table = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
         data-slot="table"
         role="table"
         className={cn(
-          'scrollbar-thin-2px relative flex min-h-0 flex-1 caption-bottom select-none flex-col overflow-x-auto overflow-y-auto text-sm',
+          'scrollbar-thin-2px relative flex min-h-0 flex-1 caption-bottom flex-col overflow-x-auto overflow-y-auto text-sm select-none',
           className,
         )}
         {...props}
@@ -84,7 +84,7 @@ const TableRow = React.forwardRef<
       data-slot="table-row"
       data-variant={variant}
       className={cn(
-        'relative flex w-full border-collapse flex-nowrap items-center border-b transition-all',
+        'relative flex w-full min-w-max border-collapse flex-nowrap items-center border-b transition-all',
         variant === 'header'
           ? 'bg-muted/40 data-[state=selected]:bg-muted h-10 min-h-10'
           : 'bg-background hover:bg-muted data-[state=selected]:bg-muted min-h-0',

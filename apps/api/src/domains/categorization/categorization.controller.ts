@@ -1,20 +1,16 @@
 import { type Response } from 'express';
 
-import type { AuthRequest } from '../../features/auth/auth.types.js';
-import { dateOrString } from '../../shared/utils/random.utils.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 import {
   getCategorizationTransactions,
   processCategorizationIntent,
 } from './categorization.model.js';
-import {
-  type GetCategorizationTransactionsParams,
-  getCategorizationTransactionsParams,
-} from './categorization.types.js';
+
+import type { AuthRequest } from '../../features/auth/auth.types.js';
 
 /**
  * Controller for getting categorization transactions
- * Validates query parameters and calls the model function
+ * Normalizes query parameters and calls the model function
  */
 export async function getCategorizationTransactionsController(
   req: AuthRequest,
@@ -29,62 +25,43 @@ export async function getCategorizationTransactionsController(
 
   try {
     // Extract and validate query parameters
-    const { dateFrom, dateTo, status, limit, offset } = req.query;
-
-    // Validate required date parameters
-    if (!dateFrom || !dateTo) {
-      res
-        .status(400)
-        .json(
-          errorResponse(
-            'dateFrom and dateTo query parameters are required (format: YYYY-MM-DD)',
-          ),
-        );
-      return;
-    }
-
-    // Parse and validate dates using Zod schema
-    const parsedDateFrom = dateOrString.safeParse(dateFrom);
-    const parsedDateTo = dateOrString.safeParse(dateTo);
-
-    if (!parsedDateFrom.success || !parsedDateTo.success) {
-      res
-        .status(400)
-        .json(
-          errorResponse(
-            'Invalid date format. Use YYYY-MM-DD format for dateFrom and dateTo',
-          ),
-        );
-      return;
-    }
+    const { dateFrom, dateTo, limit, offset, searchQuery } = req.query;
+    const statusParam = req.query.status;
+    const bankAccountIds = req.query.bankAccountIds;
+    const bankTransactionIds = req.query.bankTransactionIds;
+    const bankAccountIdsArray = Array.isArray(bankAccountIds)
+      ? bankAccountIds.filter((id): id is string => typeof id === 'string')
+      : typeof bankAccountIds === 'string'
+        ? [bankAccountIds]
+        : undefined;
+    const bankTransactionIdsArray = Array.isArray(bankTransactionIds)
+      ? bankTransactionIds.filter((id): id is string => typeof id === 'string')
+      : typeof bankTransactionIds === 'string'
+        ? [bankTransactionIds]
+        : undefined;
+    const statusArray = Array.isArray(statusParam)
+      ? statusParam.filter(
+          (value): value is string => typeof value === 'string',
+        )
+      : typeof statusParam === 'string'
+        ? [statusParam]
+        : undefined;
 
     // Build params object
     const params = {
       companyId,
-      dateFrom: parsedDateFrom.data,
-      dateTo: parsedDateTo.data,
-      status: status
-        ? (status as 'uncategorized' | 'proposed' | 'posted')
-        : undefined,
+      dateFrom,
+      dateTo,
+      status: statusArray,
+      bankAccountIds: bankAccountIdsArray,
+      bankTransactionIds: bankTransactionIdsArray,
+      searchQuery: typeof searchQuery === 'string' ? searchQuery : undefined,
       limit: limit ? parseInt(String(limit), 10) : undefined,
       offset: offset ? parseInt(String(offset), 10) : undefined,
     };
 
-    // Validate params with Zod schema
-    const validation = getCategorizationTransactionsParams.safeParse(params);
-    if (!validation.success) {
-      res
-        .status(400)
-        .json(
-          errorResponse(
-            `Invalid parameters: ${validation.error.issues.map((e) => e.message).join(', ')}`,
-          ),
-        );
-      return;
-    }
-
     // Call model function
-    const response = await getCategorizationTransactions(validation.data);
+    const response = await getCategorizationTransactions(params);
 
     // Return response
     if (response.success) {

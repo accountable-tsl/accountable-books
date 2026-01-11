@@ -13,15 +13,21 @@ import { getColumnStyle } from './utils/column-sizing';
 
 interface DataTableBodyProps<TData> {
   table: CustomTable<TData>;
+  scrollRef: React.RefObject<HTMLDivElement>;
 }
-export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
-  const scrollRef = React.useRef<HTMLDivElement>(null);
+export function DataTableBody<TData>({
+  table,
+  scrollRef,
+}: DataTableBodyProps<TData>) {
   const fetchLockRef = React.useRef(false);
-  const { virtualization, customClassNames, expandableRows } =
+  const { virtualization, customClassNames, expandableRows, infiniteScroll } =
     table.customOptions || {};
-  const infiniteScroll = table.customOptions?.infiniteScroll;
   const { tableBody, tableBodyCell, tableBodyRow, emptyTableRow } =
     customClassNames || {};
+  const infiniteEnabled = infiniteScroll?.enabled ?? false;
+  const hasNextPage = infiniteScroll?.hasNextPage ?? false;
+  const isFetching = infiniteScroll?.isFetching ?? false;
+  const thresholdRows = infiniteScroll?.threshold ?? 6;
 
   // Determine which row model to use based on expandable rows setting
   // Use getExpandedRowModel().flatRows when expandable rows are enabled
@@ -37,41 +43,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const enableVirtual = virtualization?.enabled ?? false;
   const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 60;
   const overscan = virtualization?.overscan ?? 5;
-
-  React.useEffect(() => {
-    if (!infiniteScroll?.isFetching) {
-      fetchLockRef.current = false;
-    }
-  }, [infiniteScroll?.isFetching]);
-
-  const handleScroll = React.useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      if (!infiniteScroll?.enabled) return;
-      if (!infiniteScroll?.onEndReached) return;
-      if (infiniteScroll?.isFetching) return;
-      if (infiniteScroll?.hasMore === false) return;
-      if (fetchLockRef.current) return;
-
-      const target = e.currentTarget;
-      if (target.scrollHeight <= target.clientHeight) return;
-      if (target.scrollTop <= 0) return;
-      const threshold = infiniteScroll?.threshold ?? 200;
-      const remaining =
-        target.scrollHeight - target.scrollTop - target.clientHeight;
-
-      if (remaining <= threshold) {
-        fetchLockRef.current = true;
-        infiniteScroll.onEndReached();
-      }
-    },
-    [
-      infiniteScroll?.enabled,
-      infiniteScroll?.onEndReached,
-      infiniteScroll?.isFetching,
-      infiniteScroll?.hasMore,
-      infiniteScroll?.threshold,
-    ],
-  );
+  const thresholdPx = thresholdRows * estimatedRowHeight;
 
   // Virtualizer count must match the number of rows we'll actually render
   // This updates automatically when rows expand/collapse
@@ -95,6 +67,69 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
   const hasPinnedColumns =
     (table.getState().columnPinning?.left?.length ?? 0) > 0 ||
     (table.getState().columnPinning?.right?.length ?? 0) > 0;
+
+  const triggerFetchNextPage = React.useCallback(() => {
+    if (!infiniteEnabled || !hasNextPage || isFetching) return;
+    if (fetchLockRef.current || !infiniteScroll?.fetchNextPage) return;
+    fetchLockRef.current = true;
+    void Promise.resolve(infiniteScroll.fetchNextPage()).finally(() => {
+      fetchLockRef.current = false;
+    });
+  }, [hasNextPage, infiniteEnabled, infiniteScroll, isFetching]);
+
+  React.useEffect(() => {
+    if (!enableVirtual || !infiniteEnabled) return;
+    if (!hasNextPage || isFetching) return;
+    if (virtualItems.length === 0) return;
+    const lastVirtualRow = virtualItems[virtualItems.length - 1];
+    if (!lastVirtualRow) return;
+    if (lastVirtualRow.index >= rowsToRender.length - 1 - thresholdRows) {
+      triggerFetchNextPage();
+    }
+  }, [
+    enableVirtual,
+    hasNextPage,
+    infiniteEnabled,
+    isFetching,
+    rowsToRender.length,
+    thresholdRows,
+    triggerFetchNextPage,
+    virtualItems,
+  ]);
+
+  React.useEffect(() => {
+    if (enableVirtual || !infiniteEnabled) return;
+    const scrollParent = scrollRef.current;
+    if (!scrollParent) return;
+
+    const onScroll = () => {
+      if (!infiniteEnabled || !hasNextPage || isFetching) return;
+      if (fetchLockRef.current) return;
+      const distanceToBottom =
+        scrollParent.scrollHeight -
+        scrollParent.scrollTop -
+        scrollParent.clientHeight;
+
+      if (distanceToBottom <= thresholdPx) {
+        triggerFetchNextPage();
+      }
+    };
+
+    onScroll();
+    scrollParent.addEventListener('scroll', onScroll);
+
+    return () => {
+      scrollParent.removeEventListener('scroll', onScroll);
+    };
+  }, [
+    enableVirtual,
+    hasNextPage,
+    infiniteEnabled,
+    isFetching,
+    thresholdPx,
+    triggerFetchNextPage,
+    scrollRef,
+  ]);
 
   const rowViewerInfo: RowViewerProps<TData> | undefined =
     rowClick?.mode === 'view' && viewedRow
@@ -167,10 +202,7 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
       isPinned: 'left' | 'right' | false = false,
       needsBorder: 'right' | 'left' | false = false,
     ) => {
-      const columnDef = table
-        ._getColumnDefs()
-        .find((c) => c.id === cell.column.id);
-      const explicitSize = !!columnDef?.size;
+      const explicitSize = !!cell.column.columnDef.size;
       const colStyle = getColumnStyle({ column: cell, explicitSize });
 
       const cellClassName = cn(
@@ -265,42 +297,43 @@ export function DataTableBody<TData>({ table }: DataTableBodyProps<TData>) {
 
   if (enableVirtual && virtualizer) {
     return (
-      <TableBody
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className={cn(tableBody)}
-      >
-        <div
-          style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
-        >
-          {virtualItems.map((virtualRow) => (
-            <div
-              key={virtualRow.key}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                // minWidth: 'max-content',
-                width: '100%',
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            >
-              {renderRow(rowsToRender[virtualRow.index])}
-            </div>
-          ))}
-        </div>
-      </TableBody>
+      <>
+        <TableBody className={cn(tableBody)}>
+          <div
+            style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+          >
+            {virtualItems.map((virtualRow) => (
+              <div
+                key={virtualRow.key}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  // minWidth: 'max-content',
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                {renderRow(rowsToRender[virtualRow.index])}
+              </div>
+            ))}
+          </div>
+        </TableBody>
+
+        {shouldShowViewer && rowViewerInfo && (
+          <RowViewer rowViewerInfo={rowViewerInfo} />
+        )}
+      </>
     );
   }
 
   return (
     // <div
     //   ref={scrollRef}
-    //   onScroll={handleScroll}
     //   className="scrollbar-thin-2px relative flex min-h-0 flex-[1_1_auto] !flex-row overflow-y-auto"
     // >
     <>
-      <TableBody className={cn(tableBody)} onScroll={handleScroll}>
+      <TableBody className={cn(tableBody)}>
         {rowsToRender?.length ? (
           rowsToRender.map((row) => renderRow(row))
         ) : (

@@ -8,6 +8,7 @@ CREATE TABLE public.bank_transactions (
     payee                   TEXT,
     contact_id              UUID,
     contact_type_snapshot   contact_type,
+    contact_name            TEXT,
     reference               TEXT,
     description             TEXT,
     additional_notes        TEXT,
@@ -24,6 +25,8 @@ CREATE TABLE public.bank_transactions (
     -- ) STORED,
     -- categorization_status   categorization_status NOT NULL DEFAULT 'uncategorized',
     bank_account_id         UUID NOT NULL,
+    bank_account_name       TEXT,
+    bank_name               TEXT,
     bank_transaction_batch_id  UUID,
     ledger_transaction_id   UUID,
     external_id             TEXT,
@@ -37,7 +40,12 @@ CREATE TABLE public.bank_transactions (
     deleted_at              TIMESTAMPTZ,
     search_text TEXT GENERATED ALWAYS AS (
     trim(both ' ' from lower(
-        coalesce(payee, '') || ' ' || coalesce(description, '') || ' ' || coalesce(reference, '')
+        coalesce(payee, '') || ' ' ||
+        coalesce(description, '') || ' ' ||
+        coalesce(reference, '') || ' ' ||
+        coalesce(contact_name, '') || ' ' ||
+        coalesce(bank_account_name, '') || ' ' ||
+        coalesce(bank_name, '')
     ))
     ) STORED,
     CONSTRAINT system_exchange_rate_chk CHECK (system_exchange_rate > 0),

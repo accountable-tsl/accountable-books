@@ -255,7 +255,7 @@ function ProjectCell({
           : '',
       )}
     >
-      {projectName || ''}
+      {projectName || '-'}
     </div>
   );
 }
@@ -489,6 +489,37 @@ export const getCatEngineColumns = ({
 }): ColumnDef<GroupedTransaction>[] => {
   return [
     {
+      id: 'status-indicator',
+      header: '',
+      cell: ({ row }) => {
+        const txn = row.original;
+        const isSubRow = row.depth > 0;
+        const indicatorClass = isSubRow
+          ? 'bg-transparent'
+          : txn.status === 'uncategorized'
+            ? 'bg-gray-400/25'
+            : txn.status === 'proposed'
+              ? 'bg-sky-400/25'
+              : txn.status === 'posted'
+                ? 'bg-green-400/25'
+                : 'bg-transparent';
+
+        return (
+          <div
+            className={cn('absolute inset-y-0 left-0 w-1', indicatorClass)}
+          />
+        );
+      },
+      size: 5,
+      minSize: 5,
+      maxSize: 5,
+      enableResizing: false,
+      meta: {
+        cellClassName: 'p-0 self-stretch',
+        headerClassName: 'px-0',
+      },
+    },
+    {
       id: 'bank',
       header: 'Bank',
       cell: ({ row }) => {
@@ -636,7 +667,7 @@ export const getCatEngineColumns = ({
             amount={amount}
             currency={txn.bankAccountCurrencyCode}
             accountingNegatives={false}
-            className={cn('flex justify-end ')}
+            className={cn('flex justify-end')}
           />
         );
       },
@@ -687,14 +718,14 @@ export const getCatEngineColumns = ({
 
         if (spent === 0) {
           return (
-            <div className="text-muted-foreground border-r-1 border-border/50 pr-4 text-right text-sm font-light">
+            <div className="text-muted-foreground border-border/50 border-r-1 pr-4 text-right text-sm font-light">
               -
             </div>
           );
         }
 
         return (
-          <div className="border-r-1 border-border/50 pr-2">
+          <div className="border-border/50 border-r-1 pr-2">
             <FormattedAmount
               amount={spent}
               currency={reportingCurrency}
@@ -735,14 +766,14 @@ export const getCatEngineColumns = ({
 
         if (received === 0) {
           return (
-            <div className="text-muted-foreground border-r-1 border-border/50 pr-4 text-right text-sm font-light">
+            <div className="text-muted-foreground border-border/50 border-r-1 pr-4 text-right text-sm font-light">
               -
             </div>
           );
         }
 
         return (
-          <div className="border-r-1 border-border/50 pr-2">
+          <div className="border-border/50 border-r-1 pr-2">
             <FormattedAmount
               amount={received}
               currency={reportingCurrency}

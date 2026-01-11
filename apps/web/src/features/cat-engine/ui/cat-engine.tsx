@@ -4,7 +4,7 @@ import type {
   GroupedTransaction,
 } from '@/modules/accounting/categorization';
 import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/app/session';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
@@ -27,12 +27,13 @@ import {
 import { cn } from '@/lib/utils';
 import {
   LedgerIntentManagerV2Provider,
-  useCategorizationTransactionsInfinite,
+  useInfiniteCategorizationTransactions,
   useLedgerIntentManagerV2,
 } from '@/modules/accounting/categorization';
 import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { toast } from 'sonner';
 
 import { CatEngineAdvFilter } from './components/cat-engine-adv-filter';
@@ -45,6 +46,7 @@ import { TransactionView } from './components/transaction-view-v2';
 import { getCatEngineColumns } from './config/table-columns';
 import { accountElementOrder } from './constants';
 import { testCategorizationTransactions } from './test-data';
+import { updateTransactionExchangeRate } from './utils/transaction-updates';
 
 import type { CatEngineMode, GroupedCoaData } from './types';
 
@@ -86,6 +88,104 @@ export const accordionItems = [
   },
 ];
 
+type CatEngineTableSectionProps = {
+  columns: ReturnType<typeof getCatEngineColumns>;
+  transactions: GroupedTransaction[];
+  customOptions: DataTableInputOptions<GroupedTransaction>;
+  mode: CatEngineMode;
+  view: 'table' | 'group';
+  openAccordionItem: string;
+  reorderedAccordionItems: typeof accordionItems;
+  onAccordionItemChange: (value: string) => void;
+};
+
+const CatEngineTableSection = memo(function CatEngineTableSection({
+  columns,
+  transactions,
+  customOptions,
+  mode,
+  view,
+  openAccordionItem,
+  reorderedAccordionItems,
+  onAccordionItemChange,
+}: CatEngineTableSectionProps) {
+  const { table } = useDataTable({
+    columns,
+    data: transactions,
+    customOptions,
+    initialState: {
+      columnPinning: {
+        left: ['status-indicator', 'bank', 'date', 'description'],
+        right: ['spent', 'received', 'account', '__actions'],
+      },
+    },
+    state: {
+      columnVisibility: {
+        __actions: mode === 'autosave',
+        status: false,
+        confidence: false,
+      },
+    },
+  });
+
+  if (view === 'table') {
+    return <DataTable table={table} />;
+  }
+
+  return (
+    <Accordion
+      type="single"
+      collapsible
+      defaultValue={accordionItems[0].id}
+      className="flex min-h-0 flex-1 flex-col"
+      value={openAccordionItem}
+      onValueChange={onAccordionItemChange}
+    >
+      {reorderedAccordionItems.map((item) => (
+        <AccordionItem
+          key={item.id}
+          value={item.id}
+          className="flex flex-col [[data-state=open]]:h-full [[data-state=open]]:min-h-0"
+        >
+          <AccordionTrigger className={cn('p-0 px-2 py-1 hover:no-underline')}>
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'hover:underline',
+                  item.id === openAccordionItem
+                    ? item.textClass
+                    : 'text-muted-foreground font-light',
+                )}
+              >
+                {item.title}
+              </span>
+              <Badge
+                variant={item.id === openAccordionItem ? 'default' : 'outline'}
+                className={cn(
+                  'text-xs',
+                  item.id === openAccordionItem
+                    ? 'text-primary-foreground'
+                    : 'text-muted-foreground',
+                )}
+              >
+                100
+              </Badge>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent
+            className="flex h-full min-h-0 flex-col"
+            wrapperClassName="h-full min-h-0 flex flex-col"
+          >
+            {item.id === openAccordionItem && (
+              <DataTable key={`${mode}-${item.id}`} table={table} />
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
+  );
+});
+
 function getInitialDateRange() {
   const now = new Date();
   const year = now.getFullYear();
@@ -119,18 +219,27 @@ function getStatusFromAccordionItem(
 export function CatEngine() {
   const { companyId, company, loading: isLoadingSession } = useSession();
   const [view, setView] = useState<'table' | 'group'>('table');
-  const [rowHeight, setRowHeight] = useState<'min' | 'mid' | 'max'>('mid');
+  const ROW_HEIGHT_KEY = `cat-engine-row-height-${companyId || 'default'}`;
+  const [rowHeight, setRowHeight] = useState<'min' | 'mid' | 'max'>(() => {
+    if (typeof window === 'undefined') return 'mid';
+    const saved = localStorage.getItem(ROW_HEIGHT_KEY);
+    return saved === 'min' || saved === 'mid' || saved === 'max'
+      ? saved
+      : 'mid';
+  });
   const [isFullScreen, setIsFullScreen] = useState(false);
   // Default to 'uncategorized' to show the most important transactions first
-  const [openAccordionItem, setOpenAccordionItem] = useState<string>(
-    'uncategorized,proposed',
-  );
+  const [openAccordionItem, setOpenAccordionItem] =
+    useState<string>('uncategorized');
   const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>(
     getInitialDateRange(),
   );
+  const debouncedDateRange = useDebouncedValue(dateRange, 300);
   const [selectedTransactionId, setSelectedTransactionId] = useState<
     string | null
   >(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   // Draft transactions state for optimistic UI updates
   const [draftTransactions, setDraftTransactions] = useState<
     GroupedTransaction[]
@@ -156,6 +265,30 @@ export function CatEngine() {
     return false;
   });
 
+  useEffect(() => {
+    if (!companyId || typeof window === 'undefined') return;
+
+    const savedMode = localStorage.getItem(MODE_STORAGE_KEY);
+    if (savedMode === 'review' || savedMode === 'autosave') {
+      setMode(savedMode);
+    }
+
+    setHasUserPreference(localStorage.getItem(USER_PREFERENCE_KEY) === 'true');
+  }, [companyId, MODE_STORAGE_KEY, USER_PREFERENCE_KEY]);
+
+  useEffect(() => {
+    if (!companyId || typeof window === 'undefined') return;
+    const saved = localStorage.getItem(ROW_HEIGHT_KEY);
+    if (saved === 'min' || saved === 'mid' || saved === 'max') {
+      setRowHeight(saved);
+    }
+  }, [companyId, ROW_HEIGHT_KEY]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(ROW_HEIGHT_KEY, rowHeight);
+  }, [rowHeight, ROW_HEIGHT_KEY]);
+
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [selectedBankAccountIds, setSelectedBankAccountIds] = useState<
     string[]
@@ -169,23 +302,9 @@ export function CatEngine() {
   const getPendingTransactionsSummary = manager.getPendingTransactionsSummary;
   const hasAnyPendingChanges = manager.hasAnyPendingChanges;
 
-  // Debounce date range changes
-  const dateRangeRef = useRef(dateRange);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout>();
-
-  useEffect(() => {
-    dateRangeRef.current = dateRange;
-  }, [dateRange]);
-
   const handleDateRangeChange = useCallback(
     (range: { from: Date; to?: Date }) => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-
-      debounceTimeoutRef.current = setTimeout(() => {
-        setDateRange(range);
-      }, 300);
+      setDateRange(range);
     },
     [],
   );
@@ -205,11 +324,23 @@ export function CatEngine() {
     [bankAccountsData],
   );
 
-  // Memoize selected bank account IDs for efficient filtering
-  const selectedBankAccountIdsSet = useMemo(() => {
-    if (selectedBankAccountIds.length === 0) return new Set<string>();
-    return new Set(selectedBankAccountIds);
+  const bankAccountIdsForServer = useMemo(() => {
+    if (selectedBankAccountIds.length === 0) return undefined;
+    return [...selectedBankAccountIds].sort();
   }, [selectedBankAccountIds]);
+
+  const statusFilterForServer = useMemo(() => {
+    if (view === 'group') {
+      return statusFilter ? [statusFilter] : undefined;
+    }
+    if (statusFilterForTable.size === 0) return undefined;
+    return Array.from(statusFilterForTable).sort();
+  }, [statusFilter, statusFilterForTable, view]);
+
+  const searchQueryForServer = useMemo(() => {
+    const trimmed = debouncedSearchQuery.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }, [debouncedSearchQuery]);
 
   // Fetch categorization transactions
   const {
@@ -219,11 +350,13 @@ export function CatEngine() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useCategorizationTransactionsInfinite({
+  } = useInfiniteCategorizationTransactions({
     companyId: companyId ?? '',
-    // dateFrom: dateRange.from,
-    dateFrom: new Date('2025-01-01'),
-    dateTo: dateRange.to || new Date(),
+    dateFrom: debouncedDateRange.from,
+    dateTo: debouncedDateRange.to || new Date(),
+    status: statusFilterForServer,
+    bankAccountIds: bankAccountIdsForServer,
+    searchQuery: searchQueryForServer,
     limit: 100,
   });
 
@@ -274,39 +407,34 @@ export function CatEngine() {
     if (USE_TEST_DATA) return testTxns;
     return txnData?.pages?.flatMap((page) => page.transactions) || [];
   }, [USE_TEST_DATA, testTxns, txnData?.pages]);
+  const footerTotals = useMemo(() => {
+    return rawTransactions.reduce(
+      (totals, txn) => {
+        if (txn.status === 'uncategorized') totals.uncategorized += 1;
+        if (txn.status === 'proposed') totals.needsReview += 1;
+        return totals;
+      },
+      { uncategorized: 0, needsReview: 0 },
+    );
+  }, [rawTransactions]);
 
-  console.log(rawTransactions.length);
   // Sync draft transactions with server data
   useEffect(() => {
     setDraftTransactions(rawTransactions);
   }, [rawTransactions]);
 
-  // Use draft transactions for display (includes optimistic updates and filtering)
-  const transactions = useMemo(() => {
-    let filtered = draftTransactions;
+  // Use draft transactions for display (includes optimistic updates)
+  const transactions = useMemo(() => draftTransactions, [draftTransactions]);
 
-    // Filter by selected bank accounts if any are selected (O(1) lookup using Set)
-    if (selectedBankAccountIdsSet.size > 0) {
-      filtered = filtered.filter((txn) =>
-        selectedBankAccountIdsSet.has(txn.bankAccountId),
-      );
-    }
+  const transactionMap = useMemo(() => {
+    const map = new Map<string, GroupedTransaction>();
+    transactions.forEach((txn) => map.set(txn.id, txn));
+    return map;
+  }, [transactions]);
 
-    // Filter by status based on current view
-    if (view === 'group' && statusFilter) {
-      filtered = filtered.filter((txn) => txn.status === statusFilter);
-    } else if (view === 'table' && statusFilterForTable.size > 0) {
-      filtered = filtered.filter((txn) => statusFilterForTable.has(txn.status));
-    }
-
-    return filtered;
-  }, [
-    draftTransactions,
-    selectedBankAccountIdsSet,
-    view,
-    statusFilter,
-    statusFilterForTable,
-  ]);
+  const accordionItemById = useMemo(() => {
+    return new Map(accordionItems.map((item) => [item.id, item]));
+  }, []);
 
   const rowClickHandler = useCallback((row: any) => {
     const id = row.original.id;
@@ -321,56 +449,57 @@ export function CatEngine() {
         prev.map((txn) => {
           if (txn.bankTransactionId !== bankTransactionId) return txn;
 
-          // For single entry transactions, update the transaction itself
-          if (!txn.hasMultipleEntries) {
-            const newReportingAmount = txn.nativeAmount * newRate;
-            return {
-              ...txn,
-              exchangeRate: newRate.toFixed(4),
-              reportingAmount: newReportingAmount,
-              spent: newReportingAmount > 0 ? newReportingAmount : 0,
-              received:
-                newReportingAmount < 0 ? Math.abs(newReportingAmount) : 0,
-            };
-          }
+          // // For single entry transactions, update the transaction itself
+          // if (!txn.hasMultipleEntries) {
+          //   const newReportingAmount = txn.nativeAmount * newRate;
+          //   return {
+          //     ...txn,
+          //     exchangeRate: newRate.toFixed(4),
+          //     reportingAmount: newReportingAmount,
+          //     spent: newReportingAmount > 0 ? newReportingAmount : 0,
+          //     received:
+          //       newReportingAmount < 0 ? Math.abs(newReportingAmount) : 0,
+          //   };
+          // }
 
-          // For multiple entries, update each entry
-          const updatedEntries = txn.entries!.map((entry) => {
-            const newReportingAmount = entry.nativeAmount * newRate;
-            return {
-              ...entry,
-              reportingAmount: newReportingAmount,
-              exchangeRate: newRate.toFixed(4),
-              spent: newReportingAmount > 0 ? newReportingAmount : 0,
-              received:
-                newReportingAmount < 0 ? Math.abs(newReportingAmount) : 0,
-            };
-          });
+          // // For multiple entries, update each entry
+          // const updatedEntries = txn.entries!.map((entry) => {
+          //   const newReportingAmount = entry.nativeAmount * newRate;
+          //   return {
+          //     ...entry,
+          //     reportingAmount: newReportingAmount,
+          //     exchangeRate: newRate.toFixed(4),
+          //     spent: newReportingAmount > 0 ? newReportingAmount : 0,
+          //     received:
+          //       newReportingAmount < 0 ? Math.abs(newReportingAmount) : 0,
+          //   };
+          // });
 
-          // Recalculate totals from entries
-          const newSpent = updatedEntries.reduce(
-            (sum, entry) =>
-              sum + (entry.reportingAmount > 0 ? entry.reportingAmount : 0),
-            0,
-          );
-          const newReceived = updatedEntries.reduce(
-            (sum, entry) =>
-              sum +
-              (entry.reportingAmount < 0 ? Math.abs(entry.reportingAmount) : 0),
-            0,
-          );
+          // // Recalculate totals from entries
+          // const newSpent = updatedEntries.reduce(
+          //   (sum, entry) =>
+          //     sum + (entry.reportingAmount > 0 ? entry.reportingAmount : 0),
+          //   0,
+          // );
+          // const newReceived = updatedEntries.reduce(
+          //   (sum, entry) =>
+          //     sum +
+          //     (entry.reportingAmount < 0 ? Math.abs(entry.reportingAmount) : 0),
+          //   0,
+          // );
 
-          return {
-            ...txn,
-            exchangeRate: newRate.toFixed(4),
-            reportingAmount: updatedEntries.reduce(
-              (sum, e) => sum + e.reportingAmount,
-              0,
-            ),
-            spent: newSpent,
-            received: newReceived,
-            entries: updatedEntries,
-          };
+          // return {
+          //   ...txn,
+          //   exchangeRate: newRate.toFixed(4),
+          //   reportingAmount: updatedEntries.reduce(
+          //     (sum, e) => sum + e.reportingAmount,
+          //     0,
+          //   ),
+          //   spent: newSpent,
+          //   received: newReceived,
+          //   entries: updatedEntries,
+          // };
+          return updateTransactionExchangeRate(txn, newRate);
         }),
       );
     },
@@ -421,39 +550,22 @@ export function CatEngine() {
   }, [rowHeight]);
 
   const customOptions = useMemo(() => {
+    const selectedAccordionItem = accordionItemById.get(openAccordionItem);
     return {
-      // virtualization: {
-      //   enabled: true,
-      //   estimatedRowHeight,
-      //   overscan: 8,
-      // },
-      infiniteScroll: {
-        enabled: !USE_TEST_DATA,
-        onEndReached: () => {
-          if (hasNextPage) {
-            fetchNextPage();
-          }
-        },
-        hasMore: !!hasNextPage,
-        isFetching: isFetchingNextPage,
-        threshold: 300,
+      virtualization: {
+        enabled: true,
+        estimatedRowHeight,
+        overscan: 8,
       },
       rowSelection: {
         enabled: true,
+        checkboxColumnPosition: { index: 1 },
       },
       customClassNames: {
         wrapper: `gap-0`,
-        table: `${
-          view === 'group'
-            ? accordionItems.find((item) => item.id === openAccordionItem)
-                ?.borderClass
-            : ''
-        }`,
+        table: `${view === 'group' ? selectedAccordionItem?.borderClass : ''}`,
         tableHeader: `${
-          view === 'group'
-            ? accordionItems.find((item) => item.id === openAccordionItem)
-                ?.backgroundClass
-            : ''
+          view === 'group' ? selectedAccordionItem?.backgroundClass : ''
         }`,
         emptyTableRow: 'h-full',
         tableBodyRow: '',
@@ -469,38 +581,27 @@ export function CatEngine() {
         mode: 'custom',
         onClick: rowClickHandler,
       },
+      infiniteScroll: {
+        enabled: true,
+        fetchNextPage,
+        hasNextPage,
+        isFetching: isFetchingNextPage || isLoading,
+        threshold: 8,
+      },
     } satisfies DataTableInputOptions<GroupedTransaction>;
   }, [
     mode,
     view,
     openAccordionItem,
+    accordionItemById,
     rowHeight,
     estimatedRowHeight,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isLoading,
     USE_TEST_DATA,
   ]);
-
-  // DataTable Hook
-  const { table } = useDataTable({
-    columns,
-    data: transactions,
-    customOptions,
-    initialState: {
-      columnPinning: {
-        left: ['bank', 'date', 'description'],
-        right: ['spent', 'received', 'account', '__actions'],
-      },
-    },
-    state: {
-      columnVisibility: {
-        __actions: mode === 'autosave',
-        status: false,
-        confidence: false,
-      },
-    },
-  });
 
   const handleAccordionItemChange = useCallback((value: string) => {
     setOpenAccordionItem(value);
@@ -514,74 +615,10 @@ export function CatEngine() {
     });
   }, [openAccordionItem]);
 
-  const tableView = useMemo(() => <DataTable table={table} />, [table]);
-  const accordionView = useMemo(() => {
-    return (
-      <Accordion
-        type="single"
-        collapsible
-        defaultValue={accordionItems[0].id}
-        className="flex min-h-0 flex-1 flex-col"
-        value={openAccordionItem}
-        onValueChange={handleAccordionItemChange}
-      >
-        {reorderedAccordionItems.map((item) => (
-          <AccordionItem
-            key={item.id}
-            value={item.id}
-            className="[[data-state=open]]:min-h-0 [[data-state=open]]:h-full flex flex-col"
-          >
-            <AccordionTrigger
-              className={cn('p-0 px-2 py-1 hover:no-underline')}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    'hover:underline',
-                    item.id === openAccordionItem
-                      ? item.textClass
-                      : 'text-muted-foreground font-light',
-                  )}
-                >
-                  {item.title}
-                </span>
-                <Badge
-                  variant={
-                    item.id === openAccordionItem ? 'default' : 'outline'
-                  }
-                  className={cn(
-                    'text-xs',
-                    item.id === openAccordionItem
-                      ? 'text-primary-foreground'
-                      : 'text-muted-foreground',
-                  )}
-                >
-                  100
-                </Badge>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent
-              className="flex h-full min-h-0 flex-col"
-              wrapperClassName="h-full min-h-0 flex flex-col"
-            >
-              <DataTable key={`${mode}-${item.id}`} table={table} />
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
-    );
-  }, [
-    table,
-    openAccordionItem,
-    reorderedAccordionItems,
-    handleAccordionItemChange,
-    mode,
-  ]);
-
   const selectedTransaction = useMemo(() => {
     if (!selectedTransactionId) return null;
-    return transactions.find((txn) => txn.id === selectedTransactionId) || null;
-  }, [selectedTransactionId, transactions]);
+    return transactionMap.get(selectedTransactionId) || null;
+  }, [selectedTransactionId, transactionMap]);
 
   // Auto-switch mode based on screen size (1024px <= width < 1440px)
   useEffect(() => {
@@ -648,7 +685,10 @@ export function CatEngine() {
 
   if (!is1024) return <SmallScreenMessage />;
 
-  if (isLoading || isLoadingSession) {
+  if (
+    (isLoading || isLoadingSession || isLoadingCoa) &&
+    rawTransactions.length === 0
+  ) {
     return <CenteredLoader />;
   }
 
@@ -656,7 +696,7 @@ export function CatEngine() {
     <LedgerIntentManagerV2Provider value={manager}>
       <div className="flex h-full min-h-0 flex-col p-4 pb-2">
         <div className="mb-4 flex h-8 max-h-8 items-center justify-between overflow-clip">
-          <div className="h-7.5 flex items-center gap-2">
+          <div className="flex h-7.5 items-center gap-2">
             <CatEngineAdvFilter />
 
             {/* Review mode: No DB Calls until user triggers action, Autosave mode: DB Calls are made automatically usually when user's focus leaves the box or after a certain time period whichever is later (or should it be sooner). */}
@@ -667,11 +707,13 @@ export function CatEngine() {
                 placeholder="Search..."
                 aria-label="Search transactions"
                 className="h-full w-60"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="h-7.5 flex items-center justify-center">
+          <div className="flex h-7.5 items-center justify-center">
             <CenterCatEngineToolbar
               selectedBankAccountIds={selectedBankAccountIds}
               onBankAccountsChange={setSelectedBankAccountIds}
@@ -682,7 +724,7 @@ export function CatEngine() {
             />
           </div>
 
-          <div className="h-7.5 flex items-center gap-2">
+          <div className="flex h-7.5 items-center gap-2">
             <DateRangePicker
               date={dateRange}
               onDateSelect={handleDateRangeChange}
@@ -701,7 +743,7 @@ export function CatEngine() {
             />
           </div>
         </div>
-        <div className="flex min-h-0 flex-col overflow-hidden">
+        <div className="flex h-full min-h-0 flex-[1_1_auto] flex-col overflow-hidden">
           {mode === 'review' && (
             <ResizablePanelGroup
               direction="horizontal"
@@ -713,7 +755,16 @@ export function CatEngine() {
                 minSize={30}
                 className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden"
               >
-                {view === 'group' ? accordionView : tableView}
+                <CatEngineTableSection
+                  columns={columns}
+                  transactions={transactions}
+                  customOptions={customOptions}
+                  mode={mode}
+                  view={view}
+                  openAccordionItem={openAccordionItem}
+                  reorderedAccordionItems={reorderedAccordionItems}
+                  onAccordionItemChange={handleAccordionItemChange}
+                />
               </ResizablePanel>
 
               {selectedTransaction && (
@@ -725,7 +776,7 @@ export function CatEngine() {
                     // minSize={20}
                     // maxSize={40}
                     // defaultSize={30}
-                    className="w-sm h-full min-h-0 !max-w-md overflow-hidden"
+                    className="h-full min-h-0 w-sm !max-w-md overflow-hidden"
                   >
                     {/* <CatEngineTxnView
                     transaction={selectedTransaction}
@@ -743,15 +794,24 @@ export function CatEngine() {
             </ResizablePanelGroup>
           )}
           {mode === 'autosave' && (
-            <>{view === 'group' ? accordionView : tableView}</>
+            <CatEngineTableSection
+              columns={columns}
+              transactions={transactions}
+              customOptions={customOptions}
+              mode={mode}
+              view={view}
+              openAccordionItem={openAccordionItem}
+              reorderedAccordionItems={reorderedAccordionItems}
+              onAccordionItemChange={handleAccordionItemChange}
+            />
           )}
         </div>
         <div className="text-muted-foreground flex-shrink-0 pt-1 text-xs">
           <span>Showing {rawTransactions.length} transactions</span>
           <span> | </span>
-          <span>Total uncategorized: 100</span>
+          <span>Total uncategorized: {footerTotals.uncategorized}</span>
           <span> | </span>
-          <span>Total needs review: 100</span>
+          <span>Total needs review: {footerTotals.needsReview}</span>
         </div>
       </div>
     </LedgerIntentManagerV2Provider>

@@ -675,7 +675,7 @@ export function buildLedgerTransactionMetadataFromCandidate(
   bankTransaction: BankTransactionWithFilteredFields,
 ): Omit<NewLedgerTransactionData, 'transactions'> {
   return {
-    date: toDate(bankTransaction.date, 'start'),
+    date: toDate(bankTransaction.date, 'keep'),
     transaction_source: 'bank_transaction',
     categorization_source: candidate.source,
     description: candidate.description ?? null,
@@ -684,7 +684,7 @@ export function buildLedgerTransactionMetadataFromCandidate(
     contact_id: candidate.contact_id,
     contact_type: candidate.contact_type ?? null,
     source_transaction_id: candidate.bank_transaction_id,
-    source_transaction_date: toDate(bankTransaction.date, 'start'),
+    source_transaction_date: toDate(bankTransaction.date, 'keep'),
     source_transaction_amount: toNumber(bankTransaction.amount),
     source_transaction_currency_id: bankTransaction.bank_account_currency_id,
     categorization_candidate_id: candidate.id,

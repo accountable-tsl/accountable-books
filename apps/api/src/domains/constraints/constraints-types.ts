@@ -1,3 +1,4 @@
+import type { Knex } from 'knex';
 import z from 'zod';
 
 export const constraintCode = z.enum([
@@ -59,7 +60,9 @@ export const constraint = z.object({
 
 // Define the proper TypeScript types
 export type ConstraintResult = z.infer<typeof constraintResult>;
-export type ConstraintContext = z.infer<typeof constraintContext>;
+export type ConstraintContext = z.infer<typeof constraintContext> & {
+  trx?: Knex.Transaction;
+};
 export type ConstraintCode = z.infer<typeof constraintCode>;
 export type ConstraintScope = z.infer<typeof constraintScope>;
 export type ConstraintSeverity = z.infer<typeof constraintSeverity>;

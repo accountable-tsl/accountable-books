@@ -9,7 +9,10 @@ import { ledgerIntentSchema } from '@accountable-books/contracts/schema';
 import { knexClient } from '../../db/knexClient.js';
 import { toYMD } from '../../shared/utils/date.utils.js';
 import { logger } from '../../shared/utils/logger.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import {
+  dateOrString,
+  getCompanyUUID,
+} from '../../shared/utils/random.utils.js';
 import {
   AppError,
   errorResponse,
@@ -21,10 +24,7 @@ import {
   updateOrCreateLedger,
 } from '../ledgers/ledgers.model.js';
 import { getCategorizationCandidatesWithLines } from './candidates/candidates.service.js';
-import {
-  type GetCategorizationTransactionsParams,
-  type GetCategorizationTransactionsResponse,
-} from './categorization.types.js';
+import { getCategorizationTransactionsParams } from './categorization.types.js';
 import {
   buildBankLeg,
   buildLedgerTransactionMetadata,
@@ -44,6 +44,10 @@ import type {
   LedgerEntryInput,
   NewLedgerTransactionData,
 } from '../ledgers/ledgers.types.js';
+import type {
+  GetCategorizationTransactionsParams,
+  GetCategorizationTransactionsResponse,
+} from './categorization.types.js';
 
 /**
  * Get categorization transactions for the categorization engine UI
@@ -57,53 +61,131 @@ import type {
  * @returns Transactions with pagination info
  */
 export async function getCategorizationTransactions(
-  params: GetCategorizationTransactionsParams & { trx?: Knex.Transaction },
+  params: Omit<
+    GetCategorizationTransactionsParams,
+    'dateFrom' | 'dateTo' | 'status' | 'limit' | 'offset'
+  > & {
+    dateFrom?: unknown;
+    dateTo?: unknown;
+    status?: unknown;
+    limit?: unknown;
+    offset?: unknown;
+    trx?: Knex.Transaction;
+  },
 ): Promise<ApiResponse<GetCategorizationTransactionsResponse>> {
+  const {
+    trx,
+    dateFrom: rawDateFrom,
+    dateTo: rawDateTo,
+    status: rawStatus,
+    limit: rawLimit,
+    offset: rawOffset,
+    ...rest
+  } = params;
+
+  const parsedDateFrom = rawDateFrom
+    ? dateOrString.safeParse(rawDateFrom)
+    : { success: true, data: undefined };
+  if (!parsedDateFrom.success) {
+    const message = 'Invalid date format. Use YYYY-MM-DD format for dateFrom';
+    if (trx) {
+      throw new Error(message);
+    }
+    return errorResponse(message);
+  }
+
+  const parsedDateTo = rawDateTo
+    ? dateOrString.safeParse(rawDateTo)
+    : { success: true, data: undefined };
+  if (!parsedDateTo.success) {
+    const message = 'Invalid date format. Use YYYY-MM-DD format for dateTo';
+    if (trx) {
+      throw new Error(message);
+    }
+    return errorResponse(message);
+  }
+
+  const normalizedStatus = Array.isArray(rawStatus)
+    ? rawStatus
+    : typeof rawStatus === 'string'
+      ? [rawStatus]
+      : undefined;
+
+  const normalizedLimit =
+    typeof rawLimit === 'string' ? parseInt(rawLimit, 10) : rawLimit;
+  const normalizedOffset =
+    typeof rawOffset === 'string' ? parseInt(rawOffset, 10) : rawOffset;
+
+  const validation = getCategorizationTransactionsParams.safeParse({
+    ...rest,
+    dateFrom: parsedDateFrom.data,
+    dateTo: parsedDateTo.data,
+    status: normalizedStatus,
+    limit: normalizedLimit,
+    offset: normalizedOffset,
+  });
+
+  if (!validation.success) {
+    const message = `Invalid parameters: ${validation.error.issues
+      .map((issue) => issue.message)
+      .join(', ')}`;
+    if (trx) {
+      throw new Error(message);
+    }
+    return errorResponse(message);
+  }
+
   const {
     companyId,
     dateFrom,
     dateTo,
     status,
     bankTransactionIds,
+    bankAccountIds,
+    searchQuery,
     limit = 100,
     offset = 0,
-    trx,
-  } = params;
+  } = validation.data;
+
+  // Calculate effective dateTo if dateFrom is provided but dateTo is not
+  let effectiveDateTo: Date | undefined = dateTo;
+  if (dateFrom && !dateTo) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day for comparison
+
+    const dateFromPlus365 = new Date(dateFrom);
+    dateFromPlus365.setDate(dateFromPlus365.getDate() + 365);
+    dateFromPlus365.setHours(0, 0, 0, 0);
+
+    // Use whichever is earlier: today or dateFrom + 365 days
+    effectiveDateTo = today < dateFromPlus365 ? today : dateFromPlus365;
+  }
+
+  // Validate date range if dateFrom is provided
+  if (dateFrom && effectiveDateTo) {
+    if (dateFrom > effectiveDateTo) {
+      const message = 'dateFrom must be <= dateTo';
+      if (trx) {
+        throw new Error(message);
+      }
+      return errorResponse(message);
+    }
+
+    // Enforce maximum range (365 days)
+    const maxRangeDays = 365;
+    const rangeDays = Math.ceil(
+      (effectiveDateTo.getTime() - dateFrom.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (rangeDays > maxRangeDays) {
+      const message = `Date range cannot exceed ${maxRangeDays} days. Requested: ${rangeDays} days`;
+      if (trx) {
+        throw new Error(message);
+      }
+      return errorResponse(message);
+    }
+  }
 
   const exec = async (txn: Knex.Transaction) => {
-    // Calculate effective dateTo if dateFrom is provided but dateTo is not
-    let effectiveDateTo: Date | undefined = dateTo;
-    if (dateFrom && !dateTo) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Set to start of day for comparison
-
-      const dateFromPlus365 = new Date(dateFrom);
-      dateFromPlus365.setDate(dateFromPlus365.getDate() + 365);
-      dateFromPlus365.setHours(0, 0, 0, 0);
-
-      // Use whichever is earlier: today or dateFrom + 365 days
-      effectiveDateTo = today < dateFromPlus365 ? today : dateFromPlus365;
-    }
-
-    // Validate date range if dateFrom is provided
-    if (dateFrom && effectiveDateTo) {
-      if (dateFrom > effectiveDateTo) {
-        throw new Error('dateFrom must be <= dateTo');
-      }
-
-      // Enforce maximum range (365 days)
-      const maxRangeDays = 365;
-      const rangeDays = Math.ceil(
-        (effectiveDateTo.getTime() - dateFrom.getTime()) /
-          (1000 * 60 * 60 * 24),
-      );
-      if (rangeDays > maxRangeDays) {
-        throw new Error(
-          `Date range cannot exceed ${maxRangeDays} days. Requested: ${rangeDays} days`,
-        );
-      }
-    }
-
     // Enforce maximum limit
     const maxLimit = 1000;
     const actualLimit = Math.min(limit, maxLimit);
@@ -130,13 +212,70 @@ export async function getCategorizationTransactions(
     }
 
     // Apply status filter if provided
-    if (status) {
-      query = query.where('categorization_status', status);
+    if (status && status.length > 0) {
+      query = query.whereIn('categorization_status', status);
     }
 
     // Apply bank transaction IDs filter if provided
     if (bankTransactionIds && bankTransactionIds.length > 0) {
       query = query.whereIn('id', bankTransactionIds);
+    }
+
+    // Apply bank account IDs filter if provided
+    if (bankAccountIds && bankAccountIds.length > 0) {
+      query = query.whereIn('bank_account_id', bankAccountIds);
+    }
+
+    // Apply search filter if provided (use base-table search_text with indexes)
+    if (searchQuery && searchQuery.trim().length > 0) {
+      const normalizedQuery = searchQuery.trim().toLowerCase();
+      const likePattern = `%${normalizedQuery}%`;
+
+      query = query.andWhere((qb) => {
+        qb.where((sub) => {
+          sub
+            .where('categorization_status', 'uncategorized')
+            .whereExists(function () {
+              this.select(txn.raw('1'))
+                .from('bank_transactions as bt')
+                .whereRaw('bt.id = categorization_engine_view.id')
+                .whereRaw(
+                  '(CASE WHEN bt.is_deleted = false THEN bt.search_text END) LIKE ?',
+                  [likePattern],
+                );
+            });
+        })
+          .orWhere((sub) => {
+            sub
+              .where('categorization_status', 'proposed')
+              .whereExists(function () {
+                this.select(txn.raw('1'))
+                  .from('categorization_candidate_lines as ccl')
+                  .whereRaw(
+                    'ccl.id = categorization_engine_view.candidate_line_id',
+                  )
+                  .whereRaw(
+                    '(CASE WHEN ccl.is_deleted = false THEN ccl.search_text END) LIKE ?',
+                    [likePattern],
+                  );
+              });
+          })
+          .orWhere((sub) => {
+            sub
+              .where('categorization_status', 'posted')
+              .whereExists(function () {
+                this.select(txn.raw('1'))
+                  .from('ledger_entries as le')
+                  .whereRaw(
+                    'le.id = categorization_engine_view.ledger_entry_id',
+                  )
+                  .whereRaw(
+                    '(CASE WHEN le.is_deleted = false THEN le.search_text END) LIKE ?',
+                    [likePattern],
+                  );
+              });
+          });
+      });
     }
 
     // Get total count (before pagination)

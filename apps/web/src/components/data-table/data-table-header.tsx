@@ -21,8 +21,7 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
     header: any,
     isPinned: 'left' | 'right' | false = false,
   ) => {
-    const columnDef = table._getColumnDefs().find((c) => c.id === header.id);
-    const explicitSize = !!columnDef?.size;
+    const explicitSize = !!header.column.columnDef.size;
     const colStyle = getColumnStyle({ column: header, explicitSize });
 
     // Only allow sorting if globally enabled and column allows it
@@ -37,13 +36,16 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
           header.column.getIsResizing() ? 'true' : undefined
         }
         data-pinned={isPinned || undefined}
-        className={cn(tableHeaderCell)}
+        className={cn(
+          tableHeaderCell,
+          header.column.columnDef.meta?.headerClassName,
+        )}
       >
         {header.isPlaceholder ? null : (
           <>
             {canSort ? (
               <div
-                className="flex cursor-pointer select-none items-center"
+                className="flex cursor-pointer items-center select-none"
                 role="button"
                 tabIndex={0}
                 aria-label={`Sort by ${flexRender(
@@ -109,12 +111,12 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
             hasPinnedColumns ? 'min-w-max' : '',
           )}
         >
-          <div className="bg-sidebar-accent sticky !left-0 z-30 flex h-10 min-h-10 border-collapse flex-row items-center justify-center border-b border-r">
+          <div className="bg-sidebar-accent sticky !left-0 z-30 flex h-10 min-h-10 border-collapse flex-row items-center justify-center border-r border-b">
             {leftGroups.map((header) => renderHeaderCell(header, 'left'))}
           </div>
 
           <div className="h-full flex-1 overflow-y-visible">
-            <div className="bg-sidebar-accent flex h-10 min-h-10 border-collapse flex-row flex-nowrap items-center whitespace-nowrap border-b">
+            <div className="bg-sidebar-accent flex h-10 min-h-10 border-collapse flex-row flex-nowrap items-center border-b whitespace-nowrap">
               {centerGroups.map((header) => renderHeaderCell(header, false))}
             </div>
           </div>
