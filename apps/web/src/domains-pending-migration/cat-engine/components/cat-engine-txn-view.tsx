@@ -112,7 +112,7 @@ export function CatEngineTxnView({
     return (
       <div
         className={cn(
-          'h-full rounded-md flex flex-col gap-4 border scale-in-hor-right overflow-clip',
+          'scale-in-hor-right flex h-full flex-col gap-4 overflow-clip rounded-md border',
           curr.borderClass || '',
           className,
         )}
@@ -132,7 +132,7 @@ export function CatEngineTxnView({
     return (
       <div
         className={cn(
-          'h-full rounded-md flex flex-col gap-4 border scale-in-hor-right overflow-clip',
+          'scale-in-hor-right flex h-full flex-col gap-4 overflow-clip rounded-md border',
           curr.borderClass || '',
           className,
         )}
@@ -164,7 +164,7 @@ export function CatEngineTxnView({
     <ErrorBoundary>
       <div
         className={cn(
-          'min-h-0 h-full rounded-md flex flex-col gap-4 border scale-in-hor-right overflow-clip',
+          'scale-in-hor-right flex h-full min-h-0 flex-col gap-4 overflow-clip rounded-md border',
           curr.borderClass || '',
           className,
         )}
@@ -216,11 +216,11 @@ const TransactionView = memo(
     onAccept: () => void;
     onMarkReviewed: () => void;
   }) => (
-    <div className="flex flex-col min-h-0 h-full gap-4">
-      <div className="space-y-8 divide-y flex-1 overflow-y-auto scrollbar-thin-2px">
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="scrollbar-thin-2px flex-1 space-y-8 divide-y overflow-y-auto">
         {/* Transaction Details Section */}
-        <div className="grid grid-cols-2 gap-4 p-4 pt-0 items-center overflow-clip">
-          <div className="col-span-2 flex items-center gap-4 justify-between">
+        <div className="grid grid-cols-2 items-center gap-4 overflow-clip p-4 pt-0">
+          <div className="col-span-2 flex items-center justify-between gap-4">
             <AmountDisplay
               amount={transaction.amount}
               currency={transaction.currency}
@@ -246,7 +246,7 @@ const TransactionView = memo(
               contentStyle="w-fit"
               icon={false}
               trigger={
-                <div className="text-xs text-muted-foreground truncate">
+                <div className="text-muted-foreground truncate text-xs">
                   Description
                 </div>
               }
@@ -255,14 +255,14 @@ const TransactionView = memo(
             <TruncatedText text={transaction.description} />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground truncate">Payee</div>
+            <div className="text-muted-foreground truncate text-xs">Payee</div>
             <TruncatedText
               text={transaction.payee}
               fallback={DEFAULT_EMPTY_VALUE}
             />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground truncate">
+            <div className="text-muted-foreground truncate text-xs">
               Project
             </div>
             <TruncatedText
@@ -273,7 +273,7 @@ const TransactionView = memo(
         </div>
 
         {/* Category and Explanation Section */}
-        <div className="px-4 pb-6 space-y-2">
+        <div className="space-y-2 px-4 pb-6">
           <CategoryDisplay
             account={transaction.account}
             confidence={transaction.confidence}
@@ -303,13 +303,13 @@ const JournalEntriesSection = memo(
     <div className="px-4">
       <div className="flex items-center justify-between text-sm">
         <div className="text-muted-foreground">Entries</div>
-        <div className="flex items-center gap-1 hover:underline cursor-pointer mr-2">
-          <Split className="w-3 h-3" />
+        <div className="mr-2 flex cursor-pointer items-center gap-1 hover:underline">
+          <Split className="h-3 w-3" />
           Split
         </div>
       </div>
-      <div className="border rounded p-1 px-2 divide-y">
-        <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1">
+      <div className="divide-y rounded border p-1 px-2">
+        <div className="grid grid-cols-[2fr_1fr_2fr] p-1 text-sm">
           <div className="truncate">Account</div>
           <div className="truncate">Debit</div>
           <FormattedAmount
@@ -320,7 +320,7 @@ const JournalEntriesSection = memo(
             className="truncate text-right"
           />
         </div>
-        <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1">
+        <div className="grid grid-cols-[2fr_1fr_2fr] p-1 text-sm">
           <div className="truncate">Account</div>
           <div className="truncate">Credit</div>
           <FormattedAmount
@@ -332,7 +332,7 @@ const JournalEntriesSection = memo(
           />
         </div>
       </div>
-      <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1 px-3 text-muted-foreground">
+      <div className="text-muted-foreground grid grid-cols-[2fr_1fr_2fr] p-1 px-3 text-sm">
         <div className="truncate">Net Total</div>
         <div className="truncate">Credit</div>
         <FormattedAmount
@@ -364,24 +364,24 @@ const TransactionActions = memo(
       <div className="flex gap-4">
         <Button
           variant="outline"
-          className="flex items-center flex-1"
+          className="flex flex-1 items-center"
           onClick={onEdit}
         >
-          <Edit className="w-4 h-4 mr-2" /> Edit
+          <Edit className="mr-2 h-4 w-4" /> Edit
         </Button>
-        <Button variant="outline" className="flex items-center flex-1">
-          <Split className="w-4 h-4 mr-2" /> Split
+        <Button variant="outline" className="flex flex-1 items-center">
+          <Split className="mr-2 h-4 w-4" /> Split
         </Button>
       </div>
       <div className="flex flex-col gap-2">
         {!isHighConfidence && (
           <Button variant="outline" onClick={onAccept}>
-            <Check className="w-4 h-4 mr-2" /> Accept Category
+            <Check className="mr-2 h-4 w-4" /> Accept Category
           </Button>
         )}
         {isHighConfidence && (
           <Button variant="outline" onClick={onMarkReviewed}>
-            <Eye className="w-4 h-4 mr-2" /> Mark as Reviewed
+            <Eye className="mr-2 h-4 w-4" /> Mark as Reviewed
           </Button>
         )}
       </div>
@@ -402,7 +402,7 @@ const TransactionHeader = memo(
   }) => (
     <div
       className={cn(
-        'flex items-center justify-between px-4 py-1 h-10 min-h-10 border-b',
+        'flex h-10 min-h-10 items-center justify-between border-b px-4 py-1',
         backgroundClass,
       )}
     >
@@ -444,7 +444,7 @@ const TransactionForm = memo(
     return (
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-4 h-full min-h-0"
+        className="flex h-full min-h-0 flex-col gap-4"
       >
         {/* Error Alert */}
         {error && (
@@ -453,7 +453,7 @@ const TransactionForm = memo(
             <AlertDescription>
               {error}
               {retryCount > 0 && (
-                <span className="block text-xs mt-1">
+                <span className="mt-1 block text-xs">
                   Retrying... ({retryCount}/3)
                 </span>
               )}
@@ -461,12 +461,12 @@ const TransactionForm = memo(
           </Alert>
         )}
 
-        <div className="flex-1 flex flex-col gap-6">
-          <div className="grid grid-cols-2 gap-4 p-4 pb-6 pt-0 border-b items-center overflow-clip">
+        <div className="flex flex-1 flex-col gap-6">
+          <div className="grid grid-cols-2 items-center gap-4 overflow-clip border-b p-4 pt-0 pb-6">
             {/* Amount - Read Only */}
-            <div className="col-span-2 flex items-center gap-4 justify-between">
+            <div className="col-span-2 flex items-center justify-between gap-4">
               <div>
-                <div className="text-xs text-muted-foreground truncate">
+                <div className="text-muted-foreground truncate text-xs">
                   Amount
                 </div>
                 <FormattedAmount
@@ -475,7 +475,7 @@ const TransactionForm = memo(
                   showSymbol
                   accountingNegatives={false}
                   className={cn(
-                    'text-xl font-bold truncate',
+                    'truncate text-xl font-bold',
                     transaction.amount < 0
                       ? 'text-red-600 dark:text-red-500'
                       : transaction.amount > 0
@@ -491,8 +491,8 @@ const TransactionForm = memo(
             </div>
             {/* Date - Read Only */}
             <div>
-              <div className="text-xs text-muted-foreground truncate">Date</div>
-              <div className="truncate text-[0.9rem] text-muted-foreground">
+              <div className="text-muted-foreground truncate text-xs">Date</div>
+              <div className="text-muted-foreground truncate text-[0.9rem]">
                 {safeFormatDate({
                   date: transaction.date,
                   formatString: 'dd MMM yyyy',
@@ -501,18 +501,18 @@ const TransactionForm = memo(
             </div>
             {/* FS Date - Editable */}
             <div>
-              <Label htmlFor="fsDate" className="text-xs text-muted-foreground">
+              <Label htmlFor="fsDate" className="text-muted-foreground text-xs">
                 FS Date *
               </Label>
               <Input
                 id="fsDate"
                 type="date"
                 {...register('fsDate', validationRules.fsDate)}
-                className="text-[0.9rem] h-8"
+                className="h-8 text-[0.9rem]"
                 aria-describedby={errors.fsDate ? 'fsDate-error' : undefined}
               />
               {errors.fsDate && (
-                <div id="fsDate-error" className="text-xs text-red-500 mt-1">
+                <div id="fsDate-error" className="mt-1 text-xs text-red-500">
                   {errors.fsDate.message}
                 </div>
               )}
@@ -521,14 +521,14 @@ const TransactionForm = memo(
             <div className="col-span-2">
               <Label
                 htmlFor="description"
-                className="text-xs text-muted-foreground"
+                className="text-muted-foreground text-xs"
               >
                 Description *
               </Label>
               <Input
                 id="description"
                 {...register('description', validationRules.description)}
-                className="text-[0.9rem] h-8"
+                className="h-8 text-[0.9rem]"
                 aria-describedby={
                   errors.description ? 'description-error' : undefined
                 }
@@ -536,7 +536,7 @@ const TransactionForm = memo(
               {errors.description && (
                 <div
                   id="description-error"
-                  className="text-xs text-red-500 mt-1"
+                  className="mt-1 text-xs text-red-500"
                 >
                   {errors.description.message}
                 </div>
@@ -544,17 +544,17 @@ const TransactionForm = memo(
             </div>
             {/* Payee - Editable */}
             <div>
-              <Label htmlFor="payee" className="text-xs text-muted-foreground">
+              <Label htmlFor="payee" className="text-muted-foreground text-xs">
                 Payee
               </Label>
               <Input
                 id="payee"
                 {...register('payee', validationRules.payee)}
-                className="text-[0.9rem] h-8"
+                className="h-8 text-[0.9rem]"
                 aria-describedby={errors.payee ? 'payee-error' : undefined}
               />
               {errors.payee && (
-                <div id="payee-error" className="text-xs text-red-500 mt-1">
+                <div id="payee-error" className="mt-1 text-xs text-red-500">
                   {errors.payee.message}
                 </div>
               )}
@@ -563,40 +563,40 @@ const TransactionForm = memo(
             <div>
               <Label
                 htmlFor="project"
-                className="text-xs text-muted-foreground"
+                className="text-muted-foreground text-xs"
               >
                 Project
               </Label>
               <Input
                 id="project"
                 {...register('project', validationRules.project)}
-                className="text-[0.9rem] h-8"
+                className="h-8 text-[0.9rem]"
                 aria-describedby={errors.project ? 'project-error' : undefined}
               />
               {errors.project && (
-                <div id="project-error" className="text-xs text-red-500 mt-1">
+                <div id="project-error" className="mt-1 text-xs text-red-500">
                   {errors.project.message}
                 </div>
               )}
             </div>
           </div>
-          <div className="px-4 space-y-2">
+          <div className="space-y-2 px-4">
             {/* Account - Editable */}
             <div>
               <Label
                 htmlFor="account"
-                className="text-xs text-muted-foreground"
+                className="text-muted-foreground text-xs"
               >
                 Account *
               </Label>
               <Input
                 id="account"
                 {...register('account', validationRules.account)}
-                className="text-[0.9rem] h-8"
+                className="h-8 text-[0.9rem]"
                 aria-describedby={errors.account ? 'account-error' : undefined}
               />
               {errors.account && (
-                <div id="account-error" className="text-xs text-red-500 mt-1">
+                <div id="account-error" className="mt-1 text-xs text-red-500">
                   {errors.account.message}
                 </div>
               )}
@@ -638,14 +638,14 @@ const AmountDisplay = memo(
     currency?: string;
   }) => (
     <div>
-      <div className="text-xs text-muted-foreground truncate">Amount</div>
+      <div className="text-muted-foreground truncate text-xs">Amount</div>
       <FormattedAmount
         amount={amount}
         currency={currency}
         showSymbol
         accountingNegatives={false}
         className={cn(
-          'text-xl font-bold truncate',
+          'truncate text-xl font-bold',
           amount < 0
             ? 'text-red-600 dark:text-red-500'
             : amount > 0
@@ -665,7 +665,7 @@ const BankLogo = memo(
       contentStyle="w-fit"
       trigger={
         <div
-          className="flex-shrink-0 w-8 h-8 overflow-hidden rounded-full bg-muted flex items-center justify-center border"
+          className="bg-muted flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border"
           role="img"
           aria-label={`${bankName || TOOLTIPS.BANK_LOGO} logo`}
         >
@@ -673,11 +673,11 @@ const BankLogo = memo(
             <img
               src={bankLogo}
               alt={`${bankName || 'Bank'} Logo`}
-              className="w-8 h-8 object-contain"
+              className="h-8 w-8 object-contain"
               loading="lazy"
             />
           ) : (
-            <Landmark className="w-4 h-4" />
+            <Landmark className="h-4 w-4" />
           )}
         </div>
       }
@@ -701,7 +701,7 @@ const DateField = memo(
         contentStyle="w-fit"
         icon={false}
         trigger={
-          <div className="text-xs text-muted-foreground truncate">{label}</div>
+          <div className="text-muted-foreground truncate text-xs">{label}</div>
         }
         triggerWrapperClassName="w-fit"
       />
@@ -763,12 +763,12 @@ const CategoryDisplay = memo(
 
     return (
       <div className="flex flex-col gap-1">
-        <div className="text-xs text-muted-foreground">
+        <div className="text-muted-foreground text-xs">
           {curr.id === 'reviewed' ? 'Account' : 'Predicted Category'}
         </div>
         <div
           className={cn(
-            'flex gap-1 p-1 px-2 border items-center rounded',
+            'flex items-center gap-1 rounded border p-1 px-2',
             curr.borderClass || '',
           )}
         >
@@ -776,7 +776,7 @@ const CategoryDisplay = memo(
           {confidencePercent && (
             <div
               className={cn(
-                'rounded-xl px-2 text-sm flex items-center justify-center',
+                'flex items-center justify-center rounded-xl px-2 text-sm',
                 curr.backgroundClass,
                 curr.textClass,
               )}
@@ -798,22 +798,22 @@ const ExplanationSection = memo(({ explanation }: { explanation?: string }) => {
   return (
     <div
       className={cn(
-        'flex flex-col gap-1 px-2 rounded transition-all duration-300 ease-in-out',
+        'flex flex-col gap-1 rounded px-2 transition-all duration-300 ease-in-out',
         showExplanation ? 'border p-2' : '',
       )}
     >
       <button
         type="button"
-        className="flex items-center text-xs text-muted-foreground hover:underline cursor-pointer hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center text-xs hover:underline"
         onClick={() => setShowExplanation(!showExplanation)}
         aria-expanded={showExplanation}
         aria-controls="explanation-content"
       >
-        <Lightbulb className="w-3 h-3 inline-flex" />
+        <Lightbulb className="inline-flex h-3 w-3" />
         <span>Explanation</span>
         <ChevronDown
           className={cn(
-            'w-4 h-4 inline-flex transition-transform duration-200',
+            'inline-flex h-4 w-4 transition-transform duration-200',
             showExplanation && 'rotate-180',
           )}
         />
@@ -825,7 +825,7 @@ const ExplanationSection = memo(({ explanation }: { explanation?: string }) => {
           showExplanation ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0',
         )}
       >
-        <div id="explanation-content" className="text-sm overflow-y-auto">
+        <div id="explanation-content" className="overflow-y-auto text-sm">
           {explanation}
         </div>
       </div>

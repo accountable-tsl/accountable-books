@@ -1,6 +1,4 @@
-import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
-
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
@@ -12,6 +10,7 @@ import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { maskDigits } from '@/shared/utils/formatting-utils';
+import { Plus } from 'lucide-react';
 
 export default function BankAccountSelector({
   value,
@@ -43,7 +42,10 @@ export default function BankAccountSelector({
   const isMobile = useIsMobile();
 
   // Computed
-  const bankAccounts: BankAccountWithMeta[] = companyBankAccounts?.data || [];
+  const bankAccounts: BankAccountWithMeta[] = useMemo(
+    () => companyBankAccounts?.data || [],
+    [companyBankAccounts],
+  );
   //   const bankAccounts = useMemo(() => {
   //     return prependItems.length > 0
   //       ? [...prependItems, ...apiBankAccounts]
@@ -94,7 +96,7 @@ export default function BankAccountSelector({
 
   return (
     <>
-      <FormField className="w-full space-y-0 flex-shrink-0">
+      <FormField className="w-full flex-shrink-0 space-y-0">
         <AutocompleteDropdown
           id="bank-account"
           drawerTitle="Select Bank Account"

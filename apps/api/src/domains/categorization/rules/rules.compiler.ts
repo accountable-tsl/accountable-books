@@ -8,21 +8,20 @@ import {
   type RuleDraftState,
   type RuleMutationField,
 } from './rules.types.js';
-import {
-  type ActionDefinition,
-  actionDefinition,
-  type ActionTraceNode,
-  type AmountCondition,
-  type ApplyTemplateAction,
-  type CategorizeLine,
-  type ConditionDefinition,
-  conditionDefinition,
-  type ConditionTraceNode,
-  type DateCondition,
-  type SetActionTarget,
-  type SignalCondition,
-  type StringCondition,
+import type {
+  ActionDefinition,
+  ActionTraceNode,
+  AmountCondition,
+  ApplyTemplateAction,
+  CategorizeLine,
+  ConditionDefinition,
+  ConditionTraceNode,
+  DateCondition,
+  SetActionTarget,
+  SignalCondition,
+  StringCondition,
 } from './rules-def.types.js';
+import { actionDefinition, conditionDefinition } from './rules-def.types.js';
 
 const FLOAT_TOLERANCE = 1e-6;
 

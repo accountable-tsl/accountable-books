@@ -1,26 +1,27 @@
+import type {
+  AuthGetResponse,
+  LinkTokenCreateRequest,
+  Transaction as PlaidTransaction,
+  TransactionsSyncRequest,
+} from 'plaid';
 import {
-  type AuthGetResponse,
   Configuration,
   CountryCode,
-  type LinkTokenCreateRequest,
   PlaidApi,
   PlaidEnvironments,
   Products,
-  type Transaction as PlaidTransaction,
-  type TransactionsSyncRequest,
 } from 'plaid';
 
 import { ENV } from '../../../config/env.js';
-import {
-  BankingProvider,
-  type ConnectionDetails,
-  type ProviderAccount,
-  type ProviderError,
-  type ProviderInstitution,
-  type ProviderTransaction,
-  type TransactionSyncResult,
-  TransactionSyncStrategy,
+import type {
+  ConnectionDetails,
+  ProviderAccount,
+  ProviderError,
+  ProviderInstitution,
+  ProviderTransaction,
+  TransactionSyncResult,
 } from '../types/base.js';
+import { BankingProvider, TransactionSyncStrategy } from '../types/base.js';
 import { mapPlaidAccountType } from '../utils/mappings.js';
 import { findOrCreateBankMapping } from '../utils/resolveBank.js';
 

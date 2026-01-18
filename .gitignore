@@ -70,3 +70,12 @@ AGENT.md
 packages/contracts/accountable_contracts/data/generated/
 apps/ml-engine/.testmondata
 apps/api/src/domains/categorization/enrichment/__fixtures__/
+
+
+dist
+dist-ssr
+*.local
+count.txt
+.nitro
+.tanstack
+.wrangler

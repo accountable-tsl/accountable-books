@@ -1,14 +1,14 @@
 @use '../../styles/partials/colors' as *;
 
 .breadcrumb {
-  @apply flex py-1 items-start;
+  @apply flex items-start py-1;
 
   &-item {
     color: rgba($color: $text, $alpha: 0.8);
     @apply flex items-center hover:text-black;
 
     &__link {
-      @apply flex gap-1 items-center cursor-pointer;
+      @apply flex cursor-pointer items-center gap-1;
     }
 
     &__chevron {
@@ -30,11 +30,11 @@
     }
 
     &__dropdown {
-      @apply absolute top-6 -left-1 text-sm z-50;
+      @apply absolute top-6 -left-1 z-50 text-sm;
       background-color: $neutral-white;
 
       &-content {
-        @apply flex flex-col text-sm w-max rounded-md;
+        @apply flex w-max flex-col rounded-md text-sm;
         box-shadow:
           0 8px 16px rgba(0, 0, 0, 0.1),
           0 4px 8px rgba(0, 0, 0, 0.2);
@@ -42,7 +42,7 @@
       }
 
       &-link {
-        @apply px-2.5 py-1 text-gray-500 hover:shadow-sm hover:text-gray-700;
+        @apply px-2.5 py-1 text-gray-500 hover:text-gray-700 hover:shadow-sm;
       }
 
       &-icon {

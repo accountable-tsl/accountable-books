@@ -10,19 +10,19 @@ export function LeftCatEngineToolbar({
   setView: (view: 'table' | 'group') => void;
 }) {
   return (
-    <div className="flex gap-1 items-center px-1 py-0.5 bg-muted w-fit rounded h-full">
-      <div className="text-muted-foreground text-sm pl-1">View:</div>
+    <div className="bg-muted flex h-full w-fit items-center gap-1 rounded px-1 py-0.5">
+      <div className="text-muted-foreground pl-1 text-sm">View:</div>
 
       <ToggleButton
         active={view === 'table'}
         onClick={() => setView('table')}
-        icon={<TableProperties className="w-4 h-4" />}
+        icon={<TableProperties className="h-4 w-4" />}
         tooltip="Table View"
       />
       <ToggleButton
         active={view === 'group'}
         onClick={() => setView('group')}
-        icon={<Rows3 className="w-4 h-4" />}
+        icon={<Rows3 className="h-4 w-4" />}
         tooltip="View by Confidence"
       />
     </div>
@@ -40,27 +40,27 @@ export function RightCatEngineToolbar({
   setIsFullScreen: (isFullScreen: boolean) => void;
 }) {
   return (
-    <div className="flex gap-1 items-center w-fit px-1 py-0.5 bg-muted rounded h-full">
-      <div className="text-sm text-muted-foreground pl-1">Row:</div>
-      <div className="flex gap-1 items-center text-muted-foreground">
+    <div className="bg-muted flex h-full w-fit items-center gap-1 rounded px-1 py-0.5">
+      <div className="text-muted-foreground pl-1 text-sm">Row:</div>
+      <div className="text-muted-foreground flex items-center gap-1">
         <ToggleButton
           active={rowHeight === 'min'}
           onClick={() => setRowHeight('min')}
-          icon={<Menu strokeWidth={1} className="w-4 h-4" />}
+          icon={<Menu strokeWidth={1} className="h-4 w-4" />}
           tooltip="Compact Row Height"
           ariaLabel="Set compact row height"
         />
         <ToggleButton
           active={rowHeight === 'mid'}
           onClick={() => setRowHeight('mid')}
-          icon={<Menu strokeWidth={2.5} className="w-4 h-4" />}
+          icon={<Menu strokeWidth={2.5} className="h-4 w-4" />}
           tooltip="Medium Row Height"
           ariaLabel="Set medium row height"
         />
         <ToggleButton
           active={rowHeight === 'max'}
           onClick={() => setRowHeight('max')}
-          icon={<Menu strokeWidth={4} className="w-4 h-4" />}
+          icon={<Menu strokeWidth={4} className="h-4 w-4" />}
           tooltip="Large Row Height"
           ariaLabel="Set large row height"
         />
@@ -68,7 +68,7 @@ export function RightCatEngineToolbar({
         <ToggleButton
           active={isFullScreen}
           onClick={() => setIsFullScreen(!isFullScreen)}
-          icon={<Focus className="w-4 h-4" />}
+          icon={<Focus className="h-4 w-4" />}
           tooltip="Focus"
         />
       </div>

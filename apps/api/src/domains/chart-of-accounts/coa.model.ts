@@ -21,26 +21,28 @@ import {
 } from '../account/account.registry.js';
 import { invalidateCompanyContext } from '../categorization/index.js';
 import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from './coa.constants.js';
+import type {
+  Coa,
+  CoaResponse,
+  CoaSnapshotVersion,
+  CoaUpdateInput,
+  CoaUpdateOptions,
+  CoaValidationResponse,
+  CoaValidationResult,
+  CoaValidationStatus,
+  FetchCoaInput,
+  NewCoa,
+  NewCoaInputCamel,
+  ResolvedCoaUpdateInput,
+  SimpleCoaRecord,
+  UpdateCoaAction,
+  UpdateCoaResponse,
+} from './coa.types.js';
 import {
-  type Coa,
-  type CoaResponse,
-  type CoaSnapshotVersion,
-  type CoaUpdateInput,
   coaUpdateInput,
-  type CoaUpdateOptions,
-  type CoaValidationResponse,
-  type CoaValidationResult,
-  type CoaValidationStatus,
-  type FetchCoaInput,
-  type NewCoa,
   newCoa,
   newCoaInput,
-  type NewCoaInputCamel,
-  type ResolvedCoaUpdateInput,
-  type SimpleCoaRecord,
-  type UpdateCoaAction,
   updateCoaAction,
-  type UpdateCoaResponse,
 } from './coa.types.js';
 
 // TODO: Invalidate coa cache on mutations

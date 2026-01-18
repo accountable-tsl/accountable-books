@@ -66,14 +66,14 @@ export function CenteredLoader({
         className={cn(
           'flex flex-col items-center justify-center',
           fullscreen
-            ? 'fixed inset-0 z-30 bg-background/50 backdrop-blur-sm'
-            : 'w-full h-full',
+            ? 'bg-background/50 fixed inset-0 z-30 backdrop-blur-sm'
+            : 'h-full w-full',
           className,
         )}
       >
         {loader ?? <PuffLoader color="currentColor" />}
         {message && (
-          <p className={cn('text-center mt-1', messageClassName)}>{message}</p>
+          <p className={cn('mt-1 text-center', messageClassName)}>{message}</p>
         )}
       </div>
     </>

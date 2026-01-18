@@ -16,12 +16,12 @@ import {
   bankBalanceService,
   formatDateToYMD,
 } from '../bank-balance.service.js';
-import {
-  type BankAccountOpeningBalances,
-  type BankOpeningBalanceParams,
-  bankOpeningBalanceParams,
-  type BankOpeningBalanceRole,
+import type {
+  BankAccountOpeningBalances,
+  BankOpeningBalanceParams,
+  BankOpeningBalanceRole,
 } from './opening-balance.types.js';
+import { bankOpeningBalanceParams } from './opening-balance.types.js';
 import {
   asOfDateYmdFromCoverageStart,
   journalDateFromCoverageStart,

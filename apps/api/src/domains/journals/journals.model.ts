@@ -12,7 +12,8 @@ import {
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import { createLedgerRecord } from '../ledgers/ledgers.model.js';
 import type { NewLedgerTransactionData } from '../ledgers/ledgers.types.js';
-import { type JournalBatchData, journalBatchData } from './journals.types.js';
+import type { JournalBatchData } from './journals.types.js';
+import { journalBatchData } from './journals.types.js';
 import { validateDebitCreditBalance } from './journals.utils.js';
 
 export async function postJournalRecord({

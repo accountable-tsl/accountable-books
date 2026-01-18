@@ -29,12 +29,52 @@ import {
 } from '@/domains-pending-migration/company/constants';
 import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
 import { cn } from '@/lib/utils';
-import { type NewCompany, newCompany, type NewUser } from '@/modules/auth';
+import type { NewCompany, NewUser } from '@/modules/auth';
+import { newCompany } from '@/modules/auth';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useIndustries } from '@/shared/hooks/useIndustries';
 
 import { TOOLTIP } from '../../model/constants';
+
+// Separate component to handle slug field with hooks
+function SlugField({
+  field,
+  fieldState,
+  required = false,
+}: {
+  field: { value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void };
+  fieldState: { error?: { message?: string } };
+  required?: boolean;
+}) {
+  const slugCheck = useSlugCheck(field?.value || '');
+
+  // Combine RHF errors with slug validation errors
+  const error = slugCheck.isChecking
+    ? 'Checking availability...'
+    : fieldState.error?.message || slugCheck.getError();
+
+  return (
+    <FormField
+      id="slug"
+      label="Firm slug"
+      error={error || ''}
+      helpTooltip={TOOLTIP.firmSlug}
+      tooltipStyle="text-center"
+      required={required}
+      errorTooltip
+      errorTooltipStyle="text-center"
+    >
+      <Input
+        {...field}
+        value={field.value ?? ''}
+        required={required}
+        aria-describedby={error ? 'slug-error' : undefined}
+        placeholder="e.g kpmg, abc-and-co"
+      />
+    </FormField>
+  );
+}
 
 export interface SignupCompanyInfoHandle {
   validate: () => Promise<boolean>;
@@ -129,7 +169,7 @@ export const SignupCompanyInfo = forwardRef<
         shouldDirty: false,
       });
     }
-  }, [companyData.reportingCurrencyId]);
+  }, [companyData.reportingCurrencyId, setValue, watch]);
 
   // useEffect(() => {
   //   const timeoutId = setTimeout(() => {
@@ -158,7 +198,7 @@ export const SignupCompanyInfo = forwardRef<
         prevFormDataRef.current[key] = value;
       }
     });
-  }, [formData]);
+  }, [formData, updateCompanyField]);
 
   // useEffect(() => {
   //   if (!slug || slug.trim().length < 3) return;
@@ -204,7 +244,7 @@ export const SignupCompanyInfo = forwardRef<
           required
         >
           {userType && (
-            <div className="text-[0.75rem] text-chart-2 absolute right-3 top-[55%]">
+            <div className="text-chart-2 absolute top-[55%] right-3 text-[0.75rem]">
               {chosenCompanyType}
             </div>
           )}
@@ -224,7 +264,7 @@ export const SignupCompanyInfo = forwardRef<
           />
         </FormField>
 
-        <div className="grid md:grid-cols-2 gap-2 -w-full overflow-hidden">
+        <div className="-w-full grid gap-2 overflow-hidden md:grid-cols-2">
           {/* Country */}
           <FormField
             id="countryId"
@@ -267,7 +307,7 @@ export const SignupCompanyInfo = forwardRef<
             helpTooltip={TOOLTIP.reportingCurrency}
             error={errors.reportingCurrencyId?.message}
             errorTooltip
-            className="flex flex-col flex-1"
+            className="flex flex-1 flex-col"
           >
             <AutocompleteDropdown
               id="reportingCurrencyId"
@@ -298,7 +338,7 @@ export const SignupCompanyInfo = forwardRef<
           <div
             className={cn(
               'flex overflow-hidden',
-              isFirm ? 'grid md:grid-cols-2 gap-2' : '',
+              isFirm ? 'grid gap-2 md:grid-cols-2' : '',
             )}
           >
             {isFirm ? (
@@ -306,41 +346,19 @@ export const SignupCompanyInfo = forwardRef<
                 name="slug"
                 control={control}
                 // rules={{ required: "Slug is required" }}
-                render={({ field, fieldState }) => {
-                  const slugCheck = useSlugCheck(field?.value || '');
-
-                  // Combine RHF errors with slug validation errors
-                  const error = slugCheck.isChecking
-                    ? 'Checking availability...'
-                    : fieldState.error?.message || slugCheck.getError();
-
-                  return (
-                    <FormField
-                      id="slug"
-                      label="Firm slug"
-                      error={error || ''}
-                      helpTooltip={TOOLTIP.firmSlug}
-                      tooltipStyle="text-center"
-                      required
-                      errorTooltip
-                      errorTooltipStyle="text-center"
-                    >
-                      <Input
-                        {...field}
-                        value={field.value ?? ''}
-                        required={
-                          companyData.type === 'accounting_firm' ? true : false
-                        }
-                        onChange={(e) => {
-                          field.onChange(e.target.value);
-                          handleChange('slug', e.target.value);
-                        }}
-                        aria-describedby={error ? 'slug-error' : undefined}
-                        placeholder="e.g kpmg, abc-and-co"
-                      />
-                    </FormField>
-                  );
-                }}
+                render={({ field, fieldState }) => (
+                  <SlugField
+                    field={{
+                      ...field,
+                      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                        field.onChange(e.target.value);
+                        handleChange('slug', e.target.value);
+                      },
+                    }}
+                    fieldState={fieldState}
+                    required={companyData.type === 'accounting_firm'}
+                  />
+                )}
               />
             ) : (
               /* Industry */
@@ -390,7 +408,7 @@ export const SignupCompanyInfo = forwardRef<
                 errorTooltip
                 errorTooltipStyle="w-full"
               >
-                <div className="grid md:grid-cols-2 gap-1">
+                <div className="grid gap-1 md:grid-cols-2">
                   <div className="relative">
                     <Select
                       onValueChange={(value) =>
@@ -410,7 +428,7 @@ export const SignupCompanyInfo = forwardRef<
                       </SelectContent>
                     </Select>
                     {watch('yearEndDay') && (
-                      <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                      <span className="text-muted-foreground/50 absolute top-1/4 right-1 text-[0.75rem]">
                         Day
                       </span>
                     )}
@@ -434,7 +452,7 @@ export const SignupCompanyInfo = forwardRef<
                       </SelectContent>
                     </Select>
                     {watch('yearEndMonth') && (
-                      <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                      <span className="text-muted-foreground/50 absolute top-1/4 right-1 text-[0.75rem]">
                         Month
                       </span>
                     )}
@@ -467,7 +485,7 @@ export const SignupCompanyInfo = forwardRef<
                     : 'Tell us a bit about your company'
               }
               className={cn(
-                'resize-none mb-6',
+                'mb-6 resize-none',
                 showOptionalFieldsButton || isIndividual ? 'mb-0' : '',
               )}
               // value={description}
@@ -498,7 +516,7 @@ export const SignupCompanyInfo = forwardRef<
                       type="button"
                       variant="link"
                       className={
-                        'text-muted-foreground hover:text-foreground p-1 h-6 self-center cursor-pointer'
+                        'text-muted-foreground hover:text-foreground h-6 cursor-pointer self-center p-1'
                       }
                       onMouseDown={(e) => {
                         e.preventDefault();
@@ -519,26 +537,26 @@ export const SignupCompanyInfo = forwardRef<
       {/* Optional Fields */}
       <div
         className={cn(
-          'bg-card z-50 inset-0 w-full py-4 border-[1px] rounded-sm absolute top-[17%] md:top-1/3',
-          'transition-all duration-500 ease transform',
+          'bg-card absolute inset-0 top-[17%] z-50 w-full rounded-sm border-[1px] py-4 md:top-1/3',
+          'ease transform transition-all duration-500',
           viewOptionalFields && !isIndividual
-            ? 'opacity-100 scale-100 pointer-events-auto'
-            : 'opacity-0 scale-95 pointer-events-none',
+            ? 'pointer-events-auto scale-100 opacity-100'
+            : 'pointer-events-none scale-95 opacity-0',
         )}
       >
         <div className="flex flex-col">
-          <div className="text-sm px-6 pb-2 flex justify-between">
+          <div className="flex justify-between px-6 pb-2 text-sm">
             <span>Optional Fields</span>
             <span
-              className="text-muted-foreground hover:underline cursor-pointer"
+              className="text-muted-foreground cursor-pointer hover:underline"
               onClick={() => setViewOptionalFields(false)}
             >
               Hide
             </span>
           </div>
           <hr className="py-2" />
-          <div className="opacity-75 flex flex-col gap-3 px-6">
-            <div className="grid md:grid-cols-2 gap-2">
+          <div className="flex flex-col gap-3 px-6 opacity-75">
+            <div className="grid gap-2 md:grid-cols-2">
               {/* Company Registration Number */}
               <FormField
                 id="registrationNumber"
@@ -578,7 +596,7 @@ export const SignupCompanyInfo = forwardRef<
               </FormField>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-2">
+            <div className="grid gap-2 md:grid-cols-2">
               {/* Company Size */}
               <FormField
                 id="teamSize"

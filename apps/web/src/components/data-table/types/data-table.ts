@@ -1,4 +1,13 @@
 import {
+  type ColumnDef,
+  type ColumnSort,
+  type Row,
+  type RowData,
+  type RowSelectionState,
+  type Table as TanstackTable,
+  type TableOptions,
+} from '@tanstack/react-table';
+import {
   type ComponentProps,
   type Dispatch,
   type FC,
@@ -6,15 +15,6 @@ import {
   type SetStateAction,
   type SVGProps,
 } from 'react';
-import {
-  type ColumnDef,
-  type ColumnSort,
-  type Row,
-  type RowData,
-  type RowSelectionState,
-  type TableOptions,
-  type Table as TanstackTable,
-} from '@tanstack/react-table';
 
 import { type DataTableConfig, type FilterItemSchema } from '../utils/config';
 import { type ResolvedRowClick, type RowClickBehavior } from './row-click';
@@ -58,7 +58,7 @@ export interface SortingOptions {
 }
 
 export interface RowSelectionOptions {
-  enabled?: boolean;
+  enabled?: boolean | ((row: any) => boolean);
   addCheckboxes?: boolean;
   enableMultiRowSelection?: boolean;
 

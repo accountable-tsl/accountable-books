@@ -1,9 +1,7 @@
 import { performance } from 'node:perf_hooks';
 
-import {
-  RuleLogRepository as DefaultRuleLogRepository,
-  type RuleLogWriter,
-} from './rule-logs.repository.js';
+import type { RuleLogWriter } from './rule-logs.repository.js';
+import { RuleLogRepository as DefaultRuleLogRepository } from './rule-logs.repository.js';
 import type { RuleLogDraft } from './rule-logs.types.js';
 import type { CompiledAction, CompiledCondition } from './rules.compiler.js';
 import { RuleCompiler } from './rules.compiler.js';
@@ -19,7 +17,8 @@ import {
   type RuleEntity,
   type RuleMutationField,
 } from './rules.types.js';
-import { ruleDirectionFilter, type RuleLogStatus } from './rules-db.types.js';
+import type { RuleLogStatus } from './rules-db.types.js';
+import { ruleDirectionFilter } from './rules-db.types.js';
 import type { ActionTraceNode, ConditionTraceNode } from './rules-def.types.js';
 
 /**

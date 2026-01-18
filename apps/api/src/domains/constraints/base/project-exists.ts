@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 
 import { knexClient as db } from '../../../db/knexClient.js';
-
 import type { Constraint, ConstraintBase } from '../constraints-types.js';
 
 const projectExistsBase: ConstraintBase = {

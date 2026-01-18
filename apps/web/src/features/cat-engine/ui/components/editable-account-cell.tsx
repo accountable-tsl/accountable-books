@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import type { GroupedCoaData } from '../types';
 import { resolveEditableEntryId } from '../utils/resolve-editable-entry';
 
@@ -12,6 +13,7 @@ interface EditableAccountCellProps {
   groupedCoaData: GroupedCoaData[];
   markDirty: () => void;
   onCommitted?: (coaId: string) => void;
+  disabled?: boolean;
 }
 
 export function EditableAccountCell({
@@ -20,6 +22,7 @@ export function EditableAccountCell({
   groupedCoaData,
   markDirty,
   onCommitted,
+  disabled = false,
 }: EditableAccountCellProps) {
   const { updateEntry, addEntry, getEntriesUI } = useLedgerIntentUpdater(txn);
   const [open, setOpen] = useState(false);
@@ -40,11 +43,7 @@ export function EditableAccountCell({
         .flatMap((group) => group.items)
         .find((item) => item.value === nextLocalId);
       if (selectedItem) {
-        const entryId = resolveEditableEntryId(
-          txn,
-          addEntry,
-          getEntriesUI(),
-        );
+        const entryId = resolveEditableEntryId(txn, addEntry, getEntriesUI());
         if (!entryId) return;
 
         updateEntry(entryId, { coa_id: selectedItem.value });
@@ -58,6 +57,20 @@ export function EditableAccountCell({
     localIdRef.current = value;
     markDirty();
   };
+
+  if (disabled) {
+    // Find the account name from groupedCoaData
+    const accountName =
+      groupedCoaData
+        .flatMap((group) => group.items)
+        .find((item) => item.value === coaId)?.label || 'Uncategorized';
+
+    return (
+      <div className="flex-1 cursor-not-allowed opacity-60" title={accountName}>
+        {accountName}
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1">

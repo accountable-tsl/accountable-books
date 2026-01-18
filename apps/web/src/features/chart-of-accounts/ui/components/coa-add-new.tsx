@@ -33,13 +33,11 @@ import {
   useAccountTypeByKey,
 } from '@/domains-pending-migration/account-classification/hooks';
 import { cn } from '@/lib/utils';
+import type { CreateCoa } from '@/modules/accounting/chart-of-accounts';
 import {
+  createCoaSchema,
   useCompanyCoa,
   useCreateCoa,
-} from '@/modules/accounting/chart-of-accounts';
-import {
-  type CreateCoa,
-  createCoaSchema,
 } from '@/modules/accounting/chart-of-accounts';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 
@@ -108,11 +106,11 @@ export function AddNewCoa({
 
   const duplicateCode = useMemo(
     () => isDuplicateCode(watchedCode || ''),
-    [watchedCode],
+    [watchedCode, isDuplicateCode],
   );
   const duplicateName = useMemo(
     () => isDuplicateName(watchedName || ''),
-    [watchedName],
+    [watchedName, isDuplicateName],
   );
 
   // Effects for validation
@@ -128,7 +126,7 @@ export function AddNewCoa({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [watchedCode, isCoaLoading, duplicateCode]);
+  }, [watchedCode, isCoaLoading, duplicateCode, clearErrors, setError, isDuplicateCode]);
 
   useEffect(() => {
     if (isCoaLoading || !watchedName) return;
@@ -145,7 +143,7 @@ export function AddNewCoa({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [watchedName, isCoaLoading, duplicateName]);
+  }, [watchedName, isCoaLoading, duplicateName, clearErrors, setError]);
 
   // Handlers
   const onSubmit = useCallback(
@@ -194,23 +192,23 @@ export function AddNewCoa({
   return (
     <div
       className={cn(
-        'w-full flex min-h-0 h-full items-center',
+        'flex h-full min-h-0 w-full items-center',
         classNames?.container || '',
       )}
     >
       <div
         className={cn(
-          'min-w-0 w-full max-w-md mx-auto p-6 border',
+          'mx-auto w-full max-w-md min-w-0 border p-6',
           classNames?.content || '',
         )}
       >
-        <h2 className="text-lg font-semibold pb-4">
+        <h2 className="pb-4 text-lg font-semibold">
           {page === 'import' ? 'Import Chart of Accounts' : 'Add New Account'}
         </h2>
         {page === 'form' && (
           <form
             className={cn(
-              'relative flex flex-col gap-6 min-h-[380px] justify-between',
+              'relative flex min-h-[380px] flex-col justify-between gap-6',
               classNames?.form || '',
             )}
             onSubmit={handleSubmit(onSubmit)}
@@ -253,9 +251,9 @@ export function AddNewCoa({
                     />
                   </FormField>
                   {showAccountElement && (
-                    <div className="text-muted-foreground text-sm flex gap-1 items-center pt-[3px]">
-                      <span className="inline-flex items-center gap-1 underline underline-offset-2 decoration-dotted">
-                        <Info className="w-3 h-3" />
+                    <div className="text-muted-foreground flex items-center gap-1 pt-[3px] text-sm">
+                      <span className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2">
+                        <Info className="h-3 w-3" />
                         {accountElement}
                       </span>
                       <Badge variant="outline" className="rounded-xl">
@@ -279,8 +277,8 @@ export function AddNewCoa({
             </FormField>
             <div
               className={cn(
-                'absolute bottom-12 left-1/2 transform -translate-x-1/2',
-                'text-sm text-muted-foreground cursor-pointer hover:underline hover:text-foreground/80',
+                'absolute bottom-12 left-1/2 -translate-x-1/2 transform',
+                'text-muted-foreground hover:text-foreground/80 cursor-pointer text-sm hover:underline',
               )}
               onClick={() => setPage('import')}
             >
@@ -302,14 +300,14 @@ export function AddNewCoa({
           </form>
         )}
         {page === 'success' && (
-          <div className="flex flex-col gap-6 min-h-[380px] justify-center items-center">
+          <div className="flex min-h-[380px] flex-col items-center justify-center gap-6">
             <Success text="Account created successfully" />
             <Button onClick={onSuccess}>Close</Button>
           </div>
         )}
 
         {page === 'import' && (
-          <div className="flex flex-col gap-6 min-h-[380px] min-w-0 w-full max-w-full overflow">
+          <div className="overflow flex min-h-[380px] w-full max-w-full min-w-0 flex-col gap-6">
             <CoaImportCsv
               companyId={companyId}
               accountTypeByKey={accountTypeByKey}
@@ -353,7 +351,7 @@ export function AddNewCoaDialog({
         <DrawerContent>
           <DrawerHeader className={showHeader ? '' : 'sr-only'}>
             <DrawerTitle>{title}</DrawerTitle>
-            <DrawerDescription className="text-muted-foreground text-sm sr-only ">
+            <DrawerDescription className="text-muted-foreground sr-only text-sm">
               Add a new account
             </DrawerDescription>
           </DrawerHeader>
@@ -368,7 +366,7 @@ export function AddNewCoaDialog({
       <DialogContent overlayClassName={overlayClassName} className="">
         <DialogHeader className={showHeader ? '' : 'sr-only'}>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm sr-only">
+          <DialogDescription className="text-muted-foreground sr-only text-sm">
             Add a new account
           </DialogDescription>
         </DialogHeader>

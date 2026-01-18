@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import { knexClient as knex } from '../src/db/knexClient.js';
 import { logger } from '../src/shared/utils/logger.js';
 

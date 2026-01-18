@@ -1,9 +1,11 @@
-import { defineConfig } from 'eslint/config';
 import pluginReact from 'eslint-plugin-react';
 import pluginReactHooks from 'eslint-plugin-react-hooks';
-import simpleImportSort from 'eslint-plugin-simple-import-sort';
+import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+
+// Consider replacing setup with this only after some review
+// export default [...tanstackConfig]
 
 export default defineConfig([
   {
@@ -32,16 +34,11 @@ export default defineConfig([
     },
   })),
 
-  // Global JS/TS rules - only import sorting
+  // Global JS/TS rules
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    plugins: { 'simple-import-sort': simpleImportSort },
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
-    },
-    rules: {
-      'simple-import-sort/imports': 'error',
-      'simple-import-sort/exports': 'error',
     },
   },
 

@@ -9,10 +9,8 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import {
-  type ExchangeRateItem,
-  newExchangeRate,
-} from './exchangeRate.types.js';
+import type { ExchangeRateItem } from './exchangeRate.types.js';
+import { newExchangeRate } from './exchangeRate.types.js';
 
 export async function createNewExRates(
   data: ExchangeRateItem[],

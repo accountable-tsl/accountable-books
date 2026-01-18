@@ -2,8 +2,8 @@ import type { Knex } from 'knex';
 
 import type { DemoFilter } from '../../shared/config.js';
 import { deleteDemoData, getDemoUserMap } from '../../shared/utils.js';
+import type { CompanyContactsMap } from './contacts.data.js';
 import {
-  type CompanyContactsMap,
   generateDemoContactsMap,
   getRawContactsForInsertion,
 } from './contacts.data.js';

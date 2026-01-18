@@ -1,5 +1,5 @@
-import type { CategorizationTransaction } from '@/modules/accounting/categorization/model/types';
 import { groupCategorizationTransactions } from '@/modules/accounting/categorization';
+import type { CategorizationTransaction } from '@/modules/accounting/categorization/model/types';
 
 /**
  * Realistic banks from demo data
@@ -218,12 +218,16 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     categorization_candidate_id: null,
     categorization_status: 'uncategorized',
     company_id: 'company-001',
-    is_editable: true,
+    is_editable: false, // Locked period - cannot be edited
     review_notes: null,
     files: [
       {
-        file_name: 'invoice-001.pdf',
-        file_id: 'file-uncat-exp-001',
+        id: 'file-uncat-exp-001',
+        name: 'invoice-001.pdf',
+        key: 'txn-files/file-uncat-exp-001',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 245_000,
       },
     ],
   });
@@ -322,14 +326,15 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     categorization_candidate_id: null,
     categorization_status: 'proposed',
     company_id: 'company-001',
-    is_editable: true,
+    is_editable: false, // Locked period - cannot be edited
     review_notes: null,
     files: [
       {
         id: 'file-prop-single-001',
         name: 'staples-receipt.pdf',
+        key: 'txn-files/file-prop-single-001',
+        bucket_name: 'accountable-txn-files',
         type: 'application/pdf',
-        url: 'https://file-examples.com/storage/fe4481f186694c3e4989334/2017/10/file-example_PDF_500_kB.pdf',
         size_bytes: 500_000,
       },
     ],
@@ -383,12 +388,20 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     review_notes: 'Reviewed and approved',
     files: [
       {
-        file_name: 'legal-services-invoice.pdf',
-        file_id: 'file-posted-single-001',
+        id: 'file-posted-single-001',
+        name: 'legal-services-invoice.pdf',
+        key: 'txn-files/file-posted-single-001',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 320_000,
       },
       {
-        file_name: 'payment-confirmation.pdf',
-        file_id: 'file-posted-single-002',
+        id: 'file-posted-single-002',
+        name: 'payment-confirmation.pdf',
+        key: 'txn-files/file-posted-single-002',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 180_000,
       },
     ],
   });
@@ -441,8 +454,12 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     review_notes: null,
     files: [
       {
-        file_name: 'consulting-invoice-q1.pdf',
-        file_id: 'file-posted-income-001',
+        id: 'file-posted-income-001',
+        name: 'consulting-invoice-q1.pdf',
+        key: 'txn-files/file-posted-income-001',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 410_000,
       },
     ],
   });
@@ -495,8 +512,12 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     review_notes: null,
     files: [
       {
-        file_name: 'amazon-order-computer.pdf',
-        file_id: 'file-split-prop-001',
+        id: 'file-split-prop-001',
+        name: 'amazon-order-computer.pdf',
+        key: 'txn-files/file-split-prop-001',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 380_000,
       },
     ],
   });
@@ -548,8 +569,12 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     review_notes: null,
     files: [
       {
-        file_name: 'amazon-order-supplies.pdf',
-        file_id: 'file-split-prop-002',
+        id: 'file-split-prop-002',
+        name: 'amazon-order-supplies.pdf',
+        key: 'txn-files/file-split-prop-002',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 290_000,
       },
     ],
   });
@@ -602,8 +627,12 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     review_notes: 'Team event expense',
     files: [
       {
-        file_name: 'marios-restaurant-receipt.pdf',
-        file_id: 'file-split-posted-001',
+        id: 'file-split-posted-001',
+        name: 'marios-restaurant-receipt.pdf',
+        key: 'txn-files/file-split-posted-001',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 195_000,
       },
     ],
   });
@@ -655,8 +684,12 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     review_notes: null,
     files: [
       {
-        file_name: 'city-cab-receipt.pdf',
-        file_id: 'file-split-posted-002',
+        id: 'file-split-posted-002',
+        name: 'city-cab-receipt.pdf',
+        key: 'txn-files/file-split-posted-002',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 125_000,
       },
     ],
   });
@@ -709,8 +742,12 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     review_notes: 'Laptops approved for IT expansion',
     files: [
       {
-        file_name: 'laptop-invoice.pdf',
-        file_id: 'file-split-mixed-001',
+        id: 'file-split-mixed-001',
+        name: 'laptop-invoice.pdf',
+        key: 'txn-files/file-split-mixed-001',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 450_000,
       },
     ],
   });
@@ -762,8 +799,12 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     review_notes: null,
     files: [
       {
-        file_name: 'furniture-invoice.pdf',
-        file_id: 'file-split-mixed-002',
+        id: 'file-split-mixed-002',
+        name: 'furniture-invoice.pdf',
+        key: 'txn-files/file-split-mixed-002',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 275_000,
       },
     ],
   });
@@ -816,12 +857,20 @@ function generateTestCategorizationTransactions(): CategorizationTransaction[] {
     review_notes: 'Conference ticket for employee training',
     files: [
       {
-        file_name: 'techconf-ticket.pdf',
-        file_id: 'file-fx-001',
+        id: 'file-fx-001',
+        name: 'techconf-ticket.pdf',
+        key: 'txn-files/file-fx-001',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 520_000,
       },
       {
-        file_name: 'payment-receipt-eur.pdf',
-        file_id: 'file-fx-002',
+        id: 'file-fx-002',
+        name: 'payment-receipt-eur.pdf',
+        key: 'txn-files/file-fx-002',
+        bucket_name: 'accountable-txn-files',
+        type: 'application/pdf',
+        size_bytes: 165_000,
       },
     ],
   });

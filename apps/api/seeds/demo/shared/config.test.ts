@@ -1,17 +1,19 @@
 import { describe, expect, test } from 'vitest';
 
+import type {
+  DemoCompanyType,
+  DemoCountry,
+  DemoCountryCode,
+  DemoCurrency,
+  DemoCurrencyCode,
+  DemoFilter,
+} from './config.js';
 import {
   COMPANY_TYPES,
   COUNTRY_CODES,
   CURRENCY_CODES,
   DEMO_COUNTRIES,
   DEMO_CURRENCIES,
-  type DemoCompanyType,
-  type DemoCountry,
-  type DemoCountryCode,
-  type DemoCurrency,
-  type DemoCurrencyCode,
-  type DemoFilter,
 } from './config.js';
 
 describe('Country Configuration', () => {

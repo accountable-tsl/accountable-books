@@ -37,12 +37,12 @@ import {
   createCompleteCompanyOnboardingState,
   createCompleteUserOnboardingState,
 } from '../onboarding/onboarding.utils.js';
-import {
-  type CreateUserDirectResponse,
-  type NewCompanyRes,
-  type NewCompanyResCamel,
-  newSignup,
+import type {
+  CreateUserDirectResponse,
+  NewCompanyRes,
+  NewCompanyResCamel,
 } from './signup.types.js';
+import { newSignup } from './signup.types.js';
 
 /**
  * Registers a new user and company.

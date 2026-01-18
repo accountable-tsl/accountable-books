@@ -16,6 +16,7 @@ import { useCompany } from '@/domains-pending-migration/company/store';
 import logo from '../../assets/images/mainlogo.png';
 import { useSideBarContext } from '../../contexts/SideBarContext';
 import Button from '../Button/Button';
+
 export default function Header() {
   const { toggle } = useSideBarContext();
   const { companyId } = useCompany();

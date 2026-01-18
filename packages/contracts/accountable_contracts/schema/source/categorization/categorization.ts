@@ -159,3 +159,60 @@ export type CategorizationTransaction = {
    */
   client_ref_id?: string | null;
 };
+
+// Parameters for getting categorization statistics
+export const getCategorizationStatsParams = z
+  .object({
+    companyId: z.string(),
+    bankAccountIds: z.array(z.string()).optional(),
+    dateFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    dateTo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasDateFrom = data.dateFrom !== undefined;
+    const hasDateTo = data.dateTo !== undefined;
+
+    // If one date is provided, both must be provided
+    if (hasDateFrom !== hasDateTo) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'Both dateFrom and dateTo must be provided together, or neither',
+        path: hasDateFrom ? ['dateTo'] : ['dateFrom'],
+      });
+      return;
+    }
+
+    // If both dates are provided, dateFrom must be <= dateTo
+    const dateFrom = data.dateFrom;
+    const dateTo = data.dateTo;
+    if (dateFrom !== undefined && dateTo !== undefined && dateFrom > dateTo) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'dateFrom must be less than or equal to dateTo',
+        path: ['dateFrom'],
+      });
+    }
+  });
+export type GetCategorizationStatsParams = z.infer<
+  typeof getCategorizationStatsParams
+>;
+
+// Response type for categorization stats
+export interface CategorizationStatsResponse {
+  totalUncategorized: number;
+  totalProposed: number;
+  oldestUncategorizedDate: string | null; // YYYY-MM-DD
+  newestUncategorizedDate: string | null; // YYYY-MM-DD
+  // Only present when dateFrom and dateTo are provided
+  uncategorizedInRangeCount?: number;
+  proposedInRangeCount?: number;
+  hasUncategorizedOutsideRange?: boolean;
+  uncategorizedOutsideRangeCount?: number;
+}

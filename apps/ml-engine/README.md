@@ -5,6 +5,7 @@
 Automatically suggests which account to use when categorizing bank transactions.
 
 **Example:** You have a $500 transaction from "Legal Services Inc" - the ML engine suggests:
+
 - Account: "Professional Fees"
 - Confidence: 85%
 - Accrual suggestion: "Accrued Professional Fees" (if needed)
@@ -23,12 +24,14 @@ Automatically suggests which account to use when categorizing bank transactions.
 ## Current Status: Phase 0 (Baseline)
 
 **What's Live:**
+
 - ✅ Text matching using embeddings (AI-powered similarity)
 - ✅ Historical pattern learning (remembers past choices)
 - ✅ Confidence scores and explanations
 - ✅ Accrual recommendations (cash vs accrual basis)
 
 **What's Not Yet:**
+
 - ❌ Machine learning training (using heuristics now)
 - ❌ Accuracy metrics (no evaluation yet)
 - ❌ Multi-account splits (one account per transaction only)
@@ -44,6 +47,7 @@ Automatically suggests which account to use when categorizing bank transactions.
 ## Local Development
 
 **Start the server:**
+
 ```bash
 cd apps/ml-engine
 poetry install
@@ -51,11 +55,13 @@ poetry run uvicorn ml_engine.main:app --reload --port 8001
 ```
 
 **Run tests:**
+
 ```bash
 poetry run pytest
 ```
 
 **Check API docs:**
+
 ```
 http://localhost:8001/docs
 ```
@@ -123,16 +129,19 @@ ml_engine/
 ## What's Next: Roadmap
 
 **Phase 1: Training** (After collecting data)
+
 - Train Model A on labeled account types
 - Use LightGBM classifier
 - Add SHAP explanations
 
 **Phase 2: Ranking** (After 30-50 companies)
+
 - Train Model B with LambdaRank
 - Learn tenant-specific patterns
 - Improve historical matching
 
 **Phase 3: Evaluation** (Ongoing)
+
 - Build test framework
 - Track accuracy over time
 - Set up monitoring

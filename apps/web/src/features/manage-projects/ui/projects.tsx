@@ -4,10 +4,8 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
-import {
-  DataTableToolbar,
-  type DataTableToolbarConfig,
-} from '@/components/data-table/toolbar';
+import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
+import { DataTableToolbar } from '@/components/data-table/toolbar';
 import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import ErrorPage from '@/components/ErrorPage';
@@ -40,7 +38,7 @@ export const Projects = () => {
 
   const AddButton = () => (
     <Button size="sm" className="max-h-full" onClick={openDialog}>
-      <Plus className="w-3 h-3" /> Add New Project
+      <Plus className="h-3 w-3" /> Add New Project
     </Button>
   );
 
@@ -80,7 +78,7 @@ export const Projects = () => {
   }
 
   return (
-    <div className="flex flex-col max-w-full overflow-clip p-4 gap-4">
+    <div className="flex max-w-full flex-col gap-4 overflow-clip p-4">
       <DataTable table={table}>
         <DataTableToolbar
           table={table}

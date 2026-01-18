@@ -44,8 +44,12 @@ export function groupCategorizationTransactions(
 
     // Check if we have an exchange rate override for this transaction
     const overrideRate = exchangeRateOverrides?.get(id);
+    // NOTE: The fallback to 1.0 should NEVER happen in production.
+    // All exchange rates are NOT NULL in the database (bank_transactions, ledger_entries, candidate_lines).
+    // If a customer complains about incorrect exchange rates defaulting to 1.0, there is a serious
+    // bug in our business logic that needs immediate investigation.
     const effectiveExchangeRate =
-      overrideRate ?? firstLine.custom_exchange_rate;
+      overrideRate ?? firstLine.custom_exchange_rate ?? 1.0;
 
     // Recalculate reporting_amount if we have an override
     const txnsWithRecalculatedAmounts = txns.map((txn) => {
@@ -175,12 +179,18 @@ export function groupCategorizationTransactions(
       ledgerTransactionId: firstLine.ledger_transaction_id,
       candidateId: firstLine.candidate_id,
 
+      // isEditable: false if ANY entry has is_editable === false (conservative approach)
+      // Edge case: Split transaction where some entries are locked and others aren't (different fs_date values)
+      // Approach: Parent row shows locked if ANY entry is locked (conservative, safer)
+      // Rationale: Prevents partial edits that could cause data inconsistency
+      isEditable: txns.every((txn) => txn.is_editable),
+
       // Files: only at parent level for uncategorized transactions (no entries yet)
       // For proposed/posted transactions, files are at entry level
       files:
         firstLine.categorization_status === 'uncategorized'
-          ? firstLine.files
-          : undefined,
+          ? (firstLine.files ?? [])
+          : [],
 
       // Only create entries for proposed/posted transactions (they have actual legs)
       // Uncategorized transactions have no legs yet, so no entries
@@ -216,7 +226,8 @@ export function groupCategorizationTransactions(
               projectName: txn.project_name,
               nativeAmount: txn.native_amount,
               reportingAmount: txn.reporting_amount,
-              exchangeRate: txn.custom_exchange_rate.toFixed(4),
+              // NOTE: Same as above - this fallback should never be needed in production
+              exchangeRate: (txn.custom_exchange_rate ?? 1.0).toFixed(4),
               spent: txn.reporting_amount > 0 ? txn.reporting_amount : 0,
               received:
                 txn.reporting_amount < 0 ? Math.abs(txn.reporting_amount) : 0,
@@ -234,12 +245,21 @@ export function groupCategorizationTransactions(
               reviewNotes: txn.review_notes,
               client_ref_id: txn.client_ref_id ?? undefined,
               // Files are at entry level for proposed/posted transactions
-              files: txn.files,
+              files: txn.files ?? [],
+              // Each entry has its own isEditable value based on its fs_date
+              isEditable: txn.is_editable,
             })),
     });
   }
 
   result.sort((a, b) => {
+    // 0. Locked transactions (isEditable === false) go last
+    // Editable transactions (true) come before locked (false)
+    if (a.isEditable !== b.isEditable) {
+      // true (editable) comes before false (locked)
+      return a.isEditable ? -1 : 1;
+    }
+
     // 1. bank_display_name (asc)
     if (a.bankName !== b.bankName) {
       return a.bankName.localeCompare(b.bankName);

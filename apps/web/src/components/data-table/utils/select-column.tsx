@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
+
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +29,7 @@ export function createSelectionColumn<T>(
       <Checkbox
         className={options.cellCheckboxClassName}
         checked={row.getIsSelected()}
+        disabled={!row.getCanSelect()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="Select row"
       />

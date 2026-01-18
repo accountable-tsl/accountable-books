@@ -33,7 +33,7 @@ export function AddBankAccountDialog({
       <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent
           overlayClassName={overlayClassName}
-          className="sm:max-w-md max-w-md"
+          className="max-w-md sm:max-w-md"
         >
           <DrawerHeader className={showHeader ? '' : 'sr-only'}>
             <DrawerTitle>Add Bank Account</DrawerTitle>

@@ -12,14 +12,12 @@ import {
   successResponse,
 } from '../../../shared/utils/response.utils.js';
 import { generateCacheKey } from '../../../shared/utils/string.utils.js';
-import {
-  type FetchBanksOptions,
-  fetchBanksOptions,
-  type FetchBanksResponse,
-  newBank,
-  newBankInput,
-  type NewInput,
+import type {
+  FetchBanksOptions,
+  FetchBanksResponse,
+  NewInput,
 } from './banks.types.js';
+import { fetchBanksOptions, newBank, newBankInput } from './banks.types.js';
 
 export async function addNewBank(params: {
   data: NewInput[];

@@ -8,12 +8,11 @@ import {
 import { useLocation, useNavigate } from 'react-router';
 
 import { useCompanyDetails } from '@/domains-pending-migration/company/hooks';
+import type { LogoutOptions, SessionContextType } from '@/modules/auth';
 import {
   authStore,
   clearSessionFn,
   handleLogout,
-  type LogoutOptions,
-  type SessionContextType,
   useSessionQuery,
 } from '@/modules/auth';
 import { routes } from '@/shared/routes/routes';
@@ -85,13 +84,13 @@ export const SessionProvider = ({
         }
       })();
     }
-  }, [data, isError, isPublic, navigate, setAuth]);
+  }, [data, isError, isPublic, navigate, setAuth, authData.csrfToken, authData.user, clearAuth, isLoadingSession, success]);
 
   useEffect(() => {
     if (authData?.user && authData.csrfToken && user?.id !== authData.user.id) {
       setAuth(authData.user, authData.csrfToken);
     }
-  }, [authData, user]);
+  }, [authData, user, setAuth]);
 
   const isLoggedIn = !!user;
   const companyId = user?.currentCompanyId;
@@ -172,7 +171,12 @@ export const SessionProvider = ({
       isLoading,
       user,
       onboarding,
-      companyDataResponse,
+      company,
+      companyId,
+      companyType,
+      hasAppAccess,
+      isLoggedIn,
+      setAuth,
       tenantRoutes,
       refetchSession,
       refetchCompany,

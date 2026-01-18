@@ -12,13 +12,12 @@ import {
   createHybridSearch,
   defineSearchableColumns,
 } from '../../shared/utils/search.utils.js';
-import {
-  type GetProjectsParams,
-  getProjectsParams,
-  type NewProjectInput,
-  newProjectInput,
-  type ProjectResponse,
+import type {
+  GetProjectsParams,
+  NewProjectInput,
+  ProjectResponse,
 } from './projects.types.js';
+import { getProjectsParams, newProjectInput } from './projects.types.js';
 
 export async function getProjects(
   input: GetProjectsParams,

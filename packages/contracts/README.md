@@ -55,11 +55,11 @@ The contracts package includes a data generation pipeline for sharing structured
 
 ```typescript
 // Import typed data (validated if schema exists)
-import { defaultAccountTypes } from '@accountable-books/contracts/data';
-
 // Import JSON directly (runtime access)
-import { defaultAccountTypesJson } from '@accountable-books/contracts/data';
-
+import {
+  defaultAccountTypes,
+  defaultAccountTypesJson,
+} from '@accountable-books/contracts/data';
 // Or import from specific file
 import { defaultAccountTypes } from '@accountable-books/contracts/data/generated/ts/account/account-types';
 ```

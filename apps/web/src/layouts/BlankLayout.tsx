@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router';
+
 // import { AnimatePresence, motion } from "framer-motion";
 
 export default function BlankLayout() {

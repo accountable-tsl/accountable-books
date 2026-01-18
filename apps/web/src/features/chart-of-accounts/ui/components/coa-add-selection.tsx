@@ -30,9 +30,9 @@ export function AddAccountSelection() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" className="ml-px px-2">
-            <Plus className="w-4 h-4" />
+            <Plus className="h-4 w-4" />
             Add
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
 

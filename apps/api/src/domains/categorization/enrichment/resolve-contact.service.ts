@@ -6,20 +6,22 @@ import { fileURLToPath } from 'url';
 import { knexClient } from '../../../db/knexClient.js';
 import { generateFingerprintSync, logger } from '../../../shared/index.js';
 import type { ContactType } from '../../contacts/index.js';
-import {
-  type CompiledMerchantPattern,
-  type ContactMatchConfidence,
-  type ContactResolutionResult,
-  type EnrichmentContactType,
-  type MccReference,
-  type MccReferenceFile,
-  mccReferenceFileSchema,
-  type MerchantPattern,
-  type MerchantPatternsFile,
-  merchantPatternsFileSchema,
+import type {
+  CompiledMerchantPattern,
+  ContactMatchConfidence,
+  ContactResolutionResult,
+  EnrichmentContactType,
+  MccReference,
+  MccReferenceFile,
+  MerchantPattern,
+  MerchantPatternsFile,
 } from './enrichment.types.js';
 import {
-  type AliasMatcher,
+  mccReferenceFileSchema,
+  merchantPatternsFileSchema,
+} from './enrichment.types.js';
+import type { AliasMatcher } from './resolve-contact-heuristics.js';
+import {
   buildAliasMatcher,
   extendAliasMatcher,
   resolveDescriptionHeuristics,

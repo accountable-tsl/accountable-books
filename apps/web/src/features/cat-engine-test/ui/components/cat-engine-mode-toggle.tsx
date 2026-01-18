@@ -19,7 +19,7 @@ export function CatEngineModeToggle({
   onModeChange,
 }: CatEngineModeToggleProps) {
   return (
-    <div className="inline-flex items-center rounded-md border border-input bg-background p-0.5 shadow-sm h-7.5">
+    <div className="border-input bg-background inline-flex h-7.5 items-center rounded-md border p-0.5 shadow-sm">
       <Tooltip>
         <TooltipTrigger asChild>
           <button
@@ -27,7 +27,7 @@ export function CatEngineModeToggle({
             onClick={() => onModeChange('review')}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-all',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
               'disabled:pointer-events-none disabled:opacity-50',
               mode === 'review'
                 ? 'bg-background text-foreground shadow-sm'
@@ -52,7 +52,7 @@ export function CatEngineModeToggle({
             onClick={() => onModeChange('autosave')}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-all',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
               'disabled:pointer-events-none disabled:opacity-50',
               mode === 'autosave'
                 ? 'bg-background text-foreground shadow-sm'

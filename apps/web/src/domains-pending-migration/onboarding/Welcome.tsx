@@ -37,15 +37,15 @@ export default function Welcome() {
       clearTimeout(setupTimer);
       clearTimeout(doneTimer);
     };
-  }, [navigate]);
+  }, [navigate, companyId, tenantRoutes?.general]);
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center p-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center p-6">
       <ConfettiCelebration
         isActive={isConfettiActive}
         duration={confettiDuration}
       />
       <div className="flex flex-col items-center">
-        <div className="w-48 h-auto">
+        <div className="h-auto w-48">
           <DotLottieReact
             src="https://lottie.host/cd21f427-784a-4c41-a8ad-996513ccbc53/PXZnpvunKI.lottie"
             loop

@@ -18,7 +18,7 @@ export function SignupSelector({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="text-lg flex gap-1 items-center">
+        <div className="flex items-center gap-1 text-lg">
           Which best describes you?{' '}
           <span className="text-sm">
             <TooltipHelper
@@ -30,7 +30,7 @@ export function SignupSelector({
         </div>
         {error && (
           <div
-            className={`text-sm text-destructive`}
+            className={`text-destructive text-sm`}
             data-testid="signup-companyType-error"
           >
             {error}
@@ -43,7 +43,7 @@ export function SignupSelector({
           <Card
             key={c.key}
             className={cn(
-              'p-2 md:p-4 transition-colors cursor-pointer',
+              'cursor-pointer p-2 transition-colors md:p-4',
               selectedType === c.key
                 ? 'bg-primary/10 border-primary'
                 : selectedType
@@ -64,8 +64,8 @@ export function SignupSelector({
               </div>
 
               <div className="text-sm md:text-base">{c.description}</div>
-              <hr className="md:hidden opacity-70 my-1" />
-              <div className="text-xs italic text-muted-foreground/80">
+              <hr className="my-1 opacity-70 md:hidden" />
+              <div className="text-muted-foreground/80 text-xs italic">
                 Ideal for: {c.idealFor}
               </div>
             </div>

@@ -1,12 +1,9 @@
 /**
  * Build candidate explanation from rule result
  */
-
 import type { NewLedgerTransactionData } from '../../ledgers/ledgers.types.js';
-import {
-  type CandidateInput,
-  candidateInput,
-} from '../candidates/candidates.types.js';
+import type { CandidateInput } from '../candidates/candidates.types.js';
+import { candidateInput } from '../candidates/candidates.types.js';
 import type { RuleEngineResult } from '../rules/rules.engine.types.js';
 import type { CategorizeLine } from '../rules/rules-def.types.js';
 

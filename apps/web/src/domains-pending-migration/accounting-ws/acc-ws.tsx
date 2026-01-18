@@ -137,68 +137,68 @@ export function AccountingWorkspace() {
 
   const quickActionData: ActionCardProps[] = [
     {
-      icon: <Building2 className="w-6 h-6 text-muted-foreground" />,
+      icon: <Building2 className="text-muted-foreground h-6 w-6" />,
       title: 'Bank Transactions',
       actions: [
         {
           label: 'Upload',
-          icon: <Upload className="w-4 h-4" />,
+          icon: <Upload className="h-4 w-4" />,
           onClick: () => navigate(tenantRoutes.banking.upload()),
         },
         {
           label: 'Connect',
-          icon: <Link className="w-4 h-4" />,
+          icon: <Link className="h-4 w-4" />,
           onClick: () => navigate(tenantRoutes.banking.connect()),
         },
       ],
     },
 
     {
-      icon: <Brain className="w-6 h-6 text-muted-foreground" />,
+      icon: <Brain className="text-muted-foreground h-6 w-6" />,
       title: 'Categorization Engine',
-      actions: [{ label: 'Visit', icon: <ChevronRight className="w-4 h-4" /> }],
+      actions: [{ label: 'Visit', icon: <ChevronRight className="h-4 w-4" /> }],
       classNames: { actionsBox: 'grid-cols-1' },
     },
 
     {
-      icon: <NotepadText className="w-6 h-6 text-muted-foreground" />,
+      icon: <NotepadText className="text-muted-foreground h-6 w-6" />,
       title: 'Journals',
       actions: [
-        { label: 'View', icon: <Eye className="w-4 h-4" /> },
-        { label: 'Create new', icon: <ChevronRight className="w-4 h-4" /> },
+        { label: 'View', icon: <Eye className="h-4 w-4" /> },
+        { label: 'Create new', icon: <ChevronRight className="h-4 w-4" /> },
       ],
       //   classNames: { actionsBox: "grid-cols-1" },
     },
   ];
 
   return (
-    <div className="flex min-w-0 w-full min-h-0 h-full gap-4 p-4 divide-x">
-      <div className="flex-1 w-full min-h-0">
-        <div className="p-4 flex flex-col">
-          <div className="text-sm text-muted-foreground">Quick Actions</div>
+    <div className="flex h-full min-h-0 w-full min-w-0 gap-4 divide-x p-4">
+      <div className="min-h-0 w-full flex-1">
+        <div className="flex flex-col p-4">
+          <div className="text-muted-foreground text-sm">Quick Actions</div>
           <Separator className="mb-4" />
-          <div className="grid grid-cols-3 gap-4 min-h-[5rem]">
+          <div className="grid min-h-[5rem] grid-cols-3 gap-4">
             {quickActionData.map((data, index) => (
               <ActionCard key={index} {...data} />
             ))}
           </div>
         </div>
 
-        <div className="p-4 flex flex-col">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex flex-col p-4">
+          <div className="text-muted-foreground text-sm">
             Bank Account Insights
           </div>
           <Separator className="mb-4" />
-          <div className="grid grid-cols-3 gap-4 min-h-[5rem]">
-            <div className="h-full rounded-md border p-4 flex flex-col justify-between gap-2 divide-y overflow-clip">
+          <div className="grid min-h-[5rem] grid-cols-3 gap-4">
+            <div className="flex h-full flex-col justify-between gap-2 divide-y overflow-clip rounded-md border p-4">
               {!anyBankAccountWithoutExchangeRate && (
                 <SimpleTooltip
                   content="Total native balances from bank feeds converted into reporting currency with today’s rate. Use it to see what the bank statements translate to right now"
                   contentClassName="text-center"
                 >
-                  <div className="grid truncate grid-cols-2 gap-2">
-                    <div className="text-sm truncate">Cash in Bank</div>
-                    <div className="text-right truncate">
+                  <div className="grid grid-cols-2 gap-2 truncate">
+                    <div className="truncate text-sm">Cash in Bank</div>
+                    <div className="truncate text-right">
                       <FormattedAmount
                         amount={totalBankBalanceRep}
                         currency={reportingCurrencyCode}
@@ -212,9 +212,9 @@ export function AccountingWorkspace() {
                 content="Current balances from the GL, stored in your reporting currency. This is the amount that will flow into financial statements"
                 contentClassName="text-center"
               >
-                <div className="grid truncate grid-cols-2 gap-2">
-                  <div className="text-sm truncate">Ledger Balances</div>
-                  <div className="text-right truncate">
+                <div className="grid grid-cols-2 gap-2 truncate">
+                  <div className="truncate text-sm">Ledger Balances</div>
+                  <div className="truncate text-right">
                     <FormattedAmount
                       amount={totalLedgerBalance}
                       currency={reportingCurrencyCode}
@@ -223,22 +223,22 @@ export function AccountingWorkspace() {
                   </div>
                 </div>
               </SimpleTooltip>
-              <div className="grid truncate grid-cols-2 gap-2">
-                <div className="text-sm truncate">No of bank accounts</div>
-                <div className="text-right truncate">{bankAccounts.length}</div>
+              <div className="grid grid-cols-2 gap-2 truncate">
+                <div className="truncate text-sm">No of bank accounts</div>
+                <div className="truncate text-right">{bankAccounts.length}</div>
               </div>
               {showNeedsReview && (
-                <div className="grid truncate grid-cols-2 gap-2">
-                  <div className="text-sm truncate">Needs review</div>
-                  <div className="text-right truncate">
+                <div className="grid grid-cols-2 gap-2 truncate">
+                  <div className="truncate text-sm">Needs review</div>
+                  <div className="truncate text-right">
                     {totalNeedsReviewCount}
                   </div>
                 </div>
               )}
               {showTotalUncategorized && (
-                <div className="grid truncate grid-cols-2 gap-2">
-                  <div className="text-sm truncate">Total Uncategorized</div>
-                  <div className="text-right truncate">
+                <div className="grid grid-cols-2 gap-2 truncate">
+                  <div className="truncate text-sm">Total Uncategorized</div>
+                  <div className="truncate text-right">
                     {totalUncategorizedCount}
                   </div>
                 </div>
@@ -247,38 +247,38 @@ export function AccountingWorkspace() {
             {bankAccounts.slice(0, 2).map((acc) => (
               <div
                 key={acc.id}
-                className="h-full shadow-sm rounded-md border flex flex-col overflow-clip"
+                className="flex h-full flex-col overflow-clip rounded-md border shadow-sm"
               >
-                <div className="flex-shrink-0 p-4 pb-2 flex">
-                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-muted dark:bg-white/80 flex items-center justify-center opacity-80 overflow-clip">
+                <div className="flex flex-shrink-0 p-4 pb-2">
+                  <div className="bg-muted flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-clip rounded-full opacity-80 dark:bg-white/80">
                     {acc.bankLogo ? (
                       <img
                         src={acc.bankLogo}
                         alt="bank logo"
-                        className="w-8 h-8 object-contain"
+                        className="h-8 w-8 object-contain"
                         style={{ imageRendering: 'auto' }}
                       />
                     ) : (
-                      <Building className="w-8 h-8 text-muted-foreground" />
+                      <Building className="text-muted-foreground h-8 w-8" />
                     )}
                   </div>
                   <Separator orientation="vertical" className="mx-2" />
                   <div className="overflow-hidden">
-                    <div className="flex gap-1 items-baseline">
+                    <div className="flex items-baseline gap-1">
                       <span className="truncate text-[0.95rem]">
                         {acc.displayName}
                       </span>
-                      <span className="text-[0.75rem] underline decoration-dotted text-muted-foreground">
+                      <span className="text-muted-foreground text-[0.75rem] underline decoration-dotted">
                         {acc.currencyCode}
                       </span>
                     </div>
-                    <div className="text-[0.85rem] font-light truncate text-muted-foreground">
+                    <div className="text-muted-foreground truncate text-[0.85rem] font-light">
                       {acc.bankName} | **{acc.mask}
                     </div>
                   </div>
                 </div>
                 <Separator />
-                <div className="flex-1 p-2 px-4 space-y-2">
+                <div className="flex-1 space-y-2 p-2 px-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="truncate text-[0.9rem] font-medium">
@@ -288,7 +288,7 @@ export function AccountingWorkspace() {
                           showSymbol={true}
                         />
                       </div>
-                      <div className="text-[0.80rem] font-light text-muted-foreground">
+                      <div className="text-muted-foreground text-[0.80rem] font-light">
                         Statement Balance
                       </div>
                     </div>
@@ -300,7 +300,7 @@ export function AccountingWorkspace() {
                           showSymbol={true}
                         />
                       </div>
-                      <div className="text-[0.80rem] font-light text-muted-foreground">
+                      <div className="text-muted-foreground text-[0.80rem] font-light">
                         Ledger Balance
                       </div>
                     </div>
@@ -310,7 +310,7 @@ export function AccountingWorkspace() {
                       <div className="truncate text-[0.9rem] font-medium">
                         {acc.uncategorizedTxCount}
                       </div>
-                      <div className="text-[0.80rem] font-light text-muted-foreground">
+                      <div className="text-muted-foreground text-[0.80rem] font-light">
                         Uncategorized
                       </div>
                     </div>
@@ -318,7 +318,7 @@ export function AccountingWorkspace() {
                       <div className="truncate text-[0.9rem] font-medium">
                         {acc.needsReviewTxCount}
                       </div>
-                      <div className="text-[0.80rem] font-light text-muted-foreground">
+                      <div className="text-muted-foreground text-[0.80rem] font-light">
                         Needs Review
                       </div>
                     </div>
@@ -329,22 +329,22 @@ export function AccountingWorkspace() {
           </div>
         </div>
 
-        <div className="p-4 flex flex-col">
-          <div className="text-sm text-muted-foreground">Other Navigation</div>
+        <div className="flex flex-col p-4">
+          <div className="text-muted-foreground text-sm">Other Navigation</div>
           <Separator className="mb-4" />
-          <div className="grid grid-cols-3 gap-4 min-h-[5rem]">
+          <div className="grid min-h-[5rem] grid-cols-3 gap-4">
             <div
-              className="h-full shadow-sm rounded-md p-4 border flex items-center gap-2 opacity-50 cursor-not-allowed"
+              className="flex h-full cursor-not-allowed items-center gap-2 rounded-md border p-4 opacity-50 shadow-sm"
 
               //   onClick={() => navigate("/accounting-ws/transactions")}
             >
               <div>Account Transactions</div>
               <div>
-                <ChevronRightCircle className="w-4 h-4" />
+                <ChevronRightCircle className="h-4 w-4" />
               </div>
             </div>
             <div
-              className="h-full shadow-sm rounded-md p-4 border flex items-center gap-2 cursor-pointer"
+              className="flex h-full cursor-pointer items-center gap-2 rounded-md border p-4 shadow-sm"
               onClick={() => {
                 localStorage.setItem('accSetupTab', 'chart-of-accounts');
                 navigate(tenantRoutes?.accounting.setup());
@@ -352,11 +352,11 @@ export function AccountingWorkspace() {
             >
               <div>Chart of Accounts</div>
               <div>
-                <ChevronRightCircle className="w-4 h-4" />
+                <ChevronRightCircle className="h-4 w-4" />
               </div>
             </div>
             <div
-              className="h-full shadow-sm rounded-md p-4 border flex items-center gap-2 cursor-pointer"
+              className="flex h-full cursor-pointer items-center gap-2 rounded-md border p-4 shadow-sm"
               onClick={() => {
                 localStorage.setItem('accSetupTab', 'financial-settings');
                 navigate(tenantRoutes?.accounting.setup());
@@ -364,42 +364,42 @@ export function AccountingWorkspace() {
             >
               <div>Financial Settings</div>
               <div>
-                <ChevronRightCircle className="w-4 h-4" />
+                <ChevronRightCircle className="h-4 w-4" />
               </div>
             </div>
           </div>
         </div>
       </div>
       {is1440 && (
-        <div className="flex-shrink-0 min-w-sm w-sm ml-auto flex flex-col min-h-0">
-          <div className="text-sm text-muted-foreground pt-4 flex-shrink-0">
+        <div className="ml-auto flex min-h-0 w-sm min-w-sm flex-shrink-0 flex-col">
+          <div className="text-muted-foreground flex-shrink-0 pt-4 text-sm">
             Bank Accounts
           </div>
           <Separator className="mb-4" />
-          <div className="flex flex-col gap-4 overflow-y-auto min-h-0 h-full scrollbar-thin-2px">
+          <div className="scrollbar-thin-2px flex h-full min-h-0 flex-col gap-4 overflow-y-auto">
             {(groupedBankAccounts ?? []).map((g) => (
               <div
                 key={g.bankId}
-                className="border rounded-md p-2 flex flex-col overflow-clip"
+                className="flex flex-col overflow-clip rounded-md border p-2"
               >
-                <div className="flex-shrink-0 px-2 flex gap-2 items-center">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-muted dark:bg-primary/80 flex items-center justify-center">
+                <div className="flex flex-shrink-0 items-center gap-2 px-2">
+                  <div className="bg-muted dark:bg-primary/80 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full">
                     {g.logo ? (
                       <img
                         src={g.logo}
                         alt={g.bankName}
-                        className="w-8 h-8 rounded-full object-cover"
+                        className="h-8 w-8 rounded-full object-cover"
                       />
                     ) : (
-                      <Building className="w-8 h-8 rounded-full object-cover" />
+                      <Building className="h-8 w-8 rounded-full object-cover" />
                     )}
                   </div>
-                  <div className="overflow-hidden flex-1">
-                    <div className="flex gap-1 items-baseline">
+                  <div className="flex-1 overflow-hidden">
+                    <div className="flex items-baseline gap-1">
                       <span className="truncate text-[0.95rem]">
                         {g.bankName}
                       </span>
-                      <span className="text-[0.75rem] text-muted-foreground">
+                      <span className="text-muted-foreground text-[0.75rem]">
                         ({g.accounts.length})
                       </span>
                     </div>
@@ -411,7 +411,7 @@ export function AccountingWorkspace() {
                   </div>
                 </div>
                 <Separator className="my-2" />
-                <div className="overflow-y-auto flex flex-col gap-2.5 min-h-0 max-h-[175px] scrollbar-thin-2px overflow-hidden">
+                <div className="scrollbar-thin-2px flex max-h-[175px] min-h-0 flex-col gap-2.5 overflow-hidden overflow-y-auto">
                   {g.accounts.map((acc) => (
                     <MiniBankAccountCard
                       key={acc.id}
@@ -446,15 +446,15 @@ interface ActionCardProps {
 
 function ActionCard({ icon, title, actions, classNames }: ActionCardProps) {
   return (
-    <div className="h-full shadow-sm rounded-md border overflow-clip">
-      <div className="flex-1 p-4 flex flex-col items-center justify-center gap-2">
+    <div className="h-full overflow-clip rounded-md border shadow-sm">
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-4">
         <div>{icon}</div>
         <div>{title}</div>
       </div>
       <Separator />
       <div
         className={cn(
-          'flex-shrink-0 grid grid-cols-2 divide-x',
+          'grid flex-shrink-0 grid-cols-2 divide-x',
           classNames?.actionsBox,
         )}
       >
@@ -462,7 +462,7 @@ function ActionCard({ icon, title, actions, classNames }: ActionCardProps) {
           <div
             key={index}
             onClick={action.onClick}
-            className="flex items-center gap-2 justify-center p-2 cursor-pointer hover:bg-accent"
+            className="hover:bg-accent flex cursor-pointer items-center justify-center gap-2 p-2"
           >
             <div>{action.label}</div>
             <div>{action.icon}</div>
@@ -502,7 +502,7 @@ function MiniBankAccountCard({
       key: 'refresh',
       node: (
         <span
-          className="hover:underline cursor-pointer active:cursor-progress"
+          className="cursor-pointer hover:underline active:cursor-progress"
           onClick={() => onRefreshClick(account.connectionCredentialId!)}
         >
           Refresh feed
@@ -520,7 +520,7 @@ function MiniBankAccountCard({
   }
 
   return (
-    <div className="bg-muted/60 rounded-md px-2 py-2 max-h-[55px]">
+    <div className="bg-muted/60 max-h-[55px] rounded-md px-2 py-2">
       <div className="grid grid-cols-2 gap-2 overflow-hidden">
         <TooltipHelper
           content={account.displayName + ' **' + account.mask}
@@ -560,7 +560,7 @@ function MiniBankAccountCard({
           </span>
         )}
       </div>
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex items-center justify-between text-sm">
         <div>{picked[0]?.node}</div>
         {picked[1] && <div>{picked[1].node}</div>}
       </div>

@@ -79,7 +79,7 @@ export const AppSidebar = ({
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <Link to={dashboardPath} className="flex items-center gap-2">
-                <div className="flex items-center justify-center h-5 w-5 overflow-hidden">
+                <div className="flex h-5 w-5 items-center justify-center overflow-hidden">
                   {company?.assignedFirmLogo ? (
                     <img
                       src={company?.assignedFirmLogo}
@@ -109,7 +109,7 @@ export const AppSidebar = ({
 };
 export function MockSidebar({ items = [] }: Partial<{ items: any[] }>) {
   return (
-    <Sidebar className="fixed left-0 top-0 h-full z-0 shadow-md">
+    <Sidebar className="fixed top-0 left-0 z-0 h-full shadow-md">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Onboarding Suite</SidebarGroupLabel>

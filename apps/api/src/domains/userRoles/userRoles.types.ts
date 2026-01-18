@@ -3,10 +3,8 @@ import { z } from 'zod';
 
 import { dbBaseFields } from '../../core/types/core.js';
 import { type CompanyOnboardingState } from '../../features/onboarding/onboarding.types.js';
-import {
-  createCamelCaseSchema,
-  type SnakeToCamelCaseObject,
-} from '../../shared/utils/formatting.utils.js';
+import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
 import { type CompanyType } from '../companies/companies.types.js';
 import { type RoleKey, type RoleScope } from '../roles/roles.types.js';
 

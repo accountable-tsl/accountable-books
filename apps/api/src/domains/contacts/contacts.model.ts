@@ -18,13 +18,15 @@ import {
   createHybridSearch,
   defineSearchableColumns,
 } from '../../shared/utils/search.utils.js';
+import type {
+  ContactInput,
+  ContactResponse,
+  GetContactsParams,
+  UpdateContact,
+} from './contacts.types.js';
 import {
-  type ContactInput,
   contactInputSchema,
-  type ContactResponse,
-  type GetContactsParams,
   getContactsParams,
-  type UpdateContact,
   updateContactSchema,
 } from './contacts.types.js';
 

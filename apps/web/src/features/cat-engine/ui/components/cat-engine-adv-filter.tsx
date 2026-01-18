@@ -1,10 +1,11 @@
+import { PanelLeftOpen } from 'lucide-react';
+
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ToggleButton } from '@/domains-pending-migration/cat-engine/components/toggle-button';
-import { PanelLeftOpen } from 'lucide-react';
 
 export function CatEngineAdvFilter() {
   // TODO: Add toggle for amount display convention
@@ -15,6 +16,7 @@ export function CatEngineAdvFilter() {
   //   - Debits are positive amounts (expenses/assets)
   //   - Credits are negative amounts (income/liabilities)
   // - Date sort for user (asc or desc), and we should remember their preference too
+  // - Clear saved preferences button
 
   return (
     <Popover>

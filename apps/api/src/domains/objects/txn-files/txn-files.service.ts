@@ -4,12 +4,13 @@ import type {
   TransactionFiles,
   TxnFileInput,
 } from '@accountable-books/contracts/schema';
-import type { Knex } from 'knex';
 import {
   getTxnFileInput,
   txnFileInput,
 } from '@accountable-books/contracts/schema';
+import type { Knex } from 'knex';
 
+import type { ApiResponse } from '../../../core/index.js';
 import { knexClient } from '../../../db/knexClient.js';
 import {
   errorResponse,
@@ -17,8 +18,6 @@ import {
   logger,
   successResponse,
 } from '../../../shared/utils/index.js';
-
-import type { ApiResponse } from '../../../core/index.js';
 
 export async function persistTxnFiles(p: {
   data: TxnFileInput[];

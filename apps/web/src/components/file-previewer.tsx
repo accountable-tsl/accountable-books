@@ -1,6 +1,7 @@
-import type { MimeType } from '@/shared/constants/filetype';
-import { useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Download, FileText, X } from 'lucide-react';
+import { useEffect } from 'react';
+
+import type { MimeType } from '@/shared/constants/filetype';
 
 import { PDFViewer } from './pdf-viewer';
 
@@ -23,13 +24,9 @@ export function FilePreviewer({
   onClose,
   onNavigate,
 }: FilePreviewerProps) {
-  if (currentIndex === null) return null;
-
-  const currentFile = files[currentIndex];
-  const isImage = currentFile.type.startsWith('image/');
-  const isPDF = currentFile.type === 'application/pdf';
-
   useEffect(() => {
+    if (currentIndex === null) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowRight' && currentIndex < files.length - 1)
@@ -41,6 +38,12 @@ export function FilePreviewer({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, files.length, onClose, onNavigate]);
+
+  if (currentIndex === null) return null;
+
+  const currentFile = files[currentIndex];
+  const isImage = currentFile.type.startsWith('image/');
+  const isPDF = currentFile.type === 'application/pdf';
 
   return (
     <div className="dark:bg-background/50 fixed inset-0 z-[100] flex h-screen flex-col overflow-hidden bg-black/50 backdrop-blur-sm duration-200 dark:backdrop-blur-md">

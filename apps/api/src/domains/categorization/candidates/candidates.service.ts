@@ -5,16 +5,15 @@ import { knexClient } from '../../../db/knexClient.js';
 import { AppError, logger } from '../../../shared/index.js';
 import type { ContactType } from '../../contacts/contacts.types.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
-import {
-  type CandidateInput,
-  candidateInput,
-  type CategorizationCandidate,
-  type CategorizationCandidateLine,
-  type CategorizationCandidateWithLines,
-  type CategorizationCandidateWithLinesFiltered,
-  type UpdateCandidateInput,
-  updateCandidateInput,
+import type {
+  CandidateInput,
+  CategorizationCandidate,
+  CategorizationCandidateLine,
+  CategorizationCandidateWithLines,
+  CategorizationCandidateWithLinesFiltered,
+  UpdateCandidateInput,
 } from './candidates.types.js';
+import { candidateInput, updateCandidateInput } from './candidates.types.js';
 
 const SOURCE_RANK: Record<'rule' | 'ml' | 'ml_heuristic', number> = {
   rule: 3,

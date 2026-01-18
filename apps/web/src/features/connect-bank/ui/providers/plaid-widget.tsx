@@ -97,8 +97,8 @@ export function PlaidWidget({
 
   if (error) {
     return (
-      <div className="p-4 border border-red-200 rounded-md bg-red-50">
-        <p className="text-red-800 text-sm">
+      <div className="rounded-md border border-red-200 bg-red-50 p-4">
+        <p className="text-sm text-red-800">
           Error loading Plaid Link. Please try again.
         </p>
         <Button

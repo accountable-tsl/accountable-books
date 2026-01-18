@@ -20,6 +20,7 @@ import type {
   LedgerIntent,
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import {
   createContext,
@@ -29,15 +30,14 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import { useSession } from '@/app/session';
-import { toYMD } from '@/shared/utils/date-utils';
-import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
+import { useSession } from '@/app/session';
+import { toYMD } from '@/shared/utils/date-utils';
+
 import { groupCategorizationTransactions } from '../lib/transform';
 import { useSendCategorizationIntent } from './hooks';
-
 import type {
   CategorizationTransactionFile,
   GroupedTransaction,
@@ -437,7 +437,13 @@ function canSendLedgerIntent(
   txn: GroupedTransaction,
   desiredState: PendingDesiredState,
   entries: EntryUI[],
-): { ok: boolean; missingCoa: boolean } {
+): {
+  ok: boolean;
+  missingCoa: boolean;
+  isUnbalanced?: boolean;
+  missingAmount?: boolean;
+  errorKey?: string;
+} {
   if (txn.status === 'uncategorized') {
     const hasCoaInChanges = desiredState.entries
       ? Object.values(desiredState.entries).some((entry) => entry.coa_id)
@@ -456,6 +462,12 @@ function canSendLedgerIntent(
     }
   }
 
+  // Check for missing amounts in entries
+  const hasMissingAmount = finalEntries.some(
+    (entry) =>
+      entry.source_amount === undefined || entry.source_amount === null,
+  );
+
   const entriesTotal = finalEntries.reduce(
     (sum, e) => sum + (e.source_amount ?? 0),
     0,
@@ -463,7 +475,25 @@ function canSendLedgerIntent(
 
   const isBalanced = Math.abs(entriesTotal + txn.bankAmount) < 0.0001;
   if (!isBalanced) {
-    return { ok: false, missingCoa: false };
+    const errorKey = hasMissingAmount ? 'missing_amount' : 'unbalanced';
+    return {
+      ok: false,
+      missingCoa: false,
+      isUnbalanced: true,
+      missingAmount: hasMissingAmount,
+      errorKey,
+    };
+  }
+
+  // For missing COA
+  for (const entry of finalEntries) {
+    if (!entry.coa_id) {
+      return {
+        ok: false,
+        missingCoa: true,
+        errorKey: 'missing_coa',
+      };
+    }
   }
 
   return { ok: true, missingCoa: false };
@@ -538,6 +568,9 @@ export function useLedgerIntentManagerV2() {
   const transactionsRef = useRef<Map<string, GroupedTransaction>>(new Map());
   const inFlightRequestsRef = useRef<Set<string>>(new Set());
   const entryMapRef = useRef<Map<string, Map<string, EntryUI>>>(new Map());
+
+  // Track last validation error per transaction to avoid spamming toasts
+  const lastValidationErrorRef = useRef<Map<string, string>>(new Map());
   const ledgerEntryIdToUiEntryIdRef = useRef<Map<string, Map<string, string>>>(
     new Map(),
   );
@@ -808,17 +841,36 @@ export function useLedgerIntentManagerV2() {
         if (txn.status === 'uncategorized' && sendCheck.missingCoa) {
           return;
         }
-        toast.error(
-          // 'Required fields missing. Save your selected account to continue.',
-          // 'Unsaved changes found. Save your changes to continue.',
-          'Unsaved changes found. Select an account to save changes',
-          {
+        // Generate error message based on what's wrong
+        let errorMessage: string;
+        if (sendCheck.missingCoa) {
+          errorMessage = 'Select an account to save changes';
+        } else if (sendCheck.missingAmount) {
+          errorMessage = 'Enter an amount to save changes';
+        } else if (sendCheck.isUnbalanced) {
+          errorMessage =
+            'Transaction is not balanced. Adjust amounts to save changes';
+        } else {
+          errorMessage =
+            'Unsaved changes found. Complete required fields to save';
+        }
+        // Only show toast if error has changed (prevents spam in autosave mode)
+        const errorKey = sendCheck.errorKey || 'unknown';
+        const lastError = lastValidationErrorRef.current.get(bankTransactionId);
+
+        if (lastError !== errorKey) {
+          // Error changed - show new toast
+          lastValidationErrorRef.current.set(bankTransactionId, errorKey);
+          toast.error(errorMessage, {
             duration: 5000,
             closeButton: true,
-          },
-        );
+          });
+        }
+        // If error is the same, silently fail (user is still working on fixing it)
+
         console.error(
           'Transaction must be balanced and have all required fields',
+          sendCheck,
         );
         return;
       }
@@ -931,6 +983,8 @@ export function useLedgerIntentManagerV2() {
         });
       } finally {
         inFlightRequestsRef.current.delete(bankTransactionId);
+        // Clear error state on successful send (or any send attempt)
+        lastValidationErrorRef.current.delete(bankTransactionId);
       }
     },
     [companyId, queryClient, sendIntentMutation, getLedgerEntryIdMap],

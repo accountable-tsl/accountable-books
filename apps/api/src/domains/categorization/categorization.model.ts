@@ -1,11 +1,18 @@
 import type {
+  CategorizationStatsResponse,
   CategorizationTransaction,
+  GetCategorizationStatsParams,
   LedgerIntent,
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
+import {
+  getCategorizationStatsParams,
+  ledgerIntentSchema,
+} from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
-import { ledgerIntentSchema } from '@accountable-books/contracts/schema';
+import z from 'zod';
 
+import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { toYMD } from '../../shared/utils/date.utils.js';
 import { logger } from '../../shared/utils/logger.js';
@@ -19,11 +26,20 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { getBankTransactionsByIds } from '../bankTransactions/bankTransactions.model.js';
+import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
 import {
   getLedgerTransactionsWithEntries,
   updateOrCreateLedger,
 } from '../ledgers/ledgers.model.js';
+import type {
+  LedgerEntryInput,
+  NewLedgerTransactionData,
+} from '../ledgers/ledgers.types.js';
 import { getCategorizationCandidatesWithLines } from './candidates/candidates.service.js';
+import type {
+  GetCategorizationTransactionsParams,
+  GetCategorizationTransactionsResponse,
+} from './categorization.types.js';
 import { getCategorizationTransactionsParams } from './categorization.types.js';
 import {
   buildBankLeg,
@@ -37,17 +53,6 @@ import {
   detectCurrentState,
   mergeIntents,
 } from './categorization.utils.js';
-
-import type { ApiResponse } from '../../core/types/api.types.js';
-import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
-import type {
-  LedgerEntryInput,
-  NewLedgerTransactionData,
-} from '../ledgers/ledgers.types.js';
-import type {
-  GetCategorizationTransactionsParams,
-  GetCategorizationTransactionsResponse,
-} from './categorization.types.js';
 
 /**
  * Get categorization transactions for the categorization engine UI
@@ -1020,6 +1025,26 @@ export async function processCategorizationIntent({
           intentEntriesById.set(intentEntry.entry_id!, intentEntry);
         }
 
+        // Log matching info for debugging
+        const existingEntryIds = ledgerTxn.entries
+          .filter((e) => !e.is_bank_leg)
+          .map((e) => e.id);
+        const intentEntryIds = Array.from(intentEntriesById.keys());
+        logger.debug(
+          {
+            bankTransactionId: bankTxnId,
+            existingEntryIds,
+            intentEntryIds,
+            unmatchedExisting: existingEntryIds.filter(
+              (id) => !intentEntryIds.includes(id),
+            ),
+            unmatchedIntent: intentEntryIds.filter(
+              (id) => !existingEntryIds.includes(id),
+            ),
+          },
+          'Matching ledger entries to intent entries',
+        );
+
         // Process ledger entries: only keep those referenced in intent (enables consolidation)
         for (const ledgerEntry of ledgerTxn.entries) {
           if (ledgerEntry.is_bank_leg) {
@@ -1100,6 +1125,21 @@ export async function processCategorizationIntent({
                 intent,
                 ledgerEntryWithDate,
               ),
+            );
+          } else {
+            // Entry not matched - this could indicate:
+            // 1. Frontend sent wrong entry_id (UI ID instead of ledger entry ID)
+            // 2. Entry was intentionally dropped (consolidation)
+            // 3. Entry was deleted on frontend but not yet synced
+            logger.warn(
+              {
+                bankTransactionId: bankTxnId,
+                ledgerEntryId: ledgerEntry.id,
+                intentEntryIds: Array.from(intentEntriesById.keys()),
+                coaId: ledgerEntry.coa_id,
+                sourceAmount: ledgerEntry.source_amount,
+              },
+              'Ledger entry not matched in intent - will be dropped',
             );
           }
           // If not matched, entry is dropped (consolidation case)
@@ -1391,5 +1431,160 @@ export async function processCategorizationIntent({
       'Failed to process categorization intents',
     );
     return errorResponse('Failed to process intents', { error });
+  }
+}
+
+/**
+ * Get categorization statistics for the categorization engine UI
+ *
+ * Returns global counts independent of the current list query, enabling the UI
+ * to detect when users have completed work in their current date range but still
+ * have transactions elsewhere.
+ *
+ * @param params - Query parameters including optional filters
+ * @returns Statistics about categorization transactions
+ */
+export async function getCategorizationStats(
+  params: GetCategorizationStatsParams & {
+    trx?: Knex.Transaction;
+  },
+): Promise<ApiResponse<CategorizationStatsResponse>> {
+  const { trx, ...rest } = params;
+
+  const validation = getCategorizationStatsParams.safeParse(rest);
+
+  if (!validation.success) {
+    const message = z.prettifyError(validation.error);
+    if (trx) {
+      throw new Error(message);
+    }
+    return errorResponse(message);
+  }
+
+  const { companyId, bankAccountIds, dateFrom, dateTo } = validation.data;
+
+  const exec = async (txn: Knex.Transaction) => {
+    // Resolve company UUID
+    const companyUUID = await getCompanyUUID(companyId, txn);
+    if (!companyUUID) {
+      logger.error({ companyId }, 'Company not found');
+      throw new AppError('Something went wrong');
+    }
+
+    // Build base query
+    let baseQuery = txn('categorization_engine_view').where(
+      'company_id',
+      companyUUID,
+    );
+
+    // Apply bank account IDs filter if provided
+    // Note: bank_account_id is UUID in DB, bankAccountIds are UUID strings (validated by controller)
+    if (bankAccountIds && bankAccountIds.length > 0) {
+      baseQuery = baseQuery.whereIn('bank_account_id', bankAccountIds);
+    }
+
+    // Build single query with all stats (including range counts if date range provided)
+    // Note: Both dates must be provided together (enforced by zod schema)
+    const hasDateRange =
+      dateFrom !== undefined && dateTo !== undefined && dateFrom <= dateTo;
+    const dateFromYMD = dateFrom ? toYMD(dateFrom) : null;
+    const dateToYMD = dateTo ? toYMD(dateTo) : null;
+
+    // Guard against inverted ranges at query level (even if zod should prevent it)
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      throw new AppError('dateFrom must be less than or equal to dateTo');
+    }
+
+    // Build select clauses
+    const selectClauses = [
+      txn.raw(
+        `COUNT(*) FILTER (WHERE categorization_status = 'uncategorized') as total_uncategorized`,
+      ),
+      txn.raw(
+        `COUNT(*) FILTER (WHERE categorization_status = 'proposed') as total_proposed`,
+      ),
+      txn.raw(
+        `MIN(date) FILTER (WHERE categorization_status = 'uncategorized') as oldest_uncategorized_date`,
+      ),
+      txn.raw(
+        `MAX(date) FILTER (WHERE categorization_status = 'uncategorized') as newest_uncategorized_date`,
+      ),
+    ];
+
+    // Inside range: from <= date <= to (inclusive)
+    // Outside range: date < from OR date > to (exclusive)
+    if (hasDateRange && dateFromYMD && dateToYMD) {
+      selectClauses.push(
+        txn.raw(
+          `COUNT(*) FILTER (WHERE categorization_status = 'uncategorized' AND date >= ? AND date <= ?) as uncategorized_in_range_count`,
+          [dateFromYMD, dateToYMD],
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE categorization_status = 'proposed' AND date >= ? AND date <= ?) as proposed_in_range_count`,
+          [dateFromYMD, dateToYMD],
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE categorization_status = 'uncategorized' AND (date < ? OR date > ?)) as uncategorized_outside_range_count`,
+          [dateFromYMD, dateToYMD],
+        ),
+      );
+    }
+
+    const statsQuery = baseQuery.clone();
+    const statsResult = await statsQuery.select(selectClauses).first();
+
+    const totalUncategorized = Number(statsResult?.total_uncategorized || 0);
+    const totalProposed = Number(statsResult?.total_proposed || 0);
+
+    const oldest = statsResult?.oldest_uncategorized_date;
+    const oldestUncategorizedDate = oldest ? toYMD(oldest) : null;
+
+    const newest = statsResult?.newest_uncategorized_date;
+    const newestUncategorizedDate = newest ? toYMD(newest) : null;
+
+    const response: CategorizationStatsResponse = {
+      totalUncategorized,
+      totalProposed,
+      oldestUncategorizedDate,
+      newestUncategorizedDate,
+    };
+
+    if (hasDateRange && dateFromYMD && dateToYMD) {
+      const uncategorizedInRange = Number(
+        statsResult?.uncategorized_in_range_count || 0,
+      );
+      const proposedInRange = Number(statsResult?.proposed_in_range_count || 0);
+      const uncategorizedOutsideRange = Number(
+        statsResult?.uncategorized_outside_range_count || 0,
+      );
+
+      response.uncategorizedInRangeCount = uncategorizedInRange;
+      response.proposedInRangeCount = proposedInRange;
+      response.hasUncategorizedOutsideRange = uncategorizedOutsideRange > 0;
+      response.uncategorizedOutsideRangeCount = uncategorizedOutsideRange;
+    }
+
+    return response;
+  };
+
+  try {
+    if (trx) {
+      const res = await exec(trx);
+      return successResponse('Stats retrieved successfully', res);
+    } else {
+      const res = await knexClient.transaction(exec);
+      return successResponse('Stats retrieved successfully', res);
+    }
+  } catch (error: unknown) {
+    logger.error(
+      {
+        companyId,
+        error,
+      },
+      'Failed to fetch categorization stats',
+    );
+    return errorResponse(
+      `Failed to fetch categorization stats ${error instanceof Error ? `:${error.message}` : ''}`,
+    );
   }
 }

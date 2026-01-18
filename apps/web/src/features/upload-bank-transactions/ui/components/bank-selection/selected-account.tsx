@@ -13,7 +13,7 @@ export function SelectedBankAccount({
       <div className="bg-muted px-4 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="rounded-lg bg-blue-100 p-2">
               <Building className="h-4 w-4 text-blue-600" />
             </div>
 
@@ -36,7 +36,7 @@ export function SelectedBankAccount({
                 codeClassName="text-muted-foreground text-xs"
               />
             </p> */}
-            <p className="text-sm text-muted-foreground">Currency</p>
+            <p className="text-muted-foreground text-sm">Currency</p>
             <p className="font-semibold">{selectedBankAccount.currencyCode}</p>
           </div>
         </div>

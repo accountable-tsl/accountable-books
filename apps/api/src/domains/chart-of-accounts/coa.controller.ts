@@ -10,7 +10,8 @@ import {
   fetchCompanyCoa,
   unarchiveCoa,
 } from './coa.model.js';
-import { type CoaUpdateInput, coaUpdateInput } from './coa.types.js';
+import type { CoaUpdateInput } from './coa.types.js';
+import { coaUpdateInput } from './coa.types.js';
 
 export const createCoaController = async (req: AuthRequest, res: Response) => {
   try {

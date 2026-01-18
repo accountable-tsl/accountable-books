@@ -118,7 +118,7 @@ export function CatEngine() {
         emptyTableRow: 'h-full',
       },
     };
-  }, [view, openAccordionItem, rowHeight]);
+  }, [view, openAccordionItem]);
   const { table } = useDataTable({
     columns,
     data: emptyData,
@@ -141,21 +141,21 @@ export function CatEngine() {
 
   console.log(dateRange);
   return (
-    <div className="min-h-0 h-full flex flex-col p-4 gap-4">
-      <div className="flex justify-between items-center overflow-clip h-8 max-h-8">
-        <div className="flex gap-2 items-center h-7.5">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4">
+      <div className="flex h-8 max-h-8 items-center justify-between overflow-clip">
+        <div className="flex h-7.5 items-center gap-2">
           <CatEngineAdvFilter />
           <LeftCatEngineToolbar view={view} setView={setView} />
           <div className="h-full">
             <Input
               placeholder="Search..."
               aria-label="Search transactions"
-              className="w-60 h-full"
+              className="h-full w-60"
             />
           </div>
         </div>
 
-        <div className="flex gap-2 h-7.5 items-center">
+        <div className="flex h-7.5 items-center gap-2">
           <DateRangePicker
             date={dateRange}
             onDateSelect={setDateRange}
@@ -172,24 +172,24 @@ export function CatEngine() {
         </div>
       </div>
       <ResizablePanelGroup direction="horizontal" className="gap-2">
-        <ResizablePanel className="min-h-0 h-full flex flex-col gap-4 min-w-0 flex-1">
+        <ResizablePanel className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
           {view === 'table' && <DataTable table={table} />}
           {view === 'group' && (
             <Accordion
               type="single"
               collapsible
               defaultValue={accordionItems[0].id}
-              className="flex flex-col min-h-0 flex-1"
+              className="flex min-h-0 flex-1 flex-col"
               value={openAccordionItem}
               onValueChange={handleAccordionItemChange}
             >
               {reorderedAccordionItems.map((item) => (
                 <AccordionItem
                   value={item.id}
-                  className="flex flex-col [[data-state=open]]:min-h-0 [[data-state=open]]:h-full"
+                  className="flex flex-col [[data-state=open]]:h-full [[data-state=open]]:min-h-0"
                 >
                   <AccordionTrigger
-                    className={cn('p-0 py-1 px-2 hover:no-underline')}
+                    className={cn('p-0 px-2 py-1 hover:no-underline')}
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -218,7 +218,7 @@ export function CatEngine() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent
-                    className="h-full min-h-0 flex flex-col"
+                    className="flex h-full min-h-0 flex-col"
                     wrapperClassName="h-full min-h-0 flex flex-col"
                   >
                     <DataTable table={table} />

@@ -1,7 +1,15 @@
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import type { ColumnDef } from '@tanstack/react-table';
+import {
+  ChevronDown,
+  ChevronRight,
+  HelpCircle,
+  Landmark,
+  Lock,
+  Split,
+} from 'lucide-react';
 import type React from 'react';
 import { memo, useEffect, useState } from 'react';
+
 import { FormattedAmount } from '@/components/FormattedAmount';
 import {
   Tooltip,
@@ -9,14 +17,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
-import {
-  ChevronDown,
-  ChevronRight,
-  HelpCircle,
-  Landmark,
-  Split,
-} from 'lucide-react';
 
 import { ActionsMenu } from '../components/actions';
 import { EditableAccountCell } from '../components/editable-account-cell';
@@ -26,10 +28,28 @@ import {
   EditableNumberCell,
   EditableTextCell,
 } from '../components/editable-fields';
-
 import type { GroupedCoaData } from '../types';
 
 const fieldKey = (id: string, columnId: string) => `${id}-${columnId}`;
+
+// Row overlay cell component for locked periods and other row-level overlays
+function RowOverlayCell({ txn }: { txn: GroupedTransaction }) {
+  // Check if transaction is locked (not editable)
+  if (txn.isEditable !== false) {
+    return null;
+  }
+
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-50 flex backdrop-blur-[0.75px]"
+      aria-label="Transaction is in a locked period"
+    >
+      <div className="bg-background/80 text-muted-foreground sticky left-0 flex h-full w-fit items-center justify-center gap-2 px-3 backdrop-blur-sm">
+        <Lock className="h-4 w-4" />
+      </div>
+    </div>
+  );
+}
 
 // Wrapper components for cells that need hooks
 function DescriptionCell({
@@ -49,7 +69,7 @@ function DescriptionCell({
   const showTooltip = txn.description ? true : false;
   const displayText = txn.description || 'No description';
 
-  if (mode === 'autosave' && !multipleLines) {
+  if (mode === 'autosave' && !multipleLines && txn.isEditable) {
     return (
       <EditableTextCell
         value={txn.description || ''}
@@ -68,8 +88,9 @@ function DescriptionCell({
         <div
           className={cn(
             'truncate text-sm',
-            (!showTooltip || multipleLines) &&
+            (!showTooltip || multipleLines || !txn.isEditable) &&
               'text-muted-foreground opacity-50',
+            !txn.isEditable ? 'cursor-not-allowed' : '',
           )}
           {...(mode === 'autosave'
             ? {
@@ -105,7 +126,7 @@ function FsDateCell({
 }) {
   const fsDate = txn.fsDate;
 
-  if (mode === 'autosave' && fsDate) {
+  if (mode === 'autosave' && fsDate && txn.isEditable) {
     return (
       <EditableDateCell
         value={new Date(fsDate)}
@@ -115,7 +136,11 @@ function FsDateCell({
       />
     );
   }
-  return <div className="">{fsDate || ''}</div>;
+  return (
+    <div className={cn(!txn.isEditable ? 'cursor-not-allowed opacity-60' : '')}>
+      {fsDate || ''}
+    </div>
+  );
 }
 
 function ContactCell({
@@ -134,7 +159,7 @@ function ContactCell({
   const contactId = txn.contactId;
   const contactName = txn.contactName;
 
-  if (mode === 'autosave' && !txn.hasMultipleEntries) {
+  if (mode === 'autosave' && !txn.hasMultipleEntries && txn.isEditable) {
     return (
       <EditableDropdownCell
         field="contact"
@@ -151,7 +176,10 @@ function ContactCell({
     <div
       className={cn(
         'truncate text-sm font-light',
-        txn.hasMultipleEntries ? 'text-muted-foreground opacity-50' : '',
+        txn.hasMultipleEntries || !txn.isEditable
+          ? 'text-muted-foreground opacity-50'
+          : '',
+        !txn.isEditable ? 'cursor-not-allowed' : '',
       )}
       title={contactName || ''}
       {...(mode === 'autosave' && txn.hasMultipleEntries
@@ -183,7 +211,7 @@ function ReferenceCell({
 }) {
   const reference = txn.reference;
 
-  if (mode === 'autosave' && !txn.hasMultipleEntries) {
+  if (mode === 'autosave' && !txn.hasMultipleEntries && txn.isEditable) {
     return (
       <EditableTextCell
         value={txn.reference || ''}
@@ -201,9 +229,10 @@ function ReferenceCell({
       title={reference || ''}
       className={cn(
         'truncate text-sm font-light',
-        txn.hasMultipleEntries || !reference
+        txn.hasMultipleEntries || !reference || !txn.isEditable
           ? 'text-muted-foreground opacity-50'
           : '',
+        !txn.isEditable ? 'cursor-not-allowed' : '',
       )}
       {...(mode === 'autosave' && txn.hasMultipleEntries
         ? {
@@ -232,7 +261,7 @@ function ProjectCell({
 }) {
   const projectName = txn.projectName;
 
-  if (mode === 'autosave' && !txn.hasMultipleEntries) {
+  if (mode === 'autosave' && !txn.hasMultipleEntries && txn.isEditable) {
     return (
       <EditableDropdownCell
         field="project"
@@ -250,9 +279,10 @@ function ProjectCell({
       title={projectName || ''}
       className={cn(
         'truncate text-sm font-light',
-        txn.hasMultipleEntries || !projectName
+        txn.hasMultipleEntries || !projectName || !txn.isEditable
           ? 'text-muted-foreground opacity-50'
           : '',
+        !txn.isEditable ? 'cursor-not-allowed' : '',
       )}
     >
       {projectName || '-'}
@@ -277,7 +307,7 @@ function ExchangeRateCell({
 }) {
   const { updateExchangeRate } = useLedgerIntentUpdater(txn);
 
-  if (mode === 'autosave' && !txn.hasMultipleEntries) {
+  if (mode === 'autosave' && !txn.hasMultipleEntries && txn.isEditable) {
     return (
       <EditableNumberCell
         value={txn.exchangeRate}
@@ -306,7 +336,10 @@ function ExchangeRateCell({
       title={txn.exchangeRate}
       className={cn(
         'text-muted-foreground truncate text-right text-sm font-light',
-        mode === 'autosave' && txn.hasMultipleEntries && 'opacity-50',
+        (mode === 'autosave' && txn.hasMultipleEntries) || !txn.isEditable
+          ? 'opacity-50'
+          : '',
+        !txn.isEditable ? 'cursor-not-allowed' : '',
       )}
       {...(mode === 'autosave' && txn.hasMultipleEntries
         ? {
@@ -373,7 +406,7 @@ function AccountCell({
   const accountCode = txn.coaCode;
   const isUncategorized = !accountName;
 
-  if (mode === 'autosave') {
+  if (mode === 'autosave' && txn.isEditable) {
     return (
       <div className="flex items-center gap-2">
         <EditableAccountCell
@@ -394,8 +427,9 @@ function AccountCell({
       <TooltipTrigger asChild>
         <div
           className={cn(
-            'flex max-w-[150px] cursor-help items-center gap-1 truncate text-sm',
+            'flex max-w-[150px] items-center gap-1 truncate text-sm',
             isUncategorized && 'text-muted-foreground font-light',
+            !txn.isEditable ? 'cursor-not-allowed opacity-60' : 'cursor-help',
           )}
         >
           {isUncategorized && <HelpCircle className="h-4 w-4 flex-shrink-0" />}
@@ -489,6 +523,21 @@ export const getCatEngineColumns = ({
 }): ColumnDef<GroupedTransaction>[] => {
   return [
     {
+      id: 'row-overlay',
+      header: '',
+      cell: ({ row }) => {
+        return <RowOverlayCell txn={row.original} />;
+      },
+      size: 0,
+      minSize: 0,
+      maxSize: 0,
+      enableResizing: false,
+      meta: {
+        hidden: true,
+        cellClassName: 'static',
+      },
+    },
+    {
       id: 'status-indicator',
       header: '',
       cell: ({ row }) => {
@@ -519,6 +568,7 @@ export const getCatEngineColumns = ({
         headerClassName: 'px-0',
       },
     },
+
     {
       id: 'bank',
       header: 'Bank',

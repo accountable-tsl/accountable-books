@@ -30,14 +30,14 @@ export function SmallScreenMessage({
   icon = def.icon,
 }: SmallScreenMessageProps) {
   return (
-    <div className="flex items-center justify-center min-h-0 h-full">
-      <div className="flex flex-col items-center gap-1 p-4 max-w-md m-4 rounded-md">
+    <div className="flex h-full min-h-0 items-center justify-center">
+      <div className="m-4 flex max-w-md flex-col items-center gap-1 rounded-md p-4">
         <div className="flex flex-col items-center">
           {showIcon && icon}
-          <h1 className="text-lg text-center font-semibold">{title}</h1>
+          <h1 className="text-center text-lg font-semibold">{title}</h1>
         </div>
         <hr className="w-full" />
-        <p className="text-muted-foreground text-sm text-center">{message}</p>
+        <p className="text-muted-foreground text-center text-sm">{message}</p>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
-import { cva, type VariantProps } from 'class-variance-authority';
+import type { VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
 import {
   endOfDay,
   endOfMonth,
@@ -15,6 +16,7 @@ import {
 } from 'date-fns';
 import { formatInTimeZone, toDate } from 'date-fns-tz';
 import { CalendarIcon } from 'lucide-react';
+import type { WheelEvent as ReactWheelEvent } from 'react';
 import React, {
   forwardRef,
   useCallback,
@@ -22,7 +24,6 @@ import React, {
   useMemo,
   useRef,
   useState,
-  type WheelEvent as ReactWheelEvent,
 } from 'react';
 import type { DateRange } from 'react-day-picker';
 
@@ -262,7 +263,7 @@ export const DateRangePicker = forwardRef<
         isNewlyOpenedRef.current = false;
         if (closeOnSelect) setIsOpen(false);
       },
-      [normalizeRange, onDateSelect],
+      [normalizeRange, onDateSelect, closeOnSelect],
     );
 
     const handleDateSelect = useCallback(
@@ -279,15 +280,7 @@ export const DateRangePicker = forwardRef<
 
         if (closeOnSelect) setIsOpen(false);
       },
-      [
-        date?.from,
-        timeZone,
-        minDate,
-        maxDate,
-        normalizeRange,
-        onDateSelect,
-        closeOnSelect,
-      ],
+      [normalizeRange, onDateSelect, closeOnSelect],
     );
 
     const handleMonthChange = useCallback(
@@ -486,7 +479,7 @@ export const DateRangePicker = forwardRef<
             id={`firstDay-${id}`}
             className={cn(
               'date-part',
-              highlightedPart === 'firstDay' && 'underline font-semibold',
+              highlightedPart === 'firstDay' && 'font-semibold underline',
             )}
             onMouseEnter={() => setHighlightedPart('firstDay')}
             onMouseLeave={() => setHighlightedPart(null)}
@@ -498,7 +491,7 @@ export const DateRangePicker = forwardRef<
             id={`firstMonth-${id}`}
             className={cn(
               'date-part',
-              highlightedPart === 'firstMonth' && 'underline font-semibold',
+              highlightedPart === 'firstMonth' && 'font-semibold underline',
             )}
             onMouseEnter={() => setHighlightedPart('firstMonth')}
             onMouseLeave={() => setHighlightedPart(null)}
@@ -511,7 +504,7 @@ export const DateRangePicker = forwardRef<
             id={`firstYear-${id}`}
             className={cn(
               'date-part',
-              highlightedPart === 'firstYear' && 'underline font-semibold',
+              highlightedPart === 'firstYear' && 'font-semibold underline',
             )}
             onMouseEnter={() => setHighlightedPart('firstYear')}
             onMouseLeave={() => setHighlightedPart(null)}
@@ -532,7 +525,7 @@ export const DateRangePicker = forwardRef<
             id={`secondDay-${id}`}
             className={cn(
               'date-part',
-              highlightedPart === 'secondDay' && 'underline font-semibold',
+              highlightedPart === 'secondDay' && 'font-semibold underline',
             )}
             onMouseEnter={() => setHighlightedPart('secondDay')}
             onMouseLeave={() => setHighlightedPart(null)}
@@ -544,7 +537,7 @@ export const DateRangePicker = forwardRef<
             id={`secondMonth-${id}`}
             className={cn(
               'date-part',
-              highlightedPart === 'secondMonth' && 'underline font-semibold',
+              highlightedPart === 'secondMonth' && 'font-semibold underline',
             )}
             onMouseEnter={() => setHighlightedPart('secondMonth')}
             onMouseLeave={() => setHighlightedPart(null)}
@@ -557,7 +550,7 @@ export const DateRangePicker = forwardRef<
             id={`secondYear-${id}`}
             className={cn(
               'date-part',
-              highlightedPart === 'secondYear' && 'underline font-semibold',
+              highlightedPart === 'secondYear' && 'font-semibold underline',
             )}
             onMouseEnter={() => setHighlightedPart('secondYear')}
             onMouseLeave={() => setHighlightedPart(null)}
@@ -630,7 +623,7 @@ export const DateRangePicker = forwardRef<
                         )
                       }
                     >
-                      <SelectTrigger className="w-[120px] h-8 text-xs">
+                      <SelectTrigger className="h-8 w-[120px] text-xs">
                         <SelectValue placeholder="Month" />
                       </SelectTrigger>
                       <SelectContent>
@@ -648,7 +641,7 @@ export const DateRangePicker = forwardRef<
                         handleYearChange(parseInt(val, 10), 'from')
                       }
                     >
-                      <SelectTrigger className="w-[90px] h-8 text-xs">
+                      <SelectTrigger className="h-8 w-[90px] text-xs">
                         <SelectValue placeholder="Year" />
                       </SelectTrigger>
                       <SelectContent>
@@ -680,7 +673,7 @@ export const DateRangePicker = forwardRef<
                           )
                         }
                       >
-                        <SelectTrigger className="w-[120px] h-8 text-xs">
+                        <SelectTrigger className="h-8 w-[120px] text-xs">
                           <SelectValue placeholder="Month" />
                         </SelectTrigger>
                         <SelectContent>
@@ -700,7 +693,7 @@ export const DateRangePicker = forwardRef<
                           handleYearChange(parseInt(val, 10), 'to')
                         }
                       >
-                        <SelectTrigger className="w-[90px] h-8 text-xs">
+                        <SelectTrigger className="h-8 w-[90px] text-xs">
                           <SelectValue placeholder="Year" />
                         </SelectTrigger>
                         <SelectContent>

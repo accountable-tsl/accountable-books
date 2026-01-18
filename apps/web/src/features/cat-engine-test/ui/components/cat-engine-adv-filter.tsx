@@ -102,7 +102,7 @@ export function CatEngineAdvFilter({
       <PopoverTrigger asChild>
         <div className="relative">
           <ToggleButton
-            icon={<Filter className="w-4 h-4" />}
+            icon={<Filter className="h-4 w-4" />}
             tooltip="Advanced Filters"
             active={activeFilterCount > 0}
             activeClasses="p-1.5"
@@ -111,7 +111,7 @@ export function CatEngineAdvFilter({
           {activeFilterCount > 0 && (
             <Badge
               variant="default"
-              className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] flex items-center justify-center"
+              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center px-1 text-[10px]"
             >
               {activeFilterCount}
             </Badge>
@@ -129,7 +129,7 @@ export function CatEngineAdvFilter({
                 onClick={handleClearAll}
                 className="h-7 text-xs"
               >
-                <X className="h-3 w-3 mr-1" />
+                <X className="mr-1 h-3 w-3" />
                 Clear All
               </Button>
             )}
@@ -167,7 +167,7 @@ export function CatEngineAdvFilter({
                 }
                 className="h-8 text-sm"
               />
-              <span className="text-xs text-muted-foreground">to</span>
+              <span className="text-muted-foreground text-xs">to</span>
               <Input
                 type="number"
                 placeholder="Max"
@@ -203,7 +203,7 @@ export function CatEngineAdvFilter({
                 }
                 className="h-8 text-sm"
               />
-              <span className="text-xs text-muted-foreground">to</span>
+              <span className="text-muted-foreground text-xs">to</span>
               <Input
                 type="number"
                 min="0"

@@ -1,13 +1,14 @@
-import type { CustomTable } from '@/components/data-table/types/data-table';
-import type { RowViewerProps } from '@/components/data-table/types/row-click';
 import type { Cell, Row } from '@tanstack/react-table';
-import React from 'react';
-import { TableBody, TableCell, TableRow } from '@/components/CustomTable';
-import { RowViewer } from '@/components/data-table/row-view/row-viewer';
-import { isClickInsideExcludedElement } from '@/components/data-table/utils/table';
-import { cn } from '@/lib/utils';
 import { flexRender } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import React from 'react';
+
+import { TableBody, TableCell, TableRow } from '@/components/CustomTable';
+import { RowViewer } from '@/components/data-table/row-view/row-viewer';
+import type { CustomTable } from '@/components/data-table/types/data-table';
+import type { RowViewerProps } from '@/components/data-table/types/row-click';
+import { isClickInsideExcludedElement } from '@/components/data-table/utils/table';
+import { cn } from '@/lib/utils';
 
 import { getColumnStyle } from './utils/column-sizing';
 
@@ -32,13 +33,11 @@ export function DataTableBody<TData>({
   // Determine which row model to use based on expandable rows setting
   // Use getExpandedRowModel().flatRows when expandable rows are enabled
   // This automatically includes all visible rows (parent + expanded sub-rows)
+  const rowModel = table.getRowModel();
+  const expandedState = table.getState().expanded;
   const rowsToRender = React.useMemo(() => {
-    return table.getRowModel().rows;
-  }, [
-    expandableRows?.enabled,
-    table.getRowModel().rows,
-    table.getState().expanded, // Critical: react to expansion state changes
-  ]);
+    return rowModel.rows;
+  }, [rowModel.rows]);
 
   const enableVirtual = virtualization?.enabled ?? false;
   const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 60;
@@ -55,8 +54,12 @@ export function DataTableBody<TData>({
     overscan,
   });
 
-  const virtualItems =
-    enableVirtual && scrollRef.current ? virtualizer.getVirtualItems() : [];
+  const virtualItems = React.useMemo(
+    () =>
+      enableVirtual && scrollRef.current ? virtualizer.getVirtualItems() : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [enableVirtual, virtualizer],
+  );
 
   const rowClick = table.customOptions?.rowClick;
   const rowClickEnabled = !!rowClick || false;

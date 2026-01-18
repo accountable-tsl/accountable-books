@@ -1,4 +1,5 @@
-import axios, { type AxiosInstance } from 'axios';
+import type { AxiosInstance } from 'axios';
+import axios from 'axios';
 
 import { ENV } from '../../config/env.js';
 import { logger } from '../../shared/index.js';

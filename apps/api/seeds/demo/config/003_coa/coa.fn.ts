@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
-import { COMPANY_TYPES, type DemoFilter } from '../../shared/config.js';
+import type { DemoFilter } from '../../shared/config.js';
+import { COMPANY_TYPES } from '../../shared/config.js';
 import {
   deleteDemoData,
   getCompanyIdMap,

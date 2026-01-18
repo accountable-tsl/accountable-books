@@ -47,7 +47,7 @@ export const Contacts = () => {
 
   const AddButton = () => (
     <Button size="sm" className="max-h-full" onClick={openDialog}>
-      <Plus className="w-3 h-3" /> Add Contact
+      <Plus className="h-3 w-3" /> Add Contact
     </Button>
   );
 
@@ -79,10 +79,10 @@ export const Contacts = () => {
   }
 
   return (
-    <div className="flex flex-col max-w-full overflow-clip p-4 gap-4">
+    <div className="flex max-w-full flex-col gap-4 overflow-clip p-4">
       <div>
         <p>Contacts</p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Manage customers, vendors, employees and other contacts
         </p>
         <Separator className="mt-2" />

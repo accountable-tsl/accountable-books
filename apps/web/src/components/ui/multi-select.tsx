@@ -1,3 +1,4 @@
+import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import {
   createContext,
@@ -7,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +26,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
 
 type MultiSelectContextType = {
   open: boolean;
@@ -111,7 +112,7 @@ export function MultiSelectTrigger({
         role={props.role ?? 'combobox'}
         aria-expanded={props['aria-expanded'] ?? open}
         className={cn(
-          "border-input shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[placeholder]:text-muted-foreground dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:ring-destructive/40 [&_svg:not([class*='text-'])]:text-muted-foreground flex h-auto min-h-9 w-fit items-center justify-between gap-2 overflow-hidden whitespace-nowrap rounded-md border bg-transparent px-3 py-1.5 text-sm outline-none transition-[color,box-shadow] focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+          "border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[placeholder]:text-muted-foreground dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:ring-destructive/40 [&_svg:not([class*='text-'])]:text-muted-foreground flex h-auto min-h-9 w-fit items-center justify-between gap-2 overflow-hidden rounded-md border bg-transparent px-3 py-1.5 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
           className,
         )}
       >
@@ -316,7 +317,7 @@ export function MultiSelectValue({
         }}
         variant="outline"
         ref={overflowRef}
-        className="flex-shrink-0 whitespace-nowrap text-xs font-normal"
+        className="flex-shrink-0 text-xs font-normal whitespace-nowrap"
       >
         +{overflowAmount}
       </Badge>

@@ -84,37 +84,37 @@ export const AccountLinked = ({
   // Do any accounts have userActionRequired set to true? Render Needs Confirmation
   const renderSuccess = () => (
     <>
-      <div className="flex flex-col h-full gap-4 py-4">
-        <div className="text-center flex-shrink-0">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Waypoints className="w-8 h-8 text-green-600" />
+      <div className="flex h-full flex-col gap-4 py-4">
+        <div className="flex-shrink-0 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <Waypoints className="h-8 w-8 text-green-600" />
           </div>
           <h2 className="text-lg font-semibold">Account Linked!</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm">
+          <p className="text-muted-foreground mx-auto max-w-2xl text-sm">
             Link other checking, savings, or credit accounts used for your
             business or continue later. <br /> If you've added all your business
             accounts, you're all done!
           </p>
         </div>
 
-        <div className="py-2 min-h-[15rem] w-full flex flex-wrap gap-6 justify-center items-stretch overflow-y-auto scrollbar-thin-2px">
+        <div className="scrollbar-thin-2px flex min-h-[15rem] w-full flex-wrap items-stretch justify-center gap-6 overflow-y-auto py-2">
           {grouped.userActionRequired.length > 0 && (
-            <div className="text-sm rounded-md p-4 flex flex-col gap-3 w-full border border-yellow-500/50">
+            <div className="flex w-full flex-col gap-3 rounded-md border border-yellow-500/50 p-4 text-sm">
               <div className="flex items-center gap-2">
-                <div className="flex flex-col flex-1">
+                <div className="flex flex-1 flex-col">
                   <span>
                     We found bank accounts in your records that might match the
                     one you just connected
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-muted-foreground text-xs">
                     Please select the correct account from the list below, or
                     choose “This is a new account” if none match.
                   </span>
                 </div>
-                <BadgeAlert className="w-8 h-8 text-yellow-600" />
+                <BadgeAlert className="h-8 w-8 text-yellow-600" />
               </div>
               <div>
-                <div className="bg-muted grid grid-cols-2 gap-3 p-2 items-center font-medium border-b mb-2">
+                <div className="bg-muted mb-2 grid grid-cols-2 items-center gap-3 border-b p-2 font-medium">
                   <div>Account Linked</div>
                   <div>Bank Account</div>
                 </div>
@@ -122,7 +122,7 @@ export const AccountLinked = ({
                   {grouped.userActionRequired.map((c) => (
                     <div
                       key={c.connectionDetails.connectionId}
-                      className="grid grid-cols-2 gap-3 items-center px-2"
+                      className="grid grid-cols-2 items-center gap-3 px-2"
                     >
                       <div>
                         {c.accountDetails?.bankName} |{' '}
@@ -142,7 +142,7 @@ export const AccountLinked = ({
                           }));
                         }}
                       >
-                        <SelectTrigger className="flex-1 max-w-full w-full">
+                        <SelectTrigger className="w-full max-w-full flex-1">
                           <SelectValue placeholder="Select the correct account" />
                         </SelectTrigger>
                         <SelectContent>
@@ -163,9 +163,9 @@ export const AccountLinked = ({
             </div>
           )}
           {grouped.connected.length > 0 && (
-            <div className="flex flex-col justify-center items-center min-h-0 flex-1 w-full min-w-[18rem]">
-              <div className="flex flex-col h-full rounded-sm overflow-clip border border-green-500/50">
-                <div className="flex justify-between px-4 py-3 bg-muted">
+            <div className="flex min-h-0 w-full min-w-[18rem] flex-1 flex-col items-center justify-center">
+              <div className="flex h-full flex-col overflow-clip rounded-sm border border-green-500/50">
+                <div className="bg-muted flex justify-between px-4 py-3">
                   <div className="font-semibold">Connected</div>
                   <div className="flex items-center gap-2 text-green-500">
                     <span className="font-medium">Linked</span>
@@ -192,20 +192,20 @@ export const AccountLinked = ({
                     </TableBody>
                   </Table>
                 </div>
-                <div className="p-2 bg-muted/50 opacity-50 border-t border-t-green-500/50 w-full text-center cursor-not-allowed">
+                <div className="bg-muted/50 w-full cursor-not-allowed border-t border-t-green-500/50 p-2 text-center opacity-50">
                   Edit account types
                 </div>
               </div>
-              <p className="text-muted-foreground text-xs mt-2 text-center">
+              <p className="text-muted-foreground mt-2 text-center text-xs">
                 {grouped.connected.length} account
                 {grouped.connected.length > 1 ? 's' : ''} connected successfully
               </p>
             </div>
           )}
           {grouped.error.length > 0 && (
-            <div className="flex flex-col justify-center items-center min-h-0 flex-1 w-full min-w-[18rem]">
-              <div className="flex flex-col h-full w-full rounded-sm overflow-clip border border-destructive/50">
-                <div className="flex justify-between px-4 py-3 bg-muted">
+            <div className="flex min-h-0 w-full min-w-[18rem] flex-1 flex-col items-center justify-center">
+              <div className="border-destructive/50 flex h-full w-full flex-col overflow-clip rounded-sm border">
+                <div className="bg-muted flex justify-between px-4 py-3">
                   <div className="font-semibold">Error</div>
                   <div className="flex items-center gap-2 text-red-500">
                     <span className="font-medium">Error</span>
@@ -219,7 +219,7 @@ export const AccountLinked = ({
                       <React.Fragment key={c.connectionDetails.connectionId}>
                         <TableRow>
                           <TableCell
-                            className="px-4 py-3 max-w-64 text-center text-[0.8rem] text-destructive whitespace-normal break-words"
+                            className="text-destructive max-w-64 px-4 py-3 text-center text-[0.8rem] break-words whitespace-normal"
                             colSpan={2}
                           >
                             {c.message}
@@ -242,7 +242,7 @@ export const AccountLinked = ({
                 Edit account types
               </div> */}
               </div>
-              <p className="text-muted-foreground text-xs mt-2 text-center">
+              <p className="text-muted-foreground mt-2 text-center text-xs">
                 Error connecting {grouped.error.length} account
                 {grouped.error.length > 1 ? 's' : ''}
               </p>
@@ -250,7 +250,7 @@ export const AccountLinked = ({
           )}
         </div>
 
-        <div className="flex gap-2 justify-between flex-shrink-0">
+        <div className="flex flex-shrink-0 justify-between gap-2">
           <Button
             variant="outline"
             disabled={

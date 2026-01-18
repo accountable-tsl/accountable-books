@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
-import { Router } from 'express';
-import express from 'express';
+import express, { Router } from 'express';
 
 import { transactionSyncQueue } from '../../../integrations/banking/index.js';
 import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';

@@ -16,23 +16,23 @@ export function ConfettiCelebration({
 }: ConfettiCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Particle count based on intensity
-  const getParticleCount = () => {
-    switch (intensity) {
-      case 'low':
-        return { main: 30, secondary: 10 };
-      case 'high':
-        return { main: 80, secondary: 30 };
-      default:
-        return { main: 50, secondary: 20 }; // medium
-    }
-  };
-
   useEffect(() => {
     if (!isActive) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    // Particle count based on intensity
+    const getParticleCount = () => {
+      switch (intensity) {
+        case 'low':
+          return { main: 30, secondary: 10 };
+        case 'high':
+          return { main: 80, secondary: 30 };
+        default:
+          return { main: 50, secondary: 20 }; // medium
+      }
+    };
 
     const particleCounts = getParticleCount();
     const end = Date.now() + duration;
@@ -90,7 +90,7 @@ export function ConfettiCelebration({
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none z-0 opacity-50"
+      className="pointer-events-none fixed inset-0 z-0 h-full w-full opacity-50"
       aria-hidden="true"
     />
   );

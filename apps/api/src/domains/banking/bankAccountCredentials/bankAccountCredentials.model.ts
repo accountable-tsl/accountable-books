@@ -8,11 +8,11 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import {
-  type BankAccountCredential,
-  type NewBankAccountCredentialInput,
-  newBankAccountCredentialInput,
+import type {
+  BankAccountCredential,
+  NewBankAccountCredentialInput,
 } from './bankAccountCredentials.types.js';
+import { newBankAccountCredentialInput } from './bankAccountCredentials.types.js';
 
 const getBankAccountCredentialAAD = ({
   providerId,

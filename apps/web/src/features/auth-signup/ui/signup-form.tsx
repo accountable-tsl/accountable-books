@@ -22,21 +22,18 @@ import { useCheckEmail } from '@/shared/hooks/useCheckEmail';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { routes } from '@/shared/routes/routes';
-import { type CompanyType, type Country, zEmail } from '@/shared/types/core';
+import type { CompanyType, Country } from '@/shared/types/core';
+import { zEmail } from '@/shared/types/core';
 
 import { submitSignup } from '../../../domains-pending-migration/signup/signupService';
 import {
   type NewCompany,
   type NewUser,
 } from '../../../domains-pending-migration/signup/signupTypes';
-import {
-  SignupBasicInfo,
-  type SignupBasicInfoHandle,
-} from './steps/basic-info';
-import {
-  SignupCompanyInfo,
-  type SignupCompanyInfoHandle,
-} from './steps/company-info';
+import type { SignupBasicInfoHandle } from './steps/basic-info';
+import { SignupBasicInfo } from './steps/basic-info';
+import type { SignupCompanyInfoHandle } from './steps/company-info';
+import { SignupCompanyInfo } from './steps/company-info';
 import { SignupSelector } from './steps/selector';
 
 //TODO: Refactor whole signup flow later
@@ -77,8 +74,10 @@ export function Signup() {
   const steps = ['Get started', 'Basic Info', 'Company Details'];
 
   const { data: country } = useCountries();
+  const countries = useMemo(() => country?.data || [], [country?.data]);
 
   const { data: currencies } = useCurrencies();
+  const currenciesData = useMemo(() => currencies?.data || [], [currencies?.data]);
 
   const basicInfoRef = useRef<SignupBasicInfoHandle>(null);
   const companyInfoRef = useRef<SignupCompanyInfoHandle>(null);
@@ -252,17 +251,16 @@ export function Signup() {
     setBasicInfo((prev) => ({ ...prev, [key]: value }));
   };
 
-  const getCountryFromLocale = (): Country | undefined => {
+  const getCountryFromLocale = useCallback((): Country | undefined => {
     const locale = navigator.language;
     const countryCode = locale.split('-')[1];
-    const userCountry =
-      country && country?.data?.find((item) => item.code === countryCode);
+    const userCountry = countries.find((item) => item.code === countryCode);
     return userCountry;
-  };
+  }, [countries]);
 
-  const getDefaultCurrency = () => {
+  const getDefaultCurrency = useCallback(() => {
     const ctry = companyDetails.countryId
-      ? country?.data?.find((item) => item.id === companyDetails.countryId)
+      ? countries.find((item) => item.id === companyDetails.countryId)
       : '';
     const userCountry = ctry || getCountryFromLocale();
     const curr = userCountry
@@ -270,7 +268,7 @@ export function Signup() {
       : '';
 
     return curr;
-  };
+  }, [companyDetails.countryId, countries, getCountryFromLocale]);
 
   const handleCompanyInfoChange = (field: keyof NewCompany, value: string) => {
     // If user manually selects a currency, mark the override flag
@@ -328,7 +326,7 @@ export function Signup() {
   }
 
   useEffect(() => {
-    if (!country?.data) return;
+    if (!countries.length) return;
     const userCountry = getCountryFromLocale();
     if (userCountry?.id && !companyDetails.countryId) {
       setCompanyDetails((prev) => ({
@@ -336,12 +334,12 @@ export function Signup() {
         countryId: userCountry.id,
       }));
     }
-  }, [country?.data, companyDetails.countryId]);
+  }, [countries, companyDetails.countryId, getCountryFromLocale]);
 
   useEffect(() => {
     // Only run when currency list is ready and a country is selected
     if (
-      !currencies?.data ||
+      !currenciesData.length ||
       !companyDetails.countryId ||
       userHasSelectedCurrency.current // ❌ Stop if user already picked one manually
     ) {
@@ -350,7 +348,7 @@ export function Signup() {
 
     // Get the default currency code for the selected country
     const defaultCurrencyCode = getDefaultCurrency();
-    const defaultCurrency = currencies?.data?.find(
+    const defaultCurrency = currenciesData.find(
       (c) => c.code === defaultCurrencyCode,
     );
 
@@ -364,17 +362,17 @@ export function Signup() {
         reportingCurrencyId: defaultCurrency?.id,
       }));
     }
-  }, [currencies?.data, companyDetails.countryId]);
+  }, [currenciesData, companyDetails.countryId, companyDetails.reportingCurrencyId, getDefaultCurrency]);
 
   return (
-    <div className="flex flex-col min-h-svh">
+    <div className="flex min-h-svh flex-col">
       <AuthHeader />
-      <div className="flex flex-1 w-full items-center justify-center p-6 md:p-10">
-        <div className="flex w-full max-w-md flex-col gap-6 relative">
+      <div className="flex w-full flex-1 items-center justify-center p-6 md:p-10">
+        <div className="relative flex w-full max-w-md flex-col gap-6">
           <img
             src="./icon.svg"
             alt=""
-            className="absolute right-1/2 bottom-3/5 -z-5 opacity-10 h-100 w-100"
+            className="absolute right-1/2 bottom-3/5 -z-5 h-100 w-100 opacity-10"
           />
           <Card className="relative">
             {!isSubmitting && submitStatus === 'idle' && (
@@ -398,7 +396,7 @@ export function Signup() {
                 </CardContent>
                 {
                   <CardFooter className="py-2">
-                    <div className="flex justify-between w-full">
+                    <div className="flex w-full justify-between">
                       <Button
                         variant="outline"
                         disabled={currentStep === 1}
@@ -423,7 +421,7 @@ export function Signup() {
 
             {submitStatus === 'submitting' && (
               <>
-                <div className="flex flex-col gap-2 justify-center items-center text-center p-16 py-22">
+                <div className="flex flex-col items-center justify-center gap-2 p-16 py-22 text-center">
                   {/* <div className="flex justify-center"> */}
                   <PuffLoader color="var(--muted-foreground)" />
                   {/* </div> */}
@@ -440,7 +438,7 @@ export function Signup() {
               </div>
             )}
           </Card>
-          <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary  ">
+          <div className="text-muted-foreground [&_a]:hover:text-primary text-center text-xs text-balance [&_a]:underline [&_a]:underline-offset-4">
             By clicking continue, you agree to our{' '}
             <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
           </div>

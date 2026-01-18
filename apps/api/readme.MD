@@ -128,10 +128,11 @@ pnpm test:coverage     # Run with coverage report
 ### Writing Tests
 
 ```typescript
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestDb, teardownTestDb, testDb } from '../tests/testUtils.js';
 import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import { app } from '../src/app.js';
+import { setupTestDb, teardownTestDb, testDb } from '../tests/testUtils.js';
 
 describe('User API', () => {
   beforeAll(async () => {

@@ -4,6 +4,7 @@ import {
   type UrlParams,
   type UrlType,
 } from './email.types.js';
+
 const routePaths: Record<UrlType, string> = {
   'verify-email': 'verify-email',
   'reset-password': 'reset-password',

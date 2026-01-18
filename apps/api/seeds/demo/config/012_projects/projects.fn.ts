@@ -7,8 +7,8 @@ import {
   getDemoCompanies,
   getDemoUserMap,
 } from '../../shared/utils.js';
+import type { CompanyProjectsMap } from './projects.data.js';
 import {
-  type CompanyProjectsMap,
   generateDemoProjectsMap,
   getRawProjectsForInsertion,
 } from './projects.data.js';

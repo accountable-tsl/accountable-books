@@ -10,14 +10,16 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
+import type {
+  BankFeedProviderInputCamel,
+  BankFeedProviderStatus,
+  BankFeedProviderWithCountries,
+  BankProviderKey,
+  RawBankFeedProviderResponse,
+  UpdateProviderInput,
+} from './bankFeedProviders.types.js';
 import {
-  type BankFeedProviderInputCamel,
   bankFeedProviderInputCamel,
-  type BankFeedProviderStatus,
-  type BankFeedProviderWithCountries,
-  type BankProviderKey,
-  type RawBankFeedProviderResponse,
-  type UpdateProviderInput,
   updateProviderInput,
 } from './bankFeedProviders.types.js';
 

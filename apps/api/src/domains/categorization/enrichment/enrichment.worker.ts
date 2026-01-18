@@ -5,10 +5,8 @@ import pino from 'pino';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
-import {
-  emitTxnEnrichedEvent,
-  type TransactionEnrichedEventData,
-} from '../events/transaction-events.service.js';
+import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
+import { emitTxnEnrichedEvent } from '../events/transaction-events.service.js';
 import { incrementContactStats } from '../stats/stats.service.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import { upsertCategorizationTask } from '../tasks/tasks.service.js';

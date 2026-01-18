@@ -1,34 +1,7 @@
 import type {
-  CategorizationTransactionFile,
-  GroupedTransaction,
-} from '@/modules/accounting/categorization';
-import type { ContactResponse } from '@/modules/contacts';
-import type { ProjectsResponse } from '@/modules/projects';
-import type {
   LedgerIntentDesiredState,
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
-import type { ComponentProps } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSession } from '@/app/session';
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
-import { FilePreviewer } from '@/components/file-previewer';
-import { FormattedAmount } from '@/components/FormattedAmount';
-import { TooltipHelper } from '@/components/TooltipHelper';
-import { Badge } from '@/components/ui/badge';
-import { AddNewCoaDialog } from '@/features/chart-of-accounts/ui/components/coa-add-new';
-import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
-import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
-import { cn } from '@/lib/utils';
-import {
-  createTempEntryId,
-  isTempEntryId,
-  useLedgerIntentUpdater,
-} from '@/modules/accounting/categorization';
-import { useContactsInfinite } from '@/modules/contacts';
-import { getObjectDownloadUrl } from '@/modules/objects/api';
-import { useUploadTransactionFiles } from '@/modules/objects/model/hooks';
-import { useProjectsInfinite } from '@/modules/projects';
 import {
   Check,
   ChevronDown,
@@ -39,10 +12,37 @@ import {
   Upload,
   X,
 } from 'lucide-react';
+import type { ComponentProps } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { TOOLTIPS } from '../constants';
+import { useSession } from '@/app/session';
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { FilePreviewer } from '@/components/file-previewer';
+import { FormattedAmount } from '@/components/FormattedAmount';
+import { TooltipHelper } from '@/components/TooltipHelper';
+import { Badge } from '@/components/ui/badge';
+import { AddNewCoaDialog } from '@/features/chart-of-accounts/ui/components/coa-add-new';
+import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
+import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
+import { cn } from '@/lib/utils';
+import type {
+  CategorizationTransactionFile,
+  GroupedTransaction,
+} from '@/modules/accounting/categorization';
+import {
+  createTempEntryId,
+  isTempEntryId,
+  useLedgerIntentUpdater,
+} from '@/modules/accounting/categorization';
+import type { ContactResponse } from '@/modules/contacts';
+import { useContactsInfinite } from '@/modules/contacts';
+import { getObjectDownloadUrl } from '@/modules/objects/api';
+import { useUploadTransactionFiles } from '@/modules/objects/model/hooks';
+import type { ProjectsResponse } from '@/modules/projects';
+import { useProjectsInfinite } from '@/modules/projects';
 
+import { TOOLTIPS } from '../constants';
 import type { GroupedCoaData } from '../types';
 
 // Escape key should close the edit mode and act as cancel
@@ -185,7 +185,7 @@ export function TransactionView({
       filesByEntryId.set(entry.id, entry.files || []);
     });
     setDraftEntryFiles(filesByEntryId);
-  }, [txn.id]); // Only reset when the transaction ID changes
+  }, [txn]); // Only reset when the transaction ID changes
 
   useEffect(() => {
     if (!txn.entries?.length || !draftTransactionState?.entries?.length) {
@@ -368,11 +368,12 @@ export function TransactionView({
   }
 
   // Type guard to check if file is a server file
-  function isServerFile(
-    file: CategorizationTransactionFile | File,
-  ): file is CategorizationTransactionFile {
-    return 'id' in file && 'key' in file;
-  }
+  const isServerFile = useCallback(
+    (file: CategorizationTransactionFile | File): file is CategorizationTransactionFile => {
+      return 'id' in file && 'key' in file;
+    },
+    [],
+  );
 
   // Helper function to get file attachments for FilePreviewer (synchronous - all data is in memory)
   const getFileAttachments = useCallback(
@@ -425,7 +426,7 @@ export function TransactionView({
 
       return attachments;
     },
-    [draftEntryFiles, presignedUrls, blobUrls],
+    [draftEntryFiles, presignedUrls, blobUrls, isServerFile],
   );
 
   function canPersistEntry(entryId: string): boolean {
@@ -627,6 +628,7 @@ export function TransactionView({
       savedFiles,
       uploadTxnFilesMutation,
       getFileKey,
+      isServerFile,
     ],
   );
 
@@ -837,7 +839,7 @@ export function TransactionView({
         }
       });
     }
-  }, [companyId, draftEntryFiles, presignedUrls]);
+  }, [companyId, draftEntryFiles, presignedUrls, isServerFile]);
 
   // Detect when transaction is persisted and upload files for temp entries
   const prevLedgerTransactionIdRef = useRef<string | null>(
@@ -860,8 +862,7 @@ export function TransactionView({
 
     prevLedgerTransactionIdRef.current = current;
   }, [
-    txn.ledgerTransactionId,
-    txn.entries,
+    txn,
     handleUploadFilesForPersistedEntries,
   ]);
 
@@ -872,7 +873,7 @@ export function TransactionView({
         URL.revokeObjectURL(url);
       });
     };
-  }, []);
+  }, [blobUrls]);
 
   const isFxTransaction =
     txn?.bankAccountCurrencyCode !== txn?.reportingCurrencyCode;
@@ -1683,7 +1684,7 @@ export function TransactionView({
                   </label>
                   <p
                     className={cn(
-                      'block overflow-hidden truncate text-lg',
+                      'block truncate overflow-hidden text-lg',
                       totalDebit + totalCredit > 9_999_999_999 ? 'text-sm' : '',
                     )}
                   >
@@ -1700,7 +1701,7 @@ export function TransactionView({
                   </label>
                   <p
                     className={cn(
-                      'block overflow-hidden truncate text-lg',
+                      'block truncate overflow-hidden text-lg',
                       totalDebit + totalCredit > 9_999_999_999 ? 'text-sm' : '',
                     )}
                   >
@@ -1944,7 +1945,7 @@ export function EditableTextField({
                     onSave();
                   }
                 }}
-                className="bg-muted/50 focus:ring-ring flex-1 resize-none rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+                className="bg-muted/50 focus:ring-ring flex-1 resize-none rounded border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
               />
             ) : (
               <input
@@ -1961,7 +1962,7 @@ export function EditableTextField({
                     onSave();
                   }
                 }}
-                className="bg-muted/50 focus:ring-ring h-9 flex-1 rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+                className="bg-muted/50 focus:ring-ring h-9 flex-1 rounded border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
               />
             )}
             <div className="flex flex-shrink-0 gap-0.5">
@@ -2095,7 +2096,7 @@ function NumberField({
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="bg-muted/50 focus:ring-ring w-full rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+      className="bg-muted/50 focus:ring-ring w-full rounded border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
     />
   );
 

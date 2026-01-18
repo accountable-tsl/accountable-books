@@ -1,4 +1,5 @@
-import { type Job, Worker } from 'bullmq';
+import type { Job } from 'bullmq';
+import { Worker } from 'bullmq';
 
 import { redis } from '../../lib/redis.js';
 import {

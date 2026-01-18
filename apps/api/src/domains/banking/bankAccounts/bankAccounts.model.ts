@@ -18,16 +18,18 @@ import {
 import { getAccountTypeByKey } from '../../account/account.registry.js';
 import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
 import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
+import type {
+  BankAccountWithConnectionInput,
+  BankAccountWithMeta,
+  CompanyBankingSnapshot,
+  ManualBankAccountInput,
+  NewBankAccountInput,
+  UpdateBankAccount,
+} from './bankAccounts.types.js';
 import {
-  type BankAccountWithConnectionInput,
   bankAccountWithConnectionInput,
-  type BankAccountWithMeta,
-  type CompanyBankingSnapshot,
-  type ManualBankAccountInput,
   manualBankAccountInputCamel,
-  type NewBankAccountInput,
   newBankAccountInput,
-  type UpdateBankAccount,
   updateBankAccount,
 } from './bankAccounts.types.js';
 

@@ -41,16 +41,18 @@ import { getCountry } from '../countries/countries.utils.js';
 import { getCurrency } from '../currencies/currencies.utils.js';
 import { enqueueFiscalCalendarGeneration } from '../reporting/fiscal-calendar/index.js';
 import { initializeCompanySettings } from '../settings/settings.service.js';
+import type {
+  FetchCompaniesOptions,
+  GetCompanyResponse,
+  NewCompany,
+  NewCompanyInput,
+  UpdateCompanySchema,
+} from './companies.types.js';
 import {
   companyType,
-  type FetchCompaniesOptions,
   fieldToColumnMap,
-  type GetCompanyResponse,
-  type NewCompany,
   newCompany,
-  type NewCompanyInput,
   newCompanyInput,
-  type UpdateCompanySchema,
   updateCompanySchema,
 } from './companies.types.js';
 

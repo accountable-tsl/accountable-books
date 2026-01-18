@@ -1,7 +1,8 @@
 import type {
-  Intent,
   DataMutationIntent,
+  Intent,
 } from '@accountable-books/contracts/schema';
+
 import type {
   LedgerEntryInput,
   NewLedgerTransactionData,

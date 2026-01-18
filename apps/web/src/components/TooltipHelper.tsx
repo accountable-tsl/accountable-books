@@ -43,7 +43,7 @@ export const TooltipHelper = ({
         </div>
       </TooltipTrigger>
       <TooltipContent side="top" align="center">
-        <p className={`w-[200px] text-background/85 text ${contentStyle}`}>
+        <p className={`text-background/85 text w-[200px] ${contentStyle}`}>
           {content}
         </p>
       </TooltipContent>

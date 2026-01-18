@@ -71,12 +71,12 @@ export default function ErrorPage({
 
   return (
     <div
-      className={cn('flex flex-col min-h-screen justify-between', className)}
+      className={cn('flex min-h-screen flex-col justify-between', className)}
     >
       {showHeader && <AuthHeader />}
       <div className="flex flex-1 items-center justify-center p-4">
-        <div className="text-center max-w-md space-y-4">
-          <h1 className="text-4xl font-bold flex items-center justify-center gap-1">
+        <div className="max-w-md space-y-4 text-center">
+          <h1 className="flex items-center justify-center gap-1 text-4xl font-bold">
             {type === 'default' ? (
               <span>{config.icon}</span>
             ) : (
@@ -99,7 +99,7 @@ export default function ErrorPage({
           {showHomeLink && (
             <div
               onClick={() => navigate(routeLink, { replace: true })}
-              className="text-blue-600 hover:underline cursor-pointer"
+              className="cursor-pointer text-blue-600 hover:underline"
             >
               Go back home
             </div>
@@ -108,7 +108,7 @@ export default function ErrorPage({
       </div>
 
       {isLoggedIn && showSupport && (
-        <div className="text-center mb-4">
+        <div className="mb-4 text-center">
           <p className="text-sm">
             Need help? Contact{' '}
             <a href={`mailto:${supportEmail}`} className="underline">

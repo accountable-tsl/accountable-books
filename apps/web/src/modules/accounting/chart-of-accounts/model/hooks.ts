@@ -9,13 +9,13 @@ import {
   fetchChartOfAccounts,
   unarchiveCoa,
 } from '../api';
-import {
-  type CoaResponse,
-  type CreateCoa,
-  createCoaSchema,
-  type EditCoaRequest,
-  type FetchCoaInput,
+import type {
+  CoaResponse,
+  CreateCoa,
+  EditCoaRequest,
+  FetchCoaInput,
 } from './types';
+import { createCoaSchema } from './types';
 
 const CACHE_TIMES = {
   STALE_TIME: 1000 * 60 * 60 * 1, // 1 hour

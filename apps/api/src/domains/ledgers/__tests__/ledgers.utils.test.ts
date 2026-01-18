@@ -2,14 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as currencyUtils from '../../currencies/currencies.utils.js';
 import * as exchangeRateUtils from '../../exchangeRates/exchangeRates.utils.js';
+import type { LedgerEntryInput } from '../ledgers.types.js';
 import {
   processEntriesDates,
   resolveFx,
   validateBankLegAmount,
   validateIds,
 } from '../ledgers.utils.js';
-
-import type { LedgerEntryInput } from '../ledgers.types.js';
 
 describe('validateBankLegAmount', () => {
   it('should validate when bank leg matches bank transaction amount (same sign)', () => {

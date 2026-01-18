@@ -10,9 +10,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import type {
+  DataTransformFunction,
+  ExportableData,
+} from '@/shared/utils/export-utils';
 import {
-  type DataTransformFunction,
-  type ExportableData,
   exportData,
   exportToCSV,
   exportToExcel,

@@ -32,11 +32,11 @@ import {
   COMPANY_REVENUE_RANGE,
   COMPANY_SIZE,
 } from '@/domains-pending-migration/company/constants';
-import {
-  type CompanyData,
-  type UpdateCompanyVitalsData,
-  updateCompanyVitalsSchema,
+import type {
+  CompanyData,
+  UpdateCompanyVitalsData,
 } from '@/domains-pending-migration/company/types';
+import { updateCompanyVitalsSchema } from '@/domains-pending-migration/company/types';
 import {
   getCompanyTypeDisplay,
   getDefaultCompanyData,
@@ -55,6 +55,94 @@ import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useIndustries } from '@/shared/hooks/useIndustries';
 import { routes } from '@/shared/routes/routes';
+
+// Separate component to handle slug field with hooks
+function SlugFieldController({
+  control,
+  currentSlug,
+  setError,
+  clearErrors,
+}: {
+  control: any;
+  currentSlug: string;
+  setError: (name: string, error: { type: string; message: string }) => void;
+  clearErrors: (name: string) => void;
+}) {
+  return (
+    <Controller
+      name="assignedFirmSlug"
+      control={control}
+      render={({ field, fieldState }) => (
+        <SlugFieldInput
+          field={field}
+          fieldState={fieldState}
+          currentSlug={currentSlug}
+          setError={setError}
+          clearErrors={clearErrors}
+        />
+      )}
+    />
+  );
+}
+
+function SlugFieldInput({
+  field,
+  fieldState,
+  currentSlug,
+  setError,
+  clearErrors,
+}: {
+  field: { value: string; onChange: (value: string) => void };
+  fieldState: { error?: { message?: string } };
+  currentSlug: string;
+  setError: (name: string, error: { type: string; message: string }) => void;
+  clearErrors: (name: string) => void;
+}) {
+  const { value, onChange } = field;
+  const slugCheck = useSlugCheck(value || '', currentSlug);
+  const errorMessage = slugCheck.getError();
+  const isCurrentSlug = slugCheck?.isSameAsCurrent;
+
+  useEffect(() => {
+    if (
+      (slugCheck.validation.isValid && slugCheck.isValid) ||
+      isCurrentSlug
+    ) {
+      clearErrors('assignedFirmSlug');
+    } else {
+      setError('assignedFirmSlug', {
+        type: 'manual',
+        message: errorMessage ?? 'Invalid slug',
+      });
+    }
+  }, [
+    slugCheck.isValid,
+    slugCheck.validation.isValid,
+    errorMessage,
+    isCurrentSlug,
+    clearErrors,
+    setError,
+  ]);
+
+  return (
+    <FormField
+      label="Slug"
+      helpTooltip={TOOLTIP.firmSlug}
+      tooltipStyle="text-center"
+      required
+      error={errorMessage || fieldState.error?.message}
+      errorTooltip
+      errorTooltipStyle="text-center"
+      errorClassName={isCurrentSlug ? 'text-green-500' : ''}
+    >
+      <Input
+        placeholder="e.g. kpmg, afandco"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </FormField>
+  );
+}
 
 export const CompanyInfo = () => {
   // Refs
@@ -193,13 +281,13 @@ export const CompanyInfo = () => {
   const requiredFields = getRequiredFields();
 
   // Check if essential fields are filled
-  const checkEssentialFieldsComplete = (): boolean => {
+  const checkEssentialFieldsComplete = useCallback((): boolean => {
     const fieldValues = watch(requiredFields);
     return requiredFields.every(
       (_, index) =>
         fieldValues[index] && fieldValues[index].toString().trim() !== '',
     );
-  };
+  }, [watch, requiredFields]);
 
   const scrollToSubmit = () => {
     const footer = document.querySelector('[data-footer]');
@@ -217,12 +305,16 @@ export const CompanyInfo = () => {
     }
   };
 
-  const normalize = (val: any) => {
+  const normalize = useCallback((val: any) => {
     if (val === undefined || val === null || val === '') return null;
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      return trimmed === '' ? null : trimmed;
+    }
     return val;
-  };
+  }, []);
 
-  const getDirtyFields = (): Partial<UpdateCompanyVitalsData> => {
+  const getDirtyFields = useCallback((): Partial<UpdateCompanyVitalsData> => {
     const formData = getValues();
     const dirty: Partial<UpdateCompanyVitalsData> = {};
 
@@ -237,7 +329,7 @@ export const CompanyInfo = () => {
     }
 
     return dirty;
-  };
+  }, [getValues, company, normalize]);
 
   const getMissingRequiredFields = (): string[] => {
     const formData = getValues();
@@ -304,9 +396,9 @@ export const CompanyInfo = () => {
     }
   };
 
-  const hasUnsavedChanges = (): boolean => {
+  const hasUnsavedChanges = useCallback((): boolean => {
     return Object.keys(getDirtyFields()).length > 0;
-  };
+  }, [getDirtyFields]);
 
   const FORM_KEY = `onb_company_form_${companyId}`;
 
@@ -344,7 +436,7 @@ export const CompanyInfo = () => {
     }
 
     setFormInitialized(true);
-  }, [companyId, company, reset, formInitialized]);
+  }, [companyId, company, reset, formInitialized, FORM_KEY]);
 
   // Watch all form values for auto-save
   const watchedValues = watch();
@@ -359,7 +451,7 @@ export const CompanyInfo = () => {
     if (Object.keys(dirty).length > 0) {
       localStorage.setItem(FORM_KEY, JSON.stringify(dirty));
     }
-  }, [debouncedFormValues, formInitialized]);
+  }, [debouncedFormValues, formInitialized, FORM_KEY, getDirtyFields]);
 
   // BROWSER WARNING - Prevent accidental navigation with unsaved changes
   useEffect(() => {
@@ -372,7 +464,7 @@ export const CompanyInfo = () => {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  }, [hasUnsavedChanges]);
 
   useEffect(() => {
     if (controlledInputError) {
@@ -404,7 +496,7 @@ export const CompanyInfo = () => {
     handleScroll();
 
     return () => scrollContainer.removeEventListener('scroll', handleScroll);
-  }, [scrollContainerRef.current]);
+  }, []);
 
   // Update showQuickSubmit based on form completion and scroll position
   useEffect(() => {
@@ -413,7 +505,7 @@ export const CompanyInfo = () => {
     const shouldShow = isComplete && isInUpperPortion && !isManuallyDismissed;
 
     setShowQuickSubmit(shouldShow);
-  }, [scrollPosition, isManuallyDismissed]);
+  }, [scrollPosition, isManuallyDismissed, checkEssentialFieldsComplete]);
 
   if (!isLoggedIn) {
     return <ErrorPage type="403" />;
@@ -425,16 +517,16 @@ export const CompanyInfo = () => {
 
   if (!company || !companyId) {
     return (
-      <ErrorPage type="default" showHeader={false} className="min-h-0 h-full" />
+      <ErrorPage type="default" showHeader={false} className="h-full min-h-0" />
     );
   }
 
   return (
     <div
-      className="p-4 md:p-6 flex-1 relative overflow-y-auto scrollbar-thin-2px"
+      className="scrollbar-thin-2px relative flex-1 overflow-y-auto p-4 md:p-6"
       ref={scrollContainerRef}
     >
-      <form className="space-y-8 ">
+      <form className="space-y-8">
         <ImageUploader
           label="Company logo / icon"
           labelPosition="bottom"
@@ -448,10 +540,10 @@ export const CompanyInfo = () => {
         />
         {/* Basic Company Information */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-muted-foreground border-b">
+          <h3 className="text-muted-foreground border-b text-lg font-medium">
             Company Information
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <FormField
               label="Legal Name"
               required
@@ -550,10 +642,10 @@ export const CompanyInfo = () => {
 
         {/* Registration & Legal Details */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-muted-foreground border-b">
+          <h3 className="text-muted-foreground border-b text-lg font-medium">
             Registration & Legal
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <FormField label="Company Registration Number">
               <Input
                 {...register('companyRegistrationNumber')}
@@ -567,13 +659,13 @@ export const CompanyInfo = () => {
         </div>
         {/* Location & Currency */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-muted-foreground border-b">
+          <h3 className="text-muted-foreground border-b text-lg font-medium">
             Location & Currency
           </h3>
           <FormField label="Address">
             <Input {...register('address')} placeholder="123 Main Street" />
           </FormField>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <Controller
               name="countryId"
               control={control}
@@ -633,7 +725,7 @@ export const CompanyInfo = () => {
                   }
                   errorTooltip
                   errorTooltipStyle="w-full"
-                  className="flex flex-col flex-1"
+                  className="flex flex-1 flex-col"
                   onClick={() =>
                     setControlledInputError((prev) => ({
                       ...prev,
@@ -671,10 +763,10 @@ export const CompanyInfo = () => {
         {/* Business Details */}
         {!isIndividual && (
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-muted-foreground border-b">
+            <h3 className="text-muted-foreground border-b text-lg font-medium">
               Business & Accounting
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <Controller
                 name="revenue"
                 control={control}
@@ -759,7 +851,7 @@ export const CompanyInfo = () => {
                 errorTooltip
                 errorTooltipStyle="w-full"
               >
-                <div className="grid md:grid-cols-2 gap-1">
+                <div className="grid gap-1 md:grid-cols-2">
                   <Controller
                     name="yearEndDay"
                     control={control}
@@ -781,7 +873,7 @@ export const CompanyInfo = () => {
                           </SelectContent>
                         </Select>
                         {field.value && (
-                          <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                          <span className="text-muted-foreground/50 absolute top-1/4 right-1 text-[0.75rem]">
                             Day
                           </span>
                         )}
@@ -809,7 +901,7 @@ export const CompanyInfo = () => {
                           </SelectContent>
                         </Select>
                         {field.value && (
-                          <span className="text-[0.75rem] text-muted-foreground/50 absolute top-1/4 right-1">
+                          <span className="text-muted-foreground/50 absolute top-1/4 right-1 text-[0.75rem]">
                             Month
                           </span>
                         )}
@@ -820,54 +912,11 @@ export const CompanyInfo = () => {
               </FormField>
               {isAccountingFirm && (
                 <>
-                  <Controller
-                    name="assignedFirmSlug"
+                  <SlugFieldController
                     control={control}
-                    render={({ field, fieldState }) => {
-                      const { value, onChange } = field;
-                      const slugCheck = useSlugCheck(
-                        value || '',
-                        company?.assignedFirmSlug || '',
-                      );
-                      const errorMessage = slugCheck.getError();
-                      const isCurrentSlug = slugCheck?.isSameAsCurrent;
-
-                      useEffect(() => {
-                        if (
-                          (slugCheck.validation.isValid && slugCheck.isValid) ||
-                          isCurrentSlug
-                        ) {
-                          clearErrors('assignedFirmSlug');
-                        } else {
-                          setError('assignedFirmSlug', {
-                            type: 'manual',
-                            message: errorMessage ?? 'Invalid slug',
-                          });
-                        }
-                      }, [
-                        slugCheck.isValid,
-                        slugCheck.validation.isValid,
-                        errorMessage,
-                      ]);
-                      return (
-                        <FormField
-                          label="Slug"
-                          helpTooltip={TOOLTIP.firmSlug}
-                          tooltipStyle="text-center"
-                          required
-                          error={errorMessage || fieldState.error?.message}
-                          errorTooltip
-                          errorTooltipStyle="text-center"
-                          errorClassName={isCurrentSlug ? 'text-green-500' : ''}
-                        >
-                          <Input
-                            placeholder="e.g. kpmg, afandco"
-                            value={value || ''}
-                            onChange={(e) => onChange(e.target.value)}
-                          />
-                        </FormField>
-                      );
-                    }}
+                    currentSlug={company?.assignedFirmSlug || ''}
+                    setError={setError}
+                    clearErrors={clearErrors}
                   />
                   <Controller
                     name="accountingBasis"
@@ -902,20 +951,20 @@ export const CompanyInfo = () => {
           </div>
         )}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-muted-foreground border-b">
+          <h3 className="text-muted-foreground border-b text-lg font-medium">
             Other
           </h3>
           <FormField id="description" label="Description">
             <Textarea
               {...register('description')}
-              className={cn('resize-none mb-6')}
+              className={cn('mb-6 resize-none')}
               placeholder="Tell us a bit about your company"
             />
           </FormField>
         </div>
         {/* Form navigation */}
         <div
-          className="pb-4 flex justify-center md:justify-between"
+          className="flex justify-center pb-4 md:justify-between"
           data-footer
         >
           {!isMobile && (
@@ -941,13 +990,13 @@ export const CompanyInfo = () => {
             </AlertDialogDescription>
             <hr />
           </AlertDialogHeader>
-          <div className=" flex flex-col justify-center items-center gap-4">
+          <div className="flex flex-col items-center justify-center gap-4">
             <p className="text-center">
-              <span className="font-semibold text-destructive">
+              <span className="text-destructive font-semibold">
                 Are you sure all details are correct?
               </span>{' '}
               <br />
-              <span className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-sm">
                 Most company settings become permanent once saved and cannot be
                 modified.
               </span>
@@ -965,7 +1014,7 @@ export const CompanyInfo = () => {
                   Not sure
                 </Button>
               </div>
-              <span className="italic text-xs text-muted-foreground/70">
+              <span className="text-muted-foreground/70 text-xs italic">
                 Request a callback if you need some help
               </span>
             </div>
@@ -974,27 +1023,27 @@ export const CompanyInfo = () => {
       </AlertDialog>
 
       {showQuickSubmit && (
-        <div className="sticky bottom-0 left-1/2 transform -translate-x-1/2 md:translate-x-00 z-50 w-xs md:max-w-xs overflow-hidden rounded-md">
+        <div className="md:translate-x-00 sticky bottom-0 left-1/2 z-50 w-xs -translate-x-1/2 transform overflow-hidden rounded-md md:max-w-xs">
           <div className="animate-in slide-in-from-bottom-8 fade-in-0 duration-500 ease-out">
-            <div className="relative bg-linear-to-r from-cyan-700 via-blue-500 to-indigo-600 z-50">
+            <div className="relative z-50 bg-linear-to-r from-cyan-700 via-blue-500 to-indigo-600">
               {/* Animated background sparkles #00d3f2, #2b7fff #4f39f6*/}
               <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                <div className="absolute -top-1 -left-1 w-3 h-3 bg-white/30 rounded-full animate-pulse"></div>
-                <div className="absolute top-3 right-4 w-2 h-2 bg-white/40 rounded-full animate-pulse delay-300"></div>
-                <div className="absolute bottom-4 left-6 w-1.5 h-1.5 bg-white/50 rounded-full animate-pulse delay-700"></div>
+                <div className="absolute -top-1 -left-1 h-3 w-3 animate-pulse rounded-full bg-white/30"></div>
+                <div className="absolute top-3 right-4 h-2 w-2 animate-pulse rounded-full bg-white/40 delay-300"></div>
+                <div className="absolute bottom-4 left-6 h-1.5 w-1.5 animate-pulse rounded-full bg-white/50 delay-700"></div>
               </div>
 
               {/* Content */}
-              <div className="px-4 py-3 bg-black/10 text-white flex flex-col gap-2 relative z-50">
+              <div className="relative z-50 flex flex-col gap-2 bg-black/10 px-4 py-3 text-white">
                 <p className="text-center text-white/80">
                   You've completed the essential fields. Continue or scroll to
                   submit
                 </p>
-                <div className="flex gap-2 justify-center">
+                <div className="flex justify-center gap-2">
                   <Button
                     size="sm"
                     variant="link"
-                    className="bg-transparent cursor-pointer text-white"
+                    className="cursor-pointer bg-transparent text-white"
                     onClick={scrollToSubmit}
                   >
                     Scroll to Submit

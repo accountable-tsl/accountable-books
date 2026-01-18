@@ -10,8 +10,8 @@ import type {
 } from '@/domains-pending-migration/spreadsheets/types';
 import { queryClient } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
+import type { CreateCoa } from '@/modules/accounting/chart-of-accounts';
 import {
-  type CreateCoa,
   createCoaSchema,
   useCompanyCoa,
 } from '@/modules/accounting/chart-of-accounts';
@@ -233,7 +233,7 @@ export function CoaImportCsv({
         setError('Failed to process CSV file');
       }
     },
-    [isDuplicateCode, isDuplicateName, accountTypeByKey, clearState],
+    [isDuplicateCode, isDuplicateName, accountTypeByKey, clearState, companyId],
   );
 
   const onImportClick = async () => {
@@ -253,7 +253,7 @@ export function CoaImportCsv({
   };
 
   return (
-    <div className="flex-1 flex flex-col gap-6 min-h-0 h-full justify-between">
+    <div className="flex h-full min-h-0 flex-1 flex-col justify-between gap-6">
       <div className="flex flex-col">
         <a
           href="https://docs.google.com/spreadsheets/d/1esQsP0H9gAZy_JAsz9CRVVYKlbHI7YGbofXJE5y6WAc"
@@ -262,7 +262,7 @@ export function CoaImportCsv({
           rel="noreferrer"
         >{`[Open Google Sheets Template]`}</a>
 
-        <ul className="list-disc pl-4 pt-4">
+        <ul className="list-disc pt-4 pl-4">
           <li>Complete the template and upload below</li>
           <li>Instructions are on the first sheet</li>
         </ul>
@@ -325,7 +325,7 @@ const ErrorBanner = ({
   processingErrors: ProcessingError[];
   errorsToShow?: number;
 }) => (
-  <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+  <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
     <div className="flex">
       <div className="flex-shrink-0">
         <XCircle className="h-5 w-5 text-red-400" />
@@ -335,9 +335,9 @@ const ErrorBanner = ({
           Found {errors.length} rows with error{errors.length !== 1 ? 's' : ''}
         </h3>
 
-        <div className="mt-2 text-sm text-red-700 max-h-40 overflow-y-auto scrollbar-thin-2px">
+        <div className="scrollbar-thin-2px mt-2 max-h-40 overflow-y-auto text-sm text-red-700">
           {error && errors.length === 0 && <>{error}</>}
-          <ul className="list-disc pl-4 space-y-1">
+          <ul className="list-disc space-y-1 pl-4">
             {errors.slice(0, errorsToShow).map((err, idx) => (
               <li key={idx}>
                 Row {err.row}: {err.errors.join('; ')}

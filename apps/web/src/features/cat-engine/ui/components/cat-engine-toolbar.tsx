@@ -1,15 +1,3 @@
-import type { CategorizationTransactionStatus } from '@/modules/accounting/categorization';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
-import { useCallback, useMemo } from 'react';
-import { AutosaveIcon } from '@/assets/icons/autosave';
-import {
-  MultiSelect,
-  MultiSelectContent,
-  MultiSelectGroup,
-  MultiSelectItem,
-  MultiSelectTrigger,
-  MultiSelectValue,
-} from '@/components/ui/multi-select';
 import {
   Building,
   CheckCircle,
@@ -21,6 +9,19 @@ import {
   TableProperties,
   Zap,
 } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
+
+import { AutosaveIcon } from '@/assets/icons/autosave';
+import {
+  MultiSelect,
+  MultiSelectContent,
+  MultiSelectGroup,
+  MultiSelectItem,
+  MultiSelectTrigger,
+  MultiSelectValue,
+} from '@/components/ui/multi-select';
+import type { CategorizationTransactionStatus } from '@/modules/accounting/categorization';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 
 import { ToggleButton } from './toggle-button';
 

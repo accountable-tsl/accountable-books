@@ -1,4 +1,5 @@
-import axios, { type AxiosError, type AxiosRequestConfig } from 'axios';
+import type { AxiosError, AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 
 import { authStore, refreshToken } from '@/modules/auth';
 import { isPublicRoute } from '@/shared/routes/utils';

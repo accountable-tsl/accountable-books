@@ -1,15 +1,22 @@
 import type {
-  CategorizationTransactionFile,
-  GroupedTransaction,
-} from '@/modules/accounting/categorization';
-import type { ContactResponse } from '@/modules/contacts';
-import type { ProjectsResponse } from '@/modules/projects';
-import type {
   LedgerIntentDesiredState,
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Landmark,
+  Lock,
+  Pencil,
+  Plus,
+  Upload,
+  X,
+} from 'lucide-react';
 import type { ChangeEvent, ComponentProps, KeyboardEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FilePreviewer } from '@/components/file-previewer';
@@ -20,25 +27,23 @@ import { AddNewCoaDialog } from '@/features/chart-of-accounts/ui/components/coa-
 import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
 import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
 import { cn } from '@/lib/utils';
+import type {
+  CategorizationTransactionFile,
+  GroupedTransaction,
+} from '@/modules/accounting/categorization';
 import { useLedgerIntentUpdaterV2 } from '@/modules/accounting/categorization';
+import type { ContactResponse } from '@/modules/contacts';
 import { useContactsInfinite } from '@/modules/contacts';
 import { getObjectDownloadUrl } from '@/modules/objects/api';
-import { useUploadTransactionFiles } from '@/modules/objects/model/hooks';
-import { useProjectsInfinite } from '@/modules/projects';
 import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Landmark,
-  Pencil,
-  Plus,
-  Upload,
-  X,
-} from 'lucide-react';
-import { toast } from 'sonner';
+  TRANSACTION_FILE_LIMITS,
+  TRANSACTION_FILE_LIMITS_BYTES,
+} from '@/modules/objects/constants';
+import { useUploadTransactionFiles } from '@/modules/objects/model/hooks';
+import type { ProjectsResponse } from '@/modules/projects';
+import { useProjectsInfinite } from '@/modules/projects';
 
 import { TOOLTIPS } from '../constants';
-
 import type { GroupedCoaData } from '../types';
 
 // Escape key should close the edit mode and act as cancel
@@ -183,7 +188,7 @@ export function TransactionView({
       filesByEntryId.set(entry.uiEntryId, entry.files || []);
     });
     setDraftEntryFiles(filesByEntryId);
-  }, [txn.bankTransactionId, getEntriesUI]);
+  }, [txn, getEntriesUI]);
 
   const toggleEntry = (entryId: string) => {
     const newExpanded = new Set(expandedEntries);
@@ -508,6 +513,12 @@ export function TransactionView({
   };
 
   const handleSaveEntry = (entryId: string, field: EntryField, value: any) => {
+    if (txn.isEditable === false) {
+      toast.error(
+        'This transaction is in a locked period and cannot be edited',
+      );
+      return;
+    }
     console.log('handleSaveEntry', { entryId, field, value });
 
     // Always call updateEntry - let emitter handle accumulation and validation
@@ -527,6 +538,12 @@ export function TransactionView({
   };
 
   const handleAddEntry = () => {
+    if (txn.isEditable === false) {
+      toast.error(
+        'This transaction is in a locked period and cannot be edited',
+      );
+      return;
+    }
     const newEntryId = addEntry({
       coa_id: null,
       fs_date: txn.date,
@@ -546,6 +563,12 @@ export function TransactionView({
   };
 
   const handleDeleteEntry = (entryId: string) => {
+    if (txn.isEditable === false) {
+      toast.error(
+        'This transaction is in a locked period and cannot be edited',
+      );
+      return;
+    }
     // Always call deleteEntry - it handles both new and existing entries
     // For new entries: removes from desiredState.entries (prevents sending)
     // For existing entries: tracks deletion in deleted_entry_ids
@@ -563,29 +586,82 @@ export function TransactionView({
     entryId: string,
     e: ChangeEvent<HTMLInputElement>,
   ) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      // Create blob URLs immediately for instant preview
-      const newBlobUrls = new Map<File, string>();
-      newFiles.forEach((file) => {
-        const blobUrl = createTypedBlobUrl(file);
-
-        newBlobUrls.set(file, blobUrl);
-      });
-
-      setBlobUrls((prev) => {
-        const combined = new Map(prev);
-        newBlobUrls.forEach((url, file) => combined.set(file, url));
-        return combined;
-      });
-
-      setDraftEntryFiles((prev) => {
-        const newFilesMap = new Map(prev);
-        const existingFiles = newFilesMap.get(entryId) || [];
-        newFilesMap.set(entryId, [...existingFiles, ...newFiles]);
-        return newFilesMap;
-      });
+    if (txn.isEditable === false) {
+      toast.error(
+        'This transaction is in a locked period and cannot be edited',
+      );
+      e.target.value = '';
+      return;
     }
+    if (!e.target.files) return;
+
+    const newFiles = Array.from(e.target.files);
+    const existingFiles = draftEntryFiles.get(entryId) || [];
+    const existingLocalFiles = existingFiles.filter(
+      (file) => !isServerFile(file),
+    ) as File[];
+
+    // Validate file count limit
+    const totalFileCount = existingLocalFiles.length + newFiles.length;
+    if (totalFileCount > TRANSACTION_FILE_LIMITS.MAX_FILES_PER_ENTRY) {
+      toast.error(
+        `Maximum ${TRANSACTION_FILE_LIMITS.MAX_FILES_PER_ENTRY} files allowed per entry. You have ${existingLocalFiles.length} file(s) and tried to add ${newFiles.length} more.`,
+      );
+      e.target.value = '';
+      return;
+    }
+
+    // Validate individual file sizes
+    const oversizedFiles = newFiles.filter(
+      (file) => file.size > TRANSACTION_FILE_LIMITS_BYTES.MAX_FILE_SIZE_BYTES,
+    );
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map((f) => f.name).join(', ');
+      toast.error(
+        `File(s) exceed ${TRANSACTION_FILE_LIMITS.MAX_FILE_SIZE_MB}MB limit: ${fileNames}. Please upload smaller files.`,
+      );
+      e.target.value = '';
+      return;
+    }
+
+    // Validate total size limit
+    const existingTotalSize = existingLocalFiles.reduce(
+      (sum, file) => sum + file.size,
+      0,
+    );
+    const newTotalSize = newFiles.reduce((sum, file) => sum + file.size, 0);
+    const combinedTotalSize = existingTotalSize + newTotalSize;
+
+    if (
+      combinedTotalSize > TRANSACTION_FILE_LIMITS_BYTES.MAX_TOTAL_SIZE_BYTES
+    ) {
+      toast.error(
+        `Total file size exceeds ${TRANSACTION_FILE_LIMITS.MAX_TOTAL_SIZE_MB}MB limit per entry. Current: ${(existingTotalSize / (1024 * 1024)).toFixed(2)}MB, Adding: ${(newTotalSize / (1024 * 1024)).toFixed(2)}MB.`,
+      );
+      e.target.value = '';
+      return;
+    }
+
+    // Create blob URLs immediately for instant preview
+    const newBlobUrls = new Map<File, string>();
+    newFiles.forEach((file) => {
+      const blobUrl = createTypedBlobUrl(file);
+      newBlobUrls.set(file, blobUrl);
+    });
+
+    setBlobUrls((prev) => {
+      const combined = new Map(prev);
+      newBlobUrls.forEach((url, file) => combined.set(file, url));
+      return combined;
+    });
+
+    setDraftEntryFiles((prev) => {
+      const newFilesMap = new Map(prev);
+      const currentFiles = newFilesMap.get(entryId) || [];
+      newFilesMap.set(entryId, [...currentFiles, ...newFiles]);
+      return newFilesMap;
+    });
+
     // Reset the input so the same file can be selected again
     e.target.value = '';
   };
@@ -694,6 +770,7 @@ export function TransactionView({
   const isFxTransaction =
     txn?.bankAccountCurrencyCode !== txn?.reportingCurrencyCode;
   const pendingExchangeRate = getPendingExchangeRate();
+  const isLocked = txn.isEditable === false;
 
   if (!txn) {
     return null;
@@ -702,24 +779,39 @@ export function TransactionView({
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-md border text-sm',
+        'relative flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-md border text-sm',
       )}
     >
-      <div
-        className={cn(
-          'flex h-10 min-h-10 items-center justify-between border-b px-4 py-1',
-          //   backgroundClass,
-        )}
-      >
-        <div>Transaction Details</div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="capitalize">
-            {txn.status === 'proposed' ? 'auto-categorized' : txn.status}
-          </Badge>
+      <div>
+        <div
+          className={cn(
+            'flex h-10 min-h-10 items-center justify-between border-b px-4 py-1',
+            //   backgroundClass,
+          )}
+        >
+          <div>Transaction Details</div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="capitalize">
+              {txn.status === 'proposed' ? 'auto-categorized' : txn.status}
+            </Badge>
+          </div>
         </div>
+        {isLocked && (
+          <div className="bg-muted/50 text-muted-foreground flex items-center gap-2 px-4 py-2 text-sm">
+            <Lock className="h-4 w-4" />
+            <span>
+              This transaction is in a locked period. Editing is disabled.
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col divide-y">
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col divide-y',
+          isLocked && 'pointer-events-none opacity-60',
+        )}
+      >
         <div className="grid flex-shrink-0 grid-cols-2 items-center gap-4 p-4 pt-0">
           {/* Amount */}
           <div className="overflow-hidden">
@@ -1385,13 +1477,17 @@ export function TransactionView({
                       />
 
                       {/* Attachments */}
-                      {/* File Attachments for this Entry
-                    TODO: Limit no of files, size, etc
-                     */}
                       <div className="space-y-2">
-                        <label className="text-muted-foreground text-xs">
-                          Attachments
-                        </label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-muted-foreground text-xs">
+                            Attachments
+                          </label>
+                          <span className="text-muted-foreground text-xs">
+                            {draftEntryFiles.get(draftEntry.uiEntryId || '')
+                              ?.length ?? 0}
+                            /{TRANSACTION_FILE_LIMITS.MAX_FILES_PER_ENTRY} files
+                          </span>
+                        </div>
                         <div className="space-y-2">
                           {(draftEntryFiles.get(draftEntry.uiEntryId || '')
                             ?.length ?? 0) > 0 &&
@@ -1456,8 +1552,11 @@ export function TransactionView({
 
             {/* '+ Add Entry' button */}
             <div
-              className="flex w-full cursor-pointer items-center justify-center gap-1 rounded border border-dashed px-2 py-1.5 text-sm"
-              onClick={handleAddEntry}
+              className={cn(
+                'flex w-full items-center justify-center gap-1 rounded border border-dashed px-2 py-1.5 text-sm',
+                isLocked ? 'cursor-not-allowed opacity-50' : '!cursor-pointer',
+              )}
+              onClick={isLocked ? undefined : handleAddEntry}
             >
               <Plus className="h-4 w-4" /> <span>Add Entry</span>
             </div>
@@ -1535,9 +1634,9 @@ export function TransactionView({
       {selectedEntryId &&
         selectedFileIndex !== null &&
         (() => {
-          const files = getFileAttachments(selectedEntryId);
+          const files = getFileAttachments(selectedEntryId!);
           if (files.length === 0) return null;
-          const safeIndex = Math.min(selectedFileIndex, files.length - 1);
+          const safeIndex = Math.min(selectedFileIndex!, files.length - 1);
           return (
             <FilePreviewer
               files={files}
@@ -1557,7 +1656,7 @@ export function TransactionView({
           <AddContactDialog
             open={contactDialogOpen}
             onOpenChange={setContactDialogOpen}
-            companyId={companyId}
+            companyId={companyId || ''}
           />
           <AddProjectDialog
             open={projectDialogOpen}

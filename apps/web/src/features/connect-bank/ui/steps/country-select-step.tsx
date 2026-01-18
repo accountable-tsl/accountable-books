@@ -49,7 +49,7 @@ export function CountrySelectStep({
 
         <div className="space-y-3">
           <div className="text-sm font-medium">Other regions</div>
-          <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin-2px">
+          <div className="scrollbar-thin-2px max-h-40 space-y-2 overflow-y-auto">
             {countryCategories.comingSoon.map((country) => (
               <CountryListItem
                 key={`${country.code}:${country.id}`}
@@ -67,10 +67,10 @@ export function CountrySelectStep({
           </div>
         </div>
 
-        <div className="pt-4 border-t">
+        <div className="border-t pt-4">
           <button
             onClick={onSkipToCSV}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors w-full text-center"
+            className="text-muted-foreground hover:text-foreground w-full text-center text-sm transition-colors"
           >
             Skip and upload a CSV file instead
           </button>

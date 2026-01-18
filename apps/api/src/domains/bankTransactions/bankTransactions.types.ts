@@ -1,11 +1,10 @@
 import { z } from 'zod';
 
 import { dbBaseFields, debitCredit, zDate } from '../../core/types/core.js';
+import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
 import { bankProviderKey } from '../banking/bankFeedProviders/bankFeedProviders.types.js';
 import { contactType } from '../contacts/index.js';
-
-import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 // ENUMS
 export const bankTransactionSource = z.enum([

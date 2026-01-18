@@ -1,4 +1,5 @@
-import { type Job, Queue } from 'bullmq';
+import type { Job } from 'bullmq';
+import { Queue } from 'bullmq';
 
 import { isProd } from '../../../config/env.js';
 import {

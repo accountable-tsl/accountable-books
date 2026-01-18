@@ -389,7 +389,7 @@ export function SmartPhoneInput({
 
       setSelectedCountry(initialCountry);
     }
-  }, [allCountries, selectedCountry]);
+  }, [allCountries, selectedCountry, countries.length, countryDetectionActive, value?.countryCode]);
 
   useEffect(() => {
     if (dropdownOpen && selectedRef.current) {
@@ -414,12 +414,12 @@ export function SmartPhoneInput({
       <div className="relative" ref={dropdownRef}>
         <div
           className={cn(
-            'flex items-center border rounded-md overflow-hidden transition-all',
+            'flex items-center overflow-hidden rounded-md border transition-all',
           )}
         >
           {/* Country Selector */}
           <div
-            className="flex items-center text-sm cursor-pointer border-r px-3 py-2"
+            className="flex cursor-pointer items-center border-r px-3 py-2 text-sm"
             onClick={handleDropdownToggle}
           >
             <span>{selectedCountry?.flag}</span>
@@ -428,9 +428,9 @@ export function SmartPhoneInput({
             </span>
             <span>
               {dropdownOpen ? (
-                <ChevronUpIcon className="h-4 w-4 text-muted-foreground" />
+                <ChevronUpIcon className="text-muted-foreground h-4 w-4" />
               ) : (
-                <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+                <ChevronDownIcon className="text-muted-foreground h-4 w-4" />
               )}
             </span>
           </div>
@@ -453,7 +453,7 @@ export function SmartPhoneInput({
                 : '000 000 0000'
             }
             className={cn(
-              'border-none focus-visible:ring-0 flex-1 focus:outline-none bg-transparent',
+              'flex-1 border-none bg-transparent focus:outline-none focus-visible:ring-0',
             )}
             aria-invalid={isValid === false}
             aria-describedby={isValid === false ? 'phone-error' : undefined}
@@ -461,24 +461,24 @@ export function SmartPhoneInput({
         </div>
         {/* Country Dropdown */}
         {dropdownOpen && (
-          <div className="absolute z-10 mt-1 w-full bg-background border rounded-md shadow-lg max-h-80 overflow-hidden flex flex-col">
+          <div className="bg-background absolute z-10 mt-1 flex max-h-80 w-full flex-col overflow-hidden rounded-md border shadow-lg">
             {/* Search Input */}
-            <div className="p-2 border-b sticky top-0 bg-background z-20">
+            <div className="bg-background sticky top-0 z-20 border-b p-2">
               <div className="relative">
-                <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <SearchIcon className="text-muted-foreground absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2 transform" />
                 <Input
                   ref={searchInputRef}
                   type="text"
                   placeholder="Search countries..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-8 h-9"
+                  className="h-9 pr-8 pl-8"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 transform"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -487,9 +487,9 @@ export function SmartPhoneInput({
             </div>
 
             {/* Countries List */}
-            <div className="overflow-auto max-h-60">
+            <div className="max-h-60 overflow-auto">
               {filteredCountries.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground">
+                <div className="text-muted-foreground p-4 text-center">
                   No countries found
                 </div>
               ) : (
@@ -502,7 +502,7 @@ export function SmartPhoneInput({
                         : null
                     }
                     className={cn(
-                      'flex items-center cursor-pointer hover:bg-muted px-3 py-2',
+                      'hover:bg-muted flex cursor-pointer items-center px-3 py-2',
                       country.code === selectedCountry?.code ? 'bg-muted' : '',
                     )}
                     onClick={() => {
@@ -513,7 +513,7 @@ export function SmartPhoneInput({
                     <span className="px-1 font-medium">
                       {country.phoneCode}
                     </span>
-                    <span className="ml-1 text-muted-foreground text-sm">
+                    <span className="text-muted-foreground ml-1 text-sm">
                       {country.name}
                     </span>
                   </div>
@@ -523,16 +523,16 @@ export function SmartPhoneInput({
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground mt-1.5">
+        <p className="text-muted-foreground mt-1.5 text-xs">
           {isUnknownCountry ? (
             <span className="flex items-center text-purple-500">
-              <AlertCircle className="h-3 w-3 mr-1" />
+              <AlertCircle className="mr-1 h-3 w-3" />
               Unknown country code - enter your full number including country
               code
             </span>
           ) : !isUnknownCountry && inputValue.length >= maxLength ? (
             <span className="flex items-center text-green-500">
-              <Check className="h-3 w-3 mr-1" />
+              <Check className="mr-1 h-3 w-3" />
               Maximum length reached
             </span>
           ) : countryDetectionActive ? (

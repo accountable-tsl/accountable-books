@@ -13,13 +13,13 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import {
-  type AuthCompanyContext,
-  type AuthUserContext,
-  type DecodedToken,
-  type TokenConfig,
-  TokenExpiration,
+import type {
+  AuthCompanyContext,
+  AuthUserContext,
+  DecodedToken,
+  TokenConfig,
 } from './auth.types.js';
+import { TokenExpiration } from './auth.types.js';
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throw new AppError('JWT secrets must be defined in .env');

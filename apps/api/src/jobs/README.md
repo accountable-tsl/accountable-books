@@ -203,8 +203,9 @@ export function startMyNewWorker() {
 ```typescript
 // src/jobs/queues/my-new.queue.ts
 import { Queue } from 'bullmq';
-import { redis } from '../../lib/redis.js';
+
 import { executeQueueOperation, QueueName } from '../../lib/queue-broker.js';
+import { redis } from '../../lib/redis.js';
 
 export const myNewQueue = new Queue('my-queue', {
   connection: redis,

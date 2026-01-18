@@ -9,7 +9,6 @@
  * 4. Generates canonical JSON in data/generated/json/
  * 5. Generates TypeScript re-exports in data/generated/ts/ when appropriate
  */
-
 import {
   copyFileSync,
   existsSync,

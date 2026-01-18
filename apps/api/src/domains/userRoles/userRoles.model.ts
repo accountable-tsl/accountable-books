@@ -8,7 +8,8 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { type RoleKey, roleKey, type RoleScope } from '../roles/roles.types.js';
+import type { RoleKey, RoleScope } from '../roles/roles.types.js';
+import { roleKey } from '../roles/roles.types.js';
 import type {
   AccessibleCompanies,
   AccessibleCompaniesResponse,

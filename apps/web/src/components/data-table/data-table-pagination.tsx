@@ -44,7 +44,7 @@ export function DataTablePagination<TData>({
   // Determine the display value for the current page size
   const getDisplayValue = useCallback((pageSize: number) => {
     return pageSize === totalFilteredRows ? 'All' : pageSize.toString();
-  }, []);
+  }, [totalFilteredRows]);
 
   // Get the current value for the select (either number or "all")
   const getCurrentValue = () => {

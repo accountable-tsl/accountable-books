@@ -1,9 +1,8 @@
 import { z } from 'zod';
 
 import { contactType } from '../common/enums.js';
-import { categorizationTransactionStatus } from './categorization.js';
-
 import type { CategorizationTransactionStatus } from './categorization.js';
+import { categorizationTransactionStatus } from './categorization.js';
 
 export const YMD_REGEX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Need to import after mock
+import { knexClient } from '../../../db/knexClient.js';
 import {
   createMockConstraintContext,
   createMockEntry,
@@ -21,9 +23,6 @@ const { mockQuery, mockKnexTable } = vi.hoisted(() => {
 vi.mock('../../../db/knexClient.js', () => ({
   knexClient: mockKnexTable,
 }));
-
-// Need to import after mock
-import { knexClient } from '../../../db/knexClient.js';
 
 describe('projectExists constraint', () => {
   beforeEach(() => {

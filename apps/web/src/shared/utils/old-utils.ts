@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
-import dayjsLib, { type Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
+import dayjsLib from 'dayjs';
 
 import {
   formatAccountText,

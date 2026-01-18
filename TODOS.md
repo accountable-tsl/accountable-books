@@ -52,6 +52,7 @@
 - Collaborative mode for categorization... multiple bookkeepers can work on a client's book per time. Imagine as A is working on it, B can see where A is on the file. Like sheets but even more elegant and/or gamified
 - Future feature... messaging and chat interactions: messaging clients directly, messaging other bookkeepers. Using chat to categorize or handle bulk actions
 - Adding tags to transactions. BNot that creaat
+- Consider adding chromatic or an alternative
 
 ---
 

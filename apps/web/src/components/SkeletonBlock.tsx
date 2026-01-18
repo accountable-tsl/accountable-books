@@ -118,7 +118,7 @@ export function SkeletonBlock({
         className,
         autoLayout === 'horizontal' && 'flex flex-row gap-4',
         autoLayout === 'vertical' && 'flex flex-col gap-4',
-        autoLayout === 'grid' && 'grid gap-4 grid-cols-2',
+        autoLayout === 'grid' && 'grid grid-cols-2 gap-4',
       )}
       style={{
         width,

@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query';
 
 import {
+  fetchCategorizationStats,
   fetchCategorizationTransactions,
   sendCategorizationIntent,
 } from '../api';
@@ -14,8 +15,8 @@ import {
   groupCategorizationTransactions,
   groupTransactionsByBankTxnId,
 } from '../lib/transform';
-
 import type {
+  GetCategorizationStatsParams,
   GetCategorizationTransactionsParams,
   GroupedTransaction,
 } from './types';
@@ -158,6 +159,26 @@ export function useInfiniteCategorizationTransactions(
     initialPageParam: 0,
     placeholderData: keepPreviousData,
     enabled: !!params.companyId && !!params.dateFrom && !!params.dateTo,
+  });
+}
+
+/**
+ * Hook to fetch categorization statistics
+ * Returns global counts independent of the current list query
+ */
+export function useCategorizationStats(params: GetCategorizationStatsParams) {
+  return useQuery({
+    queryKey: [
+      'categorization-stats',
+      params.companyId,
+      params.bankAccountIds,
+      params.dateFrom,
+      params.dateTo,
+    ],
+    queryFn: async () => {
+      return fetchCategorizationStats(params);
+    },
+    enabled: !!params.companyId,
   });
 }
 

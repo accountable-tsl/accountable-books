@@ -6,14 +6,14 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import {
-  type AddNewTokenResponse,
-  type FetchTokenResponse,
-  type GetInvitedUserTokenInput,
-  type GetTokenInput,
-  type NewToken,
-  newToken,
+import type {
+  AddNewTokenResponse,
+  FetchTokenResponse,
+  GetInvitedUserTokenInput,
+  GetTokenInput,
+  NewToken,
 } from './tokens.types.js';
+import { newToken } from './tokens.types.js';
 
 export async function addNewToken(
   input: NewToken,

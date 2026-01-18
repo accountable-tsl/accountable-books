@@ -10,12 +10,12 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import {
-  type AccFirmCamelResponse,
-  type AccFirmWithId,
-  type NewAccFirm,
-  newAccFirm,
+import type {
+  AccFirmCamelResponse,
+  AccFirmWithId,
+  NewAccFirm,
 } from './firms.types.js';
+import { newAccFirm } from './firms.types.js';
 import {
   firmSlugRedisKey,
   isReservedSlug,

@@ -11,17 +11,17 @@ import {
   toYMD,
 } from '../../../shared/utils/date.utils.js';
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
-import {
-  type ExtendResult,
-  type FiscalCalendar,
-  type FiscalCalendarStatus,
-  type FiscalPeriodResponse,
-  type FiscalPeriodType,
-  fiscalPeriodType,
-  type FiscalPeriodValidation,
-  type FiscalPeriodYMD,
-  type NewFiscalCalendar,
+import type {
+  ExtendResult,
+  FiscalCalendar,
+  FiscalCalendarStatus,
+  FiscalPeriodResponse,
+  FiscalPeriodType,
+  FiscalPeriodValidation,
+  FiscalPeriodYMD,
+  NewFiscalCalendar,
 } from './fiscal-calendar.types.js';
+import { fiscalPeriodType } from './fiscal-calendar.types.js';
 
 const logger = pino();
 

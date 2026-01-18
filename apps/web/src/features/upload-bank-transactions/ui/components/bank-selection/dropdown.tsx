@@ -1,11 +1,9 @@
-import { Plus } from 'lucide-react';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 import { useCallback, useMemo, useState } from 'react';
-
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FormField } from '@/components/FormField';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
-import { maskDigits } from '@/shared/utils/formatting-utils';
+import { Plus } from 'lucide-react';
 
 export function BankDropdown({
   bankAccounts,
@@ -26,7 +24,7 @@ export function BankDropdown({
     if (!bankAccounts) return undefined;
     return (item: BankAccountWithMeta) => ({
       value: item.id,
-      label: `${item.displayName} ${maskDigits(item.accountNumber)} (${item.currencyCode})`,
+      label: `${item.displayName} ${item.mask} (${item.currencyCode})`,
     });
   }, [bankAccounts]);
 
@@ -34,19 +32,19 @@ export function BankDropdown({
     const map = new Map<string, BankAccountWithMeta>();
     bankAccounts?.forEach((acc) => map.set(acc.id, acc));
     return map;
-  }, [bankAccounts, onSuccess]);
+  }, [bankAccounts]);
 
   const handleValueChange = useCallback(
     (id: string) => {
       const found = bankAccountMap.get(id) ?? null;
       setSelectedBankAccount(found);
     },
-    [bankAccounts, setSelectedBankAccount],
+    [bankAccountMap, setSelectedBankAccount],
   );
 
   return (
     <>
-      <FormField className="w-full space-y-0 flex-shrink-0">
+      <FormField className="w-full shrink-0 space-y-0">
         <AutocompleteDropdown
           id="bank-account"
           drawerTitle="Select Bank Account"

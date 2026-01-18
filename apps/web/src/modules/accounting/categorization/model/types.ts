@@ -1,9 +1,16 @@
 import type {
+  CategorizationStatsResponse,
   CategorizationTransaction,
   CategorizationTransactionStatus,
+  GetCategorizationStatsParams,
 } from '@accountable-books/contracts/schema';
 
-export type { CategorizationTransaction, CategorizationTransactionStatus };
+export type {
+  CategorizationStatsResponse,
+  CategorizationTransaction,
+  CategorizationTransactionStatus,
+  GetCategorizationStatsParams,
+};
 
 /**
  * Categorization transaction status
@@ -187,6 +194,10 @@ export interface GroupedTransaction {
 
   ledgerTransactionId: string | null;
   candidateId: string | null;
+
+  // Whether this transaction can be edited.
+  // A transaction is not editable if its fs_date falls within a closed or locked fiscal period.
+  isEditable: boolean;
 
   // Files attached to this transaction (only for uncategorized transactions with no entries)
   // For proposed/posted transactions, files are at the entry level

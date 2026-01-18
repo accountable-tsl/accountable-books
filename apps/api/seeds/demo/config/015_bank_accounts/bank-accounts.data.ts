@@ -1,12 +1,11 @@
 import type { Knex } from 'knex';
 
-import {
-  COMPANY_TYPES,
-  COUNTRY_CODES,
-  type DemoCompanyType,
-  type DemoCountryCode,
-  type DemoFilter,
+import type {
+  DemoCompanyType,
+  DemoCountryCode,
+  DemoFilter,
 } from '../../shared/config.js';
+import { COMPANY_TYPES, COUNTRY_CODES } from '../../shared/config.js';
 import { getDemoCompanies } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
 

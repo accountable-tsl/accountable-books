@@ -28,7 +28,8 @@ import { cn } from '@/lib/utils';
 import { useContacts } from '@/modules/contacts/model/hooks';
 import type { Contacts } from '@/modules/contacts/model/types';
 import { useCreateProjects } from '@/modules/projects/model/hooks';
-import { type NewProject, newProject } from '@/modules/projects/model/types';
+import type { NewProject } from '@/modules/projects/model/types';
+import { newProject } from '@/modules/projects/model/types';
 
 import { projectStatusOptions } from '../constants/projects-constants';
 
@@ -126,7 +127,7 @@ export function AddProject({
   const contactActionItems: ActionItem[] = [
     {
       id: 'addContact',
-      icon: <Plus className="w-3 h-3" />,
+      icon: <Plus className="h-3 w-3" />,
       label: 'Add new contact',
     },
   ];
@@ -151,18 +152,18 @@ export function AddProject({
   if (!companyId) return <ErrorPage type="default" />;
 
   return (
-    <div className="w-full flex min-h-0 h-full items-center">
+    <div className="flex h-full min-h-0 w-full items-center">
       <div
         className={cn(
-          'min-w-0 w-full max-w-md mx-auto p-6 border rounded-md',
+          'mx-auto w-full max-w-md min-w-0 rounded-md border p-6',
           classNames?.content || '',
         )}
       >
         {formState === 'initial' && (
           <>
-            <div className="font-medium mb-4">Add Project</div>
+            <div className="mb-4 font-medium">Add Project</div>
             <form
-              className="relative flex flex-col gap-6 min-h-0 justify-between"
+              className="relative flex min-h-0 flex-col justify-between gap-6"
               onSubmit={handleSubmit(onSubmit)}
             >
               <div className="grid grid-cols-[2fr_3fr] gap-4">
@@ -318,7 +319,7 @@ export function AddProject({
           </>
         )}
         {formState === 'success' && (
-          <div className="flex flex-col gap-6 min-h-[350px] items-center justify-center">
+          <div className="flex min-h-[350px] flex-col items-center justify-center gap-6">
             <Success text="Project created successfully" />
             <Button onClick={handleCancel}>Close</Button>
           </div>
@@ -357,7 +358,7 @@ export function AddProjectDialog({
       <DialogContent overlayClassName={overlayClassName} className="">
         <DialogHeader className={showHeader ? '' : 'sr-only'}>
           <DialogTitle>Add project</DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm sr-only">
+          <DialogDescription className="text-muted-foreground sr-only text-sm">
             Add new project
           </DialogDescription>
         </DialogHeader>

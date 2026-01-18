@@ -10,7 +10,7 @@ export function StepProgress({ currentStep, totalSteps }: StepProgressProps) {
   return (
     <div className="w-full">
       <Progress value={progress} />
-      <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
+      <div className="mt-2 flex justify-between px-1 text-xs text-gray-500">
         <span>
           Step {currentStep} of {totalSteps}
         </span>

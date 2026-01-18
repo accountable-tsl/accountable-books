@@ -19,7 +19,7 @@ export function getContactColumns(): ColumnDef<Contacts>[] {
         const email = props.getValue();
         const toDisplay = email ? String(email).toLowerCase() : '';
         return (
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-2">
             {toDisplay ? (
               <Mail className="h-3 w-3" />
             ) : (

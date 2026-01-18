@@ -1,10 +1,8 @@
 import { z } from 'zod';
 
 import { roleKey } from '../../domains/roles/roles.types.js';
-import {
-  createCamelCaseSchema,
-  type SnakeToCamelCaseObject,
-} from '../../shared/utils/formatting.utils.js';
+import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
 import { dbBaseFields, debitCredit } from './core.js';
 
 // permission

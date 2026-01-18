@@ -1,9 +1,7 @@
 import { FileTextIcon, UploadIcon, X } from 'lucide-react';
 import * as React from 'react';
-import Dropzone, {
-  type DropzoneProps,
-  type FileRejection,
-} from 'react-dropzone';
+import type { DropzoneProps, FileRejection } from 'react-dropzone';
+import Dropzone from 'react-dropzone';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -235,14 +233,14 @@ export function FileUploader(props: FileUploaderProps) {
         }
       });
     };
-  }, []);
+  }, [files]);
 
   const isDisabled = disabled || (files?.length ?? 0) >= maxFileCount;
 
   return (
     <div
       className={cn(
-        'relative flex flex-col h-full gap-6 justify-center min-w-0',
+        'relative flex h-full min-w-0 flex-col justify-center gap-6',
         className ?? '',
       )}
     >
@@ -259,8 +257,8 @@ export function FileUploader(props: FileUploaderProps) {
           <div
             {...getRootProps()}
             className={cn(
-              'group relative grid h-52 w-full cursor-pointer place-items-center rounded-lg border-2 border-dashed border-muted-foreground/25 px-5 py-2.5 text-center transition hover:bg-muted/25',
-              'ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'group border-muted-foreground/25 hover:bg-muted/25 relative grid h-52 w-full cursor-pointer place-items-center rounded-lg border-2 border-dashed px-5 py-2.5 text-center transition',
+              'ring-offset-background focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
               isDragActive && 'border-muted-foreground/50',
               isDisabled && 'pointer-events-none opacity-60',
               uploaderClassName,
@@ -272,11 +270,11 @@ export function FileUploader(props: FileUploaderProps) {
               <div className="flex flex-col items-center justify-center gap-4 sm:px-5">
                 <div className="rounded-full border border-dashed p-3">
                   <UploadIcon
-                    className="size-7 text-muted-foreground"
+                    className="text-muted-foreground size-7"
                     aria-hidden="true"
                   />
                 </div>
-                <p className="font-medium text-muted-foreground">
+                <p className="text-muted-foreground font-medium">
                   Drop the files here
                 </p>
               </div>
@@ -284,15 +282,15 @@ export function FileUploader(props: FileUploaderProps) {
               <div className="flex flex-col items-center justify-center gap-4 sm:px-5">
                 <div className="rounded-full border border-dashed p-3">
                   <UploadIcon
-                    className="size-7 text-muted-foreground"
+                    className="text-muted-foreground size-7"
                     aria-hidden="true"
                   />
                 </div>
                 <div className="flex flex-col gap-px">
-                  <p className="font-medium text-muted-foreground">
+                  <p className="text-muted-foreground font-medium">
                     Drag {`'n'`} drop files here, or click to select files
                   </p>
-                  <p className="text-sm text-muted-foreground/70">
+                  <p className="text-muted-foreground/70 text-sm">
                     {acceptText && `Allowed file types: ${acceptText}`}
                     <br />
                     {maxFileCount > 1
@@ -303,7 +301,7 @@ export function FileUploader(props: FileUploaderProps) {
                     {maxRows && ` | Maximum rows: ${maxRows.toLocaleString()}.`}
                   </p>
                   {maxRows && (
-                    <p className="text-sm text-muted-foreground/70"></p>
+                    <p className="text-muted-foreground/70 text-sm"></p>
                   )}
                 </div>
               </div>
@@ -314,7 +312,7 @@ export function FileUploader(props: FileUploaderProps) {
       {showFileCard && files?.length ? (
         <div
           className={cn(
-            'flex flex-col gap-4 min-w-0 min-h-0 h-full w-full border border-t-0 rounded-b-md',
+            'flex h-full min-h-0 w-full min-w-0 flex-col gap-4 rounded-b-md border border-t-0',
             'overflow-y-auto',
             fileCardContainerClassName,
           )}
@@ -397,17 +395,17 @@ function FileCard({
   return (
     <div className={cn('rounded-md py-4', className ?? '')}>
       <div
-        className={cn('relative px-4 min-w-0 w-full', contentClassName ?? '')}
+        className={cn('relative w-full min-w-0 px-4', contentClassName ?? '')}
       >
         <div className="relative flex items-center gap-2.5">
           <div className="flex flex-1 gap-2.5">
             {isFileWithPreview(file) ? <FilePreview file={file} /> : null}
             <div className="flex w-full flex-col gap-2">
               <div className="flex flex-col gap-px">
-                <p className="line-clamp-1 text-sm font-medium text-foreground/80">
+                <p className="text-foreground/80 line-clamp-1 text-sm font-medium">
                   {file.name}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   {formatBytes(file.size)}
                   {rowCount !== null && (
                     <>
@@ -475,7 +473,7 @@ export function FilePreview({ file }: FilePreviewProps) {
 
   return (
     <FileTextIcon
-      className="size-10 text-muted-foreground"
+      className="text-muted-foreground size-10"
       aria-hidden="true"
     />
   );

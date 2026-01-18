@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { DatePicker } from '@/components/date-picker/date-picker';
-import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 import { toYMD } from '@/shared/utils/date-utils';
 
 import { resolveEditableEntryId } from '../utils/resolve-editable-entry';
@@ -16,6 +16,7 @@ export function EditableTextCell({
   txn,
   field,
   onCommitted,
+  disabled = false,
 }: {
   value?: string;
   placeholder?: string;
@@ -24,6 +25,7 @@ export function EditableTextCell({
   txn: GroupedTransaction;
   field: 'description' | 'reference';
   onCommitted?: () => void;
+  disabled?: boolean;
 }) {
   const { updateEntry, addEntry, getEntriesUI } = useLedgerIntentUpdater(txn);
   const [localValue, setLocalValue] = useState(value);
@@ -37,11 +39,7 @@ export function EditableTextCell({
       if (onCommit) {
         onCommit(localValue);
       } else {
-        const entryId = resolveEditableEntryId(
-          txn,
-          addEntry,
-          getEntriesUI(),
-        );
+        const entryId = resolveEditableEntryId(txn, addEntry, getEntriesUI());
         if (!entryId) return;
         updateEntry(entryId, {
           [field as 'description' | 'reference']: localValue || null,
@@ -58,6 +56,17 @@ export function EditableTextCell({
     }
   };
 
+  if (disabled) {
+    return (
+      <div
+        className="w-full cursor-not-allowed p-1 pl-0 opacity-60"
+        title={value || placeholder}
+      >
+        {value || placeholder || ''}
+      </div>
+    );
+  }
+
   return (
     <div className="flex" title={value}>
       <input
@@ -71,7 +80,7 @@ export function EditableTextCell({
             e.currentTarget.blur(); // forces commit
           }
         }}
-        className="focus-within:text-blue-500 focus-within:border-1 p-1 pl-0 focus-within:pl-1 w-full"
+        className="w-full p-1 pl-0 focus-within:border-1 focus-within:pl-1 focus-within:text-blue-500"
       />
     </div>
   );
@@ -84,12 +93,14 @@ export function EditableDateCell({
   markDirty,
   txn,
   onCommitted,
+  disabled = false,
 }: {
   value?: Date;
   onCommit?: (date: Date | undefined) => void;
   markDirty: () => void;
   txn: GroupedTransaction;
   onCommitted?: () => void;
+  disabled?: boolean;
 }) {
   const { updateEntry, addEntry, getEntriesUI } = useLedgerIntentUpdater(txn);
   const [localDate, setLocalDate] = useState<Date | undefined>(value);
@@ -104,11 +115,7 @@ export function EditableDateCell({
       if (onCommit) {
         onCommit(localDate);
       } else {
-        const entryId = resolveEditableEntryId(
-          txn,
-          addEntry,
-          getEntriesUI(),
-        );
+        const entryId = resolveEditableEntryId(txn, addEntry, getEntriesUI());
         if (!entryId) return;
         updateEntry(entryId, { fs_date: toYMD(localDate!) });
         onCommitted?.();
@@ -123,6 +130,18 @@ export function EditableDateCell({
     setLocalDate(value); // UI only
     markDirty();
   };
+
+  if (disabled) {
+    return (
+      <div
+        className="cursor-not-allowed p-1 pl-0 opacity-60"
+        title={value?.toLocaleDateString()}
+      >
+        {value ? value.toLocaleDateString() : ''}
+      </div>
+    );
+  }
+
   return (
     <DatePicker
       showLabel={false}
@@ -151,6 +170,7 @@ export function EditableNumberCell({
   decimals = 4,
   min,
   max,
+  disabled = false,
 }: {
   value?: string | number;
   onCommit: (value: string) => void;
@@ -159,6 +179,7 @@ export function EditableNumberCell({
   decimals?: number;
   min?: number;
   max?: number;
+  disabled?: boolean;
 }) {
   const [localValue, setLocalValue] = useState(value?.toString() || '');
 
@@ -186,6 +207,17 @@ export function EditableNumberCell({
     }
   };
 
+  if (disabled) {
+    return (
+      <div
+        className="w-full cursor-not-allowed p-1 text-right opacity-60"
+        title={localValue || placeholder}
+      >
+        {localValue || placeholder || ''}
+      </div>
+    );
+  }
+
   return (
     <div className="flex" title={localValue}>
       <input
@@ -198,7 +230,7 @@ export function EditableNumberCell({
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur(); // forces commit
         }}
-        className="focus-within:text-blue-500 focus-within:border-1 p-1 w-full text-right"
+        className="w-full p-1 text-right focus-within:border-1 focus-within:text-blue-500"
       />
     </div>
   );

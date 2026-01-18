@@ -1,8 +1,11 @@
-import type { ApiResponse } from '@/shared/types/core';
 import type { LedgerIntent } from '@accountable-books/contracts/schema';
+
 import api from '@/lib/axios';
+import type { ApiResponse } from '@/shared/types/core';
 
 import type {
+  CategorizationStatsResponse,
+  GetCategorizationStatsParams,
   GetCategorizationTransactionsParams,
   GetCategorizationTransactionsResponse,
   SendCategorizationIntentResponse,
@@ -70,6 +73,41 @@ export async function fetchCategorizationTransactions(
     ...response.data.data,
     transactions,
   };
+}
+
+/**
+ * Fetch categorization statistics from API
+ */
+export async function fetchCategorizationStats(
+  params: GetCategorizationStatsParams,
+): Promise<CategorizationStatsResponse> {
+  const { companyId, bankAccountIds, dateFrom, dateTo } = params;
+
+  const queryParams = new URLSearchParams();
+
+  if (bankAccountIds?.length) {
+    bankAccountIds.forEach((id) => queryParams.append('bankAccountIds', id));
+  }
+  if (dateFrom) {
+    queryParams.append('dateFrom', dateFrom);
+  }
+  if (dateTo) {
+    queryParams.append('dateTo', dateTo);
+  }
+
+  const response = await api.get<{
+    success: boolean;
+    data: CategorizationStatsResponse;
+    message?: string;
+  }>(`/api/${companyId}/categorization/stats?${queryParams.toString()}`);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(
+      response.data.message || 'Failed to fetch categorization stats',
+    );
+  }
+
+  return response.data.data;
 }
 
 /**

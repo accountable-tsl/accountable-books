@@ -1,6 +1,6 @@
 import { Loader2, Upload, X } from 'lucide-react';
+import type { ChangeEvent } from 'react';
 import {
-  type ChangeEvent,
   forwardRef,
   useEffect,
   useImperativeHandle,
@@ -226,13 +226,13 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
     };
 
     const defaultRenderMetadata = () => (
-      <p className="text-xs text-muted-foreground text-center">
+      <p className="text-muted-foreground text-center text-xs">
         {getMetadataDisplay(metadata, metadataToShow, maxSizeText)}
       </p>
     );
 
     return (
-      <div className={cn(`flex flex-col items-center gap-2 p-4, ${className}`)}>
+      <div className={cn(`p-4, flex flex-col items-center gap-2 ${className}`)}>
         {labelPosition === 'top' && renderLabel()}
 
         <div
@@ -241,12 +241,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
         >
           <div
             onClick={triggerFileInput}
-            className={`
-            w-full h-full rounded-full overflow-hidden bg-muted flex items-center justify-center
-            border-2 border-border relative
-            ${!isUploading ? 'cursor-pointer hover:opacity-90 hover:border-primary/50' : ''}
-            transition-all duration-200
-          `}
+            className={`bg-muted border-border relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 ${!isUploading ? 'hover:border-primary/50 cursor-pointer hover:opacity-90' : ''} transition-all duration-200`}
             role="button"
             tabIndex={0}
             aria-label="Upload profile image"
@@ -257,43 +252,43 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
             }}
           >
             {image ? (
-              <div className="relative w-full h-full">
+              <div className="relative h-full w-full">
                 <img
                   src={image || uploadedUrl || ''}
                   alt="Profile preview"
-                  className="object-contain w-full h-full"
+                  className="h-full w-full object-contain"
                   sizes={`${size}px`}
                   loading="lazy"
                 />
                 {!isUploading && (
-                  <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity duration-200">
-                    <Upload className="w-8 h-8 text-white" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity duration-200 hover:opacity-100">
+                    <Upload className="h-8 w-8 text-white" />
                   </div>
                 )}
               </div>
             ) : (
               <div className="text-muted-foreground flex flex-col items-center justify-center">
                 <Upload size={size / 3} />
-                <span className="text-xs mt-2">Click to upload</span>
+                <span className="mt-2 text-xs">Click to upload</span>
               </div>
             )}
 
             {isUploading && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-white animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
               </div>
             )}
 
             {showMessage && (
-              <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-[200px]">
+              <div className="absolute left-1/2 w-full max-w-[200px] -translate-x-1/2">
                 {error && (
-                  <p className="text-destructive text-sm mt-1 text-center">
+                  <p className="text-destructive mt-1 text-center text-sm">
                     {error}
                   </p>
                 )}
 
                 {uploadedUrl && (
-                  <div className="p-2 text-center bg-muted rounded-md w-full">
+                  <div className="bg-muted w-full rounded-md p-2 text-center">
                     <p className="text-xs font-medium">
                       Uploaded successfully!
                     </p>
@@ -318,7 +313,7 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
             <Button
               variant="destructive"
               size="icon"
-              className="absolute -top-2 -right-2 rounded-full w-8 h-8"
+              className="absolute -top-2 -right-2 h-8 w-8 rounded-full"
               onClick={(e) => {
                 e.stopPropagation();
                 handleRemove();
@@ -334,8 +329,8 @@ export const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(
         {labelPosition === 'bottom' && renderLabel()}
 
         {showButtons && (
-          <div className="flex flex-col items-center gap-2 w-full max-w-[200px]">
-            <div className="flex gap-2 w-full">
+          <div className="flex w-full max-w-[200px] flex-col items-center gap-2">
+            <div className="flex w-full gap-2">
               <Button
                 onClick={triggerFileInput}
                 disabled={isUploading}

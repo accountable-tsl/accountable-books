@@ -36,8 +36,8 @@ export default function ConnectBankAccount({
   const { data: providersData, isLoading: isLoadingProviders } =
     useBankFeedProviders({});
 
-  const countries = countriesData?.data || [];
-  const providers = providersData?.data || [];
+  const countries = useMemo(() => countriesData?.data || [], [countriesData?.data]);
+  const providers = useMemo(() => providersData?.data || [], [providersData?.data]);
 
   const { className, stepClassName } = options || {};
 
@@ -212,14 +212,17 @@ export default function ConnectBankAccount({
     backStep,
     resetToCountrySelection,
     handleProviderSelect,
+    connections,
+    handleWidgetSuccess,
+    onSuccess,
   ]);
 
   // TODO: DANGLING CONNECTIONS YET TO MATCH TO BANK ACC
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 h-full max-w-3xl mx-auto">
-      <div className={cn('flex flex-col flex-1 min-h-0', 'p-6', className)}>
-        <div className={cn('min-h-0 overflow-hidden flex-1', stepClassName)}>
+    <div className="mx-auto flex h-full min-h-0 max-w-3xl flex-1 flex-col">
+      <div className={cn('flex min-h-0 flex-1 flex-col', 'p-6', className)}>
+        <div className={cn('min-h-0 flex-1 overflow-hidden', stepClassName)}>
           {stepContent}
         </div>
         <div className="flex-shrink-0">
@@ -233,10 +236,10 @@ export default function ConnectBankAccount({
 }
 
 const BankAccountFooter = React.memo(() => (
-  <footer className="flex-shrink-0 flex flex-col gap-1 items-center">
+  <footer className="flex flex-shrink-0 flex-col items-center gap-1">
     <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
       <div className="flex items-center space-x-2">
-        <Shield className="w-4 h-4 text-green-600" />
+        <Shield className="h-4 w-4 text-green-600" />
         <span>Bank-Level Security</span>
       </div>
 
@@ -244,19 +247,19 @@ const BankAccountFooter = React.memo(() => (
         <Dot />
 
         <div className="flex items-center space-x-2">
-          <Lock className="w-4 h-4 text-green-600" />
+          <Lock className="h-4 w-4 text-green-600" />
           <span>256-bit Encryption</span>
         </div>
 
         <Dot />
 
         <div className="flex items-center space-x-2">
-          <EyeOff className="w-4 h-4 text-green-600" />
+          <EyeOff className="h-4 w-4 text-green-600" />
           <span>Read-Only Access</span>
         </div>
       </div>
     </div>
-    <p className="text-xs text-muted-foreground/60 text-center">
+    <p className="text-muted-foreground/60 text-center text-xs">
       Protected by bank-grade security, Powered by leading financial data
       providers.
     </p>
@@ -264,26 +267,26 @@ const BankAccountFooter = React.memo(() => (
 ));
 function UnsupportedCountry({ countryName, onBack }: UnsupportedCountryProps) {
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <i className="fas fa-globe text-orange-600 text-2xl"></i>
+    <div className="mx-auto max-w-2xl">
+      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100">
+          <i className="fas fa-globe text-2xl text-orange-600"></i>
         </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+        <h2 className="mb-2 text-2xl font-semibold text-gray-900">
           Country Not Yet Supported
         </h2>
-        <p className="text-gray-600 mb-8">
+        <p className="mb-8 text-gray-600">
           We don't support bank connections in{' '}
           <span className="font-semibold">{countryName}</span> yet, but we're
           working on it!
         </p>
 
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 mb-8">
+        <div className="mb-8 rounded-lg border border-orange-200 bg-orange-50 p-6">
           <div className="flex items-start space-x-3">
-            <i className="fas fa-info-circle text-orange-600 mt-1"></i>
+            <i className="fas fa-info-circle mt-1 text-orange-600"></i>
             <div className="text-left">
-              <h4 className="font-medium text-gray-900 mb-2">What's next?</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
+              <h4 className="mb-2 font-medium text-gray-900">What's next?</h4>
+              <ul className="space-y-1 text-sm text-gray-600">
                 <li>• We're actively expanding to new regions</li>
                 <li>• Join our waitlist to be notified when available</li>
                 <li>• Alternative payment methods may be available</li>
@@ -292,14 +295,14 @@ function UnsupportedCountry({ countryName, onBack }: UnsupportedCountryProps) {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200">
+        <div className="flex flex-col justify-center gap-4 sm:flex-row">
+          <button className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors duration-200 hover:bg-blue-700">
             <i className="fas fa-bell mr-2"></i>
             Join Waitlist
           </button>
           <button
             onClick={onBack}
-            className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200"
+            className="rounded-lg border border-gray-300 px-6 py-3 font-medium text-gray-700 transition-colors duration-200 hover:bg-gray-50"
           >
             Select Different Country
           </button>

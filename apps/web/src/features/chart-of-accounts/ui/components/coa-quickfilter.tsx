@@ -36,20 +36,20 @@ export const QuickFilter: React.FC<QuickFilterProps> = ({
     val.toLowerCase() === accountElementFilter.toLowerCase();
 
   return (
-    <div className="flex-1 flex items-center">
+    <div className="flex flex-1 items-center">
       <hr className="grow" />
-      <div className="hidden xl:flex items-center justify-between gap-1 rounded-md bg-secondary h-[32px] max-h-8 w-[340px] overflow-clip border border-background-secondary">
+      <div className="bg-secondary border-background-secondary hidden h-[32px] max-h-8 w-[340px] items-center justify-between gap-1 overflow-clip rounded-md border xl:flex">
         {accountElements.map((tab) => (
           <div
             key={tab.value}
             // variant="outline"
             // size="sm"
             className={cn(
-              'font-light border-0 shadow-none px-2 flex h-full justify-center items-center text-sm rounded-sm cursor-pointer',
+              'flex h-full cursor-pointer items-center justify-center rounded-sm border-0 px-2 text-sm font-light shadow-none',
               'hover:text-foreground',
               isActive(tab.value)
                 ? 'bg-background text-foreground dark:bg-background/40 font-normal'
-                : 'bg-transparent text-foreground/50 opacity-80 hover:opacity-100',
+                : 'text-foreground/50 bg-transparent opacity-80 hover:opacity-100',
             )}
             onClick={() => setAccountElementFilter(tab.value.toLowerCase())}
           >

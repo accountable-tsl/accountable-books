@@ -63,7 +63,7 @@ export function CatEngineTxnView({
     return (
       <div
         className={cn(
-          'h-full rounded-md flex flex-col gap-4 border scale-in-hor-right overflow-clip',
+          'scale-in-hor-right flex h-full flex-col gap-4 overflow-clip rounded-md border',
           curr.borderClass || '',
           className,
         )}
@@ -83,7 +83,7 @@ export function CatEngineTxnView({
     return (
       <div
         className={cn(
-          'h-full rounded-md flex flex-col gap-4 border scale-in-hor-right overflow-clip',
+          'scale-in-hor-right flex h-full flex-col gap-4 overflow-clip rounded-md border',
           curr.borderClass || '',
           className,
         )}
@@ -116,7 +116,7 @@ export function CatEngineTxnView({
     return (
       <div
         className={cn(
-          'h-full rounded-md flex flex-col gap-4 border scale-in-hor-right overflow-clip',
+          'scale-in-hor-right flex h-full flex-col gap-4 overflow-clip rounded-md border',
           curr.borderClass || '',
           className,
         )}
@@ -126,8 +126,8 @@ export function CatEngineTxnView({
           badge={curr.title}
           backgroundClass={curr.backgroundClass}
         />
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="text-sm text-muted-foreground text-center">
+        <div className="flex flex-1 items-center justify-center p-4">
+          <div className="text-muted-foreground text-center text-sm">
             Select a transaction to view details
           </div>
         </div>
@@ -139,7 +139,7 @@ export function CatEngineTxnView({
     <ErrorBoundary>
       <div
         className={cn(
-          'min-h-0 h-full rounded-md flex flex-col gap-4 border scale-in-hor-right overflow-clip',
+          'scale-in-hor-right flex h-full min-h-0 flex-col gap-4 overflow-clip rounded-md border',
           curr.borderClass || '',
           className,
         )}
@@ -186,11 +186,11 @@ const TransactionView = memo(
     const isSplit = transactionGroup.summary.isSplit;
 
     return (
-      <div className="flex flex-col min-h-0 h-full gap-4">
-        <div className="space-y-8 divide-y flex-1 overflow-y-auto scrollbar-thin-2px">
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <div className="scrollbar-thin-2px flex-1 space-y-8 divide-y overflow-y-auto">
           {/* Transaction Details Section */}
-          <div className="grid grid-cols-2 gap-4 p-4 pt-0 items-center overflow-clip">
-            <div className="col-span-2 flex items-center gap-4 justify-between">
+          <div className="grid grid-cols-2 items-center gap-4 overflow-clip p-4 pt-0">
+            <div className="col-span-2 flex items-center justify-between gap-4">
               <AmountDisplay
                 amount={transactionGroup.bank_amount}
                 currency={transactionGroup.bank_currency_code}
@@ -213,7 +213,7 @@ const TransactionView = memo(
                 contentStyle="w-fit"
                 icon={false}
                 trigger={
-                  <div className="text-xs text-muted-foreground truncate">
+                  <div className="text-muted-foreground truncate text-xs">
                     Description
                   </div>
                 }
@@ -222,7 +222,7 @@ const TransactionView = memo(
               <TruncatedText text={firstLine.description} />
             </div>
             <div>
-              <div className="text-xs text-muted-foreground truncate">
+              <div className="text-muted-foreground truncate text-xs">
                 Contact
               </div>
               <TruncatedText
@@ -231,7 +231,7 @@ const TransactionView = memo(
               />
             </div>
             <div>
-              <div className="text-xs text-muted-foreground truncate">
+              <div className="text-muted-foreground truncate text-xs">
                 Reference
               </div>
               <TruncatedText
@@ -245,17 +245,17 @@ const TransactionView = memo(
           {isSplit && (
             <div className="px-4 pb-2">
               <Badge variant="outline" className="text-xs">
-                <Split className="w-3 h-3 mr-1" />
+                <Split className="mr-1 h-3 w-3" />
                 Split Transaction ({transactionGroup.summary.splitCount} lines)
               </Badge>
             </div>
           )}
 
           {/* Category and Explanation Section */}
-          <div className="px-4 pb-6 space-y-2">
+          <div className="space-y-2 px-4 pb-6">
             {isSplit ? (
               <div className="flex flex-col gap-1">
-                <div className="text-xs text-muted-foreground">
+                <div className="text-muted-foreground text-xs">
                   {curr.id === 'reviewed' ? 'Accounts' : 'Predicted Categories'}
                 </div>
                 <div className="space-y-2">
@@ -263,17 +263,17 @@ const TransactionView = memo(
                     <div
                       key={line.id || index}
                       className={cn(
-                        'flex gap-1 p-1 px-2 border items-center rounded',
+                        'flex items-center gap-1 rounded border p-1 px-2',
                         curr.borderClass || '',
                       )}
                     >
-                      <div className="truncate flex-1">
+                      <div className="flex-1 truncate">
                         {line.coa_name || DEFAULT_ACCOUNT_TEXT}
                       </div>
                       {line.confidence !== null && (
                         <div
                           className={cn(
-                            'rounded-xl px-2 text-sm flex items-center justify-center',
+                            'flex items-center justify-center rounded-xl px-2 text-sm',
                             curr.backgroundClass,
                             curr.textClass,
                           )}
@@ -318,18 +318,18 @@ const JournalEntriesSection = memo(
 
     return (
       <div className="px-4">
-        <div className="flex items-center justify-between text-sm mb-2">
+        <div className="mb-2 flex items-center justify-between text-sm">
           <div className="text-muted-foreground">Entries</div>
           {isSplit && (
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Split className="w-3 h-3" />
+            <div className="text-muted-foreground flex items-center gap-1">
+              <Split className="h-3 w-3" />
               <span className="text-xs">Split</span>
             </div>
           )}
         </div>
-        <div className="border rounded p-1 px-2 divide-y">
+        <div className="divide-y rounded border p-1 px-2">
           {/* Bank Leg */}
-          <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1">
+          <div className="grid grid-cols-[2fr_1fr_2fr] p-1 text-sm">
             <div className="truncate font-medium">Bank Account</div>
             <div className="truncate">
               {transactionGroup.bank_amount > 0 ? 'Debit' : 'Credit'}
@@ -349,7 +349,7 @@ const JournalEntriesSection = memo(
             return (
               <div
                 key={line.id || index}
-                className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1"
+                className="grid grid-cols-[2fr_1fr_2fr] p-1 text-sm"
               >
                 <div className="truncate">
                   {line.coa_name || DEFAULT_ACCOUNT_TEXT}
@@ -368,7 +368,7 @@ const JournalEntriesSection = memo(
         </div>
 
         {/* Totals */}
-        <div className="grid grid-cols-[2fr_1fr_2fr] text-sm p-1 px-3 text-muted-foreground mt-2 border-t">
+        <div className="text-muted-foreground mt-2 grid grid-cols-[2fr_1fr_2fr] border-t p-1 px-3 text-sm">
           <div className="truncate">Net Total</div>
           <div className="truncate">-</div>
           <FormattedAmount
@@ -401,24 +401,24 @@ const TransactionActions = memo(
       <div className="flex gap-4">
         <Button
           variant="outline"
-          className="flex items-center flex-1"
+          className="flex flex-1 items-center"
           onClick={onEdit}
         >
-          <Edit className="w-4 h-4 mr-2" /> Edit
+          <Edit className="mr-2 h-4 w-4" /> Edit
         </Button>
-        <Button variant="outline" className="flex items-center flex-1">
-          <Split className="w-4 h-4 mr-2" /> Split
+        <Button variant="outline" className="flex flex-1 items-center">
+          <Split className="mr-2 h-4 w-4" /> Split
         </Button>
       </div>
       <div className="flex flex-col gap-2">
         {!isHighConfidence && (
           <Button variant="outline" onClick={onAccept}>
-            <Check className="w-4 h-4 mr-2" /> Accept Category
+            <Check className="mr-2 h-4 w-4" /> Accept Category
           </Button>
         )}
         {isHighConfidence && (
           <Button variant="outline" onClick={onMarkReviewed}>
-            <Eye className="w-4 h-4 mr-2" /> Mark as Reviewed
+            <Eye className="mr-2 h-4 w-4" /> Mark as Reviewed
           </Button>
         )}
       </div>
@@ -439,7 +439,7 @@ const TransactionHeader = memo(
   }) => (
     <div
       className={cn(
-        'flex items-center justify-between px-4 py-1 h-10 min-h-10 border-b',
+        'flex h-10 min-h-10 items-center justify-between border-b px-4 py-1',
         backgroundClass,
       )}
     >
@@ -461,14 +461,14 @@ const AmountDisplay = memo(
     currency?: string;
   }) => (
     <div>
-      <div className="text-xs text-muted-foreground truncate">Amount</div>
+      <div className="text-muted-foreground truncate text-xs">Amount</div>
       <FormattedAmount
         amount={amount}
         currency={currency}
         showSymbol
         accountingNegatives={false}
         className={cn(
-          'text-xl font-bold truncate',
+          'truncate text-xl font-bold',
           amount < 0
             ? 'text-red-600 dark:text-red-500'
             : amount > 0
@@ -487,11 +487,11 @@ const BankLogo = memo(({ bankName }: { bankName?: string }) => (
     contentStyle="w-fit"
     trigger={
       <div
-        className="flex-shrink-0 w-8 h-8 overflow-hidden rounded-full bg-muted flex items-center justify-center border"
+        className="bg-muted flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border"
         role="img"
         aria-label={`${bankName || TOOLTIPS.BANK_LOGO} logo`}
       >
-        <Landmark className="w-4 h-4" />
+        <Landmark className="h-4 w-4" />
       </div>
     }
   />
@@ -513,7 +513,7 @@ const DateField = memo(
         contentStyle="w-fit"
         icon={false}
         trigger={
-          <div className="text-xs text-muted-foreground truncate">{label}</div>
+          <div className="text-muted-foreground truncate text-xs">{label}</div>
         }
         triggerWrapperClassName="w-fit"
       />
@@ -577,12 +577,12 @@ const CategoryDisplay = memo(
 
     return (
       <div className="flex flex-col gap-1">
-        <div className="text-xs text-muted-foreground">
+        <div className="text-muted-foreground text-xs">
           {curr.id === 'reviewed' ? 'Account' : 'Predicted Category'}
         </div>
         <div
           className={cn(
-            'flex gap-1 p-1 px-2 border items-center rounded',
+            'flex items-center gap-1 rounded border p-1 px-2',
             curr.borderClass || '',
           )}
         >
@@ -590,7 +590,7 @@ const CategoryDisplay = memo(
           {confidencePercent && (
             <div
               className={cn(
-                'rounded-xl px-2 text-sm flex items-center justify-center',
+                'flex items-center justify-center rounded-xl px-2 text-sm',
                 curr.backgroundClass,
                 curr.textClass,
               )}
@@ -613,22 +613,22 @@ const ExplanationSection = memo(
     return (
       <div
         className={cn(
-          'flex flex-col gap-1 px-2 rounded transition-all duration-300 ease-in-out',
+          'flex flex-col gap-1 rounded px-2 transition-all duration-300 ease-in-out',
           showExplanation ? 'border p-2' : '',
         )}
       >
         <button
           type="button"
-          className="flex items-center text-xs text-muted-foreground hover:underline cursor-pointer hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center text-xs hover:underline"
           onClick={() => setShowExplanation(!showExplanation)}
           aria-expanded={showExplanation}
           aria-controls="explanation-content"
         >
-          <Lightbulb className="w-3 h-3 inline-flex" />
+          <Lightbulb className="inline-flex h-3 w-3" />
           <span>Explanation</span>
           <ChevronDown
             className={cn(
-              'w-4 h-4 inline-flex transition-transform duration-200',
+              'inline-flex h-4 w-4 transition-transform duration-200',
               showExplanation && 'rotate-180',
             )}
           />
@@ -640,7 +640,7 @@ const ExplanationSection = memo(
             showExplanation ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0',
           )}
         >
-          <div id="explanation-content" className="text-sm overflow-y-auto">
+          <div id="explanation-content" className="overflow-y-auto text-sm">
             {explanation}
           </div>
         </div>

@@ -17,15 +17,13 @@ import {
   successResponse,
 } from '../../../shared/utils/response.utils.js';
 import type {
+  CreateBankProviderMappings,
   GetBankProviderMappingInput,
   GetBankProviderMappingResponse,
+  MonoBankCoverage,
+  NewBankProviderMapping,
 } from './bankProviderMappings.types.js';
-import {
-  type CreateBankProviderMappings,
-  type MonoBankCoverage,
-  type NewBankProviderMapping,
-  newBankProviderMappingCamel,
-} from './bankProviderMappings.types.js';
+import { newBankProviderMappingCamel } from './bankProviderMappings.types.js';
 
 export async function createBankProviderMappings({
   input,

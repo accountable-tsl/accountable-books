@@ -8,7 +8,8 @@ import { FormField } from '@/components/FormField';
 import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { type NewUser, newUser } from '@/modules/auth';
+import type { NewUser } from '@/modules/auth';
+import { newUser } from '@/modules/auth';
 import { usePasswordRules } from '@/shared/hooks/usePasswordRules';
 
 export interface SignupBasicInfoHandle {
@@ -110,7 +111,7 @@ export const SignupBasicInfo = forwardRef<
         />
       </FormField>
 
-      <div className="grid md:grid-cols-2 gap-2">
+      <div className="grid gap-2 md:grid-cols-2">
         {/* Lastname */}
         <FormField
           id="lastname"
@@ -200,7 +201,7 @@ export const SignupBasicInfo = forwardRef<
           type="button"
           onClick={togglePasswordVisibility}
           aria-label={showPassword ? 'Hide password' : 'Show password'}
-          className="absolute right-2 top-1/3 bg-transparent text-foreground hover:bg-transparent"
+          className="text-foreground absolute top-1/3 right-2 bg-transparent hover:bg-transparent"
         >
           {showPassword ? <EyeOff /> : <Eye />}
         </Button>

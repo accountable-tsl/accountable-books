@@ -1,9 +1,9 @@
 import '../config/env-loader.js';
 
+import { setupTestDatabase } from '../config/test-db.js';
+
 // Set NODE_ENV to test so migrations know they're running in test mode
 process.env.NODE_ENV = 'test';
-
-import { setupTestDatabase } from '../config/test-db.js';
 
 /**
  * Sets up the test database (creates if needed and runs migrations).

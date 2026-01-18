@@ -83,14 +83,14 @@ export function SwitchConfirmModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 space-y-4">
+        <div className="space-y-4 py-4">
           {/* From Company */}
-          <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
+          <div className="bg-muted/50 flex items-center gap-3 rounded-lg border p-3">
             <div className="text-muted-foreground">
               {getCompanyIcon(fromCompany.companyType)}
             </div>
             <div className="flex-1">
-              <div className="text-sm font-medium text-muted-foreground">
+              <div className="text-muted-foreground text-sm font-medium">
                 From:
               </div>
               <div className="font-semibold">{getCompanyName(fromCompany)}</div>
@@ -106,12 +106,12 @@ export function SwitchConfirmModal({
           </div>
 
           {/* To Company */}
-          <div className="flex items-center gap-3 p-3 border rounded-lg bg-primary/5">
+          <div className="bg-primary/5 flex items-center gap-3 rounded-lg border p-3">
             <div className="text-primary">
               {getCompanyIcon(toCompany.companyType)}
             </div>
             <div className="flex-1">
-              <div className="text-sm font-medium text-muted-foreground">
+              <div className="text-muted-foreground text-sm font-medium">
                 To:
               </div>
               <div className="font-semibold">{getCompanyName(toCompany)}</div>
@@ -131,7 +131,7 @@ export function SwitchConfirmModal({
             />
             <label
               htmlFor="remember"
-              className="text-sm text-muted-foreground cursor-pointer"
+              className="text-muted-foreground cursor-pointer text-sm"
             >
               Don't ask again for this session
             </label>

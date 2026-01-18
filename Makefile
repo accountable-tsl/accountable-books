@@ -25,8 +25,11 @@ guard-nonprod:
 		exit 1; \
 	fi
 
+check-prereqs: ## Check for required tools
+	@./scripts/check-prerequisites.sh
+
 ##@ 🚀 Quick Start (Most Common)
-setup: guard-nonprod ## One-command setup: infra + deps + db + demo
+setup: guard-nonprod check-prereqs ## One-command setup: infra + deps + db + demo
 	@echo "$(GREEN)🚀 Setting up Accountable Books development environment...$(RESET)"
 	@echo "$(YELLOW)🐳 Starting infrastructure (DB + Redis)...$(RESET)"
 	@$(MAKE) db-up

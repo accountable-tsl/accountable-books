@@ -23,7 +23,7 @@ export function TransactionStatusIndicator({
   if (status === 'saving') {
     return (
       <Loader2
-        className={`h-3 w-3 animate-spin text-muted-foreground ${className}`}
+        className={`text-muted-foreground h-3 w-3 animate-spin ${className}`}
       />
     );
   }

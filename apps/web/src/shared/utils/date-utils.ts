@@ -1,6 +1,6 @@
+import type { Duration } from 'date-fns';
 import {
   add,
-  type Duration,
   endOfDay,
   format as formatDate,
   isBefore,

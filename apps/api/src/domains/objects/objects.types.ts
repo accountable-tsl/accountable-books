@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { BUCKET_NAME_MAP } from './objects.registry.js';
 
 export const objStorageProvider = z.enum([

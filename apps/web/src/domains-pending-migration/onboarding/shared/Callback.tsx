@@ -46,10 +46,10 @@ export const OnboardingCallback = () => {
   return (
     <Dialog>
       <DialogTrigger>
-        <div className="flex gap-1 text-xs rounded-md px-2 py-1 bg-muted text-muted-foreground">
+        <div className="bg-muted text-muted-foreground flex gap-1 rounded-md px-2 py-1 text-xs">
           {/* <div className="flex gap-1 text-xs absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 "> */}
           <span className="text-nowrap">Need help? </span>
-          <span className="font-medium hover:underline hover:text-foreground cursor-pointer text-nowrap flex">
+          <span className="hover:text-foreground flex cursor-pointer font-medium text-nowrap hover:underline">
             Request a callback <MousePointerClick size={16} />
           </span>
           {/* <span className="text-nowrap hidden md:block">
@@ -67,7 +67,7 @@ export const OnboardingCallback = () => {
         {submitted ? (
           <div>Submitted</div>
         ) : (
-          <form className="flex flex-col gap-4 shadow-sm max-w-md">
+          <form className="flex max-w-md flex-col gap-4 shadow-sm">
             <SmartPhoneInput
               value={{ phoneNumber: '', countryCode: '', completeNumber: '' }}
               onChange={handlePhoneChange}

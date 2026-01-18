@@ -8,13 +8,12 @@ import {
 import { type Company } from '../companies/companies.types.js';
 import { createDefaultAccounts } from './coa.model.js';
 import { type NewCoa } from './coa.types.js';
-import {
-  loadCoaTemplate,
-  type LoadCoaTemplateInput,
-  newCoaTemplate,
-  type NewCoaTemplateInput,
-  type SelectBestCoa,
+import type {
+  LoadCoaTemplateInput,
+  NewCoaTemplateInput,
+  SelectBestCoa,
 } from './coa-template.type.js';
+import { loadCoaTemplate, newCoaTemplate } from './coa-template.type.js';
 import { selectBestCoaTemplate } from './coa-template-selector.service.js';
 
 export const addNewCoaTemplates = async (

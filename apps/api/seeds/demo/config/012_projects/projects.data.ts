@@ -7,15 +7,13 @@ import type {
 } from '../../shared/config.js';
 import { getDemoCompanies } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
-import {
-  type DemoProject,
-  demoProjectsByCompanyMap,
-} from './projects.state.js';
+import type { DemoProject } from './projects.state.js';
+import { demoProjectsByCompanyMap } from './projects.state.js';
+import type { SeedProject } from './projects.utils.js';
 import {
   generateRandomProjects,
   getBusinessProjects,
   getFirmProjects,
-  type SeedProject,
 } from './projects.utils.js';
 
 export type DemoProjectData = SeedProject;

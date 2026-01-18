@@ -16,19 +16,19 @@ export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
     <Dialog>
       <DialogTrigger asChild>
         <div
-          className="flex items-center gap-1 cursor-pointer font-light hover:underline decoration-current"
+          className="flex cursor-pointer items-center gap-1 font-light decoration-current hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
-          <Split className="w-3 h-3 text-muted-foreground" />
+          <Split className="text-muted-foreground h-3 w-3" />
           <span className="text-blue-500">View entries ({txn.entryCount})</span>
         </div>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Split Transaction Entries</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="text-sm text-muted-foreground">
+          <div className="text-muted-foreground text-sm">
             <p>
               Date: {format(new Date(txn.date), 'dd MMM yyyy')} | Bank Amount:{' '}
               <FormattedAmount
@@ -39,7 +39,7 @@ export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
             </p>
           </div>
           <div className="space-y-2">
-            <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
+            <div className="text-muted-foreground grid grid-cols-12 gap-2 border-b pb-2 text-xs font-medium">
               <div className="col-span-4">Account</div>
               <div className="col-span-2">Description</div>
               <div className="col-span-2 text-right">Amount</div>
@@ -49,19 +49,19 @@ export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
             {txn.entries?.map((line, idx) => (
               <div
                 key={idx}
-                className="grid grid-cols-12 gap-2 text-sm border-b last:border-0 pb-2 last:pb-0"
+                className="grid grid-cols-12 gap-2 border-b pb-2 text-sm last:border-0 last:pb-0"
               >
                 <div className="col-span-4">
                   <div className="font-medium">
                     {line.coaName || 'Uncategorized'}
                   </div>
                   {line.coaCode && (
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {line.coaCode}
                     </div>
                   )}
                 </div>
-                <div className="col-span-2 text-muted-foreground">
+                <div className="text-muted-foreground col-span-2">
                   {line.description || '-'}
                 </div>
                 {/* <div className="col-span-2 text-right">

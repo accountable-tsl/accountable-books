@@ -1,9 +1,9 @@
 import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 
+import type { AuthUserContext } from '@/modules/auth';
 import {
   authStore,
-  type AuthUserContext,
   clearLogoutReason,
   clearSessionFn,
   handleLogin,

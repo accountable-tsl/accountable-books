@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Import after mock setup
+import { validateCoaIds } from '../../chart-of-accounts/index.js';
 import {
   createMockConstraintContext,
   createMockEntry,
@@ -10,9 +12,6 @@ import { coaExistsAndActive } from './coa-exists.js';
 vi.mock('../../chart-of-accounts/index.js', () => ({
   validateCoaIds: vi.fn(),
 }));
-
-// Import after mock setup
-import { validateCoaIds } from '../../chart-of-accounts/index.js';
 
 const mockedValidateCoaIds = vi.mocked(validateCoaIds);
 

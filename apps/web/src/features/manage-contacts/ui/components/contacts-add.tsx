@@ -17,7 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useCreateContacts } from '@/modules/contacts/model/hooks';
-import { type NewContact, newContact } from '@/modules/contacts/model/types';
+import type { NewContact } from '@/modules/contacts/model/types';
+import { newContact } from '@/modules/contacts/model/types';
 
 export function AddContact({
   companyId,
@@ -70,18 +71,18 @@ export function AddContact({
   }, [onCancel]);
 
   return (
-    <div className="w-full flex min-h-0 h-full items-center">
+    <div className="flex h-full min-h-0 w-full items-center">
       <div
         className={cn(
-          'min-w-0 w-full max-w-md mx-auto p-6 border rounded-md',
+          'mx-auto w-full max-w-md min-w-0 rounded-md border p-6',
           classNames?.content || '',
         )}
       >
         {page === 'form' && (
           <>
-            <div className="font-medium mb-4">Add Contact</div>
+            <div className="mb-4 font-medium">Add Contact</div>
             <form
-              className="relative flex flex-col gap-6 min-h-0 justify-between"
+              className="relative flex min-h-0 flex-col justify-between gap-6"
               onSubmit={handleSubmit(onSubmit)}
             >
               <FormField
@@ -126,7 +127,7 @@ export function AddContact({
         )}
 
         {page === 'success' && (
-          <div className="flex flex-col gap-6 min-h-[350px] items-center justify-center">
+          <div className="flex min-h-[350px] flex-col items-center justify-center gap-6">
             <Success text="Contact created successfully" />
             <Button onClick={handleCancel}>Close</Button>
           </div>
@@ -161,7 +162,7 @@ export function AddContactDialog({
       <DialogContent overlayClassName={overlayClassName} className="">
         <DialogHeader className={showHeader ? '' : 'sr-only'}>
           <DialogTitle>Add contact</DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm sr-only">
+          <DialogDescription className="text-muted-foreground sr-only text-sm">
             Add a new contact
           </DialogDescription>
         </DialogHeader>

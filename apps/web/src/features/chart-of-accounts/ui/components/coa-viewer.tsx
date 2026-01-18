@@ -1,21 +1,10 @@
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import type {
+  BlacklistedType,
+  CoaResponse,
+  EditCoaRequest,
+} from '@/modules/accounting/chart-of-accounts';
 import type { Row } from '@tanstack/react-table';
-import {
-  Archive,
-  ArrowLeft,
-  Binary,
-  Box,
-  CheckCircle2,
-  Coins,
-  Group,
-  Info,
-  Lock,
-  Trash2,
-} from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
-import { toast } from 'sonner';
-
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { FormField } from '@/components/FormField';
@@ -28,9 +17,6 @@ import { useAccountMeta } from '@/domains-pending-migration/account-classificati
 import { cn } from '@/lib/utils';
 import {
   ACCOUNT_TYPE_BLACKLIST,
-  type BlacklistedType,
-  type CoaResponse,
-  type EditCoaRequest,
   editCoaRequest,
   getChangedFields,
   useArchiveCoa,
@@ -39,6 +25,21 @@ import {
   useUnarchiveCoa,
 } from '@/modules/accounting/chart-of-accounts';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import {
+  Archive,
+  ArrowLeft,
+  Binary,
+  Box,
+  CheckCircle2,
+  Coins,
+  Group,
+  Info,
+  Lock,
+  Trash2,
+} from 'lucide-react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { toast } from 'sonner';
 
 // Constants
 const STYLES = {
@@ -74,32 +75,28 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
 
   // Data
   const { data, isLoading } = useAccountMeta();
-  const accountTypes = data?.enrichedAccountTypes || [];
+  const accountTypes = useMemo(() => data?.enrichedAccountTypes || [], [data?.enrichedAccountTypes]);
 
-  if (!row) {
-    return (
-      <div className="w-full mx-auto">
-        <p>No account selected</p>
-      </div>
-    );
-  }
-
-  const account = row.original;
+  const account = row?.original;
 
   // Memoized Values
   const defaultAccountValues = useMemo(
-    () => ({
-      id: account.id,
-      name: account.name,
-      description: account.description || '',
-      code: account.code || '',
-      accountTypeKey: account.accountTypeKey,
-    }),
+    () =>
+      account
+        ? {
+            id: account.id,
+            name: account.name,
+            description: account.description || '',
+            code: account.code || '',
+            accountTypeKey: account.accountTypeKey,
+          }
+        : null,
     [account],
   );
 
   const canDelete = useMemo(
     () =>
+      account &&
       !account.isLocked &&
       !ACCOUNT_TYPE_BLACKLIST.includes(
         account.accountTypeKey.toLowerCase() as BlacklistedType,
@@ -111,6 +108,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
 
   const canArchive = useMemo(
     () =>
+      account &&
       !ACCOUNT_TYPE_BLACKLIST.includes(
         account.accountTypeKey.toLowerCase() as BlacklistedType,
       ) &&
@@ -119,7 +117,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
     [account],
   );
 
-  // Form setup
+  // Form setup - must be before early return
   const {
     register,
     handleSubmit,
@@ -128,24 +126,27 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
     control,
   } = useForm<EditCoaRequest>({
     resolver: standardSchemaResolver(editCoaRequest),
-    defaultValues: defaultAccountValues,
+    defaultValues: defaultAccountValues || undefined,
     mode: 'onChange',
   });
 
   const currentAccountTypeKey = useWatch({ control, name: 'accountTypeKey' });
 
   const currentAccountTypeInfo = useMemo(() => {
+    if (!accountTypes || !currentAccountTypeKey) return null;
     return accountTypes.find((type) => type.key === currentAccountTypeKey);
   }, [currentAccountTypeKey, accountTypes]);
 
-  // Event handlers
+  // Event handlers - must be before early return
   const onEditToggle = useCallback(() => {
+    if (!defaultAccountValues) return;
     setEditMode(!editMode);
     reset(defaultAccountValues);
   }, [editMode, reset, defaultAccountValues]);
 
   const handleEditSubmit = useCallback(
     (data: EditCoaRequest) => {
+      if (!account) return;
       const changedFields = getChangedFields(data, dirtyFields);
       const updates = { ...changedFields, id: data.id || account.id };
 
@@ -154,7 +155,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
         {
           onSuccess: () => {
             toast.success('Account updated successfully');
-            onClose();
+            onClose?.();
           },
           onError: () => {
             toast.error('Failed to update account');
@@ -162,10 +163,11 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
         },
       );
     },
-    [dirtyFields, account.id, editCoaMutation, companyId, onClose],
+    [dirtyFields, account, editCoaMutation, companyId, onClose],
   );
 
   const handleArchive = useCallback(() => {
+    if (!account) return;
     archiveCoaMutation.mutate(
       { companyId, accountIds: [account.id] },
       {
@@ -177,9 +179,10 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
         },
       },
     );
-  }, [archiveCoaMutation, companyId, account.id]);
+  }, [archiveCoaMutation, companyId, account]);
 
   const restoreArchived = useCallback(() => {
+    if (!account) return;
     unarchiveCoaMutation.mutate(
       { companyId, accountIds: [account.id] },
       {
@@ -191,22 +194,31 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
         },
       },
     );
-  }, [unarchiveCoaMutation, companyId, account.id]);
+  }, [unarchiveCoaMutation, companyId, account]);
 
   const handleDelete = useCallback(() => {
+    if (!account) return;
     deleteCoaMutation.mutate(
       { companyId, accountIds: [account.id] },
       {
         onSuccess: () => {
           toast.success('Account deleted successfully');
-          onClose();
+          onClose?.();
         },
         onError: () => {
           toast.error('Failed to delete account');
         },
       },
     );
-  }, [deleteCoaMutation, companyId, account.id, onClose]);
+  }, [deleteCoaMutation, companyId, account, onClose]);
+
+  if (!row || !account) {
+    return (
+      <div className="mx-auto w-full">
+        <p>No account selected</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <CenteredLoader />;
@@ -317,7 +329,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
                           dirtyFields,
                           'accountTypeKey',
                         ) && (
-                          <div className="text-sm mt-2 py-2 px-4 bg-red-100 text-red-600 rounded">
+                          <div className="mt-2 rounded bg-red-100 px-4 py-2 text-sm text-red-600">
                             <strong>Warning:</strong> Changing your account type
                             will affect all your postings and might not be
                             reversible!
@@ -400,15 +412,15 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
         </div>
 
         {!account.isActive && (
-          <div className="text-yellow-600 text-sm flex items-center gap-1 pt-4 px-4">
-            <Info className="w-4 h-4" /> This account is archived or inactive
+          <div className="flex items-center gap-1 px-4 pt-4 text-sm text-yellow-600">
+            <Info className="h-4 w-4" /> This account is archived or inactive
           </div>
         )}
         <div
           className={cn(
             'py-6 text-sm',
             is1024 ? 'py-4' : '',
-            !account.isActive ? 'opacity-50 pt-2' : '',
+            !account.isActive ? 'pt-2 opacity-50' : '',
           )}
         >
           {/* Basic Info */}
@@ -418,7 +430,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
               <div className="min-w-0">
                 <div className={itemTitleClass}>Account Code</div>
                 <div className="flex items-center gap-1">
-                  <Binary className="w-4 h-4 text-muted-foreground" />
+                  <Binary className="text-muted-foreground h-4 w-4" />
                   <span>
                     {account.code || <span className="text-gray-400">—</span>}
                   </span>
@@ -428,7 +440,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
                 <div className={itemTitleClass}>Account Name</div>
                 <div className="line-clamp-2 text-ellipsis">{account.name}</div>
               </div>
-              <div className="min-w-0 col-span-2">
+              <div className="col-span-2 min-w-0">
                 <div className={itemTitleClass}>Description</div>
                 <div className="line-clamp-2 text-ellipsis">
                   {account.description || (
@@ -446,21 +458,21 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
             <h3 className={sectionTitleClass}>Classification</h3>
 
             <div className={cn(sectionGridClass)}>
-              <div className="flex items-center gap-1 col-span-2">
-                <Group className="w-4 h-4 text-muted-foreground" />
+              <div className="col-span-2 flex items-center gap-1">
+                <Group className="text-muted-foreground h-4 w-4" />
                 <span>{account.parentAccountElementLabel}</span>
               </div>
               <div className="min-w-0">
                 <div className={itemTitleClass}>Account Type</div>
                 <div className="flex items-center gap-1 truncate">
-                  <Box className="w-4 h-4 text-muted-foreground" />
+                  <Box className="text-muted-foreground h-4 w-4" />
                   <span>{account.accountTypeLabel}</span>
                 </div>
               </div>
               <div className="min-w-0">
                 <div className={itemTitleClass}>Account Element</div>
                 <div className="flex items-center gap-1 truncate">
-                  <Binary className="w-4 h-4 text-muted-foreground" />
+                  <Binary className="text-muted-foreground h-4 w-4" />
                   <span>{account.accountElementLabel}</span>
                 </div>
               </div>
@@ -477,7 +489,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
               <div className="min-w-0">
                 <div className={itemTitleClass}>Account Currency</div>
                 <div className="flex items-center gap-1">
-                  <Coins className="w-4 h-4 text-muted-foreground" />
+                  <Coins className="text-muted-foreground h-4 w-4" />
                   <span>
                     {account.accountCurrencyCode} (
                     {account.accountCurrencySymbol})
@@ -488,7 +500,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
               <div className="min-w-0">
                 <div className={itemTitleClass}>Reporting Currency</div>
                 <div className="flex items-center gap-1">
-                  <Coins className="w-4 h-4 text-muted-foreground" />
+                  <Coins className="text-muted-foreground h-4 w-4" />
                   <span>
                     {account.reportingCurrencyCode} (
                     {account.reportingCurrencySymbol})
@@ -506,25 +518,25 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
             <div className="flex flex-wrap gap-2">
               {account.isActive && (
                 <Badge variant="default">
-                  <CheckCircle2 className="w-4 h-4 mr-1" /> Active
+                  <CheckCircle2 className="mr-1 h-4 w-4" /> Active
                 </Badge>
               )}
 
               {!account.isActive && (
                 <Badge variant="secondary">
-                  <CheckCircle2 className="w-4 h-4 mr-1" /> Inactive
+                  <CheckCircle2 className="mr-1 h-4 w-4" /> Inactive
                 </Badge>
               )}
 
               {!account.isActive && (
                 <Badge variant="outline">
-                  <Archive className="w-4 h-4 mr-1" /> Archived
+                  <Archive className="mr-1 h-4 w-4" /> Archived
                 </Badge>
               )}
 
               {account.isLocked && (
                 <Badge variant="destructive">
-                  <Lock className="w-4 h-4 mr-1" /> Locked
+                  <Lock className="mr-1 h-4 w-4" /> Locked
                 </Badge>
               )}
             </div>
@@ -546,7 +558,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
                       variant="outline"
                       onClick={handleArchive}
                     >
-                      <Archive className="w-4 h-4" />
+                      <Archive className="h-4 w-4" />
                       <span className="">Archive</span>
                     </Button>
                   )}
@@ -556,7 +568,7 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
                       variant="destructive"
                       onClick={handleDelete}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="h-4 w-4" />
                       <span className="">Delete Account</span>
                     </Button>
                   )}

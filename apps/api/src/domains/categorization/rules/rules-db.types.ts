@@ -1,10 +1,8 @@
 import z from 'zod';
 
 import { dbBaseFields } from '../../../core/index.js';
-import {
-  createCamelCaseSchema,
-  type SnakeToCamelCaseObject,
-} from '../../../shared/index.js';
+import type { SnakeToCamelCaseObject } from '../../../shared/index.js';
+import { createCamelCaseSchema } from '../../../shared/index.js';
 import { actionDefinition, conditionDefinition } from './rules-def.types.js';
 
 // Rules

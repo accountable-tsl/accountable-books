@@ -14,6 +14,7 @@ from .contact_type import ContactType
 from .data_mutation_intent import DataMutationIntent
 from .enriched_transaction import EnrichedTransaction
 from .final_posting import FinalPosting
+from .get_categorization_stats_params import GetCategorizationStatsParams
 from .get_txn_file_input import GetTxnFileInput
 from .global_intent_classifier import GlobalIntentClassifier
 from .intent_action_type import IntentActionType
@@ -36,4 +37,4 @@ from .transaction_files import TransactionFiles
 from .txn_file_input import TxnFileInput
 from .txn_file_source import TxnFileSource
 
-__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GetTxnFileInput", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "NewTxnFile", "ObjStorageProvider", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker", "TransactionFiles", "TxnFileInput", "TxnFileSource"]
+__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GetCategorizationStatsParams", "GetTxnFileInput", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "NewTxnFile", "ObjStorageProvider", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker", "TransactionFiles", "TxnFileInput", "TxnFileSource"]

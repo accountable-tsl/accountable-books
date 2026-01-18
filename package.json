@@ -37,7 +37,6 @@
     "dotenv-cli": "^11.0.0",
     "eslint": "9.33.0",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-simple-import-sort": "^12.1.1",
     "husky": "^9.1.7",
     "is-ci": "^4.1.0",
     "lint-staged": "^16.2.7",
@@ -51,7 +50,7 @@
     "vitest": "^4.0.16"
   },
   "engines": {
-    "node": ">=24.0.0 <24.12.0",
+    "node": ">=24.0.0 <25.0.0",
     "pnpm": ">=10.0.0"
   },
   "lint-staged": {

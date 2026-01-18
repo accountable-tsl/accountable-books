@@ -436,7 +436,7 @@ export const AutocompleteDropdown = forwardRef<
     }
 
     return result;
-  }, [items, groups, groupBy, groupLabel, mapItem, useGrouping, groupOrder]);
+  }, [items, groups, groupBy, groupLabel, mapItem, useGrouping, groupOrder, ungroupedLabel]);
 
   // Create a flattened lookup map for O(1) access to all items
   // This serves as the single source of truth for item lookups
@@ -562,7 +562,7 @@ export const AutocompleteDropdown = forwardRef<
                 );
               })}
               {hasMore && isLoading && (
-                <div className="py-3 text-center text-sm text-muted-foreground">
+                <div className="text-muted-foreground py-3 text-center text-sm">
                   <BeatLoader />
                 </div>
               )}
@@ -577,7 +577,7 @@ export const AutocompleteDropdown = forwardRef<
               return (filteredData as GroupedItems[]).map(
                 (group, groupIndex, allGroups) => (
                   <div key={group.id}>
-                    <div className="px-2 pt-2 text-sm font-semibold text-muted-foreground">
+                    <div className="text-muted-foreground px-2 pt-2 text-sm font-semibold">
                       {group.label}
                     </div>
                     <CommandSeparator className="my-1" />
@@ -613,7 +613,7 @@ export const AutocompleteDropdown = forwardRef<
                     {groupIndex === allGroups.length - 1 &&
                       hasMore &&
                       isLoading && (
-                        <div className="py-3 text-center text-sm text-muted-foreground">
+                        <div className="text-muted-foreground py-3 text-center text-sm">
                           <BeatLoader />
                         </div>
                       )}
@@ -623,12 +623,12 @@ export const AutocompleteDropdown = forwardRef<
             })()}
 
           {showEmptyState && (
-            <div className="py-6 text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground py-6 text-center text-sm">
               {emptyStateMessage}
             </div>
           )}
           {showNoResults && (
-            <div className="py-6 text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground py-6 text-center text-sm">
               {noResultsMessage}
             </div>
           )}
@@ -674,7 +674,7 @@ export const AutocompleteDropdown = forwardRef<
         'w-full justify-between',
         width,
         className,
-        disabled ? 'opacity-50 cursor-not-allowed' : '',
+        disabled ? 'cursor-not-allowed opacity-50' : '',
       )}
       disabled={disabled}
     >

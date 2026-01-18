@@ -11,9 +11,9 @@ import {
 import type { CustomTable } from '@/components/data-table/types/data-table';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import type { CoaResponse } from '@/modules/accounting/chart-of-accounts';
 import {
   analyzeSelectedAccounts,
-  type CoaResponse,
   useArchiveCoa,
   useDeleteCoa,
 } from '@/modules/accounting/chart-of-accounts';
@@ -148,7 +148,7 @@ export function CoaActionBar({
         </DataTableActionBarAction>
       )} */}
 
-      <DataTableActionBarAction size="sm" className="font-light text-sm border">
+      <DataTableActionBarAction size="sm" className="border text-sm font-light">
         {meta}
       </DataTableActionBarAction>
     </DataTableActionBar>

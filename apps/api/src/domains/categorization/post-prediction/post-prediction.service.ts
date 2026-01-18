@@ -12,25 +12,24 @@ import {
   postCandidateToLedger,
 } from '../autopost/index.js';
 import { persistCategorizationCandidate } from '../candidates/candidates.service.js';
+import type { CandidateLineDraft } from '../candidates/candidates.types.js';
+import type { TxnCategorizationSource } from '../categorization.types.js';
+import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 import { enqueueMLPredictionJob } from '../ml/ml-prediction.queue.js';
+import type { MLPredictionOutput } from '../ml/ml-prediction.types.js';
+import type { RuleEngineResult } from '../rules/rules.engine.types.js';
+import type { TaskEventType } from '../tasks/index.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import {
   allEqual,
   buildExplanationFromRuleResult,
   computeCategorizeAmounts,
 } from './post-prediction.helpers.js';
-import { persistPrediction } from './predictions/predictions.service.js';
-
-import type { CandidateLineDraft } from '../candidates/candidates.types.js';
-import type { TxnCategorizationSource } from '../categorization.types.js';
-import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
-import type { MLPredictionOutput } from '../ml/ml-prediction.types.js';
-import type { RuleEngineResult } from '../rules/rules.engine.types.js';
-import type { TaskEventType } from '../tasks/index.js';
 import type {
   HandlePostPredictionParams,
   HandleRulePredictionParams,
 } from './post-prediction.types.js';
+import { persistPrediction } from './predictions/predictions.service.js';
 import type {
   MLPredictionMetadata,
   PersistPredictionParams,

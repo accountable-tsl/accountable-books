@@ -40,7 +40,7 @@ export const getCatEngineColumns = (
               <TooltipTrigger asChild>
                 <Badge
                   variant="outline"
-                  className="text-xs cursor-pointer hover:bg-muted"
+                  className="hover:bg-muted cursor-pointer text-xs"
                   onClick={(e) => {
                     e.stopPropagation();
                     // Could show split details or allow editing
@@ -61,13 +61,13 @@ export const getCatEngineColumns = (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 hover:bg-muted"
+                className="hover:bg-muted h-6 w-6 p-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   onSplit?.(txn);
                 }}
               >
-                <Split className="h-3.5 w-3.5 text-muted-foreground" />
+                <Split className="text-muted-foreground h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -91,12 +91,12 @@ export const getCatEngineColumns = (
               <img
                 src={bankAccount.bankLogo}
                 alt={bankAccount.bankName || 'Bank'}
-                className="w-5 h-5 object-contain rounded"
+                className="h-5 w-5 rounded object-contain"
               />
             ) : (
-              <Landmark className="w-4 h-4 text-muted-foreground" />
+              <Landmark className="text-muted-foreground h-4 w-4" />
             )}
-            <div className="text-sm truncate max-w-[120px]">
+            <div className="max-w-[120px] truncate text-sm">
               {bankAccount?.displayName ||
                 bankAccount?.bankName ||
                 txn.bank_currency_code}
@@ -133,7 +133,7 @@ export const getCatEngineColumns = (
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="text-sm truncate max-w-xs cursor-help">
+              <div className="max-w-xs cursor-help truncate text-sm">
                 {description}
               </div>
             </TooltipTrigger>
@@ -173,7 +173,7 @@ export const getCatEngineColumns = (
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="text-sm truncate max-w-[120px] cursor-help">
+              <div className="max-w-[120px] cursor-help truncate text-sm">
                 {contactName}
               </div>
             </TooltipTrigger>
@@ -197,7 +197,7 @@ export const getCatEngineColumns = (
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="text-sm truncate max-w-[100px] cursor-help font-mono">
+              <div className="max-w-[100px] cursor-help truncate font-mono text-sm">
                 {reference}
               </div>
             </TooltipTrigger>
@@ -234,7 +234,7 @@ export const getCatEngineColumns = (
           return (
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="text-sm text-muted-foreground cursor-help">
+                <div className="text-muted-foreground cursor-help text-sm">
                   Split ({txn.summary.splitCount} lines)
                 </div>
               </TooltipTrigger>
@@ -258,7 +258,7 @@ export const getCatEngineColumns = (
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="text-sm truncate max-w-[150px] cursor-help">
+              <div className="max-w-[150px] cursor-help truncate text-sm">
                 {accountName}
               </div>
             </TooltipTrigger>
@@ -282,7 +282,7 @@ export const getCatEngineColumns = (
             </div>
           );
         }
-        return <div className="text-sm text-muted-foreground">-</div>;
+        return <div className="text-muted-foreground text-sm">-</div>;
       },
       meta: { label: 'Confidence', hidden: true },
     },
@@ -300,12 +300,12 @@ export const getCatEngineColumns = (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 hover:bg-muted"
+                  className="hover:bg-muted h-8 w-8 p-0"
                   onClick={(e) => {
                     e.stopPropagation();
                   }}
                 >
-                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                  <MoreVertical className="text-muted-foreground h-4 w-4" />
                   <span className="sr-only">Open menu</span>
                 </Button>
               </DropdownMenuTrigger>
@@ -331,7 +331,7 @@ export const getCatEngineColumns = (
                 >
                   <Paperclip className="mr-2 h-4 w-4" />
                   Add Files
-                  <span className="ml-auto text-xs text-muted-foreground">
+                  <span className="text-muted-foreground ml-auto text-xs">
                     Soon
                   </span>
                 </DropdownMenuItem>
@@ -341,7 +341,7 @@ export const getCatEngineColumns = (
                 >
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Send Message
-                  <span className="ml-auto text-xs text-muted-foreground">
+                  <span className="text-muted-foreground ml-auto text-xs">
                     Soon
                   </span>
                 </DropdownMenuItem>

@@ -65,7 +65,7 @@ export const SpreadsheetImporter = ({
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Memoize computed values
-  const accept = useMemo(() => receivedAccept, []);
+  const accept = useMemo(() => receivedAccept, [receivedAccept]);
 
   const maxSizeInBytes = useMemo(
     () => maxFileSizeInMB * 1024 * 1024,
@@ -240,6 +240,7 @@ export const SpreadsheetImporter = ({
       fields,
       validationOptions,
       onError,
+      onParsed,
     ],
   );
 
@@ -355,12 +356,24 @@ export const CustomFileCard = memo(
     showUnexpectedColumnsWarning = true,
     renderOptions = {},
   }: FileCardExtraProps) => {
+    const displayFields = useMemo(
+      () =>
+        parsedResult
+          ? getDisplayFields({
+              fields,
+              parsedHeaders: parsedResult.headers,
+              showAllFields,
+            })
+          : [],
+      [fields, showAllFields, parsedResult],
+    );
+
     if (!parsedResult) return null;
 
     // Error: Show only error & nothing else
     if (parsedResult.error) {
       return (
-        <div className="flex flex-col gap-2 min-w-0 w-full">
+        <div className="flex w-full min-w-0 flex-col gap-2">
           <div className="text-destructive font-bold">{parsedResult.error}</div>
           {parsedResult.duplicateHeaders &&
             parsedResult.duplicateHeaders?.length > 0 && (
@@ -372,16 +385,6 @@ export const CustomFileCard = memo(
       );
     }
 
-    const displayFields = useMemo(
-      () =>
-        getDisplayFields({
-          fields,
-          parsedHeaders: parsedResult.headers,
-          showAllFields,
-        }),
-      [fields, parsedResult.headers, showAllFields],
-    );
-
     // Don't render table if nothing to show
     if (
       !parsedResult.preview ||
@@ -389,7 +392,7 @@ export const CustomFileCard = memo(
       !displayFields.length
     ) {
       return (
-        <div className="text-muted-foreground italic min-w-0 w-full">
+        <div className="text-muted-foreground w-full min-w-0 italic">
           No preview available
         </div>
       );
@@ -402,30 +405,30 @@ export const CustomFileCard = memo(
         ? `Unexpected columns found: ${parsedResult.unexpectedColumns.join(', ')}`
         : null;
     return (
-      <div className="flex flex-col gap-2 min-w-0 w-full">
+      <div className="flex w-full min-w-0 flex-col gap-2">
         <div>
           {/* Show warning/info if present */}
           {parsedResultWarning &&
             parsedResultWarning !== unexpectedColumnsWarning && (
-              <div className="text-muted-foreground text-[15px] text-sm">
+              <div className="text-muted-foreground text-sm text-[15px]">
                 {parsedResultWarning}
               </div>
             )}
           {unexpectedColumnsWarning && showUnexpectedColumnsWarning && (
-            <div className="text-blue-500 text-sm">
+            <div className="text-sm text-blue-500">
               {unexpectedColumnsWarning}
             </div>
           )}
         </div>
         <div>
-          <p className="text-sm font-medium mb-2">
+          <p className="mb-2 text-sm font-medium">
             {`Preview (${
               parsedResult.preview.length === 1
                 ? 'Only 1 row available'
                 : `first ${parsedResult.preview.length} rows`
             })`}
           </p>
-          <div className="border rounded overflow-hidden">
+          <div className="overflow-hidden rounded border">
             <Table>
               <TableHeader className="bg-muted">
                 <TableRow variant="header">
@@ -433,7 +436,7 @@ export const CustomFileCard = memo(
                     <TableCell
                       variant="header"
                       key={f.value}
-                      className={`p-2 font-medium text-left ${f.className ?? ''}`}
+                      className={`p-2 text-left font-medium ${f.className ?? ''}`}
                     >
                       {f.label}
                     </TableCell>

@@ -1,7 +1,5 @@
-import {
-  type EnrichedTransaction,
-  enrichedTransaction,
-} from '@accountable-books/contracts/schema';
+import type { EnrichedTransaction } from '@accountable-books/contracts/schema';
+import { enrichedTransaction } from '@accountable-books/contracts/schema';
 import { z } from 'zod';
 
 import {

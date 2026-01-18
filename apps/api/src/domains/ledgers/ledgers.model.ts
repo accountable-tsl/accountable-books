@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import z from 'zod';
 
+import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { logger } from '../../shared/index.js';
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
@@ -20,17 +21,6 @@ import {
 import { getCompanySetting } from '../settings/settings.service.js';
 import { isSystemUser } from '../users/users.model.js';
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
-import { newLedgerTransactionData } from './ledgers.types.js';
-import {
-  detectChangedFields,
-  fetchLookupMap,
-  normalizeDateForComparison,
-  processEntriesDates,
-  resolveFx,
-  validateBankLegAmount,
-} from './ledgers.utils.js';
-
-import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
   LedgerEntry,
   LedgerEntryInput,
@@ -41,6 +31,15 @@ import type {
   NewLedgerTransaction,
   NewLedgerTransactionData,
 } from './ledgers.types.js';
+import { newLedgerTransactionData } from './ledgers.types.js';
+import {
+  detectChangedFields,
+  fetchLookupMap,
+  normalizeDateForComparison,
+  processEntriesDates,
+  resolveFx,
+  validateBankLegAmount,
+} from './ledgers.utils.js';
 
 interface CreateLedgerRecordResult {
   ledgerTransactionId: string;
@@ -1637,6 +1636,8 @@ export async function updateOrCreateLedger({
               entryId: string;
               description?: string | null;
               metadata?: Record<string, unknown>;
+              human_reviewed?: boolean;
+              review_notes?: string | null;
             }>;
           } = {};
 
@@ -1659,6 +1660,25 @@ export async function updateOrCreateLedger({
             });
             updates.entries = [];
             for (const [entryId, changedFields] of changes.entryChanges) {
+              // Defensive check: ensure no accounting fields are in metadata-only path
+              const accountingFieldsInChange = Array.from(changedFields).filter(
+                (field) =>
+                  field === 'coa_id' ||
+                  field === 'source_amount' ||
+                  field === 'source_currency_id' ||
+                  field === 'custom_exchange_rate' ||
+                  field === 'fs_date' ||
+                  field === 'project_id' ||
+                  field === 'contact_id' ||
+                  field === 'contact_type',
+              );
+              if (accountingFieldsInChange.length > 0) {
+                throw new AppError(
+                  `Accounting field changes (${accountingFieldsInChange.join(', ')}) detected in metadata-only update path. This should trigger a supersede operation instead.`,
+                  { entryId, accountingFieldsInChange },
+                );
+              }
+
               const existingEntry = existingEntries.find(
                 (entry) => entry.id === entryId,
               );
@@ -1702,6 +1722,7 @@ export async function updateOrCreateLedger({
           if (!updateResult.success) {
             throw new AppError(
               `Failed to update ledger metadata: ${updateResult.error}`,
+              updateResult.error,
             );
           }
 
@@ -1720,6 +1741,9 @@ export async function updateOrCreateLedger({
           );
 
           // Build new transaction data - preserve immutable transaction-level fields
+          // TODO: Type conversion workaround - DB may return strings for numbers, null for metadata
+          // Consider normalizing at query layer or using Zod coercion instead of manual conversion here
+          // Convert types to match schema expectations (DB may return strings for numbers, null for metadata)
           const newTxnData: NewLedgerTransactionData = {
             // Preserve immutable transaction-level fields from existing
             date: existingTxn.date,
@@ -1729,7 +1753,14 @@ export async function updateOrCreateLedger({
             contact_type: existingTxn.contact_type,
             source_transaction_id: existingTxn.source_transaction_id,
             source_transaction_date: existingTxn.source_transaction_date,
-            source_transaction_amount: existingTxn.source_transaction_amount,
+            // Convert source_transaction_amount from string to number if needed
+            source_transaction_amount:
+              existingTxn.source_transaction_amount === null ||
+              existingTxn.source_transaction_amount === undefined
+                ? existingTxn.source_transaction_amount
+                : typeof existingTxn.source_transaction_amount === 'string'
+                  ? Number(existingTxn.source_transaction_amount)
+                  : existingTxn.source_transaction_amount,
             source_transaction_currency_id:
               existingTxn.source_transaction_currency_id,
             categorization_candidate_id:
@@ -1739,14 +1770,39 @@ export async function updateOrCreateLedger({
             description: txnData.description ?? existingTxn.description,
             reference: txnData.reference ?? existingTxn.reference,
             note: txnData.note ?? existingTxn.note,
-            metadata: txnData.metadata ?? existingTxn.metadata,
+            // Convert null metadata to undefined (schema expects object or undefined, not null)
+            metadata:
+              txnData.metadata ??
+              (existingTxn.metadata === null
+                ? undefined
+                : existingTxn.metadata),
 
             // Use proposed entries (with accounting changes)
             // Note: Bank leg immutability is enforced by:
             // 1. detectChangedFields() validation (above) - rejects bank leg changes
             // 2. createLedgerRecord() validation - verifies bank leg matches bank_transaction
             // So it's safe to pass proposed entries directly here
-            transactions: txnData.transactions as LedgerEntryInput[],
+            // Filter out null entries and convert string numbers to numbers
+            transactions: (txnData.transactions ?? [])
+              .filter((entry): entry is LedgerEntryInput => entry !== null)
+              .map((entry) => ({
+                ...entry,
+                // Convert source_amount from string to number if needed
+                source_amount:
+                  typeof entry.source_amount === 'string'
+                    ? Number(entry.source_amount)
+                    : entry.source_amount,
+                // Convert custom_exchange_rate from string to number if needed
+                custom_exchange_rate:
+                  entry.custom_exchange_rate !== undefined &&
+                  entry.custom_exchange_rate !== null
+                    ? typeof entry.custom_exchange_rate === 'string'
+                      ? Number(entry.custom_exchange_rate)
+                      : entry.custom_exchange_rate
+                    : undefined,
+                // Convert null metadata to undefined
+                metadata: entry.metadata === null ? undefined : entry.metadata,
+              })) as LedgerEntryInput[],
           };
 
           const supersedeResult = await supersedeLedgerTransaction({
@@ -1760,6 +1816,7 @@ export async function updateOrCreateLedger({
           if (!supersedeResult.success) {
             throw new AppError(
               `Failed to supersede ledger transaction: ${supersedeResult.error}`,
+              supersedeResult.error,
             );
           }
 

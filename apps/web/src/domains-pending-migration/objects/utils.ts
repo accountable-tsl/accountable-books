@@ -1,10 +1,5 @@
-import {
-  logoUploadParams,
-  type ObjectType,
-  type ObjectTypeConfig,
-  profilePictureUploadParams,
-  type UploadParams,
-} from './types';
+import type { ObjectType, ObjectTypeConfig, UploadParams } from './types';
+import { logoUploadParams, profilePictureUploadParams } from './types';
 
 export const matchesType = (fileType: string, acceptType: string) => {
   // normalise “jpg” ↔ “jpeg” and wildcards like image/*

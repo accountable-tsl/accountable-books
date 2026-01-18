@@ -1,7 +1,8 @@
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
-import type { GroupedTransactionOld as GroupedTransaction } from '@/modules/accounting/categorization';
 import { useCallback, useMemo, useState } from 'react';
+import { useParams } from 'react-router';
+
 import { DataTable } from '@/components/data-table/data-table';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { DateRangePicker } from '@/components/date-picker/date-range-picker';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
@@ -20,12 +21,14 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
+import type { GroupedTransactionOld as GroupedTransaction } from '@/modules/accounting/categorization';
 import { useCategorizationTransactionsOld as useCategorizationTransactions } from '@/modules/accounting/categorization';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
-import { useParams } from 'react-router';
 
+import type { AdvancedFilters } from './components/cat-engine-adv-filter';
 import { CatEngineAdvFilter } from './components/cat-engine-adv-filter';
+import type { CatEngineMode } from './components/cat-engine-mode-toggle';
 import { CatEngineModeToggle } from './components/cat-engine-mode-toggle';
 import {
   LeftCatEngineToolbar,
@@ -34,9 +37,6 @@ import {
 import { CatEngineTxnView } from './components/cat-engine-txn-view';
 import { LoadingState } from './components/loading-state';
 import { getCatEngineColumns } from './config/table-columns';
-
-import type { AdvancedFilters } from './components/cat-engine-adv-filter';
-import type { CatEngineMode } from './components/cat-engine-mode-toggle';
 
 export const accordionItems = [
   {
@@ -128,7 +128,7 @@ export function CatEngine() {
 
   // Fetch bank accounts for bank name/logo lookup
   const { data: bankAccountsData } = useCompanyBankAccounts(companyId || '');
-  const bankAccounts = bankAccountsData?.data || [];
+  const bankAccounts = useMemo(() => bankAccountsData?.data || [], [bankAccountsData?.data]);
   const bankAccountMap = useMemo(() => {
     const map = new Map<string, (typeof bankAccounts)[0]>();
     bankAccounts.forEach((acc) => map.set(acc.id, acc));
@@ -149,7 +149,7 @@ export function CatEngine() {
     offset: 0,
   });
 
-  const rawTransactions = data?.transactions || [];
+  const rawTransactions = useMemo(() => data?.transactions || [], [data?.transactions]);
 
   // Apply advanced filters (client-side filtering)
   const transactions = useMemo(() => {
@@ -262,7 +262,7 @@ export function CatEngine() {
         emptyTableRow: 'h-full',
       },
     };
-  }, [view, openAccordionItem, rowHeight]);
+  }, [view, openAccordionItem]);
 
   const { table } = useDataTable({
     columns,

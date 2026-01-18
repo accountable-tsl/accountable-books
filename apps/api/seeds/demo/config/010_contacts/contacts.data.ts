@@ -6,10 +6,8 @@ import { fileURLToPath } from 'url';
 import type { DemoCompanyType, DemoFilter } from '../../shared/config.js';
 import { getDemoCompanies } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
-import {
-  type DemoContact,
-  demoContactsByCompanyMap,
-} from './contacts.state.js';
+import type { DemoContact } from './contacts.state.js';
+import { demoContactsByCompanyMap } from './contacts.state.js';
 import { generateRandomContacts } from './contacts.utils.js';
 
 const __filename = fileURLToPath(import.meta.url);

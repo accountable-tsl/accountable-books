@@ -15,7 +15,6 @@
  *   tsx scripts/validate-fly-secrets.ts staging
  *   tsx scripts/validate-fly-secrets.ts production
  */
-
 import type {
   Environment,
   EnvSchema,

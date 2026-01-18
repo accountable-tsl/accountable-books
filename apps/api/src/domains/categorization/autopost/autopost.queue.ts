@@ -1,4 +1,5 @@
-import { type JobsOptions, Queue } from 'bullmq';
+import type { JobsOptions } from 'bullmq';
+import { Queue } from 'bullmq';
 import pino from 'pino';
 import z from 'zod';
 

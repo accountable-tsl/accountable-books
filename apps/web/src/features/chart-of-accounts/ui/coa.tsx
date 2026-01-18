@@ -14,8 +14,8 @@ import { CoaActionBar } from '@/features/chart-of-accounts/ui/components/coa-act
 import { AddAccountSelection } from '@/features/chart-of-accounts/ui/components/coa-add-selection';
 import { QuickFilter } from '@/features/chart-of-accounts/ui/components/coa-quickfilter';
 import { CoaViewer } from '@/features/chart-of-accounts/ui/components/coa-viewer';
+import type { CoaResponse } from '@/modules/accounting/chart-of-accounts';
 import {
-  type CoaResponse,
   getAccountElementOptions,
   useChartOfAccountsQuery,
 } from '@/modules/accounting/chart-of-accounts';
@@ -78,7 +78,7 @@ export const ChartOfAccounts: React.FC = () => {
 
   const elementOptions = useMemo(
     () => getAccountElementOptions(parentElementColumn),
-    [parentElementColumn, accounts],
+    [parentElementColumn],
   );
 
   const toolbarConfig = useMemo(
@@ -98,7 +98,7 @@ export const ChartOfAccounts: React.FC = () => {
             type: 'custom',
             position: 1,
             component: () => (
-              <div className="flex-1 relative">
+              <div className="relative flex-1">
                 <QuickFilter
                   isMobile={isMobile}
                   accountElementFilter={accountElementFilter}
@@ -133,7 +133,7 @@ export const ChartOfAccounts: React.FC = () => {
   // Error state
   if (isError) {
     return (
-      <div className="p-3 flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center p-3">
         <div className="text-center">
           <p className="text-destructive mb-2">Failed to load accounts</p>
           <Button variant="outline" onClick={() => window.location.reload()}>
@@ -156,7 +156,7 @@ export const ChartOfAccounts: React.FC = () => {
   // No data state
   if (!accounts || accounts.length === 0) {
     return (
-      <div className="p-3 flex flex-col items-center justify-center h-full">
+      <div className="flex h-full flex-col items-center justify-center p-3">
         <p className="text-muted-foreground mb-4">No accounts found</p>
         <AddAccountSelection />
       </div>
@@ -165,8 +165,8 @@ export const ChartOfAccounts: React.FC = () => {
 
   // TODO: Perhaps add a column for balances in the future
   return (
-    <div className="p-3 overflow-clip h-full min-h-0 flex flex-col">
-      <div className="text-sm pb-2">
+    <div className="flex h-full min-h-0 flex-col overflow-clip p-3">
+      <div className="pb-2 text-sm">
         {/* Manage your account structure and classifications */}
       </div>
 

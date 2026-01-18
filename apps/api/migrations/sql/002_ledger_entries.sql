@@ -428,12 +428,13 @@ BEGIN
      OR (NEW.review_notes IS DISTINCT FROM OLD.review_notes)
      OR (NEW.reviewed_by_id IS DISTINCT FROM OLD.reviewed_by_id)
      OR (NEW.reviewed_at IS DISTINCT FROM OLD.reviewed_at)
+     OR (NEW.metadata IS DISTINCT FROM OLD.metadata)
   THEN
     RETURN NEW;
   END IF;
 
   IF ROW(NEW.*) IS DISTINCT FROM ROW(OLD.*) THEN
-    RAISE EXCEPTION 'Ledger entries are immutable. Only is_deleted, deleted_at, updated_by_id, description, reference, project_id, contact_id, contact_type, human_reviewed, review_notes, reviewed_by_id, reviewed_at may change.';
+    RAISE EXCEPTION 'Ledger entries are immutable. Only is_deleted, deleted_at, updated_by_id, description, reference, project_id, contact_id, contact_type, human_reviewed, review_notes, reviewed_by_id, reviewed_at, metadata may change.';
   END IF;
 
   RETURN NEW;

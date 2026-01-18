@@ -3,12 +3,12 @@ import type { Knex } from 'knex';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
-import {
-  type CreateUserResponse,
-  type NewUserDirect,
-  newUserDirect,
-  type UserResponseCamel,
+import type {
+  CreateUserResponse,
+  NewUserDirect,
+  UserResponseCamel,
 } from '../../domains/users/users.types.js';
+import { newUserDirect } from '../../domains/users/users.types.js';
 import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
 import { redis } from '../../lib/redis.js';
 import {

@@ -6,9 +6,9 @@ import {
   connectAccounts,
   createLinkToken,
 } from '@/modules/banking/connections/api';
+import type { CountryCategories } from '@/modules/banking/connections/utils/utils';
 import {
   categorizeCountries,
-  type CountryCategories,
   isCountrySupported,
 } from '@/modules/banking/connections/utils/utils';
 import {

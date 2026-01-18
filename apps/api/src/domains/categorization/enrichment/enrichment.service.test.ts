@@ -1,7 +1,18 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
+import type { Knex } from 'knex';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { knexClient } from '../../../db/knexClient.js';
+import { getContactStats } from '../stats/stats.service.js';
+import { getCompanyContext } from './company-context.service.js';
+import { enrichTransaction } from './enrichment.service.js';
+import {
+  computeTemporalFeatures,
+  detectPatternSignals,
+} from './enrichment.utils.js';
+import { resolveContactForEnrichment } from './resolve-contact.service.js';
 
 vi.mock('../../../db/knexClient.js', () => {
   return {
@@ -32,18 +43,6 @@ vi.mock('../../../shared/index.js', () => ({
   generateChecksumSync: vi.fn(() => 'mock-checksum'),
   toYMD: (value: Date | string) => new Date(value).toISOString().slice(0, 10),
 }));
-
-import type { Knex } from 'knex';
-
-import { knexClient } from '../../../db/knexClient.js';
-import { getContactStats } from '../stats/stats.service.js';
-import { getCompanyContext } from './company-context.service.js';
-import { enrichTransaction } from './enrichment.service.js';
-import {
-  computeTemporalFeatures,
-  detectPatternSignals,
-} from './enrichment.utils.js';
-import { resolveContactForEnrichment } from './resolve-contact.service.js';
 
 const fakeTxnRow = {
   bank_transaction_id: 'txn-123',

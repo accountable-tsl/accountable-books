@@ -58,7 +58,7 @@ export function ProviderSelectStep({
           description={`Select how to connect your bank account in ${getCountryDisplayName(selectedCountry)}`}
         />
 
-        <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-thin-2px">
+        <div className="scrollbar-thin-2px max-h-[300px] space-y-3 overflow-y-auto">
           {selectionStrategy.providers.map((provider) => (
             <ProviderCard
               key={provider.key}
@@ -69,13 +69,13 @@ export function ProviderSelectStep({
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between pt-4 border-t">
+        <div className="flex items-center justify-between border-t pt-4">
           <Button
             variant="ghost"
             onClick={onBack}
             className="flex items-center gap-2"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
 
@@ -83,7 +83,7 @@ export function ProviderSelectStep({
             variant="link"
             size="sm"
             onClick={onSkipToCSV}
-            className="text-muted-foreground hover:text-foreground p-0 h-auto"
+            className="text-muted-foreground hover:text-foreground h-auto p-0"
           >
             Upload CSV instead
           </Button>
@@ -105,7 +105,7 @@ export function ProviderSelectStep({
         }
       />
 
-      <div className="text-center space-y-4">
+      <div className="space-y-4 text-center">
         <p className="text-muted-foreground text-sm">
           {getBankConnectionMessage(
             selectedCountry,
@@ -118,13 +118,13 @@ export function ProviderSelectStep({
         </Button>
       </div>
 
-      <div className="flex justify-center pt-4 border-t">
+      <div className="flex justify-center border-t pt-4">
         <Button
           variant="ghost"
           onClick={onBack}
           className="flex items-center gap-2"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="h-4 w-4" />
           Back to country selection
         </Button>
       </div>

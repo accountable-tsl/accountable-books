@@ -31,7 +31,8 @@ The simplest usage involves three steps:
 Here's a simple example of how to get up and running:
 
 ```jsx
-import { useDataTable, DataTable } from '@/components/data-table';
+import { DataTable, useDataTable } from '@/components/data-table';
+
 import { getAccountColumns } from './columns';
 import coaData from './mockData.json';
 

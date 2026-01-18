@@ -2,6 +2,7 @@ import express from 'express';
 
 import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
 import {
+  getCategorizationStatsController,
   getCategorizationTransactionsController,
   handleCategorizationIntentController,
 } from './categorization.controller.js';
@@ -25,6 +26,18 @@ router.get(
   checkCompanyId,
   getCategorizationTransactionsController,
 );
+
+/**
+ * GET /api/:companyId/categorization/stats
+ *
+ * Query parameters:
+ * - bankAccountIds (optional): Filter by bank account IDs
+ * - dateFrom (optional): Start date in YYYY-MM-DD format (for calculating outside range stats)
+ * - dateTo (optional): End date in YYYY-MM-DD format (for calculating outside range stats)
+ *
+ * Returns global categorization statistics independent of the current list query
+ */
+router.get('/stats', checkCompanyId, getCategorizationStatsController);
 
 /**
  * POST /api/:companyId/categorization/intents

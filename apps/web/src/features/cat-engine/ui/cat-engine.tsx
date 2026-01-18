@@ -1,13 +1,10 @@
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
-import type {
-  CategorizationTransactionStatus,
-  GroupedTransaction,
-} from '@/modules/accounting/categorization';
-import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+
 import { useSession } from '@/app/session';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { DateRangePicker } from '@/components/date-picker/date-range-picker';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
@@ -25,16 +22,23 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
+import type {
+  CategorizationTransactionStatus,
+  GroupedTransaction,
+} from '@/modules/accounting/categorization';
 import {
   LedgerIntentManagerV2Provider,
+  useCategorizationStats,
   useInfiniteCategorizationTransactions,
   useLedgerIntentManagerV2,
 } from '@/modules/accounting/categorization';
 import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts';
+import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
-import { toast } from 'sonner';
+import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
+import { toYMD } from '@/shared/utils/date-utils';
 
 import { CatEngineAdvFilter } from './components/cat-engine-adv-filter';
 import {
@@ -46,9 +50,8 @@ import { TransactionView } from './components/transaction-view-v2';
 import { getCatEngineColumns } from './config/table-columns';
 import { accountElementOrder } from './constants';
 import { testCategorizationTransactions } from './test-data';
-import { updateTransactionExchangeRate } from './utils/transaction-updates';
-
 import type { CatEngineMode, GroupedCoaData } from './types';
+import { updateTransactionExchangeRate } from './utils/transaction-updates';
 
 export const accordionItems = [
   {
@@ -88,6 +91,11 @@ export const accordionItems = [
   },
 ];
 
+const CONFIDENCE_THRESHOLDS = {
+  high: 0.9,
+  medium: 0.75,
+} as const;
+
 type CatEngineTableSectionProps = {
   columns: ReturnType<typeof getCatEngineColumns>;
   transactions: GroupedTransaction[];
@@ -96,6 +104,7 @@ type CatEngineTableSectionProps = {
   view: 'table' | 'group';
   openAccordionItem: string;
   reorderedAccordionItems: typeof accordionItems;
+  accordionCounts: Map<string, number>;
   onAccordionItemChange: (value: string) => void;
 };
 
@@ -107,6 +116,7 @@ const CatEngineTableSection = memo(function CatEngineTableSection({
   view,
   openAccordionItem,
   reorderedAccordionItems,
+  accordionCounts,
   onAccordionItemChange,
 }: CatEngineTableSectionProps) {
   const { table } = useDataTable({
@@ -168,7 +178,7 @@ const CatEngineTableSection = memo(function CatEngineTableSection({
                     : 'text-muted-foreground',
                 )}
               >
-                100
+                {accordionCounts.get(item.id) ?? 0}
               </Badge>
             </div>
           </AccordionTrigger>
@@ -188,12 +198,10 @@ const CatEngineTableSection = memo(function CatEngineTableSection({
 
 function getInitialDateRange() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const day = now.getDate();
-  const startMonth = day < 10 ? month - 1 : month;
-  const startDate = new Date(year, startMonth, 1);
-  return { from: startDate, to: now } as { from: Date; to?: Date };
+  // Default to last 6 months to catch more transactions
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  return { from: sixMonthsAgo, to: now } as { from: Date; to?: Date };
 }
 
 /**
@@ -216,6 +224,38 @@ function getStatusFromAccordionItem(
   }
 }
 
+function normalizeConfidence(confidence: number | null | undefined) {
+  if (confidence === null || confidence === undefined) return null;
+  return confidence > 1 ? confidence / 100 : confidence;
+}
+
+function getConfidenceBucketId(confidence: number | null | undefined) {
+  const normalized = normalizeConfidence(confidence);
+  if (normalized === null) return 'low-confidence';
+  if (normalized >= CONFIDENCE_THRESHOLDS.high) return 'high-confidence';
+  if (normalized >= CONFIDENCE_THRESHOLDS.medium) return 'medium-confidence';
+  return 'low-confidence';
+}
+
+function transactionMatchesAccordionItem(
+  txn: GroupedTransaction,
+  itemId: string,
+) {
+  switch (itemId) {
+    case 'uncategorized':
+      return txn.status === 'uncategorized';
+    case 'reviewed':
+      return txn.status === 'posted';
+    case 'high-confidence':
+    case 'medium-confidence':
+    case 'low-confidence':
+      if (txn.status !== 'proposed') return false;
+      return getConfidenceBucketId(txn.confidence) === itemId;
+    default:
+      return false;
+  }
+}
+
 export function CatEngine() {
   const { companyId, company, loading: isLoadingSession } = useSession();
   const [view, setView] = useState<'table' | 'group'>('table');
@@ -231,8 +271,40 @@ export function CatEngine() {
   // Default to 'uncategorized' to show the most important transactions first
   const [openAccordionItem, setOpenAccordionItem] =
     useState<string>('uncategorized');
-  const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>(
-    getInitialDateRange(),
+  // Persist date range in localStorage (scoped by companyId)
+  const FILTERS_STORAGE_KEY = `cat-engine-filters-${companyId || 'default'}`;
+  const [dateRangeStored, setDateRangeStored] = useLocalStorage<{
+    from: string; // ISO string
+    to?: string; // ISO string
+  }>(
+    FILTERS_STORAGE_KEY,
+    (() => {
+      const initial = getInitialDateRange();
+      return {
+        from: initial.from.toISOString(),
+        to: initial.to?.toISOString(),
+      };
+    })(),
+  );
+
+  // Convert stored ISO strings back to Date objects for use
+  const dateRange = useMemo<{ from: Date; to?: Date }>(
+    () => ({
+      from: new Date(dateRangeStored.from),
+      to: dateRangeStored.to ? new Date(dateRangeStored.to) : undefined,
+    }),
+    [dateRangeStored.from, dateRangeStored.to],
+  );
+
+  // Wrapper to update dateRange and persist to localStorage
+  const handleDateRangeChange = useCallback(
+    (range: { from: Date; to?: Date }) => {
+      setDateRangeStored({
+        from: range.from.toISOString(),
+        to: range.to?.toISOString(),
+      });
+    },
+    [setDateRangeStored],
   );
   const debouncedDateRange = useDebouncedValue(dateRange, 300);
   const [selectedTransactionId, setSelectedTransactionId] = useState<
@@ -302,13 +374,6 @@ export function CatEngine() {
   const getPendingTransactionsSummary = manager.getPendingTransactionsSummary;
   const hasAnyPendingChanges = manager.hasAnyPendingChanges;
 
-  const handleDateRangeChange = useCallback(
-    (range: { from: Date; to?: Date }) => {
-      setDateRange(range);
-    },
-    [],
-  );
-
   const is1024 = useMediaQuery('(min-width: 1024px)');
   const is1440 = useMediaQuery('(min-width: 1440px)');
 
@@ -330,12 +395,14 @@ export function CatEngine() {
   }, [selectedBankAccountIds]);
 
   const statusFilterForServer = useMemo(() => {
+    // In group view, fetch all transactions so accordion counts are accurate
+    // The filtering for display happens client-side in tableTransactions
     if (view === 'group') {
-      return statusFilter ? [statusFilter] : undefined;
+      return undefined;
     }
     if (statusFilterForTable.size === 0) return undefined;
     return Array.from(statusFilterForTable).sort();
-  }, [statusFilter, statusFilterForTable, view]);
+  }, [statusFilterForTable, view]);
 
   const searchQueryForServer = useMemo(() => {
     const trimmed = debouncedSearchQuery.trim();
@@ -358,6 +425,14 @@ export function CatEngine() {
     bankAccountIds: bankAccountIdsForServer,
     searchQuery: searchQueryForServer,
     limit: 100,
+  });
+
+  // Fetch global categorization stats
+  const { data: stats } = useCategorizationStats({
+    companyId: companyId ?? '',
+    bankAccountIds: bankAccountIdsForServer,
+    dateFrom: toYMD(debouncedDateRange.from),
+    dateTo: toYMD(debouncedDateRange.to || new Date()),
   });
 
   const { data: coaData, isLoading: isLoadingCoa } = useChartOfAccountsQuery({
@@ -407,14 +482,16 @@ export function CatEngine() {
     if (USE_TEST_DATA) return testTxns;
     return txnData?.pages?.flatMap((page) => page.transactions) || [];
   }, [USE_TEST_DATA, testTxns, txnData?.pages]);
+
   const footerTotals = useMemo(() => {
     return rawTransactions.reduce(
       (totals, txn) => {
         if (txn.status === 'uncategorized') totals.uncategorized += 1;
-        if (txn.status === 'proposed') totals.needsReview += 1;
+        if (txn.status === 'proposed') totals.aiSuggestions += 1;
+        if (txn.status === 'posted') totals.categorized += 1;
         return totals;
       },
-      { uncategorized: 0, needsReview: 0 },
+      { uncategorized: 0, aiSuggestions: 0, categorized: 0 },
     );
   }, [rawTransactions]);
 
@@ -431,6 +508,151 @@ export function CatEngine() {
     transactions.forEach((txn) => map.set(txn.id, txn));
     return map;
   }, [transactions]);
+
+  const accordionCounts = useMemo(() => {
+    const counts = new Map<string, number>(
+      accordionItems.map((item) => [item.id, 0]),
+    );
+
+    transactions.forEach((txn) => {
+      if (txn.status === 'uncategorized') {
+        counts.set('uncategorized', (counts.get('uncategorized') || 0) + 1);
+        return;
+      }
+
+      if (txn.status === 'posted') {
+        counts.set('reviewed', (counts.get('reviewed') || 0) + 1);
+        return;
+      }
+
+      if (txn.status === 'proposed') {
+        const bucket = getConfidenceBucketId(txn.confidence);
+        counts.set(bucket, (counts.get(bucket) || 0) + 1);
+      }
+    });
+
+    return counts;
+  }, [transactions]);
+
+  const tableTransactions = useMemo(() => {
+    if (view !== 'group') return transactions;
+    return transactions.filter((txn) =>
+      transactionMatchesAccordionItem(txn, openAccordionItem),
+    );
+  }, [transactions, view, openAccordionItem]);
+
+  // Compute compact footer stats with helpful context
+  const footerStats = useMemo(() => {
+    const currentUncategorized = footerTotals.uncategorized;
+    const currentAiSuggestions = footerTotals.aiSuggestions;
+    const currentCategorized = footerTotals.categorized;
+    const currentTotal = rawTransactions.length;
+
+    if (!stats) {
+      // Fallback when stats not loaded
+      return {
+        current: {
+          uncategorized: currentUncategorized,
+          aiSuggestions: currentAiSuggestions,
+          categorized: currentCategorized,
+          total: currentTotal,
+        },
+        global: null,
+        inRange: null,
+        showHelp: false,
+        helpAction: undefined,
+        helpLabel: undefined,
+      };
+    }
+
+    const currentBatchIsEmpty =
+      currentUncategorized === 0 && currentAiSuggestions === 0;
+    const hasWorkOutsideRange =
+      stats.hasUncategorizedOutsideRange === true ||
+      (stats.uncategorizedOutsideRangeCount ?? 0) > 0;
+
+    // Case 1: Caught up in current range, but work exists elsewhere
+    if (currentBatchIsEmpty && hasWorkOutsideRange) {
+      const outsideCount = stats.uncategorizedOutsideRangeCount ?? 0;
+      return {
+        current: {
+          uncategorized: 0,
+          aiSuggestions: 0,
+          categorized: currentCategorized,
+          total: currentTotal,
+        },
+        global: {
+          uncategorized: stats.totalUncategorized,
+          aiSuggestions: stats.totalProposed,
+          categorized: null, // We don't track this in stats yet
+        },
+        inRange: null,
+        showHelp: true,
+        helpAction: stats.oldestUncategorizedDate
+          ? () => {
+              const oldestDateObj = new Date(stats.oldestUncategorizedDate!);
+              const fromDate = new Date(oldestDateObj);
+              fromDate.setDate(fromDate.getDate() - 15);
+              const toDate = new Date(oldestDateObj);
+              toDate.setDate(toDate.getDate() + 15);
+              handleDateRangeChange({ from: fromDate, to: toDate });
+            }
+          : undefined,
+        helpLabel: 'Jump to oldest',
+        helpMessage: `${outsideCount} more outside this range`,
+      };
+    }
+
+    // Case 2: Date range provided - show in-range vs global
+    if (stats.uncategorizedInRangeCount !== undefined) {
+      return {
+        current: {
+          uncategorized: currentUncategorized,
+          aiSuggestions: currentAiSuggestions,
+          categorized: currentCategorized,
+          total: currentTotal,
+        },
+        global: {
+          uncategorized: stats.totalUncategorized,
+          aiSuggestions: stats.totalProposed,
+          categorized: null,
+        },
+        inRange: {
+          uncategorized: stats.uncategorizedInRangeCount,
+          aiSuggestions: stats.proposedInRangeCount ?? 0,
+        },
+        showHelp: false,
+        helpAction: undefined,
+        helpLabel: undefined,
+      };
+    }
+
+    // Case 3: Default - show current and global
+    return {
+      current: {
+        uncategorized: currentUncategorized,
+        aiSuggestions: currentAiSuggestions,
+        categorized: currentCategorized,
+        total: currentTotal,
+      },
+      global: {
+        uncategorized: stats.totalUncategorized,
+        aiSuggestions: stats.totalProposed,
+        categorized: null,
+      },
+      inRange: null,
+      showHelp: false,
+      helpAction: undefined,
+      helpLabel: undefined,
+    };
+  }, [
+    stats,
+    rawTransactions.length,
+    footerTotals.uncategorized,
+    footerTotals.aiSuggestions,
+    footerTotals.categorized,
+    handleDateRangeChange,
+  ]);
 
   const accordionItemById = useMemo(() => {
     return new Map(accordionItems.map((item) => [item.id, item]));
@@ -558,7 +780,7 @@ export function CatEngine() {
         overscan: 8,
       },
       rowSelection: {
-        enabled: true,
+        enabled: (row) => row.original.isEditable !== false,
         checkboxColumnPosition: { index: 1 },
       },
       customClassNames: {
@@ -594,13 +816,12 @@ export function CatEngine() {
     view,
     openAccordionItem,
     accordionItemById,
-    rowHeight,
+    rowClickHandler,
     estimatedRowHeight,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
     isLoading,
-    USE_TEST_DATA,
   ]);
 
   const handleAccordionItemChange = useCallback((value: string) => {
@@ -757,12 +978,13 @@ export function CatEngine() {
               >
                 <CatEngineTableSection
                   columns={columns}
-                  transactions={transactions}
+                  transactions={tableTransactions}
                   customOptions={customOptions}
                   mode={mode}
                   view={view}
                   openAccordionItem={openAccordionItem}
                   reorderedAccordionItems={reorderedAccordionItems}
+                  accordionCounts={accordionCounts}
                   onAccordionItemChange={handleAccordionItemChange}
                 />
               </ResizablePanel>
@@ -796,22 +1018,91 @@ export function CatEngine() {
           {mode === 'autosave' && (
             <CatEngineTableSection
               columns={columns}
-              transactions={transactions}
+              transactions={tableTransactions}
               customOptions={customOptions}
               mode={mode}
               view={view}
               openAccordionItem={openAccordionItem}
               reorderedAccordionItems={reorderedAccordionItems}
+              accordionCounts={accordionCounts}
               onAccordionItemChange={handleAccordionItemChange}
             />
           )}
         </div>
-        <div className="text-muted-foreground flex-shrink-0 pt-1 text-xs">
-          <span>Showing {rawTransactions.length} transactions</span>
-          <span> | </span>
-          <span>Total uncategorized: {footerTotals.uncategorized}</span>
-          <span> | </span>
-          <span>Total needs review: {footerTotals.needsReview}</span>
+        <div className="flex flex-shrink-0 flex-nowrap items-center justify-between gap-4 pt-1.5 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground/75 flex items-center gap-1">
+              <span>Showing {footerStats.current.total}</span>
+              <span className="text-muted-foreground/50">•</span>
+              {footerStats.current.uncategorized > 0 && (
+                <span>{footerStats.current.uncategorized} uncategorized</span>
+              )}
+              {footerStats.current.uncategorized > 0 && (
+                <span className="text-muted-foreground/50">|</span>
+              )}
+              {footerStats.current.aiSuggestions > 0 && (
+                <span>{footerStats.current.aiSuggestions} AI suggestions</span>
+              )}
+              {footerStats.current.aiSuggestions > 0 && (
+                <span className="text-muted-foreground/50">|</span>
+              )}
+              {footerStats.current.categorized > 0 && (
+                <span>{footerStats.current.categorized} posted</span>
+              )}
+            </div>
+            {footerStats.current.uncategorized === 0 &&
+              footerStats.current.aiSuggestions === 0 &&
+              footerStats.current.categorized > 0 && (
+                <span className="text-emerald-600">✓ All done</span>
+              )}
+          </div>
+
+          {/* Global totals - always visible when stats are loaded */}
+          <div className="text-muted-foreground flex items-center gap-3">
+            {footerStats.showHelp && footerStats.helpAction ? (
+              <div className="text-muted-foreground/75 flex items-center gap-2 truncate text-xs">
+                <span className="text-muted-foreground/75">
+                  Total: {footerStats.global?.uncategorized ?? 0} uncategorized,{' '}
+                  {footerStats.global?.aiSuggestions ?? 0} AI suggestions
+                </span>
+                <span className="text-muted-foreground/50">•</span>
+                <button
+                  type="button"
+                  onClick={footerStats.helpAction}
+                  className="text-foreground cursor-pointer transition-colors hover:underline"
+                  title={footerStats.helpMessage}
+                >
+                  {footerStats.helpLabel} <span>→</span>
+                </button>
+              </div>
+            ) : footerStats.global ? (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground/60">
+                  Total:{' '}
+                  <span className="font-medium">
+                    {footerStats.global.uncategorized}
+                  </span>{' '}
+                  uncategorized,{' '}
+                  <span className="font-medium">
+                    {footerStats.global.aiSuggestions}
+                  </span>{' '}
+                  AI suggestions
+                </span>
+                {/* {footerStats.inRange && (
+                    <>
+                      <span className="text-muted-foreground/50">•</span>
+                      <span className="text-muted-foreground/60">
+                        <span className="font-medium">{footerStats.inRange.uncategorized + footerStats.inRange.aiSuggestions}</span> in this range
+                      </span>
+                    </>
+                  )} */}
+              </div>
+            ) : (
+              <span className="text-muted-foreground/60">
+                Loading totals...
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </LedgerIntentManagerV2Provider>

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-
 import path, { dirname } from 'path';
 import { convertFolder } from 'schemabridge';
 import { fileURLToPath } from 'url';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '../../contracts');
