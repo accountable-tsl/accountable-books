@@ -1,10 +1,16 @@
 import { z } from 'zod';
 
+import { areSameEmployee } from '../compute/employee-matching';
 import { PFA_KEYS } from '../data/pfa';
 import { NIGERIAN_STATES } from '../data/states';
-import { TAX_RULESET_KEY } from '../tax-logic';
 
 import type { StateValue } from '../data/states';
+
+/**
+ * Tax ruleset key for Nigerian PAYE computation.
+ * Currently using 2026 tax bands and rules.
+ */
+export const TAX_RULESET_KEY = 'NG-2026-v1';
 
 /**
  * Payroll Tool domain model (local-first).
@@ -101,6 +107,7 @@ export const EmployeeIdentitySchema = z
  * Only `annualGross` is required; the split fields are optional (useful for pension/NHF bases).
  */
 export const CompensationPeriodSchema = MonthRangeSchema.extend({
+  id: IdSchema,
   annualGross: MoneySchema,
   annualBasic: MoneySchema.default('0').optional(),
   annualHousing: MoneySchema.default('0').optional(),
@@ -110,9 +117,43 @@ export const CompensationPeriodSchema = MonthRangeSchema.extend({
 });
 
 export const RentPeriodSchema = MonthRangeSchema.extend({
-  annualRent: MoneySchema,
+  id: IdSchema,
+  rent: MoneySchema,
   address: z.string().min(1).optional(),
 });
+
+/**
+ * Validation function to check for overlapping periods
+ *
+ * Periods overlap if one starts before the other ends.
+ * This ensures each month has exactly one applicable period.
+ */
+function validateNoOverlappingPeriods<T extends { id: string; fromMonth: string; toMonth?: string }>(
+  periods: T[],
+  periodType: 'compensation' | 'rent',
+  ctx: z.RefinementCtx,
+  path: (string | number)[],
+): void {
+  for (let i = 0; i < periods.length; i++) {
+    for (let j = i + 1; j < periods.length; j++) {
+      const period1 = periods[i];
+      const period2 = periods[j];
+      const p1Start = period1.fromMonth;
+      const p1End = period1.toMonth ?? '9999-12';
+      const p2Start = period2.fromMonth;
+      const p2End = period2.toMonth ?? '9999-12';
+
+      // Check for overlap: periods overlap if one starts before the other ends
+      if (p1Start <= p2End && p2Start <= p1End) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `${periodType === 'compensation' ? 'Compensation' : 'Rent'} periods overlap: period ${period1.id} (${p1Start} to ${p1End}) overlaps with period ${period2.id} (${p2Start} to ${p2End})`,
+          path: [...path, j],
+        });
+      }
+    }
+  }
+}
 
 /**
  * A named money line that can apply to payroll (allowance/deduction/one-off).
@@ -127,12 +168,27 @@ export const MoneyComponentSchema = z.object({
     .enum([
       'taxable',
       'non_taxable',
-      'loss_of_employment_benefit',
+      'loss_of_employment_benefit', // Exempt up to N50M
+      'death_injury_compensation', // Fully exempt
+      'redundancy_payment', // Fully exempt (capital nature)
       'pension_voluntary',
       'nhf_voluntary',
       'nhis_voluntary',
+      'owner_occupied_mortgage_interest', // Allowable deduction
+      'life_insurance_premium', // Allowable deduction
     ])
     .optional(),
+});
+
+/**
+ * One-off employer contribution (e.g., voluntary pension top-up, NHIS premium payment).
+ * These are employer costs that don't reduce employee net pay but are added to employer cost.
+ */
+export const EmployerContributionSchema = z.object({
+  id: IdSchema,
+  type: z.enum(['pension', 'nhis', 'other']),
+  name: z.string().min(1),
+  amount: MoneySchema,
 });
 
 /**
@@ -223,8 +279,20 @@ export const StateSchema = z.enum(NIGERIAN_STATES);
 /** Employee payroll defaults (reused month-to-month). */
 export const EmployeePayProfileSchema = z.object({
   state: StateSchema.optional(),
-  compensationHistory: z.array(CompensationPeriodSchema).min(1),
-  rentHistory: z.array(RentPeriodSchema).optional(),
+  compensationHistory: z
+    .array(CompensationPeriodSchema)
+    .min(1)
+    .superRefine((periods, ctx) => {
+      validateNoOverlappingPeriods(periods, 'compensation', ctx, []);
+    }),
+  rentHistory: z
+    .array(RentPeriodSchema)
+    .superRefine((rentHistory, ctx) => {
+      if (rentHistory && rentHistory.length > 0) {
+        validateNoOverlappingPeriods(rentHistory, 'rent', ctx, []);
+      }
+    })
+    .optional(),
 
   /**
    * Defaults that repeat over time (e.g. loan repayments, union dues).
@@ -247,6 +315,8 @@ export const EmployeePayProfileSchema = z.object({
             'pension_voluntary',
             'nhf_voluntary',
             'nhis_voluntary',
+            'owner_occupied_mortgage_interest', // Interest on loans for owner-occupied residential house
+            'life_insurance_premium', // Life insurance premiums (annuity/deferred annuity)
           ])
           .optional(),
       }),
@@ -284,11 +354,57 @@ export const BhtBreakdownSchema = z.object({
   transport: RateSchema.optional(),
 });
 
+/**
+ * Employment proration method for calculating employment fraction
+ *
+ * Determines how to calculate the fraction of a month an employee was employed
+ * when they join/exit mid-month:
+ *
+ * - `calendar_days`: Calendar-day proration (default) - uses actual days in month
+ * - `thirty_360`: 30-day month proration (30/360-style) - assumes 30 days per month
+ * - `business_days`: Business days proration (Mon-Fri only)
+ * - `full_month`: Full month - any employment in the month = 1.0, else 0.0
+ */
+export const EmploymentProrationMethodSchema = z.enum([
+  'calendar_days',
+  'thirty_360',
+  'business_days',
+  'full_month',
+]);
+
 /** Run-level defaults (applies to this run only). */
 export const PayrollRunSettingsSchema = z.object({
   defaultState: StateSchema.default('Lagos'),
   statutoryDeductions: StatutoryDeductionSchema,
   bhtBreakdown: BhtBreakdownSchema,
+  /**
+   * Employment proration method for calculating employment fraction.
+   *
+   * Determines how to prorate salary when employees join/exit mid-month.
+   * Default: 'calendar_days' (uses actual days in month).
+   */
+  employmentProrationMethod: EmploymentProrationMethodSchema.default('calendar_days'),
+  /**
+   * Enable rent relief for PAYE computation.
+   *
+   * When enabled (default: true), rent relief is applied (20% of annual rent, capped at 500k).
+   * When disabled, no rent relief is applied regardless of employee rent history.
+   */
+  enableRentRelief: z.boolean().default(true),
+  /**
+   * Enable Year-to-Date (YTD) cumulative PAYE computation.
+   *
+   * When enabled (default: true), PAYE is computed using cumulative income
+   * from all finalized runs in the same tax year (Jan..current month).
+   * This ensures accurate tax calculation when income fluctuates (e.g., bonuses).
+   *
+   * When disabled, PAYE is computed on a month-by-month basis without
+   * considering prior months' income.
+   *
+   * This setting is hidden from the UI for now but can be toggled programmatically
+   * if needed for edge cases or testing.
+   */
+  enableYtd: z.boolean().default(true),
 });
 
 /**
@@ -337,8 +453,124 @@ export const PayrollRunItemSchema = z.object({
     .object({
       oneOffAllowances: z.array(MoneyComponentSchema).optional(),
       oneOffDeductions: z.array(MoneyComponentSchema).optional(),
+      oneOffEmployerContributions: z.array(EmployerContributionSchema).optional(),
     })
     .optional(),
+});
+
+/**
+ * Detailed tax calculation breakdown for explainability and auditability
+ */
+export const TaxBreakdownSchema = z.object({
+  /** Whether YTD calculation was used */
+  usedYtd: z.boolean(),
+
+  /** YTD details (only if usedYtd is true) */
+  ytd: z
+    .object({
+      /** Total taxable gross YTD (sum of all months) */
+      taxableGrossYtd: MoneySchema,
+      /** Total allowable deductions YTD */
+      allowableDeductionsYtd: MoneySchema,
+      /** Tax already withheld YTD (from prior months) */
+      taxWithheldYtd: MoneySchema,
+      /** Total worked month units YTD */
+      workedMonthUnits: z.number(),
+      /** Projected annual gross (from YTD average) */
+      projectedAnnualGross: MoneySchema,
+      /** Projected annual allowable deductions */
+      projectedAnnualAllowableDeductions: MoneySchema,
+    })
+    .optional(),
+
+  /** Exempt income breakdown */
+  exemptIncome: z.object({
+    /** Death/injury compensation (fully exempt) */
+    deathInjuryCompensation: MoneySchema,
+    /** Redundancy payments (fully exempt) */
+    redundancyPayment: MoneySchema,
+    /** Loss of employment benefit */
+    lossOfEmployment: z.object({
+      /** Total amount received */
+      total: MoneySchema,
+      /** Exempt portion (up to N50M) */
+      exempt: MoneySchema,
+      /** Taxable portion (above N50M) */
+      taxable: MoneySchema,
+    }),
+  }),
+
+  /** Allowable deductions breakdown */
+  allowableDeductions: z.object({
+    /** Statutory deductions */
+    statutory: z.object({
+      pension: MoneySchema,
+      nhf: MoneySchema,
+      nhis: MoneySchema,
+    }),
+    /** Voluntary contributions (recurring) */
+    voluntaryRecurring: z.object({
+      pension: MoneySchema,
+      nhf: MoneySchema,
+      nhis: MoneySchema,
+      ownerOccupiedMortgageInterest: MoneySchema,
+      lifeInsurancePremium: MoneySchema,
+    }),
+    /** Voluntary contributions (one-off) */
+    voluntaryOneOff: z.object({
+      pension: MoneySchema,
+      nhf: MoneySchema,
+      nhis: MoneySchema,
+      ownerOccupiedMortgageInterest: MoneySchema,
+      lifeInsurancePremium: MoneySchema,
+    }),
+    /** Total allowable deductions */
+    total: MoneySchema,
+  }),
+
+  /** Rent relief details */
+  rentRelief: z.object({
+    /** Annual rent paid */
+    annualRent: MoneySchema,
+    /** Rent relief amount (20% capped at 500k) */
+    reliefAmount: MoneySchema,
+    /** Whether rent relief was applied */
+    applied: z.boolean(),
+  }),
+
+  /** Tax calculation details */
+  taxCalculation: z.object({
+    /** Annual taxable income (gross - rent relief - allowable deductions) */
+    annualTaxableIncome: MoneySchema,
+    /** Annual tax computed */
+    annualTax: MoneySchema,
+    /** Tax due YTD (if YTD flow) */
+    taxDueYtd: MoneySchema.optional(),
+    /** Tax already withheld YTD */
+    taxWithheldYtd: MoneySchema.optional(),
+    /** Current month PAYE */
+    currentMonthPaye: MoneySchema,
+  }),
+
+  /** One-off allowances breakdown */
+  oneOffAllowances: z.object({
+    /** Total one-off allowances */
+    total: MoneySchema,
+    /** Taxable one-off allowances */
+    taxable: MoneySchema,
+    /** Exempt one-off allowances */
+    exempt: MoneySchema,
+  }),
+
+  /** Employment details */
+  employment: z.object({
+    /** Employment fraction (for proration) */
+    fraction: z.number(),
+    /** Whether proration was applied */
+    prorated: z.boolean(),
+    /** Proration method used (if prorated) */
+    prorationMethod: z.string().optional(),
+  }),
 });
 
 /** Computed result for a single run item (per employee for this run). */
@@ -360,6 +592,9 @@ export const PayrollComputedItemSchema = z.object({
   employerCost: MoneySchema.optional(),
 
   breakdown: z.record(z.string(), SignedMoneySchema).optional(),
+
+  /** Detailed tax breakdown for explainability and auditability */
+  taxBreakdown: TaxBreakdownSchema.optional(),
 });
 
 /** Run totals across all computed items. */
@@ -382,6 +617,19 @@ export const PayrollComputedRunSchema = z.object({
   computedAt: IsoDateTimeSchema,
   periodTotals: PayrollComputedTotalsSchema,
   items: z.array(PayrollComputedItemSchema),
+  /**
+   * Warnings detected during computation (e.g., incomplete rent data).
+   * These are non-blocking but should be shown to users during finalization.
+   */
+  warnings: z
+    .object({
+      /**
+       * Employees with incomplete rent data (rent periods end before tax year end).
+       * Rent relief was computed using extrapolation from last known rent amount.
+       */
+      incompleteRentData: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 /** Manual overrides applied to computed values for a specific run item (employee). */
@@ -472,6 +720,22 @@ export const PayrollRunSchema = z
         });
       }
     }
+
+    // Validate no duplicate employees in the run
+    // Each employee can only appear once per payroll run
+    const items = value.items;
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        if (areSameEmployee(items[i], items[j])) {
+          const employeeName = items[i].employeeSnapshot.fullName;
+          ctx.addIssue({
+            code: 'custom',
+            message: `Employee "${employeeName}" appears multiple times in this run. Each employee can only appear once per payroll run.`,
+            path: ['items', j],
+          });
+        }
+      }
+    }
   });
 
 /** Lightweight index entry so we can list runs without loading every run blob. */
@@ -546,6 +810,7 @@ export type EmployeeDirectory = z.infer<typeof EmployeeDirectorySchema>;
 
 export type PayrollRunItem = z.infer<typeof PayrollRunItemSchema>;
 export type PayrollRun = z.infer<typeof PayrollRunSchema>;
+export type PayrollComputedItem = z.infer<typeof PayrollComputedItemSchema>;
 export type PayrollComputedRun = z.infer<typeof PayrollComputedRunSchema>;
 export type PayrollRunIndexEntry = z.infer<typeof PayrollRunIndexEntrySchema>;
 export type PayrollRunsIndex = z.infer<typeof PayrollRunsIndexSchema>;
@@ -567,6 +832,7 @@ export function makeNewEmployeeRecord(params: {
       state: params.state,
       compensationHistory: [
         {
+          id: crypto.randomUUID(),
           fromMonth: params.fromMonth,
           annualGross: params.annualGross,
         },
@@ -606,11 +872,27 @@ export function makeNewPayrollRun(params: {
   return PayrollRunSchema.parse(run);
 }
 
+/**
+ * Create a PayrollRunItem from an EmployeeRecord
+ *
+ * This function ensures that employeeRefId is always set from the employee's identity.id.
+ * The employeeRefId is critical for matching employees across runs for YTD calculations.
+ *
+ * @param params - Object containing the run item ID and employee record
+ * @returns A PayrollRunItem with employeeRefId set from employee.identity.id
+ */
 export function makeRunItemFromEmployee(params: {
   id: string;
   employee: EmployeeRecord;
 }): PayrollRunItem {
   const { employee } = params;
+
+  // Ensure employee has an identity.id (should always be set)
+  if (!employee.identity.id) {
+    throw new Error(
+      `Employee record must have an identity.id. Employee: ${employee.identity.fullName}`,
+    );
+  }
 
   const item: PayrollRunItem = {
     id: params.id,

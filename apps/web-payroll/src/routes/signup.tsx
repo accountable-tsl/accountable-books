@@ -21,13 +21,16 @@ function RouteComponent() {
       <div className="space-y-1">
         <div className="text-xl font-semibold">Create an account</div>
         <div className="text-sm text-muted-foreground">
-          Sign up to sync payroll runs across devices and keep history.
+          Sync payroll runs across devices, keep history, and duplicate last month’s run in a click.
         </div>
       </div>
 
       {search.intent === 'sync-final-run' && search.runId && (
         <div className="rounded border bg-muted/30 p-3 text-sm">
           Ready to sync finalized run: <span className="font-mono">{search.runId}</span>
+          <div className="mt-1 text-xs text-muted-foreground">
+            It’s already saved on this device — syncing just makes it available everywhere.
+          </div>
         </div>
       )}
 
@@ -41,15 +44,14 @@ function RouteComponent() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button disabled>Create account</Button>
+        <Button disabled>Create account (coming soon)</Button>
         <Link to={returnTo} className="text-sm text-muted-foreground hover:text-foreground">
           Back
         </Link>
       </div>
 
       <div className="text-xs text-muted-foreground">
-        This is a placeholder signup screen for now. The run is already finalized and saved on
-        this device.
+        No pressure — you can run payroll without an account. Create one when you want sync and history.
       </div>
     </div>
   );

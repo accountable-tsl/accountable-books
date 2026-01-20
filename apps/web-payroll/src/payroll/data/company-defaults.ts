@@ -27,6 +27,9 @@ export const COMPANY_DEFAULTS: PayrollCompanyDefaults = {
     bhtBreakdown: {
       basic: 1,
     },
+    employmentProrationMethod: 'calendar_days', // Default: calendar-day proration
+    enableRentRelief: true, // Enable rent relief by default
+    enableYtd: true, // Enable YTD cumulative PAYE computation by default
   },
 
   updatedAt: getCurrentTimestamp(),

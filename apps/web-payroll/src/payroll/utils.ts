@@ -270,6 +270,30 @@ function formatMonthName(month: number): string {
 }
 
 /**
+ * Format period as "January 2026" or "January – March 2026" for multi-period.
+ * Use for contextual headers and summaries.
+ */
+export function formatPeriodLong(run: {
+  periodMonth: number;
+  periodYear: number;
+  periodEndMonth?: number | null;
+  periodEndYear?: number | null;
+}): string {
+  const start = new Date(2000, run.periodMonth - 1, 1).toLocaleDateString(
+    'en-US',
+    { month: 'long' },
+  );
+  if (run.periodEndMonth != null && run.periodEndYear != null) {
+    const end = new Date(2000, run.periodEndMonth - 1, 1).toLocaleDateString(
+      'en-US',
+      { month: 'long' },
+    );
+    return `${start} – ${end} ${run.periodEndYear}`;
+  }
+  return `${start} ${run.periodYear}`;
+}
+
+/**
  * Format run period as "Jan 2026" or "Jan 2026 to Mar 2026" for multi-period runs
  */
 export function formatRunPeriod(run: PayrollRunIndexEntry): string {

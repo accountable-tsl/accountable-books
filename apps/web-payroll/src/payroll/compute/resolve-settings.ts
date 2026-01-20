@@ -10,7 +10,10 @@ import {
 } from '../domain';
 
 import type { StateValue } from '../data/states';
-import type { PayrollRunItem, PayrollRunSettings } from '../domain';
+import type { PayrollRunItem } from '../domain';
+
+// Infer PayrollRunSettings type from schema
+type PayrollRunSettings = z.infer<typeof PayrollRunSettingsSchema>;
 
 // Type aliases for clarity
 type BhtBreakdown = z.infer<typeof BhtBreakdownSchema>;
@@ -19,13 +22,51 @@ type NhisConfig = z.infer<typeof NhisConfigSchema>;
 type PensionConfig = z.infer<typeof PensionConfigSchema>;
 
 /**
+ * Resolved settings for a payroll run item
+ *
+ * Contains all settings resolved with precedence: employee > company > system
+ */
+export interface ResolvedSettings {
+  bhtBreakdown: BhtBreakdown;
+  state: StateValue;
+  pension: PensionConfig;
+  nhf: NhfConfig;
+  nhis: NhisConfig;
+}
+
+/**
+ * Resolve all settings for a run item with precedence: employee > company > system
+ *
+ * This is the unified function that resolves all settings at once, avoiding
+ * multiple passes through the same data structure.
+ *
+ * @param runItem - The payroll run item
+ * @param runSettings - Optional run-level settings (company defaults)
+ * @param systemDefaults - System-wide defaults (defaults to COMPANY_DEFAULTS.settings)
+ * @returns All resolved settings
+ */
+export function resolveSettings(
+  runItem: PayrollRunItem,
+  runSettings?: PayrollRunSettings,
+  systemDefaults = COMPANY_DEFAULTS.settings!,
+): ResolvedSettings {
+  return {
+    bhtBreakdown: resolveBhtBreakdown(runItem, runSettings, systemDefaults),
+    state: resolveState(runItem, runSettings, systemDefaults),
+    pension: resolvePensionConfig(runItem, runSettings, systemDefaults),
+    nhf: resolveNhfConfig(runItem, runSettings, systemDefaults),
+    nhis: resolveNhisConfig(runItem, runSettings, systemDefaults),
+  };
+}
+
+/**
  * Resolve BHT breakdown with precedence: employee > company > system
  * If no breakdown exists at any level, default to 100% basic (not 0% basic)
  */
 export function resolveBhtBreakdown(
   runItem: PayrollRunItem,
   runSettings?: PayrollRunSettings,
-  systemDefaults = COMPANY_DEFAULTS.settings,
+  systemDefaults = COMPANY_DEFAULTS.settings!,
 ): BhtBreakdown {
   // Check employee-specific breakdown in compensation history
   const compHistory = runItem.payProfileSnapshot.compensationHistory;
@@ -65,6 +106,7 @@ export function resolveBhtBreakdown(
   // Fallback to company defaults
   if (runSettings?.bhtBreakdown) {
     const breakdown = runSettings.bhtBreakdown;
+    // Check if breakdown has at least one defined value (not just an empty object)
     if (
       breakdown.basic != null ||
       breakdown.housing != null ||
@@ -72,14 +114,23 @@ export function resolveBhtBreakdown(
     ) {
       return breakdown;
     }
+    // If breakdown exists but is empty {}, fall through to system defaults
   }
 
   // Fallback to system defaults
-  if (systemDefaults.bhtBreakdown) {
-    return systemDefaults.bhtBreakdown;
+  if (systemDefaults?.bhtBreakdown) {
+    const systemBreakdown = systemDefaults.bhtBreakdown;
+    // Check if system breakdown has at least one defined value
+    if (
+      systemBreakdown.basic != null ||
+      ('housing' in systemBreakdown && systemBreakdown.housing != null) ||
+      ('transport' in systemBreakdown && systemBreakdown.transport != null)
+    ) {
+      return systemBreakdown;
+    }
+    // If system breakdown exists but is empty {}, fall through to default
   }
 
-  // Default to 100% basic if nothing exists
   return { basic: 1.0 };
 }
 
@@ -89,7 +140,7 @@ export function resolveBhtBreakdown(
 export function resolveState(
   runItem: PayrollRunItem,
   runSettings?: PayrollRunSettings,
-  systemDefaults = COMPANY_DEFAULTS.settings,
+  systemDefaults = COMPANY_DEFAULTS.settings!,
 ): StateValue {
   // Employee-specific state
   if (runItem.payProfileSnapshot.state) {
@@ -106,25 +157,61 @@ export function resolveState(
 }
 
 /**
+ * Generic helper to resolve a statutory deduction config with precedence: employee > company > system
+ *
+ * @param runItem - The payroll run item
+ * @param runSettings - Optional run-level settings
+ * @param systemDefaults - System-wide defaults (must be provided)
+ * @param employeePath - Path to employee-specific config (e.g., 'nhf', 'nhis', 'pension')
+ * @param defaultConfig - Default config to return if nothing is found
+ * @returns Resolved config
+ */
+function resolveStatutoryConfig<
+  T extends NhfConfig | NhisConfig | PensionConfig,
+>(
+  runItem: PayrollRunItem,
+  runSettings: PayrollRunSettings | undefined,
+  systemDefaults: NonNullable<typeof COMPANY_DEFAULTS.settings>,
+  employeePath: 'nhf' | 'nhis' | 'pension',
+  defaultConfig: T,
+): T {
+  // Employee-specific config
+  const employeeConfig = runItem.payProfileSnapshot[employeePath];
+  if (employeeConfig) {
+    return employeeConfig as T;
+  }
+
+  // Company default
+  const companyConfig = runSettings?.statutoryDeductions?.[employeePath];
+  if (companyConfig) {
+    return companyConfig as T;
+  }
+
+  // System default
+  const systemConfig = systemDefaults?.statutoryDeductions?.[employeePath];
+  if (systemConfig) {
+    return systemConfig as T;
+  }
+
+  // Fallback to provided default (shouldn't happen if defaults are set correctly)
+  return defaultConfig;
+}
+
+/**
  * Resolve NHF config with precedence: employee > company > system
  */
 export function resolveNhfConfig(
   runItem: PayrollRunItem,
   runSettings?: PayrollRunSettings,
-  systemDefaults = COMPANY_DEFAULTS.settings,
+  systemDefaults = COMPANY_DEFAULTS.settings!,
 ): NhfConfig {
-  // Employee-specific NHF config
-  if (runItem.payProfileSnapshot.nhf) {
-    return runItem.payProfileSnapshot.nhf;
-  }
-
-  // Company default
-  if (runSettings?.statutoryDeductions?.nhf) {
-    return runSettings.statutoryDeductions.nhf;
-  }
-
-  // System default
-  return systemDefaults.statutoryDeductions.nhf;
+  return resolveStatutoryConfig(
+    runItem,
+    runSettings,
+    systemDefaults,
+    'nhf',
+    systemDefaults.statutoryDeductions.nhf,
+  );
 }
 
 /**
@@ -133,20 +220,15 @@ export function resolveNhfConfig(
 export function resolveNhisConfig(
   runItem: PayrollRunItem,
   runSettings?: PayrollRunSettings,
-  systemDefaults = COMPANY_DEFAULTS.settings,
+  systemDefaults = COMPANY_DEFAULTS.settings!,
 ): NhisConfig {
-  // Employee-specific NHIS config
-  if (runItem.payProfileSnapshot.nhis) {
-    return runItem.payProfileSnapshot.nhis;
-  }
-
-  // Company default
-  if (runSettings?.statutoryDeductions?.nhis) {
-    return runSettings.statutoryDeductions.nhis;
-  }
-
-  // System default
-  return systemDefaults.statutoryDeductions.nhis;
+  return resolveStatutoryConfig(
+    runItem,
+    runSettings,
+    systemDefaults,
+    'nhis',
+    systemDefaults.statutoryDeductions.nhis,
+  );
 }
 
 /**
@@ -155,18 +237,13 @@ export function resolveNhisConfig(
 export function resolvePensionConfig(
   runItem: PayrollRunItem,
   runSettings?: PayrollRunSettings,
-  systemDefaults = COMPANY_DEFAULTS.settings,
+  systemDefaults = COMPANY_DEFAULTS.settings!,
 ): PensionConfig {
-  // Employee-specific Pension config
-  if (runItem.payProfileSnapshot.pension) {
-    return runItem.payProfileSnapshot.pension;
-  }
-
-  // Company default
-  if (runSettings?.statutoryDeductions?.pension) {
-    return runSettings.statutoryDeductions.pension;
-  }
-
-  // System default
-  return systemDefaults.statutoryDeductions.pension;
+  return resolveStatutoryConfig(
+    runItem,
+    runSettings,
+    systemDefaults,
+    'pension',
+    systemDefaults.statutoryDeductions.pension,
+  );
 }

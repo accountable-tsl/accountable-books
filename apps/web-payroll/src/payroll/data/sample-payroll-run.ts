@@ -17,14 +17,12 @@ import type { EmployeeRecord, PayrollRun } from '../domain';
  *
  * Creates a demo payroll run and sample employee records.
  * The caller should use `addEmployeesToRun` to add these employees to the run.
- *
- * TODO: Recompute all values once tax computation is integrated to ensure valid payroll numbers or maybe create employee record, let system automatically compute the values.
- * The current values are realistic placeholders for demonstration purposes.
  */
 
 // Sample employees defined directly as EmployeeRecords
+// Simplified for maintainability - using annual gross directly, minimal variations
 const sampleEmployees: EmployeeRecord[] = [
-  // Employee 1: Senior Engineer - Lagos, with pension, NHF, and deductions
+  // Employee 1: Simple employee with just annual gross (defaults to 100% basic)
   {
     identity: {
       id: crypto.randomUUID(),
@@ -41,43 +39,17 @@ const sampleEmployees: EmployeeRecord[] = [
       state: 'Lagos',
       compensationHistory: [
         {
+          id: generateId(),
           fromMonth: '2026-01',
-          annualGross: '12000000',
-          annualBasic: '4800000', // 40% of gross
-          annualHousing: '4800000', // 40% of gross
-          annualTransport: '1200000', // 10% of gross
-        },
-      ],
-      rentHistory: [
-        {
-          fromMonth: '2026-01',
-          annualRent: '2400000',
+          annualGross: '12000000', // 1M/month = 12M/year
         },
       ],
       pension: { enabled: true },
       nhf: { enabled: true },
-      nhis: { enabled: false },
-      recurringDeductions: [
-        {
-          id: crypto.randomUUID(),
-          fromMonth: '2026-01',
-          toMonth: '2026-12',
-          name: 'Pension Additional',
-          amount: '25000',
-          taxTreatment: 'pension_voluntary',
-        },
-        {
-          id: crypto.randomUUID(),
-          fromMonth: '2026-03',
-          toMonth: '2026-12',
-          name: 'Owner Occupied Mortgage Interest',
-          amount: '40000',
-          taxTreatment: 'non_taxable',
-        },
-      ],
+      nhis: { enabled: true },
     },
   },
-  // Employee 2: Product Manager - FCT, with pension and NHIS
+  // Employee 2: With rent (to test rent relief)
   {
     identity: {
       id: crypto.randomUUID(),
@@ -88,35 +60,30 @@ const sampleEmployees: EmployeeRecord[] = [
       email: 'chioma@example.com',
       bankName: 'Access Bank',
       bankAccountNumber: '1234567890',
-      joinDate: '2026-02-01',
+      joinDate: '2026-01-01',
     },
     payProfile: {
       state: 'Abuja',
       compensationHistory: [
         {
+          id: generateId(),
           fromMonth: '2026-01',
-          annualGross: '9500000',
-          annualBasic: '4275000', // 45% of gross
-          annualHousing: '3325000', // 35% of gross
-          annualTransport: '950000', // 10% of gross
+          annualGross: '9500000', // ~792k/month
+        },
+      ],
+      rentHistory: [
+        {
+          id: generateId(),
+          fromMonth: '2026-01',
+          rent: '1200000', // 100k/month = 1.2M/year (rent relief: 240k, capped at 500k)
         },
       ],
       pension: { enabled: true },
-      nhf: { enabled: false },
-      nhis: { enabled: true },
-      recurringDeductions: [
-        {
-          id: crypto.randomUUID(),
-          fromMonth: '2026-02',
-          toMonth: '2026-12',
-          name: 'Life Insurance Premium',
-          amount: '12000',
-          taxTreatment: 'non_taxable',
-        },
-      ],
+      nhf: { enabled: true },
+      nhis: { enabled: false },
     },
   },
-  // Employee 3: Analyst - Kano, with varying statutory config
+  // Employee 3: Lower salary, minimal deductions
   {
     identity: {
       id: crypto.randomUUID(),
@@ -133,19 +100,12 @@ const sampleEmployees: EmployeeRecord[] = [
       state: 'Kano',
       compensationHistory: [
         {
+          id: generateId(),
           fromMonth: '2026-01',
-          annualGross: '4500000',
-          annualBasic: '1800000',
-          annualHousing: '1200000',
-          annualTransport: '450000',
+          annualGross: '4500000', // 375k/month
         },
       ],
-      rentHistory: [
-        {
-          fromMonth: '2026-01',
-          annualRent: '900000',
-        },
-      ],
+      pension: { enabled: true },
       nhf: { enabled: false },
       nhis: { enabled: false },
     },
@@ -177,6 +137,10 @@ export function createSamplePayrollRun(
     periodMonth,
     periodYear,
   });
+
+  if (DEMO_COMPANY_DEFAULTS.settings) {
+    run.settings = DEMO_COMPANY_DEFAULTS.settings;
+  }
 
   // Validate all employees (Zod will catch any schema violations)
   const employees = sampleEmployees.map((emp) =>
