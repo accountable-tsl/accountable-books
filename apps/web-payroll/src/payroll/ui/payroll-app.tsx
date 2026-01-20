@@ -50,8 +50,16 @@ import {
   saveCompanyDefaults,
   saveRun,
 } from '@/payroll/storage';
+import {
+  getCompanyDefaultsKey,
+  getEmployeeDirectoryKey,
+  getRunsIndexKey,
+  getRunKey,
+} from '@/payroll/storage/keys';
+import { storageDelete } from '@/payroll/storage/kv';
 import { SummaryCard } from '@/payroll/summary-card';
 import {
+  deepMerge,
   formatRunTooltipText,
   generateId,
   getCurrentTimestamp,
@@ -470,6 +478,9 @@ export function Payroll() {
   const [conflictingRun, setConflictingRun] =
     useState<PayrollRunIndexEntry | null>(null);
   const [monthGaps, setMonthGaps] = useState<string[]>([]);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [hasFinalizedRuns, setHasFinalizedRuns] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const isInitialMount = useRef(true);
 
   // Initialize company settings with default values
@@ -523,6 +534,9 @@ export function Payroll() {
   const effectiveViewMode = isLargeScreen ? viewMode : 'standard';
 
   // Compute run on-the-fly (now async) - debounced to avoid excessive computations
+  // Use runId as primary dependency to ensure recomputation when selecting runs,
+  // even if the object reference is the same
+  const runId = currentRun?.id;
   useEffect(() => {
     if (!currentRun) {
       setComputed(null);
@@ -543,8 +557,10 @@ export function Payroll() {
       }, 200);
 
       try {
-        const result = await computeRun(currentRun, {
-          nowIso: currentRun.updatedAt,
+        // Read currentRun from closure to ensure we use the latest value
+        const runToCompute = currentRun;
+        const result = await computeRun(runToCompute, {
+          nowIso: runToCompute.updatedAt,
         });
         if (!cancelled) {
           setComputed(result);
@@ -577,13 +593,40 @@ export function Payroll() {
       }
       setIsComputing(false);
     };
-  }, [currentRun]);
+  }, [currentRun, runId]);
 
   // Helper to update company settings and save
   const updateCompanyDefaults = useCallback(
     async (updates: CompanyDefaultsUpdate) => {
       const updated = updateCompanyDefaultSettings(companyDefaults, updates);
       setCompanyDefaults(updated);
+
+      if (currentRun?.status === 'draft') {
+        // Ensure we have a valid object for deepMerge (settings are optional in types but practically always present)
+        const baseSettings =
+          currentRun.settings ?? updated.settings ?? COMPANY_DEFAULTS.settings!;
+
+        const nextRunSettings = updates.settings
+          ? deepMerge(baseSettings, updates.settings)
+          : baseSettings;
+        const nextRunCompanyName =
+          updates.companyName === undefined
+            ? currentRun.companyName
+            : updates.companyName;
+        const updatedRun: PayrollRun = {
+          ...currentRun,
+          companyName: nextRunCompanyName,
+          settings: nextRunSettings,
+          updatedAt: getCurrentTimestamp(),
+        };
+        setCurrentRun(updatedRun);
+        saveRun(updatedRun).catch((error) => {
+          logger.error('Failed to save run settings update', error, {
+            runId: updatedRun.id,
+          });
+        });
+      }
+
       try {
         await saveCompanyDefaults({
           companyName: updated.companyName,
@@ -593,7 +636,7 @@ export function Payroll() {
         logger.error('Failed to save company settings', error);
       }
     },
-    [companyDefaults],
+    [companyDefaults, currentRun],
   );
 
   const refreshRunList = useCallback(async () => {
@@ -610,14 +653,18 @@ export function Payroll() {
         return;
       }
 
-      setCurrentRun(run);
-      setIsSampleRun(false);
-      // Don't update month/year when loading a run - these are for new run creation only
-      // This prevents flickering caused by triggering the load effect below
-
+      // Update company defaults first (this is safe as it doesn't depend on currentRun state)
+      // We do this before setting currentRun to avoid race conditions
       if (run.settings) {
         updateCompanyDefaults({ settings: run.settings });
       }
+
+      // Set currentRun to trigger computation - this will always create a new reference
+      // even if it's the same run, ensuring the computation effect runs
+      setCurrentRun({ ...run });
+      setIsSampleRun(false);
+      // Don't update month/year when loading a run - these are for new run creation only
+      // This prevents flickering caused by triggering the load effect below
     },
     [updateCompanyDefaults],
   );
@@ -1149,9 +1196,12 @@ export function Payroll() {
     }
 
     if (!currentRun.items || currentRun.items.length === 0) {
-      toast.error('Cannot export an empty payroll. Add at least one employee.', {
-        position: isMdScreen ? 'bottom-right' : 'top-center',
-      });
+      toast.error(
+        'Cannot export an empty payroll. Add at least one employee.',
+        {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        },
+      );
       return;
     }
 
@@ -1198,11 +1248,10 @@ export function Payroll() {
         const oneOffAllowancesTotal =
           computedItem?.taxBreakdown?.oneOffAllowances?.total != null
             ? moneyToNumber(computedItem.taxBreakdown.oneOffAllowances.total)
-            : item.edits?.oneOffAllowances?.reduce(
-                (sum, allowance) =>
-                  sum + moneyToNumber(allowance.amount),
+            : (item.edits?.oneOffAllowances?.reduce(
+                (sum, allowance) => sum + moneyToNumber(allowance.amount),
                 0,
-              ) ?? 0;
+              ) ?? 0);
 
         // Calculate one-off deductions total
         const oneOffDeductionsTotal =
@@ -1218,9 +1267,7 @@ export function Payroll() {
           rowData.monthlyBasic.toFixed(2),
           rowData.monthlyHousing.toFixed(2),
           rowData.monthlyTransport.toFixed(2),
-          oneOffAllowancesTotal > 0
-            ? oneOffAllowancesTotal.toFixed(2)
-            : '',
+          oneOffAllowancesTotal > 0 ? oneOffAllowancesTotal.toFixed(2) : '',
           rowData.paye != null ? rowData.paye.toFixed(2) : '',
           rowData.employeePension.toFixed(2),
           rowData.employerPension.toFixed(2),
@@ -1270,6 +1317,60 @@ export function Payroll() {
       });
     }
   }, [currentRun, computed, isMdScreen]);
+
+  const handleResetClick = useCallback(async () => {
+    try {
+      // Check for finalized runs
+      const runsIndex = await loadRunsIndex();
+      const finalizedRuns = runsIndex.runs.filter((r) => r.status === 'final');
+      const hasFinalized = finalizedRuns.length > 0;
+
+      setHasFinalizedRuns(hasFinalized);
+      setResetConfirmOpen(true);
+    } catch (error) {
+      logger.error('Error checking for finalized runs', error);
+      toast.error('Could not check for finalized runs', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+    }
+  }, [isMdScreen]);
+
+  const handleResetConfirm = useCallback(async () => {
+    try {
+      // Delete all runs
+      const runsIndex = await loadRunsIndex();
+      for (const run of runsIndex.runs) {
+        const runKey = getRunKey(run.id);
+        await storageDelete(runKey);
+      }
+
+      // Delete runs index
+      await storageDelete(getRunsIndexKey());
+
+      // Delete employee directory
+      await storageDelete(getEmployeeDirectoryKey());
+
+      // Delete company defaults
+      await storageDelete(getCompanyDefaultsKey());
+
+      // Reset state
+      setCurrentRun(null);
+      setRunList([]);
+      setComputed(null);
+      setCompanyDefaults(COMPANY_DEFAULTS);
+
+      // Close dialog
+      setResetConfirmOpen(false);
+
+      // Refresh the page to reset the app
+      window.location.reload();
+    } catch (error) {
+      logger.error('Error resetting payroll data', error);
+      toast.error('Could not reset data', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+    }
+  }, [isMdScreen]);
 
   const handleAddEmployee = useCallback(async () => {
     if (!currentRun) return;
@@ -1396,7 +1497,6 @@ export function Payroll() {
             onDelete={handleDeleteEmployee}
             onAdd={handleAddEmployee}
             viewMode={effectiveViewMode}
-            runSettings={currentRun.settings}
             runStatus={currentRun.status}
           />
         ) : (
@@ -2540,9 +2640,17 @@ export function Payroll() {
       </div>
       <div className="min-h-3">
         <div className="text-muted-foreground hidden items-center justify-between px-4 text-[10px] sm:px-8 md:flex">
-          <p className="before:text-red-500 before:content-['*_']">
-            Based on NTA 2025
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="before:text-red-500 before:content-['*_']">
+              Based on NTA 2025
+            </p>
+            <button
+              onClick={handleResetClick}
+              className="text-red-500 hover:text-red-600 hover:underline cursor-pointer"
+            >
+              Reset
+            </button>
+          </div>
           <p className="space-x-1">
             <a
               href="https://getaccountable.com/"
@@ -2619,7 +2727,7 @@ export function Payroll() {
           <UserRoundPlus className="bg-muted size-5 rounded-full" />
           <span className="text-[11px]">Add Employee</span>
         </div>
-        <Popover>
+        <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
           <PopoverTrigger asChild>
             <div className="flex cursor-pointer flex-col items-center justify-center">
               <Ellipsis className="size-5" />
@@ -2654,13 +2762,25 @@ export function Payroll() {
                   handleExportCsv();
                 },
               },
+              {
+                label: 'Reset',
+                icon: Trash2,
+                onClick: () => {
+                  setMoreMenuOpen(false);
+                  handleResetClick();
+                },
+                isDestructive: true,
+              },
             ].map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.label}
                   onClick={item.onClick}
-                  className="hover:bg-accent hover:text-accent-foreground flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors outline-none"
+                  className={cn(
+                    'hover:bg-accent hover:text-accent-foreground flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors outline-none',
+                    item.isDestructive && 'text-red-500 hover:text-red-600',
+                  )}
                 >
                   <Icon className="size-4" />
                   {item.label}
@@ -2761,6 +2881,46 @@ export function Payroll() {
               }}
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Confirmation Dialog */}
+      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <DialogContent className="rounded sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Payroll Data</DialogTitle>
+            <DialogDescription>
+              {hasFinalizedRuns ? (
+                <>
+                  Are you sure you want to reset all payroll data? This will
+                  delete all runs, including finalized runs, employees, and
+                  company settings. This action cannot be undone.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to reset all payroll data? This will
+                  delete all runs, employees, and company settings. This action
+                  cannot be undone.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setResetConfirmOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleResetConfirm}
+            >
+              Reset
             </Button>
           </DialogFooter>
         </DialogContent>

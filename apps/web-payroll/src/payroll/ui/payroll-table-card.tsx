@@ -21,17 +21,12 @@ import { cn } from '@/lib/utils';
 import { Calculator, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 
 import type { z } from 'zod';
-import { resolveBhtBreakdown } from '../compute/resolve-settings';
-import {
-  PayrollComputedItemSchema,
-  PayrollRunSettingsSchema,
-} from '../domain';
+import { PayrollComputedItemSchema } from '../domain';
 import { getTableRowData, ngnMoneyFormatter } from './payroll-table-utils';
 
 import type { PayrollRunItem } from '../domain';
 
 type PayrollComputedItem = z.infer<typeof PayrollComputedItemSchema>;
-type PayrollRunSettings = z.infer<typeof PayrollRunSettingsSchema>;
 
 interface PayrollTableCardProps {
   runItem: PayrollRunItem;
@@ -39,7 +34,6 @@ interface PayrollTableCardProps {
   onEdit: (runItem: PayrollRunItem) => void;
   onDelete: (runItemId: string) => void;
   runStatus?: 'draft' | 'final';
-  runSettings?: PayrollRunSettings;
 }
 
 export function PayrollTableCard({
@@ -48,7 +42,6 @@ export function PayrollTableCard({
   onEdit,
   onDelete,
   runStatus = 'draft',
-  runSettings,
 }: PayrollTableCardProps) {
   const rowData = getTableRowData(runItem, computedItem);
   const isReadOnly = runStatus === 'final';
@@ -98,36 +91,24 @@ export function PayrollTableCard({
     setEditedMonthlyGross(null);
 
     const annualGross = roundedValue * 12;
-    const breakdown = resolveBhtBreakdown(runItem, runSettings);
-    const basicRate = breakdown.basic ?? 1.0;
-    const housingRate = breakdown.housing ?? 0;
-    const transportRate = breakdown.transport ?? 0;
-
-    const annualBasic = annualGross * basicRate;
-    const annualHousing = annualGross * housingRate;
-    const annualTransport = annualGross * transportRate;
-
     const currentComp = runItem.payProfileSnapshot.compensationHistory[0];
     const currentAnnualGross = parseFloat(currentComp.annualGross);
     const newAnnualGrossRounded = Math.round(annualGross * 100) / 100;
 
     if (newAnnualGrossRounded !== currentAnnualGross) {
+      const nextComp = {
+        ...currentComp,
+        id: currentComp.id ?? crypto.randomUUID(),
+        annualGross: newAnnualGrossRounded.toFixed(2),
+        annualBasic: undefined,
+        annualHousing: undefined,
+        annualTransport: undefined,
+      };
       onEdit({
         ...runItem,
         payProfileSnapshot: {
           ...runItem.payProfileSnapshot,
-          compensationHistory: [
-            {
-              ...currentComp,
-              id: currentComp.id ?? crypto.randomUUID(),
-              annualGross: newAnnualGrossRounded.toFixed(2),
-              annualBasic: annualBasic.toFixed(2),
-              annualHousing:
-                annualHousing > 0 ? annualHousing.toFixed(2) : undefined,
-              annualTransport:
-                annualTransport > 0 ? annualTransport.toFixed(2) : undefined,
-            },
-          ],
+          compensationHistory: [nextComp],
         },
       });
     }
@@ -336,35 +317,21 @@ export function PayrollTableCard({
                   const monthly = parseFloat(e.target.value) || 0;
                   setEditedMonthlyGross(monthly);
                   const annualGross = monthly * 12;
-                  const breakdown = resolveBhtBreakdown(runItem, runSettings);
-                  const basicRate = breakdown.basic ?? 1.0;
-                  const housingRate = breakdown.housing ?? 0;
-                  const transportRate = breakdown.transport ?? 0;
-                  const annualBasic = annualGross * basicRate;
-                  const annualHousing = annualGross * housingRate;
-                  const annualTransport = annualGross * transportRate;
                   const currentComp =
                     runItem.payProfileSnapshot.compensationHistory[0];
+                  const nextComp = {
+                    ...currentComp,
+                    id: currentComp.id ?? crypto.randomUUID(),
+                    annualGross: annualGross.toFixed(2),
+                    annualBasic: undefined,
+                    annualHousing: undefined,
+                    annualTransport: undefined,
+                  };
                   onEdit({
                     ...runItem,
                     payProfileSnapshot: {
                       ...runItem.payProfileSnapshot,
-                      compensationHistory: [
-                        {
-                          ...currentComp,
-                          id: currentComp.id ?? crypto.randomUUID(),
-                          annualGross: annualGross.toFixed(2),
-                          annualBasic: annualBasic.toFixed(2),
-                          annualHousing:
-                            annualHousing > 0
-                              ? annualHousing.toFixed(2)
-                              : undefined,
-                          annualTransport:
-                            annualTransport > 0
-                              ? annualTransport.toFixed(2)
-                              : undefined,
-                        },
-                      ],
+                      compensationHistory: [nextComp],
                     },
                   });
                 }}

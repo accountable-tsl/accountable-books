@@ -33,6 +33,21 @@ const TAX_BANDS = [
 ] as const;
 
 /**
+ * Nigerian minimum wage exemption (2026)
+ *
+ * Anyone earning minimum wage or less is fully exempt from PAYE.
+ * We model this as a hard exemption on ANNUAL GROSS income.
+ *
+ * - Monthly minimum wage: 70,000
+ * - Annual minimum wage: 840,000
+ *
+ * If `annualTaxableGross` (annual gross income) is <= this amount,
+ * PAYE must be zero regardless of deductions or tax bands.
+ */
+const MINIMUM_WAGE_MONTHLY = 70_000;
+const MINIMUM_WAGE_ANNUAL = MINIMUM_WAGE_MONTHLY * 12;
+
+/**
  * Compute annual tax using tax bands
  *
  * This is the core PAYE computation logic. It applies progressive tax rates
@@ -68,6 +83,11 @@ export function computeAnnualTaxFromAmounts(
   annualAllowableDeductions: number,
   annualRentRelief: number = 0,
 ): number {
+  // Minimum wage exemption: no tax if annual gross is at or below minimum wage
+  if (annualTaxableGross <= MINIMUM_WAGE_ANNUAL) {
+    return 0;
+  }
+
   // Annual taxable income = gross - rent relief - allowable deductions
   const annualTaxableIncome =
     annualTaxableGross - annualRentRelief - annualAllowableDeductions;
@@ -152,7 +172,12 @@ export function computePaye(params: {
   // Calculate annual taxable income and tax
   const annualTaxableIncome =
     annualTaxableGross - annualRentRelief - annualAllowableDeductions;
-  const annualTax = computeAnnualTax(annualTaxableIncome);
+  // Apply minimum wage exemption: if annual gross is at or below minimum wage,
+  // tax must be zero regardless of computed taxable income.
+  const annualTax =
+    annualTaxableGross <= MINIMUM_WAGE_ANNUAL
+      ? 0
+      : computeAnnualTax(annualTaxableIncome);
 
   // YTD flow (default)
   if (enableYtd !== false) {

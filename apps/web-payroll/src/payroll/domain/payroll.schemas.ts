@@ -109,11 +109,11 @@ export const EmployeeIdentitySchema = z
 export const CompensationPeriodSchema = MonthRangeSchema.extend({
   id: IdSchema,
   annualGross: MoneySchema,
-  annualBasic: MoneySchema.default('0').optional(),
-  annualHousing: MoneySchema.default('0').optional(),
-  annualTransport: MoneySchema.default('0').optional(),
-  annualLeaveAllowance: MoneySchema.default('0').optional(),
-  annualOtherAllowances: MoneySchema.default('0').optional(),
+  annualBasic: MoneySchema.optional(),
+  annualHousing: MoneySchema.optional(),
+  annualTransport: MoneySchema.optional(),
+  annualLeaveAllowance: MoneySchema.optional(),
+  annualOtherAllowances: MoneySchema.optional(),
 });
 
 export const RentPeriodSchema = MonthRangeSchema.extend({
@@ -128,7 +128,9 @@ export const RentPeriodSchema = MonthRangeSchema.extend({
  * Periods overlap if one starts before the other ends.
  * This ensures each month has exactly one applicable period.
  */
-function validateNoOverlappingPeriods<T extends { id: string; fromMonth: string; toMonth?: string }>(
+function validateNoOverlappingPeriods<
+  T extends { id: string; fromMonth: string; toMonth?: string },
+>(
   periods: T[],
   periodType: 'compensation' | 'rent',
   ctx: z.RefinementCtx,
@@ -383,7 +385,8 @@ export const PayrollRunSettingsSchema = z.object({
    * Determines how to prorate salary when employees join/exit mid-month.
    * Default: 'calendar_days' (uses actual days in month).
    */
-  employmentProrationMethod: EmploymentProrationMethodSchema.default('calendar_days'),
+  employmentProrationMethod:
+    EmploymentProrationMethodSchema.default('calendar_days'),
   /**
    * Enable rent relief for PAYE computation.
    *
@@ -453,7 +456,9 @@ export const PayrollRunItemSchema = z.object({
     .object({
       oneOffAllowances: z.array(MoneyComponentSchema).optional(),
       oneOffDeductions: z.array(MoneyComponentSchema).optional(),
-      oneOffEmployerContributions: z.array(EmployerContributionSchema).optional(),
+      oneOffEmployerContributions: z
+        .array(EmployerContributionSchema)
+        .optional(),
     })
     .optional(),
 });

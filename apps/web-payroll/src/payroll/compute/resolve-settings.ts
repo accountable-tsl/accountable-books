@@ -59,6 +59,24 @@ export function resolveSettings(
   };
 }
 
+function normalizeBhtBreakdown(breakdown: BhtBreakdown): BhtBreakdown {
+  const basic = breakdown.basic ?? 0;
+  const housing = breakdown.housing ?? 0;
+  const transport = breakdown.transport ?? 0;
+  const total = basic + housing + transport;
+
+  if (total <= 1 || total === 0) {
+    return breakdown;
+  }
+
+  const scale = 1 / total;
+  return {
+    basic: breakdown.basic != null ? basic * scale : undefined,
+    housing: breakdown.housing != null ? housing * scale : undefined,
+    transport: breakdown.transport != null ? transport * scale : undefined,
+  };
+}
+
 /**
  * Resolve BHT breakdown with precedence: employee > company > system
  * If no breakdown exists at any level, default to 100% basic (not 0% basic)
@@ -93,11 +111,11 @@ export function resolveBhtBreakdown(
 
         // If we have explicit values, return them as rates
         if (basic > 0 || housing > 0 || transport > 0) {
-          return {
+          return normalizeBhtBreakdown({
             basic: basic || undefined,
             housing: housing || undefined,
             transport: transport || undefined,
-          };
+          });
         }
       }
     }
@@ -112,7 +130,7 @@ export function resolveBhtBreakdown(
       breakdown.housing != null ||
       breakdown.transport != null
     ) {
-      return breakdown;
+      return normalizeBhtBreakdown(breakdown);
     }
     // If breakdown exists but is empty {}, fall through to system defaults
   }
@@ -126,7 +144,7 @@ export function resolveBhtBreakdown(
       ('housing' in systemBreakdown && systemBreakdown.housing != null) ||
       ('transport' in systemBreakdown && systemBreakdown.transport != null)
     ) {
-      return systemBreakdown;
+      return normalizeBhtBreakdown(systemBreakdown);
     }
     // If system breakdown exists but is empty {}, fall through to default
   }

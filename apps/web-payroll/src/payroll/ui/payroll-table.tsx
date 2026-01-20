@@ -34,8 +34,7 @@ import {
   Trash2,
 } from 'lucide-react';
 
-import { resolveBhtBreakdown } from '../compute/resolve-settings';
-import { PayrollComputedItemSchema, PayrollRunSettingsSchema } from '../domain';
+import { PayrollComputedItemSchema } from '../domain';
 import { PayrollTableCard } from './payroll-table-card';
 import { getTableRowData, ngnMoneyFormatter } from './payroll-table-utils';
 import type { z } from 'zod';
@@ -43,7 +42,6 @@ import type { z } from 'zod';
 import type { PayrollRunItem } from '../domain';
 
 type PayrollComputedItem = z.infer<typeof PayrollComputedItemSchema>;
-type PayrollRunSettings = z.infer<typeof PayrollRunSettingsSchema>;
 
 interface PayrollTableProps {
   runItems: PayrollRunItem[];
@@ -52,7 +50,6 @@ interface PayrollTableProps {
   onDelete: (runItemId: string) => void;
   onAdd: () => void;
   viewMode: 'standard' | 'detailed';
-  runSettings?: PayrollRunSettings; // For resolving BHT breakdown
   runStatus?: 'draft' | 'final'; // Run status to determine if editing is allowed
 }
 export function PayrollTable({
@@ -62,7 +59,6 @@ export function PayrollTable({
   onDelete,
   onAdd,
   viewMode,
-  runSettings,
   runStatus = 'draft',
 }: PayrollTableProps) {
   // Pass runStatus to rows for editing control
@@ -194,7 +190,6 @@ export function PayrollTable({
               onEdit={onEdit}
               onDelete={onDelete}
               runStatus={runStatus}
-              runSettings={runSettings}
             />
           ))}
         </div>
@@ -246,7 +241,6 @@ export function PayrollTable({
                       onEdit={onEdit}
                       onDelete={onDelete}
                       className={cn(runItems.length < 6 ? '!border-b' : '')}
-                      runSettings={runSettings}
                       runStatus={runStatus}
                     />
                   );
@@ -283,7 +277,6 @@ interface PayrollTableRowProps {
   onEdit: (runItem: PayrollRunItem) => void;
   onDelete: (runItemId: string) => void;
   className?: string;
-  runSettings?: PayrollRunSettings; // For resolving BHT breakdown
   runStatus?: 'draft' | 'final'; // Run status to determine if editing is allowed
 }
 
@@ -295,7 +288,6 @@ function PayrollTableRow({
   onEdit,
   onDelete,
   className,
-  runSettings,
   runStatus = 'draft',
 }: PayrollTableRowProps) {
   const [name, setName] = useState(runItem?.employeeSnapshot?.fullName || '');
@@ -354,40 +346,25 @@ function PayrollTableRow({
     // Calculate annual gross from rounded monthly value
     const annualGross = roundedValue * 12;
 
-    // Get BHT breakdown with precedence (employee > company > system)
-    const breakdown = resolveBhtBreakdown(runItem, runSettings);
-
-    // Calculate annualBasic, annualHousing, annualTransport from annualGross using breakdown rates
-    const basicRate = breakdown.basic ?? 1.0; // Default to 100% basic if not specified
-    const housingRate = breakdown.housing ?? 0;
-    const transportRate = breakdown.transport ?? 0;
-
-    const annualBasic = annualGross * basicRate;
-    const annualHousing = annualGross * housingRate;
-    const annualTransport = annualGross * transportRate;
-
     const currentComp = runItem.payProfileSnapshot.compensationHistory[0];
     const currentAnnualGross = parseFloat(currentComp.annualGross);
     const newAnnualGrossRounded = Math.round(annualGross * 100) / 100;
 
     if (newAnnualGrossRounded !== currentAnnualGross) {
+      const nextComp = {
+        ...currentComp,
+        id: currentComp.id ?? crypto.randomUUID(),
+        annualGross: newAnnualGrossRounded.toFixed(2),
+        annualBasic: undefined,
+        annualHousing: undefined,
+        annualTransport: undefined,
+      };
       // Update compensation history with calculated BHT breakdown
       onEdit({
         ...runItem,
         payProfileSnapshot: {
           ...runItem.payProfileSnapshot,
-          compensationHistory: [
-            {
-              ...currentComp,
-              id: currentComp.id ?? crypto.randomUUID(),
-              annualGross: newAnnualGrossRounded.toFixed(2),
-              annualBasic: annualBasic.toFixed(2),
-              annualHousing:
-                annualHousing > 0 ? annualHousing.toFixed(2) : undefined,
-              annualTransport:
-                annualTransport > 0 ? annualTransport.toFixed(2) : undefined,
-            },
-          ],
+          compensationHistory: [nextComp],
         },
       });
     }
@@ -660,40 +637,23 @@ function PayrollTableRow({
                   if (isReadOnly) return;
                   const monthly = parseFloat(e.target.value) || 0;
                   setEditedMonthlyGross(monthly);
-                  // Calculate annual gross
                   const annualGross = monthly * 12;
-                  // Get BHT breakdown with precedence
-                  const breakdown = resolveBhtBreakdown(runItem, runSettings);
-                  const basicRate = breakdown.basic ?? 1.0;
-                  const housingRate = breakdown.housing ?? 0;
-                  const transportRate = breakdown.transport ?? 0;
-                  // Calculate BHT components
-                  const annualBasic = annualGross * basicRate;
-                  const annualHousing = annualGross * housingRate;
-                  const annualTransport = annualGross * transportRate;
                   // Update runItem compensation
                   const currentComp =
                     runItem.payProfileSnapshot.compensationHistory[0];
+                  const nextComp = {
+                    ...currentComp,
+                    id: currentComp.id ?? crypto.randomUUID(),
+                    annualGross: annualGross.toFixed(2),
+                    annualBasic: undefined,
+                    annualHousing: undefined,
+                    annualTransport: undefined,
+                  };
                   onEdit({
                     ...runItem,
                     payProfileSnapshot: {
                       ...runItem.payProfileSnapshot,
-                      compensationHistory: [
-                        {
-                          ...currentComp,
-                          id: currentComp.id ?? crypto.randomUUID(),
-                          annualGross: annualGross.toFixed(2),
-                          annualBasic: annualBasic.toFixed(2),
-                          annualHousing:
-                            annualHousing > 0
-                              ? annualHousing.toFixed(2)
-                              : undefined,
-                          annualTransport:
-                            annualTransport > 0
-                              ? annualTransport.toFixed(2)
-                              : undefined,
-                        },
-                      ],
+                      compensationHistory: [nextComp],
                     },
                   });
                 }}

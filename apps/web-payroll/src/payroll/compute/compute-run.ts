@@ -112,7 +112,7 @@ function calculateAnnualRent(
  * Compute annual BHT split from compensation period.
  *
  * **Priority:**
- * 1. If compensation has explicit annualBasic, annualHousing, annualTransport → use those directly
+ * 1. If compensation has explicit non-zero annualBasic, annualHousing, annualTransport → use those directly
  * 2. Otherwise, use resolved breakdown rates to compute from annualGross
  * 3. Default to 100% basic if no breakdown exists
  *
@@ -156,12 +156,14 @@ function computeAnnualBhtSplit(params: {
 
     const used = annualBasic + annualHousing + annualTransport;
 
-    return {
-      annualBasic,
-      annualHousing,
-      annualTransport,
-      annualOtherAllowances: Math.max(0, annualGross - used),
-    };
+    if (used > 0) {
+      return {
+        annualBasic,
+        annualHousing,
+        annualTransport,
+        annualOtherAllowances: Math.max(0, annualGross - used),
+      };
+    }
   }
 
   let basicRate: number;
