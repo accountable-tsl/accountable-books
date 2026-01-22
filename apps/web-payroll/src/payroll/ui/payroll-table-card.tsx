@@ -518,6 +518,38 @@ export function usePayrollEmployeeEditor({
   const [exitDateInput, setExitDateInput] = useState(
     runItem.employeeSnapshot.exitDate ?? '',
   );
+  const pensionConfig = runItem.payProfileSnapshot.pension;
+  const [pensionEmployeeRateInput, setPensionEmployeeRateInput] = useState(
+    pensionConfig?.employeeRate != null
+      ? (pensionConfig.employeeRate * 100).toFixed(1)
+      : '',
+  );
+  const [pensionEmployerRateInput, setPensionEmployerRateInput] = useState(
+    pensionConfig?.employerRate != null
+      ? (pensionConfig.employerRate * 100).toFixed(1)
+      : '',
+  );
+  const nhfConfig = runItem.payProfileSnapshot.nhf;
+  const [nhfInput, setNhfInput] = useState(() => {
+    if (nhfConfig?.employeeRate != null) {
+      return (nhfConfig.employeeRate * 100).toFixed(1) + '%';
+    }
+    if (nhfConfig?.employeeAmount != null) {
+      return nhfConfig.employeeAmount;
+    }
+    return '';
+  });
+  const nhisConfig = runItem.payProfileSnapshot.nhis;
+  const [nhisEmployeeRateInput, setNhisEmployeeRateInput] = useState(
+    nhisConfig?.employeeRate != null
+      ? (nhisConfig.employeeRate * 100).toFixed(1)
+      : '',
+  );
+  const [nhisEmployerRateInput, setNhisEmployerRateInput] = useState(
+    nhisConfig?.employerRate != null
+      ? (nhisConfig.employerRate * 100).toFixed(1)
+      : '',
+  );
   const [emailError, setEmailError] = useState<string | null>(null);
   const [bankAccountNumberError, setBankAccountNumberError] = useState<
     string | null
@@ -909,6 +941,193 @@ export function usePayrollEmployeeEditor({
     });
   };
 
+  const commitPensionEdits = () => {
+    if (isReadOnly) return;
+    const baseRunItem = runItemRef.current;
+    const currentPension = baseRunItem.payProfileSnapshot.pension;
+
+    // Parse the input values
+    const employeeRateValue = pensionEmployeeRateInput.trim();
+    const employerRateValue = pensionEmployerRateInput.trim();
+
+    const employeeRateParsed = employeeRateValue.length > 0
+      ? parseFloat(employeeRateValue)
+      : NaN;
+    const employerRateParsed = employerRateValue.length > 0
+      ? parseFloat(employerRateValue)
+      : NaN;
+
+    const employeeRate = !isNaN(employeeRateParsed)
+      ? employeeRateParsed / 100
+      : undefined;
+    const employerRate = !isNaN(employerRateParsed)
+      ? employerRateParsed / 100
+      : undefined;
+
+    // Check if values have changed
+    const currentEmployeeRate = currentPension?.employeeRate;
+    const currentEmployerRate = currentPension?.employerRate;
+
+    // Compare with tolerance for floating point
+    const employeeRateChanged =
+      (employeeRate ?? null) !== (currentEmployeeRate ?? null) &&
+      (employeeRate == null || currentEmployeeRate == null ||
+        Math.abs(employeeRate - currentEmployeeRate) > 0.0001);
+    const employerRateChanged =
+      (employerRate ?? null) !== (currentEmployerRate ?? null) &&
+      (employerRate == null || currentEmployerRate == null ||
+        Math.abs(employerRate - currentEmployerRate) > 0.0001);
+
+    if (!employeeRateChanged && !employerRateChanged) {
+      return;
+    }
+
+    // Build the new pension config
+    // If both rates are cleared, remove the pension override entirely
+    const newPensionConfig =
+      employeeRate == null && employerRate == null
+        ? undefined
+        : {
+            enabled: currentPension?.enabled ?? true,
+            employeeRate: employeeRate ?? undefined,
+            employerRate: employerRate ?? undefined,
+            // Clear amounts if rates are set (they're mutually exclusive)
+            employeeAmount: employeeRate != null ? undefined : currentPension?.employeeAmount,
+            employerAmount: employerRate != null ? undefined : currentPension?.employerAmount,
+          };
+
+    onEdit({
+      ...baseRunItem,
+      payProfileSnapshot: {
+        ...baseRunItem.payProfileSnapshot,
+        pension: newPensionConfig,
+      },
+    });
+  };
+
+  const commitNhfEdits = () => {
+    if (isReadOnly) return;
+    const baseRunItem = runItemRef.current;
+    const currentNhf = baseRunItem.payProfileSnapshot.nhf;
+
+    const nhfValue = nhfInput.trim();
+    if (nhfValue.length === 0) {
+      // If cleared, remove override
+      if (currentNhf == null) return;
+      onEdit({
+        ...baseRunItem,
+        payProfileSnapshot: {
+          ...baseRunItem.payProfileSnapshot,
+          nhf: undefined,
+        },
+      });
+      return;
+    }
+
+    // Check if it's a percentage (ends with %) or an amount
+    const isPercentage = nhfValue.endsWith('%');
+    const numericValue = isPercentage
+      ? parseFloat(nhfValue.slice(0, -1))
+      : parseFloat(nhfValue);
+
+    if (isNaN(numericValue)) return;
+
+    const newNhfConfig = isPercentage
+      ? {
+          enabled: currentNhf?.enabled ?? true,
+          employeeRate: numericValue / 100,
+          employeeAmount: undefined,
+        }
+      : {
+          enabled: currentNhf?.enabled ?? true,
+          employeeRate: undefined,
+          employeeAmount: numericValue.toString(),
+        };
+
+    // Check if changed
+    const currentRate = currentNhf?.employeeRate;
+    const currentAmount = currentNhf?.employeeAmount;
+    const newRate = newNhfConfig.employeeRate;
+    const newAmount = newNhfConfig.employeeAmount;
+
+    const rateChanged =
+      (newRate ?? null) !== (currentRate ?? null) &&
+      (newRate == null || currentRate == null ||
+        Math.abs(newRate - currentRate) > 0.0001);
+    const amountChanged = (newAmount ?? null) !== (currentAmount ?? null);
+
+    if (!rateChanged && !amountChanged) return;
+
+    onEdit({
+      ...baseRunItem,
+      payProfileSnapshot: {
+        ...baseRunItem.payProfileSnapshot,
+        nhf: newNhfConfig,
+      },
+    });
+  };
+
+  const commitNhisEdits = () => {
+    if (isReadOnly) return;
+    const baseRunItem = runItemRef.current;
+    const currentNhis = baseRunItem.payProfileSnapshot.nhis;
+
+    const employeeRateValue = nhisEmployeeRateInput.trim();
+    const employerRateValue = nhisEmployerRateInput.trim();
+
+    const employeeRateParsed = employeeRateValue.length > 0
+      ? parseFloat(employeeRateValue)
+      : NaN;
+    const employerRateParsed = employerRateValue.length > 0
+      ? parseFloat(employerRateValue)
+      : NaN;
+
+    const employeeRate = !isNaN(employeeRateParsed)
+      ? employeeRateParsed / 100
+      : undefined;
+    const employerRate = !isNaN(employerRateParsed)
+      ? employerRateParsed / 100
+      : undefined;
+
+    // Check if values have changed
+    const currentEmployeeRate = currentNhis?.employeeRate;
+    const currentEmployerRate = currentNhis?.employerRate;
+
+    const employeeRateChanged =
+      (employeeRate ?? null) !== (currentEmployeeRate ?? null) &&
+      (employeeRate == null || currentEmployeeRate == null ||
+        Math.abs(employeeRate - currentEmployeeRate) > 0.0001);
+    const employerRateChanged =
+      (employerRate ?? null) !== (currentEmployerRate ?? null) &&
+      (employerRate == null || currentEmployerRate == null ||
+        Math.abs(employerRate - currentEmployerRate) > 0.0001);
+
+    if (!employeeRateChanged && !employerRateChanged) {
+      return;
+    }
+
+    // Build the new NHIS config
+    const newNhisConfig =
+      employeeRate == null && employerRate == null
+        ? undefined
+        : {
+            enabled: currentNhis?.enabled ?? true,
+            employeeRate: employeeRate ?? undefined,
+            employerRate: employerRate ?? undefined,
+            // Clear amounts if rates are set (they're mutually exclusive)
+            employeeAmount: employeeRate != null ? undefined : currentNhis?.employeeAmount,
+            employerAmount: employerRate != null ? undefined : currentNhis?.employerAmount,
+          };
+
+    onEdit({
+      ...baseRunItem,
+      payProfileSnapshot: {
+        ...baseRunItem.payProfileSnapshot,
+        nhis: newNhisConfig,
+      },
+    });
+  };
+
   const clearEmailValidationTimeout = () => {
     if (emailClearTimeoutRef.current) {
       clearTimeout(emailClearTimeoutRef.current);
@@ -1013,6 +1232,39 @@ export function usePayrollEmployeeEditor({
 
   useEffect(() => {
     runItemRef.current = runItem;
+    // Sync pension inputs when runItem changes
+    const pensionConfig = runItem.payProfileSnapshot.pension;
+    setPensionEmployeeRateInput(
+      pensionConfig?.employeeRate != null
+        ? (pensionConfig.employeeRate * 100).toFixed(1)
+        : '',
+    );
+    setPensionEmployerRateInput(
+      pensionConfig?.employerRate != null
+        ? (pensionConfig.employerRate * 100).toFixed(1)
+        : '',
+    );
+    // Sync NHF input when runItem changes
+    const nhfConfig = runItem.payProfileSnapshot.nhf;
+    if (nhfConfig?.employeeRate != null) {
+      setNhfInput((nhfConfig.employeeRate * 100).toFixed(1) + '%');
+    } else if (nhfConfig?.employeeAmount != null) {
+      setNhfInput(nhfConfig.employeeAmount);
+    } else {
+      setNhfInput('');
+    }
+    // Sync NHIS inputs when runItem changes
+    const nhisConfig = runItem.payProfileSnapshot.nhis;
+    setNhisEmployeeRateInput(
+      nhisConfig?.employeeRate != null
+        ? (nhisConfig.employeeRate * 100).toFixed(1)
+        : '',
+    );
+    setNhisEmployerRateInput(
+      nhisConfig?.employerRate != null
+        ? (nhisConfig.employerRate * 100).toFixed(1)
+        : '',
+    );
   }, [runItem]);
 
   useEffect(() => {
@@ -2989,31 +3241,110 @@ export function usePayrollEmployeeEditor({
                       <label className="text-muted-foreground text-xs">
                         Pension employee %
                       </label>
-                      <Input placeholder="8%" />
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.1"
+                          value={pensionEmployeeRateInput}
+                          onChange={(e) =>
+                            setPensionEmployeeRateInput(e.target.value)
+                          }
+                          onBlur={commitPensionEdits}
+                          disabled={isReadOnly}
+                          placeholder="8%"
+                          className="h-8 pr-8 text-sm mt-1"
+                        />
+                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                          %
+                        </span>
+                      </div>
                     </div>
                     <div>
                       <label className="text-muted-foreground text-xs">
                         Pension employer %
                       </label>
-                      <Input placeholder="10%" />
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.1"
+                          value={pensionEmployerRateInput}
+                          onChange={(e) =>
+                            setPensionEmployerRateInput(e.target.value)
+                          }
+                          onBlur={commitPensionEdits}
+                          disabled={isReadOnly}
+                          placeholder="10%"
+                          className="h-8 pr-8 text-sm mt-1"
+                        />
+                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                          %
+                        </span>
+                      </div>
                     </div>
                     <div>
                       <label className="text-muted-foreground text-xs">
                         NHF rate or amount
                       </label>
-                      <Input placeholder="2.5% or 5000" />
+                      <Input
+                        value={nhfInput}
+                        onChange={(e) => setNhfInput(e.target.value)}
+                        onBlur={commitNhfEdits}
+                        disabled={isReadOnly}
+                        placeholder="2.5% or 5000"
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <label className="text-muted-foreground text-xs">
                         NHIS employee %
                       </label>
-                      <Input placeholder="2.5%" />
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.1"
+                          value={nhisEmployeeRateInput}
+                          onChange={(e) =>
+                            setNhisEmployeeRateInput(e.target.value)
+                          }
+                          onBlur={commitNhisEdits}
+                          disabled={isReadOnly}
+                          placeholder="2.5%"
+                          className="h-8 pr-8 text-sm mt-1"
+                        />
+                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                          %
+                        </span>
+                      </div>
                     </div>
                     <div>
                       <label className="text-muted-foreground text-xs">
                         NHIS employer %
                       </label>
-                      <Input placeholder="5%" />
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.1"
+                          value={nhisEmployerRateInput}
+                          onChange={(e) =>
+                            setNhisEmployerRateInput(e.target.value)
+                          }
+                          onBlur={commitNhisEdits}
+                          disabled={isReadOnly}
+                          placeholder="5%"
+                          className="h-8 pr-8 text-sm mt-1"
+                        />
+                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                          %
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <p className="text-muted-foreground mt-2 text-[11px]">

@@ -666,6 +666,16 @@ export function Payroll() {
         });
       }
 
+      if (updates.companyName !== undefined && currentRun) {
+        setRunList((prev) =>
+          prev.map((entry) =>
+            entry.id === currentRun.id
+              ? { ...entry, companyName: updates.companyName ?? entry.companyName }
+              : entry,
+          ),
+        );
+      }
+
       try {
         await saveCompanyDefaults({
           companyName: updated.companyName,
@@ -692,11 +702,12 @@ export function Payroll() {
         return;
       }
 
-      // Update company defaults first (this is safe as it doesn't depend on currentRun state)
+      // Update company defaults first (company name + settings come from the run)
       // We do this before setting currentRun to avoid race conditions
-      if (run.settings) {
-        updateCompanyDefaults({ settings: run.settings });
-      }
+      updateCompanyDefaults({
+        companyName: run.companyName,
+        settings: run.settings,
+      });
 
       // Set currentRun to trigger computation - this will always create a new reference
       // even if it's the same run, ensuring the computation effect runs
@@ -774,6 +785,11 @@ export function Payroll() {
           );
           setCurrentRun(run);
           setIsSampleRun(true);
+          setCompanyDefaults((prev) => ({
+            ...prev,
+            companyName: run.companyName,
+            settings: run.settings ?? prev.settings,
+          }));
           setWelcomeOpen(true);
         } else {
           // Update runs index for display
@@ -811,6 +827,11 @@ export function Payroll() {
         const { run } = createSamplePayrollRunPreview(periodMonth, periodYear);
         setCurrentRun(run);
         setIsSampleRun(true);
+        setCompanyDefaults((prev) => ({
+          ...prev,
+          companyName: run.companyName,
+          settings: run.settings ?? prev.settings,
+        }));
         setWelcomeOpen(true);
       } finally {
         setIsLoadingRuns(false);

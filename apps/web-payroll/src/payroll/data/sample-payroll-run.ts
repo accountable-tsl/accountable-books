@@ -44,9 +44,7 @@ const sampleEmployees: EmployeeRecord[] = [
           annualGross: '12000000', // 1M/month = 12M/year
         },
       ],
-      pension: { enabled: true },
-      nhf: { enabled: true },
-      nhis: { enabled: true },
+      pension: { enabled: true, employeeRate: 0.08, employerRate: 0.12 },
     },
   },
   // Employee 2: With rent (to test rent relief)

@@ -151,7 +151,9 @@ export async function loadRun(runId: string): Promise<PayrollRun | null> {
  * Initialize company defaults with standard Nigerian payroll defaults.
  * This is called lazily when the first run is saved.
  */
-async function initializeCompanyDefaultsIfNeeded(): Promise<void> {
+async function initializeCompanyDefaultsIfNeeded(
+  run?: PayrollRun,
+): Promise<void> {
   const existing = await loadCompanyDefaults();
   if (existing) {
     // Defaults already exist, no need to initialize
@@ -161,6 +163,9 @@ async function initializeCompanyDefaultsIfNeeded(): Promise<void> {
   // Initialize with standard Nigerian defaults
   const defaults: PayrollCompanyDefaults = {
     ...COMPANY_DEFAULTS,
+    companyId: run?.companyId,
+    companyName: run?.companyName ?? COMPANY_DEFAULTS.companyName,
+    settings: run?.settings ?? COMPANY_DEFAULTS.settings,
     updatedAt: getCurrentTimestamp(),
   };
 
@@ -187,7 +192,7 @@ export async function saveRun(run: PayrollRun): Promise<PayrollRun> {
   try {
     // Lazy initialization: check if this is the first run
     // If no defaults exist, initialize them now
-    await initializeCompanyDefaultsIfNeeded();
+    await initializeCompanyDefaultsIfNeeded(run);
 
     // Update timestamp
     const updatedRun: PayrollRun = {
