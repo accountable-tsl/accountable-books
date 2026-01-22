@@ -7,7 +7,7 @@ import type {
 } from '@/payroll/domain';
 import type { SummaryCardKey, SummaryCardProps } from '@/payroll/summary-card';
 import type { CompanyDefaultsUpdate } from '@/payroll/utils';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -492,6 +492,33 @@ export function Payroll() {
   const runCompanyName = companyDefaults.companyName?.trim() || 'Company';
   const currentYear = new Date().getFullYear();
   const yearOptions = [String(currentYear), String(currentYear + 1)];
+  const finalizedPeriodKeys = useMemo(() => {
+    if (!currentRun) return [];
+    const keySet = new Set<string>();
+
+    for (const run of runList) {
+      if (run.status !== 'final') continue;
+      const sameCompany =
+        run.companyId === currentRun.companyId ||
+        (run.companyId == null && currentRun.companyId == null);
+      if (!sameCompany) continue;
+
+      const startMonth = run.periodMonth;
+      const startYear = run.periodYear;
+      const endMonth = run.periodEndMonth ?? run.periodMonth;
+      const endYear = run.periodEndYear ?? run.periodYear;
+      const startTotal = startYear * 12 + startMonth;
+      const endTotal = endYear * 12 + endMonth;
+
+      for (let total = startTotal; total <= endTotal; total++) {
+        const year = Math.floor((total - 1) / 12);
+        const month = ((total - 1) % 12) + 1;
+        keySet.add(`${year}-${String(month).padStart(2, '0')}`);
+      }
+    }
+
+    return Array.from(keySet).sort();
+  }, [runList, currentRun]);
 
   // Default to detailed view on screens >= 1280px, standard otherwise
   const isXlScreen = useMediaQuery('(min-width: 1280px)');
@@ -1498,6 +1525,13 @@ export function Payroll() {
             onAdd={handleAddEmployee}
             viewMode={effectiveViewMode}
             runStatus={currentRun.status}
+            runPeriod={{
+              month: currentRun.periodMonth,
+              year: currentRun.periodYear,
+              endMonth: currentRun.periodEndMonth,
+              endYear: currentRun.periodEndYear,
+            }}
+            finalizedPeriodKeys={finalizedPeriodKeys}
           />
         ) : (
           <div className="flex flex-1 items-center justify-center">

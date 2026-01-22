@@ -17,6 +17,8 @@ export function buildEmployeeRecordFromRunItem(
       employeeId: runItem.employeeSnapshot.employeeId,
       role: runItem.employeeSnapshot.role,
       department: runItem.employeeSnapshot.department,
+      email: runItem.employeeSnapshot.email,
+      phoneNumber: runItem.employeeSnapshot.phoneNumber,
       joinDate: runItem.employeeSnapshot.joinDate,
       exitDate: runItem.employeeSnapshot.exitDate,
       bankName: runItem.employeeSnapshot.bankName,

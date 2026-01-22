@@ -199,6 +199,7 @@ code {
   html,
   body {
     overscroll-behavior: none;
+    box-sizing: border-box;
   }
 }
 
@@ -228,4 +229,3 @@ code {
     touch-action: pan-y;
   }
 }
-

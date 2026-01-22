@@ -75,7 +75,14 @@ const sampleEmployees: EmployeeRecord[] = [
         {
           id: generateId(),
           fromMonth: '2026-01',
+          toMonth: '2026-12',
           rent: '1200000', // 100k/month = 1.2M/year (rent relief: 240k, capped at 500k)
+        },
+        {
+          id: generateId(),
+          fromMonth: '2025-06',
+          toMonth: '2025-12',
+          rent: '560000',
         },
       ],
       pension: { enabled: true },

@@ -1,3 +1,4 @@
+import type { z } from 'zod';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +16,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { ComputationDetailsSheet } from './computation-details-sheet';
 import {
   Table,
   TableBody,
@@ -35,9 +35,9 @@ import {
 } from 'lucide-react';
 
 import { PayrollComputedItemSchema } from '../domain';
+import { ComputationDetailsSheet } from './computation-details-sheet';
 import { PayrollTableCard } from './payroll-table-card';
 import { getTableRowData, ngnMoneyFormatter } from './payroll-table-utils';
-import type { z } from 'zod';
 
 import type { PayrollRunItem } from '../domain';
 
@@ -51,6 +51,13 @@ interface PayrollTableProps {
   onAdd: () => void;
   viewMode: 'standard' | 'detailed';
   runStatus?: 'draft' | 'final'; // Run status to determine if editing is allowed
+  runPeriod?: {
+    month: number;
+    year: number;
+    endMonth?: number;
+    endYear?: number;
+  };
+  finalizedPeriodKeys?: string[];
 }
 export function PayrollTable({
   runItems = [],
@@ -60,6 +67,8 @@ export function PayrollTable({
   onAdd,
   viewMode,
   runStatus = 'draft',
+  runPeriod,
+  finalizedPeriodKeys = [],
 }: PayrollTableProps) {
   // Pass runStatus to rows for editing control
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -135,7 +144,8 @@ export function PayrollTable({
     {
       key: 'net',
       label: 'Net Pay',
-      className: 'text-right bg-green-50 dark:bg-transparent dark:text-green-500 min-w-[110px]',
+      className:
+        'text-right bg-green-50 dark:bg-transparent dark:text-green-500 min-w-[110px]',
       show: true,
       visible: true,
     }, // Net pay for the current month
@@ -190,6 +200,8 @@ export function PayrollTable({
               onEdit={onEdit}
               onDelete={onDelete}
               runStatus={runStatus}
+              runPeriod={runPeriod}
+              finalizedPeriodKeys={finalizedPeriodKeys}
             />
           ))}
         </div>
@@ -489,9 +501,7 @@ function PayrollTableRow({
             onClick={() => setComputationDrawerOpen(true)}
           >
             <span className="text-destructive/80 font-mono tracking-wide tabular-nums">
-              {rowData.paye != null
-                ? ngnMoneyFormatter(rowData.paye)
-                : '-'}
+              {rowData.paye != null ? ngnMoneyFormatter(rowData.paye) : '-'}
             </span>
           </TableCell>
         );
@@ -563,7 +573,7 @@ function PayrollTableRow({
                 <DropdownMenuContent align="end" className="rounded">
                   <DropdownMenuItem onClick={() => setDetailsDrawerOpen(true)}>
                     <Eye className="size-4" />
-                    View Details
+                    View employee details
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setComputationDrawerOpen(true)}
@@ -696,7 +706,6 @@ function PayrollTableRow({
     </>
   );
 }
-
 
 // interface PayrollTableCardOldProps {
 //   runItem: PayrollRunItem;

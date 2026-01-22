@@ -114,9 +114,12 @@ export const CompensationPeriodSchema = MonthRangeSchema.extend({
   annualTransport: MoneySchema.optional(),
   annualLeaveAllowance: MoneySchema.optional(),
   annualOtherAllowances: MoneySchema.optional(),
+  note: z.string().optional(),
 });
 
-export const RentPeriodSchema = MonthRangeSchema.extend({
+export const RentPeriodSchema = z.object({
+  ...MonthRangeSchema.shape,
+  toMonth: PayrollMonthKeySchema,
   id: IdSchema,
   rent: MoneySchema,
   address: z.string().min(1).optional(),
@@ -430,6 +433,8 @@ export const PayrollRunItemSchema = z.object({
     employeeId: z.string().min(1).optional(),
     role: z.string().min(1).optional(),
     department: z.string().min(1).optional(),
+    email: z.email().optional(),
+    phoneNumber: z.string().min(1).optional(),
     joinDate: IsoDateSchema.optional(),
     exitDate: IsoDateSchema.optional(),
     bankName: z.string().min(1).optional(),
@@ -909,6 +914,8 @@ export function makeRunItemFromEmployee(params: {
       employeeId: employee.identity.employeeId,
       role: employee.identity.role,
       department: employee.identity.department,
+      email: employee.identity.email,
+      phoneNumber: employee.identity.phoneNumber,
       joinDate: employee.identity.joinDate,
       exitDate: employee.identity.exitDate,
       bankName: employee.identity.bankName,
