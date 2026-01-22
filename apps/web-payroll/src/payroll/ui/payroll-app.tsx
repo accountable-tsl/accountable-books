@@ -30,7 +30,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn, useMediaQuery } from '@/lib/utils';
-import { addEmployeeToRun } from '@/payroll/actions/add-employee';
+import {
+  addEmployeeToRun,
+  addEmployeesToRun,
+} from '@/payroll/actions/add-employee';
 import {
   deleteEmployeeRecord,
   upsertEmployeeRecordFromRunItem,
@@ -82,6 +85,7 @@ import {
   SaveIcon,
   Settings2,
   Trash2,
+  Upload,
   UserRoundPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -95,9 +99,11 @@ import {
 import { NIGERIAN_STATES } from '../data/states';
 import { SimpleSelect } from '../simple-select';
 import { logger } from '../utils/logger';
+import { CsvImportDialog } from './csv-import-dialog';
 import { FinalizeDialog } from './finalize-dialog';
 import { PayrollTable } from './payroll-table';
 import { getTableRowData } from './payroll-table-utils';
+import type { EmployeeRecord } from '@/payroll/domain';
 
 import type { StatutoryDeduction } from '../domain/payroll.schemas';
 
@@ -481,7 +487,9 @@ export function Payroll() {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [hasFinalizedRuns, setHasFinalizedRuns] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [csvImportDialogOpen, setCsvImportDialogOpen] = useState(false);
   const isInitialMount = useRef(true);
+  const currentRunRef = useRef<PayrollRun | null>(null);
 
   // Initialize company settings with default values
   const [companyDefaults, setCompanyDefaults] =
@@ -545,6 +553,10 @@ export function Payroll() {
   useEffect(() => {
     setViewMode(isXlScreen ? 'detailed' : 'standard');
   }, [isXlScreen]);
+
+  useEffect(() => {
+    currentRunRef.current = currentRun;
+  }, [currentRun]);
 
   // Switch to a visible tab if current tab is hidden on smaller screens
   useEffect(() => {
@@ -818,7 +830,8 @@ export function Payroll() {
     }
 
     // Skip if still loading initial runs or if there's no currentRun
-    if (isLoadingRuns || !currentRun) return;
+    const run = currentRunRef.current;
+    if (isLoadingRuns || !run) return;
 
     // Debounce by 500ms to avoid triggering multiple async operations when user changes month/year rapidly
     const timeoutId = setTimeout(async () => {
@@ -827,8 +840,8 @@ export function Payroll() {
 
         // Check if the currentRun's period already matches the selected month/year
         if (
-          currentRun.periodMonth === periodMonth &&
-          currentRun.periodYear === periodYear
+          run.periodMonth === periodMonth &&
+          run.periodYear === periodYear
         ) {
           // Period already matches - no action needed
           return;
@@ -838,7 +851,7 @@ export function Payroll() {
         const existingRunEntry = await findRunByPeriod(
           periodMonth,
           periodYear,
-          currentRun.companyId,
+          run.companyId,
         );
 
         if (existingRunEntry) {
@@ -852,9 +865,9 @@ export function Payroll() {
         }
 
         // No existing run found - update currentRun's period if it's a draft
-        if (currentRun.status === 'draft') {
+        if (run.status === 'draft') {
           const updatedRun: PayrollRun = {
-            ...currentRun,
+            ...run,
             periodMonth,
             periodYear,
             // Clear period end if it was set (for multi-period runs)
@@ -872,15 +885,15 @@ export function Payroll() {
           const newRun = makeNewPayrollRun({
             id: generateId(),
             nowIso: getCurrentTimestamp(),
-            companyName: currentRun.companyName,
-            companyId: currentRun.companyId,
+            companyName: run.companyName,
+            companyId: run.companyId,
             periodMonth,
             periodYear,
           });
 
           // Copy settings from current run if they exist
-          if (currentRun.settings) {
-            newRun.settings = currentRun.settings;
+          if (run.settings) {
+            newRun.settings = run.settings;
           }
 
           const savedRun = await saveRun(newRun);
@@ -892,7 +905,7 @@ export function Payroll() {
         logger.error('Error handling period change', error, {
           month,
           year,
-          currentRunId: currentRun?.id,
+          currentRunId: run?.id,
         });
         toast.error('Could not update payroll period', {
           position: isMdScreen ? 'bottom-right' : 'top-center',
@@ -903,7 +916,7 @@ export function Payroll() {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [month, year, currentRun, isLoadingRuns, isMdScreen, refreshRunList]);
+  }, [month, year, isLoadingRuns, isMdScreen, refreshRunList]);
 
   // Handlers for actions
   const handleNewRun = useCallback(async () => {
@@ -1425,6 +1438,40 @@ export function Payroll() {
     }
   }, [currentRun, companyDefaults, isMdScreen, isXlScreen]);
 
+  const handleCsvImport = useCallback(
+    async (employees: EmployeeRecord[]) => {
+      if (!currentRun) return;
+
+      try {
+        // If there are existing employees, replace them (as per design doc)
+        const runToUpdate =
+          currentRun.items.length > 0
+            ? { ...currentRun, items: [] }
+            : currentRun;
+
+        const { run } = await addEmployeesToRun(runToUpdate, employees);
+        setCurrentRun(run);
+
+        toast.success(
+          `Imported ${employees.length} employee${employees.length !== 1 ? 's' : ''}`,
+          {
+            position: isMdScreen ? 'bottom-right' : 'top-center',
+          },
+        );
+      } catch (error) {
+        logger.error('Failed to import employees from CSV', error, {
+          runId: currentRun?.id,
+          employeeCount: employees.length,
+        });
+        toast.error('Could not import employees', {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        });
+        throw error; // Re-throw so dialog can handle it
+      }
+    },
+    [currentRun, isMdScreen],
+  );
+
   const handleEditEmployee = useCallback(
     async (runItem: PayrollRunItem) => {
       if (!currentRun) return;
@@ -1559,14 +1606,32 @@ export function Payroll() {
       //   );
       case 'import':
         return (
-          <div className="flex flex-1 items-center justify-center p-6 text-center">
-            <div className="mx-auto max-w-md space-y-2">
+          <div className="flex flex-1 flex-col items-center justify-center p-6">
+            <div className="mx-auto max-w-md space-y-4 text-center">
               <h2 className="text-lg font-semibold">Import employees</h2>
               <p className="text-muted-foreground text-sm">
-                Bulk import via CSV is coming soon. You can still add employees
-                manually and we&apos;ll keep the experience fast and simple.
+                Upload a CSV file to bulk import employees. Download a template
+                to get started with the correct format.
               </p>
+              <Button
+                onClick={() => setCsvImportDialogOpen(true)}
+                className="mt-4"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import from CSV
+              </Button>
             </div>
+            {currentRun && (
+              <CsvImportDialog
+                open={csvImportDialogOpen}
+                onOpenChange={setCsvImportDialogOpen}
+                onImport={handleCsvImport}
+                periodYear={currentRun.periodYear}
+                periodMonth={currentRun.periodMonth}
+                existingEmployeeCount={currentRun.items.length}
+                isMdScreen={isMdScreen}
+              />
+            )}
           </div>
         );
       case 'journals':

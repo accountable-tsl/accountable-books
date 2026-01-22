@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,10 +11,6 @@ import { Input } from '@/components/ui/input';
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
 } from '@/components/ui/sheet';
 import {
   Table,
@@ -36,8 +32,11 @@ import {
 
 import { PayrollComputedItemSchema } from '../domain';
 import { ComputationDetailsSheet } from './computation-details-sheet';
-import { PayrollTableCard } from './payroll-table-card';
-import { getTableRowData, ngnMoneyFormatter } from './payroll-table-utils';
+import {
+  PayrollTableCard,
+  usePayrollEmployeeEditor,
+} from './payroll-table-card';
+import { ngnMoneyFormatter } from './payroll-table-utils';
 
 import type { PayrollRunItem } from '../domain';
 
@@ -254,6 +253,8 @@ export function PayrollTable({
                       onDelete={onDelete}
                       className={cn(runItems.length < 6 ? '!border-b' : '')}
                       runStatus={runStatus}
+                      runPeriod={runPeriod}
+                      finalizedPeriodKeys={finalizedPeriodKeys}
                     />
                   );
                 })}
@@ -290,6 +291,8 @@ interface PayrollTableRowProps {
   onDelete: (runItemId: string) => void;
   className?: string;
   runStatus?: 'draft' | 'final'; // Run status to determine if editing is allowed
+  runPeriod?: PayrollTableProps['runPeriod'];
+  finalizedPeriodKeys?: string[];
 }
 
 function PayrollTableRow({
@@ -301,101 +304,40 @@ function PayrollTableRow({
   onDelete,
   className,
   runStatus = 'draft',
+  runPeriod,
+  finalizedPeriodKeys = [],
 }: PayrollTableRowProps) {
-  const [name, setName] = useState(runItem?.employeeSnapshot?.fullName || '');
-  const [role, setRole] = useState(runItem?.employeeSnapshot?.role || '');
-  const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
-  const [computationDrawerOpen, setComputationDrawerOpen] = useState(false);
-  const [isEditingGross, setIsEditingGross] = useState(false);
-  const [grossInputValue, setGrossInputValue] = useState('');
-  const [editedMonthlyGross, setEditedMonthlyGross] = useState<number | null>(
-    null,
-  );
-  const grossInputRef = useRef<HTMLInputElement>(null);
+  const editor = usePayrollEmployeeEditor({
+    runItem,
+    computedItem,
+    onEdit,
+    runStatus,
+    runPeriod,
+    finalizedPeriodKeys,
+  });
 
-  // Get table row data from runItem and computedItem
-  const rowData = getTableRowData(runItem, computedItem);
-
-  // Derive monthlyGross from runItem data (always up-to-date, no useEffect needed)
-  // Use editedMonthlyGross if we're in the middle of editing
-  const monthlyGross = editedMonthlyGross ?? rowData.monthlyGross;
-
-  // Check if editing is disabled (finalized runs)
-  const isReadOnly = runStatus === 'final';
-
-  const handleNameBlur = () => {
-    if (name !== runItem.employeeSnapshot.fullName) {
-      onEdit({
-        ...runItem,
-        employeeSnapshot: {
-          ...runItem.employeeSnapshot,
-          fullName: name,
-        },
-      });
-    }
-  };
-
-  const handleRoleBlur = () => {
-    if (role !== runItem.employeeSnapshot.role) {
-      onEdit({
-        ...runItem,
-        employeeSnapshot: {
-          ...runItem.employeeSnapshot,
-          role: role || undefined,
-        },
-      });
-    }
-  };
-
-  const handleGrossBlur = () => {
-    // Parse the input value and round to 2 decimal places
-    const parsedValue = parseFloat(grossInputValue) || 0;
-    const roundedValue = Math.round(parsedValue * 100) / 100;
-
-    // Clear the edited value - it will now derive from runItem data
-    setEditedMonthlyGross(null);
-
-    // Calculate annual gross from rounded monthly value
-    const annualGross = roundedValue * 12;
-
-    const currentComp = runItem.payProfileSnapshot.compensationHistory[0];
-    const currentAnnualGross = parseFloat(currentComp.annualGross);
-    const newAnnualGrossRounded = Math.round(annualGross * 100) / 100;
-
-    if (newAnnualGrossRounded !== currentAnnualGross) {
-      const nextComp = {
-        ...currentComp,
-        id: currentComp.id ?? crypto.randomUUID(),
-        annualGross: newAnnualGrossRounded.toFixed(2),
-        annualBasic: undefined,
-        annualHousing: undefined,
-        annualTransport: undefined,
-      };
-      // Update compensation history with calculated BHT breakdown
-      onEdit({
-        ...runItem,
-        payProfileSnapshot: {
-          ...runItem.payProfileSnapshot,
-          compensationHistory: [nextComp],
-        },
-      });
-    }
-    setIsEditingGross(false);
-    setGrossInputValue('');
-  };
-
-  const handleGrossFocus = () => {
-    // Store the current value in editedMonthlyGross so it doesn't change while editing
-    setEditedMonthlyGross(monthlyGross);
-    // Initialize input with current value formatted to 2 decimal places
-    const formattedValue = monthlyGross === 0 ? '' : monthlyGross.toFixed(2);
-    setGrossInputValue(formattedValue);
-    setIsEditingGross(true);
-    // Select all text when focusing for easy replacement
-    setTimeout(() => {
-      grossInputRef.current?.select();
-    }, 0);
-  };
+  const {
+    rowData,
+    isReadOnly,
+    name,
+    setName,
+    role,
+    setRole,
+    commitEmployeeEdits,
+    detailsDrawerOpen,
+    setDetailsDrawerOpen,
+    handleDetailsDrawerOpenChange,
+    computationDrawerOpen,
+    setComputationDrawerOpen,
+    isEditingGross,
+    grossInputValue,
+    setGrossInputValue,
+    grossInputRef,
+    handleGrossBlur,
+    handleGrossFocus,
+    monthlyGross,
+    renderDetailsPanel,
+  } = editor;
 
   // Helper to render cell content based on header key
   const renderCell = (header: HeaderConfig) => {
@@ -408,7 +350,7 @@ function PayrollTableRow({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onBlur={handleNameBlur}
+              onBlur={commitEmployeeEdits}
               disabled={isReadOnly}
               className="border-border/50 bg-background focus-visible:ring-ring focus-visible:border-ring h-8 rounded border p-1.5 font-normal disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="Name"
@@ -422,7 +364,7 @@ function PayrollTableRow({
             <Input
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              onBlur={handleRoleBlur}
+              onBlur={commitEmployeeEdits}
               disabled={isReadOnly}
               placeholder="Role"
               className="border-border/50 bg-background focus-visible:ring-ring focus-visible:border-ring h-8 rounded border p-1.5 font-normal disabled:cursor-not-allowed disabled:opacity-50"
@@ -606,90 +548,9 @@ function PayrollTableRow({
       </TableRow>
 
       {/* View Details Sheet */}
-      <Sheet open={detailsDrawerOpen} onOpenChange={setDetailsDrawerOpen}>
+      <Sheet open={detailsDrawerOpen} onOpenChange={handleDetailsDrawerOpenChange}>
         <SheetContent side="right" className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>Employee Details</SheetTitle>
-            <SheetDescription>
-              View and edit employee information and compensation details
-            </SheetDescription>
-          </SheetHeader>
-          <div className="scrollbar-thin-2px space-y-4 overflow-y-auto py-4">
-            <div className="">
-              <label className="text-muted-foreground text-sm">Full Name</label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Employee name"
-                className="rounded text-sm"
-              />
-            </div>
-            <div className="">
-              <label className="text-muted-foreground text-sm">
-                Role/Position
-              </label>
-              <Input
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                onBlur={handleRoleBlur}
-                placeholder="Job title"
-                className="rounded text-sm"
-              />
-            </div>
-            <div className="">
-              <label className="text-muted-foreground text-sm">
-                Monthly Basic Salary
-              </label>
-              <Input
-                type="number"
-                value={monthlyGross}
-                onChange={(e) => {
-                  if (isReadOnly) return;
-                  const monthly = parseFloat(e.target.value) || 0;
-                  setEditedMonthlyGross(monthly);
-                  const annualGross = monthly * 12;
-                  // Update runItem compensation
-                  const currentComp =
-                    runItem.payProfileSnapshot.compensationHistory[0];
-                  const nextComp = {
-                    ...currentComp,
-                    id: currentComp.id ?? crypto.randomUUID(),
-                    annualGross: annualGross.toFixed(2),
-                    annualBasic: undefined,
-                    annualHousing: undefined,
-                    annualTransport: undefined,
-                  };
-                  onEdit({
-                    ...runItem,
-                    payProfileSnapshot: {
-                      ...runItem.payProfileSnapshot,
-                      compensationHistory: [nextComp],
-                    },
-                  });
-                }}
-                disabled={isReadOnly}
-                placeholder="0.00"
-                className="rounded text-sm disabled:cursor-not-allowed disabled:opacity-50"
-              />
-            </div>
-          </div>
-          <SheetFooter>
-            <Button
-              onClick={() => {
-                handleGrossBlur();
-                handleRoleBlur();
-                setDetailsDrawerOpen(false);
-              }}
-            >
-              Save Changes
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setDetailsDrawerOpen(false)}
-            >
-              Cancel
-            </Button>
-          </SheetFooter>
+          {renderDetailsPanel('sheet')}
         </SheetContent>
       </Sheet>
 
