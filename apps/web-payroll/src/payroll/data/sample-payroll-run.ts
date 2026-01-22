@@ -85,9 +85,6 @@ const sampleEmployees: EmployeeRecord[] = [
           rent: '560000',
         },
       ],
-      pension: { enabled: true },
-      nhf: { enabled: true },
-      nhis: { enabled: false },
     },
   },
   // Employee 3: Lower salary, minimal deductions
@@ -112,9 +109,7 @@ const sampleEmployees: EmployeeRecord[] = [
           annualGross: '4500000', // 375k/month
         },
       ],
-      pension: { enabled: true },
-      nhf: { enabled: false },
-      nhis: { enabled: false },
+
     },
   },
 ];
