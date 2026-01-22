@@ -127,7 +127,7 @@ export function generateCsvTemplate(
     const referenceRows = [
       '',
       '#REF States:,' + NIGERIAN_STATES.join(', '),
-      '#REF PFA keys (lowercase): ' + PFA_KEYS.join(', '),
+      '#REF PFA keys (lowercase):,' + PFA_KEYS.join(', '),
       '#REF Period Type:, monthly, annual',
     ];
 
