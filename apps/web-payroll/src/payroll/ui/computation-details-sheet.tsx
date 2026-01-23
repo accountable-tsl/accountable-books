@@ -63,7 +63,8 @@ export function ComputationDetailsSheet({
   const formatPlainNumber = (value: number) =>
     new Intl.NumberFormat('en-NG', { maximumFractionDigits: 2 }).format(value);
 
-  const formatRateLabel = (value: number) => `${(value * 100).toFixed(0)}% rate`;
+  const formatRateLabel = (value: number) =>
+    `${(value * 100).toFixed(0)}% rate`;
 
   const DetailRow = ({
     label,
@@ -82,7 +83,9 @@ export function ComputationDetailsSheet({
       <span className="text-muted-foreground text-sm">{label}</span>
       <span className={cn('text-sm font-medium tabular-nums', valueClassName)}>
         {typeof value === 'number'
-          ? (formatValue ? formatValue(value) : ngnMoneyFormatter(value, 2))
+          ? formatValue
+            ? formatValue(value)
+            : ngnMoneyFormatter(value, 2)
           : (value ?? '-')}
       </span>
     </div>
@@ -183,9 +186,7 @@ export function ComputationDetailsSheet({
         },
         {
           label: 'Life insurance (one-off)',
-          value: isPositiveMoney(
-            allowableVoluntaryOneOff.lifeInsurancePremium,
-          ),
+          value: isPositiveMoney(allowableVoluntaryOneOff.lifeInsurancePremium),
         },
       ].filter((entry) => entry.value != null)
     : [];
@@ -217,7 +218,7 @@ export function ComputationDetailsSheet({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex flex-col bg-muted/10 flex-1 overflow-y-auto touch-pan-y">
+          <div className="bg-muted/10 flex flex-1 touch-pan-y flex-col overflow-y-auto">
             <div className="space-y-4 p-4 sm:p-6">
               {/* Net Pay Hero Card */}
               <div className="bg-card rounded border p-4 shadow-sm">
@@ -240,8 +241,8 @@ export function ComputationDetailsSheet({
                     Earnings
                   </div>
                 </div>
-                <div className="flex flex-col bg-card rounded border">
-                  <div className="p-4 pb-2 flex flex-col">
+                <div className="bg-card flex flex-col rounded border">
+                  <div className="flex flex-col p-4 pb-2">
                     <DetailRow
                       label="Basic Salary"
                       value={rowData.monthlyBasic}
@@ -288,8 +289,8 @@ export function ComputationDetailsSheet({
                     Deductions
                   </div>
                 </div>
-                <div className="flex flex-col bg-card rounded border">
-                  <div className="p-4 pb-1 flex flex-col">
+                <div className="bg-card flex flex-col rounded border">
+                  <div className="flex flex-col p-4 pb-1">
                     <DetailRow label="PAYE Tax" value={rowData.paye} />
                     <DetailRow
                       label="Pension (Employee)"
@@ -300,16 +301,17 @@ export function ComputationDetailsSheet({
 
                     {showOtherDeductions &&
                       rowData.totalDeductions != null &&
-                      (rowData.employeeNhf || 0) + (rowData.employeeNhis || 0) <
+                      (rowData.employeePension || 0) +
+                        (rowData.employeeNhf || 0) +
+                        (rowData.employeeNhis || 0) <
                         rowData.totalDeductions && (
                         <DetailRow
                           label="Other Deductions"
                           value={
                             rowData.totalDeductions -
+                            (rowData.employeePension || 0) -
                             (rowData.employeeNhf || 0) -
-                            (rowData.employeeNhis || 0) -
-                            rowData.employeePension -
-                            (rowData.paye || 0)
+                            (rowData.employeeNhis || 0)
                           }
                         />
                       )}
@@ -325,9 +327,7 @@ export function ComputationDetailsSheet({
                         const paye = rowData.paye || 0;
                         const otherDeductions = rowData.totalDeductions || 0;
                         const total = paye + otherDeductions;
-                        return total > 0
-                          ? ngnMoneyFormatter(total, 2)
-                          : '-';
+                        return total > 0 ? ngnMoneyFormatter(total, 2) : '-';
                       })()}
                     </span>
                   </div>
@@ -386,10 +386,7 @@ export function ComputationDetailsSheet({
                           label="Allowable deductions (annual)"
                           value={allowableDeductionsTotal}
                         />
-                        <DetailRow
-                          label="Annual rent"
-                          value={annualRent}
-                        />
+                        <DetailRow label="Annual rent" value={annualRent} />
                         <DetailRow
                           label="Rent relief (annual)"
                           value={
@@ -427,15 +424,15 @@ export function ComputationDetailsSheet({
 
                       {hasTaxBandBreakdown && (
                         <div className="border-t pt-3">
-                          <div className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+                          <div className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
                             Tax band detail
                           </div>
-                          <div className="mt-2 grid text-xs font-semibold text-muted-foreground sm:grid-cols-[2fr_1fr_1fr]">
+                          <div className="text-muted-foreground mt-2 grid text-xs font-semibold sm:grid-cols-[2fr_1fr_1fr]">
                             <span>Band</span>
                             <span className="text-right">Taxable</span>
                             <span className="text-right">Tax</span>
                           </div>
-                          <div className="mt-2 space-y-2 text-sm text-foreground">
+                          <div className="text-foreground mt-2 space-y-2 text-sm">
                             {taxBandBreakdownEntries.map((band) => (
                               <div
                                 key={`${band.label}-${band.rate}`}
@@ -467,7 +464,7 @@ export function ComputationDetailsSheet({
 
                       {hasAllowableBreakdown && (
                         <div className="border-t pt-3">
-                          <div className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+                          <div className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
                             Allowable deductions breakdown
                           </div>
                           <div className="mt-2 space-y-1">
