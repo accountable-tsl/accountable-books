@@ -32,6 +32,55 @@ const TAX_BANDS = [
   { min: 50000000, max: Number.POSITIVE_INFINITY, rate: 0.25 },
 ] as const;
 
+const BAND_LABEL_FORMATTER = new Intl.NumberFormat('en-NG', {
+  maximumFractionDigits: 0,
+});
+
+export interface TaxBandBreakdownEntry {
+  label: string;
+  rate: number;
+  taxableAmount: number;
+  taxAmount: number;
+}
+
+function getBandLabel(band: typeof TAX_BANDS[number]): string {
+  const lower = BAND_LABEL_FORMATTER.format(band.min);
+  const range =
+    band.max === Number.POSITIVE_INFINITY
+      ? `Above ₦${lower}`
+      : `₦${lower} - ₦${BAND_LABEL_FORMATTER.format(band.max)}`;
+  return range;
+}
+
+function computeAnnualTaxWithBreakdown(
+  annualTaxableIncome: number,
+): { annualTax: number; breakdown: TaxBandBreakdownEntry[] } {
+  const normalizedIncome = Math.max(0, annualTaxableIncome);
+  let tax = 0;
+  const breakdown: TaxBandBreakdownEntry[] = [];
+
+  for (const band of TAX_BANDS) {
+    if (normalizedIncome <= band.min) {
+      break;
+    }
+    const upper = Math.min(normalizedIncome, band.max);
+    const amountInBand = Math.max(0, upper - band.min);
+    if (amountInBand <= 0) {
+      continue;
+    }
+    const taxForBand = amountInBand * band.rate;
+    breakdown.push({
+      label: getBandLabel(band),
+      rate: band.rate,
+      taxableAmount: amountInBand,
+      taxAmount: taxForBand,
+    });
+    tax += taxForBand;
+  }
+
+  return { annualTax: tax, breakdown };
+}
+
 /**
  * Nigerian minimum wage exemption (2026)
  *
@@ -57,17 +106,7 @@ const MINIMUM_WAGE_ANNUAL = MINIMUM_WAGE_MONTHLY * 12;
  * @returns Annual tax amount
  */
 function computeAnnualTax(annualTaxableIncome: number): number {
-  const x = Math.max(0, annualTaxableIncome);
-  let tax = 0;
-
-  for (const band of TAX_BANDS) {
-    if (x <= band.min) break;
-    const upper = Math.min(x, band.max);
-    const amountInBand = Math.max(0, upper - band.min);
-    tax += amountInBand * band.rate;
-  }
-
-  return tax;
+  return computeAnnualTaxWithBreakdown(annualTaxableIncome).annualTax;
 }
 
 /**
@@ -114,6 +153,8 @@ export interface ComputePayeResult {
   taxDueYtd?: number;
   /** Tax already withheld YTD (if YTD flow) */
   taxWithheldYtd?: number;
+  /** Tax band breakdown used for the annual tax computation */
+  taxBandBreakdown: TaxBandBreakdownEntry[];
 }
 
 /**
@@ -172,12 +213,19 @@ export function computePaye(params: {
   // Calculate annual taxable income and tax
   const annualTaxableIncome =
     annualTaxableGross - annualRentRelief - annualAllowableDeductions;
-  // Apply minimum wage exemption: if annual gross is at or below minimum wage,
-  // tax must be zero regardless of computed taxable income.
-  const annualTax =
+  const annualTaxDetails =
     annualTaxableGross <= MINIMUM_WAGE_ANNUAL
-      ? 0
-      : computeAnnualTax(annualTaxableIncome);
+      ? { annualTax: 0, breakdown: [] as TaxBandBreakdownEntry[] }
+      : computeAnnualTaxWithBreakdown(annualTaxableIncome);
+  const annualTax = annualTaxDetails.annualTax;
+  const taxBandBreakdown = annualTaxDetails.breakdown;
+  const baseResult = {
+    annualRent,
+    annualRentRelief,
+    annualTaxableIncome,
+    annualTax,
+    taxBandBreakdown,
+  };
 
   // YTD flow (default)
   if (enableYtd !== false) {
@@ -185,21 +233,14 @@ export function computePaye(params: {
     if (workedMonthUnits == null || taxWithheldYtd == null) {
       return {
         paye: undefined,
-        annualRent,
-        annualRentRelief,
-        annualTaxableIncome,
-        annualTax,
+        ...baseResult,
       };
     }
-
     // If no months worked, cannot compute
     if (workedMonthUnits === 0) {
       return {
         paye: undefined,
-        annualRent,
-        annualRentRelief,
-        annualTaxableIncome,
-        annualTax,
+        ...baseResult,
       };
     }
 
@@ -212,12 +253,9 @@ export function computePaye(params: {
     // Ensure non-negative (shouldn't happen, but safety check)
     return {
       paye: Math.max(0, payeThisMonth),
-      annualRent,
-      annualRentRelief,
-      annualTaxableIncome,
-      annualTax,
       taxDueYtd,
       taxWithheldYtd,
+      ...baseResult,
     };
   }
 
@@ -225,10 +263,7 @@ export function computePaye(params: {
   // Convert to monthly PAYE
   return {
     paye: annualTax / 12,
-    annualRent,
-    annualRentRelief,
-    annualTaxableIncome,
-    annualTax,
+    ...baseResult,
   };
 }
 
@@ -252,4 +287,3 @@ function calculateRentReliefFromAnnualRent(annualRent: number): number {
   const relief = Math.min(annualRent * RENT_RELIEF_RATE, RENT_RELIEF_CAP);
   return Math.max(0, relief);
 }
-

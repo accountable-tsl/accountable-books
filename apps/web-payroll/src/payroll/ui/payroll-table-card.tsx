@@ -4552,6 +4552,7 @@ export function PayrollTableCard({
         open={computationDrawerOpen}
         onOpenChange={setComputationDrawerOpen}
         rowData={rowData}
+        computedItem={computedItem}
         employeeName={name}
         side="bottom"
       />

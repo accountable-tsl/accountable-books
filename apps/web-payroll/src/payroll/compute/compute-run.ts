@@ -803,6 +803,12 @@ async function computeRunItem(
       taxWithheldYtd: payeResult?.taxWithheldYtd != null ? numberToMoney(payeResult.taxWithheldYtd) : undefined,
       currentMonthPaye: numberToMoney(finalPaye ?? 0),
     },
+    taxBandBreakdown: payeResult?.taxBandBreakdown?.map((band) => ({
+      label: band.label,
+      rate: band.rate,
+      taxableAmount: numberToMoney(band.taxableAmount),
+      taxAmount: numberToMoney(band.taxAmount),
+    })),
     oneOffAllowances: {
       total: numberToMoney(
         (runItem.edits?.oneOffAllowances?.reduce((sum, item) => sum + moneyToNumber(item.amount), 0) ?? 0),

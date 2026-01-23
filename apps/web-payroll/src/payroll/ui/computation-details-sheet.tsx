@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import {
   Building2,
+  Calculator,
   ChevronDown,
   CreditCard,
   // Landmark,
@@ -24,12 +25,14 @@ import {
 
 import { ngnMoneyFormatter } from './payroll-table-utils';
 
+import type { PayrollComputedItem } from '../domain';
 import type { TableRowData } from './payroll-table-utils';
 
 interface ComputationDetailsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   rowData: TableRowData;
+  computedItem?: PayrollComputedItem;
   employeeName: string;
   side?: 'left' | 'right' | 'top' | 'bottom';
   showCompensationBreakdown?: boolean;
@@ -40,35 +43,165 @@ export function ComputationDetailsSheet({
   open,
   onOpenChange,
   rowData,
+  computedItem,
   employeeName,
   side = 'right',
   // showCompensationBreakdown = false,
   showOtherDeductions = false,
 }: ComputationDetailsSheetProps) {
   const [isEmployerCostOpen, setIsEmployerCostOpen] = useState(false);
+  const [isPayeDetailsOpen, setIsPayeDetailsOpen] = useState(false);
   const sheetClassName =
     side === 'bottom' ? 'max-h-[85vh]' : 'w-full sm:max-w-lg';
+
+  const moneyToNumber = (value?: string | null) => {
+    if (value == null) return undefined;
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const formatPlainNumber = (value: number) =>
+    new Intl.NumberFormat('en-NG', { maximumFractionDigits: 2 }).format(value);
+
+  const formatRateLabel = (value: number) => `${(value * 100).toFixed(0)}% rate`;
 
   const DetailRow = ({
     label,
     value,
     className,
     valueClassName,
+    formatValue,
   }: {
     label: string;
     value: string | number | null | undefined;
     className?: string;
     valueClassName?: string;
+    formatValue?: (value: number) => string;
   }) => (
     <div className={cn('flex justify-between py-1', className)}>
       <span className="text-muted-foreground text-sm">{label}</span>
       <span className={cn('text-sm font-medium tabular-nums', valueClassName)}>
         {typeof value === 'number'
-          ? ngnMoneyFormatter(value, 2)
+          ? (formatValue ? formatValue(value) : ngnMoneyFormatter(value, 2))
           : (value ?? '-')}
       </span>
     </div>
   );
+
+  const taxBreakdown = computedItem?.taxBreakdown;
+  const taxCalculation = taxBreakdown?.taxCalculation;
+  const annualizedGross =
+    taxBreakdown?.usedYtd && taxBreakdown?.ytd
+      ? moneyToNumber(taxBreakdown.ytd.projectedAnnualGross)
+      : rowData.monthlyGross * 12;
+  const allowableDeductionsTotal = moneyToNumber(
+    taxBreakdown?.allowableDeductions.total,
+  );
+  const annualRent = moneyToNumber(taxBreakdown?.rentRelief.annualRent);
+  const rentRelief = moneyToNumber(taxBreakdown?.rentRelief.reliefAmount);
+  const annualTaxableIncome = moneyToNumber(
+    taxCalculation?.annualTaxableIncome,
+  );
+  const annualTax = moneyToNumber(taxCalculation?.annualTax);
+  const taxDueYtd = moneyToNumber(taxCalculation?.taxDueYtd);
+  const taxWithheldYtd = moneyToNumber(taxCalculation?.taxWithheldYtd);
+  const currentMonthPaye = moneyToNumber(taxCalculation?.currentMonthPaye);
+
+  const allowableStatutory = taxBreakdown?.allowableDeductions.statutory;
+  const allowableVoluntaryRecurring =
+    taxBreakdown?.allowableDeductions.voluntaryRecurring;
+  const allowableVoluntaryOneOff =
+    taxBreakdown?.allowableDeductions.voluntaryOneOff;
+  const isPositiveMoney = (value?: string | null) => {
+    const parsed = moneyToNumber(value);
+    return parsed != null && parsed > 0 ? parsed : undefined;
+  };
+
+  const statutoryEntries = allowableStatutory
+    ? [
+        {
+          label: 'Statutory pension',
+          value: isPositiveMoney(allowableStatutory.pension),
+        },
+        {
+          label: 'Statutory NHF',
+          value: isPositiveMoney(allowableStatutory.nhf),
+        },
+        {
+          label: 'Statutory NHIS',
+          value: isPositiveMoney(allowableStatutory.nhis),
+        },
+      ].filter((entry) => entry.value != null)
+    : [];
+  const voluntaryRecurringEntries = allowableVoluntaryRecurring
+    ? [
+        {
+          label: 'Voluntary pension (recurring)',
+          value: isPositiveMoney(allowableVoluntaryRecurring.pension),
+        },
+        {
+          label: 'Voluntary NHF (recurring)',
+          value: isPositiveMoney(allowableVoluntaryRecurring.nhf),
+        },
+        {
+          label: 'Voluntary NHIS (recurring)',
+          value: isPositiveMoney(allowableVoluntaryRecurring.nhis),
+        },
+        {
+          label: 'Mortgage interest (recurring)',
+          value: isPositiveMoney(
+            allowableVoluntaryRecurring.ownerOccupiedMortgageInterest,
+          ),
+        },
+        {
+          label: 'Life insurance (recurring)',
+          value: isPositiveMoney(
+            allowableVoluntaryRecurring.lifeInsurancePremium,
+          ),
+        },
+      ].filter((entry) => entry.value != null)
+    : [];
+  const voluntaryOneOffEntries = allowableVoluntaryOneOff
+    ? [
+        {
+          label: 'Voluntary pension (one-off)',
+          value: isPositiveMoney(allowableVoluntaryOneOff.pension),
+        },
+        {
+          label: 'Voluntary NHF (one-off)',
+          value: isPositiveMoney(allowableVoluntaryOneOff.nhf),
+        },
+        {
+          label: 'Voluntary NHIS (one-off)',
+          value: isPositiveMoney(allowableVoluntaryOneOff.nhis),
+        },
+        {
+          label: 'Mortgage interest (one-off)',
+          value: isPositiveMoney(
+            allowableVoluntaryOneOff.ownerOccupiedMortgageInterest,
+          ),
+        },
+        {
+          label: 'Life insurance (one-off)',
+          value: isPositiveMoney(
+            allowableVoluntaryOneOff.lifeInsurancePremium,
+          ),
+        },
+      ].filter((entry) => entry.value != null)
+    : [];
+  const hasAllowableBreakdown =
+    statutoryEntries.length > 0 ||
+    voluntaryRecurringEntries.length > 0 ||
+    voluntaryOneOffEntries.length > 0;
+
+  const taxBandBreakdownEntries =
+    taxBreakdown?.taxBandBreakdown?.map((band) => ({
+      label: band.label,
+      rate: band.rate,
+      taxableAmount: moneyToNumber(band.taxableAmount),
+      taxAmount: moneyToNumber(band.taxAmount),
+    })) ?? [];
+  const hasTaxBandBreakdown = taxBandBreakdownEntries.length > 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -187,13 +320,185 @@ export function ComputationDetailsSheet({
                       Total Deductions
                     </span>
                     <span className="font-bold text-rose-600 tabular-nums dark:text-rose-400">
-                      {rowData.totalDeductions != null
-                        ? ngnMoneyFormatter(rowData.totalDeductions, 2)
-                        : '-'}
+                      {(() => {
+                        // Total deductions includes PAYE + all other deductions
+                        const paye = rowData.paye || 0;
+                        const otherDeductions = rowData.totalDeductions || 0;
+                        const total = paye + otherDeductions;
+                        return total > 0
+                          ? ngnMoneyFormatter(total, 2)
+                          : '-';
+                      })()}
                     </span>
                   </div>
                 </div>
               </div>
+
+              {/* PAYE Computation Details */}
+              {taxBreakdown && (
+                <Collapsible
+                  open={isPayeDetailsOpen}
+                  onOpenChange={setIsPayeDetailsOpen}
+                  className="space-y-2"
+                >
+                  <CollapsibleTrigger asChild>
+                    <button className="bg-muted/30 hover:bg-muted/50 group flex w-full items-center justify-between rounded border p-3 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <Calculator className="text-muted-foreground group-hover:text-foreground h-4 w-4 transition-colors" />
+                        <span className="text-muted-foreground group-hover:text-foreground text-sm font-medium transition-colors">
+                          PAYE computation
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground group-hover:text-foreground text-sm font-semibold tabular-nums">
+                          {currentMonthPaye != null
+                            ? ngnMoneyFormatter(currentMonthPaye, 2)
+                            : rowData.paye != null
+                              ? ngnMoneyFormatter(rowData.paye, 2)
+                              : '-'}
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            'text-muted-foreground h-4 w-4 transition-transform duration-200',
+                            isPayeDetailsOpen && 'rotate-180',
+                          )}
+                        />
+                      </div>
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2 px-1">
+                    <div className="bg-card space-y-3 rounded border p-4 text-sm shadow-sm">
+                      <div className="text-muted-foreground text-xs leading-relaxed">
+                        {taxBreakdown.usedYtd
+                          ? 'PAYE is computed using cumulative YTD: tax due to date minus tax already withheld.'
+                          : 'PAYE is computed from annualized income (annual tax divided by 12).'}
+                      </div>
+                      <div className="space-y-1">
+                        <DetailRow
+                          label={
+                            taxBreakdown.usedYtd
+                              ? 'Projected annual gross'
+                              : 'Annualized gross'
+                          }
+                          value={annualizedGross}
+                        />
+                        <DetailRow
+                          label="Allowable deductions (annual)"
+                          value={allowableDeductionsTotal}
+                        />
+                        <DetailRow
+                          label="Annual rent"
+                          value={annualRent}
+                        />
+                        <DetailRow
+                          label="Rent relief (annual)"
+                          value={
+                            taxBreakdown.rentRelief.applied
+                              ? rentRelief
+                              : 'Not applied'
+                          }
+                        />
+                        <DetailRow
+                          label="Annual taxable income"
+                          value={annualTaxableIncome}
+                          valueClassName="text-base font-semibold"
+                        />
+                        <DetailRow label="Annual tax" value={annualTax} />
+                        {taxBreakdown.usedYtd && (
+                          <>
+                            <DetailRow label="Tax due YTD" value={taxDueYtd} />
+                            <DetailRow
+                              label="Tax withheld YTD"
+                              value={taxWithheldYtd}
+                            />
+                            <DetailRow
+                              label="Worked months"
+                              value={taxBreakdown.ytd?.workedMonthUnits}
+                              formatValue={formatPlainNumber}
+                            />
+                          </>
+                        )}
+                        <DetailRow
+                          label="Current month PAYE"
+                          value={currentMonthPaye ?? rowData.paye}
+                          valueClassName="text-rose-600 dark:text-rose-400 text-base font-semibold"
+                        />
+                      </div>
+
+                      {hasTaxBandBreakdown && (
+                        <div className="border-t pt-3">
+                          <div className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+                            Tax band detail
+                          </div>
+                          <div className="mt-2 grid text-xs font-semibold text-muted-foreground sm:grid-cols-[2fr_1fr_1fr]">
+                            <span>Band</span>
+                            <span className="text-right">Taxable</span>
+                            <span className="text-right">Tax</span>
+                          </div>
+                          <div className="mt-2 space-y-2 text-sm text-foreground">
+                            {taxBandBreakdownEntries.map((band) => (
+                              <div
+                                key={`${band.label}-${band.rate}`}
+                                className="grid items-center gap-2 text-xs sm:grid-cols-[2fr_1fr_1fr]"
+                              >
+                                <div>
+                                  <div className="text-foreground font-medium">
+                                    {band.label}
+                                  </div>
+                                  <div className="text-muted-foreground text-[11px]">
+                                    {formatRateLabel(band.rate)}
+                                  </div>
+                                </div>
+                                <div className="text-right font-semibold">
+                                  {band.taxableAmount != null
+                                    ? ngnMoneyFormatter(band.taxableAmount, 2)
+                                    : '-'}
+                                </div>
+                                <div className="text-right font-semibold text-rose-600 dark:text-rose-400">
+                                  {band.taxAmount != null
+                                    ? ngnMoneyFormatter(band.taxAmount, 2)
+                                    : '-'}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {hasAllowableBreakdown && (
+                        <div className="border-t pt-3">
+                          <div className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+                            Allowable deductions breakdown
+                          </div>
+                          <div className="mt-2 space-y-1">
+                            {statutoryEntries.map((entry) => (
+                              <DetailRow
+                                key={entry.label}
+                                label={entry.label}
+                                value={entry.value}
+                              />
+                            ))}
+                            {voluntaryRecurringEntries.map((entry) => (
+                              <DetailRow
+                                key={entry.label}
+                                label={entry.label}
+                                value={entry.value}
+                              />
+                            ))}
+                            {voluntaryOneOffEntries.map((entry) => (
+                              <DetailRow
+                                key={entry.label}
+                                label={entry.label}
+                                value={entry.value}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
 
               {/* Employer Cost (Collapsible) */}
               {rowData.employerPension && rowData.employerPension > 0 && (

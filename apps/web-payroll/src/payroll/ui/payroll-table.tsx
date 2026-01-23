@@ -559,6 +559,7 @@ function PayrollTableRow({
         open={computationDrawerOpen}
         onOpenChange={setComputationDrawerOpen}
         rowData={rowData}
+        computedItem={computedItem}
         employeeName={name}
         side="right"
         showCompensationBreakdown={viewMode === 'detailed'}

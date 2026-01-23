@@ -471,6 +471,17 @@ export const PayrollRunItemSchema = z.object({
 /**
  * Detailed tax calculation breakdown for explainability and auditability
  */
+export const TaxBandBreakdownItemSchema = z.object({
+  label: z.string(),
+  rate: RateSchema,
+  taxableAmount: MoneySchema,
+  taxAmount: MoneySchema,
+});
+
+export type TaxBandBreakdownItem = z.infer<
+  typeof TaxBandBreakdownItemSchema
+>;
+
 export const TaxBreakdownSchema = z.object({
   /** Whether YTD calculation was used */
   usedYtd: z.boolean(),
@@ -581,6 +592,8 @@ export const TaxBreakdownSchema = z.object({
     /** Proration method used (if prorated) */
     prorationMethod: z.string().optional(),
   }),
+  /** Tax band breakdown (optional) */
+  taxBandBreakdown: z.array(TaxBandBreakdownItemSchema).optional(),
 });
 
 /** Computed result for a single run item (per employee for this run). */
