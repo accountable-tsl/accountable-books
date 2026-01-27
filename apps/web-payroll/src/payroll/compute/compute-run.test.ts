@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PAYROLL_TOOL_SCHEMA_VERSION } from '../domain';
 import { computeRun } from './compute-run';
 
 import type { PayrollRun } from '../domain';
@@ -28,14 +29,27 @@ describe('computeRun', () => {
 
   it('should return empty results for empty run', async () => {
     const run: PayrollRun = {
+      schemaVersion: PAYROLL_TOOL_SCHEMA_VERSION,
       id: 'run-2024-03',
       companyId: 'company-1',
       companyName: 'Test Company',
+      rulesetKey: 'ng',
       periodMonth: 3,
       periodYear: 2024,
       status: 'draft',
       items: [],
-      settings: {},
+      settings: {
+        defaultState: 'Lagos',
+        statutoryDeductions: {
+          pension: { enabled: true, employeeRate: 0.08, employerRate: 0.1 },
+          nhf: { enabled: false, employeeRate: 0.025 },
+          nhis: { enabled: false, employeeRate: 0.05, employerRate: 0.1 },
+        },
+        bhtBreakdown: { basic: 1 },
+        employmentProrationMethod: 'calendar_days',
+        enableRentRelief: true,
+        enableYtd: true,
+      },
       createdAt: '2024-03-01T00:00:00Z',
       updatedAt: '2024-03-01T00:00:00Z',
     };
@@ -49,9 +63,11 @@ describe('computeRun', () => {
 
   it('should compute payroll for run with one employee', async () => {
     const run: PayrollRun = {
+      schemaVersion: PAYROLL_TOOL_SCHEMA_VERSION,
       id: 'run-2024-03',
       companyId: 'company-1',
       companyName: 'Test Company',
+      rulesetKey: 'ng',
       periodMonth: 3,
       periodYear: 2024,
       status: 'draft',
@@ -61,10 +77,6 @@ describe('computeRun', () => {
           employeeSnapshot: {
             fullName: 'John Doe',
             taxId: 'TAX123',
-            identity: {
-              id: 'TAX123',
-              type: 'tax_id',
-            },
           },
           payProfileSnapshot: {
             compensationHistory: [
@@ -80,20 +92,27 @@ describe('computeRun', () => {
         },
       ],
       settings: {
-        pension: {
-          enabled: true,
-          employeeRate: 0.08,
-          employerRate: 0.1,
+        defaultState: 'Lagos',
+        statutoryDeductions: {
+          pension: {
+            enabled: true,
+            employeeRate: 0.08,
+            employerRate: 0.1,
+          },
+          nhf: {
+            enabled: true,
+            employeeRate: 0.025,
+          },
+          nhis: {
+            enabled: true,
+            employeeRate: 0.015,
+            employerRate: 0.015,
+          },
         },
-        nhf: {
-          enabled: true,
-          employeeRate: 0.025,
-        },
-        nhis: {
-          enabled: true,
-          employeeRate: 0.015,
-          employerRate: 0.015,
-        },
+        bhtBreakdown: { basic: 1 },
+        employmentProrationMethod: 'calendar_days',
+        enableRentRelief: true,
+        enableYtd: true,
       },
       createdAt: '2024-03-01T00:00:00Z',
       updatedAt: '2024-03-01T00:00:00Z',

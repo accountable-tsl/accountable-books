@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { PAYROLL_TOOL_SCHEMA_VERSION } from '../domain';
 import { extractYtdData } from './extract-ytd';
 
 import type { PayrollRun, PayrollRunItem } from '../domain';
@@ -19,10 +20,6 @@ describe('extractYtdData', () => {
       employeeSnapshot: {
         fullName: 'John Doe',
         taxId: undefined,
-        identity: {
-          id: undefined,
-          type: 'tax_id',
-        },
       },
       payProfileSnapshot: {
         compensationHistory: [
@@ -38,14 +35,27 @@ describe('extractYtdData', () => {
     };
 
     const run: PayrollRun = {
+      schemaVersion: PAYROLL_TOOL_SCHEMA_VERSION,
       id: 'run-2024-03',
       companyId: 'company-1',
       companyName: 'Test Company',
+      rulesetKey: 'ng',
       periodMonth: 3,
       periodYear: 2024,
       status: 'draft',
       items: [],
-      settings: {},
+      settings: {
+        defaultState: 'Lagos',
+        statutoryDeductions: {
+          pension: { enabled: true, employeeRate: 0.08, employerRate: 0.1 },
+          nhf: { enabled: false, employeeRate: 0.025 },
+          nhis: { enabled: false, employeeRate: 0.05, employerRate: 0.1 },
+        },
+        bhtBreakdown: { basic: 1 },
+        employmentProrationMethod: 'calendar_days',
+        enableRentRelief: true,
+        enableYtd: true,
+      },
       createdAt: '2024-03-01T00:00:00Z',
       updatedAt: '2024-03-01T00:00:00Z',
     };
@@ -61,10 +71,6 @@ describe('extractYtdData', () => {
       employeeSnapshot: {
         fullName: 'John Doe',
         taxId: 'TAX123',
-        identity: {
-          id: 'TAX123',
-          type: 'tax_id',
-        },
       },
       payProfileSnapshot: {
         compensationHistory: [
@@ -80,14 +86,27 @@ describe('extractYtdData', () => {
     };
 
     const run: PayrollRun = {
+      schemaVersion: PAYROLL_TOOL_SCHEMA_VERSION,
       id: 'run-2024-03',
       companyId: 'company-1',
       companyName: 'Test Company',
+      rulesetKey: 'ng',
       periodMonth: 3,
       periodYear: 2024,
       status: 'draft',
       items: [],
-      settings: {},
+      settings: {
+        defaultState: 'Lagos',
+        statutoryDeductions: {
+          pension: { enabled: true, employeeRate: 0.08, employerRate: 0.1 },
+          nhf: { enabled: false, employeeRate: 0.025 },
+          nhis: { enabled: false, employeeRate: 0.05, employerRate: 0.1 },
+        },
+        bhtBreakdown: { basic: 1 },
+        employmentProrationMethod: 'calendar_days',
+        enableRentRelief: true,
+        enableYtd: true,
+      },
       createdAt: '2024-03-01T00:00:00Z',
       updatedAt: '2024-03-01T00:00:00Z',
     };
