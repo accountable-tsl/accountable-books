@@ -19,7 +19,8 @@
     "contracts": "pnpm gen:contracts",
     "demo:apply:basic": "pnpm -F @accountable-books/api run demo:apply:basic",
     "clean": "turbo run clean",
-    "prepare": "is-ci || husky"
+    "prepare": "is-ci || husky",
+    "worker": "pnpm -F @accountable-books/api run worker"
   },
   "keywords": [],
   "author": "Accountable Techserve Inc.",

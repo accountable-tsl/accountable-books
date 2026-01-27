@@ -497,7 +497,16 @@ export function CatEngine() {
 
   // Sync draft transactions with server data
   useEffect(() => {
-    setDraftTransactions(rawTransactions);
+    setDraftTransactions((prev) => {
+      if (prev.length === 0) return rawTransactions;
+      const prevMap = new Map(prev.map((txn) => [txn.bankTransactionId, txn]));
+      return rawTransactions.map((txn) => {
+        if (manager.hasPendingChangesForTransaction(txn.bankTransactionId)) {
+          return prevMap.get(txn.bankTransactionId) ?? txn;
+        }
+        return txn;
+      });
+    });
   }, [rawTransactions]);
 
   // Use draft transactions for display (includes optimistic updates)

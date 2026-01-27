@@ -180,7 +180,7 @@ export async function enqueueGLBalance(
   }
 
   const { companyId, coaId, recalcFrom, recalcTo } = v.data;
-  const jobId = `gl:${companyId}:${coaId}`;
+  const jobId = `gl-${companyId}-${coaId}`;
 
   // Check for existing job and merge or create follow-up as needed
   const existing = await balanceRecalcQueue.getJob(jobId);
@@ -226,7 +226,7 @@ export async function enqueueGLBalance(
 
         // Use deterministic hash to prevent duplicate follow-up jobs for the same range
         const hash = rangeHash(merged.from, merged.to);
-        const followupId = `gl:${companyId}:${coaId}:followup:${hash}`;
+        const followupId = `gl-${companyId}-${coaId}-followup-${hash}`;
 
         const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
           balanceRecalcQueue.add(
@@ -274,7 +274,7 @@ export async function enqueueBankBalance(
   }
 
   const { companyId, bankAccountId, recalcFrom, recalcTo } = v.data;
-  const jobId = `bank:${companyId}:${bankAccountId}`;
+  const jobId = `bank-${companyId}-${bankAccountId}`;
 
   // Check for existing job and merge or create follow-up as needed
   const existing = await balanceRecalcQueue.getJob(jobId);
@@ -320,7 +320,7 @@ export async function enqueueBankBalance(
 
         // Use deterministic hash to prevent duplicate follow-up jobs for the same range
         const hash = rangeHash(merged.from, merged.to);
-        const followupId = `bank:${companyId}:${bankAccountId}:followup:${hash}`;
+        const followupId = `bank-${companyId}-${bankAccountId}-followup-${hash}`;
 
         const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
           balanceRecalcQueue.add(

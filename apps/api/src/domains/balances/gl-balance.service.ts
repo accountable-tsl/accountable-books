@@ -6,6 +6,7 @@ import {
   isValidYMD,
   toYMD,
 } from '../../shared/utils/date.utils.js';
+import { enqueueFillCoverageGaps } from '../reporting/fiscal-calendar/fiscal-calendar.queue.js';
 import { getFiscalCalendar } from '../reporting/fiscal-calendar/fiscal-calendar.service.js';
 import { glBalanceRecalcParamsSchema } from './balances.types.js';
 
@@ -287,8 +288,26 @@ class GLBalanceService {
         periods[0].start_date > startYMD ||
         periods[periods.length - 1].end_date < endYMD
       ) {
+        let enqueueNote = 'Run fillCoverageGaps/monthly generation.';
+        try {
+          await enqueueFillCoverageGaps({
+            type: 'fill-coverage-gaps',
+            companyId: companyUUID,
+            startDate: startYMD,
+            endDate: endYMD,
+            periodTypes: ['monthly'],
+            triggeredBy: 'manual',
+          });
+          enqueueNote =
+            'Enqueued fillCoverageGaps for monthly coverage; retry after it completes.';
+        } catch (error) {
+          enqueueNote = `Failed to enqueue fillCoverageGaps: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
+        }
+
         throw new Error(
-          `Fiscal calendar coverage missing for ${startYMD}..${endYMD}. Run fillCoverageGaps/monthly generation.`,
+          `Fiscal calendar coverage missing for ${startYMD}..${endYMD}. ${enqueueNote}`,
         );
       }
 

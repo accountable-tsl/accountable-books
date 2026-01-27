@@ -39,7 +39,7 @@ export async function enqueueMLPredictionJob(
 ): Promise<void> {
   // Build a deterministic job id for deduplication
   // Use categorization_task_id as the unique identifier
-  const jobId = `${data.companyId}:${data.categorizationTaskId}`;
+  const jobId = `${data.companyId}-${data.categorizationTaskId}`;
 
   const jobOptions: JobsOptions = {
     ...defaultJobOptions,

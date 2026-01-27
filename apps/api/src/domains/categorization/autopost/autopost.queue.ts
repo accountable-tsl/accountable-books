@@ -30,9 +30,9 @@ export const AUTOPOST_QUEUE_NAME = 'categorization-autopost';
 
 // Job data schema
 export const autopostJobDataSchema = z.object({
-  candidateId: z.string().uuid(),
-  companyId: z.string().uuid(),
-  runId: z.string().uuid(),
+  candidateId: z.uuid(),
+  companyId: z.uuid(),
+  runId: z.uuid(),
 });
 
 export type AutopostJobData = z.infer<typeof autopostJobDataSchema>;
@@ -144,7 +144,7 @@ export async function getAutopostQueueStats() {
  */
 export async function removeAutopostJob(candidateId: string): Promise<void> {
   try {
-    const jobId = `autopost:${candidateId}`;
+    const jobId = `autopost-${candidateId}`;
     const job = await autopostQueue.getJob(jobId);
     if (job) {
       await job.remove();

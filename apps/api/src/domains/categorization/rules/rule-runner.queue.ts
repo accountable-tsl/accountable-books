@@ -37,7 +37,7 @@ export async function enqueueRuleRunJob(
   const jobIdBase =
     data.categorization_task_id ?? data.bank_transaction_id ?? undefined;
   const jobId = jobIdBase
-    ? `${data.company_uuid ?? 'company'}:${jobIdBase}`
+    ? `${data.company_uuid ?? 'company'}-${jobIdBase}`
     : undefined;
 
   const jobOptions: JobsOptions = jobId

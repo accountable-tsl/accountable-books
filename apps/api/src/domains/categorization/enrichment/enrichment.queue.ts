@@ -92,8 +92,8 @@ export async function enqueueTransactionEnrichment(
     };
 
     // Use a deterministic job ID for deduplication
-    // Format: enrichment:{companyId}:{timestamp}
-    const jobId = `enrichment:${companyId}:${Date.now()}`;
+    // Format: enrichment-{companyId}-{timestamp}
+    const jobId = `enrichment-${companyId}-${Date.now()}`;
 
     try {
       await executeQueueOperation(QueueName.ENRICHMENT, () =>

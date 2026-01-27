@@ -123,7 +123,7 @@ export async function enqueueFiscalCalendarGeneration(
     throw new Error('yearsForward must be 1-50');
   }
 
-  const jobId = `generate:${companyId}`;
+  const jobId = `generate-${companyId}`;
 
   // Check if job already exists in any active/pending state
   if (await jobExistsOrActive(fiscalCalendarQueue, jobId)) {
@@ -186,7 +186,7 @@ export async function enqueueAutoExtend(p: AutoExtendJobData): Promise<string> {
     throw new Error('minFutureMonths must be 1-120');
   }
 
-  const jobId = `autoextend:${companyId}`;
+  const jobId = `autoextend-${companyId}`;
   if (await jobExistsOrActive(fiscalCalendarQueue, jobId)) {
     console.log(`Auto-extend job already exists for company ${companyId}`);
     return jobId;
@@ -253,7 +253,7 @@ export async function enqueueFillCoverageGaps(
 
   const norm = normalizeTypes(periodTypes);
   const key = `${companyId}:${startDate}:${endDate}:${norm.join(',')}`;
-  const jobId = `fill:${shortHash(key)}`;
+  const jobId = `fill-${shortHash(key)}`;
 
   if (await jobExistsOrActive(fiscalCalendarQueue, jobId)) {
     console.log(

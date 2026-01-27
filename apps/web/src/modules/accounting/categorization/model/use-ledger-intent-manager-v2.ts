@@ -1125,6 +1125,21 @@ export function useLedgerIntentManagerV2() {
     return hasPending;
   }, []);
 
+  const hasPendingChangesForTransaction = useCallback(
+    (bankTransactionId: string) => {
+      const desiredState = desiredStateRef.current.get(bankTransactionId);
+      if (!desiredState) return false;
+      const hasEntries =
+        desiredState.entries && Object.keys(desiredState.entries).length > 0;
+      const hasDeleted =
+        desiredState.deleted_ui_entry_ids &&
+        desiredState.deleted_ui_entry_ids.size > 0;
+      const hasFx = desiredState.custom_exchange_rate !== undefined;
+      return Boolean(hasEntries || hasDeleted || hasFx);
+    },
+    [],
+  );
+
   useEffect(() => {
     return () => {
       debounceTimersRef.current.forEach((timer) => clearTimeout(timer));
@@ -1142,6 +1157,7 @@ export function useLedgerIntentManagerV2() {
     getPendingExchangeRate,
     getPendingTransactionsSummary,
     hasAnyPendingChanges,
+    hasPendingChangesForTransaction,
     isEntryDirty: (bankTransactionId: string, uiEntryId: string) => {
       const desiredState = desiredStateRef.current.get(bankTransactionId);
       return isEntryDirty(uiEntryId, desiredState?.entries);
