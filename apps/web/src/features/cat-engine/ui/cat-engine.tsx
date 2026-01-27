@@ -45,7 +45,7 @@ import {
   LeftCatEngineToolbar,
   RightCatEngineToolbar,
 } from './components/cat-engine-toolbar';
-import { TransactionView } from './components/transaction-view-v2';
+import { TransactionView } from './components/transaction-view';
 import { getCatEngineColumns } from './config/table-columns';
 import { accountElementOrder } from './constants';
 import { testCategorizationTransactions } from './test-data';

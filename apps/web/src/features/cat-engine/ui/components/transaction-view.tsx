@@ -8,7 +8,7 @@ import type {
   LedgerIntentDesiredState,
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
-import type { ComponentProps } from 'react';
+import type { ChangeEvent, ComponentProps, KeyboardEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
@@ -20,13 +20,13 @@ import { AddNewCoaDialog } from '@/features/chart-of-accounts/ui/components/coa-
 import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
 import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
 import { cn } from '@/lib/utils';
-import {
-  createTempEntryId,
-  isTempEntryId,
-  useLedgerIntentUpdater,
-} from '@/modules/accounting/categorization';
+import { useLedgerIntentUpdaterV2 } from '@/modules/accounting/categorization';
 import { useContactsInfinite } from '@/modules/contacts';
 import { getObjectDownloadUrl } from '@/modules/objects/api';
+import {
+  TRANSACTION_FILE_LIMITS,
+  TRANSACTION_FILE_LIMITS_BYTES,
+} from '@/modules/objects/constants';
 import { useUploadTransactionFiles } from '@/modules/objects/model/hooks';
 import { useProjectsInfinite } from '@/modules/projects';
 import {
@@ -34,6 +34,7 @@ import {
   ChevronDown,
   ChevronUp,
   Landmark,
+  Lock,
   Pencil,
   Plus,
   Upload,
@@ -62,8 +63,14 @@ export function TransactionView({
   groupedCoaData = [],
 }: TransactionViewProps) {
   const { companyId } = useSession();
-  const { updateEntry, updateExchangeRate, deleteEntry } =
-    useLedgerIntentUpdater(txn);
+  const {
+    updateEntry,
+    updateExchangeRate,
+    deleteEntry,
+    addEntry,
+    getEntriesUI,
+    getPendingExchangeRate,
+  } = useLedgerIntentUpdaterV2(txn);
 
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(
     new Set(),
@@ -77,9 +84,6 @@ export function TransactionView({
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [coaDialogOpen, setCoaDialogOpen] = useState(false);
-  const [draftTransactionState, setDraftTransactionState] = useState<
-    LedgerIntentDesiredState | undefined
-  >(undefined);
   // Store both server files (CategorizationTransactionFile) and newly uploaded files (File)
   const [draftEntryFiles, setDraftEntryFiles] = useState<
     Map<string, (CategorizationTransactionFile | File)[]>
@@ -89,14 +93,27 @@ export function TransactionView({
   );
   const [_isEditingAmount, setIsEditingAmount] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [draftExchangeRate, setDraftExchangeRate] = useState<number | null>(
+    null,
+  );
   // Map of file key -> presigned URL for server files
   const [presignedUrls, setPresignedUrls] = useState<Map<string, string>>(
     new Map(),
   );
+  // Track file keys whose presigned URL fetch failed
+  const [failedPresignedUrls, setFailedPresignedUrls] = useState<Set<string>>(
+    new Set(),
+  );
   // Map of File object -> blob URL for new files
   const [blobUrls, setBlobUrls] = useState<Map<File, string>>(new Map());
+  const blobUrlsRef = useRef<Map<File, string>>(new Map());
+  const uploadingFilesRef = useRef<Set<string>>(new Set());
   // Track which files have been saved (keyed by entryId:fileName:fileSize)
   const [savedFiles, setSavedFiles] = useState<Set<string>>(new Set());
+  // Local, per-entry drafts to avoid mutating manager state before save.
+  const [draftEntries, setDraftEntries] = useState<
+    Map<string, Partial<LedgerIntentEntry>>
+  >(new Map());
 
   // Helper function to create file key for savedFiles tracking
   const getFileKey = useCallback((entryId: string, file: File) => {
@@ -104,6 +121,10 @@ export function TransactionView({
   }, []);
 
   const uploadTxnFilesMutation = useUploadTransactionFiles();
+
+  useEffect(() => {
+    blobUrlsRef.current = blobUrls;
+  }, [blobUrls]);
 
   const contactsQuery = useContactsInfinite({
     companyId: companyId || '',
@@ -149,6 +170,14 @@ export function TransactionView({
     });
   }, [projectsQuery.data?.pages]);
 
+  const coaLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    groupedCoaData.forEach((group) => {
+      group.items.forEach((item) => map.set(item.value, item.label));
+    });
+    return map;
+  }, [groupedCoaData]);
+
   // const intent = useMemo(() => {
   //   return {
   //     // intent_id: uuidv4(),
@@ -160,130 +189,14 @@ export function TransactionView({
   useEffect(() => {
     if (!txn) return;
 
-    const initialEntries: LedgerIntentEntry[] = (txn.entries || []).map(
-      (entry) => ({
-        entry_id: entry.id,
-        fs_date: entry.fsDate || entry.date,
-        description: entry.description,
-        reference: entry.reference,
-        contact_id: entry.contactId,
-        project_id: entry.projectId,
-        source_amount: entry.nativeAmount,
-        coa_id: entry.coaId || '',
-      }),
-    );
-
-    setDraftTransactionState({
-      custom_exchange_rate: parseFloat(txn.exchangeRate.toString()),
-      entries: initialEntries,
-    });
-
-    // Files by entry id
+    const entriesUI = getEntriesUI();
     const filesByEntryId = new Map<string, CategorizationTransactionFile[]>();
-    txn.entries?.forEach((entry) => {
-      if (!entry.id) return;
-      filesByEntryId.set(entry.id, entry.files || []);
+    entriesUI.forEach((entry) => {
+      if (!entry.uiEntryId) return;
+      filesByEntryId.set(entry.uiEntryId, entry.files || []);
     });
     setDraftEntryFiles(filesByEntryId);
-  }, [txn]); // Only reset when the transaction ID changes
-
-  useEffect(() => {
-    if (!txn.entries?.length || !draftTransactionState?.entries?.length) {
-      return;
-    }
-
-    const tempToRealEntryIds = new Map<string, string>();
-    txn.entries.forEach((entry) => {
-      if (
-        entry.client_ref_id &&
-        entry.id &&
-        isTempEntryId(entry.client_ref_id)
-      ) {
-        tempToRealEntryIds.set(entry.client_ref_id, entry.id);
-      }
-    });
-
-    if (tempToRealEntryIds.size === 0) {
-      return;
-    }
-
-    setDraftTransactionState((prev) => {
-      if (!prev?.entries) return prev;
-      let updated = false;
-      const entries = prev.entries.map((entry) => {
-        const mappedId = entry.entry_id
-          ? tempToRealEntryIds.get(entry.entry_id)
-          : undefined;
-        if (mappedId && entry.entry_id !== mappedId) {
-          updated = true;
-          return { ...entry, entry_id: mappedId };
-        }
-        return entry;
-      });
-      return updated ? { ...prev, entries } : prev;
-    });
-
-    setDraftEntryFiles((prev) => {
-      let updated = false;
-      const next = new Map(prev);
-      tempToRealEntryIds.forEach((realId, tempId) => {
-        const files = next.get(tempId);
-        if (!files) return;
-        next.delete(tempId);
-        const existing = next.get(realId);
-        next.set(realId, existing ? [...existing, ...files] : files);
-        updated = true;
-      });
-      return updated ? next : prev;
-    });
-
-    setSavedFiles((prev) => {
-      if (tempToRealEntryIds.size === 0) return prev;
-      const next = new Set(prev);
-      tempToRealEntryIds.forEach((realId, tempId) => {
-        const files = draftEntryFiles.get(tempId) || [];
-        files.forEach((file) => {
-          if (isServerFile(file)) return;
-          const oldKey = getFileKey(tempId, file);
-          if (next.has(oldKey)) {
-            next.delete(oldKey);
-            next.add(getFileKey(realId, file));
-          }
-        });
-      });
-      return next;
-    });
-
-    setExpandedEntries((prev) => {
-      const next = new Set(prev);
-      let updated = false;
-      tempToRealEntryIds.forEach((realId, tempId) => {
-        if (next.has(tempId)) {
-          next.delete(tempId);
-          next.add(realId);
-          updated = true;
-        }
-      });
-      return updated ? next : prev;
-    });
-
-    setEditing((prev) => {
-      if (!prev) return prev;
-      const mappedId = tempToRealEntryIds.get(prev.entryId);
-      return mappedId ? { ...prev, entryId: mappedId } : prev;
-    });
-
-    setSelectedEntryId((prev) => {
-      if (!prev) return prev;
-      return tempToRealEntryIds.get(prev) ?? prev;
-    });
-  }, [
-    txn.entries,
-    draftTransactionState?.entries,
-    draftEntryFiles,
-    getFileKey,
-    isServerFile,
-  ]);
+  }, [txn, getEntriesUI]);
 
   const toggleEntry = (entryId: string) => {
     const newExpanded = new Set(expandedEntries);
@@ -295,87 +208,227 @@ export function TransactionView({
     setExpandedEntries(newExpanded);
   };
 
-  function getDraftEntry(entryId: string) {
-    return draftTransactionState?.entries?.find((e) => e.entry_id === entryId);
+  const entriesUI = getEntriesUI();
+  // Index entries by UI id to avoid repeated linear searches.
+  const entriesUIById = useMemo(() => {
+    const map = new Map<string, (typeof entriesUI)[number]>();
+    entriesUI.forEach((entry) => map.set(entry.uiEntryId, entry));
+    return map;
+  }, [entriesUI]);
+
+  function getEntryUI(entryId: string) {
+    const entry = entriesUIById.get(entryId);
+    if (!entry) return undefined;
+    const draft = draftEntries.get(entryId);
+    return draft ? { ...entry, ...draft } : entry;
   }
-  function updateDraftEntry(
+
+  function getBaseEntryUI(entryId: string) {
+    return entriesUIById.get(entryId);
+  }
+
+  function updateEntryDraft(
     entryId: string,
     patch: Partial<LedgerIntentEntry>,
   ) {
-    setDraftTransactionState((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        entries: prev.entries?.map((e) =>
-          e.entry_id === entryId ? { ...e, ...patch } : e,
-        ),
-      };
+    if (!getBaseEntryUI(entryId)) return;
+    setDraftEntries((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(entryId) || {};
+      next.set(entryId, { ...existing, ...patch });
+      return next;
     });
   }
 
-  function updateTxnLevelDraft(
-    patch: Partial<Omit<LedgerIntentDesiredState, 'entries'>>,
-  ) {
-    setDraftTransactionState((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        ...patch,
-      };
-    });
-  }
+  // Clear a single draft field after a successful commit.
+  const clearDraftField = useCallback(
+    (entryId: string, field: keyof LedgerIntentEntry) => {
+      setDraftEntries((prev) => {
+        const current = prev.get(entryId);
+        if (!current || !(field in current)) return prev;
+        const next = new Map(prev);
+        const updated = { ...current };
+        delete updated[field];
+        if (Object.keys(updated).length === 0) {
+          next.delete(entryId);
+        } else {
+          next.set(entryId, updated);
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   function resetDraftEntryFromTxn(entryId: string) {
-    const serverEntry = txn.entries?.find((e) => e.id === entryId);
-    if (!serverEntry) return;
-
-    updateDraftEntry(entryId, {
-      coa_id: serverEntry.coaId ?? '',
-      contact_id: serverEntry.contactId,
-      project_id: serverEntry.projectId,
-      description: serverEntry.description,
-      reference: serverEntry.reference,
+    if (!getBaseEntryUI(entryId)) return;
+    setDraftEntries((prev) => {
+      if (!prev.has(entryId)) return prev;
+      const next = new Map(prev);
+      next.delete(entryId);
+      return next;
     });
   }
 
   function hasEntryChanged(entryId: string): boolean {
-    const draft = getDraftEntry(entryId);
+    const draft = draftEntries.get(entryId);
     if (!draft) return false;
 
-    // New entries are always considered changed
-    // Check if entry exists in transaction (more robust than string prefix)
-    const existsInTransaction =
-      txn.hasMultipleEntries && txn.entries
-        ? txn.entries.some((e) => e.id === entryId)
-        : entryId === txn.id;
+    const base = getBaseEntryUI(entryId);
+    if (!base) return false;
 
-    if (!existsInTransaction) {
-      return true; // New entry
+    const server = txn.entries?.find((e) => {
+      const ledgerEntryId = base.ledgerEntryId || base.uiEntryId;
+      return e.ledgerEntryId === ledgerEntryId || e.id === ledgerEntryId;
+    });
+
+    if (!server) {
+      return true;
     }
 
-    // Compare with server state directly
-    const server = txn.entries?.find((e) => e.id === entryId);
-    if (!server) return false;
+    const fields: Array<keyof LedgerIntentEntry> = [
+      'coa_id',
+      'contact_id',
+      'project_id',
+      'description',
+      'reference',
+      'source_amount',
+      'fs_date',
+      'review_notes',
+    ];
 
-    return (
-      draft.coa_id !== (server.coaId ?? '') ||
-      draft.contact_id !== server.contactId ||
-      draft.project_id !== server.projectId ||
-      draft.description !== server.description ||
-      draft.reference !== server.reference ||
-      draft.source_amount !== server.nativeAmount
-    );
+    for (const field of fields) {
+      if (!(field in draft)) continue;
+      const draftValue = draft[field];
+      let serverValue: unknown;
+      switch (field) {
+        case 'coa_id':
+          serverValue = server.coaId ?? '';
+          break;
+        case 'contact_id':
+          serverValue = server.contactId ?? null;
+          break;
+        case 'project_id':
+          serverValue = server.projectId ?? null;
+          break;
+        case 'description':
+          serverValue = server.description ?? null;
+          break;
+        case 'reference':
+          serverValue = server.reference ?? null;
+          break;
+        case 'source_amount':
+          serverValue = server.nativeAmount ?? null;
+          break;
+        case 'fs_date':
+          serverValue = server.fsDate || server.date || null;
+          break;
+        case 'review_notes':
+          serverValue = server.reviewNotes ?? null;
+          break;
+        default:
+          serverValue = undefined;
+      }
+      if (draftValue !== serverValue) return true;
+    }
+
+    return false;
   }
 
   // Type guard to check if file is a server file
-  const isServerFile = useCallback(
-    (
-      file: CategorizationTransactionFile | File,
-    ): file is CategorizationTransactionFile => {
-      return 'id' in file && 'key' in file;
-    },
-    [],
-  );
+  function isServerFile(
+    file: CategorizationTransactionFile | File,
+  ): file is CategorizationTransactionFile {
+    return 'id' in file && 'key' in file;
+  }
+
+  useEffect(() => {
+    if (!entriesUI.length) return;
+    setDraftEntryFiles((prev) => {
+      const next = new Map(prev);
+      let changed = false;
+      for (const entry of entriesUI) {
+        const existing = next.get(entry.uiEntryId) || [];
+        const localFiles = existing.filter((file) => !isServerFile(file));
+        const serverFiles = entry.files || [];
+        const existingServerKeys = existing
+          .filter(isServerFile)
+          .map((file) => file.key)
+          .sort();
+        const incomingServerKeys = serverFiles.map((file) => file.key).sort();
+        const serverChanged =
+          existingServerKeys.length !== incomingServerKeys.length ||
+          existingServerKeys.some(
+            (key, index) => key !== incomingServerKeys[index],
+          );
+        if (serverChanged) {
+          const merged = [...serverFiles, ...localFiles];
+          next.set(entry.uiEntryId, merged);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [entriesUI]);
+
+  useEffect(() => {
+    // Drop drafts for entries that no longer exist in the UI list.
+    if (draftEntries.size === 0) return;
+    setDraftEntries((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const entryId of prev.keys()) {
+        if (!entriesUIById.has(entryId)) {
+          next.delete(entryId);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [entriesUIById, draftEntries.size]);
+
+  useEffect(() => {
+    setBlobUrls((prev) => {
+      const next = new Map(prev);
+      let changed = false;
+
+      for (const files of draftEntryFiles.values()) {
+        for (const file of files) {
+          if (isServerFile(file)) continue;
+          if (!next.has(file)) {
+            next.set(file, createTypedBlobUrl(file));
+            changed = true;
+          }
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [draftEntryFiles]);
+
+  useEffect(() => {
+    const activeFiles = new Set<File>();
+    for (const files of draftEntryFiles.values()) {
+      for (const file of files) {
+        if (!isServerFile(file)) {
+          activeFiles.add(file);
+        }
+      }
+    }
+
+    setBlobUrls((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const [file, url] of prev.entries()) {
+        if (!activeFiles.has(file)) {
+          URL.revokeObjectURL(url);
+          next.delete(file);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [draftEntryFiles]);
 
   // Helper function to get file attachments for FilePreviewer (synchronous - all data is in memory)
   const getFileAttachments = useCallback(
@@ -400,8 +453,17 @@ export function TransactionView({
           // Server file - use presigned URL if available
           const url = presignedUrls.get(file.key);
           if (!url) {
-            // URL not yet available - will be fetched by useEffect
-            continue; // Skip for now, will be available on next render
+            if (failedPresignedUrls.has(file.key)) {
+              // Fetch failed - show placeholder so file isn't silently hidden
+              attachments.push({
+                file_name: file.name,
+                url: '',
+                type: file.type,
+                size: Number(file.size_bytes),
+              });
+            }
+            // Otherwise URL not yet available - will be fetched by useEffect
+            continue;
           }
           attachments.push({
             file_name: file.name,
@@ -411,11 +473,8 @@ export function TransactionView({
           });
         } else {
           // New file - use blob URL
-          let blobUrl = blobUrls.get(file);
-          if (!blobUrl) {
-            blobUrl = createTypedBlobUrl(file);
-            setBlobUrls((prev) => new Map(prev).set(file, blobUrl!));
-          }
+          const blobUrl = blobUrls.get(file);
+          if (!blobUrl) continue;
 
           attachments.push({
             file_name: file.name,
@@ -428,13 +487,12 @@ export function TransactionView({
 
       return attachments;
     },
-    [draftEntryFiles, presignedUrls, blobUrls, isServerFile],
+    [draftEntryFiles, presignedUrls, failedPresignedUrls, blobUrls],
   );
 
   function canPersistEntry(entryId: string): boolean {
-    const entry = getDraftEntry(entryId);
+    const entry = getEntryUI(entryId);
     if (!entry) {
-      console.log('[canPersistEntry] Entry not found', { entryId });
       return false;
     }
 
@@ -446,35 +504,11 @@ export function TransactionView({
 
     // 1. Entry must be categorizable
     if (!entry.coa_id) {
-      console.log('[canPersistEntry] Entry missing COA', {
-        entryId,
-        entry: {
-          coa_id: entry.coa_id,
-          contact_id: entry.contact_id,
-          project_id: entry.project_id,
-        },
-      });
       return false;
     }
 
     // 2. Transaction must be balanced
     if (!balance.balanced) {
-      const entriesTotal =
-        draftTransactionState?.entries?.reduce(
-          (sum, e) => sum + (e.source_amount ?? 0),
-          0,
-        ) ?? 0;
-      console.log('[canPersistEntry] Transaction not balanced', {
-        entryId,
-        entriesTotal,
-        bankAmount: txn.bankAmount,
-        diff: balance.diff,
-        expectedTotal: -txn.bankAmount,
-        entries: draftTransactionState?.entries?.map((e) => ({
-          id: e.entry_id,
-          source_amount: e.source_amount,
-        })),
-      });
       return false;
     }
 
@@ -483,7 +517,7 @@ export function TransactionView({
 
   // Simpler check for file uploads - doesn't require entry fields to have changed
   function canAcceptFiles(entryId: string): boolean {
-    const entry = getDraftEntry(entryId);
+    const entry = getEntryUI(entryId);
     if (!entry) return false;
 
     // Entry must be categorizable
@@ -496,11 +530,18 @@ export function TransactionView({
   }
 
   // Memoize balance calculation to avoid repeated computation
-  const balance = useMemo(() => {
-    if (!draftTransactionState?.entries?.length)
-      return { balanced: false, diff: 0 };
+  const entriesForCalc = useMemo(() => {
+    if (!entriesUI.length) return [];
+    return entriesUI.map((entry) => {
+      const draft = draftEntries.get(entry.uiEntryId);
+      return draft ? { ...entry, ...draft } : entry;
+    });
+  }, [entriesUI, draftEntries]);
 
-    const entriesTotal = draftTransactionState.entries.reduce(
+  const balance = useMemo(() => {
+    if (!entriesForCalc.length) return { balanced: false, diff: 0 };
+
+    const entriesTotal = entriesForCalc.reduce(
       (sum, e) => sum + (e.source_amount ?? 0),
       0,
     );
@@ -509,15 +550,10 @@ export function TransactionView({
       balanced: Math.abs(entriesTotal + txn.bankAmount) < 0.0001,
       diff: entriesTotal + txn.bankAmount,
     };
-  }, [draftTransactionState?.entries, txn.bankAmount]);
+  }, [entriesForCalc, txn.bankAmount]);
 
   // Auto-save files when entry becomes valid
   const handleAutoSaveFiles = async (entryId: string) => {
-    // Skip temp entries - they'll be uploaded after persistence
-    if (isTempEntryId(entryId)) {
-      return;
-    }
-
     // No fallback - maintain invariant that files are never uploaded pre-ledger
     if (!txn.ledgerTransactionId) {
       return;
@@ -526,17 +562,24 @@ export function TransactionView({
     if (!companyId || !canAcceptFiles(entryId)) return;
 
     const files = draftEntryFiles.get(entryId) || [];
-    const newFiles = files.filter(
-      (file) =>
-        !isServerFile(file) && !savedFiles.has(getFileKey(entryId, file)),
-    ) as File[];
+    const newFiles = files.filter((file) => {
+      if (isServerFile(file)) return false;
+      const key = getFileKey(entryId, file);
+      if (savedFiles.has(key)) return false;
+      if (uploadingFilesRef.current.has(key)) return false;
+      return true;
+    }) as File[];
 
     if (newFiles.length === 0) return;
 
     try {
-      // Determine source type - for entries it should be 'ledger'
-      const entry = txn.entries?.find((e) => e.id === entryId);
-      const ledgerEntryId = entry?.ledgerEntryId || entryId;
+      const entry = getEntryUI(entryId);
+      const ledgerEntryId = entry?.ledgerEntryId;
+      if (!ledgerEntryId) return;
+
+      newFiles.forEach((file) => {
+        uploadingFilesRef.current.add(getFileKey(entryId, file));
+      });
 
       await uploadTxnFilesMutation.mutateAsync({
         companyId,
@@ -556,92 +599,25 @@ export function TransactionView({
       // Note: The uploaded files will be replaced with server file objects
       // when the transaction is refetched, but for now we keep them as File objects
       // until the next data refresh
-    } catch (error) {
+    } catch (_error) {
       toast.error('File upload failed. Please try again.');
-      console.error('Failed to auto-save files:', error);
+    } finally {
+      newFiles.forEach((file) => {
+        uploadingFilesRef.current.delete(getFileKey(entryId, file));
+      });
     }
   };
 
-  // Upload files for newly persisted entries (temp entries that were just persisted)
-  const handleUploadFilesForPersistedEntries = useCallback(
-    async (persistedTransaction: GroupedTransaction) => {
-      // No fallback - maintain invariant that files are never uploaded pre-ledger
-      if (!companyId || !persistedTransaction.ledgerTransactionId) return;
-
-      const tempEntryIds = Array.from(draftEntryFiles.keys()).filter(
-        isTempEntryId,
-      );
-
-      for (const tempEntryId of tempEntryIds) {
-        const persistedEntry = persistedTransaction.entries?.find(
-          (e) => e.client_ref_id === tempEntryId,
-        );
-
-        if (persistedEntry?.ledgerEntryId) {
-          const files = draftEntryFiles.get(tempEntryId) || [];
-          const newFiles = files.filter(
-            (file) =>
-              !isServerFile(file) &&
-              !savedFiles.has(getFileKey(tempEntryId, file)),
-          ) as File[];
-
-          if (newFiles.length > 0) {
-            try {
-              // Upload with ledgerTransactionId (no fallback)
-              await uploadTxnFilesMutation.mutateAsync({
-                companyId,
-                files: newFiles,
-                transactionId: persistedTransaction.ledgerTransactionId,
-                source: 'ledger',
-                entryId: persistedEntry.ledgerEntryId,
-              });
-
-              // Mark files as saved
-              setSavedFiles((prev) => {
-                const newSet = new Set(prev);
-                newFiles.forEach((file) =>
-                  newSet.add(getFileKey(tempEntryId, file)),
-                );
-                return newSet;
-              });
-
-              // Remove temp entry ID from draftEntryFiles
-              setDraftEntryFiles((prev) => {
-                const newMap = new Map(prev);
-                newMap.delete(tempEntryId);
-                return newMap;
-              });
-            } catch (error) {
-              toast.error(
-                `Failed to upload files for entry: ${persistedEntry.ledgerEntryId}`,
-              );
-              console.error(
-                'Failed to upload files for persisted entry:',
-                error,
-              );
-            }
-          }
-        }
-      }
-    },
-    [
-      companyId,
-      draftEntryFiles,
-      savedFiles,
-      uploadTxnFilesMutation,
-      getFileKey,
-      isServerFile,
-    ],
-  );
-
   const handleSaveEntry = (entryId: string, field: EntryField, value: any) => {
-    console.log('handleSaveEntry', { entryId, field, value });
-
+    if (txn.isEditable === false) {
+      toast.error(
+        'This transaction is in a locked period and cannot be edited',
+      );
+      return;
+    }
     // Always call updateEntry - let emitter handle accumulation and validation
     updateEntry(entryId, { [field]: value });
-
-    // Update draft state for UI
-    updateDraftEntry(entryId, { [field]: value });
+    clearDraftField(entryId, field);
 
     // Auto-save files when entry is ready (check canAcceptFiles, not canPersistEntry)
     if (canAcceptFiles(entryId)) {
@@ -657,23 +633,20 @@ export function TransactionView({
   };
 
   const handleAddEntry = () => {
-    if (!draftTransactionState) return;
-
-    const newEntryId = createTempEntryId();
-    const newEntry: LedgerIntentEntry = {
-      entry_id: newEntryId,
-      coa_id: '' as any,
+    if (txn.isEditable === false) {
+      toast.error(
+        'This transaction is in a locked period and cannot be edited',
+      );
+      return;
+    }
+    const newEntryId = addEntry({
+      coa_id: null,
       fs_date: txn.date,
       description: null,
       reference: null,
       contact_id: null,
       project_id: null,
       source_amount: 0,
-    };
-
-    setDraftTransactionState({
-      ...draftTransactionState,
-      entries: [...(draftTransactionState.entries || []), newEntry],
     });
 
     // Initialize empty files array for the new entry
@@ -685,20 +658,22 @@ export function TransactionView({
   };
 
   const handleDeleteEntry = (entryId: string) => {
-    if (!draftTransactionState?.entries) return;
-
-    // Remove from draft state (UI)
-    setDraftTransactionState({
-      ...draftTransactionState,
-      entries: draftTransactionState.entries.filter(
-        (e) => e.entry_id !== entryId,
-      ),
-    });
-
+    if (txn.isEditable === false) {
+      toast.error(
+        'This transaction is in a locked period and cannot be edited',
+      );
+      return;
+    }
     // Always call deleteEntry - it handles both new and existing entries
     // For new entries: removes from desiredState.entries (prevents sending)
     // For existing entries: tracks deletion in deleted_entry_ids
     deleteEntry(entryId);
+    setDraftEntries((prev) => {
+      if (!prev.has(entryId)) return prev;
+      const next = new Map(prev);
+      next.delete(entryId);
+      return next;
+    });
 
     // Remove files for the deleted entry
     setDraftEntryFiles((prev) => {
@@ -710,31 +685,84 @@ export function TransactionView({
 
   const handleFileUpload = (
     entryId: string,
-    e: React.ChangeEvent<HTMLInputElement>,
+    e: ChangeEvent<HTMLInputElement>,
   ) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      // Create blob URLs immediately for instant preview
-      const newBlobUrls = new Map<File, string>();
-      newFiles.forEach((file) => {
-        const blobUrl = createTypedBlobUrl(file);
-
-        newBlobUrls.set(file, blobUrl);
-      });
-
-      setBlobUrls((prev) => {
-        const combined = new Map(prev);
-        newBlobUrls.forEach((url, file) => combined.set(file, url));
-        return combined;
-      });
-
-      setDraftEntryFiles((prev) => {
-        const newFilesMap = new Map(prev);
-        const existingFiles = newFilesMap.get(entryId) || [];
-        newFilesMap.set(entryId, [...existingFiles, ...newFiles]);
-        return newFilesMap;
-      });
+    if (txn.isEditable === false) {
+      toast.error(
+        'This transaction is in a locked period and cannot be edited',
+      );
+      e.target.value = '';
+      return;
     }
+    if (!e.target.files) return;
+
+    const newFiles = Array.from(e.target.files);
+    const existingFiles = draftEntryFiles.get(entryId) || [];
+    const existingLocalFiles = existingFiles.filter(
+      (file) => !isServerFile(file),
+    ) as File[];
+
+    // Validate file count limit
+    const totalFileCount = existingLocalFiles.length + newFiles.length;
+    if (totalFileCount > TRANSACTION_FILE_LIMITS.MAX_FILES_PER_ENTRY) {
+      toast.error(
+        `Maximum ${TRANSACTION_FILE_LIMITS.MAX_FILES_PER_ENTRY} files allowed per entry. You have ${existingLocalFiles.length} file(s) and tried to add ${newFiles.length} more.`,
+      );
+      e.target.value = '';
+      return;
+    }
+
+    // Validate individual file sizes
+    const oversizedFiles = newFiles.filter(
+      (file) => file.size > TRANSACTION_FILE_LIMITS_BYTES.MAX_FILE_SIZE_BYTES,
+    );
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map((f) => f.name).join(', ');
+      toast.error(
+        `File(s) exceed ${TRANSACTION_FILE_LIMITS.MAX_FILE_SIZE_MB}MB limit: ${fileNames}. Please upload smaller files.`,
+      );
+      e.target.value = '';
+      return;
+    }
+
+    // Validate total size limit
+    const existingTotalSize = existingLocalFiles.reduce(
+      (sum, file) => sum + file.size,
+      0,
+    );
+    const newTotalSize = newFiles.reduce((sum, file) => sum + file.size, 0);
+    const combinedTotalSize = existingTotalSize + newTotalSize;
+
+    if (
+      combinedTotalSize > TRANSACTION_FILE_LIMITS_BYTES.MAX_TOTAL_SIZE_BYTES
+    ) {
+      toast.error(
+        `Total file size exceeds ${TRANSACTION_FILE_LIMITS.MAX_TOTAL_SIZE_MB}MB limit per entry. Current: ${(existingTotalSize / (1024 * 1024)).toFixed(2)}MB, Adding: ${(newTotalSize / (1024 * 1024)).toFixed(2)}MB.`,
+      );
+      e.target.value = '';
+      return;
+    }
+
+    // Create blob URLs immediately for instant preview
+    const newBlobUrls = new Map<File, string>();
+    newFiles.forEach((file) => {
+      const blobUrl = createTypedBlobUrl(file);
+      newBlobUrls.set(file, blobUrl);
+    });
+
+    setBlobUrls((prev) => {
+      const combined = new Map(prev);
+      newBlobUrls.forEach((url, file) => combined.set(file, url));
+      return combined;
+    });
+
+    setDraftEntryFiles((prev) => {
+      const newFilesMap = new Map(prev);
+      const currentFiles = newFilesMap.get(entryId) || [];
+      newFilesMap.set(entryId, [...currentFiles, ...newFiles]);
+      return newFilesMap;
+    });
+
     // Reset the input so the same file can be selected again
     e.target.value = '';
   };
@@ -778,36 +806,24 @@ export function TransactionView({
 
   // Auto-save files when entry becomes valid or when files are added
   useEffect(() => {
-    if (!draftTransactionState?.entries || !companyId) return;
+    if (!entriesUI.length || !companyId) return;
 
-    draftTransactionState.entries.forEach((entry) => {
-      // Skip temp entries - they'll be uploaded after persistence
-      if (
-        entry.entry_id &&
-        !isTempEntryId(entry.entry_id) &&
-        canAcceptFiles(entry.entry_id)
-      ) {
-        // Check if there are unsaved files for this entry
-        const entryId = entry.entry_id; // Type narrowing
-        const files = draftEntryFiles.get(entryId) || [];
+    entriesUI.forEach((entry) => {
+      if (entry.ledgerEntryId && canAcceptFiles(entry.uiEntryId)) {
+        const files = draftEntryFiles.get(entry.uiEntryId) || [];
         const hasUnsavedFiles = files.some(
           (file) =>
-            !isServerFile(file) && !savedFiles.has(getFileKey(entryId, file)),
+            !isServerFile(file) &&
+            !savedFiles.has(getFileKey(entry.uiEntryId, file)),
         );
 
         if (hasUnsavedFiles) {
-          handleAutoSaveFiles(entryId);
+          handleAutoSaveFiles(entry.uiEntryId);
         }
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    draftTransactionState?.entries,
-    draftEntryFiles,
-    savedFiles,
-    companyId,
-    getFileKey,
-  ]);
+  }, [entriesUI, draftEntryFiles, savedFiles, companyId, getFileKey]);
 
   // Fetch presigned URLs for server files that need them
   useEffect(() => {
@@ -818,7 +834,11 @@ export function TransactionView({
 
     for (const files of draftEntryFiles.values()) {
       for (const file of files) {
-        if (isServerFile(file) && !presignedUrls.has(file.key)) {
+        if (
+          isServerFile(file) &&
+          !presignedUrls.has(file.key) &&
+          !failedPresignedUrls.has(file.key)
+        ) {
           // Avoid duplicate requests for the same key
           if (!filesNeedingUrls.some((f) => f.key === file.key)) {
             filesNeedingUrls.push({ key: file.key });
@@ -833,49 +853,42 @@ export function TransactionView({
         bucketType: 'txnFiles',
         fileKey: key,
         timeout: 3600,
-      }).then((downloadUrlResponse) => {
-        if (downloadUrlResponse.success && downloadUrlResponse.data) {
-          setPresignedUrls((prev) =>
-            new Map(prev).set(key, downloadUrlResponse.data!.url),
-          );
-        }
-      });
+      })
+        .then((downloadUrlResponse) => {
+          if (downloadUrlResponse.success && downloadUrlResponse.data) {
+            setPresignedUrls((prev) =>
+              new Map(prev).set(key, downloadUrlResponse.data!.url),
+            );
+            // Clear from failed set if it was a retry
+            setFailedPresignedUrls((prev) => {
+              if (!prev.has(key)) return prev;
+              const next = new Set(prev);
+              next.delete(key);
+              return next;
+            });
+          } else {
+            setFailedPresignedUrls((prev) => new Set(prev).add(key));
+          }
+        })
+        .catch(() => {
+          setFailedPresignedUrls((prev) => new Set(prev).add(key));
+        });
     }
-  }, [companyId, draftEntryFiles, presignedUrls, isServerFile]);
-
-  // Detect when transaction is persisted and upload files for temp entries
-  const prevLedgerTransactionIdRef = useRef<string | null>(
-    txn.ledgerTransactionId,
-  );
-  const filesUploadedForTxnRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    const prev = prevLedgerTransactionIdRef.current;
-    const current = txn.ledgerTransactionId;
-
-    // Detect transition from null to non-null (entry was persisted)
-    if (!prev && current && txn.entries) {
-      // Guard against double upload on re-renders
-      if (!filesUploadedForTxnRef.current.has(current)) {
-        handleUploadFilesForPersistedEntries(txn);
-        filesUploadedForTxnRef.current.add(current);
-      }
-    }
-
-    prevLedgerTransactionIdRef.current = current;
-  }, [txn, handleUploadFilesForPersistedEntries]);
+  }, [companyId, draftEntryFiles, presignedUrls, failedPresignedUrls]);
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
-      blobUrls.forEach((url) => {
+      blobUrlsRef.current.forEach((url) => {
         URL.revokeObjectURL(url);
       });
     };
-  }, [blobUrls]);
+  }, []);
 
   const isFxTransaction =
     txn?.bankAccountCurrencyCode !== txn?.reportingCurrencyCode;
+  const pendingExchangeRate = getPendingExchangeRate();
+  const isLocked = txn.isEditable === false;
 
   if (!txn) {
     return null;
@@ -884,25 +897,40 @@ export function TransactionView({
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-md border text-sm',
+        'relative flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-md border text-sm',
       )}
     >
-      <div
-        className={cn(
-          'flex h-10 min-h-10 items-center justify-between border-b px-4 py-1',
-          //   backgroundClass,
-        )}
-      >
-        <div>Transaction Details</div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="capitalize">
-            {txn.status === 'proposed' ? 'auto-categorized' : txn.status}
-          </Badge>
+      <div>
+        <div
+          className={cn(
+            'flex h-10 min-h-10 items-center justify-between border-b px-4 py-1',
+            //   backgroundClass,
+          )}
+        >
+          <div>Transaction Details</div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="capitalize">
+              {txn.status === 'proposed' ? 'auto-categorized' : txn.status}
+            </Badge>
+          </div>
         </div>
+        {isLocked && (
+          <div className="bg-muted/50 text-muted-foreground flex items-center gap-2 px-4 py-2 text-sm">
+            <Lock className="h-4 w-4" />
+            <span>
+              This transaction is in a locked period. Editing is disabled.
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col divide-y">
-        <div className="grid flex-shrink-0 grid-cols-2 items-center gap-4 p-4 pt-0">
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col divide-y',
+          isLocked && 'pointer-events-none opacity-60',
+        )}
+      >
+        <div className="grid shrink-0 grid-cols-2 items-center gap-4 p-4 pt-0">
           {/* Amount */}
           <div className="overflow-hidden">
             <div className="text-muted-foreground truncate text-xs">
@@ -935,7 +963,7 @@ export function TransactionView({
             trigger={
               <div className="flex items-center gap-2 overflow-hidden">
                 <div
-                  className="bg-muted dark:bg-foreground/70 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border"
+                  className="bg-muted dark:bg-foreground/70 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border"
                   role="img"
                   aria-label={`${txn.bankName || TOOLTIPS.BANK_LOGO} logo`}
                 >
@@ -960,9 +988,7 @@ export function TransactionView({
           {/* Exchange Rate */}
           <div>
             <p className="text-muted-foreground text-xs">Exchange Rate</p>
-            <p className="">
-              {draftTransactionState?.custom_exchange_rate ?? txn.exchangeRate}
-            </p>
+            <p className="">{pendingExchangeRate ?? txn.exchangeRate}</p>
           </div>
 
           {/* Bank Transaction Date */}
@@ -1009,7 +1035,11 @@ export function TransactionView({
               <NumberField
                 label={`Exchange Rate (1 ${txn.bankAccountCurrencyCode} = ?${' '}
                 ${txn.reportingCurrencyCode})`}
-                amount={draftTransactionState?.custom_exchange_rate || 1}
+                amount={
+                  draftExchangeRate ??
+                  pendingExchangeRate ??
+                  Number(txn.exchangeRate || 1)
+                }
                 step={0.0001}
                 isEditing={editing?.entryId === 'exchange_rate'}
                 onEdit={() =>
@@ -1019,12 +1049,12 @@ export function TransactionView({
                   })
                 }
                 onDraftChange={(v) => {
-                  updateTxnLevelDraft({ custom_exchange_rate: v });
+                  setDraftExchangeRate(v);
                 }}
                 onCommit={() => {
                   // Simple check: if rate changed and is valid, save it
                   const originalRate = parseFloat(txn.exchangeRate.toString());
-                  const newRate = draftTransactionState?.custom_exchange_rate;
+                  const newRate = draftExchangeRate;
                   if (
                     newRate &&
                     newRate > 0 &&
@@ -1032,16 +1062,11 @@ export function TransactionView({
                   ) {
                     updateExchangeRate(newRate);
                   }
+                  setDraftExchangeRate(null);
                   setEditing(null);
                 }}
                 onCancel={() => {
-                  setDraftTransactionState(
-                    (prev) =>
-                      prev && {
-                        ...prev,
-                        custom_exchange_rate: Number(txn.exchangeRate || 1),
-                      },
-                  );
+                  setDraftExchangeRate(null);
                   setEditing(null);
                 }}
                 inputOnly={false}
@@ -1062,7 +1087,7 @@ export function TransactionView({
               <div className="bg-muted overflow-clip rounded px-2 py-1">
                 <div className="flex justify-between gap-4 overflow-clip">
                   <div className="flex min-w-0 items-center gap-1 overflow-clip">
-                    <span className="text-muted-foreground flex-shrink-0 text-xs">
+                    <span className="text-muted-foreground shrink-0 text-xs">
                       {txn.bankAmount < 0 ? 'CR' : 'DR'}
                     </span>
                     <div
@@ -1071,11 +1096,11 @@ export function TransactionView({
                     >
                       {txn.bankAccountCoaName ?? txn.bankAccountName}
                     </div>
-                    <span className="text-muted-foreground flex-shrink-0 text-xs">
+                    <span className="text-muted-foreground shrink-0 text-xs">
                       (Bank Leg)
                     </span>
                   </div>
-                  <div className="flex flex-shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <div
                       className={cn(
                         txn.bankAmount < 0
@@ -1100,41 +1125,45 @@ export function TransactionView({
               </div>
             </div>
 
-            {draftTransactionState?.entries?.map((draftEntry) => {
-              // const draftEntry = getDraftEntry(entry?.id);
-              // if (!draftEntry) return null;
+            {entriesUI.map((baseEntry) => {
+              const entryId = baseEntry.uiEntryId;
+              const draftPatch = draftEntries.get(entryId);
+              const entryView = draftPatch
+                ? { ...baseEntry, ...draftPatch }
+                : baseEntry;
+              const serverEntry = txn.entries?.find((e) => {
+                const ledgerEntryId =
+                  baseEntry.ledgerEntryId || baseEntry.uiEntryId;
+                return (
+                  e.ledgerEntryId === ledgerEntryId || e.id === ledgerEntryId
+                );
+              });
 
-              const serverEntry = txn.entries?.find(
-                (e) => e.id === draftEntry.entry_id,
-              );
-
-              const sourceAmt = draftEntry.source_amount ?? 0;
+              const sourceAmt = entryView.source_amount ?? 0;
               const debitValue = sourceAmt > 0 ? sourceAmt : '';
               const creditValue = sourceAmt < 0 ? Math.abs(sourceAmt) : '';
 
               return (
                 <div
-                  key={draftEntry.entry_id}
+                  key={baseEntry.uiEntryId}
                   className="overflow-hidden rounded border"
                 >
                   <div className="bg-muted hover:bg-muted/50 px-3 py-2 transition-colors">
                     {/* Entry Header */}
                     <div
-                      onClick={() => toggleEntry(draftEntry.entry_id || '')}
+                      onClick={() => toggleEntry(baseEntry.uiEntryId)}
                       className="flex cursor-pointer items-center justify-between gap-4 overflow-clip"
                     >
                       <div className="flex min-w-0 items-center gap-1 overflow-clip">
-                        <span className="text-muted-foreground flex-shrink-0 text-xs">
+                        <span className="text-muted-foreground shrink-0 text-xs">
                           {sourceAmt < 0 ? 'CR' : 'DR'}
                         </span>
                         <span className="truncate text-sm">
-                          {groupedCoaData
-                            .flatMap((group) => group.items)
-                            .find((item) => item.value === draftEntry.coa_id)
-                            ?.label ?? 'Not set'}
+                          {coaLabelById.get(entryView.coa_id ?? '') ??
+                            'Not set'}
                         </span>
                       </div>
-                      <div className="flex flex-shrink-0 items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-2">
                         <div
                           className={cn(
                             sourceAmt < 0
@@ -1154,7 +1183,7 @@ export function TransactionView({
                             accountingNegatives={false}
                           />
                         </div>
-                        {expandedEntries.has(draftEntry.entry_id || '') ? (
+                        {expandedEntries.has(baseEntry.uiEntryId) ? (
                           <ChevronUp className="text-muted-foreground h-4 w-4" />
                         ) : (
                           <ChevronDown className="text-muted-foreground h-4 w-4" />
@@ -1164,7 +1193,7 @@ export function TransactionView({
                   </div>
 
                   {/* Entry Details - Expanded */}
-                  {expandedEntries.has(draftEntry.entry_id || '') && (
+                  {expandedEntries.has(baseEntry.uiEntryId) && (
                     <div className="space-y-3 border px-3 py-3">
                       {/* Account */}
                       <EditableSelectField
@@ -1175,34 +1204,34 @@ export function TransactionView({
                             ? serverEntry.confidence
                             : undefined
                         }
-                        value={draftEntry?.coa_id ?? ''}
+                        value={entryView?.coa_id ?? ''}
                         isEditing={
-                          editing?.entryId === draftEntry.entry_id &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'coa_id'
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.entry_id || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'coa_id',
                           })
                         }
                         onValueChange={(value) => {
-                          updateDraftEntry(draftEntry.entry_id || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             coa_id: value,
                           });
                         }}
                         onSave={() => {
                           handleSaveEntry(
-                            draftEntry.entry_id || '',
+                            baseEntry.uiEntryId || '',
                             'coa_id',
-                            draftEntry?.coa_id,
+                            entryView?.coa_id,
                           );
                         }}
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.entry_id || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         autocompleteProps={{
-                          id: `coa-${draftEntry.entry_id}`,
+                          id: `coa-${baseEntry.uiEntryId}`,
                           items: [],
                           groups: groupedCoaData,
                           variant: 'outline',
@@ -1222,7 +1251,7 @@ export function TransactionView({
                         displayValue={
                           groupedCoaData
                             .flatMap((group) => group.items)
-                            .find((item) => item.value === draftEntry?.coa_id)
+                            .find((item) => item.value === entryView?.coa_id)
                             ?.label
                         }
                       />
@@ -1236,38 +1265,23 @@ export function TransactionView({
                               ? ` (${txn.bankAccountCurrencyCode})`
                               : ''}
                           </label>
-                          {/* <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={debitValue}
-                            onChange={(e) => {
-                              const v = Math.max(
-                                0,
-                                Number(e.target.value) || 0,
-                              );
-                              updateDraftEntry(entry.id, { source_amount: v });
-                            }}
-                            onBlur={() => {
-                              // Always call updateEntry - let emitter handle accumulation and validation
-                              updateEntry(entry.id, {
-                                source_amount: draftEntry.source_amount,
-                              });
-                            }}
-                            className="w-full bg-muted/50 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          /> */}
                           <NumberField
                             amount={debitValue || 0}
                             onDraftChange={(v) =>
-                              updateDraftEntry(draftEntry.entry_id || '', {
+                              updateEntryDraft(baseEntry.uiEntryId || '', {
                                 source_amount: v,
                               })
                             }
                             onCommit={() => {
                               // Always call updateEntry - let emitter handle accumulation and validation
-                              updateEntry(draftEntry.entry_id || '', {
-                                source_amount: draftEntry.source_amount,
+                              updateEntry(baseEntry.uiEntryId || '', {
+                                source_amount:
+                                  entryView.source_amount ?? undefined,
                               });
+                              clearDraftField(
+                                baseEntry.uiEntryId || '',
+                                'source_amount',
+                              );
                             }}
                             onStartEditing={() => setIsEditingAmount(true)}
                             onEndEditing={() => setIsEditingAmount(false)}
@@ -1278,8 +1292,7 @@ export function TransactionView({
                               ≃ {txn.reportingCurrencySymbol}{' '}
                               {formatNumber(
                                 Number(
-                                  draftTransactionState?.custom_exchange_rate ??
-                                    txn.exchangeRate,
+                                  pendingExchangeRate ?? txn.exchangeRate,
                                 ) * (serverEntry?.spent || 0),
                               )}
                             </span>
@@ -1295,22 +1308,21 @@ export function TransactionView({
                           <NumberField
                             amount={creditValue || 0}
                             onDraftChange={(v) =>
-                              updateDraftEntry(draftEntry.entry_id || '', {
+                              updateEntryDraft(baseEntry.uiEntryId || '', {
                                 source_amount: v * -1,
                               })
                             }
                             onCommit={() => {
-                              console.log('onCommit', { draftEntry });
-                              console.log(
-                                'canPersistEntry',
-                                canPersistEntry(draftEntry.entry_id || ''),
-                              );
-
-                              if (canPersistEntry(draftEntry.entry_id || '')) {
+                              if (canPersistEntry(baseEntry.uiEntryId || '')) {
                                 // Always call updateEntry - let emitter handle accumulation and validation
-                                updateEntry(draftEntry.entry_id || '', {
-                                  source_amount: draftEntry.source_amount,
+                                updateEntry(baseEntry.uiEntryId || '', {
+                                  source_amount:
+                                    entryView.source_amount ?? undefined,
                                 });
+                                clearDraftField(
+                                  baseEntry.uiEntryId || '',
+                                  'source_amount',
+                                );
                               }
                             }}
                             onStartEditing={() => setIsEditingAmount(true)}
@@ -1323,8 +1335,7 @@ export function TransactionView({
                                 ≃ {txn.reportingCurrencySymbol}{' '}
                                 {formatNumber(
                                   Number(
-                                    draftTransactionState?.custom_exchange_rate ??
-                                      txn.exchangeRate,
+                                    pendingExchangeRate ?? txn.exchangeRate,
                                   ) * (serverEntry?.received || 0),
                                 )}
                               </span>
@@ -1335,29 +1346,29 @@ export function TransactionView({
                       {/* Description */}
                       <EditableTextField
                         label="Description"
-                        value={draftEntry?.description || ''}
+                        value={entryView?.description || ''}
                         isEditing={
-                          editing?.entryId === draftEntry.entry_id &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'description'
                         }
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.entry_id || '',
+                            baseEntry.uiEntryId || '',
                             'description',
-                            draftEntry?.description ?? null,
+                            entryView?.description ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.entry_id || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.entry_id || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'description',
                           })
                         }
                         onChange={(v) =>
-                          updateDraftEntry(draftEntry.entry_id || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             description: v || null,
                           })
                         }
@@ -1366,34 +1377,34 @@ export function TransactionView({
                       {/* Contact */}
                       <EditableSelectField
                         label="Contact"
-                        value={draftEntry?.contact_id ?? ''}
+                        value={entryView?.contact_id ?? ''}
                         isEditing={
-                          editing?.entryId === draftEntry.entry_id &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'contact_id'
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.entry_id || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'contact_id',
                           })
                         }
                         onValueChange={(value) => {
-                          updateDraftEntry(draftEntry.entry_id || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             contact_id: value || null,
                           });
                         }}
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.entry_id || '',
+                            baseEntry.uiEntryId || '',
                             'contact_id',
-                            draftEntry?.contact_id ?? null,
+                            entryView?.contact_id ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.entry_id || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         autocompleteProps={{
-                          id: `contact-${draftEntry.entry_id}`,
+                          id: `contact-${baseEntry.uiEntryId}`,
                           items: contactItems,
                           variant: 'outline',
                           async: true,
@@ -1425,7 +1436,7 @@ export function TransactionView({
                         }}
                         displayValue={
                           contactItems.find(
-                            (item) => item.value === draftEntry?.contact_id,
+                            (item) => item.value === entryView?.contact_id,
                           )?.label
                         }
                       />
@@ -1433,34 +1444,34 @@ export function TransactionView({
                       {/* Project */}
                       <EditableSelectField
                         label="Project"
-                        value={draftEntry?.project_id || ''}
+                        value={entryView?.project_id || ''}
                         isEditing={
-                          editing?.entryId === draftEntry.entry_id &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'project_id'
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.entry_id || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'project_id',
                           })
                         }
                         onValueChange={(value) => {
-                          updateDraftEntry(draftEntry.entry_id || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             project_id: value || null,
                           });
                         }}
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.entry_id || '',
+                            baseEntry.uiEntryId || '',
                             'project_id',
-                            draftEntry?.project_id ?? null,
+                            entryView?.project_id ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.entry_id || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         autocompleteProps={{
-                          id: `project-${draftEntry.entry_id}`,
+                          id: `project-${baseEntry.uiEntryId}`,
                           items: projectItems,
                           variant: 'outline',
                           async: true,
@@ -1492,7 +1503,7 @@ export function TransactionView({
                         }}
                         displayValue={
                           projectItems.find(
-                            (item) => item.value === draftEntry?.project_id,
+                            (item) => item.value === entryView?.project_id,
                           )?.label
                         }
                       />
@@ -1500,29 +1511,29 @@ export function TransactionView({
                       {/* Reference */}
                       <EditableTextField
                         label="Reference"
-                        value={draftEntry?.reference || ''}
+                        value={entryView?.reference || ''}
                         isEditing={
-                          editing?.entryId === draftEntry.entry_id &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'reference'
                         }
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.entry_id || '',
+                            baseEntry.uiEntryId || '',
                             'reference',
-                            draftEntry?.reference ?? null,
+                            entryView?.reference ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.entry_id || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.entry_id || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'reference',
                           })
                         }
                         onChange={(v) =>
-                          updateDraftEntry(draftEntry.entry_id || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             reference: v || null,
                           })
                         }
@@ -1534,61 +1545,65 @@ export function TransactionView({
                           <span className="truncate">
                             {serverEntry.explanation}
                           </span>
-                          <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+                          <Pencil className="text-muted-foreground h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
                         </div>
                       )}
 
                       {/* Review Notes - Textarea */}
                       <EditableTextField
                         label="Review Notes"
-                        value={draftEntry?.review_notes || ''}
+                        value={entryView?.review_notes || ''}
                         textarea={true}
                         isEditing={
-                          editing?.entryId === draftEntry.entry_id &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'review_notes'
                         }
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.entry_id || '',
+                            baseEntry.uiEntryId || '',
                             'review_notes',
-                            draftEntry?.review_notes ?? null,
+                            entryView?.review_notes ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.entry_id || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.entry_id || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'review_notes',
                           })
                         }
                         onChange={(v) =>
-                          updateDraftEntry(draftEntry.entry_id || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             review_notes: v || null,
                           })
                         }
                       />
 
                       {/* Attachments */}
-                      {/* File Attachments for this Entry
-                    TODO: Limit no of files, size, etc
-                     */}
                       <div className="space-y-2">
-                        <label className="text-muted-foreground text-xs">
-                          Attachments
-                        </label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-muted-foreground text-xs">
+                            Attachments
+                          </label>
+                          <span className="text-muted-foreground text-xs">
+                            {draftEntryFiles.get(baseEntry.uiEntryId || '')
+                              ?.length ?? 0}
+                            /{TRANSACTION_FILE_LIMITS.MAX_FILES_PER_ENTRY} files
+                          </span>
+                        </div>
                         <div className="space-y-2">
-                          {(draftEntryFiles.get(draftEntry.entry_id || '')
+                          {(draftEntryFiles.get(baseEntry.uiEntryId || '')
                             ?.length ?? 0) > 0 &&
                             draftEntryFiles
-                              .get(draftEntry.entry_id || '')
+                              .get(baseEntry.uiEntryId || '')
                               ?.map((file, fileIndex) => (
                                 <div
                                   key={fileIndex}
                                   onClick={async () => {
                                     setSelectedEntryId(
-                                      draftEntry.entry_id || '',
+                                      baseEntry.uiEntryId || '',
                                     );
                                     setSelectedFileIndex(fileIndex);
                                   }}
@@ -1599,7 +1614,7 @@ export function TransactionView({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       removeFile(
-                                        draftEntry.entry_id || '',
+                                        baseEntry.uiEntryId || '',
                                         fileIndex,
                                       );
                                     }}
@@ -1616,7 +1631,7 @@ export function TransactionView({
                               type="file"
                               multiple
                               onChange={(e) =>
-                                handleFileUpload(draftEntry.entry_id || '', e)
+                                handleFileUpload(baseEntry.uiEntryId || '', e)
                               }
                               className="hidden"
                             />
@@ -1627,7 +1642,7 @@ export function TransactionView({
                       {/* Delete Entry */}
                       <button
                         onClick={() =>
-                          handleDeleteEntry(draftEntry.entry_id || '')
+                          handleDeleteEntry(baseEntry.uiEntryId || '')
                         }
                         className="flex w-full items-center justify-center gap-2 rounded px-3 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-500/10"
                       >
@@ -1642,15 +1657,18 @@ export function TransactionView({
 
             {/* '+ Add Entry' button */}
             <div
-              className="flex w-full cursor-pointer items-center justify-center gap-1 rounded border border-dashed px-2 py-1.5 text-sm"
-              onClick={handleAddEntry}
+              className={cn(
+                'flex w-full items-center justify-center gap-1 rounded border border-dashed px-2 py-1.5 text-sm',
+                isLocked ? 'cursor-not-allowed opacity-50' : '!cursor-pointer',
+              )}
+              onClick={isLocked ? undefined : handleAddEntry}
             >
               <Plus className="h-4 w-4" /> <span>Add Entry</span>
             </div>
           </div>
         </div>
 
-        <div className="flex-shrink-0 space-y-0.5 p-2">
+        <div className="shrink-0 space-y-0.5 p-2">
           {/* Add better message here later - maybe even add a message when a new entry is present (whether balanced or not)*/}
           {!balance.balanced && (
             <p className="text-destructive bg-red-50 pb-1 text-center text-xs dark:bg-red-950 dark:text-red-300">
@@ -1662,14 +1680,14 @@ export function TransactionView({
           {(() => {
             const totalDebit = Math.abs(
               Math.max(txn.bankAmount, 0) +
-                (draftTransactionState?.entries?.reduce(
+                (entriesForCalc.reduce(
                   (sum, e) => sum + Math.max(e?.source_amount ?? 0, 0),
                   0,
                 ) ?? 0),
             );
             const totalCredit = Math.abs(
               Math.min(txn.bankAmount, 0) +
-                (draftTransactionState?.entries?.reduce(
+                (entriesForCalc.reduce(
                   (sum, e) => sum + Math.min(e?.source_amount ?? 0, 0),
                   0,
                 ) ?? 0),
@@ -1721,9 +1739,9 @@ export function TransactionView({
       {selectedEntryId &&
         selectedFileIndex !== null &&
         (() => {
-          const files = getFileAttachments(selectedEntryId);
+          const files = getFileAttachments(selectedEntryId!);
           if (files.length === 0) return null;
-          const safeIndex = Math.min(selectedFileIndex, files.length - 1);
+          const safeIndex = Math.min(selectedFileIndex!, files.length - 1);
           return (
             <FilePreviewer
               files={files}
@@ -1743,7 +1761,7 @@ export function TransactionView({
           <AddContactDialog
             open={contactDialogOpen}
             onOpenChange={setContactDialogOpen}
-            companyId={companyId}
+            companyId={companyId || ''}
           />
           <AddProjectDialog
             open={projectDialogOpen}
@@ -1862,7 +1880,7 @@ export function EditableSelectField({
               {...autocompleteProps}
               value={value}
             />
-            <div className="flex flex-shrink-0 gap-0.5">
+            <div className="flex shrink-0 gap-0.5">
               <button
                 onClick={onSave}
                 className="hover:bg-accent rounded p-1.5 transition-colors"
@@ -1887,7 +1905,7 @@ export function EditableSelectField({
             className="bg-muted/50 hover:bg-muted/10 group flex cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors"
           >
             <span className="truncate">{getDisplayLabel()}</span>
-            <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+            <Pencil className="text-muted-foreground h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
       </div>
@@ -1964,7 +1982,7 @@ export function EditableTextField({
                 className="bg-muted/50 focus:ring-ring h-9 flex-1 rounded border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
               />
             )}
-            <div className="flex flex-shrink-0 gap-0.5">
+            <div className="flex shrink-0 gap-0.5">
               <button
                 onClick={onSave}
                 className="hover:bg-accent rounded p-1.5 transition-colors"
@@ -1989,7 +2007,7 @@ export function EditableTextField({
             className="bg-muted/50 hover:bg-muted/10 group flex h-9 cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors"
           >
             <span className="truncate">{value}</span>
-            <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+            <Pencil className="text-muted-foreground h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
       </div>
@@ -2044,7 +2062,7 @@ function NumberField({
     }
   }, [amount, actuallyEditing, decimalPlaces]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     // Pass decimalPlaces to allow 6 decimals for exchange rate
     const maxDecimals = decimalPlaces || 2;
@@ -2062,7 +2080,7 @@ function NumberField({
     onCommit();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       setInternalIsEditing(false);
@@ -2115,7 +2133,7 @@ function NumberField({
         {isEditing ? (
           <div className="flex items-center gap-1">
             {inputEl}
-            <div className="flex flex-shrink-0 gap-0.5">
+            <div className="flex shrink-0 gap-0.5">
               <button
                 onClick={onCommit}
                 className="hover:bg-accent rounded p-1.5 transition-colors"
@@ -2140,7 +2158,7 @@ function NumberField({
             className="bg-muted/50 hover:bg-muted/10 group flex h-9 cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors"
           >
             <span className="truncate">{display || '0.00'}</span>
-            <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+            <Pencil className="text-muted-foreground h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
       </div>

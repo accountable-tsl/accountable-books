@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Popover,
   PopoverContent,
@@ -6,25 +7,26 @@ import {
 import { ToggleButton } from '@/domains-pending-migration/cat-engine/components/toggle-button';
 import { PanelLeftOpen } from 'lucide-react';
 
+// TODO: Add toggle for amount display convention
+// - Store preference in localStorage: 'amount_display_convention' = 'spent_received' | 'debit_credit'
+// - Default: 'spent_received'
+// - When 'debit_credit' is selected:
+//   - Show "Debit" and "Credit" columns instead
+//   - Debits are positive amounts (expenses/assets)
+//   - Credits are negative amounts (income/liabilities)
+// - Date sort for user (asc or desc), and we should remember their preference too
+// - Clear saved preferences button
 export function CatEngineAdvFilter() {
-  // TODO: Add toggle for amount display convention
-  // - Store preference in localStorage: 'amount_display_convention' = 'spent_received' | 'debit_credit'
-  // - Default: 'spent_received'
-  // - When 'debit_credit' is selected:
-  //   - Show "Debit" and "Credit" columns instead
-  //   - Debits are positive amounts (expenses/assets)
-  //   - Credits are negative amounts (income/liabilities)
-  // - Date sort for user (asc or desc), and we should remember their preference too
-  // - Clear saved preferences button
+  const [open, setOpen] = useState(false);
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={() => setOpen(!open)}>
       <PopoverTrigger asChild>
         <div>
           <ToggleButton
             icon={<PanelLeftOpen className="h-4 w-4" />}
             tooltip="Advanced Filters"
-            active={false}
+            active={open}
             activeClasses="p-1.5"
             ariaLabel="Open advanced filters"
           />
