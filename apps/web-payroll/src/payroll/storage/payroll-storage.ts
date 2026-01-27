@@ -1,4 +1,5 @@
 import { COMPANY_DEFAULTS, isDemoCompany } from '../data/company-defaults';
+import { logger } from '../utils/logger';
 import {
   EmployeeDirectorySchema,
   PAYROLL_TOOL_SCHEMA_VERSION,
@@ -19,6 +20,7 @@ import type {
   EmployeeDirectory,
   PayrollCompanyDefaults,
   PayrollRun,
+  PayrollRunIndexEntry,
   PayrollRunsIndex,
 } from '../domain';
 
@@ -88,7 +90,7 @@ export async function loadRunsIndex(): Promise<PayrollRunsIndex> {
     };
   } catch (error) {
     // On any error, return empty index
-    console.error('Error loading runs index:', error);
+    logger.error('Error loading runs index', error);
     return createEmptyRunsIndex();
   }
 }
@@ -107,7 +109,7 @@ async function saveRunsIndex(index: PayrollRunsIndex): Promise<void> {
     const validated = PayrollRunsIndexSchema.parse(index);
     await storageSet(key, validated);
   } catch (error) {
-    console.error('Error saving runs index:', error);
+    logger.error('Error saving runs index', error);
     throw new Error('Failed to save runs index');
   }
 }
@@ -134,13 +136,13 @@ export async function loadRun(runId: string): Promise<PayrollRun | null> {
     // Validate and parse the data
     const parsed = PayrollRunSchema.safeParse(raw);
     if (!parsed.success) {
-      console.error('Invalid payroll run data:', parsed.error);
+      logger.error('Invalid payroll run data', parsed.error, { runId });
       return null;
     }
 
     return parsed.data;
   } catch (error) {
-    console.error('Error loading payroll run:', error);
+    logger.error('Error loading payroll run', error, { runId });
     return null;
   }
 }
@@ -149,7 +151,9 @@ export async function loadRun(runId: string): Promise<PayrollRun | null> {
  * Initialize company defaults with standard Nigerian payroll defaults.
  * This is called lazily when the first run is saved.
  */
-async function initializeCompanyDefaultsIfNeeded(): Promise<void> {
+async function initializeCompanyDefaultsIfNeeded(
+  run?: PayrollRun,
+): Promise<void> {
   const existing = await loadCompanyDefaults();
   if (existing) {
     // Defaults already exist, no need to initialize
@@ -159,6 +163,9 @@ async function initializeCompanyDefaultsIfNeeded(): Promise<void> {
   // Initialize with standard Nigerian defaults
   const defaults: PayrollCompanyDefaults = {
     ...COMPANY_DEFAULTS,
+    companyId: run?.companyId,
+    companyName: run?.companyName ?? COMPANY_DEFAULTS.companyName,
+    settings: run?.settings ?? COMPANY_DEFAULTS.settings,
     updatedAt: getCurrentTimestamp(),
   };
 
@@ -185,7 +192,7 @@ export async function saveRun(run: PayrollRun): Promise<PayrollRun> {
   try {
     // Lazy initialization: check if this is the first run
     // If no defaults exist, initialize them now
-    await initializeCompanyDefaultsIfNeeded();
+    await initializeCompanyDefaultsIfNeeded(run);
 
     // Update timestamp
     const updatedRun: PayrollRun = {
@@ -248,6 +255,161 @@ export async function saveRun(run: PayrollRun): Promise<PayrollRun> {
 }
 
 /**
+ * Find an existing finalized run for the same company, month, and year.
+ *
+ * Used to check for conflicts before finalizing a new run.
+ * Only one finalized run should exist per (company, month, year) combination.
+ *
+ * @param run - The run to check for conflicts
+ * @returns The existing finalized run index entry if found, null otherwise
+ */
+export async function findExistingFinalizedRun(
+  run: PayrollRun,
+): Promise<PayrollRunIndexEntry | null> {
+  try {
+    const index = await loadRunsIndex();
+
+    // Find finalized runs matching the same company, month, and year
+    const existingRun = index.runs.find(
+      (r) =>
+        r.status === 'final' &&
+        r.periodYear === run.periodYear &&
+        r.periodMonth === run.periodMonth &&
+        // Match companyId: both undefined means same company, or both have same value
+        (r.companyId === run.companyId ||
+          (r.companyId == null && run.companyId == null)) &&
+        // Don't match the run to itself
+        r.id !== run.id,
+    );
+
+    return existingRun || null;
+  } catch (error) {
+    logger.error('Error finding existing finalized run', error, {
+      runId: run.id,
+      periodMonth: run.periodMonth,
+      periodYear: run.periodYear,
+    });
+    return null;
+  }
+}
+
+/**
+ * Find a run (draft or final) for a specific period and company.
+ *
+ * Used to check if a run already exists for a given month/year when the user
+ * changes the period in the UI.
+ *
+ * @param periodMonth - The month (1-12)
+ * @param periodYear - The year
+ * @param companyId - Optional company ID to match
+ * @returns The run index entry if found, null otherwise
+ */
+export async function findRunByPeriod(
+  periodMonth: number,
+  periodYear: number,
+  companyId?: string,
+): Promise<PayrollRunIndexEntry | null> {
+  try {
+    const index = await loadRunsIndex();
+
+    // Find runs matching the same company, month, and year
+    const existingRun = index.runs.find(
+      (r) =>
+        r.periodYear === periodYear &&
+        r.periodMonth === periodMonth &&
+        // Match companyId: both undefined means same company, or both have same value
+        (r.companyId === companyId ||
+          (r.companyId == null && companyId == null)),
+    );
+
+    return existingRun || null;
+  } catch (error) {
+    logger.error('Error finding run by period', error, {
+      periodMonth,
+      periodYear,
+      companyId,
+    });
+    return null;
+  }
+}
+
+/**
+ * Find all payroll runs that contain a specific employee.
+ *
+ * This is useful for:
+ * - Generating payslip history for an employee
+ * - Viewing all payroll runs an employee has been part of
+ * - Building employee-specific reports
+ *
+ * Note: This loads full runs (not just index entries) to check for the employee,
+ * so it may be slower for large numbers of runs. Consider filtering by date range
+ * if performance becomes an issue.
+ *
+ * @param employeeRefId - The employee's reference ID (from EmployeeRecord.identity.id)
+ * @param options - Optional filters
+ * @returns Array of runs that contain this employee, sorted by period (earliest first)
+ */
+export async function findRunsForEmployee(
+  employeeRefId: string,
+  options?: {
+    companyId?: string;
+    status?: 'draft' | 'final';
+    year?: number;
+  },
+): Promise<PayrollRun[]> {
+  try {
+    const runsIndex = await loadRunsIndex();
+    const matchingRuns: PayrollRun[] = [];
+
+    // Filter runs by options first (before loading full runs)
+    let candidateRuns = runsIndex.runs;
+    if (options?.companyId !== undefined) {
+      candidateRuns = candidateRuns.filter(
+        (r) =>
+          r.companyId === options.companyId ||
+          (r.companyId == null && options.companyId == null),
+      );
+    }
+    if (options?.status) {
+      candidateRuns = candidateRuns.filter((r) => r.status === options.status);
+    }
+    if (options?.year) {
+      candidateRuns = candidateRuns.filter((r) => r.periodYear === options.year);
+    }
+
+    // Load each candidate run and check if it contains the employee
+    for (const indexEntry of candidateRuns) {
+      const run = await loadRun(indexEntry.id);
+      if (run) {
+        // Check if any item in this run matches the employee
+        const hasEmployee = run.items.some(
+          (item) => item.employeeRefId === employeeRefId,
+        );
+        if (hasEmployee) {
+          matchingRuns.push(run);
+        }
+      }
+    }
+
+    // Sort by period (earliest first)
+    matchingRuns.sort((a, b) => {
+      if (a.periodYear !== b.periodYear) {
+        return a.periodYear - b.periodYear;
+      }
+      return a.periodMonth - b.periodMonth;
+    });
+
+    return matchingRuns;
+  } catch (error) {
+    logger.error('Error finding runs for employee', error, {
+      employeeRefId,
+      options,
+    });
+    return [];
+  }
+}
+
+/**
  * Delete a payroll run from storage.
  *
  * This removes both the run data and its entry from the runs index.
@@ -270,7 +432,7 @@ export async function deleteRun(runId: string): Promise<void> {
 
     await saveRunsIndex(updatedIndex);
   } catch (error) {
-    console.error('Error deleting payroll run:', error);
+    logger.error('Error deleting payroll run', error, { runId });
     throw new Error('Failed to delete payroll run');
   }
 }
@@ -295,13 +457,13 @@ export async function loadCompanyDefaults(): Promise<PayrollCompanyDefaults | nu
 
     const parsed = PayrollCompanyDefaultsSchema.safeParse(raw);
     if (!parsed.success) {
-      console.error('Invalid company defaults data:', parsed.error);
+      logger.error('Invalid company defaults data', parsed.error);
       return null;
     }
 
     return parsed.data;
   } catch (error) {
-    console.error('Error loading company defaults:', error);
+    logger.error('Error loading company defaults', error);
     return null;
   }
 }
@@ -330,7 +492,9 @@ export async function saveCompanyDefaults(input: {
 
     return validated;
   } catch (error) {
-    console.error('Error saving company defaults:', error);
+    logger.error('Error saving company defaults', error, {
+      companyName: input.companyName,
+    });
     throw new Error('Failed to save company defaults');
   }
 }

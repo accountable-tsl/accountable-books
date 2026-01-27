@@ -4,6 +4,7 @@ export {
   EmployeeIdentitySchema,
   EmployeePayProfileSchema,
   EmployeeRecordSchema,
+  EmployerContributionSchema,
   IdSchema,
   IsoDateSchema,
   IsoDateTimeSchema,
@@ -22,6 +23,7 @@ export {
   PayrollRunOverridesSchema,
   PayrollRunSchema,
   PayrollRunSettingsSchema,
+  
   PayrollRunsIndexSchema,
   PayrollCompanyDefaultsSchema,
   PensionConfigSchema,
@@ -40,6 +42,7 @@ export type {
   EmployeeIdentity,
   EmployeePayProfile,
   EmployeeRecord,
+  PayrollComputedItem,
   PayrollComputedRun,
   PayrollRun,
   PayrollRunIndexEntry,

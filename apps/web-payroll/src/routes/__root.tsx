@@ -1,10 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { TanStackDevtools } from '@tanstack/react-devtools';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
 import Header from '../components/Header';
-import TanStackQueryDevtools from '../integrations/tanstack-query/devtools';
+import { SidebarInset } from '@/components/ui/sidebar';
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -12,21 +11,21 @@ interface MyRouterContext {
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: () => (
-    <>
+    <SidebarInset className='overflow-hidden h-svh'>
       <Header />
       <Outlet />
       <TanStackDevtools
         config={{
           position: 'bottom-right',
         }}
-        plugins={[
-          {
-            name: 'Tanstack Router',
-            render: <TanStackRouterDevtoolsPanel />,
-          },
-          TanStackQueryDevtools,
-        ]}
+        // plugins={[
+        //   {
+        //     name: 'Tanstack Router',
+        //     render: <TanStackRouterDevtoolsPanel />,
+        //   },
+        //   TanStackQueryDevtools,
+        // ]}
       />
-    </>
+    </SidebarInset>
   ),
 });

@@ -12,6 +12,9 @@ export {
   loadRun,
   saveRun,
   deleteRun,
+  findExistingFinalizedRun,
+  findRunByPeriod,
+  findRunsForEmployee,
 
   // Company defaults
   loadCompanyDefaults,

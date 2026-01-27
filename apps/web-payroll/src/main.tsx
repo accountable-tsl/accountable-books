@@ -8,6 +8,7 @@ import * as TanStackQueryProvider from './integrations/tanstack-query/root-provi
 
 import './styles.css';
 
+import { ThemeProvider } from './components/theme-provider';
 import { SidebarProvider } from './components/ui/sidebar.tsx';
 import { Toaster } from './components/ui/sonner.tsx';
 import reportWebVitals from './reportWebVitals.ts';
@@ -41,10 +42,12 @@ if (rootElement && !rootElement.innerHTML) {
   root.render(
     <StrictMode>
       <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
-        <SidebarProvider>
-          <RouterProvider router={router} />
-          <Toaster richColors />
-        </SidebarProvider>
+        <ThemeProvider>
+          <SidebarProvider>
+            <RouterProvider router={router} />
+            <Toaster />
+          </SidebarProvider>
+        </ThemeProvider>
       </TanStackQueryProvider.Provider>
     </StrictMode>,
   );

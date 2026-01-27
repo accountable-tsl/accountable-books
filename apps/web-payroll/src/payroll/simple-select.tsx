@@ -17,6 +17,9 @@ type SimpleSelectProps = {
     | ReadonlyArray<string>;
   placeholder: string;
   className?: string;
+  contentClassName?: string;
+  itemClassName?: string;
+  disabled?: boolean;
   width?: string;
   height?: string;
 };
@@ -27,17 +30,27 @@ export function SimpleSelect({
   options,
   placeholder,
   className,
+  contentClassName,
+  itemClassName,
+  disabled,
 }: SimpleSelectProps) {
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className={cn('rounded', className)}>
-        <SelectValue placeholder={placeholder} />
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger
+        className={cn('min-w-0 rounded', className)}
+        disabled={disabled}
+      >
+        <span className="truncate">
+          <SelectValue placeholder={placeholder} />
+        </span>
       </SelectTrigger>
-      <SelectContent>
+
+      <SelectContent className={contentClassName}>
         {options.map((option) => (
           <SelectItem
             key={typeof option === 'string' ? option : option.value}
             value={typeof option === 'string' ? option : option.value}
+            className={cn(itemClassName, 'w-full text-sm')}
           >
             {typeof option === 'string' ? option : option.label}
           </SelectItem>

@@ -1,12 +1,13 @@
 import type {
   PayrollCompanyDefaults,
+  PayrollComputedRun,
   PayrollRun,
   PayrollRunIndexEntry,
   PayrollRunItem,
 } from '@/payroll/domain';
 import type { SummaryCardKey, SummaryCardProps } from '@/payroll/summary-card';
 import type { CompanyDefaultsUpdate } from '@/payroll/utils';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -29,7 +30,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn, useMediaQuery } from '@/lib/utils';
-import { addEmployeeToRun } from '@/payroll/actions/add-employee';
+import {
+  addEmployeeToRun,
+  addEmployeesToRun,
+} from '@/payroll/actions/add-employee';
 import {
   deleteEmployeeRecord,
   upsertEmployeeRecordFromRunItem,
@@ -41,20 +45,32 @@ import {
 import { makeNewPayrollRun } from '@/payroll/domain';
 import {
   deleteRun,
+  findExistingFinalizedRun,
+  findRunByPeriod,
   loadCompanyDefaults,
   loadRun,
   loadRunsIndex,
   saveCompanyDefaults,
   saveRun,
 } from '@/payroll/storage';
+import {
+  getCompanyDefaultsKey,
+  getEmployeeDirectoryKey,
+  getRunsIndexKey,
+  getRunKey,
+} from '@/payroll/storage/keys';
+import { storageDelete } from '@/payroll/storage/kv';
 import { SummaryCard } from '@/payroll/summary-card';
 import {
+  deepMerge,
   formatRunTooltipText,
   generateId,
   getCurrentTimestamp,
   parsePeriod,
   updateCompanyDefaultSettings,
 } from '@/payroll/utils';
+import { useNavigate } from '@tanstack/react-router';
+import confetti from 'canvas-confetti';
 import {
   ChevronDown,
   Copy,
@@ -63,23 +79,31 @@ import {
   Eye,
   EyeClosed,
   FileDown,
-  FileUp,
   Grid2x2Plus,
   Plus,
   Save,
   SaveIcon,
   Settings2,
+  Trash2,
+  Upload,
   UserRoundPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { computeRun } from '../compute/compute-run';
+import { detectMonthGaps } from '../compute/gap-detection';
 import {
   COMPANY_DEFAULTS,
   DEMO_COMPANY_DEFAULTS,
 } from '../data/company-defaults';
+import { NIGERIAN_STATES } from '../data/states';
 import { SimpleSelect } from '../simple-select';
+import { logger } from '../utils/logger';
+import { CsvImportDialog } from './csv-import-dialog';
+import { FinalizeDialog } from './finalize-dialog';
 import { PayrollTable } from './payroll-table';
+import { getTableRowData } from './payroll-table-utils';
+import type { EmployeeRecord } from '@/payroll/domain';
 
 import type { StatutoryDeduction } from '../domain/payroll.schemas';
 
@@ -186,6 +210,233 @@ function StatutoryDeductionToggle({
   );
 }
 
+type RunsListVariant = 'sidebar' | 'full';
+
+function RunsList({
+  runs,
+  currentRunId,
+  onSelectRun,
+  onDeleteRunClick,
+  onNewRun,
+  variant = 'sidebar',
+}: {
+  runs: PayrollRunIndexEntry[];
+  currentRunId?: string;
+  onSelectRun: (run: PayrollRunIndexEntry) => void;
+  onDeleteRunClick: (run: PayrollRunIndexEntry) => void;
+  onNewRun: () => void;
+  variant?: RunsListVariant;
+}) {
+  const containerClasses =
+    variant === 'sidebar'
+      ? 'flex max-h-[160px] min-h-[100px] flex-col overflow-y-auto rounded border text-sm xl:h-full xl:max-h-none xl:flex-1'
+      : 'flex h-full flex-col rounded border bg-card text-sm';
+
+  if (variant === 'sidebar') {
+    return (
+      <div className={containerClasses}>
+        <div className="border-b p-2 font-medium">Payroll runs</div>
+        <ul className="scrollbar-thin-2px flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2 py-1 pr-6">
+          {runs.length === 0 ? (
+            <li className="text-muted-foreground py-6 text-center text-xs">
+              No runs yet
+            </li>
+          ) : (
+            runs.map((run) => {
+              const isCurrentRun = currentRunId === run.id;
+              const isDemoRun = run.isDemo;
+              const tooltipText = formatRunTooltipText(run);
+
+              return (
+                <li
+                  key={run.id}
+                  className={cn(
+                    'flex flex-nowrap items-center justify-between gap-4 whitespace-nowrap',
+                    !isCurrentRun && 'text-muted-foreground',
+                  )}
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          'flex flex-1 cursor-pointer items-center overflow-hidden',
+                          isCurrentRun ? 'font-medium text-blue-500' : '',
+                        )}
+                        title={tooltipText}
+                        onClick={() => onSelectRun(run)}
+                      >
+                        <span className="text-muted-foreground pr-2 font-normal">
+                          -
+                        </span>
+                        <span className="truncate text-[0.85rem]">
+                          <span className="hidden sm:inline">
+                            {run.companyName} &bull;
+                          </span>
+                          <span>{run.label}</span>
+                          {isDemoRun && ' (Demo)'}
+                          {run.status === 'final' ? ' (final)' : ''}
+                          {isCurrentRun && (
+                            <span className="text-primary ml-1 text-xs font-medium">
+                              &bull; Current
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs whitespace-pre-line">
+                        {tooltipText}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <button
+                    type="button"
+                    className="shrink-0 cursor-pointer text-xs hover:text-red-600"
+                    onClick={() => onDeleteRunClick(run)}
+                  >
+                    Delete
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+        <button
+          type="button"
+          className="bg-muted flex w-full cursor-pointer items-center justify-center gap-1 p-1 text-xs"
+          onClick={onNewRun}
+        >
+          <Plus className="size-4" />
+          <span>New Run</span>
+        </button>
+      </div>
+    );
+  }
+
+  // Full variant - card-based layout
+  return (
+    <div className={containerClasses}>
+      <div className="border-b p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold">Payroll runs</h3>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              {runs.length} {runs.length === 1 ? 'run' : 'runs'}
+            </p>
+          </div>
+          <Button onClick={onNewRun} size="sm">
+            <Plus className="mr-1.5 size-4" />
+            New Run
+          </Button>
+        </div>
+      </div>
+      <div className="scrollbar-thin-2px flex-1 overflow-y-auto p-4">
+        {runs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-muted-foreground mb-2 text-sm font-medium">
+              No payroll runs yet
+            </p>
+            <p className="text-muted-foreground mb-4 text-xs">
+              Create your first payroll run to get started
+            </p>
+            <Button onClick={onNewRun} size="sm">
+              <Plus className="mr-1.5 size-4" />
+              Create Run
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {runs.map((run) => {
+              const isCurrentRun = currentRunId === run.id;
+              const isDemoRun = run.isDemo;
+              const tooltipText = formatRunTooltipText(run);
+              const monthNames = [
+                'Jan',
+                'Feb',
+                'Mar',
+                'Apr',
+                'May',
+                'Jun',
+                'Jul',
+                'Aug',
+                'Sep',
+                'Oct',
+                'Nov',
+                'Dec',
+              ];
+              const periodLabel =
+                run.periodEndMonth != null && run.periodEndYear != null
+                  ? `${monthNames[run.periodMonth - 1]} ${run.periodYear} - ${monthNames[run.periodEndMonth - 1]} ${run.periodEndYear}`
+                  : `${monthNames[run.periodMonth - 1]} ${run.periodYear}`;
+
+              return (
+                <div
+                  key={run.id}
+                  className={cn(
+                    'group bg-card hover:border-primary/50 relative cursor-pointer rounded-lg border p-4 transition-all hover:shadow-md',
+                    isCurrentRun && 'border-primary ring-primary/20 ring-2',
+                  )}
+                  onClick={() => onSelectRun(run)}
+                >
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center gap-2">
+                        <h4 className="truncate text-sm font-semibold">
+                          {run.companyName}
+                        </h4>
+                        {isCurrentRun && (
+                          <span className="bg-primary/10 text-primary shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium">
+                            Current
+                          </span>
+                        )}
+                        {run.status === 'final' && (
+                          <span className="shrink-0 rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:text-green-400">
+                            Final
+                          </span>
+                        )}
+                        {isDemoRun && (
+                          <span className="shrink-0 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400">
+                            Demo
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        {periodLabel}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteRunClick(run);
+                      }}
+                      className="text-muted-foreground hover:text-destructive shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="text-muted-foreground text-xs">
+                        {tooltipText}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs whitespace-pre-line">
+                        {tooltipText}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function clampPercent(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.min(100, Math.max(0, value));
@@ -203,6 +454,7 @@ function percentToRate(percent: number): number {
 }
 
 export function Payroll() {
+  const navigate = useNavigate();
   const [showAllOnLg, setShowAllOnLg] = useState(false);
   const [showAllOnMobile, setShowAllOnMobile] = useState(false);
   const [month, setMonth] = useState(() => String(new Date().getMonth() + 1));
@@ -215,6 +467,8 @@ export function Payroll() {
   const [currentRun, setCurrentRun] = useState<PayrollRun | null>(null);
   const [isSampleRun, setIsSampleRun] = useState(false);
   const [runList, setRunList] = useState<PayrollRunIndexEntry[]>([]);
+  const [computed, setComputed] = useState<PayrollComputedRun | null>(null);
+  const [isComputing, setIsComputing] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [runToDelete, setRunToDelete] = useState<{
     id: string;
@@ -222,8 +476,20 @@ export function Payroll() {
     status: 'draft' | 'final';
   } | null>(null);
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
+  const [isFinalizingRun, setIsFinalizingRun] = useState(false);
   const [finalizedByName, setFinalizedByName] = useState('');
-  const [_syncOption, setSyncOption] = useState<'local' | 'cloud' | null>(null);
+  const [finalizeDialogMode, setFinalizeDialogMode] = useState<
+    'finalize' | 'override'
+  >('finalize');
+  const [conflictingRun, setConflictingRun] =
+    useState<PayrollRunIndexEntry | null>(null);
+  const [monthGaps, setMonthGaps] = useState<string[]>([]);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [hasFinalizedRuns, setHasFinalizedRuns] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [csvImportDialogOpen, setCsvImportDialogOpen] = useState(false);
+  const isInitialMount = useRef(true);
+  const currentRunRef = useRef<PayrollRun | null>(null);
 
   // Initialize company settings with default values
   const [companyDefaults, setCompanyDefaults] =
@@ -234,6 +500,33 @@ export function Payroll() {
   const runCompanyName = companyDefaults.companyName?.trim() || 'Company';
   const currentYear = new Date().getFullYear();
   const yearOptions = [String(currentYear), String(currentYear + 1)];
+  const finalizedPeriodKeys = useMemo(() => {
+    if (!currentRun) return [];
+    const keySet = new Set<string>();
+
+    for (const run of runList) {
+      if (run.status !== 'final') continue;
+      const sameCompany =
+        run.companyId === currentRun.companyId ||
+        (run.companyId == null && currentRun.companyId == null);
+      if (!sameCompany) continue;
+
+      const startMonth = run.periodMonth;
+      const startYear = run.periodYear;
+      const endMonth = run.periodEndMonth ?? run.periodMonth;
+      const endYear = run.periodEndYear ?? run.periodYear;
+      const startTotal = startYear * 12 + startMonth;
+      const endTotal = endYear * 12 + endMonth;
+
+      for (let total = startTotal; total <= endTotal; total++) {
+        const year = Math.floor((total - 1) / 12);
+        const month = ((total - 1) % 12) + 1;
+        keySet.add(`${year}-${String(month).padStart(2, '0')}`);
+      }
+    }
+
+    return Array.from(keySet).sort();
+  }, [runList, currentRun]);
 
   // Default to detailed view on screens >= 1280px, standard otherwise
   const isXlScreen = useMediaQuery('(min-width: 1280px)');
@@ -241,7 +534,7 @@ export function Payroll() {
 
   const tabs = [
     { id: 'employees' as const, label: 'Employees' },
-    { id: 'paye-by-state' as const, label: 'PAYE by state' },
+    // { id: 'paye-by-state' as const, label: 'PAYE by state' },
     { id: 'import' as const, label: 'Import' },
     { id: 'journals' as const, label: 'Journals' },
     // Only show these tabs on xl screens
@@ -261,6 +554,10 @@ export function Payroll() {
     setViewMode(isXlScreen ? 'detailed' : 'standard');
   }, [isXlScreen]);
 
+  useEffect(() => {
+    currentRunRef.current = currentRun;
+  }, [currentRun]);
+
   // Switch to a visible tab if current tab is hidden on smaller screens
   useEffect(() => {
     if (
@@ -275,32 +572,120 @@ export function Payroll() {
   const isLargeScreen = useMediaQuery('(min-width: 1024px)');
   const effectiveViewMode = isLargeScreen ? viewMode : 'standard';
 
-  // Compute run on-the-fly
-  const computed = useMemo(() => {
-    if (!currentRun) return null;
-    try {
-      return computeRun(currentRun, { nowIso: currentRun.updatedAt });
-    } catch (e) {
-      console.error('Compute error:', e);
-      return null;
+  // Compute run on-the-fly (now async) - debounced to avoid excessive computations
+  // Use runId as primary dependency to ensure recomputation when selecting runs,
+  // even if the object reference is the same
+  const runId = currentRun?.id;
+  useEffect(() => {
+    if (!currentRun) {
+      setComputed(null);
+      setIsComputing(false);
+      return;
     }
-  }, [currentRun]);
+
+    let cancelled = false;
+    let showLoadingTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    // Debounce computation by 100ms to avoid excessive recomputations during rapid changes
+    const timeoutId = setTimeout(async () => {
+      // Only show loading indicator if computation takes longer than 200ms total
+      showLoadingTimeoutId = setTimeout(() => {
+        if (!cancelled) {
+          setIsComputing(true);
+        }
+      }, 200);
+
+      try {
+        // Read currentRun from closure to ensure we use the latest value
+        const runToCompute = currentRun;
+        const result = await computeRun(runToCompute, {
+          nowIso: runToCompute.updatedAt,
+        });
+        if (!cancelled) {
+          setComputed(result);
+          setIsComputing(false);
+          if (showLoadingTimeoutId) {
+            clearTimeout(showLoadingTimeoutId);
+          }
+        }
+      } catch (e) {
+        logger.error('Payroll computation error', e, {
+          runId: currentRun.id,
+          periodMonth: currentRun.periodMonth,
+          periodYear: currentRun.periodYear,
+        });
+        if (!cancelled) {
+          setComputed(null);
+          setIsComputing(false);
+          if (showLoadingTimeoutId) {
+            clearTimeout(showLoadingTimeoutId);
+          }
+        }
+      }
+    }, 100); // Reduced debounce for better responsiveness
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      if (showLoadingTimeoutId) {
+        clearTimeout(showLoadingTimeoutId);
+      }
+      setIsComputing(false);
+    };
+  }, [currentRun, runId]);
 
   // Helper to update company settings and save
   const updateCompanyDefaults = useCallback(
     async (updates: CompanyDefaultsUpdate) => {
       const updated = updateCompanyDefaultSettings(companyDefaults, updates);
       setCompanyDefaults(updated);
+
+      if (currentRun?.status === 'draft') {
+        // Ensure we have a valid object for deepMerge (settings are optional in types but practically always present)
+        const baseSettings =
+          currentRun.settings ?? updated.settings ?? COMPANY_DEFAULTS.settings!;
+
+        const nextRunSettings = updates.settings
+          ? deepMerge(baseSettings, updates.settings)
+          : baseSettings;
+        const nextRunCompanyName =
+          updates.companyName === undefined
+            ? currentRun.companyName
+            : updates.companyName;
+        const updatedRun: PayrollRun = {
+          ...currentRun,
+          companyName: nextRunCompanyName,
+          settings: nextRunSettings,
+          updatedAt: getCurrentTimestamp(),
+        };
+        setCurrentRun(updatedRun);
+        saveRun(updatedRun).catch((error) => {
+          logger.error('Failed to save run settings update', error, {
+            runId: updatedRun.id,
+          });
+        });
+      }
+
+      if (updates.companyName !== undefined && currentRun) {
+        setRunList((prev) =>
+          prev.map((entry) =>
+            entry.id === currentRun.id
+              ? { ...entry, companyName: updates.companyName ?? entry.companyName }
+              : entry,
+          ),
+        );
+      }
+
       try {
         await saveCompanyDefaults({
           companyName: updated.companyName,
           settings: updated.settings,
         });
       } catch (error) {
-        console.error('Failed to save company settings:', error);
+        logger.error('Failed to save company settings', error);
       }
     },
-    [companyDefaults],
+    [companyDefaults, currentRun],
   );
 
   const refreshRunList = useCallback(async () => {
@@ -317,16 +702,42 @@ export function Payroll() {
         return;
       }
 
-      setCurrentRun(run);
+      // Update company defaults first (company name + settings come from the run)
+      // We do this before setting currentRun to avoid race conditions
+      updateCompanyDefaults({
+        companyName: run.companyName,
+        settings: run.settings,
+      });
+
+      // Set currentRun to trigger computation - this will always create a new reference
+      // even if it's the same run, ensuring the computation effect runs
+      setCurrentRun({ ...run });
       setIsSampleRun(false);
       // Don't update month/year when loading a run - these are for new run creation only
       // This prevents flickering caused by triggering the load effect below
-
-      if (run.settings) {
-        updateCompanyDefaults({ settings: run.settings });
-      }
     },
     [updateCompanyDefaults],
+  );
+
+  const handleSelectRun = useCallback(
+    async (run: PayrollRunIndexEntry) => {
+      try {
+        const loadedRun = await loadRun(run.id);
+        if (loadedRun) {
+          applyLoadedRun(loadedRun);
+        } else {
+          toast.error('Could not load run', {
+            position: isMdScreen ? 'bottom-right' : 'top-center',
+          });
+        }
+      } catch (error) {
+        logger.error('Error loading run', error, { runId: run.id });
+        toast.error('Could not load run', {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        });
+      }
+    },
+    [applyLoadedRun, isMdScreen],
   );
 
   const findFirstLoadableRun = useCallback(
@@ -352,7 +763,7 @@ export function Payroll() {
           setCompanyDefaults(defaults);
         }
       } catch (error) {
-        console.error('Failed to load company defaults:', error);
+        logger.error('Failed to load company defaults', error);
       }
     })();
   }, []);
@@ -374,6 +785,11 @@ export function Payroll() {
           );
           setCurrentRun(run);
           setIsSampleRun(true);
+          setCompanyDefaults((prev) => ({
+            ...prev,
+            companyName: run.companyName,
+            settings: run.settings ?? prev.settings,
+          }));
           setWelcomeOpen(true);
         } else {
           // Update runs index for display
@@ -411,6 +827,11 @@ export function Payroll() {
         const { run } = createSamplePayrollRunPreview(periodMonth, periodYear);
         setCurrentRun(run);
         setIsSampleRun(true);
+        setCompanyDefaults((prev) => ({
+          ...prev,
+          companyName: run.companyName,
+          settings: run.settings ?? prev.settings,
+        }));
         setWelcomeOpen(true);
       } finally {
         setIsLoadingRuns(false);
@@ -419,6 +840,104 @@ export function Payroll() {
     // Only run on mount - month/year changes don't trigger reload
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Handle month/year changes - update currentRun period or load existing run
+  // Debounced to avoid excessive async operations when user changes month/year rapidly
+  useEffect(() => {
+    // Skip on initial mount (let the initial load effect handle it)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Skip if still loading initial runs or if there's no currentRun
+    const run = currentRunRef.current;
+    if (isLoadingRuns || !run) return;
+
+    // Debounce by 500ms to avoid triggering multiple async operations when user changes month/year rapidly
+    const timeoutId = setTimeout(async () => {
+      try {
+        const { periodYear, periodMonth } = parsePeriod(year, month);
+
+        // Check if the currentRun's period already matches the selected month/year
+        if (
+          run.periodMonth === periodMonth &&
+          run.periodYear === periodYear
+        ) {
+          // Period already matches - no action needed
+          return;
+        }
+
+        // Period doesn't match - check if there's an existing run for the new period
+        const existingRunEntry = await findRunByPeriod(
+          periodMonth,
+          periodYear,
+          run.companyId,
+        );
+
+        if (existingRunEntry) {
+          // Found an existing run for the new period - load it
+          const loadedRun = await loadRun(existingRunEntry.id);
+          if (loadedRun) {
+            setCurrentRun(loadedRun);
+            setIsSampleRun(false);
+            return;
+          }
+        }
+
+        // No existing run found - update currentRun's period if it's a draft
+        if (run.status === 'draft') {
+          const updatedRun: PayrollRun = {
+            ...run,
+            periodMonth,
+            periodYear,
+            // Clear period end if it was set (for multi-period runs)
+            periodEndMonth: undefined,
+            periodEndYear: undefined,
+            updatedAt: getCurrentTimestamp(),
+          };
+
+          // Save the updated run
+          const savedRun = await saveRun(updatedRun);
+          setCurrentRun(savedRun);
+          await refreshRunList();
+        } else {
+          // Current run is finalized - create a new draft run for the new period
+          const newRun = makeNewPayrollRun({
+            id: generateId(),
+            nowIso: getCurrentTimestamp(),
+            companyName: run.companyName,
+            companyId: run.companyId,
+            periodMonth,
+            periodYear,
+          });
+
+          // Copy settings from current run if they exist
+          if (run.settings) {
+            newRun.settings = run.settings;
+          }
+
+          const savedRun = await saveRun(newRun);
+          await refreshRunList();
+          setCurrentRun(savedRun);
+          setIsSampleRun(false);
+        }
+      } catch (error) {
+        logger.error('Error handling period change', error, {
+          month,
+          year,
+          currentRunId: run?.id,
+        });
+        toast.error('Could not update payroll period', {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        });
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [month, year, isLoadingRuns, isMdScreen, refreshRunList]);
 
   // Handlers for actions
   const handleNewRun = useCallback(async () => {
@@ -464,7 +983,7 @@ export function Payroll() {
         position: isMdScreen ? 'bottom-right' : 'top-center',
       });
     } catch (error) {
-      console.error('Error creating new run:', error);
+      logger.error('Error creating new run', error, { month, year });
       toast.error('Could not create payroll run', {
         position: isMdScreen ? 'bottom-right' : 'top-center',
       });
@@ -495,6 +1014,8 @@ export function Payroll() {
       });
 
       // Copy all items from current run (snapshots remain intact)
+      // CRITICAL: employeeRefId is preserved in the copied items, which is essential
+      // for matching employees across runs for YTD calculations
       newRun.items = [...currentRun.items];
 
       // Copy settings if they exist
@@ -526,7 +1047,7 @@ export function Payroll() {
     }
   }, [currentRun, refreshRunList]);
 
-  const handleFinalizeRunClick = useCallback(() => {
+  const handleFinalizeRunClick = useCallback(async () => {
     if (!currentRun) return;
 
     // Validation with helpful toast messages
@@ -538,7 +1059,7 @@ export function Payroll() {
     }
 
     // Compute payroll to check if gross is zero
-    const computedData = computeRun(currentRun);
+    const computedData = await computeRun(currentRun);
     const totalGross = parseFloat(computedData.periodTotals.grossTotal);
     if (totalGross === 0) {
       toast.error('Cannot finalize payroll with zero gross', {
@@ -547,17 +1068,68 @@ export function Payroll() {
       return;
     }
 
-    // Open dialog if validation passes
+    // Check for existing finalized run for the same month/year
+    const existingRun = await findExistingFinalizedRun(currentRun);
+    if (existingRun) {
+      // Conflict found - show override confirmation in finalize dialog
+      setConflictingRun(existingRun);
+      setFinalizeDialogMode('override');
+      setFinalizeDialogOpen(true);
+      return;
+    }
+
+    // Check for month gaps (missing finalized months)
+    const runsIndex = await loadRunsIndex();
+    const gaps = detectMonthGaps(currentRun, runsIndex);
+    setMonthGaps(gaps);
+
+    // No conflict - open finalize dialog in normal mode
+    setFinalizeDialogMode('finalize');
     setFinalizeDialogOpen(true);
   }, [currentRun, isMdScreen]);
 
+  const handleOverrideConfirm = useCallback(
+    async (shouldReplace: boolean) => {
+      if (!currentRun || !conflictingRun) return;
+
+      if (!shouldReplace) {
+        // User chose to cancel - close dialog and reset state
+        setFinalizeDialogOpen(false);
+        setConflictingRun(null);
+        setFinalizeDialogMode('finalize');
+        return;
+      }
+
+      // User chose to replace - delete the old run and proceed with finalization
+      try {
+        await deleteRun(conflictingRun.id);
+        setConflictingRun(null);
+        // Switch dialog to finalize mode
+        setFinalizeDialogMode('finalize');
+        // Dialog stays open, now showing finalize content
+      } catch (error) {
+        logger.error('Error deleting conflicting run', error, {
+          conflictingRunId: conflictingRun?.id,
+        });
+        toast.error('Could not delete existing run', {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        });
+        setFinalizeDialogOpen(false);
+        setConflictingRun(null);
+        setFinalizeDialogMode('finalize');
+      }
+    },
+    [currentRun, conflictingRun, isMdScreen],
+  );
+
   const handleFinalizeRun = useCallback(
-    async (name: string, sync: 'local' | 'cloud') => {
+    async (_name: string, sync: 'local' | 'cloud') => {
       if (!currentRun) return;
 
       try {
+        setIsFinalizingRun(true);
         // Compute payroll before finalizing to ensure data is ready
-        const computedData = computeRun(currentRun);
+        const computedData = await computeRun(currentRun);
 
         // Set status to final and record finalized timestamp
         const finalizedRun: PayrollRun = {
@@ -582,23 +1154,72 @@ export function Payroll() {
         // Close dialog and reset state
         setFinalizeDialogOpen(false);
         setFinalizedByName('');
-        setSyncOption(null);
+        setConflictingRun(null);
+        setFinalizeDialogMode('finalize');
+        setMonthGaps([]);
 
-        toast.success('Payroll run finalized', {
-          position: isMdScreen ? 'bottom-right' : 'top-center',
-        });
+        if (sync === 'cloud') {
+          // Trigger confetti for cloud save
+          confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899'],
+            disableForReducedMotion: true,
+          });
+
+          toast.success('Payroll finalized! Redirecting to signup...', {
+            position: isMdScreen ? 'bottom-right' : 'top-center',
+            duration: 3000,
+          });
+
+          setTimeout(async () => {
+            await navigate({
+              to: '/signup',
+              search: {
+                intent: 'sync-final-run',
+                runId: savedRun.id,
+                returnTo: '/',
+              },
+            });
+          }, 1500);
+        } else {
+          // Trigger confetti for local save too
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 },
+            disableForReducedMotion: true,
+            zIndex: 9999,
+          });
+
+          toast.success(
+            <div className="flex flex-col">
+              <p className="text-sm font-medium">Saved!</p>
+              <p className="cursor-pointer text-xs text-blue-500 underline">
+                Create account to sync
+              </p>
+            </div>,
+            {
+              position: isMdScreen ? 'bottom-right' : 'top-center',
+              duration: Infinity,
+              closeButton: true,
+            },
+          );
+        }
       } catch (error) {
-        console.error('Error finalizing run:', error);
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : 'Failed to finalize payroll run';
+        logger.error('Error finalizing run', error, {
+          runId: currentRun?.id,
+          employeeCount: currentRun?.items.length,
+        });
         toast.error('Could not finalize payroll run', {
           position: isMdScreen ? 'bottom-right' : 'top-center',
         });
+      } finally {
+        setIsFinalizingRun(false);
       }
     },
-    [currentRun, refreshRunList, isMdScreen],
+    [currentRun, refreshRunList, isMdScreen, navigate],
   );
 
   const handleStartWithSampleData = useCallback(async () => {
@@ -620,12 +1241,197 @@ export function Payroll() {
         position: isMdScreen ? 'bottom-right' : 'top-center',
       });
     } catch (error) {
-      console.error('Error saving sample data:', error);
+      logger.error('Error saving sample data', error);
       toast.error('Could not save sample data', {
         position: isMdScreen ? 'bottom-right' : 'top-center',
       });
     }
   }, [year, month, refreshRunList, updateCompanyDefaults, isMdScreen]);
+
+  const handleExportCsv = useCallback(() => {
+    if (!currentRun || !computed) {
+      toast.error('No computed payroll to export', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+      return;
+    }
+
+    if (!currentRun.items || currentRun.items.length === 0) {
+      toast.error(
+        'Cannot export an empty payroll. Add at least one employee.',
+        {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        },
+      );
+      return;
+    }
+
+    try {
+      const header = [
+        'Employee Name',
+        'Role',
+        'Monthly Gross',
+        'Monthly Basic',
+        'Monthly Housing',
+        'Monthly Transport',
+        'One-off Allowances',
+        'PAYE',
+        'Employee Pension',
+        'Employer Pension',
+        'Employee NHF',
+        'Employee NHIS',
+        'Employer NHIS',
+        'One-off Deductions',
+        'Total Deductions',
+        'Net Pay',
+        'Employer Cost',
+      ];
+
+      const escapeCsv = (value: string | number | undefined | null): string => {
+        const str = value == null ? '' : String(value);
+        if (str.includes('"') || str.includes(',') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const moneyToNumber = (money: string | undefined): number => {
+        return money ? parseFloat(money) : 0;
+      };
+
+      const rows = currentRun.items.map((item) => {
+        const computedItem = computed.items.find(
+          (ci) => ci.runItemId === item.id,
+        );
+        const rowData = getTableRowData(item, computedItem);
+
+        // Calculate one-off allowances total
+        const oneOffAllowancesTotal =
+          computedItem?.taxBreakdown?.oneOffAllowances?.total != null
+            ? moneyToNumber(computedItem.taxBreakdown.oneOffAllowances.total)
+            : (item.edits?.oneOffAllowances?.reduce(
+                (sum, allowance) => sum + moneyToNumber(allowance.amount),
+                0,
+              ) ?? 0);
+
+        // Calculate one-off deductions total
+        const oneOffDeductionsTotal =
+          item.edits?.oneOffDeductions?.reduce(
+            (sum, deduction) => sum + moneyToNumber(deduction.amount),
+            0,
+          ) ?? 0;
+
+        return [
+          rowData.name,
+          rowData.role ?? '',
+          rowData.monthlyGross.toFixed(2),
+          rowData.monthlyBasic.toFixed(2),
+          rowData.monthlyHousing.toFixed(2),
+          rowData.monthlyTransport.toFixed(2),
+          oneOffAllowancesTotal > 0 ? oneOffAllowancesTotal.toFixed(2) : '',
+          rowData.paye != null ? rowData.paye.toFixed(2) : '',
+          rowData.employeePension.toFixed(2),
+          rowData.employerPension.toFixed(2),
+          rowData.employeeNhf != null ? rowData.employeeNhf.toFixed(2) : '',
+          rowData.employeeNhis != null ? rowData.employeeNhis.toFixed(2) : '',
+          rowData.employerNhis != null ? rowData.employerNhis.toFixed(2) : '',
+          oneOffDeductionsTotal > 0 ? oneOffDeductionsTotal.toFixed(2) : '',
+          rowData.totalDeductions != null
+            ? rowData.totalDeductions.toFixed(2)
+            : '',
+          rowData.netPay.toFixed(2),
+          rowData.employerCost != null ? rowData.employerCost.toFixed(2) : '',
+        ].map(escapeCsv);
+      });
+
+      const csv = [
+        header.map(escapeCsv).join(','),
+        ...rows.map((r) => r.join(',')),
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      const periodKey = `${currentRun.periodYear}-${String(
+        currentRun.periodMonth,
+      ).padStart(2, '0')}`;
+      const company =
+        currentRun.companyName?.trim().replace(/\s+/g, '-') || 'company';
+      a.href = url;
+      a.download = `${company}-payroll-${periodKey}.csv`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Payroll exported', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+    } catch (error) {
+      logger.error('Failed to export payroll CSV', error, {
+        runId: currentRun?.id,
+      });
+      toast.error('Could not export payroll', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+    }
+  }, [currentRun, computed, isMdScreen]);
+
+  const handleResetClick = useCallback(async () => {
+    try {
+      // Check for finalized runs
+      const runsIndex = await loadRunsIndex();
+      const finalizedRuns = runsIndex.runs.filter((r) => r.status === 'final');
+      const hasFinalized = finalizedRuns.length > 0;
+
+      setHasFinalizedRuns(hasFinalized);
+      setResetConfirmOpen(true);
+    } catch (error) {
+      logger.error('Error checking for finalized runs', error);
+      toast.error('Could not check for finalized runs', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+    }
+  }, [isMdScreen]);
+
+  const handleResetConfirm = useCallback(async () => {
+    try {
+      // Delete all runs
+      const runsIndex = await loadRunsIndex();
+      for (const run of runsIndex.runs) {
+        const runKey = getRunKey(run.id);
+        await storageDelete(runKey);
+      }
+
+      // Delete runs index
+      await storageDelete(getRunsIndexKey());
+
+      // Delete employee directory
+      await storageDelete(getEmployeeDirectoryKey());
+
+      // Delete company defaults
+      await storageDelete(getCompanyDefaultsKey());
+
+      // Reset state
+      setCurrentRun(null);
+      setRunList([]);
+      setComputed(null);
+      setCompanyDefaults(COMPANY_DEFAULTS);
+
+      // Close dialog
+      setResetConfirmOpen(false);
+
+      // Refresh the page to reset the app
+      window.location.reload();
+    } catch (error) {
+      logger.error('Error resetting payroll data', error);
+      toast.error('Could not reset data', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+    }
+  }, [isMdScreen]);
 
   const handleAddEmployee = useCallback(async () => {
     if (!currentRun) return;
@@ -636,6 +1442,7 @@ export function Payroll() {
         companyDefaults,
       );
       // Update state with the new run (which contains the new item)
+      // Note: This will trigger computation, but the loading indicator is now delayed
       setCurrentRun(run);
 
       isXlScreen &&
@@ -643,12 +1450,48 @@ export function Payroll() {
           position: isMdScreen ? 'bottom-right' : 'top-center',
         });
     } catch (error) {
-      console.error('Failed to add employee:', error);
+      logger.error('Failed to add employee', error, {
+        runId: currentRun?.id,
+      });
       toast.error('Could not add employee', {
         position: isMdScreen ? 'bottom-right' : 'top-center',
       });
     }
   }, [currentRun, companyDefaults, isMdScreen, isXlScreen]);
+
+  const handleCsvImport = useCallback(
+    async (employees: EmployeeRecord[]) => {
+      if (!currentRun) return;
+
+      try {
+        // If there are existing employees, replace them (as per design doc)
+        const runToUpdate =
+          currentRun.items.length > 0
+            ? { ...currentRun, items: [] }
+            : currentRun;
+
+        const { run } = await addEmployeesToRun(runToUpdate, employees);
+        setCurrentRun(run);
+
+        toast.success(
+          `Imported ${employees.length} employee${employees.length !== 1 ? 's' : ''}`,
+          {
+            position: isMdScreen ? 'bottom-right' : 'top-center',
+          },
+        );
+      } catch (error) {
+        logger.error('Failed to import employees from CSV', error, {
+          runId: currentRun?.id,
+          employeeCount: employees.length,
+        });
+        toast.error('Could not import employees', {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        });
+        throw error; // Re-throw so dialog can handle it
+      }
+    },
+    [currentRun, isMdScreen],
+  );
 
   const handleEditEmployee = useCallback(
     async (runItem: PayrollRunItem) => {
@@ -660,7 +1503,9 @@ export function Payroll() {
       const { employeeId } = await upsertEmployeeRecordFromRunItem(runItem, {
         allowCreateRef: isDraft,
       }).catch((error: unknown) => {
-        console.error('Failed to save employee directory:', error);
+        logger.error('Failed to save employee directory', error, {
+          employeeName: runItem.employeeSnapshot.fullName,
+        });
         return { employeeId: undefined };
       });
 
@@ -681,7 +1526,9 @@ export function Payroll() {
         };
         setCurrentRun(updatedRun);
         saveRun(updatedRun).catch((error) => {
-          console.error('Failed to save run:', error);
+          logger.error('Failed to save run', error, {
+            runId: updatedRun.id,
+          });
         });
       } else {
         // Run is finalized - show warning that changes only affect future runs
@@ -718,13 +1565,17 @@ export function Payroll() {
       };
       setCurrentRun(updatedRun);
       saveRun(updatedRun).catch((error) => {
-        console.error('Failed to save run:', error);
+        logger.error('Failed to save run', error, {
+          runId: updatedRun.id,
+        });
       });
 
       if (!runItem?.employeeRefId) return;
 
       deleteEmployeeRecord(runItem.employeeRefId).catch((error: unknown) => {
-        console.error('Failed to delete employee record:', error);
+        logger.error('Failed to delete employee record', error, {
+          employeeRefId: runItem.employeeRefId,
+        });
       });
     },
     [currentRun, isMdScreen],
@@ -741,8 +1592,14 @@ export function Payroll() {
             onDelete={handleDeleteEmployee}
             onAdd={handleAddEmployee}
             viewMode={effectiveViewMode}
-            runSettings={currentRun.settings}
             runStatus={currentRun.status}
+            runPeriod={{
+              month: currentRun.periodMonth,
+              year: currentRun.periodYear,
+              endMonth: currentRun.periodEndMonth,
+              endYear: currentRun.periodEndYear,
+            }}
+            finalizedPeriodKeys={finalizedPeriodKeys}
           />
         ) : (
           <div className="flex flex-1 items-center justify-center">
@@ -756,12 +1613,614 @@ export function Payroll() {
             </div>
           </div>
         );
-      case 'paye-by-state':
+      // case 'paye-by-state':
+      //   return (
+      //     <div className="flex flex-1 items-center justify-center p-6 text-center">
+      //       <div className="mx-auto max-w-md space-y-2">
+      //         <h2 className="text-lg font-semibold">PAYE by state</h2>
+      //         <p className="text-muted-foreground text-sm">
+      //           A detailed PAYE breakdown by state is coming soon. For now, you
+      //           can export your payroll and analyze PAYE in your own tools.
+      //         </p>
+      //       </div>
+      //     </div>
+      //   );
       case 'import':
+        return (
+          <div className="flex flex-1 flex-col items-center justify-center p-6">
+            <div className="mx-auto max-w-md space-y-4 text-center">
+              <h2 className="text-lg font-semibold">Import employees</h2>
+              <p className="text-muted-foreground text-sm">
+                Upload a CSV file to bulk import employees. Download a template
+                to get started with the correct format.
+              </p>
+              <Button
+                onClick={() => setCsvImportDialogOpen(true)}
+                className="mt-4"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import from CSV
+              </Button>
+            </div>
+            {currentRun && (
+              <CsvImportDialog
+                open={csvImportDialogOpen}
+                onOpenChange={setCsvImportDialogOpen}
+                onImport={handleCsvImport}
+                periodYear={currentRun.periodYear}
+                periodMonth={currentRun.periodMonth}
+                existingEmployeeCount={currentRun.items.length}
+                isMdScreen={isMdScreen}
+              />
+            )}
+          </div>
+        );
       case 'journals':
+        return (
+          <div className="flex flex-1 items-center justify-center p-6 text-center">
+            <div className="mx-auto max-w-md space-y-2">
+              <h2 className="text-lg font-semibold">Journals</h2>
+              <p className="text-muted-foreground text-sm">
+                Journals you can download for use in your accounting system is
+                coming soon.
+              </p>
+            </div>
+          </div>
+        );
       case 'runs':
+        return (
+          <div className="flex h-full flex-col gap-3 p-3 sm:p-4">
+            <div>
+              <h2 className="text-base font-semibold sm:text-lg">
+                Payroll runs
+              </h2>
+              <p className="text-muted-foreground text-xs sm:text-sm">
+                Switch between previous payrolls or start a new run.
+              </p>
+            </div>
+            <RunsList
+              runs={runList}
+              currentRunId={currentRun?.id}
+              onSelectRun={handleSelectRun}
+              onDeleteRunClick={(run) => {
+                setRunToDelete(run);
+                setDeleteConfirmOpen(true);
+              }}
+              onNewRun={handleNewRun}
+              variant="full"
+            />
+          </div>
+        );
       case 'company-settings':
-        return null;
+        const defaultState = companySettings?.defaultState ?? 'Lagos';
+        const prorationMethod =
+          companySettings?.employmentProrationMethod ?? 'calendar_days';
+        const enableRentRelief = companySettings?.enableRentRelief ?? true;
+        const enableYtd = companySettings?.enableYtd ?? true;
+
+        const stateOptions = NIGERIAN_STATES.map((state) => ({
+          label: state,
+          value: state,
+        }));
+
+        const prorationOptions = [
+          {
+            label: 'Calendar Days',
+            value: 'calendar_days',
+            description: 'Uses actual days in month',
+          },
+          {
+            label: '30/360',
+            value: 'thirty_360',
+            description: 'Assumes 30 days per month',
+          },
+          {
+            label: 'Business Days',
+            value: 'business_days',
+            description: 'Mon-Fri only',
+          },
+          {
+            label: 'Full Month',
+            value: 'full_month',
+            description: 'Any employment = full month',
+          },
+        ];
+
+        const pensionConfig = companySettings?.statutoryDeductions?.pension;
+        const nhfConfig = companySettings?.statutoryDeductions?.nhf;
+        const nhisConfig = companySettings?.statutoryDeductions?.nhis;
+
+        return (
+          <div className="scrollbar-thin-2px flex h-full flex-col overflow-y-auto px-3 py-3 sm:px-5 sm:py-5">
+            <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+              <div className="space-y-1">
+                <h2 className="text-base font-semibold sm:text-lg">
+                  Company settings
+                </h2>
+                <p className="text-muted-foreground text-xs sm:text-sm">
+                  These defaults apply when you create employees and payroll
+                  runs.
+                </p>
+              </div>
+
+              {/* Basic Info */}
+              <div className="bg-card space-y-3 rounded border p-3 sm:p-4">
+                <div>
+                  <p className="text-sm font-medium">Basic information</p>
+                  <p className="text-muted-foreground text-xs">
+                    Company name and default state for tax calculations.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-muted-foreground text-xs font-medium">
+                      Company name
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Acme Inc."
+                      value={companyName}
+                      onChange={(e) =>
+                        updateCompanyDefaults({ companyName: e.target.value })
+                      }
+                      className="h-9 rounded"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-muted-foreground text-xs font-medium">
+                      Default state
+                    </label>
+                    <SimpleSelect
+                      value={defaultState}
+                      onChange={(value) =>
+                        updateCompanyDefaults({
+                          settings: {
+                            defaultState: value as typeof defaultState,
+                          },
+                        })
+                      }
+                      options={stateOptions}
+                      placeholder="Select state"
+                      className="h-9 rounded"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* BHT Breakdown */}
+              <div className="space-y-3 rounded border p-3 sm:p-4">
+                <div>
+                  <p className="text-sm font-medium">BHT breakdown</p>
+                  <p className="text-muted-foreground text-xs">
+                    How basic, housing and transport are split from gross
+                    salary.
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {percentSplitFields.map((field) => (
+                    <div key={field.id} className="space-y-1">
+                      <div className="flex h-7.5 w-full items-center overflow-hidden rounded border bg-transparent shadow-xs">
+                        <div className="bg-muted text-muted-foreground flex h-full w-24 shrink-0 items-center border-r px-2 text-xs font-medium sm:w-20 md:w-24 md:uppercase">
+                          {field.label}
+                        </div>
+                        <div className="relative h-full flex-1">
+                          <Input
+                            id={field.id}
+                            inputMode="numeric"
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.01"
+                            placeholder="0"
+                            className="h-full rounded-none border-0 pr-7 text-right text-sm shadow-none focus-visible:ring-0"
+                            onKeyDown={(e) => {
+                              if (e.key === '-') e.preventDefault();
+                            }}
+                            value={field.value}
+                            onChange={(e) => {
+                              const raw = e.currentTarget.value;
+                              setPolicySplit(field.key, raw ? Number(raw) : 0);
+                            }}
+                          />
+                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                            %
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="contents md:col-span-3">
+                    <div className="flex h-7.5 gap-3 space-y-1 divide-x sm:col-span-3 sm:justify-between lg:col-span-2">
+                      <div className="bg-muted flex h-7.5 w-full items-center overflow-hidden rounded border shadow-xs">
+                        <div className="text-muted-foreground flex h-full shrink-0 items-center px-2 text-xs font-medium md:uppercase">
+                          Other Allowances
+                        </div>
+                        <div className="relative h-full flex-1">
+                          <Input
+                            inputMode="numeric"
+                            type="number"
+                            value={otherAllowancesPct}
+                            readOnly
+                            tabIndex={-1}
+                            aria-label="Other allowances percent (calculated)"
+                            className="h-full rounded-none border-0 pr-7 text-right text-sm shadow-none focus-visible:ring-0"
+                          />
+                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                            %
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Statutory Deductions */}
+              <div className="space-y-3 rounded border p-3 sm:p-4">
+                <div>
+                  <p className="text-sm font-medium">Statutory deductions</p>
+                  <p className="text-muted-foreground text-xs">
+                    Configure which deductions apply and their rates. You can
+                    still override settings per employee later.
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  {/* Pension */}
+                  <div className="space-y-2 rounded border p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={pensionConfig?.enabled ?? true}
+                          onCheckedChange={(checked) =>
+                            updateCompanyDefaults({
+                              settings: {
+                                statutoryDeductions: {
+                                  pension: {
+                                    enabled: checked === true,
+                                    employeeRate:
+                                      pensionConfig?.employeeRate ?? 0.08,
+                                    employerRate:
+                                      pensionConfig?.employerRate ?? 0.1,
+                                  },
+                                },
+                              },
+                            })
+                          }
+                        />
+                        <label className="text-sm font-medium">Pension</label>
+                      </div>
+                    </div>
+                    {pensionConfig?.enabled !== false && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <label className="text-muted-foreground text-xs">
+                            Employee rate
+                          </label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={1}
+                              step="0.001"
+                              value={
+                                pensionConfig?.employeeRate != null
+                                  ? (pensionConfig.employeeRate * 100).toFixed(
+                                      1,
+                                    )
+                                  : '8.0'
+                              }
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                updateCompanyDefaults({
+                                  settings: {
+                                    statutoryDeductions: {
+                                      pension: {
+                                        enabled: true,
+                                        employeeRate: value / 100,
+                                        employerRate:
+                                          pensionConfig?.employerRate ?? 0.1,
+                                      },
+                                    },
+                                  },
+                                });
+                              }}
+                              className="h-8 pr-8 text-sm"
+                            />
+                            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                              %
+                            </span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-muted-foreground text-xs">
+                            Employer rate
+                          </label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={1}
+                              step="0.001"
+                              value={
+                                pensionConfig?.employerRate != null
+                                  ? (pensionConfig.employerRate * 100).toFixed(
+                                      1,
+                                    )
+                                  : '10.0'
+                              }
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                updateCompanyDefaults({
+                                  settings: {
+                                    statutoryDeductions: {
+                                      pension: {
+                                        enabled: true,
+                                        employeeRate:
+                                          pensionConfig?.employeeRate ?? 0.08,
+                                        employerRate: value / 100,
+                                      },
+                                    },
+                                  },
+                                });
+                              }}
+                              className="h-8 pr-8 text-sm"
+                            />
+                            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                              %
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* NHF */}
+                  <div className="space-y-2 rounded border p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={nhfConfig?.enabled ?? false}
+                          onCheckedChange={(checked) =>
+                            updateCompanyDefaults({
+                              settings: {
+                                statutoryDeductions: {
+                                  nhf: {
+                                    enabled: checked === true,
+                                    employeeRate:
+                                      nhfConfig?.employeeRate ?? 0.025,
+                                  },
+                                },
+                              },
+                            })
+                          }
+                        />
+                        <label className="text-sm font-medium">NHF</label>
+                      </div>
+                    </div>
+                    {nhfConfig?.enabled !== false && (
+                      <div className="space-y-1">
+                        <label className="text-muted-foreground text-xs">
+                          Employee rate (of Basic)
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={1}
+                            step="0.001"
+                            value={
+                              nhfConfig?.employeeRate != null
+                                ? (nhfConfig.employeeRate * 100).toFixed(2)
+                                : '2.5'
+                            }
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 0;
+                              updateCompanyDefaults({
+                                settings: {
+                                  statutoryDeductions: {
+                                    nhf: {
+                                      enabled: true,
+                                      employeeRate: value / 100,
+                                    },
+                                  },
+                                },
+                              });
+                            }}
+                            className="h-8 pr-8 text-sm"
+                          />
+                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                            %
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* NHIS */}
+                  <div className="space-y-2 rounded border p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={nhisConfig?.enabled ?? false}
+                          onCheckedChange={(checked) =>
+                            updateCompanyDefaults({
+                              settings: {
+                                statutoryDeductions: {
+                                  nhis: {
+                                    enabled: checked === true,
+                                    employeeRate:
+                                      nhisConfig?.employeeRate ?? 0.05,
+                                    employerRate:
+                                      nhisConfig?.employerRate ?? 0.1,
+                                  },
+                                },
+                              },
+                            })
+                          }
+                        />
+                        <label className="text-sm font-medium">NHIS</label>
+                      </div>
+                    </div>
+                    {nhisConfig?.enabled !== false && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <label className="text-muted-foreground text-xs">
+                            Employee rate (of Basic)
+                          </label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={1}
+                              step="0.001"
+                              value={
+                                nhisConfig?.employeeRate != null
+                                  ? (nhisConfig.employeeRate * 100).toFixed(1)
+                                  : '5.0'
+                              }
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                updateCompanyDefaults({
+                                  settings: {
+                                    statutoryDeductions: {
+                                      nhis: {
+                                        enabled: true,
+                                        employeeRate: value / 100,
+                                        employerRate:
+                                          nhisConfig?.employerRate ?? 0.1,
+                                      },
+                                    },
+                                  },
+                                });
+                              }}
+                              className="h-8 pr-8 text-sm"
+                            />
+                            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                              %
+                            </span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-muted-foreground text-xs">
+                            Employer rate (of Basic)
+                          </label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={1}
+                              step="0.001"
+                              value={
+                                nhisConfig?.employerRate != null
+                                  ? (nhisConfig.employerRate * 100).toFixed(1)
+                                  : '10.0'
+                              }
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                updateCompanyDefaults({
+                                  settings: {
+                                    statutoryDeductions: {
+                                      nhis: {
+                                        enabled: true,
+                                        employeeRate:
+                                          nhisConfig?.employeeRate ?? 0.05,
+                                        employerRate: value / 100,
+                                      },
+                                    },
+                                  },
+                                });
+                              }}
+                              className="h-8 pr-8 text-sm"
+                            />
+                            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                              %
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Proration & Tax Settings */}
+              <div className="space-y-3 rounded border p-3 sm:p-4">
+                <div>
+                  <p className="text-sm font-medium">
+                    Proration & tax settings
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    How to calculate partial months and tax relief options.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-muted-foreground text-xs font-medium">
+                      Employment proration method
+                    </label>
+                    <SimpleSelect
+                      value={prorationMethod}
+                      onChange={(value) =>
+                        updateCompanyDefaults({
+                          settings: {
+                            employmentProrationMethod:
+                              value as typeof prorationMethod,
+                          },
+                        })
+                      }
+                      options={prorationOptions.map((opt) => ({
+                        label: `${opt.label} - ${opt.description}`,
+                        value: opt.value,
+                      }))}
+                      placeholder="Select method"
+                      className="h-9 rounded"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded border p-3">
+                    <div className="space-y-0.5">
+                      <label className="text-sm font-medium">
+                        Enable rent relief
+                      </label>
+                      <p className="text-muted-foreground text-xs">
+                        20% of annual rent, capped at ₦500k
+                      </p>
+                    </div>
+                    <Checkbox
+                      checked={enableRentRelief}
+                      onCheckedChange={(checked) =>
+                        updateCompanyDefaults({
+                          settings: {
+                            enableRentRelief: checked === true,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded border p-3">
+                    <div className="space-y-0.5">
+                      <label className="text-sm font-medium">
+                        Enable YTD computation
+                      </label>
+                      <p className="text-muted-foreground text-xs">
+                        Cumulative PAYE from all finalized runs in tax year
+                      </p>
+                    </div>
+                    <Checkbox
+                      checked={enableYtd}
+                      onCheckedChange={(checked) =>
+                        updateCompanyDefaults({
+                          settings: {
+                            enableYtd: checked === true,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -890,6 +2349,33 @@ export function Payroll() {
     return money ? parseFloat(money) : 0;
   };
 
+  // Compute total "other deductions" (non-statutory) across all employees.
+  // This is: totalDeductions - (employee pension + employee NHF + employee NHIS),
+  // summed over all items. It lets users reconcile statutory vs other deductions.
+  const otherDeductionsTotal =
+    computed?.items?.reduce((sum, item) => {
+      if (!item.totalDeductions) {
+        return sum;
+      }
+
+      const totalDeductions = moneyToNumber(item.totalDeductions);
+      const employeePension = item.employeePension
+        ? moneyToNumber(item.employeePension)
+        : 0;
+      const employeeNhf = item.employeeNhf
+        ? moneyToNumber(item.employeeNhf)
+        : 0;
+      const employeeNhis = item.employeeNhis
+        ? moneyToNumber(item.employeeNhis)
+        : 0;
+
+      // "Other" = recurring + one-off non-statutory deductions
+      const otherForItem =
+        totalDeductions - (employeePension + employeeNhf + employeeNhis);
+
+      return sum + otherForItem;
+    }, 0) ?? 0;
+
   const summaryValues: Partial<Record<SummaryCardKey, number>> = {
     gross: totals ? moneyToNumber(totals.grossTotal) : 0,
     paye: totals ? moneyToNumber(totals.payeTotal) : undefined,
@@ -905,7 +2391,7 @@ export function Payroll() {
     net: totals ? moneyToNumber(totals.netTotal) : 0,
     ee_pension: totals ? moneyToNumber(totals.employeePensionTotal) : 0,
     er_pension: totals ? moneyToNumber(totals.employerPensionTotal) : 0,
-    other: undefined, // Not computed yet
+    other: otherDeductionsTotal,
     employees: currentRun ? currentRun.items.length : 0,
   };
 
@@ -947,8 +2433,8 @@ export function Payroll() {
   const isMobileClamped = shouldClampOnMobile && !showAllOnMobile;
 
   return (
-    <div className="relative mx-auto flex h-svh w-full max-w-7xl flex-col">
-      <div className="flex flex-1 touch-pan-y flex-col overflow-y-auto pt-15 md:overflow-hidden">
+    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-7xl flex-col">
+      <div className="flex flex-1 touch-pan-y flex-col overflow-y-auto pt-4 md:overflow-hidden">
         <div className="flex flex-col items-center justify-between gap-3 px-4 pb-3 sm:px-8 sm:pb-0 md:flex-row">
           <div className="h-9 w-full md:h-10">
             <Input
@@ -1210,113 +2696,17 @@ export function Payroll() {
 
             {/* Runs */}
             {(!isMdScreen || showPolicyAndRuns) && (
-              <div className="flex max-h-[160px] min-h-[100px] flex-col overflow-y-auto rounded border text-sm xl:h-full xl:max-h-none xl:flex-1">
-                <div className="p-2 font-medium">Payroll runs</div>
-                <ul className="scrollbar-thin-2px flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2 pr-6">
-                  {runList.length === 0 ? (
-                    <li className="text-muted-foreground py-4 text-center text-xs">
-                      No runs yet
-                    </li>
-                  ) : (
-                    runList.map((run) => {
-                      const isCurrentRun = currentRun?.id === run.id;
-                      const isDemoRun = run.isDemo;
-                      const tooltipText = formatRunTooltipText(run);
-                      // Extract period from label (format: "Company • YYYY-MM")
-                      return (
-                        <li
-                          key={run.id}
-                          className={cn(
-                            'flex flex-nowrap items-center justify-between gap-4 whitespace-nowrap',
-                            !isCurrentRun && 'text-muted-foreground',
-                          )}
-                        >
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div
-                                className={cn(
-                                  'flex flex-1 cursor-pointer items-center overflow-hidden',
-                                  isCurrentRun
-                                    ? 'font-medium text-blue-500'
-                                    : '',
-                                )}
-                                title={tooltipText}
-                                onClick={async () => {
-                                  try {
-                                    const loadedRun = await loadRun(run.id);
-                                    if (loadedRun) {
-                                      applyLoadedRun(loadedRun);
-                                    } else {
-                                      toast.error('Could not load run', {
-                                        position: isMdScreen
-                                          ? 'bottom-right'
-                                          : 'top-center',
-                                      });
-                                    }
-                                  } catch (error) {
-                                    toast.error('Could not load run', {
-                                      position: isMdScreen
-                                        ? 'bottom-right'
-                                        : 'top-center',
-                                    });
-                                  }
-                                }}
-                              >
-                                <span className="text-muted-foreground pr-2 font-normal">
-                                  -
-                                </span>
-                                <span className="truncate text-[0.85rem]">
-                                  <span className="hidden sm:inline">
-                                    {run.companyName} &bull;
-                                  </span>
-                                  <span>{run.label}</span>
-                                  {isDemoRun && ' (Demo)'}
-                                  {run.status === 'final' ? ' (final)' : ''}
-                                  {isCurrentRun && (
-                                    <span className="text-primary ml-1 text-xs font-medium">
-                                      &bull; Current
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs whitespace-pre-line">
-                                {tooltipText}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <button
-                            type="button"
-                            className="shrink-0 cursor-pointer text-xs hover:text-red-600"
-                            onClick={() => {
-                              setRunToDelete(run);
-                              setDeleteConfirmOpen(true);
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </li>
-                      );
-                    })
-                  )}
-                </ul>
-                <div
-                  className="bg-muted flex w-full cursor-pointer items-center justify-center gap-1 p-1"
-                  onClick={handleNewRun}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleNewRun();
-                    }
-                  }}
-                >
-                  <Plus className="size-4" />
-                  <span className="text-xs">New Run</span>
-                </div>
-              </div>
+              <RunsList
+                runs={runList}
+                currentRunId={currentRun?.id}
+                onSelectRun={handleSelectRun}
+                onDeleteRunClick={(run) => {
+                  setRunToDelete(run);
+                  setDeleteConfirmOpen(true);
+                }}
+                onNewRun={handleNewRun}
+                variant="sidebar"
+              />
             )}
           </div>
 
@@ -1345,27 +2735,42 @@ export function Payroll() {
                   <Copy className="size-4" /> <span>Make a copy</span>
                 </Button>
               ) : (
-                <Button variant="outline" onClick={handleFinalizeRunClick}>
+                <Button onClick={handleFinalizeRunClick}>
                   <Save className="size-4" /> <span>Finalize</span>
                 </Button>
               )}
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleExportCsv}>
                 <Download className="size-4" />
                 <span className="">Export</span>
               </Button>
             </div>
           </div>
 
-          <div className="flex-1 rounded border md:flex md:min-h-0 md:flex-col">
+          <div className="relative flex-1 rounded border md:flex md:min-h-0 md:flex-col">
+            {isComputing && (
+              <div className="bg-background/50 absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm">
+                <div className="text-muted-foreground text-sm">
+                  Computing payroll...
+                </div>
+              </div>
+            )}
             {renderTabContent()}
           </div>
         </div>
       </div>
       <div className="min-h-3">
         <div className="text-muted-foreground hidden items-center justify-between px-4 text-[10px] sm:px-8 md:flex">
-          <p className="before:text-red-500 before:content-['*_']">
-            Based on NTA 2025
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="before:text-red-500 before:content-['*_']">
+              Based on NTA 2025
+            </p>
+            <button
+              onClick={handleResetClick}
+              className="text-red-500 hover:text-red-600 hover:underline cursor-pointer"
+            >
+              Reset
+            </button>
+          </div>
           <p className="space-x-1">
             <a
               href="https://getaccountable.com/"
@@ -1397,18 +2802,35 @@ export function Payroll() {
       >
         <div
           className="flex cursor-pointer flex-col items-center justify-center"
-          onClick={handleFinalizeRunClick}
+          onClick={
+            currentRun?.status === 'final'
+              ? handleDuplicateRun
+              : handleFinalizeRunClick
+          }
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              handleFinalizeRunClick();
+              if (currentRun?.status === 'final') {
+                handleDuplicateRun();
+              } else {
+                handleFinalizeRunClick();
+              }
             }
           }}
         >
-          <SaveIcon className="size-5" />
-          <span className="text-[11px]">Save</span>
+          {currentRun?.status === 'final' ? (
+            <>
+              <Copy className="size-5" />
+              <span className="text-[11px]">Copy</span>
+            </>
+          ) : (
+            <>
+              <SaveIcon className="size-5" />
+              <span className="text-[11px]">Finalize</span>
+            </>
+          )}
         </div>
         <div
           className="flex cursor-pointer flex-col items-center justify-center"
@@ -1425,7 +2847,7 @@ export function Payroll() {
           <UserRoundPlus className="bg-muted size-5 rounded-full" />
           <span className="text-[11px]">Add Employee</span>
         </div>
-        <Popover>
+        <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
           <PopoverTrigger asChild>
             <div className="flex cursor-pointer flex-col items-center justify-center">
               <Ellipsis className="size-5" />
@@ -1445,21 +2867,29 @@ export function Payroll() {
                   handleNewRun();
                 },
               },
-              {
-                label: 'Import Employees (CSV)',
-                icon: FileUp,
-                onClick: () => {
-                  // TODO: Implement employee data import
-                  console.log('Import Employees CSV');
-                },
-              },
+              // Removing temporarily until we have a CSV import feature
+              // {
+              //   label: 'Import Employees (CSV)',
+              //   icon: FileUp,
+              //   onClick: () => {
+              //     logger.info('Import Employees CSV - not yet implemented');
+              //   },
+              // },
               {
                 label: 'Export Payroll (CSV)',
                 icon: FileDown,
                 onClick: () => {
-                  // TODO: Implement payroll export
-                  console.log('Export Payroll CSV');
+                  handleExportCsv();
                 },
+              },
+              {
+                label: 'Reset',
+                icon: Trash2,
+                onClick: () => {
+                  setMoreMenuOpen(false);
+                  handleResetClick();
+                },
+                isDestructive: true,
               },
             ].map((item) => {
               const Icon = item.icon;
@@ -1467,7 +2897,10 @@ export function Payroll() {
                 <button
                   key={item.label}
                   onClick={item.onClick}
-                  className="hover:bg-accent hover:text-accent-foreground flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors outline-none"
+                  className={cn(
+                    'hover:bg-accent hover:text-accent-foreground flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors outline-none',
+                    item.isDestructive && 'text-red-500 hover:text-red-600',
+                  )}
                 >
                   <Icon className="size-4" />
                   {item.label}
@@ -1558,7 +2991,9 @@ export function Payroll() {
                   setDeleteConfirmOpen(false);
                   setRunToDelete(null);
                 } catch (error) {
-                  console.error('Error deleting run:', error);
+                  logger.error('Error deleting run', error, {
+                    runId: runToDelete.id,
+                  });
                   toast.error('Could not delete run', {
                     position: isMdScreen ? 'bottom-right' : 'top-center',
                   });
@@ -1571,84 +3006,76 @@ export function Payroll() {
         </DialogContent>
       </Dialog>
 
-      {/* Finalize Confirmation Dialog */}
-      <Dialog open={finalizeDialogOpen} onOpenChange={setFinalizeDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+      {/* Reset Confirmation Dialog */}
+      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <DialogContent className="rounded sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Finalize Payroll Run</DialogTitle>
+            <DialogTitle>Reset Payroll Data</DialogTitle>
             <DialogDescription>
-              Once finalized, this payroll run will be locked and cannot be
-              edited. Make sure all data is correct before proceeding.
+              {hasFinalizedRuns ? (
+                <>
+                  Are you sure you want to reset all payroll data? This will
+                  delete all runs, including finalized runs, employees, and
+                  company settings. This action cannot be undone.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to reset all payroll data? This will
+                  delete all runs, employees, and company settings. This action
+                  cannot be undone.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label
-                htmlFor="finalized-by-name"
-                className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Finalized by (optional)
-              </label>
-              <Input
-                id="finalized-by-name"
-                placeholder="Enter your name"
-                value={finalizedByName}
-                onChange={(e) => setFinalizedByName(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-3">
-              <p className="text-sm font-medium">Choose how to save:</p>
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSyncOption('local');
-                    handleFinalizeRun(finalizedByName, 'local');
-                  }}
-                  className="w-full rounded-lg border-2 border-orange-200 bg-orange-50 p-4 text-left transition-colors hover:bg-orange-100 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:outline-none"
-                >
-                  <div className="font-semibold text-orange-900">
-                    Save Locally
-                  </div>
-                  <div className="mt-1 text-sm text-orange-700">
-                    Data saved on this device only. Not accessible on other
-                    devices. Risk of data loss if device data is cleared.
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSyncOption('cloud');
-                    handleFinalizeRun(finalizedByName, 'cloud');
-                  }}
-                  className="w-full rounded-lg border-2 border-green-200 bg-green-50 p-4 text-left transition-colors hover:bg-green-100 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:outline-none"
-                >
-                  <div className="font-semibold text-green-900">
-                    Save & Sync
-                  </div>
-                  <div className="mt-1 text-sm text-green-700">
-                    Data saved and synced across devices. Access from anywhere,
-                    anytime.
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
-                setFinalizeDialogOpen(false);
-                setFinalizedByName('');
-                setSyncOption(null);
+                setResetConfirmOpen(false);
               }}
             >
               Cancel
             </Button>
+            <Button
+              variant="destructive"
+              onClick={handleResetConfirm}
+            >
+              Reset
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FinalizeDialog
+        open={finalizeDialogOpen}
+        onOpenChange={(open) => {
+          if (isFinalizingRun) return;
+          setFinalizeDialogOpen(open);
+          if (!open) {
+            setFinalizedByName('');
+            setConflictingRun(null);
+            setFinalizeDialogMode('finalize');
+          }
+        }}
+        onRequestClose={() => {
+          setFinalizeDialogOpen(false);
+          setFinalizedByName('');
+          setConflictingRun(null);
+          setFinalizeDialogMode('finalize');
+          setMonthGaps([]);
+        }}
+        finalizedByName={finalizedByName}
+        mode={finalizeDialogMode}
+        conflictingRun={conflictingRun}
+        onOverrideConfirm={handleOverrideConfirm}
+        monthGaps={monthGaps}
+        onFinalizedByNameChange={setFinalizedByName}
+        isFinalizing={isFinalizingRun}
+        onFinalize={handleFinalizeRun}
+        currentRun={currentRun}
+        computed={computed}
+        isMdScreen={isMdScreen}
+      />
     </div>
   );
 }

@@ -53,10 +53,8 @@ export function getTableRowData(
   // Monthly gross derived from annual
   const monthlyGross = annualGross / 12;
 
-  // Extract breakdown from computed item if available
-  const monthlyBasic = computedItem?.breakdown?.basic
-    ? moneyToNumber(computedItem.breakdown.basic)
-    : monthlyGross; // Fallback to gross if no breakdown
+  const basicValue = computedItem?.breakdown?.basic ? moneyToNumber(computedItem.breakdown.basic) : 0;
+  const monthlyBasic = basicValue > 0 ? basicValue : monthlyGross;
   const monthlyHousing = computedItem?.breakdown?.housing
     ? moneyToNumber(computedItem.breakdown.housing)
     : 0;
@@ -144,4 +142,24 @@ export function calculateAnnualGrossFromMonthlyBasic(
   }
   // If breakdown exists, annualGross = annualBasic / basicRate
   return annualBasic / breakdown.basic;
+}
+
+/**
+ * Format NGN currency for display.
+ *
+ * Default is 0 decimal places (whole naira).
+ * Pass `decimals` (e.g. 2) when you explicitly need cents.
+ */
+export function ngnMoneyFormatter(
+  value: number,
+  decimals: number = 0,
+): string {
+  const formatter = new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+
+  return formatter.format(value);
 }

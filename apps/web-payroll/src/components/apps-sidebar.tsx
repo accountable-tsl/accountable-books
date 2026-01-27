@@ -137,7 +137,7 @@ const data = {
 };
 export function AppsSidebar() {
   const [activeItem, setActiveItem] = useState(data.navMain[0]);
-  const [mails, setMails] = useState(data.mails);
+  const [, setMails] = useState(data.mails);
   const { setOpen } = useSidebar();
   return (
     <div>
