@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { CenteredLoader } from '@/components/CenteredLoader';
-import { routes } from '@/shared/routes/routes';
-import { isPublicRoute } from '@/shared/routes/utils';
+import { isPublicRoute, routes } from '@/shared/routes';
 import { useSession } from '@session';
 import { Navigate } from 'react-router';
 

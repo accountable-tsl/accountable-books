@@ -155,7 +155,7 @@ const CatEngineTableSection = memo(function CatEngineTableSection({
         <AccordionItem
           key={item.id}
           value={item.id}
-          className="flex flex-col [[data-state=open]]:h-full [[data-state=open]]:min-h-0"
+          className="flex flex-col [data-state=open]:h-full [data-state=open]:min-h-0"
         >
           <AccordionTrigger className={cn('p-0 px-2 py-1 hover:no-underline')}>
             <div className="flex items-center gap-2">
@@ -204,25 +204,25 @@ function getInitialDateRange() {
   return { from: sixMonthsAgo, to: now } as { from: Date; to?: Date };
 }
 
-/**
- * Map accordion item ID to status filter
- */
-function getStatusFromAccordionItem(
-  itemId: string,
-): 'uncategorized' | 'proposed' | 'posted' | undefined {
-  switch (itemId) {
-    case 'uncategorized':
-      return 'uncategorized';
-    case 'high-confidence':
-    case 'medium-confidence':
-    case 'low-confidence':
-      return 'proposed';
-    case 'reviewed':
-      return 'posted';
-    default:
-      return undefined;
-  }
-}
+// /**
+//  * Map accordion item ID to status filter
+//  */
+// function getStatusFromAccordionItem(
+//   itemId: string,
+// ): 'uncategorized' | 'proposed' | 'posted' | undefined {
+//   switch (itemId) {
+//     case 'uncategorized':
+//       return 'uncategorized';
+//     case 'high-confidence':
+//     case 'medium-confidence':
+//     case 'low-confidence':
+//       return 'proposed';
+//     case 'reviewed':
+//       return 'posted';
+//     default:
+//       return undefined;
+//   }
+// }
 
 function normalizeConfidence(confidence: number | null | undefined) {
   if (confidence === null || confidence === undefined) return null;
@@ -380,7 +380,7 @@ export function CatEngine() {
   // Determine if we should auto-switch to autosave (1024px <= width < 1440px)
   const shouldAutoSave = is1024 && !is1440;
 
-  const statusFilter = getStatusFromAccordionItem(openAccordionItem);
+  // const statusFilter = getStatusFromAccordionItem(openAccordionItem);
 
   // Fetch bank accounts for bank name/logo lookup and filtering
   const { data: bankAccountsData } = useCompanyBankAccounts(companyId ?? '');
@@ -413,7 +413,7 @@ export function CatEngine() {
   const {
     data: txnData,
     isLoading,
-    error,
+    error: _error,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -998,14 +998,8 @@ export function CatEngine() {
                     // minSize={20}
                     // maxSize={40}
                     // defaultSize={30}
-                    className="h-full min-h-0 w-sm !max-w-md overflow-hidden"
+                    className="h-full min-h-0 w-sm max-w-md! overflow-hidden"
                   >
-                    {/* <CatEngineTxnView
-                    transaction={selectedTransaction}
-                    accordionItemId={openAccordionItem}
-                    isLoading={isLoading}
-                    error={error ? error.message : null}
-                  /> */}
                     <TransactionView
                       transaction={selectedTransaction}
                       groupedCoaData={groupedCoaData}
@@ -1029,7 +1023,7 @@ export function CatEngine() {
             />
           )}
         </div>
-        <div className="flex flex-shrink-0 flex-nowrap items-center justify-between gap-4 pt-1.5 text-xs">
+        <div className="flex shrink-0 flex-nowrap items-center justify-between gap-4 pt-1.5 text-xs">
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground/75 flex items-center gap-1">
               <span>Showing {footerStats.current.total}</span>

@@ -9,7 +9,7 @@ import {
   resendVerificationEmail,
 } from '@/domains-pending-migration/onboarding/api';
 import { cn } from '@/lib/utils';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { useSession } from '@session';
 import { TriangleAlert } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router';

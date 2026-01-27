@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { useSession } from '@session';
 import { useNavigate } from 'react-router';
 

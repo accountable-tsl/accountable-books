@@ -48,7 +48,7 @@ import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useIndustries } from '@/shared/hooks/useIndustries';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useSession } from '@session';
 import { Controller, useForm } from 'react-hook-form';

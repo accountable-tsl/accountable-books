@@ -24,7 +24,7 @@ import { UploadBankTransactions } from '@/features/upload-bank-transactions';
 import AppLayout from '@/layouts/AppLayout';
 import OnboardingLayout from '@/layouts/OnboardingLayout';
 import { queryClient } from '@/lib/queryClient';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { SessionProvider } from '@session';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';

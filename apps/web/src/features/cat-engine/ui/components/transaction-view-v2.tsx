@@ -93,7 +93,6 @@ export function TransactionView({
   );
   const [_isEditingAmount, setIsEditingAmount] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
-  const [, setEntryRevision] = useState(0);
   const [draftExchangeRate, setDraftExchangeRate] = useState<number | null>(
     null,
   );
@@ -101,11 +100,20 @@ export function TransactionView({
   const [presignedUrls, setPresignedUrls] = useState<Map<string, string>>(
     new Map(),
   );
+  // Track file keys whose presigned URL fetch failed
+  const [failedPresignedUrls, setFailedPresignedUrls] = useState<Set<string>>(
+    new Set(),
+  );
   // Map of File object -> blob URL for new files
   const [blobUrls, setBlobUrls] = useState<Map<File, string>>(new Map());
   const blobUrlsRef = useRef<Map<File, string>>(new Map());
+  const uploadingFilesRef = useRef<Set<string>>(new Set());
   // Track which files have been saved (keyed by entryId:fileName:fileSize)
   const [savedFiles, setSavedFiles] = useState<Set<string>>(new Set());
+  // Local, per-entry drafts to avoid mutating manager state before save.
+  const [draftEntries, setDraftEntries] = useState<
+    Map<string, Partial<LedgerIntentEntry>>
+  >(new Map());
 
   // Helper function to create file key for savedFiles tracking
   const getFileKey = useCallback((entryId: string, file: File) => {
@@ -201,87 +209,130 @@ export function TransactionView({
   };
 
   const entriesUI = getEntriesUI();
+  // Index entries by UI id to avoid repeated linear searches.
+  const entriesUIById = useMemo(() => {
+    const map = new Map<string, (typeof entriesUI)[number]>();
+    entriesUI.forEach((entry) => map.set(entry.uiEntryId, entry));
+    return map;
+  }, [entriesUI]);
 
   function getEntryUI(entryId: string) {
-    return entriesUI.find((e) => e.uiEntryId === entryId);
+    const entry = entriesUIById.get(entryId);
+    if (!entry) return undefined;
+    const draft = draftEntries.get(entryId);
+    return draft ? { ...entry, ...draft } : entry;
+  }
+
+  function getBaseEntryUI(entryId: string) {
+    return entriesUIById.get(entryId);
   }
 
   function updateEntryDraft(
     entryId: string,
     patch: Partial<LedgerIntentEntry>,
   ) {
-    const entry = getEntryUI(entryId);
-    if (!entry) return;
-    if (patch.coa_id !== undefined) entry.coa_id = patch.coa_id;
-    if (patch.contact_id !== undefined)
-      entry.contact_id = patch.contact_id ?? null;
-    if (patch.project_id !== undefined)
-      entry.project_id = patch.project_id ?? null;
-    if (patch.description !== undefined)
-      entry.description = patch.description ?? null;
-    if (patch.reference !== undefined)
-      entry.reference = patch.reference ?? null;
-    if (patch.source_amount !== undefined)
-      entry.source_amount = patch.source_amount ?? null;
-    if (patch.fs_date !== undefined) entry.fs_date = patch.fs_date ?? null;
-    if (patch.review_notes !== undefined)
-      entry.review_notes = patch.review_notes ?? null;
-    setEntryRevision((prev) => prev + 1);
+    if (!getBaseEntryUI(entryId)) return;
+    setDraftEntries((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(entryId) || {};
+      next.set(entryId, { ...existing, ...patch });
+      return next;
+    });
   }
 
-  function resetDraftEntryFromTxn(entryId: string) {
-    const entry = getEntryUI(entryId);
-    if (!entry) return;
-    const serverEntry = txn.entries?.find((e) => {
-      const ledgerEntryId = entry.ledgerEntryId || entry.uiEntryId;
-      return e.ledgerEntryId === ledgerEntryId || e.id === ledgerEntryId;
-    });
-    if (!serverEntry) return;
+  // Clear a single draft field after a successful commit.
+  const clearDraftField = useCallback(
+    (entryId: string, field: keyof LedgerIntentEntry) => {
+      setDraftEntries((prev) => {
+        const current = prev.get(entryId);
+        if (!current || !(field in current)) return prev;
+        const next = new Map(prev);
+        const updated = { ...current };
+        delete updated[field];
+        if (Object.keys(updated).length === 0) {
+          next.delete(entryId);
+        } else {
+          next.set(entryId, updated);
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
-    updateEntryDraft(entryId, {
-      coa_id: serverEntry.coaId ?? '',
-      contact_id: serverEntry.contactId,
-      project_id: serverEntry.projectId,
-      description: serverEntry.description,
-      reference: serverEntry.reference,
-      source_amount: serverEntry.nativeAmount,
-      fs_date: serverEntry.fsDate || serverEntry.date,
-      review_notes: serverEntry.reviewNotes,
+  function resetDraftEntryFromTxn(entryId: string) {
+    if (!getBaseEntryUI(entryId)) return;
+    setDraftEntries((prev) => {
+      if (!prev.has(entryId)) return prev;
+      const next = new Map(prev);
+      next.delete(entryId);
+      return next;
     });
   }
 
   function hasEntryChanged(entryId: string): boolean {
-    const draft = getEntryUI(entryId);
+    const draft = draftEntries.get(entryId);
     if (!draft) return false;
 
-    // New entries are always considered changed
-    // Check if entry exists in transaction (more robust than string prefix)
-    const existsInTransaction = txn.entries
-      ? txn.entries.some((e) => {
-          const ledgerEntryId = draft.ledgerEntryId || draft.uiEntryId;
-          return e.ledgerEntryId === ledgerEntryId || e.id === ledgerEntryId;
-        })
-      : false;
+    const base = getBaseEntryUI(entryId);
+    if (!base) return false;
 
-    if (!existsInTransaction) {
-      return true; // New entry
-    }
-
-    // Compare with server state directly
     const server = txn.entries?.find((e) => {
-      const ledgerEntryId = draft.ledgerEntryId || draft.uiEntryId;
+      const ledgerEntryId = base.ledgerEntryId || base.uiEntryId;
       return e.ledgerEntryId === ledgerEntryId || e.id === ledgerEntryId;
     });
-    if (!server) return false;
 
-    return (
-      draft.coa_id !== (server.coaId ?? '') ||
-      draft.contact_id !== server.contactId ||
-      draft.project_id !== server.projectId ||
-      draft.description !== server.description ||
-      draft.reference !== server.reference ||
-      draft.source_amount !== server.nativeAmount
-    );
+    if (!server) {
+      return true;
+    }
+
+    const fields: Array<keyof LedgerIntentEntry> = [
+      'coa_id',
+      'contact_id',
+      'project_id',
+      'description',
+      'reference',
+      'source_amount',
+      'fs_date',
+      'review_notes',
+    ];
+
+    for (const field of fields) {
+      if (!(field in draft)) continue;
+      const draftValue = draft[field];
+      let serverValue: unknown;
+      switch (field) {
+        case 'coa_id':
+          serverValue = server.coaId ?? '';
+          break;
+        case 'contact_id':
+          serverValue = server.contactId ?? null;
+          break;
+        case 'project_id':
+          serverValue = server.projectId ?? null;
+          break;
+        case 'description':
+          serverValue = server.description ?? null;
+          break;
+        case 'reference':
+          serverValue = server.reference ?? null;
+          break;
+        case 'source_amount':
+          serverValue = server.nativeAmount ?? null;
+          break;
+        case 'fs_date':
+          serverValue = server.fsDate || server.date || null;
+          break;
+        case 'review_notes':
+          serverValue = server.reviewNotes ?? null;
+          break;
+        default:
+          serverValue = undefined;
+      }
+      if (draftValue !== serverValue) return true;
+    }
+
+    return false;
   }
 
   // Type guard to check if file is a server file
@@ -321,6 +372,22 @@ export function TransactionView({
   }, [entriesUI]);
 
   useEffect(() => {
+    // Drop drafts for entries that no longer exist in the UI list.
+    if (draftEntries.size === 0) return;
+    setDraftEntries((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const entryId of prev.keys()) {
+        if (!entriesUIById.has(entryId)) {
+          next.delete(entryId);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [entriesUIById, draftEntries.size]);
+
+  useEffect(() => {
     setBlobUrls((prev) => {
       const next = new Map(prev);
       let changed = false;
@@ -335,6 +402,30 @@ export function TransactionView({
         }
       }
 
+      return changed ? next : prev;
+    });
+  }, [draftEntryFiles]);
+
+  useEffect(() => {
+    const activeFiles = new Set<File>();
+    for (const files of draftEntryFiles.values()) {
+      for (const file of files) {
+        if (!isServerFile(file)) {
+          activeFiles.add(file);
+        }
+      }
+    }
+
+    setBlobUrls((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const [file, url] of prev.entries()) {
+        if (!activeFiles.has(file)) {
+          URL.revokeObjectURL(url);
+          next.delete(file);
+          changed = true;
+        }
+      }
       return changed ? next : prev;
     });
   }, [draftEntryFiles]);
@@ -362,8 +453,17 @@ export function TransactionView({
           // Server file - use presigned URL if available
           const url = presignedUrls.get(file.key);
           if (!url) {
-            // URL not yet available - will be fetched by useEffect
-            continue; // Skip for now, will be available on next render
+            if (failedPresignedUrls.has(file.key)) {
+              // Fetch failed - show placeholder so file isn't silently hidden
+              attachments.push({
+                file_name: file.name,
+                url: '',
+                type: file.type,
+                size: Number(file.size_bytes),
+              });
+            }
+            // Otherwise URL not yet available - will be fetched by useEffect
+            continue;
           }
           attachments.push({
             file_name: file.name,
@@ -387,7 +487,7 @@ export function TransactionView({
 
       return attachments;
     },
-    [draftEntryFiles, presignedUrls, blobUrls],
+    [draftEntryFiles, presignedUrls, failedPresignedUrls, blobUrls],
   );
 
   function canPersistEntry(entryId: string): boolean {
@@ -419,14 +519,14 @@ export function TransactionView({
     // 2. Transaction must be balanced
     if (!balance.balanced) {
       const entriesTotal =
-        entriesUI.reduce((sum, e) => sum + (e.source_amount ?? 0), 0) ?? 0;
+        entriesForCalc.reduce((sum, e) => sum + (e.source_amount ?? 0), 0) ?? 0;
       console.log('[canPersistEntry] Transaction not balanced', {
         entryId,
         entriesTotal,
         bankAmount: txn.bankAmount,
         diff: balance.diff,
         expectedTotal: -txn.bankAmount,
-        entries: entriesUI.map((e) => ({
+        entries: entriesForCalc.map((e) => ({
           id: e.uiEntryId,
           source_amount: e.source_amount,
         })),
@@ -452,10 +552,18 @@ export function TransactionView({
   }
 
   // Memoize balance calculation to avoid repeated computation
-  const balance = useMemo(() => {
-    if (!entriesUI.length) return { balanced: false, diff: 0 };
+  const entriesForCalc = useMemo(() => {
+    if (!entriesUI.length) return [];
+    return entriesUI.map((entry) => {
+      const draft = draftEntries.get(entry.uiEntryId);
+      return draft ? { ...entry, ...draft } : entry;
+    });
+  }, [entriesUI, draftEntries]);
 
-    const entriesTotal = entriesUI.reduce(
+  const balance = useMemo(() => {
+    if (!entriesForCalc.length) return { balanced: false, diff: 0 };
+
+    const entriesTotal = entriesForCalc.reduce(
       (sum, e) => sum + (e.source_amount ?? 0),
       0,
     );
@@ -464,7 +572,7 @@ export function TransactionView({
       balanced: Math.abs(entriesTotal + txn.bankAmount) < 0.0001,
       diff: entriesTotal + txn.bankAmount,
     };
-  }, [entriesUI, txn.bankAmount]);
+  }, [entriesForCalc, txn.bankAmount]);
 
   // Auto-save files when entry becomes valid
   const handleAutoSaveFiles = async (entryId: string) => {
@@ -476,10 +584,13 @@ export function TransactionView({
     if (!companyId || !canAcceptFiles(entryId)) return;
 
     const files = draftEntryFiles.get(entryId) || [];
-    const newFiles = files.filter(
-      (file) =>
-        !isServerFile(file) && !savedFiles.has(getFileKey(entryId, file)),
-    ) as File[];
+    const newFiles = files.filter((file) => {
+      if (isServerFile(file)) return false;
+      const key = getFileKey(entryId, file);
+      if (savedFiles.has(key)) return false;
+      if (uploadingFilesRef.current.has(key)) return false;
+      return true;
+    }) as File[];
 
     if (newFiles.length === 0) return;
 
@@ -487,6 +598,10 @@ export function TransactionView({
       const entry = getEntryUI(entryId);
       const ledgerEntryId = entry?.ledgerEntryId;
       if (!ledgerEntryId) return;
+
+      newFiles.forEach((file) => {
+        uploadingFilesRef.current.add(getFileKey(entryId, file));
+      });
 
       await uploadTxnFilesMutation.mutateAsync({
         companyId,
@@ -509,6 +624,10 @@ export function TransactionView({
     } catch (error) {
       toast.error('File upload failed. Please try again.');
       console.error('Failed to auto-save files:', error);
+    } finally {
+      newFiles.forEach((file) => {
+        uploadingFilesRef.current.delete(getFileKey(entryId, file));
+      });
     }
   };
 
@@ -523,6 +642,7 @@ export function TransactionView({
 
     // Always call updateEntry - let emitter handle accumulation and validation
     updateEntry(entryId, { [field]: value });
+    clearDraftField(entryId, field);
 
     // Auto-save files when entry is ready (check canAcceptFiles, not canPersistEntry)
     if (canAcceptFiles(entryId)) {
@@ -573,6 +693,12 @@ export function TransactionView({
     // For new entries: removes from desiredState.entries (prevents sending)
     // For existing entries: tracks deletion in deleted_entry_ids
     deleteEntry(entryId);
+    setDraftEntries((prev) => {
+      if (!prev.has(entryId)) return prev;
+      const next = new Map(prev);
+      next.delete(entryId);
+      return next;
+    });
 
     // Remove files for the deleted entry
     setDraftEntryFiles((prev) => {
@@ -733,7 +859,11 @@ export function TransactionView({
 
     for (const files of draftEntryFiles.values()) {
       for (const file of files) {
-        if (isServerFile(file) && !presignedUrls.has(file.key)) {
+        if (
+          isServerFile(file) &&
+          !presignedUrls.has(file.key) &&
+          !failedPresignedUrls.has(file.key)
+        ) {
           // Avoid duplicate requests for the same key
           if (!filesNeedingUrls.some((f) => f.key === file.key)) {
             filesNeedingUrls.push({ key: file.key });
@@ -748,15 +878,28 @@ export function TransactionView({
         bucketType: 'txnFiles',
         fileKey: key,
         timeout: 3600,
-      }).then((downloadUrlResponse) => {
-        if (downloadUrlResponse.success && downloadUrlResponse.data) {
-          setPresignedUrls((prev) =>
-            new Map(prev).set(key, downloadUrlResponse.data!.url),
-          );
-        }
-      });
+      })
+        .then((downloadUrlResponse) => {
+          if (downloadUrlResponse.success && downloadUrlResponse.data) {
+            setPresignedUrls((prev) =>
+              new Map(prev).set(key, downloadUrlResponse.data!.url),
+            );
+            // Clear from failed set if it was a retry
+            setFailedPresignedUrls((prev) => {
+              if (!prev.has(key)) return prev;
+              const next = new Set(prev);
+              next.delete(key);
+              return next;
+            });
+          } else {
+            setFailedPresignedUrls((prev) => new Set(prev).add(key));
+          }
+        })
+        .catch(() => {
+          setFailedPresignedUrls((prev) => new Set(prev).add(key));
+        });
     }
-  }, [companyId, draftEntryFiles, presignedUrls]);
+  }, [companyId, draftEntryFiles, presignedUrls, failedPresignedUrls]);
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -812,7 +955,7 @@ export function TransactionView({
           isLocked && 'pointer-events-none opacity-60',
         )}
       >
-        <div className="grid flex-shrink-0 grid-cols-2 items-center gap-4 p-4 pt-0">
+        <div className="grid shrink-0 grid-cols-2 items-center gap-4 p-4 pt-0">
           {/* Amount */}
           <div className="overflow-hidden">
             <div className="text-muted-foreground truncate text-xs">
@@ -845,7 +988,7 @@ export function TransactionView({
             trigger={
               <div className="flex items-center gap-2 overflow-hidden">
                 <div
-                  className="bg-muted dark:bg-foreground/70 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border"
+                  className="bg-muted dark:bg-foreground/70 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border"
                   role="img"
                   aria-label={`${txn.bankName || TOOLTIPS.BANK_LOGO} logo`}
                 >
@@ -969,7 +1112,7 @@ export function TransactionView({
               <div className="bg-muted overflow-clip rounded px-2 py-1">
                 <div className="flex justify-between gap-4 overflow-clip">
                   <div className="flex min-w-0 items-center gap-1 overflow-clip">
-                    <span className="text-muted-foreground flex-shrink-0 text-xs">
+                    <span className="text-muted-foreground shrink-0 text-xs">
                       {txn.bankAmount < 0 ? 'CR' : 'DR'}
                     </span>
                     <div
@@ -978,11 +1121,11 @@ export function TransactionView({
                     >
                       {txn.bankAccountCoaName ?? txn.bankAccountName}
                     </div>
-                    <span className="text-muted-foreground flex-shrink-0 text-xs">
+                    <span className="text-muted-foreground shrink-0 text-xs">
                       (Bank Leg)
                     </span>
                   </div>
-                  <div className="flex flex-shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <div
                       className={cn(
                         txn.bankAmount < 0
@@ -1007,40 +1150,45 @@ export function TransactionView({
               </div>
             </div>
 
-            {entriesUI.map((draftEntry) => {
+            {entriesUI.map((baseEntry) => {
+              const entryId = baseEntry.uiEntryId;
+              const draftPatch = draftEntries.get(entryId);
+              const entryView = draftPatch
+                ? { ...baseEntry, ...draftPatch }
+                : baseEntry;
               const serverEntry = txn.entries?.find((e) => {
                 const ledgerEntryId =
-                  draftEntry.ledgerEntryId || draftEntry.uiEntryId;
+                  baseEntry.ledgerEntryId || baseEntry.uiEntryId;
                 return (
                   e.ledgerEntryId === ledgerEntryId || e.id === ledgerEntryId
                 );
               });
 
-              const sourceAmt = draftEntry.source_amount ?? 0;
+              const sourceAmt = entryView.source_amount ?? 0;
               const debitValue = sourceAmt > 0 ? sourceAmt : '';
               const creditValue = sourceAmt < 0 ? Math.abs(sourceAmt) : '';
 
               return (
                 <div
-                  key={draftEntry.uiEntryId}
+                  key={baseEntry.uiEntryId}
                   className="overflow-hidden rounded border"
                 >
                   <div className="bg-muted hover:bg-muted/50 px-3 py-2 transition-colors">
                     {/* Entry Header */}
                     <div
-                      onClick={() => toggleEntry(draftEntry.uiEntryId)}
+                      onClick={() => toggleEntry(baseEntry.uiEntryId)}
                       className="flex cursor-pointer items-center justify-between gap-4 overflow-clip"
                     >
                       <div className="flex min-w-0 items-center gap-1 overflow-clip">
-                        <span className="text-muted-foreground flex-shrink-0 text-xs">
+                        <span className="text-muted-foreground shrink-0 text-xs">
                           {sourceAmt < 0 ? 'CR' : 'DR'}
                         </span>
                         <span className="truncate text-sm">
-                          {coaLabelById.get(draftEntry.coa_id ?? '') ??
+                          {coaLabelById.get(entryView.coa_id ?? '') ??
                             'Not set'}
                         </span>
                       </div>
-                      <div className="flex flex-shrink-0 items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-2">
                         <div
                           className={cn(
                             sourceAmt < 0
@@ -1060,7 +1208,7 @@ export function TransactionView({
                             accountingNegatives={false}
                           />
                         </div>
-                        {expandedEntries.has(draftEntry.uiEntryId) ? (
+                        {expandedEntries.has(baseEntry.uiEntryId) ? (
                           <ChevronUp className="text-muted-foreground h-4 w-4" />
                         ) : (
                           <ChevronDown className="text-muted-foreground h-4 w-4" />
@@ -1070,7 +1218,7 @@ export function TransactionView({
                   </div>
 
                   {/* Entry Details - Expanded */}
-                  {expandedEntries.has(draftEntry.uiEntryId) && (
+                  {expandedEntries.has(baseEntry.uiEntryId) && (
                     <div className="space-y-3 border px-3 py-3">
                       {/* Account */}
                       <EditableSelectField
@@ -1081,34 +1229,34 @@ export function TransactionView({
                             ? serverEntry.confidence
                             : undefined
                         }
-                        value={draftEntry?.coa_id ?? ''}
+                        value={entryView?.coa_id ?? ''}
                         isEditing={
-                          editing?.entryId === draftEntry.uiEntryId &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'coa_id'
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.uiEntryId || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'coa_id',
                           })
                         }
                         onValueChange={(value) => {
-                          updateEntryDraft(draftEntry.uiEntryId || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             coa_id: value,
                           });
                         }}
                         onSave={() => {
                           handleSaveEntry(
-                            draftEntry.uiEntryId || '',
+                            baseEntry.uiEntryId || '',
                             'coa_id',
-                            draftEntry?.coa_id,
+                            entryView?.coa_id,
                           );
                         }}
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.uiEntryId || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         autocompleteProps={{
-                          id: `coa-${draftEntry.uiEntryId}`,
+                          id: `coa-${baseEntry.uiEntryId}`,
                           items: [],
                           groups: groupedCoaData,
                           variant: 'outline',
@@ -1128,7 +1276,7 @@ export function TransactionView({
                         displayValue={
                           groupedCoaData
                             .flatMap((group) => group.items)
-                            .find((item) => item.value === draftEntry?.coa_id)
+                            .find((item) => item.value === entryView?.coa_id)
                             ?.label
                         }
                       />
@@ -1157,7 +1305,7 @@ export function TransactionView({
                             onBlur={() => {
                               // Always call updateEntry - let emitter handle accumulation and validation
                               updateEntry(entry.id, {
-                                source_amount: draftEntry.source_amount,
+                                source_amount: entryView.source_amount,
                               });
                             }}
                             className="w-full bg-muted/50 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1165,16 +1313,20 @@ export function TransactionView({
                           <NumberField
                             amount={debitValue || 0}
                             onDraftChange={(v) =>
-                              updateEntryDraft(draftEntry.uiEntryId || '', {
+                              updateEntryDraft(baseEntry.uiEntryId || '', {
                                 source_amount: v,
                               })
                             }
                             onCommit={() => {
                               // Always call updateEntry - let emitter handle accumulation and validation
-                              updateEntry(draftEntry.uiEntryId || '', {
+                              updateEntry(baseEntry.uiEntryId || '', {
                                 source_amount:
-                                  draftEntry.source_amount ?? undefined,
+                                  entryView.source_amount ?? undefined,
                               });
+                              clearDraftField(
+                                baseEntry.uiEntryId || '',
+                                'source_amount',
+                              );
                             }}
                             onStartEditing={() => setIsEditingAmount(true)}
                             onEndEditing={() => setIsEditingAmount(false)}
@@ -1201,23 +1353,26 @@ export function TransactionView({
                           <NumberField
                             amount={creditValue || 0}
                             onDraftChange={(v) =>
-                              updateEntryDraft(draftEntry.uiEntryId || '', {
+                              updateEntryDraft(baseEntry.uiEntryId || '', {
                                 source_amount: v * -1,
                               })
                             }
                             onCommit={() => {
-                              console.log('onCommit', { draftEntry });
                               console.log(
                                 'canPersistEntry',
-                                canPersistEntry(draftEntry.uiEntryId || ''),
+                                canPersistEntry(baseEntry.uiEntryId || ''),
                               );
 
-                              if (canPersistEntry(draftEntry.uiEntryId || '')) {
+                              if (canPersistEntry(baseEntry.uiEntryId || '')) {
                                 // Always call updateEntry - let emitter handle accumulation and validation
-                                updateEntry(draftEntry.uiEntryId || '', {
+                                updateEntry(baseEntry.uiEntryId || '', {
                                   source_amount:
-                                    draftEntry.source_amount ?? undefined,
+                                    entryView.source_amount ?? undefined,
                                 });
+                                clearDraftField(
+                                  baseEntry.uiEntryId || '',
+                                  'source_amount',
+                                );
                               }
                             }}
                             onStartEditing={() => setIsEditingAmount(true)}
@@ -1241,29 +1396,29 @@ export function TransactionView({
                       {/* Description */}
                       <EditableTextField
                         label="Description"
-                        value={draftEntry?.description || ''}
+                        value={entryView?.description || ''}
                         isEditing={
-                          editing?.entryId === draftEntry.uiEntryId &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'description'
                         }
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.uiEntryId || '',
+                            baseEntry.uiEntryId || '',
                             'description',
-                            draftEntry?.description ?? null,
+                            entryView?.description ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.uiEntryId || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.uiEntryId || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'description',
                           })
                         }
                         onChange={(v) =>
-                          updateEntryDraft(draftEntry.uiEntryId || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             description: v || null,
                           })
                         }
@@ -1272,34 +1427,34 @@ export function TransactionView({
                       {/* Contact */}
                       <EditableSelectField
                         label="Contact"
-                        value={draftEntry?.contact_id ?? ''}
+                        value={entryView?.contact_id ?? ''}
                         isEditing={
-                          editing?.entryId === draftEntry.uiEntryId &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'contact_id'
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.uiEntryId || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'contact_id',
                           })
                         }
                         onValueChange={(value) => {
-                          updateEntryDraft(draftEntry.uiEntryId || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             contact_id: value || null,
                           });
                         }}
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.uiEntryId || '',
+                            baseEntry.uiEntryId || '',
                             'contact_id',
-                            draftEntry?.contact_id ?? null,
+                            entryView?.contact_id ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.uiEntryId || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         autocompleteProps={{
-                          id: `contact-${draftEntry.uiEntryId}`,
+                          id: `contact-${baseEntry.uiEntryId}`,
                           items: contactItems,
                           variant: 'outline',
                           async: true,
@@ -1331,7 +1486,7 @@ export function TransactionView({
                         }}
                         displayValue={
                           contactItems.find(
-                            (item) => item.value === draftEntry?.contact_id,
+                            (item) => item.value === entryView?.contact_id,
                           )?.label
                         }
                       />
@@ -1339,34 +1494,34 @@ export function TransactionView({
                       {/* Project */}
                       <EditableSelectField
                         label="Project"
-                        value={draftEntry?.project_id || ''}
+                        value={entryView?.project_id || ''}
                         isEditing={
-                          editing?.entryId === draftEntry.uiEntryId &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'project_id'
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.uiEntryId || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'project_id',
                           })
                         }
                         onValueChange={(value) => {
-                          updateEntryDraft(draftEntry.uiEntryId || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             project_id: value || null,
                           });
                         }}
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.uiEntryId || '',
+                            baseEntry.uiEntryId || '',
                             'project_id',
-                            draftEntry?.project_id ?? null,
+                            entryView?.project_id ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.uiEntryId || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         autocompleteProps={{
-                          id: `project-${draftEntry.uiEntryId}`,
+                          id: `project-${baseEntry.uiEntryId}`,
                           items: projectItems,
                           variant: 'outline',
                           async: true,
@@ -1398,7 +1553,7 @@ export function TransactionView({
                         }}
                         displayValue={
                           projectItems.find(
-                            (item) => item.value === draftEntry?.project_id,
+                            (item) => item.value === entryView?.project_id,
                           )?.label
                         }
                       />
@@ -1406,29 +1561,29 @@ export function TransactionView({
                       {/* Reference */}
                       <EditableTextField
                         label="Reference"
-                        value={draftEntry?.reference || ''}
+                        value={entryView?.reference || ''}
                         isEditing={
-                          editing?.entryId === draftEntry.uiEntryId &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'reference'
                         }
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.uiEntryId || '',
+                            baseEntry.uiEntryId || '',
                             'reference',
-                            draftEntry?.reference ?? null,
+                            entryView?.reference ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.uiEntryId || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.uiEntryId || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'reference',
                           })
                         }
                         onChange={(v) =>
-                          updateEntryDraft(draftEntry.uiEntryId || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             reference: v || null,
                           })
                         }
@@ -1440,37 +1595,37 @@ export function TransactionView({
                           <span className="truncate">
                             {serverEntry.explanation}
                           </span>
-                          <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+                          <Pencil className="text-muted-foreground h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
                         </div>
                       )}
 
                       {/* Review Notes - Textarea */}
                       <EditableTextField
                         label="Review Notes"
-                        value={draftEntry?.review_notes || ''}
+                        value={entryView?.review_notes || ''}
                         textarea={true}
                         isEditing={
-                          editing?.entryId === draftEntry.uiEntryId &&
+                          editing?.entryId === baseEntry.uiEntryId &&
                           editing?.field === 'review_notes'
                         }
                         onSave={() =>
                           handleSaveEntry(
-                            draftEntry.uiEntryId || '',
+                            baseEntry.uiEntryId || '',
                             'review_notes',
-                            draftEntry?.review_notes ?? null,
+                            entryView?.review_notes ?? null,
                           )
                         }
                         onCancel={() =>
-                          handleCancelEntry(draftEntry.uiEntryId || '')
+                          handleCancelEntry(baseEntry.uiEntryId || '')
                         }
                         onEdit={() =>
                           setEditing({
-                            entryId: draftEntry.uiEntryId || '',
+                            entryId: baseEntry.uiEntryId || '',
                             field: 'review_notes',
                           })
                         }
                         onChange={(v) =>
-                          updateEntryDraft(draftEntry.uiEntryId || '', {
+                          updateEntryDraft(baseEntry.uiEntryId || '', {
                             review_notes: v || null,
                           })
                         }
@@ -1483,22 +1638,22 @@ export function TransactionView({
                             Attachments
                           </label>
                           <span className="text-muted-foreground text-xs">
-                            {draftEntryFiles.get(draftEntry.uiEntryId || '')
+                            {draftEntryFiles.get(baseEntry.uiEntryId || '')
                               ?.length ?? 0}
                             /{TRANSACTION_FILE_LIMITS.MAX_FILES_PER_ENTRY} files
                           </span>
                         </div>
                         <div className="space-y-2">
-                          {(draftEntryFiles.get(draftEntry.uiEntryId || '')
+                          {(draftEntryFiles.get(baseEntry.uiEntryId || '')
                             ?.length ?? 0) > 0 &&
                             draftEntryFiles
-                              .get(draftEntry.uiEntryId || '')
+                              .get(baseEntry.uiEntryId || '')
                               ?.map((file, fileIndex) => (
                                 <div
                                   key={fileIndex}
                                   onClick={async () => {
                                     setSelectedEntryId(
-                                      draftEntry.uiEntryId || '',
+                                      baseEntry.uiEntryId || '',
                                     );
                                     setSelectedFileIndex(fileIndex);
                                   }}
@@ -1509,7 +1664,7 @@ export function TransactionView({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       removeFile(
-                                        draftEntry.uiEntryId || '',
+                                        baseEntry.uiEntryId || '',
                                         fileIndex,
                                       );
                                     }}
@@ -1526,7 +1681,7 @@ export function TransactionView({
                               type="file"
                               multiple
                               onChange={(e) =>
-                                handleFileUpload(draftEntry.uiEntryId || '', e)
+                                handleFileUpload(baseEntry.uiEntryId || '', e)
                               }
                               className="hidden"
                             />
@@ -1537,7 +1692,7 @@ export function TransactionView({
                       {/* Delete Entry */}
                       <button
                         onClick={() =>
-                          handleDeleteEntry(draftEntry.uiEntryId || '')
+                          handleDeleteEntry(baseEntry.uiEntryId || '')
                         }
                         className="flex w-full items-center justify-center gap-2 rounded px-3 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-500/10"
                       >
@@ -1563,7 +1718,7 @@ export function TransactionView({
           </div>
         </div>
 
-        <div className="flex-shrink-0 space-y-0.5 p-2">
+        <div className="shrink-0 space-y-0.5 p-2">
           {/* Add better message here later - maybe even add a message when a new entry is present (whether balanced or not)*/}
           {!balance.balanced && (
             <p className="text-destructive bg-red-50 pb-1 text-center text-xs dark:bg-red-950 dark:text-red-300">
@@ -1575,14 +1730,14 @@ export function TransactionView({
           {(() => {
             const totalDebit = Math.abs(
               Math.max(txn.bankAmount, 0) +
-                (entriesUI.reduce(
+                (entriesForCalc.reduce(
                   (sum, e) => sum + Math.max(e?.source_amount ?? 0, 0),
                   0,
                 ) ?? 0),
             );
             const totalCredit = Math.abs(
               Math.min(txn.bankAmount, 0) +
-                (entriesUI.reduce(
+                (entriesForCalc.reduce(
                   (sum, e) => sum + Math.min(e?.source_amount ?? 0, 0),
                   0,
                 ) ?? 0),
@@ -1775,7 +1930,7 @@ export function EditableSelectField({
               {...autocompleteProps}
               value={value}
             />
-            <div className="flex flex-shrink-0 gap-0.5">
+            <div className="flex shrink-0 gap-0.5">
               <button
                 onClick={onSave}
                 className="hover:bg-accent rounded p-1.5 transition-colors"
@@ -1800,7 +1955,7 @@ export function EditableSelectField({
             className="bg-muted/50 hover:bg-muted/10 group flex cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors"
           >
             <span className="truncate">{getDisplayLabel()}</span>
-            <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+            <Pencil className="text-muted-foreground h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
       </div>
@@ -1877,7 +2032,7 @@ export function EditableTextField({
                 className="bg-muted/50 focus:ring-ring h-9 flex-1 rounded border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
               />
             )}
-            <div className="flex flex-shrink-0 gap-0.5">
+            <div className="flex shrink-0 gap-0.5">
               <button
                 onClick={onSave}
                 className="hover:bg-accent rounded p-1.5 transition-colors"
@@ -1902,7 +2057,7 @@ export function EditableTextField({
             className="bg-muted/50 hover:bg-muted/10 group flex h-9 cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors"
           >
             <span className="truncate">{value}</span>
-            <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+            <Pencil className="text-muted-foreground h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
       </div>
@@ -2028,7 +2183,7 @@ function NumberField({
         {isEditing ? (
           <div className="flex items-center gap-1">
             {inputEl}
-            <div className="flex flex-shrink-0 gap-0.5">
+            <div className="flex shrink-0 gap-0.5">
               <button
                 onClick={onCommit}
                 className="hover:bg-accent rounded p-1.5 transition-colors"
@@ -2053,7 +2208,7 @@ function NumberField({
             className="bg-muted/50 hover:bg-muted/10 group flex h-9 cursor-pointer items-center justify-between rounded border px-2 py-1.5 text-sm transition-colors"
           >
             <span className="truncate">{display || '0.00'}</span>
-            <Pencil className="text-muted-foreground h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+            <Pencil className="text-muted-foreground h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         )}
       </div>

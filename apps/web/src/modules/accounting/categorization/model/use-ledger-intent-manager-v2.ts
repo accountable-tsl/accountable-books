@@ -509,14 +509,63 @@ function updateQueryCacheWithTransaction(
     predicate: (query) => query.queryKey[0] === 'categorization-transactions',
   });
 
+  const isStatusArray = (value: unknown): value is Array<string> => {
+    if (!Array.isArray(value)) return false;
+    if (value.length === 0) return false;
+    const allowed = new Set(['uncategorized', 'proposed', 'posted']);
+    return value.every((v) => typeof v === 'string' && allowed.has(v));
+  };
+
+  const extractFilters = (queryKey: unknown[]) => {
+    let statusFilter: string[] | undefined;
+    let bankAccountIds: string[] | undefined;
+
+    for (const item of queryKey) {
+      if (isStatusArray(item)) {
+        statusFilter = item;
+        continue;
+      }
+      if (Array.isArray(item) && item.every((v) => typeof v === 'string')) {
+        bankAccountIds = item as string[];
+      }
+    }
+
+    return { statusFilter, bankAccountIds };
+  };
+
+  const shouldKeepTransaction = (queryKey: unknown[]) => {
+    const { statusFilter, bankAccountIds } = extractFilters(queryKey);
+
+    if (statusFilter && !statusFilter.includes(persistedTransaction.status)) {
+      return false;
+    }
+
+    if (
+      bankAccountIds &&
+      !bankAccountIds.includes(persistedTransaction.bankAccountId)
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
   for (const query of relevantQueries) {
     queryClient.setQueryData(query.queryKey, (oldData: any) => {
       if (!oldData) return oldData;
 
+      const keepInThisQuery = shouldKeepTransaction(query.queryKey);
+
       const updateTransactions = (transactions: GroupedTransaction[]) =>
-        transactions.map((t) =>
-          t.bankTransactionId === bankTransactionId ? persistedTransaction : t,
-        );
+        transactions
+          .map((t) =>
+            t.bankTransactionId === bankTransactionId
+              ? persistedTransaction
+              : t,
+          )
+          .filter(
+            (t) => t.bankTransactionId !== bankTransactionId || keepInThisQuery,
+          );
 
       if (Array.isArray(oldData.pages)) {
         return {
@@ -567,6 +616,7 @@ export function useLedgerIntentManagerV2() {
    */
   const transactionsRef = useRef<Map<string, GroupedTransaction>>(new Map());
   const inFlightRequestsRef = useRef<Set<string>>(new Set());
+  const pendingResendRef = useRef<Set<string>>(new Set());
   const entryMapRef = useRef<Map<string, Map<string, EntryUI>>>(new Map());
 
   // Track last validation error per transaction to avoid spamming toasts
@@ -813,6 +863,7 @@ export function useLedgerIntentManagerV2() {
   const sendPendingChanges = useCallback(
     async (bankTransactionId: string) => {
       if (inFlightRequestsRef.current.has(bankTransactionId)) {
+        pendingResendRef.current.add(bankTransactionId);
         return;
       }
 
@@ -959,6 +1010,10 @@ export function useLedgerIntentManagerV2() {
               queryClient,
               bankTransactionId,
             );
+            queryClient.invalidateQueries({
+              queryKey: ['categorization-stats', companyId],
+              exact: false,
+            });
 
             transactionsRef.current.set(
               bankTransactionId,
@@ -983,6 +1038,10 @@ export function useLedgerIntentManagerV2() {
         });
       } finally {
         inFlightRequestsRef.current.delete(bankTransactionId);
+        if (pendingResendRef.current.has(bankTransactionId)) {
+          pendingResendRef.current.delete(bankTransactionId);
+          void sendPendingChanges(bankTransactionId);
+        }
         // Clear error state on successful send (or any send attempt)
         lastValidationErrorRef.current.delete(bankTransactionId);
       }
@@ -1115,30 +1174,48 @@ export function useLedgerIntentManagerV2Context() {
   return useContext(LedgerIntentManagerV2Context) ?? useLedgerIntentManagerV2();
 }
 
+/**
+ * UI-facing adapter for a single transaction.
+ * Routes all mutations through the shared manager to keep intent state consistent.
+ */
 export function useLedgerIntentUpdaterV2(txn: GroupedTransaction) {
   const manager = useLedgerIntentManagerV2Context();
 
   useEffect(() => {
+    // Register (or refresh) the transaction snapshot used by the manager.
     manager.registerTransaction(txn);
   }, [manager, txn]);
 
   return {
+    /** Merge a patch into pending desired state for a single entry. */
     updateEntry: (entryId: string, changes: Partial<LedgerIntentEntry>) => {
       manager.updateEntry(txn.bankTransactionId, entryId, changes);
     },
+
+    /** Stage a custom exchange rate override for this transaction. */
     updateExchangeRate: (rate: number | null) => {
       manager.updateExchangeRate(txn.bankTransactionId, rate);
     },
+
+    /** Mark an entry for deletion (or remove a new entry immediately). */
     deleteEntry: (entryId: string) => {
       manager.deleteEntry(txn.bankTransactionId, entryId);
     },
+
+    /** Add a new UI entry (ephemeral until edited). */
     addEntry: (defaults?: Partial<EntryUI>) =>
       manager.addEntry(txn.bankTransactionId, defaults),
+
+    /** Read current UI entries (server snapshot merged with pending edits). */
     getEntriesUI: () => manager.getEntriesUI(txn.bankTransactionId),
+
+    /** Read any pending exchange rate override for this transaction. */
     getPendingExchangeRate: () =>
       manager.getPendingExchangeRate(txn.bankTransactionId),
+    /** Check if a UI entry has pending changes. */
     isEntryDirty: (uiEntryId: string) =>
       manager.isEntryDirty(txn.bankTransactionId, uiEntryId),
+    /** Resolve mixed identifiers (ui/ledger/candidate) to UI entry IDs. */
     resolveUiEntryId: (entryId: string) =>
       manager.resolveUiEntryId(txn.bankTransactionId, entryId),
   };

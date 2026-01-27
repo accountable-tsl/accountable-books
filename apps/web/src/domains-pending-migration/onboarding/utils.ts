@@ -1,4 +1,4 @@
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import {
   Building2Icon,
   CreditCardIcon,

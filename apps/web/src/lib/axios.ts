@@ -1,6 +1,6 @@
 import type { AxiosError, AxiosRequestConfig } from 'axios';
 import { authStore, refreshToken } from '@/modules/auth';
-import { isPublicRoute } from '@/shared/routes/utils';
+import { isPublicRoute } from '@/shared/routes';
 import axios from 'axios';
 
 const api = axios.create({

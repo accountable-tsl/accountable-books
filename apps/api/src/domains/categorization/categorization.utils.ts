@@ -379,6 +379,7 @@ export function buildNonBankLegFromCandidateSingle(
     human_reviewed: intentEntry.human_reviewed ?? true,
     review_notes: intentEntry.review_notes ?? null,
     metadata: {
+      ...(candidateLine?.metadata || {}),
       ...(intentEntry.metadata || {}),
       ...(intentEntry.client_ref_id
         ? { client_ref_id: intentEntry.client_ref_id }

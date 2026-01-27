@@ -1,4 +1,4 @@
-import { route } from '@/shared/routes/utils';
+import { route } from '../route-factory';
 
 export const generalRoutes = {
   welcome: route('/welcome', { label: 'Welcome' }),

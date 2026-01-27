@@ -21,7 +21,7 @@ import {
 } from '@/domains-pending-migration/onboarding/utils';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { useSession } from '@session';
 import { Menu } from 'lucide-react';
 import { Navigate, useLocation, useParams } from 'react-router';

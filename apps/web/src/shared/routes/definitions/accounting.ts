@@ -1,4 +1,4 @@
-import { route } from '@/shared/routes/utils';
+import { route } from '../route-factory';
 
 export const accounting = {
   index: route('/ws/accounting', {

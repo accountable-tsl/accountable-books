@@ -53,12 +53,8 @@ export function DataTableBody<TData>({
     overscan,
   });
 
-  const virtualItems = React.useMemo(
-    () =>
-      enableVirtual && scrollRef.current ? virtualizer.getVirtualItems() : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [enableVirtual, virtualizer],
-  );
+  const virtualItems =
+    enableVirtual && scrollRef.current ? virtualizer.getVirtualItems() : [];
 
   const rowClick = table.customOptions?.rowClick;
   const rowClickEnabled = !!rowClick || false;

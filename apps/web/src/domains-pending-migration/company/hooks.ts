@@ -8,7 +8,13 @@ const invalidateCache = (companyId: string) => {
 export const useCompanyDetails = (companyId: string) => {
   return useQuery({
     queryKey: ['companyDetails', companyId],
-    queryFn: () => getCompanyDetails(companyId),
+    queryFn: async () => {
+      const response = await getCompanyDetails(companyId);
+      if (!response) {
+        throw new Error('Company details response is undefined');
+      }
+      return response;
+    },
     staleTime: 1000 * 60 * 0, // 10 minutes
     gcTime: 1000 * 60 * 60 * 0, // 2 hours
     enabled: !!companyId,

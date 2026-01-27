@@ -1,7 +1,7 @@
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { getPathByStepKey } from '@/domains-pending-migration/onboarding/utils';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { useSession } from '@session';
 import { Navigate, useLocation, useSearchParams } from 'react-router';
 

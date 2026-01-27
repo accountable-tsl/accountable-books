@@ -17,7 +17,7 @@ import { authStore } from '@/modules/auth';
 import { useCheckEmail } from '@/shared/hooks/useCheckEmail';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { zEmail } from '@/shared/types/core';
 import { XIcon } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';

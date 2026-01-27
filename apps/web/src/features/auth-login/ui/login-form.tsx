@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { authStore, getLogoutReason, loginForm } from '@/modules/auth';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useSession } from '@session';
 import { Eye, EyeOff } from 'lucide-react';

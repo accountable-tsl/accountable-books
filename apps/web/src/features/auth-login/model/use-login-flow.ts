@@ -5,8 +5,7 @@ import {
   clearSessionFn,
   handleLogin,
 } from '@/modules/auth';
-import { routes } from '@/shared/routes/routes';
-import { buildCanonicalUrl } from '@/shared/routes/utils';
+import { buildCanonicalUrl, routes } from '@/shared/routes';
 import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 

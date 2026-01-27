@@ -1,5 +1,6 @@
-import { routes } from '@/shared/routes/routes';
-import { createTenantRoutes, flatRoutes } from '@/shared/routes/utils';
+import type { flatRoutes } from './registry';
+import type { routes } from './routes';
+import type { createTenantRoutes } from './utils';
 
 export type RouteMeta = {
   label?: string;

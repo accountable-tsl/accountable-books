@@ -475,6 +475,17 @@ export async function processCategorizationIntent({
 
     const bankTransactionIds = Array.from(intentsByBankTxn.keys());
 
+    // Acquire per-bank-transaction advisory locks to serialize concurrent
+    // intent processing for the same transactions. Sorted to prevent deadlocks
+    // when two requests target overlapping sets in different order.
+    // These locks are automatically released when the transaction commits or rolls back.
+    const sortedLockIds = [...bankTransactionIds].sort();
+    for (const bankTxnId of sortedLockIds) {
+      await txn.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [
+        `cat_intent:${bankTxnId}`,
+      ]);
+    }
+
     // Fetch all transactions in one go
     // Categorization view because it kind of helps to easily figure out current status
     const catEngineViewRes = await getCategorizationTransactions({
@@ -1046,6 +1057,13 @@ export async function processCategorizationIntent({
           'Matching ledger entries to intent entries',
         );
 
+        // Track entries dropped during consolidation for audit and response warnings
+        const droppedEntries: Array<{
+          ledgerEntryId: string;
+          coaId: string | null;
+          sourceAmount: number | null;
+        }> = [];
+
         // Process ledger entries: only keep those referenced in intent (enables consolidation)
         for (const ledgerEntry of ledgerTxn.entries) {
           if (ledgerEntry.is_bank_leg) {
@@ -1128,22 +1146,31 @@ export async function processCategorizationIntent({
               ),
             );
           } else {
-            // Entry not matched - this could indicate:
-            // 1. Frontend sent wrong entry_id (UI ID instead of ledger entry ID)
-            // 2. Entry was intentionally dropped (consolidation)
-            // 3. Entry was deleted on frontend but not yet synced
-            logger.warn(
-              {
-                bankTransactionId: bankTxnId,
-                ledgerEntryId: ledgerEntry.id,
-                intentEntryIds: Array.from(intentEntriesById.keys()),
-                coaId: ledgerEntry.coa_id,
-                sourceAmount: ledgerEntry.source_amount,
-              },
-              'Ledger entry not matched in intent - will be dropped',
-            );
+            // Entry not matched - consolidation (user reduced split count) or potential ID mismatch
+            droppedEntries.push({
+              ledgerEntryId: ledgerEntry.id,
+              coaId: ledgerEntry.coa_id,
+              sourceAmount: ledgerEntry.source_amount,
+            });
           }
-          // If not matched, entry is dropped (consolidation case)
+        }
+
+        // Surface dropped entries as a warning for audit trail and frontend visibility
+        if (droppedEntries.length > 0) {
+          logger.warn(
+            {
+              bankTransactionId: bankTxnId,
+              droppedEntries,
+              intentEntryIds: Array.from(intentEntriesById.keys()),
+            },
+            `${droppedEntries.length} ledger entry(s) dropped during consolidation`,
+          );
+
+          const existingWarnings = warningsByBankTxnId.get(bankTxnId) || {};
+          warningsByBankTxnId.set(bankTxnId, {
+            ...existingWarnings,
+            dropped_entries: `${droppedEntries.length} existing ledger entry(s) not referenced in intent and will be removed`,
+          });
         }
 
         // Add new entries (splits) - intent entries without entry_id

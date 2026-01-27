@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { useThemeToggle } from '@/theme/useThemeToggle';
 import { Link } from 'react-router';
 

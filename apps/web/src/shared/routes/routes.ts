@@ -1,8 +1,8 @@
-import { accounting } from '@/shared/routes/definitions/accounting';
-import { authRoutes } from '@/shared/routes/definitions/auth';
-import { banking } from '@/shared/routes/definitions/banking';
-import { generalRoutes } from '@/shared/routes/definitions/general';
-import { onboardingRoutes } from '@/shared/routes/definitions/onboarding';
+import { accounting } from './definitions/accounting';
+import { authRoutes } from './definitions/auth';
+import { banking } from './definitions/banking';
+import { generalRoutes } from './definitions/general';
+import { onboardingRoutes } from './definitions/onboarding';
 
 export const routes = {
   auth: authRoutes,

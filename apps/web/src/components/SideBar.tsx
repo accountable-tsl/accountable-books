@@ -22,7 +22,7 @@ import {
   getNavUser,
 } from '@/constants/sidebarData';
 import { type AuthUserContext } from '@/modules/auth';
-import { routes } from '@/shared/routes/routes';
+import { routes } from '@/shared/routes';
 import { ArrowUpCircleIcon } from 'lucide-react';
 import { Link } from 'react-router';
 

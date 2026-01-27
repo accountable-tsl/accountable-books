@@ -13,8 +13,7 @@ import {
   handleLogout,
   useSessionQuery,
 } from '@/modules/auth';
-import { routes } from '@/shared/routes/routes';
-import { createTenantRoutes, isPublicRoute } from '@/shared/routes/utils';
+import { createTenantRoutes, isPublicRoute, routes } from '@/shared/routes';
 import { useLocation, useNavigate } from 'react-router';
 
 const defaultContext = {
@@ -89,8 +88,8 @@ export const SessionProvider = ({
     isPublic,
     navigate,
     setAuth,
-    authData.csrfToken,
-    authData.user,
+    authData?.csrfToken,
+    authData?.user,
     clearAuth,
     isLoadingSession,
     success,
