@@ -1,10 +1,9 @@
-import { useSession } from '@session';
-import { Navigate, useLocation, useSearchParams } from 'react-router';
-
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { getPathByStepKey } from '@/domains-pending-migration/onboarding/utils';
 import { routes } from '@/shared/routes/routes';
+import { useSession } from '@session';
+import { Navigate, useLocation, useSearchParams } from 'react-router';
 
 export function OnboardingRouter() {
   /**

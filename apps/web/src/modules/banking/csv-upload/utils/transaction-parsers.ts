@@ -1,5 +1,3 @@
-import z from 'zod';
-
 import type {
   BankTransactionInsert,
   ParsedBankTxn,
@@ -11,6 +9,7 @@ import {
   parseDateString,
   safeFormatDate,
 } from '@/shared/utils/formatting-utils';
+import z from 'zod';
 
 export function transformParsedData({
   data,

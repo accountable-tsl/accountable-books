@@ -1,8 +1,4 @@
-import { useSession } from '@session';
-import { Dot, EyeOff, Lock, Shield } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
-import { toast } from 'sonner';
-
 import CountrySelection from '@/domains-pending-migration/bankConnection/connectViaFeed/steps/CountrySelection';
 import { type UnsupportedCountryProps } from '@/domains-pending-migration/bankConnection/shared/types';
 import { useBankFeedProviders } from '@/domains-pending-migration/bankFeedProviders/hooks';
@@ -10,6 +6,9 @@ import { type BankFeedProvider } from '@/domains-pending-migration/bankFeedProvi
 import { cn } from '@/lib/utils';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { type Country } from '@/shared/types/core';
+import { useSession } from '@session';
+import { Dot, EyeOff, Lock, Shield } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { handleMonoConnection } from '../widgets/api';
 import { AccountLinked } from './steps/AccountLinked';
@@ -36,8 +35,14 @@ export default function ConnectBankAccount({
   const { data: providersData, isLoading: isLoadingProviders } =
     useBankFeedProviders({});
 
-  const countries = useMemo(() => countriesData?.data || [], [countriesData?.data]);
-  const providers = useMemo(() => providersData?.data || [], [providersData?.data]);
+  const countries = useMemo(
+    () => countriesData?.data || [],
+    [countriesData?.data],
+  );
+  const providers = useMemo(
+    () => providersData?.data || [],
+    [providersData?.data],
+  );
 
   const { className, stepClassName } = options || {};
 

@@ -1,10 +1,9 @@
-import { flexRender } from '@tanstack/react-table';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-
+import type { DataTableProps } from '@/components/data-table/types/data-table';
 import { TableCell, TableHeader, TableRow } from '@/components/CustomTable';
 import { DataTableResizer } from '@/components/data-table/data-table-resizer';
-import type { DataTableProps } from '@/components/data-table/types/data-table';
 import { cn } from '@/lib/utils';
+import { flexRender } from '@tanstack/react-table';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 
 import { getColumnStyle } from './utils/column-sizing';
 

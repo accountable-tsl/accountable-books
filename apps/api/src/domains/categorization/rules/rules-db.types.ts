@@ -1,9 +1,10 @@
 import z from 'zod';
 
 import { dbBaseFields } from '../../../core/index.js';
-import type { SnakeToCamelCaseObject } from '../../../shared/index.js';
 import { createCamelCaseSchema } from '../../../shared/index.js';
 import { actionDefinition, conditionDefinition } from './rules-def.types.js';
+
+import type { SnakeToCamelCaseObject } from '../../../shared/index.js';
 
 // Rules
 export const ruleScope = z.enum([

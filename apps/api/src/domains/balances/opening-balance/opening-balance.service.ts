@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 import z from 'zod';
 
-import type { ApiResponse } from '../../../core/types/api.types.js';
 import { knexClient as db } from '../../../db/knexClient.js';
 import {
   errorResponse,
@@ -16,17 +15,19 @@ import {
   bankBalanceService,
   formatDateToYMD,
 } from '../bank-balance.service.js';
-import type {
-  BankAccountOpeningBalances,
-  BankOpeningBalanceParams,
-  BankOpeningBalanceRole,
-} from './opening-balance.types.js';
 import { bankOpeningBalanceParams } from './opening-balance.types.js';
 import {
   asOfDateYmdFromCoverageStart,
   journalDateFromCoverageStart,
   ymdUtc,
 } from './opening-balance.utils.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import type {
+  BankAccountOpeningBalances,
+  BankOpeningBalanceParams,
+  BankOpeningBalanceRole,
+} from './opening-balance.types.js';
 
 /**
  * Sets or updates the opening balance for a bank account.

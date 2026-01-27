@@ -1,18 +1,17 @@
-import { useSession } from '@session';
-import { Plus } from 'lucide-react';
+import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import type { Contacts as ContactResponse } from '@/modules/contacts/model/types';
 import { useCallback, useMemo, useState } from 'react';
-
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
-import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import ErrorPage from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useContacts } from '@/modules/contacts/model/hooks';
-import type { Contacts as ContactResponse } from '@/modules/contacts/model/types';
+import { useSession } from '@session';
+import { Plus } from 'lucide-react';
 
 import { AddContactDialog } from './components/contacts-add';
 import { getContactColumns } from './config/contacts-columns';

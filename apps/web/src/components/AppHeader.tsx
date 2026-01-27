@@ -1,5 +1,5 @@
+import type { CompanyData } from '@/modules/company/companies';
 import React from 'react';
-
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,7 +12,6 @@ import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { CompanySwitcher } from '@/domains-pending-migration/switchCompany/CompanySwitcher';
 import { cn } from '@/lib/utils';
-import type { CompanyData } from '@/modules/company/companies';
 import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
 
 import { ThemeToggle } from './ThemeToggle';

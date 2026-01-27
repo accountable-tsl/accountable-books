@@ -478,9 +478,7 @@ export const TaxBandBreakdownItemSchema = z.object({
   taxAmount: MoneySchema,
 });
 
-export type TaxBandBreakdownItem = z.infer<
-  typeof TaxBandBreakdownItemSchema
->;
+export type TaxBandBreakdownItem = z.infer<typeof TaxBandBreakdownItemSchema>;
 
 export const TaxBreakdownSchema = z.object({
   /** Whether YTD calculation was used */

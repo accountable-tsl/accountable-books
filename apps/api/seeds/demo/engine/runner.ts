@@ -2,9 +2,10 @@ import type { Knex } from 'knex';
 import knex from 'knex';
 
 import config from '../../../knexfile.js';
+import { SEED_STEPS } from './registry.js';
+
 import type { DemoFilter } from '../shared/config.js';
 import type { SeedStep } from './registry.js';
-import { SEED_STEPS } from './registry.js';
 
 export interface RunnerOptions {
   steps?: string[]; // Only run specific steps

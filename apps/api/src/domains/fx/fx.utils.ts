@@ -1,6 +1,7 @@
 import { AppError } from '../../shared/utils/response.utils.js';
-import type { FxTransactionIdInput } from './fx.types.js';
 import { fxTransactionIdInputSchema } from './fx.types.js';
+
+import type { FxTransactionIdInput } from './fx.types.js';
 
 /**
  * Sanitize a part of an fx_transaction_id to prevent collisions

@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
-import type { Knex } from 'knex';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import type { Knex } from 'knex';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { knexClient } from '../../../db/knexClient.js';

@@ -4,6 +4,7 @@ import { redis } from '../../../lib/redis.js';
 import { logger } from '../../../shared/index.js';
 import { ML_PREDICTION_QUEUE_NAME } from './ml-prediction.queue.js';
 import { processMLPrediction } from './ml-prediction.service.js';
+
 import type { MLPredictionJobData } from './ml-prediction.types.js';
 
 /**

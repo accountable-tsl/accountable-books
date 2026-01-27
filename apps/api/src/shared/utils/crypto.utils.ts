@@ -1,5 +1,5 @@
-import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 
 import { loadKeyRegistry } from '../../config/enc-config.js';
 

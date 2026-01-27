@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 import z from 'zod';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
@@ -12,12 +11,14 @@ import {
   createHybridSearch,
   defineSearchableColumns,
 } from '../../shared/utils/search.utils.js';
+import { getProjectsParams, newProjectInput } from './projects.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
   GetProjectsParams,
   NewProjectInput,
   ProjectResponse,
 } from './projects.types.js';
-import { getProjectsParams, newProjectInput } from './projects.types.js';
 
 export async function getProjects(
   input: GetProjectsParams,

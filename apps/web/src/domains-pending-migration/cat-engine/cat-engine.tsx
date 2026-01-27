@@ -1,7 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
-
-import { DataTable } from '@/components/data-table/data-table';
 import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import { useCallback, useMemo, useState } from 'react';
+import { DataTable } from '@/components/data-table/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { DateRangePicker } from '@/components/date-picker/date-range-picker';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';

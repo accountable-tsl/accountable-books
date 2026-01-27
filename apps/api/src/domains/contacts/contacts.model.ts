@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 import z from 'zod';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import {
   logDatabaseOperation,
@@ -18,16 +17,18 @@ import {
   createHybridSearch,
   defineSearchableColumns,
 } from '../../shared/utils/search.utils.js';
+import {
+  contactInputSchema,
+  getContactsParams,
+  updateContactSchema,
+} from './contacts.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
   ContactInput,
   ContactResponse,
   GetContactsParams,
   UpdateContact,
-} from './contacts.types.js';
-import {
-  contactInputSchema,
-  getContactsParams,
-  updateContactSchema,
 } from './contacts.types.js';
 
 export const normalizeContactName = (name: string) => name.trim().toLowerCase();

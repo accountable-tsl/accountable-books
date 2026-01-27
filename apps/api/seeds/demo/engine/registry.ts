@@ -25,6 +25,7 @@ import {
   createDemoBankTransactions,
   deleteDemoBankTransactions,
 } from '../config/016_bank_transactions/bank-transactions.fn.js';
+
 import type { DemoFilter } from '../shared/config.js';
 
 export type SeedStep = {

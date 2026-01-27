@@ -25,7 +25,11 @@ import {
 import { formatMonthGaps } from '@/payroll/compute/gap-detection';
 import { formatPeriodLong } from '@/payroll/utils';
 import { motion } from 'framer-motion';
-import { CircleCheckBig, CloudUploadIcon, TriangleAlertIcon } from 'lucide-react';
+import {
+  CircleCheckBig,
+  CloudUploadIcon,
+  TriangleAlertIcon,
+} from 'lucide-react';
 
 function formatNgnAmount(value: unknown): string {
   const asNumber =
@@ -80,27 +84,28 @@ export function FinalizeDialog({
     : `Lock ${currentRun ? formatPeriodLong(currentRun) : 'this'} payroll?`;
 
   const description = isOverrideMode
-    ? ""
+    ? ''
     : "You're about to lock this run. Where do you want to save it?";
 
   const Footer = isMdScreen ? DialogFooter : SheetFooter;
 
   const overrideContent = (
     <>
-      <div className="p-4 space-y-2 md:px-0">
+      <div className="space-y-2 p-4 md:px-0">
         <div className="text-[16px] font-medium md:flex">
           <p>A finalized run already exists for</p>
-          <p>{
-        conflictingRun
-          ? formatPeriodLong({
-              periodMonth: conflictingRun.periodMonth,
-              periodYear: conflictingRun.periodYear,
-              periodEndMonth: conflictingRun.periodEndMonth,
-              periodEndYear: conflictingRun.periodEndYear,
-            })
-          : 'this period'}</p>
+          <p>
+            {conflictingRun
+              ? formatPeriodLong({
+                  periodMonth: conflictingRun.periodMonth,
+                  periodYear: conflictingRun.periodYear,
+                  periodEndMonth: conflictingRun.periodEndMonth,
+                  periodEndYear: conflictingRun.periodEndYear,
+                })
+              : 'this period'}
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Do you want to replace it? The existing finalized run will be deleted.
         </p>
       </div>
@@ -130,7 +135,7 @@ export function FinalizeDialog({
       <div className="space-y-4 border-t pb-4">
         <div className="flex flex-col divide-y rounded">
           {/* Summary */}
-          <div className="hidden md:block space-y-1 p-3 px-4 text-sm">
+          <div className="hidden space-y-1 p-3 px-4 text-sm md:block">
             <div>
               <p className="font-medium">
                 {currentRun?.companyName ?? 'Payroll run'}
@@ -162,7 +167,7 @@ export function FinalizeDialog({
 
           {/* Month Gap Warning */}
           {monthGaps.length > 0 && (
-            <div className="bg-yellow-50/30 dark:bg-yellow-950/20 border-chart-1 text-amber-700 dark:text-yellow-600 border-l-4 p-4 space-y-2">
+            <div className="border-chart-1 space-y-2 border-l-4 bg-yellow-50/30 p-4 text-amber-700 dark:bg-yellow-950/20 dark:text-yellow-600">
               <div className="flex items-start gap-2">
                 <div className="mt-0.5">
                   <TriangleAlertIcon className="size-4" />
@@ -173,14 +178,12 @@ export function FinalizeDialog({
                   </p>
                   <p className="text-xs">
                     You're finalizing{' '}
-                    {currentRun
-                      ? formatPeriodLong(currentRun)
-                      : 'this run'}
-                    , but there is no finalized run for{' '}
+                    {currentRun ? formatPeriodLong(currentRun) : 'this run'},
+                    but there is no finalized run for{' '}
                     {formatMonthGaps(monthGaps)}. This may affect PAYE accuracy
                     for employees.
                   </p>
-                  <p className="text-xs mt-2">
+                  <p className="mt-2 text-xs">
                     <strong>What to do:</strong> If these months were handled
                     outside the system, you can proceed. Otherwise, consider
                     creating finalized runs for the missing months to ensure
@@ -193,7 +196,7 @@ export function FinalizeDialog({
 
           {computed?.warnings?.incompleteRentData &&
             computed.warnings.incompleteRentData.length > 0 && (
-              <div className="bg-yellow-50/30 dark:bg-yellow-950/20 border-chart-1 text-amber-700 dark:text-yellow-600 border-l-4 p-4 space-y-2">
+              <div className="border-chart-1 space-y-2 border-l-4 bg-yellow-50/30 p-4 text-amber-700 dark:bg-yellow-950/20 dark:text-yellow-600">
                 <div className="flex items-start gap-2">
                   <div className="mt-0.5">
                     <TriangleAlertIcon className="size-4" />
@@ -211,11 +214,11 @@ export function FinalizeDialog({
                       . Rent relief was computed using the last known rent
                       amount (extrapolation).
                     </p>
-                    <p className="text-xs mt-2">
-                      <strong>What to do:</strong> Update rent history for
-                      these employees to ensure accurate rent relief
-                      calculations. You can proceed with finalization, but
-                      consider updating rent data for future accuracy.
+                    <p className="mt-2 text-xs">
+                      <strong>What to do:</strong> Update rent history for these
+                      employees to ensure accurate rent relief calculations. You
+                      can proceed with finalization, but consider updating rent
+                      data for future accuracy.
                     </p>
                   </div>
                 </div>
@@ -276,19 +279,19 @@ export function FinalizeDialog({
                 <Button
                   onClick={() => {}}
                   disabled
-                  className="w-full rounded active:scale-[0.98] cursor-not-allowed"
+                  className="w-full cursor-not-allowed rounded active:scale-[0.98]"
                 >
                   Create Free Account
                 </Button>
               </motion.div>
 
               {/* Full overlay to signal "coming soon" and block clicks */}
-              <div className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded">
+              <div className="bg-background/70 pointer-events-auto absolute inset-0 flex items-center justify-center rounded backdrop-blur-sm">
                 <div className="flex flex-col items-center gap-1 text-center">
-                  <span className="rounded-full bg-muted px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span className="bg-muted text-muted-foreground rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide uppercase">
                     Coming soon
                   </span>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-muted-foreground text-[11px]">
                     Cloud saving is not available yet.
                   </p>
                 </div>
@@ -330,7 +333,7 @@ export function FinalizeDialog({
   if (isMdScreen) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-[520px] rounded">
+        <DialogContent className="rounded sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
@@ -345,8 +348,12 @@ export function FinalizeDialog({
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="bottom" className="mx-auto max-w-2xl rounded">
         <SheetHeader className="gap-0 pr-8 pb-0">
-          <SheetTitle className={"text-[16px]"}>{title}</SheetTitle>
-         {!isOverrideMode &&<SheetDescription className="text-sm">{description}</SheetDescription>}
+          <SheetTitle className={'text-[16px]'}>{title}</SheetTitle>
+          {!isOverrideMode && (
+            <SheetDescription className="text-sm">
+              {description}
+            </SheetDescription>
+          )}
         </SheetHeader>
         {content}
       </SheetContent>

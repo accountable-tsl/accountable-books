@@ -1,9 +1,8 @@
-import { useSession } from '@session';
-import { Headset, ScreenShareIcon } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { useSession } from '@session';
+import { Headset, ScreenShareIcon } from 'lucide-react';
 
 export function OnboardingFormFooter() {
   const isMobile = useIsMobile();

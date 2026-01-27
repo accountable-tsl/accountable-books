@@ -6,6 +6,8 @@ import type {
   Row,
   RowSelectionState,
 } from '@tanstack/react-table';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createSelectionColumn } from '@/components/data-table/utils/select-column';
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -17,12 +19,11 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { createSelectionColumn } from '@/components/data-table/utils/select-column';
-
 import { createMultiColumnFilter } from './toolbar';
+import { isInternalUrl } from './utils/table';
+
 import type {
   DataTableExtras,
   GlobalSearch,
@@ -33,7 +34,6 @@ import type {
   UseDataTableReturn,
 } from './types/data-table';
 import type { RowClickBehavior } from './types/row-click';
-import { isInternalUrl } from './utils/table';
 
 type SelectionColumnPosition = RowSelectionOptions['checkboxColumnPosition'];
 type SelectionColumnObject = Exclude<

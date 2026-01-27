@@ -1,11 +1,10 @@
-import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
 import type {
   AuthCompanyContext,
   AuthUserContext,
   CurrentCompanyContext,
 } from '@/modules/auth';
+import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CompanySwitcher } from '../CompanySwitcher';
 

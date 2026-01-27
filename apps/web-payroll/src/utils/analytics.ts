@@ -3,7 +3,7 @@
  * Privacy-friendly: Only tracks events, no PII, no cookies
  */
 
-type AnalyticsEvent = 
+type AnalyticsEvent =
   | { type: 'page_view'; path: string }
   | { type: 'payroll_run_created'; employeeCount: number }
   | { type: 'payroll_run_finalized'; employeeCount: number }
@@ -13,7 +13,8 @@ type AnalyticsEvent =
   | { type: 'error'; error: string; context?: Record<string, unknown> };
 
 const ANALYTICS_ENABLED = import.meta.env.PROD;
-const API_URL = import.meta.env.VITE_API_URL || 'https://api-staging.getaccountable.com';
+const API_URL =
+  import.meta.env.VITE_API_URL || 'https://api-staging.getaccountable.com';
 
 /**
  * Track an analytics event
@@ -52,21 +53,18 @@ export function trackPageView(path: string): void {
  * Track payroll-specific events
  */
 export const payrollAnalytics = {
-  runCreated: (employeeCount: number) => 
+  runCreated: (employeeCount: number) =>
     track({ type: 'payroll_run_created', employeeCount }),
-  
-  runFinalized: (employeeCount: number) => 
+
+  runFinalized: (employeeCount: number) =>
     track({ type: 'payroll_run_finalized', employeeCount }),
-  
-  employeeAdded: () => 
-    track({ type: 'employee_added' }),
-  
-  sampleDataLoaded: () => 
-    track({ type: 'sample_data_loaded' }),
-  
-  exportCsv: () => 
-    track({ type: 'export_csv' }),
-  
-  error: (error: string, context?: Record<string, unknown>) => 
+
+  employeeAdded: () => track({ type: 'employee_added' }),
+
+  sampleDataLoaded: () => track({ type: 'sample_data_loaded' }),
+
+  exportCsv: () => track({ type: 'export_csv' }),
+
+  error: (error: string, context?: Record<string, unknown>) =>
     track({ type: 'error', error, context }),
 };

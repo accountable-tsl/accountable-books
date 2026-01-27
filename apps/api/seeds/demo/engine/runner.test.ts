@@ -2,9 +2,10 @@
 import type { Knex } from 'knex';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { createDemoSeedRunner, DemoSeedRunner } from './runner.js';
+
 import type { DemoFilter } from '../shared/config.js';
 import type { RunnerOptions } from './runner.js';
-import { createDemoSeedRunner, DemoSeedRunner } from './runner.js';
 
 // Mock the registry with complete 7-step registry matching reality
 vi.mock('./registry.js', () => {

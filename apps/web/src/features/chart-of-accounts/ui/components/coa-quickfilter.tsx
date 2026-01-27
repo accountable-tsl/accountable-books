@@ -1,7 +1,6 @@
-import { useState } from 'react';
-
-import { cn } from '@/lib/utils';
 import type { QuickFilterOptions } from '@/modules/accounting/chart-of-accounts';
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 interface QuickFilterProps {
   isMobile?: boolean;

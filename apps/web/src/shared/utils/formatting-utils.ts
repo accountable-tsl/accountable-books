@@ -1,8 +1,7 @@
+import type { Country } from '@/shared/types/core';
 import { format, isValid, parse } from 'date-fns';
 import Decimal from 'decimal.js';
 import z from 'zod';
-
-import type { Country } from '@/shared/types/core';
 
 import { getUserLocale } from './random-utils';
 

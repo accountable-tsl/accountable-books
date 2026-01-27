@@ -1,5 +1,6 @@
 import './Header.scss';
 
+import { useCompany } from '@/domains-pending-migration/company/store';
 import {
   faBars,
   faBell,
@@ -10,8 +11,6 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { LoaderPinwheel } from 'lucide-react';
 import { Link } from 'react-router';
-
-import { useCompany } from '@/domains-pending-migration/company/store';
 
 import logo from '../../assets/images/mainlogo.png';
 import { useSideBarContext } from '../../contexts/SideBarContext';

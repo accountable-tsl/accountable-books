@@ -1,10 +1,10 @@
-import api from '@/lib/axios';
 import type {
   FetchProjectsParams,
   NewProject,
   ProjectsResponse,
 } from '@/modules/projects/model/types';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
 
 export async function fetchProjects(
   input: FetchProjectsParams,

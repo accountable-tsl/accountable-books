@@ -1,10 +1,7 @@
-import { useSession } from '@session';
-import { Outlet } from 'react-router';
-
+import type { AppSidebarProps } from '@/components/SideBar';
 import { AppHeader } from '@/components/AppHeader';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import type { AppSidebarProps } from '@/components/SideBar';
 import { AppSidebar } from '@/components/SideBar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useCanonicalUrlEnforcer } from '@/shared/routes/hooks';
@@ -13,6 +10,8 @@ import {
   usePageMeta,
   useUpdatePageInfo,
 } from '@/shared/stores/page';
+import { useSession } from '@session';
+import { Outlet } from 'react-router';
 
 interface AppLayoutProps extends AppSidebarProps {}
 export default function AppLayout({

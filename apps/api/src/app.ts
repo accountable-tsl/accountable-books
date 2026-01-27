@@ -1,7 +1,7 @@
+import express from 'express';
 import cookieParser from 'cookie-parser';
 // Load env solely via config/env to avoid duplicate dotenv loads
 import cors from 'cors';
-import express from 'express';
 import pino from 'pino';
 import { pinoHttp } from 'pino-http';
 

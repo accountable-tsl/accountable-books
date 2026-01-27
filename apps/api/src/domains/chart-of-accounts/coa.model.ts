@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 import z from 'zod';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
 import { generateChecksum, logger } from '../../shared/index.js';
@@ -21,6 +20,14 @@ import {
 } from '../account/account.registry.js';
 import { invalidateCompanyContext } from '../categorization/index.js';
 import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from './coa.constants.js';
+import {
+  coaUpdateInput,
+  newCoa,
+  newCoaInput,
+  updateCoaAction,
+} from './coa.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
   Coa,
   CoaResponse,
@@ -37,12 +44,6 @@ import type {
   SimpleCoaRecord,
   UpdateCoaAction,
   UpdateCoaResponse,
-} from './coa.types.js';
-import {
-  coaUpdateInput,
-  newCoa,
-  newCoaInput,
-  updateCoaAction,
 } from './coa.types.js';
 
 // TODO: Invalidate coa cache on mutations

@@ -1,12 +1,13 @@
 import { type Response } from 'express';
 
-import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 import {
   getCategorizationStats,
   getCategorizationTransactions,
   processCategorizationIntent,
 } from './categorization.model.js';
+
+import type { AuthRequest } from '../../features/auth/auth.types.js';
 
 /**
  * Controller for getting categorization transactions

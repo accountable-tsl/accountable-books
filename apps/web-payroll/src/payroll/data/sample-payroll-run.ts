@@ -107,7 +107,6 @@ const sampleEmployees: EmployeeRecord[] = [
           annualGross: '4500000', // 375k/month
         },
       ],
-
     },
   },
 ];

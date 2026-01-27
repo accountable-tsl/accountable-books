@@ -1,13 +1,7 @@
-import dayjs from 'dayjs';
 import type { Knex } from 'knex';
+import dayjs from 'dayjs';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
-import type {
-  CreateUserResponse,
-  NewUserDirect,
-  UserResponseCamel,
-} from '../../domains/users/users.types.js';
 import { newUserDirect } from '../../domains/users/users.types.js';
 import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
 import { redis } from '../../lib/redis.js';
@@ -28,6 +22,13 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { addNewToken } from '../tokens/tokens.model.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  CreateUserResponse,
+  NewUserDirect,
+  UserResponseCamel,
+} from '../../domains/users/users.types.js';
 
 /**
  * Options for creating a user directly

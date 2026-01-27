@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/node';
 
 import { isProd, NODE_ENV } from '../../config/env.js';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
 
 export function successResponse<T>(

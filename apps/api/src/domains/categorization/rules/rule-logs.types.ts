@@ -1,10 +1,10 @@
+import type { RuleLogStatus } from './rules-db.types.js';
+import type { ActionTraceNode, ConditionTraceNode } from './rules-def.types.js';
 import type {
   RuleDraftState,
   RuleEntity,
   RuleMutationField,
 } from './rules.types.js';
-import type { RuleLogStatus } from './rules-db.types.js';
-import type { ActionTraceNode, ConditionTraceNode } from './rules-def.types.js';
 
 export interface RuleLogDraft {
   ruleId: string;

@@ -1,7 +1,6 @@
-import { AxiosError } from 'axios';
-
-import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
+import { AxiosError } from 'axios';
 
 export const checkSlug = async (
   slug: string,

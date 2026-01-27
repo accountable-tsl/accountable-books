@@ -42,7 +42,18 @@ setup: guard-nonprod check-prereqs ## One-command setup: infra + deps + db + dem
 	@pnpm -F @accountable-books/utils run build
 	@pnpm -F @accountable-books/contracts run build
 	@echo "$(YELLOW)🐍 Installing Python dependencies (ML Engine)...$(RESET)"
-	@cd apps/ml-engine && poetry install --no-interaction --no-ansi || echo "$(YELLOW)⚠ Poetry not found, skipping Python deps. Install Poetry: https://python-poetry.org/docs/#installation$(RESET)"
+	@if ! command -v poetry &> /dev/null; then \
+		echo "$(YELLOW)⚠ Poetry not found, installing...$(RESET)"; \
+		if command -v pip &> /dev/null || command -v pip3 &> /dev/null; then \
+			echo "$(BLUE)Installing poetry via pip...$(RESET)"; \
+			$$(command -v pip3 || command -v pip) install poetry || (echo "$(RED)❌ Failed to install poetry via pip$(RESET)" && echo "$(YELLOW)Please install poetry manually: https://python-poetry.org/docs/#installation$(RESET)" && exit 1); \
+		else \
+			echo "$(RED)❌ Cannot install poetry: pip not found$(RESET)"; \
+			echo "$(YELLOW)Please install poetry manually: https://python-poetry.org/docs/#installation$(RESET)"; \
+			exit 1; \
+		fi; \
+	fi
+	@cd apps/ml-engine && poetry install --no-interaction --no-ansi || (echo "$(YELLOW)⚠ Poetry installation failed, skipping Python deps$(RESET)" && exit 0)
 	@echo "$(YELLOW)🌱 Applying demo data...$(RESET)"
 	@$(MAKE) db-seed
 	@echo "$(GREEN)✅ Setup complete!$(RESET)"

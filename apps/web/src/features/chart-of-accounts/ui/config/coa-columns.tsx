@@ -1,9 +1,8 @@
+import type { CoaResponse } from '@/modules/accounting/chart-of-accounts';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Text } from 'lucide-react';
-
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { CoaResponse } from '@/modules/accounting/chart-of-accounts';
+import { Text } from 'lucide-react';
 
 export function getCoaTableColumns(): ColumnDef<CoaResponse>[] {
   return [

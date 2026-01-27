@@ -1,17 +1,9 @@
-import { useSession } from '@session';
-import {
-  Activity,
-  Building,
-  DollarSign,
-  ExternalLink,
-  Plus,
-  TrendingDown,
-  TrendingUp,
-} from 'lucide-react';
+import type {
+  BankTransactionBatchInput,
+  BankTransactionImporterProps,
+  FileTransaction,
+} from '@/domains-pending-migration/bankConnection/manualUpload/types';
 import React, { useEffect, useRef, useState } from 'react';
-import { PuffLoader } from 'react-spinners';
-import { toast } from 'sonner';
-
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { Failed } from '@/components/Failed';
@@ -20,11 +12,6 @@ import { FormField } from '@/components/FormField';
 import { Success } from '@/components/Success';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import type {
-  BankTransactionBatchInput,
-  BankTransactionImporterProps,
-  FileTransaction,
-} from '@/domains-pending-migration/bankConnection/manualUpload/types';
 import {
   bankTransactionInput,
   bankTransactionSource,
@@ -37,6 +24,18 @@ import { getBankAccountsForCompany } from '@/modules/banking/accounts/api';
 import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { maskDigits, parseDateString } from '@/shared/utils/formatting-utils';
+import { useSession } from '@session';
+import {
+  Activity,
+  Building,
+  DollarSign,
+  ExternalLink,
+  Plus,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
+import { PuffLoader } from 'react-spinners';
+import { toast } from 'sonner';
 
 import { type ParsedCsvResult } from '../../spreadsheets/types';
 import { getDisplayFields } from '../../spreadsheets/utils';

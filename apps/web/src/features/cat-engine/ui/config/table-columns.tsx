@@ -1,4 +1,15 @@
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import type { ColumnDef } from '@tanstack/react-table';
+import type React from 'react';
+import { memo, useEffect, useState } from 'react';
+import { FormattedAmount } from '@/components/FormattedAmount';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 import {
   ChevronDown,
   ChevronRight,
@@ -7,18 +18,6 @@ import {
   Lock,
   Split,
 } from 'lucide-react';
-import type React from 'react';
-import { memo, useEffect, useState } from 'react';
-
-import { FormattedAmount } from '@/components/FormattedAmount';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
-import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 
 import { ActionsMenu } from '../components/actions';
 import { EditableAccountCell } from '../components/editable-account-cell';
@@ -28,6 +27,7 @@ import {
   EditableNumberCell,
   EditableTextCell,
 } from '../components/editable-fields';
+
 import type { GroupedCoaData } from '../types';
 
 const fieldKey = (id: string, columnId: string) => `${id}-${columnId}`;

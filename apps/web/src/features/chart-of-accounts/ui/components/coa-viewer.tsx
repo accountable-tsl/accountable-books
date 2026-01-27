@@ -75,7 +75,10 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
 
   // Data
   const { data, isLoading } = useAccountMeta();
-  const accountTypes = useMemo(() => data?.enrichedAccountTypes || [], [data?.enrichedAccountTypes]);
+  const accountTypes = useMemo(
+    () => data?.enrichedAccountTypes || [],
+    [data?.enrichedAccountTypes],
+  );
 
   const account = row?.original;
 

@@ -2,6 +2,11 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../db/knexClient.js';
 import { AppError, errorResponse } from '../../shared/utils/response.utils.js';
+import {
+  processFxPositionsParamsSchema,
+  upsertFxPositionParamsSchema,
+} from './fx.types.js';
+
 import type {
   DetermineMonetaryEntriesParams,
   DetermineMonetaryResult,
@@ -10,10 +15,6 @@ import type {
   ProcessFxPositionsParams,
   ProcessFxPositionsResult,
   UpsertFxPositionParams,
-} from './fx.types.js';
-import {
-  processFxPositionsParamsSchema,
-  upsertFxPositionParamsSchema,
 } from './fx.types.js';
 
 /**

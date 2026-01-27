@@ -1,5 +1,5 @@
-import { faker } from '@faker-js/faker';
 import type { Knex } from 'knex';
+import { faker } from '@faker-js/faker';
 
 import { createUser } from '../../../../migrations/20250403184441_users.js';
 import { type DemoFilter } from '../../shared/config.js';

@@ -8,10 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import {
-  Sheet,
-  SheetContent,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -548,7 +545,10 @@ function PayrollTableRow({
       </TableRow>
 
       {/* View Details Sheet */}
-      <Sheet open={detailsDrawerOpen} onOpenChange={handleDetailsDrawerOpenChange}>
+      <Sheet
+        open={detailsDrawerOpen}
+        onOpenChange={handleDetailsDrawerOpenChange}
+      >
         <SheetContent side="right" className="w-full sm:max-w-lg">
           {renderDetailsPanel('sheet')}
         </SheetContent>

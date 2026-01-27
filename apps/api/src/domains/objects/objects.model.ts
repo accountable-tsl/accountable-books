@@ -4,7 +4,6 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { r2Client } from '../../lib/r2Client.js';
 import {
   errorResponse,
@@ -12,6 +11,8 @@ import {
 } from '../../shared/utils/response.utils.js';
 import { type ObjectBucket } from './objects.types.js';
 import { objectTypeHandlers } from './objects.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 export async function uploadObject(
   objectType: string = 'logos',

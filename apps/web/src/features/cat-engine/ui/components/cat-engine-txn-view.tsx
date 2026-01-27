@@ -1,3 +1,14 @@
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { FormattedAmount } from '@/components/FormattedAmount';
+import { TooltipHelper } from '@/components/TooltipHelper';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { safeFormatDate } from '@/shared/utils/formatting-utils';
 import {
   AlertTriangle,
   Check,
@@ -10,18 +21,6 @@ import {
   Split,
   X,
 } from 'lucide-react';
-import { memo, useCallback, useMemo, useState } from 'react';
-
-import { FormattedAmount } from '@/components/FormattedAmount';
-import { TooltipHelper } from '@/components/TooltipHelper';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
-import { safeFormatDate } from '@/shared/utils/formatting-utils';
 
 import { accordionItems } from '../cat-engine';
 import {

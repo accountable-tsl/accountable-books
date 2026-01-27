@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 import { z } from 'zod';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient as knex, knexClient } from '../../db/knexClient.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
@@ -13,6 +12,8 @@ import {
   enqueueBankBalance,
   enqueueGLBalance,
 } from './balance-recalc.queue.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 // Validation schemas
 const dateStringSchema = z

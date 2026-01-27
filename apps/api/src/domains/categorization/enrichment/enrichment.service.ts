@@ -4,13 +4,7 @@ import pino from 'pino';
 import { knexClient } from '../../../db/knexClient.js';
 import { generateChecksumSync, toYMD } from '../../../shared/index.js';
 import { getContactStats } from '../stats/stats.service.js';
-import type { CategorizationTaskSource } from '../tasks/tasks.enums.js';
 import { getCompanyContext } from './company-context.service.js';
-import type {
-  EnrichedTransaction,
-  EnrichmentProcessingType,
-  EnrichmentResult,
-} from './enrichment.types.js';
 import {
   computeTemporalFeatures,
   detectPatternSignals,
@@ -20,6 +14,13 @@ import {
   normalizeDescription,
   tokenizeDescription,
 } from './utils/clean-desc.js';
+
+import type { CategorizationTaskSource } from '../tasks/tasks.enums.js';
+import type {
+  EnrichedTransaction,
+  EnrichmentProcessingType,
+  EnrichmentResult,
+} from './enrichment.types.js';
 
 const logger = pino({
   name: 'enrichment-service',

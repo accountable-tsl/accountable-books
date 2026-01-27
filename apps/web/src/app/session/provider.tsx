@@ -1,3 +1,4 @@
+import type { LogoutOptions, SessionContextType } from '@/modules/auth';
 import {
   createContext,
   useCallback,
@@ -5,10 +6,7 @@ import {
   useEffect,
   useMemo,
 } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-
 import { useCompanyDetails } from '@/domains-pending-migration/company/hooks';
-import type { LogoutOptions, SessionContextType } from '@/modules/auth';
 import {
   authStore,
   clearSessionFn,
@@ -17,6 +15,7 @@ import {
 } from '@/modules/auth';
 import { routes } from '@/shared/routes/routes';
 import { createTenantRoutes, isPublicRoute } from '@/shared/routes/utils';
+import { useLocation, useNavigate } from 'react-router';
 
 const defaultContext = {
   loading: true,
@@ -84,7 +83,18 @@ export const SessionProvider = ({
         }
       })();
     }
-  }, [data, isError, isPublic, navigate, setAuth, authData.csrfToken, authData.user, clearAuth, isLoadingSession, success]);
+  }, [
+    data,
+    isError,
+    isPublic,
+    navigate,
+    setAuth,
+    authData.csrfToken,
+    authData.user,
+    clearAuth,
+    isLoadingSession,
+    success,
+  ]);
 
   useEffect(() => {
     if (authData?.user && authData.csrfToken && user?.id !== authData.user.id) {

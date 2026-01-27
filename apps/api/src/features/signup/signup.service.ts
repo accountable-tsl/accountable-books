@@ -1,12 +1,11 @@
-import * as Sentry from '@sentry/node';
 import type { Knex } from 'knex';
+import * as Sentry from '@sentry/node';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { createAccountingFirm } from '../../domains/accountingFirms/firms.model.js';
 import { newAccFirm } from '../../domains/accountingFirms/firms.types.js';
-import { createDefaultAccounts } from '../../domains/chart-of-accounts/coa.model.js';
 import { loadCoaTemplateForCompany } from '../../domains/chart-of-accounts/coa-template.model.js';
+import { createDefaultAccounts } from '../../domains/chart-of-accounts/coa.model.js';
 import { createCompany } from '../../domains/companies/companies.model.js';
 import {
   type CompanyType,
@@ -37,12 +36,14 @@ import {
   createCompleteCompanyOnboardingState,
   createCompleteUserOnboardingState,
 } from '../onboarding/onboarding.utils.js';
+import { newSignup } from './signup.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
   CreateUserDirectResponse,
   NewCompanyRes,
   NewCompanyResCamel,
 } from './signup.types.js';
-import { newSignup } from './signup.types.js';
 
 /**
  * Registers a new user and company.

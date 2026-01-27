@@ -2,6 +2,7 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { logger } from '../../../shared/index.js';
+
 import type { RuleLogDraft, RuleLogPersistContext } from './rule-logs.types.js';
 import type { RuleLogs } from './rules-db.types.js';
 

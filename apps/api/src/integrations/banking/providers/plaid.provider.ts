@@ -13,6 +13,10 @@ import {
 } from 'plaid';
 
 import { ENV } from '../../../config/env.js';
+import { BankingProvider, TransactionSyncStrategy } from '../types/base.js';
+import { mapPlaidAccountType } from '../utils/mappings.js';
+import { findOrCreateBankMapping } from '../utils/resolveBank.js';
+
 import type {
   ConnectionDetails,
   ProviderAccount,
@@ -21,9 +25,6 @@ import type {
   ProviderTransaction,
   TransactionSyncResult,
 } from '../types/base.js';
-import { BankingProvider, TransactionSyncStrategy } from '../types/base.js';
-import { mapPlaidAccountType } from '../utils/mappings.js';
-import { findOrCreateBankMapping } from '../utils/resolveBank.js';
 
 export class PlaidProvider extends BankingProvider {
   readonly key = 'plaid';

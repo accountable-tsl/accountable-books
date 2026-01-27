@@ -1,5 +1,5 @@
-import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
 
 import type { CompanyData, UpdateCompanyVitalsData } from '../model/types';
 

@@ -1,11 +1,10 @@
-import { formatDistanceToNow } from 'date-fns';
 import type { Dayjs } from 'dayjs';
-import dayjsLib from 'dayjs';
-
 import {
   formatAccountText,
   toTitleCase,
 } from '@/shared/utils/formatting-utils';
+import { formatDistanceToNow } from 'date-fns';
+import dayjsLib from 'dayjs';
 
 export function sanitizeInput(value: string): string {
   return value

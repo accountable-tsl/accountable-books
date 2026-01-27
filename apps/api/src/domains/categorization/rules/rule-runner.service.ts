@@ -2,7 +2,6 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { logger } from '../../../shared/index.js';
-import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 import {
   enqueueMlIfNeeded,
   handlePostPrediction,
@@ -11,11 +10,13 @@ import { logTaskEventSafe } from '../tasks/index.js';
 import { RuleLogRepository } from './rule-logs.repository.js';
 import { RuleCompiler } from './rules.compiler.js';
 import { RulesEngine } from './rules.engine.js';
+import { RuleRepository } from './rules.repository.js';
+
+import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 import type {
   RuleEngineInput,
   RuleEngineResult,
 } from './rules.engine.types.js';
-import { RuleRepository } from './rules.repository.js';
 
 export interface RuleRunnerDependencies {
   runEngine?: (input: RuleEngineInput) => Promise<RuleEngineResult>;

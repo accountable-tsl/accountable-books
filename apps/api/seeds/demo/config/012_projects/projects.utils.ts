@@ -1,7 +1,8 @@
 import { faker } from '@faker-js/faker';
 
-import type { NewProjectInput } from '../../../../src/domains/projects/projects.types.js';
 import { projectStatus } from '../../../../src/domains/projects/projects.types.js';
+
+import type { NewProjectInput } from '../../../../src/domains/projects/projects.types.js';
 import type { DemoCompanyType, DemoCountryCode } from '../../shared/config.js';
 
 // Projects seed template without IDs or contact references.

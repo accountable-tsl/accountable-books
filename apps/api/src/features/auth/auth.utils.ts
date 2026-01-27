@@ -1,9 +1,8 @@
-import { doubleCsrf } from 'csrf-csrf';
 import { type Request, type Response } from 'express';
+import { doubleCsrf } from 'csrf-csrf';
 import jwt from 'jsonwebtoken';
 
 import { ENV, isProd } from '../../config/env.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { getAccessibleCompaniesForUser } from '../../domains/userRoles/userRoles.model.js';
 import { getOnboardingState } from '../../features/onboarding/onboarding.service.js';
@@ -13,13 +12,15 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { TokenExpiration } from './auth.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
   AuthCompanyContext,
   AuthUserContext,
   DecodedToken,
   TokenConfig,
 } from './auth.types.js';
-import { TokenExpiration } from './auth.types.js';
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throw new AppError('JWT secrets must be defined in .env');

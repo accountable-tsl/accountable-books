@@ -1,21 +1,15 @@
 import type {
+  CategorizationTransactionFile,
+  GroupedTransaction,
+} from '@/modules/accounting/categorization';
+import type { ContactResponse } from '@/modules/contacts';
+import type { ProjectsResponse } from '@/modules/projects';
+import type {
   LedgerIntentDesiredState,
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
-import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Landmark,
-  Pencil,
-  Plus,
-  Upload,
-  X,
-} from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
-
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FilePreviewer } from '@/components/file-previewer';
@@ -26,23 +20,29 @@ import { AddNewCoaDialog } from '@/features/chart-of-accounts/ui/components/coa-
 import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
 import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
 import { cn } from '@/lib/utils';
-import type {
-  CategorizationTransactionFile,
-  GroupedTransaction,
-} from '@/modules/accounting/categorization';
 import {
   createTempEntryId,
   isTempEntryId,
   useLedgerIntentUpdater,
 } from '@/modules/accounting/categorization';
-import type { ContactResponse } from '@/modules/contacts';
 import { useContactsInfinite } from '@/modules/contacts';
 import { getObjectDownloadUrl } from '@/modules/objects/api';
 import { useUploadTransactionFiles } from '@/modules/objects/model/hooks';
-import type { ProjectsResponse } from '@/modules/projects';
 import { useProjectsInfinite } from '@/modules/projects';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Landmark,
+  Pencil,
+  Plus,
+  Upload,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 import { TOOLTIPS } from '../constants';
+
 import type { GroupedCoaData } from '../types';
 
 // Escape key should close the edit mode and act as cancel
@@ -369,7 +369,9 @@ export function TransactionView({
 
   // Type guard to check if file is a server file
   const isServerFile = useCallback(
-    (file: CategorizationTransactionFile | File): file is CategorizationTransactionFile => {
+    (
+      file: CategorizationTransactionFile | File,
+    ): file is CategorizationTransactionFile => {
       return 'id' in file && 'key' in file;
     },
     [],
@@ -861,10 +863,7 @@ export function TransactionView({
     }
 
     prevLedgerTransactionIdRef.current = current;
-  }, [
-    txn,
-    handleUploadFilesForPersistedEntries,
-  ]);
+  }, [txn, handleUploadFilesForPersistedEntries]);
 
   // Cleanup blob URLs on unmount
   useEffect(() => {

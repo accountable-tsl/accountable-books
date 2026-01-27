@@ -1,7 +1,4 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight } from 'lucide-react';
-import { Link } from 'react-router';
-
 import {
   Collapsible,
   CollapsibleContent,
@@ -27,6 +24,8 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { ChevronRight } from 'lucide-react';
+import { Link } from 'react-router';
 
 export interface NavBaseItems {
   title: string;

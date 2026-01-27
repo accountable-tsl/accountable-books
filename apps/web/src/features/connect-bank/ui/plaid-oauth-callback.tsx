@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { usePlaidLink } from 'react-plaid-link';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
-
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { Button } from '@/components/ui/button';
 import { useConnectAccounts } from '@/modules/banking/connections';
+import { usePlaidLink } from 'react-plaid-link';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 
 import { plaidOAuthStorage } from '../utils/oauth-storage';
 

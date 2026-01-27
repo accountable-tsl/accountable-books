@@ -1,6 +1,5 @@
-import z from 'zod';
-
 import { debitCredit } from '@/shared/types/core';
+import z from 'zod';
 
 export const bankTransactionSource = z.enum([
   'file_import',

@@ -1,5 +1,5 @@
-import confetti from 'canvas-confetti';
 import { useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
 
 interface ConfettiCelebrationProps {
   isActive: boolean;

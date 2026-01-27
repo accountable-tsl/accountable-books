@@ -1,8 +1,7 @@
-import Decimal from 'decimal.js';
-
-import { FormattedAmount } from '@/components/FormattedAmount';
 import type { SpreadsheetImporterField } from '@/domains-pending-migration/spreadsheets/types';
+import { FormattedAmount } from '@/components/FormattedAmount';
 import { formatDate, parseDateString } from '@/shared/utils/formatting-utils';
+import Decimal from 'decimal.js';
 
 const fieldMatchers = {
   date: ['*Date', 'Date', 'Date*', 'date'],

@@ -1,4 +1,3 @@
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
 import {
@@ -10,6 +9,8 @@ import {
   type CountryRes,
   type GetCountriesOptions,
 } from './countries.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 const countriesCacheKey = generateCacheKey('countries', 'all');
 const CACHE_TTL = 60 * 60 * 24; // 24 hours

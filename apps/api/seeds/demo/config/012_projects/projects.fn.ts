@@ -1,18 +1,19 @@
 import type { Knex } from 'knex';
 
 import { addNewProjects } from '../../../../src/domains/projects/projects.model.js';
-import type { DemoFilter } from '../../shared/config.js';
 import {
   deleteDemoData,
   getDemoCompanies,
   getDemoUserMap,
 } from '../../shared/utils.js';
-import type { CompanyProjectsMap } from './projects.data.js';
 import {
   generateDemoProjectsMap,
   getRawProjectsForInsertion,
 } from './projects.data.js';
 import { demoProjectsByCompanyMap } from './projects.state.js';
+
+import type { DemoFilter } from '../../shared/config.js';
+import type { CompanyProjectsMap } from './projects.data.js';
 
 /**
  * Assign contact IDs to projects using database query

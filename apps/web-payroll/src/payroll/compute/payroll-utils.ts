@@ -1,6 +1,7 @@
-import { getPeriodStartKey } from '../utils';
-import { CompensationPeriodSchema } from '../domain';
 import type { z } from 'zod';
+
+import { CompensationPeriodSchema } from '../domain';
+import { getPeriodStartKey } from '../utils';
 
 import type { PayrollRun, PayrollRunItem } from '../domain';
 
@@ -13,7 +14,7 @@ import type { PayrollRun, PayrollRunItem } from '../domain';
  * **Important**: Returns the FULL compensation period (not a simplified type) so callers
  * have access to all fields including BHT breakdown values.
  *
- * **Overlapping Periods**: 
+ * **Overlapping Periods**:
  * - Zod schema validates individual periods (toMonth >= fromMonth) but does NOT prevent
  *   overlapping periods in the array
  * - If multiple periods match, returns the FIRST one found (earliest fromMonth wins)
@@ -26,10 +27,9 @@ import type { PayrollRun, PayrollRunItem } from '../domain';
  * @param monthKey - Month key in format "YYYY-MM" (e.g., "2026-03")
  * @returns The full compensation period that applies to the month, or null if none found
  */
-export function resolveCompensationForMonth<T extends { fromMonth: string; toMonth?: string }>(
-  compHistory: T[],
-  monthKey: string,
-): T | null {
+export function resolveCompensationForMonth<
+  T extends { fromMonth: string; toMonth?: string },
+>(compHistory: T[], monthKey: string): T | null {
   // Find the period that contains this month
   for (const period of compHistory) {
     if (monthKey >= period.fromMonth) {
@@ -67,7 +67,11 @@ export function resolveCompensationForMonth<T extends { fromMonth: string; toMon
 export function calculateEmploymentFraction(
   runItem: PayrollRunItem,
   monthKey: string,
-  method: 'calendar_days' | 'thirty_360' | 'business_days' | 'full_month' = 'calendar_days',
+  method:
+    | 'calendar_days'
+    | 'thirty_360'
+    | 'business_days'
+    | 'full_month' = 'calendar_days',
 ): number {
   const joinDate = runItem.employeeSnapshot.joinDate;
   const exitDate = runItem.employeeSnapshot.exitDate;
@@ -143,8 +147,16 @@ export function calculateEmploymentFraction(
     // Business days: Count Mon-Fri only
     const businessDaysInMonth = countBusinessDaysInMonth(year, month);
     if (businessDaysInMonth === 0) return 0.0;
-    const businessDaysWorked = countBusinessDaysInRange(year, month, startDay, endDay);
-    return Math.max(0.0, Math.min(1.0, businessDaysWorked / businessDaysInMonth));
+    const businessDaysWorked = countBusinessDaysInRange(
+      year,
+      month,
+      startDay,
+      endDay,
+    );
+    return Math.max(
+      0.0,
+      Math.min(1.0, businessDaysWorked / businessDaysInMonth),
+    );
   }
 
   // calendar_days (default): Use actual calendar days
@@ -156,7 +168,12 @@ export function calculateEmploymentFraction(
  * Count business days (Mon-Fri) in a month
  */
 function countBusinessDaysInMonth(year: number, month: number): number {
-  return countBusinessDaysInRange(year, month, 1, new Date(year, month, 0).getDate());
+  return countBusinessDaysInRange(
+    year,
+    month,
+    1,
+    new Date(year, month, 0).getDate(),
+  );
 }
 
 /**

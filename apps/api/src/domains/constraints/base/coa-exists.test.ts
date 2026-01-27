@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Import after mock setup
-import { validateCoaIds } from '../../chart-of-accounts/index.js';
 import {
   createMockConstraintContext,
   createMockEntry,
 } from '../__test-helpers__.js';
+// Import after mock setup
+import { validateCoaIds } from '../../chart-of-accounts/index.js';
 import { coaExistsAndActive } from './coa-exists.js';
 
 // Mock the validateCoaIds function

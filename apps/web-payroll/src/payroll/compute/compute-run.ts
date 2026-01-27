@@ -1,24 +1,16 @@
+import type { z } from 'zod';
+
+import { COMPANY_DEFAULTS } from '../data/company-defaults';
+import { PayrollComputedItemSchema } from '../domain';
 import { getCurrentTimestamp, getPeriodStartKey } from '../utils';
 import { logger } from '../utils/logger';
-import { COMPANY_DEFAULTS } from '../data/company-defaults';
-
+import { computePaye } from './compute-paye';
+import { extractYtdData, loadFinalizedRunHistory } from './extract-ytd';
+import { getCompensationAndFraction } from './payroll-utils';
 import { resolveSettings } from './resolve-settings';
-import {
-  getCompensationAndFraction,
-} from './payroll-utils';
-import {
-  computePaye,
-  type ComputePayeResult,
-} from './compute-paye';
-import { loadFinalizedRunHistory, extractYtdData } from './extract-ytd';
 
-import type {
-  PayrollComputedRun,
-  PayrollRun,
-  PayrollRunItem,
-} from '../domain';
-import { PayrollComputedItemSchema } from '../domain';
-import type { z } from 'zod';
+import type { PayrollComputedRun, PayrollRun, PayrollRunItem } from '../domain';
+import type { ComputePayeResult } from './compute-paye';
 
 type PayrollComputedItem = z.infer<typeof PayrollComputedItemSchema>;
 
@@ -29,13 +21,17 @@ type PayrollComputedItem = z.infer<typeof PayrollComputedItemSchema>;
  * @param toMonth - End month (YYYY-MM) or undefined for open-ended
  * @returns Number of months in the period
  */
-function countMonthsInPeriod(fromMonth: string, toMonth: string | undefined): number {
+function countMonthsInPeriod(
+  fromMonth: string,
+  toMonth: string | undefined,
+): number {
   const [startYear, startMonth] = fromMonth.split('-').map(Number);
   const endMonth = toMonth ?? `${startYear + 100}-12`; // Default to far future for open-ended
   const [endYear, endMonthNum] = endMonth.split('-').map(Number);
 
   // Calculate total months
-  const totalMonths = (endYear - startYear) * 12 + (endMonthNum - startMonth) + 1;
+  const totalMonths =
+    (endYear - startYear) * 12 + (endMonthNum - startMonth) + 1;
   return totalMonths;
 }
 
@@ -66,7 +62,9 @@ function countMonthsInPeriod(fromMonth: string, toMonth: string | undefined): nu
  * @returns Object with total annual rent and flag indicating if extrapolation was used
  */
 function calculateAnnualRent(
-  rentHistory: Array<{ fromMonth: string; toMonth?: string; rent: string }> | undefined,
+  rentHistory:
+    | Array<{ fromMonth: string; toMonth?: string; rent: string }>
+    | undefined,
   taxYear: number,
 ): { annualRent: number; usedExtrapolation: boolean } {
   if (!rentHistory || rentHistory.length === 0) {
@@ -89,9 +87,12 @@ function calculateAnnualRent(
       if (monthKey >= periodStart && monthKey <= periodEnd) {
         const periodRent = parseFloat(rentPeriod.rent);
         if (!isNaN(periodRent) && periodRent > 0) {
-          const monthsInPeriod = countMonthsInPeriod(periodStart, rentPeriod.toMonth);
+          const monthsInPeriod = countMonthsInPeriod(
+            periodStart,
+            rentPeriod.toMonth,
+          );
           const monthlyRent = periodRent / monthsInPeriod;
-          
+
           lastKnownMonthlyRent = monthlyRent;
           totalAnnualRent += monthlyRent;
           foundPeriod = true;
@@ -169,7 +170,7 @@ function computeAnnualBhtSplit(params: {
   let basicRate: number;
   let housingRate: number;
   let transportRate: number;
-  
+
   if (!breakdownRates) {
     basicRate = 1.0;
     housingRate = 0;
@@ -177,8 +178,9 @@ function computeAnnualBhtSplit(params: {
   } else {
     basicRate = breakdownRates.basic != null ? breakdownRates.basic : 1.0;
     housingRate = breakdownRates.housing != null ? breakdownRates.housing : 0;
-    transportRate = breakdownRates.transport != null ? breakdownRates.transport : 0;
-    
+    transportRate =
+      breakdownRates.transport != null ? breakdownRates.transport : 0;
+
     const totalRate = basicRate + housingRate + transportRate;
     if (totalRate === 0) {
       basicRate = 1.0;
@@ -186,7 +188,7 @@ function computeAnnualBhtSplit(params: {
       transportRate = 0;
     }
   }
-  
+
   const finalBasicRate = basicRate;
   const finalHousingRate = housingRate;
   const finalTransportRate = transportRate;
@@ -378,7 +380,12 @@ async function computeRunItem(
 
   const settings = resolveSettings(runItem, run.settings);
 
-  if (!settings.bhtBreakdown || (!settings.bhtBreakdown.basic && !settings.bhtBreakdown.housing && !settings.bhtBreakdown.transport)) {
+  if (
+    !settings.bhtBreakdown ||
+    (!settings.bhtBreakdown.basic &&
+      !settings.bhtBreakdown.housing &&
+      !settings.bhtBreakdown.transport)
+  ) {
     logger.warn('BHT breakdown is empty or invalid', {
       employeeName: runItem.employeeSnapshot.fullName,
       breakdown: settings.bhtBreakdown,
@@ -387,8 +394,17 @@ async function computeRunItem(
   }
 
   const breakdownRates = settings.bhtBreakdown;
-  
-  if (!breakdownRates || (breakdownRates.basic == null && breakdownRates.housing == null && breakdownRates.transport == null)) {
+
+  let annualBasic: number;
+  let annualHousing: number;
+  let annualTransport: number;
+
+  if (
+    !breakdownRates ||
+    (breakdownRates.basic == null &&
+      breakdownRates.housing == null &&
+      breakdownRates.transport == null)
+  ) {
     logger.error('BHT breakdown rates are missing or empty', {
       employeeName: runItem.employeeSnapshot.fullName,
       breakdownRates,
@@ -396,7 +412,7 @@ async function computeRunItem(
       systemDefaults: COMPANY_DEFAULTS.settings?.bhtBreakdown,
     });
     const fallbackBreakdown = { basic: 1.0 };
-    var { annualBasic, annualHousing, annualTransport } = computeAnnualBhtSplit({
+    ({ annualBasic, annualHousing, annualTransport } = computeAnnualBhtSplit({
       compensation: {
         annualBasic: comp.annualBasic,
         annualHousing: comp.annualHousing,
@@ -404,9 +420,9 @@ async function computeRunItem(
       },
       annualGross,
       breakdownRates: fallbackBreakdown,
-    });
+    }));
   } else {
-    var { annualBasic, annualHousing, annualTransport } = computeAnnualBhtSplit({
+    ({ annualBasic, annualHousing, annualTransport } = computeAnnualBhtSplit({
       compensation: {
         annualBasic: comp.annualBasic,
         annualHousing: comp.annualHousing,
@@ -414,10 +430,15 @@ async function computeRunItem(
       },
       annualGross,
       breakdownRates,
-    });
+    }));
   }
-  
-  if (annualGross > 0 && annualBasic === 0 && annualHousing === 0 && annualTransport === 0) {
+
+  if (
+    annualGross > 0 &&
+    annualBasic === 0 &&
+    annualHousing === 0 &&
+    annualTransport === 0
+  ) {
     logger.error('BHT computation resulted in all zeros', {
       employeeName: runItem.employeeSnapshot.fullName,
       annualGross,
@@ -506,30 +527,35 @@ async function computeRunItem(
       );
     }
     if (runItem.edits.oneOffEmployerContributions) {
-      oneOffEmployerContributionsTotal = runItem.edits.oneOffEmployerContributions.reduce(
-        (sum, item) => sum + moneyToNumber(item.amount),
-        0,
-      );
+      oneOffEmployerContributionsTotal =
+        runItem.edits.oneOffEmployerContributions.reduce(
+          (sum, item) => sum + moneyToNumber(item.amount),
+          0,
+        );
     }
   }
 
   // Compute recurring deductions from payProfileSnapshot
   let recurringDeductionsTotal = 0;
-  if (runItem.payProfileSnapshot.recurringDeductions && runItem.payProfileSnapshot.recurringDeductions.length > 0) {
-    recurringDeductionsTotal = runItem.payProfileSnapshot.recurringDeductions.reduce(
-      (sum, deduction) => {
-        const fromMonth = deduction.fromMonth;
-        const toMonth = deduction.toMonth;
-        if (
-          monthKey >= fromMonth &&
-          (toMonth == null || monthKey <= toMonth)
-        ) {
-          return sum + moneyToNumber(deduction.amount);
-        }
-        return sum;
-      },
-      0,
-    );
+  if (
+    runItem.payProfileSnapshot.recurringDeductions &&
+    runItem.payProfileSnapshot.recurringDeductions.length > 0
+  ) {
+    recurringDeductionsTotal =
+      runItem.payProfileSnapshot.recurringDeductions.reduce(
+        (sum, deduction) => {
+          const fromMonth = deduction.fromMonth;
+          const toMonth = deduction.toMonth;
+          if (
+            monthKey >= fromMonth &&
+            (toMonth == null || monthKey <= toMonth)
+          ) {
+            return sum + moneyToNumber(deduction.amount);
+          }
+          return sum;
+        },
+        0,
+      );
   }
 
   const totalDeductions =
@@ -548,7 +574,10 @@ async function computeRunItem(
 
   const enableRentRelief = run.settings?.enableRentRelief !== false;
   const rentCalculation = enableRentRelief
-    ? calculateAnnualRent(runItem.payProfileSnapshot.rentHistory, run.periodYear)
+    ? calculateAnnualRent(
+        runItem.payProfileSnapshot.rentHistory,
+        run.periodYear,
+      )
     : { annualRent: 0, usedExtrapolation: false };
   const annualRent = rentCalculation.annualRent;
 
@@ -556,7 +585,9 @@ async function computeRunItem(
 
   let payeResult: ComputePayeResult | undefined;
   let ytdData: ReturnType<typeof extractYtdData> | undefined;
-  let finalizedRunsForYtd: Awaited<ReturnType<typeof loadFinalizedRunHistory>> | undefined;
+  let finalizedRunsForYtd:
+    | Awaited<ReturnType<typeof loadFinalizedRunHistory>>
+    | undefined;
 
   if (enableYtd) {
     try {
@@ -608,13 +639,10 @@ async function computeRunItem(
     for (const deduction of runItem.payProfileSnapshot.recurringDeductions) {
       const fromMonth = deduction.fromMonth;
       const toMonth = deduction.toMonth;
-      if (
-        monthKey >= fromMonth &&
-        (toMonth == null || monthKey <= toMonth)
-      ) {
+      if (monthKey >= fromMonth && (toMonth == null || monthKey <= toMonth)) {
         const taxTreatment = deduction.taxTreatment;
         const amount = moneyToNumber(deduction.amount) * employmentFraction;
-        
+
         if (taxTreatment === 'pension_voluntary') {
           allowableDeductionsBreakdown.voluntaryRecurring.pension += amount;
         } else if (taxTreatment === 'nhf_voluntary') {
@@ -622,9 +650,11 @@ async function computeRunItem(
         } else if (taxTreatment === 'nhis_voluntary') {
           allowableDeductionsBreakdown.voluntaryRecurring.nhis += amount;
         } else if (taxTreatment === 'owner_occupied_mortgage_interest') {
-          allowableDeductionsBreakdown.voluntaryRecurring.ownerOccupiedMortgageInterest += amount;
+          allowableDeductionsBreakdown.voluntaryRecurring.ownerOccupiedMortgageInterest +=
+            amount;
         } else if (taxTreatment === 'life_insurance_premium') {
-          allowableDeductionsBreakdown.voluntaryRecurring.lifeInsurancePremium += amount;
+          allowableDeductionsBreakdown.voluntaryRecurring.lifeInsurancePremium +=
+            amount;
         }
       }
     }
@@ -634,7 +664,7 @@ async function computeRunItem(
     for (const deduction of runItem.edits.oneOffDeductions) {
       const taxTreatment = deduction.taxTreatment;
       const amount = moneyToNumber(deduction.amount);
-      
+
       if (taxTreatment === 'pension_voluntary') {
         allowableDeductionsBreakdown.voluntaryOneOff.pension += amount;
       } else if (taxTreatment === 'nhf_voluntary') {
@@ -642,9 +672,11 @@ async function computeRunItem(
       } else if (taxTreatment === 'nhis_voluntary') {
         allowableDeductionsBreakdown.voluntaryOneOff.nhis += amount;
       } else if (taxTreatment === 'owner_occupied_mortgage_interest') {
-        allowableDeductionsBreakdown.voluntaryOneOff.ownerOccupiedMortgageInterest += amount;
+        allowableDeductionsBreakdown.voluntaryOneOff.ownerOccupiedMortgageInterest +=
+          amount;
       } else if (taxTreatment === 'life_insurance_premium') {
-        allowableDeductionsBreakdown.voluntaryOneOff.lifeInsurancePremium += amount;
+        allowableDeductionsBreakdown.voluntaryOneOff.lifeInsurancePremium +=
+          amount;
       }
     }
   }
@@ -655,14 +687,16 @@ async function computeRunItem(
       allowableDeductionsBreakdown.voluntaryRecurring.pension +
       allowableDeductionsBreakdown.voluntaryRecurring.nhf +
       allowableDeductionsBreakdown.voluntaryRecurring.nhis +
-      allowableDeductionsBreakdown.voluntaryRecurring.ownerOccupiedMortgageInterest +
+      allowableDeductionsBreakdown.voluntaryRecurring
+        .ownerOccupiedMortgageInterest +
       allowableDeductionsBreakdown.voluntaryRecurring.lifeInsurancePremium;
 
     const oneOffAllowableDeductions =
       allowableDeductionsBreakdown.voluntaryOneOff.pension +
       allowableDeductionsBreakdown.voluntaryOneOff.nhf +
       allowableDeductionsBreakdown.voluntaryOneOff.nhis +
-      allowableDeductionsBreakdown.voluntaryOneOff.ownerOccupiedMortgageInterest +
+      allowableDeductionsBreakdown.voluntaryOneOff
+        .ownerOccupiedMortgageInterest +
       allowableDeductionsBreakdown.voluntaryOneOff.lifeInsurancePremium;
 
     const annualAllowableDeductions =
@@ -702,9 +736,10 @@ async function computeRunItem(
   const finalEmployerNhis = overrides?.employerNhis
     ? moneyToNumber(overrides.employerNhis)
     : statutory.employerNhis;
-  
-  const netPay = monthlyGross + oneOffAllowancesTotal - totalDeductions - (finalPaye ?? 0);
-  
+
+  const netPay =
+    monthlyGross + oneOffAllowancesTotal - totalDeductions - (finalPaye ?? 0);
+
   const finalNetPay = overrides?.netPay
     ? moneyToNumber(overrides.netPay)
     : netPay;
@@ -717,12 +752,16 @@ async function computeRunItem(
     lossOfEmploymentExempt = ytdData.exemptIncome.lossOfEmployment.exempt;
     lossOfEmploymentTaxable = ytdData.exemptIncome.lossOfEmployment.taxable;
   } else {
-    const exemptAmount = Math.min(lossOfEmploymentTotal, LOSS_OF_EMPLOYMENT_CAP);
+    const exemptAmount = Math.min(
+      lossOfEmploymentTotal,
+      LOSS_OF_EMPLOYMENT_CAP,
+    );
     lossOfEmploymentExempt = exemptAmount;
     lossOfEmploymentTaxable = lossOfEmploymentTotal - exemptAmount;
   }
 
-  const prorationMethod = run.settings?.employmentProrationMethod ?? 'calendar_days';
+  const prorationMethod =
+    run.settings?.employmentProrationMethod ?? 'calendar_days';
   const isProrated = employmentFraction < 1.0;
 
   const totalAllowableDeductions =
@@ -732,7 +771,8 @@ async function computeRunItem(
     allowableDeductionsBreakdown.voluntaryRecurring.pension +
     allowableDeductionsBreakdown.voluntaryRecurring.nhf +
     allowableDeductionsBreakdown.voluntaryRecurring.nhis +
-    allowableDeductionsBreakdown.voluntaryRecurring.ownerOccupiedMortgageInterest +
+    allowableDeductionsBreakdown.voluntaryRecurring
+      .ownerOccupiedMortgageInterest +
     allowableDeductionsBreakdown.voluntaryRecurring.lifeInsurancePremium +
     allowableDeductionsBreakdown.voluntaryOneOff.pension +
     allowableDeductionsBreakdown.voluntaryOneOff.nhf +
@@ -744,12 +784,19 @@ async function computeRunItem(
     usedYtd: enableYtd && ytdData != null,
     ytd: ytdData
       ? {
-          taxableGrossYtd: numberToMoney(ytdData.projectedAnnualGross * (ytdData.workedMonthUnits / 12)),
-          allowableDeductionsYtd: numberToMoney(ytdData.projectedAnnualAllowableDeductions * (ytdData.workedMonthUnits / 12)),
+          taxableGrossYtd: numberToMoney(
+            ytdData.projectedAnnualGross * (ytdData.workedMonthUnits / 12),
+          ),
+          allowableDeductionsYtd: numberToMoney(
+            ytdData.projectedAnnualAllowableDeductions *
+              (ytdData.workedMonthUnits / 12),
+          ),
           taxWithheldYtd: numberToMoney(ytdData.taxWithheldYtd),
           workedMonthUnits: ytdData.workedMonthUnits,
           projectedAnnualGross: numberToMoney(ytdData.projectedAnnualGross),
-          projectedAnnualAllowableDeductions: numberToMoney(ytdData.projectedAnnualAllowableDeductions),
+          projectedAnnualAllowableDeductions: numberToMoney(
+            ytdData.projectedAnnualAllowableDeductions,
+          ),
         }
       : undefined,
     exemptIncome: {
@@ -768,22 +815,30 @@ async function computeRunItem(
         nhis: numberToMoney(allowableDeductionsBreakdown.statutory.nhis),
       },
       voluntaryRecurring: {
-        pension: numberToMoney(allowableDeductionsBreakdown.voluntaryRecurring.pension),
+        pension: numberToMoney(
+          allowableDeductionsBreakdown.voluntaryRecurring.pension,
+        ),
         nhf: numberToMoney(allowableDeductionsBreakdown.voluntaryRecurring.nhf),
-        nhis: numberToMoney(allowableDeductionsBreakdown.voluntaryRecurring.nhis),
+        nhis: numberToMoney(
+          allowableDeductionsBreakdown.voluntaryRecurring.nhis,
+        ),
         ownerOccupiedMortgageInterest: numberToMoney(
-          allowableDeductionsBreakdown.voluntaryRecurring.ownerOccupiedMortgageInterest,
+          allowableDeductionsBreakdown.voluntaryRecurring
+            .ownerOccupiedMortgageInterest,
         ),
         lifeInsurancePremium: numberToMoney(
           allowableDeductionsBreakdown.voluntaryRecurring.lifeInsurancePremium,
         ),
       },
       voluntaryOneOff: {
-        pension: numberToMoney(allowableDeductionsBreakdown.voluntaryOneOff.pension),
+        pension: numberToMoney(
+          allowableDeductionsBreakdown.voluntaryOneOff.pension,
+        ),
         nhf: numberToMoney(allowableDeductionsBreakdown.voluntaryOneOff.nhf),
         nhis: numberToMoney(allowableDeductionsBreakdown.voluntaryOneOff.nhis),
         ownerOccupiedMortgageInterest: numberToMoney(
-          allowableDeductionsBreakdown.voluntaryOneOff.ownerOccupiedMortgageInterest,
+          allowableDeductionsBreakdown.voluntaryOneOff
+            .ownerOccupiedMortgageInterest,
         ),
         lifeInsurancePremium: numberToMoney(
           allowableDeductionsBreakdown.voluntaryOneOff.lifeInsurancePremium,
@@ -799,8 +854,14 @@ async function computeRunItem(
     taxCalculation: {
       annualTaxableIncome: numberToMoney(payeResult?.annualTaxableIncome ?? 0),
       annualTax: numberToMoney(payeResult?.annualTax ?? 0),
-      taxDueYtd: payeResult?.taxDueYtd != null ? numberToMoney(payeResult.taxDueYtd) : undefined,
-      taxWithheldYtd: payeResult?.taxWithheldYtd != null ? numberToMoney(payeResult.taxWithheldYtd) : undefined,
+      taxDueYtd:
+        payeResult?.taxDueYtd != null
+          ? numberToMoney(payeResult.taxDueYtd)
+          : undefined,
+      taxWithheldYtd:
+        payeResult?.taxWithheldYtd != null
+          ? numberToMoney(payeResult.taxWithheldYtd)
+          : undefined,
       currentMonthPaye: numberToMoney(finalPaye ?? 0),
     },
     taxBandBreakdown: payeResult?.taxBandBreakdown?.map((band) => ({
@@ -811,7 +872,10 @@ async function computeRunItem(
     })),
     oneOffAllowances: {
       total: numberToMoney(
-        (runItem.edits?.oneOffAllowances?.reduce((sum, item) => sum + moneyToNumber(item.amount), 0) ?? 0),
+        runItem.edits?.oneOffAllowances?.reduce(
+          (sum, item) => sum + moneyToNumber(item.amount),
+          0,
+        ) ?? 0,
       ),
       taxable: numberToMoney(oneOffAllowancesTotal),
       exempt: numberToMoney(exemptIncomeTotal),

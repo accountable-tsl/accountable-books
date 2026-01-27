@@ -1,3 +1,6 @@
+import type { NavMainItems } from '@/components/NavMain';
+import type { CompanyType } from '@/shared/types/core';
+import { routes } from '@/shared/routes/routes';
 import {
   BriefcaseIcon,
   CalculatorIcon,
@@ -9,10 +12,6 @@ import {
   SearchIcon,
   SettingsIcon,
 } from 'lucide-react';
-
-import type { NavMainItems } from '@/components/NavMain';
-import { routes } from '@/shared/routes/routes';
-import type { CompanyType } from '@/shared/types/core';
 
 export const getNavMain = (
   companyId: string,

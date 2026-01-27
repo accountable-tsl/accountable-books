@@ -1,6 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
-
 import { checkSlug, updateSlugFn } from '@/domains-pending-migration/firms/api';
 import {
   invalidateFirmCaches,
@@ -8,6 +6,7 @@ import {
 } from '@/domains-pending-migration/firms/utils';
 import { queryClient } from '@/lib/queryClient';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 export const useSlugCheck = (slug: string, currentSlug?: string) => {
   const debouncedSlug = useDebouncedValue(slug.trim().toLowerCase(), 400);

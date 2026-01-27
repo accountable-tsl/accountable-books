@@ -2,9 +2,9 @@ import type {
   AddBankTransactionsResponse,
   BankTransactionBatchInput,
 } from '@/domains-pending-migration/bankConnection/manualUpload/types';
-import api from '@/lib/axios';
 import type { BankAccountForApi } from '@/modules/banking/accounts';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
 
 export const addNewBankTransactions = async (
   companyId: string,

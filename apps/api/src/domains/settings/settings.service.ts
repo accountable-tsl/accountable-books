@@ -1,19 +1,20 @@
 import type { Knex } from 'knex';
 import z from 'zod';
 
-import type { ApiResponse } from '../../core/index.js';
 import { knexClient } from '../../db/knexClient.js';
 import {
   errorResponse,
   getCompanyUUID,
   successResponse,
 } from '../../shared/index.js';
+import { settingRegistry } from './settings.registry.js';
+
+import type { ApiResponse } from '../../core/index.js';
 import type {
   SettingDefaults,
   SettingKey,
   SettingValue,
 } from './settings.registry.js';
-import { settingRegistry } from './settings.registry.js';
 
 /**
  * Convert a setting value to the appropriate storage column

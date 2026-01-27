@@ -18,15 +18,6 @@ import {
   handleTransactionsDeleted,
 } from '../categorization/index.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
-import type {
-  BankTransaction,
-  BankTransactionBatchInput,
-  BankTransactionFilters,
-  BankTransactionInput,
-  BankTransactionWithFilteredFields,
-  DeleteBankTransactionsInput,
-  NewBankTransaction,
-} from './bankTransactions.types.js';
 import {
   bankTransactionBatchInput,
   bankTransactionsFilters,
@@ -36,6 +27,16 @@ import {
   buildBankTransactionQuery,
   generateBatchFingerprint,
 } from './bankTransactions.utils.js';
+
+import type {
+  BankTransaction,
+  BankTransactionBatchInput,
+  BankTransactionFilters,
+  BankTransactionInput,
+  BankTransactionWithFilteredFields,
+  DeleteBankTransactionsInput,
+  NewBankTransaction,
+} from './bankTransactions.types.js';
 
 export async function addNewBankTransactions({
   userId,

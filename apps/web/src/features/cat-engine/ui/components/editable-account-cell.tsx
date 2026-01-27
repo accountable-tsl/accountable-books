@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import { useEffect, useRef, useState } from 'react';
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 
-import type { GroupedCoaData } from '../types';
 import { resolveEditableEntryId } from '../utils/resolve-editable-entry';
+
+import type { GroupedCoaData } from '../types';
 
 interface EditableAccountCellProps {
   coaId?: string;

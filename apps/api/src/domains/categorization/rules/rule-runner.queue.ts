@@ -6,6 +6,7 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
+
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 
 export const RULE_RUNNER_QUEUE_NAME = 'rule-runner';

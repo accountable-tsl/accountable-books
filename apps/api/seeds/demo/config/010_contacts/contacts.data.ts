@@ -1,14 +1,15 @@
 import { readFileSync } from 'fs';
-import type { Knex } from 'knex';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import type { Knex } from 'knex';
 
-import type { DemoCompanyType, DemoFilter } from '../../shared/config.js';
 import { getDemoCompanies } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
-import type { DemoContact } from './contacts.state.js';
 import { demoContactsByCompanyMap } from './contacts.state.js';
 import { generateRandomContacts } from './contacts.utils.js';
+
+import type { DemoCompanyType, DemoFilter } from '../../shared/config.js';
+import type { DemoContact } from './contacts.state.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

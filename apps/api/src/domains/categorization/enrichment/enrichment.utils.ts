@@ -1,5 +1,6 @@
 import { toDate } from '../../../shared/index.js';
 import { fiscalCalendarService } from '../../reporting/fiscal-calendar/fiscal-calendar.service.js';
+
 import type { PatternSignals, Temporal } from './enrichment.types.js';
 
 /**

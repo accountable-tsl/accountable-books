@@ -1,9 +1,7 @@
-import { useSession } from '@session';
-import { Send, Upload, X } from 'lucide-react';
+import type { ParsedCsvResult } from '@/domains-pending-migration/spreadsheets/types';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
+import type { BankTransactionBatchInsert } from '@/modules/banking/csv-upload/model/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
-
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
@@ -12,22 +10,23 @@ import { FormattedAmount } from '@/components/FormattedAmount';
 import { Success } from '@/components/Success';
 import { Button } from '@/components/ui/button';
 import { SpreadsheetImporter } from '@/domains-pending-migration/spreadsheets/SpreadsheetImporter';
-import type { ParsedCsvResult } from '@/domains-pending-migration/spreadsheets/types';
 import { BankDropdown } from '@/features/upload-bank-transactions/ui/components/bank-selection/dropdown';
 import { FailedRowsDisplay } from '@/features/upload-bank-transactions/ui/components/failed-rows';
 import { fields } from '@/features/upload-bank-transactions/ui/config/import-fields';
 import { getBankTxnFields } from '@/features/upload-bank-transactions/ui/config/table-columns';
 import { cn } from '@/lib/utils';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts';
 import {
   generateSourceMetadata,
   useUploadBankTransactions,
 } from '@/modules/banking/csv-upload';
-import type { BankTransactionBatchInsert } from '@/modules/banking/csv-upload/model/types';
 import { bankTransactionSource } from '@/modules/banking/csv-upload/model/types';
 import { transformParsedData } from '@/modules/banking/csv-upload/utils/transaction-parsers';
 import { sleep } from '@/shared/utils/random-utils';
+import { useSession } from '@session';
+import { Send, Upload, X } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 
 import { SelectedBankAccount } from './components/bank-selection/selected-account';
 

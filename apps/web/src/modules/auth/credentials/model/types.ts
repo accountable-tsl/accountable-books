@@ -1,7 +1,6 @@
-import z from 'zod';
-
 import { companyType } from '@/modules/company/companies';
 import { zEmail } from '@/shared/types/core';
+import z from 'zod';
 
 import { sanitizeInput, sanitizeOptionalInput, validateSlug } from '../utils';
 

@@ -1,10 +1,5 @@
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { useSession } from '@session';
-import { Info } from 'lucide-react';
+import type { CreateCoa } from '@/modules/accounting/chart-of-accounts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
-import { toast } from 'sonner';
-
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
@@ -33,13 +28,17 @@ import {
   useAccountTypeByKey,
 } from '@/domains-pending-migration/account-classification/hooks';
 import { cn } from '@/lib/utils';
-import type { CreateCoa } from '@/modules/accounting/chart-of-accounts';
 import {
   createCoaSchema,
   useCompanyCoa,
   useCreateCoa,
 } from '@/modules/accounting/chart-of-accounts';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useSession } from '@session';
+import { Info } from 'lucide-react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { toast } from 'sonner';
 
 import { CoaImportCsv } from './coa-import-csv';
 
@@ -126,7 +125,14 @@ export function AddNewCoa({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [watchedCode, isCoaLoading, duplicateCode, clearErrors, setError, isDuplicateCode]);
+  }, [
+    watchedCode,
+    isCoaLoading,
+    duplicateCode,
+    clearErrors,
+    setError,
+    isDuplicateCode,
+  ]);
 
   useEffect(() => {
     if (isCoaLoading || !watchedName) return;

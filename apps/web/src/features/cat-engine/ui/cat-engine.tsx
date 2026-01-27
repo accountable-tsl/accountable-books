@@ -1,10 +1,13 @@
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import type {
+  CategorizationTransactionStatus,
+  GroupedTransaction,
+} from '@/modules/accounting/categorization';
+import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
-
 import { useSession } from '@/app/session';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import { DateRangePicker } from '@/components/date-picker/date-range-picker';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
@@ -22,10 +25,6 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
-import type {
-  CategorizationTransactionStatus,
-  GroupedTransaction,
-} from '@/modules/accounting/categorization';
 import {
   LedgerIntentManagerV2Provider,
   useCategorizationStats,
@@ -33,12 +32,12 @@ import {
   useLedgerIntentManagerV2,
 } from '@/modules/accounting/categorization';
 import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts';
-import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { toYMD } from '@/shared/utils/date-utils';
+import { toast } from 'sonner';
 
 import { CatEngineAdvFilter } from './components/cat-engine-adv-filter';
 import {
@@ -50,8 +49,9 @@ import { TransactionView } from './components/transaction-view-v2';
 import { getCatEngineColumns } from './config/table-columns';
 import { accountElementOrder } from './constants';
 import { testCategorizationTransactions } from './test-data';
-import type { CatEngineMode, GroupedCoaData } from './types';
 import { updateTransactionExchangeRate } from './utils/transaction-updates';
+
+import type { CatEngineMode, GroupedCoaData } from './types';
 
 export const accordionItems = [
   {

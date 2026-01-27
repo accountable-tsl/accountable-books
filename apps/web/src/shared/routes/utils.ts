@@ -1,6 +1,3 @@
-import { matchPath } from 'react-router';
-
-import { routes } from '@/shared/routes/routes';
 import type {
   BuildCanonicalUrlOptions,
   ExtractPathParams,
@@ -13,6 +10,8 @@ import type {
   RouteMatch,
   RouteMeta,
 } from '@/shared/routes/types';
+import { routes } from '@/shared/routes/routes';
+import { matchPath } from 'react-router';
 
 /**
  * Replace route params in a template string with the actual values.

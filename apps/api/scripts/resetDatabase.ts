@@ -56,6 +56,35 @@ BEGIN
 END $$;
   `);
 
+  // When resetting local database, also drop and recreate test database
+  const isLocal = process.env.NODE_ENV === 'local';
+  if (isLocal) {
+    const testDbName = `${ENV.POSTGRES_DB}_test`;
+    console.log(`⚠️ Also resetting test database: ${testDbName}`);
+
+    try {
+      // Terminate any active connections to the test database
+      // (must be done before dropping, and we're already connected to main DB)
+      await client.query(
+        `
+        SELECT pg_terminate_backend(pg_stat_activity.pid)
+        FROM pg_stat_activity
+        WHERE pg_stat_activity.datname = $1
+          AND pid <> pg_backend_pid();
+      `,
+        [testDbName],
+      );
+
+      // Drop test database if it exists
+      await client.query(`DROP DATABASE IF EXISTS "${testDbName}";`);
+      console.log(`✅ Test database ${testDbName} dropped`);
+    } catch (err) {
+      console.log(
+        `⚠️ Could not drop test database (may not exist): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   await client.end();
 
   console.log('✅ Database reset complete.');

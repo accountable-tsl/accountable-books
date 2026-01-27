@@ -5,6 +5,7 @@ import {
   getMinimalBankAccountDetails,
   updateBankAccounts,
 } from '../api';
+
 import type { UpdateBankAccount } from './types';
 
 // Reusable invalidation function

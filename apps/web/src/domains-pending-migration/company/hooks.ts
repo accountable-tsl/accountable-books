@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-
 import { getCompanyDetails } from '@/domains-pending-migration/company/api';
 import { queryClient } from '@/lib/queryClient';
+import { useQuery } from '@tanstack/react-query';
 
 const invalidateCache = (companyId: string) => {
   queryClient.invalidateQueries({ queryKey: ['companyDetails', companyId] });

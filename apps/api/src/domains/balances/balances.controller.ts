@@ -1,6 +1,5 @@
 import type { Response } from 'express';
 
-import type { AuthRequest } from '../../features/auth/auth.types.js';
 import {
   errorResponse,
   successResponse,
@@ -22,6 +21,8 @@ import {
   recalculateGLBalance,
 } from './balances.model.js';
 
+import type { AuthRequest } from '../../features/auth/auth.types.js';
+
 /**
  * Balance management controller
  * Handles manual balance recalculation and balance queries
@@ -35,7 +36,7 @@ export async function recalculateGLBalanceController(
   res: Response,
 ) {
   try {
-    const { coaId } = req.params;
+    const coaId = String(req.params.coaId);
     const companyId = req.company!.id;
     const { recalcFrom, recalcTo } = req.body;
 
@@ -66,7 +67,7 @@ export async function recalculateBankBalanceController(
 ) {
   try {
     const { id: companyId } = req.company!;
-    const { bankAccountId } = req.params;
+    const bankAccountId = String(req.params.bankAccountId);
     const { recalcFrom, recalcTo } = req.body;
 
     const result = await recalculateBankBalance({
@@ -158,7 +159,7 @@ export async function getCurrentGLBalanceController(
 ) {
   try {
     const companyId = req.company!.id;
-    const { coaId } = req.params;
+    const coaId = String(req.params.coaId);
 
     const result = await getCurrentGLBalance({
       companyId,
@@ -184,7 +185,7 @@ export async function getCurrentBankBalanceController(
 ) {
   try {
     const companyId = req.company!.id;
-    const { bankAccountId } = req.params;
+    const bankAccountId = String(req.params.bankAccountId);
 
     const result = await getCurrentBankBalance({
       companyId,
@@ -210,7 +211,7 @@ export async function getGLBalanceHistoryController(
 ) {
   try {
     const companyId = req.company!.id;
-    const { coaId } = req.params;
+    const coaId = String(req.params.coaId);
     const { fromDate, toDate, limit = 30 } = req.query;
 
     const result = await getGLBalanceHistory({
@@ -239,7 +240,7 @@ export async function getBankBalanceHistoryController(
 ) {
   try {
     const companyId = req.company!.id;
-    const { bankAccountId } = req.params;
+    const bankAccountId = String(req.params.bankAccountId);
     const { fromDate, toDate, limit = 30 } = req.query;
 
     const result = await getBankBalanceHistory({

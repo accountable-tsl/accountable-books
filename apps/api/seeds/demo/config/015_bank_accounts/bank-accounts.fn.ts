@@ -1,6 +1,5 @@
 import type { Knex } from 'knex';
 
-import type { DemoFilter } from '../../shared/config.js';
 import { DEMO_CURRENCIES } from '../../shared/config.js';
 import {
   deleteDemoData,
@@ -9,8 +8,10 @@ import {
   getDemoUserMap,
   resolveFiltersToIds,
 } from '../../shared/utils.js';
-import type { RawBankAccount } from './bank-accounts.data.js';
 import { getRawBankAccountsForInsertion } from './bank-accounts.data.js';
+
+import type { DemoFilter } from '../../shared/config.js';
+import type { RawBankAccount } from './bank-accounts.data.js';
 
 /**
  * Create COA and bank account atomically following production pattern

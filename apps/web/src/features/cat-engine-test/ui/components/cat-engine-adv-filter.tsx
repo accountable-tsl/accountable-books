@@ -1,6 +1,6 @@
-import { Filter, X } from 'lucide-react';
+import type { GroupedTransactionOld as GroupedTransaction } from '@/modules/accounting/categorization';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 import { useMemo, useState } from 'react';
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,8 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import type { GroupedTransactionOld as GroupedTransaction } from '@/modules/accounting/categorization';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
+import { Filter, X } from 'lucide-react';
 
 import { ToggleButton } from './toggle-button';
 

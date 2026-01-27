@@ -1,6 +1,5 @@
 import type { ImgHTMLAttributes } from 'react';
 import React, { forwardRef, useMemo, useState } from 'react';
-
 import { cn } from '@/lib/utils';
 
 export interface ImageProps

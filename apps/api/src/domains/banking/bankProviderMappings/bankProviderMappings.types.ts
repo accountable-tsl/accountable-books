@@ -2,8 +2,9 @@ import type { Knex } from 'knex';
 import { z } from 'zod';
 
 import { dbBaseFields } from '../../../core/types/core.js';
-import type { SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
 import { createCamelCaseSchema } from '../../../shared/utils/formatting.utils.js';
+
+import type { SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
 
 const newBankProviderMappingInput = z.object({
   provider_id: z.uuid(),

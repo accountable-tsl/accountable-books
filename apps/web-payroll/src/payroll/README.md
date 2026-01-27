@@ -45,4 +45,3 @@ This lives in `inputs.employerContributions` and is computed from `employee.empl
   - Computes salary split + statutory + scheduled deductions + scheduled employer contributions for that month.
 - `computeNigeriaCumulativePayeForMonth(employee, month, companyDefaults?, options?)`
   - Computes PAYE using the cumulative/annualised method.
-

@@ -1,7 +1,6 @@
-import type { LedgerIntent } from '@accountable-books/contracts/schema';
-
-import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+import type { LedgerIntent } from '@accountable-books/contracts/schema';
+import api from '@/lib/axios';
 
 import type {
   CategorizationStatsResponse,

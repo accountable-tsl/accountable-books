@@ -9,6 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { generateEnvFiles } from './generator.js';
+
 import type { Environment, EnvSchema } from './types.js';
 
 /**

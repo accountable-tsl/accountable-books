@@ -17,18 +17,18 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import {
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import {
   Calculator,
@@ -409,10 +409,14 @@ type OneOffDraftErrors = {
   employerType?: string;
 };
 
-
 type PayrollEmployeeEditorOptions = Pick<
   PayrollTableCardProps,
-  'runItem' | 'computedItem' | 'onEdit' | 'runStatus' | 'runPeriod' | 'finalizedPeriodKeys'
+  | 'runItem'
+  | 'computedItem'
+  | 'onEdit'
+  | 'runStatus'
+  | 'runPeriod'
+  | 'finalizedPeriodKeys'
 >;
 
 export function usePayrollEmployeeEditor({
@@ -629,7 +633,7 @@ export function usePayrollEmployeeEditor({
     b.fromMonth.localeCompare(a.fromMonth),
   );
 
-  console.log("sortedRentHistory", sortedRentHistory);
+  console.log('sortedRentHistory', sortedRentHistory);
   const activeCompRecord = getActiveCompRecord(
     compensationHistory,
     currentMonthKey,
@@ -950,12 +954,10 @@ export function usePayrollEmployeeEditor({
     const employeeRateValue = pensionEmployeeRateInput.trim();
     const employerRateValue = pensionEmployerRateInput.trim();
 
-    const employeeRateParsed = employeeRateValue.length > 0
-      ? parseFloat(employeeRateValue)
-      : NaN;
-    const employerRateParsed = employerRateValue.length > 0
-      ? parseFloat(employerRateValue)
-      : NaN;
+    const employeeRateParsed =
+      employeeRateValue.length > 0 ? parseFloat(employeeRateValue) : NaN;
+    const employerRateParsed =
+      employerRateValue.length > 0 ? parseFloat(employerRateValue) : NaN;
 
     const employeeRate = !isNaN(employeeRateParsed)
       ? employeeRateParsed / 100
@@ -971,11 +973,13 @@ export function usePayrollEmployeeEditor({
     // Compare with tolerance for floating point
     const employeeRateChanged =
       (employeeRate ?? null) !== (currentEmployeeRate ?? null) &&
-      (employeeRate == null || currentEmployeeRate == null ||
+      (employeeRate == null ||
+        currentEmployeeRate == null ||
         Math.abs(employeeRate - currentEmployeeRate) > 0.0001);
     const employerRateChanged =
       (employerRate ?? null) !== (currentEmployerRate ?? null) &&
-      (employerRate == null || currentEmployerRate == null ||
+      (employerRate == null ||
+        currentEmployerRate == null ||
         Math.abs(employerRate - currentEmployerRate) > 0.0001);
 
     if (!employeeRateChanged && !employerRateChanged) {
@@ -992,8 +996,10 @@ export function usePayrollEmployeeEditor({
             employeeRate: employeeRate ?? undefined,
             employerRate: employerRate ?? undefined,
             // Clear amounts if rates are set (they're mutually exclusive)
-            employeeAmount: employeeRate != null ? undefined : currentPension?.employeeAmount,
-            employerAmount: employerRate != null ? undefined : currentPension?.employerAmount,
+            employeeAmount:
+              employeeRate != null ? undefined : currentPension?.employeeAmount,
+            employerAmount:
+              employerRate != null ? undefined : currentPension?.employerAmount,
           };
 
     onEdit({
@@ -1052,7 +1058,8 @@ export function usePayrollEmployeeEditor({
 
     const rateChanged =
       (newRate ?? null) !== (currentRate ?? null) &&
-      (newRate == null || currentRate == null ||
+      (newRate == null ||
+        currentRate == null ||
         Math.abs(newRate - currentRate) > 0.0001);
     const amountChanged = (newAmount ?? null) !== (currentAmount ?? null);
 
@@ -1075,12 +1082,10 @@ export function usePayrollEmployeeEditor({
     const employeeRateValue = nhisEmployeeRateInput.trim();
     const employerRateValue = nhisEmployerRateInput.trim();
 
-    const employeeRateParsed = employeeRateValue.length > 0
-      ? parseFloat(employeeRateValue)
-      : NaN;
-    const employerRateParsed = employerRateValue.length > 0
-      ? parseFloat(employerRateValue)
-      : NaN;
+    const employeeRateParsed =
+      employeeRateValue.length > 0 ? parseFloat(employeeRateValue) : NaN;
+    const employerRateParsed =
+      employerRateValue.length > 0 ? parseFloat(employerRateValue) : NaN;
 
     const employeeRate = !isNaN(employeeRateParsed)
       ? employeeRateParsed / 100
@@ -1095,11 +1100,13 @@ export function usePayrollEmployeeEditor({
 
     const employeeRateChanged =
       (employeeRate ?? null) !== (currentEmployeeRate ?? null) &&
-      (employeeRate == null || currentEmployeeRate == null ||
+      (employeeRate == null ||
+        currentEmployeeRate == null ||
         Math.abs(employeeRate - currentEmployeeRate) > 0.0001);
     const employerRateChanged =
       (employerRate ?? null) !== (currentEmployerRate ?? null) &&
-      (employerRate == null || currentEmployerRate == null ||
+      (employerRate == null ||
+        currentEmployerRate == null ||
         Math.abs(employerRate - currentEmployerRate) > 0.0001);
 
     if (!employeeRateChanged && !employerRateChanged) {
@@ -1115,8 +1122,10 @@ export function usePayrollEmployeeEditor({
             employeeRate: employeeRate ?? undefined,
             employerRate: employerRate ?? undefined,
             // Clear amounts if rates are set (they're mutually exclusive)
-            employeeAmount: employeeRate != null ? undefined : currentNhis?.employeeAmount,
-            employerAmount: employerRate != null ? undefined : currentNhis?.employerAmount,
+            employeeAmount:
+              employeeRate != null ? undefined : currentNhis?.employeeAmount,
+            employerAmount:
+              employerRate != null ? undefined : currentNhis?.employerAmount,
           };
 
     onEdit({
@@ -2904,71 +2913,70 @@ export function usePayrollEmployeeEditor({
 
     return (
       <>
-
-      <PanelHeader>
-        <PanelTitle>Edit Employee</PanelTitle>
-        <PanelDescription>
-          Update employee information and compensation details
-        </PanelDescription>
-      </PanelHeader>
-      <div className="scrollbar-thin-2px flex flex-col overflow-y-auto">
-        {historyDiscardPromptOpen && (
-          <div className="sticky top-0 z-10 border-b border-amber-200 bg-amber-50/95 px-4 pt-3 pb-3 text-[11px] text-amber-900 backdrop-blur-sm dark:border-amber-900/40 dark:bg-amber-950/60 dark:text-amber-200">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold">Unsaved changes.</p>
-                <p>Discard the pending compensation/rent edits?</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={() => {
-                    setHistoryDiscardPromptOpen(false);
-                    setPendingDrawerClose(false);
-                  }}
-                >
-                  Keep editing
-                </Button>
-                <Button
-                  size="sm"
-                  type="button"
-                  onClick={handleDiscardHistoryChanges}
-                >
-                  Discard
-                </Button>
+        <PanelHeader>
+          <PanelTitle>Edit Employee</PanelTitle>
+          <PanelDescription>
+            Update employee information and compensation details
+          </PanelDescription>
+        </PanelHeader>
+        <div className="scrollbar-thin-2px flex flex-col overflow-y-auto">
+          {historyDiscardPromptOpen && (
+            <div className="sticky top-0 z-10 border-b border-amber-200 bg-amber-50/95 px-4 pt-3 pb-3 text-[11px] text-amber-900 backdrop-blur-sm dark:border-amber-900/40 dark:bg-amber-950/60 dark:text-amber-200">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold">Unsaved changes.</p>
+                  <p>Discard the pending compensation/rent edits?</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => {
+                      setHistoryDiscardPromptOpen(false);
+                      setPendingDrawerClose(false);
+                    }}
+                  >
+                    Keep editing
+                  </Button>
+                  <Button
+                    size="sm"
+                    type="button"
+                    onClick={handleDiscardHistoryChanges}
+                  >
+                    Discard
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        <div className="space-y-4 px-4 pt-4 pb-4">
-          <div className="relative">
-            <label className="text-muted-foreground absolute -top-1/4 right-2 text-sm backdrop-blur-sm">
-              Full Name
-            </label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={commitEmployeeEdits}
-              placeholder="Employee name"
-              className="rounded text-[16px]"
-            />
-          </div>
-          <div className="relative">
-            <label className="text-muted-foreground absolute -top-1/4 right-2 text-sm backdrop-blur-sm">
-              Role/Position
-            </label>
-            <Input
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              onBlur={commitEmployeeEdits}
-              placeholder="Job title"
-              className="rounded text-[16px]"
-            />
-          </div>
+          )}
+          <div className="space-y-4 px-4 pt-4 pb-4">
+            <div className="relative">
+              <label className="text-muted-foreground absolute -top-1/4 right-2 text-sm backdrop-blur-sm">
+                Full Name
+              </label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={commitEmployeeEdits}
+                placeholder="Employee name"
+                className="rounded text-[16px]"
+              />
+            </div>
+            <div className="relative">
+              <label className="text-muted-foreground absolute -top-1/4 right-2 text-sm backdrop-blur-sm">
+                Role/Position
+              </label>
+              <Input
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                onBlur={commitEmployeeEdits}
+                placeholder="Job title"
+                className="rounded text-[16px]"
+              />
+            </div>
 
-          {/* Not sure if to show this here since they'll be seeing / editing comp history
+            {/* Not sure if to show this here since they'll be seeing / editing comp history
           <div>
             <label className="text-muted-foreground text-sm">
               Monthly Gross Salary
@@ -3004,448 +3012,792 @@ export function usePayrollEmployeeEditor({
               className="mt-1.5 rounded text-base disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div> */}
-        </div>
-        <div className="border-t" />
-        <div className="space-y-4 px-4 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold">
-                Employee profile sections
-              </h3>
-              <p className="text-muted-foreground text-xs">
-                Expand a section to edit additional employee data.
-              </p>
-            </div>
-            <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-              Import ready
-            </span>
           </div>
-
-          <div className="space-y-3">
-            <Collapsible className="bg-card rounded border p-3">
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="group flex w-full items-start justify-between gap-3 text-left"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold">
-                        Identity & Contact
-                      </span>
-                      <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
-                        Profile
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground text-xs">
-                      Employee ID, department, email, phone.
-                    </p>
-                  </div>
-                  <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 pt-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="text-muted-foreground text-xs">
-                      Employee ID
-                    </label>
-                    <Input
-                      value={employeeIdInput}
-                      onChange={(e) => setEmployeeIdInput(e.target.value)}
-                      onBlur={commitEmployeeEdits}
-                      placeholder="EMP-001"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground text-xs">
-                      Department
-                    </label>
-                    <Input
-                      value={departmentInput}
-                      onChange={(e) => setDepartmentInput(e.target.value)}
-                      onBlur={commitEmployeeEdits}
-                      placeholder="Finance"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground text-xs">
-                      Email
-                    </label>
-                    <Input
-                      value={emailInput}
-                      onChange={(e) => handleEmailChange(e.target.value)}
-                      onBlur={() => {
-                        handleEmailBlur();
-                        commitEmployeeEdits();
-                      }}
-                      placeholder="employee@company.com"
-                      className={cn(
-                        'mt-1',
-                        emailError &&
-                          'border-destructive focus-visible:ring-destructive/20',
-                      )}
-                    />
-                    {emailError && (
-                      <p className="text-destructive mt-1 text-[11px]">
-                        {emailError}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground text-xs">
-                      Phone number
-                    </label>
-                    <Input
-                      value={phoneInput}
-                      onChange={(e) => setPhoneInput(e.target.value)}
-                      onBlur={commitEmployeeEdits}
-                      placeholder="+234 801 234 5678"
-                    />
-                  </div>
-                </div>
-                <p className="text-muted-foreground text-[11px]">
-                  Spreadsheet columns: employee_id, department, email,
-                  phone.
+          <div className="border-t" />
+          <div className="space-y-4 px-4 py-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold">
+                  Employee profile sections
+                </h3>
+                <p className="text-muted-foreground text-xs">
+                  Expand a section to edit additional employee data.
                 </p>
-              </CollapsibleContent>
-            </Collapsible>
+              </div>
+              <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                Import ready
+              </span>
+            </div>
 
-            <Collapsible className="bg-card rounded border p-3">
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="group flex w-full items-start justify-between gap-3 text-left"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold">
-                        Employment & Tax
-                      </span>
-                      <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
-                        Compliance
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground text-xs">
-                      Join/exit dates, tax IDs, pension identifiers.
-                    </p>
-                  </div>
-                  <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 pt-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="min-w-0 sm:col-span-2">
-                    <label className="text-muted-foreground text-xs">
-                      PAYE state
-                    </label>
-                    <SimpleSelect
-                      value={employeeState ?? 'default'}
-                      onChange={handleStateChange}
-                      options={STATE_OPTIONS}
-                      placeholder="Company default"
-                      className="w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground text-xs">
-                      Join date
-                    </label>
-                    <DatePicker
-                      id={`join-date-${runItem.id}`}
-                      value={joinDateInput}
-                      onChange={(value) => setJoinDateInput(value ?? '')}
-                      onBlur={commitEmployeeEdits}
-                      invalid={Boolean(joinDateError)}
-                      disabled={isReadOnly}
-                      className="mt-1"
-                    />
-                    {joinDateError && (
-                      <p className="text-destructive mt-1 text-[11px]">
-                        {joinDateError}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground text-xs">
-                      Exit date
-                    </label>
-                    <DatePicker
-                      id={`exit-date-${runItem.id}`}
-                      value={exitDateInput}
-                      onChange={(value) => setExitDateInput(value ?? '')}
-                      onBlur={commitEmployeeEdits}
-                      invalid={Boolean(exitDateError)}
-                      disabled={isReadOnly}
-                      className="mt-1"
-                    />
-                    {exitDateError && (
-                      <p className="text-destructive mt-1 text-[11px]">
-                        {exitDateError}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground text-xs">
-                      Tax ID
-                    </label>
-                    <Input
-                      value={taxIdInput}
-                      onChange={(e) => setTaxIdInput(e.target.value)}
-                      onBlur={commitEmployeeEdits}
-                      disabled={isReadOnly}
-                      placeholder="123456789 / N-888888"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <label className="text-muted-foreground text-xs">
-                      PFA
-                    </label>
-                    <SimpleSelect
-                      value={pfaInput}
-                      onChange={setPfaInput}
-                      options={PFA_OPTIONS}
-                      placeholder="Select PFA"
-                      disabled={isReadOnly}
-                      className="mt-1 w-full"
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-muted-foreground text-xs">
-                      RSA PIN
-                    </label>
-                    <Input
-                      value={rsaPinInput}
-                      onChange={(e) => setRsaPinInput(e.target.value)}
-                      onBlur={commitEmployeeEdits}
-                      disabled={isReadOnly}
-                      placeholder="PEN123456789..."
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-muted/20 border-t py-2">
-                  <div className="text-muted-foreground">
-                    <p className="text-[11px] font-semibold tracking-wide uppercase">
-                      Statutory overrides (optional)
-                    </p>
-                    <p className="text-[10px] text-red-500">
-                      Use only if special pension or statutory arrangements
-                      exists for employee (e.g. employer pays 12%)
-                    </p>
-                  </div>
-                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="text-muted-foreground text-xs">
-                        Pension employee %
-                      </label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step="0.1"
-                          value={pensionEmployeeRateInput}
-                          onChange={(e) =>
-                            setPensionEmployeeRateInput(e.target.value)
-                          }
-                          onBlur={commitPensionEdits}
-                          disabled={isReadOnly}
-                          placeholder="8%"
-                          className="h-8 pr-8 text-sm mt-1"
-                        />
-                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                          %
+            <div className="space-y-3">
+              <Collapsible className="bg-card rounded border p-3">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="group flex w-full items-start justify-between gap-3 text-left"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold">
+                          Identity & Contact
+                        </span>
+                        <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
+                          Profile
                         </span>
                       </div>
+                      <p className="text-muted-foreground text-xs">
+                        Employee ID, department, email, phone.
+                      </p>
                     </div>
+                    <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <label className="text-muted-foreground text-xs">
-                        Pension employer %
-                      </label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step="0.1"
-                          value={pensionEmployerRateInput}
-                          onChange={(e) =>
-                            setPensionEmployerRateInput(e.target.value)
-                          }
-                          onBlur={commitPensionEdits}
-                          disabled={isReadOnly}
-                          placeholder="10%"
-                          className="h-8 pr-8 text-sm mt-1"
-                        />
-                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-muted-foreground text-xs">
-                        NHF rate or amount
+                        Employee ID
                       </label>
                       <Input
-                        value={nhfInput}
-                        onChange={(e) => setNhfInput(e.target.value)}
-                        onBlur={commitNhfEdits}
+                        value={employeeIdInput}
+                        onChange={(e) => setEmployeeIdInput(e.target.value)}
+                        onBlur={commitEmployeeEdits}
+                        placeholder="EMP-001"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground text-xs">
+                        Department
+                      </label>
+                      <Input
+                        value={departmentInput}
+                        onChange={(e) => setDepartmentInput(e.target.value)}
+                        onBlur={commitEmployeeEdits}
+                        placeholder="Finance"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground text-xs">
+                        Email
+                      </label>
+                      <Input
+                        value={emailInput}
+                        onChange={(e) => handleEmailChange(e.target.value)}
+                        onBlur={() => {
+                          handleEmailBlur();
+                          commitEmployeeEdits();
+                        }}
+                        placeholder="employee@company.com"
+                        className={cn(
+                          'mt-1',
+                          emailError &&
+                            'border-destructive focus-visible:ring-destructive/20',
+                        )}
+                      />
+                      {emailError && (
+                        <p className="text-destructive mt-1 text-[11px]">
+                          {emailError}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground text-xs">
+                        Phone number
+                      </label>
+                      <Input
+                        value={phoneInput}
+                        onChange={(e) => setPhoneInput(e.target.value)}
+                        onBlur={commitEmployeeEdits}
+                        placeholder="+234 801 234 5678"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">
+                    Spreadsheet columns: employee_id, department, email, phone.
+                  </p>
+                </CollapsibleContent>
+              </Collapsible>
+
+              <Collapsible className="bg-card rounded border p-3">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="group flex w-full items-start justify-between gap-3 text-left"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold">
+                          Employment & Tax
+                        </span>
+                        <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
+                          Compliance
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        Join/exit dates, tax IDs, pension identifiers.
+                      </p>
+                    </div>
+                    <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="min-w-0 sm:col-span-2">
+                      <label className="text-muted-foreground text-xs">
+                        PAYE state
+                      </label>
+                      <SimpleSelect
+                        value={employeeState ?? 'default'}
+                        onChange={handleStateChange}
+                        options={STATE_OPTIONS}
+                        placeholder="Company default"
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground text-xs">
+                        Join date
+                      </label>
+                      <DatePicker
+                        id={`join-date-${runItem.id}`}
+                        value={joinDateInput}
+                        onChange={(value) => setJoinDateInput(value ?? '')}
+                        onBlur={commitEmployeeEdits}
+                        invalid={Boolean(joinDateError)}
                         disabled={isReadOnly}
-                        placeholder="2.5% or 5000"
+                        className="mt-1"
+                      />
+                      {joinDateError && (
+                        <p className="text-destructive mt-1 text-[11px]">
+                          {joinDateError}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground text-xs">
+                        Exit date
+                      </label>
+                      <DatePicker
+                        id={`exit-date-${runItem.id}`}
+                        value={exitDateInput}
+                        onChange={(value) => setExitDateInput(value ?? '')}
+                        onBlur={commitEmployeeEdits}
+                        invalid={Boolean(exitDateError)}
+                        disabled={isReadOnly}
+                        className="mt-1"
+                      />
+                      {exitDateError && (
+                        <p className="text-destructive mt-1 text-[11px]">
+                          {exitDateError}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground text-xs">
+                        Tax ID
+                      </label>
+                      <Input
+                        value={taxIdInput}
+                        onChange={(e) => setTaxIdInput(e.target.value)}
+                        onBlur={commitEmployeeEdits}
+                        disabled={isReadOnly}
+                        placeholder="123456789 / N-888888"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <label className="text-muted-foreground text-xs">
+                        PFA
+                      </label>
+                      <SimpleSelect
+                        value={pfaInput}
+                        onChange={setPfaInput}
+                        options={PFA_OPTIONS}
+                        placeholder="Select PFA"
+                        disabled={isReadOnly}
+                        className="mt-1 w-full"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-muted-foreground text-xs">
+                        RSA PIN
+                      </label>
+                      <Input
+                        value={rsaPinInput}
+                        onChange={(e) => setRsaPinInput(e.target.value)}
+                        onBlur={commitEmployeeEdits}
+                        disabled={isReadOnly}
+                        placeholder="PEN123456789..."
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/20 border-t py-2">
+                    <div className="text-muted-foreground">
+                      <p className="text-[11px] font-semibold tracking-wide uppercase">
+                        Statutory overrides (optional)
+                      </p>
+                      <p className="text-[10px] text-red-500">
+                        Use only if special pension or statutory arrangements
+                        exists for employee (e.g. employer pays 12%)
+                      </p>
+                    </div>
+                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="text-muted-foreground text-xs">
+                          Pension employee %
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.1"
+                            value={pensionEmployeeRateInput}
+                            onChange={(e) =>
+                              setPensionEmployeeRateInput(e.target.value)
+                            }
+                            onBlur={commitPensionEdits}
+                            disabled={isReadOnly}
+                            placeholder="8%"
+                            className="mt-1 h-8 pr-8 text-sm"
+                          />
+                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                            %
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-muted-foreground text-xs">
+                          Pension employer %
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.1"
+                            value={pensionEmployerRateInput}
+                            onChange={(e) =>
+                              setPensionEmployerRateInput(e.target.value)
+                            }
+                            onBlur={commitPensionEdits}
+                            disabled={isReadOnly}
+                            placeholder="10%"
+                            className="mt-1 h-8 pr-8 text-sm"
+                          />
+                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                            %
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-muted-foreground text-xs">
+                          NHF rate or amount
+                        </label>
+                        <Input
+                          value={nhfInput}
+                          onChange={(e) => setNhfInput(e.target.value)}
+                          onBlur={commitNhfEdits}
+                          disabled={isReadOnly}
+                          placeholder="2.5% or 5000"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-muted-foreground text-xs">
+                          NHIS employee %
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.1"
+                            value={nhisEmployeeRateInput}
+                            onChange={(e) =>
+                              setNhisEmployeeRateInput(e.target.value)
+                            }
+                            onBlur={commitNhisEdits}
+                            disabled={isReadOnly}
+                            placeholder="2.5%"
+                            className="mt-1 h-8 pr-8 text-sm"
+                          />
+                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                            %
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-muted-foreground text-xs">
+                          NHIS employer %
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.1"
+                            value={nhisEmployerRateInput}
+                            onChange={(e) =>
+                              setNhisEmployerRateInput(e.target.value)
+                            }
+                            onBlur={commitNhisEdits}
+                            disabled={isReadOnly}
+                            placeholder="5%"
+                            className="mt-1 h-8 pr-8 text-sm"
+                          />
+                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                            %
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-muted-foreground mt-2 text-[11px]">
+                      Overrides company defaults when provided.
+                    </p>
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">
+                    Spreadsheet columns: state, join_date, exit_date, tax_id,
+                    pfa, rsa_pin.
+                  </p>
+                </CollapsibleContent>
+              </Collapsible>
+
+              <Collapsible className="bg-card rounded border p-3">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="group flex w-full items-start justify-between gap-3 text-left"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold">
+                          Bank & Payment
+                        </span>
+                        <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
+                          Payouts
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        Bank name, account number, account name.
+                      </p>
+                    </div>
+                    <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="text-muted-foreground text-xs">
+                        Bank name
+                      </label>
+                      <Input
+                        value={bankNameInput}
+                        onChange={(e) => setBankNameInput(e.target.value)}
+                        onBlur={commitEmployeeEdits}
+                        disabled={isReadOnly}
+                        placeholder="GTBank"
                         className="mt-1"
                       />
                     </div>
                     <div>
                       <label className="text-muted-foreground text-xs">
-                        NHIS employee %
+                        Account number
                       </label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step="0.1"
-                          value={nhisEmployeeRateInput}
-                          onChange={(e) =>
-                            setNhisEmployeeRateInput(e.target.value)
-                          }
-                          onBlur={commitNhisEdits}
-                          disabled={isReadOnly}
-                          placeholder="2.5%"
-                          className="h-8 pr-8 text-sm mt-1"
-                        />
-                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-muted-foreground text-xs">
-                        NHIS employer %
-                      </label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step="0.1"
-                          value={nhisEmployerRateInput}
-                          onChange={(e) =>
-                            setNhisEmployerRateInput(e.target.value)
-                          }
-                          onBlur={commitNhisEdits}
-                          disabled={isReadOnly}
-                          placeholder="5%"
-                          className="h-8 pr-8 text-sm mt-1"
-                        />
-                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-muted-foreground mt-2 text-[11px]">
-                    Overrides company defaults when provided.
-                  </p>
-                </div>
-                <p className="text-muted-foreground text-[11px]">
-                  Spreadsheet columns: state, join_date, exit_date, tax_id,
-                  pfa, rsa_pin.
-                </p>
-              </CollapsibleContent>
-            </Collapsible>
-
-            <Collapsible className="bg-card rounded border p-3">
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="group flex w-full items-start justify-between gap-3 text-left"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold">
-                        Bank & Payment
-                      </span>
-                      <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
-                        Payouts
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground text-xs">
-                      Bank name, account number, account name.
-                    </p>
-                  </div>
-                  <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 pt-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="text-muted-foreground text-xs">
-                      Bank name
-                    </label>
-                    <Input
-                      value={bankNameInput}
-                      onChange={(e) => setBankNameInput(e.target.value)}
-                      onBlur={commitEmployeeEdits}
-                      disabled={isReadOnly}
-                      placeholder="GTBank"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground text-xs">
-                      Account number
-                    </label>
-                    <Input
-                      value={bankAccountNumberInput}
-                      onChange={(e) =>
-                        handleBankAccountNumberChange(e.target.value)
-                      }
-                      onBlur={() => {
-                        handleBankAccountNumberBlur();
-                        commitEmployeeEdits();
-                      }}
-                      disabled={isReadOnly}
-                      placeholder="0123456789"
-                      inputMode="numeric"
-                      className={cn(
-                        'mt-1',
-                        bankAccountNumberError &&
-                          'border-destructive focus-visible:ring-destructive/20',
+                      <Input
+                        value={bankAccountNumberInput}
+                        onChange={(e) =>
+                          handleBankAccountNumberChange(e.target.value)
+                        }
+                        onBlur={() => {
+                          handleBankAccountNumberBlur();
+                          commitEmployeeEdits();
+                        }}
+                        disabled={isReadOnly}
+                        placeholder="0123456789"
+                        inputMode="numeric"
+                        className={cn(
+                          'mt-1',
+                          bankAccountNumberError &&
+                            'border-destructive focus-visible:ring-destructive/20',
+                        )}
+                      />
+                      {bankAccountNumberError && (
+                        <p className="text-destructive mt-1 text-[11px]">
+                          {bankAccountNumberError}
+                        </p>
                       )}
-                    />
-                    {bankAccountNumberError && (
-                      <p className="text-destructive mt-1 text-[11px]">
-                        {bankAccountNumberError}
-                      </p>
-                    )}
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-muted-foreground text-xs">
+                        Account name
+                      </label>
+                      <Input
+                        value={bankAccountNameInput}
+                        onChange={(e) =>
+                          setBankAccountNameInput(e.target.value)
+                        }
+                        onBlur={commitEmployeeEdits}
+                        disabled={isReadOnly}
+                        placeholder="Jane Doe"
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-muted-foreground text-xs">
-                      Account name
-                    </label>
-                    <Input
-                      value={bankAccountNameInput}
-                      onChange={(e) =>
-                        setBankAccountNameInput(e.target.value)
-                      }
-                      onBlur={commitEmployeeEdits}
-                      disabled={isReadOnly}
-                      placeholder="Jane Doe"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+                </CollapsibleContent>
+              </Collapsible>
 
+              <Collapsible
+                open={recurringOpen}
+                onOpenChange={setRecurringOpen}
+                className="bg-card rounded border p-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="group flex w-full min-w-0 items-start justify-between gap-3 text-left"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold">
+                            Recurring deductions
+                          </span>
+                          <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
+                            Monthly
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground text-xs">
+                          Loans, union dues, or voluntary contributions.
+                        </p>
+                      </div>
+                      <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+                    </button>
+                  </CollapsibleTrigger>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 shrink-0 px-2 text-[11px]"
+                    disabled={isReadOnly}
+                    onClick={() => {
+                      setRecurringOpen(true);
+                      openRecurringEditor({
+                        mode: 'add',
+                        name: '',
+                        amount: '',
+                        taxTreatment: 'non_taxable',
+                        fromMonth: currentMonth,
+                        fromYear: currentYear,
+                        toMonth: currentMonth,
+                        toYear: currentYear,
+                        isOngoing: false,
+                      });
+                    }}
+                  >
+                    <Plus className="size-3" />
+                    Add item
+                  </Button>
+                </div>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  <p className="text-muted-foreground text-xs">
+                    Import columns: name, amount, tax_treatment, from_month,
+                    to_month.
+                  </p>
+                  {renderRecurringEditor()}
+                  {recurringDeductions.length === 0 ? (
+                    <div className="text-muted-foreground rounded-md border border-dashed p-3 text-xs">
+                      No recurring deductions yet. Add one to apply it every
+                      month.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {recurringDeductions.map((item) => {
+                        const amountValue = parseFloat(item.amount);
+                        const displayAmount = Number.isFinite(amountValue)
+                          ? amountValue
+                          : 0;
+                        const isActive =
+                          currentMonthKey != null &&
+                          item.fromMonth <= currentMonthKey &&
+                          (!item.toMonth || item.toMonth >= currentMonthKey);
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="bg-muted/20 rounded-md border p-3"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-medium">
+                                    {item.name}
+                                  </p>
+                                  {isActive && (
+                                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700 uppercase dark:bg-emerald-950/30 dark:text-emerald-400">
+                                      Active
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-muted-foreground text-xs">
+                                  {formatPeriodLabel(
+                                    item.fromMonth,
+                                    item.toMonth,
+                                  )}
+                                </p>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <div className="text-right">
+                                  <span className="text-sm font-semibold tabular-nums">
+                                    {ngnMoneyFormatter(displayAmount)}
+                                  </span>
+                                  <span className="bg-muted text-muted-foreground mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                                    {formatTaxTreatmentLabel(item.taxTreatment)}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    disabled={isReadOnly}
+                                    aria-label="Edit recurring deduction"
+                                    onClick={() => {
+                                      const fromParts = getMonthKeyParts(
+                                        item.fromMonth,
+                                      );
+                                      const toParts = getMonthKeyParts(
+                                        item.toMonth,
+                                      );
+                                      openRecurringEditor({
+                                        mode: 'edit',
+                                        id: item.id,
+                                        name: item.name,
+                                        amount: item.amount,
+                                        taxTreatment:
+                                          isValidRecurringTaxTreatment(
+                                            item.taxTreatment ?? '',
+                                          )
+                                            ? (item.taxTreatment as RecurringTaxTreatment)
+                                            : 'non_taxable',
+                                        fromMonth:
+                                          fromParts.month || currentMonth,
+                                        fromYear: fromParts.year || currentYear,
+                                        toMonth: toParts.month || currentMonth,
+                                        toYear: toParts.year || currentYear,
+                                        isOngoing: !item.toMonth,
+                                      });
+                                    }}
+                                  >
+                                    <Pencil className="size-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive h-7 w-7 p-0"
+                                    disabled={isReadOnly}
+                                    aria-label="Remove recurring deduction"
+                                    onClick={() =>
+                                      handleRemoveRecurringDeduction(item.id)
+                                    }
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              <Collapsible
+                open={oneOffOpen}
+                onOpenChange={setOneOffOpen}
+                className="bg-card rounded border p-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="group flex w-full min-w-0 items-start justify-between gap-3 text-left"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold">
+                            One-off adjustments
+                          </span>
+                          <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
+                            This run
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground text-xs">
+                          Loss of employment, bonuses, special deductions.
+                        </p>
+                      </div>
+                      <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+                    </button>
+                  </CollapsibleTrigger>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 shrink-0 px-2 text-[11px]"
+                    disabled={isReadOnly}
+                    onClick={() => {
+                      setOneOffOpen(true);
+                      openOneOffEditor({
+                        mode: 'add',
+                        kind: 'allowance',
+                        name: '',
+                        amount: '',
+                        taxTreatment: 'taxable',
+                      });
+                    }}
+                  >
+                    <Plus className="size-3" />
+                    Add one-off
+                  </Button>
+                </div>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  <p className="text-muted-foreground text-xs">
+                    Import columns: type, name, amount, tax_treatment,
+                    employer_type.
+                  </p>
+                  {renderOneOffEditor()}
+                  {oneOffItems.length === 0 ? (
+                    <div className="text-muted-foreground rounded-md border border-dashed p-3 text-xs">
+                      No one-off adjustments yet. Add one to apply only to this
+                      run.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {oneOffItems.map((item) => {
+                        const amountValue = parseFloat(item.amount);
+                        const displayAmount = Number.isFinite(amountValue)
+                          ? amountValue
+                          : 0;
+                        const taxTreatment =
+                          item.kind === 'employer'
+                            ? undefined
+                            : item.taxTreatment;
+                        const employerType =
+                          item.kind === 'employer'
+                            ? employerTypeLabels[item.type]
+                            : undefined;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="bg-muted/20 rounded-md border p-3"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium">
+                                  {item.name}
+                                </p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={cn(
+                                      'rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase',
+                                      oneOffTypeClassNames[item.kind] ??
+                                        'bg-muted text-muted-foreground',
+                                    )}
+                                  >
+                                    {oneOffTypeLabels[item.kind] ?? item.kind}
+                                  </span>
+                                  {employerType && (
+                                    <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                                      {employerType}
+                                    </span>
+                                  )}
+                                  {taxTreatment && (
+                                    <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                                      {formatTaxTreatmentLabel(taxTreatment)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="shrink-0 text-sm font-semibold tabular-nums">
+                                  {ngnMoneyFormatter(displayAmount)}
+                                </span>
+                                <div className="flex flex-col gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    disabled={isReadOnly}
+                                    aria-label="Edit one-off"
+                                    onClick={() => {
+                                      if (item.kind === 'employer') {
+                                        openOneOffEditor({
+                                          mode: 'edit',
+                                          id: item.id,
+                                          kind: 'employer',
+                                          name: item.name,
+                                          amount: item.amount,
+                                          employerType: item.type,
+                                        });
+                                        return;
+                                      }
+
+                                      openOneOffEditor({
+                                        mode: 'edit',
+                                        id: item.id,
+                                        kind: item.kind,
+                                        name: item.name,
+                                        amount: item.amount,
+                                        taxTreatment:
+                                          item.kind === 'allowance'
+                                            ? isValidAllowanceTaxTreatment(
+                                                item.taxTreatment,
+                                              )
+                                              ? item.taxTreatment
+                                              : 'taxable'
+                                            : isValidDeductionTaxTreatment(
+                                                  item.taxTreatment,
+                                                )
+                                              ? item.taxTreatment
+                                              : 'non_taxable',
+                                      });
+                                    }}
+                                  >
+                                    <Pencil className="size-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive h-7 w-7 p-0"
+                                    disabled={isReadOnly}
+                                    aria-label="Remove one-off"
+                                    onClick={() =>
+                                      handleRemoveOneOff(item.kind, item.id)
+                                    }
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          </div>
+
+          <div className="border-t" />
+          <div className="grid gap-4 px-4 py-4">
             <Collapsible
-              open={recurringOpen}
-              onOpenChange={setRecurringOpen}
-              className="bg-card rounded border p-3"
+              defaultOpen
+              className="bg-card space-y-3 rounded border p-3"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <CollapsibleTrigger asChild>
@@ -3456,14 +3808,14 @@ export function usePayrollEmployeeEditor({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold">
-                          Recurring deductions
+                          Compensation history
                         </span>
                         <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
-                          Monthly
+                          Monthly/Annual
                         </span>
                       </div>
                       <p className="text-muted-foreground text-xs">
-                        Loans, union dues, or voluntary contributions.
+                        Import-ready: from/to month, gross, BHT split.
                       </p>
                     </div>
                     <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
@@ -3474,527 +3826,404 @@ export function usePayrollEmployeeEditor({
                   size="sm"
                   className="h-7 shrink-0 px-2 text-[11px]"
                   disabled={isReadOnly}
-                  onClick={() => {
-                    setRecurringOpen(true);
-                    openRecurringEditor({
+                  onClick={handleAddCompRecord}
+                >
+                  <Plus className="size-3" />
+                  Add record
+                </Button>
+              </div>
+              <CollapsibleContent className="space-y-3 pt-3">
+                <div className="text-muted-foreground text-[11px]">
+                  <div className="flex items-center gap-1">
+                    <Lock className="size-3" />
+                    <span>Records with finalized runs are locked.</span>
+                  </div>
+                  <span>Update end date and add a new record for changes.</span>
+                </div>
+
+                {pendingCompAutoEnd && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-200">
+                    <div className="flex items-start gap-2">
+                      <Lock className="mt-0.5 size-3.5" />
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold">
+                          End the current record?
+                        </p>
+                        <p>
+                          This will end the current record at{' '}
+                          {formatMonthKeyLabel(pendingCompAutoEnd.endKey)} and
+                          start the new record at{' '}
+                          {formatMonthKeyLabel(pendingCompAutoEnd.startKey)}.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => setPendingCompAutoEnd(null)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        type="button"
+                        onClick={() => {
+                          const startParts = getMonthKeyParts(
+                            pendingCompAutoEnd.startKey,
+                          );
+                          const startMonth =
+                            startParts.month || nextCompStartMonth;
+                          const startYear =
+                            startParts.year || nextCompStartYear;
+                          const startLabel = formatMonthKeyLabel(
+                            pendingCompAutoEnd.startKey,
+                          );
+                          const endLabel = formatMonthKeyLabel(
+                            pendingCompAutoEnd.endKey,
+                          );
+
+                          openHistoryEditor(
+                            buildCompHistoryDraft({
+                              startMonth,
+                              startYear,
+                              startLocked: true,
+                              startLockHint: startLabel
+                                ? `Start month locked to ${startLabel} to avoid overlaps.`
+                                : compStartLockHint,
+                              autoEndNotice: endLabel
+                                ? `Current record will end at ${endLabel} when this record is saved.`
+                                : undefined,
+                            }),
+                          );
+                        }}
+                      >
+                        Confirm & continue
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {renderHistoryEditor('comp')}
+                <div className="space-y-3">
+                  {sortedCompHistory.map((entry) => {
+                    const fromParts = getMonthKeyParts(entry.fromMonth);
+                    const toParts = getMonthKeyParts(entry.toMonth);
+                    const entryMode = 'annual';
+                    const entryModeLabel = 'Annual entry';
+                    const breakdownLabel = 'Annual BHT breakdown';
+                    const isCurrent = Boolean(
+                      currentMonthKey &&
+                        entry.fromMonth <= currentMonthKey &&
+                        (!entry.toMonth || entry.toMonth >= currentMonthKey),
+                    );
+                    const annualGrossValue = parseMoneyValue(entry.annualGross);
+                    const monthlyGrossValue = annualGrossValue / 12;
+                    const hasBreakdown = Boolean(
+                      entry.annualBasic ||
+                        entry.annualHousing ||
+                        entry.annualTransport,
+                    );
+                    const breakdownValues = hasBreakdown
+                      ? {
+                          basic: parseMoneyValue(entry.annualBasic),
+                          housing: parseMoneyValue(entry.annualHousing),
+                          transport: parseMoneyValue(entry.annualTransport),
+                        }
+                      : null;
+                    const entryHasFinalizedOverlap = hasFinalizedOverlapForComp(
+                      entry.fromMonth,
+                      entry.toMonth,
+                    );
+                    const showAddInsteadOfEdit =
+                      isCurrent && entryHasFinalizedOverlap;
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className="bg-muted/20 hover:bg-muted/30 space-y-2 rounded-md border p-3 transition-colors"
+                      >
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium">
+                              {formatPeriodLabel(
+                                entry.fromMonth,
+                                entry.toMonth,
+                              )}
+                            </p>
+
+                            <div className="flex flex-col items-end gap-1">
+                              {isCurrent ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-[10px] tracking-wide uppercase"
+                                  disabled={isReadOnly}
+                                  onClick={() => {
+                                    if (showAddInsteadOfEdit) {
+                                      handleAddCompRecord();
+                                      return;
+                                    }
+
+                                    openHistoryEditor({
+                                      kind: 'comp',
+                                      mode: 'edit',
+                                      id: entry.id,
+                                      fromMonth:
+                                        fromParts.month || currentMonth,
+                                      fromYear: fromParts.year || currentYear,
+                                      toMonth: toParts.month || currentMonth,
+                                      toYear: toParts.year || currentYear,
+                                      isOngoing: !entry.toMonth,
+                                      entryMode,
+                                      includeBreakdown: hasBreakdown,
+                                      annualGross: entry.annualGross,
+                                      monthlyGross:
+                                        monthlyGrossValue.toFixed(2),
+                                      note: entry.note,
+                                      basic: entry.annualBasic ?? '',
+                                      housing: entry.annualHousing ?? '',
+                                      transport: entry.annualTransport ?? '',
+                                      futureStartConfirmed: true,
+                                    });
+                                  }}
+                                >
+                                  <Pencil className="size-3" />
+                                  {showAddInsteadOfEdit ? 'New record' : 'Edit'}
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-[10px] tracking-wide uppercase"
+                                  disabled
+                                >
+                                  <Lock className="size-3" />
+                                  Locked
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5">
+                              <p
+                                className={cn(
+                                  'rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wide whitespace-nowrap uppercase',
+                                  isCurrent
+                                    ? 'border-[0.5px]'
+                                    : 'bg-muted text-muted-foreground',
+                                )}
+                              >
+                                {isCurrent ? 'Current' : 'Past'}
+                              </p>
+                              {entryHasFinalizedOverlap && (
+                                <p className="rounded-full border-[0.5px] px-2 py-0.5 text-[9px] font-medium tracking-wide whitespace-nowrap uppercase">
+                                  Finalized
+                                </p>
+                              )}
+                              <p className="rounded-full border-[0.5px] px-2 py-0.5 text-[9px] font-medium tracking-wide whitespace-nowrap uppercase">
+                                {entryModeLabel}
+                              </p>
+                              <p
+                                className={cn(
+                                  'rounded-full border-[0.5px] px-2 py-0.5 text-[9px] font-medium tracking-wide whitespace-nowrap uppercase',
+                                  hasBreakdown
+                                    ? ''
+                                    : 'bg-muted text-muted-foreground',
+                                )}
+                              >
+                                {hasBreakdown ? 'BHT split' : 'Gross only'}
+                              </p>
+                            </div>
+                            <p className="text-muted-foreground truncate text-xs">
+                              {entry.note || 'No note added.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
+                              Annual gross
+                            </span>
+                            <span className="text-sm font-semibold tabular-nums">
+                              {ngnMoneyFormatter(annualGrossValue)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
+                              Monthly gross
+                            </span>
+                            <span className="text-sm font-semibold tabular-nums">
+                              {ngnMoneyFormatter(monthlyGrossValue)}
+                            </span>
+                          </div>
+                        </div>
+                        {breakdownValues && (
+                          <div className="bg-muted/40 rounded-md p-2">
+                            <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
+                              {breakdownLabel}
+                            </span>
+                            <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+                              <div>
+                                <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
+                                  Basic
+                                </span>
+                                <span className="text-sm font-semibold tabular-nums">
+                                  {ngnMoneyFormatter(breakdownValues.basic)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
+                                  Housing
+                                </span>
+                                <span className="text-sm font-semibold tabular-nums">
+                                  {ngnMoneyFormatter(breakdownValues.housing)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
+                                  Transport
+                                </span>
+                                <span className="text-sm font-semibold tabular-nums">
+                                  {ngnMoneyFormatter(breakdownValues.transport)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            <Collapsible className="bg-card space-y-3 rounded border p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="group flex w-full min-w-0 items-start justify-between gap-3 text-left"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold">
+                          Rent history
+                        </span>
+                        <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                          Relief
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        Import-ready: from/to month, rent, address.
+                      </p>
+                    </div>
+                    <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 shrink-0 px-2 text-[11px]"
+                  disabled={isReadOnly}
+                  onClick={() =>
+                    openHistoryEditor({
+                      kind: 'rent',
                       mode: 'add',
-                      name: '',
-                      amount: '',
-                      taxTreatment: 'non_taxable',
                       fromMonth: currentMonth,
                       fromYear: currentYear,
                       toMonth: currentMonth,
                       toYear: currentYear,
                       isOngoing: false,
-                    });
-                  }}
+                      entryMode: 'monthly',
+                      periodRent: '',
+                      address: '',
+                      futureStartConfirmed: false,
+                    })
+                  }
                 >
                   <Plus className="size-3" />
-                  Add item
+                  Add record
                 </Button>
               </div>
               <CollapsibleContent className="space-y-3 pt-3">
-                <p className="text-muted-foreground text-xs">
-                  Import columns: name, amount, tax_treatment, from_month,
-                  to_month.
-                </p>
-                {renderRecurringEditor()}
-                {recurringDeductions.length === 0 ? (
-                  <div className="text-muted-foreground rounded-md border border-dashed p-3 text-xs">
-                    No recurring deductions yet. Add one to apply it every
-                    month.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {recurringDeductions.map((item) => {
-                      const amountValue = parseFloat(item.amount);
-                      const displayAmount = Number.isFinite(amountValue)
-                        ? amountValue
-                        : 0;
-                      const isActive =
-                        currentMonthKey != null &&
-                        item.fromMonth <= currentMonthKey &&
-                        (!item.toMonth || item.toMonth >= currentMonthKey);
-
-                      return (
-                        <div
-                          key={item.id}
-                          className="bg-muted/20 rounded-md border p-3"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-medium">
-                                  {item.name}
-                                </p>
-                                {isActive && (
-                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700 uppercase dark:bg-emerald-950/30 dark:text-emerald-400">
-                                    Active
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-muted-foreground text-xs">
-                                {formatPeriodLabel(
-                                  item.fromMonth,
-                                  item.toMonth,
-                                )}
-                              </p>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <div className="text-right">
-                                <span className="text-sm font-semibold tabular-nums">
-                                  {ngnMoneyFormatter(displayAmount)}
-                                </span>
-                                <span className="bg-muted text-muted-foreground mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                                  {formatTaxTreatmentLabel(
-                                    item.taxTreatment,
-                                  )}
-                                </span>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0"
-                                  disabled={isReadOnly}
-                                  aria-label="Edit recurring deduction"
-                                  onClick={() => {
-                                    const fromParts = getMonthKeyParts(
-                                      item.fromMonth,
-                                    );
-                                    const toParts = getMonthKeyParts(
-                                      item.toMonth,
-                                    );
-                                    openRecurringEditor({
-                                      mode: 'edit',
-                                      id: item.id,
-                                      name: item.name,
-                                      amount: item.amount,
-                                      taxTreatment:
-                                        isValidRecurringTaxTreatment(
-                                          item.taxTreatment ?? '',
-                                        )
-                                          ? (item.taxTreatment as RecurringTaxTreatment)
-                                          : 'non_taxable',
-                                      fromMonth:
-                                        fromParts.month || currentMonth,
-                                      fromYear:
-                                        fromParts.year || currentYear,
-                                      toMonth:
-                                        toParts.month || currentMonth,
-                                      toYear: toParts.year || currentYear,
-                                      isOngoing: !item.toMonth,
-                                    });
-                                  }}
-                                >
-                                  <Pencil className="size-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive h-7 w-7 p-0"
-                                  disabled={isReadOnly}
-                                  aria-label="Remove recurring deduction"
-                                  onClick={() =>
-                                    handleRemoveRecurringDeduction(item.id)
-                                  }
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-
-            <Collapsible
-              open={oneOffOpen}
-              onOpenChange={setOneOffOpen}
-              className="bg-card rounded border p-3"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <CollapsibleTrigger asChild>
-                  <button
-                    type="button"
-                    className="group flex w-full min-w-0 items-start justify-between gap-3 text-left"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold">
-                          One-off adjustments
-                        </span>
-                        <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
-                          This run
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground text-xs">
-                        Loss of employment, bonuses, special deductions.
-                      </p>
-                    </div>
-                    <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-                  </button>
-                </CollapsibleTrigger>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 shrink-0 px-2 text-[11px]"
-                  disabled={isReadOnly}
-                  onClick={() => {
-                    setOneOffOpen(true);
-                    openOneOffEditor({
-                      mode: 'add',
-                      kind: 'allowance',
-                      name: '',
-                      amount: '',
-                      taxTreatment: 'taxable',
-                    });
-                  }}
-                >
-                  <Plus className="size-3" />
-                  Add one-off
-                </Button>
-              </div>
-              <CollapsibleContent className="space-y-3 pt-3">
-                <p className="text-muted-foreground text-xs">
-                  Import columns: type, name, amount, tax_treatment,
-                  employer_type.
-                </p>
-                {renderOneOffEditor()}
-                {oneOffItems.length === 0 ? (
-                  <div className="text-muted-foreground rounded-md border border-dashed p-3 text-xs">
-                    No one-off adjustments yet. Add one to apply only to
-                    this run.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {oneOffItems.map((item) => {
-                      const amountValue = parseFloat(item.amount);
-                      const displayAmount = Number.isFinite(amountValue)
-                        ? amountValue
-                        : 0;
-                      const taxTreatment =
-                        item.kind === 'employer'
-                          ? undefined
-                          : item.taxTreatment;
-                      const employerType =
-                        item.kind === 'employer'
-                          ? employerTypeLabels[item.type]
-                          : undefined;
-
-                      return (
-                        <div
-                          key={item.id}
-                          className="bg-muted/20 rounded-md border p-3"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
-                                {item.name}
-                              </p>
-                              <div className="mt-1 flex flex-wrap items-center gap-2">
-                                <span
-                                  className={cn(
-                                    'rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase',
-                                    oneOffTypeClassNames[item.kind] ??
-                                      'bg-muted text-muted-foreground',
-                                  )}
-                                >
-                                  {oneOffTypeLabels[item.kind] ?? item.kind}
-                                </span>
-                                {employerType && (
-                                  <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                                    {employerType}
-                                  </span>
-                                )}
-                                {taxTreatment && (
-                                  <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                                    {formatTaxTreatmentLabel(taxTreatment)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <span className="shrink-0 text-sm font-semibold tabular-nums">
-                                {ngnMoneyFormatter(displayAmount)}
-                              </span>
-                              <div className="flex flex-col gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0"
-                                  disabled={isReadOnly}
-                                  aria-label="Edit one-off"
-                                  onClick={() => {
-                                    if (item.kind === 'employer') {
-                                      openOneOffEditor({
-                                        mode: 'edit',
-                                        id: item.id,
-                                        kind: 'employer',
-                                        name: item.name,
-                                        amount: item.amount,
-                                        employerType: item.type,
-                                      });
-                                      return;
-                                    }
-
-                                    openOneOffEditor({
-                                      mode: 'edit',
-                                      id: item.id,
-                                      kind: item.kind,
-                                      name: item.name,
-                                      amount: item.amount,
-                                      taxTreatment:
-                                        item.kind === 'allowance'
-                                          ? isValidAllowanceTaxTreatment(
-                                              item.taxTreatment,
-                                            )
-                                            ? item.taxTreatment
-                                            : 'taxable'
-                                          : isValidDeductionTaxTreatment(
-                                                item.taxTreatment,
-                                              )
-                                            ? item.taxTreatment
-                                            : 'non_taxable',
-                                    });
-                                  }}
-                                >
-                                  <Pencil className="size-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive h-7 w-7 p-0"
-                                  disabled={isReadOnly}
-                                  aria-label="Remove one-off"
-                                  onClick={() =>
-                                    handleRemoveOneOff(item.kind, item.id)
-                                  }
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        </div>
-
-        <div className="border-t" />
-        <div className="grid gap-4 px-4 py-4">
-          <Collapsible
-            defaultOpen
-            className="bg-card space-y-3 rounded border p-3"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="group flex w-full min-w-0 items-start justify-between gap-3 text-left"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold">
-                        Compensation history
-                      </span>
-                      <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
-                        Monthly/Annual
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground text-xs">
-                      Import-ready: from/to month, gross, BHT split.
-                    </p>
-                  </div>
-                  <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-                </button>
-              </CollapsibleTrigger>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 shrink-0 px-2 text-[11px]"
-                disabled={isReadOnly}
-                onClick={handleAddCompRecord}
-              >
-                <Plus className="size-3" />
-                Add record
-              </Button>
-            </div>
-            <CollapsibleContent className="space-y-3 pt-3">
-              <div className="text-muted-foreground text-[11px]">
-                <div className="flex items-center gap-1">
+                <div className="text-muted-foreground flex items-center gap-1 text-[11px]">
                   <Lock className="size-3" />
-                  <span>Records with finalized runs are locked.</span>
+                  Past records are locked in this draft view.
                 </div>
-                <span>
-                  Update end date and add a new record for changes.
-                </span>
-              </div>
-
-              {pendingCompAutoEnd && (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-200">
-                  <div className="flex items-start gap-2">
-                    <Lock className="mt-0.5 size-3.5" />
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold">
-                        End the current record?
-                      </p>
-                      <p>
-                        This will end the current record at{' '}
-                        {formatMonthKeyLabel(pendingCompAutoEnd.endKey)} and
-                        start the new record at{' '}
-                        {formatMonthKeyLabel(pendingCompAutoEnd.startKey)}.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      type="button"
-                      onClick={() => setPendingCompAutoEnd(null)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => {
-                        const startParts = getMonthKeyParts(
-                          pendingCompAutoEnd.startKey,
-                        );
-                        const startMonth =
-                          startParts.month || nextCompStartMonth;
-                        const startYear =
-                          startParts.year || nextCompStartYear;
-                        const startLabel = formatMonthKeyLabel(
-                          pendingCompAutoEnd.startKey,
-                        );
-                        const endLabel = formatMonthKeyLabel(
-                          pendingCompAutoEnd.endKey,
-                        );
-
-                        openHistoryEditor(
-                          buildCompHistoryDraft({
-                            startMonth,
-                            startYear,
-                            startLocked: true,
-                            startLockHint: startLabel
-                              ? `Start month locked to ${startLabel} to avoid overlaps.`
-                              : compStartLockHint,
-                            autoEndNotice: endLabel
-                              ? `Current record will end at ${endLabel} when this record is saved.`
-                              : undefined,
-                          }),
-                        );
-                      }}
-                    >
-                      Confirm & continue
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {renderHistoryEditor('comp')}
-              <div className="space-y-3">
-                {sortedCompHistory.map((entry) => {
-                  const fromParts = getMonthKeyParts(entry.fromMonth);
-                  const toParts = getMonthKeyParts(entry.toMonth);
-                  const entryMode = 'annual';
-                  const entryModeLabel = 'Annual entry';
-                  const breakdownLabel = 'Annual BHT breakdown';
-                  const isCurrent = Boolean(
-                    currentMonthKey &&
-                      entry.fromMonth <= currentMonthKey &&
-                      (!entry.toMonth || entry.toMonth >= currentMonthKey),
-                  );
-                  const annualGrossValue = parseMoneyValue(
-                    entry.annualGross,
-                  );
-                  const monthlyGrossValue = annualGrossValue / 12;
-                  const hasBreakdown = Boolean(
-                    entry.annualBasic ||
-                      entry.annualHousing ||
-                      entry.annualTransport,
-                  );
-                  const breakdownValues = hasBreakdown
-                    ? {
-                        basic: parseMoneyValue(entry.annualBasic),
-                        housing: parseMoneyValue(entry.annualHousing),
-                        transport: parseMoneyValue(entry.annualTransport),
-                      }
-                    : null;
-                  const entryHasFinalizedOverlap =
-                    hasFinalizedOverlapForComp(
+                {renderHistoryEditor('rent')}
+                <div className="space-y-3">
+                  {sortedRentHistory.map((entry) => {
+                    const fromParts = getMonthKeyParts(entry.fromMonth);
+                    const toParts = getMonthKeyParts(entry.toMonth);
+                    const monthsInPeriod = getMonthsInPeriod(
                       entry.fromMonth,
                       entry.toMonth,
                     );
-                  const showAddInsteadOfEdit =
-                    isCurrent && entryHasFinalizedOverlap;
+                    const monthlyEstimate =
+                      monthsInPeriod && monthsInPeriod > 0
+                        ? parseMoneyValue(entry.rent) / monthsInPeriod
+                        : null;
+                    const monthlyEstimateLabel =
+                      monthlyEstimate == null
+                        ? '-'
+                        : ngnMoneyFormatter(
+                            monthlyEstimate,
+                            Math.abs(monthlyEstimate % 1) > 0 ? 2 : 0,
+                          );
+                    const isCurrent = Boolean(
+                      currentMonthKey &&
+                        entry.fromMonth <= currentMonthKey &&
+                        (!entry.toMonth || entry.toMonth >= currentMonthKey),
+                    );
+                    const entryHasFinalizedOverlap = hasFinalizedOverlapForRent(
+                      entry.fromMonth,
+                      entry.toMonth,
+                    );
 
-                  return (
-                    <div
-                      key={entry.id}
-                      className="bg-muted/20 hover:bg-muted/30 space-y-2 rounded-md border p-3 transition-colors"
-                    >
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">
-                            {formatPeriodLabel(
-                              entry.fromMonth,
-                              entry.toMonth,
-                            )}
-                          </p>
-
-                          <div className="flex flex-col items-end gap-1">
-                            {isCurrent ? (
+                    return (
+                      <div
+                        key={entry.id}
+                        className="bg-muted/20 hover:bg-muted/30 space-y-3 rounded-md border p-3 transition-colors"
+                      >
+                        <div className="flex flex-col">
+                          <div className="flex min-w-0 justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">
+                                {formatPeriodLabel(
+                                  entry.fromMonth,
+                                  entry.toMonth,
+                                )}
+                              </p>
+                            </div>
+                            {isCurrent && !entryHasFinalizedOverlap ? (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 px-2 text-[10px] tracking-wide uppercase"
                                 disabled={isReadOnly}
-                                onClick={() => {
-                                  if (showAddInsteadOfEdit) {
-                                    handleAddCompRecord();
-                                    return;
-                                  }
-
+                                onClick={() =>
                                   openHistoryEditor({
-                                    kind: 'comp',
+                                    kind: 'rent',
                                     mode: 'edit',
                                     id: entry.id,
-                                    fromMonth:
-                                      fromParts.month || currentMonth,
+                                    fromMonth: fromParts.month || currentMonth,
                                     fromYear: fromParts.year || currentYear,
                                     toMonth: toParts.month || currentMonth,
                                     toYear: toParts.year || currentYear,
-                                    isOngoing: !entry.toMonth,
-                                    entryMode,
-                                    includeBreakdown: hasBreakdown,
-                                    annualGross: entry.annualGross,
-                                    monthlyGross:
-                                      monthlyGrossValue.toFixed(2),
-                                    note: entry.note,
-                                    basic: entry.annualBasic ?? '',
-                                    housing: entry.annualHousing ?? '',
-                                    transport: entry.annualTransport ?? '',
+                                    isOngoing: false,
+                                    entryMode: 'monthly',
+                                    periodRent: entry.rent,
+                                    address: entry.address,
                                     futureStartConfirmed: true,
-                                  });
-                                }}
+                                  })
+                                }
                               >
                                 <Pencil className="size-3" />
-                                {showAddInsteadOfEdit
-                                  ? 'New record'
-                                  : 'Edit'}
+                                Edit
                               </Button>
                             ) : (
                               <Button
@@ -4008,307 +4237,67 @@ export function usePayrollEmployeeEditor({
                               </Button>
                             )}
                           </div>
-                        </div>
 
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5">
-                            <p
+                          <div className="flex gap-1">
+                            <span
                               className={cn(
-                                'rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wide whitespace-nowrap uppercase',
-                                isCurrent
-                                  ? 'border-[0.5px]'
-                                  : 'bg-muted text-muted-foreground',
+                                'rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wide uppercase',
+                                'bg-muted text-muted-foreground',
                               )}
                             >
                               {isCurrent ? 'Current' : 'Past'}
-                            </p>
+                            </span>
                             {entryHasFinalizedOverlap && (
-                              <p className="rounded-full border-[0.5px] px-2 py-0.5 text-[9px] font-medium tracking-wide whitespace-nowrap uppercase">
+                              <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wide uppercase">
                                 Finalized
-                              </p>
+                              </span>
                             )}
-                            <p className="rounded-full border-[0.5px] px-2 py-0.5 text-[9px] font-medium tracking-wide whitespace-nowrap uppercase">
-                              {entryModeLabel}
-                            </p>
-                            <p
-                              className={cn(
-                                'rounded-full border-[0.5px] px-2 py-0.5 text-[9px] font-medium tracking-wide whitespace-nowrap uppercase',
-                                hasBreakdown
-                                  ? ''
-                                  : 'bg-muted text-muted-foreground',
-                              )}
-                            >
-                              {hasBreakdown ? 'BHT split' : 'Gross only'}
-                            </p>
                           </div>
-                          <p className="text-muted-foreground truncate text-xs">
-                            {entry.note || 'No note added.'}
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap justify-between gap-3 text-xs sm:grid sm:grid-cols-2">
+                            <div>
+                              <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
+                                Rent for period
+                              </span>
+                              <span className="text-sm font-semibold tabular-nums">
+                                {ngnMoneyFormatter(parseMoneyValue(entry.rent))}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
+                                Monthly estimate
+                              </span>
+                              <span className="text-sm font-semibold tabular-nums">
+                                {monthlyEstimateLabel}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-muted-foreground truncate text-[10px]">
+                            {entry.address || 'No address provided'}
                           </p>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
-                            Annual gross
-                          </span>
-                          <span className="text-sm font-semibold tabular-nums">
-                            {ngnMoneyFormatter(annualGrossValue)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
-                            Monthly gross
-                          </span>
-                          <span className="text-sm font-semibold tabular-nums">
-                            {ngnMoneyFormatter(monthlyGrossValue)}
-                          </span>
-                        </div>
-                      </div>
-                      {breakdownValues && (
-                        <div className="bg-muted/40 rounded-md p-2">
-                          <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
-                            {breakdownLabel}
-                          </span>
-                          <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
-                            <div>
-                              <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
-                                Basic
-                              </span>
-                              <span className="text-sm font-semibold tabular-nums">
-                                {ngnMoneyFormatter(breakdownValues.basic)}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
-                                Housing
-                              </span>
-                              <span className="text-sm font-semibold tabular-nums">
-                                {ngnMoneyFormatter(breakdownValues.housing)}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
-                                Transport
-                              </span>
-                              <span className="text-sm font-semibold tabular-nums">
-                                {ngnMoneyFormatter(
-                                  breakdownValues.transport,
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-
-          <Collapsible className="bg-card space-y-3 rounded border p-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="group flex w-full min-w-0 items-start justify-between gap-3 text-left"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold">
-                        Rent history
-                      </span>
-                      <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                        Relief
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground text-xs">
-                      Import-ready: from/to month, rent, address.
-                    </p>
-                  </div>
-                  <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-                </button>
-              </CollapsibleTrigger>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 shrink-0 px-2 text-[11px]"
-                disabled={isReadOnly}
-                onClick={() =>
-                  openHistoryEditor({
-                    kind: 'rent',
-                    mode: 'add',
-                    fromMonth: currentMonth,
-                    fromYear: currentYear,
-                    toMonth: currentMonth,
-                    toYear: currentYear,
-                    isOngoing: false,
-                    entryMode: 'monthly',
-                    periodRent: '',
-                    address: '',
-                    futureStartConfirmed: false,
-                  })
-                }
-              >
-                <Plus className="size-3" />
-                Add record
-              </Button>
-            </div>
-            <CollapsibleContent className="space-y-3 pt-3">
-              <div className="text-muted-foreground flex items-center gap-1 text-[11px]">
-                <Lock className="size-3" />
-                Past records are locked in this draft view.
-              </div>
-              {renderHistoryEditor('rent')}
-              <div className="space-y-3">
-                {sortedRentHistory.map((entry) => {
-                  const fromParts = getMonthKeyParts(entry.fromMonth);
-                  const toParts = getMonthKeyParts(entry.toMonth);
-                  const monthsInPeriod = getMonthsInPeriod(
-                    entry.fromMonth,
-                    entry.toMonth,
-                  );
-                  const monthlyEstimate =
-                    monthsInPeriod && monthsInPeriod > 0
-                      ? parseMoneyValue(entry.rent) / monthsInPeriod
-                      : null;
-                  const monthlyEstimateLabel =
-                    monthlyEstimate == null
-                      ? '-'
-                      : ngnMoneyFormatter(
-                          monthlyEstimate,
-                          Math.abs(monthlyEstimate % 1) > 0 ? 2 : 0,
-                        );
-                  const isCurrent = Boolean(
-                    currentMonthKey &&
-                      entry.fromMonth <= currentMonthKey &&
-                      (!entry.toMonth || entry.toMonth >= currentMonthKey),
-                  );
-                  const entryHasFinalizedOverlap =
-                    hasFinalizedOverlapForRent(
-                      entry.fromMonth,
-                      entry.toMonth,
                     );
-
-                  return (
-                    <div
-                      key={entry.id}
-                      className="bg-muted/20 hover:bg-muted/30 space-y-3 rounded-md border p-3 transition-colors"
-                    >
-                      <div className="flex flex-col">
-                        <div className="flex min-w-0 justify-between">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium">
-                              {formatPeriodLabel(
-                                entry.fromMonth,
-                                entry.toMonth,
-                              )}
-                            </p>
-                          </div>
-                          {isCurrent && !entryHasFinalizedOverlap ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-[10px] tracking-wide uppercase"
-                              disabled={isReadOnly}
-                              onClick={() =>
-                                openHistoryEditor({
-                                  kind: 'rent',
-                                  mode: 'edit',
-                                  id: entry.id,
-                                  fromMonth:
-                                    fromParts.month || currentMonth,
-                                  fromYear: fromParts.year || currentYear,
-                                  toMonth: toParts.month || currentMonth,
-                                  toYear: toParts.year || currentYear,
-                                  isOngoing: false,
-                                  entryMode: 'monthly',
-                                  periodRent: entry.rent,
-                                  address: entry.address,
-                                  futureStartConfirmed: true,
-                                })
-                              }
-                            >
-                              <Pencil className="size-3" />
-                              Edit
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-[10px] tracking-wide uppercase"
-                              disabled
-                            >
-                              <Lock className="size-3" />
-                              Locked
-                            </Button>
-                          )}
-                        </div>
-
-                        <div className="flex gap-1">
-                          <span
-                            className={cn(
-                              'rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wide uppercase',
-                              'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {isCurrent ? 'Current' : 'Past'}
-                          </span>
-                          {entryHasFinalizedOverlap && (
-                            <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wide uppercase">
-                              Finalized
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap justify-between gap-3 text-xs sm:grid sm:grid-cols-2">
-                          <div>
-                            <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
-                              Rent for period
-                            </span>
-                            <span className="text-sm font-semibold tabular-nums">
-                              {ngnMoneyFormatter(
-                                parseMoneyValue(entry.rent),
-                              )}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block text-[10px] tracking-wide uppercase">
-                              Monthly estimate
-                            </span>
-                            <span className="text-sm font-semibold tabular-nums">
-                              {monthlyEstimateLabel}
-                            </span>
-                          </div>
-                        </div>
-
-                        <p className="text-muted-foreground text-[10px] truncate">
-                          {entry.address || 'No address provided'}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+                  })}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </div>
-      </div>
-      <PanelFooter>
-        <Button
-          variant="outline"
-          onClick={() => handleDetailsDrawerOpenChange(false)}
-        >
-          Close
-        </Button>
-      </PanelFooter>
+        <PanelFooter>
+          <Button
+            variant="outline"
+            onClick={() => handleDetailsDrawerOpenChange(false)}
+          >
+            Close
+          </Button>
+        </PanelFooter>
       </>
     );
   };
-
 
   return {
     rowData,

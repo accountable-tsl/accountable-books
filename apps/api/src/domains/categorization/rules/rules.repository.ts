@@ -1,13 +1,14 @@
 import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
-import type { RuleEntity } from './rules.types.js';
-import type { Rules, RuleScope } from './rules-db.types.js';
 import { ruleScope } from './rules-db.types.js';
+
+import type { Rules, RuleScope } from './rules-db.types.js';
 import type {
   ActionDefinition,
   ConditionDefinition,
 } from './rules-def.types.js';
+import type { RuleEntity } from './rules.types.js';
 
 type ScopeTarget =
   | { scope: 'global' }

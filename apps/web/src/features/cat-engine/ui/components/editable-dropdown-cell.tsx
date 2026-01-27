@@ -1,17 +1,16 @@
-import { Plus } from 'lucide-react';
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import type { ContactResponse } from '@/modules/contacts/model/types';
+import type { ProjectsResponse } from '@/modules/projects/model/types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
 import { AddProjectDialog } from '@/features/manage-projects/ui/components/projects-add';
 import { cn } from '@/lib/utils';
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 import { useContactsInfinite } from '@/modules/contacts';
-import type { ContactResponse } from '@/modules/contacts/model/types';
 import { useProjectsInfinite } from '@/modules/projects';
-import type { ProjectsResponse } from '@/modules/projects/model/types';
+import { Plus } from 'lucide-react';
 
 import { resolveEditableEntryId } from '../utils/resolve-editable-entry';
 

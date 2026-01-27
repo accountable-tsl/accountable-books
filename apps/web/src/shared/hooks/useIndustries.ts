@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-
 import csvUrl from '@/data/industries.csv?url';
 import { readCSV } from '@/shared/utils/old-utils';
+import { useQuery } from '@tanstack/react-query';
 
 export type IndustryItem = {
   code: string;

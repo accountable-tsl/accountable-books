@@ -1,9 +1,8 @@
+import type { DataTableProps } from '@/components/data-table/types/data-table';
 import * as React from 'react';
-
 import { Table } from '@/components/CustomTable';
 import { DataTableHeader } from '@/components/data-table/data-table-header';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import type { DataTableProps } from '@/components/data-table/types/data-table';
 import { cn } from '@/lib/utils';
 
 import { DataTableBody, MemoizedDataTableBody } from './data-table-body';

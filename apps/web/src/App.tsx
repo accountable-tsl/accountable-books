@@ -1,9 +1,5 @@
 import './styles/App.scss';
 
-import { SessionProvider } from '@session';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
-
 import {
   RequireAuth,
   RequireOnboardingComplete,
@@ -29,6 +25,9 @@ import AppLayout from '@/layouts/AppLayout';
 import OnboardingLayout from '@/layouts/OnboardingLayout';
 import { queryClient } from '@/lib/queryClient';
 import { routes } from '@/shared/routes/routes';
+import { SessionProvider } from '@session';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
 import Popup from './components/Popup/Popup';
 import { PopupProvider, usePopup } from './contexts/PopupContext';

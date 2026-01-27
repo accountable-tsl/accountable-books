@@ -1,3 +1,20 @@
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import ErrorPage from '@/components/ErrorPage';
+import { FormattedAmount } from '@/components/FormattedAmount';
+import { SmallScreenMessage } from '@/components/SmallScreenMessage';
+import { SimpleTooltip, TooltipHelper } from '@/components/TooltipHelper';
+import { Separator } from '@/components/ui/separator';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
+import { useManualTransactionSync } from '@/modules/transactions/sync';
+import { useIsMobile, useMediaQuery } from '@/shared/hooks/use-media-query';
+import { formatAmount } from '@/shared/utils/formatting-utils';
 import { useSession } from '@session';
 import { formatDistanceToNowStrict } from 'date-fns';
 import {
@@ -13,24 +30,6 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-
-import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
-import { FormattedAmount } from '@/components/FormattedAmount';
-import { SmallScreenMessage } from '@/components/SmallScreenMessage';
-import { SimpleTooltip, TooltipHelper } from '@/components/TooltipHelper';
-import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
-import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
-import { useManualTransactionSync } from '@/modules/transactions/sync';
-import { useIsMobile, useMediaQuery } from '@/shared/hooks/use-media-query';
-import { formatAmount } from '@/shared/utils/formatting-utils';
 
 interface Group {
   bankName: string;

@@ -1,7 +1,5 @@
-import { DialogDescription } from '@radix-ui/react-dialog';
-import { MousePointerClick } from 'lucide-react';
+import type { Contact } from '@/domains-pending-migration/onboarding/types';
 import { useState } from 'react';
-
 import { SmartPhoneInput } from '@/components/SmartPhoneInput';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,7 +8,8 @@ import {
   DialogHeader,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import type { Contact } from '@/domains-pending-migration/onboarding/types';
+import { DialogDescription } from '@radix-ui/react-dialog';
+import { MousePointerClick } from 'lucide-react';
 
 export const OnboardingCallback = () => {
   const [contact, setContact] = useState<Contact>({

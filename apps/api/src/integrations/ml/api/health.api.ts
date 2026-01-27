@@ -1,6 +1,7 @@
 import { logger } from '../../../shared/index.js';
-import type { HttpClient } from '../ml-http.client.js';
 import { ML_ROUTES } from '../ml-routes.js';
+
+import type { HttpClient } from '../ml-http.client.js';
 
 export function healthApi(http: HttpClient) {
   return {

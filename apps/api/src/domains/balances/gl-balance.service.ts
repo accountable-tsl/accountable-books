@@ -1,7 +1,5 @@
 import type { Knex } from 'knex';
 
-import type { DebitCredit } from '../../core/types/core.js';
-import type { FinancialStatementKey } from '../../core/types/db.types.js';
 import { knexClient as db } from '../../db/knexClient.js';
 import {
   addDaysToYMD,
@@ -9,13 +7,16 @@ import {
   toYMD,
 } from '../../shared/utils/date.utils.js';
 import { getFiscalCalendar } from '../reporting/fiscal-calendar/fiscal-calendar.service.js';
+import { glBalanceRecalcParamsSchema } from './balances.types.js';
+
+import type { DebitCredit } from '../../core/types/core.js';
+import type { FinancialStatementKey } from '../../core/types/db.types.js';
 import type { FiscalPeriodType } from '../reporting/fiscal-calendar/fiscal-calendar.types.js';
 import type {
   BalanceRecalcResult,
   CompanyContext,
   GLBalanceRecalcParams,
 } from './balances.types.js';
-import { glBalanceRecalcParamsSchema } from './balances.types.js';
 
 type Queryable = Knex | Knex.Transaction;
 

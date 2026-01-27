@@ -1,22 +1,21 @@
+import type { CustomTable } from '@/components/data-table/types/data-table';
+import type { CoaResponse } from '@/modules/accounting/chart-of-accounts';
 import type { Row } from '@tanstack/react-table';
-import { Archive, Trash2 } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
-import { toast } from 'sonner';
-
 import {
   DataTableActionBar,
   DataTableActionBarAction,
   DataTableActionBarSelection,
 } from '@/components/data-table/action-bar/data-table-action-bar';
-import type { CustomTable } from '@/components/data-table/types/data-table';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import type { CoaResponse } from '@/modules/accounting/chart-of-accounts';
 import {
   analyzeSelectedAccounts,
   useArchiveCoa,
   useDeleteCoa,
 } from '@/modules/accounting/chart-of-accounts';
+import { Archive, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // TODO: BULK EXPORT
 

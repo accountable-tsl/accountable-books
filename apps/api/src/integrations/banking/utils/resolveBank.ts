@@ -3,11 +3,12 @@ import type { Knex } from 'knex';
 import { ENV, isProd } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { getBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.model.js';
-import type { NewBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.types.js';
-import type { NewBank } from '../../../domains/banking/banks/banks.types.js';
 import { getCountry } from '../../../domains/countries/countries.utils.js';
 import { getSystemUser } from '../../../domains/users/users.model.js';
 import { logger } from '../../../shared/utils/logger.js';
+
+import type { NewBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.types.js';
+import type { NewBank } from '../../../domains/banking/banks/banks.types.js';
 import type { ProviderInstitution } from '../types/base.js';
 
 // --- CONFIGURATION CONSTANTS ---

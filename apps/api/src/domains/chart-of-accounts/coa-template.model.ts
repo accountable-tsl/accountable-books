@@ -1,20 +1,21 @@
 import type { Knex } from 'knex';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { type Company } from '../companies/companies.types.js';
+import { selectBestCoaTemplate } from './coa-template-selector.service.js';
+import { loadCoaTemplate, newCoaTemplate } from './coa-template.type.js';
 import { createDefaultAccounts } from './coa.model.js';
 import { type NewCoa } from './coa.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
   LoadCoaTemplateInput,
   NewCoaTemplateInput,
   SelectBestCoa,
 } from './coa-template.type.js';
-import { loadCoaTemplate, newCoaTemplate } from './coa-template.type.js';
-import { selectBestCoaTemplate } from './coa-template-selector.service.js';
 
 export const addNewCoaTemplates = async (
   knex: Knex,

@@ -15,6 +15,7 @@ This document outlines the complete scope, architecture, and implementation stra
 ## 1. Guest Session Management Strategy
 
 ### Problem Statement
+
 How do we handle multiple guest payroll runs without requiring authentication, while maintaining data integrity and enabling smooth migration to authenticated accounts?
 
 ### Solution: Anonymous Session with Migration Path
@@ -29,11 +30,12 @@ How do we handle multiple guest payroll runs without requiring authentication, w
    - Backend creates lightweight session record (no PII, just session metadata)
 
 2. **Data Storage Strategy**
+
    ```
    localStorage:
    - payroll_anon_session_id: "anon_abc123..."
    - payroll_runs: [{ runId, timestamp, metadata }] // Index only
-   
+
    IndexedDB (preferred) or localStorage (fallback):
    - payroll_run_{runId}: { employees, config, computed, overrides }
    ```
@@ -66,9 +68,10 @@ How do we handle multiple guest payroll runs without requiring authentication, w
 ✅ **Good UX**: No data loss, smooth migration path  
 ✅ **Privacy-first**: No PII sent to server until user opts in  
 ✅ **Scalable**: Can handle growth, easy to migrate later  
-✅ **VPN-friendly**: Account creation removes limits  
+✅ **VPN-friendly**: Account creation removes limits
 
 ### Alternative Considered: IP-Only Tracking
+
 ❌ **Rejected**: VPN users blocked, no migration path, unreliable
 
 ---
@@ -76,6 +79,7 @@ How do we handle multiple guest payroll runs without requiring authentication, w
 ## 2. CSV Import Strategy
 
 ### Problem Statement
+
 Should we support simple CSV (name, amount, state) or full-fledged CSV (all employee details), or both?
 
 ### Solution: User-Choice Format Selection
@@ -85,14 +89,15 @@ Should we support simple CSV (name, amount, state) or full-fledged CSV (all empl
 #### Implementation Approach
 
 1. **Format Selection UI**
+
    ```
    [ ] Simple Format (Quick Start)
        Columns: Name, Gross Salary, State
        Best for: Quick calculations, small teams
-   
+
    [ ] Full Format (Complete Details)
-       Columns: Employee ID, Name, Role, Join Date, Exit Date, 
-                State, Tax ID, PFA, RSA PIN, NHF, NHIS, 
+       Columns: Employee ID, Name, Role, Join Date, Exit Date,
+                State, Tax ID, PFA, RSA PIN, NHF, NHIS,
                 Rent, Rent Period, Basic, Housing, Transport, Others
        Best for: Detailed payroll, compliance, recurring use
    ```
@@ -129,9 +134,10 @@ Should we support simple CSV (name, amount, state) or full-fledged CSV (all empl
 ✅ **Fast implementation**: Simple conditional logic  
 ✅ **Progressive enhancement**: Start simple, add details later  
 ✅ **Flexible**: Supports both use cases  
-✅ **Good UX**: Templates guide users, auto-detect helps  
+✅ **Good UX**: Templates guide users, auto-detect helps
 
 ### Alternative Considered: Auto-Detect Only
+
 ❌ **Rejected**: Ambiguity causes errors, poor UX for users unsure of format
 
 ---
@@ -139,6 +145,7 @@ Should we support simple CSV (name, amount, state) or full-fledged CSV (all empl
 ## 3. File Replacement Handling
 
 ### Problem Statement
+
 What happens when a user uploads a new CSV file while they already have employee data loaded?
 
 ### Solution: Confirmation Dialog with Clear Options
@@ -153,23 +160,24 @@ What happens when a user uploads a new CSV file while they already have employee
    - If no → proceed directly
 
 2. **Confirmation Dialog**
+
    ```
    ⚠️ Replace Current Employees?
-   
-   You have {count} employees loaded. Uploading a new file will 
+
+   You have {count} employees loaded. Uploading a new file will
    replace all current employees with the new data.
-   
+
    Current employees will be lost unless you save this run first.
-   
+
    [Cancel]  [Save Current Run First]  [Replace Anyway]
    ```
 
 3. **User Options**
    - **Cancel**: Close dialog, keep current data
-   - **Save Current Run First**: 
+   - **Save Current Run First**:
      - If guest → prompt to create account or download backup
      - If authenticated → save to backend, then proceed with upload
-   - **Replace Anyway**: 
+   - **Replace Anyway**:
      - Clear current employees
      - Load new CSV
      - Show toast: "Previous data replaced. {count} employees loaded."
@@ -190,9 +198,10 @@ What happens when a user uploads a new CSV file while they already have employee
 ✅ **Protects users**: Prevents accidental data loss  
 ✅ **Simple to implement**: Basic confirmation dialog  
 ✅ **Clear communication**: Users understand consequences  
-✅ **Flexible**: Options for different user needs  
+✅ **Flexible**: Options for different user needs
 
 ### Alternative Considered: Auto-Replace
+
 ❌ **Rejected**: Too risky, users lose data accidentally
 
 ---
@@ -200,6 +209,7 @@ What happens when a user uploads a new CSV file while they already have employee
 ## 4. Mobile Experience & PWA Strategy
 
 ### Problem Statement
+
 How do we ensure the payroll tool works excellently on mobile devices, and should we make it a Progressive Web App (PWA)?
 
 ### Solution: Mobile-First Responsive Design + PWA (Week 1 MVP)
@@ -227,6 +237,7 @@ How do we ensure the payroll tool works excellently on mobile devices, and shoul
    - Code splitting for routes
 
 4. **PWA Implementation (Week 1)**
+
    ```json
    // manifest.json
    {
@@ -265,11 +276,12 @@ How do we ensure the payroll tool works excellently on mobile devices, and shoul
 ✅ **Fast to implement**: Vite PWA plugin, minimal config  
 ✅ **Better UX**: Installable, feels native, works offline  
 ✅ **Marketing**: "Install our app" messaging  
-✅ **Performance**: Cached assets load faster  
+✅ **Performance**: Cached assets load faster
 
 ### Mobile UI Patterns
 
 **Employee List (Mobile)**
+
 ```
 ┌─────────────────────────┐
 │ [Search] [Filter] [Add] │
@@ -290,6 +302,7 @@ How do we ensure the payroll tool works excellently on mobile devices, and shoul
 ```
 
 **Computation View (Mobile)**
+
 ```
 ┌─────────────────────────┐
 │ Payroll Summary         │
@@ -310,6 +323,7 @@ How do we ensure the payroll tool works excellently on mobile devices, and shoul
 ## 5. Authentication Strategy
 
 ### Problem Statement
+
 How do we balance "no forced signup" with "save & reuse" functionality without losing urgent users?
 
 ### Solution: Post-Success Signup Prompt
@@ -324,17 +338,18 @@ How do we balance "no forced signup" with "save & reuse" functionality without l
    - No server persistence until explicit opt-in
 
 2. **Signup Prompt Timing**
+
    ```
    Trigger Points (in order of effectiveness):
-   
+
    1. After successful export (PRIMARY)
       "✅ Payroll exported! Save this for next month?"
       [Continue as Guest] [Create Free Account]
-   
+
    2. After 2nd run (if still guest)
       "You've run payroll twice. Create an account to save your data?"
       [Maybe Later] [Sign Up Free]
-   
+
    3. On "Start New Run" (if previous run exists)
       "Save your previous run before starting a new one?"
       [Skip] [Save & Continue]
@@ -363,7 +378,7 @@ How do we balance "no forced signup" with "save & reuse" functionality without l
 ✅ **No friction**: Users can complete task immediately  
 ✅ **Natural conversion**: Signup after value demonstrated  
 ✅ **Trust building**: Users see product works before committing  
-✅ **Urgent users served**: No barriers for time-sensitive needs  
+✅ **Urgent users served**: No barriers for time-sensitive needs
 
 ### Conversion Optimization
 
@@ -378,6 +393,7 @@ How do we balance "no forced signup" with "save & reuse" functionality without l
 ### Week 1: MVP Launch
 
 #### Day 1: Foundation & Setup
+
 - [ ] Create `apps/web-payroll` app structure
 - [ ] Set up routing (TanStack Router)
 - [ ] Configure PWA (manifest, service worker)
@@ -386,6 +402,7 @@ How do we balance "no forced signup" with "save & reuse" functionality without l
 - [ ] Landing page design
 
 #### Day 2: Employee Management
+
 - [ ] CSV import component (format selection UI)
 - [ ] CSV parsing & validation
 - [ ] Employee table/grid (desktop + mobile views)
@@ -394,6 +411,7 @@ How do we balance "no forced signup" with "save & reuse" functionality without l
 - [ ] LocalStorage/IndexedDB persistence
 
 #### Day 3: Payroll Computation Engine
+
 - [ ] Create `packages/payroll-core` module
 - [ ] Implement 2026 tax ruleset (PAYE calculation)
 - [ ] Pension calculation (employee + employer)
@@ -402,6 +420,7 @@ How do we balance "no forced signup" with "save & reuse" functionality without l
 - [ ] Computation UI (breakdown per employee)
 
 #### Day 4: Export Functionality
+
 - [ ] Payroll Excel export (xlsx library)
 - [ ] Pension contribution template export
 - [ ] PAYE schedule export (generic + state-specific)
@@ -409,6 +428,7 @@ How do we balance "no forced signup" with "save & reuse" functionality without l
 - [ ] File validation (test with real Excel)
 
 #### Day 5: Backend Integration
+
 - [ ] Database migrations (payroll tables)
 - [ ] API endpoints (save run, load run, employee CRUD)
 - [ ] Auth integration (signup/login flow)
@@ -416,6 +436,7 @@ How do we balance "no forced signup" with "save & reuse" functionality without l
 - [ ] Rate limiting (anonymous sessions)
 
 #### Day 6: Polish & Mobile
+
 - [ ] Mobile responsive design (test on devices)
 - [ ] PWA installation flow
 - [ ] Error handling & validation messages
@@ -423,6 +444,7 @@ How do we balance "no forced signup" with "save & reuse" functionality without l
 - [ ] Accessibility audit (keyboard navigation, screen readers)
 
 #### Day 7: QA & Launch
+
 - [ ] End-to-end testing with real accountant data
 - [ ] Performance optimization
 - [ ] Security audit (XSS, CSRF, data validation)
@@ -663,6 +685,7 @@ POST   /api/payroll/migrate-guest
 ### Key UX Patterns
 
 1. **Wizard Flow**
+
    ```
    Step 1: Add Employees → Step 2: Configure → Step 3: Compute → Step 4: Review → Step 5: Export
    [Progress indicator at top, can go back/forward]
@@ -693,23 +716,27 @@ POST   /api/payroll/migrate-guest
 ## 10. Testing Strategy
 
 ### Unit Tests
+
 - Payroll computation engine (all calculation functions)
 - CSV parsing & validation
 - Data transformation utilities
 - Export generators
 
 ### Integration Tests
+
 - API endpoints (guest & authenticated)
 - Database operations
 - Auth flow (signup, login, migration)
 
 ### E2E Tests (Critical Paths)
+
 - Guest user: Upload CSV → Compute → Export
 - Authenticated user: Create run → Save → Load → Duplicate
 - Mobile: Full flow on mobile device
 - Error scenarios: Invalid CSV, network errors, rate limiting
 
 ### Manual Testing Checklist
+
 - [ ] Test on iPhone (Safari)
 - [ ] Test on Android (Chrome)
 - [ ] Test on desktop (Chrome, Firefox, Safari)
@@ -724,22 +751,26 @@ POST   /api/payroll/migrate-guest
 ## 11. Security Considerations
 
 ### Data Protection
+
 - **PII Minimization**: No server storage until user opts in
 - **Encryption**: HTTPS only, encrypt sensitive data at rest
 - **Input Validation**: Sanitize all user inputs, validate CSV data
 - **SQL Injection**: Use parameterized queries (Knex handles this)
 
 ### Rate Limiting
+
 - Anonymous: 10 runs/day per IP
 - Authenticated: 100 runs/day per user
 - Export: 50 exports/day per user
 
 ### Authentication
+
 - JWT tokens (reuse existing auth system)
 - CSRF protection for state-changing operations
 - Session timeout: 30 days for authenticated, 1 day for guest
 
 ### Privacy
+
 - Clear privacy policy
 - Data retention: Guest data deleted after 30 days
 - User data: Deleted on account deletion request
@@ -749,17 +780,20 @@ POST   /api/payroll/migrate-guest
 ## 12. Performance Targets
 
 ### Core Web Vitals
+
 - **LCP (Largest Contentful Paint)**: < 2.5s
 - **FID (First Input Delay)**: < 100ms
 - **CLS (Cumulative Layout Shift)**: < 0.1
 
 ### Functional Performance
+
 - CSV parsing: < 2s for 100 employees
 - Payroll computation: < 1s for 100 employees
 - Export generation: < 3s for 100 employees
 - Page load: < 3s on 3G connection
 
 ### Optimization Strategies
+
 - Code splitting (route-based)
 - Lazy loading (employee table, export components)
 - Image optimization (WebP format, lazy load)
@@ -770,11 +804,13 @@ POST   /api/payroll/migrate-guest
 ## 13. Monitoring & Analytics
 
 ### Error Tracking
+
 - Sentry integration (already in project)
 - Track: API errors, frontend errors, calculation errors
 - Alert on: Error rate > 1%, critical path failures
 
 ### Analytics Events
+
 ```typescript
 // Key events to track
 - payroll_run_started (guest/authenticated)
@@ -787,6 +823,7 @@ POST   /api/payroll/migrate-guest
 ```
 
 ### Performance Monitoring
+
 - Track API response times
 - Monitor database query performance
 - Track frontend bundle sizes
@@ -797,6 +834,7 @@ POST   /api/payroll/migrate-guest
 ## 14. Launch Checklist
 
 ### Pre-Launch
+
 - [ ] All Week 1 tasks completed
 - [ ] End-to-end testing passed
 - [ ] Security audit completed
@@ -809,6 +847,7 @@ POST   /api/payroll/migrate-guest
 - [ ] Terms of service published
 
 ### Launch Day
+
 - [ ] Deploy to production
 - [ ] DNS configured (`payroll.getaccountable.com`)
 - [ ] SSL certificate valid
@@ -817,6 +856,7 @@ POST   /api/payroll/migrate-guest
 - [ ] Social media announcement ready
 
 ### Post-Launch (Week 1)
+
 - [ ] Monitor error rates daily
 - [ ] Review user feedback
 - [ ] Track conversion metrics
@@ -829,26 +869,27 @@ POST   /api/payroll/migrate-guest
 
 ### Technical Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Tax rules incorrect | High | Medium | Version ruleset, allow overrides, clear disclaimers |
-| CSV parsing fails | Medium | Low | Robust validation, clear error messages, sample templates |
-| Performance issues | Medium | Low | Load testing, optimization, monitoring |
-| Mobile UX poor | High | Medium | Mobile-first design, device testing, PWA |
+| Risk                | Impact | Probability | Mitigation                                                |
+| ------------------- | ------ | ----------- | --------------------------------------------------------- |
+| Tax rules incorrect | High   | Medium      | Version ruleset, allow overrides, clear disclaimers       |
+| CSV parsing fails   | Medium | Low         | Robust validation, clear error messages, sample templates |
+| Performance issues  | Medium | Low         | Load testing, optimization, monitoring                    |
+| Mobile UX poor      | High   | Medium      | Mobile-first design, device testing, PWA                  |
 
 ### Business Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Low adoption | High | Medium | Marketing, accountant partnerships, SEO |
-| User confusion | Medium | Medium | Clear UI, help text, sample data |
-| Compliance issues | High | Low | Legal review, disclaimers, version rulesets |
+| Risk              | Impact | Probability | Mitigation                                  |
+| ----------------- | ------ | ----------- | ------------------------------------------- |
+| Low adoption      | High   | Medium      | Marketing, accountant partnerships, SEO     |
+| User confusion    | Medium | Medium      | Clear UI, help text, sample data            |
+| Compliance issues | High   | Low         | Legal review, disclaimers, version rulesets |
 
 ---
 
 ## 16. Success Metrics
 
 ### Week 1 Targets
+
 - 100+ payroll runs completed
 - 10+ accounts created
 - < 5% error rate
@@ -856,6 +897,7 @@ POST   /api/payroll/migrate-guest
 - 80%+ mobile usage
 
 ### Month 1 Targets
+
 - 1,000+ payroll runs
 - 100+ active accounts
 - 20%+ guest-to-account conversion
@@ -863,6 +905,7 @@ POST   /api/payroll/migrate-guest
 - < 2% error rate
 
 ### Key Metrics to Track
+
 - **Engagement**: Runs per user, exports per run
 - **Conversion**: Guest → Account conversion rate
 - **Retention**: Users who run payroll 2+ times
@@ -874,6 +917,7 @@ POST   /api/payroll/migrate-guest
 ## 17. Future Enhancements (Post-MVP)
 
 ### Month 2-3
+
 - Payslip PDF generation
 - Employee directory with photo upload
 - Multi-company support for accounting firms
@@ -881,6 +925,7 @@ POST   /api/payroll/migrate-guest
 - Bank payment file generation
 
 ### Month 4-6
+
 - Advanced tax scenarios (arrears, prorations, mid-month joins)
 - Loan deductions with tax treatment
 - Benefit-in-kind calculations
@@ -888,6 +933,7 @@ POST   /api/payroll/migrate-guest
 - Audit logs
 
 ### Month 7-12
+
 - All 36 states + FCT templates
 - Template builder UI
 - API for third-party integrations

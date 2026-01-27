@@ -1,6 +1,5 @@
 import type { Knex } from 'knex';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
 import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
@@ -10,17 +9,19 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import type {
-  AccFirmCamelResponse,
-  AccFirmWithId,
-  NewAccFirm,
-} from './firms.types.js';
 import { newAccFirm } from './firms.types.js';
 import {
   firmSlugRedisKey,
   isReservedSlug,
   isValidSlug,
 } from './firms.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  AccFirmCamelResponse,
+  AccFirmWithId,
+  NewAccFirm,
+} from './firms.types.js';
 
 export const resolveFirm = async (
   trx: Knex.Transaction,

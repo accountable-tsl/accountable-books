@@ -1,6 +1,5 @@
-import { Building2Icon, BuildingIcon, UserIcon } from 'lucide-react';
+import type { AuthCompanyContext } from '@/modules/auth/types';
 import React, { useState } from 'react';
-
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -11,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { AuthCompanyContext } from '@/modules/auth/types';
+import { Building2Icon, BuildingIcon, UserIcon } from 'lucide-react';
 
 interface SwitchConfirmModalProps {
   isOpen: boolean;

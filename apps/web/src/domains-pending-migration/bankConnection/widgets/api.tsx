@@ -1,7 +1,6 @@
-import { isAxiosError } from 'axios';
-
-import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
+import { isAxiosError } from 'axios';
 
 import type { ConnectionResponse } from '../connectViaFeed/types';
 

@@ -1,25 +1,24 @@
-import { useSession } from '@session';
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
-
-import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
-import { Button } from '@/components/ui/button';
 import type {
   ConnectAccountsResponse,
   CountryDisplay,
 } from '@/modules/banking/connections';
+import type {
+  BankProvider,
+  ProviderSelectionResult,
+} from '@/modules/banking/providers';
+import { useState } from 'react';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import ErrorPage from '@/components/ErrorPage';
+import { Button } from '@/components/ui/button';
 import {
   useBanking,
   useConnectAccounts,
   useCountrySelection,
   useCreateLinkToken,
 } from '@/modules/banking/connections';
-import type {
-  BankProvider,
-  ProviderSelectionResult,
-} from '@/modules/banking/providers';
+import { useSession } from '@session';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 
 import { ProviderWidget } from '../ui/provider-widget';
 import { ClassifyAccountStep } from '../ui/steps/classify-account-step';

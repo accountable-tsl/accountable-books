@@ -1,6 +1,6 @@
-import { getDefaultCurrencyCodeForCountry } from '@/constants/countryCurrencyMap';
 import type { CompanyData } from '@/modules/company/companies';
 import type { ApiResponse, Country, CurrencyList } from '@/shared/types/core';
+import { getDefaultCurrencyCodeForCountry } from '@/constants/countryCurrencyMap';
 
 export const getUserLocale = () => {
   return navigator.language || navigator.languages?.[0] || 'en-US';

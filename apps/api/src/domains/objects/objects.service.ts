@@ -1,8 +1,7 @@
+import type { Knex } from 'knex';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import type { Knex } from 'knex';
 
-import type { ApiResponse } from '../../core/index.js';
 import { knexClient } from '../../db/knexClient.js';
 import { r2Client } from '../../lib/r2Client.js';
 import {
@@ -11,15 +10,17 @@ import {
   successResponse,
 } from '../../shared/index.js';
 import { BUCKET_NAME_MAP } from './objects.registry.js';
-import type {
-  ObjectBucket,
-  ObjectUploadUrlParams,
-  ObjectUploadUrlResponse,
-} from './objects.types.js';
 import {
   objectBucket,
   objectDownloadUrlParams,
   objectUploadUrlParams,
+} from './objects.types.js';
+
+import type { ApiResponse } from '../../core/index.js';
+import type {
+  ObjectBucket,
+  ObjectUploadUrlParams,
+  ObjectUploadUrlResponse,
 } from './objects.types.js';
 
 export const StorageService = {

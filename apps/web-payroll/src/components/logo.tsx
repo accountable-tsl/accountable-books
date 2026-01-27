@@ -9,8 +9,8 @@ interface LogoProps extends React.SVGProps<SVGSVGElement> {
 export function Logo({ size, className, width, height, ...props }: LogoProps) {
   return (
     <svg
-      width={size ?? width ?? "100%"}
-      height={size ?? height ?? "100%"}
+      width={size ?? width ?? '100%'}
+      height={size ?? height ?? '100%'}
       viewBox="0 0 3000 3000"
       version="1.1"
       xmlns="http://www.w3.org/2000/svg"
@@ -18,9 +18,9 @@ export function Logo({ size, className, width, height, ...props }: LogoProps) {
       xmlSpace="preserve"
       className={className}
       style={{
-        fillRule: "evenodd",
-        clipRule: "evenodd",
-        strokeLinejoin: "round",
+        fillRule: 'evenodd',
+        clipRule: 'evenodd',
+        strokeLinejoin: 'round',
         strokeMiterlimit: 2,
         ...props.style,
       }}
@@ -28,7 +28,13 @@ export function Logo({ size, className, width, height, ...props }: LogoProps) {
     >
       <g transform="matrix(1,0,0,1,-41,-1168)">
         <g id="Default" transform="matrix(1,0,0,1,41,1168)">
-          <rect x="0" y="0" width="3000" height="3000" style={{ fill: "none" }} />
+          <rect
+            x="0"
+            y="0"
+            width="3000"
+            height="3000"
+            style={{ fill: 'none' }}
+          />
           <g transform="matrix(1,0,0,1,76.722592,-5.451761)">
             <path
               fill="currentColor"

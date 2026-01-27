@@ -1,8 +1,7 @@
-import { CircleHelp } from 'lucide-react';
 import { HTMLAttributes } from 'react';
-
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { CircleHelp } from 'lucide-react';
 
 import { TooltipHelper } from './TooltipHelper';
 

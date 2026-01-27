@@ -1,7 +1,6 @@
-import { ChevronLeft, ChevronRight, Download, FileText, X } from 'lucide-react';
-import { useEffect } from 'react';
-
 import type { MimeType } from '@/shared/constants/filetype';
+import { useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Download, FileText, X } from 'lucide-react';
 
 import { PDFViewer } from './pdf-viewer';
 

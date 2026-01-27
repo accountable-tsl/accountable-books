@@ -1,6 +1,5 @@
 import type { Column } from '@tanstack/react-table';
 import { useCallback } from 'react';
-
 import { DataTableDateFilter } from '@/components/data-table/filter-components/date';
 import { DataTableFacetedFilter } from '@/components/data-table/filter-components/faceted';
 import { DataTableSliderFilter } from '@/components/data-table/filter-components/slider';

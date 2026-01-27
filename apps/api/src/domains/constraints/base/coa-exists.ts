@@ -1,4 +1,5 @@
 import { validateCoaIds } from '../../chart-of-accounts/index.js';
+
 import type { Constraint, ConstraintBase } from '../constraints-types.js';
 
 const coaExistsAndActiveBase: ConstraintBase = {

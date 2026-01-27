@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
-import type { Knex } from 'knex';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import type { Knex } from 'knex';
 import z from 'zod';
 
 import { isDev } from '../config/env-loader.js';

@@ -1,11 +1,7 @@
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { useSession } from '@session';
-import { Plus } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
-import { toast } from 'sonner';
-
 import type { ActionItem } from '@/components/AutocompleteDropdown';
+import type { Contacts } from '@/modules/contacts/model/types';
+import type { NewProject } from '@/modules/projects/model/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DatePicker } from '@/components/date-picker/date-picker';
@@ -26,10 +22,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { AddContactDialog } from '@/features/manage-contacts/ui/components/contacts-add';
 import { cn } from '@/lib/utils';
 import { useContacts } from '@/modules/contacts/model/hooks';
-import type { Contacts } from '@/modules/contacts/model/types';
 import { useCreateProjects } from '@/modules/projects/model/hooks';
-import type { NewProject } from '@/modules/projects/model/types';
 import { newProject } from '@/modules/projects/model/types';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useSession } from '@session';
+import { Plus } from 'lucide-react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { toast } from 'sonner';
 
 import { projectStatusOptions } from '../constants/projects-constants';
 

@@ -1,11 +1,11 @@
-import { loadRunsIndex, loadRun } from '../storage';
-import { matchEmployee, getEmployeeIdentifier } from './employee-matching';
-import { resolveSettings } from './resolve-settings';
-import {
-  resolveCompensationForMonth,
-  calculateEmploymentFraction,
-} from './payroll-utils';
+import { loadRun, loadRunsIndex } from '../storage';
 import { getPeriodStartKey } from '../utils';
+import { getEmployeeIdentifier, matchEmployee } from './employee-matching';
+import {
+  calculateEmploymentFraction,
+  resolveCompensationForMonth,
+} from './payroll-utils';
+import { resolveSettings } from './resolve-settings';
 
 import type { PayrollRun, PayrollRunItem } from '../domain';
 
@@ -284,7 +284,8 @@ function extractMonthlyActuals(
 
   // Calculate employment fraction from join/exit dates
   // Use proration method from run settings (default: 'calendar_days')
-  const prorationMethod = run.settings?.employmentProrationMethod ?? 'calendar_days';
+  const prorationMethod =
+    run.settings?.employmentProrationMethod ?? 'calendar_days';
   const employmentFraction = calculateEmploymentFraction(
     runItem,
     monthKey,
@@ -390,10 +391,7 @@ function extractMonthlyActuals(
       // Check if deduction applies to this month
       const fromMonth = deduction.fromMonth;
       const toMonth = deduction.toMonth;
-      if (
-        monthKey >= fromMonth &&
-        (toMonth == null || monthKey <= toMonth)
-      ) {
+      if (monthKey >= fromMonth && (toMonth == null || monthKey <= toMonth)) {
         const taxTreatment = deduction.taxTreatment;
         if (
           taxTreatment === 'pension_voluntary' ||
@@ -429,9 +427,7 @@ function extractMonthlyActuals(
 
   // Statutory deductions (already prorated by employment fraction)
   const statutoryAllowableDeductions =
-    statutory.employeePension +
-    statutory.employeeNhf +
-    statutory.employeeNhis;
+    statutory.employeePension + statutory.employeeNhf + statutory.employeeNhis;
 
   // Monthly allowable deductions (statutory + recurring, all prorated)
   // These will be annualized in extractYtdData
@@ -504,7 +500,7 @@ function calculateEmployeeYtdTotals(
   let workedMonthUnitsYtd = 0;
   let exemptIncomeYtd = 0;
   let lossOfEmploymentYtd = 0;
-  let exemptIncomeBreakdownYtd = {
+  const exemptIncomeBreakdownYtd = {
     deathInjuryCompensation: 0,
     redundancyPayment: 0,
     lossOfEmployment: 0,
@@ -555,7 +551,6 @@ function calculateEmployeeYtdTotals(
   };
 }
 
-
 /**
  * Extract YTD data for PAYE computation
  *
@@ -584,22 +579,24 @@ export function extractYtdData(
   currentRunItem: PayrollRunItem,
   currentRun: PayrollRun,
   finalizedRuns: PayrollRun[],
-): {
-  projectedAnnualGross: number;
-  projectedAnnualAllowableDeductions: number;
-  workedMonthUnits: number;
-  taxWithheldYtd: number;
-  // Exempt income details for tax breakdown
-  exemptIncome: {
-    deathInjuryCompensation: number;
-    redundancyPayment: number;
-    lossOfEmployment: {
-      total: number;
-      exempt: number;
-      taxable: number;
-    };
-  };
-} | undefined {
+):
+  | {
+      projectedAnnualGross: number;
+      projectedAnnualAllowableDeductions: number;
+      workedMonthUnits: number;
+      taxWithheldYtd: number;
+      // Exempt income details for tax breakdown
+      exemptIncome: {
+        deathInjuryCompensation: number;
+        redundancyPayment: number;
+        lossOfEmployment: {
+          total: number;
+          exempt: number;
+          taxable: number;
+        };
+      };
+    }
+  | undefined {
   // Check if employee can be matched (must have refId or taxId)
   const employeeId = getEmployeeIdentifier(currentRunItem);
   if (!employeeId.refId && !employeeId.taxId) {
@@ -620,10 +617,14 @@ export function extractYtdData(
   // Handle exempt income and loss of employment cap
   const LOSS_OF_EMPLOYMENT_CAP = 50_000_000; // N50M cap per tax year
   const totalLossOfEmploymentYtd =
-    ytdTotals.lossOfEmploymentYtd + currentMonthActuals.monthlyLossOfEmploymentAmount;
-  
+    ytdTotals.lossOfEmploymentYtd +
+    currentMonthActuals.monthlyLossOfEmploymentAmount;
+
   // Calculate exempt portion of loss of employment (up to N50M cap)
-  const exemptLossOfEmploymentYtd = Math.min(totalLossOfEmploymentYtd, LOSS_OF_EMPLOYMENT_CAP);
+  const exemptLossOfEmploymentYtd = Math.min(
+    totalLossOfEmploymentYtd,
+    LOSS_OF_EMPLOYMENT_CAP,
+  );
   const exemptLossOfEmploymentThisMonth = Math.min(
     currentMonthActuals.monthlyLossOfEmploymentAmount,
     Math.max(0, LOSS_OF_EMPLOYMENT_CAP - ytdTotals.lossOfEmploymentYtd),
@@ -634,10 +635,10 @@ export function extractYtdData(
   // We need to adjust it by removing the exempt portion
   const adjustedCurrentMonthTaxableGross =
     currentMonthActuals.monthlyTaxableGross - exemptLossOfEmploymentThisMonth;
-  
+
   const totalTaxableGrossYtd =
     ytdTotals.taxableGrossYtd + adjustedCurrentMonthTaxableGross;
-  
+
   const totalAllowableDeductionsYtd =
     ytdTotals.allowableDeductionsYtd +
     currentMonthActuals.monthlyAllowableDeductions;

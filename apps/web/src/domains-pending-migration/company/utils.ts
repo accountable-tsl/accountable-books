@@ -3,6 +3,7 @@ import {
   COMPANY_TYPES,
   DEMO_COMPANIES_IDS,
 } from './constants';
+
 import type { CompanyData, CompanyType } from './types';
 
 export const getCompanyTypeDisplay = (key: CompanyType) => {

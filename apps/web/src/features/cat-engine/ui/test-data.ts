@@ -1,5 +1,5 @@
-import { groupCategorizationTransactions } from '@/modules/accounting/categorization';
 import type { CategorizationTransaction } from '@/modules/accounting/categorization/model/types';
+import { groupCategorizationTransactions } from '@/modules/accounting/categorization';
 
 /**
  * Realistic banks from demo data

@@ -1,6 +1,5 @@
 import type { Knex } from 'knex';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import {
   errorResponse,
@@ -14,6 +13,8 @@ import {
   type FinancialStatementDTO,
   type ParentAccountElementDTO,
 } from './account.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 // import { redis } from '../../lib/redis.js';
 // import { invalidateCoaInMemoryCache } from './account.registry.js';

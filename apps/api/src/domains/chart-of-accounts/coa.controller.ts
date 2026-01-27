@@ -1,6 +1,5 @@
 import { type Response } from 'express';
 
-import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 import {
   archiveCoa,
@@ -10,12 +9,14 @@ import {
   fetchCompanyCoa,
   unarchiveCoa,
 } from './coa.model.js';
-import type { CoaUpdateInput } from './coa.types.js';
 import { coaUpdateInput } from './coa.types.js';
+
+import type { AuthRequest } from '../../features/auth/auth.types.js';
+import type { CoaUpdateInput } from './coa.types.js';
 
 export const createCoaController = async (req: AuthRequest, res: Response) => {
   try {
-    const companyId = req.params.companyId;
+    const companyId = String(req.params.companyId);
     const userId = req.user?.id;
     const data = Array.isArray(req.body) ? req.body : [req.body];
 

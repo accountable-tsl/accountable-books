@@ -3,8 +3,10 @@ import { z } from 'zod';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { AppError, logger } from '../../../shared/index.js';
-import type { ContactType } from '../../contacts/contacts.types.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
+import { candidateInput, updateCandidateInput } from './candidates.types.js';
+
+import type { ContactType } from '../../contacts/contacts.types.js';
 import type {
   CandidateInput,
   CategorizationCandidate,
@@ -13,7 +15,6 @@ import type {
   CategorizationCandidateWithLinesFiltered,
   UpdateCandidateInput,
 } from './candidates.types.js';
-import { candidateInput, updateCandidateInput } from './candidates.types.js';
 
 const SOURCE_RANK: Record<'rule' | 'ml' | 'ml_heuristic', number> = {
   rule: 3,

@@ -10,12 +10,13 @@ import {
   TRANSACTION_FILE_LIMITS,
   TRANSACTION_FILE_LIMITS_BYTES,
 } from '../constants';
+import { txnFileInput } from './types';
+
 import type {
   ObjectDownloadUrlParams,
   ObjectUploadUrlParams,
   TxnFileInput,
 } from './types';
-import { txnFileInput } from './types';
 
 export function useObjectUploadUrl(params: ObjectUploadUrlParams) {
   return useQuery({

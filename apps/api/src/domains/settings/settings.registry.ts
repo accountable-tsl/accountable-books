@@ -1,7 +1,8 @@
 import z from 'zod';
 
-import type { AutopostAi } from './settings.types.js';
 import { autopostAi, autopostRules } from './settings.types.js';
+
+import type { AutopostAi } from './settings.types.js';
 
 export const settingRegistry = {
   autopost_rules: autopostRules.default(true),

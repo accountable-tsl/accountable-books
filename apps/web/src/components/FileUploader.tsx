@@ -1,9 +1,5 @@
-import { FileTextIcon, UploadIcon, X } from 'lucide-react';
-import * as React from 'react';
 import type { DropzoneProps, FileRejection } from 'react-dropzone';
-import Dropzone from 'react-dropzone';
-import { toast } from 'sonner';
-
+import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Image } from '@/components/ui/Image';
 import { Progress } from '@/components/ui/progress';
@@ -13,6 +9,9 @@ import {
 } from '@/domains-pending-migration/spreadsheets/utils';
 import { cn, formatBytes } from '@/lib/utils';
 import { useControllableState } from '@/shared/hooks/useControllableState';
+import { FileTextIcon, UploadIcon, X } from 'lucide-react';
+import Dropzone from 'react-dropzone';
+import { toast } from 'sonner';
 
 interface FileUploaderProps extends React.HTMLAttributes<HTMLDivElement> {
   /**

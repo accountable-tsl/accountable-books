@@ -1,10 +1,9 @@
+import type { ApiResponse } from '@/shared/types/core';
 import type {
   GetTxnFileInput,
   TransactionFiles,
 } from '@accountable-books/contracts/schema';
-
 import api from '@/lib/axios';
-import type { ApiResponse } from '@/shared/types/core';
 
 import type {
   ObjectDownloadUrlParams,

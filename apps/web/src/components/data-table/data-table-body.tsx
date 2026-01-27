@@ -1,14 +1,13 @@
-import type { Cell, Row } from '@tanstack/react-table';
-import { flexRender } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import React from 'react';
-
-import { TableBody, TableCell, TableRow } from '@/components/CustomTable';
-import { RowViewer } from '@/components/data-table/row-view/row-viewer';
 import type { CustomTable } from '@/components/data-table/types/data-table';
 import type { RowViewerProps } from '@/components/data-table/types/row-click';
+import type { Cell, Row } from '@tanstack/react-table';
+import React from 'react';
+import { TableBody, TableCell, TableRow } from '@/components/CustomTable';
+import { RowViewer } from '@/components/data-table/row-view/row-viewer';
 import { isClickInsideExcludedElement } from '@/components/data-table/utils/table';
 import { cn } from '@/lib/utils';
+import { flexRender } from '@tanstack/react-table';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { getColumnStyle } from './utils/column-sizing';
 

@@ -1,4 +1,12 @@
 import type { GroupedTransaction } from '@modules/accounting/categorization';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { FormattedAmount } from '@/components/FormattedAmount';
+import { TooltipHelper } from '@/components/TooltipHelper';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { safeFormatDate } from '@/shared/utils/formatting-utils';
 import {
   AlertTriangle,
   Check,
@@ -9,15 +17,6 @@ import {
   Lightbulb,
   Split,
 } from 'lucide-react';
-import { memo, useCallback, useMemo, useState } from 'react';
-
-import { FormattedAmount } from '@/components/FormattedAmount';
-import { TooltipHelper } from '@/components/TooltipHelper';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { safeFormatDate } from '@/shared/utils/formatting-utils';
 
 import { accordionItems } from '../cat-engine';
 import {
@@ -28,9 +27,10 @@ import {
   DESCRIPTION_TRUNCATE_LENGTH,
   TOOLTIPS,
 } from '../constants';
-import type { CatEngineTxnViewProps } from '../types';
 import { ErrorBoundary } from './error-boundary';
 import { LoadingState, TransactionSkeleton } from './loading-state';
+
+import type { CatEngineTxnViewProps } from '../types';
 
 // Main component
 export function CatEngineTxnView({

@@ -1,3 +1,10 @@
+import type { Country } from '@/shared/types/core';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { useCountries } from '@/shared/hooks/useCountries';
+import { formatPhoneNumber } from '@/shared/utils/formatting-utils';
 import {
   AlertCircle,
   Check,
@@ -6,14 +13,6 @@ import {
   SearchIcon,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { useCountries } from '@/shared/hooks/useCountries';
-import type { Country } from '@/shared/types/core';
-import { formatPhoneNumber } from '@/shared/utils/formatting-utils';
 
 interface PhoneData {
   //   countryId: string;
@@ -389,7 +388,13 @@ export function SmartPhoneInput({
 
       setSelectedCountry(initialCountry);
     }
-  }, [allCountries, selectedCountry, countries.length, countryDetectionActive, value?.countryCode]);
+  }, [
+    allCountries,
+    selectedCountry,
+    countries.length,
+    countryDetectionActive,
+    value?.countryCode,
+  ]);
 
   useEffect(() => {
     if (dropdownOpen && selectedRef.current) {

@@ -3,13 +3,14 @@ import type { Knex } from 'knex';
 import { knexClient } from '../../../db/knexClient.js';
 import { logger } from '../../../shared/index.js';
 import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
-import type { NewLedgerTransactionData } from '../../ledgers/ledgers.types.js';
 import { getCompanySetting } from '../../settings/settings.service.js';
-import type { AutopostAi } from '../../settings/settings.types.js';
 import { getSystemUser } from '../../users/users.model.js';
+import { logTaskEventSafe } from '../tasks/task-events.service.js';
+
+import type { NewLedgerTransactionData } from '../../ledgers/ledgers.types.js';
+import type { AutopostAi } from '../../settings/settings.types.js';
 import type { CandidateInput } from '../candidates/candidates.types.js';
 import type { TxnCategorizationSource } from '../categorization.types.js';
-import { logTaskEventSafe } from '../tasks/task-events.service.js';
 
 export interface AutopostEligibilityResult {
   shouldAutopost: boolean;

@@ -1,6 +1,5 @@
-import { z } from 'zod';
-
 import { coaSource } from '@/modules/accounting/chart-of-accounts';
+import { z } from 'zod';
 
 // export const bankAccountType = z.enum([
 //   "checkings_current",

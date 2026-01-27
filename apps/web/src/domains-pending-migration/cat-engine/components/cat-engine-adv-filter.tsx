@@ -1,11 +1,10 @@
-import { PanelLeftOpen } from 'lucide-react';
-
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ToggleButton } from '@/domains-pending-migration/cat-engine/components/toggle-button';
+import { PanelLeftOpen } from 'lucide-react';
 
 export function CatEngineAdvFilter() {
   return (

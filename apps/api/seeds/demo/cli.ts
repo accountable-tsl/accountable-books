@@ -4,8 +4,9 @@ import knex from 'knex';
 import { runtimeKnexConfig } from '../../knexfile.js';
 import { queueBroker } from '../../src/jobs/queues';
 import { createDemoSeedRunner } from './engine/runner.js';
-import type { DemoCompanyType, DemoFilter } from './shared/config.js';
 import { COMPANY_TYPES, COUNTRY_CODES } from './shared/config.js';
+
+import type { DemoCompanyType, DemoFilter } from './shared/config.js';
 
 // Apply conservative per-session Postgres timeouts for seeds to avoid stuck backends
 if (!process.env.PGOPTIONS) {

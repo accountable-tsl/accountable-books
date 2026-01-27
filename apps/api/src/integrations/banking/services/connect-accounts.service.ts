@@ -1,11 +1,8 @@
 import { randomUUID } from 'crypto';
 
-import type { ApiResponse } from '../../../core/types/api.types.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { createBankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
 import { createBankAccountWithConnection } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
-import type { BusinessOrPersonalAccount } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
-import type { BankProviderKey } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
 import { logError, logger } from '../../../shared/utils/logger.js';
 import {
   errorResponse,
@@ -13,6 +10,10 @@ import {
 } from '../../../shared/utils/response.utils.js';
 import { transactionSyncQueue } from '../jobs/transaction-sync.queue.js';
 import { providerRegistry } from '../providers/registry.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import type { BusinessOrPersonalAccount } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
+import type { BankProviderKey } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
 
 export interface ConnectAccountsParams {
   providerKey: BankProviderKey;

@@ -1,5 +1,5 @@
-import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
 
 export const syncTransactions = async ({
   credentialId,

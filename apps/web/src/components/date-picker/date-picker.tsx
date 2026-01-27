@@ -1,6 +1,4 @@
-import { ChevronDownIcon } from 'lucide-react';
 import { forwardRef, useMemo, useState } from 'react';
-
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
@@ -11,6 +9,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { safeFormatDate } from '@/shared/utils/formatting-utils';
+import { ChevronDownIcon } from 'lucide-react';
 
 export interface DatePickerProps {
   value?: Date;

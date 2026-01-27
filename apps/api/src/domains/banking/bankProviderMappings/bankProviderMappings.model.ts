@@ -1,8 +1,7 @@
-import axios from 'axios';
 import type { Knex } from 'knex';
+import axios from 'axios';
 
 import { ENV } from '../../../config/env.js';
-import type { ApiResponse } from '../../../core/types/api.types.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
 import {
@@ -16,6 +15,9 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
+import { newBankProviderMappingCamel } from './bankProviderMappings.types.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
 import type {
   CreateBankProviderMappings,
   GetBankProviderMappingInput,
@@ -23,7 +25,6 @@ import type {
   MonoBankCoverage,
   NewBankProviderMapping,
 } from './bankProviderMappings.types.js';
-import { newBankProviderMappingCamel } from './bankProviderMappings.types.js';
 
 export async function createBankProviderMappings({
   input,

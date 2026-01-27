@@ -1,12 +1,11 @@
-import { Globe } from 'lucide-react';
-
-import { Badge } from '@/components/ui/badge';
-import { CountryListItem } from '@/features/connect-bank/ui/components/country-list-item';
-import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
 import type {
   CountryCategories,
   CountryDisplay,
 } from '@/modules/banking/connections/utils/utils';
+import { Badge } from '@/components/ui/badge';
+import { CountryListItem } from '@/features/connect-bank/ui/components/country-list-item';
+import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
+import { Globe } from 'lucide-react';
 
 type CountrySelectStepProps = {
   countryCategories: CountryCategories;

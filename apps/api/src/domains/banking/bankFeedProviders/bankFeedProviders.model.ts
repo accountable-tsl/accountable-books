@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 import z from 'zod';
 
-import type { ApiResponse } from '../../../core/types/api.types.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { getCountryByCode } from '../../../domains/countries/countries.model.js';
 import { refreshProviderRegistry } from '../../../integrations/banking/providers/registry.js';
@@ -10,6 +9,12 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
+import {
+  bankFeedProviderInputCamel,
+  updateProviderInput,
+} from './bankFeedProviders.types.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
 import type {
   BankFeedProviderInputCamel,
   BankFeedProviderStatus,
@@ -17,10 +22,6 @@ import type {
   BankProviderKey,
   RawBankFeedProviderResponse,
   UpdateProviderInput,
-} from './bankFeedProviders.types.js';
-import {
-  bankFeedProviderInputCamel,
-  updateProviderInput,
 } from './bankFeedProviders.types.js';
 
 const TTL = 60 * 60 * 1; // 1 hour

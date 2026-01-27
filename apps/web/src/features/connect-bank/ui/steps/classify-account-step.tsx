@@ -1,3 +1,20 @@
+import type {
+  BusinessOrPersonalAccount,
+  MinimalBankAccountDetails,
+} from '@/modules/banking/accounts';
+import type {
+  ConnectAccountsResponse,
+  ConnectedAccount,
+} from '@/modules/banking/connections';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
+import { cn } from '@/lib/utils';
+import {
+  useMinimalBankAccountDetails,
+  useUpdateBankAccounts,
+} from '@/modules/banking/accounts';
 import {
   ArrowRight,
   Building2,
@@ -7,25 +24,7 @@ import {
   Plus,
   User,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
-import { cn } from '@/lib/utils';
-import type {
-  BusinessOrPersonalAccount,
-  MinimalBankAccountDetails,
-} from '@/modules/banking/accounts';
-import {
-  useMinimalBankAccountDetails,
-  useUpdateBankAccounts,
-} from '@/modules/banking/accounts';
-import type {
-  ConnectAccountsResponse,
-  ConnectedAccount,
-} from '@/modules/banking/connections';
 
 interface ClassifyAccountStepProps {
   stepWrapperClass: string;

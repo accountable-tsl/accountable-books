@@ -1,5 +1,5 @@
-import MonoConnect from '@mono.co/connect.js';
 import { useEffect, useRef } from 'react';
+import MonoConnect from '@mono.co/connect.js';
 
 import type { MonoWidgetProps } from './types';
 

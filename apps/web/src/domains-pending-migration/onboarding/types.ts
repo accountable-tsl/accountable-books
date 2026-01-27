@@ -1,7 +1,6 @@
+import { dateOrStringNullish } from '@/shared/types/core';
 import { type LucideIcon } from 'lucide-react';
 import { z } from 'zod';
-
-import { dateOrStringNullish } from '@/shared/types/core';
 
 export const phoneNumberFormSchema = z.object({
   phone: z.object({

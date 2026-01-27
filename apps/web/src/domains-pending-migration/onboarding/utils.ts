@@ -1,3 +1,4 @@
+import { routes } from '@/shared/routes/routes';
 import {
   Building2Icon,
   CreditCardIcon,
@@ -5,12 +6,11 @@ import {
   Settings,
 } from 'lucide-react';
 
-import { routes } from '@/shared/routes/routes';
-
 import { BankAccount } from './steps/BankAccount';
 import { CompanyInfo } from './steps/CompanyInfo';
 import { Miscellaneous } from './steps/Miscellaneous';
 import { VerifyEmail } from './steps/VerifyEmail';
+
 import type { OnboardingSidebarItem, OnboardingStepKey } from './types';
 
 export type OnboardingPathKey =

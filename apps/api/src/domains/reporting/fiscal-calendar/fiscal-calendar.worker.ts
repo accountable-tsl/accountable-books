@@ -1,5 +1,5 @@
-import { Job, Worker } from 'bullmq';
 import type { Knex } from 'knex';
+import { Job, Worker } from 'bullmq';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
@@ -7,6 +7,7 @@ import { isValidYMD } from '../../../shared/utils/date.utils.js';
 import logger from '../../../shared/utils/logger.js';
 import { enqueueAutoExtend } from './fiscal-calendar.queue.js';
 import { fiscalCalendarService } from './fiscal-calendar.service.js';
+
 import type {
   FiscalCalendarJobData,
   FiscalPeriodType,

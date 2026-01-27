@@ -19,10 +19,10 @@ import {
   statSync,
   writeFileSync,
 } from 'fs';
-import Papa from 'papaparse';
 import { basename, dirname, extname, join, relative, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import type { ZodSchema } from 'zod';
+import Papa from 'papaparse';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

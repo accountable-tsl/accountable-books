@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { usePlaidLink } from 'react-plaid-link';
-
 import { Button } from '@/components/ui/button';
 import { WidgetLoading } from '@/features/connect-bank/ui/components/widget-loading';
 import { plaidOAuthStorage } from '@/features/connect-bank/utils/oauth-storage';
+import { usePlaidLink } from 'react-plaid-link';
 
 import { WidgetManualFallback } from './widget-manual-fallback';
 

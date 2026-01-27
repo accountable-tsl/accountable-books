@@ -1,8 +1,8 @@
-import csv from 'csv-parser';
 import fs from 'fs';
-import type { Knex } from 'knex';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import type { Knex } from 'knex';
+import csv from 'csv-parser';
 
 import { isDev } from '../config/env-loader.js';
 import {

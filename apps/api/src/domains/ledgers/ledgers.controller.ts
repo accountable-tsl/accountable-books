@@ -1,14 +1,15 @@
 import { type Response } from 'express';
 
-import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { logger } from '../../shared/index.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 import { updateOrCreateLedger } from './ledgers.model.js';
+import { newLedgerTransactionData } from './ledgers.types.js';
+
+import type { AuthRequest } from '../../features/auth/auth.types.js';
 import type {
   NewLedgerTransactionData,
   UpdateOrCreateLedgerInput,
 } from './ledgers.types.js';
-import { newLedgerTransactionData } from './ledgers.types.js';
 
 /**
  * Update or create ledger transactions
@@ -27,7 +28,7 @@ export const updateOrCreateLedgerController = async (
   res: Response,
 ) => {
   try {
-    const companyId = req.params.companyId;
+    const companyId = String(req.params.companyId);
     const userId = req.user?.id;
 
     if (!companyId || !userId) {

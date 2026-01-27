@@ -1,14 +1,15 @@
-import axios from 'axios';
 import { createHash, randomUUID } from 'crypto';
+import axios from 'axios';
 
 import { ENV } from '../../config/env.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import {
   AppError,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { type LogoUploadParams } from './objects.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 if (!ENV.B2_LOGOS_KEY_ID || !ENV.B2_LOGOS_APPLICATION_KEY) {
   throw new AppError('Missing Backblaze logos credentials', null, true);

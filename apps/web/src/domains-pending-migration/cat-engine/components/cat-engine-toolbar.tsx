@@ -1,6 +1,5 @@
-import { Focus, Menu, Rows3, TableProperties } from 'lucide-react';
-
 import { ToggleButton } from '@/domains-pending-migration/cat-engine/components/toggle-button';
+import { Focus, Menu, Rows3, TableProperties } from 'lucide-react';
 
 export function LeftCatEngineToolbar({
   view,

@@ -4,13 +4,14 @@ import pino from 'pino';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
-import type { CandidateLineDraft } from '../candidates/candidates.types.js';
-import type { AutopostJobData } from './autopost.queue.js';
 import {
   AUTOPOST_QUEUE_NAME,
   autopostJobDataSchema,
 } from './autopost.queue.js';
 import { postCandidateToLedger } from './autopost.service.js';
+
+import type { CandidateLineDraft } from '../candidates/candidates.types.js';
+import type { AutopostJobData } from './autopost.queue.js';
 
 const logger = pino({ name: 'autopost-worker' });
 

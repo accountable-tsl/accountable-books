@@ -2,6 +2,7 @@ import type { Knex } from 'knex';
 
 import { logger } from '../../shared/index.js';
 import { constraintRegistry } from './constraints-registry.js';
+
 import type {
   ConstraintContext,
   ConstraintResult,

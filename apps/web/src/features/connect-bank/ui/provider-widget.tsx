@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-
 import { WidgetLoading } from '@/features/connect-bank/ui/components/widget-loading';
 import { MonoWidget } from '@/features/connect-bank/ui/providers/mono-widget';
 import { PlaidWidget } from '@/features/connect-bank/ui/providers/plaid-widget';

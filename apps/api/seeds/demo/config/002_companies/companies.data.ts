@@ -1,17 +1,18 @@
-import type {
-  DemoCompanyType,
-  DemoCountry,
-  DemoCurrency,
-  DemoFilter,
-} from '../../shared/config.js';
 import {
   COMPANY_TYPES,
   DEMO_COUNTRIES,
   DEMO_CURRENCIES,
 } from '../../shared/config.js';
 import { resolveFiltersToIds } from '../../shared/utils.js';
-import type { DemoUser } from '../001_users/users.data.js';
 import { NG_USER, US_USER } from '../001_users/users.data.js';
+
+import type {
+  DemoCompanyType,
+  DemoCountry,
+  DemoCurrency,
+  DemoFilter,
+} from '../../shared/config.js';
+import type { DemoUser } from '../001_users/users.data.js';
 
 type BaseDemoCompany = {
   name: string;

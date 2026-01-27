@@ -1,10 +1,10 @@
-import api from '@/lib/axios';
 import type {
   ContactResponse,
   GetContactsParams,
   NewContact,
 } from '@/modules/contacts/model/types';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
 
 export async function fetchContacts(
   input: GetContactsParams,

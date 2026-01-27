@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 import z from 'zod';
 
-import type { ApiResponse } from '../../../core/types/api.types.js';
 import { knexClient } from '../../../db/knexClient.js';
 import {
   getCurrency,
@@ -18,6 +17,14 @@ import {
 import { getAccountTypeByKey } from '../../account/account.registry.js';
 import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
 import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
+import {
+  bankAccountWithConnectionInput,
+  manualBankAccountInputCamel,
+  newBankAccountInput,
+  updateBankAccount,
+} from './bankAccounts.types.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
 import type {
   BankAccountWithConnectionInput,
   BankAccountWithMeta,
@@ -25,12 +32,6 @@ import type {
   ManualBankAccountInput,
   NewBankAccountInput,
   UpdateBankAccount,
-} from './bankAccounts.types.js';
-import {
-  bankAccountWithConnectionInput,
-  manualBankAccountInputCamel,
-  newBankAccountInput,
-  updateBankAccount,
 } from './bankAccounts.types.js';
 
 const BANK_ACCOUNT_FIELDS = [

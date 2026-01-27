@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest';
 
-import type { DemoFilter } from '../shared/config.js';
 import { SEED_STEPS } from './registry.js';
+
+import type { DemoFilter } from '../shared/config.js';
 
 describe('SEED_STEPS Registry', () => {
   test('should contain all expected steps', () => {

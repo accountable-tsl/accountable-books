@@ -1,17 +1,16 @@
-import { useSession } from '@session';
-import { Plus } from 'lucide-react';
+import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import type { Project } from '@/modules/projects/model/types';
 import { useCallback, useMemo, useState } from 'react';
-
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
-import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
 import { DataTableToolbar } from '@/components/data-table/toolbar';
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import ErrorPage from '@/components/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { useFetchProjects } from '@/modules/projects/model/hooks';
-import type { Project } from '@/modules/projects/model/types';
+import { useSession } from '@session';
+import { Plus } from 'lucide-react';
 
 import { AddProjectDialog } from './components/projects-add';
 import { getProjectColumns } from './config/projects-columns';

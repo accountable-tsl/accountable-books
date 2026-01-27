@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getFiscalCalendar } from '../../reporting/fiscal-calendar/fiscal-calendar.service.js';
 import {
   createMockConstraintContext,
   createMockEntry,
   createMockFiscalPeriod,
 } from '../__test-helpers__.js';
+import { getFiscalCalendar } from '../../reporting/fiscal-calendar/fiscal-calendar.service.js';
 import { periodNotLocked } from './period-not-locked.js';
 
 // Mock the getFiscalCalendar function

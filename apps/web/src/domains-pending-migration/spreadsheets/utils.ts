@@ -1,7 +1,3 @@
-import type { ParseResult } from 'papaparse';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
-
 import type {
   ParseCsvOptions,
   ParsedCsvResult,
@@ -10,6 +6,9 @@ import type {
   ValidateHeadersOptions,
   ValidateHeadersResult,
 } from '@/domains-pending-migration/spreadsheets/types';
+import type { ParseResult } from 'papaparse';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 
 import { FILE_TYPE_MAP } from './constants';
 

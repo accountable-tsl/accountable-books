@@ -1,5 +1,5 @@
-import { addMonths, format, isAfter, isBefore, subMonths } from 'date-fns';
 import type { Knex } from 'knex';
+import { addMonths, format, isAfter, isBefore, subMonths } from 'date-fns';
 import pino from 'pino';
 
 import { knexClient as db } from '../../../db/knexClient.js';
@@ -11,6 +11,8 @@ import {
   toYMD,
 } from '../../../shared/utils/date.utils.js';
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
+import { fiscalPeriodType } from './fiscal-calendar.types.js';
+
 import type {
   ExtendResult,
   FiscalCalendar,
@@ -21,7 +23,6 @@ import type {
   FiscalPeriodYMD,
   NewFiscalCalendar,
 } from './fiscal-calendar.types.js';
-import { fiscalPeriodType } from './fiscal-calendar.types.js';
 
 const logger = pino();
 

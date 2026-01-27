@@ -1,4 +1,3 @@
-import { Loader2, Upload, X } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import {
   forwardRef,
@@ -7,13 +6,13 @@ import {
   useRef,
   useState,
 } from 'react';
-
 import {
   type ImageUploaderProps,
   type ImageUploaderRef,
 } from '@/domains-pending-migration/objects/types';
 import { cn } from '@/lib/utils';
 import { extractPath } from '@/shared/utils/formatting-utils';
+import { Loader2, Upload, X } from 'lucide-react';
 
 import { Button } from '../../components/ui/button';
 import { matchesType } from './utils';

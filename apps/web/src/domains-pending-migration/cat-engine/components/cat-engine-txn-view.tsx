@@ -1,15 +1,4 @@
-import {
-  AlertTriangle,
-  Check,
-  ChevronDown,
-  Edit,
-  Eye,
-  Landmark,
-  Lightbulb,
-  Split,
-} from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
-
 import { FormattedAmount } from '@/components/FormattedAmount';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -20,6 +9,16 @@ import { Label } from '@/components/ui/label';
 import { accordionItems } from '@/domains-pending-migration/cat-engine/cat-engine';
 import { cn } from '@/lib/utils';
 import { safeFormatDate } from '@/shared/utils/formatting-utils';
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  Edit,
+  Eye,
+  Landmark,
+  Lightbulb,
+  Split,
+} from 'lucide-react';
 
 import {
   DEFAULT_ACCOUNT_TEXT,

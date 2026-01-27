@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 
-import type { AuthRequest } from '../../features/auth/auth.types.js';
 import {
   connectAccountsService,
   transactionSyncQueue,
@@ -12,6 +11,8 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
+
+import type { AuthRequest } from '../../features/auth/auth.types.js';
 
 export class BankingController {
   async connectBankAccounts(req: AuthRequest, res: Response) {
@@ -298,7 +299,7 @@ export class BankingController {
     try {
       const userId = String(req.user?.id);
       const companyId = String(req.user?.currentCompanyId);
-      const { credentialId } = req.params;
+      const credentialId = String(req.params.credentialId);
 
       if (!userId || !companyId) {
         return res

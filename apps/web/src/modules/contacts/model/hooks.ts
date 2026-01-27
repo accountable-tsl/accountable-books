@@ -6,8 +6,9 @@ import {
 } from '@tanstack/react-query';
 
 import { addNewContacts, fetchContacts } from '../api';
-import type { GetContactsParams, NewContact } from './types';
 import { newContact } from './types';
+
+import type { GetContactsParams, NewContact } from './types';
 
 const CACHE_TIMES = {
   STALE: 1000 * 60 * 15, // 15 mins

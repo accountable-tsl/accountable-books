@@ -1,15 +1,14 @@
-import { CheckCircle, Globe, MapPin, Search } from 'lucide-react';
+import type { Country } from '@/shared/types/core';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useCountries } from '@/shared/hooks/useCountries';
-import type { Country } from '@/shared/types/core';
 import { getCountryFromLocale } from '@/shared/utils/random-utils';
+import { CheckCircle, Globe, MapPin, Search } from 'lucide-react';
+import { useNavigate } from 'react-router';
 
 interface CountrySelectionProps {
   supportedCountries: Country[];

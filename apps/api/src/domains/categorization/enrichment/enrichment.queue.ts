@@ -7,8 +7,9 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
-import type { EnrichmentJobData } from './enrichment.types.js';
 import { enrichmentJobDataSchema } from './enrichment.types.js';
+
+import type { EnrichmentJobData } from './enrichment.types.js';
 
 const logger = pino();
 

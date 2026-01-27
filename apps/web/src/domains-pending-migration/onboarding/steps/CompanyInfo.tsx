@@ -1,10 +1,8 @@
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { useSession } from '@session';
+import type {
+  CompanyData,
+  UpdateCompanyVitalsData,
+} from '@/domains-pending-migration/company/types';
 import { useEffect, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
-
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
@@ -32,10 +30,6 @@ import {
   COMPANY_REVENUE_RANGE,
   COMPANY_SIZE,
 } from '@/domains-pending-migration/company/constants';
-import type {
-  CompanyData,
-  UpdateCompanyVitalsData,
-} from '@/domains-pending-migration/company/types';
 import { updateCompanyVitalsSchema } from '@/domains-pending-migration/company/types';
 import {
   getCompanyTypeDisplay,
@@ -55,6 +49,11 @@ import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useIndustries } from '@/shared/hooks/useIndustries';
 import { routes } from '@/shared/routes/routes';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useSession } from '@session';
+import { Controller, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 
 // Separate component to handle slug field with hooks
 function SlugFieldController({
@@ -104,10 +103,7 @@ function SlugFieldInput({
   const isCurrentSlug = slugCheck?.isSameAsCurrent;
 
   useEffect(() => {
-    if (
-      (slugCheck.validation.isValid && slugCheck.isValid) ||
-      isCurrentSlug
-    ) {
+    if ((slugCheck.validation.isValid && slugCheck.isValid) || isCurrentSlug) {
       clearErrors('assignedFirmSlug');
     } else {
       setError('assignedFirmSlug', {

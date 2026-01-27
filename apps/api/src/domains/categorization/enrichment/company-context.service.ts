@@ -4,6 +4,7 @@ import pino from 'pino';
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
 import { generateChecksumSync } from '../../../shared/index.js';
+
 import type { CompanyContextCache } from './enrichment.types.js';
 
 const logger = pino();

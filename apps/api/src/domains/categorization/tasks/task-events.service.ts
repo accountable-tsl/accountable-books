@@ -2,8 +2,9 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { logger } from '../../../shared/index.js';
-import type { NewTaskEvent, TaskEvent } from './task-events.types.js';
 import { newTaskEvent } from './task-events.types.js';
+
+import type { NewTaskEvent, TaskEvent } from './task-events.types.js';
 
 const TASK_EVENTS_TABLE = 'categorization_task_events';
 

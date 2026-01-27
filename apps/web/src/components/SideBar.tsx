@@ -1,7 +1,5 @@
-import { ArrowUpCircleIcon } from 'lucide-react';
+import type { CompanyData, CompanyType } from '@/modules/company/companies';
 import React from 'react';
-import { Link } from 'react-router';
-
 import { NavMain } from '@/components/NavMain';
 import { NavSecondary } from '@/components/NavSecondary';
 import { NavUser } from '@/components/NavUser';
@@ -24,8 +22,9 @@ import {
   getNavUser,
 } from '@/constants/sidebarData';
 import { type AuthUserContext } from '@/modules/auth';
-import type { CompanyData, CompanyType } from '@/modules/company/companies';
 import { routes } from '@/shared/routes/routes';
+import { ArrowUpCircleIcon } from 'lucide-react';
+import { Link } from 'react-router';
 
 export interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   sidebarCollapsible?: 'icon' | 'offcanvas';

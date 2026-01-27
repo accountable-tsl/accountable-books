@@ -4,8 +4,9 @@ import z from 'zod';
 
 import { dbStandardFields } from '../../core/types/core.js';
 import { type Pagination } from '../../shared/types/random.js';
-import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
+
+import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 export { contactType } from '@accountable-books/contracts/schema';
 export type ContactType = z.infer<typeof contactType>;

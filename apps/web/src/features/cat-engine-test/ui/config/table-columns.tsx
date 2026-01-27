@@ -1,12 +1,6 @@
+import type { GroupedTransactionOld } from '@/modules/accounting/categorization';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 import type { ColumnDef } from '@tanstack/react-table';
-import {
-  Landmark,
-  MessageSquare,
-  MoreVertical,
-  Paperclip,
-  Split,
-} from 'lucide-react';
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,8 +15,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { GroupedTransactionOld } from '@/modules/accounting/categorization';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
+import {
+  Landmark,
+  MessageSquare,
+  MoreVertical,
+  Paperclip,
+  Split,
+} from 'lucide-react';
 
 export const getCatEngineColumns = (
   bankAccountMap: Map<string, BankAccountWithMeta>,

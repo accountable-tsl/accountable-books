@@ -1,7 +1,6 @@
-import { Building } from 'lucide-react';
-
 import type { BankAccountWithMeta } from '@/modules/banking/accounts';
 import { maskDigits } from '@/shared/utils/formatting-utils';
+import { Building } from 'lucide-react';
 
 export function SelectedBankAccount({
   selectedBankAccount,

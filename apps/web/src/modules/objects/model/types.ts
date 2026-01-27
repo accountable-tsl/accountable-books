@@ -1,6 +1,5 @@
-import z from 'zod';
-
 import type { MimeType } from '@/shared/constants/filetype';
+import z from 'zod';
 
 export type ObjectBucket = 'logos' | 'txnFiles';
 

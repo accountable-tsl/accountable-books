@@ -1,7 +1,4 @@
-import { BadgeAlert, Check, TriangleAlert, Waypoints } from 'lucide-react';
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
-
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -13,6 +10,8 @@ import {
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { routes } from '@/shared/routes/routes';
 import { maskDigits } from '@/shared/utils/formatting-utils';
+import { BadgeAlert, Check, TriangleAlert, Waypoints } from 'lucide-react';
+import { useNavigate } from 'react-router';
 
 import type { ConnectionResponse } from '../types';
 

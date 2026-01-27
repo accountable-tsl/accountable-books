@@ -2,8 +2,9 @@ import { type NextFunction, type Response } from 'express';
 
 import { getSingleCompany } from '../../domains/companies/companies.model.js';
 import { getAccessibleCompaniesForUser } from '../../domains/userRoles/userRoles.model.js';
-import type { AuthRequest } from '../../features/auth/auth.types.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
+
+import type { AuthRequest } from '../../features/auth/auth.types.js';
 
 export const checkCompanyId = async (
   req: AuthRequest,

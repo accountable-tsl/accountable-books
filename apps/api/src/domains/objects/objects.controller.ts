@@ -1,6 +1,5 @@
 import { type Request, type Response } from 'express';
 
-import type { AuthRequest } from '../../features/auth/auth.types.js';
 import {
   errorResponse,
   successResponse,
@@ -10,6 +9,8 @@ import { StorageService } from './objects.service.js';
 import { type ObjectBucket } from './objects.types.js';
 import { objectTypeHandlers } from './objects.utils.js';
 import { getTxnFiles, persistTxnFiles } from './txn-files/txn-files.service.js';
+
+import type { AuthRequest } from '../../features/auth/auth.types.js';
 
 // Attachment limits for transaction files
 const TRANSACTION_FILE_LIMITS = {

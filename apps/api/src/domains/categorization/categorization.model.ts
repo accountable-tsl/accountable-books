@@ -5,14 +5,13 @@ import type {
   LedgerIntent,
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
+import type { Knex } from 'knex';
 import {
   getCategorizationStatsParams,
   ledgerIntentSchema,
 } from '@accountable-books/contracts/schema';
-import type { Knex } from 'knex';
 import z from 'zod';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import { toYMD } from '../../shared/utils/date.utils.js';
 import { logger } from '../../shared/utils/logger.js';
@@ -26,20 +25,11 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { getBankTransactionsByIds } from '../bankTransactions/bankTransactions.model.js';
-import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
 import {
   getLedgerTransactionsWithEntries,
   updateOrCreateLedger,
 } from '../ledgers/ledgers.model.js';
-import type {
-  LedgerEntryInput,
-  NewLedgerTransactionData,
-} from '../ledgers/ledgers.types.js';
 import { getCategorizationCandidatesWithLines } from './candidates/candidates.service.js';
-import type {
-  GetCategorizationTransactionsParams,
-  GetCategorizationTransactionsResponse,
-} from './categorization.types.js';
 import { getCategorizationTransactionsParams } from './categorization.types.js';
 import {
   buildBankLeg,
@@ -53,6 +43,17 @@ import {
   detectCurrentState,
   mergeIntents,
 } from './categorization.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
+import type {
+  LedgerEntryInput,
+  NewLedgerTransactionData,
+} from '../ledgers/ledgers.types.js';
+import type {
+  GetCategorizationTransactionsParams,
+  GetCategorizationTransactionsResponse,
+} from './categorization.types.js';
 
 /**
  * Get categorization transactions for the categorization engine UI

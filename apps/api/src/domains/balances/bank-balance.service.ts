@@ -1,3 +1,4 @@
+import type { Knex } from 'knex';
 import {
   //   isBefore,
   //   addDays,
@@ -5,18 +6,18 @@ import {
   min,
 } from 'date-fns';
 import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
-import type { Knex } from 'knex';
 import pino from 'pino';
 
 import { knexClient as db } from '../../db/knexClient.js';
 import { getSystemUser } from '../users/users.model.js';
+import { bankBalanceRecalcParamsSchema } from './balances.types.js';
+import { setBankOpeningBalance } from './opening-balance/opening-balance.service.js';
+
 import type {
   BalanceRecalcResult,
   BankBalanceRecalcParams,
   CompanyContext,
 } from './balances.types.js';
-import { bankBalanceRecalcParamsSchema } from './balances.types.js';
-import { setBankOpeningBalance } from './opening-balance/opening-balance.service.js';
 import type { BankOpeningBalanceOrigin } from './opening-balance/opening-balance.types.js';
 
 export interface ChooseOpeningInput {

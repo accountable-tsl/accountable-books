@@ -1,8 +1,5 @@
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import type { NewContact } from '@/modules/contacts/model/types';
 import { useCallback, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-
 import { FormField } from '@/components/FormField';
 import { Success } from '@/components/Success';
 import { Button } from '@/components/ui/button';
@@ -17,8 +14,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useCreateContacts } from '@/modules/contacts/model/hooks';
-import type { NewContact } from '@/modules/contacts/model/types';
 import { newContact } from '@/modules/contacts/model/types';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 
 export function AddContact({
   companyId,

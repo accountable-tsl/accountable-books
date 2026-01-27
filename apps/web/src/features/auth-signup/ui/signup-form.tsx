@@ -1,10 +1,6 @@
+import type { CompanyType, Country } from '@/shared/types/core';
 import type { AxiosError } from 'axios';
-import { XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
-import { PuffLoader } from 'react-spinners';
-import { toast } from 'sonner';
-
 import { AuthHeader } from '@/components/AuthHeader';
 import { StepProgress } from '@/components/StepProgress/StepProgress';
 import { Button } from '@/components/ui/button';
@@ -22,19 +18,23 @@ import { useCheckEmail } from '@/shared/hooks/useCheckEmail';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { routes } from '@/shared/routes/routes';
-import type { CompanyType, Country } from '@/shared/types/core';
 import { zEmail } from '@/shared/types/core';
+import { XIcon } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { PuffLoader } from 'react-spinners';
+import { toast } from 'sonner';
 
 import { submitSignup } from '../../../domains-pending-migration/signup/signupService';
 import {
   type NewCompany,
   type NewUser,
 } from '../../../domains-pending-migration/signup/signupTypes';
-import type { SignupBasicInfoHandle } from './steps/basic-info';
 import { SignupBasicInfo } from './steps/basic-info';
-import type { SignupCompanyInfoHandle } from './steps/company-info';
 import { SignupCompanyInfo } from './steps/company-info';
 import { SignupSelector } from './steps/selector';
+
+import type { SignupBasicInfoHandle } from './steps/basic-info';
+import type { SignupCompanyInfoHandle } from './steps/company-info';
 
 //TODO: Refactor whole signup flow later
 export function Signup() {
@@ -77,7 +77,10 @@ export function Signup() {
   const countries = useMemo(() => country?.data || [], [country?.data]);
 
   const { data: currencies } = useCurrencies();
-  const currenciesData = useMemo(() => currencies?.data || [], [currencies?.data]);
+  const currenciesData = useMemo(
+    () => currencies?.data || [],
+    [currencies?.data],
+  );
 
   const basicInfoRef = useRef<SignupBasicInfoHandle>(null);
   const companyInfoRef = useRef<SignupCompanyInfoHandle>(null);
@@ -362,7 +365,12 @@ export function Signup() {
         reportingCurrencyId: defaultCurrency?.id,
       }));
     }
-  }, [currenciesData, companyDetails.countryId, companyDetails.reportingCurrencyId, getDefaultCurrency]);
+  }, [
+    currenciesData,
+    companyDetails.countryId,
+    companyDetails.reportingCurrencyId,
+    getDefaultCurrency,
+  ]);
 
   return (
     <div className="flex min-h-svh flex-col">

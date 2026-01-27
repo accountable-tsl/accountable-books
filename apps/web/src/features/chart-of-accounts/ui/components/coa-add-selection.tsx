@@ -1,6 +1,4 @@
-import { ChevronDown, Plus } from 'lucide-react';
 import React, { useState } from 'react';
-
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,6 +9,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { AddNewCoaDialog } from '@/features/chart-of-accounts/ui/components/coa-add-new';
 import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
+import { ChevronDown, Plus } from 'lucide-react';
 
 export function AddAccountSelection() {
   const [isAddCoaDialogOpen, setIsAddCoaDialogOpen] = useState(false);

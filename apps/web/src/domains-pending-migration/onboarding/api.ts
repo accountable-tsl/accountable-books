@@ -1,13 +1,12 @@
-import { isAxiosError } from 'axios';
-
 import type { CompanyData } from '@/domains-pending-migration/company/types';
 import type {
   ResendVerEmailService,
   VerifyEmailFnResponse,
 } from '@/domains-pending-migration/onboarding/types';
 import type { UserData } from '@/domains-pending-migration/user/types';
-import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
+import { isAxiosError } from 'axios';
 
 export const updateCompanyOnboardingStatus = async (data: {
   userId: string;

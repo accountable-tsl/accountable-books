@@ -1,13 +1,5 @@
-import {
-  Building2Icon,
-  BuildingIcon,
-  ChevronDownIcon,
-  SearchIcon,
-  UserIcon,
-  UsersIcon,
-} from 'lucide-react';
+import type { AuthCompanyContext } from '@/modules/auth';
 import { useMemo, useState } from 'react';
-
 import { useSession } from '@/app/session';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -20,8 +12,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { useCompanySwitch } from '@/domains-pending-migration/switchCompany/hooks';
 import { cn } from '@/lib/utils';
-import type { AuthCompanyContext } from '@/modules/auth';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
+import {
+  Building2Icon,
+  BuildingIcon,
+  ChevronDownIcon,
+  SearchIcon,
+  UserIcon,
+  UsersIcon,
+} from 'lucide-react';
 
 const MAX_VISIBLE_COMPANIES = 4;
 const COMPANY_ITEM_HEIGHT = 56; // Approximate height in pixels for each company item
@@ -81,7 +80,12 @@ export function CompanySwitcher() {
     if (typeMatch) return typeMatch;
 
     return null;
-  }, [companies, user?.currentCompanyId, user?.companies, user?.currentCompany]);
+  }, [
+    companies,
+    user?.currentCompanyId,
+    user?.companies,
+    user?.currentCompany,
+  ]);
 
   // Check if user is searching for demo companies
   const isDemoSearch = searchTerm.toLowerCase().includes('demo');
@@ -153,7 +157,12 @@ export function CompanySwitcher() {
   }
 
   const handleCompanySwitch = async (company: AuthCompanyContext) => {
-    if (!user?.currentCompanyId || company.id === user.currentCompanyId || isSwitching) return;
+    if (
+      !user?.currentCompanyId ||
+      company.id === user.currentCompanyId ||
+      isSwitching
+    )
+      return;
 
     setOpen(false);
     await switchCompany({

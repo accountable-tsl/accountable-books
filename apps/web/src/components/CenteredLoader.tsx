@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { PuffLoader } from 'react-spinners';
-
 import { cn } from '@/lib/utils';
+import { PuffLoader } from 'react-spinners';
 
 import { AuthHeader } from './AuthHeader';
 import ErrorPage from './ErrorPage';

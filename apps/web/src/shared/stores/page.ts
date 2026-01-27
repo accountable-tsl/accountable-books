@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
+import { findMatchingRouteSmart, routeIndex } from '@/shared/routes/utils';
 import { useLocation } from 'react-router';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-
-import { findMatchingRouteSmart, routeIndex } from '@/shared/routes/utils';
 
 export type BreadcrumbItem = {
   label: string;

@@ -1,6 +1,4 @@
-import { format } from 'date-fns';
-import { Split } from 'lucide-react';
-
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
 import { FormattedAmount } from '@/components/FormattedAmount';
 import {
   Dialog,
@@ -9,7 +7,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import { format } from 'date-fns';
+import { Split } from 'lucide-react';
 
 export function SplitViewDialog({ txn }: { txn: GroupedTransaction }) {
   return (

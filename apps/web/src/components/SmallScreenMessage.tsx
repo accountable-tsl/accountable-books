@@ -1,5 +1,5 @@
-import { LaptopMinimal } from 'lucide-react';
 import React from 'react';
+import { LaptopMinimal } from 'lucide-react';
 
 interface SmallScreenMessageProps {
   title?: string;

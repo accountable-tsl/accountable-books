@@ -7,6 +7,7 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
+
 import type {
   BulkSyncJobData,
   TransactionSyncJobData,

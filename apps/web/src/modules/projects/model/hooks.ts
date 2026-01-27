@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 
 import { addNewProjects, fetchProjects } from '../api';
+
 import type { FetchProjectsParams, NewProject } from './types';
 
 const CACHE_TIMES = {

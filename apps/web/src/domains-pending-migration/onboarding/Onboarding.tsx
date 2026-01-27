@@ -1,8 +1,10 @@
-import { useSession } from '@session';
-import { Menu } from 'lucide-react';
+import type {
+  EnrichedOnboardingStep,
+  OnboardingState,
+} from '@/domains-pending-migration/onboarding/types';
+import type { OnboardingPathKey } from '@/domains-pending-migration/onboarding/utils';
+import type { CompanyData } from '@/modules/company/companies';
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useLocation, useParams } from 'react-router';
-
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { MockSidebar } from '@/components/SideBar';
@@ -12,20 +14,17 @@ import {
   MobileOnboardingSidebar,
   OnboardingSidebar,
 } from '@/domains-pending-migration/onboarding/shared/Sidebar';
-import type {
-  EnrichedOnboardingStep,
-  OnboardingState,
-} from '@/domains-pending-migration/onboarding/types';
-import type { OnboardingPathKey } from '@/domains-pending-migration/onboarding/utils';
 import {
   getPathByStepKey,
   onboardingSteps,
   onboardingStepsConfig,
 } from '@/domains-pending-migration/onboarding/utils';
 import { cn } from '@/lib/utils';
-import type { CompanyData } from '@/modules/company/companies';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { routes } from '@/shared/routes/routes';
+import { useSession } from '@session';
+import { Menu } from 'lucide-react';
+import { Navigate, useLocation, useParams } from 'react-router';
 
 export function OnboardingStepPage() {
   const {

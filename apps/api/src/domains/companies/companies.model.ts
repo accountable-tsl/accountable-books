@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 
 import { countryToTimezone } from '../../core/timezones/countryTimezones.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import {
   type AuthUserContext,
@@ -41,19 +40,21 @@ import { getCountry } from '../countries/countries.utils.js';
 import { getCurrency } from '../currencies/currencies.utils.js';
 import { enqueueFiscalCalendarGeneration } from '../reporting/fiscal-calendar/index.js';
 import { initializeCompanySettings } from '../settings/settings.service.js';
-import type {
-  FetchCompaniesOptions,
-  GetCompanyResponse,
-  NewCompany,
-  NewCompanyInput,
-  UpdateCompanySchema,
-} from './companies.types.js';
 import {
   companyType,
   fieldToColumnMap,
   newCompany,
   newCompanyInput,
   updateCompanySchema,
+} from './companies.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  FetchCompaniesOptions,
+  GetCompanyResponse,
+  NewCompany,
+  NewCompanyInput,
+  UpdateCompanySchema,
 } from './companies.types.js';
 
 /**

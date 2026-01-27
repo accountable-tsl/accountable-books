@@ -1,5 +1,4 @@
 import type { VariantProps } from 'class-variance-authority';
-import { Check, ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
 import {
   forwardRef,
   useCallback,
@@ -8,8 +7,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { BeatLoader } from 'react-spinners';
-
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Command,
@@ -26,6 +23,8 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
+import { Check, ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
+import { BeatLoader } from 'react-spinners';
 
 import {
   Drawer,
@@ -436,7 +435,16 @@ export const AutocompleteDropdown = forwardRef<
     }
 
     return result;
-  }, [items, groups, groupBy, groupLabel, mapItem, useGrouping, groupOrder, ungroupedLabel]);
+  }, [
+    items,
+    groups,
+    groupBy,
+    groupLabel,
+    mapItem,
+    useGrouping,
+    groupOrder,
+    ungroupedLabel,
+  ]);
 
   // Create a flattened lookup map for O(1) access to all items
   // This serves as the single source of truth for item lookups

@@ -7,6 +7,8 @@ import {
   getCompanySlug,
 } from './firms.model.js';
 
+import type { AuthRequest } from '../../features/auth/auth.types.js';
+
 export const checkSlugController = async (req: Request, res: Response) => {
   const slug = String(req.query.slug);
 
@@ -24,11 +26,14 @@ export const checkSlugController = async (req: Request, res: Response) => {
   }
 };
 
-export const getCompanySlugController = async (req: Request, res: Response) => {
+export const getCompanySlugController = async (
+  req: AuthRequest,
+  res: Response,
+) => {
   try {
-    const { companyId } = req.params;
+    const companyId = req.company?.id;
 
-    if (!companyId)
+    if (!companyId || typeof companyId !== 'string')
       return res.status(400).json(errorResponse('Company ID is required'));
 
     const result = await getCompanySlug(companyId);
@@ -44,14 +49,14 @@ export const getCompanySlugController = async (req: Request, res: Response) => {
  * GET /api/:companyId/slugs/check?slug=example-slug
  */
 export const checkSlugForCompanyController = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
 ) => {
   try {
-    const { companyId } = req.params;
+    const companyId = req.company?.id;
     const { slug } = req.query;
 
-    if (!companyId) {
+    if (!companyId || typeof companyId !== 'string') {
       return res.status(400).json({
         success: false,
         error: 'Company ID is required',

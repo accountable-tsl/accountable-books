@@ -34,6 +34,7 @@ import { projectExists } from './base/project-exists.js';
 import { singleBankLeg } from './base/single-bank-leg.js';
 import { validExchangeRates } from './base/valid-exchange-rates.js';
 import { zeroAmountLine } from './base/zero-amount-line.js';
+
 import type { Constraint, ConstraintCode } from './constraints-types.js';
 
 export interface ConstraintRegistryEntry {

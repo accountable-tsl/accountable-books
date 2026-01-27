@@ -1,9 +1,10 @@
 import { z } from 'zod';
 
 import { dbBaseFields, zDate, zEmail } from '../../core/types/core.js';
-import type { UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import { userOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+
+import type { UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
 
 // user
 export const newUser = z.object({

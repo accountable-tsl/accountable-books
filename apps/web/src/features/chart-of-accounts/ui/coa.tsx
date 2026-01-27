@@ -1,11 +1,10 @@
-import { useSession } from '@session';
+import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
+import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
+import type { CoaResponse } from '@/modules/accounting/chart-of-accounts';
 import { useEffect, useMemo, useState } from 'react';
-
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
-import type { DataTableToolbarConfig } from '@/components/data-table/toolbar';
-import type { DataTableInputOptions } from '@/components/data-table/types/data-table';
 import { useDataTable } from '@/components/data-table/use-data-table';
 import ErrorPage from '@/components/ErrorPage';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
@@ -14,12 +13,12 @@ import { CoaActionBar } from '@/features/chart-of-accounts/ui/components/coa-act
 import { AddAccountSelection } from '@/features/chart-of-accounts/ui/components/coa-add-selection';
 import { QuickFilter } from '@/features/chart-of-accounts/ui/components/coa-quickfilter';
 import { CoaViewer } from '@/features/chart-of-accounts/ui/components/coa-viewer';
-import type { CoaResponse } from '@/modules/accounting/chart-of-accounts';
 import {
   getAccountElementOptions,
   useChartOfAccountsQuery,
 } from '@/modules/accounting/chart-of-accounts';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { useSession } from '@session';
 
 import { getCoaTableColumns } from './config/coa-columns';
 

@@ -1,5 +1,5 @@
-import axios from 'axios';
 import type { Knex } from 'knex';
+import axios from 'axios';
 
 import { ENV } from '../config/env-loader.js';
 import { adminUser } from './20250403184441_users.js';

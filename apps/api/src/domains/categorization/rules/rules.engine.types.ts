@@ -1,6 +1,6 @@
 import type { RuleLogDraft } from './rule-logs.types.js';
-import type { RuleDraftState } from './rules.types.js';
 import type { RuleDirectionFilter, RuleScope } from './rules-db.types.js';
+import type { RuleDraftState } from './rules.types.js';
 
 /**
  * ============================================================

@@ -1,8 +1,9 @@
 import z from 'zod';
 
 import { RuleCompilerError } from './rules.compiler.js';
-import type { RuleTransactionContext } from './rules.engine.types.js';
+
 import type { CategorizeLine, TemplateName } from './rules-def.types.js';
+import type { RuleTransactionContext } from './rules.engine.types.js';
 
 interface TemplateExecContext {
   params: Record<string, unknown>;

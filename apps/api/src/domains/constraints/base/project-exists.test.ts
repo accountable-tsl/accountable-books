@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Need to import after mock
-import { knexClient } from '../../../db/knexClient.js';
 import {
   createMockConstraintContext,
   createMockEntry,
 } from '../__test-helpers__.js';
+// Need to import after mock
+import { knexClient } from '../../../db/knexClient.js';
 import { projectExists } from './project-exists.js';
 
 // Hoist mocks so they're available when vi.mock is hoisted

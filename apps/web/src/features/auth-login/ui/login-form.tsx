@@ -1,11 +1,5 @@
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { useSession } from '@session';
-import { Eye, EyeOff } from 'lucide-react';
+import type { LoginForm } from '@/modules/auth';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Link, useSearchParams } from 'react-router';
-import { toast } from 'sonner';
-
 import { AuthHeader } from '@/components/AuthHeader';
 import { FormField } from '@/components/FormField';
 import { Button } from '@/components/ui/button';
@@ -17,9 +11,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import type { LoginForm } from '@/modules/auth';
 import { authStore, getLogoutReason, loginForm } from '@/modules/auth';
 import { routes } from '@/shared/routes/routes';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useSession } from '@session';
+import { Eye, EyeOff } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { Link, useSearchParams } from 'react-router';
+import { toast } from 'sonner';
 
 import { loginAndRedirect } from '../model/use-login-flow';
 

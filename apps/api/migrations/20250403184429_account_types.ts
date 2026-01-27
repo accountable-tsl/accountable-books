@@ -1,6 +1,6 @@
 // import { accountTypes as defaultAccountTypes } from './data/accountTypes.js';
-import { defaultAccountTypes } from '@accountable-books/contracts/data';
 import type { Knex } from 'knex';
+import { defaultAccountTypes } from '@accountable-books/contracts/data';
 
 import { isDev } from '../config/env-loader.js';
 import {

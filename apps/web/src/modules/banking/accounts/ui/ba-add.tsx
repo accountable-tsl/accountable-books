@@ -65,8 +65,14 @@ export default function AddBankAccount({
   const { company, loading } = useSession();
 
   // Computed
-  const currencies = useMemo(() => currenciesData?.data ?? [], [currenciesData?.data]);
-  const countries = useMemo(() => countriesData?.data ?? [], [countriesData?.data]);
+  const currencies = useMemo(
+    () => currenciesData?.data ?? [],
+    [currenciesData?.data],
+  );
+  const countries = useMemo(
+    () => countriesData?.data ?? [],
+    [countriesData?.data],
+  );
   const banks = bankData?.data ?? [];
   const isIndividual = company?.companyType === companyType.enum.individual;
 

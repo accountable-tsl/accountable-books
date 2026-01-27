@@ -1,4 +1,5 @@
 import type {
+  EmployeeRecord,
   PayrollCompanyDefaults,
   PayrollComputedRun,
   PayrollRun,
@@ -31,8 +32,8 @@ import {
 } from '@/components/ui/tooltip';
 import { cn, useMediaQuery } from '@/lib/utils';
 import {
-  addEmployeeToRun,
   addEmployeesToRun,
+  addEmployeeToRun,
 } from '@/payroll/actions/add-employee';
 import {
   deleteEmployeeRecord,
@@ -56,8 +57,8 @@ import {
 import {
   getCompanyDefaultsKey,
   getEmployeeDirectoryKey,
-  getRunsIndexKey,
   getRunKey,
+  getRunsIndexKey,
 } from '@/payroll/storage/keys';
 import { storageDelete } from '@/payroll/storage/kv';
 import { SummaryCard } from '@/payroll/summary-card';
@@ -103,7 +104,6 @@ import { CsvImportDialog } from './csv-import-dialog';
 import { FinalizeDialog } from './finalize-dialog';
 import { PayrollTable } from './payroll-table';
 import { getTableRowData } from './payroll-table-utils';
-import type { EmployeeRecord } from '@/payroll/domain';
 
 import type { StatutoryDeduction } from '../domain/payroll.schemas';
 
@@ -670,7 +670,10 @@ export function Payroll() {
         setRunList((prev) =>
           prev.map((entry) =>
             entry.id === currentRun.id
-              ? { ...entry, companyName: updates.companyName ?? entry.companyName }
+              ? {
+                  ...entry,
+                  companyName: updates.companyName ?? entry.companyName,
+                }
               : entry,
           ),
         );
@@ -838,7 +841,6 @@ export function Payroll() {
       }
     })();
     // Only run on mount - month/year changes don't trigger reload
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle month/year changes - update currentRun period or load existing run
@@ -860,10 +862,7 @@ export function Payroll() {
         const { periodYear, periodMonth } = parsePeriod(year, month);
 
         // Check if the currentRun's period already matches the selected month/year
-        if (
-          run.periodMonth === periodMonth &&
-          run.periodYear === periodYear
-        ) {
+        if (run.periodMonth === periodMonth && run.periodYear === periodYear) {
           // Period already matches - no action needed
           return;
         }
@@ -1445,10 +1444,11 @@ export function Payroll() {
       // Note: This will trigger computation, but the loading indicator is now delayed
       setCurrentRun(run);
 
-      isXlScreen &&
+      if (isXlScreen) {
         toast.success('New employee added', {
           position: isMdScreen ? 'bottom-right' : 'top-center',
         });
+      }
     } catch (error) {
       logger.error('Failed to add employee', error, {
         runId: currentRun?.id,
@@ -2766,7 +2766,7 @@ export function Payroll() {
             </p>
             <button
               onClick={handleResetClick}
-              className="text-red-500 hover:text-red-600 hover:underline cursor-pointer"
+              className="cursor-pointer text-red-500 hover:text-red-600 hover:underline"
             >
               Reset
             </button>
@@ -3036,10 +3036,7 @@ export function Payroll() {
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleResetConfirm}
-            >
+            <Button variant="destructive" onClick={handleResetConfirm}>
               Reset
             </Button>
           </DialogFooter>

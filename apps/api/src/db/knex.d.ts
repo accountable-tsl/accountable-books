@@ -20,30 +20,12 @@ import {
   RolePermission,
 } from '../core/types/db.types.js';
 import { AccFirm, NewAccFirm } from '../domains/accountingFirms/firms.types.js';
-import type {
-  BankCurrentBalance,
-  BankDailyBalanceSnapshot,
-  FiscalCalendar,
-  GLCurrentBalance,
-  GLDailyBalanceSnapshot,
-  GLPeriodBalance,
-  NewBankCurrentBalance,
-  NewBankDailyBalanceSnapshot,
-  NewFiscalCalendar,
-  NewGLCurrentBalance,
-  NewGLDailyBalanceSnapshot,
-  NewGLPeriodBalance,
-} from '../domains/balances/balances.types.js';
 import {
   BankFeedProvider,
   BankFeedProviderCountries,
   NewBankFeedProvider,
   NewBankFeedProviderCountry,
 } from '../domains/bankFeedProviders/bankFeedProviders.types.js';
-import type {
-  BankAccountCredential,
-  NewBankAccountCredential,
-} from '../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
 import {
   BankAccount,
   NewBankAccount,
@@ -75,28 +57,18 @@ import {
   RuleLogs,
   Rules,
 } from '../domains/categorization/rules/rules-db.types.js';
-import { Coa, NewCoa } from '../domains/chart-of-accounts/coa.types.js';
 import {
   CoaTemplate,
   NewCoaTemplateInput,
 } from '../domains/chart-of-accounts/coa-template.type.js';
+import { Coa, NewCoa } from '../domains/chart-of-accounts/coa.types.js';
 import { Company, NewCompany } from '../domains/companies/companies.types.js';
 import { Contact, NewContact } from '../domains/contacts/contacts.types.js';
 import {
   ExchangeRate,
   NewExchangeRateInput,
 } from '../domains/exchangeRates/exchangeRate.types.js';
-import type {
-  JournalBatch,
-  JournalEntry,
-  NewJournalBatch,
-  NewJournalEntry,
-} from '../domains/journals/journals.types.js';
 import { NewProject, Project } from '../domains/projects/projects.types.js';
-import type {
-  FiscalCalendar,
-  NewFiscalCalendar,
-} from '../domains/reporting/fiscal-calendar/fiscal-calendar.types.js';
 import { NewRoleInput, Role } from '../domains/roles/roles.types.js';
 import { NewToken, Token } from '../domains/tokens/tokens.types.js';
 import {
@@ -108,6 +80,35 @@ import {
   NewUserInput,
   User,
 } from '../domains/users/users.types.js';
+
+import type {
+  BankCurrentBalance,
+  BankDailyBalanceSnapshot,
+  FiscalCalendar,
+  GLCurrentBalance,
+  GLDailyBalanceSnapshot,
+  GLPeriodBalance,
+  NewBankCurrentBalance,
+  NewBankDailyBalanceSnapshot,
+  NewFiscalCalendar,
+  NewGLCurrentBalance,
+  NewGLDailyBalanceSnapshot,
+  NewGLPeriodBalance,
+} from '../domains/balances/balances.types.js';
+import type {
+  BankAccountCredential,
+  NewBankAccountCredential,
+} from '../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
+import type {
+  JournalBatch,
+  JournalEntry,
+  NewJournalBatch,
+  NewJournalEntry,
+} from '../domains/journals/journals.types.js';
+import type {
+  FiscalCalendar,
+  NewFiscalCalendar,
+} from '../domains/reporting/fiscal-calendar/fiscal-calendar.types.js';
 
 declare module 'knex/types/tables' {
   interface Tables {

@@ -1,6 +1,5 @@
-import { X } from 'lucide-react';
-
 import { cn } from '@/lib/utils';
+import { X } from 'lucide-react';
 
 interface FailedProps {
   text?: string;

@@ -1,7 +1,6 @@
 import dayjs from 'dayjs';
 import jwt from 'jsonwebtoken';
 
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
 import {
   addNewToken,
@@ -36,6 +35,8 @@ import {
   generateAuthTokens,
   JWT_CONFIG,
 } from './auth.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 export async function loginService(
   email: string,

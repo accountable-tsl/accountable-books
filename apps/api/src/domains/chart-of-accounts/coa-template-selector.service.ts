@@ -3,6 +3,8 @@ import type { Knex } from 'knex';
 import { escapeRegExp } from '../../shared/utils/random.utils.js';
 import { splitIntoWords } from '../../shared/utils/string.utils.js';
 import { type CompanyType } from '../companies/companies.types.js';
+import { coaTemplateName } from './coa-template.type.js';
+
 import type {
   CoaTemplateCompanyType,
   CoaTemplateIndustry,
@@ -10,7 +12,6 @@ import type {
   IndustryKeywordConfig,
   SelectBestCoa,
 } from './coa-template.type.js';
-import { coaTemplateName } from './coa-template.type.js';
 
 export const selectBestCoaTemplate = async (
   knex: Knex,

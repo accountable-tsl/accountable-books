@@ -80,7 +80,7 @@ export const getCompaniesController = async (req: Request, res: Response) => {
 };
 export const getCompanyController = async (req: AuthRequest, res: Response) => {
   try {
-    const companyId = req.params.companyId;
+    const companyId = String(req.params.companyId);
     if (!companyId) {
       return res.status(400).json(errorResponse('Company ID is required'));
     }
@@ -100,7 +100,7 @@ export const updateCompanyController = async (
   req: AuthRequest,
   res: Response,
 ) => {
-  const companyId = req.params.companyId;
+  const companyId = String(req.params.companyId);
   const userId = req.user?.id;
   const data = req.body;
   const {

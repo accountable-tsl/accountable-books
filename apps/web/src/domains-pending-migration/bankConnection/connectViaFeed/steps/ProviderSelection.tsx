@@ -1,16 +1,15 @@
-import { useSession } from '@session';
-import { ArrowLeft, Building, Clock, NetworkIcon, Shield } from 'lucide-react';
+import type { BankFeedProvider } from '@/domains-pending-migration/bankFeedProviders/types';
+import type { Country } from '@/shared/types/core';
 import React, { useCallback, useMemo, useState } from 'react';
-
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { sortProviders } from '@/domains-pending-migration/bankConnection/shared/utils';
-import type { BankFeedProvider } from '@/domains-pending-migration/bankFeedProviders/types';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
-import type { Country } from '@/shared/types/core';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
+import { useSession } from '@session';
+import { ArrowLeft, Building, Clock, NetworkIcon, Shield } from 'lucide-react';
 
 import { getProviderData, ProviderWidgets } from '../utils';
 

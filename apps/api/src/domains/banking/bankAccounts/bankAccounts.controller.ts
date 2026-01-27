@@ -1,7 +1,6 @@
 import type { Response } from 'express';
 import z from 'zod';
 
-import type { AuthRequest } from '../../../features/auth/auth.types.js';
 import { errorResponse } from '../../../shared/utils/response.utils.js';
 import {
   createManualBankAccount,
@@ -10,6 +9,8 @@ import {
   updateBankAccounts,
 } from './bankAccounts.model.js';
 import { updateBankAccount } from './bankAccounts.types.js';
+
+import type { AuthRequest } from '../../../features/auth/auth.types.js';
 
 export async function createBankAccountController(
   req: AuthRequest,
@@ -42,7 +43,7 @@ export async function getBankAccountsForCompany(
   res: Response,
 ) {
   try {
-    const companyId = req.params.companyId;
+    const companyId = String(req.params.companyId);
     const response = await getBankAccountsWithDetails(companyId);
     return response.success
       ? res.status(200).json(response)
@@ -86,7 +87,7 @@ export async function updateBankAccountsController(
 }
 
 export async function getBankAccountsMinimal(req: AuthRequest, res: Response) {
-  const companyId = req.params.companyId;
+  const companyId = String(req.params.companyId);
   const bankAccountIds = req.query.bankAccountIds;
   const idsArray = Array.isArray(bankAccountIds)
     ? bankAccountIds.filter((id): id is string => typeof id === 'string')

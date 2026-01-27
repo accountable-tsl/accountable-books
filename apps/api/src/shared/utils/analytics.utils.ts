@@ -1,5 +1,6 @@
 import { NODE_ENV } from '../../config/env.js';
 import { mixpanelClient } from '../../lib/mixpanel.js';
+
 import type { TrackingEvent } from '../constants/tracking.constants.js';
 
 export const trackEvent = (

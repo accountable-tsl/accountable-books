@@ -1,5 +1,4 @@
 import { COMPANY_DEFAULTS, isDemoCompany } from '../data/company-defaults';
-import { logger } from '../utils/logger';
 import {
   EmployeeDirectorySchema,
   PAYROLL_TOOL_SCHEMA_VERSION,
@@ -8,6 +7,7 @@ import {
   PayrollRunsIndexSchema,
 } from '../domain';
 import { getCurrentTimestamp } from '../utils';
+import { logger } from '../utils/logger';
 import {
   getCompanyDefaultsKey,
   getEmployeeDirectoryKey,
@@ -374,7 +374,9 @@ export async function findRunsForEmployee(
       candidateRuns = candidateRuns.filter((r) => r.status === options.status);
     }
     if (options?.year) {
-      candidateRuns = candidateRuns.filter((r) => r.periodYear === options.year);
+      candidateRuns = candidateRuns.filter(
+        (r) => r.periodYear === options.year,
+      );
     }
 
     // Load each candidate run and check if it contains the employee

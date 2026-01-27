@@ -4,13 +4,14 @@ import z from 'zod';
 import { knexClient } from '../../../../db/knexClient.js';
 import { logger } from '../../../../shared/index.js';
 import { logTaskEventSafe } from '../../tasks/task-events.service.js';
-import type {
-  PersistPredictionParams,
-  UpdatePredictionParams,
-} from './predictions.types.js';
 import {
   persistPredictionParams,
   updatePredictionParams,
+} from './predictions.types.js';
+
+import type {
+  PersistPredictionParams,
+  UpdatePredictionParams,
 } from './predictions.types.js';
 
 // Persist predictions to the database

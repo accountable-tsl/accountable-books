@@ -1,10 +1,22 @@
 import { readFileSync } from 'fs';
-import type { Knex } from 'knex';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { generateFingerprintSync, logger } from '../../../shared/index.js';
+import {
+  mccReferenceFileSchema,
+  merchantPatternsFileSchema,
+} from './enrichment.types.js';
+import {
+  buildAliasMatcher,
+  extendAliasMatcher,
+  resolveDescriptionHeuristics,
+} from './resolve-contact-heuristics.js';
+import { extractContactFromDescription } from './utils/contact-from-desc.js';
+import { extractMccFromDescription } from './utils/mcc-from-desc.js';
+
 import type { ContactType } from '../../contacts/index.js';
 import type {
   CompiledMerchantPattern,
@@ -16,18 +28,7 @@ import type {
   MerchantPattern,
   MerchantPatternsFile,
 } from './enrichment.types.js';
-import {
-  mccReferenceFileSchema,
-  merchantPatternsFileSchema,
-} from './enrichment.types.js';
 import type { AliasMatcher } from './resolve-contact-heuristics.js';
-import {
-  buildAliasMatcher,
-  extendAliasMatcher,
-  resolveDescriptionHeuristics,
-} from './resolve-contact-heuristics.js';
-import { extractContactFromDescription } from './utils/contact-from-desc.js';
-import { extractMccFromDescription } from './utils/mcc-from-desc.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

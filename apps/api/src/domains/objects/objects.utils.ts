@@ -5,8 +5,9 @@ import { type ZodSchema } from 'zod';
 
 import { ENV } from '../../config/env.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
-import type { ObjectBucket } from './objects.types.js';
 import { logoUploadParams } from './objects.types.js';
+
+import type { ObjectBucket } from './objects.types.js';
 
 export const imageFilter = (
   allowedTypes: string[] = [

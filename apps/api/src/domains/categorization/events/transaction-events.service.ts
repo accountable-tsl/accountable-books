@@ -1,7 +1,8 @@
 import { redis } from '../../../lib/redis.js';
 import { logger } from '../../../shared/index.js';
-import type { EnrichedTransaction } from '../enrichment/enrichment.types.js';
 import { enqueueRuleRunJob } from '../rules/rule-runner.queue.js';
+
+import type { EnrichedTransaction } from '../enrichment/enrichment.types.js';
 
 export const TRANSACTION_ENRICHED_EVENT = 'transaction-enriched';
 export type TransactionEnrichedEventData = {

@@ -43,7 +43,7 @@ export interface TaxBandBreakdownEntry {
   taxAmount: number;
 }
 
-function getBandLabel(band: typeof TAX_BANDS[number]): string {
+function getBandLabel(band: (typeof TAX_BANDS)[number]): string {
   const lower = BAND_LABEL_FORMATTER.format(band.min);
   const range =
     band.max === Number.POSITIVE_INFINITY
@@ -52,9 +52,10 @@ function getBandLabel(band: typeof TAX_BANDS[number]): string {
   return range;
 }
 
-function computeAnnualTaxWithBreakdown(
-  annualTaxableIncome: number,
-): { annualTax: number; breakdown: TaxBandBreakdownEntry[] } {
+function computeAnnualTaxWithBreakdown(annualTaxableIncome: number): {
+  annualTax: number;
+  breakdown: TaxBandBreakdownEntry[];
+} {
   const normalizedIncome = Math.max(0, annualTaxableIncome);
   let tax = 0;
   const breakdown: TaxBandBreakdownEntry[] = [];

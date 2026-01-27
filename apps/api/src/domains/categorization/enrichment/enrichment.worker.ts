@@ -1,22 +1,23 @@
+import { randomUUID } from 'crypto';
 import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
-import { randomUUID } from 'crypto';
 import pino from 'pino';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
-import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 import { emitTxnEnrichedEvent } from '../events/transaction-events.service.js';
 import { incrementContactStats } from '../stats/stats.service.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import { upsertCategorizationTask } from '../tasks/tasks.service.js';
 import { ENRICHMENT_QUEUE_NAME } from './enrichment.queue.js';
 import { enrichTransaction } from './enrichment.service.js';
+import { enrichmentJobDataSchema } from './enrichment.types.js';
+
+import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 import type {
   EnrichmentJobData,
   EnrichmentResult,
 } from './enrichment.types.js';
-import { enrichmentJobDataSchema } from './enrichment.types.js';
 
 const logger = pino();
 

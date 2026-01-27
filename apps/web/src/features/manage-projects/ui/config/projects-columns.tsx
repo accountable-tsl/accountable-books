@@ -1,6 +1,5 @@
-import type { ColumnDef } from '@tanstack/react-table';
-
 import type { Project } from '@/modules/projects/model/types';
+import type { ColumnDef } from '@tanstack/react-table';
 import { formatDate } from '@/shared/utils/formatting-utils';
 
 export function getProjectColumns(): ColumnDef<Project>[] {

@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   archiveCoa,
@@ -9,13 +9,14 @@ import {
   fetchChartOfAccounts,
   unarchiveCoa,
 } from '../api';
+import { createCoaSchema } from './types';
+
 import type {
   CoaResponse,
   CreateCoa,
   EditCoaRequest,
   FetchCoaInput,
 } from './types';
-import { createCoaSchema } from './types';
 
 const CACHE_TIMES = {
   STALE_TIME: 1000 * 60 * 60 * 1, // 1 hour

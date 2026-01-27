@@ -1,7 +1,6 @@
-import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-
 import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -19,8 +18,8 @@ export function ThemeToggle({ className }: { className?: string }) {
       className={cn(
         'flex items-center justify-center rounded-md p-2 outline-none',
         'hover:bg-accent hover:text-accent-foreground',
-        'transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        className
+        'focus-visible:ring-ring focus-visible:ring-offset-background transition-colors focus-visible:ring-2 focus-visible:ring-offset-2',
+        className,
       )}
     >
       <svg

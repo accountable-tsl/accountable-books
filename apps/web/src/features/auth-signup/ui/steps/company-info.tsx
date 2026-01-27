@@ -1,5 +1,4 @@
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import DOMPurify from 'dompurify';
+import type { NewCompany, NewUser } from '@/modules/auth';
 import {
   forwardRef,
   useEffect,
@@ -8,8 +7,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FormField } from '@/components/FormField';
 import { TooltipHelper } from '@/components/TooltipHelper';
@@ -29,11 +26,13 @@ import {
 } from '@/domains-pending-migration/company/constants';
 import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
 import { cn } from '@/lib/utils';
-import type { NewCompany, NewUser } from '@/modules/auth';
 import { newCompany } from '@/modules/auth';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useIndustries } from '@/shared/hooks/useIndustries';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import DOMPurify from 'dompurify';
+import { Controller, useForm } from 'react-hook-form';
 
 import { TOOLTIP } from '../../model/constants';
 
@@ -43,7 +42,10 @@ function SlugField({
   fieldState,
   required = false,
 }: {
-  field: { value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void };
+  field: {
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  };
   fieldState: { error?: { message?: string } };
   required?: boolean;
 }) {

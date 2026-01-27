@@ -2,9 +2,10 @@ import { Worker } from 'bullmq';
 
 import { redis } from '../../../lib/redis.js';
 import { logger } from '../../../shared/index.js';
-import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 import { RULE_RUNNER_QUEUE_NAME } from './rule-runner.queue.js';
 import { runRulesForEnrichedTransaction } from './rule-runner.service.js';
+
+import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 
 export function startRuleRunnerWorker(
   concurrency = Number(process.env.RULE_RUNNER_CONCURRENCY ?? 5),

@@ -1,20 +1,19 @@
-import { useSession } from '@session';
-import { TriangleAlert } from 'lucide-react';
+import type { OnboardingStatus } from '@/domains-pending-migration/company/types';
+import type { VerifyEmailFnResponse } from '@/domains-pending-migration/onboarding/types';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
-import { toast } from 'sonner';
-
 import icon from '@/assets/images/email-file.gif';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { Button } from '@/components/ui/button';
-import type { OnboardingStatus } from '@/domains-pending-migration/company/types';
 import {
   handleEmailVerification,
   resendVerificationEmail,
 } from '@/domains-pending-migration/onboarding/api';
-import type { VerifyEmailFnResponse } from '@/domains-pending-migration/onboarding/types';
 import { cn } from '@/lib/utils';
 import { routes } from '@/shared/routes/routes';
+import { useSession } from '@session';
+import { TriangleAlert } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { toast } from 'sonner';
 
 export const VerifyEmail = ({
   className,
@@ -144,14 +143,26 @@ export const VerifyEmail = ({
     if (!isLoggedIn || userIdFromUrl || isEmailVerificationStepComplete) {
       setHasTriggeredVerification(true);
     }
-  }, [isLoggedIn, isEmailVerificationStepComplete, isLoading, sessionLoading, userIdFromUrl]);
+  }, [
+    isLoggedIn,
+    isEmailVerificationStepComplete,
+    isLoading,
+    sessionLoading,
+    userIdFromUrl,
+  ]);
 
   useEffect(() => {
     if (!hasTriggeredVerification) return;
     if (!isLoggedIn && (!verificationToken || !userIdFromUrl)) return;
 
     verifyEmailFn();
-  }, [userIdFromUrl, verificationToken, hasTriggeredVerification, isLoggedIn, verifyEmailFn]);
+  }, [
+    userIdFromUrl,
+    verificationToken,
+    hasTriggeredVerification,
+    isLoggedIn,
+    verifyEmailFn,
+  ]);
 
   if (isLoading || sessionLoading) {
     return (
