@@ -11,11 +11,11 @@ export const accounting = {
   // uploadBankTxn: route('/ws/accounting/upload-bank-txn', {
   //   label: 'Upload Bank Transaction',
   // }),
-  transactions: route('/ws/accounting/transactions', {
+  catEngine: route('/ws/cat-engine', {
     label: 'Transactions',
     sidebarCollapsed: true,
   }),
-  catEngine: route('/ws/accounting/cat-engine', {
+  transactions: route('/ws/transactions', {
     label: 'Transactions',
     sidebarCollapsed: true,
   }),

@@ -17,7 +17,7 @@ import Welcome from '@/domains-pending-migration/onboarding/Welcome';
 import { LoginForm } from '@/features/auth-login';
 import { SignupForm } from '@/features/auth-signup';
 import { CatEngine } from '@/features/cat-engine';
-import { CatEngine as CatEngineT } from '@/features/cat-engine-test';
+// import { CatEngine as CatEngineT } from '@/features/cat-engine-test';
 import { ConnectBank } from '@/features/connect-bank';
 import { PlaidOAuthCallback } from '@/features/connect-bank/ui/plaid-oauth-callback';
 import { UploadBankTransactions } from '@/features/upload-bank-transactions';
@@ -161,7 +161,7 @@ function AppRoutes() {
 
           <Route
             path={routes.accounting.catEngine.relativePath}
-            element={<CatEngineT />}
+            element={<CatEngine />}
           />
 
           <Route
