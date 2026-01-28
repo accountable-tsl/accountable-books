@@ -103,6 +103,10 @@ export interface BaseDataTableOptions {
     enabled: boolean;
     estimatedRowHeight?: number;
     overscan?: number;
+    // When false, skip measuring actual row heights and use estimatedRowHeight as fixed height.
+    measure?: boolean;
+    // Force rows to a fixed height equal to estimatedRowHeight.
+    fixedRowHeight?: boolean;
   };
 
   infiniteScroll?: {

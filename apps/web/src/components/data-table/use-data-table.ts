@@ -163,6 +163,8 @@ export function useDataTable<TData>({
     enabled: virt?.enabled ?? false,
     estimatedRowHeight: virt?.estimatedRowHeight ?? 35,
     overscan: virt?.overscan ?? 5,
+    measure: virt?.measure ?? true,
+    fixedRowHeight: virt?.fixedRowHeight ?? false,
   };
 
   // If virtualization is enabled, force pagination and sorting off

@@ -9,7 +9,7 @@ import type {
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
 import type { ChangeEvent, ComponentProps, KeyboardEvent } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/app/session';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FilePreviewer } from '@/components/file-previewer';
@@ -108,6 +108,8 @@ export function TransactionView({
   const [blobUrls, setBlobUrls] = useState<Map<File, string>>(new Map());
   const blobUrlsRef = useRef<Map<File, string>>(new Map());
   const uploadingFilesRef = useRef<Set<string>>(new Set());
+  // Track which file keys have already been requested for presigned URLs (prevents cascade re-fetches)
+  const requestedPresignedKeysRef = useRef<Set<string>>(new Set());
   // Track which files have been saved (keyed by entryId:fileName:fileSize)
   const [savedFiles, setSavedFiles] = useState<Set<string>>(new Set());
   // Local, per-entry drafts to avoid mutating manager state before save.
@@ -196,6 +198,8 @@ export function TransactionView({
       filesByEntryId.set(entry.uiEntryId, entry.files || []);
     });
     setDraftEntryFiles(filesByEntryId);
+    // Reset presigned URL tracking so the new transaction's files get fetched
+    requestedPresignedKeysRef.current.clear();
   }, [txn, getEntriesUI]);
 
   const toggleEntry = (entryId: string) => {
@@ -209,6 +213,25 @@ export function TransactionView({
   };
 
   const entriesUI = getEntriesUI();
+  // Ref for effects that need to read the latest entries without triggering on every render.
+  // The entriesUI array is always a new reference (manager design constraint), so using it
+  // as an effect dependency means "fire every render". Effects use this ref instead.
+  const entriesUIRef = useRef(entriesUI);
+  entriesUIRef.current = entriesUI;
+  const entriesUISignature = useMemo(() => {
+    return entriesUI
+      .map(
+        (entry) =>
+          `${entry.uiEntryId}:${entry.ledgerEntryId ?? ''}:${
+            entry.files?.length ?? 0
+          }`,
+      )
+      .join('|');
+  }, [entriesUI]);
+  const entryIdsSignature = useMemo(
+    () => entriesUI.map((entry) => entry.uiEntryId).join('|'),
+    [entriesUI],
+  );
   // Index entries by UI id to avoid repeated linear searches.
   const entriesUIById = useMemo(() => {
     const map = new Map<string, (typeof entriesUI)[number]>();
@@ -342,12 +365,15 @@ export function TransactionView({
     return 'id' in file && 'key' in file;
   }
 
+  // Merge server files into draftEntryFiles when server data refreshes.
+  // Uses entriesUIRef to avoid re-running on every render (entriesUI is always a new array).
   useEffect(() => {
-    if (!entriesUI.length) return;
+    const entries = entriesUIRef.current;
+    if (!entries.length) return;
     setDraftEntryFiles((prev) => {
       const next = new Map(prev);
       let changed = false;
-      for (const entry of entriesUI) {
+      for (const entry of entries) {
         const existing = next.get(entry.uiEntryId) || [];
         const localFiles = existing.filter((file) => !isServerFile(file));
         const serverFiles = entry.files || [];
@@ -369,56 +395,52 @@ export function TransactionView({
       }
       return changed ? next : prev;
     });
-  }, [entriesUI]);
+  }, [entriesUISignature]);
 
   useEffect(() => {
     // Drop drafts for entries that no longer exist in the UI list.
     if (draftEntries.size === 0) return;
+    const currentEntryIds = new Set(
+      entriesUIRef.current.map((e) => e.uiEntryId),
+    );
     setDraftEntries((prev) => {
       let changed = false;
       const next = new Map(prev);
       for (const entryId of prev.keys()) {
-        if (!entriesUIById.has(entryId)) {
+        if (!currentEntryIds.has(entryId)) {
           next.delete(entryId);
           changed = true;
         }
       }
       return changed ? next : prev;
     });
-  }, [entriesUIById, draftEntries.size]);
+  }, [entryIdsSignature, draftEntries.size]);
 
+  // Sync blob URLs: create for new files, revoke for removed files (single effect)
   useEffect(() => {
     setBlobUrls((prev) => {
-      const next = new Map(prev);
-      let changed = false;
-
+      // Collect all active local files
+      const activeFiles = new Set<File>();
       for (const files of draftEntryFiles.values()) {
         for (const file of files) {
-          if (isServerFile(file)) continue;
-          if (!next.has(file)) {
-            next.set(file, createTypedBlobUrl(file));
-            changed = true;
+          if (!isServerFile(file)) {
+            activeFiles.add(file);
           }
         }
       }
 
-      return changed ? next : prev;
-    });
-  }, [draftEntryFiles]);
+      const next = new Map(prev);
+      let changed = false;
 
-  useEffect(() => {
-    const activeFiles = new Set<File>();
-    for (const files of draftEntryFiles.values()) {
-      for (const file of files) {
-        if (!isServerFile(file)) {
-          activeFiles.add(file);
+      // Create blob URLs for new files
+      for (const file of activeFiles) {
+        if (!next.has(file)) {
+          next.set(file, createTypedBlobUrl(file));
+          changed = true;
         }
       }
-    }
 
-    setBlobUrls((prev) => {
-      let changed = false;
-      const next = new Map(prev);
+      // Revoke and remove blob URLs for files no longer active
       for (const [file, url] of prev.entries()) {
         if (!activeFiles.has(file)) {
           URL.revokeObjectURL(url);
@@ -426,6 +448,7 @@ export function TransactionView({
           changed = true;
         }
       }
+
       return changed ? next : prev;
     });
   }, [draftEntryFiles]);
@@ -804,11 +827,13 @@ export function TransactionView({
     });
   };
 
-  // Auto-save files when entry becomes valid or when files are added
+  // Auto-save files when entry becomes valid or when files are added.
+  // Uses entriesUIRef to avoid re-running on every render. Triggers on file/save changes.
   useEffect(() => {
-    if (!entriesUI.length || !companyId) return;
+    const entries = entriesUIRef.current;
+    if (!entries.length || !companyId) return;
 
-    entriesUI.forEach((entry) => {
+    entries.forEach((entry) => {
       if (entry.ledgerEntryId && canAcceptFiles(entry.uiEntryId)) {
         const files = draftEntryFiles.get(entry.uiEntryId) || [];
         const hasUnsavedFiles = files.some(
@@ -823,32 +848,33 @@ export function TransactionView({
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entriesUI, draftEntryFiles, savedFiles, companyId, getFileKey]);
+  }, [draftEntryFiles, savedFiles, companyId, getFileKey, entriesUISignature]);
 
-  // Fetch presigned URLs for server files that need them
+  // Fetch presigned URLs for server files that need them.
+  // Uses a ref to track requested keys so that state updates from responses
+  // don't re-trigger this effect (breaking the cascade loop).
   useEffect(() => {
     if (!companyId) return;
 
-    // Find all server files that need presigned URLs
-    const filesNeedingUrls: Array<{ key: string }> = [];
+    const requested = requestedPresignedKeysRef.current;
+    const filesNeedingUrls: string[] = [];
 
     for (const files of draftEntryFiles.values()) {
       for (const file of files) {
-        if (
-          isServerFile(file) &&
-          !presignedUrls.has(file.key) &&
-          !failedPresignedUrls.has(file.key)
-        ) {
-          // Avoid duplicate requests for the same key
-          if (!filesNeedingUrls.some((f) => f.key === file.key)) {
-            filesNeedingUrls.push({ key: file.key });
-          }
+        if (isServerFile(file) && !requested.has(file.key)) {
+          filesNeedingUrls.push(file.key);
         }
       }
     }
 
-    // Fetch URLs for files that need them
-    for (const { key } of filesNeedingUrls) {
+    if (filesNeedingUrls.length === 0) return;
+
+    // Mark all as requested before firing to prevent duplicates
+    for (const key of filesNeedingUrls) {
+      requested.add(key);
+    }
+
+    for (const key of filesNeedingUrls) {
       getObjectDownloadUrl({
         bucketType: 'txnFiles',
         fileKey: key,
@@ -859,7 +885,6 @@ export function TransactionView({
             setPresignedUrls((prev) =>
               new Map(prev).set(key, downloadUrlResponse.data!.url),
             );
-            // Clear from failed set if it was a retry
             setFailedPresignedUrls((prev) => {
               if (!prev.has(key)) return prev;
               const next = new Set(prev);
@@ -874,7 +899,7 @@ export function TransactionView({
           setFailedPresignedUrls((prev) => new Set(prev).add(key));
         });
     }
-  }, [companyId, draftEntryFiles, presignedUrls, failedPresignedUrls]);
+  }, [companyId, draftEntryFiles]);
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -1798,7 +1823,7 @@ interface EditableSelectFieldProps {
   autocompleteProps: ComponentProps<typeof AutocompleteDropdown>;
 }
 
-export function EditableSelectField({
+export const EditableSelectField = memo(function EditableSelectField({
   label,
   value,
   isEditing,
@@ -1911,7 +1936,7 @@ export function EditableSelectField({
       </div>
     </div>
   );
-}
+});
 
 interface EditableTextFieldProps {
   value: string;
@@ -1925,7 +1950,7 @@ interface EditableTextFieldProps {
   textareaRows?: number;
   type?: string;
 }
-export function EditableTextField({
+export const EditableTextField = memo(function EditableTextField({
   label,
   isEditing,
   value,
@@ -2013,9 +2038,9 @@ export function EditableTextField({
       </div>
     </div>
   );
-}
+});
 
-function NumberField({
+const NumberField = memo(function NumberField({
   label,
   amount,
   onDraftChange,
@@ -2164,7 +2189,7 @@ function NumberField({
       </div>
     </div>
   );
-}
+});
 
 function parseNumber(v: string): number {
   return Number(v.replace(/,/g, '')) || 0;
@@ -2186,12 +2211,5 @@ function isValidNumericInput(v: string, maxDecimalPlaces: number = 2) {
 }
 
 function createTypedBlobUrl(file: File): string {
-  const type =
-    file.type ||
-    (file.name.toLowerCase().endsWith('.pdf')
-      ? 'application/pdf'
-      : 'application/octet-stream');
-
-  const blob = new Blob([file], { type });
-  return URL.createObjectURL(blob);
+  return URL.createObjectURL(file);
 }

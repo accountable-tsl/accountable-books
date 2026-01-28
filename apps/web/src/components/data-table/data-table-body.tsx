@@ -41,6 +41,8 @@ export function DataTableBody<TData>({
   const enableVirtual = virtualization?.enabled ?? false;
   const estimatedRowHeight = virtualization?.estimatedRowHeight ?? 60;
   const overscan = virtualization?.overscan ?? 5;
+  const shouldMeasure = virtualization?.measure ?? true;
+  const fixedRowHeight = virtualization?.fixedRowHeight ?? false;
   const thresholdPx = thresholdRows * estimatedRowHeight;
 
   // Virtualizer count must match the number of rows we'll actually render
@@ -170,7 +172,7 @@ export function DataTableBody<TData>({
       'data-index': stableRowKey,
       'data-depth': row.depth,
       ref: (node: HTMLDivElement | null) => {
-        if (node && enableVirtual) {
+        if (node && enableVirtual && shouldMeasure) {
           virtualizer.measureElement(node);
         }
       },
@@ -188,6 +190,10 @@ export function DataTableBody<TData>({
       style: {
         cursor: rowClickEnabled ? 'pointer' : 'default',
         minHeight: estimatedRowHeight + 'px',
+        height:
+          enableVirtual && fixedRowHeight
+            ? estimatedRowHeight + 'px'
+            : undefined,
         // paddingLeft: isSubRow
         //   ? calculateIndent(row.depth, indentSize)
         //   : undefined, // Indent sub-rows using configured size

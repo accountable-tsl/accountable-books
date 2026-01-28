@@ -9,7 +9,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
 import {
   ChevronDown,
   ChevronRight,
@@ -294,6 +293,7 @@ function ExchangeRateCell({
   txn,
   mode,
   onFxRateChange,
+  onIntentExchangeRateUpdate,
   markFieldClean,
   markFieldDirty,
   row,
@@ -301,12 +301,11 @@ function ExchangeRateCell({
   txn: GroupedTransaction;
   mode: 'review' | 'autosave';
   onFxRateChange?: (bankTransactionId: string, rate: number) => void;
+  onIntentExchangeRateUpdate?: (txn: GroupedTransaction, rate: number) => void;
   markFieldClean: (key: string) => void;
   markFieldDirty: (key: string) => void;
   row: { toggleExpanded: () => void };
 }) {
-  const { updateExchangeRate } = useLedgerIntentUpdater(txn);
-
   if (mode === 'autosave' && !txn.hasMultipleEntries && txn.isEditable) {
     return (
       <EditableNumberCell
@@ -321,7 +320,7 @@ function ExchangeRateCell({
             onFxRateChange?.(txn.bankTransactionId, numValue);
 
             // Update exchange rate via intent system
-            updateExchangeRate(numValue);
+            onIntentExchangeRateUpdate?.(txn, numValue);
 
             markFieldClean(fieldKey(txn.id, 'exchangeRate'));
           }
@@ -511,6 +510,7 @@ export const getCatEngineColumns = ({
   mode,
   reportingCurrency,
   onFxRateChange,
+  onIntentExchangeRateUpdate,
   markFieldClean,
   markFieldDirty,
 }: {
@@ -518,6 +518,7 @@ export const getCatEngineColumns = ({
   mode: 'review' | 'autosave';
   reportingCurrency?: string;
   onFxRateChange?: (bankTransactionId: string, rate: number) => void;
+  onIntentExchangeRateUpdate?: (txn: GroupedTransaction, rate: number) => void;
   markFieldClean: (fieldKey: string) => void;
   markFieldDirty: (fieldKey: string) => void;
 }): ColumnDef<GroupedTransaction>[] => {
@@ -735,6 +736,7 @@ export const getCatEngineColumns = ({
             txn={txn}
             mode={mode}
             onFxRateChange={onFxRateChange}
+            onIntentExchangeRateUpdate={onIntentExchangeRateUpdate}
             markFieldClean={markFieldClean}
             markFieldDirty={markFieldDirty}
             row={row}

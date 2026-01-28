@@ -4,7 +4,7 @@ import type {
   GroupedTransaction,
 } from '@/modules/accounting/categorization';
 import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '@/app/session';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
@@ -312,10 +312,10 @@ export function CatEngine() {
   >(null);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
-  // Draft transactions state for optimistic UI updates
-  const [draftTransactions, setDraftTransactions] = useState<
-    GroupedTransaction[]
-  >([]);
+  // Draft transaction overrides for optimistic UI updates (keyed by bankTransactionId)
+  const [draftTransactionOverrides, setDraftTransactionOverrides] = useState<
+    Map<string, GroupedTransaction>
+  >(new Map());
   // Mode state with localStorage persistence
   const MODE_STORAGE_KEY = `cat-engine-mode-${companyId || 'default'}`;
   const USER_PREFERENCE_KEY = `cat-engine-user-preference-${companyId || 'default'}`;
@@ -361,7 +361,8 @@ export function CatEngine() {
     localStorage.setItem(ROW_HEIGHT_KEY, rowHeight);
   }, [rowHeight, ROW_HEIGHT_KEY]);
 
-  const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
+  // Track dirty fields without re-rendering on each keystroke.
+  const dirtyFieldsRef = useRef<Set<string>>(new Set());
   const [selectedBankAccountIds, setSelectedBankAccountIds] = useState<
     string[]
   >([]);
@@ -371,8 +372,17 @@ export function CatEngine() {
   >(new Set());
 
   const manager = useLedgerIntentManagerV2();
-  const getPendingTransactionsSummary = manager.getPendingTransactionsSummary;
-  const hasAnyPendingChanges = manager.hasAnyPendingChanges;
+  // Keep a stable manager instance per company to avoid provider re-renders.
+  const managerRef = useRef(manager);
+  const managerCompanyRef = useRef(companyId);
+  if (managerCompanyRef.current !== companyId) {
+    managerRef.current = manager;
+    managerCompanyRef.current = companyId;
+  }
+  const managerStable = managerRef.current;
+  const getPendingTransactionsSummary =
+    managerStable.getPendingTransactionsSummary;
+  const hasAnyPendingChanges = managerStable.hasAnyPendingChanges;
 
   const is1024 = useMediaQuery('(min-width: 1024px)');
   const is1440 = useMediaQuery('(min-width: 1440px)');
@@ -483,6 +493,12 @@ export function CatEngine() {
     return txnData?.pages?.flatMap((page) => page.transactions) || [];
   }, [USE_TEST_DATA, testTxns, txnData?.pages]);
 
+  const rawTransactionsByBankId = useMemo(() => {
+    const map = new Map<string, GroupedTransaction>();
+    rawTransactions.forEach((txn) => map.set(txn.bankTransactionId, txn));
+    return map;
+  }, [rawTransactions]);
+
   const footerTotals = useMemo(() => {
     return rawTransactions.reduce(
       (totals, txn) => {
@@ -495,22 +511,32 @@ export function CatEngine() {
     );
   }, [rawTransactions]);
 
-  // Sync draft transactions with server data
+  // Prune overrides when server data changes to avoid stale entries.
   useEffect(() => {
-    setDraftTransactions((prev) => {
-      if (prev.length === 0) return rawTransactions;
-      const prevMap = new Map(prev.map((txn) => [txn.bankTransactionId, txn]));
-      return rawTransactions.map((txn) => {
-        if (manager.hasPendingChangesForTransaction(txn.bankTransactionId)) {
-          return prevMap.get(txn.bankTransactionId) ?? txn;
+    if (draftTransactionOverrides.size === 0) return;
+    const validIds = new Set(
+      rawTransactions.map((txn) => txn.bankTransactionId),
+    );
+    setDraftTransactionOverrides((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const key of prev.keys()) {
+        if (!validIds.has(key)) {
+          next.delete(key);
+          changed = true;
         }
-        return txn;
-      });
+      }
+      return changed ? next : prev;
     });
-  }, [rawTransactions]);
+  }, [rawTransactions, draftTransactionOverrides.size]);
 
-  // Use draft transactions for display (includes optimistic updates)
-  const transactions = useMemo(() => draftTransactions, [draftTransactions]);
+  // Use draft overrides for display (includes optimistic updates).
+  const transactions = useMemo(() => {
+    if (draftTransactionOverrides.size === 0) return rawTransactions;
+    return rawTransactions.map(
+      (txn) => draftTransactionOverrides.get(txn.bankTransactionId) ?? txn,
+    );
+  }, [rawTransactions, draftTransactionOverrides]);
 
   const transactionMap = useMemo(() => {
     const map = new Map<string, GroupedTransaction>();
@@ -523,7 +549,7 @@ export function CatEngine() {
       accordionItems.map((item) => [item.id, 0]),
     );
 
-    transactions.forEach((txn) => {
+    rawTransactions.forEach((txn) => {
       if (txn.status === 'uncategorized') {
         counts.set('uncategorized', (counts.get('uncategorized') || 0) + 1);
         return;
@@ -541,7 +567,7 @@ export function CatEngine() {
     });
 
     return counts;
-  }, [transactions]);
+  }, [rawTransactions]);
 
   const tableTransactions = useMemo(() => {
     if (view !== 'group') return transactions;
@@ -676,77 +702,38 @@ export function CatEngine() {
   // Handler to update exchange rate and recalculate spent/received
   const handleExchangeRateUpdate = useCallback(
     (bankTransactionId: string, newRate: number) => {
-      setDraftTransactions((prev) =>
-        prev.map((txn) => {
-          if (txn.bankTransactionId !== bankTransactionId) return txn;
+      setDraftTransactionOverrides((prev) => {
+        const base =
+          prev.get(bankTransactionId) ||
+          rawTransactionsByBankId.get(bankTransactionId);
+        if (!base) return prev;
 
-          // // For single entry transactions, update the transaction itself
-          // if (!txn.hasMultipleEntries) {
-          //   const newReportingAmount = txn.nativeAmount * newRate;
-          //   return {
-          //     ...txn,
-          //     exchangeRate: newRate.toFixed(4),
-          //     reportingAmount: newReportingAmount,
-          //     spent: newReportingAmount > 0 ? newReportingAmount : 0,
-          //     received:
-          //       newReportingAmount < 0 ? Math.abs(newReportingAmount) : 0,
-          //   };
-          // }
-
-          // // For multiple entries, update each entry
-          // const updatedEntries = txn.entries!.map((entry) => {
-          //   const newReportingAmount = entry.nativeAmount * newRate;
-          //   return {
-          //     ...entry,
-          //     reportingAmount: newReportingAmount,
-          //     exchangeRate: newRate.toFixed(4),
-          //     spent: newReportingAmount > 0 ? newReportingAmount : 0,
-          //     received:
-          //       newReportingAmount < 0 ? Math.abs(newReportingAmount) : 0,
-          //   };
-          // });
-
-          // // Recalculate totals from entries
-          // const newSpent = updatedEntries.reduce(
-          //   (sum, entry) =>
-          //     sum + (entry.reportingAmount > 0 ? entry.reportingAmount : 0),
-          //   0,
-          // );
-          // const newReceived = updatedEntries.reduce(
-          //   (sum, entry) =>
-          //     sum +
-          //     (entry.reportingAmount < 0 ? Math.abs(entry.reportingAmount) : 0),
-          //   0,
-          // );
-
-          // return {
-          //   ...txn,
-          //   exchangeRate: newRate.toFixed(4),
-          //   reportingAmount: updatedEntries.reduce(
-          //     (sum, e) => sum + e.reportingAmount,
-          //     0,
-          //   ),
-          //   spent: newSpent,
-          //   received: newReceived,
-          //   entries: updatedEntries,
-          // };
-          return updateTransactionExchangeRate(txn, newRate);
-        }),
-      );
+        const next = new Map(prev);
+        next.set(
+          bankTransactionId,
+          updateTransactionExchangeRate(base, newRate),
+        );
+        return next;
+      });
     },
-    [],
+    [rawTransactionsByBankId],
+  );
+
+  // Update exchange rate via intent system (called from table cells without per-row hooks)
+  const handleIntentExchangeRateUpdate = useCallback(
+    (txn: GroupedTransaction, rate: number) => {
+      managerStable.registerTransaction(txn);
+      managerStable.updateExchangeRate(txn.bankTransactionId, rate);
+    },
+    [managerStable],
   );
 
   const markFieldClean = useCallback((fieldKey: string) => {
-    setDirtyFields((prev) => {
-      const next = new Set(prev);
-      next.delete(fieldKey);
-      return next;
-    });
+    dirtyFieldsRef.current.delete(fieldKey);
   }, []);
 
   const markFieldDirty = useCallback((fieldKey: string) => {
-    setDirtyFields((prev) => new Set(prev).add(fieldKey));
+    dirtyFieldsRef.current.add(fieldKey);
   }, []);
 
   const columns = useMemo(
@@ -756,6 +743,7 @@ export function CatEngine() {
         mode,
         reportingCurrency: company?.reportingCurrencyCode,
         onFxRateChange: handleExchangeRateUpdate,
+        onIntentExchangeRateUpdate: handleIntentExchangeRateUpdate,
         markFieldClean,
         markFieldDirty,
       }),
@@ -764,6 +752,7 @@ export function CatEngine() {
       mode,
       company,
       handleExchangeRateUpdate,
+      handleIntentExchangeRateUpdate,
       markFieldClean,
       markFieldDirty,
     ],
@@ -787,6 +776,8 @@ export function CatEngine() {
         enabled: true,
         estimatedRowHeight,
         overscan: 8,
+        measure: false,
+        fixedRowHeight: true,
       },
       rowSelection: {
         enabled: (row) => row.original.isEditable !== false,
@@ -817,7 +808,7 @@ export function CatEngine() {
         fetchNextPage,
         hasNextPage,
         isFetching: isFetchingNextPage || isLoading,
-        threshold: 8,
+        threshold: 21,
       },
     } satisfies DataTableInputOptions<GroupedTransaction>;
   }, [
@@ -875,7 +866,7 @@ export function CatEngine() {
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      const hasDirtyFields = dirtyFields.size > 0;
+      const hasDirtyFields = dirtyFieldsRef.current.size > 0;
       const hasPending = hasAnyPendingChanges();
 
       if (hasDirtyFields || hasPending) {
@@ -897,7 +888,7 @@ export function CatEngine() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [dirtyFields, hasAnyPendingChanges, getPendingTransactionsSummary]);
+  }, [hasAnyPendingChanges, getPendingTransactionsSummary]);
 
   // Handle manual mode changes with preference persistence
   const handleModeChange = useCallback(
@@ -923,7 +914,7 @@ export function CatEngine() {
   }
 
   return (
-    <LedgerIntentManagerV2Provider value={manager}>
+    <LedgerIntentManagerV2Provider value={managerStable}>
       <div className="flex h-full min-h-0 flex-col p-4 pb-2">
         <div className="mb-4 flex h-8 max-h-8 items-center justify-between overflow-clip">
           <div className="flex h-7.5 items-center gap-2">
