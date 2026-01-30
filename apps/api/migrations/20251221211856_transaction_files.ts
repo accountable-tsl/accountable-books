@@ -18,7 +18,6 @@ export async function up(knex: Knex): Promise<void> {
     table
       .string('provider')
       .notNullable()
-      .defaultTo('cloudflare_r2')
       .checkIn(['cloudflare_r2', 'aws_s3', 'google_gcs', 'backblaze_b2']);
 
     table.string('region').nullable();

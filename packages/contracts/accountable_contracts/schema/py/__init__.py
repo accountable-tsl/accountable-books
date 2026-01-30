@@ -34,7 +34,8 @@ from .reporting_framework import ReportingFramework
 from .temporal_schema import TemporalSchema
 from .tenant_account_ranker import TenantAccountRanker
 from .transaction_files import TransactionFiles
+from .txn_file_base import TxnFileBase
 from .txn_file_input import TxnFileInput
 from .txn_file_source import TxnFileSource
 
-__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GetCategorizationStatsParams", "GetTxnFileInput", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "NewTxnFile", "ObjStorageProvider", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker", "TransactionFiles", "TxnFileInput", "TxnFileSource"]
+__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "DataMutationIntent", "EnrichedTransaction", "FinalPosting", "GetCategorizationStatsParams", "GetTxnFileInput", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "MlPredictionOutput", "NewAccountType", "NewTxnFile", "ObjStorageProvider", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReportingFramework", "TemporalSchema", "TenantAccountRanker", "TransactionFiles", "TxnFileBase", "TxnFileInput", "TxnFileSource"]

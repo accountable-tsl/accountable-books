@@ -24,6 +24,7 @@ import contactsRoutes from './domains/contacts/contacts.routes.js';
 import countryRoutes from './domains/countries/countries.routes.js';
 import currencyRoutes from './domains/currencies/currencies.routes.js';
 import emailRoutes from './domains/email/email.routes.js';
+import journalsRoutes from './domains/journals/journals.routes.js';
 import ledgersRoutes from './domains/ledgers/ledgers.routes.js';
 import objectRoutes from './domains/objects/objects.routes.js';
 import projectsRoutes from './domains/projects/projects.routes.js';
@@ -168,6 +169,7 @@ export async function setupApp() {
   app.use('/api/:companyId/categorization', categorizationRoutes);
   app.use('/api/:companyId/coa', coaRoutes);
   app.use('/api/:companyId/ledgers', ledgersRoutes);
+  app.use('/api/:companyId/journals', journalsRoutes);
   app.use('/api/:companyId/contacts', contactsRoutes);
   app.use('/api/:companyId/projects', projectsRoutes);
   app.use('/api/:companyId/settings', settingsRoutes);

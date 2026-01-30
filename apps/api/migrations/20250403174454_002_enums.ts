@@ -76,7 +76,9 @@ export async function up(knex: Knex): Promise<void> {
       'daily',
       'weekly',
       'monthly',
+      'quarterly',
       'yearly',
+      'custom',
     ]),
   );
   await knex.raw(

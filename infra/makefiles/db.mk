@@ -23,7 +23,7 @@ db-logs: ## View local database logs
 
 db-migrate: guard-nonprod ## Run database migrations for local development
 	@echo "$(GREEN)🗄️ Running migrations...$(RESET)"
-	@pnpm -F @accountable-books/api run migrate
+	@pnpm -F @accountable-books/api migrate
 
 db-seed: guard-nonprod ## Apply demo data for local development
 	@echo "$(GREEN)🌱 Applying demo data...$(RESET)"

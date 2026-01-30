@@ -1185,6 +1185,63 @@ export async function getFiscalCalendar({
   }));
 }
 
+/**
+ * Ensures fiscal calendar coverage exists for the requested date range and returns
+ * the relevant fiscal periods, while optionally enforcing that no posting occurs
+ * into closed or locked monthly periods.
+ *
+ * This is the main safe entry point for any operation that needs to:
+ * - Read fiscal periods (monthly, quarterly, yearly)
+ * - Validate that posting is allowed (open periods only)
+ * - Guarantee that the fiscal calendar is populated for the date range
+ *
+ * Behavior:
+ * 1. Validates the date range (throws if invalid or backwards)
+ * 2. Idempotently fills any missing fiscal periods for monthly, quarterly, and yearly
+ *    (via `fillCoverageGaps` — this is a side-effect)
+ * 3. If `requireMonthlyOpen = true`, checks that **no monthly period** in the range
+ *    is closed or locked → throws descriptive error if any are
+ * 4. Returns only the fiscal calendar rows for the requested `fetchTypes`
+ *
+ * Use this function instead of calling `getFiscalCalendar` directly when:
+ * - You are about to post transactions / journal entries
+ * - You want to ensure gaps are filled automatically
+ * - You need to enforce accounting period locking rules
+ *
+ * @param {Object} params - Function parameters
+ * @param {string} params.companyId - The company identifier
+ * @param {string} params.startYMD - Start date in YYYY-MM-DD format (inclusive)
+ * @param {string} params.endYMD - End date in YYYY-MM-DD format (inclusive)
+ * @param {FiscalPeriodType[]} [params.fetchTypes=['monthly','quarterly','yearly']] - Which period granularities to return
+ * @param {boolean} [params.requireMonthlyOpen=true] - If true, throws if any monthly period in range is closed/locked
+ * @param {Knex.Transaction} [params.trx] - Optional Knex transaction to participate in
+ *
+ * @returns {Promise<{ rows: FiscalCalendar[] }>} Object containing the requested fiscal periods
+ *
+ * @throws {Error} If date range is invalid or backwards
+ * @throws {Error} If `requireMonthlyOpen=true` and any month in range is closed or locked
+ *                 (error message includes the specific blocked period)
+ *
+ * @example
+ * // Before posting a January 2026 invoice
+ * const { rows } = await ensureAndFetchFiscalCalendar({
+ *   companyId: "co_abc123",
+ *   startYMD: "2026-01-15",
+ *   endYMD: "2026-01-15",
+ *   fetchTypes: ["monthly"],
+ *   requireMonthlyOpen: true,
+ *   trx,
+ * });
+ *
+ * // For a quarterly report (read-only, no need to check open status)
+ * const { rows } = await ensureAndFetchFiscalCalendar({
+ *   companyId: "co_abc123",
+ *   startYMD: "2026-01-01",
+ *   endYMD: "2026-12-31",
+ *   fetchTypes: ["quarterly"],
+ *   requireMonthlyOpen: false,
+ * });
+ */
 export async function ensureAndFetchFiscalCalendar({
   companyId,
   startYMD,

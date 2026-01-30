@@ -18,6 +18,7 @@
 - [ ] Consider removing input_checksum
 - [ ] Make sure generate pydantic in contracts cleans up the /py folder first before generating new stuff
 - [ ] Contact Type in Add new contact dialog
+- [ ] Refactor getCategorizationTransactions to use cursor-based pagination instead of offset-based (like getJournalsByCursor). Current offset pagination can skip/duplicate rows if data changes between requests, especially problematic for infinite scroll in Cat Engine.
 
 ### NEAR-TERM (Post-Launch, High Impact)
 
@@ -41,6 +42,7 @@
 - [ ] Tracking user actions and trails across the app
 - [ ] Add all ISO 4217 currency codes to currencies table
 - [ ] Add concurrency to deploy-staging.yml: { group: staging, cancel-in-progress: true }
+- [ ] When implementing payments, do not do stripe only. Make sure to have a fallback ready by default
 
 ### LATER (Future Versions / Nice-to-Have)
 
@@ -65,5 +67,6 @@
 - [ ] What if for personal finance, snapping and keeping receipts, people can get points
 - [ ] Consider adding chromatic or an alternative
 - [x] Plaid Webhook implementation
+- [ ] Storage cleanup plan (simple cron that deletes objects not referenced in DB after 24h) - journals, etc.
 
 ---

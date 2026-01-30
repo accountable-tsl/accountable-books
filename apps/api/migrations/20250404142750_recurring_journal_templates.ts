@@ -22,6 +22,23 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .references('id')
       .inTable('companies');
+
+    // Manual journals enhancements
+    table.boolean('auto_post').notNullable().defaultTo(false);
+    table.string('title', 512).nullable(); // Title template for generated journals
+    table
+      .uuid('currency_id')
+      .nullable()
+      .references('id')
+      .inTable('currencies')
+      .onDelete('SET NULL');
+    table
+      .uuid('contact_id')
+      .nullable()
+      .references('id')
+      .inTable('contacts')
+      .onDelete('SET NULL');
+
     table.specificType('frequency', 'recurrence_frequency').notNullable();
     table.timestamp('start_date', { useTz: true }).notNullable();
     table.timestamp('end_date', { useTz: true }).nullable();

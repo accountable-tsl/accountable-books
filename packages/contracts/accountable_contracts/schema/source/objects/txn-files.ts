@@ -32,19 +32,24 @@ export const getTxnFileInput = z
   });
 export type GetTxnFileInput = z.infer<typeof getTxnFileInput>;
 
+export const txnFileBase = z.object({
+  id: z.uuid().optional(),
+  name: z.string().max(512),
+  key: z.string().max(1024),
+  bucket_name: z.string(),
+  url: z.url(),
+  type: z.string(),
+  size_bytes: z.coerce.bigint(),
+  checksum: z.string().max(64).nullish(),
+  provider: objStorageProvider.default('cloudflare_r2').optional(),
+  region: z.string().nullish(),
+  endpoint: z.string().nullish(),
+});
+export type TxnFileBase = z.infer<typeof txnFileBase>;
+
 export const txnFileInput = z
   .object({
-    id: z.uuid().optional(),
-    name: z.string().max(512),
-    key: z.string().max(1024),
-    bucket_name: z.string(),
-    url: z.url(),
-    type: z.string(),
-    size_bytes: z.coerce.bigint(),
-    checksum: z.string().max(64).nullish(),
-    provider: objStorageProvider.default('cloudflare_r2').optional(),
-    region: z.string().nullish(),
-    endpoint: z.string().nullish(),
+    ...txnFileBase.shape,
     source: txnFileSource,
     transaction_id: z.uuid(),
     entry_id: z.uuid().nullish(),

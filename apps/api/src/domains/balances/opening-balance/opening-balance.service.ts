@@ -197,12 +197,12 @@ export async function setBankOpeningBalance({
 
       const journalResult = await postJournalRecord({
         data: {
-          date: journalDate,
+          date: ymdUtc(journalDate),
           title: `Bank Opening Balance - ${bankAccount.mask}`,
           description: `Opening balance for bank account - ${bankAccount.mask} (${origin})`,
           status: 'posted',
           currencyId: bankAccount.currency_id,
-          transactions: [
+          entries: [
             {
               description: `Bank opening balance - ${bankAccount.mask}`,
               coaId: bankAccount.coa_id,

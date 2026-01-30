@@ -1,14 +1,12 @@
-import type { JournalTransactionData } from './journals.types.js';
+import type { JournalEntriesBase } from './journals.types.js';
 
-export function validateDebitCreditBalance(
-  transactions: JournalTransactionData[],
-): {
+export function validateDebitCreditBalance(entries: JournalEntriesBase[]): {
   isValid: boolean;
   error?: string;
   totalDebits: number;
   totalCredits: number;
 } {
-  const { debit, credit } = transactions.reduce(
+  const { debit, credit } = entries.reduce(
     ({ debit, credit }, t) => ({
       debit: t.side === 'debit' ? debit + t.amount : debit,
       credit: t.side === 'credit' ? credit + t.amount : credit,

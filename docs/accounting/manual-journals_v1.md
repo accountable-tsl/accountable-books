@@ -10,6 +10,27 @@ Covers: journal list, create/void/reverse/copy, recurring templates, auto-revers
 
 ---
 
+## 📊 Current Implementation Status
+
+**Last Updated:** 2025-01-30
+
+| Component                       | Status         | Completion |
+| ------------------------------- | -------------- | ---------- |
+| **Phase 1: Database Migration** | ✅ Complete    | 100%       |
+| **Phase 2: Backend API**        | 🔄 In Progress | ~50%       |
+| - Core queries (list, get)      | ✅ Complete    | 100%       |
+| - Create journal                | ✅ Complete    | 100%       |
+| - Update/Post/Void/Reverse/Copy | ⏳ Pending     | 0%         |
+| - Controller & Routes           | ⏳ Pending     | 0%         |
+| **Phase 3-5: Frontend**         | ⏳ Not Started | 0%         |
+| **Phase 6: Recurring Journals** | ⏳ Not Started | 0%         |
+| **Phase 7: Auto-Reversal Job**  | ⏳ Not Started | 0%         |
+| **Phase 8: CSV Import**         | ⏳ Not Started | 0%         |
+
+**Next Steps:** Complete remaining Phase 2 backend functions + controller + routes before moving to frontend.
+
+---
+
 ## Locked-in Product Decisions
 
 | Decision                  | Choice                                                                                            | Rationale                                                       |
@@ -27,114 +48,193 @@ Covers: journal list, create/void/reverse/copy, recurring templates, auto-revers
 
 ---
 
-## Bugs & Schema Drift to Fix First
+## Implementation Decisions & Deviations from Plan
 
-These are existing issues that will cause runtime failures or incorrect behavior:
+### Key Changes Made During Implementation
 
-### 1. `audit_events.action` enum mismatch
+1. **Cursor-based pagination added** (not in original plan)
+   - Added `getJournalsByCursor()` for infinite scroll support
+   - Safer than offset-based for large datasets (prevents skipping/duplicate rows)
+   - Uses keyset pagination with composite (sortColumn, id) ordering
+   - Cursor includes sort metadata to prevent misuse across different sort orders
 
-**Problem:** `reverseJournalRecord()` in [journals.model.ts](apps/api/src/domains/journals/journals.model.ts) inserts `'void'` and `'reverse'` into `audit_events.action`, but the DB enum likely doesn't include these values. This would fail at runtime.
-**Fix:** Migration to expand the `audit_events.action` enum to include: `create`, `update`, `post`, `post_blocked_period`, `void`, `reverse`, `copy`, `import`.
+2. **Audit trail removed from `getJournal()`**
+   - Original plan: include full audit trail in every journal fetch
+   - Decision: Remove audit trail to reduce payload size and query complexity
+   - Rationale: Audit trail not needed for every view, can be fetched separately if needed
 
-### 2. `postJournalRecord()` closed-period rollback
+3. **Reference generation system**
+   - Uses sequence-counter service (`allocateSequence()`) for atomic sequence numbers
+   - Format: `JE-YYYYMM-NNNN` (e.g., `JE-202501-0042`)
+   - Sequence buckets by month (`sequence_month = YYYY-MM-01`)
+   - Handles both auto-generated (posted) and custom references (drafts)
 
-**Problem:** When posting into a closed/locked fiscal period, `createLedgerRecord()` throws (via `period_not_locked` constraint), causing the entire transaction to roll back. The journal is not saved at all.
-**Desired behavior (user agency):** Reject with a specific error code so the frontend can ask the user whether to:
-- Save as draft (same payload, `status: 'draft'`)
-- Go back (change date, etc)
-- Cancel
-**Fix:** Add a fiscal period pre-check in `postJournalRecord()` (and `postDraftJournal()`) before calling `createLedgerRecord()`. If period is closed/locked, return `{ success: false, code: 'PERIOD_CLOSED', message: 'Fiscal period for this date is closed or locked.' }` **without saving anything**.
-**Exception:** Background jobs (recurring generation, auto-reversal) have no user to ask — they save as draft automatically and log a `post_blocked_period` audit event.
+4. **Journal-to-ledger entry linking**
+   - Pre-allocate UUIDs for both journal entries and ledger entries
+   - Allows bi-directional linking maintained in same transaction
+   - Updates `journal_entries.ledger_entry_id` and `ledger_entry_fs_date` after ledger creation
 
-### 3. Schema drift in `journals.types.ts`
+5. **Contact field naming**
+   - Uses `display_name` from contacts table (not `name`)
+   - Provides formatted contact name for display
 
-**Problem:** The Zod schema includes `generated_from_template_id` and `auto_reversal_date` which don't exist as DB columns.
-**Fix:**
+6. **Helper functions pattern**
+   - `selectAliasedFields()` — consistent field aliasing across queries
+   - `buildJournalsBaseQuery()` — shared query builder for list endpoints
+   - Cursor helpers: `encodeCursor()`, `decodeCursor()`, `applyKeysetCursor()`, `getSortValueFromRow()`
 
-- Remove `generated_from_template_id` from types — use existing `recurring_template_id` column instead.
-- Add `auto_reversal_date` column to DB (Phase 1 migration).
-- Replace reversal linkage with a single, consistent approach (see Phase 1): `reversal_journal_id` on the original journal.
+7. **File handling**
+   - Integrated with existing `persistTxnFiles()` service
+   - Files stored separately (not returned in `getJournal()` response)
+   - Frontend fetches via objects API as needed
+
+8. **Enhanced validation in `postJournalRecord()`**
+   - Contact validation (must be active in company)
+   - Project validation (must be active in company)
+   - Zero-amount filtering with logging
+   - Negative amount detection
+   - Recurring template validation (both fields required together)
 
 ---
 
-## Phase 1: Database Migration
+## ✅ Completed: Phase 1 Migration & Schema Fixes
 
-**Migration: `add_journal_manual_columns`**
+### 1. Database Migration - DONE
 
-Add to `journal_batches`:
+All schema additions completed in migration `20250404142800_journal_batches.ts`:
 
-- `auto_reversal_date` (timestamp with tz, nullable) — date to auto-create reversing entry
-- `reversal_journal_id` (UUID, nullable, FK to `journal_batches`) — link to the reversing journal (manual reversal or auto-reversal)
-- `original_journal_id` (UUID, nullable, FK to `journal_batches`) — tracks copies (source journal)
-- `voided_at` (timestamp with tz, nullable) — when journal was voided
+- ✅ `auto_reversal_date`, `reversal_journal_id`, `original_journal_id`, `voided_at` on `journal_batches`
+- ✅ `project_id` on `journal_entries` (migration `20250404152719_journal_entries.ts`)
+- ✅ Indexes on `journal_batches` for date sorting and filtering
+- ✅ Partial index for auto-reversal job
+- ✅ Partial unique index for recurring template idempotency
+- ✅ `audit_events` table with flexible `action` varchar field (migration `20250812095743_audit_events.ts`)
 
-Add to `journal_entries`:
+### 2. Fiscal Period Pre-check - DONE
 
-- `project_id` (UUID, nullable, FK to `projects`) — optional project dimension for the line item
+✅ **Implemented in `postJournalRecord()`** - Added fiscal period validation before posting:
 
-Add to `recurring_journal_templates`:
+```typescript
+if (batch.status === 'posted') {
+  await ensureAndFetchFiscalCalendar({
+    companyId: companyUUID,
+    startYMD: toYMD(batch.date),
+    endYMD: toYMD(batch.date),
+    fetchTypes: ['monthly'],
+    trx: txn,
+  });
+}
+```
 
-- `auto_post` (boolean, default false) — whether generated journals auto-post or save as draft
-- `title` (varchar 512, nullable) — title template for generated journals (supports placeholder vars)
-- `currency_id` (UUID, nullable, FK to currencies) — defaults to reporting currency at generation time
-- `contact_id` (UUID, nullable, FK to contacts)
+- Throws error if period is closed/locked (prevents posting)
+- Auto-creates fiscal period if it doesn't exist
+- Only applies to posted journals (drafts skip this check)
 
-Add indexes on `journal_batches`:
+### 3. Schema Cleanup - DONE
 
-- `(company_id, date DESC)` — list queries sorted by date
-- `(company_id, status, date DESC)` — filtered list queries
-- Partial index: `(company_id, auto_reversal_date)` WHERE `auto_reversal_date IS NOT NULL AND status = 'posted' AND reversed_at IS NULL AND reversal_journal_id IS NULL` — auto-reversal job
-- Partial unique index (idempotency): `(recurring_template_id, date)` WHERE `is_recurring = true AND is_deleted = false` — prevents duplicate generation per template per run date
+✅ Types updated in `journals.types.ts`:
 
-**Expand `audit_events.action` enum** (or make it a varchar if not already) to include: `create`, `update`, `post`, `post_blocked_period`, `void`, `reverse`, `copy`, `import`.
+- Using `recurring_template_id` (not `generated_from_template_id`)
+- `auto_reversal_date` properly typed
+- Reversal linkage uses `reversal_journal_id` and `original_journal_id`
 
-**Recurring frequency enum:** update `recurrence_frequency` to include `quarterly` (and document exact behavior in code; see Phase 6).
+---
 
-**Clean up `journals.types.ts`:** Remove `generated_from_template_id`. Replace any `auto_reversal_journal_id`/`reversed_journal_id` fields with `reversal_journal_id` (original journal points to reversing journal).
+## Phase 1: Database Migration - ✅ COMPLETED
 
-**Files:**
+**Migrations completed:**
 
-- `apps/api/migrations/TIMESTAMP_add_journal_manual_columns.ts`
-- `apps/api/src/domains/journals/journals.types.ts` (schema drift cleanup)
+- ✅ `20250404142800_journal_batches.ts`
+- ✅ `20250404152719_journal_entries.ts`
+- ✅ `20250812095743_audit_events.ts`
+
+**journal_batches additions:**
+
+- ✅ `sequence_month`, `sequence_number` — for JE-YYYYMM-NNNN reference generation
+- ✅ `reference` — user-defined or auto-generated journal reference
+- ✅ `auto_reversal_date` — date to auto-create reversing entry
+- ✅ `reversal_journal_id` — link to the reversing journal
+- ✅ `original_journal_id` — tracks copies (source journal)
+- ✅ `voided_at` — when journal was voided
+- ✅ `reversed_at`, `reversed_by_id`, `reversal_reason` — reversal tracking
+
+**journal_entries additions:**
+
+- ✅ `project_id` (FK to `projects`) — optional project dimension per line
+
+**Indexes on journal_batches:**
+
+- ✅ `(company_id, date)` — list queries sorted by date
+- ✅ `(company_id, status, date)` — filtered list queries
+- ✅ Partial index for auto-reversal job: `(company_id, auto_reversal_date)` WHERE conditions
+- ✅ Partial unique index for recurring idempotency: `(recurring_template_id, date)` WHERE `is_recurring = true`
+- ✅ Unique index on `(company_id, reference)` for reference uniqueness
+- ✅ Unique index on `(company_id, sequence_month, sequence_number)` for sequence uniqueness
+
+**audit_events:**
+
+- ✅ Uses varchar `action` field (not enum) — flexible for all event types
+- ✅ Append-only table with trigger preventing updates/deletes
+
+**Notes:**
+
+- Recurring journal templates table already existed with required fields
+- `recurring_journal_templates` has `auto_post`, `contact_id` fields
 
 ---
 
 ## Phase 2: Backend — Journal CRUD API
 
-### 2a. Types & Validation (`journals.types.ts`)
+### 2a. ✅ Types & Validation (`journals.types.ts`) - DONE
 
-New schemas:
+Implemented schemas:
 
-- `ListJournalsQuery` — pagination (`page`, `pageSize`), filters (`status`, `dateFrom`, `dateTo`, `q` search), sort (`sortBy`, `sortDir`)
-- `CreateJournalInput` — `date`, `title`, `description`, `note`, `autoReversalDate`, `entries[]`, `status` (draft/posted)
-- `UpdateDraftInput` — same fields for updating a draft journal
-- `ReverseJournalInput` — `reversalDate` (required, must be in open period), `reason` (optional)
-- `CopyJournalInput` — `date` (optional override), other optional overrides
-- `ImportJournalsInput` — array of journal payloads from CSV parse
+- ✅ `listJournalsPageQuery` — page-based pagination with filters
+- ✅ `listJournalsCursorQuery` — cursor-based pagination for infinite scroll
+- ✅ `listJournalsFilters` — shared filters (status, dateFrom, dateTo, searchQuery, sortBy, sortDir)
+- ✅ `journalsCursor` — cursor validation schema (v1, sortBy, sortDir, value, id)
+- ✅ `journalBatchDataCamel` — create/update input with entries, files, etc.
+- ✅ `JournalListRow` — list response type with computed totals, currency/contact details
+- ✅ `JournalDetailEntry` — entry with COA and project names
+- ✅ `GetJournalResponse` — single journal response type
+- ✅ `RelatedJournalSummary` — related journal summary type
+- ⏳ `UpdateDraftInput`, `ReverseJournalInput`, `CopyJournalInput`, `ImportJournalsInput` — pending
 
-Entry payload fields (manual journals):
-- `entries[].projectId` optional. Must belong to the same company. No requirement that it matches the batch contact.
-- Batch payload field:
-  - `contactId` optional (already supported on `journal_batches`). Applies to the overall journal as the counterparty contact.
+**Implementation notes:**
+
+- Contact field uses `display_name` from contacts table
+- Currency includes code, name, symbol
+- Files handled via `TxnFileInput` from contracts
 
 ### 2b. Model Functions (`journals.model.ts`)
 
-| Function                 | Description                                                                                                                                                                                                                                                      |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `listJournals()`         | Paginated list with search/filter/sort. Returns header data only (no entries array). Includes computed total debit/credit per journal via subquery. Filters: company, status, date range, search text (title, description, code, note).                          |
-| `getJournal()`           | Single journal with all entries (joined with COA names), audit trail from `audit_events`, related journals (reversal link, original link).                                                                                                                       |
-| `postJournalRecord()`    | **Modify existing.** Add fiscal period pre-check (and ensure period exists). If period closed/locked and status is `'posted'`: return `{ success: false, code: 'PERIOD_CLOSED' }` **without saving**. If status is `'draft'`: allow save (draft never hits ledger). If open: existing logic (create batch + entries + ledger). |
-| `updateDraftJournal()`   | Update a draft journal in-place. Reject if status !== `'draft'`. Re-validate balance. Create `update` audit event.                                                                                                                                               |
-| `postDraftJournal()`     | Post an existing draft. Same closed-period pre-check (reject with `PERIOD_CLOSED` if closed/locked). Creates ledger transaction, updates journal status to `'posted'`, links `ledger_transaction_id`. Create `post` audit event.                                  |
-| `voidDraftJournal()`     | Soft-delete a draft journal and its entries. Create `void` audit event.                                                                                                                                                                                          |
-| `reversePostedJournal()` | Create a reversing journal+ledger on a given date. Validate date is in an open period. Mark original as reversed (`reversed_at`, `reversed_by_id`). Create `reverse` audit event. Reuse existing `reverseJournalRecord()` logic but fix the closed-period check. |
-| `copyJournal()`          | Create new draft from any journal (draft, posted, or voided). Set `original_journal_id`. Create `copy` audit event.                                                                                                                                              |
-| `importJournals()`       | Batch create journals from parsed CSV data. Validate each independently. Default behavior in v1: create **drafts** only (still must balance). If import ever attempts posting, it must use the same `PERIOD_CLOSED` behavior (reject without saving, UI decides draft vs cancel). Create `import` audit events. |
+| Function                     | Status  | Notes                                                                                                                                                                                                                                          |
+| ---------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getJournalsByPage()`        | ✅ DONE | Page-based pagination. Returns headers only with computed totals. Uses `buildJournalsBaseQuery()` helper. Includes currency/contact details.                                                                                                   |
+| `getJournalsByCursor()`      | ✅ DONE | **Not in original plan.** Cursor-based pagination for infinite scroll. Uses keyset pagination with composite (sortColumn, id). Includes cursor validation to prevent reuse across different sorts.                                             |
+| `getJournal()`               | ✅ DONE | **Modified from plan:** Removed audit trail (not needed for every fetch). Returns journal with entries (COA+project names), related journals (reversal/original). Uses `selectAliasedFields()` helper for consistency.                         |
+| `postJournalRecord()`        | ✅ DONE | **Enhanced from plan:** Fiscal period pre-check, sequence generation via `allocateSequence()`, pre-allocated UUIDs for journal-ledger links, file persistence via `persistTxnFiles()`, contact/project validation, robust logging with phases. |
+| `generateJournalReference()` | ✅ DONE | **Not in original plan.** Generates JE-YYYYMM-NNNN references using sequence-counter service. Handles both posted journals (auto-generate) and drafts with custom references.                                                                  |
+| `updateDraftJournal()`       | ⏳ TODO | Update draft in-place. Validate status, re-check balance, audit event.                                                                                                                                                                         |
+| `postDraftJournal()`         | ⏳ TODO | Post existing draft. Fiscal period pre-check, create ledger, update status.                                                                                                                                                                    |
+| `voidDraftJournal()`         | ⏳ TODO | Soft-delete draft + entries, audit event.                                                                                                                                                                                                      |
+| `reversePostedJournal()`     | ⏳ TODO | **Stub exists (commented out).** Create reversing journal, validate reversal date period, mark original as reversed.                                                                                                                           |
+| `copyJournal()`              | ⏳ TODO | Copy any journal to new draft, set `original_journal_id`.                                                                                                                                                                                      |
+| `importJournals()`           | ⏳ TODO | Batch create drafts from CSV.                                                                                                                                                                                                                  |
 
-Attachment behavior (manual journals):
-- Journal files are stored in `transaction_files` with `source='journal'`, `transaction_id=journal_batch_id`, `entry_id=null`.
-- `getJournal()` should return the batch-level attached files (or the UI can fetch via objects `get-txn-files`).
-- Ledger transactions created from manual journals should *display* the journal batch files as well (see Phase 5).
+**Helper functions added:**
+
+- ✅ `selectAliasedFields()` — generates aliased select fields for consistency
+- ✅ `getSortValueFromRow()` — extracts sort value for cursor encoding
+- ✅ `encodeCursor()` / `decodeCursor()` — cursor serialization
+- ✅ `applyKeysetCursor()` — applies cursor filter to query
+- ✅ `buildJournalsBaseQuery()` — shared query builder with filters/search/sort
+- ✅ `firstOfMonth()`, `yyyymm()`, `pad4()` — reference generation utilities
+
+**Attachment behavior:**
+
+- ✅ Files stored via `persistTxnFiles()` with `source='journal'`, `transaction_id=journal_batch_id`
+- Files fetched separately via objects API (not returned in `getJournal()` response)
 
 ### 2c. Controller (`journals.controller.ts`)
 
@@ -163,6 +263,7 @@ GET    /period-status?date=YYYY-MM-DD  — returns { status: 'open' | 'closed' |
 Lightweight endpoint for the form to check if a date's fiscal period is open before the user submits.
 
 Behavior:
+
 - If fiscal period records do not exist yet for the date, the API should silently create them (server responsibility) and return the computed status (typically `open`).
 - If the period exists and is `closed`/`locked`, return that so the UI can warn early.
 
@@ -312,10 +413,12 @@ Side panel (Sheet component):
 - Audit trail: Timeline of events from `audit_events`
 
 Attachments (batch-level):
+
 - Show journal batch files (max 5, 10MB each, 20MB total per batch - reuse existing transaction file limits).
 - Upload/remove allowed only while journal is draft (recommended). Posted journal files can be view-only (v1).
 
 Ledger view visibility (requirement):
+
 - Any files attached to a journal batch must show up when viewing the ledger transaction created from that journal.
 - Implementation approach (v1): when fetching ledger transaction details for `transaction_source='manual_journal'`, also fetch `transaction_files` for `source='journal'` and `transaction_id=source_transaction_id` (journal batch id), and merge them into the UI display.
 
@@ -376,6 +479,7 @@ POST   /:templateId/run     — run now (generate next occurrence immediately; u
 **Template status enum:** `draft` | `active` | `paused` | `closed` (matches existing DB enum `recurring_journal_status`)
 
 **Frequency semantics (must be documented in code + docs):**
+
 - `daily`: every calendar day
 - `weekly`: every 7 days (same weekday as `start_date`)
 - `monthly`: same day-of-month as `start_date` (if day doesn’t exist in a month, use month-end)
@@ -488,6 +592,7 @@ reference_id?, date, title, description, entry_description, account_code, debit,
 ```
 
 Project support (optional v1):
+
 - If we include projects in v1 import, add `project_code?` or `project_name?` (prefer code) as an optional column.
 - Otherwise omit from template and keep project assignment manual in the UI.
 
@@ -502,20 +607,35 @@ Project support (optional v1):
 
 ---
 
-## Implementation Order
+## Implementation Order & Status
 
-| #   | Phase   | Scope                                    | Dependencies      |
-| --- | ------- | ---------------------------------------- | ----------------- |
-| 1   | Phase 1 | DB migration + schema drift fixes        | None              |
-| 2   | Phase 2 | Backend CRUD API + fix postJournalRecord | Phase 1           |
-| 3   | Phase 3 | Frontend module + list view              | Phase 2           |
-| 4   | Phase 4 | Frontend create journal form             | Phase 3           |
-| 5   | Phase 5 | Frontend detail, reverse, copy           | Phase 4           |
-| 6   | Phase 6 | Recurring journals (full stack + worker) | Phase 2           |
-| 7   | Phase 7 | Auto-reversal job                        | Phase 2           |
-| 8   | Phase 8 | CSV import (full stack)                  | Phase 2 + Phase 3 |
+| #   | Phase   | Scope                                    | Status             | Dependencies      |
+| --- | ------- | ---------------------------------------- | ------------------ | ----------------- |
+| 1   | Phase 1 | DB migration + schema drift fixes        | ✅ **DONE**        | None              |
+| 2   | Phase 2 | Backend CRUD API + fix postJournalRecord | 🔄 **IN PROGRESS** | Phase 1           |
+|     |         | - Types & schemas                        | ✅ Mostly done     |                   |
+|     |         | - `getJournalsByPage()`                  | ✅ Done            |                   |
+|     |         | - `getJournalsByCursor()` (bonus)        | ✅ Done            |                   |
+|     |         | - `getJournal()`                         | ✅ Done            |                   |
+|     |         | - `postJournalRecord()`                  | ✅ Done            |                   |
+|     |         | - `generateJournalReference()` (bonus)   | ✅ Done            |                   |
+|     |         | - `updateDraftJournal()`                 | ⏳ TODO            |                   |
+|     |         | - `postDraftJournal()`                   | ⏳ TODO            |                   |
+|     |         | - `voidDraftJournal()`                   | ⏳ TODO            |                   |
+|     |         | - `reversePostedJournal()`               | ⏳ TODO            |                   |
+|     |         | - `copyJournal()`                        | ⏳ TODO            |                   |
+|     |         | - `importJournals()`                     | ⏳ TODO            |                   |
+|     |         | - Controller & Routes                    | ⏳ TODO            |                   |
+| 3   | Phase 3 | Frontend module + list view              | ⏳ **TODO**        | Phase 2           |
+| 4   | Phase 4 | Frontend create journal form             | ⏳ **TODO**        | Phase 3           |
+| 5   | Phase 5 | Frontend detail, reverse, copy           | ⏳ **TODO**        | Phase 4           |
+| 6   | Phase 6 | Recurring journals (full stack + worker) | ⏳ **TODO**        | Phase 2           |
+| 7   | Phase 7 | Auto-reversal job                        | ⏳ **TODO**        | Phase 2           |
+| 8   | Phase 8 | CSV import (full stack)                  | ⏳ **TODO**        | Phase 2 + Phase 3 |
 
-Phases 6, 7, 8 are independent and can be parallelized after Phase 2.
+**Current focus:** Complete remaining Phase 2 backend functions (update, post, void, reverse, copy, import) + controller + routes
+
+Phases 6, 7, 8 are independent and can be parallelized after Phase 2 completion.
 
 ---
 
