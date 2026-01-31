@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
 import { knexClient } from '../../db/knexClient.js';
+import { getJobSchedule } from '../../jobs/schedules.js';
 
 /**
  * Partition Management Service
@@ -232,15 +233,18 @@ export async function initializePartitionMaintenanceSchedule(): Promise<void> {
       scheduleDefaultPartitionDraining,
     } = await import('../../jobs/queues/partition-maintenance.queue.js');
 
+    const maintenanceSchedule = getJobSchedule('partitionMaintenance');
+    const drainSchedule = getJobSchedule('partitionDrain');
+
     // Schedule smart maintenance (daily at 2 AM)
     await scheduleSmartPartitionMaintenance({
       yearsAhead: 3,
       monthlyThreshold: 100000,
       drainDefaults: false, // Handled separately
-    });
+    }, maintenanceSchedule.cron);
 
     // Schedule default partition draining (every 4 hours)
-    await scheduleDefaultPartitionDraining();
+    await scheduleDefaultPartitionDraining(drainSchedule.cron);
 
     console.log('✅ Partition maintenance schedule initialized');
   } catch (error) {

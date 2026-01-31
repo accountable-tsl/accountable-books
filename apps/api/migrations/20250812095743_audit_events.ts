@@ -19,6 +19,8 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.raw(`timezone('utc', now())`));
 
+    table.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
+
     table
       .bigInteger('event_sequence')
       .notNullable()

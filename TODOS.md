@@ -70,3 +70,5 @@
 - [ ] Storage cleanup plan (simple cron that deletes objects not referenced in DB after 24h) - journals, etc.
 
 ---
+
+Advisory locks, REGEX, Concurrency, Garbage Collection

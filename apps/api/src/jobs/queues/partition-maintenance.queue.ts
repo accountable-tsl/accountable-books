@@ -58,6 +58,7 @@ export async function scheduleSmartPartitionMaintenance(
     monthlyThreshold?: number;
     drainDefaults?: boolean;
   } = {},
+  cronPattern = '0 2 * * *',
 ): Promise<Job<PartitionMaintenanceJobData> | null> {
   const job = await executeQueueOperation(QueueName.PARTITION_MAINTENANCE, () =>
     partitionMaintenanceQueue.add(
@@ -69,7 +70,7 @@ export async function scheduleSmartPartitionMaintenance(
       {
         // Run once per day at 2 AM
         repeat: {
-          pattern: '0 2 * * *',
+          pattern: cronPattern,
         },
         jobId: 'daily-partition-maintenance', // Prevent duplicates
       },
@@ -83,7 +84,9 @@ export async function scheduleSmartPartitionMaintenance(
  * Moves records from default partitions to proper partitions
  * Returns null if queues are disabled
  */
-export async function scheduleDefaultPartitionDraining(): Promise<Job<PartitionMaintenanceJobData> | null> {
+export async function scheduleDefaultPartitionDraining(
+  cronPattern = '0 */4 * * *',
+): Promise<Job<PartitionMaintenanceJobData> | null> {
   const job = await executeQueueOperation(QueueName.PARTITION_MAINTENANCE, () =>
     partitionMaintenanceQueue.add(
       'drain-defaults',
@@ -93,7 +96,7 @@ export async function scheduleDefaultPartitionDraining(): Promise<Job<PartitionM
       {
         // Run every 4 hours
         repeat: {
-          pattern: '0 */4 * * *',
+          pattern: cronPattern,
         },
         jobId: 'drain-default-partitions', // Prevent duplicates
       },

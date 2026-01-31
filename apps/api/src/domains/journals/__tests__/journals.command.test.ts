@@ -8,7 +8,10 @@ import {
   getTestUserId,
   US_USER_EMAIL,
 } from '../../../../test/helpers.js';
-import { postJournalRecord } from '../journals.command.js';
+import {
+  postJournalRecord,
+  reverseJournalRecord,
+} from '../journals.command.js';
 
 describe('postJournalRecord - Integration Tests', () => {
   let trx: Knex.Transaction;
@@ -17,12 +20,14 @@ describe('postJournalRecord - Integration Tests', () => {
   let usdCurrencyId: string;
   let ngnCurrencyId: string;
   let testCoaIds: { cash: string; expense: string };
+  let otherCompanyId: string;
 
   beforeEach(async () => {
     const db = getTestDb();
     trx = await db.transaction();
 
     testCompanyId = await getTestCompanyId(trx, 'bizDemoUS');
+    otherCompanyId = await getTestCompanyId(trx, 'firmDemoUS');
     testUserId = await getTestUserId(trx, US_USER_EMAIL);
     usdCurrencyId = await getCurrencyId(trx, 'USD');
     ngnCurrencyId = await getCurrencyId(trx, 'NGN');
@@ -232,5 +237,279 @@ describe('postJournalRecord - Integration Tests', () => {
         trx,
       }),
     ).rejects.toThrow('Journal reference already exists');
+  });
+
+  describe('Decimal validation', () => {
+    it('rejects entries with more than 2 decimal places', async () => {
+      await expect(
+        postJournalRecord({
+          data: {
+            date: '2025-01-25',
+            title: 'Invalid Decimals',
+            status: 'posted',
+            currencyId: usdCurrencyId,
+            entries: [
+              {
+                description: 'Cash',
+                coaId: testCoaIds.cash,
+                amount: 10.123,
+                side: 'debit',
+              },
+              {
+                description: 'Expense',
+                coaId: testCoaIds.expense,
+                amount: 10.123,
+                side: 'credit',
+              },
+            ],
+          },
+          companyId: testCompanyId,
+          userId: testUserId,
+          trx,
+        }),
+      ).rejects.toThrow(/Amount cannot have more than 2 decimal places/);
+    });
+
+    it('accepts entries with exactly 2 decimal places', async () => {
+      const result = await postJournalRecord({
+        data: {
+          date: '2025-01-26',
+          title: 'Two Decimals',
+          status: 'posted',
+          currencyId: usdCurrencyId,
+          entries: [
+            {
+              description: 'Cash',
+              coaId: testCoaIds.cash,
+              amount: 10.12,
+              side: 'debit',
+            },
+            {
+              description: 'Expense',
+              coaId: testCoaIds.expense,
+              amount: 10.12,
+              side: 'credit',
+            },
+          ],
+        },
+        companyId: testCompanyId,
+        userId: testUserId,
+        trx,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts entries with 1 decimal place', async () => {
+      const result = await postJournalRecord({
+        data: {
+          date: '2025-01-27',
+          title: 'One Decimal',
+          status: 'posted',
+          currencyId: usdCurrencyId,
+          entries: [
+            {
+              description: 'Cash',
+              coaId: testCoaIds.cash,
+              amount: 10.5,
+              side: 'debit',
+            },
+            {
+              description: 'Expense',
+              coaId: testCoaIds.expense,
+              amount: 10.5,
+              side: 'credit',
+            },
+          ],
+        },
+        companyId: testCompanyId,
+        userId: testUserId,
+        trx,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts integer entries', async () => {
+      const result = await postJournalRecord({
+        data: {
+          date: '2025-01-28',
+          title: 'Integer',
+          status: 'posted',
+          currencyId: usdCurrencyId,
+          entries: [
+            {
+              description: 'Cash',
+              coaId: testCoaIds.cash,
+              amount: 10,
+              side: 'debit',
+            },
+            {
+              description: 'Expense',
+              coaId: testCoaIds.expense,
+              amount: 10,
+              side: 'credit',
+            },
+          ],
+        },
+        companyId: testCompanyId,
+        userId: testUserId,
+        trx,
+      });
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('reverseJournalRecord - Integration Tests', () => {
+    it('voids a draft journal and marks it deleted', async () => {
+      const draft = await postJournalRecord({
+        data: {
+          date: '2025-02-01',
+          title: 'Draft To Void',
+          status: 'draft',
+          currencyId: usdCurrencyId,
+          entries: [
+            {
+              description: 'Cash',
+              coaId: testCoaIds.cash,
+              amount: 15,
+              side: 'debit',
+            },
+            {
+              description: 'Expense',
+              coaId: testCoaIds.expense,
+              amount: 15,
+              side: 'credit',
+            },
+          ],
+        },
+        companyId: testCompanyId,
+        userId: testUserId,
+        trx,
+      });
+
+      expect(draft.success).toBe(true);
+
+      const result = await reverseJournalRecord({
+        journalBatchId: draft.data!.journalBatchId,
+        companyId: testCompanyId,
+        userId: testUserId,
+        trx,
+      });
+
+      expect(result.success).toBe(true);
+
+      const batch = await trx('journal_batches')
+        .where('id', draft.data!.journalBatchId)
+        .first('status', 'is_deleted', 'voided_at');
+
+      expect(batch.status).toBe('voided');
+      expect(batch.is_deleted).toBe(true);
+      expect(batch.voided_at).not.toBeNull();
+
+      const entries = await trx('journal_entries')
+        .where('journal_batch_id', draft.data!.journalBatchId)
+        .select('is_deleted');
+      expect(entries.every((e) => e.is_deleted)).toBe(true);
+    });
+
+    it('reverses a posted journal and links original/reversal', async () => {
+      const posted = await postJournalRecord({
+        data: {
+          date: '2025-02-02',
+          title: 'Posted To Reverse',
+          status: 'posted',
+          currencyId: usdCurrencyId,
+          entries: [
+            {
+              description: 'Cash',
+              coaId: testCoaIds.cash,
+              amount: 40,
+              side: 'debit',
+            },
+            {
+              description: 'Expense',
+              coaId: testCoaIds.expense,
+              amount: 40,
+              side: 'credit',
+            },
+          ],
+        },
+        companyId: testCompanyId,
+        userId: testUserId,
+        trx,
+      });
+
+      expect(posted.success).toBe(true);
+
+      const reversal = await reverseJournalRecord({
+        journalBatchId: posted.data!.journalBatchId,
+        companyId: testCompanyId,
+        userId: testUserId,
+        reversalReason: 'Test reversal',
+        reversalDate: new Date('2025-02-03'),
+        trx,
+      });
+
+      expect(reversal.success).toBe(true);
+      expect(reversal.data?.reversalJournalId).toBeTruthy();
+
+      const original = await trx('journal_batches')
+        .where('id', posted.data!.journalBatchId)
+        .first('reversal_journal_id', 'reversed_at');
+
+      expect(original.reversal_journal_id).toBe(
+        reversal.data!.reversalJournalId,
+      );
+      expect(original.reversed_at).not.toBeNull();
+
+      const reversalBatch = await trx('journal_batches')
+        .where('id', reversal.data!.reversalJournalId)
+        .first('original_journal_id', 'date');
+
+      expect(reversalBatch.original_journal_id).toBe(
+        posted.data!.journalBatchId,
+      );
+      expect(new Date(reversalBatch.date).toISOString()).toBe(
+        '2025-02-03T00:00:00.000Z',
+      );
+    });
+
+    it('rejects reversal when company does not own the journal', async () => {
+      const posted = await postJournalRecord({
+        data: {
+          date: '2025-02-04',
+          title: 'Posted Wrong Company',
+          status: 'posted',
+          currencyId: usdCurrencyId,
+          entries: [
+            {
+              description: 'Cash',
+              coaId: testCoaIds.cash,
+              amount: 25,
+              side: 'debit',
+            },
+            {
+              description: 'Expense',
+              coaId: testCoaIds.expense,
+              amount: 25,
+              side: 'credit',
+            },
+          ],
+        },
+        companyId: testCompanyId,
+        userId: testUserId,
+        trx,
+      });
+
+      expect(posted.success).toBe(true);
+
+      await expect(
+        reverseJournalRecord({
+          journalBatchId: posted.data!.journalBatchId,
+          companyId: otherCompanyId,
+          userId: testUserId,
+          trx,
+        }),
+      ).rejects.toThrow('Journal batch not found for company');
+    });
   });
 });

@@ -5,7 +5,12 @@ import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
 import { toYMD } from '../../shared/index.js';
+import {
+  acquireAdvisoryXactLocks,
+  lockKeyCompany,
+} from '../../shared/services/advisoryLocks.service.js';
 import { logger } from '../../shared/utils/logger.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   AppError,
   ErrorCode,
@@ -16,6 +21,12 @@ import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import { createLedgerRecord } from '../ledgers/ledgers.model.js';
 import { persistTxnFiles } from '../objects/txn-files/txn-files.service.js';
 import { ensureAndFetchFiscalCalendar } from '../reporting/fiscal-calendar/index.js';
+import { scheduleJournalAutoReversal } from './auto-reversal.queue.js';
+import {
+  writeJournalCreateAudit,
+  writeJournalReverseAudit,
+  writeJournalVoidAudit,
+} from './journals.audit.js';
 import { generateJournalReference } from './journals.reference.js';
 import { journalBatchDataCamel } from './journals.types.js';
 import { validateDebitCreditBalance } from './journals.utils.js';
@@ -170,6 +181,8 @@ export async function postJournalRecord({
     const reportingCurrencyId = company.reporting_currency_id as string;
     const journalCurrencyId = batch.currency_id || reportingCurrencyId;
     const isFx = journalCurrencyId !== reportingCurrencyId;
+
+    await acquireAdvisoryXactLocks(txn, [lockKeyCompany(companyUUID)]);
 
     const currency = await txn('currencies')
       .where('id', journalCurrencyId)
@@ -360,6 +373,7 @@ export async function postJournalRecord({
 
       note: batch.note,
       auto_reversal_date: batch.auto_reversal_date,
+      original_journal_id: batch.original_journal_id ?? null,
 
       // Both is_recurring and recurring_template_id should be set together
       is_recurring: isRecurring,
@@ -525,7 +539,29 @@ export async function postJournalRecord({
       });
     }
 
-    // If there is auto-reversal date, we should create a job for it
+    await writeJournalCreateAudit({
+      entityId: journalBatchId,
+      companyId: companyUUID,
+      actor: { type: 'user', userId },
+      payload: {
+        status: batch.status,
+        reference: journalReference,
+        currencyId: journalCurrencyId,
+        isFx,
+        exchangeRate: isFx ? exchangeRate : null,
+        entryCount: entries.length,
+        totalDebits: balanceValidation.totalDebits!,
+        totalCredits: balanceValidation.totalCredits!,
+        contactId,
+        isRecurring,
+        ledgerTransactionId,
+      },
+      trx: txn,
+    });
+
+    log('audit_event_created', { action: 'journal.create' });
+
+    // Auto-reversal scheduling handled after transaction commit
     log('completed', {
       journalBatchId,
       ledgerTransactionId,
@@ -546,6 +582,23 @@ export async function postJournalRecord({
   try {
     // Use existing transaction or create new one (but not both)
     const result = trx ? await exec(trx) : await knexClient.transaction(exec);
+
+    if (data.status === 'posted' && data.autoReversalDate) {
+      scheduleJournalAutoReversal({
+        journalBatchId: result.journalBatchId,
+        companyId,
+        reversalDate: data.autoReversalDate,
+      }).catch((error) =>
+        log(
+          'auto_reversal_schedule_failed',
+          {
+            journalBatchId: result.journalBatchId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'error',
+        ),
+      );
+    }
     const message =
       data.status === 'posted'
         ? 'Journal posted successfully'
@@ -569,12 +622,14 @@ export async function postJournalRecord({
 
 export async function reverseJournalRecord({
   journalBatchId,
+  companyId,
   userId,
   reversalReason,
   reversalDate,
   trx,
 }: {
   journalBatchId: string;
+  companyId: string;
   userId: string;
   reversalReason?: string;
   reversalDate?: Date;
@@ -583,14 +638,20 @@ export async function reverseJournalRecord({
   const startTime = Date.now();
   const traceId = randomUUID();
 
-  const log = (phase: string, data?: Record<string, any>) => {
+  const log = (
+    phase: string,
+    data?: Record<string, any>,
+    level: 'info' | 'error' = 'info',
+  ) => {
     const duration_ms = Date.now() - startTime;
-    logger.info(
+    const fn = level === 'error' ? logger.error : logger.info;
+    fn(
       {
         traceId,
         phase,
         duration_ms,
         journalBatchId,
+        companyId,
         userId,
         ...data,
       },
@@ -600,23 +661,27 @@ export async function reverseJournalRecord({
 
   log('starting');
 
-  const executeTransaction = async (
+  const exec = async (
     tx: Knex.Transaction,
-  ): Promise<ApiResponse<{ reversalJournalId?: string }>> => {
+  ): Promise<{ reversalJournalId?: string }> => {
+    const companyUUID = await getCompanyUUID(companyId, tx);
+
     const journalBatch = await tx('journal_batches')
       .where('id', journalBatchId)
+      .where('company_id', companyUUID)
       .where('is_deleted', false)
+      .forUpdate()
       .first();
 
     if (!journalBatch) {
-      throw new Error('Journal batch not found or already deleted');
+      throw new Error('Journal batch not found for company');
     }
 
     if (journalBatch.status === 'voided') {
       throw new Error('Journal batch is already voided');
     }
 
-    if (journalBatch.reversed_at) {
+    if (journalBatch.reversed_at || journalBatch.reversal_journal_id) {
       throw new Error('Journal batch has already been reversed');
     }
 
@@ -636,6 +701,7 @@ export async function reverseJournalRecord({
         is_deleted: true,
         updated_at: new Date(),
         deleted_at: new Date(),
+        voided_at: new Date(),
       });
 
       await tx('journal_entries')
@@ -648,23 +714,22 @@ export async function reverseJournalRecord({
 
       log('draft_journal_voided');
 
-      await tx('audit_events').insert({
-        entity_type: 'journal',
-        entity_id: journalBatchId,
-        action: 'void',
+      await writeJournalVoidAudit({
+        entityId: journalBatchId,
+        companyId: journalBatch.company_id,
+        actor: { type: 'user', userId },
         payload: {
-          previous_status: journalBatch.status,
-          voided_by: userId,
-          voided_at: new Date().toISOString(),
+          previousStatus: 'draft',
+          reference: journalBatch.reference ?? null,
+          voidReason: null,
         },
-        company_id: journalBatch.company_id,
-        user_id: userId,
         notes: `Draft journal batch voided by user ${userId}`,
+        trx: tx,
       });
 
       log('audit_event_created');
 
-      return successResponse('Draft journal batch voided successfully', {});
+      return {};
     }
 
     log('handling_posted_journal');
@@ -676,7 +741,7 @@ export async function reverseJournalRecord({
     const originalEntries = await tx('journal_entries')
       .where('journal_batch_id', journalBatchId)
       .where('is_deleted', false)
-      .select('coa_id', 'amount', 'side', 'description');
+      .select('coa_id', 'amount', 'side', 'description', 'project_id');
 
     if (originalEntries.length === 0) {
       throw new Error('No journal entries found for reversal');
@@ -684,6 +749,7 @@ export async function reverseJournalRecord({
 
     const reversingEntries = originalEntries.map((entry) => ({
       coaId: entry.coa_id,
+      projectId: entry.project_id ?? null,
       amount: Number(entry.amount),
       side: entry.side === 'debit' ? ('credit' as const) : ('debit' as const),
       description: `Reversal: ${entry.description || journalBatch.title}`,
@@ -704,7 +770,10 @@ export async function reverseJournalRecord({
         note: journalBatch.note,
         contactId: journalBatch.contact_id,
         currencyId: journalBatch.currency_id,
-        exchangeRate: journalBatch.exchange_rate,
+        exchangeRate: journalBatch.exchange_rate
+          ? Number(journalBatch.exchange_rate)
+          : undefined,
+        originalJournalId: journalBatchId,
         entries: reversingEntries,
       },
       companyId: journalBatch.company_id,
@@ -726,47 +795,52 @@ export async function reverseJournalRecord({
         reversed_by_id: userId,
         reversed_at: new Date(),
         reversal_reason: reversalReason || null,
+        reversal_journal_id: reversalResult.data.journalBatchId,
         updated_by_id: userId,
         updated_at: new Date(),
       });
 
     log('original_journal_marked_reversed');
 
-    await tx('audit_events').insert({
-      entity_type: 'journal',
-      entity_id: journalBatchId,
-      action: 'reverse',
+    await writeJournalReverseAudit({
+      entityId: journalBatchId,
+      companyId: journalBatch.company_id,
+      actor: { type: 'user', userId },
       payload: {
-        previous_status: journalBatch.status,
-        reversed_by: userId,
-        reversed_at: new Date().toISOString(),
-        reversal_journal_id: reversalResult.data.journalBatchId,
-        reversal_reason: reversalReason,
-        ledger_transaction_id: journalBatch.ledger_transaction_id,
+        previousStatus: 'posted',
+        reference: journalBatch.reference ?? null,
+        ledgerTransactionId: journalBatch.ledger_transaction_id,
+        reversalJournalId: reversalResult.data.journalBatchId,
+        reversalReference: reversalResult.data.journalReference ?? null,
+        reversalDate: effectiveReversalDate,
+        reversalReason: reversalReason ?? null,
       },
-      company_id: journalBatch.company_id,
-      user_id: userId,
       notes: `Posted journal batch reversed by user ${userId}${reversalReason ? `: ${reversalReason}` : ''}`,
+      trx: tx,
     });
 
     log('audit_event_created');
 
-    return successResponse('Posted journal batch reversed successfully', {
-      reversalJournalId: reversalResult.data.journalBatchId,
-    });
+    return { reversalJournalId: reversalResult.data.journalBatchId };
   };
 
   try {
     if (trx) {
-      return await executeTransaction(trx);
+      const result = await exec(trx);
+      return successResponse('Journal batch reversed successfully', result);
     }
-    return await knexClient.transaction(executeTransaction);
+    const result = await knexClient.transaction(exec);
+    return successResponse('Journal batch reversed successfully', result);
   } catch (error) {
-    log('error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    log(
+      'error',
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      'error',
+    );
     if (trx) throw error;
-    return errorResponse('Failed to void journal batch', {
+    return errorResponse('Failed to reverse journal batch', {
       error: error instanceof Error ? error.message : 'Unknown error',
       traceId,
     });

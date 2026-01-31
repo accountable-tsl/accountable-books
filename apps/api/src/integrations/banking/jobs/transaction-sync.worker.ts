@@ -2,8 +2,8 @@ import type { Job } from 'bullmq';
 import { JobScheduler, Worker } from 'bullmq';
 import pino from 'pino';
 
-import { ENV } from '../../../config/env.js';
 import { getAllActiveCredentials } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
+import { getJobSchedule } from '../../../jobs/schedules.js';
 import { redis } from '../../../lib/redis.js';
 import { transactionSyncService } from '../services/transaction-sync.service.js';
 import {
@@ -365,10 +365,10 @@ export function startTransactionSyncWorker(concurrency = 3) {
 
     // Schedule the daily scan job on worker startup using environment-configured cron pattern
     try {
-      const cronPattern = ENV.TRANSACTION_SYNC_CRON || '0 2 * * *';
-      await scheduleDailySyncScan(cronPattern);
+      const syncSchedule = getJobSchedule('transactionSyncDailyScan');
+      await scheduleDailySyncScan(syncSchedule.cron);
       logger.info(
-        { cronPattern },
+        { cronPattern: syncSchedule.cron, tz: syncSchedule.tz },
         'Daily sync scan job scheduled with cron pattern',
       );
     } catch (error) {

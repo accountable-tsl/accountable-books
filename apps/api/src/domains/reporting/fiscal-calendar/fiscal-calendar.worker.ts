@@ -3,6 +3,7 @@ import { Job, Worker } from 'bullmq';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
+import { acquireAdvisoryXactLockPair } from '../../../shared/services/advisoryLocks.service.js';
 import { isValidYMD } from '../../../shared/utils/date.utils.js';
 import logger from '../../../shared/utils/logger.js';
 import { enqueueAutoExtend } from './fiscal-calendar.queue.js';
@@ -44,7 +45,7 @@ function hash32(s: string): number {
 }
 
 /**
- * Acquire pg_advisory_xact_lock(companyId, periodTypeOrAny) inside a DB transaction,
+ * Acquire a transaction-scoped advisory lock inside a DB transaction,
  * pass the transaction to the provided function, and auto-release on commit/rollback.
  * Acquire PostgreSQL advisory lock for company calendar operations
  * Prevents concurrent modifications to the same company's fiscal calendar
@@ -57,7 +58,7 @@ async function withAdvisoryTxLock<T>(
   return knexClient.transaction(async (trx) => {
     const k1 = hash32(`fiscal:${companyId}`);
     const k2 = hash32(`type:${periodType}`);
-    await trx.raw('SELECT pg_advisory_xact_lock(?, ?)', [k1, k2]); // waits
+    await acquireAdvisoryXactLockPair(trx, k1, k2);
     return fn(trx);
   });
 }

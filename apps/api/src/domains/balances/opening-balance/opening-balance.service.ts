@@ -278,6 +278,7 @@ export async function setBankOpeningBalance({
       if (reverseOld && existingBaseline.journal_batch_id) {
         await reverseJournalRecord({
           journalBatchId: existingBaseline.journal_batch_id,
+          companyId: bankAccount.company_id,
           reversalReason: `Superseded by opening balance dated ${asOfDateYmd}`,
           userId,
           trx: tx,

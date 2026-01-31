@@ -8,6 +8,7 @@ import {
   startRuleRunnerWorker,
 } from '../../domains/categorization/index.js';
 import { startFiscalCalendarWorker } from '../../domains/reporting/fiscal-calendar/index.js';
+import { startJournalAutoReversalWorker } from '../../domains/journals/auto-reversal.worker.js';
 import { startEmailWorker } from '../../features/communications/email/index.js';
 import { startTransactionSyncWorker } from '../../integrations/banking/index.js';
 import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
@@ -40,6 +41,9 @@ export interface WorkerConfig {
   autopost: {
     concurrency: number;
   };
+  journalAutoReversal: {
+    concurrency: number;
+  };
 }
 
 // Default worker configuration
@@ -70,6 +74,9 @@ const DEFAULT_WORKER_CONFIG: WorkerConfig = {
   },
   autopost: {
     concurrency: Number(process.env.AUTOPOST_WORKER_CONCURRENCY) || 5,
+  },
+  journalAutoReversal: {
+    concurrency: Number(process.env.JOURNAL_AUTO_REVERSAL_CONCURRENCY) || 1,
   },
 };
 
@@ -204,6 +211,20 @@ export async function startAllWorkers(
     console.error('❌ Failed to start autopost worker:', error);
     // Autopost is not critical for core operations, so just log the error
     console.log('⚠️  Continuing without autopost worker');
+  }
+
+  // Start journal auto-reversal worker
+  try {
+    console.log('🧾 Starting journal auto-reversal worker...');
+    const journalAutoReversalWorker = startJournalAutoReversalWorker(
+      workerConfig.journalAutoReversal.concurrency,
+    );
+    activeWorkers.set('journalAutoReversal', journalAutoReversalWorker);
+    workers.push(journalAutoReversalWorker);
+    console.log('✅ Journal auto-reversal worker started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start journal auto-reversal worker:', error);
+    console.log('⚠️  Continuing without journal auto-reversal worker');
   }
 
   console.log(`✅ Started ${workers.length} workers successfully`);

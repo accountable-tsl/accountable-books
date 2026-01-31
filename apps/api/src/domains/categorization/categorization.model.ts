@@ -13,6 +13,10 @@ import {
 import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
+import {
+  acquireAdvisoryXactLocks,
+  lockKeyCategorizationIntent,
+} from '../../shared/services/advisoryLocks.service.js';
 import { toYMD } from '../../shared/utils/date.utils.js';
 import { logger } from '../../shared/utils/logger.js';
 import {
@@ -479,12 +483,10 @@ export async function processCategorizationIntent({
     // intent processing for the same transactions. Sorted to prevent deadlocks
     // when two requests target overlapping sets in different order.
     // These locks are automatically released when the transaction commits or rolls back.
-    const sortedLockIds = [...bankTransactionIds].sort();
-    for (const bankTxnId of sortedLockIds) {
-      await txn.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [
-        `cat_intent:${bankTxnId}`,
-      ]);
-    }
+    await acquireAdvisoryXactLocks(
+      txn,
+      bankTransactionIds.map(lockKeyCategorizationIntent),
+    );
 
     // Fetch all transactions in one go
     // Categorization view because it kind of helps to easily figure out current status

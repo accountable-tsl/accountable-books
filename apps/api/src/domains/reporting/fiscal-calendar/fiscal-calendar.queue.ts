@@ -294,7 +294,10 @@ export async function enqueueFillCoverageGaps(
 /**
  * Schedule nightly auto-extend job for all active companies
  */
-export async function scheduleNightlyAutoExtend(): Promise<void> {
+export async function scheduleNightlyAutoExtend(
+  cronPattern = '0 2 * * *',
+  tz = 'UTC',
+): Promise<void> {
   // Add repeatable job that runs nightly at 2 AM
   await executeQueueOperation(QueueName.FISCAL_CALENDAR, () =>
     fiscalCalendarQueue.add(
@@ -307,8 +310,8 @@ export async function scheduleNightlyAutoExtend(): Promise<void> {
       } satisfies AutoExtendJobData,
       {
         repeat: {
-          pattern: '0 2 * * *', // Cron: 2 AM daily
-          tz: 'UTC', // Use UTC to avoid timezone confusion
+          pattern: cronPattern, // Cron: 2 AM daily (default)
+          tz, // Use UTC to avoid timezone confusion
         },
         jobId: 'nightly-auto-extend-scheduler',
         priority: PRIORITIES.AUTO_EXTEND,
@@ -316,16 +319,21 @@ export async function scheduleNightlyAutoExtend(): Promise<void> {
     ),
   );
 
-  console.log('📅 Scheduled nightly auto-extend job (2 AM daily)');
+  console.log(
+    `📅 Scheduled nightly auto-extend job (${cronPattern} ${tz || ''})`,
+  );
 }
 
 /**
  * Remove nightly auto-extend schedule
  */
-export async function unscheduleNightlyAutoExtend(): Promise<void> {
+export async function unscheduleNightlyAutoExtend(
+  cronPattern = '0 2 * * *',
+  tz = 'UTC',
+): Promise<void> {
   await fiscalCalendarQueue.removeRepeatable('nightly-auto-extend-all', {
-    pattern: '0 2 * * *',
-    tz: 'UTC',
+    pattern: cronPattern,
+    tz,
   });
 
   console.log('📅 Unscheduled nightly auto-extend job');

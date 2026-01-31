@@ -18,6 +18,7 @@ export enum QueueName {
   FISCAL_CALENDAR = 'fiscal-calendar',
   PARTITION_MAINTENANCE = 'partition-maintenance',
   AUTOPOST = 'categorization-autopost',
+  JOURNAL_AUTO_REVERSAL = 'journal-auto-reversal',
 }
 
 /**
