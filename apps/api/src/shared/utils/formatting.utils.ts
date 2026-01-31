@@ -129,6 +129,43 @@ export function createCamelCaseSchema<T extends z.ZodTypeAny>(snakeSchema: T) {
   return z.preprocess(camelToSnake, snakeSchema);
 }
 
+/**
+ * Creates a Zod schema that preprocesses input by converting camelCase keys to
+ * snake_case before validation, while allowing some top-level keys to be left
+ * untouched (e.g. `payload` where the shape is domain-specific and should not
+ * be transformed).
+ */
+export function createCamelCaseSchemaWithExclusions<T extends z.ZodTypeAny>(
+  snakeSchema: T,
+  options: { excludeKeys: readonly string[] },
+) {
+  const exclude = new Set(options.excludeKeys);
+
+  return z.preprocess((input) => {
+    if (!input || typeof input !== 'object' || input instanceof Date) {
+      return input;
+    }
+    if (Array.isArray(input)) return input;
+
+    const obj = input as Record<string, unknown>;
+
+    const excluded: Record<string, unknown> = {};
+    const rest: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (exclude.has(key)) {
+        excluded[key] = value;
+      } else {
+        rest[key] = value;
+      }
+    }
+
+    return {
+      ...(camelToSnake(rest) as Record<string, unknown>),
+      ...excluded,
+    };
+  }, snakeSchema);
+}
+
 function isPlainObject(value: unknown): value is Record<string, any> {
   return Object.prototype.toString.call(value) === '[object Object]';
 }

@@ -3,6 +3,11 @@ import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
 import { logger } from '../../shared/index.js';
+import {
+  acquireAdvisoryXactLocks,
+  lockKeyBankTxn,
+  lockKeyCompany,
+} from '../../shared/services/advisoryLocks.service.js';
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
 import { toYMD } from '../../shared/utils/date.utils.js';
 import {
@@ -115,26 +120,17 @@ export async function createLedgerRecordsBatch({
         ? fxSettingsResult.data.track_fx_positions
         : false;
 
-    // STEP 2: ADVISORY LOCK (ONCE FOR ALL)
-    await txn.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [companyUUID]);
-
-    // Collect all bank transaction IDs to lock
-    const bankTxnIdsForLock = new Set<string>();
+    // STEP 2: ADVISORY LOCKS (ONCE FOR ALL, DETERMINISTIC ORDER)
+    const advisoryKeys = [lockKeyCompany(companyUUID)];
     for (const tx of validatedTransactions) {
       if (
         tx.transaction_source === 'bank_transaction' &&
         tx.source_transaction_id
       ) {
-        bankTxnIdsForLock.add(tx.source_transaction_id);
+        advisoryKeys.push(lockKeyBankTxn(tx.source_transaction_id));
       }
     }
-
-    // Lock all bank transactions at once
-    for (const bankTxnId of bankTxnIdsForLock) {
-      await txn.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [
-        `bank_txn:${bankTxnId}`,
-      ]);
-    }
+    await acquireAdvisoryXactLocks(txn, advisoryKeys);
 
     // STEP 3: PARTITION MANAGEMENT (ONCE FOR ALL)
     // Collect all unique dates across all transactions

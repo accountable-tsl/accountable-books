@@ -3,6 +3,13 @@ import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
 import { logger } from '../../shared/index.js';
+import {
+  acquireAdvisoryXactLocks,
+  isDeadlockError,
+  lockKeyBankTxn,
+  lockKeyCompany,
+  sleep,
+} from '../../shared/services/advisoryLocks.service.js';
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
 import { toYMD } from '../../shared/utils/date.utils.js';
 import {
@@ -183,15 +190,12 @@ export async function createLedgerRecord({
     // 1. The company (prevents concurrent modifications to the same company's ledger)
     // 2. The bank transaction (if applicable, prevents duplicate ledger transactions)
     // These locks are automatically released when the transaction commits or rolls back
-    await txn.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [companyUUID]);
-
-    // Only lock the bank transaction if this is actually a bank transaction
-    // (sourceTxId might exist for other transaction types, but we don't need to lock it)
+    const advisoryKeys = [lockKeyCompany(companyUUID)];
+    // Only lock the bank transaction if this is actually a bank transaction.
     if (sourceTxId && isBankTransaction) {
-      await txn.raw(`SELECT pg_advisory_xact_lock(hashtext(?))`, [
-        `bank_txn:${sourceTxId}`,
-      ]);
+      advisoryKeys.push(lockKeyBankTxn(sourceTxId));
     }
+    await acquireAdvisoryXactLocks(txn, advisoryKeys);
 
     // STEP 4: PARTITION MANAGEMENT
     // PostgreSQL partitions the ledger_entries table by date for performance
@@ -703,8 +707,29 @@ export async function createLedgerRecord({
   // If an existing transaction was provided, use it (for nested transactions)
   // Otherwise, create a new transaction (auto-commits on success, auto-rolls back on error)
   try {
-    const result = trx ? await exec(trx) : await knexClient.transaction(exec);
-    return successResponse('Ledger transaction created', result);
+    if (trx) {
+      const result = await exec(trx);
+      return successResponse('Ledger transaction created', result);
+    }
+
+    const maxAttempts = 3;
+    let attempt = 0;
+    while (attempt < maxAttempts) {
+      try {
+        const result = await knexClient.transaction(exec);
+        return successResponse('Ledger transaction created', result);
+      } catch (err) {
+        attempt += 1;
+        if (!isDeadlockError(err) || attempt >= maxAttempts) {
+          throw err;
+        }
+        // Simple exponential backoff to reduce contention.
+        await sleep(25 * attempt * attempt);
+      }
+    }
+
+    // Unreachable, but keeps TS happy.
+    throw new Error('Failed to create ledger transaction after retries');
   } catch (err) {
     // Log the error for debugging and monitoring
     logger.error(

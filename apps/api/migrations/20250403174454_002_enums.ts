@@ -65,12 +65,7 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists('journal_status', ['draft', 'posted', 'voided']),
   );
-  await knex.raw(
-    createEnumIfNotExists('journal_reversal_reason', [
-      'auto_reversal',
-      'voided',
-    ]),
-  );
+
   await knex.raw(
     createEnumIfNotExists('recurrence_frequency', [
       'daily',
@@ -165,7 +160,6 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP TYPE IF EXISTS contact_type`);
   await knex.raw(`DROP TYPE IF EXISTS recurring_journal_status`);
   await knex.raw(`DROP TYPE IF EXISTS recurrence_frequency`);
-  await knex.raw(`DROP TYPE IF EXISTS journal_reversal_reason`);
   await knex.raw(`DROP TYPE IF EXISTS journal_status`);
   // await knex.raw(`DROP TYPE IF EXISTS transaction_source`);
   // await knex.raw(`DROP TYPE IF EXISTS categorization_status`);

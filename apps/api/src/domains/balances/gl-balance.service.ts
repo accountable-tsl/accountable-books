@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
 import { knexClient as db } from '../../db/knexClient.js';
+import { acquireAdvisoryXactLockPair } from '../../shared/services/advisoryLocks.service.js';
 import {
   addDaysToYMD,
   isValidYMD,
@@ -323,7 +324,7 @@ class GLBalanceService {
       // Acquire pg advisory lock inside this transaction.
       // Use a 2-key lock: (namespace, hash(companyId:coaId))
       const key = hash32(`${companyUUID}:${coaUUID}`);
-      await txn.raw('SELECT pg_advisory_xact_lock(?, ?)', [GL_LOCK_NS, key]);
+      await acquireAdvisoryXactLockPair(txn, GL_LOCK_NS, key);
 
       return {
         companyUUID,

@@ -13,7 +13,13 @@ import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils
 export const journalEntryInput = z.object({
   description: z.string(),
   side: debitCredit,
-  amount: z.number(),
+  amount: z.number().refine(
+    (n) => {
+      const parts = n.toString().split('.');
+      return parts.length === 1 || parts[1].length <= 2;
+    },
+    { message: 'Amount cannot have more than 2 decimal places' },
+  ),
   coa_id: z.uuid(),
   project_id: z.uuid().nullish(),
 });
@@ -56,7 +62,7 @@ const baseJournalBatch = z.object({
   ledger_transaction_id: z.uuid().nullish(),
   company_id: z.uuid().nullish(),
 
-  auto_reversal_date: z.date().nullish(),
+  auto_reversal_date: z.iso.date().nullish(),
 
   is_recurring: z.boolean().nullish(),
   recurring_template_id: z.uuid().nullish(),
@@ -65,6 +71,7 @@ const baseJournalBatch = z.object({
   updated_by_id: z.uuid().nullish(),
   reversed_by_id: z.uuid().nullish(),
   reversed_at: z.iso.date().nullish(),
+  reversal_reason: z.string().max(2048).nullish(),
 
   reversal_journal_id: z.uuid().nullish(),
   original_journal_id: z.uuid().nullish(),

@@ -2,6 +2,10 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { logger } from '../../../shared/index.js';
+import {
+  acquireAdvisoryXactLocks,
+  lockKeyCompany,
+} from '../../../shared/services/advisoryLocks.service.js';
 import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
 import { getCompanySetting } from '../../settings/settings.service.js';
 import { getSystemUser } from '../../users/users.model.js';
@@ -140,6 +144,8 @@ export async function postCandidateToLedger({
       return { success: false, error: 'Bank transaction not found' };
     }
 
+    const companyUUID = bankTxn.company_id;
+
     // Check if already posted
     if (bankTxn.ledger_transaction_id) {
       logger.info(
@@ -155,8 +161,8 @@ export async function postCandidateToLedger({
       };
     }
 
-    // Use advisory lock to prevent concurrent posts for the same company
-    await txn.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [companyId]);
+    // Serialize per-company autopost to avoid duplicate posting races.
+    await acquireAdvisoryXactLocks(txn, [lockKeyCompany(companyUUID)]);
 
     // Double-check after acquiring lock (someone might have posted while waiting)
     const bankTxnAfterLock = await txn('bank_transactions')

@@ -79,7 +79,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('SET NULL');
     table.timestamp('reversed_at', { useTz: true }).nullable();
-    table.specificType('reversal_reason', 'journal_reversal_reason').nullable();
+    table.text('reversal_reason').nullable();
 
     table.timestamp('auto_reversal_date', { useTz: true }).nullable();
     table

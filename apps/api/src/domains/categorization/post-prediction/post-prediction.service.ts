@@ -3,6 +3,10 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { logger, toYMD } from '../../../shared/index.js';
+import {
+  acquireAdvisoryXactLocks,
+  lockKeyCategorizationTask,
+} from '../../../shared/services/advisoryLocks.service.js';
 import { runConstraints } from '../../constraints/constraint-runner.js';
 import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
 import { getSystemUser } from '../../users/users.model.js';
@@ -112,10 +116,9 @@ async function handleRulePrediction(
 ): Promise<PersistPredictionParams | null> {
   const { event, ruleResult, runId, error, rulesLatencyMs, trx } = params;
 
-  // Use the provided transaction (assumes it's already in a transaction)
   // Serialize candidate/prediction writes per task
-  await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
-    event.categorization_task_id,
+  await acquireAdvisoryXactLocks(trx, [
+    lockKeyCategorizationTask(event.categorization_task_id),
   ]);
 
   // Handle exception case (rules engine failed to complete)
@@ -657,8 +660,8 @@ async function processPredictionToCandidate({
     // Serialize candidate writes per task to prevent race conditions
     // This ensures only one candidate is processed at a time for a given task
     // Critical for ML path where multiple jobs might be enqueued concurrently
-    await txn.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
-      event.categorization_task_id,
+    await acquireAdvisoryXactLocks(txn, [
+      lockKeyCategorizationTask(event.categorization_task_id),
     ]);
 
     // Prediction is already persisted (via persistPredictionOnly)
