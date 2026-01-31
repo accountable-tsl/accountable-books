@@ -5,12 +5,13 @@ import pino from 'pino';
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
 import { getSystemUser } from '../users/users.model.js';
-import { reverseJournalRecord } from './journals.command.js';
 import {
   JOURNAL_AUTO_REVERSAL_QUEUE_NAME,
   journalAutoReversalJobDataSchema,
-  type JournalAutoReversalJobData,
 } from './auto-reversal.queue.js';
+import { reverseJournalRecord } from './journals.command.js';
+
+import type { JournalAutoReversalJobData } from './auto-reversal.queue.js';
 
 const logger = pino({ name: 'journal-auto-reversal-worker' });
 const PAGE_SIZE = 200;
@@ -117,7 +118,12 @@ async function processScanAutoReversals() {
 
   while (true) {
     const q = knexClient('journal_batches')
-      .where('auto_reversal_date', '<=', knexClient.fn.now())
+      // Interpret "due" using UTC date semantics (auto_reversal_date is a DATE).
+      .where(
+        'auto_reversal_date',
+        '<=',
+        knexClient.raw(`(timezone('utc', now()))::date`),
+      )
       .where('status', 'posted')
       .where('is_deleted', false)
       .whereNull('reversed_at')
@@ -158,14 +164,22 @@ async function processScanAutoReversals() {
 
         failed += 1;
         logger.error(
-          { journalBatchId: journal.id, companyId: journal.company_id, error: message },
+          {
+            journalBatchId: journal.id,
+            companyId: journal.company_id,
+            error: message,
+          },
           'Auto-reversal failed',
         );
       } catch (error) {
         failed += 1;
         const message = error instanceof Error ? error.message : String(error);
         logger.error(
-          { journalBatchId: journal.id, companyId: journal.company_id, error: message },
+          {
+            journalBatchId: journal.id,
+            companyId: journal.company_id,
+            error: message,
+          },
           'Auto-reversal failed',
         );
       }
@@ -178,9 +192,7 @@ async function processScanAutoReversals() {
   );
 }
 
-async function processAutoReversalJob(
-  job: Job<JournalAutoReversalJobData>,
-) {
+async function processAutoReversalJob(job: Job<JournalAutoReversalJobData>) {
   const validation = journalAutoReversalJobDataSchema.safeParse(job.data);
   if (!validation.success) {
     logger.error(

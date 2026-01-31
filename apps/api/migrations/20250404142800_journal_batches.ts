@@ -81,7 +81,7 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp('reversed_at', { useTz: true }).nullable();
     table.text('reversal_reason').nullable();
 
-    table.timestamp('auto_reversal_date', { useTz: true }).nullable();
+    table.date('auto_reversal_date').nullable();
     table
       .uuid('reversal_journal_id')
       .nullable()

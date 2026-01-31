@@ -584,20 +584,27 @@ export async function postJournalRecord({
     const result = trx ? await exec(trx) : await knexClient.transaction(exec);
 
     if (data.status === 'posted' && data.autoReversalDate) {
-      scheduleJournalAutoReversal({
-        journalBatchId: result.journalBatchId,
-        companyId,
-        reversalDate: data.autoReversalDate,
-      }).catch((error) =>
-        log(
-          'auto_reversal_schedule_failed',
-          {
-            journalBatchId: result.journalBatchId,
-            error: error instanceof Error ? error.message : String(error),
-          },
-          'error',
-        ),
-      );
+      if (trx) {
+        log('auto_reversal_deferred', {
+          journalBatchId: result.journalBatchId,
+          reason: 'external_transaction',
+        });
+      } else {
+        scheduleJournalAutoReversal({
+          journalBatchId: result.journalBatchId,
+          companyId,
+          reversalDate: data.autoReversalDate,
+        }).catch((error) =>
+          log(
+            'auto_reversal_schedule_failed',
+            {
+              journalBatchId: result.journalBatchId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+            'error',
+          ),
+        );
+      }
     }
     const message =
       data.status === 'posted'
